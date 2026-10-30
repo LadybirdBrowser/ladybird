@@ -7,28 +7,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Base64.h>
 #include <AK/String.h>
-#include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
 #include <AK/Vector.h>
 #include <LibGC/Function.h>
 #include <LibGC/Heap.h>
-#include <LibJS/Runtime/NativeFunction.h>
-#include <LibTextCodec/Decoder.h>
-#include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/PromiseRejectionEvent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/UniversalGlobalScope.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkletGlobalScope.h>
-#include <LibWeb/WebIDL/AbstractOperations.h>
-#include <LibWeb/WebIDL/DOMException.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
-#include <LibWebCommon/Infra/CharacterTypes.h>
-#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
 
@@ -45,73 +34,6 @@ void UniversalGlobalScopeMixin::visit_edges(GC::Cell::Visitor& visitor)
 {
     visitor.ignore(m_outstanding_rejected_promises_weak_set);
     visitor.visit(m_about_to_be_notified_rejected_promises_list);
-}
-
-// https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa
-WebIDL::ExceptionOr<Utf16String> UniversalGlobalScopeMixin::btoa(Utf16View data) const
-{
-    auto& vm = this_impl().vm();
-
-    // The btoa(data) method must throw an "InvalidCharacterError" DOMException if data contains any character whose code point is greater than U+00FF.
-    Vector<u8> byte_string;
-    byte_string.ensure_capacity(data.length_in_code_units());
-    for (u32 code_point : data) {
-        if (code_point > 0xff)
-            return WebIDL::InvalidCharacterError::create(*vm.current_realm(), "Data contains characters outside the range U+0000 and U+00FF"_utf16);
-        byte_string.append(code_point);
-    }
-
-    // Otherwise, the user agent must convert data to a byte sequence whose nth byte is the eight-bit representation of the nth code point of data,
-    // and then must apply forgiving-base64 encode to that byte sequence and return the result.
-    return TRY_OR_THROW_OOM(vm, encode_base64_to_utf16(byte_string.span()));
-}
-
-// https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
-WebIDL::ExceptionOr<Utf16String> UniversalGlobalScopeMixin::atob(Utf16View data) const
-{
-    auto& vm = this_impl().vm();
-    auto& realm = *vm.current_realm();
-
-    // 1. Let decodedData be the result of running forgiving-base64 decode on data.
-    ByteBuffer decoded_data;
-    TRY_OR_THROW_OOM(vm, decoded_data.try_resize(size_required_to_decode_base64(data)));
-    auto decode_result = decode_base64_into(data, decoded_data);
-
-    // 2. If decodedData is failure, then throw an "InvalidCharacterError" DOMException.
-    if (decode_result.is_error())
-        return WebIDL::InvalidCharacterError::create(realm, "Input string is not valid base64 data"_utf16);
-
-    // 3. Return decodedData.
-    Utf16StringBuilder builder { decoded_data.size() };
-    for (auto byte : decoded_data.bytes())
-        builder.append_code_unit(byte);
-    return builder.to_string();
-}
-
-// https://html.spec.whatwg.org/multipage/timers-and-user-prompts.html#dom-queuemicrotask
-void UniversalGlobalScopeMixin::queue_microtask(WebIDL::CallbackType& callback)
-{
-    GC::Ptr<DOM::Document> document;
-    if (is<Window>(this_impl()))
-        document = &static_cast<Window&>(this_impl()).associated_document();
-
-    // The queueMicrotask(callback) method must queue a microtask to invoke callback with « » and "report".
-    HTML::queue_a_microtask(document, GC::create_function(GC::Heap::the(), [&callback] {
-        (void)WebIDL::invoke_callback(callback, {}, WebIDL::ExceptionBehavior::Report, {});
-    }));
-}
-
-// https://html.spec.whatwg.org/multipage/structured-data.html#dom-structuredclone
-WebIDL::ExceptionOr<JS::Value> UniversalGlobalScopeMixin::structured_clone(JS::Realm& realm, JS::Value value, Bindings::StructuredSerializeOptions const& options)
-{
-    // 1. Let serialized be ? StructuredSerializeWithTransfer(value, options["transfer"]).
-    auto serialized = TRY(HTML::structured_serialize_with_transfer(realm, value, options.transfer));
-
-    // 2. Let deserializeRecord be ? StructuredDeserializeWithTransfer(serialized, this's relevant realm).
-    auto deserialized = TRY(HTML::structured_deserialize_with_transfer(serialized, realm));
-
-    // 3. Return deserializeRecord.[[Deserialized]].
-    return deserialized.deserialized;
 }
 
 void UniversalGlobalScopeMixin::push_onto_outstanding_rejected_promises_weak_set(GC::Ptr<JS::Promise> promise)
