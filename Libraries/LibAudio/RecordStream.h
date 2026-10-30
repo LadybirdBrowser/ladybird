@@ -12,6 +12,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/StringView.h>
 #include <LibAudio/Export.h>
+#include <LibAudio/PlaybackGroupId.h>
 #include <LibAudio/SampleSpecification.h>
 #include <LibCore/Promise.h>
 
@@ -32,7 +33,8 @@ public:
     // since only the AudioServer opens devices. The device id is a dom_device_id produced by
     // AudioDevices, or an empty string to capture from the default input device.
     // A stream the Browser refused is rejected with EPERM, and one whose device would not open with EIO.
-    static NonnullRefPtr<CreatePromise> create(StringView device_id, RecordCallback);
+    // The group names the page the stream captures for.
+    static NonnullRefPtr<CreatePromise> create(StringView device_id, PlaybackGroupId, RecordCallback);
 
     virtual ~RecordStream() = default;
 

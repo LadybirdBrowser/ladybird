@@ -25,7 +25,7 @@ class ServerConnection final
 
 public:
     // Asks the Browser whether the client's tab may capture from the device; the answer comes once, on this thread.
-    using CapturePermissionRequest = Function<void(ByteString const& device_id, Function<void(bool allowed)> on_decided)>;
+    using CapturePermissionRequest = Function<void(ByteString const& device_id, PlaybackGroupId, Function<void(bool allowed)> on_decided)>;
 
     virtual ~ServerConnection() override;
 
@@ -55,7 +55,7 @@ private:
     virtual void discard_stream(u64 stream_id, u64 request_id) override;
     virtual void set_stream_volume(u64 stream_id, float volume) override;
     virtual void watch_devices() override;
-    virtual void create_record_stream(u64 stream_id, ByteString device_id) override;
+    virtual void create_record_stream(u64 stream_id, ByteString device_id, PlaybackGroupId group) override;
     virtual void destroy_record_stream(u64 stream_id) override;
 
     void devices_changed();

@@ -13,9 +13,11 @@
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaCapture/MediaDevices.h>
 #include <LibWeb/MediaCapture/MediaStreamTrack.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::MediaCapture {
@@ -292,6 +294,17 @@ void MediaStreamTrack::start_audio_capture(GC::Ptr<GC::Function<void(ErrorOr<voi
     if (m_audio_capture_stream || m_audio_capture_start_pending)
         return;
 
+    // A device-backed track is tied to the mediaDevices that made it, and captures for its window's page. Another realm
+    // can keep the track once that window is gone, as after its iframe is removed, and then it has no page to capture for.
+    auto media_devices = m_media_devices.ptr();
+    if (!media_devices) {
+        if (on_started)
+            on_started->function()(Error::from_errno(EIO));
+        else
+            stop();
+        return;
+    }
+
     m_audio_capture_start_pending = true;
     auto capture_request_id = ++m_audio_capture_request_id;
 
@@ -299,7 +312,7 @@ void MediaStreamTrack::start_audio_capture(GC::Ptr<GC::Function<void(ErrorOr<voi
     if (auto id = device_id(); id.has_value())
         device_id_string = id->to_byte_string();
 
-    auto stream_promise = Audio::RecordStream::create(device_id_string,
+    auto stream_promise = media_devices->window().page().client().create_audio_record_stream(device_id_string,
         [fanout = m_audio_fanout](ReadonlyBytes data, Audio::SampleSpecification const& stream_specification) {
             // Runs on the audio backend's capture thread. Only the ref-counted fan-out is
             // captured here: the GC may reap the track while a callback is in flight, so the

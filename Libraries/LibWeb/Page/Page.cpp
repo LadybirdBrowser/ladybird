@@ -8,6 +8,7 @@
 
 #include <AK/SourceLocation.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibAudio/RecordStream.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGfx/Bitmap.h>
@@ -2830,6 +2831,11 @@ void Page::when_translation_settled(GC::Ref<GC::Function<void()>> callback)
 {
     m_translation_settled_callbacks.append(callback);
     notify_translation_progress();
+}
+
+NonnullRefPtr<Audio::RecordStream::CreatePromise> PageClient::create_audio_record_stream(StringView, Audio::RecordStream::RecordCallback)
+{
+    VERIFY_NOT_REACHED();
 }
 
 }

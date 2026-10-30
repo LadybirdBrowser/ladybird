@@ -15,7 +15,9 @@
 #include <AK/Queue.h>
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
+#include <LibAudio/Forward.h>
 #include <LibCompositing/Types.h>
+#include <LibCore/Forward.h>
 #include <LibGC/Root.h>
 #include <LibGC/Weak.h>
 #include <LibGfx/Cursor.h>
@@ -988,6 +990,8 @@ public:
     virtual NonnullOwnPtr<MediaClient::RemotePlaybackManager> create_media_playback_manager();
     // A media element adopted from another page's document plays its sound for this page from then on.
     virtual void rebind_media_playback_manager(MediaClient::RemotePlaybackManager&);
+    // Every microphone track captures through its own, for this page.
+    virtual NonnullRefPtr<Core::Promise<NonnullRefPtr<Audio::RecordStream>>> create_audio_record_stream(StringView device_id, Function<void(ReadonlyBytes, Audio::SampleSpecification const&)>);
     virtual void page_did_change_screen_wake_lock_state(ScreenWakeLockState) { }
 
     virtual void page_did_start_using_gamepads() { }

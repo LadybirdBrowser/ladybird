@@ -55,7 +55,7 @@ private:
     Tab& tab_for(u64 tab_id);
     Audio::CaptureDevices& capture_devices();
     void connection_died(u64 tab_id, int client_id);
-    void request_capture_permission(u64 tab_id, ByteString const& device_id, Function<void(bool)> on_decided);
+    void request_capture_permission(u64 tab_id, ByteString const& device_id, Audio::PlaybackGroupId, Function<void(bool)> on_decided);
 
     HashMap<u64, Tab> m_tabs;
     HashTable<u64> m_tabs_with_capture_permission;

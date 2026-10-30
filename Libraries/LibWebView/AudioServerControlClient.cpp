@@ -23,10 +23,10 @@ void AudioServerControlClient::die()
         on_death();
 }
 
-void AudioServerControlClient::capture_requested(u64 tab_id, u64 request_id, ByteString device_id)
+void AudioServerControlClient::capture_requested(u64 tab_id, u64 request_id, ByteString device_id, Audio::PlaybackGroupId group)
 {
     if (on_capture_requested)
-        on_capture_requested(tab_id, request_id, device_id);
+        on_capture_requested(tab_id, request_id, device_id, group);
 }
 
 void AudioServerControlClient::playback_group_audibility_changed(u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility)

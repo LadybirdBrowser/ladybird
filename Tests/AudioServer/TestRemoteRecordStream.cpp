@@ -54,9 +54,10 @@ struct RemoteCaptureFixture {
     RefPtr<Audio::ClientConnection> client;
     WeakPtr<Audio::ClientConnection> client_weak;
     bool server_died { false };
-    // The fixture stands in for the Browser: the devices it was asked about, and its answer. An answer withheld waits
-    // in pending_capture_decisions for the test to give.
+    // The fixture stands in for the Browser: the devices it was asked about and the groups they were asked for, and its
+    // answer. An answer withheld waits in pending_capture_decisions for the test to give.
     Vector<ByteString> capture_requests;
+    Vector<Audio::PlaybackGroupId> capture_request_groups;
     bool capture_permission_answer { true };
     bool answer_capture_requests_at_once { true };
     Vector<Function<void(bool)>> pending_capture_decisions;
@@ -76,8 +77,9 @@ struct RemoteCaptureFixture {
             return Audio::RecordStream::CreatePromise::resolved(NonnullRefPtr<Audio::RecordStream>(stream));
         });
         auto paired = MUST(IPC::Transport::create_paired());
-        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, *capture_devices, [this](ByteString const& device_id, Function<void(bool)> on_decided) {
+        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, *capture_devices, [this](ByteString const& device_id, Audio::PlaybackGroupId group, Function<void(bool)> on_decided) {
             capture_requests.append(device_id);
+            capture_request_groups.append(group);
             if (answer_capture_requests_at_once)
                 on_decided(capture_permission_answer);
             else
@@ -114,10 +116,10 @@ struct RemoteCaptureFixture {
         return true;
     }
 
-    RefPtr<Audio::RecordStream> create_record_stream(StringView device_id, Sink& sink, bool& rejected)
+    RefPtr<Audio::RecordStream> create_record_stream(StringView device_id, Sink& sink, bool& rejected, Audio::PlaybackGroupId group = Audio::PlaybackGroupId { 1 })
     {
         RefPtr<Audio::RecordStream> stream;
-        auto promise = client->create_record_stream(device_id, sink.callback());
+        auto promise = client->create_record_stream(device_id, group, sink.callback());
         promise->when_resolved([&](NonnullRefPtr<Audio::RecordStream>& created) { stream = created; });
         promise->when_rejected([&](Error&) { rejected = true; });
         EXPECT(pump_until([&] { return stream || rejected; }));
@@ -175,6 +177,21 @@ TEST_CASE(streams_on_one_device_share_the_servers_stream_and_ring)
     EXPECT(fixture.pump_until([&] { return fixture.capture_devices->open_device_count() == 0; }));
     fixture.opened.clear();
     EXPECT_EQ(FakeRecordStream::live_count.load(), 0u);
+}
+
+TEST_CASE(streams_for_different_pages_get_their_own_server_streams)
+{
+    Sink first_sink;
+    Sink second_sink;
+    RemoteCaptureFixture fixture;
+    bool rejected = false;
+    auto first = fixture.create_record_stream("mic"sv, first_sink, rejected, Audio::PlaybackGroupId { 1 });
+    auto second = fixture.create_record_stream("mic"sv, second_sink, rejected, Audio::PlaybackGroupId { 2 });
+    auto third = fixture.create_record_stream("mic"sv, second_sink, rejected, Audio::PlaybackGroupId { 2 });
+    EXPECT(!rejected);
+    EXPECT_EQ(fixture.capture_request_groups, (Vector<Audio::PlaybackGroupId> { Audio::PlaybackGroupId { 1 }, Audio::PlaybackGroupId { 2 } }));
+    // The device itself is opened once, whichever pages capture from it.
+    EXPECT_EQ(fixture.capture_devices->open_device_count(), 1u);
 }
 
 TEST_CASE(different_devices_get_different_streams)
@@ -251,7 +268,7 @@ TEST_CASE(losing_the_permission_while_the_browser_is_asked_rejects_the_request)
     fixture.answer_capture_requests_at_once = false;
     RefPtr<Audio::RecordStream> stream;
     bool rejected = false;
-    auto promise = fixture.client->create_record_stream("mic"sv, sink.callback());
+    auto promise = fixture.client->create_record_stream("mic"sv, Audio::PlaybackGroupId { 1 }, sink.callback());
     promise->when_resolved([&](NonnullRefPtr<Audio::RecordStream>& created) { stream = created; });
     promise->when_rejected([&](Error&) { rejected = true; });
     EXPECT(fixture.pump_until([&] { return fixture.pending_capture_decisions.size() == 1; }));

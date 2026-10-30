@@ -9,7 +9,7 @@
 
 namespace Audio {
 
-NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create(StringView device_id, RecordCallback callback)
+NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create(StringView device_id, PlaybackGroupId group, RecordCallback callback)
 {
     // Only the AudioServer opens devices.
     if (!ClientConnection::has_transport_factory())
@@ -18,7 +18,7 @@ NonnullRefPtr<RecordStream::CreatePromise> RecordStream::create(StringView devic
     auto connection = ClientConnection::acquire();
     if (connection.is_error())
         return CreatePromise::rejected(connection.release_error());
-    return connection.value()->create_record_stream(device_id, move(callback));
+    return connection.value()->create_record_stream(device_id, group, move(callback));
 }
 
 }
