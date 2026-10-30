@@ -77,7 +77,7 @@
         await internals.mouseEventThroughUIProcess("mousedown", 147, 40);
         await internals.mouseEventThroughUIProcess("mousemove", 147, 70, { buttons: 1 });
         await internals.mouseEventThroughUIProcess("mouseup", 147, 70);
-        await momentumFor(1000);
+        await momentumFor(100);
         report("thumb released while the other box is under momentum");
         await internals.wheelThroughUIProcess(250, 50, 0, 0, true, "ended");
         await settle();
