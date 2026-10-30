@@ -22,6 +22,7 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/RustSerialization.h>
+#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/TransformStream.h>
 #include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -37,6 +38,14 @@
 
 using namespace Web;
 using namespace Web::HTML;
+
+// Whose steps serialize and deserialize the objects of a serializable interface.
+enum class SerializableSteps : u8 {
+    Rust,
+    DOMException,
+    QuotaExceededError,
+    Cpp,
+};
 
 extern "C" {
 
@@ -101,7 +110,7 @@ bool web_structured_serialize_is_platform_object(JSObject*);
 bool web_structured_serialize_serializable_interface_name(JSObject*, u16* interface_name);
 JSCompletion web_structured_serialize_serialization_steps(void* realm, JSObject*, StructuredSerializeWriter*, bool for_storage, SerializationMemory*);
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
-bool web_structured_serialize_serializable_interface_is_implemented_in_rust(u16 interface_name);
+u8 web_structured_serialize_serializable_steps(u16 interface_name);
 JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, StructuredSerializeReader*, DeserializationMemory*);
 JSObject* web_structured_serialize_create_serialized_platform_object(u16 interface_name, void* realm);
 JSCompletion web_structured_serialize_deserialization_steps(void* realm, JSObject*, StructuredSerializeReader*, DeserializationMemory*);
@@ -556,9 +565,18 @@ bool web_structured_serialize_is_exposed(u16 interface_name, void* realm)
     return Bindings::is_exposed(static_cast<Bindings::InterfaceName>(interface_name), realm_from_abi(realm));
 }
 
-bool web_structured_serialize_serializable_interface_is_implemented_in_rust(u16 interface_name)
+u8 web_structured_serialize_serializable_steps(u16 interface_name)
 {
-    return Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name));
+    switch (static_cast<Bindings::InterfaceName>(interface_name)) {
+    case Bindings::InterfaceName::DOMException:
+        return to_underlying(SerializableSteps::DOMException);
+    case Bindings::InterfaceName::QuotaExceededError:
+        return to_underlying(SerializableSteps::QuotaExceededError);
+    default:
+        if (Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)))
+            return to_underlying(SerializableSteps::Rust);
+        return to_underlying(SerializableSteps::Cpp);
+    }
 }
 
 JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, StructuredSerializeReader* reader, DeserializationMemory* memory)

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Bindings/DOMException.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::WebIDL {
@@ -56,32 +56,6 @@ void DOMException::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_error_data);
 }
 
-WebIDL::ExceptionOr<void> DOMException::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool, HTML::SerializationMemory&)
-{
-    // 1. Set serialized.[[Name]] to value’s name.
-    serialized.encode(m_name.to_utf16_string());
-
-    // 2. Set serialized.[[Message]] to value’s message.
-    serialized.encode(m_message.to_utf16_string());
-
-    // FIXME: 3. User agents should attach a serialized representation of any interesting accompanying data which are not yet specified, notably the stack property, to serialized.
-
-    return {};
-}
-
-WebIDL::ExceptionOr<void> DOMException::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory&)
-{
-    // 1. Set value’s name to serialized.[[Name]].
-    m_name = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
-
-    // 2. Set value’s message to serialized.[[Message]].
-    m_message = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
-
-    // FIXME: 3. If any other data is attached to serialized, then deserialize and attach it to value.
-
-    return {};
-}
-
 }
 
 namespace Web::Bindings {
@@ -111,4 +85,27 @@ JS::Completion throw_completion(JS::Realm& realm, GC::Ref<WebIDL::DOMException> 
     return JS::throw_completion(Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, exception));
 }
 
+}
+
+// What the serialization steps of DOMException, which run in Rust (Libraries/LibWeb/Bindings/Rust/src/webidl), read of a
+// DOMException and create one with. Rust owns the strings that it reads, and lends those that it creates one with.
+extern "C" {
+
+void web_dom_exception_name_and_message(JSObject*, FlatPtr* name, FlatPtr* message);
+JSObject* web_dom_exception_create(void* realm, FlatPtr name, FlatPtr message);
+}
+
+void web_dom_exception_name_and_message(JSObject* object, FlatPtr* name, FlatPtr* message)
+{
+    auto& exception = Web::Bindings::impl_from<Web::WebIDL::DOMException>(*JS::HostABI::object_from_abi(object));
+    *name = exception.name().to_utf16_string().into_raw();
+    *message = exception.message().to_utf16_string().into_raw();
+}
+
+JSObject* web_dom_exception_create(void* realm, FlatPtr name, FlatPtr message)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto name_string = Utf16String::from_raw(name);
+    auto exception = Web::WebIDL::DOMException::create(Utf16FlyString::from_utf16(name_string.utf16_view()), Utf16String::from_raw(message));
+    return JS::HostABI::object_to_abi(Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(js_realm), js_realm, exception).ptr());
 }

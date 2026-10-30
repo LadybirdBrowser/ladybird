@@ -30,15 +30,17 @@ use libjs_rust::api::{
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
     DeserializationMemory, OwnedDeserializationMemory, OwnedSerializedTransferRecord, OwnedStructuredSerializeWriter,
-    SerializationMemory, SerializationType, SerializedTransferRecord, StructuredSerializeReader,
+    SerializableSteps, SerializationMemory, SerializationType, SerializedTransferRecord, StructuredSerializeReader,
     StructuredSerializeWriter, TransferDataDecoder, TransferDataHolder, create_serialized_platform_object,
     create_transferred_platform_object, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
     deserialization_steps, deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
-    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_is_implemented_in_rust,
-    serializable_interface_name, serializable_payload_version, serialization_steps, transfer_steps,
-    transferable_is_detached, transferable_primary_interface, transferable_set_detached,
+    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
+    serializable_steps, serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
+    transferable_set_detached,
 };
+use crate::webidl::dom_exception::{self, DOMExceptionFields};
+use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
 
 /// HTML::ValueTag, the tags of the values of a record, which are part of the stable storage serialization format.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -842,15 +844,25 @@ impl Serializer<'_> {
                 }
             }
             // 3. Otherwise, if value is a platform object that is a serializable object, then perform the serialization steps for value's primary interface, given value, serialized, and forStorage.
-            else if serializable_interface_name(object).is_some() {
-                let realm = self.realm.unwrap_or_else(|| object.shape().realm());
-                serialization_steps(
-                    &CallContext::new(vm, realm),
-                    object,
-                    serialized,
-                    self.for_storage,
-                    self.memory,
-                )?;
+            else if let Some(interface_name) = serializable_interface_name(object) {
+                match serializable_steps(interface_name) {
+                    SerializableSteps::DOMException => {
+                        dom_exception::serialization_steps(&DOMExceptionFields::of(object), serialized);
+                    }
+                    SerializableSteps::QuotaExceededError => {
+                        quota_exceeded_error::serialization_steps(&QuotaExceededErrorFields::of(object), serialized);
+                    }
+                    SerializableSteps::Rust | SerializableSteps::Cpp => {
+                        let realm = self.realm.unwrap_or_else(|| object.shape().realm());
+                        serialization_steps(
+                            &CallContext::new(vm, realm),
+                            object,
+                            serialized,
+                            self.for_storage,
+                            self.memory,
+                        )?;
+                    }
+                }
             }
             // 4. Otherwise, for each key in ! EnumerableOwnProperties(value, key):
             else {
@@ -1356,9 +1368,11 @@ impl Deserializer<'_, '_> {
                     return Err(data_clone_error("Unsupported type"));
                 }
 
-                // NB: The deserialization steps of an interface implemented in Rust create the new instance from what they
-                //     read, so they run here, at the position in memory that the instance has.
-                if serializable_interface_is_implemented_in_rust(interface_name) {
+                // NB: The deserialization steps of an interface implemented in Rust, and those that run here for
+                //     DOMException and QuotaExceededError, create the new instance from what they read, so they run
+                //     here, at the position in memory that the instance has.
+                let steps = serializable_steps(interface_name);
+                if steps != SerializableSteps::Cpp {
                     if version.is_some_and(|version| version != serializable_payload_version()) {
                         return Err(data_clone_error_from_serialization_error(
                             realm,
@@ -1367,7 +1381,17 @@ impl Deserializer<'_, '_> {
                     }
                     let memory_index = self.memory.size();
                     self.memory.append(Value::UNDEFINED);
-                    let value = deserialize_rust_platform_object(interface_name, self.serialized, self.memory)?;
+                    let value = match steps {
+                        SerializableSteps::DOMException => {
+                            let fields = dom_exception::deserialization_steps(self.serialized)?;
+                            Value::from_object(dom_exception::create(realm, &fields))
+                        }
+                        SerializableSteps::QuotaExceededError => {
+                            let fields = quota_exceeded_error::deserialization_steps(self.serialized)?;
+                            Value::from_object(quota_exceeded_error::create(realm, &fields))
+                        }
+                        _ => deserialize_rust_platform_object(interface_name, self.serialized, self.memory)?,
+                    };
                     self.memory.set(memory_index, value);
                     return Ok(value);
                 }

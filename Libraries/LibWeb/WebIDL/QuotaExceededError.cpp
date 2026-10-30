@@ -5,8 +5,10 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibWeb/Bindings/QuotaExceededError.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/QuotaExceededError.h>
 
 namespace Web::WebIDL {
@@ -23,6 +25,13 @@ QuotaExceededError::QuotaExceededError(Utf16String const& message)
 {
 }
 
+QuotaExceededError::QuotaExceededError(Utf16FlyString name, Utf16String const& message, Optional<double> quota, Optional<double> requested)
+    : DOMException(move(name), message)
+    , m_quota(quota)
+    , m_requested(requested)
+{
+}
+
 GC::Ref<QuotaExceededError> QuotaExceededError::create()
 {
     return GC::Heap::the().allocate<QuotaExceededError>();
@@ -31,6 +40,11 @@ GC::Ref<QuotaExceededError> QuotaExceededError::create()
 GC::Ref<QuotaExceededError> QuotaExceededError::create(Utf16String const& message)
 {
     return GC::Heap::the().allocate<QuotaExceededError>(message);
+}
+
+GC::Ref<QuotaExceededError> QuotaExceededError::create(Utf16FlyString name, Utf16String const& message, Optional<double> quota, Optional<double> requested)
+{
+    return GC::Heap::the().allocate<QuotaExceededError>(move(name), message, quota, requested);
 }
 
 // https://webidl.spec.whatwg.org/#dom-quotaexceedederror-quotaexceedederror
@@ -68,34 +82,30 @@ ExceptionOr<GC::Ref<QuotaExceededError>> QuotaExceededError::create(JS::VM& vm, 
     return error;
 }
 
-// https://webidl.spec.whatwg.org/#ref-for-quotaexceedederror⑦
-WebIDL::ExceptionOr<void> QuotaExceededError::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory)
-{
-    // 1. Run the DOMException serialization steps given value and serialized.
-    MUST(DOMException::serialization_steps(serialized, for_storage, memory));
-
-    // 2. Set serialized.[[Quota]] to value’s quota.
-    serialized.encode(m_quota);
-
-    // 3. Set serialized.[[Requested]] to value’s requested.
-    serialized.encode(m_requested);
-
-    return {};
 }
 
-// https://webidl.spec.whatwg.org/#ref-for-quotaexceedederror⑦
-WebIDL::ExceptionOr<void> QuotaExceededError::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
-{
-    // 1. Run the DOMException deserialization steps given serialized and value.
-    TRY(DOMException::deserialization_steps(realm, serialized, memory));
+// What the serialization steps of QuotaExceededError, which run in Rust (Libraries/LibWeb/Bindings/Rust/src/webidl),
+// read of a QuotaExceededError and create one with. Rust lends the strings that it creates one with.
+extern "C" {
 
-    // 2. Set value’s quota to serialized.[[Quota]].
-    m_quota = TRY(HTML::decode_or_throw_data_clone_error<Optional<double>>(realm, serialized));
-
-    // 3. Set value’s requested to serialized.[[Requested]].
-    m_requested = TRY(HTML::decode_or_throw_data_clone_error<Optional<double>>(realm, serialized));
-
-    return {};
+void web_quota_exceeded_error_quota_and_requested(JSObject*, bool* has_quota, double* quota, bool* has_requested, double* requested);
+JSObject* web_quota_exceeded_error_create(void* realm, FlatPtr name, FlatPtr message, bool has_quota, double quota, bool has_requested, double requested);
 }
 
+void web_quota_exceeded_error_quota_and_requested(JSObject* object, bool* has_quota, double* quota, bool* has_requested, double* requested)
+{
+    auto& error = Web::Bindings::impl_from<Web::WebIDL::QuotaExceededError>(*JS::HostABI::object_from_abi(object));
+    *has_quota = error.quota().has_value();
+    *quota = error.quota().value_or(0);
+    *has_requested = error.requested().has_value();
+    *requested = error.requested().value_or(0);
+}
+
+JSObject* web_quota_exceeded_error_create(void* realm, FlatPtr name, FlatPtr message, bool has_quota, double quota, bool has_requested, double requested)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto name_string = Utf16String::from_raw(name);
+    auto error = Web::WebIDL::QuotaExceededError::create(Utf16FlyString::from_utf16(name_string.utf16_view()), Utf16String::from_raw(message),
+        has_quota ? Optional<double> { quota } : OptionalNone {}, has_requested ? Optional<double> { requested } : OptionalNone {});
+    return JS::HostABI::object_to_abi(Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(js_realm), js_realm, error).ptr());
 }

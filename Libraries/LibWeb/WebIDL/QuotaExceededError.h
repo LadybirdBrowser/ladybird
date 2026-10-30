@@ -30,8 +30,8 @@ public:
 
     static ExceptionOr<GC::Ref<QuotaExceededError>> create(JS::VM&, Utf16String const& message, QuotaExceededErrorOptions const&);
 
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
+    // A QuotaExceededError with the fields that its deserialization steps read.
+    static GC::Ref<QuotaExceededError> create(Utf16FlyString name, Utf16String const& message, Optional<double> quota, Optional<double> requested);
 
     // https://webidl.spec.whatwg.org/#dom-quotaexceedederror-quota
     Optional<double> const& quota() const { return m_quota; }
@@ -41,6 +41,7 @@ public:
 
 protected:
     explicit QuotaExceededError(Utf16String const& message);
+    QuotaExceededError(Utf16FlyString name, Utf16String const& message, Optional<double> quota, Optional<double> requested);
     QuotaExceededError();
 
 private:
