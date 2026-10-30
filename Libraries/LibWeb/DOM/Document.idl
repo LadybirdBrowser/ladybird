@@ -97,7 +97,7 @@ partial interface Document {
     readonly attribute WindowProxy? defaultView;
     [ImplementedAs=has_focus_for_bindings] boolean hasFocus();
     [CEReactions] attribute DOMString designMode;
-    [CEReactions] boolean execCommand([FlyString] DOMString commandId, optional boolean showUI = false, optional DOMString value = "");
+    [CEReactions] boolean execCommand([FlyString] DOMString commandId, optional boolean showUI = false, optional (TrustedHTML or DOMString) value = "");
     boolean queryCommandEnabled([FlyString] DOMString commandId);
     boolean queryCommandIndeterm([FlyString] DOMString commandId);
     boolean queryCommandState([FlyString] DOMString commandId);

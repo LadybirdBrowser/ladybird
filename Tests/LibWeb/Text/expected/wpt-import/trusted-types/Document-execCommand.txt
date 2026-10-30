@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Document.execCommand("insertHTML") works as usual.
+Pass	Document.execCommand("paste") works as usual.

@@ -35,8 +35,6 @@
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Selection/CaretNavigation.h>
 #include <LibWeb/Selection/SelectionModifier.h>
-#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
-#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 
 namespace Web::Editing {
 
@@ -1564,12 +1562,8 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
 {
     // 1. Set value to the result of invoking get trusted types compliant string with TrustedHTML, this's relevant
     //    global object, value, "Document execCommand", and "script".
-    auto const resulting_value = MUST(TrustedTypes::get_trusted_type_compliant_string(
-        TrustedTypes::TrustedTypeName::TrustedHTML,
-        HTML::relevant_global_object(document),
-        Utf16String::from_utf16(value),
-        TrustedTypes::InjectionSink::Document_execCommand,
-        TrustedTypes::Script.view()));
+    // NB: Document::exec_command() does this for a script's value; see the AD-HOC note there. So, the fragments below
+    //     are parsed without the injection-sink check createContextualFragment() makes.
 
     // 2. Delete the selection.
     auto& selection = *document.get_selection();
@@ -1586,7 +1580,7 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
         GC::Ptr<DOM::DocumentFragment> fragment;
         {
             EditingHistory::ProxyMutationScope mutation_scope { *range->start_container() };
-            auto result = range->create_contextual_fragment(resulting_value);
+            auto result = range->create_contextual_fragment(value.to_utf8_but_should_be_ported_to_utf16());
             if (result.is_exception())
                 return false;
             fragment = result.release_value();
@@ -1609,7 +1603,7 @@ bool command_insert_html_action(DOM::Document& document, Utf16View value)
     //          non-breaking space, just as it does when inserting text at the same boundary.
     canonicalize_whitespace(range->start());
     range = active_range(document);
-    replace_selection_with_fragment(document, resulting_value);
+    replace_selection_with_fragment(document, value);
     return true;
 }
 

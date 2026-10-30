@@ -6,10 +6,10 @@
 
 #pragma once
 
+#include <AK/Utf16View.h>
 #include <LibGC/Root.h>
 #include <LibGC/RootVector.h>
 #include <LibWeb/Forward.h>
-#include <LibWeb/TrustedTypes/TrustedHTML.h>
 
 namespace Web::Editing {
 
@@ -19,7 +19,7 @@ class ReplacementFragment {
     AK_MAKE_NONCOPYABLE(ReplacementFragment);
 
 public:
-    ReplacementFragment(DOM::Range&, TrustedTypes::TrustedHTMLOrString const&);
+    ReplacementFragment(DOM::Range&, Utf16View html);
     ReplacementFragment(ReplacementFragment&&) = default;
 
     bool contains_block_content() const { return m_contains_block_content; }

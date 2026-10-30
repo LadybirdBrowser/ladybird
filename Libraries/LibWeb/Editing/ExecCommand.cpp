@@ -30,6 +30,8 @@
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Selection/Selection.h>
+#include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
+#include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
 #include <LibWeb/UIEvents/InputEvent.h>
 #include <LibWeb/UIEvents/InputTypes.h>
 
@@ -149,12 +151,36 @@ static bool clipboard_command_is_enabled(Document& document, Utf16FlyString cons
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#execcommand()
-WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, Utf16View value)
+WebIDL::ExceptionOr<bool> Document::exec_command(Utf16FlyString const& command, [[maybe_unused]] bool show_ui, TrustedTypes::TrustedHTMLOrString const& trusted_value)
 {
     // NB: Clipboard actions can delete through the internal editing entry point, but their script callbacks must
     //     not recursively execute public commands, including input listeners on text controls.
     if (m_inside_clipboard_exec_command)
         return false;
+
+    // AD-HOC: The spec gets the Trusted Types compliant string for an insertHTML value in step 1 of the insertHTML
+    //         command's action. Get it here instead, where only a script's value arrives: The action also inserts the
+    //         HTML a user pastes, which isn't an injection sink. And so a script's string is rejected even when the
+    //         command isn't enabled, before any beforeinput event fires.
+    Utf16String compliant_value;
+    if (command.equals_ignoring_ascii_case(Editing::CommandNames::insertHTML)) {
+        // NB: See the AD-HOC note about recursive calls in exec_command_internal(). A default policy's createHTML
+        //     callback runs the page's script, so that script mustn't run a command while this one gets its value.
+        if (m_inside_exec_command)
+            return false;
+        TemporaryChange guard_recursion { m_inside_exec_command, true };
+        compliant_value = TRY(TrustedTypes::get_trusted_type_compliant_string(
+            TrustedTypes::TrustedTypeName::TrustedHTML,
+            HTML::relevant_global_object(*this),
+            trusted_value,
+            TrustedTypes::InjectionSink::Document_execCommand,
+            TrustedTypes::Script.view()));
+    } else {
+        compliant_value = trusted_value.visit(
+            [](GC::Ref<TrustedTypes::TrustedHTML> const& html) { return html->to_string(); },
+            [](Utf16String const& string) { return string; });
+    }
+    Utf16View value = compliant_value;
 
     // https://w3c.github.io/clipboard-apis/#integration-with-rich-text-editing
     // These are the steps to follow when triggering copy, cut or paste actions through a scripting API:

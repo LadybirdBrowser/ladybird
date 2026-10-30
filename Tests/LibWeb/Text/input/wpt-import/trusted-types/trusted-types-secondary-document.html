@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<head>
+  <script src="../resources/testharness.js"></script>
+  <script src="../resources/testharnessreport.js"></script>
+  <script src="support/namespaces.js"></script>
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'">
+</head>
+<body>
+<script>
+const policyWithoutModification =
+  window.trustedTypes.createPolicy('policyWithoutModification', {
+    createHTML: s => s,
+    createScript: s => s,
+    createScriptURL: s => s,
+  });
+
+function createTrustedOutput(type, input) {
+  return type ?
+    policyWithoutModification[type.replace("Trusted", "create")](input) : input;
+}
+
+const secondaryDocument = document.implementation.createHTMLDocument("");
+const testData = [
+    {
+        name: "HTMLElement innerHTML",
+        subject: () => secondaryDocument.createElement("div"),
+        property: "innerHTML",
+        type: "TrustedHTML",
+    },
+    {
+        name: "HTMLElement setHTMLUnsafe",
+        subject: () => secondaryDocument.createElement("div"),
+        method: "setHTMLUnsafe",
+        type: "TrustedHTML",
+    },
+    {
+        name: "ShadowRoot innerHTML",
+        subject: () => {
+            const div = secondaryDocument.createElement("div");
+            return div.attachShadow({mode: 'open'});
+        },
+        property: "innerHTML",
+        type: "TrustedHTML",
+    },
+    {
+        name: "ShadowRoot setHTMLUnsafe",
+        subject: () => {
+            const div = secondaryDocument.createElement("div");
+            return div.attachShadow({mode: 'open'});
+        },
+        method: "setHTMLUnsafe",
+        type: "TrustedHTML",
+    },
+    {
+        name: "HTMLIFrameElement srcdoc",
+        subject: () => secondaryDocument.createElement("iframe"),
+        property: "srcdoc",
+        type: "TrustedHTML",
+    },
+    {
+        name: "HTMLScriptElement textContent",
+        subject: () => secondaryDocument.createElement("script"),
+        property: "textContent",
+        type: "TrustedScript",
+    },
+    {
+        name: "HTMLScriptElement innerText",
+        subject: () => secondaryDocument.createElement("script"),
+        property: "innerText",
+        type: "TrustedScript",
+    },
+    {
+        name: "HTMLScriptElement text",
+        subject: () => secondaryDocument.createElement("script"),
+        property: "text",
+        type: "TrustedScript",
+    },
+];
+
+for (let entry of testData) {
+    test(_ => {
+        const subject = entry.subject();
+        assert_throws_js(TypeError, _ => {
+            if (entry.property)
+                subject[entry.property] = "2+2";
+            else if (entry.method)
+                subject[entry.method]("2+2");
+        });
+    }, entry.name + " throws with a plain string");
+}
+
+test(_ => {
+    assert_throws_js(TypeError, _ => {
+        let element = secondaryDocument.createElement("div");
+        element.insertAdjacentHTML("afterbegin", "2+2");
+    });
+}, "Element insertAdjacentHTML throws with a plain string");
+
+test(_ => {
+    assert_throws_js(TypeError, _ => {
+        secondaryDocument.execCommand("insertHTML", false, "2+2");
+    });
+}, "Document execCommand throws with a plain string");
+
+test(_ => {
+    assert_throws_js(TypeError, _ => {
+        let range = secondaryDocument.createRange();
+        range.selectNodeContents(secondaryDocument.documentElement);
+        range.createContextualFragment("2+2");
+    });
+}, "Range createContextualFragment throws with a plain string");
+
+for (let entry of testData) {
+    test(_ => {
+        const subject = entry.subject();
+        let trustedInput = createTrustedOutput(entry.type, "somevalue");
+        if (entry.property)
+            subject[entry.property] = trustedInput;
+        else if (entry.method)
+            subject[entry.method](trustedInput);
+    }, entry.name + " works with a " + entry.type);
+}
+
+test(_ => {
+    let trustedInput = createTrustedOutput("TrustedHTML", "somevalue");
+    let element = secondaryDocument.createElement("div");
+    element.insertAdjacentHTML("afterbegin", trustedInput);
+}, "Element insertAdjacentHTML works with a TrustedHTML");
+
+test(_ => {
+    let trustedInput = createTrustedOutput("TrustedHTML", "somevalue");
+    secondaryDocument.execCommand("insertHTML", false, trustedInput);
+}, "Document execCommand works with a TrustedHTML");
+
+test(_ => {
+    assert_throws_js(TypeError, _ => {
+        let range = secondaryDocument.createRange();
+        range.selectNodeContents(secondaryDocument.documentElement);
+        range.createContextualFragment("1+1");
+    });
+}, "Trusted Type assignment required for Range createContextualFragment");
+
+const trustedTypeDataForAttribute = [
+    {
+        element: _ => secondaryDocument.createElement("div"),
+        attrNS: null,
+        attrName: "onclick",
+        sink: "Element onclick",
+        type: "TrustedScript"
+    },
+    {
+        element: _ => secondaryDocument.createElementNS(NSURI_SVG, "g"),
+        attrNS: null,
+        attrName: "ondblclick",
+        sink: "Element ondblclick",
+        type: "TrustedScript"
+    },
+    {
+        element: _ => secondaryDocument.createElementNS(NSURI_MATHML, "mrow"),
+        attrNS: null,
+        attrName: "onmousedown",
+        sink: "Element onmousedown",
+        type: "TrustedScript"
+    },
+    {
+        element: _ => secondaryDocument.createElement("iframe"),
+        attrNS: null,
+        attrName: "srcdoc",
+        sink: "HTMLIFrameElement srcdoc",
+        type: "TrustedHTML"
+    },
+    {
+        element: _ => secondaryDocument.createElement("script"),
+        attrNS: null,
+        attrName: "src",
+        sink: "HTMLScriptElement src",
+        type: "TrustedScriptURL"
+    },
+    {
+        element: _ => secondaryDocument.createElementNS(NSURI_SVG, "script"),
+        attrNS: null,
+        attrName: "href",
+        sink: "SVGScriptElement href",
+        type: "TrustedScriptURL"
+    },
+    {
+        element: _ => secondaryDocument.createElementNS(NSURI_SVG, "script"),
+        attrNS: NSURI_XLINK,
+        attrName: "href",
+        sink: "SVGScriptElement href",
+        type: "TrustedScriptURL"
+    },
+];
+
+function findAttribute(element, attrNS, attrName) {
+    for (let i = 0; i < element.attributes.length; i++) {
+        let attr = element.attributes[i];
+        if (attr.namespaceURI === attrNS &&
+            attr.localName === attrName) {
+            return attr;
+        }
+    }
+}
+
+const attributeSetterData = [
+    {
+        api: "Element.setAttribute",
+        acceptNS: false,
+        acceptTrustedTypeArgumentInIDL: true,
+        runSetter: function(element, attrNS, attrName, attrValue) {
+            assert_equals(attrNS, null);
+            this.lastAttributeNode = findAttribute(element, attrNS, attrName);
+            return element.setAttribute(attrName, attrValue);
+        },
+    },
+    {
+        api: "Element.setAttributeNS",
+        acceptNS: true,
+        acceptTrustedTypeArgumentInIDL: true,
+        runSetter: function(element, attrNS, attrName, attrValue) {
+            this.lastAttributeNode = findAttribute(element, attrNS, attrName);
+            return element.setAttributeNS(attrNS, attrName, attrValue);
+        },
+    },
+    {
+        api: "Element.setAttributeNode",
+        acceptNS: true,
+        setterClass: "setAttributeNode",
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            this.lastAttributeNode = secondaryDocument.createAttributeNS(attrNS, attrName);
+            this.lastAttributeNode.value = attrValue;
+            return element.setAttributeNode(this.lastAttributeNode);
+        },
+    },
+    {
+        api: "Element.setAttributeNodeNS",
+        acceptNS: true,
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            this.lastAttributeNode = document.createAttributeNS(attrNS, attrName);
+            this.lastAttributeNode.value = attrValue;
+            return element.setAttributeNodeNS(this.lastAttributeNode);
+        },
+    },
+    {
+        api: "NamedNodeMap.setNamedItem",
+        acceptNS: true,
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            const nodeMap = element.attributes;
+            this.lastAttributeNode = secondaryDocument.createAttributeNS(attrNS, attrName);
+            this.lastAttributeNode.value = attrValue;
+            return nodeMap.setNamedItem(this.lastAttributeNode);
+        },
+    },
+    {
+        api: "NamedNodeMap.setNamedItemNS",
+        acceptNS: true,
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            const nodeMap = element.attributes;
+            this.lastAttributeNode = secondaryDocument.createAttributeNS(attrNS, attrName);
+            this.lastAttributeNode.value = attrValue;
+            return nodeMap.setNamedItemNS(this.lastAttributeNode);
+        },
+    },
+    {
+        api:"Attr.value",
+        acceptNS: true,
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            element.setAttributeNS(attrNS, attrName, createTrustedOutput(type, ""));
+            this.lastAttributeNode = findAttribute(element, attrNS, attrName);
+            assert_true(!!this.lastAttributeNode);
+            return (this.lastAttributeNode.value = attrValue);
+        },
+    },
+    {
+        api: "Node.nodeValue",
+        acceptNS: true,
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            element.setAttributeNS(attrNS, attrName, createTrustedOutput(type, ""));
+            this.lastAttributeNode = findAttribute(element, attrNS, attrName);
+            assert_true(!!this.lastAttributeNode);
+            return (this.lastAttributeNode.nodeValue = attrValue);
+        },
+    },
+    {
+        api: "Node.textContent",
+        acceptNS: true,
+        runSetter: function(element, attrNS, attrName, attrValue, type) {
+            element.setAttributeNS(attrNS, attrName, createTrustedOutput(type, ""));
+            this.lastAttributeNode = findAttribute(element, attrNS, attrName);
+            assert_true(!!this.lastAttributeNode);
+            return (this.lastAttributeNode.textContent = attrValue);
+        },
+    },
+];
+
+// Set an attribute for each testcase of trustedTypeDataForAttribute. The CSP
+// rule and a null default policy will block those corresponding to trusted
+// type sinks.
+attributeSetterData.forEach(setterData => {
+    trustedTypeDataForAttribute.forEach(testData => {
+        if (testData.attrNS && !setterData.acceptNS) return;
+        test(() => {
+            let element = testData.element();
+            // This is a trusted type sink and should be blocked.
+            assert_throws_js(TypeError, () => {
+                setterData.runSetter(element, testData.attrNS, testData.attrName,
+                    "neverset", testData.type);
+            });
+        }, `${setterData.api} throws for \
+elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''} \
+attrName=${testData.attrName} with a plain string`);
+    });
+});
+
+
+  // For attributes that are trusted type sinks, try setting them to a value
+  // that has the expected trusted type.
+  attributeSetterData.filter(setterData => setterData.acceptTrustedTypeArgumentInIDL).forEach(setterData => {
+    trustedTypeDataForAttribute.forEach(testData => {
+      if (!testData.type) return;
+      if (testData.attrNS && !setterData.acceptNS) return;
+      test(() => {
+        let element = testData.element();
+        let trustedInput = createTrustedOutput(testData.type, "somevalue");
+        // Passing a trusted type should work normally.
+        setterData.runSetter(element, testData.attrNS, testData.attrName,
+                             trustedInput, testData.type);
+        assert_equals(element.getAttributeNS(testData.attrNS,
+                                             testData.attrName), "somevalue");
+      }, `${setterData.api} works for \
+elementNS=${testData.element().namespaceURI}, \
+element=${testData.element().tagName}, \
+${testData.attrNS ? 'attrNS='+testData.attrNS+', ' : ''} \
+attrName=${testData.attrName} with a ${testData.type} input.`);
+    });
+  });
+</script>
+</body>

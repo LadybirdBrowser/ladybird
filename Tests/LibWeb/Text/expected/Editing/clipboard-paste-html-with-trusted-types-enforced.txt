@@ -1,0 +1,3 @@
+text: "abold and italicb"
+pasted bold: true
+violations: 0

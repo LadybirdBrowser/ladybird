@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<link rel="author" title="Daniel Vogelheim" href="mailto:vogelheim@chromium.org">
+<link rel="help" href="https://w3c.github.io/trusted-types/dist/spec/">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<body>
+<script>
+  // Test that execCommand continues to work if Trusted Types is not enabled.
+  const commands = [ "insertHTML", "paste" ];
+  for (const command of commands) {
+    test(t => {
+      document.execCommand(command, false, "<em>Hello World</em>");
+    }, `Document.execCommand("${command}") works as usual.`);
+  }
+</script>
