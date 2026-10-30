@@ -6,13 +6,13 @@
 
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibCore/Timer.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibIPC/Transport.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Origin.h>
 #include <LibURL/Parser.h>
@@ -36,8 +36,8 @@ static void initialize_libcurl()
 struct TestServer {
     explicit TestServer(StringView name)
     {
-        auto cache_root = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv, name);
-        disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root)).release_value();
+        static Test::TemporaryDirectory const cache_root { "TestExportImport"sv };
+        disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root.path().append(name))).release_value();
     }
 
     RequestServer::ConnectionFromClient::ConnectionMap connections;

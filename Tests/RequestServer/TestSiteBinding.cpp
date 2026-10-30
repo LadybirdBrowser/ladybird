@@ -5,12 +5,12 @@
  */
 
 #include <LibCore/EventLoop.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/NetworkIsolationKey.h>
 #include <LibIPC/Transport.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <RequestServer/CURL.h>
@@ -46,8 +46,8 @@ struct TestServer {
         }();
         (void)libcurl_initialized;
 
-        auto cache_root = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv);
-        disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root));
+        static Test::TemporaryDirectory const cache_root { "TestSiteBinding"sv };
+        disk_cache = MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root.path()));
 
         auto control_pair = MUST(IPC::Transport::create_paired());
         control_remote_transport = MUST(control_pair.remote_handle.create_transport());

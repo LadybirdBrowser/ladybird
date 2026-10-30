@@ -6,13 +6,13 @@
 
 #include <AK/ByteBuffer.h>
 #include <LibCore/ImmutableBytes.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/CacheRequest.h>
 #include <LibHTTP/Cache/DiskCache.h>
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibHTTP/NetworkIsolationKey.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 
@@ -28,7 +28,8 @@ static URL::URL parse_url(StringView url)
 
 static LexicalPath test_cache_root()
 {
-    return LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv);
+    static Test::TemporaryDirectory const cache_root { "TestDiskCache"sv };
+    return cache_root.path();
 }
 
 static NonnullRefPtr<HTTP::HeaderList> create_cacheable_request_headers()

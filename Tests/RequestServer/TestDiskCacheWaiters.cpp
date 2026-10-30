@@ -8,7 +8,6 @@
 #include <AK/Time.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Socket.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibCore/Timer.h>
@@ -16,6 +15,7 @@
 #include <LibHTTP/Cache/Utilities.h>
 #include <LibHTTP/NetworkIsolationKey.h>
 #include <LibIPC/Transport.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <LibURL/Parser.h>
 #include <RequestServer/CURL.h>
@@ -342,8 +342,8 @@ private:
 
 HTTP::DiskCache create_test_disk_cache()
 {
-    auto cache_root = LexicalPath::join(Core::StandardPaths::cache_directory(), "Ladybird"sv);
-    return MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root)).release_value();
+    static Test::TemporaryDirectory const cache_root { "TestDiskCacheWaiters"sv };
+    return MUST(HTTP::DiskCache::create(HTTP::DiskCache::Mode::Testing, cache_root.path())).release_value();
 }
 
 void expect_finished_without_error(Optional<FinishedRequest> const& finished, StringView expected_cache_status)
