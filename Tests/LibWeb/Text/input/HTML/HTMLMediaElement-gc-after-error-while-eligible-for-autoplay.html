@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script>
+    // An autoplay element whose resource failed can never reach HAVE_ENOUGH_DATA, so it must not be kept alive.
+
+    // NB: This is not done in the async test function, whose suspended frame could keep the element alive.
+    function loadUnsupportedAutoplayAudio(onError) {
+        const audio = document.createElement("audio");
+        audio.autoplay = true;
+        audio.src = "../../../Assets/HashSans.woff";
+        audio.addEventListener("error", () => onError(), { once: true });
+        audio.gcSentinel = true;
+        return new WeakRef(audio);
+    }
+
+    asyncTest(async done => {
+        let weakAudio;
+        await new Promise(resolve => weakAudio = loadUnsupportedAutoplayAudio(resolve));
+        await collectGarbageUntilCleared([weakAudio]);
+        println(`audio collected: ${weakAudio.deref() === undefined}`);
+        done();
+    });
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<script src="../include.js"></script>
+<script>
+    // A media element that nothing else references must stay alive while it is playing, so that it can finish.
+
+    // NB: This is not done in the async test function, whose suspended frame could keep the element alive.
+    function startPlayingUnreferencedAudio(onPlaying, onEnded) {
+        const audio = document.createElement("audio");
+        audio.src = "../../../Assets/tone.mp3";
+        audio.addEventListener("playing", () => onPlaying(), { once: true });
+        audio.addEventListener("ended", () => onEnded());
+        audio.play();
+    }
+
+    asyncTest(async done => {
+        let ended = false;
+        const playing = new Promise(resolve => startPlayingUnreferencedAudio(resolve, () => {
+            ended = true;
+            println("ended event fired");
+            done();
+        }));
+        await playing;
+
+        // The element's queued tasks keep it alive while they wait to run, so collect a few times during playback.
+        while (!ended) {
+            await internals.gcAsync();
+            await new Promise(resolve => setTimeout(resolve, 30));
+        }
+    });
+</script>

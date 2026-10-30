@@ -17,6 +17,7 @@
 #include <LibCompositing/DisplayList/DisplayListResourceIds.h>
 #include <LibCompositing/Video/VideoFrameHold.h>
 #include <LibCore/Forward.h>
+#include <LibGC/ActivityRoot.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Rect.h>
 #include <LibJS/Forward.h>
@@ -339,6 +340,12 @@ private:
     bool is_eligible_for_autoplay() const;
     bool is_allowed_to_play() const;
 
+    void set_network_state(NetworkState);
+    void set_can_autoplay(bool);
+    void set_delaying_the_load_event(bool);
+    bool should_be_kept_alive() const;
+    void update_activity_root();
+
     enum class PlaybackDirection : u8 {
         Forwards,
         Backwards,
@@ -467,6 +474,8 @@ private:
 
     // https://html.spec.whatwg.org/multipage/media.html#delaying-the-load-event-flag
     Optional<DOM::DocumentLoadEventDelayer> m_delaying_the_load_event;
+
+    GC::ActivityRoot m_activity_root;
 
     bool m_running_time_update_event_handler { false };
     Optional<MonotonicTime> m_last_time_update_event_time;

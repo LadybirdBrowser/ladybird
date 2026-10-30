@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A media element that nothing else references must stay alive while it is still fetching, even once it is paused
+    // with data for the current playback position, since a listener for the events of the fetch could begin playback.
+
+    // NB: This is not done in the async test function, whose suspended frame could keep the element alive.
+    function startLoadingUnreferencedAudio(url, onLoadedData, onSuspend) {
+        const audio = document.createElement("audio");
+        audio.preload = "auto";
+        audio.src = url;
+        audio.addEventListener("loadeddata", () => onLoadedData(), { once: true });
+        audio.addEventListener("suspend", () => onSuspend(audio.networkState));
+    }
+
+    asyncTest(async done => {
+        const server = httpTestServer();
+        // Build a constant-bitrate MP3 of about 64 KiB by repeating the audio frames of tone.mp3 (all but its leading ID3
+        // tag and Info frame).
+        const tone = new Uint8Array(await (await fetch(server.getStaticURL("Assets/tone.mp3"))).arrayBuffer());
+        const audioFrames = tone.subarray(226);
+        const repetitions = Math.ceil((64 * 1024) / audioFrames.length);
+        const media = new Uint8Array(audioFrames.length * repetitions);
+        for (let i = 0; i < repetitions; i++)
+            media.set(audioFrames, i * audioFrames.length);
+        let binary = "";
+        for (const byte of media)
+            binary += String.fromCharCode(byte);
+        const token = `gc-during-download-${crypto.randomUUID()}`;
+        const mediaURL = new URL(await server.createEcho("GET", `/${token}.mp3`, {
+            status: 200,
+            headers: { "Content-Type": "audio/mpeg", "Content-Length": String(media.length), "Cache-Control": "no-store" },
+            body: btoa(binary),
+            body_encoding: "base64",
+        }));
+        // The first chunk holds the first frames. The rest is held back until the element has been collected for.
+        mediaURL.search = `?chunks=16384&chunk_unblock_tokens=${token}`;
+        const unblockURL = new URL(`/unblock/${token}`, mediaURL);
+        unblockURL.hostname = uniqueLocalhostHostname("gc-during-download-unblock");
+
+        const loadedData = new Promise(resolve => startLoadingUnreferencedAudio(mediaURL, resolve, networkState => {
+            println(`suspend event fired, networkState=${networkState}`);
+            done();
+        }));
+        await loadedData;
+
+        // The element's queued tasks keep it alive while they wait to run, so collect a few times.
+        for (let i = 0; i < 5; i++) {
+            await internals.gcAsync();
+            await new Promise(resolve => setTimeout(resolve, 30));
+        }
+        await fetch(unblockURL);
+    });
+</script>

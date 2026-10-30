@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A SourceBuffer that nothing else references must stay alive while it is updating, along with its MediaSource and
+    // media element, so that the update can still fire its events.
+
+    // NB: This is not done in the async test function, whose suspended frame could keep the objects alive.
+    function startSecondAppendToUnreferencedSourceBuffer(media, onSecondAppendStarted, onSecondUpdateEnd) {
+        const video = document.createElement("video");
+        const mediaSource = new MediaSource();
+        const url = URL.createObjectURL(mediaSource);
+        video.src = url;
+        mediaSource.addEventListener("sourceopen", () => {
+            URL.revokeObjectURL(url);
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp9"');
+            let updateEndCount = 0;
+            sourceBuffer.addEventListener("updateend", () => {
+                if (++updateEndCount === 2)
+                    onSecondUpdateEnd();
+            });
+            // Once the element has data for the current playback position, nothing but an update keeps it alive.
+            const loaded = Promise.all([
+                new Promise(resolve => video.addEventListener("loadeddata", resolve, { once: true })),
+                new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true })),
+            ]);
+            sourceBuffer.appendBuffer(media);
+            // Let the tasks that the load queued run, since they keep the objects alive until they do.
+            loaded.then(() => setTimeout(() => {
+                // A large append keeps the SourceBuffer updating across several collections.
+                const repeated = new Uint8Array(media.byteLength * 20);
+                for (let i = 0; i < 20; i++)
+                    repeated.set(new Uint8Array(media), i * media.byteLength);
+                sourceBuffer.timestampOffset = 1;
+                sourceBuffer.appendBuffer(repeated);
+                onSecondAppendStarted();
+            }, 50));
+        }, { once: true });
+    }
+
+    asyncTest(async done => {
+        const media = await (await fetch("../../../Assets/vp9-frame-rate-change.webm")).arrayBuffer();
+        let secondUpdateEnded = false;
+        await new Promise(resolve => startSecondAppendToUnreferencedSourceBuffer(media, () => resolve(), () => {
+            secondUpdateEnded = true;
+            println("updateend fired for the second append");
+            done();
+        }));
+        while (!secondUpdateEnded)
+            await internals.gcAsync();
+    });
+</script>
