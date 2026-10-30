@@ -10,16 +10,16 @@ RECREATED: display none -> inline in flow-root | following sibling
 RECREATED: display none -> inline in flow-root | following sibling descendant
 STATS: display none -> inline in flow-root | rebuilt subtree roots=1, escaped=false
 PASS: display none -> inline in flow-root | incremental tree matches full rebuild
-RECREATED: display none -> grid in inline-grid | fixture ancestor
-RECREATED: display none -> grid in inline-grid | distant sibling
-RECREATED: display none -> grid in inline-grid | distant sibling descendant
-RECREATED: display none -> grid in inline-grid | DOM parent
-RECREATED: display none -> grid in inline-grid | preceding sibling
-RECREATED: display none -> grid in inline-grid | preceding sibling descendant
+PRESERVED: display none -> grid in inline-grid | fixture ancestor
+PRESERVED: display none -> grid in inline-grid | distant sibling
+PRESERVED: display none -> grid in inline-grid | distant sibling descendant
+PRESERVED: display none -> grid in inline-grid | DOM parent
+PRESERVED: display none -> grid in inline-grid | preceding sibling
+PRESERVED: display none -> grid in inline-grid | preceding sibling descendant
 CREATED: display none -> grid in inline-grid | target
 CREATED: display none -> grid in inline-grid | target descendant
-RECREATED: display none -> grid in inline-grid | following sibling
-RECREATED: display none -> grid in inline-grid | following sibling descendant
+PRESERVED: display none -> grid in inline-grid | following sibling
+PRESERVED: display none -> grid in inline-grid | following sibling descendant
 STATS: display none -> grid in inline-grid | rebuilt subtree roots=1, escaped=false
 PASS: display none -> grid in inline-grid | incremental tree matches full rebuild
 RECREATED: display none -> table-header-group in table-footer-group | fixture ancestor

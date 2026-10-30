@@ -34,16 +34,16 @@ ABSENT: display none -> table-cell in table-column-group | following sibling
 ABSENT: display none -> table-cell in table-column-group | following sibling descendant
 STATS: display none -> table-cell in table-column-group | rebuilt subtree roots=1, escaped=false
 PASS: display none -> table-cell in table-column-group | incremental tree matches full rebuild
-RECREATED: display none -> block flex in inline flex | fixture ancestor
-RECREATED: display none -> block flex in inline flex | distant sibling
-RECREATED: display none -> block flex in inline flex | distant sibling descendant
-RECREATED: display none -> block flex in inline flex | DOM parent
-RECREATED: display none -> block flex in inline flex | preceding sibling
-RECREATED: display none -> block flex in inline flex | preceding sibling descendant
+PRESERVED: display none -> block flex in inline flex | fixture ancestor
+PRESERVED: display none -> block flex in inline flex | distant sibling
+PRESERVED: display none -> block flex in inline flex | distant sibling descendant
+PRESERVED: display none -> block flex in inline flex | DOM parent
+PRESERVED: display none -> block flex in inline flex | preceding sibling
+PRESERVED: display none -> block flex in inline flex | preceding sibling descendant
 CREATED: display none -> block flex in inline flex | target
 CREATED: display none -> block flex in inline flex | target descendant
-RECREATED: display none -> block flex in inline flex | following sibling
-RECREATED: display none -> block flex in inline flex | following sibling descendant
+PRESERVED: display none -> block flex in inline flex | following sibling
+PRESERVED: display none -> block flex in inline flex | following sibling descendant
 STATS: display none -> block flex in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: display none -> block flex in inline flex | incremental tree matches full rebuild
 PRESERVED: display contents -> none in block | fixture ancestor

@@ -105,6 +105,7 @@ pub struct PublishedContentFacts {
     pub counters_are_none: bool,
     pub content_is_keyword: bool,
     pub content_is_strings_only: bool,
+    pub opens_or_closes_quotes: bool,
 }
 
 unsafe extern "C" {
@@ -815,6 +816,7 @@ impl RetainedState {
             counters_are_none: view.counter_properties_are_none(),
             content_is_keyword: view.content_is_keyword(),
             content_is_strings_only: view.content_is_strings_only(),
+            opens_or_closes_quotes: view.content_opens_or_closes_quotes(),
         })
     }
 

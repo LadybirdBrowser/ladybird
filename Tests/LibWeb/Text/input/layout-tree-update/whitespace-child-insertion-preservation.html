@@ -69,7 +69,7 @@
                 { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
                 { name: "insert whitespace between blocks", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
                 { name: "append whitespace", mutate: parent => parent.append(" ") },
-                { name: "rebuild before blocks with trailing run", mutate: parent => parent.prepend("\n"), preserve: false },
+                { name: "rebuild before blocks with trailing run", mutate: parent => parent.prepend("\n") },
             ],
         },
         {
@@ -79,7 +79,7 @@
                 { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
                 { name: "insert whitespace between items", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
                 { name: "append whitespace", mutate: parent => parent.append(" ") },
-                { name: "rebuild before items with trailing text item", mutate: parent => parent.prepend("\n"), preserve: false },
+                { name: "rebuild before items with trailing text item", mutate: parent => parent.prepend("\n") },
             ],
         },
         {
@@ -89,7 +89,7 @@
                 { name: "prepend whitespace", mutate: parent => parent.prepend(" ") },
                 { name: "insert whitespace between items", mutate: parent => parent.insertBefore(document.createTextNode(" "), parent.querySelector(".after")) },
                 { name: "append whitespace", mutate: parent => parent.append(" ") },
-                { name: "rebuild between items with trailing text item", mutate: parent => parent.querySelector(".after").before("\n"), preserve: false },
+                { name: "rebuild between items with trailing text item", mutate: parent => parent.querySelector(".after").before("\n") },
             ],
         },
         {
@@ -169,12 +169,10 @@
                 {
                     name: "rebuild for adjacent spaces",
                     mutate: parent => parent.querySelector(".after").before(" ", "\n", "\t"),
-                    preserve: false,
                 },
                 {
                     name: "rebuild when extending the anonymous run",
                     mutate: parent => parent.querySelector(".after").before("\r\n", " "),
-                    preserve: false,
                 },
             ],
         },
@@ -185,12 +183,10 @@
                 {
                     name: "rebuild for adjacent spaces",
                     mutate: parent => parent.querySelector(".after").before(" ", "\n", "\t"),
-                    preserve: false,
                 },
                 {
                     name: "rebuild when extending the anonymous item",
                     mutate: parent => parent.querySelector(".after").before("\r\n", " "),
-                    preserve: false,
                 },
             ],
         },
@@ -201,12 +197,10 @@
                 {
                     name: "rebuild for adjacent spaces",
                     mutate: parent => parent.querySelector(".after").before(" ", "\n", "\t"),
-                    preserve: false,
                 },
                 {
                     name: "rebuild when extending the anonymous item",
                     mutate: parent => parent.querySelector(".after").before("\r\n", " "),
-                    preserve: false,
                 },
             ],
         },
@@ -223,7 +217,6 @@
                         secondHidden.className = "hidden";
                         parent.querySelector(".after").before(" ", firstHidden, "\n", secondHidden, "\t");
                     },
-                    preserve: false,
                 },
             ],
         },
@@ -265,8 +258,8 @@
             markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
             steps: [
                 { name: "create trailing run", mutate: parent => parent.append(" ") },
-                { name: "rebuild for earlier new run", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
-                { name: "rebuild beside non-trailing middle run", mutate: parent => parent.querySelector(".after").before("\n"), preserve: false },
+                { name: "rebuild for earlier new run", mutate: parent => parent.querySelector(".after").before(" ") },
+                { name: "rebuild beside non-trailing middle run", mutate: parent => parent.querySelector(".after").before("\n") },
             ],
         },
         {
@@ -274,8 +267,8 @@
             markup: '<div class="parent flex"><div class="tracked"></div><div class="after"></div></div>',
             steps: [
                 { name: "create trailing text item", mutate: parent => parent.append(" ") },
-                { name: "rebuild for earlier text item", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
-                { name: "rebuild beside non-trailing middle item", mutate: parent => parent.querySelector(".after").before("\n"), preserve: false },
+                { name: "rebuild for earlier text item", mutate: parent => parent.querySelector(".after").before(" ") },
+                { name: "rebuild beside non-trailing middle item", mutate: parent => parent.querySelector(".after").before("\n") },
             ],
         },
         {
@@ -283,16 +276,16 @@
             markup: '<div class="parent grid"><div class="tracked"></div><div class="after"></div></div>',
             steps: [
                 { name: "create trailing text item", mutate: parent => parent.append(" ") },
-                { name: "rebuild for earlier text item", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
-                { name: "rebuild beside non-trailing middle item", mutate: parent => parent.querySelector(".after").before("\n"), preserve: false },
+                { name: "rebuild for earlier text item", mutate: parent => parent.querySelector(".after").before(" ") },
+                { name: "rebuild beside non-trailing middle item", mutate: parent => parent.querySelector(".after").before("\n") },
             ],
         },
         {
             name: "absolute before block progression",
             markup: '<div class="parent"><div class="absolute"></div><div class="tracked"></div></div>',
             steps: [
-                { name: "insert before absolute", mutate: parent => parent.prepend(" "), preserve: false },
-                { name: "insert between absolute and block", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "insert before absolute", mutate: parent => parent.prepend(" ") },
+                { name: "insert between absolute and block", mutate: parent => parent.querySelector(".tracked").before(" ") },
                 { name: "preserve after block", mutate: parent => parent.append(" ") },
             ],
         },
@@ -301,16 +294,16 @@
             markup: '<div class="parent"><div class="tracked"></div><div class="absolute"></div></div>',
             steps: [
                 { name: "insert after absolute", mutate: parent => parent.append(" ") },
-                { name: "insert before absolute", mutate: parent => parent.querySelector(".absolute").before(" "), preserve: false },
-                { name: "insert before block", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "insert before absolute", mutate: parent => parent.querySelector(".absolute").before(" ") },
+                { name: "insert before block", mutate: parent => parent.prepend(" ") },
             ],
         },
         {
             name: "float before block progression",
             markup: '<div class="parent"><div class="float"></div><div class="tracked"></div></div>',
             steps: [
-                { name: "insert before float", mutate: parent => parent.prepend(" "), preserve: false },
-                { name: "insert between float and block", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "insert before float", mutate: parent => parent.prepend(" ") },
+                { name: "insert between float and block", mutate: parent => parent.querySelector(".tracked").before(" ") },
                 { name: "preserve after block", mutate: parent => parent.append(" ") },
             ],
         },
@@ -319,15 +312,15 @@
             markup: '<div class="parent"><div class="tracked"></div><div class="float"></div></div>',
             steps: [
                 { name: "insert after float", mutate: parent => parent.append(" ") },
-                { name: "insert before float", mutate: parent => parent.querySelector(".float").before(" "), preserve: false },
-                { name: "insert before block", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "insert before float", mutate: parent => parent.querySelector(".float").before(" ") },
+                { name: "insert before block", mutate: parent => parent.prepend(" ") },
             ],
         },
         {
             name: "absolute before flex item progression",
             markup: '<div class="parent flex"><div class="absolute"></div><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild before absolute", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild before absolute", mutate: parent => parent.prepend(" ") },
                 { name: "preserve after absolute", mutate: parent => parent.querySelector(".tracked").before(" ") },
                 { name: "preserve after final item", mutate: parent => parent.append(" ") },
             ],
@@ -337,36 +330,36 @@
             markup: '<div class="parent flex"><div class="tracked"></div><div class="absolute"></div></div>',
             steps: [
                 { name: "insert after absolute", mutate: parent => parent.append(" ") },
-                { name: "rebuild before absolute", mutate: parent => parent.querySelector(".absolute").before(" "), preserve: false },
-                { name: "rebuild before item", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild before absolute", mutate: parent => parent.querySelector(".absolute").before(" ") },
+                { name: "rebuild before item", mutate: parent => parent.prepend(" ") },
             ],
         },
         {
             name: "generated before inline progression",
             markup: '<div class="parent before-inline"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild between before and block", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild between before and block", mutate: parent => parent.prepend(" ") },
                 { name: "preserve after block", mutate: parent => parent.append(" ") },
                 { name: "preserve in trailing inline run", mutate: parent => parent.append("\n") },
-                { name: "rebuild beside before again", mutate: parent => parent.prepend("\t"), preserve: false },
+                { name: "rebuild beside before again", mutate: parent => parent.prepend("\t") },
             ],
         },
         {
             name: "generated after inline progression",
             markup: '<div class="parent after-inline"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild before block with trailing after run", mutate: parent => parent.prepend(" "), preserve: false },
-                { name: "rebuild before trailing after run", mutate: parent => parent.append(" "), preserve: false },
-                { name: "rebuild beside trailing after run", mutate: parent => parent.append("\n"), preserve: false },
+                { name: "rebuild before block with trailing after run", mutate: parent => parent.prepend(" ") },
+                { name: "rebuild before trailing after run", mutate: parent => parent.append(" ") },
+                { name: "rebuild beside trailing after run", mutate: parent => parent.append("\n") },
             ],
         },
         {
             name: "generated before and after inline progression",
             markup: '<div class="parent before-and-after-inline"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild beside before", mutate: parent => parent.prepend(" "), preserve: false },
-                { name: "rebuild before trailing after run", mutate: parent => parent.append(" "), preserve: false },
-                { name: "rebuild beside before again", mutate: parent => parent.prepend("\n"), preserve: false },
+                { name: "rebuild beside before", mutate: parent => parent.prepend(" ") },
+                { name: "rebuild before trailing after run", mutate: parent => parent.append(" ") },
+                { name: "rebuild beside before again", mutate: parent => parent.prepend("\n") },
             ],
         },
         {
@@ -382,14 +375,14 @@
             name: "generated before inline-block",
             markup: '<div class="parent before-inline-block"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild between before and block", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild between before and block", mutate: parent => parent.prepend(" ") },
             ],
         },
         {
             name: "generated before display contents",
             markup: '<div class="parent before-contents"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild between before and block", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild between before and block", mutate: parent => parent.prepend(" ") },
                 { name: "preserve after block", mutate: parent => parent.append(" ") },
             ],
         },
@@ -406,14 +399,14 @@
             markup: '<div class="parent after-block"><div class="tracked"></div></div>',
             steps: [
                 { name: "preserve before DOM block", mutate: parent => parent.prepend(" ") },
-                { name: "rebuild before generated block", mutate: parent => parent.append(" "), preserve: false },
+                { name: "rebuild before generated block", mutate: parent => parent.append(" ") },
             ],
         },
         {
             name: "generated before absolute progression",
             markup: '<div class="parent before-absolute"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild after generated absolute", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild after generated absolute", mutate: parent => parent.prepend(" ") },
                 { name: "preserve after DOM block", mutate: parent => parent.append(" ") },
             ],
         },
@@ -422,14 +415,14 @@
             markup: '<div class="parent after-absolute"><div class="tracked"></div></div>',
             steps: [
                 { name: "preserve before DOM block", mutate: parent => parent.prepend(" ") },
-                { name: "rebuild before generated absolute", mutate: parent => parent.append(" "), preserve: false },
+                { name: "rebuild before generated absolute", mutate: parent => parent.append(" ") },
             ],
         },
         {
             name: "generated before float progression",
             markup: '<div class="parent before-float"><div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild after generated float", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild after generated float", mutate: parent => parent.prepend(" ") },
                 { name: "preserve after DOM block", mutate: parent => parent.append(" ") },
             ],
         },
@@ -438,7 +431,7 @@
             markup: '<div class="parent after-float"><div class="tracked"></div></div>',
             steps: [
                 { name: "preserve before DOM block", mutate: parent => parent.prepend(" ") },
-                { name: "rebuild before generated float", mutate: parent => parent.append(" "), preserve: false },
+                { name: "rebuild before generated float", mutate: parent => parent.append(" ") },
             ],
         },
         {
@@ -470,7 +463,7 @@
             markup: '<div class="parent flex after-inline"><div class="tracked"></div></div>',
             steps: [
                 { name: "preserve before item", mutate: parent => parent.prepend(" ") },
-                { name: "rebuild before trailing after item", mutate: parent => parent.append(" "), preserve: false },
+                { name: "rebuild before trailing after item", mutate: parent => parent.append(" ") },
             ],
         },
         {
@@ -478,7 +471,7 @@
             markup: '<div class="parent grid after-block"><div class="tracked"></div></div>',
             steps: [
                 { name: "preserve before DOM item", mutate: parent => parent.prepend(" ") },
-                { name: "rebuild before generated item", mutate: parent => parent.append(" "), preserve: false },
+                { name: "rebuild before generated item", mutate: parent => parent.append(" ") },
             ],
         },
         {
@@ -492,7 +485,6 @@
                         hidden.className = "hidden";
                         parent.prepend(hidden, " ");
                     },
-                    preserve: false,
                 },
             ],
         },
@@ -506,7 +498,6 @@
                         parent.prepend(" ");
                         parent.append(" ");
                     },
-                    preserve: false,
                 },
             ],
         },
@@ -514,31 +505,31 @@
             name: "mixed block and inline progression",
             markup: '<div class="parent"><div class="tracked"></div><span class="inline">inline</span><div class="after"></div></div>',
             steps: [
-                { name: "rebuild before block after inline run", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
+                { name: "rebuild before block after inline run", mutate: parent => parent.querySelector(".after").before(" ") },
                 { name: "preserve after final block", mutate: parent => parent.append(" ") },
                 { name: "preserve in new trailing inline run", mutate: parent => parent.append("\n") },
-                { name: "rebuild beside non-trailing inline run", mutate: parent => parent.querySelector(".inline").before(" "), preserve: false },
+                { name: "rebuild beside non-trailing inline run", mutate: parent => parent.querySelector(".inline").before(" ") },
             ],
         },
         {
             name: "rebuild before block after inline run",
             markup: '<div class="parent"><span>inline</span><div class="tracked"></div></div>',
             steps: [
-                { name: "insert whitespace", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "insert whitespace", mutate: parent => parent.querySelector(".tracked").before(" ") },
             ],
         },
         {
             name: "rebuild beside non-trailing inline run",
             markup: '<div class="parent"><div class="tracked"></div><span class="inline">inline</span><div class="after"></div></div>',
             steps: [
-                { name: "insert whitespace after preceding block", mutate: parent => parent.querySelector(".inline").before(" "), preserve: false },
+                { name: "insert whitespace after preceding block", mutate: parent => parent.querySelector(".inline").before(" ") },
             ],
         },
         {
             name: "flow-root mixed-content progression",
             markup: '<div class="parent flow-root"><div class="tracked"></div><span class="inline">inline</span><div class="after"></div></div>',
             steps: [
-                { name: "rebuild before block after inline run", mutate: parent => parent.querySelector(".after").before(" "), preserve: false },
+                { name: "rebuild before block after inline run", mutate: parent => parent.querySelector(".after").before(" ") },
                 { name: "preserve after final block", mutate: parent => parent.append(" ") },
             ],
         },
@@ -552,7 +543,6 @@
                         parent.querySelector(".tracked").before(" ");
                         parent.append(" ");
                     },
-                    preserve: false,
                 },
             ],
         },
@@ -560,7 +550,7 @@
             name: "flex raw-text progression",
             markup: '<div class="parent flex">raw<div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild after raw text before item", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "rebuild after raw text before item", mutate: parent => parent.querySelector(".tracked").before(" ") },
                 { name: "preserve after final item", mutate: parent => parent.append(" ") },
                 { name: "preserve in trailing text item", mutate: parent => parent.append("\t") },
             ],
@@ -569,7 +559,7 @@
             name: "rebuild before non-trailing flex raw text",
             markup: '<div class="parent flex"><div class="tracked"></div>raw<div class="after"></div></div>',
             steps: [
-                { name: "insert whitespace", mutate: parent => parent.firstChild.after(" "), preserve: false },
+                { name: "insert whitespace", mutate: parent => parent.firstChild.after(" ") },
             ],
         },
         {
@@ -578,15 +568,15 @@
             steps: [
                 { name: "insert before raw text", mutate: parent => parent.lastChild.before(" ") },
                 { name: "append after raw text", mutate: parent => parent.append(" ") },
-                { name: "rebuild before item with trailing text item", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild before item with trailing text item", mutate: parent => parent.prepend(" ") },
             ],
         },
         {
             name: "grid raw-text progression",
             markup: '<div class="parent grid">raw<div class="tracked"></div></div>',
             steps: [
-                { name: "rebuild before raw text", mutate: parent => parent.prepend(" "), preserve: false },
-                { name: "rebuild after raw text before item", mutate: parent => parent.querySelector(".tracked").before(" "), preserve: false },
+                { name: "rebuild before raw text", mutate: parent => parent.prepend(" ") },
+                { name: "rebuild after raw text before item", mutate: parent => parent.querySelector(".tracked").before(" ") },
                 { name: "preserve after final item", mutate: parent => parent.append(" ") },
             ],
         },
@@ -596,7 +586,7 @@
             steps: [
                 { name: "insert before raw text", mutate: parent => parent.lastChild.before(" ") },
                 { name: "append after raw text", mutate: parent => parent.append(" ") },
-                { name: "rebuild before item with trailing text item", mutate: parent => parent.prepend(" "), preserve: false },
+                { name: "rebuild before item with trailing text item", mutate: parent => parent.prepend(" ") },
             ],
         },
         {
