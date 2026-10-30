@@ -228,6 +228,39 @@
             ],
         },
         {
+            name: "append whitespace runs separated by boxless siblings",
+            markup: '<div class="parent"><div class="tracked"></div></div>',
+            steps: [
+                {
+                    name: "append whitespace, hidden element and whitespace",
+                    mutate: parent => {
+                        const hidden = document.createElement("span");
+                        hidden.className = "hidden";
+                        parent.append(" ", hidden, "\n");
+                    },
+                },
+                {
+                    name: "append whitespace, script, whitespace and block",
+                    mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<script type="text/plain">x<\/script>\n<p>after</p>'),
+                },
+                { name: "append adjacent whitespace nodes", mutate: parent => parent.append(" ", "\t") },
+            ],
+        },
+        {
+            name: "append whitespace runs separated by boxless siblings to flex items",
+            markup: '<div class="parent flex"><div class="tracked"></div></div>',
+            steps: [
+                {
+                    name: "append whitespace, hidden element, whitespace and item",
+                    mutate: parent => {
+                        const hidden = document.createElement("span");
+                        hidden.className = "hidden";
+                        parent.append(" ", hidden, "\n", document.createElement("div"));
+                    },
+                },
+            ],
+        },
+        {
             name: "trailing inline run changes block insertion",
             markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
             steps: [

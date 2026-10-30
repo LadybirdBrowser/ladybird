@@ -893,8 +893,12 @@ impl ChildListInsertionReuse<'_, '_> {
     fn pending_children_can_preserve_parent(&self) -> bool {
         let collapses_whitespace = self.parent_collapses_whitespace();
         let mut has_pending_collapsing_whitespace = false;
+        let mut inserted_whitespace_run_must_stay_last = false;
         for child in self.dom_children() {
             if !self.box_of(child).is_invalid() {
+                if inserted_whitespace_run_must_stay_last {
+                    return false;
+                }
                 has_pending_collapsing_whitespace = false;
                 if self.needs_layout_tree_update(child) || self.arena().child_needs_layout_tree_update(Some(child)) {
                     return false;
@@ -910,9 +914,7 @@ impl ChildListInsertionReuse<'_, '_> {
                 && !self.has_first_letter_owner
                 && self.collapsing_whitespace_can_be_inserted(child)
             {
-                if has_pending_collapsing_whitespace {
-                    return false;
-                }
+                inserted_whitespace_run_must_stay_last |= has_pending_collapsing_whitespace;
                 has_pending_collapsing_whitespace = true;
                 continue;
             }
@@ -1034,8 +1036,9 @@ impl ChildListInsertionReuse<'_, '_> {
         let mut all_indirect_existing_children_are_in_text_run_wrappers =
             self.layout.data(self.layout_node).kind.get() != NodeKind::FieldSetBox;
         let mut has_pending_collapsing_whitespace = false;
-        // An appended out-of-flow block joins the anonymous wrapper its preceding whitespace starts, as in a full
-        // build, only while that wrapper stays the parent's last child.
+        // In a full build, an out-of-flow block or more whitespace after inserted whitespace joins the anonymous wrapper
+        // that whitespace starts. The incremental insertion finds that wrapper only while it stays the parent's last
+        // child.
         let mut inserted_whitespace_run_must_stay_last = false;
         // Counters are resolved from the boxes before a box, so an inserted subtree that touches one changes only what
         // comes after it.
@@ -1076,9 +1079,10 @@ impl ChildListInsertionReuse<'_, '_> {
                     && collapses_whitespace
                     && !self.has_first_letter_owner
                     && self.collapsing_whitespace_can_be_inserted(child);
-                if !collapsed_whitespace_can_be_inserted || has_pending_collapsing_whitespace {
+                if !collapsed_whitespace_can_be_inserted {
                     return false;
                 }
+                inserted_whitespace_run_must_stay_last |= has_pending_collapsing_whitespace;
                 has_pending_collapsing_whitespace = true;
                 continue;
             }
