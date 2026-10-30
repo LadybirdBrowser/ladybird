@@ -60,45 +60,4 @@ protected:
     size_t m_seekback_limit {};
 };
 
-class SearchableCircularBuffer : public CircularBuffer {
-public:
-    static ErrorOr<SearchableCircularBuffer> create_empty(size_t size);
-    static ErrorOr<SearchableCircularBuffer> create_initialized(ByteBuffer);
-
-    [[nodiscard]] size_t search_limit() const;
-
-    // These functions update the read pointer, so we need to hash any data that we have processed.
-    ErrorOr<Bytes> read(Bytes bytes);
-    ErrorOr<void> discard(size_t discarded_bytes);
-    ErrorOr<size_t> flush_to_stream(Stream& stream);
-
-    struct Match {
-        size_t distance;
-        size_t length;
-    };
-    /// This searches the seekback buffer (between read head and limit) for occurrences where it matches the next `length` bytes from the read buffer.
-    /// Supplying any hints will only consider those distances, in case existing offsets need to be validated.
-    /// Note that, since we only start searching at the read head, the length between read head and write head is excluded from the distance.
-    Optional<Match> find_copy_in_seekback(size_t maximum_length, size_t minimum_length = 2);
-    Optional<Match> find_copy_in_seekback(ReadonlySpan<size_t> distances, size_t maximum_length, size_t minimum_length = 2) const;
-
-    // The chunk size for which the hash table holds hashes.
-    // This is nice for users to know, as picking a minimum match length that is
-    // equal or greater than this allows us to completely skip a slow memory search.
-    static constexpr size_t HASH_CHUNK_SIZE = 3;
-
-private:
-    // Note: This function has a similar purpose as next_seekback_span, but they differ in their reference point.
-    //       Seekback operations start counting their distance at the write head, while search operations start counting their distance at the read head.
-    [[nodiscard]] ReadonlyBytes next_search_span(size_t distance) const;
-
-    SearchableCircularBuffer(ByteBuffer);
-
-    HashMap<unsigned, size_t, IdentityHashTraits<unsigned>> m_hash_location_map;
-    HashMap<size_t, size_t> m_location_chain_map;
-
-    ErrorOr<void> insert_location_hash(ReadonlyBytes value, size_t raw_offset);
-    ErrorOr<void> hash_last_bytes(size_t count);
-};
-
 }
