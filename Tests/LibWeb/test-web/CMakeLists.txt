@@ -52,6 +52,11 @@ if (BUILD_TESTING)
     set_tests_properties(LibWeb PROPERTIES
         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
         TIMEOUT_SIGNAL_NAME SIGTERM)
+    if (ENABLE_ADDRESS_SANITIZER)
+        # A Sanitizer build runs the whole suite in 1000-1500 seconds on the arm64 CI runner, and its slowest runs
+        # have taken longer than the 1800 seconds the CI workflow allows each test by default.
+        set_tests_properties(LibWeb PROPERTIES TIMEOUT 3600)
+    endif()
     set_tests_properties(LibWebUIProcessSessionHistory PROPERTIES
         ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}
         TIMEOUT_SIGNAL_NAME SIGTERM)
