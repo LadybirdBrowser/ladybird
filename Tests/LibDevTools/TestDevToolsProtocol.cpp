@@ -4717,6 +4717,32 @@ TEST_CASE(console_evaluation_result_object_grips)
     EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
 }
 
+TEST_CASE(console_log_object_grips)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+
+    // WebContent names a logged object by ID; the server makes it an object actor.
+    auto logged_object = MUST(JsonValue::from_string(R"~~~({"type":"object","objectId":9,"class":"Object",
+        "preview":{"kind":"Object","ownProperties":{"answer":42},"ownPropertiesLength":1}})~~~"sv));
+    session->delegate.emit_console_log(JS::ConsoleLogLevel::Log, { "label"_string, move(logged_object) });
+    auto arguments = read_resource(client, "console-message"sv).get_array("arguments"sv).release_value();
+    EXPECT_EQ(arguments.at(0).as_string(), "label"sv);
+    auto grip = arguments.at(1).as_object();
+    EXPECT_EQ(grip.get_string("class"sv).value(), "Object"sv);
+    EXPECT(!grip.has("objectId"sv));
+    EXPECT_EQ(grip.get_object("preview"sv)->get_object("ownProperties"sv)->get_integer<u32>("answer"sv).value(), 42u);
+
+    // Expanding a logged object asks for the properties of the console's object, not the debugger's.
+    auto properties = client.request(actor_from(grip, "actor"sv), "prototypeAndProperties"sv);
+    EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 9u);
+    EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
+    EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
+}
+
 TEST_CASE(console_autocomplete)
 {
     auto session = create_session();

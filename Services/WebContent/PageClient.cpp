@@ -2358,6 +2358,10 @@ void PageClient::set_has_devtools_client(bool has_devtools_client)
         else
             active_document->clear_devtools_layout_inspection_data();
     }
+
+    // No client is left to expand the objects of the messages logged for the last one.
+    if (!has_devtools_client && m_top_level_document_console_client)
+        as<DevToolsConsoleClient>(*m_top_level_document_console_client).forget_logged_objects();
 }
 
 void PageClient::page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error)

@@ -1,0 +1,7 @@
+first object: class Object, has an object ID: true
+other arguments: ["text",1,{"type":"undefined"}]
+first message kept: ["answer"]
+after 1000 messages, first message kept: ["answer"]
+after 1001 messages, first message kept: not kept
+message 500 kept: not kept
+message 501 kept: ["message"]

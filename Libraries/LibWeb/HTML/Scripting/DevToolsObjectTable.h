@@ -34,6 +34,7 @@ public:
     WebView::DebuggerValue serialize_value(JS::Value);
     JsonValue serialize_value_as_grip(JS::Value);
     ErrorOr<WebView::DebuggerObjectProperties> properties_for_object(u64 object_id);
+    bool contains(u64 object_id) const { return m_objects.contains(object_id); }
     void clear();
     void visit_edges(GC::Cell::Visitor&);
 
