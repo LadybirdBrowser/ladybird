@@ -10,16 +10,16 @@ PRESERVED: display none -> inline list-item in flex | following sibling
 PRESERVED: display none -> inline list-item in flex | following sibling descendant
 STATS: display none -> inline list-item in flex | rebuilt subtree roots=1, escaped=false
 PASS: display none -> inline list-item in flex | incremental tree matches full rebuild
-RECREATED: display none -> -webkit-box in -webkit-inline-box | fixture ancestor
-RECREATED: display none -> -webkit-box in -webkit-inline-box | distant sibling
-RECREATED: display none -> -webkit-box in -webkit-inline-box | distant sibling descendant
-RECREATED: display none -> -webkit-box in -webkit-inline-box | DOM parent
-RECREATED: display none -> -webkit-box in -webkit-inline-box | preceding sibling
-RECREATED: display none -> -webkit-box in -webkit-inline-box | preceding sibling descendant
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | fixture ancestor
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | distant sibling
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | distant sibling descendant
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | DOM parent
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | preceding sibling
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | preceding sibling descendant
 CREATED: display none -> -webkit-box in -webkit-inline-box | target
 CREATED: display none -> -webkit-box in -webkit-inline-box | target descendant
-RECREATED: display none -> -webkit-box in -webkit-inline-box | following sibling
-RECREATED: display none -> -webkit-box in -webkit-inline-box | following sibling descendant
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | following sibling
+PRESERVED: display none -> -webkit-box in -webkit-inline-box | following sibling descendant
 STATS: display none -> -webkit-box in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
 PASS: display none -> -webkit-box in -webkit-inline-box | incremental tree matches full rebuild
 RECREATED: display none -> table-column in table-caption | fixture ancestor
@@ -34,16 +34,16 @@ RECREATED: display none -> table-column in table-caption | following sibling
 RECREATED: display none -> table-column in table-caption | following sibling descendant
 STATS: display none -> table-column in table-caption | rebuilt subtree roots=1, escaped=false
 PASS: display none -> table-column in table-caption | incremental tree matches full rebuild
-RECREATED: display none -> block grid in inline grid | fixture ancestor
-RECREATED: display none -> block grid in inline grid | distant sibling
-RECREATED: display none -> block grid in inline grid | distant sibling descendant
-RECREATED: display none -> block grid in inline grid | DOM parent
-RECREATED: display none -> block grid in inline grid | preceding sibling
-RECREATED: display none -> block grid in inline grid | preceding sibling descendant
+PRESERVED: display none -> block grid in inline grid | fixture ancestor
+PRESERVED: display none -> block grid in inline grid | distant sibling
+PRESERVED: display none -> block grid in inline grid | distant sibling descendant
+PRESERVED: display none -> block grid in inline grid | DOM parent
+PRESERVED: display none -> block grid in inline grid | preceding sibling
+PRESERVED: display none -> block grid in inline grid | preceding sibling descendant
 CREATED: display none -> block grid in inline grid | target
 CREATED: display none -> block grid in inline grid | target descendant
-RECREATED: display none -> block grid in inline grid | following sibling
-RECREATED: display none -> block grid in inline grid | following sibling descendant
+PRESERVED: display none -> block grid in inline grid | following sibling
+PRESERVED: display none -> block grid in inline grid | following sibling descendant
 STATS: display none -> block grid in inline grid | rebuilt subtree roots=1, escaped=false
 PASS: display none -> block grid in inline grid | incremental tree matches full rebuild
 RECREATED: display contents -> inline in inline-block | fixture ancestor

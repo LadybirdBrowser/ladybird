@@ -45,11 +45,10 @@
             tracked: ["parent", "before"],
         },
         {
-            name: "fall back when block insertion splits generated inline wrapper",
+            name: "rebuild child list when block insertion splits generated inline wrapper",
             markup: '<div class="parent inline-generated"></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"></section>'),
             tracked: ["parent"],
-            preserve: false,
         },
         {
             name: "prepend block child in block flow",
@@ -223,18 +222,16 @@
             tracked: ["parent", "before"],
         },
         {
-            name: "fall back for inline child among block children",
+            name: "rebuild child list for inline child among block children",
             markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline"><b></b></span>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "after"],
         },
         {
-            name: "fall back for block child among inline children",
+            name: "rebuild child list for block child among inline children",
             markup: '<div class="parent"><i class="before inline-block"></i><i class="after inline-block"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "after"],
         },
         {
             name: "append block child after anonymous inline run",
@@ -303,11 +300,10 @@
             tracked: ["parent", "before", "inline"],
         },
         {
-            name: "fall back for absolute block child after whitespace before existing child",
+            name: "rebuild child list for absolute block child after whitespace before existing child",
             markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '\n<section class="target child absolute"><b></b></section>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "after"],
         },
         {
             name: "append ordered list subtree",
@@ -348,11 +344,10 @@
             tracked: ["parent", "before"],
         },
         {
-            name: "fall back when appended counter subtree is followed by generated content",
+            name: "rebuild child list when appended counter subtree is followed by generated content",
             markup: '<div class="parent generated"><i class="before child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<ol class="target"><li>one</li></ol>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before"],
         },
         {
             name: "fall back when appending a list-item increment after a reversed list",
@@ -387,25 +382,99 @@
             tracked: ["parent", "before"],
         },
         {
-            name: "fall back for text before existing block child",
+            name: "rebuild child list for text before existing block child",
             markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".after").before("text"),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "after"],
         },
         {
-            name: "fall back for text before appended block child",
+            name: "rebuild child list for text before appended block child",
             markup: '<div class="parent"><i class="before child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", 'text<section class="target child"></section>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before"],
         },
         {
-            name: "fall back for block child before anonymous inline run",
+            name: "rebuild child list for block child before anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate: parent => parent.querySelector(".inline").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
-            tracked: ["parent"],
-            preserve: false,
+            tracked: ["parent", "before", "inline"],
+        },
+        {
+            name: "rebuild child list around a table child",
+            markup: '<div class="parent"><i class="before child"></i><table class="after"><tbody><tr><td>cell</td></tr></tbody></table></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list around an absolute inline table child",
+            markup: '<div class="parent"><span class="before inline">inline</span><table class="after absolute" style="display: inline-table"><tbody><tr><td>cell</td></tr></tbody></table></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<section class="target child"></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list around an svg child",
+            markup: '<div class="parent"><svg class="before" width="10" height="10"><rect width="10" height="10"></rect></svg><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list around inline generated content",
+            markup: '<div class="parent inline-generated"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list of a list item",
+            markup: '<ul><li class="parent"><i class="before child"></i><i class="after child"></i></li></ul>',
+            parentSelector: ".parent",
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list of an inside list item",
+            markup: '<ul><li class="parent" style="list-style-position: inside"><i class="before child"></i><i class="after child"></i></li></ul>',
+            parentSelector: ".parent",
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list for absolute child after whitespace in flex",
+            markup: '<div class="parent flex"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '\n<section class="target absolute"></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild child list around a float in an inline run",
+            markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span><i class="float">float</i><span>more</span></div>',
+            mutate: parent => parent.querySelector(".before").insertAdjacentHTML("beforebegin", '<section class="target child"></section>'),
+            tracked: ["parent", "before", "inline"],
+        },
+        {
+            name: "rebuild child list while a kept child gains children",
+            markup: '<div class="parent"><div class="before child"><i class="child"></i></div><i class="after child"></i></div>',
+            mutate(parent) {
+                parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>');
+                parent.querySelector(".before").insertAdjacentHTML("beforeend", '<section class="target child"></section>');
+            },
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "rebuild nested child lists",
+            markup: '<div class="parent"><div class="before child"><i class="child"></i><i class="child inner"></i></div><i class="after child"></i></div>',
+            mutate(parent) {
+                parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>');
+                parent.querySelector(".inner").insertAdjacentHTML("beforebegin", '<span class="target inline">inner inline</span>');
+            },
+            tracked: ["parent", "before", "after", "inner"],
+        },
+        {
+            name: "rebuild child list while a kept child is restyled",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate(parent) {
+                parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<span class="target inline">inline</span>');
+                parent.querySelector(".before").style.display = "flex";
+            },
+            tracked: ["parent", "after"],
         },
         {
             name: "append floated block child after anonymous inline run",

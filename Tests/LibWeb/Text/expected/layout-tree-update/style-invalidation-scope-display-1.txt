@@ -10,16 +10,16 @@ RECREATED: display none -> contents in block | following sibling
 RECREATED: display none -> contents in block | following sibling descendant
 STATS: display none -> contents in block | rebuilt subtree roots=1, escaped=false
 PASS: display none -> contents in block | incremental tree matches full rebuild
-RECREATED: display none -> flex in inline-flex | fixture ancestor
-RECREATED: display none -> flex in inline-flex | distant sibling
-RECREATED: display none -> flex in inline-flex | distant sibling descendant
-RECREATED: display none -> flex in inline-flex | DOM parent
-RECREATED: display none -> flex in inline-flex | preceding sibling
-RECREATED: display none -> flex in inline-flex | preceding sibling descendant
+PRESERVED: display none -> flex in inline-flex | fixture ancestor
+PRESERVED: display none -> flex in inline-flex | distant sibling
+PRESERVED: display none -> flex in inline-flex | distant sibling descendant
+PRESERVED: display none -> flex in inline-flex | DOM parent
+PRESERVED: display none -> flex in inline-flex | preceding sibling
+PRESERVED: display none -> flex in inline-flex | preceding sibling descendant
 CREATED: display none -> flex in inline-flex | target
 CREATED: display none -> flex in inline-flex | target descendant
-RECREATED: display none -> flex in inline-flex | following sibling
-RECREATED: display none -> flex in inline-flex | following sibling descendant
+PRESERVED: display none -> flex in inline-flex | following sibling
+PRESERVED: display none -> flex in inline-flex | following sibling descendant
 STATS: display none -> flex in inline-flex | rebuilt subtree roots=1, escaped=false
 PASS: display none -> flex in inline-flex | incremental tree matches full rebuild
 RECREATED: display none -> -webkit-inline-box in table-row-group | fixture ancestor
