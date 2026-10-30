@@ -197,12 +197,13 @@ impl SerializationReader<'_> {
         Ok(value)
     }
 
-    /// Reads what SerializationWriter::write_object_in_place() writes.
-    pub(crate) fn read_object_in_place<T: Serializable>(&mut self, cx: &mut CallContext) -> WebIdlResult<T> {
+    /// Reads what SerializationWriter::write_object_in_place() writes, and returns the new object.
+    pub(crate) fn read_object_in_place<T: Serializable>(&mut self, cx: &mut CallContext) -> WebIdlResult<Ref<T>> {
         // SAFETY: The reader is lent for the steps.
         unsafe { web_bindings_deserialize_inline_object_header(self.raw.as_ptr(), T::INTERFACE_NAME) }
             .into_completion()?;
-        T::deserialization_steps(cx, self)
+        let object = T::deserialization_steps(cx, self)?;
+        Ok(object.into_object(cx.vm()))
     }
 
     pub(crate) fn read_bool(&mut self) -> WebIdlResult<bool> {
@@ -260,7 +261,10 @@ pub(crate) trait Serializable: Interface {
     ) -> WebIdlResult<()>;
 
     /// https://html.spec.whatwg.org/multipage/structured-data.html#deserialization-steps, which create the object.
-    fn deserialization_steps(cx: &mut CallContext, serialized: &mut SerializationReader) -> WebIdlResult<Self>;
+    fn deserialization_steps(
+        cx: &mut CallContext,
+        serialized: &mut SerializationReader,
+    ) -> WebIdlResult<impl ConstructedObject<Self> + use<Self>>;
 }
 
 /// The data holder of a transferred object, which its transfer steps write to: a Web::Bindings::RustTransferDataWriter

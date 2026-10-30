@@ -229,19 +229,15 @@ impl Serializable for DOMQuad {
     fn deserialization_steps(cx: &mut CallContext, serialized: &mut SerializationReader) -> WebIdlResult<Self> {
         // 1. Set value’s point 1 to the sub-deserialization of serialized.[[P1]].
         let p1 = serialized.read_object_in_place::<DOMPoint>(cx)?;
-        let p1 = allocate(cx.vm(), |_| p1);
 
         // 2. Set value’s point 2 to the sub-deserialization of serialized.[[P2]].
         let p2 = serialized.read_object_in_place::<DOMPoint>(cx)?;
-        let p2 = allocate(cx.vm(), |_| p2);
 
         // 3. Set value’s point 3 to the sub-deserialization of serialized.[[P3]].
         let p3 = serialized.read_object_in_place::<DOMPoint>(cx)?;
-        let p3 = allocate(cx.vm(), |_| p3);
 
         // 4. Set value’s point 4 to the sub-deserialization of serialized.[[P4]].
         let p4 = serialized.read_object_in_place::<DOMPoint>(cx)?;
-        let p4 = allocate(cx.vm(), |_| p4);
 
         Ok(Self { p1, p2, p3, p4 })
     }
