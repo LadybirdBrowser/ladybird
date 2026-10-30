@@ -799,11 +799,11 @@ bool CompositorConnection::read_webgl_buffer_sub_data(Compositing::CanvasId canv
     return response->success();
 }
 
-void CompositorConnection::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void()>&& callback)
+void CompositorConnection::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void(ScreenshotResult)>&& callback)
 {
     if (!can_send_message_to_compositor()) {
         if (callback)
-            callback();
+            callback(ScreenshotResult::Failed);
         return;
     }
 
@@ -878,7 +878,7 @@ void CompositorConnection::did_complete_screenshot(Compositing::ScreenshotReques
         return;
 
     if (pending_screenshot->callback)
-        pending_screenshot->callback();
+        pending_screenshot->callback(ScreenshotResult::Taken);
 }
 
 void CompositorConnection::did_fail_screenshot(Compositing::ScreenshotRequestId request_id)
@@ -888,7 +888,7 @@ void CompositorConnection::did_fail_screenshot(Compositing::ScreenshotRequestId 
         return;
 
     if (pending_screenshot->callback)
-        pending_screenshot->callback();
+        pending_screenshot->callback(ScreenshotResult::Failed);
 }
 
 void CompositorConnection::did_lose_compositor()
@@ -900,7 +900,7 @@ void CompositorConnection::did_lose_compositor()
 
     for (auto& entry : m_screenshots) {
         if (entry.value.callback)
-            entry.value.callback();
+            entry.value.callback(ScreenshotResult::Failed);
     }
     m_screenshots.clear();
 
