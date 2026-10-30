@@ -7,16 +7,18 @@ function syncDialogs() {
     }
 
     const activeHash = location.hash.slice(1);
+    const active = REGISTRY.get(activeHash);
 
-    for (const [hash, { dialog, onOpen }] of REGISTRY) {
-        const shouldBeOpen = hash === activeHash;
-        if (shouldBeOpen && !dialog.open) {
-            onOpen?.();
-            if (!dialog.open) {
-                dialog.showModal();
-            }
-        } else if (!shouldBeOpen && dialog.open) {
+    for (const { dialog } of REGISTRY.values()) {
+        if (dialog !== active?.dialog && dialog.open) {
             dialog.close();
+        }
+    }
+
+    if (active) {
+        active.onOpen?.();
+        if (!active.dialog.open) {
+            active.dialog.showModal();
         }
     }
 }
