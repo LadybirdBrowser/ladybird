@@ -231,13 +231,12 @@ struct ImageBitmapSharedPixels;
 namespace Web::Bindings {
 
 class RustInterfaceCell;
-class Serializable;
 class Transferable;
 
-// A platform object that is a serializable object: an implementation object of an interface implemented in C++, or
-// the cell of an object of an interface implemented in Rust, whose steps the Rust bindings run.
+// A platform object that is a serializable object: an implementation object of an interface implemented in C++, whose
+// steps run in Rust over its fields, or the cell of an object of an interface implemented in Rust, whose steps the Rust
+// bindings run.
 struct SerializablePlatformObject {
-    Serializable* serializable { nullptr };
     GC::Ptr<RustInterfaceCell> rust_object { nullptr };
     InterfaceName interface_name;
     GC::Ptr<JS::Realm> realm;
@@ -262,7 +261,6 @@ struct TransferablePlatformObject {
 WEB_API Optional<TransferablePlatformObject> transferable_from_object(JS::Object&);
 WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object&);
 WEB_API bool is_platform_object(JS::Object const&);
-WEB_API GC::Ref<JS::HostObject> create_serialized_platform_object(InterfaceName, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
 
 // The deserialization steps of an interface implemented in Rust create its object from what they read, rather than

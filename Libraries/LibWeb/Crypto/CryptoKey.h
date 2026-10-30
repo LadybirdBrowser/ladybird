@@ -115,7 +115,6 @@ public:
     using InternalAlgorithmData = Variant<KeyAlgorithmData, RsaKeyAlgorithmData, RsaHashedKeyAlgorithmData, EcKeyAlgorithmData, AesKeyAlgorithmData, HmacKeyAlgorithmData, KmacKeyAlgorithmData>;
 
     [[nodiscard]] static GC::Ref<CryptoKey> create(InternalKeyData);
-    [[nodiscard]] static GC::Ref<CryptoKey> create();
 
     bool extractable() const { return m_extractable; }
     KeyType type() const { return m_type; }
@@ -139,7 +138,6 @@ public:
 
 private:
     explicit CryptoKey(InternalKeyData);
-    CryptoKey();
 
     virtual void finalize() override;
     virtual void visit_edges(Cell::Visitor&) override;

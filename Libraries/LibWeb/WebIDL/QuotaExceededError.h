@@ -26,7 +26,6 @@ class WEB_API QuotaExceededError final : public DOMException {
 
 public:
     static GC::Ref<QuotaExceededError> create(Utf16String const& message);
-    static GC::Ref<QuotaExceededError> create();
 
     static ExceptionOr<GC::Ref<QuotaExceededError>> create(JS::VM&, Utf16String const& message, QuotaExceededErrorOptions const&);
 
@@ -42,7 +41,6 @@ public:
 protected:
     explicit QuotaExceededError(Utf16String const& message);
     QuotaExceededError(Utf16FlyString name, Utf16String const& message, Optional<double> quota, Optional<double> requested);
-    QuotaExceededError();
 
 private:
     // https://webidl.spec.whatwg.org/#quotaexceedederror-quota

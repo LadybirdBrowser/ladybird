@@ -24,11 +24,6 @@ GC::Ref<DOMException> DOMException::create(Utf16FlyString name, Utf16String cons
     return GC::Heap::the().allocate<DOMException>(move(name), message);
 }
 
-GC::Ref<DOMException> DOMException::create()
-{
-    return GC::Heap::the().allocate<DOMException>();
-}
-
 DOMException::DOMException(FlyString name, Utf16String const& message)
     : m_error_data(JS::ErrorDataCell::capture(JS::VM::the()))
     , m_name(Utf16FlyString::from_fly_string(name))
@@ -40,11 +35,6 @@ DOMException::DOMException(Utf16FlyString name, Utf16String const& message)
     : m_error_data(JS::ErrorDataCell::capture(JS::VM::the()))
     , m_name(move(name))
     , m_message(message)
-{
-}
-
-DOMException::DOMException()
-    : m_error_data(JS::ErrorDataCell::capture(JS::VM::the()))
 {
 }
 

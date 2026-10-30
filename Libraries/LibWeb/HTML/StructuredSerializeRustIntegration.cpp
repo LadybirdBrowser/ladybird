@@ -22,7 +22,6 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/RustSerialization.h>
-#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/TransformStream.h>
 #include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/ImageBitmap.h>
@@ -45,7 +44,6 @@ enum class SerializableSteps : u8 {
     DOMException,
     QuotaExceededError,
     CryptoKey,
-    Cpp,
 };
 
 extern "C" {
@@ -116,8 +114,6 @@ JSCompletion web_structured_serialize_serialization_steps(void* realm, JSObject*
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
 u8 web_structured_serialize_serializable_steps(u16 interface_name);
 JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, StructuredSerializeReader*, DeserializationMemory*);
-JSObject* web_structured_serialize_create_serialized_platform_object(u16 interface_name, void* realm);
-JSCompletion web_structured_serialize_deserialization_steps(void* realm, JSObject*, StructuredSerializeReader*, DeserializationMemory*);
 
 bool web_structured_serialize_is_transferable(JSObject*);
 bool web_structured_serialize_transferable_is_detached(JSObject*);
@@ -594,9 +590,8 @@ u8 web_structured_serialize_serializable_steps(u16 interface_name)
     case Bindings::InterfaceName::CryptoKey:
         return to_underlying(SerializableSteps::CryptoKey);
     default:
-        if (Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)))
-            return to_underlying(SerializableSteps::Rust);
-        return to_underlying(SerializableSteps::Cpp);
+        VERIFY(Bindings::serializable_interface_is_implemented_in_rust(static_cast<Bindings::InterfaceName>(interface_name)));
+        return to_underlying(SerializableSteps::Rust);
     }
 }
 
@@ -607,19 +602,6 @@ JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 inter
     if (object.is_exception())
         return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { object.release_error() });
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { object.release_value() });
-}
-
-JSObject* web_structured_serialize_create_serialized_platform_object(u16 interface_name, void* realm)
-{
-    return JS::HostABI::object_to_abi(Bindings::create_serialized_platform_object(static_cast<Bindings::InterfaceName>(interface_name), realm_from_abi(realm)).ptr());
-}
-
-JSCompletion web_structured_serialize_deserialization_steps(void* realm, JSObject* object, StructuredSerializeReader* reader, DeserializationMemory* memory)
-{
-    auto& js_realm = realm_from_abi(realm);
-    auto serializable = Bindings::serializable_from_object(*JS::HostABI::object_from_abi(object));
-    VERIFY(serializable.has_value() && serializable->serializable);
-    return void_completion_to_abi(js_realm, serializable->serializable->deserialization_steps(js_realm, *reader, *memory));
 }
 
 bool web_structured_serialize_is_transferable(JSObject* object)
