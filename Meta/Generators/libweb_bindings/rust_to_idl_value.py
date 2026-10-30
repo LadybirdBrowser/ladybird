@@ -23,6 +23,7 @@ from Generators.libweb_bindings.rust_types import TYPED_ARRAY_NAMES
 from Generators.libweb_bindings.rust_types import UnsupportedByRustBindings
 from Generators.libweb_bindings.rust_types import cpp_interface
 from Generators.libweb_bindings.rust_types import cpp_interface_name_constant
+from Generators.libweb_bindings.rust_types import dictionary_holds_sequence_of_cells
 from Generators.libweb_bindings.rust_types import holds_cells
 from Generators.libweb_bindings.rust_types import inheriting_interfaces
 from Generators.libweb_bindings.rust_types import is_named_union
@@ -69,11 +70,13 @@ def rust_to_idl_value(
     identifier: str,
     context: GenerationContext,
     what: str,
-    is_parameter: bool = False,
+    keeps_cells_alive: bool = False,
 ) -> str:
     """An expression of type ThrowCompletionOr<T> that converts the JS value to the IDL value. The identifier is the
-    name of the parameter or member that the value is of, which the errors of some conversions name. The value of a
-    parameter can be a sequence of values that are or can hold cells, rust_parameter_type()."""
+    name of the parameter or member that the value is of, which the errors of some conversions name. The value can be
+    a sequence of values that are or can hold cells, or a dictionary that holds one, when what receives it keeps the
+    sequence alive in a MarkedVec for as long as the reference to the VM lives: a parameter, rust_parameter_type(), or
+    a member of such a dictionary, dictionary_holds_sequence_of_cells()."""
     rust_type(idl_type, context, what)
     name = idl_type.name
     attributes = {**idl_type.extended_attributes, **parameter_attributes}
@@ -98,7 +101,7 @@ def rust_to_idl_value(
         inner = rust_to_idl_value(inner_type, parameter_attributes, value, identifier, context, what)
         return f"if {value}.is_nullish() {{ Ok(None) }} else {{ {inner}.map(Some) }}"
     if isinstance(idl_type, IDLParameterizedType) and idl_type.name == "sequence":
-        if is_parameter and is_sequence_of_cells(idl_type, context):
+        if keeps_cells_alive and is_sequence_of_cells(idl_type, context):
             element = rust_to_idl_value(idl_type.parameters[0], {}, "value", identifier, context, what)
             return f"sequence_from_js(vm, {value}, MarkedVec::new(vm), |value| {element})"
         element = rust_sequence_element_to_idl_value(idl_type, identifier, context, what)
@@ -168,6 +171,11 @@ def rust_to_idl_value(
         return f"to_cpp_interface_in_union(vm, {value}, &[{interface_names}])"
     dictionary = resolved_dictionary(idl_type, context)
     if dictionary is not None:
+        if dictionary_holds_sequence_of_cells(dictionary, context) and not keeps_cells_alive:
+            raise UnsupportedByRustBindings(
+                f"{what} has the type {idl_type}, a dictionary that holds a sequence of values that are or can hold "
+                "cells, which the Rust bindings only convert to as a parameter yet"
+            )
         return f"<{rust_dictionary_path(dictionary, context)}>::from_js(vm, {value})"
     if isinstance(idl_type, IDLUnionType) and is_named_union(idl_type, context):
         union_members_by_kind(idl_type, context, what)
@@ -305,11 +313,15 @@ def rust_default_value(
     if name == "any" and default_value in ("null", "undefined"):
         return "Value::NULL" if default_value == "null" else "Value::UNDEFINED"
     if isinstance(member.type, IDLParameterizedType) and name == "sequence" and default_value == "[]":
+        if is_sequence_of_cells(member.type, context):
+            return "MarkedVec::new(vm)"
         return "Vec::new()"
     dictionary = resolved_dictionary(member.type, context)
     if dictionary is not None and default_value == "{}":
         # NB: The C++ bindings do not run the conversion for a missing argument either, so the members of the default
         #     value are not read from a JS object.
+        if dictionary_holds_sequence_of_cells(dictionary, context):
+            return f"<{rust_dictionary_path(dictionary, context)}>::empty(vm)"
         return f"<{rust_dictionary_path(dictionary, context)}>::empty()"
     enumeration = context.enumeration(member.type)
     if enumeration is not None and default_value is not None and default_value[1:-1] in enumeration.values:
@@ -355,6 +367,15 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
     bindings, the lexicographical one that the parser puts them in. The struct is built by naming every field, so that
     one that does not match the members of the dictionary does not compile."""
     path = rust_dictionary_path(dictionary, context)
+    holds_sequence_of_cells = dictionary_holds_sequence_of_cells(dictionary, context)
+    ancestors = context.dictionary_inheritance_stack(dictionary)[1:]
+    if ancestors and any(dictionary_holds_sequence_of_cells(other, context) for other in [dictionary] + ancestors):
+        # NB: The struct of such a dictionary has the lifetime of the reference to the VM, which the struct of a
+        #     dictionary that inherits from it or that it inherits from would have to have as well.
+        raise UnsupportedByRustBindings(
+            f"the dictionary {dictionary.name} inherits from another dictionary, and one of them holds a sequence of "
+            "values that are or can hold cells, which the Rust bindings do not convert to yet"
+        )
     keys = []
     conversions = []
     empty_fields = []
@@ -374,7 +395,15 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
         keys.append(
             f'            static {key}: LazyLock<PropertyKey> = LazyLock::new(|| PropertyKey::from_utf8("{member.name}"));\n'
         )
-        conversion = rust_to_idl_value(member.type, member.extended_attributes, "member", member.name, context, what)
+        conversion = rust_to_idl_value(
+            member.type,
+            member.extended_attributes,
+            "member",
+            member.name,
+            context,
+            what,
+            keeps_cells_alive=holds_sequence_of_cells,
+        )
         if member.required:
             missing = f"""return vm.throw_completion(
                     ErrorKind::TypeError,
@@ -401,6 +430,30 @@ def write_dictionary_from_js(out: TextIO, context: GenerationContext, dictionary
         parent_field
         + [f"{rust_identifier(member.name)}: {rust_local_name(member.name)}" for member in dictionary.members]
     )
+    if holds_sequence_of_cells:
+        # NB: The struct keeps the sequences of its members alive in MarkedVecs for as long as the reference to the VM
+        #     lives, a lifetime that the result of FromJs::from_js() cannot have, so the conversions are its methods.
+        empty = ""
+        if dictionary_can_be_empty(context, dictionary):
+            vm = "vm" if any("vm" in field for field in empty_fields) else "_vm"
+            empty = f"""
+        pub(crate) fn empty({vm}: &'vm Vm) -> Self {{
+            Self {{ {", ".join(empty_fields)} }}
+        }}
+"""
+        out.write(
+            f"""
+    /// The conversion of a JS value to the dictionary {dictionary.name}, https://webidl.spec.whatwg.org/#js-dictionary
+    /// whose struct keeps the sequences of its members alive for as long as the reference to the VM lives.
+    impl<'vm> {path}<'vm> {{
+        pub(crate) fn from_js(vm: &'vm Vm, value: Value) -> ThrowCompletionOr<Self> {{
+{"".join(keys)}            let object = dictionary_object(vm, value, "{dictionary.name}")?;
+{"".join(conversions)}            Ok(Self {{ {fields} }})
+        }}
+{empty}    }}
+"""
+        )
+        return
     out.write(
         f"""
     /// The conversion of a JS value to the dictionary {dictionary.name}, https://webidl.spec.whatwg.org/#js-dictionary
