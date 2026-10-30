@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
@@ -14,6 +13,7 @@ use crate::gc::class::{GcCell, define_cell};
 use crate::gc::foreign::ForeignCellSlot;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::member::Member;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::call_function_object;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -24,9 +24,11 @@ use crate::runtime::function_object::FunctionObject;
 #[derive(Trace)]
 pub struct JobCallback {
     header: CellHeader,
-    callback: Cell<Gc<FunctionObject>>, // [[Callback]]
-    custom_data: ForeignCellSlot,       // [[HostDefined]]
+    callback: Member<FunctionObject>, // [[Callback]]
+    custom_data: ForeignCellSlot,     // [[HostDefined]]
 }
+
+const _: () = assert!(size_of::<JobCallback>() == 24);
 
 define_cell!(JobCallback, Other);
 
@@ -34,7 +36,7 @@ impl JobCallback {
     pub fn create(vm: &Vm, callback: Gc<FunctionObject>, custom_data: ForeignCellSlot) -> Gc<JobCallback> {
         vm.heap().allocate(|_| JobCallback {
             header: CellHeader::for_class(Self::CLASS),
-            callback: Cell::new(callback),
+            callback: Member::new(callback),
             custom_data,
         })
     }

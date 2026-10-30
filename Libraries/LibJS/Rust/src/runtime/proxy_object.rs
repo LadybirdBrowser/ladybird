@@ -16,6 +16,7 @@ use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
+use crate::layout::member::Member;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
@@ -79,10 +80,12 @@ fn fully_populated<T>(field: Option<T>) -> T {
 #[derive(Trace)]
 pub struct ProxyObject {
     base: FunctionObject,
-    target: Gc<Object>,  // [[ProxyTarget]]
-    handler: Gc<Object>, // [[ProxyHandler]]
+    target: Member<Object>,  // [[ProxyTarget]]
+    handler: Member<Object>, // [[ProxyHandler]]
     is_revoked: Cell<bool>,
 }
+
+const _: () = assert!(size_of::<ProxyObject>() == 96);
 
 /// The internal methods of a Proxy exotic object. Every proxy has [[Call]] and [[Construct]]: IsCallable and
 /// IsConstructor only reach them for a proxy whose target has them, since the proxy keeps the IsFunction flag only if
@@ -197,8 +200,8 @@ impl ProxyObject {
                 prototype,
                 MayInterfereWithIndexedPropertyAccess::Yes,
             ),
-            target,
-            handler,
+            target: Member::new(target),
+            handler: Member::new(handler),
             is_revoked: Cell::new(false),
         };
 
@@ -215,11 +218,11 @@ impl ProxyObject {
     }
 
     pub fn target(&self) -> Gc<Object> {
-        self.target
+        self.target.get()
     }
 
     pub fn handler(&self) -> Gc<Object> {
-        self.handler
+        self.handler.get()
     }
 
     pub fn is_revoked(&self) -> bool {
@@ -243,8 +246,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.getPrototypeOf)?;
@@ -295,8 +298,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "setPrototypeOf").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.setPrototypeOf)?;
@@ -354,8 +357,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "isExtensible").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.isExtensible)?;
@@ -393,8 +396,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "preventExtensions").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.preventExtensions)?;
@@ -439,8 +442,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.getOwnPropertyDescriptor)?;
@@ -568,8 +571,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "defineProperty").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.defineProperty)?;
@@ -677,8 +680,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // NOTE: We need to protect ourselves from a Proxy with the handler's prototype set to the
         // Proxy itself, which would by default bounce between these functions indefinitely and lead to
@@ -760,8 +763,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // NOTE: We need to protect ourselves from a Proxy with its (or handler's) prototype set to the
         // Proxy itself, which would by default bounce between these functions indefinitely and lead to
@@ -846,8 +849,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // NOTE: We need to protect ourselves from a Proxy with its prototype set to the
         // Proxy itself, which would by default bounce between these functions indefinitely and lead to
@@ -934,8 +937,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "deleteProperty").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.deleteProperty)?;
@@ -996,8 +999,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // 5. Let trap be ? GetMethod(handler, "ownKeys").
         let trap = Value::from_object(handler).get_method(vm, &vm.names.ownKeys)?;
@@ -1170,8 +1173,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // NOTE: A Proxy exotic object only has a [[Call]] internal method if the initial value of its [[ProxyTarget]] internal slot is an object that has a [[Call]] internal method.
         assert!(proxy.is_function());
@@ -1211,7 +1214,7 @@ impl ProxyObject {
             return false;
         }
 
-        self.target.has_constructor()
+        self.target.get().has_constructor()
     }
 
     // 10.5.13 [[Construct]] ( argumentsList, newTarget ), https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-construct-argumentslist-newtarget
@@ -1232,8 +1235,8 @@ impl ProxyObject {
         // 2. Let target be O.[[ProxyTarget]].
         // 3. Let handler be O.[[ProxyHandler]].
         // 4. Assert: handler is an Object.
-        let target = proxy.target;
-        let handler = proxy.handler;
+        let target = proxy.target.get();
+        let handler = proxy.handler.get();
 
         // NOTE: A Proxy exotic object only has a [[Construct]] internal method if the initial value of its [[ProxyTarget]] internal slot is an object that has a [[Construct]] internal method.
         assert!(proxy.is_function());
@@ -1291,7 +1294,7 @@ impl ProxyObject {
     }
 
     fn get_stack_frame_info(object: &Object, vm: &Vm, stack_frame_info: &mut StackFrameInfo) {
-        let target = as_proxy_object(object).target;
+        let target = as_proxy_object(object).target.get();
         assert!(target.is_function());
         target.get_stack_frame_info(vm, stack_frame_info);
     }
