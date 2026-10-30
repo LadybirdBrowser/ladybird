@@ -108,6 +108,30 @@ TEST_CASE(test_jpeg)
     (void)TRY_OR_FAIL((get_roundtrip_bitmap<Gfx::JPEGWriter, Gfx::JPEGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
 }
 
+TEST_CASE(test_jpeg_icc_profile)
+{
+    // The profile is larger than one APP2 marker can hold, so libjpeg has to split it.
+    auto icc_data = TRY_OR_FAIL(ByteBuffer::create_uninitialized(70000));
+    for (size_t i = 0; i < icc_data.size(); ++i)
+        icc_data[i] = static_cast<u8>(i * 7);
+
+    auto bitmap = TRY_OR_FAIL(create_test_rgb_bitmap());
+    auto encoded_data = TRY_OR_FAIL(encode_bitmap<Gfx::JPEGWriter>(*bitmap, Gfx::JPEGWriter::Options { .icc_data = icc_data.bytes() }));
+
+    auto decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(encoded_data));
+    (void)TRY_OR_FAIL(expect_single_frame_of_size(*decoder, bitmap->size()));
+    auto decoded_icc_data = TRY_OR_FAIL(decoder->icc_data());
+    EXPECT(decoded_icc_data.has_value());
+    EXPECT_EQ(*decoded_icc_data, icc_data.bytes());
+}
+
+TEST_CASE(test_jpeg_too_wide)
+{
+    // libjpeg cannot encode an image with a side above 65500 pixels. This must fail without terminating the process.
+    auto bitmap = TRY_OR_FAIL(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, { 65501, 1 }));
+    EXPECT(encode_bitmap<Gfx::JPEGWriter>(*bitmap).is_error());
+}
+
 TEST_CASE(test_png)
 {
     TRY_OR_FAIL((test_roundtrip<Gfx::PNGWriter, Gfx::PNGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
