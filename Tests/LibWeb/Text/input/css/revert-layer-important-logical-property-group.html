@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @layer a, b;
+    @layer b {
+        #inline-start { margin-inline-start: revert-layer !important; }
+        #left { margin-left: revert-layer !important; }
+        #plain { margin-left: revert-layer !important; }
+    }
+    #inline-start { margin-left: 5px !important; }
+    #left { margin-inline-start: 5px !important; }
+    #plain { margin-left: 5px !important; }
+</style>
+<div id="inline-start"></div>
+<div id="left"></div>
+<div id="plain"></div>
+<script>
+    test(() => {
+        for (const id of ["inline-start", "left", "plain"])
+            println(`${id}: margin-left=${getComputedStyle(document.getElementById(id)).marginLeft}`);
+    });
+</script>
