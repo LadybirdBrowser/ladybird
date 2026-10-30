@@ -64,8 +64,7 @@ ErrorOr<void> HttpEchoServerFixture::setup(WebView::WebContentOptions& web_conte
 
     auto const arguments = Vector { script_path.string(), "--directory", Application::the().test_root_path, "--ca-cert-output", ca_cert_path, "--downloads-directory", downloads_directory, "--exit-when-stdin-closes" };
 
-    // FIXME: Pick a more reasonable log path that is more observable
-    auto const log_path = LexicalPath::join(Core::StandardPaths::tempfile_directory(), "http-test-server.log"sv).string();
+    auto const log_path = LexicalPath::join(Application::the().results_directory, "http-test-server.log"sv).string();
 
     auto stdin_fds = TRY(Core::System::pipe2(O_CLOEXEC, Core::System::PipeReadEnd::ReadExternally));
     auto stdout_fds = TRY(Core::System::pipe2(O_CLOEXEC));
