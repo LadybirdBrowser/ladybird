@@ -99,8 +99,6 @@ pub(crate) enum PaintChange {
         node: NodeSlotId,
         kind: VisualContextBoxDirtyKind,
     },
-    /// Every row paints again.
-    InvalidateAllPaintCaches,
     /// The visual context tree is built again whole before it is published next.
     RequestFullVisualContextRebuild(super::visual_context::dirty::VisualContextUpdateScope),
     /// The SVG paint resources the rows enrolled may have changed: they are synced again before they are painted next.
@@ -217,7 +215,6 @@ impl PaintChange {
                     arena.note_visual_context_box_dirty(node, kind);
                 }
             }
-            Self::InvalidateAllPaintCaches => arena.push_all_paint_damage(),
             Self::RequestFullVisualContextRebuild(scope) => arena.request_full_visual_context_rebuild(scope),
             Self::SvgPaintResourcesChanged => {
                 arena.svg_paint_resources_mut().note_changed();
@@ -534,11 +531,6 @@ pub extern "C" fn render_state_note_visual_context_style_change(
         VisualContextBoxDirtyKind::StyleValueChange
     };
     queue(host, PaintChange::NoteVisualContextBoxDirty { node, kind });
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_invalidate_all_paint_caches(host: &DocumentHost) {
-    queue(host, PaintChange::InvalidateAllPaintCaches);
 }
 
 #[unsafe(no_mangle)]

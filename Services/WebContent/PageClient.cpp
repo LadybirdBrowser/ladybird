@@ -61,7 +61,6 @@
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
 #include <LibWeb/WebDriver/BiDi/BiDi.h>
@@ -211,8 +210,8 @@ void PageClient::set_has_focus(bool has_focus)
     page().invalidate_compositor_keyboard_scroll_state();
     m_has_focus = has_focus;
 
-    // The focus ring, the text caret, and selection highlight colors all depend on the window focus state, so
-    // nothing painted before the change can be reused; repaint every document the page hosts.
+    // The focus ring, the text caret, and selection highlight colors all depend on the window focus state, so every
+    // document the page hosts records again, which records the output that read the focus state again.
     for (auto const& navigable : page().hosted_navigables()) {
         if (!has_focus)
             navigable->event_handler().release_held_scroll_key();
@@ -224,10 +223,7 @@ void PageClient::set_has_focus(bool has_focus)
         // A writing suggestion is for the user typing in the window, so leaving the window drops it.
         if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && !has_focus)
             controller->dismiss();
-        // Focus changes can arrive while layout is invalidated. We only need to invalidate cached paint
-        // on the current paintable tree here, without requiring layout to be up to date first.
-        if (document->has_committed_viewport_box())
-            document->paint_state().invalidate_all_cached_paint(*document);
+        Web::Painting::request_document_repaint(*document, Web::InvalidateDisplayList::PaintCommands);
     }
 }
 

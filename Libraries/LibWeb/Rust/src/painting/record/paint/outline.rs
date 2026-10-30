@@ -43,7 +43,7 @@ pub(crate) fn outline_data_for_paint<O: Observer>(
     crate::painting::style_queries::outline_data(
         recorder.source,
         node,
-        recorder.inputs.window_is_focused,
+        || recorder.window_is_focused(),
         recorder.inputs.outline_auto_color.0,
     )
 }
@@ -142,13 +142,10 @@ fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     // focusable area paints the focus outline along that shape.
     // AD-HOC: Only the user agent focus ring is painted, as an `outline: auto` would paint it. Other engines do not let
     //         author outline values style the focus indicator of an image map area.
-    if !recorder.inputs.window_is_focused {
-        return;
-    }
     let Some(outline) = &recorder.inputs.focused_area_outline else {
         return;
     };
-    if outline.image != paintable {
+    if outline.image != paintable || !recorder.window_is_focused() {
         return;
     }
     let image_rect = paintable_geometry::absolute_rect(recorder.source, paintable);

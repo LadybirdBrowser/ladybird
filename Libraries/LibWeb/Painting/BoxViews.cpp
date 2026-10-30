@@ -536,11 +536,8 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(Layout::BegunRead co
     auto cursor_position = document.cursor_position();
     if (!cursor_position)
         return caret;
-    // The caret paints only while the window has focus and the cursor node is editable (or a mutable text
-    // control has focus); every candidate box below has a committed box.
-    auto navigable = document.navigable();
-    if (!navigable || !navigable->is_focused())
-        return caret;
+    // The caret paints only while the cursor node is editable (or a mutable text control has focus), and the recorder
+    // paints it only while the window has focus; every candidate box below has a committed box.
     auto const* cursor_node = cursor_position->node().ptr();
     if (!cursor_node)
         return caret;

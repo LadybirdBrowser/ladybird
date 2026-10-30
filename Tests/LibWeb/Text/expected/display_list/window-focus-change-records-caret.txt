@@ -1,0 +1,3 @@
+PASS: quiet before focus changes (work)
+PASS: window loses focus (work)
+PASS: window regains focus (work)

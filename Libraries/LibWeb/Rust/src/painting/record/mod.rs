@@ -59,6 +59,8 @@ pub struct RecordingOutput {
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_published_recording: bool,
+    // Whether the window was focused, which the output of the producers that read it reflects.
+    pub(crate) window_is_focused: bool,
     pub(crate) capture_log: Option<trace::CaptureLog>,
     /// The SVG images whose display lists, which the host rendered, the recording draws, and the ids of those lists.
     pub(crate) vector_image_display_lists: Vec<(vector_images::VectorImageRenderRequest, u64)>,
@@ -114,6 +116,8 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) source_items: Option<Arc<PublishedHitTestItems>>,
     // Set while a producer records output that must record again every frame.
     live_producer: bool,
+    // Set while a producer records output that depends on whether the window is focused.
+    producer_reads_window_focus: std::cell::Cell<bool>,
     // Rows of the layout subtrees whose root moved: every producer of theirs records again.
     pub(crate) moved_expansion: FastSet<NodeSlotId>,
     pub(crate) blocking_wheel_event_region_count: u32,
@@ -141,6 +145,12 @@ pub(crate) struct BasePaintFacts {
 impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn mark_live_producer(&mut self) {
         self.live_producer = true;
+    }
+
+    /// Whether the window is focused. The producer that asks records again when that changes.
+    pub(crate) fn window_is_focused(&self) -> bool {
+        self.producer_reads_window_focus.set(true);
+        self.inputs.window_is_focused
     }
 
     pub(crate) fn line_root_positions(
@@ -297,6 +307,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         node: crate::layout::node_data::NodeSlotId,
     ) -> Arc<paint::text::SelectionStyleAnswer> {
+        // Read before the cache, so that each producer asking notes that it depends on it.
+        let window_is_focused = self.window_is_focused();
         let key = node.index;
         if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
@@ -305,7 +317,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let committed = self.first_non_anonymous_ancestor_row(node).and_then(|element_row| {
             self.committed_highlight_pseudo_style(HighlightPseudoElement::Selection, node, element_row)
         });
-        let answer = Self::highlight_style_answer(committed, || self.default_selection_style(node, style_source));
+        let answer = Self::highlight_style_answer(committed, || {
+            self.default_selection_style(node, style_source, window_is_focused)
+        });
         self.scratch.selection_style_cache.insert(key, answer.clone());
         answer
     }
@@ -314,13 +328,16 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &mut self,
         element_row: crate::layout::node_data::NodeSlotId,
     ) -> Arc<paint::text::SelectionStyleAnswer> {
+        let window_is_focused = self.window_is_focused();
         let key = element_row.index;
         if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
         }
         let committed =
             self.committed_highlight_pseudo_style(HighlightPseudoElement::Selection, element_row, element_row);
-        let answer = Self::highlight_style_answer(committed, || self.default_selection_style(element_row, element_row));
+        let answer = Self::highlight_style_answer(committed, || {
+            self.default_selection_style(element_row, element_row, window_is_focused)
+        });
         self.scratch.selection_style_cache.insert(key, answer.clone());
         answer
     }
@@ -441,8 +458,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         &self,
         node: crate::layout::node_data::NodeSlotId,
         style_source: crate::layout::node_data::NodeSlotId,
+        window_is_focused: bool,
     ) -> paint::text::SelectionStyleAnswer {
-        let background_color = self.default_selection_background(node, style_source, self.inputs.window_is_focused);
+        let background_color = self.default_selection_background(node, style_source, window_is_focused);
         paint::text::SelectionStyleAnswer {
             facts: crate::painting::host::FfiSelectionStyleFacts {
                 background_color,

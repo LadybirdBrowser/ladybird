@@ -134,13 +134,6 @@ void DocumentPaintState::append_paint_command_cache_source_resources(Compositing
     retained_resources.include(m_paint_command_cache_source_referenced_resources);
 }
 
-void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
-{
-    Layout::ForcedReadScope read { document };
-    Layout::RustFFI::render_state_invalidate_all_paint_caches(m_layout_node_arena->host());
-    Painting::set_needs_repaint(*document.unsafe_layout_node(read));
-}
-
 void DocumentPaintState::refresh_scroll_state(Layout::BegunRead const& read, DOM::Document& document)
 {
     // The render state hands over a new snapshot only where something invalidated the one kept.
