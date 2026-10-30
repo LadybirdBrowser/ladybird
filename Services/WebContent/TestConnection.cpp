@@ -40,6 +40,9 @@ void TestConnection::reset_state_for_testing(Web::PageId page_id)
         Web::Compositor::RenderClock::the().set_manual_for_testing(false);
         page->page().client().set_manual_rendering_opportunities(false);
         as<Web::HTML::LocalTraversableNavigable>(*page->page().local_traversable()).reset_session_history_for_testing();
+        // The navigable outlives the document too, and with it the navigations and history updates the previous test
+        // made, so a test that made many of them would leave the next test in this view blocked from making its own.
+        page->page().local_traversable()->reset_navigation_or_history_update_rate_limit_for_testing();
         auto active_entry = page->page().local_traversable()->active_session_history_entry();
         VERIFY(active_entry);
         async_did_reset_state_for_testing(page_id, Web::HTML::create_session_history_entry_descriptor(*active_entry));

@@ -1676,6 +1676,12 @@ LocalNavigable::NavigationOrHistoryUpdatePermission LocalNavigable::allowed_to_p
     return NavigationOrHistoryUpdatePermission::Allowed;
 }
 
+void LocalNavigable::reset_navigation_or_history_update_rate_limit_for_testing()
+{
+    m_navigation_or_history_update_rate_limit_window_start = MonotonicTime::now_coarse();
+    m_navigation_or_history_updates_in_rate_limit_window = 0;
+}
+
 Optional<u64> LocalNavigable::browsing_context_group_id() const
 {
     Navigable const* top_level_traversable = this;
