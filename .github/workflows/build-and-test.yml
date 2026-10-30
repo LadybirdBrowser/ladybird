@@ -168,8 +168,9 @@ jobs:
           if-no-files-found: ignore
 
       - name: Sanitizer Output
-        if: ${{ !cancelled() && inputs.os_name != 'Windows' && inputs.build_preset == 'Sanitizer' }}
+        if: ${{ !cancelled() && inputs.build_preset == 'Sanitizer' }}
         working-directory: ${{ github.workspace }}
+        shell: bash
         run: |
           log_output=$(find Build \( -name 'asan.log.*' -o -name 'ubsan.log.*' \) -exec cat {} \; )
           if [ -z "$log_output" ]; then
