@@ -2159,6 +2159,12 @@ impl StyleRangeValue {
             ),
             // A tree-counting function resolves against the queried element's place among its
             // siblings first.
+            StyleValueData::TreeCountingFunction { function, .. } => {
+                context.note_style_query_sibling_position_dependency();
+                let (sibling_count, sibling_index) = tree_counting?;
+                let value = if function == 0 { sibling_count } else { sibling_index };
+                (CanonicalNumericType::Number, value as f64)
+            }
             StyleValueData::Calculated { .. } => {
                 if crate::css::style_compute::collect_external_value_dependencies(value).uses_tree_counting_function {
                     context.note_style_query_sibling_position_dependency();

@@ -1,18 +1,18 @@
 initial
   1: --index-equality=no --index-range=no --count-equality=no --count-range=yes --unregistered=no
-  2: --index-equality=no --index-range=no --count-equality=no --count-range=yes --unregistered=no
-  3: --index-equality=yes --index-range=yes --count-equality=no --count-range=yes --unregistered=no
+  2: --index-equality=no --index-range=no --count-equality=no --count-range=yes --unregistered=yes
+  3: --index-equality=yes --index-range=yes --count-equality=no --count-range=yes --unregistered=yes
   container 1: (none)
   container 2: yes
 after inserting a first child
   1: --index-equality=no --index-range=no --count-equality=yes --count-range=no --unregistered=no
-  2: --index-equality=no --index-range=no --count-equality=yes --count-range=no --unregistered=no
-  3: --index-equality=yes --index-range=yes --count-equality=yes --count-range=no --unregistered=no
-  4: --index-equality=no --index-range=yes --count-equality=yes --count-range=no --unregistered=no
+  2: --index-equality=no --index-range=no --count-equality=yes --count-range=no --unregistered=yes
+  3: --index-equality=yes --index-range=yes --count-equality=yes --count-range=no --unregistered=yes
+  4: --index-equality=no --index-range=yes --count-equality=yes --count-range=no --unregistered=yes
   container 1: yes
   container 2: yes
 after removing the first two children
   1: --index-equality=no --index-range=no --count-equality=no --count-range=no --unregistered=no
-  2: --index-equality=no --index-range=no --count-equality=no --count-range=no --unregistered=no
+  2: --index-equality=no --index-range=no --count-equality=no --count-range=no --unregistered=yes
   container 1: (none)
   container 2: yes
