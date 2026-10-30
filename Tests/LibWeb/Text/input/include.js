@@ -308,7 +308,7 @@ function uniqueLocalhostHostname(prefix) {
     return `${prefix}-${uniqueID()}.localhost`;
 }
 
-// Per-call unique loopback host whose origin is not potentially trustworthy.
+// Per-call unique loopback host whose http: origin is not potentially trustworthy.
 function uniqueTestHostname(prefix) {
     return `${prefix}-${uniqueID()}.test`;
 }

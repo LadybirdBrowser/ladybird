@@ -149,7 +149,7 @@ TEST_CASE(each_algorithm_gets_the_same_response_with_a_body_in_order)
     EXPECT_EQ(*consumed_bytes, MUST(ByteBuffer::copy("hello"sv.bytes())));
 }
 
-TEST_CASE(a_stopped_fetch_runs_no_algorithm_but_its_request_is_done)
+TEST_CASE(a_fetch_stopped_before_its_response_runs_no_algorithm_but_its_request_is_done)
 {
     Core::EventLoop event_loop;
     install_font_plugin();

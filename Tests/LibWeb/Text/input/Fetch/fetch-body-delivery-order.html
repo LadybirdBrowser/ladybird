@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <script>
-    // Body bytes and the close reach the stream from queued tasks, one per delivery. A read's
-    // reaction and anything it queues run before the next chunk's delivery task, and the close
-    // follows the last bytes through the same queue. The chunks arrive 300 ms apart, and a timer a
-    // reaction queues fires before the next delivery; a run slow enough to let a chunk in first is
-    // retried with the chunks a second apart.
+    // With a read always pending and the chunks 300 ms apart, each chunk reaches the stream in a pull task of its
+    // own, and the close follows the last bytes through the same queue. So a read's reaction and a timer it queues
+    // run before the next chunk's pull task; a run slow enough to let a chunk in first is retried with the chunks a
+    // second apart.
     asyncTest(async done => {
         const httpServer = httpTestServer();
         const body = "A".repeat(16) + "B".repeat(16) + "C".repeat(16);
