@@ -37,7 +37,7 @@ public:
 
     virtual void consumer_cancelled() = 0;
 
-    // Called for a delivery no honest transport could have made.
+    // Called for a delivery or an ending no honest transport could have made.
     virtual void misbehaved(StringView reason);
 };
 
@@ -125,8 +125,8 @@ public:
     };
     using WakeOn = Variant<BufferedAtLeast, EndOnly, PrefixOf>;
 
-    // Each call adds a waiter that fires once, and returns the ticket its wake will carry; a wake already due fires
-    // before this returns, outside the lock. Waiters due at the same time fire in the order they were added.
+    // Each call adds a waiter that fires at most once, and returns the ticket its wake will carry; a wake already due
+    // fires before this returns, outside the lock. Waiters due at the same time fire in the order they were added.
     WakeTicket arm_waiter(WakeOn = BufferedAtLeast { 1 });
     void disarm_waiter(WakeTicket);
 

@@ -28,7 +28,7 @@ class RequestClient;
 
 class ResponseData {
 public:
-    // A slice of a whole mapped body.
+    // A slice of a whole body, delivered with that whole body.
     struct FileBackedSlice {
         Core::ImmutableBytes slice;
         Core::ImmutableBytes payload;

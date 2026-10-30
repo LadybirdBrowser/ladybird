@@ -37,7 +37,7 @@ public:
     void handle_network_error(StringView error_message);
     void set_cached_response_body(Core::ImmutableBytes);
 
-    // Drops the response's pending memory-cache entry, for a body that will not finish arriving.
+    // Drops a pending memory-cache entry that matches the response's request, for a body that will not finish arriving.
     void abandon_cache_entry();
 
 private:

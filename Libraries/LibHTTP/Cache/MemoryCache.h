@@ -41,7 +41,8 @@ public:
 
     void create_entry(URL::URL const&, StringView method, HeaderList const& request_headers, UnixDateTime request_time, u32 status_code, ByteString reason_phrase, HeaderList const& response_headers, Optional<Core::ImmutableBytes> javascript_bytecode_cache = {}, Optional<u64> javascript_bytecode_cache_vary_key = {});
     void finalize_entry(URL::URL const&, StringView method, HeaderList const& request_headers, u32 status_code, HeaderList const& response_headers, Core::ImmutableBytes response_body);
-    // Drops the entry create_entry() made for a response whose body will not be finalized.
+    // Drops the oldest pending entry with the request's cache and vary keys, for a response whose body will not be
+    // finalized.
     void abandon_entry(URL::URL const&, StringView method, HeaderList const& request_headers, HeaderList const& response_headers);
     void update_javascript_bytecode_cache(URL::URL const&, StringView method, HeaderList const& request_headers, u64 vary_key, Core::ImmutableBytes javascript_bytecode_cache);
 
