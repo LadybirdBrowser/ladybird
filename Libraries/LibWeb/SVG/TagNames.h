@@ -12,6 +12,7 @@ namespace Web::SVG::TagNames {
 
 #define ENUMERATE_SVG_TAGS                                          \
     __ENUMERATE_SVG_TAG(a, "a")                                     \
+    __ENUMERATE_SVG_TAG(animate, "animate")                         \
     __ENUMERATE_SVG_TAG(animateMotion, "animateMotion")             \
     __ENUMERATE_SVG_TAG(circle, "circle")                           \
     __ENUMERATE_SVG_TAG(clipPath, "clipPath")                       \

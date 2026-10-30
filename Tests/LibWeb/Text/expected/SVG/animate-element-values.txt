@@ -1,0 +1,73 @@
+interface: SVGAnimateElement
+t=0
+  from-to: 0.000
+  to: 0.000
+  values: 0.000
+  key-times: 0.000
+  discrete: 0.000
+  discrete-key-times: 0.000
+  spline: 0.000
+  spline-without-key-splines: 1.000
+  bad-key-times: 1.000
+  bad-value: 1.000
+  path: path("M 0 0 L 10 0")
+t=1
+  from-to: 0.250
+  to: 0.250
+  values: 0.500
+  key-times: 0.333
+  discrete: 0.500
+  discrete-key-times: 0.000
+  spline: 0.949
+  spline-without-key-splines: 1.000
+  bad-key-times: 1.000
+  bad-value: 1.000
+  path: path("M 0 0 L 15 10")
+t=2
+  from-to: 0.500
+  to: 0.500
+  values: 1.000
+  key-times: 0.667
+  discrete: 1.000
+  discrete-key-times: 0.000
+  spline: 0.991
+  spline-without-key-splines: 1.000
+  bad-key-times: 1.000
+  bad-value: 1.000
+  path: path("M 0 0 L 20 20")
+t=3
+  from-to: 0.750
+  to: 0.750
+  values: 0.750
+  key-times: 1.000
+  discrete: 0.250
+  discrete-key-times: 0.500
+  spline: 0.999
+  spline-without-key-splines: 1.000
+  bad-key-times: 1.000
+  bad-value: 1.000
+  path: path("M 0 0 L 25 30")
+t=3.5
+  from-to: 0.875
+  to: 0.875
+  values: 0.625
+  key-times: 0.750
+  discrete: 0.250
+  discrete-key-times: 0.500
+  spline: 1.000
+  spline-without-key-splines: 1.000
+  bad-key-times: 1.000
+  bad-value: 1.000
+  path: path("M 0 0 L 27.5 35")
+t=4
+  from-to: 1.000
+  to: 0.000
+  values: 1.000
+  key-times: 1.000
+  discrete: 1.000
+  discrete-key-times: 1.000
+  spline: 1.000
+  spline-without-key-splines: 1.000
+  bad-key-times: 1.000
+  bad-value: 1.000
+  path: path("M 0 0 L 10 0")

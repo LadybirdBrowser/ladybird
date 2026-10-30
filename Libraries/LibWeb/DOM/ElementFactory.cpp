@@ -95,6 +95,7 @@
 #include <LibWeb/MathML/TagNames.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/SVG/SVGAElement.h>
+#include <LibWeb/SVG/SVGAnimateElement.h>
 #include <LibWeb/SVG/SVGAnimateMotionElement.h>
 #include <LibWeb/SVG/SVGCircleElement.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
@@ -521,6 +522,8 @@ static GC::Ref<SVG::SVGElement> create_svg_element(Document& document, Qualified
 
     if (local_name == SVG::TagNames::svg)
         return create_element_on_heap<SVG::SVGSVGElement>(document, move(qualified_name));
+    if (local_name == SVG::TagNames::animate)
+        return create_element_on_heap<SVG::SVGAnimateElement>(document, move(qualified_name));
     if (local_name == SVG::TagNames::animateMotion)
         return create_element_on_heap<SVG::SVGAnimateMotionElement>(document, move(qualified_name));
     // FIXME: Support SVG's mixedCase tag names properly.
