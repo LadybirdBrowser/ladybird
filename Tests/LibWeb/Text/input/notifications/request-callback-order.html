@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The deprecated callback is invoked with the state before the promise resolves with it.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const order = [];
+        const promise = Notification.requestPermission(permission => order.push(`callback: ${permission}`));
+        order.push(`promise: ${await promise}`);
+        println(order.join("\n"));
+        done();
+    });
+</script>

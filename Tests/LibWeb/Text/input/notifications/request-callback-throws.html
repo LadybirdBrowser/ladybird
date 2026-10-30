@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script>
+    // Registered ahead of the harness, so the reported exception reaches this test rather than ending it.
+    addEventListener("error", event => {
+        println(`reported: ${event.error.message}`);
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    });
+</script>
+<script src="../include.js"></script>
+<script>
+    // A callback that throws is reported, and the promise still resolves.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const result = await Notification.requestPermission(() => { throw new Error("boom"); });
+        println(`promise: ${result}`);
+        done();
+    });
+</script>

@@ -115,6 +115,7 @@ public:
         HighResolutionTime::EpochTimeStamp fallback_timestamp);
 
     static Bindings::NotificationPermission permission();
+    static GC::Ref<WebIDL::Promise> request_permission(GC::Ptr<WebIDL::CallbackType> deprecated_callback);
 
     void close();
 

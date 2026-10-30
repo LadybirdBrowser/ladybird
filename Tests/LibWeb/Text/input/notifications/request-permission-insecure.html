@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A page that isn't a secure context gets "denied" from requestPermission(), gesture or not, and no prompt.
+    asyncTest(async done => {
+        internals.setNextPermissionPromptOutcome("notifications", "allow");
+        addEventListener("click", async () => {
+            println(`secure context: ${isSecureContext}`);
+            println(`result: ${await Notification.requestPermission()}`);
+            done();
+        }, { once: true });
+        internals.click(10, 10);
+    });
+</script>

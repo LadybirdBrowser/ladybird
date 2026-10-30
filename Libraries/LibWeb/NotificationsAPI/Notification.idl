@@ -4,7 +4,7 @@ interface Notification : EventTarget {
     constructor(DOMString title, optional NotificationOptions options = {});
 
     static readonly attribute NotificationPermission permission;
-    [FIXME, Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
+    [Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
 
     static readonly attribute unsigned long maxActions;
 
@@ -73,4 +73,4 @@ dictionary NotificationAction {
     USVString icon;
 };
 
-[FIXME] callback NotificationPermissionCallback = undefined (NotificationPermission permission);
+callback NotificationPermissionCallback = undefined (NotificationPermission permission);

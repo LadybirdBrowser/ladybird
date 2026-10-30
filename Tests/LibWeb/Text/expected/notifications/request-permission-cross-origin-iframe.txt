@@ -1,0 +1,2 @@
+cross-origin iframe: default
+top-level permission: default

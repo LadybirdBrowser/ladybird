@@ -1,0 +1,2 @@
+secure context: false
+result: denied

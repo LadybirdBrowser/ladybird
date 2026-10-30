@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Once the user has decided, requestPermission() resolves with that decision without a gesture and without asking.
+    asyncTest(async done => {
+        for (const state of ["granted", "denied"]) {
+            await internals.setPermission("notifications", state);
+            println(`${state}: ${await Notification.requestPermission()}`);
+        }
+        done();
+    });
+</script>

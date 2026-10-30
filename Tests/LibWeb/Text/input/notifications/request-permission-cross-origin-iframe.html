@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>iframe { position: absolute; top: 0; left: 0; width: 200px; height: 100px; border: 0; }</style>
+<script>
+    // A document whose origin isn't its top-level origin can't ask for the permission, even from a click: the request
+    // resolves with the state as it is, and no prompt is shown.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const frameURL = new URL(await server.createEcho("GET", "/notifications/request-permission-frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                addEventListener("click", async () => parent.postMessage(await Notification.requestPermission(), "*"), { once: true });
+                parent.postMessage("ready", "*");
+            <\/script>`,
+        }));
+        frameURL.hostname = uniqueLocalhostHostname("notifications-request-cross-origin");
+
+        internals.setNextPermissionPromptOutcome("notifications", "allow");
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL.href;
+        const result = await new Promise(resolve => {
+            setTimeout(() => resolve("no answer"), 2000);
+            addEventListener("message", event => {
+                // The frame lives in its own process, so the click has to travel through the UI process to reach it.
+                if (event.data === "ready")
+                    internals.clickThroughUIProcess(20, 20);
+                else
+                    resolve(event.data);
+            });
+            document.body.appendChild(iframe);
+        });
+        println(`cross-origin iframe: ${result}`);
+        println(`top-level permission: ${Notification.permission}`);
+        done();
+    });
+</script>

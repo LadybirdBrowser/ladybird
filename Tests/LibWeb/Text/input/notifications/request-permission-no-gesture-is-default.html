@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Without a user gesture, requestPermission() asks nothing and resolves with the state as it is: "default".
+    asyncTest(async done => {
+        internals.setNextPermissionPromptOutcome("notifications", "allow");
+        println(`result: ${await Notification.requestPermission()}`);
+        println(`permission: ${Notification.permission}`);
+        done();
+    });
+</script>
