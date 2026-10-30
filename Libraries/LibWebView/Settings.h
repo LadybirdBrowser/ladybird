@@ -56,6 +56,7 @@ struct ContentSettings {
     HashMap<String, double> zoom_per_host;
 
     bool enable_force_dark { false };
+    HashMap<String, bool> force_dark_per_host;
 };
 
 enum class VerticalTabsPosition : u8 {
@@ -142,6 +143,7 @@ WEBVIEW_API Optional<ConfigVariableID> config_variable_id_from_name(StringView);
 class WEBVIEW_API SettingsObserver {
 public:
     explicit SettingsObserver();
+    explicit SettingsObserver(Settings&);
     virtual ~SettingsObserver();
 
     virtual void new_tab_page_url_changed() { }
@@ -199,6 +201,10 @@ public:
     static ContentSettings parse_content_settings(JsonValue const&);
     ContentSettings const& content_settings() const { return m_content_settings; }
     void set_content_settings(ContentSettings);
+
+    bool force_dark_for_host(StringView host) const;
+    void set_force_dark_for_host(String const& host, bool enabled);
+    void reset_force_dark_for_host(StringView host);
 
     double zoom_for_host(StringView host) const;
     void set_zoom_for_host(String const& host, double zoom_level);
