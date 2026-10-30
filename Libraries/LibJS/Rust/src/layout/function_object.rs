@@ -6,11 +6,11 @@
 
 use core::cell::Cell;
 
-use super::cell::{CellHeader, Gc};
+use super::cell::CellHeader;
 use super::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment};
 use super::executable::ExecutableHead;
 use super::execution_context::ScriptOrModule;
-use super::member::NullableMember;
+use super::member::{Member, NullableMember};
 use super::object::Object;
 use super::realm::Realm;
 use crate::layout_forward::{
@@ -39,14 +39,20 @@ pub struct NativeFunction {
     /// The name call stacks show, which only some native functions have.
     pub name: FlyStringSlot,
     pub initial_name: FlyStringSlot,
-    pub realm: Cell<Gc<Realm>>,
+    pub realm: Member<Realm>,
+    /// The index of a raw native function's function in the native function table, in what would otherwise be padding
+    /// (0 for other native functions).
+    pub raw_native_function_index: Cell<u32>,
 }
+
+const _: () = assert!(size_of::<NativeFunction>() == 96);
 
 #[repr(C)]
 pub struct RawNativeFunction {
     pub base: NativeFunction,
-    pub native_function_index: Cell<u32>,
 }
+
+const _: () = assert!(size_of::<RawNativeFunction>() == 96);
 
 /// A raw native getter that reads a wrapped value straight out of a platform object, at word offsets the embedder
 /// provides.

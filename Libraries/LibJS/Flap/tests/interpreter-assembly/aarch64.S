@@ -6209,7 +6209,7 @@ asm_handler_Call:
     str x0, [x2]
     mov x28, x0
     add x27, x28, #128
-    ldr w0, [x1, #96]
+    ldr w0, [x1, #92]
     ldr x1, [x2, #80]
     cbz x1, .Lasm_Call.assert_failure_15
     and w0, w0, #0xffff
@@ -6326,13 +6326,13 @@ asm_handler_Call_hot_end:
 .p2align 4
 asm_handler_ObjectPropertyIteratorNext:
     ldr w0, [x21, #12]
-    ldr x2, [x27, x0, lsl #3]
-    lsr x9, x2, #48
+    ldr x3, [x27, x0, lsl #3]
+    lsr x9, x3, #48
     mov w10, #65529
     cmp x9, x10
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    and x2, x2, #0x7ffffffff
-    add x2, x2, x24
+    and x3, x3, #0x7ffffffff
+    add x3, x3, x24
     ldr w0, [x21, #16]
     ldr x0, [x27, x0, lsl #3]
     lsr x1, x0, #48
@@ -6341,15 +6341,18 @@ asm_handler_ObjectPropertyIteratorNext:
     b.ne .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9
     and x0, x0, #0x7ffffffff
     add x0, x0, x24
-    ldrb w3, [x0, #12]
-    cmp x3, #0
+    ldrb w4, [x0, #12]
+    cmp x4, #0
     b.eq .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    ldr x4, [x0, #24]
-    cbz x4, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18
-    ldr w1, [x2, #20]
+    ldr w2, [x0, #24]
+    add x9, x24, w2, uxtw #3
+    cmp w2, #0
+    csel x2, x9, xzr, ne
+    cbz x2, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18
+    ldr w1, [x3, #20]
     cbz x1, .Lasm_ObjectPropertyIteratorNext.assert_failure_0
     add x1, x24, w1, uxtw #3
-    cmp x1, x4
+    cmp x1, x2
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     ldrb w9, [x0, #11]
     cbz w9, .Lasm_ObjectPropertyIteratorNext.ssa_block_4
@@ -6358,17 +6361,20 @@ asm_handler_ObjectPropertyIteratorNext:
     cmp w9, w1
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_4:
-    cmp x3, #2
+    cmp x4, #2
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_6
-    ldrb w9, [x2, #14]
+    ldrb w9, [x3, #14]
     cmp x9, #1
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    ldr w1, [x2, #16]
+    ldr w1, [x3, #16]
     ldr w9, [x0, #16]
     cmp w9, w1
     b.ne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_6:
-    ldr x1, [x0, #32]
+    ldr w1, [x0, #28]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     cbz x1, .Lasm_ObjectPropertyIteratorNext.ssa_block_8
     ldrb w9, [x1, #11]
     cbz w9, .Lasm_ObjectPropertyIteratorNext.ssa_block_1
@@ -6386,10 +6392,10 @@ asm_handler_ObjectPropertyIteratorNext:
     adds w3, w3, #1
     b.vs .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     sxtw x1, w1
-    ldr x4, [x0, #48]
+    ldr x4, [x0, #40]
     cmp x1, x4
     b.hs .Lasm_ObjectPropertyIteratorNext.ssa_block_13
-    ldr x0, [x0, #40]
+    ldr x0, [x0, #32]
     cbz x0, .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65
     ldr x0, [x0, x1, lsl #3]
     ldr w9, [x21, #4]
@@ -14059,17 +14065,17 @@ asm_handler_GetById_cold:
     tbnz x0, #9, 1f
     b .Lasm_GetById.ssa_block_3
 1:
-    ldr w0, [x1, #104]
+    ldr w0, [x1, #96]
     ldr x0, [x3, x0, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_3
-    ldr w2, [x1, #112]
+    ldr w2, [x1, #104]
     ldr x5, [x0, x2, lsl #3]
     cbz x5, .Lasm_GetById.ssa_block_3
-    ldr w4, [x1, #116]
+    ldr w4, [x1, #108]
     ldr x5, [x5, x4, lsl #3]
     cmp x5, x3
     b.ne .Lasm_GetById.ssa_block_3
-    ldr w1, [x1, #108]
+    ldr w1, [x1, #100]
     ldr x0, [x0, x1, lsl #3]
     cbnz x0, .Lasm_GetById.ssa_block_50
     movz x0, #0x7fff, lsl #48
@@ -14094,7 +14100,7 @@ asm_handler_GetById_cold:
     ldr x10, [x19, x9, lsl #3]
     br x10
 .Lasm_GetById.ssa_block_25:
-    ldr w4, [x1, #96]
+    ldr w4, [x1, #92]
     mov x0, x20
     ldr x0, [x0, #80]
     cbz x0, .Lasm_GetById.assert_failure_5

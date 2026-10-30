@@ -1728,7 +1728,7 @@ fn get_length() {
 // word 7. Key snapshots of for-in loops have the fast path kind (byte 8),
 // whether the shape is a dictionary (byte 9) and its dictionary generation
 // (bytes 12-15) in word 1, the shape at word 2, the indexed property count
-// at word 3, the prototype chain validity at word 4, and the keys and their
+// at word 3, the prototype chain validity at word 4 (both compressed), and the keys and their
 // count at words 5 and 6. Shapes have their dictionary generation at byte 84.
 
 /// A for-in key snapshot of `keys` for objects with `shape`.
@@ -1744,7 +1744,7 @@ impl FakeKeySnapshot {
             keys: keys.to_vec(),
         });
         snapshot.words[1] = u64::from(fast_path);
-        snapshot.words[2] = shape.as_ptr() as u64;
+        snapshot.words[2] = compressed(shape);
         snapshot.words[5] = snapshot.keys.as_ptr() as u64;
         snapshot.words[6] = keys.len() as u64;
         snapshot
@@ -1827,9 +1827,9 @@ fn property_iterator_next_reads_key_snapshots() {
     );
 
     // An invalidated prototype chain is slow.
-    let mut validity = [1u64];
+    let validity = low_cell(&[1]);
     let mut checked = FakeKeySnapshot::new(1, &shape, &keys);
-    checked.words[4] = validity.as_ptr() as u64;
+    checked.words[4] = compressed(validity);
     assert_eq!(
         property_iterator_next(object.value(), checked.value(), value::int32(0)).3,
         0

@@ -9,6 +9,7 @@ use core::cell::Cell;
 use super::buffer::InterpreterBuffer;
 use super::cell::{CellHeader, Gc};
 use super::function_object::FunctionObject;
+use super::member::NullableMember;
 use super::object::Object;
 use super::shape::{Shape, WatchpointSet};
 use super::value::Value;
@@ -117,8 +118,8 @@ pub struct ObjectPropertyIteratorCacheData {
     pub receiver_has_magical_length: Cell<bool>,
     pub indexed_property_count: Cell<u32>,
     pub shape_dictionary_generation: Cell<u32>,
-    pub shape: Cell<Option<Gc<Shape>>>,
-    pub prototype_chain_validity: Cell<Option<Gc<WatchpointSet>>>,
+    pub shape: NullableMember<Shape>,
+    pub prototype_chain_validity: NullableMember<WatchpointSet>,
     pub property_values: InterpreterBuffer<Value>,
     pub storage: ObjectPropertyIteratorCacheDataStorage,
 }
