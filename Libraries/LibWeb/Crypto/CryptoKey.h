@@ -13,7 +13,6 @@
 #include <LibGC/Ptr.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/CryptoKey.h>
-#include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Crypto/CryptoBindings.h>
 #include <LibWebCommon/WebIDL/Types.h>
@@ -43,9 +42,7 @@ enum class KeyType {
     Secret,
 };
 
-class WEB_API CryptoKey final
-    : public Bindings::GCAllocatedWrappable
-    , public Bindings::Serializable {
+class WEB_API CryptoKey final : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(CryptoKey, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(CryptoKey);
 
@@ -139,9 +136,6 @@ public:
 
     InternalKeyData const& handle() const { return m_key_data; }
     Utf16String const& algorithm_name() const;
-
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
 
 private:
     explicit CryptoKey(InternalKeyData);

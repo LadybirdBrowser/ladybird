@@ -40,7 +40,7 @@ ALLOWED_REALM_MENTIONS = {
     "Clipboard": (4, 16, "clipboard item/data callbacks still materialize JS values in caller-selected realms"),
     "ContentSecurityPolicy": (4, 10, "CSP violation/report objects and callbacks still materialize JS-facing values"),
     "CookieStore": (2, 19, "cookie-store async callbacks and promise/value materialization still thread realms"),
-    "Crypto": (8, 382, "WebCrypto algorithms still use realms for buffer/key/promise materialization"),
+    "Crypto": (8, 369, "WebCrypto algorithms still use realms for buffer/key/promise materialization"),
     "DOM": (10, 33, "DOM abort plumbing and node helpers still have callback/materialization realm use"),
     "Fetch": (
         20,
@@ -52,7 +52,7 @@ ALLOWED_REALM_MENTIONS = {
     "FileAPI": (2, 9, "Blob glue still creates streams and buffers in selected realms"),
     "HTML": (
         65,
-        197,
+        195,
         "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use, and cross-origin Window/Location property functions are created in the current realm; RemoteWindow mirrors Window's postMessage; "
         "the C++ glue of the Rust structured serialization reads records and creates platform objects in a given realm",
     ),
