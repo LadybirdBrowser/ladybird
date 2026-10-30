@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 48 tests
 
-43 Pass
-5 Fail
+48 Pass
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Navigator: original interface defined
@@ -45,10 +44,10 @@ Pass	PermissionStatus interface: existence and properties of interface prototype
 Pass	PermissionStatus interface: attribute state
 Pass	PermissionStatus interface: attribute name
 Pass	PermissionStatus interface: attribute onchange
-Fail	PermissionStatus must be primary interface of permissionStatus
-Fail	Stringification of permissionStatus
-Fail	PermissionStatus interface: permissionStatus must inherit property "state" with the proper type
-Fail	PermissionStatus interface: permissionStatus must inherit property "name" with the proper type
-Fail	PermissionStatus interface: permissionStatus must inherit property "onchange" with the proper type
+Pass	PermissionStatus must be primary interface of permissionStatus
+Pass	Stringification of permissionStatus
+Pass	PermissionStatus interface: permissionStatus must inherit property "state" with the proper type
+Pass	PermissionStatus interface: permissionStatus must inherit property "name" with the proper type
+Pass	PermissionStatus interface: permissionStatus must inherit property "onchange" with the proper type
 Pass	WorkerNavigator interface: attribute permissions
 Pass	WorkerNavigator interface: navigator must inherit property "permissions" with the proper type

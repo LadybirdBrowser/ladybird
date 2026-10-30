@@ -261,6 +261,29 @@ TEST_CASE(global_default_applies_without_entry)
     EXPECT(snapshot.microphone_default == EffectiveState::Prompt);
 }
 
+TEST_CASE(notifications_global_default_denies)
+{
+    FakeClock clock;
+    auto manager = create_manager(clock, "notifications-global-default"sv);
+    manager->set_global_default(PermissionName::Notifications, EffectiveState::Denied);
+    EXPECT(manager->effective_state(PermissionName::Notifications, talk) == EffectiveState::Denied);
+    EXPECT(manager->effective_state(PermissionName::Microphone, talk) == EffectiveState::Prompt);
+    auto snapshot = manager->snapshot();
+    EXPECT(snapshot.notifications_default == EffectiveState::Denied);
+    EXPECT(snapshot.geolocation_default == EffectiveState::Prompt);
+}
+
+TEST_CASE(reset_origin_clears_notifications)
+{
+    FakeClock clock;
+    auto manager = create_manager(clock, "reset-notifications"sv);
+    manager->set_decision(PermissionName::Notifications, maps, PermissionDecision::Block);
+    EXPECT(manager->effective_state(PermissionName::Notifications, maps) == EffectiveState::Denied);
+    manager->reset_origin(maps);
+    EXPECT(!manager->decision(PermissionName::Notifications, maps).has_value());
+    EXPECT(manager->effective_state(PermissionName::Notifications, maps) == EffectiveState::Prompt);
+}
+
 TEST_CASE(snapshot_lists_effective_states)
 {
     FakeClock clock;

@@ -19,6 +19,7 @@ namespace Web::Permissions {
 enum class PermissionName : u8 {
     Geolocation,
     Microphone,
+    Notifications,
 };
 
 WEBCOMMON_API Optional<PermissionName> permission_name_from_string(StringView);
@@ -58,6 +59,7 @@ struct WEBCOMMON_API PermissionSnapshot {
     Vector<PermissionSnapshotEntry> entries;
     EffectiveState geolocation_default { EffectiveState::Prompt };
     EffectiveState microphone_default { EffectiveState::Prompt };
+    EffectiveState notifications_default { EffectiveState::Prompt };
 };
 
 }

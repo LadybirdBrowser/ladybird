@@ -125,6 +125,9 @@ TEST_CASE(question_and_answers)
     PermissionPromptPopover port(nullptr, request_for("https://maps.example.com:8443/"sv, PermissionName::Microphone));
     EXPECT_EQ(child<QLabel>(port, "LadybirdPermissionPromptTitle").text(), QStringLiteral("maps.example.com:8443 wants to use your microphone"));
 
+    PermissionPromptPopover mail(nullptr, request_for("https://mail.example.com/"sv, PermissionName::Notifications));
+    EXPECT_EQ(child<QLabel>(mail, "LadybirdPermissionPromptTitle").text(), QStringLiteral("mail.example.com wants to send you notifications"));
+
     PermissionPromptPopover file(nullptr, request_for("file:///Users/someone/map.html"sv));
     EXPECT_EQ(child<QLabel>(file, "LadybirdPermissionPromptTitle").text(), QStringLiteral("This file wants to know your location"));
 

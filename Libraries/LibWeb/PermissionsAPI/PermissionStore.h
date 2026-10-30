@@ -69,6 +69,7 @@ private:
     Optional<u64> m_defaults_revision;
     Web::Permissions::EffectiveState m_geolocation_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_microphone_default { Web::Permissions::EffectiveState::Prompt };
+    Web::Permissions::EffectiveState m_notifications_default { Web::Permissions::EffectiveState::Prompt };
     Vector<GC::Weak<PermissionStatus>> m_statuses;
 };
 

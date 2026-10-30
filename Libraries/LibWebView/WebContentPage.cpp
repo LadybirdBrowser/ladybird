@@ -1619,16 +1619,21 @@ static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16Stri
         return Web::Permissions::PermissionName::Geolocation;
     if (name == "microphone"_utf16)
         return Web::Permissions::PermissionName::Microphone;
+    if (name == "notifications"_utf16)
+        return Web::Permissions::PermissionName::Notifications;
     return {};
 }
 
-static Web::PermissionsPolicy::PolicyControlledFeature policy_controlled_feature_for(Web::Permissions::PermissionName name)
+// The policy-controlled feature that gates a permission, for the permissions that have one.
+static Optional<Web::PermissionsPolicy::PolicyControlledFeature> policy_controlled_feature_for(Web::Permissions::PermissionName name)
 {
     switch (name) {
     case Web::Permissions::PermissionName::Geolocation:
         return Web::PermissionsPolicy::PolicyControlledFeature::Geolocation;
     case Web::Permissions::PermissionName::Microphone:
         return Web::PermissionsPolicy::PolicyControlledFeature::Microphone;
+    case Web::Permissions::PermissionName::Notifications:
+        return {};
     }
     VERIFY_NOT_REACHED();
 }
@@ -1661,7 +1666,7 @@ bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web
     auto top_level_origin = document->top_level_origin();
     if (!top_level_origin.has_value())
         return false;
-    if (Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), policy_controlled_feature_for(name), document->origin(), document->origin()) != Web::PermissionsPolicy::FeatureValue::Enabled)
+    if (auto feature = policy_controlled_feature_for(name); feature.has_value() && Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), *feature, document->origin(), document->origin()) != Web::PermissionsPolicy::FeatureValue::Enabled)
         return false;
     if (top_level_origin->is_opaque())
         return m_file_permission_grants.find_first_index_if([&](auto const& grant) { return grant.document_id == document_id && grant.name == name; }).has_value();
@@ -1727,10 +1732,12 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
         return;
     }
 
-    auto policy = Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), policy_controlled_feature_for(*permission_name), document->origin(), document->origin());
-    if (policy != Web::PermissionsPolicy::FeatureValue::Enabled) {
-        deny();
-        return;
+    if (auto feature = policy_controlled_feature_for(*permission_name); feature.has_value()) {
+        auto policy = Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), *feature, document->origin(), document->origin());
+        if (policy != Web::PermissionsPolicy::FeatureValue::Enabled) {
+            deny();
+            return;
+        }
     }
 
     // A file: page has an opaque origin, and it's the only one that gets to ask. Its answer lasts as long as the page.

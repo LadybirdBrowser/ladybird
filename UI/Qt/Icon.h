@@ -45,6 +45,7 @@ enum class ChromeIcon {
     SiteSettings,
     Microphone,
     Location,
+    Notifications,
     SelectArea,
     CheckCircle,
     Document,

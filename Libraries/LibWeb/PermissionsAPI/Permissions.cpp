@@ -30,6 +30,8 @@ static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16View
         return Web::Permissions::PermissionName::Geolocation;
     if (name == "microphone"_utf16)
         return Web::Permissions::PermissionName::Microphone;
+    if (name == "notifications"_utf16)
+        return Web::Permissions::PermissionName::Notifications;
     return {};
 }
 
@@ -45,6 +47,9 @@ static Optional<PermissionsPolicy::PolicyControlledFeature> policy_controlled_fe
         return PermissionsPolicy::PolicyControlledFeature::Geolocation;
     case Web::Permissions::PermissionName::Microphone:
         return PermissionsPolicy::PolicyControlledFeature::Microphone;
+    case Web::Permissions::PermissionName::Notifications:
+        // Notifications is a powerful feature, but not a policy-controlled one.
+        return {};
     }
     VERIFY_NOT_REACHED();
 }
@@ -137,12 +142,13 @@ PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML:
     auto feature = permission_name_from(descriptor.name);
 
     // 4. If there exists a policy-controlled feature for feature and settings' relevant global object has an associated Document run the following step:
-    if (auto* window = HTML::window_from_global_object(settings_object.global_object()); feature.has_value() && window) {
+    auto policy_controlled_feature = feature.has_value() ? policy_controlled_feature_for(*feature) : Optional<PermissionsPolicy::PolicyControlledFeature> {};
+    if (auto* window = HTML::window_from_global_object(settings_object.global_object()); policy_controlled_feature.has_value() && window) {
         // 1. Let document be settings' relevant global object's associated Document.
         auto& document = window->associated_document();
 
         // 2. If document is not allowed to use feature, return "denied".
-        if (!document.is_allowed_to_use_feature(*policy_controlled_feature_for(*feature)))
+        if (!document.is_allowed_to_use_feature(*policy_controlled_feature))
             return PermissionState::Denied;
     }
 
