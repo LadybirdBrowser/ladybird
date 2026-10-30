@@ -1657,8 +1657,9 @@ void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
     document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
     if (!document.navigable() || !document.has_committed_viewport_box())
         return;
+    // A recording against a visual context tree built fresh copies nothing from the published one.
     if (cold)
-        document.paint_state().invalidate_all_cached_paint(document);
+        document.schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::VisualContextUpdateScope::FreshTree);
     (void)document.record_display_list(read, HTML::PaintConfig { .paint_overlay = paint_overlay }, document.navigable()->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
 }
 

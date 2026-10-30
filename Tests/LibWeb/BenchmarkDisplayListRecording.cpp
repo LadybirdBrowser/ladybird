@@ -352,8 +352,11 @@ void time_document_recordings(DocumentShape shape, StringView label, Optional<Mu
             apply_mutation(loaded_page, *mutation);
         document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
         layout_samples.microseconds.append(layout_timer.elapsed_time().to_microseconds());
-        if (cache_state == CacheState::Cold)
-            document.paint_state().invalidate_all_cached_paint(document);
+        // The fresh visual context tree is built before the timer starts, so only the recording is timed.
+        if (cache_state == CacheState::Cold) {
+            document.schedule_full_accumulated_visual_context_rebuild(Web::Layout::RustFFI::VisualContextUpdateScope::FreshTree);
+            document.update_paint_and_hit_testing_properties_if_needed();
+        }
         Web::Layout::ForcedReadScope read { document };
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
         auto display_list = document.record_display_list(read, benchmark_paint_config(), loaded_page.display_list_resource_storage, Web::Painting::PaintCommandCacheMode::ReadWrite);
