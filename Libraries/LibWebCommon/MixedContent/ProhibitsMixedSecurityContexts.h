@@ -17,3 +17,5 @@ enum class ProhibitsMixedSecurityContexts : u8 {
 };
 
 }
+
+#include <LibWebCommon/MixedContent/ProhibitsMixedSecurityContextsCodecs.h>
