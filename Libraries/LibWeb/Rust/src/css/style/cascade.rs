@@ -175,17 +175,48 @@ impl CascadePriority {
             // https://drafts.csswg.org/css-cascade-5/#valdef-all-revert
             CascadeOperator::Revert => origin_group(other.origin_importance) >= origin_group(self.origin_importance),
             // https://drafts.csswg.org/css-cascade-5/#valdef-all-revert-layer
+            // The cascaded value rolls back to the earlier layers of the declaration's origin and
+            // context, important or not. This matches CascadeStratum::is_below().
             CascadeOperator::RevertLayer => {
                 // NB: Inline styles occupy a separate cascade step, even though they share the implicit outer
                 //     layer's rank with unlayered style rules, so a revert-layer in them only rolls back other
-                //     inline styles. This matches CascadeStratum::is_below().
-                other.origin_importance == self.origin_importance
-                    && other.context == self.context
-                    && other.layer == self.layer
-                    && (self.element_attachment != ElementAttachment::InlineStyle
-                        || other.element_attachment == ElementAttachment::InlineStyle)
+                //     inline styles.
+                other.origin() == self.origin()
+                    && other.context_depth() == self.context_depth()
+                    && match self.element_attachment {
+                        ElementAttachment::InlineStyle => other.element_attachment == ElementAttachment::InlineStyle,
+                        _ => other.layer_rank() >= self.layer_rank(),
+                    }
             }
             _ => false,
+        }
+    }
+
+    /// The origin the priority was built from, as its rank among normal declarations.
+    fn origin(&self) -> u8 {
+        match self.is_important() {
+            true => 8 - self.origin_importance,
+            false => self.origin_importance,
+        }
+    }
+
+    fn is_important(&self) -> bool {
+        self.origin_importance > origin_importance_rank(CascadeOrigin::Author, false)
+    }
+
+    /// The encapsulation depth the priority was built from.
+    fn context_depth(&self) -> u32 {
+        match self.is_important() {
+            true => self.context,
+            false => u32::MAX - self.context,
+        }
+    }
+
+    /// The rank of the layer the priority was built from.
+    fn layer_rank(&self) -> u64 {
+        match self.is_important() {
+            true => u64::MAX - self.layer,
+            false => self.layer,
         }
     }
 
