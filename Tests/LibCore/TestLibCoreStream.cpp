@@ -11,22 +11,28 @@
 #include <LibCore/File.h>
 #include <LibCore/LocalServer.h>
 #include <LibCore/Socket.h>
-#include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TCPServer.h>
 #include <LibCore/Timer.h>
 #include <LibCore/UDPServer.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
 #include <AK/Windows.h>
 
+static ByteString temporary_path(StringView name)
+{
+    static Test::TemporaryDirectory const directory { "TestLibCoreStream"sv };
+    return directory.path().append(name).string();
+}
+
 // File tests
 
 TEST_CASE(file_open)
 {
-    auto maybe_file = Core::File::open(ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "file-open-test.txt"sv), Core::File::OpenMode::Write);
+    auto maybe_file = Core::File::open(temporary_path("file-open-test.txt"sv), Core::File::OpenMode::Write);
     if (maybe_file.is_error()) {
         warnln("Failed to open the file: {}", strerror(maybe_file.error().code()));
         VERIFY_NOT_REACHED();
@@ -49,7 +55,7 @@ TEST_CASE(file_open_rejects_embedded_nul)
 
 TEST_CASE(file_write_bytes)
 {
-    auto file = TRY_OR_FAIL(Core::File::open(ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "file-write-bytes-test.txt"sv), Core::File::OpenMode::Write));
+    auto file = TRY_OR_FAIL(Core::File::open(temporary_path("file-write-bytes-test.txt"sv), Core::File::OpenMode::Write));
 
     constexpr auto some_words = "These are some words"sv;
     ReadonlyBytes buffer { some_words.characters_without_null_termination(), some_words.length() };
@@ -122,7 +128,7 @@ BENCHMARK_CASE(file_tell)
 
 TEST_CASE(file_buffered_write_and_seek)
 {
-    auto file = TRY_OR_FAIL(Core::OutputBufferedFile::create(TRY_OR_FAIL(Core::File::open(ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "file-buffered-write-test.txt"sv), Core::File::OpenMode::Truncate | Core::File::OpenMode::ReadWrite))));
+    auto file = TRY_OR_FAIL(Core::OutputBufferedFile::create(TRY_OR_FAIL(Core::File::open(temporary_path("file-buffered-write-test.txt"sv), Core::File::OpenMode::Truncate | Core::File::OpenMode::ReadWrite))));
 
     TRY_OR_FAIL(file->write_some("0123456789"sv.bytes()));
     EXPECT_EQ(file->tell().release_value(), 10ul);
@@ -167,7 +173,7 @@ TEST_CASE(file_adopt_invalid_fd)
 
 TEST_CASE(file_truncate)
 {
-    auto file = TRY_OR_FAIL(Core::File::open(ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "file-truncate-test.txt"sv), Core::File::OpenMode::Write));
+    auto file = TRY_OR_FAIL(Core::File::open(temporary_path("file-truncate-test.txt"sv), Core::File::OpenMode::Write));
 
     TRY_OR_FAIL(file->truncate(999));
     EXPECT_EQ(file->size().release_value(), 999ul);
@@ -204,12 +210,12 @@ TEST_CASE(tcp_socket_read)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
 #if !defined(AK_OS_WINDOWS)
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 #endif
 
-    auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
+    auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, tcp_server->local_port().value() }));
 
     EXPECT(client_socket->is_open());
 
@@ -235,10 +241,10 @@ TEST_CASE(tcp_socket_write)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
-    auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
+    auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, tcp_server->local_port().value() }));
 
     auto server_socket = TRY_OR_FAIL(tcp_server->accept());
     TRY_OR_FAIL(server_socket->set_blocking(true));
@@ -258,10 +264,10 @@ TEST_CASE(tcp_socket_eof)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
-    auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
+    auto client_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, tcp_server->local_port().value() }));
 
     EXPECT(client_socket->is_open());
 
@@ -293,9 +299,9 @@ TEST_CASE(udp_socket_read_write)
     Core::EventLoop event_loop;
 
     auto udp_server = Core::UDPServer::construct();
-    EXPECT(udp_server->bind({ 127, 0, 0, 1 }, 9090));
+    EXPECT(udp_server->bind({ 127, 0, 0, 1 }, 0));
 
-    auto client_socket = TRY_OR_FAIL(Core::UDPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
+    auto client_socket = TRY_OR_FAIL(Core::UDPSocket::connect({ { 127, 0, 0, 1 }, udp_server->local_port().value() }));
 
     EXPECT(client_socket->is_open());
     TRY_OR_FAIL(client_socket->write_until_depleted({ sent_data.characters_without_null_termination(), sent_data.length() }));
@@ -347,7 +353,7 @@ TEST_CASE(local_socket_read)
 {
     Core::EventLoop event_loop;
 
-    auto socket_path = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "test-socket"sv);
+    auto socket_path = temporary_path("test-socket"sv);
     if (FileSystem::exists(socket_path))
         TRY_OR_FAIL(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
 
@@ -399,7 +405,7 @@ TEST_CASE(local_socket_write)
 {
     Core::EventLoop event_loop;
 
-    auto socket_path = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "test-socket"sv);
+    auto socket_path = temporary_path("test-socket"sv);
     if (FileSystem::exists(socket_path))
         TRY_OR_FAIL(FileSystem::remove(socket_path, FileSystem::RecursionMode::Disallowed));
 
@@ -577,7 +583,7 @@ constexpr auto new_newlines_message = "Hi, look, no newlines"sv;
 
 TEST_CASE(buffered_file_without_newlines)
 {
-    auto const filename = ByteString::formatted("{}/{}", Core::StandardPaths::tempfile_directory(), "file-without-newlines"sv);
+    auto const filename = temporary_path("file-without-newlines"sv);
     auto file_wo_newlines = Core::File::open(filename, Core::File::OpenMode::Write).release_value();
     TRY_OR_FAIL(file_wo_newlines->write_until_depleted(new_newlines_message.bytes()));
     file_wo_newlines->close();
@@ -601,10 +607,10 @@ TEST_CASE(buffered_tcp_socket_read)
     Core::EventLoop event_loop;
 
     auto tcp_server = TRY_OR_FAIL(Core::TCPServer::try_create());
-    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 9090, Core::TCPServer::AllowAddressReuse::Yes));
+    TRY_OR_FAIL(tcp_server->listen({ 127, 0, 0, 1 }, 0, Core::TCPServer::AllowAddressReuse::Yes));
     TRY_OR_FAIL(tcp_server->set_blocking(true));
 
-    auto unbuffered_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, 9090 }));
+    auto unbuffered_socket = TRY_OR_FAIL(Core::TCPSocket::connect({ { 127, 0, 0, 1 }, tcp_server->local_port().value() }));
     auto client_socket = TRY_OR_FAIL(Core::BufferedTCPSocket::create(move(unbuffered_socket)));
 
     EXPECT(client_socket->is_open());

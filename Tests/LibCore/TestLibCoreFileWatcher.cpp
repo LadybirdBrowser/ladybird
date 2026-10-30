@@ -10,7 +10,7 @@
 #include <LibCore/FileWatcher.h>
 #include <LibCore/System.h>
 #include <LibCore/Timer.h>
-#include <LibFileSystem/FileSystem.h>
+#include <LibTest/TemporaryDirectory.h>
 #include <LibTest/TestCase.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -27,27 +27,25 @@ TEST_CASE(file_watcher_child_events)
     auto maybe_file_watcher = Core::FileWatcher::create();
     EXPECT_NE(maybe_file_watcher.is_error(), true);
 
-    // Ensure the testfile does not already exist.
-    (void)Core::System::unlink("/tmp/testfile"sv);
+    Test::TemporaryDirectory directory { "TestLibCoreFileWatcher"sv };
+    auto test_path = directory.path().append("testfile"sv).string();
 
     auto file_watcher = maybe_file_watcher.release_value();
-    auto watch_result = file_watcher->add_watch("/tmp/",
+    auto watch_result = file_watcher->add_watch(directory.path().string(),
         Core::FileWatcherEvent::Type::ChildCreated
             | Core::FileWatcherEvent::Type::ChildDeleted);
     EXPECT_NE(watch_result.is_error(), true);
 
     int event_count = 0;
     file_watcher->on_change = [&](Core::FileWatcherEvent const& event) {
-        // Ignore path events under /tmp that can occur for anything else the OS is
-        // doing to create/delete files there.
-        if (event.event_path != "/tmp/testfile"sv)
+        if (event.event_path != test_path)
             return;
 
         if (event_count == 0) {
             EXPECT(has_flag(event.type, Core::FileWatcherEvent::Type::ChildCreated));
         } else if (event_count == 1) {
             EXPECT(has_flag(event.type, Core::FileWatcherEvent::Type::ChildDeleted));
-            EXPECT(MUST(file_watcher->remove_watch("/tmp/"sv)));
+            EXPECT(MUST(file_watcher->remove_watch(directory.path().string())));
 
             event_loop.quit(0);
         }
@@ -56,13 +54,13 @@ TEST_CASE(file_watcher_child_events)
     };
 
     auto timer1 = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(1 * TIMEOUT_PER_STEP_IN_MS), [&] {
-        int rc = creat("/tmp/testfile", 0777);
+        int rc = creat(test_path.characters(), 0777);
         EXPECT_NE(rc, -1);
     });
     timer1->start();
 
     auto timer2 = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(2 * TIMEOUT_PER_STEP_IN_MS), [&] {
-        MUST(Core::System::unlink("/tmp/testfile"sv));
+        MUST(Core::System::unlink(test_path));
     });
     timer2->start();
 
@@ -78,8 +76,8 @@ TEST_CASE(contents_changed)
 {
     auto event_loop = Core::EventLoop();
 
-    auto temp_path = MUST(FileSystem::real_path("/tmp"sv));
-    auto test_path = LexicalPath::join(temp_path, "testfile"sv);
+    Test::TemporaryDirectory directory { "TestLibCoreFileWatcher"sv };
+    auto test_path = directory.path().append("testfile"sv);
 
     auto write_file = [&](auto contents) {
         auto file = MUST(Core::File::open(test_path.string(), Core::File::OpenMode::Write));
@@ -120,10 +118,10 @@ TEST_CASE(symbolic_link)
 {
     auto event_loop = Core::EventLoop();
 
-    auto temp_path = MUST(FileSystem::real_path("/tmp"sv));
-    auto test_file = LexicalPath::join(temp_path, "testfile"sv);
-    auto test_link1 = LexicalPath::join(temp_path, "testlink1"sv);
-    auto test_link2 = LexicalPath::join(temp_path, "testlink2"sv);
+    Test::TemporaryDirectory directory { "TestLibCoreFileWatcher"sv };
+    auto test_file = directory.path().append("testfile"sv);
+    auto test_link1 = directory.path().append("testlink1"sv);
+    auto test_link2 = directory.path().append("testlink2"sv);
 
     (void)MUST(Core::File::open(test_link1.string(), Core::File::OpenMode::ReadWrite));
     (void)MUST(Core::File::open(test_link2.string(), Core::File::OpenMode::ReadWrite));
