@@ -13,23 +13,10 @@
 
 namespace GC {
 
-#if AK_IS_ARCH_RISCV64()
-// Sv39 provides 256 GiB of user virtual address space after splitting the
-// address space between userspace and the kernel. Keep room for the second
-// region-sized reservation used to align the cage base.
-static constexpr size_t HEAP_REGION_SIZE = 64ull * GiB;
-#elif AK_IS_ARCH_AARCH64() && !defined(AK_OS_MACOS)
-// Some AArch64 systems provide only 39 or 42 bits of user virtual address
-// space. Keep the cage small enough to fit those systems, including the
-// second region-sized reservation used to align its base.
-static constexpr size_t HEAP_REGION_SIZE = 128ull * GiB;
-#elif defined(HAS_THREAD_SANITIZER)
-// ThreadSanitizer only lets the application map a few TiB of its own address space, not enough
-// for the region-sized reservation plus the second one used to align its base.
-static constexpr size_t HEAP_REGION_SIZE = 128ull * GiB;
-#else
-static constexpr size_t HEAP_REGION_SIZE = 4ull * TiB;
-#endif
+// 32 GiB is what a 32-bit cell offset in units of the 8-byte cell alignment can address. It is the same on every target,
+// and small enough for the second region-sized reservation used to align its base to fit in the user address space of
+// Sv39 RISC-V, 39-bit AArch64, and the application ranges of the sanitizers.
+static constexpr size_t HEAP_REGION_SIZE = 32ull * GiB;
 static_assert(is_power_of_two(HEAP_REGION_SIZE));
 static constexpr size_t HEAP_REGION_OFFSET_MASK = HEAP_REGION_SIZE - 1;
 

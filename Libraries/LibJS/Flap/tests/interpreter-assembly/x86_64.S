@@ -1788,7 +1788,7 @@ asm_handler_JumpIf:
     je .Lasm_JumpIf.ssa_block_4
     cmp ax, 65529
     jne .Lasm_JumpIf.ssa_block_3
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -1833,7 +1833,7 @@ asm_handler_JumpTrue:
     je .Lasm_JumpTrue.ssa_block_3
     cmp ax, 65529
     jne .Lasm_JumpTrue.ssa_block_2
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -1882,7 +1882,7 @@ asm_handler_JumpFalse:
     je .Lasm_JumpFalse.ssa_block_3
     cmp ax, 65529
     jne .Lasm_JumpFalse.ssa_block_2
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -2433,7 +2433,7 @@ asm_handler_JumpIfLoop:
     je .Lasm_JumpIfLoop.ssa_block_4
     cmp ax, 65529
     jne .Lasm_JumpIfLoop.ssa_block_3
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -2478,7 +2478,7 @@ asm_handler_JumpTrueLoop:
     je .Lasm_JumpTrueLoop.ssa_block_3
     cmp ax, 65529
     jne .Lasm_JumpTrueLoop.ssa_block_2
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -2527,7 +2527,7 @@ asm_handler_JumpFalseLoop:
     je .Lasm_JumpFalseLoop.ssa_block_3
     cmp ax, 65529
     jne .Lasm_JumpFalseLoop.ssa_block_2
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -3096,7 +3096,7 @@ asm_handler_Not:
     jz .Lasm_Not.ssa_block_1
     jmp .Lasm_Not.ssa_block_2
 .Lasm_Not.ssa_block_10:
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -3243,7 +3243,7 @@ asm_handler_GetLexicalEnvironment:
     mov rax, QWORD PTR [rbx - 96]
     test rax, rax
     jz .Lasm_GetLexicalEnvironment.assert_predicate_failure_3
-    movabs rcx, 4398046511103
+    movabs rcx, 34359738367
     and rax, rcx
     movabs rcx, -2251799813685248
     or rax, rcx
@@ -3262,7 +3262,7 @@ asm_handler_SetLexicalEnvironment:
     shr rcx, 48
     cmp cx, 65528
     jne .Lasm_SetLexicalEnvironment.assert_predicate_failure_3
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     mov QWORD PTR [rbx - 96], rax
@@ -4886,7 +4886,7 @@ asm_handler_PutByValue:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_PutByValue.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx esi, WORD PTR [rcx + 12]
@@ -5167,7 +5167,7 @@ asm_handler_PutByValue:
     jne .Lasm_PutByValue.ssa_block_1
     cmp QWORD PTR [rax + 48], rdx
     jne .Lasm_PutByValue.ssa_block_3
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rsi, r11
     add rsi, r15
     mov rcx, QWORD PTR [rsi + 24]
@@ -5209,7 +5209,7 @@ asm_handler_GetById:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_GetById.ssa_block_14
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rsi, r11
     add rsi, r15
     mov rax, QWORD PTR [rsi + 24]
@@ -5310,7 +5310,7 @@ asm_handler_PutById:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_PutById.ssa_block_2
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rdx, r11
     add rdx, r15
     mov rcx, QWORD PTR [rdx + 24]
@@ -5371,7 +5371,7 @@ asm_handler_GetByValue:
     shr rax, 48
     cmp ax, 65529
     jne .Lasm_GetByValue.ssa_block_8
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rsi, r11
     add rsi, r15
     movzx ecx, WORD PTR [rsi + 12]
@@ -5564,7 +5564,7 @@ asm_handler_GetByValue:
     movsxd rax, edx
     test eax, eax
     js .Lasm_GetByValue.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rsi, r11
     add rsi, r15
     movzx ecx, BYTE PTR [rsi + 11]
@@ -5634,7 +5634,7 @@ asm_handler_GetByValue:
     jz .Lasm_GetByValue.assert_failure_2
     mov edi, DWORD PTR [r14 + r13 + 24]
     mov rsi, QWORD PTR [rsi + rdi * 8]
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     cmp rsi, 3
@@ -5692,7 +5692,7 @@ asm_handler_GetLength:
     shr rax, 48
     cmp ax, 65529
     jne .Lasm_GetLength.ssa_block_2
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -5754,7 +5754,7 @@ asm_handler_GetLength:
 .Lasm_GetLength.ssa_block_2:
     cmp ax, 65530
     jne .Lasm_GetLength.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     mov eax, DWORD PTR [rcx + 12]
@@ -5974,7 +5974,7 @@ asm_handler_Call:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_Call.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     movzx eax, WORD PTR [rcx + 12]
@@ -6014,7 +6014,7 @@ asm_handler_Call:
     test rdx, rdx
     jz .Lasm_Call.assert_failure_3
     mov r9, QWORD PTR [rdx + 32]
-    movabs rdx, 4398046511103
+    movabs rdx, 34359738367
     and r9, rdx
     movabs rdx, -1970324836974592
     or r9, rdx
@@ -6385,7 +6385,7 @@ asm_handler_ObjectPropertyIteratorNext:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rcx, r11
     add rcx, r15
     mov eax, DWORD PTR [r14 + r13 + 16]
@@ -6394,7 +6394,7 @@ asm_handler_ObjectPropertyIteratorNext:
     shr rdx, 48
     cmp dx, 65528
     jne .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_9
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     movzx esi, BYTE PTR [rax + 12]
@@ -6526,7 +6526,7 @@ asm_handler_IteratorNextUnpack:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_IteratorNextUnpack.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     movzx edi, WORD PTR [rax + 12]
@@ -6588,7 +6588,7 @@ asm_handler_IsCallable:
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_IsCallable.ssa_block_1
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     movzx eax, WORD PTR [rax + 12]
@@ -9292,13 +9292,13 @@ asm_handler_JumpLooselyEquals_cold:
     cmp si, 65530
     jne .Lasm_JumpLooselyEquals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyEquals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9349,13 +9349,13 @@ asm_handler_JumpLooselyInequals_cold:
     cmp si, 65530
     jne .Lasm_JumpLooselyInequals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyInequals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9406,13 +9406,13 @@ asm_handler_JumpStrictlyEquals_cold:
     cmp si, 65530
     jne .Lasm_JumpStrictlyEquals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyEquals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9463,13 +9463,13 @@ asm_handler_JumpStrictlyInequals_cold:
     cmp si, 65530
     jne .Lasm_JumpStrictlyInequals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyInequals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9756,13 +9756,13 @@ asm_handler_JumpLooselyEqualsLoop_cold:
     cmp si, 65530
     jne .Lasm_JumpLooselyEqualsLoop.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyEqualsLoop.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9813,13 +9813,13 @@ asm_handler_JumpLooselyInequalsLoop_cold:
     cmp si, 65530
     jne .Lasm_JumpLooselyInequalsLoop.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyInequalsLoop.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9870,13 +9870,13 @@ asm_handler_JumpStrictlyEqualsLoop_cold:
     cmp si, 65530
     jne .Lasm_JumpStrictlyEqualsLoop.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyEqualsLoop.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -9927,13 +9927,13 @@ asm_handler_JumpStrictlyInequalsLoop_cold:
     cmp si, 65530
     jne .Lasm_JumpStrictlyInequalsLoop.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyInequalsLoop.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -12840,13 +12840,13 @@ asm_handler_StrictlyEquals_cold:
     cmp si, 65530
     jne .Lasm_StrictlyEquals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_StrictlyEquals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -12908,13 +12908,13 @@ asm_handler_StrictlyInequals_cold:
     cmp si, 65530
     jne .Lasm_StrictlyInequals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_StrictlyInequals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -13074,13 +13074,13 @@ asm_handler_LooselyEquals_cold:
     cmp si, 65530
     jne .Lasm_LooselyEquals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_LooselyEquals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -13142,13 +13142,13 @@ asm_handler_LooselyInequals_cold:
     cmp si, 65530
     jne .Lasm_LooselyInequals.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_LooselyInequals.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -13651,7 +13651,7 @@ asm_handler_GetById_cold:
     movzx ecx, WORD PTR [rax + 12]
     test ecx, 2048
     jnz .Lasm_GetById.ssa_block_3
-    movabs rcx, 4398046511103
+    movabs rcx, 34359738367
     and rax, rcx
     movabs rcx, -1970324836974592
     or rax, rcx
@@ -13716,7 +13716,7 @@ asm_handler_GetById_cold:
     mov QWORD PTR [rax + 40], rdi
     mov rcx, QWORD PTR [rbx - 80]
     mov QWORD PTR [rax + 48], rcx
-    movabs rcx, 4398046511103
+    movabs rcx, 34359738367
     and rsi, rcx
     movabs rcx, -1970324836974592
     or rsi, rcx
@@ -13825,7 +13825,7 @@ asm_handler_GetById_cold:
     jz .Lasm_GetById.ssa_block_1
     jmp .Lasm_GetById.ssa_block_16
 .Lasm_GetById.ssa_block_17:
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     mov rcx, QWORD PTR [rax + 16]
@@ -14173,7 +14173,7 @@ asm_handler_PutByIdWithThis_cold_end:
 asm_handler_GetByValue_cold:
 # Cold paths for GetByValue
 .Lasm_GetByValue.ssa_block_37:
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     mov rsi, QWORD PTR [rax + 16]
@@ -18954,13 +18954,13 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_StrictlyEqualsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_StrictlyEqualsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19026,13 +19026,13 @@ asm_handler_StrictlyInequalsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_StrictlyInequalsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_StrictlyInequalsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19098,13 +19098,13 @@ asm_handler_LooselyEqualsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_LooselyEqualsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_LooselyEqualsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19170,13 +19170,13 @@ asm_handler_LooselyInequalsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_LooselyInequalsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_LooselyInequalsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19242,13 +19242,13 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyEqualsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19303,13 +19303,13 @@ asm_handler_JumpStrictlyInequalsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyInequalsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19364,13 +19364,13 @@ asm_handler_JumpLooselyEqualsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyEqualsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19425,13 +19425,13 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyInequalsRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19666,13 +19666,13 @@ asm_handler_JumpStrictlyEqualsLoopRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyEqualsLoopRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19727,13 +19727,13 @@ asm_handler_JumpStrictlyInequalsLoopRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpStrictlyInequalsLoopRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19788,13 +19788,13 @@ asm_handler_JumpLooselyEqualsLoopRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyEqualsLoopRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
@@ -19849,13 +19849,13 @@ asm_handler_JumpLooselyInequalsLoopRhsInt32_cold:
     cmp r11w, 65530
     jne .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
     mov rax, rcx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128
     jz .Lasm_JumpLooselyInequalsLoopRhsInt32.ssa_block_1
     mov rax, rdx
-    movabs r11, 4398046511103
+    movabs r11, 34359738367
     and rax, r11
     add rax, r15
     test BYTE PTR [rax + 11], 128

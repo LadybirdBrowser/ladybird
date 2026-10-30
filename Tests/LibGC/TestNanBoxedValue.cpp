@@ -37,6 +37,9 @@ TEST_SETUP
     GC::Heap::set_default_heap_for_testing(test_heap());
 }
 
+// Every payload bit above the heap region offset.
+static constexpr u64 JUNK_PAYLOAD_BITS = 0x0000'ffff'ffff'ffffULL & ~static_cast<u64>(GC::HEAP_REGION_OFFSET_MASK);
+
 class TestNanBox final : public GC::NanBoxedValue {
 public:
     static TestNanBox from_payload(u64 payload)
@@ -65,7 +68,7 @@ TEST_CASE(cell_payload_masks_junk_high_bits)
 {
     auto cell = test_heap().allocate<TestCell>();
     auto offset = GC::NanBoxedValue::encode_pointer_bits(cell.ptr());
-    auto value = TestNanBox::from_payload(offset | 0x0000'fc00'0000'0000ULL);
+    auto value = TestNanBox::from_payload(offset | JUNK_PAYLOAD_BITS);
     auto decoded = value.extract_pointer<GC::Cell>();
     auto base = js_heap_region_base;
 
@@ -85,7 +88,7 @@ TEST_CASE(conservative_scanner_decodes_caged_value)
         weak_cell = cell.ptr();
         boxed_value = GC::SHIFTED_IS_CELL_PATTERN
             | GC::NanBoxedValue::encode_pointer_bits(cell.ptr())
-            | 0x0000'fc00'0000'0000ULL;
+            | JUNK_PAYLOAD_BITS;
         EXPECT(boxed_value != 0);
     }
 

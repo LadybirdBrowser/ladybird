@@ -98,17 +98,8 @@ fn target() -> Target {
     }
 }
 
-/// Mirrors GC::HEAP_REGION_SIZE in Libraries/LibGC/HeapRegion.h, whose choice depends on the target and on whether
-/// LibGC is built with ThreadSanitizer, which Rust's own cfg cannot see.
-fn heap_region_size(target: &Target, thread_sanitizer: bool) -> u64 {
-    let os = env::var("CARGO_CFG_TARGET_OS").expect("CARGO_CFG_TARGET_OS");
-    let address_space_is_small = matches!(target.architecture, flapc::Architecture::Aarch64) && os != "macos";
-    if address_space_is_small || thread_sanitizer {
-        128 * GIB
-    } else {
-        4 * TIB
-    }
-}
+/// Mirrors GC::HEAP_REGION_SIZE in Libraries/LibGC/HeapRegion.h.
+const HEAP_REGION_SIZE: u64 = 32 * GIB;
 
 /// The 64-bit FNV-1a hash of `bytes`, which stays the same from build to build, unlike std's hashers.
 fn fnv1a_64(bytes: &[u8]) -> u64 {
@@ -149,9 +140,8 @@ fn main() {
 
     let target = target();
     let address_sanitizer = env::var_os("CARGO_FEATURE_ADDRESS_SANITIZER").is_some();
-    let thread_sanitizer = env::var_os("CARGO_FEATURE_THREAD_SANITIZER").is_some();
     let configuration = layout_table::LayoutConfiguration {
-        heap_region_offset_mask: heap_region_size(&target, thread_sanitizer) - 1,
+        heap_region_offset_mask: HEAP_REGION_SIZE - 1,
         // Mirrors GC::PrimitiveStorage::default_cage_size.
         primitive_storage_cage_offset_mask: 4 * TIB - 1,
         // Instrumented frames need more room before the stack is considered exhausted.
