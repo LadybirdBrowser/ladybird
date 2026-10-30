@@ -326,7 +326,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     pub(crate) fn intrinsic_inline_size_may_depend_on_block_size(&self, root: Node) -> bool {
         self.callbacks
             .intrinsic_size_caches()
-            .intrinsic_inline_size_depends_on_block_size(self.callbacks.intrinsic_size_cache_stamp(root), || {
+            .intrinsic_inline_size_depends_on_block_size(root, || {
                 let mut pending = vec![root];
                 while let Some(node) = pending.pop() {
                     let facts = self.facts(node);
@@ -2530,11 +2530,10 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicBlockSizeMeasurement> {
         let key = self.key_in_frame(key);
-        let measurement = self.callbacks.intrinsic_size_caches().intrinsic_block_size_cache_get(
-            self.callbacks.intrinsic_size_cache_stamp(node),
-            kind,
-            key,
-        )?;
+        let measurement = self
+            .callbacks
+            .intrinsic_size_caches()
+            .intrinsic_block_size_cache_get(node, kind, key)?;
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             measurement.depends_on_percentage_block_size,
@@ -2550,12 +2549,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         value: IntrinsicBlockSizeMeasurement,
     ) {
         let key = self.key_in_frame(key);
-        self.callbacks.intrinsic_size_caches().intrinsic_block_size_cache_put(
-            self.callbacks.intrinsic_size_cache_stamp(node),
-            kind,
-            key,
-            value,
-        );
+        self.callbacks
+            .intrinsic_size_caches()
+            .intrinsic_block_size_cache_put(node, kind, key, value);
     }
 
     fn intrinsic_inline_measurement_cache_get(
@@ -2572,7 +2568,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let measurement = self
             .callbacks
             .intrinsic_size_caches()
-            .intrinsic_inline_size_measurement_cache_get(self.callbacks.intrinsic_size_cache_stamp(node), key)?;
+            .intrinsic_inline_size_measurement_cache_get(node, key)?;
         self.charge_measurement_dependency_to_measured_box_and_containing_block(
             node,
             measurement.depends_on_percentage_block_size,
@@ -2589,7 +2585,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let key = self.key_in_frame(key);
         self.callbacks
             .intrinsic_size_caches()
-            .intrinsic_inline_size_measurement_cache_put(self.callbacks.intrinsic_size_cache_stamp(node), key, value);
+            .intrinsic_inline_size_measurement_cache_put(node, key, value);
     }
 
     fn transferred_intrinsic_inline_sizing_space(&self, sized: SizedBox<'_>) -> AvailableSpace {

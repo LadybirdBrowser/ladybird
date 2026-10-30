@@ -230,11 +230,6 @@ impl<'arena> LayoutPass<'arena> {
         self.intrinsic_size_caches
     }
 
-    /// What an intrinsic size cache entry measured for `node` now is valid for.
-    pub(crate) fn intrinsic_size_cache_stamp(&self, node: Node) -> super::layout_node_arena::IntrinsicSizeCacheStamp {
-        self.arena.intrinsic_size_cache_stamp(node)
-    }
-
     #[inline]
     pub(crate) fn node_data(&self, node: Node) -> &'arena NodeData {
         self.arena().data(node)

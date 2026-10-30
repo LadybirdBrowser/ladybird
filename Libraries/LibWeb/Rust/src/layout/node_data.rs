@@ -276,10 +276,9 @@ pub(crate) struct NodeData {
     pub next_sibling: ShapeCell<NodeSlotId>,
     pub kind: ShapeCell<NodeKind>,
     pub generated_for: ShapeCell<u8>,
-    pub intrinsic_cache_epoch: u16,
     pub flags: ShapeCell<u32>,
     /// Advanced on every layout invalidation that reaches this node or its
-    /// subtree, with no propagation boundary: unlike the intrinsic epoch,
+    /// subtree, with no propagation boundary: unlike intrinsic size resets,
     /// changes inside absolutely positioned and SVG descendants must reach
     /// every ancestor, because their fragments live in ancestor run trees.
     /// Wide enough that wrapping between a cache store and the next probe
@@ -304,7 +303,6 @@ impl Default for NodeData {
             next_sibling: ShapeCell::new(NodeSlotId::INVALID),
             kind: ShapeCell::new(NodeKind::Unset),
             generated_for: ShapeCell::new(0),
-            intrinsic_cache_epoch: 0,
             flags: ShapeCell::new(0),
             slot_generation: ShapeCell::new(0),
             compositor_animation_frame_kinds: ShapeCell::new(0),
@@ -321,7 +319,6 @@ impl Default for NodeData {
 /// The facts of a node that no publication carries, for writing: writing them marks nothing for the paint side,
 /// unlike a write to the node's shape.
 pub(crate) struct UnpublishedNodeFactsMut<'a> {
-    pub(crate) intrinsic_cache_epoch: &'a mut u16,
     pub(crate) fragment_cache_epoch: &'a mut u32,
     pub(crate) table_column_span: &'a mut u16,
     pub(crate) table_row_span: &'a mut u16,
@@ -331,7 +328,6 @@ pub(crate) struct UnpublishedNodeFactsMut<'a> {
 impl NodeData {
     pub(super) fn unpublished_facts_mut(&mut self) -> UnpublishedNodeFactsMut<'_> {
         UnpublishedNodeFactsMut {
-            intrinsic_cache_epoch: &mut self.intrinsic_cache_epoch,
             fragment_cache_epoch: &mut self.fragment_cache_epoch,
             table_column_span: &mut self.table_column_span,
             table_row_span: &mut self.table_row_span,
@@ -434,9 +430,8 @@ mod tests {
     }
 
     #[test]
-    fn intrinsic_cache_epoch_uses_existing_node_data_padding() {
+    fn node_data_keeps_its_size_and_field_offsets() {
         assert_eq!(std::mem::size_of::<NodeData>(), 48);
-        assert_eq!(std::mem::offset_of!(NodeData, intrinsic_cache_epoch), 22);
         assert_eq!(std::mem::offset_of!(NodeData, flags), 24);
         assert_eq!(std::mem::offset_of!(NodeData, fragment_cache_epoch), 28);
         assert_eq!(std::mem::offset_of!(NodeData, slot_generation), 32);

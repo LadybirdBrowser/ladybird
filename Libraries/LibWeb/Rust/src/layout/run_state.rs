@@ -135,6 +135,7 @@ impl LayoutScratch {
             &self.fc_run_cache_store,
             &self.in_flow_block_cache_store,
             &self.text_memos,
+            &self.intrinsic_size_caches,
         );
     }
 
@@ -347,10 +348,6 @@ impl RunState {
         content_sizing: ContentSizing,
         run: impl for<'run> FnOnce(&'run Self, LayoutPass<'run>) -> R,
     ) -> R {
-        debug_assert!(
-            !callbacks.arena().has_intrinsic_size_cache_drops(),
-            "the layout stage drops released intrinsic size cache entries before its runs read a cache"
-        );
         let state = Self {
             root,
             content_sizing,
