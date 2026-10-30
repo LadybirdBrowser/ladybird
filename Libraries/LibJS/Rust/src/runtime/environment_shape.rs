@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
 use std::collections::HashMap;
 
 use ak::Utf16FlyString;
@@ -18,6 +17,7 @@ use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::BINDING_FLAG_MUTABLE;
 pub use crate::layout::environment::EnvironmentShape;
+use crate::layout::member::NullableMember;
 use crate::runtime::shared_function_instance_data::SharedFunctionInstanceData;
 
 /// The names of an environment shape's bindings, whose flags the interpreter reads from the shape itself.
@@ -115,7 +115,7 @@ pub enum EnvironmentShapeCache {
 }
 
 impl EnvironmentShapeCache {
-    fn slot(&self) -> &Cell<Option<Gc<EnvironmentShape>>> {
+    fn slot(&self) -> &NullableMember<EnvironmentShape> {
         match self {
             Self::Executable(executable, index) => executable.environment_shape_cache_slot(*index),
             Self::FunctionEnvironment(shared_data) => shared_data.function_environment_shape_slot(),

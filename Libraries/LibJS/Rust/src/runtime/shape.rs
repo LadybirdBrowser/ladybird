@@ -20,6 +20,7 @@ use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::member::NullableMember;
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
 pub use crate::layout::shape::Shape;
@@ -145,15 +146,10 @@ pub struct ShapeStorage {
     property_storage: GcRefCell<PropertyStorage>,
     forward_transitions: GcRefCell<ForwardTransitions>,
     rare_data: GcRefCell<Option<Box<RareData>>>,
-    /// The shape this one transitioned from, unless it changed the prototype. Transition caches only hold their
-    /// targets weakly, so every shape keeps its parent alive (like V8's back pointers and JSC's previous structure): as
-    /// long as any object has a shape, the whole chain that leads to it stays cached and the next object built the same
-    /// way gets the same shape, also after a garbage collection.
-    previous: Cell<Option<Gc<Shape>>>,
-    /// What Get of the properties that conversions look up gives on the objects of this shape (see
-    /// `SpecialPropertyCache`).
-    special_property_cache: Cell<Option<Gc<SpecialPropertyCache>>>,
 }
+
+// NB: Every shape has these bytes.
+const _: () = assert!(size_of::<Shape>() == 128);
 
 impl ShapeStorage {
     fn new(_: &DeferGc<'_>) -> Self {
@@ -161,18 +157,13 @@ impl ShapeStorage {
             property_storage: GcRefCell::new(PropertyStorage::Descriptors(None)),
             forward_transitions: GcRefCell::new(ForwardTransitions::Empty),
             rare_data: GcRefCell::new(None),
-            previous: Cell::new(None),
-            special_property_cache: Cell::new(None),
         }
     }
 }
 
-// SAFETY: Visits the descriptor array, the keys this storage owns, the previous shape, the special property cache and
-// the rare data. The shapes of transitions are weak.
+// SAFETY: Visits the descriptor array, the keys this storage owns and the rare data. The shapes of transitions are weak.
 unsafe impl Trace for ShapeStorage {
     fn trace(&self, visitor: &mut Visitor) {
-        self.previous.trace(visitor);
-        self.special_property_cache.trace(visitor);
         self.property_storage.trace(visitor);
         self.forward_transitions.trace(visitor);
         self.rare_data.trace(visitor);
@@ -244,13 +235,16 @@ unsafe impl Trace for RareData {
 
 define_cell!(Shape, Other);
 
-// SAFETY: Visits the realm, the prototype, the validity, the iterator cache and what the storage owns.
+// SAFETY: Visits the realm, the prototype, the validity, the iterator cache, the previous shape, the special property
+// cache and what the storage owns.
 unsafe impl Trace for Shape {
     fn trace(&self, visitor: &mut Visitor) {
         self.realm.trace(visitor);
         self.prototype.trace(visitor);
         self.prototype_chain_validity.trace(visitor);
         self.property_iterator_cache.trace(visitor);
+        self.previous.trace(visitor);
+        self.special_property_cache.trace(visitor);
         self.storage.trace(visitor);
     }
 }
@@ -332,8 +326,10 @@ impl Shape {
             flags: Cell::new(0),
             realm: Cell::new(realm),
             prototype: Cell::new(None),
-            prototype_chain_validity: Cell::new(None),
-            property_iterator_cache: Cell::new(None),
+            prototype_chain_validity: NullableMember::null(),
+            property_iterator_cache: NullableMember::null(),
+            previous: NullableMember::null(),
+            special_property_cache: NullableMember::null(),
             property_count: Cell::new(0),
             dictionary_generation: Cell::new(0),
             storage: ShapeStorage::new(defer_gc),
@@ -350,7 +346,7 @@ impl Shape {
             .flags
             .set(previous_shape.flags.get() & shape_flag::HAS_PARAMETER_MAP);
         shape.prototype.set(previous_shape.prototype());
-        shape.storage.previous.set(Some(previous_shape.as_gc()));
+        shape.previous.set(Some(previous_shape.as_gc()));
         let mut property_count = previous_shape.property_count();
         match property_count_change {
             PropertyCountChange::Preserve => {}
@@ -1114,12 +1110,12 @@ impl Shape {
     }
 
     pub fn special_property_cache(&self) -> Option<Gc<SpecialPropertyCache>> {
-        self.storage.special_property_cache.get()
+        self.special_property_cache.get()
     }
 
     pub fn set_special_property_cache(&self, cache: Gc<SpecialPropertyCache>) {
         assert!(!self.is_dictionary() && !self.is_prototype_shape());
-        self.storage.special_property_cache.set(Some(cache));
+        self.special_property_cache.set(Some(cache));
     }
 
     /// The watchpoint set that fires when the value in slot `offset` of the object of this prototype shape changes, or

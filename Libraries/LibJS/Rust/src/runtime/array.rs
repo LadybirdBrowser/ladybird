@@ -12,6 +12,7 @@ use crate::gc::class::{Class, GcCell, cast_ref, define_cell};
 use crate::gc::root::MarkedVec;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::member::Member;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::call_function_object;
 use crate::runtime::array_prototype::array_merge_sort;
@@ -37,10 +38,12 @@ use crate::utf16::Utf16View;
 #[derive(Trace)]
 pub struct Array {
     base: Object,
-    realm: Cell<Gc<Realm>>,
+    realm: Member<Realm>,
     length_writable: Cell<bool>,
     is_proxy_target: Cell<bool>,
 }
+
+const _: () = assert!(size_of::<Array>() == 80);
 
 /// The offsets of the flags JIT code checks before writing elements of an array.
 pub const ARRAY_LENGTH_WRITABLE_OFFSET: usize = core::mem::offset_of!(Array, length_writable);
@@ -99,7 +102,7 @@ impl Array {
         };
         let array = Self {
             base,
-            realm: Cell::new(realm),
+            realm: Member::new(realm),
             length_writable: Cell::new(true),
             is_proxy_target: Cell::new(false),
         };
