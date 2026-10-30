@@ -7,7 +7,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibCore/Socket.h>
+#include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 
 #include <AK/Windows.h>
@@ -284,6 +286,36 @@ ErrorOr<Vector<Variant<IPv4Address, IPv6Address>>> Socket::resolve_host(ByteStri
         return Error::from_string_literal("Could not resolve to IPv4 or IPv6 address");
 
     return addresses;
+}
+
+// Connecting a datagram socket sends nothing, but has the system choose the local address it would send from.
+bool Socket::is_ipv6_globally_reachable()
+{
+    auto fd_or_error = create_fd(SocketDomain::Inet6, SocketType::Datagram);
+    if (fd_or_error.is_error())
+        return false;
+    auto fd = fd_or_error.release_value();
+    ScopeGuard close_fd = [fd] { (void)System::close(fd); };
+
+    // 2001:4860:4860::8888, a public DNS server.
+    static constexpr Array<u16, 8> probe_address { 0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888 };
+    auto destination = SocketAddress { IPv6Address { probe_address }, 443 }.to_sockaddr_in6();
+    if (System::connect(fd, bit_cast<struct sockaddr const*>(&destination), sizeof(destination)).is_error())
+        return false;
+
+    struct sockaddr_in6 local_socket_address {};
+    socklen_t local_socket_address_size = sizeof(local_socket_address);
+    if (System::getsockname(fd, bit_cast<struct sockaddr*>(&local_socket_address), &local_socket_address_size).is_error())
+        return false;
+    IPv6Address local_address { local_socket_address.sin6_addr.s6_addr };
+
+    // A link-local address (fe80::/10) reaches no further than the link, and a Teredo address (2001::/32) tunnels
+    // IPv6 over IPv4 too unreliably to prefer it.
+    if ((local_address[0] & 0xffc0) == 0xfe80)
+        return false;
+    if (local_address[0] == 0x2001 && local_address[1] == 0)
+        return false;
+    return true;
 }
 
 ErrorOr<void> Socket::connect_inet(int fd, SocketAddress const& address)
