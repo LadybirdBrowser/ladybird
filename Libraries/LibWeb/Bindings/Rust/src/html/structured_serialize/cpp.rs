@@ -1014,6 +1014,10 @@ impl SerializedTransferRecord {
         Self(NonNull::new(record).expect("C++ lends a record"))
     }
 
+    pub(crate) fn as_raw(self) -> *mut c_void {
+        self.0.as_ptr()
+    }
+
     /// Sets the record's [[Serialized]] to what the writer wrote, with the shared memory of the SharedArrayBuffers it
     /// shared.
     pub(crate) fn set_serialized(self, writer: StructuredSerializeWriter) {
@@ -1065,6 +1069,14 @@ impl OwnedSerializedTransferRecord {
     pub(crate) fn new() -> Self {
         // SAFETY: LibWeb returns a new record, which this owns.
         Self(unsafe { SerializedTransferRecord::from_raw(web_structured_serialize_transfer_record_create()) })
+    }
+
+    /// # Safety
+    ///
+    /// `record` must be a record that LibWeb hands over.
+    pub(crate) unsafe fn from_raw(record: *mut c_void) -> Self {
+        // SAFETY: The caller hands over the record.
+        Self(unsafe { SerializedTransferRecord::from_raw(record) })
     }
 
     pub(crate) fn record(&self) -> SerializedTransferRecord {

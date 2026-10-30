@@ -79,8 +79,6 @@ void web_streams_message_port_disentangle(HTML::MessagePort*);
 void web_streams_message_port_enable(HTML::MessagePort*);
 void* web_streams_message_port_from_object(JSObject*);
 JSObject* web_streams_message_port_wrapper(void* realm, HTML::MessagePort*);
-void web_streams_serialize_with_transfer(Bindings::RustTransferDataWriter*, JSValue);
-JSValue web_streams_deserialize_with_transfer(Bindings::RustTransferDataReader*);
 }
 
 static JSVM* vm_abi()
@@ -425,18 +423,6 @@ void* web_streams_message_port_from_object(JSObject* object)
 JSObject* web_streams_message_port_wrapper(void* realm, HTML::MessagePort* port)
 {
     return JS::HostABI::object_to_abi(Bindings::message_port(realm_of(realm), *port).ptr());
-}
-
-void web_streams_serialize_with_transfer(Bindings::RustTransferDataWriter* writer, JSValue value)
-{
-    auto js_value = JS::HostABI::value_from_abi(value);
-    auto result = MUST(HTML::structured_serialize_with_transfer(writer->realm, js_value, { { js_value.as_object() } }));
-    writer->data_holder.extend(move(result.transfer_data_holders));
-}
-
-JSValue web_streams_deserialize_with_transfer(Bindings::RustTransferDataReader* reader)
-{
-    return JS::HostABI::value_to_abi(MUST(HTML::structured_deserialize_with_transfer_internal(reader->data_holder, reader->realm)));
 }
 
 }

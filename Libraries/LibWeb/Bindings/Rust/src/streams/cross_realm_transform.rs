@@ -74,13 +74,6 @@ unsafe extern "C" {
 
     /// The wrapper of the MessagePort in the realm.
     fn web_streams_message_port_wrapper(realm: *mut c_void, port: *mut c_void) -> *mut c_void;
-
-    /// Sets the data holder to ! StructuredSerializeWithTransfer(value, « value »).
-    fn web_streams_serialize_with_transfer(data_holder: *mut c_void, value: u64);
-
-    /// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]], for the next value that the
-    /// data holder holds.
-    fn web_streams_deserialize_with_transfer(data_holder: *mut c_void) -> u64;
 }
 
 /// The steps of a port's message event handler, given the state of the transform and the data of the message.
@@ -620,31 +613,21 @@ pub(crate) fn serialize_message_port(
     let wrapper = NonNull::new(wrapper.cast::<Object>()).expect("LibWeb returns a wrapper");
     // SAFETY: LibWeb returns a live wrapper.
     let wrapper = unsafe { Gc::from_non_null(wrapper) };
-    serialize_with_transfer(data_holder, Value::from_object(wrapper));
+    data_holder
+        .write_transferred_value(cx, Value::from_object(wrapper))
+        .must();
 }
 
 /// The MessagePort of ! StructuredDeserializeWithTransfer(dataHolder.[[port]], the current Realm).
 pub(crate) fn deserialize_message_port(
-    _: &CallContext,
+    cx: &CallContext,
     data_holder: &mut TransferDataReader,
 ) -> CrossRealmTransformPort {
-    let deserialized = deserialize_with_transfer(data_holder);
+    let deserialized = data_holder.read_transferred_value(cx).must();
     assert!(deserialized.is_object());
     // SAFETY: The object is live, and LibWeb returns the MessagePort that it wraps.
     unsafe {
         let port = web_streams_message_port_from_object(deserialized.as_object().as_ptr().cast());
         CrossRealmTransformPort(CppCell::from_raw(port))
     }
-}
-
-/// Sets the data holder to ! StructuredSerializeWithTransfer(value, « value »).
-pub(crate) fn serialize_with_transfer(data_holder: &mut TransferDataWriter, value: Value) {
-    // SAFETY: The data holder is lent for the transfer steps, and the value is live.
-    unsafe { web_streams_serialize_with_transfer(data_holder.as_raw(), value.to_raw()) };
-}
-
-/// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]]
-pub(crate) fn deserialize_with_transfer(data_holder: &mut TransferDataReader) -> Value {
-    // SAFETY: The data holder is lent for the transfer-receiving steps, which return a live value.
-    unsafe { Value::from_raw(web_streams_deserialize_with_transfer(data_holder.as_raw())) }
 }
