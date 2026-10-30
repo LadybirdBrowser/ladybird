@@ -575,6 +575,10 @@ def implementation_method_signatures(
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
         if attribute.event_type is not None:
+            # NB: The bindings get and set an event handler on the EventTarget that the object owns, unless the IDL
+            #     names the method of the setter.
+            if attribute.setter_method is not None:
+                signatures.append(f"fn {attribute.setter_method}(&self, cx: &mut CallContext, value: Value)")
             continue
         if not attribute.attribute.inherit:
             result_type = rust_type(attribute.attribute.type, context, what, is_result=True)
@@ -1014,7 +1018,7 @@ def write_rust_interface(
             out.write(f'        define_cached_attribute(vm, realm, prototype, "{name}", {getter});\n')
             defined_property_names.append(name)
             continue
-        setter = "None" if attribute.setter_method is None else f"raw_native!({attribute.setter_function})"
+        setter = "None" if attribute.attribute.readonly else f"raw_native!({attribute.setter_function})"
         out.write(f'        define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});\n')
         defined_property_names.append(name)
     for operation_set in members.operation_sets:
@@ -1579,7 +1583,8 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
 
 def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) -> None:
     """The getter and the setter of an event handler IDL attribute, which get and set the event handler of the C++
-    EventTarget that the object owns, https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes"""
+    EventTarget that the object owns, https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes
+    The setter calls the method of the implementation that the IDL names instead, which sets the event handler itself."""
     out.write(
         f"""
     pub(super) fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
@@ -1587,7 +1592,22 @@ def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) ->
         let object: &Implementation = &implementation;
         Ok(event_handler_attribute(object, "{attribute.event_type}"))
     }}
-
+"""
+    )
+    if attribute.setter_method is not None:
+        out.write(
+            f"""
+    fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let value = vm.argument(0);
+        let (implementation, mut cx) = this_implementation(vm)?;
+        Implementation::{attribute.setter_method}(&implementation, &mut cx, value);
+        Ok(Value::UNDEFINED)
+    }}
+"""
+        )
+        return
+    out.write(
+        f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
         let (implementation, _) = this_implementation(vm)?;
