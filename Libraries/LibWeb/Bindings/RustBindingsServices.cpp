@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibIPC/Transport.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/HostObject.h>
@@ -156,6 +157,16 @@ JSCompletion web_bindings_transfer_data_decode_records(RustTransferDataReader*, 
 JSCompletion web_bindings_transfer_data_decode_transport_handle(RustTransferDataReader*, IPC::TransportHandle** out_handle);
 HTML::TransferDataDecoder* web_bindings_transfer_data_decoder(RustTransferDataReader*);
 void web_bindings_transport_handle_destroy(IPC::TransportHandle*);
+IPC::Transport* web_bindings_transport_handle_create_transport(IPC::TransportHandle*);
+IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle);
+void web_bindings_message_port_transport_destroy(IPC::Transport*);
+IPC::TransportHandle* web_bindings_message_port_transport_release_for_transfer(IPC::Transport*);
+void web_bindings_message_port_transport_set_up_read_hook(IPC::Transport*, void* state, void (*steps)(void*));
+bool web_bindings_message_port_transport_is_open(IPC::Transport*);
+void web_bindings_message_port_transport_close(IPC::Transport*);
+void web_bindings_message_port_transport_close_after_sending_all_pending_messages(IPC::Transport*);
+bool web_bindings_message_port_transport_send(IPC::Transport*, HTML::SerializedTransferRecord const*);
+bool web_bindings_message_port_transport_read_messages(IPC::Transport*, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world)
 {
@@ -412,6 +423,75 @@ HTML::TransferDataDecoder* web_bindings_transfer_data_decoder(RustTransferDataRe
 void web_bindings_transport_handle_destroy(IPC::TransportHandle* handle)
 {
     delete handle;
+}
+
+// The transport of the end whose rights the handle holds, which it gives up, handed over.
+IPC::Transport* web_bindings_transport_handle_create_transport(IPC::TransportHandle* handle)
+{
+    return MUST(handle->create_transport()).leak_ptr();
+}
+
+IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle)
+{
+    auto paired = MUST(IPC::Transport::create_paired());
+    *out_remote_handle = new IPC::TransportHandle(move(paired.remote_handle));
+    return paired.local.leak_ptr();
+}
+
+void web_bindings_message_port_transport_destroy(IPC::Transport* transport)
+{
+    delete transport;
+}
+
+// The rights of the transport's end as a handle, handed over, after its IO thread stops.
+IPC::TransportHandle* web_bindings_message_port_transport_release_for_transfer(IPC::Transport* transport)
+{
+    return new IPC::TransportHandle(MUST(transport->release_for_transfer()));
+}
+
+void web_bindings_message_port_transport_set_up_read_hook(IPC::Transport* transport, void* state, void (*steps)(void*))
+{
+    transport->set_up_read_hook([state, steps] { steps(state); });
+}
+
+bool web_bindings_message_port_transport_is_open(IPC::Transport* transport)
+{
+    return transport->is_open();
+}
+
+void web_bindings_message_port_transport_close(IPC::Transport* transport)
+{
+    transport->close();
+}
+
+void web_bindings_message_port_transport_close_after_sending_all_pending_messages(IPC::Transport* transport)
+{
+    transport->close_after_sending_all_pending_messages();
+}
+
+// Sends the record to the peer as one message, or logs the failure and returns false.
+bool web_bindings_message_port_transport_send(IPC::Transport* transport, HTML::SerializedTransferRecord const* record)
+{
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder(buffer);
+    MUST(encoder.encode(*record));
+    if (auto result = buffer.transfer_message(*transport); result.is_error()) {
+        dbgln("Failed to post message: {}", result.error());
+        return false;
+    }
+    return true;
+}
+
+// Hands over every message that has arrived as the record it carries, and returns whether the peer is gone, so that
+// nothing more arrives.
+bool web_bindings_message_port_transport_read_messages(IPC::Transport* transport, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
+{
+    auto should_shutdown = transport->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+        FixedMemoryStream stream { message.bytes.bytes() };
+        IPC::Decoder decoder { stream, message.attachments };
+        append(records, new HTML::SerializedTransferRecord(MUST(decoder.decode<HTML::SerializedTransferRecord>())));
+    });
+    return should_shutdown == IPC::Transport::ShouldShutdown::Yes;
 }
 
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)
