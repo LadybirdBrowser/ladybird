@@ -1241,6 +1241,31 @@ impl Backend for X86_64Backend {
         Ok(())
     }
 
+    fn decompress_cell_pointer(
+        &self,
+        emit: &mut Emit<'_>,
+        destination: PhysicalRegister,
+        source: PhysicalRegister,
+        nullable: bool,
+    ) {
+        let address = MachineMemoryAddress {
+            scale: Some(8),
+            ..MachineMemoryAddress::indexed(R15, source)
+        };
+        if !nullable {
+            emit!(emit.output, X86_64; Opcode::LoadEffectiveAddress => [register destination, address address];);
+            return;
+        }
+        emit!(emit.output, X86_64;
+            Opcode::LoadEffectiveAddress => [register R11, address address];
+            Opcode::TestRegister(IntegerWidth::U32) => [register source];
+        );
+        if destination != source {
+            emit!(emit.output, X86_64; Opcode::Move64Register => [register destination, register source];);
+        }
+        emit!(emit.output, X86_64; Opcode::ConditionalMoveNonZero64 => [register destination, register R11];);
+    }
+
     fn float_operation(
         &self,
         emit: &mut Emit<'_>,

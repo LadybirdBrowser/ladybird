@@ -183,6 +183,10 @@ fn finalize_value_operation(
             let [destination, source] = operands.physical_registers();
             backend.unbox_object(emit, destination, source)?;
         }
+        Operation::DecompressCellPointer { nullable } => {
+            let [destination, source] = operands.physical_registers();
+            backend.decompress_cell_pointer(emit, destination, source, nullable);
+        }
         _ => unreachable!(),
     }
     Ok(())
@@ -448,7 +452,8 @@ fn finalize_instruction(
         | Operation::ToggleBit
         | Operation::ClearBit
         | Operation::ExtractTag
-        | Operation::UnboxObject => {
+        | Operation::UnboxObject
+        | Operation::DecompressCellPointer { .. } => {
             finalize_value_operation(backend, emit, operation, operands)?;
         }
         Operation::Cold => {

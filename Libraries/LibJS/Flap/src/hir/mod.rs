@@ -91,6 +91,7 @@ struct LayoutField {
     nonnull: bool,
     embedded: bool,
     cell_pointer: bool,
+    compressed: bool,
     pair: Option<FieldPair>,
     pinned_base: Option<String>,
     pinned_offset: Option<layout::LayoutValue>,
@@ -1591,7 +1592,10 @@ impl<'a> Checker<'a> {
         }
         let width = field_width(&field.ty, false)
             .ok_or_else(|| Diagnostic::new(self.filename, span, format!("cannot load field of type {}", field.ty)))?;
-        let kind = if field.cell_pointer {
+        let kind = if field.compressed {
+            debug_assert_eq!(width, FieldWidth::U64);
+            FieldAccessKind::LoadCompressedCellPointer { nonzero: field.nonnull }
+        } else if field.cell_pointer {
             debug_assert_eq!(width, FieldWidth::U64);
             FieldAccessKind::LoadCellPointer { nonzero: field.nonnull }
         } else {
@@ -1678,6 +1682,12 @@ impl<'a> Checker<'a> {
             })?;
         if field.embedded {
             return self.error(span, format!("cannot assign embedded field '{}.{field_name}'", base.ty));
+        }
+        if field.compressed {
+            return self.error(
+                span,
+                format!("cannot store compressed cell pointer field '{}.{field_name}'", base.ty),
+            );
         }
         if field.nonnull && self.initializer_is_known_null_pointer(initializer, &field.ty) {
             return self.error(
@@ -3548,6 +3558,7 @@ pub(crate) fn check_with_layouts(
                 nonnull: field.nonnull,
                 embedded: field.embedded,
                 cell_pointer: field.cell_pointer,
+                compressed: field.compressed,
                 pair,
                 pinned_base: field.pinned_base.clone(),
                 pinned_offset: field.pinned_offset,
@@ -4613,6 +4624,65 @@ handler Read(address: u64) {
             .unwrap();
 
         assert_eq!(field_access.kind, FieldAccessKind::LoadCellPointer { nonzero: true });
+    }
+
+    #[test]
+    fn routes_compressed_cell_pointer_fields_through_compressed_loads() {
+        let layouts = crate::frontend::layout::LayoutDatabase::parse(
+            "const OUTER = 16\nfield Environment.outer Environment OUTER nullable compressed\n",
+        )
+        .unwrap();
+        let ast = parser::parse(
+            "test.flap",
+            r#"
+handler Read(address: u64) {
+    let environment: Environment = alias(address);
+    let outer = environment.outer;
+    assert(outer != 0);
+    dispatch_next;
+}
+"#,
+        )
+        .unwrap();
+        let program = check_with_layouts("test.flap", &ast, layouts.fields()).unwrap();
+        let field_access = program.handlers[0]
+            .body
+            .statements
+            .iter()
+            .find_map(|statement| match &statement.kind {
+                StatementKindIr::Call(_, call) => call.field_access(),
+                _ => None,
+            })
+            .unwrap();
+
+        assert_eq!(
+            field_access.kind,
+            FieldAccessKind::LoadCompressedCellPointer { nonzero: false }
+        );
+    }
+
+    #[test]
+    fn rejects_stores_to_compressed_cell_pointer_fields() {
+        let layouts = crate::frontend::layout::LayoutDatabase::parse(
+            "const OUTER = 16\nfield Environment.outer Environment OUTER nullable compressed\n",
+        )
+        .unwrap();
+        let ast = parser::parse(
+            "test.flap",
+            r#"
+handler Write(address: u64) {
+    let environment: Environment = alias(address);
+    environment.outer = environment;
+    dispatch_next;
+}
+"#,
+        )
+        .unwrap();
+        let error = check_with_layouts("test.flap", &ast, layouts.fields()).unwrap_err();
+        assert!(
+            error.to_string().contains("cannot store compressed cell pointer field"),
+            "{error}"
+        );
     }
 
     accepts!(

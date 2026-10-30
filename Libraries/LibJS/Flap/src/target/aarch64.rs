@@ -347,6 +347,8 @@ define_machine_opcodes! {
             .is_some_and(|value| (0..=4095).contains(&value))
     } printing simple!(add_subtract_mnemonic(operation, FlagUpdate::Set); word(0), word(0), SimpleOperand::HashImmediate(1, false));
     [AddSubtract32RegisterWithFlags(AddSubtractOperation)] => Self::AddSubtract32RegisterWithFlags(operation) => [[R, R]] printing simple!(add_subtract_mnemonic(operation, FlagUpdate::Set); word(0), word(0), word(1));
+    [DecompressCellPointer] => Self::DecompressCellPointer => [[R, R]] printing simple!("add"; native(0), SimpleOperand::Literal("x24"), word(1), SimpleOperand::Literal("uxtw #3"));
+    [SelectNotEqualElseZero] => Self::SelectNotEqualElseZero => [[R, R]] printing simple!("csel"; native(0), native(1), SimpleOperand::Literal("xzr"), SimpleOperand::Literal("ne"));
     [AddShiftedRegister { shift: AddressIndexShift }] => Self::AddShiftedRegister { shift } => [[R, R, R]] printing simple!("add"; native(0), native(1), native(2), SimpleOperand::ShiftValue(shift.amount()));
     [MultiplyAdd64] => Self::MultiplyAdd64 => [[R, R, R, R]] printing simple!("madd"; native(0), native(1), native(2), native(3));
     [LogicalImmediate { operation: LogicalOperation, width: IntegerWidth }] => Self::LogicalImmediate { operation, width } => [[R, R, I]] encoding {

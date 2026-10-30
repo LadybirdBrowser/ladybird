@@ -2132,6 +2132,19 @@ fn lower_memory_operation(
             return Err("'load_cell_ptr' requires one result and one address".to_string());
         };
         emit!(output; MachineOperation::load(MemoryWidth::DoubleWord, false) => [destination.clone(), address.clone()];);
+    } else if matches!(
+        operation,
+        MemoryOperation::LoadCompressedCellPointer | MemoryOperation::LoadNonnullCompressedCellPointer
+    ) {
+        let ([destination], [address]) = (results, inputs) else {
+            return Err("'load_compressed_cell_ptr' requires one result and one address".to_string());
+        };
+        let nullable = operation == MemoryOperation::LoadCompressedCellPointer;
+        emit!(output; MachineOperation::load(MemoryWidth::Word, false) => [destination.clone(), address.clone()];);
+        if !nullable {
+            emit!(output; MachineOperation::AssertNonzero => [destination.clone()];);
+        }
+        emit!(output; MachineOperation::DecompressCellPointer { nullable } => [destination.clone(), destination.clone()];);
     } else {
         output.push(machine_instruction(
             MachineOperation::Memory(operation),

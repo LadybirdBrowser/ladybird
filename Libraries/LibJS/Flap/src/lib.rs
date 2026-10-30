@@ -929,6 +929,61 @@ handler Widen(dst: out Operand, src: in Operand) {
     }
 
     #[test]
+    fn decodes_compressed_cell_pointer_fields_with_the_heap_region_base() {
+        const LAYOUT: &str = r#"
+const ENVIRONMENT_OUTER = 16
+field Environment.outer Environment ENVIRONMENT_OUTER nullable compressed
+const ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA = 76
+field ECMAScriptFunctionObject.shared_data SharedFunctionInstanceData ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA nonnull compressed
+const EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT = 24
+field ExecutionContext.lexical_environment Environment EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT nullable cell
+const EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT = 32
+field ExecutionContext.variable_environment Environment EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT nullable cell
+"#;
+        let source = r#"
+handler Outer() {
+    let environment = exec_ctx.lexical_environment;
+    let outer = environment.outer;
+    exec_ctx.lexical_environment = outer;
+    let function: ECMAScriptFunctionObject = alias(environment);
+    let shared_data = function.shared_data;
+    let shared_data_environment: Environment = alias(shared_data);
+    exec_ctx.variable_environment = shared_data_environment;
+    dispatch_next;
+}
+"#;
+        let layout = format!("{REQUIRED_LAYOUT}{LAYOUT}");
+        for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+            let assembly = compiler(architecture)
+                .compile(CompilationUnit {
+                    source: SourceInput {
+                        name: "test.flap",
+                        contents: source,
+                    },
+                    constants: Some(SourceInput {
+                        name: "layout.conf",
+                        contents: &layout,
+                    }),
+                })
+                .unwrap();
+            let assembly = assembly.as_str();
+            match architecture {
+                Architecture::X86_64 => {
+                    assert!(assembly.contains("+ 16]"), "{assembly}");
+                    assert!(assembly.contains("lea r11, [r15 + "), "{assembly}");
+                    assert!(assembly.contains("cmovnz r"), "{assembly}");
+                    assert!(assembly.contains("+ 76]"), "{assembly}");
+                }
+                Architecture::Aarch64 => {
+                    assert!(assembly.contains("add x9, x24, w"), "{assembly}");
+                    assert!(assembly.contains("uxtw #3"), "{assembly}");
+                    assert!(assembly.contains(", x9, xzr, ne"), "{assembly}");
+                }
+            }
+        }
+    }
+
+    #[test]
     fn compiles_from_in_memory_sources_for_each_target() {
         for architecture in [Architecture::X86_64, Architecture::Aarch64] {
             let assembly = compiler(architecture)
