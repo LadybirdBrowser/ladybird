@@ -51,3 +51,9 @@ pub struct Utf16StringDataHeader {
     pub hash: u32,
     pub flags: u32,
 }
+
+/// The build script never decodes compressed pointers. The crate's tests decode them against this base, which is
+/// aligned like LibGC aligns the real one, and where nothing is mapped.
+pub fn heap_region_base() -> usize {
+    0x7a00_0000_0000
+}

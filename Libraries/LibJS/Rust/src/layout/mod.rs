@@ -20,6 +20,7 @@ pub mod feedback;
 pub mod function_object;
 pub mod host_class;
 pub mod host_object;
+pub mod member;
 pub mod object;
 pub mod primitive_string;
 pub mod property_lookup_cache;

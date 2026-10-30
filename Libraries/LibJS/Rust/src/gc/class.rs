@@ -302,12 +302,6 @@ pub fn cast_ref<Base: GcCell, Derived: GcCell + Extends<Base>>(cell: &Base) -> &
     downcast_ref(cell).unwrap_or_else(|| panic!("cell is not a {}", Derived::CLASS.name))
 }
 
-impl<T: ?Sized> core::fmt::Debug for crate::layout::cell::Gc<T> {
-    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(formatter, "Gc({:p})", self.as_non_null())
-    }
-}
-
 /// Cells are only ever mutated through interior mutability, so a shared reference is all a Gc hands out.
 impl<T: GcCell> core::ops::Deref for crate::layout::cell::Gc<T> {
     type Target = T;
