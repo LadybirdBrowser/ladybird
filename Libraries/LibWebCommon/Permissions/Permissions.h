@@ -26,7 +26,7 @@ WEBCOMMON_API Optional<PermissionName> permission_name_from_string(StringView);
 WEBCOMMON_API StringView to_string(PermissionName);
 
 // What a site gets for a permission once every input is applied: the stored decision, an embargo, the global setting,
-// and the operating system's own authorization.
+// and for location, the operating system's own authorization.
 enum class EffectiveState : u8 {
     Granted,
     Denied,

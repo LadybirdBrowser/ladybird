@@ -1,0 +1,6 @@
+capture decisions: 2
+capture refusals: 2
+notices shown: 1
+dismissals: 0
+query: granted
+request: granted

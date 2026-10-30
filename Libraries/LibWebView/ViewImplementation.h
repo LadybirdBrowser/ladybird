@@ -77,6 +77,7 @@
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/HistoryVisitTransition.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
@@ -89,11 +90,19 @@
 
 namespace WebView {
 
+class MicrophoneAuthorizerForTesting;
+
 struct GeolocationRequestKey {
     NonnullRefPtr<WebContentPage> page;
     u64 request_id { 0 };
 
     bool operator==(GeolocationRequestKey const&) const = default;
+};
+
+enum class PermissionPromptKind : u8 {
+    Question,
+    // Tells the user the system keeps the feature from the browser, so no site can have it. Its answer decides nothing.
+    SystemDeniedNotice,
 };
 
 // What the UI shows the user when a site asks for a permission. The origin is the top-level one the decision is kept
@@ -103,10 +112,11 @@ struct PermissionPromptRequest {
     URL::Origin top_level_origin;
     bool is_file { false };
     bool show_os_hint { false };
+    PermissionPromptKind kind { PermissionPromptKind::Question };
 
     bool is_same_request_as(PermissionPromptRequest const& other) const
     {
-        return name == other.name && is_file == other.is_file && top_level_origin.is_same_origin(other.top_level_origin);
+        return name == other.name && kind == other.kind && is_file == other.is_file && top_level_origin.is_same_origin(other.top_level_origin);
     }
 };
 
@@ -153,6 +163,23 @@ public:
     void set_site_permission(URL::Origin const&, Web::Permissions::PermissionName, Optional<PermissionDecision>);
     void reset_site_permissions(URL::Origin const&);
     void did_request_permission(Badge<WebContentPage>, Web::Permissions::PermissionName);
+
+    MicrophoneAuthorization microphone_authorization() const;
+    // Calls back with whether the system lets the browser use the microphone, once the system has asked the user if it
+    // never has. The user is told why when it doesn't.
+    void ensure_microphone_authorization(Function<void(bool authorized)>);
+    // Tells the user the system keeps the microphone from the browser, unless this tab has already shown them that for
+    // the site it shows.
+    void show_microphone_denied_notice();
+    // The UI calls this each time a prompt comes up on screen.
+    void did_show_permission_prompt(PermissionPromptRequest const&);
+
+    // The system answers with answer when it's asked, which it is while authorization is NotDetermined. A held answer
+    // waits for release_system_microphone_answer_for_testing().
+    void set_microphone_authorization_for_testing(MicrophoneAuthorization authorization, MicrophoneAuthorization answer, bool held);
+    void release_system_microphone_answer_for_testing();
+    u64 system_microphone_requests_for_testing() const;
+    u64 microphone_denied_notices_shown_for_testing() const { return m_microphone_denied_notices_shown; }
 
     bool location_in_use() const { return m_location_in_use; }
 
@@ -1137,6 +1164,7 @@ protected:
     struct PendingPermissionPrompt {
         PermissionPromptRequest request;
         Vector<PermissionPromptCallback> waiters;
+        bool shown { false };
     };
     Vector<PendingPermissionPrompt> m_pending_permission_prompts;
 
@@ -1149,6 +1177,12 @@ protected:
     Web::Permissions::PromptOutcome m_held_permission_prompt_outcome_for_testing { Web::Permissions::PromptOutcome::Cancelled };
     Optional<u32> m_held_permission_prompt_release_waiters_for_testing;
     void release_held_permission_prompt_if_ready_for_testing();
+
+    MicrophoneAuthorizer& microphone_authorizer() const;
+    bool has_shown_microphone_denied_notice(URL::Origin const& top_level_origin) const;
+    OwnPtr<MicrophoneAuthorizerForTesting> m_microphone_authorizer_for_testing;
+    Vector<URL::Origin> m_sites_shown_microphone_denied_notice;
+    u64 m_microphone_denied_notices_shown { 0 };
 
     Core::AnonymousBuffer m_document_cookie_version_buffer;
     HashMap<String, Core::SharedVersionIndex> m_document_cookie_version_indices;

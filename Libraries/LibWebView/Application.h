@@ -105,6 +105,7 @@ public:
 
     SpellChecker* spell_checker() { return m_spell_checker.ptr(); }
     void set_spell_checker(OwnPtr<SpellChecker>);
+    MicrophoneAuthorizer& microphone_authorizer();
     static FontService& font_service() { return *the().m_font_service; }
     static FontServiceHost& font_service_host() { return *the().m_font_service_host; }
     JsonValue const& site_compatibility_data() const { return m_site_compatibility_data; }
@@ -454,6 +455,7 @@ protected:
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
     virtual void create_platform_actions() { }
     virtual Core::EventLoop& create_platform_event_loop();
+    virtual NonnullOwnPtr<MicrophoneAuthorizer> create_microphone_authorizer();
 
     virtual bool should_coordinate_browser_process() const { return true; }
     virtual bool should_use_os_geolocation() const { return true; }
@@ -706,6 +708,7 @@ private:
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     OwnPtr<SpellChecker> m_spell_checker;
+    OwnPtr<MicrophoneAuthorizer> m_microphone_authorizer;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;
 
     Core::EventLoop* m_event_loop { nullptr };

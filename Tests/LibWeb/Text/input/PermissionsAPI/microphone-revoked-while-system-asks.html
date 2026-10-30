@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The user allows the site, and blocks it again while the system is still asking them about the microphone. The
+    // system's yes doesn't bring the site's permission back.
+    asyncTest(async done => {
+        const systemRequests = () => JSON.parse(internals.microphoneState()).systemRequests;
+
+        internals.setSystemMicrophoneAuthorization("not-determined", "authorized", true);
+        internals.setNextPermissionPromptOutcome("microphone", "allow");
+        const request = internals.requestPermission("microphone");
+        while (systemRequests() < 1)
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+        await internals.setPermission("microphone", "denied");
+        internals.releaseSystemMicrophoneAnswer();
+        println(`request: ${await request}`);
+        println(`query: ${(await navigator.permissions.query({ name: "microphone" })).state}`);
+        done();
+    });
+</script>

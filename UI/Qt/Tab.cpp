@@ -14,6 +14,7 @@
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWebCommon/HTML/SelectedFile.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
@@ -555,7 +556,13 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         };
         popover->adjustSize();
         position();
-        popover->on_shown = AK::move(position);
+        popover->on_shown = [this, position = AK::move(position), request] {
+            position();
+            view().did_show_permission_prompt(request);
+        };
+        popover->on_open_settings = [] {
+            Application::the().microphone_authorizer().open_system_settings();
+        };
         return popover;
     };
 

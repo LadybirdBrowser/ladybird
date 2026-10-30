@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A notice the user never saw, because its page went away while it waited to come up, doesn't count against the
+    // site: the site's next request in the tab shows one, and only then does the site go quiet there. The site is a
+    // host of its own, shown in a popup.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const htmlHeaders = { "Content-Type": "text/html" };
+        const site = uniqueLocalhostHostname("microphone-notice-site");
+        const elsewhere = uniqueLocalhostHostname("microphone-notice-elsewhere");
+
+        const echo = async (host, name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = host;
+            return url.href;
+        };
+        const report = `const report = message => opener.postMessage(message, "*");
+            const noticesShown = () => JSON.parse(internals.microphoneState()).noticesShown;`;
+
+        const againUrl = await echo(site, "again", `${report}
+            internals.requestPermission("microphone").then(() => report(\`on another page of the site: \${noticesShown()}\`));`);
+        const returnUrl = await echo(site, "return", `${report}
+            internals.requestPermission("microphone").then(() => {
+                report(\`after returning: \${noticesShown()}\`);
+                location.href = ${JSON.stringify(againUrl)};
+            });`);
+        const elsewhereUrl = await echo(elsewhere, "elsewhere", `location.href = ${JSON.stringify(returnUrl)};`);
+        const firstUrl = await echo(site, "first", `${report}
+            internals.setSystemMicrophoneAuthorization("denied");
+            internals.setNextPermissionPromptOutcome("microphone", "dismiss", true);
+            internals.requestPermission("microphone").then(() => {
+                report(\`waiting to come up: \${noticesShown()}\`);
+                location.href = ${JSON.stringify(elsewhereUrl)};
+            });`);
+
+        let popup;
+        addEventListener("message", event => {
+            println(event.data);
+            if (event.data.startsWith("on another page of the site")) {
+                popup.close();
+                done();
+            }
+        });
+        popup = window.open(firstUrl);
+    });
+</script>

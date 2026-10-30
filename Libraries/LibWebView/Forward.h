@@ -45,6 +45,7 @@ class FontServiceHost;
 class HistoryStore;
 class HSTSStore;
 class Menu;
+class MicrophoneAuthorizer;
 class NavigationLoader;
 class OutOfProcessWebView;
 class NotificationBackend;

@@ -366,6 +366,9 @@ private:
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_request_permission_snapshot(URL::Origin const& top_level_origin) override;
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing(Web::HTML::CrossProcessId document_id, String const& name, String const& state) override;
     virtual void page_did_set_next_permission_prompt_outcome_for_testing(String const& name, String const& outcome, bool held) override;
+    virtual void page_did_set_system_microphone_authorization_for_testing(String const& authorization, String const& answer, bool held) override;
+    virtual void page_did_release_system_microphone_answer_for_testing() override;
+    virtual String page_did_request_microphone_state_for_testing() override;
     virtual void page_did_release_held_permission_prompt_for_testing(u32 waiters) override;
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing(u64 milliseconds) override;
     virtual void page_did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData const&, RefPtr<Gfx::Bitmap const> icon) override;

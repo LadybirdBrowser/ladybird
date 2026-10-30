@@ -8,8 +8,10 @@
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
 #include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/MicrophoneAuthorizer.h>
 #include <LibWebView/NotificationBackend.h>
 #if defined(AK_OS_MACOS)
+#    include <LibWebView/MicrophoneAuthorizerMacOS.h>
 #    include <LibWebView/NotificationBackendMacOS.h>
 #elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
 #    include <LibWebView/NotificationBackendFreedesktop.h>
@@ -665,6 +667,15 @@ Core::EventLoop& Application::create_platform_event_loop()
     }
 
     return event_loop;
+}
+
+NonnullOwnPtr<WebView::MicrophoneAuthorizer> Application::create_microphone_authorizer()
+{
+#if defined(AK_OS_MACOS)
+    return make<WebView::MicrophoneAuthorizerMacOS>();
+#else
+    return WebView::Application::create_microphone_authorizer();
+#endif
 }
 
 Optional<String> Application::ui_font_family() const

@@ -61,6 +61,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/NoOpMicrophoneAuthorizer.h>
 #include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureWindow.h>
@@ -2283,6 +2284,11 @@ Core::EventLoop& Application::create_platform_event_loop()
     return Core::EventLoop::initialize_for_current_thread();
 }
 
+NonnullOwnPtr<MicrophoneAuthorizer> Application::create_microphone_authorizer()
+{
+    return make<NoOpMicrophoneAuthorizer>();
+}
+
 ChildIdentity Application::add_child_process(WebView::Process&& process)
 {
     return m_process_manager->add_process(move(process));
@@ -3301,6 +3307,13 @@ void Application::toggle_bookmark_for_view(ViewImplementation& view)
 void Application::set_spell_checker(OwnPtr<SpellChecker> spell_checker)
 {
     m_spell_checker = move(spell_checker);
+}
+
+MicrophoneAuthorizer& Application::microphone_authorizer()
+{
+    if (!m_microphone_authorizer)
+        m_microphone_authorizer = create_microphone_authorizer();
+    return *m_microphone_authorizer;
 }
 
 ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> Application::ensure_geolocation_provider()

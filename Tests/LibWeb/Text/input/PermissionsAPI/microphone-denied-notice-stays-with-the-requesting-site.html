@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The tab leaves the site the user allowed while the system asks about the microphone, and the system says no once
+    // another site is shown. The notice is about the site that asked, so it doesn't come up over the other one. The
+    // sites are hosts of their own, shown in a popup.
+    asyncTest(async done => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const echo = async (host, name, body) => {
+            const url = new URL(await httpServer.createEcho("GET", `/${name}-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>${body}<\/script>`,
+            }));
+            url.hostname = host;
+            return url.href;
+        };
+        const report = `const report = message => opener.postMessage(message, "*");
+            const microphoneState = () => JSON.parse(internals.microphoneState());`;
+
+        const elsewhereUrl = await echo(uniqueLocalhostHostname("microphone-notice-elsewhere"), "elsewhere", `${report}
+            internals.releaseSystemMicrophoneAnswer();
+            report(\`notices shown once the system says no: \${microphoneState().noticesShown}\`);`);
+        const siteUrl = await echo(uniqueLocalhostHostname("microphone-notice-site"), "site", `${report}
+            internals.setSystemMicrophoneAuthorization("not-determined", "denied", true);
+            internals.setNextPermissionPromptOutcome("microphone", "allow");
+            internals.requestPermission("microphone");
+            (async () => {
+                while (microphoneState().systemRequests < 1)
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                report("the system is asking");
+                location.href = ${JSON.stringify(elsewhereUrl)};
+            })();`);
+
+        let popup;
+        addEventListener("message", event => {
+            println(event.data);
+            if (event.data.startsWith("notices shown")) {
+                popup.close();
+                done();
+            }
+        });
+        popup = window.open(siteUrl);
+    });
+</script>

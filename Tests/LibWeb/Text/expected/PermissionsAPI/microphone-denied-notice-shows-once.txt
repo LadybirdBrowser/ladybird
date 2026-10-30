@@ -1,0 +1,6 @@
+request 1: denied
+request 2: denied
+request 3: denied
+notices shown: 1
+dismissals: 0
+query: prompt

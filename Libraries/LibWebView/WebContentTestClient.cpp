@@ -56,6 +56,25 @@ void WebContentTestClient::set_next_permission_prompt_outcome_for_testing(Web::P
         page->set_next_permission_prompt_outcome_for_testing(name, outcome, held);
 }
 
+void WebContentTestClient::set_system_microphone_authorization_for_testing(Web::PageId page_id, String authorization, String answer, bool held)
+{
+    if (auto* page = m_client.page(page_id))
+        page->set_system_microphone_authorization_for_testing(authorization, answer, held);
+}
+
+void WebContentTestClient::release_system_microphone_answer_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        page->release_system_microphone_answer_for_testing();
+}
+
+Messages::WebContentTestClient::DidRequestMicrophoneStateForTestingResponse WebContentTestClient::did_request_microphone_state_for_testing(Web::PageId page_id)
+{
+    if (auto* page = m_client.page(page_id))
+        return page->microphone_state_for_testing();
+    return "{}"_string;
+}
+
 void WebContentTestClient::release_held_permission_prompt_for_testing(Web::PageId page_id, u32 waiters)
 {
     if (auto* page = m_client.page(page_id))
