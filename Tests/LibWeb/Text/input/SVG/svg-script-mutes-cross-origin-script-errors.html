@@ -13,12 +13,17 @@
         const sameOrigin = new URL(await server.createEcho("GET", "/same-origin-svg-script.js", script));
         const crossOrigin = new URL(await server.createEcho("GET", "/cross-origin-svg-script.js", script));
         crossOrigin.hostname = uniqueLocalhostHostname("svg-script-errors");
+        const corsScript = { ...script, headers: { ...script.headers, "Access-Control-Allow-Origin": "*" } };
+        const crossOriginWithCORS = new URL(await server.createEcho("GET", "/cross-origin-svg-script-with-cors.js", corsScript));
+        crossOriginWithCORS.hostname = crossOrigin.hostname;
 
-        function runScript(url) {
+        function runScript(url, crossOriginAttribute) {
             return new Promise(resolve => {
                 addEventListener("error", resolve, { once: true });
                 const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
                 const element = document.createElementNS("http://www.w3.org/2000/svg", "script");
+                if (crossOriginAttribute !== undefined)
+                    element.setAttribute("crossorigin", crossOriginAttribute);
                 element.setAttribute("href", url.href);
                 svg.appendChild(element);
                 document.body.appendChild(svg);
@@ -33,5 +38,6 @@
 
         printError("Same-origin", await runScript(sameOrigin));
         printError("Cross-origin", await runScript(crossOrigin));
+        printError("Cross-origin with CORS", await runScript(crossOriginWithCORS, "anonymous"));
     });
 </script>
