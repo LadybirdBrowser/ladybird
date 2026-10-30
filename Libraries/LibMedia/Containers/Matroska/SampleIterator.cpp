@@ -185,6 +185,9 @@ DecoderErrorOr<void> SampleIterator::seek_to_cue_point(TrackCuePoint const& cue_
         m_position = block_position.value();
         m_last_timestamp = cue_point.timestamp;
     }
+
+    for (auto& [track_number, context] : m_track_block_contexts)
+        context.packet_duration_parser.reset();
     return {};
 }
 

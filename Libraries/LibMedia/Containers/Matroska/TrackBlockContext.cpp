@@ -13,12 +13,13 @@ namespace Media::Matroska {
 TrackBlockContext TrackBlockContext::from_track_entry(TrackEntry const& entry)
 {
     return {
-        .codec_id = codec_id_from_matroska_track_entry(entry),
         .timestamp_scale = entry.timestamp_scale(),
         .codec_delay = entry.codec_delay(),
         .seek_pre_roll = entry.seek_pre_roll(),
         .timestamp_offset = entry.timestamp_offset(),
         .default_duration = entry.default_duration(),
+        // Invalid initialization data leaves the durations unknown here, and fails when decoding.
+        .packet_duration_parser = Codecs::AudioPacketDurationParser::create(codec_id_from_matroska_track_entry(entry), entry.codec_private_data()).value_or({}),
     };
 }
 

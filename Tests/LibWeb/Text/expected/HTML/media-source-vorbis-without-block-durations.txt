@@ -1,0 +1,2 @@
+buffered: [0.112, 6.531]
+range count: 1

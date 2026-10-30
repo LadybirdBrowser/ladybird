@@ -44,8 +44,8 @@ public:
     static DecoderErrorOr<SegmentInformation> parse_segment_information_element(Streamer&);
     static DecoderErrorOr<NonnullRefPtr<TrackEntry>> parse_track_entry(Streamer&);
     static DecoderErrorOr<Cluster> parse_cluster_element(Streamer&, u64 timestamp_scale);
-    static DecoderErrorOr<Block> parse_simple_block(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const&);
-    static DecoderErrorOr<Block> parse_block_group(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts const&);
+    static DecoderErrorOr<Block> parse_simple_block(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts&);
+    static DecoderErrorOr<Block> parse_block_group(Streamer&, AK::Duration cluster_timestamp, u64 segment_timestamp_scale, TrackBlockContexts&);
 
     Optional<AK::Duration> duration() const { return m_segment_information.duration(); }
 

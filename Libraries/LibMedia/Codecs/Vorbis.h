@@ -6,34 +6,33 @@
 
 #pragma once
 
-#include <AK/Noncopyable.h>
-#include <AK/Optional.h>
+#include <AK/Array.h>
 #include <AK/Span.h>
-#include <AK/Time.h>
-
-struct AVVorbisParseContext;
+#include <LibMedia/Forward.h>
+#include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::Codecs {
 
 class Vorbis {
 public:
-    class Parser {
-        AK_MAKE_NONCOPYABLE(Parser);
-
+    class PacketDurationParser {
     public:
-        static Optional<Parser> create(ReadonlyBytes codec_initialization_data);
+        static DecoderErrorOr<PacketDurationParser> create(ReadonlyBytes codec_initialization_data);
 
-        Parser(Parser&&);
-        Parser& operator=(Parser&&);
-        ~Parser();
-
-        void reset() const;
-        Optional<u32> parse_packet_duration_in_samples(ReadonlyBytes packet) const;
+        u32 samples_per_second() const { return m_samples_per_second; }
+        // A packet's duration depends on the block size of the packet before it.
+        DecoderErrorOr<u32> parse_duration_in_samples(MediaStreamCursor&, size_t packet_size);
+        void reset();
 
     private:
-        explicit Parser(AVVorbisParseContext*);
+        PacketDurationParser() = default;
 
-        AVVorbisParseContext* m_context { nullptr };
+        u32 m_samples_per_second { 0 };
+        Array<u16, 2> m_block_sizes {};
+        u8 m_mode_count { 0 };
+        u8 m_mode_bit_count { 0 };
+        u64 m_long_block_modes { 0 };
+        u16 m_previous_block_size { 0 };
     };
 };
 

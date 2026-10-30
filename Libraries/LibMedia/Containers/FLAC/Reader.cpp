@@ -8,7 +8,6 @@
 #include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/Containers/FLAC/Reader.h>
 #include <LibMedia/Containers/ID3.h>
-#include <LibMediaCodecs/BitReader.h>
 
 namespace Media::FLAC {
 
@@ -17,7 +16,6 @@ static constexpr size_t SCAN_CHUNK_SIZE = 4 * KiB;
 static constexpr size_t MAXIMUM_FRAME_SIZE = 4 * MiB;
 // Junk between the metadata and the first frame is covered within this distance.
 static constexpr size_t MAXIMUM_SYNC_SEARCH_BYTE_COUNT = 64 * KiB;
-static constexpr size_t STREAM_INFO_BLOCK_SIZE = 34;
 static constexpr size_t SEEK_POINT_SIZE = 18;
 // A seek point a second for eighteen hours; a table claiming more is not read any further.
 static constexpr size_t MAXIMUM_SEEK_POINT_COUNT = 64 * KiB;
@@ -202,25 +200,8 @@ DecoderErrorOr<FrameIterator::Frame> FrameIterator::read_next_frame()
     }
 }
 
-static DecoderErrorOr<StreamInfo> parse_stream_info(ReadonlyBytes bytes)
-{
-    BitReader reader { bytes };
-    StreamInfo stream_info;
-    stream_info.minimum_block_size = reader.read_bits<u16>(16);
-    stream_info.maximum_block_size = reader.read_bits<u16>(16);
-    stream_info.minimum_frame_size = reader.read_bits<u32>(24);
-    stream_info.maximum_frame_size = reader.read_bits<u32>(24);
-    stream_info.sample_rate = reader.read_bits<u32>(20);
-    stream_info.channel_count = reader.read_bits<u8>(3) + 1;
-    stream_info.bits_per_sample = reader.read_bits<u8>(5) + 1;
-    stream_info.total_sample_count = reader.read_bits<u64>(36);
-    if (stream_info.sample_rate == 0 || stream_info.maximum_block_size == 0)
-        return DecoderError::corrupted("FLAC STREAMINFO declares no sample rate or block size"sv);
-    return stream_info;
-}
-
 // Finds the first frame, which follows the metadata directly unless a writer left junk between them.
-static DecoderErrorOr<FrameHeader> find_first_frame(MediaStreamCursor& cursor, size_t position, StreamInfo const& stream_info, FrameSync& frame_sync)
+static DecoderErrorOr<FrameHeader> find_first_frame(MediaStreamCursor& cursor, size_t position, Codecs::FLAC::StreamInfo const& stream_info, FrameSync& frame_sync)
 {
     auto header_at = [&](size_t candidate) -> DecoderErrorOr<Optional<FrameHeader>> {
         if (cursor.seek_to_position(candidate).is_error())
@@ -281,7 +262,7 @@ DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> cons
 
     ByteBuffer codec_initialization_data;
     DECODER_TRY_ALLOC(codec_initialization_data.try_append("fLaC"sv.bytes()));
-    Optional<StreamInfo> stream_info;
+    Optional<Codecs::FLAC::StreamInfo> stream_info;
     Vector<SeekPoint> seek_points;
     while (true) {
         TRY(cursor->seek_to_position(position));
@@ -292,13 +273,13 @@ DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> cons
         auto block_body = position + sizeof(u32);
 
         if (!stream_info.has_value()) {
-            if (block_type != MetadataBlockType::StreamInfo || block_size != STREAM_INFO_BLOCK_SIZE)
+            if (block_type != MetadataBlockType::StreamInfo || block_size != Codecs::FLAC::STREAM_INFO_SIZE)
                 return DecoderError::corrupted("FLAC stream does not begin with STREAMINFO"sv);
-            Array<u8, STREAM_INFO_BLOCK_SIZE> block;
+            Array<u8, Codecs::FLAC::STREAM_INFO_SIZE> block;
             TRY(cursor->read_until_filled(block.span()));
-            stream_info = TRY(parse_stream_info(block));
+            stream_info = TRY(Codecs::FLAC::parse_stream_info(block));
             // The decoder's copy stands alone, so it is the last block.
-            DECODER_TRY_ALLOC(codec_initialization_data.try_append(Array<u8, 4> { 0x80, 0x00, 0x00, STREAM_INFO_BLOCK_SIZE }.span()));
+            DECODER_TRY_ALLOC(codec_initialization_data.try_append(Array<u8, 4> { 0x80, 0x00, 0x00, Codecs::FLAC::STREAM_INFO_SIZE }.span()));
             DECODER_TRY_ALLOC(codec_initialization_data.try_append(block.span()));
         } else if (block_type == MetadataBlockType::SeekTable && seek_points.is_empty()) {
             if (block_size % SEEK_POINT_SIZE != 0)
@@ -328,7 +309,7 @@ DecoderErrorOr<Reader> Reader::from_stream(NonnullRefPtr<MediaStreamCursor> cons
     return Reader { *stream_info, frame_sync, first_frame_position, move(seek_points), move(codec_initialization_data) };
 }
 
-Reader::Reader(StreamInfo stream_info, FrameSync frame_sync, size_t first_frame_position, Vector<SeekPoint> seek_points, ByteBuffer codec_initialization_data)
+Reader::Reader(Codecs::FLAC::StreamInfo stream_info, FrameSync frame_sync, size_t first_frame_position, Vector<SeekPoint> seek_points, ByteBuffer codec_initialization_data)
     : m_stream_info(stream_info)
     , m_frame_sync(frame_sync)
     , m_first_frame_position(first_frame_position)

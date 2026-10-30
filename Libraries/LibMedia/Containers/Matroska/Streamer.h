@@ -38,6 +38,7 @@ public:
     DecoderErrorOr<void> read_unknown_element();
 
     DecoderErrorOr<FixedArray<u8>> read_raw_octets(size_t num_octets);
+    DecoderErrorOr<void> read_and_discard_octets(size_t num_octets);
 
     size_t position() const;
 

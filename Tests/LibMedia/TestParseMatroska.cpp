@@ -914,13 +914,13 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     NonnullRefPtr<Media::IncrementallyPopulatedStream> stream = Media::IncrementallyPopulatedStream::create_empty();
     auto demuxer = create_incremental_demuxer(file_data, stream, one_third);
 
-    // While the file is incomplete, the audio data ends before the video data does.
+    // While the file is incomplete, each third ends partway through a video frame, which is not buffered yet.
 
     // Stage 1: first third.
     auto ranges_1 = wait_for_buffered_ranges(loop, *demuxer, [](auto const& ranges) { return !ranges.is_empty(); });
     EXPECT_EQ(ranges_1.size(), 1u);
     EXPECT_EQ(ranges_1[0].start, start);
-    EXPECT_EQ(ranges_1[0].end, AK::Duration::from_microseconds(61500));
+    EXPECT_EQ(ranges_1[0].end, AK::Duration::from_milliseconds(51));
 
     // Stage 2: extend to two thirds.
     stream->add_chunk_at(one_third, file_data.bytes().slice(one_third, two_thirds - one_third));
@@ -928,7 +928,7 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     EXPECT_EQ(ranges_2.size(), 1u);
     EXPECT_EQ(ranges_2[0].start, start);
     EXPECT(ranges_2[0].end > ranges_1[0].end);
-    EXPECT_EQ(ranges_2[0].end, AK::Duration::from_microseconds(541500));
+    EXPECT_EQ(ranges_2[0].end, AK::Duration::from_milliseconds(531));
 
     // Stage 3: complete the file.
     stream->add_chunk_at(two_thirds, file_data.bytes().slice(two_thirds, CUES_START - two_thirds));
@@ -1152,7 +1152,8 @@ TEST_CASE(simple_block_extending_past_the_representable_size_is_corrupted)
     Media::Matroska::Streamer streamer { cursor };
     MUST(streamer.seek_to_position(block_position));
 
-    auto result = Media::Matroska::Reader::parse_simple_block(streamer, AK::Duration::zero(), 1'000'000, {});
+    Media::Matroska::TrackBlockContexts contexts;
+    auto result = Media::Matroska::Reader::parse_simple_block(streamer, AK::Duration::zero(), 1'000'000, contexts);
     EXPECT(result.is_error());
     EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
 

@@ -7,10 +7,7 @@
 #include <AK/GenericShorthands.h>
 #include <AK/Math.h>
 #include <AK/QuickSort.h>
-#include <LibMedia/Codecs/FLAC.h>
-#include <LibMedia/Codecs/Opus.h>
 #include <LibMedia/Containers/Ogg/OggDemuxer.h>
-#include <LibMedia/ReadonlyBytesCursor.h>
 #include <LibMediaCodecs/CodedFrame.h>
 
 namespace Media::Ogg {
@@ -279,47 +276,22 @@ OggDemuxer::~OggDemuxer()
         m_buffered_scan_thread->shutdown();
 }
 
-static i64 packet_duration_in_units(Codecs::Vorbis::Parser const* vorbis_parser, StreamIdentification const& identification, ReadonlyBytes packet)
+static i64 packet_duration_in_units(Codecs::AudioPacketDurationParser& packet_duration_parser, StreamIdentification const& identification, ReadonlyBytes packet)
 {
-    switch (identification.codec_id) {
-    case CodecID::Vorbis:
-        if (vorbis_parser == nullptr)
-            return 0;
-        return vorbis_parser->parse_packet_duration_in_samples(packet).value_or(0);
-    case CodecID::Opus: {
-        auto cursor = make_ref_counted<ReadonlyBytesCursor>(packet);
-        auto duration = Codecs::Opus::parse_frame_duration_in_samples(*cursor, packet.size());
-        return duration.is_error() ? 0 : duration.value();
-    }
-    case CodecID::FLAC: {
-        if (packet.size() < 2)
-            return 0;
-        auto sync_code = static_cast<u16>((packet[0] << 8) | packet[1]);
-        if (!Codecs::FLAC::is_sync_code(sync_code))
-            return 0;
-        auto cursor = make_ref_counted<ReadonlyBytesCursor>(packet);
-        auto frame = Codecs::FLAC::parse_frame_header(*cursor, sync_code, 0);
-        if (frame.is_error() || !frame.value().has_value())
-            return 0;
-        return frame.value()->block_size;
-    }
-    case CodecID::Theora:
+    if (identification.codec_id == CodecID::Theora)
         return 1;
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    auto duration = packet_duration_parser.parse_duration_in_samples(packet);
+    return duration.is_error() ? 0 : duration.value();
 }
 
 i64 OggDemuxer::BufferedScanPayload::start_units_of_page(PageHeader const& header, ScannedStream const& stream, i64 end_units)
 {
     auto const& identification = *stream.description.identification;
-    auto const* vorbis_parser = stream.vorbis_parser.has_value() ? &*stream.vorbis_parser : nullptr;
-    if (identification.codec_id == CodecID::Vorbis) {
-        // Without the setup header, only the end of the page is known to be decodable.
-        if (vorbis_parser == nullptr)
-            return end_units;
-        vorbis_parser->reset();
-    }
+    // Without the codec's headers, only the end of the page is known to be decodable.
+    if (identification.codec_id != CodecID::Theora && !stream.packet_duration_parser.parses_durations())
+        return end_units;
+    auto packet_duration_parser = stream.packet_duration_parser;
+    packet_duration_parser.reset();
 
     auto page = walker.read_page_at(header.position);
     if (page.is_error() || !page.value().has_value())
@@ -329,7 +301,7 @@ i64 OggDemuxer::BufferedScanPayload::start_units_of_page(PageHeader const& heade
     auto fragments = page.value()->packet_fragments();
     for (auto fragment = fragments.next(); fragment.has_value(); fragment = fragments.next()) {
         if (fragment->starts_packet && fragment->ends_packet && !is_header_packet(identification, fragment->bytes))
-            duration_units += packet_duration_in_units(vorbis_parser, identification, fragment->bytes);
+            duration_units += packet_duration_in_units(packet_duration_parser, identification, fragment->bytes);
     }
     return end_units - duration_units;
 }
@@ -437,8 +409,8 @@ void OggDemuxer::BufferedScanPayload::read_pending_headers(ScannedStream& stream
                 break;
             if (!reader.needs_more_pages()) {
                 stream.description.identification = reader.stream.identification;
-                if (stream.description.identification.has_value() && stream.description.identification->codec_id == CodecID::Vorbis)
-                    stream.vorbis_parser = Codecs::Vorbis::Parser::create(reader.stream.codec_initialization_data.span());
+                if (stream.description.identification.has_value())
+                    stream.packet_duration_parser = Codecs::AudioPacketDurationParser::create(stream.description.identification->codec_id, reader.stream.codec_initialization_data.span()).value_or({});
                 break;
             }
         }
@@ -584,8 +556,8 @@ void OggDemuxer::start_buffered_scan_thread()
             .beginning_page_position = stream.beginning_page.position,
             .preceding_page = preceding_page,
         };
-        if (stream.identification.has_value() && stream.identification->codec_id == CodecID::Vorbis)
-            scanned_stream.vorbis_parser = Codecs::Vorbis::Parser::create(stream.codec_initialization_data.span());
+        if (stream.identification.has_value())
+            scanned_stream.packet_duration_parser = Codecs::AudioPacketDurationParser::create(stream.identification->codec_id, stream.codec_initialization_data.span()).value_or({});
         streams.set(stream.serial_number, move(scanned_stream));
         preceding_page = stream.beginning_page;
     }
@@ -627,22 +599,18 @@ OggDemuxer::TrackStatus& OggDemuxer::track_status(Track const& track)
 
 DecoderErrorOr<void> OggDemuxer::enter_link(TrackStatus& status, TrackDescription const& description, Link link, AK::Duration start_offset)
 {
-    Optional<Codecs::Vorbis::Parser> vorbis_parser;
+    Codecs::AudioPacketDurationParser packet_duration_parser;
     auto stream_index = link.index_of_stream_for_track(description.track.type(), description.index_within_type);
     if (stream_index.has_value()) {
         auto const& stream = link.streams[*stream_index];
-        if (stream.identification->codec_id == CodecID::Vorbis) {
-            vorbis_parser = Codecs::Vorbis::Parser::create(stream.codec_initialization_data.span());
-            if (!vorbis_parser.has_value())
-                return DecoderError::corrupted("Vorbis headers could not be parsed"sv);
-        }
+        packet_duration_parser = TRY(Codecs::AudioPacketDurationParser::create(stream.identification->codec_id, stream.codec_initialization_data.span()));
     }
 
     status.link = move(link);
     status.stream_index = stream_index;
     status.link_start_offset = start_offset;
     status.link_end_time = {};
-    status.vorbis_parser = move(vorbis_parser);
+    status.packet_duration_parser = packet_duration_parser;
     status.assembler.reset();
     status.running_end_units = {};
     status.needs_codec_configuration = true;
@@ -694,7 +662,7 @@ DecoderErrorOr<void> OggDemuxer::queue_packets(TrackStatus& status, PageHeader c
 
     Vector<i64> durations;
     for (auto const& packet : packets)
-        durations.append(packet_duration_in_units(status.vorbis_parser.has_value() ? &*status.vorbis_parser : nullptr, identification, packet.span()));
+        durations.append(packet_duration_in_units(status.packet_duration_parser, identification, packet.span()));
 
     // A page's granule position is where its last packet ends, which places every packet that completes on it.
     // The final page of a stream may end before its last packet does, trimming that packet's end, so it is placed
@@ -1018,8 +986,7 @@ DecoderErrorOr<DemuxerSeekResult> OggDemuxer::seek_to_most_recent_keyframe(Track
     status.assembler.reset();
     status.running_end_units = {};
     status.ready_frames.clear();
-    if (status.vorbis_parser.has_value())
-        status.vorbis_parser->reset();
+    status.packet_duration_parser.reset();
     status.waiting_for_keyframe = description.track.type() == TrackType::Video;
     status.reading_seek_preroll_page = landing.granule_position.has_value();
     if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))

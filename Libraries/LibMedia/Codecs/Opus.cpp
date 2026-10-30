@@ -91,9 +91,4 @@ DecoderErrorOr<u32> Opus::parse_frame_duration_in_samples(MediaStreamCursor& cur
     return packet_duration * 48 / 1000;
 }
 
-DecoderErrorOr<AK::Duration> Opus::parse_frame_duration(MediaStreamCursor& cursor, size_t frame_size)
-{
-    return AK::Duration::from_time_units(TRY(parse_frame_duration_in_samples(cursor, frame_size)), 1, 48000);
-}
-
 }

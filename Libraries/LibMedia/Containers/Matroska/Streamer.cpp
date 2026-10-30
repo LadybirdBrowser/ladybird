@@ -127,6 +127,11 @@ DecoderErrorOr<FixedArray<u8>> Streamer::read_raw_octets(size_t num_octets)
     return m_stream_cursor->read_bytes(num_octets);
 }
 
+DecoderErrorOr<void> Streamer::read_and_discard_octets(size_t num_octets)
+{
+    return m_stream_cursor->read_and_discard(num_octets);
+}
+
 DecoderErrorOr<u64> Streamer::read_u64()
 {
     auto integer_length = TRY(read_variable_size_integer());

@@ -11,7 +11,7 @@
 #include <AK/Mutex.h>
 #include <AK/OwnPtr.h>
 #include <AK/Queue.h>
-#include <LibMedia/Codecs/Vorbis.h>
+#include <LibMedia/Codecs/AudioPacketDurationParser.h>
 #include <LibMedia/ContainerID.h>
 #include <LibMedia/Containers/CachedByteRanges.h>
 #include <LibMedia/Containers/Ogg/Reader.h>
@@ -123,7 +123,7 @@ private:
         Optional<i64> maximum_granule_position {};
         Optional<StreamHeaderReader> pending_headers {};
         size_t next_header_page_position { 0 };
-        Optional<Codecs::Vorbis::Parser> vorbis_parser {};
+        Codecs::AudioPacketDurationParser packet_duration_parser {};
     };
 
     struct BufferedScanPayload {
@@ -149,7 +149,7 @@ private:
         Optional<size_t> stream_index {};
         AK::Duration link_start_offset {};
         AK::Duration link_end_time {};
-        Optional<Codecs::Vorbis::Parser> vorbis_parser {};
+        Codecs::AudioPacketDurationParser packet_duration_parser {};
         Optional<i64> running_end_units {};
         bool needs_codec_configuration { true };
         bool waiting_for_keyframe { false };
