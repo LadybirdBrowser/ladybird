@@ -1,0 +1,4 @@
+Ladybird now lets sites ask for the location by default. Chrome does
+the same: It registers geolocation with CONTENT_SETTING_ASK as its
+default (content_settings_registry.cc). Firefox and Safari also prompt
+by default rather than refusing outright.
