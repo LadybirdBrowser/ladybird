@@ -75,6 +75,8 @@ public:
     i64 m_last_real_data_end_in_frames { 0 };
 
     Atomic<u32> m_seek_id { 0 };
+    // While the input is seeking, it still reports its state from before the seek.
+    bool m_input_seek_in_flight { false };
     bool m_audio_processor_should_exit { false };
     bool m_waiting_for_upstream_data { false };
     bool m_resume_from_suspension_requested { false };
@@ -103,19 +105,24 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
 
                 if (input != nullptr) {
                     u32 seek_id_at_probe;
+                    bool input_seek_in_flight;
                     {
                         MutexLocker locker { output_thread_data->m_output_mutex };
                         seek_id_at_probe = output_thread_data->m_seek_id;
+                        input_seek_in_flight = output_thread_data->m_input_seek_in_flight;
                         output_thread_data->m_upstream_woke_since_probe = false;
                     }
-                    auto status = input->peek().status;
-                    MutexLocker locker { output_thread_data->m_output_mutex };
-                    if (status == PipelineStatus::Suspended) {
-                        if (output_thread_data->m_seek_id == seek_id_at_probe)
-                            output_thread_data->handle_input_suspension_while_locked(seek_id_at_probe);
-                    } else if (audio_processor_will_enqueue(status)) {
-                        output_thread_data->m_last_pull_status = status;
-                        output_thread_data->m_waiting_for_upstream_data = false;
+                    if (!input_seek_in_flight) {
+                        auto status = input->peek().status;
+                        MutexLocker locker { output_thread_data->m_output_mutex };
+                        if (output_thread_data->m_seek_id == seek_id_at_probe) {
+                            if (status == PipelineStatus::Suspended) {
+                                output_thread_data->handle_input_suspension_while_locked(seek_id_at_probe);
+                            } else if (audio_processor_will_enqueue(status)) {
+                                output_thread_data->m_last_pull_status = status;
+                                output_thread_data->m_waiting_for_upstream_data = false;
+                            }
+                        }
                     }
                 }
 
@@ -133,6 +140,10 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                         continue;
                     }
                     if (output_thread_data->m_input == nullptr) {
+                        output_thread_data->m_output_condition.wait();
+                        continue;
+                    }
+                    if (output_thread_data->m_input_seek_in_flight) {
                         output_thread_data->m_output_condition.wait();
                         continue;
                     }
@@ -696,10 +707,15 @@ void AudioPlaybackSink::reseek_input_continuing_at_output_frame(Optional<i64> co
         data.m_last_dispatched_status = PipelineStatus::Pending;
         data.m_played_out_check_requested = false;
         data.m_waiting_for_upstream_data = true;
+        data.m_input_seek_in_flight = true;
         data.m_output_condition.broadcast();
     }
 
     input->seek_continuing_at_output_frame(timestamp, output_frame);
+
+    MutexLocker locker { m_output_thread_data->m_output_mutex };
+    m_output_thread_data->m_input_seek_in_flight = false;
+    m_output_thread_data->m_output_condition.broadcast();
 }
 
 void AudioPlaybackSink::seek(AK::Duration time)
@@ -734,11 +750,17 @@ void AudioPlaybackSink::seek(AK::Duration time)
         m_output_thread_data->block_timings().clear();
 
         m_output_thread_data->m_waiting_for_upstream_data = true;
+        m_output_thread_data->m_input_seek_in_flight = m_output_thread_data->m_input != nullptr;
         m_output_thread_data->m_time_writer.seek(time);
     }
 
-    if (m_output_thread_data->m_input != nullptr)
+    if (m_output_thread_data->m_input != nullptr) {
         m_output_thread_data->m_input->seek(time);
+
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
+        m_output_thread_data->m_input_seek_in_flight = false;
+        m_output_thread_data->m_output_condition.broadcast();
+    }
 
     if (already_discarding_for_seek)
         return;
