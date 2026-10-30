@@ -91,6 +91,8 @@ if (NOT WIN32)
 
     add_test(NAME RustWorkspace COMMAND ${rust_workspace_test_command})
     add_test(NAME Flap COMMAND ${flap_test_command})
+    # cargo test already uses every core.
+    set_tests_properties(RustWorkspace Flap PROPERTIES RUN_SERIAL TRUE)
 endif()
 
 if (ENABLE_GUI_TARGETS)
