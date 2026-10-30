@@ -12,10 +12,10 @@ interface SVGAnimationElement : SVGElement {
     float getCurrentTime();
     float getSimpleDuration();
 
-    [FIXME] undefined beginElement();
-    [FIXME] undefined beginElementAt(float offset);
-    [FIXME] undefined endElement();
-    [FIXME] undefined endElementAt(float offset);
+    undefined beginElement();
+    undefined beginElementAt(float offset);
+    undefined endElement();
+    undefined endElementAt(float offset);
 };
 
 // FIXME: SVGAnimationElement includes SVGTests;

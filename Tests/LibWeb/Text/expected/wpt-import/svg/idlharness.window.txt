@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1610 Pass
-170 Fail
+1632 Pass
+148 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1650,10 +1650,10 @@ Pass	SVGAnimationElement interface: attribute onrepeat
 Pass	SVGAnimationElement interface: operation getStartTime()
 Pass	SVGAnimationElement interface: operation getCurrentTime()
 Pass	SVGAnimationElement interface: operation getSimpleDuration()
-Fail	SVGAnimationElement interface: operation beginElement()
-Fail	SVGAnimationElement interface: operation beginElementAt(float)
-Fail	SVGAnimationElement interface: operation endElement()
-Fail	SVGAnimationElement interface: operation endElementAt(float)
+Pass	SVGAnimationElement interface: operation beginElement()
+Pass	SVGAnimationElement interface: operation beginElementAt(float)
+Pass	SVGAnimationElement interface: operation endElement()
+Pass	SVGAnimationElement interface: operation endElementAt(float)
 Fail	SVGAnimationElement interface: attribute requiredExtensions
 Fail	SVGAnimationElement interface: attribute systemLanguage
 Pass	SVGAnimateElement interface: existence and properties of interface object
@@ -1671,12 +1671,12 @@ Pass	SVGAnimationElement interface: objects.animate must inherit property "onrep
 Pass	SVGAnimationElement interface: objects.animate must inherit property "getStartTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.animate must inherit property "getCurrentTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.animate must inherit property "getSimpleDuration()" with the proper type
-Fail	SVGAnimationElement interface: objects.animate must inherit property "beginElement()" with the proper type
-Fail	SVGAnimationElement interface: objects.animate must inherit property "beginElementAt(float)" with the proper type
-Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.animate with too few arguments must throw TypeError
-Fail	SVGAnimationElement interface: objects.animate must inherit property "endElement()" with the proper type
-Fail	SVGAnimationElement interface: objects.animate must inherit property "endElementAt(float)" with the proper type
-Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.animate with too few arguments must throw TypeError
+Pass	SVGAnimationElement interface: objects.animate must inherit property "beginElement()" with the proper type
+Pass	SVGAnimationElement interface: objects.animate must inherit property "beginElementAt(float)" with the proper type
+Pass	SVGAnimationElement interface: calling beginElementAt(float) on objects.animate with too few arguments must throw TypeError
+Pass	SVGAnimationElement interface: objects.animate must inherit property "endElement()" with the proper type
+Pass	SVGAnimationElement interface: objects.animate must inherit property "endElementAt(float)" with the proper type
+Pass	SVGAnimationElement interface: calling endElementAt(float) on objects.animate with too few arguments must throw TypeError
 Fail	SVGAnimationElement interface: objects.animate must inherit property "requiredExtensions" with the proper type
 Fail	SVGAnimationElement interface: objects.animate must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.animate must inherit property "className" with the proper type
@@ -1699,12 +1699,12 @@ Pass	SVGAnimationElement interface: objects.set must inherit property "onrepeat"
 Pass	SVGAnimationElement interface: objects.set must inherit property "getStartTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "getCurrentTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.set must inherit property "getSimpleDuration()" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "beginElement()" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "beginElementAt(float)" with the proper type
-Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.set with too few arguments must throw TypeError
-Fail	SVGAnimationElement interface: objects.set must inherit property "endElement()" with the proper type
-Fail	SVGAnimationElement interface: objects.set must inherit property "endElementAt(float)" with the proper type
-Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.set with too few arguments must throw TypeError
+Pass	SVGAnimationElement interface: objects.set must inherit property "beginElement()" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "beginElementAt(float)" with the proper type
+Pass	SVGAnimationElement interface: calling beginElementAt(float) on objects.set with too few arguments must throw TypeError
+Pass	SVGAnimationElement interface: objects.set must inherit property "endElement()" with the proper type
+Pass	SVGAnimationElement interface: objects.set must inherit property "endElementAt(float)" with the proper type
+Pass	SVGAnimationElement interface: calling endElementAt(float) on objects.set with too few arguments must throw TypeError
 Fail	SVGAnimationElement interface: objects.set must inherit property "requiredExtensions" with the proper type
 Fail	SVGAnimationElement interface: objects.set must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.set must inherit property "className" with the proper type
@@ -1727,12 +1727,12 @@ Pass	SVGAnimationElement interface: objects.animateMotion must inherit property 
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getStartTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getCurrentTime()" with the proper type
 Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "getSimpleDuration()" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElement()" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElementAt(float)" with the proper type
-Fail	SVGAnimationElement interface: calling beginElementAt(float) on objects.animateMotion with too few arguments must throw TypeError
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "endElement()" with the proper type
-Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "endElementAt(float)" with the proper type
-Fail	SVGAnimationElement interface: calling endElementAt(float) on objects.animateMotion with too few arguments must throw TypeError
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElement()" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "beginElementAt(float)" with the proper type
+Pass	SVGAnimationElement interface: calling beginElementAt(float) on objects.animateMotion with too few arguments must throw TypeError
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "endElement()" with the proper type
+Pass	SVGAnimationElement interface: objects.animateMotion must inherit property "endElementAt(float)" with the proper type
+Pass	SVGAnimationElement interface: calling endElementAt(float) on objects.animateMotion with too few arguments must throw TypeError
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "requiredExtensions" with the proper type
 Fail	SVGAnimationElement interface: objects.animateMotion must inherit property "systemLanguage" with the proper type
 Pass	SVGElement interface: objects.animateMotion must inherit property "className" with the proper type

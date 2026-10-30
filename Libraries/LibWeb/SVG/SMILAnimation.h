@@ -16,7 +16,7 @@ class SMILAnimation final : public Animations::Animation {
     GC_DECLARE_ALLOCATOR(SMILAnimation);
 
 public:
-    static GC::Ref<SMILAnimation> create(SVGAnimationElement&, SMILTimeContainer&);
+    static GC::Ref<SMILAnimation> create(SVGAnimationElement&, SMILTimeContainer&, double begin_time);
 
     SVGAnimationElement& animation_element() const { return m_animation_element; }
 
@@ -27,12 +27,13 @@ public:
     virtual int class_specific_composite_order(GC::Ref<Animations::Animation> other) const override;
 
 private:
-    SMILAnimation(HTML::EnvironmentSettingsObject&, SVGAnimationElement&, SMILTimeContainer&);
+    SMILAnimation(HTML::EnvironmentSettingsObject&, SVGAnimationElement&, SMILTimeContainer&, double begin_time);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
     GC::Ref<SVGAnimationElement> m_animation_element;
     GC::Ref<SMILTimeContainer> m_time_container;
+    double m_begin_time { 0 };
 };
 
 }

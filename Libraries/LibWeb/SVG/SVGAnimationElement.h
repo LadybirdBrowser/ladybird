@@ -33,6 +33,11 @@ public:
     float get_current_time();
     WebIDL::ExceptionOr<float> get_simple_duration();
 
+    void begin_element();
+    void begin_element_at(float offset);
+    void end_element();
+    void end_element_at(float offset);
+
 protected:
     SVGAnimationElement(DOM::Document&, DOM::QualifiedName);
 
@@ -56,7 +61,25 @@ private:
     double repeat_count() const;
     Bindings::FillMode fill_mode() const;
 
+    enum class Restart : u8 {
+        Always,
+        WhenNotActive,
+        Never,
+    };
+    Restart restart() const;
+
+    double current_presentation_time();
+    Optional<double> begin_time_from_begin_attribute() const;
+    Optional<double> interval_begin_time() const;
+    Optional<double> interval_end_time() const;
+    bool is_active_at(double time) const;
+
     GC::Ptr<SMILAnimation> m_animation;
+
+    // NB: The latest instance times that the DOM methods created, in milliseconds on the timeline of the SVG document
+    //     fragment.
+    Optional<double> m_begin_instance_time_from_dom;
+    Optional<double> m_end_instance_time_from_dom;
 };
 
 }

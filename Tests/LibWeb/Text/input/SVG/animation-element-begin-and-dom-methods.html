@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg id="svg" width="100" height="100">
+    <rect id="offset" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" begin="1s" dur="2s"/>
+    </rect>
+    <rect id="earliest-offset" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" begin="3s; -1s" dur="2s"/>
+    </rect>
+    <rect id="indefinite" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" begin="indefinite" dur="2s"/>
+    </rect>
+    <rect id="always" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" dur="2s"/>
+    </rect>
+    <rect id="when-not-active" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" dur="2s" restart="whenNotActive"/>
+    </rect>
+    <rect id="never" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" dur="2s" restart="never"/>
+    </rect>
+    <rect id="later-instance" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" dur="2s"/>
+    </rect>
+    <rect id="later-instance-pending" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" begin="1s" dur="2s"/>
+    </rect>
+    <rect id="ended" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" begin="indefinite" dur="2s" repeatCount="indefinite"/>
+    </rect>
+    <rect id="ended-frozen" width="10" height="10" opacity="1">
+        <animate attributeName="opacity" from="0" to="1" begin="indefinite" dur="2s" repeatCount="indefinite" fill="freeze"/>
+    </rect>
+    <rect id="set-ended" width="10" height="10" opacity="1">
+        <set attributeName="opacity" to="0.5" begin="indefinite"/>
+    </rect>
+</svg>
+<script>
+    asyncTest(async done => {
+        const animation = id => document.getElementById(id).firstElementChild;
+        const startTime = id => {
+            try {
+                return animation(id).getStartTime();
+            } catch (error) {
+                return error.name;
+            }
+        };
+        const print = label => {
+            println(`${label} (t=${svg.getCurrentTime()})`);
+            for (const rect of document.querySelectorAll("rect"))
+                println(`  ${rect.id}: opacity ${Number(getComputedStyle(rect).opacity).toFixed(3)}, start time ${startTime(rect.id)}`);
+        };
+
+        await new Promise(resolve => window.addEventListener("load", resolve));
+        await new Promise(requestAnimationFrame);
+        svg.pauseAnimations();
+        svg.setCurrentTime(0.5);
+        print("before any DOM method call");
+
+        animation("indefinite").beginElementAt(0.5);
+        animation("always").beginElement();
+        animation("when-not-active").beginElement();
+        animation("never").beginElement();
+        animation("later-instance").beginElementAt(10);
+        animation("later-instance-pending").beginElementAt(1);
+        animation("ended").beginElement();
+        animation("ended-frozen").beginElement();
+        animation("set-ended").beginElement();
+        svg.setCurrentTime(1.5);
+        print("after beginning the elements");
+
+        animation("ended").endElement();
+        animation("ended-frozen").endElement();
+        animation("set-ended").endElementAt(0.5);
+        svg.setCurrentTime(1.75);
+        print("after ending the elements");
+
+        svg.setCurrentTime(2.5);
+        print("after the active end of the elements");
+
+        animation("when-not-active").beginElement();
+        animation("never").beginElement();
+        animation("ended").beginElement();
+        print("after beginning the elements again");
+        done();
+    });
+</script>
