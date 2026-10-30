@@ -5,14 +5,20 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <AK/Stream.h>
 #include <AK/Vector.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/JPEGWriter.h>
 #include <jpeglib.h>
+#include <setjmp.h>
 
 namespace Gfx {
+
+struct JPEGErrorManager : jpeg_error_mgr {
+    jmp_buf setjmp_buffer {};
+};
 
 struct MemoryDestinationManager : public jpeg_destination_mgr {
     Vector<u8>& buffer;
@@ -49,53 +55,71 @@ struct MemoryDestinationManager : public jpeg_destination_mgr {
 
 ErrorOr<void> JPEGWriter::encode_impl(Stream& stream, auto const& bitmap, Options const& options, ColorSpace color_space)
 {
+    // NB: Everything with a destructor is constructed before setjmp(), so that a longjmp() from libjpeg does not
+    //     skip any destructors. The guard comes last, so it destroys cinfo while the objects it points to still live.
+    //     setjmp() is called in a separate function, as objects changed between setjmp() and longjmp() in the frame
+    //     that calls setjmp() have indeterminate values after the longjmp().
+    Vector<u8> buffer;
+    MemoryDestinationManager dest_manager(buffer);
+    struct JPEGErrorManager jerr;
+
     struct jpeg_compress_struct cinfo {};
-    struct jpeg_error_mgr jerr {};
+    ScopeGuard guard { [&]() { jpeg_destroy_compress(&cinfo); } };
 
     cinfo.err = jpeg_std_error(&jerr);
 
-    jpeg_create_compress(&cinfo);
+    jerr.error_exit = [](j_common_ptr cinfo) {
+        char buffer[JMSG_LENGTH_MAX];
+        (*cinfo->err->format_message)(cinfo, buffer);
+        dbgln("JPEG error: {}", buffer);
+        longjmp(static_cast<JPEGErrorManager*>(cinfo->err)->setjmp_buffer, 1);
+    };
 
-    Vector<u8> buffer;
-    MemoryDestinationManager dest_manager(buffer);
-    cinfo.dest = &dest_manager;
+    auto compress = [&]() -> bool {
+        if (setjmp(jerr.setjmp_buffer))
+            return false;
 
-    cinfo.image_width = bitmap.size().width();
-    cinfo.image_height = bitmap.size().height();
-    cinfo.input_components = 4;
+        jpeg_create_compress(&cinfo);
 
-    switch (color_space) {
-    case ColorSpace::RGB:
-        cinfo.in_color_space = JCS_EXT_BGRX;
-        break;
-    case ColorSpace::CMYK:
-        cinfo.in_color_space = JCS_CMYK;
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
+        cinfo.dest = &dest_manager;
 
-    jpeg_set_defaults(&cinfo);
-    jpeg_set_colorspace(&cinfo, JCS_YCbCr);
-    jpeg_set_quality(&cinfo, options.quality, TRUE);
+        cinfo.image_width = bitmap.size().width();
+        cinfo.image_height = bitmap.size().height();
+        cinfo.input_components = 4;
 
-    if (options.icc_data.has_value()) {
-        jpeg_write_icc_profile(&cinfo, options.icc_data->data(), options.icc_data->size());
-    }
+        switch (color_space) {
+        case ColorSpace::RGB:
+            cinfo.in_color_space = JCS_EXT_BGRX;
+            break;
+        case ColorSpace::CMYK:
+            cinfo.in_color_space = JCS_CMYK;
+            break;
+        default:
+            VERIFY_NOT_REACHED();
+        }
 
-    jpeg_start_compress(&cinfo, TRUE);
+        jpeg_set_defaults(&cinfo);
+        jpeg_set_colorspace(&cinfo, JCS_YCbCr);
+        jpeg_set_quality(&cinfo, options.quality, TRUE);
 
-    Vector<JSAMPLE> row_buffer;
-    row_buffer.resize(bitmap.size().width() * 4);
+        jpeg_start_compress(&cinfo, TRUE);
 
-    while (cinfo.next_scanline < cinfo.image_height) {
-        auto const* row_ptr = reinterpret_cast<u8 const*>(bitmap.scanline(cinfo.next_scanline));
-        JSAMPROW row_pointer = const_cast<JSAMPROW>(row_ptr);
-        jpeg_write_scanlines(&cinfo, &row_pointer, 1);
-    }
+        // NB: libjpeg only accepts markers after jpeg_start_compress() and before the first scanline.
+        if (options.icc_data.has_value())
+            jpeg_write_icc_profile(&cinfo, options.icc_data->data(), options.icc_data->size());
 
-    jpeg_finish_compress(&cinfo);
-    jpeg_destroy_compress(&cinfo);
+        while (cinfo.next_scanline < cinfo.image_height) {
+            auto const* row_ptr = reinterpret_cast<u8 const*>(bitmap.scanline(cinfo.next_scanline));
+            JSAMPROW row_pointer = const_cast<JSAMPROW>(row_ptr);
+            jpeg_write_scanlines(&cinfo, &row_pointer, 1);
+        }
+
+        jpeg_finish_compress(&cinfo);
+        return true;
+    };
+
+    if (!compress())
+        return Error::from_string_literal("Failed to encode JPEG");
 
     TRY(stream.write_until_depleted(buffer));
     return {};
