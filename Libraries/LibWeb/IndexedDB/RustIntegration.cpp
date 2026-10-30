@@ -20,12 +20,10 @@
 #include <LibWeb/HTML/DOMStringList.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/DOMException.h>
-#include <LibWeb/WebIDL/ExceptionOrUtils.h>
 #include <LibWebCommon/IndexedDB/TransactionChanges.h>
 
 // What the Rust implementation of IndexedDB asks of LibWeb's C++ code, declared on the Rust side in
@@ -42,8 +40,6 @@ void* web_indexed_db_dom_exception_from_value(JSValue);
 JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception);
 bool web_indexed_db_obtain_a_storage_key(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* strings, size_t count);
-JSCompletion web_indexed_db_structured_serialize_for_storage(void* realm, JSValue, void* bytes, void (*append)(void*, u8 const*, size_t));
-JSCompletion web_indexed_db_structured_deserialize(void* realm, ReadonlyBytes);
 void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*));
 void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*));
 void* web_indexed_db_main_thread_event_loop();
@@ -101,29 +97,6 @@ JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* stri
         names.unchecked_append(Utf16String::from_raw(strings[i]).to_utf8());
     auto list = HTML::DOMStringList::create(move(names));
     return JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, list).ptr());
-}
-
-// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
-JSCompletion web_indexed_db_structured_serialize_for_storage(void* realm, JSValue raw_value, void* bytes, void (*append)(void*, u8 const*, size_t))
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto serialized = HTML::structured_serialize_for_storage(js_realm.vm(), JS::HostABI::value_from_abi(raw_value));
-    if (serialized.is_exception())
-        return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { WebIDL::exception_to_throw_completion(js_realm.vm(), js_realm, serialized.release_error()) });
-    auto record = serialized.release_value();
-    append(bytes, record.data.data(), record.data.size());
-    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { JS::js_undefined() });
-}
-
-// https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-JSCompletion web_indexed_db_structured_deserialize(void* realm, ReadonlyBytes bytes)
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    HTML::StorageSerializationRecord record { MUST(ByteBuffer::copy(bytes)) };
-    auto value = HTML::structured_deserialize(js_realm.vm(), record, js_realm);
-    if (value.is_exception())
-        return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { WebIDL::exception_to_throw_completion(js_realm.vm(), js_realm, value.release_error()) });
-    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { value.release_value() });
 }
 
 // https://w3c.github.io/IndexedDB/#queue-a-database-task

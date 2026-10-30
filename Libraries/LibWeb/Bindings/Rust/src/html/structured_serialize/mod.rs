@@ -1813,6 +1813,37 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     Ok(value)
 }
 
+// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
+pub(crate) fn structured_serialize_for_storage(cx: &CallContext, value: Value) -> WebIdlResult<Vec<u8>> {
+    let vm = cx.vm();
+    let memory = SerializationMemory::new(vm);
+    let serialized = StructuredSerializeWriter::new(vm, SerializationType::Storage);
+
+    // 1. Return ? StructuredSerializeInternal(value, true).
+    structured_serialize_internal(
+        vm,
+        Some(cx.realm()),
+        &serialized,
+        value,
+        true,
+        &memory,
+        AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
+    )?;
+    Ok(serialized.into_storage_bytes())
+}
+
+// https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
+// NB: The bytes of a storage record, which throws a "DataCloneError" DOMException for bytes after its value, in the realm
+//     of the call.
+pub(crate) fn structured_deserialize_for_storage(cx: &CallContext, serialized: &[u8]) -> WebIdlResult<Value> {
+    let target_realm = cx.realm();
+    let serialized = StructuredSerializeReader::new_storage(target_realm, serialized)?;
+    let memory = DeserializationMemory::new(cx.vm());
+    with_temporary_execution_context(target_realm, || {
+        structured_deserialize_internal(cx, &serialized, &memory, true)
+    })
+}
+
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 pub(crate) fn structured_serialize_internal<'memory>(
     vm: &Vm,
