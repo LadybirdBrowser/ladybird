@@ -388,15 +388,15 @@ PASS: table parent | append whitespace | incremental tree matches full rebuild
 PASS: insert in SVG parent | append whitespace | preserve
 PASS: insert in SVG parent | append whitespace | layout tree builds=1
 PASS: insert in SVG parent | append whitespace | incremental tree matches full rebuild
-PASS: rebuild for preserved whitespace | append whitespace | rebuild
-PASS: rebuild for preserved whitespace | append whitespace | layout tree builds=1
-PASS: rebuild for preserved whitespace | append whitespace | incremental tree matches full rebuild
-PASS: rebuild for non-ASCII whitespace | append no-break space | rebuild
-PASS: rebuild for non-ASCII whitespace | append no-break space | layout tree builds=1
-PASS: rebuild for non-ASCII whitespace | append no-break space | incremental tree matches full rebuild
-PASS: rebuild for non-whitespace text | append text | rebuild
-PASS: rebuild for non-whitespace text | append text | layout tree builds=1
-PASS: rebuild for non-whitespace text | append text | incremental tree matches full rebuild
+PASS: append preserved whitespace | append whitespace | preserve
+PASS: append preserved whitespace | append whitespace | layout tree builds=1
+PASS: append preserved whitespace | append whitespace | incremental tree matches full rebuild
+PASS: append non-ASCII whitespace | append no-break space | preserve
+PASS: append non-ASCII whitespace | append no-break space | layout tree builds=1
+PASS: append non-ASCII whitespace | append no-break space | incremental tree matches full rebuild
+PASS: append non-whitespace text | append text | preserve
+PASS: append non-whitespace text | append text | layout tree builds=1
+PASS: append non-whitespace text | append text | incremental tree matches full rebuild
 PASS: rebuild under first-letter | append whitespace | rebuild
 PASS: rebuild under first-letter | append whitespace | layout tree builds=1
 PASS: rebuild under first-letter | append whitespace | incremental tree matches full rebuild

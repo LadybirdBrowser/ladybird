@@ -205,6 +205,25 @@ PASS: fall back when appending a list-item increment after a reversed list | inc
 PASS: fall back when appending a subtree that opens a quote | rebuild parent
 PASS: fall back when appending a subtree that opens a quote | layout tree builds=1
 PASS: fall back when appending a subtree that opens a quote | incremental tree matches full rebuild
+PASS: append text after block child | preserve parent
+PASS: append text after block child | preserve before
+PASS: append text after block child | layout tree builds=1
+PASS: append text after block child | incremental tree matches full rebuild
+PASS: append text after anonymous inline run | preserve parent
+PASS: append text after anonymous inline run | preserve before
+PASS: append text after anonymous inline run | preserve inline
+PASS: append text after anonymous inline run | layout tree builds=1
+PASS: append text after anonymous inline run | incremental tree matches full rebuild
+PASS: append text and inline child after block child | preserve parent
+PASS: append text and inline child after block child | preserve before
+PASS: append text and inline child after block child | layout tree builds=1
+PASS: append text and inline child after block child | incremental tree matches full rebuild
+PASS: fall back for text before existing block child | rebuild parent
+PASS: fall back for text before existing block child | layout tree builds=1
+PASS: fall back for text before existing block child | incremental tree matches full rebuild
+PASS: fall back for text before appended block child | rebuild parent
+PASS: fall back for text before appended block child | layout tree builds=1
+PASS: fall back for text before appended block child | incremental tree matches full rebuild
 PASS: fall back for block child before anonymous inline run | rebuild parent
 PASS: fall back for block child before anonymous inline run | layout tree builds=1
 PASS: fall back for block child before anonymous inline run | incremental tree matches full rebuild

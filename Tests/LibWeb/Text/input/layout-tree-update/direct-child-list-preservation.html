@@ -369,6 +369,38 @@
             preserve: false,
         },
         {
+            name: "append text after block child",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.append("text"),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append text after anonymous inline run",
+            markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
+            mutate: parent => parent.append("text"),
+            tracked: ["parent", "before", "inline"],
+        },
+        {
+            name: "append text and inline child after block child",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", 'text <span class="target inline">inline</span> more text'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "fall back for text before existing block child",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").before("text"),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back for text before appended block child",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", 'text<section class="target child"></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
             name: "fall back for block child before anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate: parent => parent.querySelector(".inline").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
