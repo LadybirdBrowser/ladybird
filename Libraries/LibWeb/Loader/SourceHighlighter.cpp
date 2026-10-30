@@ -307,7 +307,7 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
                     linkify_attribute = text.as_string() == href || text.as_string() == src;
                 } else if (span->data == to_underlying(Web::HTML::AugmentedTokenKind::AttributeValue)) {
                     if (auto href = resolve_url_for_attribute(text); href.has_value()) {
-                        builder.appendff("<a href=\"{}\">", *href);
+                        builder.appendff("<a href=\"{}\">", escape_html_entities(href->serialize()));
                         append_anchor_close = true;
                     }
                 }
