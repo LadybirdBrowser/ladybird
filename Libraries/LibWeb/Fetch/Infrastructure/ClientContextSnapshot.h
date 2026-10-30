@@ -62,7 +62,7 @@ struct ClientContext {
     IsLoadingBypassingCache is_loading_bypassing_cache { IsLoadingBypassingCache::No };
     double time_origin { 0 };
 
-    // The navigable of the Window that is the global object, if any.
+    // The navigable of the Window that is the global object, if it has one and this process hosts the Window.
     Optional<HTML::CrossProcessId> navigable_id;
 
     // The URL a "client" referrer is determined from, or none for no referrer.
@@ -74,7 +74,8 @@ struct ClientContext {
     NonnullRefPtr<KeepaliveQuotaAccountant> keepalive_quota_accountant;
 };
 
-// A request's client context as it was when the fetch started.
+// A request's client context, taken when the fetch started, or, for a client another process hosts, made from what
+// that process serialized.
 struct WEB_API ClientContextSnapshot final : public AtomicRefCounted<ClientContextSnapshot>
     , public ClientContext {
     explicit ClientContextSnapshot(ClientContext context)

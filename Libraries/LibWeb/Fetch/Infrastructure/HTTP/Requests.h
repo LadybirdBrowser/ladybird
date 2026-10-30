@@ -563,7 +563,8 @@ private:
     // A request has an associated done flag. Unless stated otherwise, it is unset.
     bool m_done { false };
 
-    // Counts this request's body against its client's keepalive quota until its done flag is set or its body is null.
+    // Counts this request's body against its client's keepalive quota until its done flag is set, its body is null or
+    // it is destroyed.
     Optional<KeepaliveQuotaAccountant::Reservation> m_keepalive_quota_reservation;
 
     // https://fetch.spec.whatwg.org/#timing-allow-failed

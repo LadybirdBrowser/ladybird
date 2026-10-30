@@ -476,7 +476,8 @@ GC::Ref<Infrastructure::FetchController> fetch(JS::Realm& realm, Infrastructure:
             local_client->fetch_group().append(record);
 
         // AD-HOC: A keepalive request's body length counts toward its fetch group's keepalive quota from here until
-        //         its done flag is set or its body is null, since its fetch record can be collected before then.
+        //         its done flag is set, its body is null or the request is destroyed, since its fetch record can be
+        //         collected before then.
         if (request.keepalive()) {
             auto body_length = request.body().visit(
                 [](Empty) -> u64 { return 0; },
@@ -551,8 +552,8 @@ void populate_request_from_client(Infrastructure::Request& request, Optional<HTM
         }
     }
 
-    // AD-HOC: Fetching reads the client through a snapshot of it, taken here, so that it needs neither the settings
-    //         object nor its global object.
+    // AD-HOC: Take a snapshot of the client for main fetch and the steps under it, which reach the client itself only
+    //         through its global object, to queue tasks and to report violations and timing.
     if (client.has_value())
         request.set_client_snapshot(client->visit([](auto const& client) { return snapshot_client_context(*client); }));
 }
@@ -1804,8 +1805,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         // NOTE: The cross-origin resource policy check runs for responses coming from the network and responses coming
         //       from the service worker. This is different from the CORS check, as request’s client and the service
         //       worker can have different embedder policies.
-        // NB: request's policy container is a clone of its client's, taken at fetch start, or a new one when it has no
-        //     client.
+        // NB: request's policy container is a copy of its client's, or a new one when it has no client.
         auto const& client_embedder_policy = request->policy_container().get<NonnullRefPtr<HTML::PolicyContainer const>>()->embedder_policy;
         if ((request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
             && cross_origin_resource_policy_check(request->origin().get<URL::Origin>(), client_embedder_policy, *internal_response) == Infrastructure::RequestOrResponseBlocking::Blocked) {
@@ -2401,8 +2401,8 @@ GC::Ref<PendingResponse> http_network_or_cache_fetch(JS::Realm& realm, Infrastru
             // 4. For each fetchRecord of inflightRecords:
             //     1. Let inflightRequest be fetchRecord’s request.
             //     2. Increment inflightKeepaliveBytes by inflightRequest’s body’s length.
-            // AD-HOC: The fetch group's keepalive quota accountant holds this sum, so a request whose fetch record was
-            //         collected still counts.
+            // AD-HOC: The sum is read from the fetch group's keepalive quota accountant, since a request's fetch record
+            //         can be collected before its done flag is set.
             auto inflight_keep_alive_bytes = http_request->client_snapshot()->keepalive_quota_accountant->in_flight_byte_count();
 
             // 5. If the sum of contentLength and inflightKeepaliveBytes is greater than 64 kibibytes, then return a network error.
