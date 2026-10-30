@@ -39,7 +39,7 @@ public:
     // browser's windows is recorded there too.
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual void focus_page_from_notification(WebView::WebContentPage&) override;
-    virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*) override;
+    virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate) override;
 
     ErrorOr<void> launch_test_fixtures();
 

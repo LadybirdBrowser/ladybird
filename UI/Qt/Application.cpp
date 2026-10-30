@@ -1323,17 +1323,29 @@ void Application::focus_page_from_notification(WebView::WebContentPage& page)
     window->bring_to_front();
 }
 
-void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId, WebView::CanonicalTraversable* traversable)
+void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId, WebView::CanonicalTraversable* traversable, WebView::IsPrivate is_private)
 {
     BrowserWindow* window = nullptr;
     if (traversable) {
         if (auto view = traversable->view(); view.has_value())
             window = window_for_view(*view);
     }
-    if (!window)
+    // The site opens in the notification's own session: a private window's notification never lands in a normal
+    // window, nor a normal one in a private window.
+    if (window && window->is_private() != is_private)
+        window = nullptr;
+    if (!window && m_active_window && m_active_window->is_private() == is_private)
         window = m_active_window;
     if (!window) {
-        new_window({ url });
+        for (auto* widget : QApplication::topLevelWidgets()) {
+            if (auto* candidate = qobject_cast<BrowserWindow*>(widget); candidate && candidate->is_private() == is_private) {
+                window = candidate;
+                break;
+            }
+        }
+    }
+    if (!window) {
+        new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
         return;
     }
     window->new_tab_from_url(url, Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::end());
