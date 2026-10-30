@@ -200,8 +200,8 @@ fn rope_template(vm: &Vm) -> Vec<u64> {
     let rope = PrimitiveString::create_from_concatenation(vm, half, half).must();
     assert!(class_of(rope).is_subclass_of(RopeString::CLASS));
     let mut words = cell_words(rope, size_of::<RopeString>());
-    words[ROPE_STRING_LHS_OFFSET / 8] = 0;
-    words[ROPE_STRING_RHS_OFFSET / 8] = 0;
+    clear_bytes(&mut words, ROPE_STRING_LHS_OFFSET, 4);
+    clear_bytes(&mut words, ROPE_STRING_RHS_OFFSET, 4);
     words
 }
 

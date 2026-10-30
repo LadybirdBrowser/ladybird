@@ -16,7 +16,8 @@
 
 use super::Codegen;
 use super::allocation::AllocationCall;
-use super::call::ConstantField;
+use super::allocation::stored_fields_fit;
+use super::allocation::template_fields;
 use crate::asm::Address;
 use crate::asm::Condition;
 use crate::asm::Gpr;
@@ -25,6 +26,7 @@ use crate::asm::PortableMacroAssembler;
 use crate::asm::Scale;
 use crate::ir::NodeId;
 use crate::ir::value;
+use crate::snapshot::RopeAllocationInfo;
 
 impl<M: PortableMacroAssembler> Codegen<'_, M> {
     /// `ConcatenateStrings`: the concatenation of two strings, or the empty
@@ -124,9 +126,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let rope = &self.runtime.rope_allocation;
         let bytes = 8 * rope.template.len() as u64;
         bytes <= u64::from(rope.cell_size)
-            && [rope.lhs_offset, rope.rhs_offset]
-                .iter()
-                .all(|offset| offset.is_multiple_of(8) && u64::from(*offset) + 8 <= bytes)
+            && stored_fields_fit(&rope_stored_fields(rope), bytes)
             && u64::from(rope.length_offset) + 4 <= bytes
     }
 
@@ -182,18 +182,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list(rope.allocator, cell, other, no_free_cell);
         self.emit_count_allocation(rope.cell_size, rope.cell_size, other, false);
 
-        let mut fields: Vec<ConstantField> = (0u32..)
-            .zip(&rope.template)
-            .map(|(index, word)| (8 * index, 8, *word))
-            .filter(|(offset, _, _)| *offset != rope.lhs_offset && *offset != rope.rhs_offset)
-            .collect();
+        let mut fields = template_fields(&rope.template, &rope_stored_fields(&rope));
         self.emit_constant_fields(cell, other, &mut fields)
             .expect("rope string fields are near the cell");
         self.masm.store32(&string_length(cell), length);
-        self.emit_unbox_cell(other, lhs);
-        self.masm.store64(&at(cell, rope.lhs_offset), other);
-        self.emit_unbox_cell(other, rhs);
-        self.masm.store64(&at(cell, rope.rhs_offset), other);
+        // NB: The halves are compressed from their string values, whose tag
+        //     the 32-bit stores drop.
+        self.emit_store_compressed_cell(&at(cell, rope.lhs_offset), lhs, other);
+        self.emit_store_compressed_cell(&at(cell, rope.rhs_offset), rhs, other);
         self.box_cell_with_tag(output, cell, value::STRING_TAG);
         self.masm.jump(done);
 
@@ -268,4 +264,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.box_cell_with_tag(output, other, value::STRING_TAG);
         self.masm.jump(done);
     }
+}
+
+/// The fields JIT code stores into a new rope string itself: its compressed
+/// halves.
+fn rope_stored_fields(rope: &RopeAllocationInfo) -> [(u32, u32); 2] {
+    [(rope.lhs_offset, 4), (rope.rhs_offset, 4)]
 }
