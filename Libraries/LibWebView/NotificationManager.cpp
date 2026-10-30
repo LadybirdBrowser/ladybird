@@ -41,7 +41,7 @@ void NotificationManager::install_backend_callbacks()
     m_backend->on_closed = [this](u64 id, NotificationBackend::ByUser by_user) { backend_did_close(id, by_user); };
 }
 
-void NotificationManager::show(WebContentPage& page, u64 page_notification_id, Web::NotificationsAPI::NotificationData data, RefPtr<Gfx::Bitmap const> icon)
+void NotificationManager::show(WebContentPage& page, u64 page_notification_id, URL::Origin top_level_origin, Web::NotificationsAPI::NotificationData data, RefPtr<Gfx::Bitmap const> icon)
 {
     // Only the page that shows the tab's document may notify for that document. A page hosting a cross-site frame
     // in the tab has its own process, and its renderer refuses the notification; one that asks anyway is misbehaving,
@@ -55,11 +55,11 @@ void NotificationManager::show(WebContentPage& page, u64 page_notification_id, W
     if (icon && (icon->width() > icon_maximum_side || icon->height() > icon_maximum_side))
         icon = nullptr;
 
-    // The notification belongs to the origin the browser knows the page's top-level document by, never to one the
-    // page reports. (The document's origin, not the URL's: An opaque origin, which file: pages have, is the same
-    // one for the life of the document, where a URL would make a fresh one on every ask.)
+    // The notification belongs to the top-level origin the browser knows its document by, never to one the page
+    // reports. (An origin, not a URL's: An opaque origin, which file: pages have, is the same one for the life of the
+    // document, where a URL would make a fresh one on every ask.)
     auto url = page.view().url();
-    auto origin = page.traversable().active_document().origin();
+    auto origin = move(top_level_origin);
 
     Record record {
         .id = m_next_id++,

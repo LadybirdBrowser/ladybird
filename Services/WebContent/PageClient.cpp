@@ -1307,12 +1307,12 @@ void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossPro
     client().async_did_request_permission(m_id, request_id, requesting_document_id, name);
 }
 
-void PageClient::page_did_request_show_notification(u64 notification_id, Web::NotificationsAPI::NotificationData const& data, RefPtr<Gfx::Bitmap const> icon)
+void PageClient::page_did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData const& data, RefPtr<Gfx::Bitmap const> icon)
 {
     Optional<Gfx::ShareableBitmap> shareable_icon;
     if (icon)
         shareable_icon = icon->to_shareable_bitmap();
-    client().async_did_request_show_notification(m_id, notification_id, data, move(shareable_icon));
+    client().async_did_request_show_notification(m_id, notification_id, document_id, data, move(shareable_icon));
 }
 
 void PageClient::page_did_request_close_notification(u64 notification_id)

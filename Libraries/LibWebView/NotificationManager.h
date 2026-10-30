@@ -37,7 +37,8 @@ public:
     // The longest side an icon may have by the time it reaches a backend; a renderer sending more is misbehaving.
     static constexpr int icon_maximum_side = 128;
 
-    void show(WebContentPage&, u64 page_notification_id, Web::NotificationsAPI::NotificationData, RefPtr<Gfx::Bitmap const> icon);
+    // The origin is the top-level origin of the document the notification came from, as the UI process knows it.
+    void show(WebContentPage&, u64 page_notification_id, URL::Origin top_level_origin, Web::NotificationsAPI::NotificationData, RefPtr<Gfx::Bitmap const> icon);
     void close(WebContentPage&, u64 page_notification_id);
     // The page's document is gone: The notification stays up, and a click on it opens the site in a new tab.
     void abandon(WebContentPage&, u64 page_notification_id);

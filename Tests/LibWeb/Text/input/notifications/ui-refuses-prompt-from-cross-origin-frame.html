@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>iframe { position: absolute; top: 0; left: 0; width: 200px; height: 100px; border: 0; }</style>
+<script>
+    // The UI process refuses a notifications prompt for a document whose origin isn't its top-level origin, whatever
+    // the renderer says: the frame asks through the Permissions request directly, skipping the Notification API's own
+    // refusals, and still gets no prompt and no grant for the top-level site.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const frameURL = new URL(await server.createEcho("GET", "/notifications/ui-gate-frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                internals.requestPermission("notifications").then(state => parent.postMessage(state, "*"));
+            <\/script>`,
+        }));
+        frameURL.hostname = uniqueLocalhostHostname("notifications-ui-gate-cross-origin");
+
+        internals.setNextPermissionPromptOutcome("notifications", "allow");
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL.href;
+        const result = await new Promise(resolve => {
+            setTimeout(() => resolve("no answer"), 2000);
+            addEventListener("message", event => resolve(event.data));
+            document.body.appendChild(iframe);
+        });
+        println(`frame's request: ${result}`);
+        println(`top-level permission: ${Notification.permission}`);
+        done();
+    });
+</script>

@@ -487,7 +487,7 @@ void Notification::display()
     //     across pages, replaces it on the platform, and reports its close back through notification_closed().
     //     Here, the notification joins this page's part of the list and is sent off for display.
     m_state = State::Showing;
-    m_page->client().page_did_request_show_notification(m_id, data(), m_icon_resource);
+    m_page->client().page_did_request_show_notification(m_id, document->id(), data(), m_icon_resource);
 
     // 8. If notification is a non-persistent notification, then queue a task to fire an event named show on the
     //    Notification object representing notification.

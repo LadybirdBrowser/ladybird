@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The UI process checks the permission when the notification reaches it, not when the page created it: a site
+    // blocked while its notification was still fetching its icon gets error, and nothing is shown.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const server = httpTestServer();
+        const slowIcon = await server.createEcho("GET", "/notifications/slow-icon-blocked.png", {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+            delay_ms: 1000,
+        });
+
+        const notification = new Notification("Blocked mid-fetch", { icon: slowIcon });
+        const outcome = new Promise(resolve => {
+            notification.onshow = () => resolve("show");
+            notification.onerror = () => resolve("error");
+        });
+        // The permission check at creation runs in a task; let it pass, and the icon fetch start, before blocking.
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await internals.setPermission("notifications", "denied");
+        println(`outcome: ${await outcome}`);
+        const state = JSON.parse(internals.notificationsStateForTesting());
+        println(`shown: ${state.shown.length}`);
+        done();
+    });
+</script>
