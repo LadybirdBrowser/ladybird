@@ -32,6 +32,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace Core::System {
 
+static constexpr int socket_buffer_size = 64 * 1024;
+
+static int set_buffer_sizes(SOCKET socket)
+{
+    if (::setsockopt(socket, SOL_SOCKET, SO_SNDBUF, reinterpret_cast<char const*>(&socket_buffer_size), sizeof(socket_buffer_size)) == SOCKET_ERROR)
+        return SOCKET_ERROR;
+    return ::setsockopt(socket, SOL_SOCKET, SO_RCVBUF, reinterpret_cast<char const*>(&socket_buffer_size), sizeof(socket_buffer_size));
+}
+
 int windows_socketpair(SOCKET socks[2], int make_overlapped)
 {
     union {
@@ -65,6 +74,9 @@ int windows_socketpair(SOCKET socks[2], int make_overlapped)
     for (;;) {
         if (::setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, (char*)&reuse, (socklen_t)sizeof(reuse)) == -1)
             break;
+        // Accepted sockets take their buffer sizes from the listener.
+        if (set_buffer_sizes(listener) == SOCKET_ERROR)
+            break;
         if (bind(listener, &a.addr, sizeof(a.inaddr)) == SOCKET_ERROR)
             break;
 
@@ -81,6 +93,8 @@ int windows_socketpair(SOCKET socks[2], int make_overlapped)
 
         socks[0] = WSASocketW(AF_INET, SOCK_STREAM, 0, NULL, 0, flags);
         if (socks[0] == INVALID_SOCKET)
+            break;
+        if (set_buffer_sizes(socks[0]) == SOCKET_ERROR)
             break;
         if (connect(socks[0], &a.addr, sizeof(a.inaddr)) == SOCKET_ERROR)
             break;
