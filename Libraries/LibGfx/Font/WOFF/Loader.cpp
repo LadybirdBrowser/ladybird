@@ -163,10 +163,18 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface>> try_load_from_bytes(ReadonlyBytes buffer, 
         if (entry.comp_length < entry.orig_length) {
             auto compressed_data_stream = make<FixedMemoryStream>(buffer.slice(entry.offset, entry.comp_length));
             auto decompressor = TRY(Compress::ZlibDecompressor::create(move(compressed_data_stream)));
-            auto decompressed = TRY(decompressor->read_until_eof());
-            if (entry.orig_length != decompressed.size())
+            // NB: Decompress straight into the table's slot, so the output never grows past orig_length.
+            Bytes table_data { font_buffer_data + font_buffer_offset, entry.orig_length };
+            size_t decompressed_size = 0;
+            while (decompressed_size < table_data.size() && !decompressor->is_eof())
+                decompressed_size += TRY(decompressor->read_some(table_data.slice(decompressed_size))).size();
+            if (decompressed_size != entry.orig_length)
                 return Error::from_string_literal("Invalid decompressed WOFF table length");
-            memcpy(font_buffer_data + font_buffer_offset, decompressed.data(), entry.orig_length);
+            while (!decompressor->is_eof()) {
+                u8 extra_byte;
+                if (!TRY(decompressor->read_some({ &extra_byte, 1 })).is_empty())
+                    return Error::from_string_literal("Invalid decompressed WOFF table length");
+            }
         } else {
             if (entry.comp_length != entry.orig_length)
                 return Error::from_string_literal("Invalid uncompressed WOFF table length");
