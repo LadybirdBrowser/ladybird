@@ -1149,9 +1149,8 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
 WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
     // 1. Return ? StructuredSerializeInternal(value, false).
-    SerializationMemory memory = {};
     auto serialized = StructuredSerializeWriter::create_ipc();
-    TRY(structured_serialize_internal(vm, serialized, value, false, memory, allow_shared_array_buffers));
+    TRY(structured_serialize_internal(vm, serialized, value, false, nullptr, allow_shared_array_buffers));
     return serialized.take_ipc_record();
 }
 
@@ -1162,10 +1161,9 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
 WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, Vector<Core::AnonymousBuffer>& shared_buffers)
 {
     // 1. Return ? StructuredSerializeInternal(value, false).
-    SerializationMemory memory = {};
     auto serialized = StructuredSerializeWriter::create_ipc();
     serialized.enable_shared_buffers();
-    TRY(structured_serialize_internal(vm, serialized, value, false, memory));
+    TRY(structured_serialize_internal(vm, serialized, value, false));
     shared_buffers = serialized.take_shared_buffers();
     return serialized.take_ipc_record();
 }
@@ -1174,9 +1172,8 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
 WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM& vm, JS::Value value)
 {
     // 1. Return ? StructuredSerializeInternal(value, true).
-    SerializationMemory memory = {};
     auto serialized = StructuredSerializeWriter::create_storage();
-    TRY(structured_serialize_internal(vm, serialized, value, true, memory));
+    TRY(structured_serialize_internal(vm, serialized, value, true));
     return serialized.take_storage_record();
 }
 
@@ -1189,40 +1186,34 @@ StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory& memory, AllowSharedArrayBuffers allow_shared_array_buffers)
+WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSerializeWriter& serialized, JS::Value value, bool for_storage, SerializationMemory* memory, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
-    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_internal(JS::HostABI::vm_to_abi(vm), &serialized, JS::HostABI::value_to_abi(value), for_storage, &memory, to_underlying(allow_shared_array_buffers))));
+    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize_internal(JS::HostABI::vm_to_abi(vm), &serialized, JS::HostABI::value_to_abi(value), for_storage, memory, to_underlying(allow_shared_array_buffers))));
     return {};
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory, Vector<Core::AnonymousBuffer> const* shared_buffers)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Vector<Core::AnonymousBuffer> const* shared_buffers)
 {
     TemporaryExecutionContext execution_context { target_realm };
-
-    if (!memory.has_value())
-        memory = DeserializationMemory {};
 
     StructuredSerializeReader decoder { serialized };
     if (shared_buffers)
         decoder.set_shared_buffers(*shared_buffers);
-    return structured_deserialize_internal(vm, decoder, target_realm, *memory);
+    return structured_deserialize_internal(vm, decoder, target_realm);
 }
 
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, StorageSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, StorageSerializationRecord const& serialized, JS::Realm& target_realm)
 {
     TemporaryExecutionContext execution_context { target_realm };
 
-    if (!memory.has_value())
-        memory = DeserializationMemory {};
-
     StructuredSerializeReader decoder { serialized };
-    return structured_deserialize_internal(vm, decoder, target_realm, *memory, CheckFullyConsumed::Yes);
+    return structured_deserialize_internal(vm, decoder, target_realm, nullptr, CheckFullyConsumed::Yes);
 }
 
-WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM& vm, StructuredSerializeReader& serialized, JS::Realm& target_realm, DeserializationMemory& memory, CheckFullyConsumed check_fully_consumed)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM& vm, StructuredSerializeReader& serialized, JS::Realm& target_realm, DeserializationMemory* memory, CheckFullyConsumed check_fully_consumed)
 {
-    return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize_internal(JS::HostABI::vm_to_abi(vm), &target_realm, &serialized, &memory, check_fully_consumed == CheckFullyConsumed::Yes)));
+    return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize_internal(JS::HostABI::vm_to_abi(vm), &target_realm, &serialized, memory, check_fully_consumed == CheckFullyConsumed::Yes)));
 }
 
 TransferDataDecoder::TransferDataDecoder(IPCSerializationRecord const& record)

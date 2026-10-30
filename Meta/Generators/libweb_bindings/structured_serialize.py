@@ -224,7 +224,7 @@ Optional<SerializablePlatformObject> serializable_from_object(JS::Object& object
     }
 }
 
-WebIDL::ExceptionOr<void> SerializablePlatformObject::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory) const
+WebIDL::ExceptionOr<void> SerializablePlatformObject::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory* memory) const
 {
     [[maybe_unused]] RustSerializationWriter writer { .realm = *realm, .serialized = serialized, .for_storage = for_storage, .memory = memory };
     switch (interface_name) {
@@ -258,7 +258,7 @@ bool serializable_interface_is_implemented_in_rust(InterfaceName interface_name)
     }
 }
 
-WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName interface_name, JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
+WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName interface_name, JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory* memory)
 {
     [[maybe_unused]] RustSerializationReader reader { .realm = realm, .serialized = serialized, .memory = memory };
     switch (interface_name) {

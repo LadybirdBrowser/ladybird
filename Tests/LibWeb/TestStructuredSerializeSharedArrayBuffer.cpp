@@ -243,8 +243,7 @@ TEST_CASE(storage_serialization_rejects_shared_array_buffers_even_when_same_agen
     auto source = make_shared_array_buffer(source_realm(), "not for storage"sv.bytes());
 
     auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    Web::HTML::SerializationMemory memory;
-    auto result = Web::HTML::structured_serialize_internal(vm, writer, JS::Value { source.ptr() }, true, memory, Web::HTML::AllowSharedArrayBuffers::SameAgentAlways);
+    auto result = Web::HTML::structured_serialize_internal(vm, writer, JS::Value { source.ptr() }, true, nullptr, Web::HTML::AllowSharedArrayBuffers::SameAgentAlways);
     EXPECT(result.is_error());
 }
 

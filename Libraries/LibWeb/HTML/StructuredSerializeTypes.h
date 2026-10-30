@@ -8,9 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/ByteBuffer.h>
-#include <AK/HashMap.h>
 #include <AK/Vector.h>
-#include <LibGC/Root.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
@@ -18,8 +16,10 @@
 
 namespace Web::HTML {
 
-using DeserializationMemory = GC::RootVector<JS::Value>;
-using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
+// The memories of a structured serialization and deserialization, which the Rust implementation keeps, and which C++
+// only passes on to the serializations of the values that the serialization steps of a platform object hold.
+struct SerializationMemory;
+struct DeserializationMemory;
 
 enum class SerializationType : u8 {
     IPC,
