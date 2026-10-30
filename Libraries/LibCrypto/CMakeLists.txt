@@ -7,7 +7,6 @@ set(SOURCES
     ASN1/PEM.cpp
     Authentication/HMAC.cpp
     Authentication/KMAC.cpp
-    BigFraction/BigFraction.cpp
     BigInt/SignedBigInteger.cpp
     BigInt/UnsignedBigInteger.cpp
     Certificate/Certificate.cpp
