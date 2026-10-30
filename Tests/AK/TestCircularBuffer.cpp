@@ -328,18 +328,3 @@ TEST_CASE(offset_of_with_until_and_after_wrapping_around)
     result = circular_buffer.offset_of("Well "sv, 14, 19);
     EXPECT_EQ(result.value_or(42), 14ul);
 }
-
-BENCHMARK_CASE(looping_copy_from_seekback)
-{
-    auto circular_buffer = MUST(CircularBuffer::create_empty(16 * MiB));
-
-    {
-        auto written_bytes = circular_buffer.write("\0"sv.bytes());
-        EXPECT_EQ(written_bytes, 1ul);
-    }
-
-    {
-        auto copied_bytes = TRY_OR_FAIL(circular_buffer.copy_from_seekback(1, 15 * MiB));
-        EXPECT_EQ(copied_bytes, 15 * MiB);
-    }
-}

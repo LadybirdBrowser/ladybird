@@ -30,12 +30,6 @@ public:
     ErrorOr<size_t> fill_from_stream(Stream&);
     ErrorOr<size_t> flush_to_stream(Stream&);
 
-    /// Compared to `read()`, this starts reading from an offset that is `distance` bytes
-    /// before the current write pointer and allows for reading already-read data.
-    ErrorOr<Bytes> read_with_seekback(Bytes bytes, size_t distance) const;
-
-    ErrorOr<size_t> copy_from_seekback(size_t distance, size_t length);
-
     [[nodiscard]] size_t empty_space() const;
     [[nodiscard]] size_t used_space() const;
     [[nodiscard]] size_t capacity() const;
@@ -44,20 +38,18 @@ public:
 
     void clear();
 
-protected:
+private:
     CircularBuffer(ByteBuffer);
 
     [[nodiscard]] bool is_wrapping_around() const;
 
     [[nodiscard]] Bytes next_write_span();
     [[nodiscard]] ReadonlyBytes next_read_span(size_t offset = 0) const;
-    [[nodiscard]] ReadonlyBytes next_seekback_span(size_t distance) const;
 
     ByteBuffer m_buffer {};
 
     size_t m_reading_head {};
     size_t m_used_space {};
-    size_t m_seekback_limit {};
 };
 
 }
