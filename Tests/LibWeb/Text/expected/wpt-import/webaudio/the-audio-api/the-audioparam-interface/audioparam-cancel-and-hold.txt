@@ -34,7 +34,7 @@ Pass	  Expected value for cancelling linearRampToValueAtTime: linearRampToValue(
 Pass	< [linear] All assertions passed. (total 3 assertions)
 Pass	> [exponential] Cancel exponentialRampAtTime
 Pass	  exponentialRampToValue(0.001, 0.5) up to time 0.25 equals [0,0.0020833334419876337,0.004166666883975267,0.0062500000931322575,0.008333333767950535,0.010416666977107525,0.012500000186264515,0.014583333395421505,0.01666666753590107,0.01875000074505806,0.02083333395421505,0.02291666716337204,0.02500000037252903,0.02708333358168602,0.02916666679084301,0.03125...] with an element-wise tolerance of {"absoluteThreshold":5.9605e-8,"relativeThreshold":0}.
-Pass	  Cancelling exponentialRampToValue(0.001, 0.5) at time 0.25 contains only the constant 0.033932220190763474.
+Pass	  Cancelling exponentialRampToValue(0.001, 0.5) at time 0.25 contains only the constant 0.033932216465473175.
 Pass	  Expected value for cancelling exponentialRampToValue(0.001, 0.5) at time 0.25 is 0.033932216465473175 within an error of 0.0000018664.
 Pass	< [exponential] All assertions passed. (total 3 assertions)
 Pass	> [setTarget] Cancel setTargetAtTime
