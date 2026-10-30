@@ -1,9 +1,14 @@
 const defaultZoomLevel = document.querySelector("#default-zoom-level");
 const enableForceDark = document.querySelector("#enable-force-dark");
+const forceDarkSites = document.querySelector("#force-dark-sites");
 
 let CONTENT = {};
+let forceDarkSitesReadOnly = false;
 
 const loadSettings = settings => {
+    if (Object.hasOwn(settings, "forceDarkSitesReadOnly")) {
+        forceDarkSitesReadOnly = settings.forceDarkSitesReadOnly;
+    }
     if (!Object.hasOwn(settings, "content")) {
         return;
     }
@@ -18,6 +23,24 @@ const loadSettings = settings => {
     }
 
     enableForceDark.checked = !!CONTENT.enableForceDark;
+    forceDarkSites.replaceChildren();
+    const choices = Object.entries(CONTENT.forceDarkPerHost || {}).sort(([a], [b]) => a.localeCompare(b));
+    forceDarkSites.hidden = choices.length === 0;
+    for (const [host, enabled] of choices) {
+        const row = document.createElement("div");
+        row.className = "dialog-list-item";
+        row.dataset.host = host;
+        const label = document.createElement("span");
+        label.className = "dialog-list-item-label";
+        label.textContent = `${host}: ${enabled ? "On" : "Off"}`;
+        const reset = document.createElement("button");
+        reset.textContent = "Use default";
+        reset.disabled = forceDarkSitesReadOnly;
+        reset.setAttribute("aria-label", `Use default force-dark setting for ${host}`);
+        reset.addEventListener("click", () => ladybird.sendMessage("resetForceDarkForHost", host));
+        row.append(label, reset);
+        forceDarkSites.appendChild(row);
+    }
 };
 
 const ZOOM_LEVEL_FACTORS = [1 / 3.0, 0.5, 2 / 3.0, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0, 5.0];

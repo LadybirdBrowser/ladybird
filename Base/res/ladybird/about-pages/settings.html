@@ -297,7 +297,8 @@
                 flex-grow: 1;
             }
 
-            dialog .dialog-list-item {
+            dialog .dialog-list-item,
+            #force-dark-sites .dialog-list-item {
                 padding: 10px;
 
                 display: flex;
@@ -305,7 +306,8 @@
                 align-items: center;
             }
 
-            dialog .dialog-list-item:hover {
+            dialog .dialog-list-item:hover,
+            #force-dark-sites .dialog-list-item:hover {
                 background-color: var(--control);
             }
 
@@ -314,8 +316,22 @@
                 opacity: 0.6;
             }
 
-            dialog .dialog-list-item-label {
+            dialog .dialog-list-item-label,
+            #force-dark-sites .dialog-list-item-label {
                 flex-grow: 1;
+            }
+
+            #force-dark-sites .dialog-list-item {
+                gap: 16px;
+            }
+
+            #force-dark-sites .dialog-list-item-label {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            #force-dark-sites button {
+                flex-shrink: 0;
             }
 
             dialog .dialog-controls {
@@ -798,6 +814,7 @@
                             </label>
                             <input id="enable-force-dark" type="checkbox" switch />
                         </div>
+                        <div id="force-dark-sites" class="card-group" aria-label="Sites with a force-dark choice"></div>
                     </div>
                 </div>
 
