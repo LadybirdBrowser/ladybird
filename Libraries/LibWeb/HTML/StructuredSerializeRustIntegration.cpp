@@ -40,6 +40,8 @@ using namespace Web::HTML;
 
 extern "C" {
 
+StructuredSerializeWriter* web_structured_serialize_writer_create_for_transfer();
+void web_structured_serialize_writer_destroy(StructuredSerializeWriter*);
 u8 web_structured_serialize_writer_type(StructuredSerializeWriter*);
 void web_structured_serialize_writer_encode_u8(StructuredSerializeWriter*, u8);
 void web_structured_serialize_writer_encode_bool(StructuredSerializeWriter*, bool);
@@ -119,6 +121,9 @@ void web_structured_serialize_transfer_data_holder_encode_u8(TransferDataEncoder
 void web_structured_serialize_transfer_data_holder_encode_bytes(TransferDataEncoder*, ReadonlyBytes);
 void web_structured_serialize_transfer_data_holder_encode_size(TransferDataEncoder*, size_t);
 void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder*);
+SerializedTransferRecord* web_structured_serialize_transfer_record_create();
+void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
+void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord*, StructuredSerializeWriter*);
 void web_structured_serialize_transfer_record_append_data_holder(SerializedTransferRecord*, TransferDataEncoder*);
 size_t web_structured_serialize_transfer_record_data_holder_count(SerializedTransferRecord*);
 TransferDataDecoder* web_structured_serialize_transfer_record_take_data_holder(SerializedTransferRecord*, size_t index);
@@ -166,6 +171,20 @@ static JSCompletion decode_into(JS::Realm& realm, TransferDataDecoder& decoder, 
 static JS::ArrayBuffer& array_buffer_from_abi(JSObject* array_buffer)
 {
     return as<JS::ArrayBuffer>(*JS::HostABI::object_from_abi(array_buffer));
+}
+
+// The writer of the [[Serialized]] of a transfer: an IPC record, since the transfer may cross a process boundary, with
+// the shared memory of its SharedArrayBuffers on the side.
+StructuredSerializeWriter* web_structured_serialize_writer_create_for_transfer()
+{
+    auto* writer = new StructuredSerializeWriter(StructuredSerializeWriter::create_ipc());
+    writer->enable_shared_buffers();
+    return writer;
+}
+
+void web_structured_serialize_writer_destroy(StructuredSerializeWriter* writer)
+{
+    delete writer;
 }
 
 u8 web_structured_serialize_writer_type(StructuredSerializeWriter* writer)
@@ -673,6 +692,23 @@ void web_structured_serialize_transfer_data_holder_encode_size(TransferDataEncod
 void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder* data_holder)
 {
     delete data_holder;
+}
+
+SerializedTransferRecord* web_structured_serialize_transfer_record_create()
+{
+    return new SerializedTransferRecord;
+}
+
+void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord* record)
+{
+    delete record;
+}
+
+// Sets the record's [[Serialized]] to what the writer wrote, with the shared memory of the SharedArrayBuffers it shared.
+void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord* record, StructuredSerializeWriter* writer)
+{
+    record->serialized = writer->take_ipc_record();
+    record->shared_buffers = writer->take_shared_buffers();
 }
 
 void web_structured_serialize_transfer_record_append_data_holder(SerializedTransferRecord* record, TransferDataEncoder* data_holder)
