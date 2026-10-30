@@ -621,24 +621,24 @@
             ],
         },
         {
-            name: "rebuild for preserved whitespace",
+            name: "append preserved whitespace",
             markup: '<div class="parent preserve"><div class="tracked"></div><span>inline</span></div>',
             steps: [
-                { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
+                { name: "append whitespace", mutate: parent => parent.append(" ") },
             ],
         },
         {
-            name: "rebuild for non-ASCII whitespace",
+            name: "append non-ASCII whitespace",
             markup: '<div class="parent"><div class="tracked"></div></div>',
             steps: [
-                { name: "append no-break space", mutate: parent => parent.append("\u00a0"), preserve: false },
+                { name: "append no-break space", mutate: parent => parent.append("\u00a0") },
             ],
         },
         {
-            name: "rebuild for non-whitespace text",
+            name: "append non-whitespace text",
             markup: '<div class="parent"><div class="tracked"></div></div>',
             steps: [
-                { name: "append text", mutate: parent => parent.append("text"), preserve: false },
+                { name: "append text", mutate: parent => parent.append("text") },
             ],
         },
         {

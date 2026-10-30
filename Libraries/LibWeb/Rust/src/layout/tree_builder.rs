@@ -1075,11 +1075,16 @@ impl ChildListInsertionReuse<'_, '_> {
                     has_unboxed_existing_text = true;
                     continue;
                 }
-                let collapsed_whitespace_can_be_inserted = self.engine.tree().text_is_ascii_whitespace(child)
-                    && collapses_whitespace
-                    && !self.has_first_letter_owner
-                    && self.collapsing_whitespace_can_be_inserted(child);
-                if !collapsed_whitespace_can_be_inserted {
+                if !self.engine.tree().text_is_ascii_whitespace(child) || !collapses_whitespace {
+                    // Text that renders is inline-level content, which is appended as an inline element is.
+                    if !parent_lays_out_block_children || will_insert_block_child {
+                        return false;
+                    }
+                    will_insert_inline_child = true;
+                    has_inserted_child = true;
+                    continue;
+                }
+                if self.has_first_letter_owner || !self.collapsing_whitespace_can_be_inserted(child) {
                     return false;
                 }
                 inserted_whitespace_run_must_stay_last |= has_pending_collapsing_whitespace;
