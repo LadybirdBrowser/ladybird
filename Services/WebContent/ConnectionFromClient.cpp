@@ -1537,7 +1537,12 @@ static void append_grid_layouts_for_node_and_frame_descendants(Web::DOM::Node& r
         if (!content_navigable)
             return Web::TraversalDecision::Continue;
 
-        auto content_document = as<Web::HTML::LocalNavigable>(*content_navigable).active_document();
+        // A cross-site frame's document lives in another process, so its grids can't be inspected from here.
+        auto* local_content_navigable = as_if<Web::HTML::LocalNavigable>(*content_navigable);
+        if (!local_content_navigable)
+            return Web::TraversalDecision::Continue;
+
+        auto content_document = local_content_navigable->active_document();
         if (!content_document)
             return Web::TraversalDecision::Continue;
 
