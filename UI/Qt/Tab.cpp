@@ -1471,7 +1471,7 @@ void Tab::show_site_settings_popover()
         return;
 
     if (!m_site_settings_popover) {
-        m_site_settings_popover = new SiteSettingsPopover(this);
+        m_site_settings_popover = new SiteSettingsPopover(this, WebView::Application::settings());
         m_location_edit->follow_site_settings_popover(*m_site_settings_popover);
         m_site_settings_popover->on_content_blocking_toggle = [this](bool enabled) {
             auto snapshot = view().content_blocking_snapshot();
@@ -1506,6 +1506,8 @@ void Tab::show_site_settings_popover()
     m_site_settings_popover->update_chrome_style(palette());
     m_site_settings_popover->set_site({
         .host = url.host().has_value() ? MUST(String::from_utf8(url.serialized_host())) : origin.host().serialize(),
+        .force_dark_host = view().force_dark_host(),
+        .is_private = view().is_private() == WebView::IsPrivate::Yes,
         .is_secure = (url.host().has_value() ? url.scheme() : origin.scheme().value_or({})) == "https"sv,
         .favicon = m_favicon,
         .content_blocking = view().content_blocking_snapshot(),

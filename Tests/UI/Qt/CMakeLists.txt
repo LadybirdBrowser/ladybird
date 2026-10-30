@@ -56,6 +56,7 @@ set(TEST_SOURCES
     TestScreenshotSelectionOverlay.cpp
     TestScreenshotViewer.cpp
     TestSelectDropdown.cpp
+    TestSiteSettingsPopover.cpp
     TestWebCompatReportReview.cpp
     TestWebContentViewInputMethod.cpp
     "${LADYBIRD_SOURCE_DIR}/Libraries/LibWebView/ProcessMonitor.cpp"
@@ -70,6 +71,7 @@ set(TEST_SOURCES
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ScreenshotSelectionOverlay.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/ScreenshotViewer.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/SelectDropdown.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/SiteSettingsPopover.cpp"
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
     # The chrome's styles take their colors from the theme, which follows the system's appearance.
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/SystemAppearance.cpp"
