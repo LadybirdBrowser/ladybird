@@ -629,6 +629,7 @@ set(SOURCES
     HTML/Scripting/Agent.cpp
     HTML/Scripting/ClassicScript.cpp
     HTML/Scripting/ConsoleInputCompletion.cpp
+    HTML/Scripting/DevToolsLoggedObjects.cpp
     HTML/Scripting/DevToolsObjectTable.cpp
     HTML/Scripting/Environments.cpp
     HTML/Scripting/ExceptionReporter.cpp

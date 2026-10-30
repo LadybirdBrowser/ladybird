@@ -102,6 +102,7 @@ void DevToolsConsoleClient::visit_edges(JS::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_object_table.visit_edges(visitor);
+    m_logged_objects.visit_edges(visitor);
 }
 
 void DevToolsConsoleClient::handle_result(JS::Value result)
@@ -115,6 +116,8 @@ ErrorOr<WebView::DebuggerObjectProperties> DevToolsConsoleClient::properties_for
 {
     auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
     Web::HTML::TemporaryExecutionContext execution_context { settings.realm() };
+    if (m_logged_objects.contains(object_id))
+        return m_logged_objects.properties_for_object(object_id);
     return m_object_table.properties_for_object(object_id);
 }
 
@@ -204,11 +207,15 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
     auto output = TRY(generically_format_values(argument_values));
     m_console->output_debug_message(log_level, output);
 
+    // An attached DevTools client gets grips for the objects, which it may expand; otherwise they're printed.
     Vector<JsonValue> serialized_arguments;
-    serialized_arguments.ensure_capacity(argument_values.size());
-
-    for (auto value : argument_values)
-        serialized_arguments.unchecked_append(serialize_value(m_console->realm(), value));
+    if (m_client->has_devtools_client()) {
+        serialized_arguments = m_logged_objects.serialize_message_arguments(argument_values.span());
+    } else {
+        serialized_arguments.ensure_capacity(argument_values.size());
+        for (auto value : argument_values)
+            serialized_arguments.unchecked_append(serialize_value(m_console->realm(), value));
+    }
 
     send_console_output({
         .timestamp = UnixDateTime::now(),

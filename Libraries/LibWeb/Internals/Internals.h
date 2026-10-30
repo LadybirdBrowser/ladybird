@@ -13,6 +13,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/DevToolsLoggedObjects.h>
 #include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWeb/Internals/InternalAnimationTimeline.h>
 #include <LibWeb/Internals/InternalsBase.h>
@@ -137,6 +138,8 @@ public:
     Optional<Utf16String> generate_text_fragment_url(DOM::Range&, Utf16String const& current_url);
     Utf16String devtools_grip(JS::Value);
     Utf16String devtools_properties(JS::Value);
+    Utf16String devtools_log(GC::RootVector<JS::Value> const& arguments);
+    Utf16String devtools_logged_properties(u64 object_id);
     Optional<Vector<String>> complete_console_input(Utf16String const& input);
 
     void find_in_page(Utf16String const& query, bool highlight_all);
@@ -360,6 +363,7 @@ private:
     Optional<Utf16String> m_pending_action_test_result;
     Vector<GC::Ref<InternalGamepad>> m_gamepads;
     Optional<HTML::DevToolsObjectTable> m_devtools_object_table;
+    HTML::DevToolsLoggedObjects m_devtools_logged_objects;
 };
 
 }

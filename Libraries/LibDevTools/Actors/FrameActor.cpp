@@ -463,7 +463,12 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
             if (log.stacktrace.has_value())
                 message.set("stacktrace"sv, serialize_console_stacktrace(*log.stacktrace));
             message.set("timeStamp"sv, console_output.timestamp.milliseconds_since_epoch());
-            message.set("arguments"sv, JsonArray { move(log.arguments) });
+            // An object argument names the object by its ID, which needs an actor before the client can expand it.
+            JsonArray arguments;
+            auto thread = m_thread.strong_ref();
+            for (auto& argument : log.arguments)
+                arguments.must_append(thread ? thread->resolve_object_references(argument, WebView::DebuggerObjectScope::Console) : move(argument));
+            message.set("arguments"sv, move(arguments));
 
             console_messages.must_append(move(message));
         },

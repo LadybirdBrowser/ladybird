@@ -184,6 +184,7 @@ void Internals::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_gamepads);
     if (m_devtools_object_table.has_value())
         m_devtools_object_table->visit_edges(visitor);
+    m_devtools_logged_objects.visit_edges(visitor);
 }
 
 void Internals::signal_test_is_done(Utf16String const& text)
@@ -1178,6 +1179,32 @@ Utf16String Internals::devtools_properties(JS::Value value)
     if (auto const& prototype = properties.value().prototype; prototype.has_value())
         result.set("prototype"sv, prototype->type == WebView::DebuggerValueType::Object ? JsonValue { prototype->object_class } : JsonValue {});
     return Utf16String::from_utf8(result.serialized());
+}
+
+// The grips that the DevTools console shows for the arguments of one logged message. The objects stay in the same table
+// across calls, as they do for a document's console.
+Utf16String Internals::devtools_log(GC::RootVector<JS::Value> const& arguments)
+{
+    JsonArray grips;
+    for (auto& grip : m_devtools_logged_objects.serialize_message_arguments(arguments.span()))
+        grips.must_append(move(grip));
+    return Utf16String::from_utf8(grips.serialized());
+}
+
+// The names of the own properties of a logged object, if it's still kept.
+Utf16String Internals::devtools_logged_properties(u64 object_id)
+{
+    if (!m_devtools_logged_objects.contains(object_id))
+        return "not kept"_utf16;
+
+    auto properties = m_devtools_logged_objects.properties_for_object(object_id);
+    if (properties.is_error())
+        return Utf16String::from_utf8(properties.error().string_literal());
+
+    JsonArray names;
+    for (auto const& property : properties.value().properties)
+        names.must_append(property.name.to_utf8());
+    return Utf16String::from_utf8(names.serialized());
 }
 
 Optional<Vector<String>> Internals::complete_console_input(Utf16String const& input)

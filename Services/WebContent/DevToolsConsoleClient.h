@@ -11,6 +11,7 @@
 #include <LibJS/Console.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Scripting/DevToolsLoggedObjects.h>
 #include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWebCommon/WebView/ConsoleOutput.h>
 #include <WebContent/Forward.h>
@@ -28,6 +29,7 @@ public:
     virtual ~DevToolsConsoleClient() override;
 
     ErrorOr<WebView::DebuggerObjectProperties> properties_for_object(u64 object_id);
+    void forget_logged_objects() { m_logged_objects.clear(); }
 
 private:
     DevToolsConsoleClient(JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);
@@ -45,6 +47,9 @@ private:
 
     // The objects that the console's results hold, which DevTools may expand for as long as the document is shown.
     Web::HTML::DevToolsObjectTable m_object_table { Web::HTML::DevToolsObjectTable::RootObjects::No };
+
+    // The objects of the messages that the page logged while a DevTools client was attached.
+    Web::HTML::DevToolsLoggedObjects m_logged_objects;
 };
 
 }

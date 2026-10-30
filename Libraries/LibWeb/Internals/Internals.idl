@@ -129,6 +129,8 @@ interface Internals {
     DOMString? generateTextFragmentURL(Range range, USVString currentURL);
     DOMString devtoolsGrip(any value);
     DOMString devtoolsProperties(any value);
+    DOMString devtoolsLog(sequence<any> arguments);
+    DOMString devtoolsLoggedProperties(unsigned long long objectId);
     sequence<DOMString>? completeConsoleInput(DOMString input);
 
     // Drive marked/preedit-text composition via the same path platform input methods use. setMarkedTextFromInputMethod
