@@ -1570,16 +1570,16 @@ PRESERVED: overflow-y scroll -> auto on table-row-group in list-item | following
 PRESERVED: overflow-y scroll -> auto on table-row-group in list-item | following sibling descendant
 STATS: overflow-y scroll -> auto on table-row-group in list-item | no layout tree build
 PASS: overflow-y scroll -> auto on table-row-group in list-item | incremental tree matches full rebuild
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | fixture ancestor
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | distant sibling
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | distant sibling descendant
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | DOM parent
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | preceding sibling
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | preceding sibling descendant
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | fixture ancestor
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | distant sibling
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | distant sibling descendant
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | DOM parent
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | preceding sibling
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | preceding sibling descendant
 RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | target
 RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | target descendant
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | following sibling
-RECREATED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | following sibling descendant
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | following sibling
+PRESERVED: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | following sibling descendant
 STATS: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
 PASS: text-transform uppercase -> capitalize on table-row-group in -webkit-inline-box | incremental tree matches full rebuild
 RECREATED: content none -> normal on table-row-group in inline flow | fixture ancestor
@@ -1678,16 +1678,16 @@ ABSENT: content none -> normal on table-header-group in table-column-group | fol
 ABSENT: content none -> normal on table-header-group in table-column-group | following sibling descendant
 STATS: content none -> normal on table-header-group in table-column-group | rebuilt subtree roots=0, escaped=true
 PASS: content none -> normal on table-header-group in table-column-group | incremental tree matches full rebuild
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | fixture ancestor
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | distant sibling
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | distant sibling descendant
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | DOM parent
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | preceding sibling
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | preceding sibling descendant
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | fixture ancestor
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | distant sibling
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | distant sibling descendant
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | DOM parent
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | preceding sibling
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | preceding sibling descendant
 RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | target
 REMOVED: content-visibility visible -> hidden on table-footer-group in inline grid | target descendant
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | following sibling
-RECREATED: content-visibility visible -> hidden on table-footer-group in inline grid | following sibling descendant
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | following sibling
+PRESERVED: content-visibility visible -> hidden on table-footer-group in inline grid | following sibling descendant
 STATS: content-visibility visible -> hidden on table-footer-group in inline grid | rebuilt subtree roots=1, escaped=false
 PASS: content-visibility visible -> hidden on table-footer-group in inline grid | incremental tree matches full rebuild
 PRESERVED: overflow-x hidden -> clip on table-footer-group in run-in | fixture ancestor
@@ -1741,13 +1741,13 @@ PASS: overflow-y scroll -> auto on table-footer-group in block flow list-item | 
 PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | fixture ancestor
 PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | distant sibling
 PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | distant sibling descendant
-RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | DOM parent
-RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | preceding sibling
-RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | preceding sibling descendant
+PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | DOM parent
+PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | preceding sibling
+PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | preceding sibling descendant
 RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | target
 RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | target descendant
-RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | following sibling
-RECREATED: text-transform uppercase -> capitalize on table-footer-group in flex | following sibling descendant
+PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | following sibling
+PRESERVED: text-transform uppercase -> capitalize on table-footer-group in flex | following sibling descendant
 STATS: text-transform uppercase -> capitalize on table-footer-group in flex | rebuilt subtree roots=1, escaped=false
 PASS: text-transform uppercase -> capitalize on table-footer-group in flex | incremental tree matches full rebuild
 RECREATED: content none -> normal on table-footer-group in table-header-group | fixture ancestor

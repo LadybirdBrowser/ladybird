@@ -1930,16 +1930,16 @@ RECREATED: fixed none -> sticky right on table-cell in flow-root | following sib
 RECREATED: fixed none -> sticky right on table-cell in flow-root | following sibling descendant
 STATS: fixed none -> sticky right on table-cell in flow-root | rebuilt subtree roots=1, escaped=false
 PASS: fixed none -> sticky right on table-cell in flow-root | incremental tree matches full rebuild
-RECREATED: position relative -> sticky on table-column-group in inline flex | fixture ancestor
-RECREATED: position relative -> sticky on table-column-group in inline flex | distant sibling
-RECREATED: position relative -> sticky on table-column-group in inline flex | distant sibling descendant
-RECREATED: position relative -> sticky on table-column-group in inline flex | DOM parent
-RECREATED: position relative -> sticky on table-column-group in inline flex | preceding sibling
-RECREATED: position relative -> sticky on table-column-group in inline flex | preceding sibling descendant
+PRESERVED: position relative -> sticky on table-column-group in inline flex | fixture ancestor
+PRESERVED: position relative -> sticky on table-column-group in inline flex | distant sibling
+PRESERVED: position relative -> sticky on table-column-group in inline flex | distant sibling descendant
+PRESERVED: position relative -> sticky on table-column-group in inline flex | DOM parent
+PRESERVED: position relative -> sticky on table-column-group in inline flex | preceding sibling
+PRESERVED: position relative -> sticky on table-column-group in inline flex | preceding sibling descendant
 RECREATED: position relative -> sticky on table-column-group in inline flex | target
 RECREATED: position relative -> sticky on table-column-group in inline flex | target descendant
-RECREATED: position relative -> sticky on table-column-group in inline flex | following sibling
-RECREATED: position relative -> sticky on table-column-group in inline flex | following sibling descendant
+PRESERVED: position relative -> sticky on table-column-group in inline flex | following sibling
+PRESERVED: position relative -> sticky on table-column-group in inline flex | following sibling descendant
 STATS: position relative -> sticky on table-column-group in inline flex | rebuilt subtree roots=1, escaped=false
 PASS: position relative -> sticky on table-column-group in inline flex | incremental tree matches full rebuild
 PRESERVED: position fixed -> sticky on table-column-group in block | fixture ancestor
@@ -2098,16 +2098,16 @@ RECREATED: fixed none -> sticky right on table-column in run-in | following sibl
 RECREATED: fixed none -> sticky right on table-column in run-in | following sibling descendant
 STATS: fixed none -> sticky right on table-column in run-in | rebuilt subtree roots=1, escaped=false
 PASS: fixed none -> sticky right on table-column in run-in | incremental tree matches full rebuild
-RECREATED: position relative -> sticky on table-caption in inline grid | fixture ancestor
-RECREATED: position relative -> sticky on table-caption in inline grid | distant sibling
-RECREATED: position relative -> sticky on table-caption in inline grid | distant sibling descendant
-RECREATED: position relative -> sticky on table-caption in inline grid | DOM parent
-RECREATED: position relative -> sticky on table-caption in inline grid | preceding sibling
-RECREATED: position relative -> sticky on table-caption in inline grid | preceding sibling descendant
+PRESERVED: position relative -> sticky on table-caption in inline grid | fixture ancestor
+PRESERVED: position relative -> sticky on table-caption in inline grid | distant sibling
+PRESERVED: position relative -> sticky on table-caption in inline grid | distant sibling descendant
+PRESERVED: position relative -> sticky on table-caption in inline grid | DOM parent
+PRESERVED: position relative -> sticky on table-caption in inline grid | preceding sibling
+PRESERVED: position relative -> sticky on table-caption in inline grid | preceding sibling descendant
 RECREATED: position relative -> sticky on table-caption in inline grid | target
 RECREATED: position relative -> sticky on table-caption in inline grid | target descendant
-RECREATED: position relative -> sticky on table-caption in inline grid | following sibling
-RECREATED: position relative -> sticky on table-caption in inline grid | following sibling descendant
+PRESERVED: position relative -> sticky on table-caption in inline grid | following sibling
+PRESERVED: position relative -> sticky on table-caption in inline grid | following sibling descendant
 STATS: position relative -> sticky on table-caption in inline grid | rebuilt subtree roots=1, escaped=false
 PASS: position relative -> sticky on table-caption in inline grid | incremental tree matches full rebuild
 PRESERVED: position fixed -> sticky on table-caption in flow-root | fixture ancestor

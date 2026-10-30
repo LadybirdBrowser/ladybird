@@ -1741,13 +1741,13 @@ PASS: overflow-y auto -> hidden on table-footer-group in contents | incremental 
 PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | fixture ancestor
 PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | distant sibling
 PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | distant sibling descendant
-RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | DOM parent
-RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | preceding sibling
-RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | preceding sibling descendant
+PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | DOM parent
+PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | preceding sibling
+PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | preceding sibling descendant
 RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | target
 RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | target descendant
-RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | following sibling
-RECREATED: text-transform lowercase -> uppercase on table-footer-group in grid | following sibling descendant
+PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | following sibling
+PRESERVED: text-transform lowercase -> uppercase on table-footer-group in grid | following sibling descendant
 STATS: text-transform lowercase -> uppercase on table-footer-group in grid | rebuilt subtree roots=1, escaped=false
 PASS: text-transform lowercase -> uppercase on table-footer-group in grid | incremental tree matches full rebuild
 RECREATED: content none -> open-quote "replacement" close-quote on table-footer-group in table-row | fixture ancestor
@@ -2005,13 +2005,13 @@ PASS: text-transform lowercase -> uppercase on table-column-group in block flow 
 PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | fixture ancestor
 PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | distant sibling
 PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | distant sibling descendant
-RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | DOM parent
-RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | preceding sibling
-RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | preceding sibling descendant
+PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | DOM parent
+PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | preceding sibling
+PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | preceding sibling descendant
 RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | target
 RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | target descendant
-RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | following sibling
-RECREATED: content none -> open-quote "replacement" close-quote on table-column-group in flex | following sibling descendant
+PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | following sibling
+PRESERVED: content none -> open-quote "replacement" close-quote on table-column-group in flex | following sibling descendant
 STATS: content none -> open-quote "replacement" close-quote on table-column-group in flex | rebuilt subtree roots=1, escaped=false
 PASS: content none -> open-quote "replacement" close-quote on table-column-group in flex | incremental tree matches full rebuild
 RECREATED: content-visibility auto -> hidden on table-column in table-header-group | fixture ancestor

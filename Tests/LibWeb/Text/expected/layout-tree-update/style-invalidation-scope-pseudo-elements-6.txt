@@ -1489,13 +1489,13 @@ PASS: ::before change display inline flow list-item on table-header-group in tab
 PRESERVED: ::after remove grid on table-header-group in block grid | fixture ancestor
 PRESERVED: ::after remove grid on table-header-group in block grid | distant sibling
 PRESERVED: ::after remove grid on table-header-group in block grid | distant sibling descendant
-RECREATED: ::after remove grid on table-header-group in block grid | DOM parent
-RECREATED: ::after remove grid on table-header-group in block grid | preceding sibling
-RECREATED: ::after remove grid on table-header-group in block grid | preceding sibling descendant
+PRESERVED: ::after remove grid on table-header-group in block grid | DOM parent
+PRESERVED: ::after remove grid on table-header-group in block grid | preceding sibling
+PRESERVED: ::after remove grid on table-header-group in block grid | preceding sibling descendant
 RECREATED: ::after remove grid on table-header-group in block grid | target
 RECREATED: ::after remove grid on table-header-group in block grid | target descendant
-RECREATED: ::after remove grid on table-header-group in block grid | following sibling
-RECREATED: ::after remove grid on table-header-group in block grid | following sibling descendant
+PRESERVED: ::after remove grid on table-header-group in block grid | following sibling
+PRESERVED: ::after remove grid on table-header-group in block grid | following sibling descendant
 STATS: ::after remove grid on table-header-group in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after remove grid on table-header-group in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove table-column-group on table-header-group in list-item | fixture ancestor
@@ -1789,13 +1789,13 @@ PASS: ::before change display inline grid on table-column-group in table-footer-
 PRESERVED: ::after remove list-item on table-column-group in block grid | fixture ancestor
 PRESERVED: ::after remove list-item on table-column-group in block grid | distant sibling
 PRESERVED: ::after remove list-item on table-column-group in block grid | distant sibling descendant
-RECREATED: ::after remove list-item on table-column-group in block grid | DOM parent
-RECREATED: ::after remove list-item on table-column-group in block grid | preceding sibling
-RECREATED: ::after remove list-item on table-column-group in block grid | preceding sibling descendant
+PRESERVED: ::after remove list-item on table-column-group in block grid | DOM parent
+PRESERVED: ::after remove list-item on table-column-group in block grid | preceding sibling
+PRESERVED: ::after remove list-item on table-column-group in block grid | preceding sibling descendant
 RECREATED: ::after remove list-item on table-column-group in block grid | target
 RECREATED: ::after remove list-item on table-column-group in block grid | target descendant
-RECREATED: ::after remove list-item on table-column-group in block grid | following sibling
-RECREATED: ::after remove list-item on table-column-group in block grid | following sibling descendant
+PRESERVED: ::after remove list-item on table-column-group in block grid | following sibling
+PRESERVED: ::after remove list-item on table-column-group in block grid | following sibling descendant
 STATS: ::after remove list-item on table-column-group in block grid | rebuilt subtree roots=1, escaped=false
 PASS: ::after remove list-item on table-column-group in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove table-header-group on table-column-group in list-item | fixture ancestor

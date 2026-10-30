@@ -1738,16 +1738,16 @@ PRESERVED: overflow-y auto -> visible on table-footer-group in inline flow list-
 PRESERVED: overflow-y auto -> visible on table-footer-group in inline flow list-item | following sibling descendant
 STATS: overflow-y auto -> visible on table-footer-group in inline flow list-item | no layout tree build
 PASS: overflow-y auto -> visible on table-footer-group in inline flow list-item | incremental tree matches full rebuild
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | fixture ancestor
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | distant sibling
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | distant sibling descendant
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | DOM parent
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | preceding sibling
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | preceding sibling descendant
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | fixture ancestor
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | distant sibling
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | distant sibling descendant
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | DOM parent
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | preceding sibling
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | preceding sibling descendant
 RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | target
 RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | target descendant
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | following sibling
-RECREATED: text-transform lowercase -> none on table-footer-group in inline-flex | following sibling descendant
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | following sibling
+PRESERVED: text-transform lowercase -> none on table-footer-group in inline-flex | following sibling descendant
 STATS: text-transform lowercase -> none on table-footer-group in inline-flex | rebuilt subtree roots=1, escaped=false
 PASS: text-transform lowercase -> none on table-footer-group in inline-flex | incremental tree matches full rebuild
 RECREATED: content none -> "replacement" on table-footer-group in table-footer-group | fixture ancestor
