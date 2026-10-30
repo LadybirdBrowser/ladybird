@@ -11,6 +11,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::member::Member;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{construct, ordinary_create_from_constructor_of};
@@ -26,10 +27,12 @@ use crate::runtime::promise::Promise;
 #[derive(Trace)]
 pub struct PromiseCapability {
     header: CellHeader,
-    promise: Cell<Gc<Object>>,
-    resolve: Cell<Gc<FunctionObject>>,
-    reject: Cell<Gc<FunctionObject>>,
+    promise: Member<Object>,
+    resolve: Member<FunctionObject>,
+    reject: Member<FunctionObject>,
 }
+
+const _: () = assert!(size_of::<PromiseCapability>() == 24);
 
 define_cell!(PromiseCapability, Other);
 
@@ -42,9 +45,9 @@ impl PromiseCapability {
     ) -> Gc<PromiseCapability> {
         vm.heap().allocate(|_| PromiseCapability {
             header: CellHeader::for_class(Self::CLASS),
-            promise: Cell::new(promise),
-            resolve: Cell::new(resolve),
-            reject: Cell::new(reject),
+            promise: Member::new(promise),
+            resolve: Member::new(resolve),
+            reject: Member::new(reject),
         })
     }
 

@@ -14,6 +14,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::member::NullableMember;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::ordinary_create_from_constructor_of;
@@ -140,12 +141,14 @@ pub struct RegExpObject {
     flag_bits: Cell<RegExpFlags>,
     #[gc(untraced)]
     legacy_features_enabled: Cell<bool>, // [[LegacyFeaturesEnabled]]
+    // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
+    realm: NullableMember<Realm>, // [[Realm]]
     /// The compiled pattern, which RegExp objects with the same pattern and flags share through the regex cache.
     #[gc(untraced)]
     cached_regex: RefCell<Option<Rc<EcmaScriptRegex>>>,
-    // Note: This is initialized in RegExpAlloc, but will be non-null afterwards
-    realm: Cell<Option<Gc<Realm>>>, // [[Realm]]
 }
+
+const _: () = assert!(size_of::<RegExpObject>() == 128);
 
 static REGEXP_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: RegExpObject::initialize,
@@ -200,7 +203,7 @@ impl RegExpObject {
             flag_bits: Cell::new(flag_bits),
             legacy_features_enabled: Cell::new(false),
             cached_regex: RefCell::new(None),
-            realm: Cell::new(None),
+            realm: NullableMember::null(),
         });
         regexp_object.initialize_direct(NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET, Value::from_i32(0));
         regexp_object
@@ -215,7 +218,7 @@ impl RegExpObject {
             flag_bits: Cell::new(flag_bits),
             legacy_features_enabled: Cell::new(false),
             cached_regex: RefCell::new(None),
-            realm: Cell::new(None),
+            realm: NullableMember::null(),
         }
     }
 

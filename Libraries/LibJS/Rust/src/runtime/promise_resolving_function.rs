@@ -12,6 +12,7 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::member::{Member, NullableMember};
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -33,12 +34,14 @@ pub enum PromiseResolvingFunctionKind {
 #[derive(Trace)]
 pub struct PromiseResolvingFunction {
     base: NativeFunction,
-    promise: Cell<Gc<Promise>>,
-    resolve_function: Cell<Option<Gc<PromiseResolvingFunction>>>,
+    promise: Member<Promise>,
+    resolve_function: NullableMember<PromiseResolvingFunction>,
     already_resolved: Cell<bool>,
     #[gc(untraced)]
     kind: PromiseResolvingFunctionKind,
 }
+
+const _: () = assert!(size_of::<PromiseResolvingFunction>() == 120);
 
 static PROMISE_RESOLVING_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {
     call: PromiseResolvingFunction::call,
@@ -105,8 +108,8 @@ impl PromiseResolvingFunction {
     ) -> PromiseResolvingFunction {
         PromiseResolvingFunction {
             base: NativeFunction::new_with_prototype(vm, Self::CLASS, prototype),
-            promise: Cell::new(promise),
-            resolve_function: Cell::new(resolve_function),
+            promise: Member::new(promise),
+            resolve_function: NullableMember::new(resolve_function),
             already_resolved: Cell::new(false),
             kind,
         }
