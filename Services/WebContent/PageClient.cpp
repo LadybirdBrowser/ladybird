@@ -1399,6 +1399,25 @@ void PageClient::page_did_set_next_permission_prompt_outcome_for_testing(String 
         (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::SetNextPermissionPromptOutcomeForTesting>(m_id, name, outcome, held);
 }
 
+void PageClient::page_did_set_system_microphone_authorization_for_testing(String const& authorization, String const& answer, bool held)
+{
+    if (auto* test_connection = client().test_connection())
+        (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::SetSystemMicrophoneAuthorizationForTesting>(m_id, authorization, answer, held);
+}
+
+void PageClient::page_did_release_system_microphone_answer_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        (void)test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::ReleaseSystemMicrophoneAnswerForTesting>(m_id);
+}
+
+String PageClient::page_did_request_microphone_state_for_testing()
+{
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_microphone_state_for_testing(m_id);
+    return "{}"_string;
+}
+
 void PageClient::page_did_release_held_permission_prompt_for_testing(u32 waiters)
 {
     if (auto* test_connection = client().test_connection())

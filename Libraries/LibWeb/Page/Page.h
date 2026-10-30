@@ -918,6 +918,9 @@ public:
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_request_permission_snapshot([[maybe_unused]] URL::Origin const& top_level_origin) { return {}; }
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_set_permission_for_testing([[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] String const& name, [[maybe_unused]] String const& state) { return {}; }
     virtual void page_did_set_next_permission_prompt_outcome_for_testing([[maybe_unused]] String const& name, [[maybe_unused]] String const& outcome, [[maybe_unused]] bool held) { }
+    virtual void page_did_set_system_microphone_authorization_for_testing([[maybe_unused]] String const& authorization, [[maybe_unused]] String const& answer, [[maybe_unused]] bool held) { }
+    virtual void page_did_release_system_microphone_answer_for_testing() { }
+    virtual String page_did_request_microphone_state_for_testing() { return "{}"_string; }
     virtual void page_did_release_held_permission_prompt_for_testing([[maybe_unused]] u32 waiters) { }
     virtual Optional<Web::Permissions::PermissionSnapshot> page_did_advance_permission_clock_for_testing([[maybe_unused]] u64 milliseconds) { return {}; }
     virtual void page_did_request_show_notification([[maybe_unused]] u64 notification_id, [[maybe_unused]] HTML::CrossProcessId document_id, [[maybe_unused]] NotificationsAPI::NotificationData const&, [[maybe_unused]] RefPtr<Gfx::Bitmap const> icon) { }

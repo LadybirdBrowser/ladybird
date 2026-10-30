@@ -1001,7 +1001,7 @@ bool WebContentClient::page_may_capture_audio(WebContentPage const& page) const
     return session().permission_manager->effective_state(Web::Permissions::PermissionName::Microphone, origin) == Web::Permissions::EffectiveState::Granted;
 }
 
-bool WebContentClient::audio_capture_permitted() const
+WebContentPage* WebContentClient::page_permitting_audio_capture() const
 {
     // A tab's grant reaches only the documents whose permissions policy allows them the microphone. The process may
     // capture if it hosts one, as it can act for any document it hosts.
@@ -1010,14 +1010,37 @@ bool WebContentClient::audio_capture_permitted() const
         if (!page->is_open() || !page_may_capture_audio(*page))
             continue;
         if (page->hosts_a_document_allowed_to_use(Web::PermissionsPolicy::PolicyControlledFeature::Microphone))
-            return true;
+            return page.ptr();
     }
-    return false;
+    return nullptr;
 }
 
 void WebContentClient::decide_audio_capture_request(u64 request_id)
 {
-    m_audio_server_client->async_capture_decided(request_id, audio_capture_permitted());
+    auto* page = page_permitting_audio_capture();
+    if (!page) {
+        send_audio_capture_decision(request_id, false);
+        return;
+    }
+
+    // Only a site the user allowed gets the system to ask the user, if it never has.
+    // FIXME: The AudioServer doesn't say which page asked to capture, so a refusal is told in the tab of the first page
+    //        that may capture, which needn't be the one that asked.
+    page->view().ensure_microphone_authorization([weak_self = make_weak_ptr<WebContentClient>(), request_id](bool authorized) {
+        auto self = weak_self.strong_ref();
+        if (!self || !self->m_audio_server_client || !self->m_audio_server_client->is_open())
+            return;
+        // The user may have taken the permission away while the system asked.
+        self->send_audio_capture_decision(request_id, authorized && self->audio_capture_permitted());
+    });
+}
+
+void WebContentClient::send_audio_capture_decision(u64 request_id, bool allowed)
+{
+    ++m_audio_capture_decision_count;
+    if (!allowed)
+        ++m_audio_capture_refusal_count;
+    m_audio_server_client->async_capture_decided(request_id, allowed);
 }
 
 ErrorOr<void> WebContentClient::tell_audio_server_of_capture_permission()

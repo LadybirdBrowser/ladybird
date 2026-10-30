@@ -1,0 +1,3 @@
+waiting to come up: 0
+after returning: 1
+on another page of the site: 1

@@ -170,6 +170,8 @@ public:
     void add_permission_origin(URL::Origin const&);
     // The permission follows the origins the process's open pages show, so it goes with a navigation away.
     void update_audio_capture_permission();
+    u64 audio_capture_decision_count() const { return m_audio_capture_decision_count; }
+    u64 audio_capture_refusal_count() const { return m_audio_capture_refusal_count; }
     // The process's AudioServer plays the page's sound while the page is authorized. It hears of an authorization
     // before this returns, so a document the page goes on to run is heard from its start.
     void authorize_audio_playback(Web::PageId);
@@ -269,9 +271,11 @@ private:
     ErrorOr<void> tell_audio_server_of_playback_authorization(Audio::PlaybackGroupId);
     void did_change_audio_playback_audibility(Audio::PlaybackGroupId, Audio::Audibility);
     static String audio_capture_permission_key(URL::URL const&);
-    bool audio_capture_permitted() const;
+    bool audio_capture_permitted() const { return page_permitting_audio_capture(); }
+    WebContentPage* page_permitting_audio_capture() const;
     bool page_may_capture_audio(WebContentPage const&) const;
     void decide_audio_capture_request(u64 request_id);
+    void send_audio_capture_decision(u64 request_id, bool allowed);
 
     // The controller connections to the MediaServer and AudioServer spawned for this process, from its first media use
     // until it exits. The AudioServer mixes for this process alone, so a compromised one hears only its own site.
@@ -284,6 +288,8 @@ private:
     HashTable<String> m_audio_capture_grants;
     Vector<URL::Origin> m_permission_origins;
     bool m_audio_capture_permitted { false };
+    u64 m_audio_capture_decision_count { 0 };
+    u64 m_audio_capture_refusal_count { 0 };
     // Likewise, the AudioServer is told again of the groups it may play, and of those the user has muted.
     HashTable<Audio::PlaybackGroupId> m_authorized_audio_playback_groups;
     HashTable<Audio::PlaybackGroupId> m_muted_audio_playback_groups;

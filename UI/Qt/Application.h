@@ -137,6 +137,7 @@ private:
 
     virtual Core::EventLoop& create_platform_event_loop() override;
     virtual void create_platform_actions() override;
+    virtual NonnullOwnPtr<WebView::MicrophoneAuthorizer> create_microphone_authorizer() override;
 
     virtual Optional<String> ui_font_family() const override;
     virtual Web::CSS::PreferredColorScheme interface_color_scheme() const override;

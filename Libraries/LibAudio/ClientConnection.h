@@ -45,6 +45,8 @@ public:
     static bool has_transport_factory();
     // The process's connection, established on first use and replaced after it dies.
     static ErrorOr<NonnullRefPtr<ClientConnection>> acquire();
+    // Whether a capture waits on the server for its device, which another capture of the same device would join.
+    static bool capture_is_pending_for_testing();
 
     explicit ClientConnection(NonnullOwnPtr<IPC::Transport>);
     virtual ~ClientConnection() override;

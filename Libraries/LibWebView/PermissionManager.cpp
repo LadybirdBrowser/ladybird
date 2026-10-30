@@ -498,6 +498,12 @@ void PermissionManager::age_origin_for_testing(URL::Origin const& origin, AK::Du
     run_expiry();
 }
 
+u8 PermissionManager::dismissals_for_testing(PermissionName name, URL::Origin const& top_level_origin) const
+{
+    auto const* entry = find_entry(name, top_level_origin);
+    return entry ? entry->dismissals : 0;
+}
+
 void PermissionManager::set_clock_for_testing(Function<UnixDateTime()> clock)
 {
     m_clock = move(clock);

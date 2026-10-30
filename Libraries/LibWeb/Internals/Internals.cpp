@@ -2257,6 +2257,26 @@ void Internals::set_next_permission_prompt_outcome(Utf16String const& name, Utf1
     page().client().page_did_set_next_permission_prompt_outcome_for_testing(name.to_utf8(), outcome.to_utf8(), held);
 }
 
+void Internals::set_system_microphone_authorization(Utf16String const& authorization, Utf16String const& answer, bool held)
+{
+    page().client().page_did_set_system_microphone_authorization_for_testing(authorization.to_utf8(), answer.to_utf8(), held);
+}
+
+void Internals::release_system_microphone_answer()
+{
+    page().client().page_did_release_system_microphone_answer_for_testing();
+}
+
+Utf16String Internals::microphone_state()
+{
+    return Utf16String::from_utf8(page().client().page_did_request_microphone_state_for_testing());
+}
+
+bool Internals::audio_capture_is_pending()
+{
+    return Audio::ClientConnection::capture_is_pending_for_testing();
+}
+
 void Internals::release_held_permission_prompt(WebIDL::UnsignedLong waiters)
 {
     page().client().page_did_release_held_permission_prompt_for_testing(waiters);

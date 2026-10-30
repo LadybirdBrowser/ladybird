@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/NeverDestroyed.h>
 #include <LibAudio/ClientConnection.h>
 #include <LibAudio/RemotePlaybackStream.h>
@@ -40,6 +41,14 @@ ErrorOr<NonnullRefPtr<ClientConnection>> ClientConnection::acquire()
     auto connection = adopt_ref(*new ClientConnection(move(transport)));
     *s_connection = connection;
     return connection;
+}
+
+bool ClientConnection::capture_is_pending_for_testing()
+{
+    auto const& connection = *s_connection;
+    if (!connection)
+        return false;
+    return any_of(connection->m_capture_sources, [](auto const& entry) { return !entry.value.specification.has_value(); });
 }
 
 ClientConnection::ClientConnection(NonnullOwnPtr<IPC::Transport> transport)

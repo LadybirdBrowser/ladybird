@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const noticesShown = () => JSON.parse(internals.microphoneState()).noticesShown;
+
+        internals.setSystemMicrophoneAuthorization("denied");
+        internals.setNextPermissionPromptOutcome("microphone", "dismiss", true);
+        const first = internals.requestPermission("microphone");
+        const second = internals.requestPermission("microphone");
+        println(`first: ${await first}`);
+        println(`second: ${await second}`);
+        println(`notices shown while one waits to come up: ${noticesShown()}`);
+
+        internals.releaseHeldPermissionPrompt(2);
+        println(`notices shown once it came up: ${noticesShown()}`);
+        done();
+    });
+</script>

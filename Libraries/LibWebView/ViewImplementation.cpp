@@ -251,6 +251,8 @@ void ViewImplementation::request_permission_prompt(PermissionPromptRequest reque
             }
             outcome = next->outcome;
         }
+        // A prompt a test answers counts as having come up on screen.
+        did_show_permission_prompt(request);
         settle_permission_prompt(request, outcome);
         return;
     }
@@ -300,6 +302,9 @@ void ViewImplementation::reset_permission_prompts_for_testing()
     m_next_permission_prompt_outcomes_for_testing.clear();
     m_held_permission_prompt_for_testing.clear();
     m_held_permission_prompt_release_waiters_for_testing.clear();
+    m_microphone_authorizer_for_testing.clear();
+    m_sites_shown_microphone_denied_notice.clear();
+    m_microphone_denied_notices_shown = 0;
     auto pending_prompts = move(m_pending_permission_prompts);
     for (auto& pending : pending_prompts) {
         for (auto& waiter : pending.waiters)
@@ -325,6 +330,7 @@ void ViewImplementation::release_held_permission_prompt_if_ready_for_testing()
 
     m_held_permission_prompt_release_waiters_for_testing.clear();
     auto held_request = m_held_permission_prompt_for_testing.release_value();
+    did_show_permission_prompt(held_request);
     settle_permission_prompt(held_request, m_held_permission_prompt_outcome_for_testing);
 }
 
@@ -4532,6 +4538,130 @@ void ViewImplementation::did_request_permission(Badge<WebContentPage>, Web::Perm
 {
     if (!m_permissions_requested_by_page.contains_slow(name))
         m_permissions_requested_by_page.append(name);
+}
+
+class MicrophoneAuthorizerForTesting final : public MicrophoneAuthorizer {
+public:
+    MicrophoneAuthorizerForTesting(MicrophoneAuthorization authorization, MicrophoneAuthorization answer, bool held)
+        : m_authorization(authorization)
+        , m_answer(answer)
+        , m_held(held)
+    {
+    }
+
+    u64 requests() const { return m_requests; }
+
+    void release()
+    {
+        m_held = false;
+        for (auto& on_complete : exchange(m_waiting, {}))
+            answer(move(on_complete));
+    }
+
+    virtual MicrophoneAuthorization authorization() const override { return m_authorization; }
+
+    virtual void request_authorization(Function<void(MicrophoneAuthorization)> on_complete) override
+    {
+        ++m_requests;
+        if (m_held) {
+            m_waiting.append(move(on_complete));
+            return;
+        }
+        answer(move(on_complete));
+    }
+
+    virtual void open_system_settings() override { }
+
+private:
+    void answer(Function<void(MicrophoneAuthorization)> on_complete)
+    {
+        m_authorization = m_answer;
+        on_complete(m_authorization);
+    }
+
+    MicrophoneAuthorization m_authorization;
+    MicrophoneAuthorization m_answer;
+    bool m_held { false };
+    u64 m_requests { 0 };
+    Vector<Function<void(MicrophoneAuthorization)>> m_waiting;
+};
+
+MicrophoneAuthorizer& ViewImplementation::microphone_authorizer() const
+{
+    if (m_microphone_authorizer_for_testing)
+        return *m_microphone_authorizer_for_testing;
+    return Application::the().microphone_authorizer();
+}
+
+MicrophoneAuthorization ViewImplementation::microphone_authorization() const
+{
+    return microphone_authorizer().authorization();
+}
+
+void ViewImplementation::ensure_microphone_authorization(Function<void(bool authorized)> on_complete)
+{
+    // The notice is about the site that asked, which the tab may have left by the time the system answers.
+    auto settle = [weak_this = make_weak_ptr(), requesting_origin = permission_origin(), on_complete = move(on_complete)](MicrophoneAuthorization authorization) {
+        auto authorized = authorization == MicrophoneAuthorization::Authorized;
+        if (auto* view = weak_this.ptr(); view && !authorized && view->permission_origin().is_same_origin(requesting_origin))
+            view->show_microphone_denied_notice();
+        on_complete(authorized);
+    };
+
+    auto authorization = microphone_authorization();
+    if (authorization != MicrophoneAuthorization::NotDetermined) {
+        settle(authorization);
+        return;
+    }
+    microphone_authorizer().request_authorization(move(settle));
+}
+
+bool ViewImplementation::has_shown_microphone_denied_notice(URL::Origin const& top_level_origin) const
+{
+    return m_sites_shown_microphone_denied_notice.find_first_index_if([&](auto const& site) { return site.is_same_origin(top_level_origin); }).has_value();
+}
+
+void ViewImplementation::show_microphone_denied_notice()
+{
+    // Once the user has seen the notice, the site can't bring it back in this tab, however often it asks. The notice
+    // goes through the prompts, so requests made while it waits to come up share it.
+    auto top_level_origin = permission_origin();
+    if (has_shown_microphone_denied_notice(top_level_origin))
+        return;
+
+    auto is_file = top_level_origin.is_opaque() && url().scheme() == "file"sv;
+    PermissionPromptRequest request { Web::Permissions::PermissionName::Microphone, move(top_level_origin), is_file, false, PermissionPromptKind::SystemDeniedNotice };
+    request_permission_prompt(move(request), [](Web::Permissions::PromptOutcome) { });
+}
+
+void ViewImplementation::did_show_permission_prompt(PermissionPromptRequest const& request)
+{
+    // A prompt that comes up again, once its hidden tab is shown, is still the one prompt.
+    auto pending = m_pending_permission_prompts.find_if([&](auto const& candidate) { return candidate.request.is_same_request_as(request); });
+    if (pending == m_pending_permission_prompts.end() || exchange(pending->shown, true))
+        return;
+    if (request.kind != PermissionPromptKind::SystemDeniedNotice)
+        return;
+
+    ++m_microphone_denied_notices_shown;
+    if (!has_shown_microphone_denied_notice(request.top_level_origin))
+        m_sites_shown_microphone_denied_notice.append(request.top_level_origin);
+}
+
+void ViewImplementation::set_microphone_authorization_for_testing(MicrophoneAuthorization authorization, MicrophoneAuthorization answer, bool held)
+{
+    m_microphone_authorizer_for_testing = make<MicrophoneAuthorizerForTesting>(authorization, answer, held);
+}
+
+void ViewImplementation::release_system_microphone_answer_for_testing()
+{
+    if (m_microphone_authorizer_for_testing)
+        m_microphone_authorizer_for_testing->release();
+}
+
+u64 ViewImplementation::system_microphone_requests_for_testing() const
+{
+    return m_microphone_authorizer_for_testing ? m_microphone_authorizer_for_testing->requests() : 0;
 }
 
 void ViewImplementation::update_location_in_use()

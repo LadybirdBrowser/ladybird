@@ -43,6 +43,8 @@ public:
     Function<void(Web::Permissions::PromptOutcome)> on_outcome;
     // Runs each time the prompt comes up, so whoever shows it can place it by its anchor.
     Function<void()> on_shown;
+    // A notice that the system denies the browser the feature offers to show the system's setting for it.
+    Function<void()> on_open_settings;
 
 private:
     virtual void keyPressEvent(QKeyEvent*) override;

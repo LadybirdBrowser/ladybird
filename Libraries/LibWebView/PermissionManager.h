@@ -106,6 +106,7 @@ public:
 
     // Makes the given time pass for one origin's entries only, so concurrently running tests don't disturb each other.
     void age_origin_for_testing(URL::Origin const&, AK::Duration);
+    u8 dismissals_for_testing(Web::Permissions::PermissionName, URL::Origin const& top_level_origin) const;
     void set_clock_for_testing(Function<UnixDateTime()>);
     void set_timeouts_for_testing(PermissionTimeouts);
 
