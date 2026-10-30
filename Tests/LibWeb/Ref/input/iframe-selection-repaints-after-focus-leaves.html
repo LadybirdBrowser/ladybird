@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/iframe-selection-repaints-after-focus-leaves-ref.html">
+<style>
+    body { margin: 0; }
+    iframe { display: block; border: 0; width: 200px; height: 40px; }
+    #outside { width: 20px; height: 20px; outline: none; }
+</style>
+<iframe id="frame" srcdoc="<!DOCTYPE html><style>body { margin: 0; font: 20px monospace; }</style><span id=text>selected</span>"></iframe>
+<div id="outside" tabindex="-1"></div>
+<script>
+    // A selection paints in the inactive selection color once focus leaves its navigable, which no row of the
+    // iframe's document notices.
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    frame.addEventListener("load", async () => {
+        frame.contentWindow.focus();
+        frame.contentWindow.getSelection().selectAllChildren(frame.contentDocument.getElementById("text"));
+        await nextFrame();
+        await nextFrame();
+        outside.focus();
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    });
+</script>
+</html>
