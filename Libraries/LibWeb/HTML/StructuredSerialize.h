@@ -14,7 +14,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
-#include <AK/TypeCasts.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCrypto/Forward.h>
@@ -160,11 +159,11 @@ WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, Vector<Core::AnonymousBuffer>& shared_buffers);
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value);
-WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&, AllowSharedArrayBuffers = AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
+WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory* = nullptr, AllowSharedArrayBuffers = AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
 
-WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {}, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
-WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, StructuredSerializeReader&, JS::Realm&, DeserializationMemory&, CheckFullyConsumed = CheckFullyConsumed::No);
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&);
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, StructuredSerializeReader&, JS::Realm&, DeserializationMemory* = nullptr, CheckFullyConsumed = CheckFullyConsumed::No);
 
 WEB_API WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm&, AK::Error const&);
 
@@ -187,16 +186,6 @@ struct SerializableRegistryEntry {
 };
 
 WEB_API ReadonlySpan<SerializableRegistryEntry> serializable_storage_registry();
-
-template<typename T>
-WebIDL::ExceptionOr<GC::Ref<T>> deserialize_nested_as(JS::VM& vm, StructuredSerializeReader& reader, JS::Realm& realm, DeserializationMemory& memory)
-{
-    auto value = TRY(structured_deserialize_internal(vm, reader, realm, memory));
-    auto* object = value.is_object() ? as_if<T>(value.as_object()) : nullptr;
-    if (!object)
-        return data_clone_error_from_serialization_error(realm, AK::Error::from_string_literal("Nested serializable has an unexpected type"));
-    return GC::Ref<T> { *object };
-}
 
 template<typename T>
 WebIDL::ExceptionOr<void> encode_or_throw_data_clone_error(JS::Realm& realm, TransferDataEncoder& encoder, T const& value)
@@ -241,7 +230,7 @@ struct SerializablePlatformObject {
     InterfaceName interface_name;
     GC::Ptr<JS::Realm> realm;
 
-    WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) const;
+    WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory*) const;
 };
 
 // A platform object that is a transferable object, of an interface implemented in C++ or in Rust.
@@ -266,6 +255,6 @@ WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform
 // The deserialization steps of an interface implemented in Rust create its object from what they read, rather than
 // fill in an object that was created before them.
 WEB_API bool serializable_interface_is_implemented_in_rust(InterfaceName);
-WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName, JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&);
+WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName, JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory*);
 
 }

@@ -17,6 +17,7 @@ use ak::Utf16String;
 use libjs_rust::api::{ArrayBuffer, ArrayBufferShared, Gc, Object, RawNativeFunctionResult, Realm, Value};
 
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 
 unsafe extern "C" {
     fn web_structured_serialize_writer_create_for_transfer() -> *mut c_void;
@@ -139,18 +140,7 @@ unsafe extern "C" {
         message: ak::Span<'_, u8>,
     ) -> RawNativeFunctionResult;
 
-    fn web_structured_serialize_memory_get(memory: *mut c_void, value: u64, index: &mut u32) -> bool;
-    fn web_structured_serialize_memory_set(memory: *mut c_void, value: u64, index: u32);
-    fn web_structured_serialize_memory_size(memory: *mut c_void) -> u32;
-    fn web_structured_serialize_memory_create() -> *mut c_void;
-    fn web_structured_serialize_memory_destroy(memory: *mut c_void);
     fn web_structured_serialize_serializable_payload_version() -> u64;
-    fn web_structured_deserialize_memory_size(memory: *mut c_void) -> usize;
-    fn web_structured_deserialize_memory_append(memory: *mut c_void, value: u64);
-    fn web_structured_deserialize_memory_get(memory: *mut c_void, index: usize) -> u64;
-    fn web_structured_deserialize_memory_set(memory: *mut c_void, index: usize, value: u64);
-    fn web_structured_deserialize_memory_create() -> *mut c_void;
-    fn web_structured_deserialize_memory_destroy(memory: *mut c_void);
 
     fn web_structured_serialize_current_settings_object_agent_cluster(agent_cluster: &mut u64) -> bool;
     fn web_structured_serialize_current_settings_object_cross_origin_isolated_capability() -> bool;
@@ -678,129 +668,11 @@ pub(crate) fn data_clone_error_from_serialization_error(realm: Gc<Realm>, messag
     }
 }
 
-/// The memory of a structured serialization: an HTML::SerializationMemory that C++ lends, which maps the values that
-/// the serialization serialized to their positions.
-#[derive(Clone, Copy)]
-pub(crate) struct SerializationMemory(NonNull<c_void>);
-
-impl SerializationMemory {
-    /// # Safety
-    ///
-    /// `memory` must be a memory that C++ lends while this is used.
-    pub(crate) unsafe fn from_raw(memory: *mut c_void) -> Self {
-        Self(NonNull::new(memory).expect("C++ lends a memory"))
-    }
-
-    pub(crate) fn as_raw(self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-
-    pub(crate) fn get(self, value: Value) -> Option<u32> {
-        let mut index = 0;
-        // SAFETY: The memory is lent.
-        unsafe { web_structured_serialize_memory_get(self.as_raw(), value.to_raw(), &mut index) }.then_some(index)
-    }
-
-    pub(crate) fn contains(self, value: Value) -> bool {
-        self.get(value).is_some()
-    }
-
-    pub(crate) fn set(self, value: Value, index: u32) {
-        // SAFETY: The memory is lent, and it roots the value.
-        unsafe { web_structured_serialize_memory_set(self.as_raw(), value.to_raw(), index) };
-    }
-
-    pub(crate) fn size(self) -> u32 {
-        // SAFETY: The memory is lent.
-        unsafe { web_structured_serialize_memory_size(self.as_raw()) }
-    }
-}
-
-/// A memory of a structured serialization that this owns.
-pub(crate) struct OwnedSerializationMemory(SerializationMemory);
-
-impl OwnedSerializationMemory {
-    pub(crate) fn new() -> Self {
-        // SAFETY: LibWeb returns a new memory, which this owns.
-        Self(unsafe { SerializationMemory::from_raw(web_structured_serialize_memory_create()) })
-    }
-
-    pub(crate) fn memory(&self) -> SerializationMemory {
-        self.0
-    }
-}
-
-impl Drop for OwnedSerializationMemory {
-    fn drop(&mut self) {
-        // SAFETY: This owns the memory.
-        unsafe { web_structured_serialize_memory_destroy(self.0.as_raw()) };
-    }
-}
-
 /// HTML::serializable_payload_version: the per-interface payload version that a storage record holds after the
 /// interface name of every serializable object.
 pub(crate) fn serializable_payload_version() -> u64 {
     // SAFETY: The call has no arguments.
     unsafe { web_structured_serialize_serializable_payload_version() }
-}
-
-/// The memory of a structured deserialization: an HTML::DeserializationMemory, which holds the values that the
-/// deserialization created at their positions.
-#[derive(Clone, Copy)]
-pub(crate) struct DeserializationMemory(NonNull<c_void>);
-
-impl DeserializationMemory {
-    /// # Safety
-    ///
-    /// `memory` must be a memory that C++ lends while this is used.
-    pub(crate) unsafe fn from_raw(memory: *mut c_void) -> Self {
-        Self(NonNull::new(memory).expect("C++ lends a memory"))
-    }
-
-    pub(crate) fn as_raw(self) -> *mut c_void {
-        self.0.as_ptr()
-    }
-
-    pub(crate) fn size(self) -> usize {
-        // SAFETY: The memory is lent.
-        unsafe { web_structured_deserialize_memory_size(self.as_raw()) }
-    }
-
-    pub(crate) fn append(self, value: Value) {
-        // SAFETY: The memory is lent, and it roots the value.
-        unsafe { web_structured_deserialize_memory_append(self.as_raw(), value.to_raw()) };
-    }
-
-    pub(crate) fn get(self, index: usize) -> Value {
-        // SAFETY: The memory is lent, and it holds live values.
-        unsafe { Value::from_raw(web_structured_deserialize_memory_get(self.as_raw(), index)) }
-    }
-
-    pub(crate) fn set(self, index: usize, value: Value) {
-        // SAFETY: The memory is lent, and it roots the value.
-        unsafe { web_structured_deserialize_memory_set(self.as_raw(), index, value.to_raw()) };
-    }
-}
-
-/// A memory of a structured deserialization that this owns.
-pub(crate) struct OwnedDeserializationMemory(DeserializationMemory);
-
-impl OwnedDeserializationMemory {
-    pub(crate) fn new() -> Self {
-        // SAFETY: LibWeb returns a new memory, which this owns.
-        Self(unsafe { DeserializationMemory::from_raw(web_structured_deserialize_memory_create()) })
-    }
-
-    pub(crate) fn memory(&self) -> DeserializationMemory {
-        self.0
-    }
-}
-
-impl Drop for OwnedDeserializationMemory {
-    fn drop(&mut self) {
-        // SAFETY: This owns the memory.
-        unsafe { web_structured_deserialize_memory_destroy(self.0.as_raw()) };
-    }
 }
 
 /// The agent cluster of the current settings object, if it has one.
@@ -846,7 +718,7 @@ pub(crate) fn serialization_steps(
     object: Gc<Object>,
     serialized: StructuredSerializeWriter,
     for_storage: bool,
-    memory: SerializationMemory,
+    memory: &SerializationMemory,
 ) -> WebIdlResult<()> {
     // SAFETY: The realm and the object are live, and the writer and the memory are lent.
     completion(unsafe {
@@ -855,7 +727,7 @@ pub(crate) fn serialization_steps(
             object_into_abi(object),
             serialized.as_raw(),
             for_storage,
-            memory.as_raw(),
+            memory.as_abi(),
         )
     })?;
     Ok(())
@@ -895,7 +767,7 @@ pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
 pub(crate) fn deserialize_rust_platform_object(
     interface_name: u16,
     serialized: StructuredSerializeReader,
-    memory: DeserializationMemory,
+    memory: &DeserializationMemory,
 ) -> WebIdlResult<Value> {
     // SAFETY: The realm is live, and the reader and the memory are lent.
     completion(unsafe {
@@ -903,7 +775,7 @@ pub(crate) fn deserialize_rust_platform_object(
             interface_name,
             serialized.realm_raw(),
             serialized.as_raw(),
-            memory.as_raw(),
+            memory.as_abi(),
         )
     })
 }
@@ -1063,13 +935,13 @@ impl SerializedTransferRecord {
     }
 
     /// StructuredDeserialize of the record's [[Serialized]], with its shared memory.
-    pub(crate) fn deserialize(self, realm: Gc<Realm>, memory: DeserializationMemory) -> WebIdlResult<Value> {
+    pub(crate) fn deserialize(self, realm: Gc<Realm>, memory: &DeserializationMemory) -> WebIdlResult<Value> {
         // SAFETY: The record and the memory are lent, and the realm is live.
         completion(unsafe {
             web_structured_serialize_transfer_record_deserialize(
                 self.0.as_ptr(),
                 realm.as_ptr().cast(),
-                memory.as_raw(),
+                memory.as_abi(),
             )
         })
     }

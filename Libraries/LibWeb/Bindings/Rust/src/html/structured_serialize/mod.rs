@@ -16,6 +16,7 @@
 
 pub(crate) mod cpp;
 pub(crate) mod exports;
+pub(crate) mod memory;
 
 use ak::Utf16String;
 use libjs_rust::api::{
@@ -30,15 +31,16 @@ use libjs_rust::api::{
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto_key;
 use crate::html::structured_serialize::cpp::{
-    DeserializationMemory, OwnedDeserializationMemory, OwnedSerializedTransferRecord, OwnedStructuredSerializeWriter,
-    SerializableSteps, SerializationMemory, SerializationType, SerializedTransferRecord, StructuredSerializeReader,
-    StructuredSerializeWriter, TransferDataDecoder, TransferDataHolder, create_transferred_platform_object,
-    current_settings_object_agent_cluster, current_settings_object_cross_origin_isolated_capability,
-    data_clone_error_from_serialization_error, deserialize_rust_platform_object, is_exposed, is_platform_object,
-    is_transferable, is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name,
-    serializable_payload_version, serializable_steps, serialization_steps, transfer_steps, transferable_is_detached,
-    transferable_primary_interface, transferable_set_detached,
+    OwnedSerializedTransferRecord, OwnedStructuredSerializeWriter, SerializableSteps, SerializationType,
+    SerializedTransferRecord, StructuredSerializeReader, StructuredSerializeWriter, TransferDataDecoder,
+    TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
+    current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
+    deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
+    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
+    serializable_steps, serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
+    transferable_set_detached,
 };
+use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::webidl::dom_exception::{self, DOMExceptionFields};
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
 
@@ -419,7 +421,7 @@ fn serialize_viewed_array_buffer(
     data_holder: StructuredSerializeWriter,
     view: ViewType,
     for_storage: bool,
-    memory: SerializationMemory,
+    memory: &SerializationMemory,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 ) -> WebIdlResult<()> {
     // 15. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot:
@@ -505,17 +507,17 @@ fn serialize_viewed_array_buffer(
 // Serializing and deserializing are each two passes:
 // 1. Fill up the memory with all the values, but without translating references
 // 2. Translate all the references into the appropriate form
-struct Serializer<'vm> {
+struct Serializer<'a, 'vm, 'memory> {
     vm: &'vm Vm,
     // NB: The current realm, which a serialization outside of any script has none of.
     realm: Option<Gc<Realm>>,
     serialized: StructuredSerializeWriter,
-    memory: SerializationMemory, // JS value -> index
+    memory: &'a SerializationMemory<'memory>, // JS value -> index
     for_storage: bool,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 }
 
-impl Serializer<'_> {
+impl Serializer<'_, '_, '_> {
     // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
     fn serialize(&self, value: Value) -> WebIdlResult<()> {
         let vm = self.vm;
@@ -908,13 +910,13 @@ impl Serializer<'_> {
     }
 }
 
-struct Deserializer<'a, 'vm> {
+struct Deserializer<'a, 'vm, 'memory> {
     cx: &'a CallContext<'vm>,
     serialized: StructuredSerializeReader,
-    memory: DeserializationMemory,
+    memory: &'a DeserializationMemory<'memory>,
 }
 
-impl Deserializer<'_, '_> {
+impl Deserializer<'_, '_, '_> {
     // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
     fn deserialize(&self) -> WebIdlResult<Value> {
         self.deserialize_value(self.serialized.decode_u8()?)
@@ -1496,7 +1498,7 @@ pub(crate) fn structured_serialize_with_transfer(
     let vm = cx.vm();
 
     // 1. Let memory be an empty map.
-    let memory = cpp::OwnedSerializationMemory::new();
+    let memory = SerializationMemory::new(vm);
 
     // 2. For each transferable of transferList:
     for transferable in transfer_list {
@@ -1516,12 +1518,12 @@ pub(crate) fn structured_serialize_with_transfer(
         let transferable_value = Value::from_object(*transferable);
 
         // 3. If memory[transferable] exists, then throw a "DataCloneError" DOMException.
-        if memory.memory().contains(transferable_value) {
+        if memory.contains(transferable_value) {
             return Err(data_clone_error("Cannot transfer value twice"));
         }
 
         // 4. Set memory[transferable] to { [[Type]]: an uninitialized value, [[AgentCluster]]: null }.
-        memory.memory().set(transferable_value, memory.memory().size());
+        memory.set(transferable_value, memory.size());
     }
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
@@ -1534,7 +1536,7 @@ pub(crate) fn structured_serialize_with_transfer(
         serialized.writer(),
         value,
         false,
-        memory.memory(),
+        &memory,
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
 
@@ -1648,7 +1650,7 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
     let target_realm = cx.realm();
 
     // 1. Let memory be an empty map.
-    let memory = OwnedDeserializationMemory::new();
+    let memory = DeserializationMemory::new(cx.vm());
 
     // FIXME: 2. If serializeWithTransferResult.[[AgentCluster]] is not null and targetRealm's corresponding agent cluster is not serializeWithTransferResult.[[AgentCluster]], then throw a "DataCloneError" DOMException.
     // FIXME: 3. For each interfaceName of serializeWithTransferResult.[[InterfaceNames]]:
@@ -1667,14 +1669,14 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
         let value = structured_deserialize_with_transfer_internal(cx, decoder.decoder())?;
 
         // 5. Set memory[transferDataHolder] to value.
-        memory.memory().append(value);
+        memory.append(value);
 
         // 6. Append value to transferredValues.
         transferred_values.push(value.as_object());
     }
 
     // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
-    let deserialized = serialize_with_transfer_result.deserialize(target_realm, memory.memory())?;
+    let deserialized = serialize_with_transfer_result.deserialize(target_realm, &memory)?;
 
     // NB: The deserialized values hold their own references to the shared memory they use. The record can outlive its
     //     delivery, as in a task that awaits garbage collection, so it must not keep that memory alive.
@@ -1755,7 +1757,7 @@ pub(crate) fn structured_serialize_internal(
     serialized: StructuredSerializeWriter,
     value: Value,
     for_storage: bool,
-    memory: SerializationMemory,
+    memory: &SerializationMemory,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 ) -> WebIdlResult<()> {
     let serializer = Serializer {
@@ -1772,7 +1774,7 @@ pub(crate) fn structured_serialize_internal(
 pub(crate) fn structured_deserialize_internal(
     cx: &CallContext,
     serialized: StructuredSerializeReader,
-    memory: DeserializationMemory,
+    memory: &DeserializationMemory,
     check_fully_consumed: bool,
 ) -> WebIdlResult<Value> {
     let deserializer = Deserializer { cx, serialized, memory };

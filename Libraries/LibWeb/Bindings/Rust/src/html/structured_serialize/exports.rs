@@ -15,9 +15,10 @@ use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, ThrowCompl
 use crate::bindings::interface::realm_arguments;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    DeserializationMemory, SerializationMemory, SerializedTransferRecord, StructuredSerializeReader,
-    StructuredSerializeWriter, TransferDataDecoder, TransferredValues,
+    SerializedTransferRecord, StructuredSerializeReader, StructuredSerializeWriter, TransferDataDecoder,
+    TransferredValues,
 };
+use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::{
     AllowSharedArrayBuffers, structured_deserialize_internal, structured_deserialize_with_transfer,
     structured_deserialize_with_transfer_internal, structured_serialize_internal, structured_serialize_with_transfer,
@@ -33,7 +34,8 @@ fn completion(cx: &CallContext, result: WebIdlResult<Value>) -> RawNativeFunctio
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, and a writer and a memory that C++ lends. The value must be live.
+/// The pointers must be the VM, a writer that C++ lends, and the memory of the serialization that a serialization step
+/// serializes a value of, or null for a new one. The value must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize_internal(
     vm: *mut c_void,
@@ -45,13 +47,15 @@ pub unsafe extern "C" fn web_rust_structured_serialize_internal(
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM.
     let vm = unsafe { &*vm.cast::<Vm>() };
-    // SAFETY: The caller lends the writer and the memory, and passes a live value.
-    let (serialized, memory, value) = unsafe {
-        (
-            StructuredSerializeWriter::from_raw(serialized),
-            SerializationMemory::from_raw(memory),
-            Value::from_raw(value),
-        )
+    // SAFETY: The caller lends the writer, and passes a live value.
+    let (serialized, value) = unsafe { (StructuredSerializeWriter::from_raw(serialized), Value::from_raw(value)) };
+    let new_memory;
+    let memory = if memory.is_null() {
+        new_memory = SerializationMemory::new(vm);
+        &new_memory
+    } else {
+        // SAFETY: The caller passes the memory of the serialization that it runs in.
+        unsafe { SerializationMemory::from_abi(memory) }
     };
     // NB: Code outside of any script serializes values too, with no current realm. An object's exception is created in
     //     its realm then; a Symbol throws too, but only script serializes one.
@@ -81,7 +85,8 @@ pub unsafe extern "C" fn web_rust_structured_serialize_internal(
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a live realm, and a reader and a memory that C++ lends.
+/// The pointers must be the VM, a live realm, a reader that C++ lends, and the memory of the deserialization that a
+/// deserialization step deserializes a value of, or null for a new one.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_deserialize_internal(
     vm: *mut c_void,
@@ -93,12 +98,15 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_internal(
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
     let cx = CallContext::new(vm, target_realm);
-    // SAFETY: The caller lends the reader and the memory.
-    let (serialized, memory) = unsafe {
-        (
-            StructuredSerializeReader::from_raw(serialized, target_realm),
-            DeserializationMemory::from_raw(memory),
-        )
+    // SAFETY: The caller lends the reader.
+    let serialized = unsafe { StructuredSerializeReader::from_raw(serialized, target_realm) };
+    let new_memory;
+    let memory = if memory.is_null() {
+        new_memory = DeserializationMemory::new(vm);
+        &new_memory
+    } else {
+        // SAFETY: The caller passes the memory of the deserialization that it runs in.
+        unsafe { DeserializationMemory::from_abi(memory) }
     };
     let result = structured_deserialize_internal(&cx, serialized, memory, check_fully_consumed);
     completion(&cx, result)

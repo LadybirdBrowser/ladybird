@@ -26,6 +26,7 @@
 #include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
@@ -91,18 +92,7 @@ JSCompletion web_structured_serialize_reader_array_buffer_from_shared_memory(Str
 JSObject* web_structured_serialize_reader_array_buffer_sharing_side_table_entry(StructuredSerializeReader*, void* realm, u32 side_table_index, size_t byte_length, bool preserve_growability);
 JSCompletion web_structured_serialize_data_clone_error_from_serialization_error(void* realm, ReadonlyBytes message);
 
-bool web_structured_serialize_memory_get(SerializationMemory*, JSValue, u32* index);
-void web_structured_serialize_memory_set(SerializationMemory*, JSValue, u32 index);
-u32 web_structured_serialize_memory_size(SerializationMemory*);
-SerializationMemory* web_structured_serialize_memory_create();
-void web_structured_serialize_memory_destroy(SerializationMemory*);
 u64 web_structured_serialize_serializable_payload_version();
-size_t web_structured_deserialize_memory_size(DeserializationMemory*);
-void web_structured_deserialize_memory_append(DeserializationMemory*, JSValue);
-JSValue web_structured_deserialize_memory_get(DeserializationMemory*, size_t index);
-void web_structured_deserialize_memory_set(DeserializationMemory*, size_t index, JSValue);
-DeserializationMemory* web_structured_deserialize_memory_create();
-void web_structured_deserialize_memory_destroy(DeserializationMemory*);
 
 bool web_structured_serialize_current_settings_object_agent_cluster(u64* agent_cluster);
 bool web_structured_serialize_current_settings_object_cross_origin_isolated_capability();
@@ -467,68 +457,9 @@ JSCompletion web_structured_serialize_data_clone_error_from_serialization_error(
     return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { data_clone_error_from_serialization_error(js_realm, error) });
 }
 
-bool web_structured_serialize_memory_get(SerializationMemory* memory, JSValue value, u32* index)
-{
-    auto found = memory->get(JS::HostABI::value_from_abi(value));
-    if (!found.has_value())
-        return false;
-    *index = found.value();
-    return true;
-}
-
-void web_structured_serialize_memory_set(SerializationMemory* memory, JSValue value, u32 index)
-{
-    memory->set(GC::make_root(JS::HostABI::value_from_abi(value)), index);
-}
-
-u32 web_structured_serialize_memory_size(SerializationMemory* memory)
-{
-    return memory->size();
-}
-
-SerializationMemory* web_structured_serialize_memory_create()
-{
-    return new SerializationMemory;
-}
-
-void web_structured_serialize_memory_destroy(SerializationMemory* memory)
-{
-    delete memory;
-}
-
 u64 web_structured_serialize_serializable_payload_version()
 {
     return serializable_payload_version;
-}
-
-size_t web_structured_deserialize_memory_size(DeserializationMemory* memory)
-{
-    return memory->size();
-}
-
-void web_structured_deserialize_memory_append(DeserializationMemory* memory, JSValue value)
-{
-    memory->append(JS::HostABI::value_from_abi(value));
-}
-
-JSValue web_structured_deserialize_memory_get(DeserializationMemory* memory, size_t index)
-{
-    return JS::HostABI::value_to_abi((*memory)[index]);
-}
-
-void web_structured_deserialize_memory_set(DeserializationMemory* memory, size_t index, JSValue value)
-{
-    (*memory)[index] = JS::HostABI::value_from_abi(value);
-}
-
-DeserializationMemory* web_structured_deserialize_memory_create()
-{
-    return new DeserializationMemory;
-}
-
-void web_structured_deserialize_memory_destroy(DeserializationMemory* memory)
-{
-    delete memory;
 }
 
 bool web_structured_serialize_current_settings_object_agent_cluster(u64* agent_cluster)
@@ -572,7 +503,7 @@ JSCompletion web_structured_serialize_serialization_steps(void* realm, JSObject*
 {
     auto serializable = Bindings::serializable_from_object(*JS::HostABI::object_from_abi(object));
     VERIFY(serializable.has_value());
-    return void_completion_to_abi(realm_from_abi(realm), serializable->serialization_steps(*writer, for_storage, *memory));
+    return void_completion_to_abi(realm_from_abi(realm), serializable->serialization_steps(*writer, for_storage, memory));
 }
 
 bool web_structured_serialize_is_exposed(u16 interface_name, void* realm)
@@ -598,7 +529,7 @@ u8 web_structured_serialize_serializable_steps(u16 interface_name)
 JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, StructuredSerializeReader* reader, DeserializationMemory* memory)
 {
     auto& js_realm = realm_from_abi(realm);
-    auto object = Bindings::deserialize_rust_platform_object(static_cast<Bindings::InterfaceName>(interface_name), js_realm, *reader, *memory);
+    auto object = Bindings::deserialize_rust_platform_object(static_cast<Bindings::InterfaceName>(interface_name), js_realm, *reader, memory);
     if (object.is_exception())
         return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { object.release_error() });
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { object.release_value() });
@@ -757,7 +688,10 @@ TransferDataDecoder* web_structured_serialize_transfer_record_take_data_holder(S
 JSCompletion web_structured_serialize_transfer_record_deserialize(SerializedTransferRecord* record, void* realm, DeserializationMemory* memory)
 {
     auto& js_realm = realm_from_abi(realm);
-    auto deserialized = structured_deserialize(js_realm.vm(), record->serialized, js_realm, *memory, &record->shared_buffers);
+    TemporaryExecutionContext execution_context { js_realm };
+    StructuredSerializeReader reader { record->serialized };
+    reader.set_shared_buffers(record->shared_buffers);
+    auto deserialized = structured_deserialize_internal(js_realm.vm(), reader, js_realm, memory);
     if (deserialized.is_exception())
         return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { deserialized.release_error() });
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { deserialized.release_value() });

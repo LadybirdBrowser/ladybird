@@ -253,7 +253,7 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
             // 3. Let data be StructuredDeserialize(serialized, targetRealm).
             //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
             //    origin initialized to sourceOrigin, and then abort these steps.
-            auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm, {}, &message.shared_buffers);
+            auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm, &message.shared_buffers);
             if (data_or_error.is_exception()) {
                 MessageEventInit event_init;
                 auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::messageerror, event_init, message.source_origin);

@@ -267,8 +267,7 @@ inline Web::WebIDL::ExceptionOr<JS::Value> storage_deserialize(Web::HTML::Storag
 {
     auto& realm = test_realm();
     Web::HTML::StructuredSerializeReader reader { record };
-    Web::HTML::DeserializationMemory memory;
-    return Web::HTML::structured_deserialize_internal(realm.vm(), reader, realm, memory, Web::HTML::CheckFullyConsumed::Yes);
+    return Web::HTML::structured_deserialize_internal(realm.vm(), reader, realm, nullptr, Web::HTML::CheckFullyConsumed::Yes);
 }
 
 inline void append_little_endian_double(Vector<u8>& bytes, double value)
@@ -457,8 +456,7 @@ inline Web::WebIDL::ExceptionOr<JS::Value> principal_storage_deserialize(Web::HT
     vm.push_execution_context(settings.realm_execution_context());
 
     Web::HTML::StructuredSerializeReader reader { record };
-    Web::HTML::DeserializationMemory memory;
-    auto result = Web::HTML::structured_deserialize_internal(vm, reader, realm, memory, Web::HTML::CheckFullyConsumed::Yes);
+    auto result = Web::HTML::structured_deserialize_internal(vm, reader, realm, nullptr, Web::HTML::CheckFullyConsumed::Yes);
 
     while (vm.execution_context_stack().size() > depth)
         vm.pop_execution_context();

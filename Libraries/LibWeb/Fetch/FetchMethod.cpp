@@ -59,7 +59,7 @@ static JS::Value deserialize_serialized_abort_reason(JS::Realm& realm, Infrastru
     // 3. If abortReason is non-null, then set deserializedError to StructuredDeserialize(abortReason, realm).
     //    If that threw an exception or returned undefined, then set deserializedError to fallbackError.
     if (controller.serialized_abort_reason().has_value()) {
-        auto deserialized_error_or_exception = HTML::structured_deserialize(realm.vm(), controller.serialized_abort_reason().value(), realm, {});
+        auto deserialized_error_or_exception = HTML::structured_deserialize(realm.vm(), controller.serialized_abort_reason().value(), realm);
         if (!deserialized_error_or_exception.is_exception() && !deserialized_error_or_exception.value().is_undefined())
             deserialized_error = deserialized_error_or_exception.value();
     }

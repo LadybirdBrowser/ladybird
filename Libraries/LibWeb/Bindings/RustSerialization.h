@@ -32,7 +32,7 @@ struct RustSerializationWriter {
     GC::Ref<JS::Realm> realm;
     HTML::StructuredSerializeWriter& serialized;
     bool for_storage { false };
-    HTML::SerializationMemory& memory;
+    HTML::SerializationMemory* memory { nullptr };
 };
 
 // The record of a structured deserialization, and its memory, in the realm that the deserialization creates its values
@@ -40,7 +40,7 @@ struct RustSerializationWriter {
 struct RustSerializationReader {
     GC::Ref<JS::Realm> realm;
     HTML::StructuredSerializeReader& serialized;
-    HTML::DeserializationMemory& memory;
+    HTML::DeserializationMemory* memory { nullptr };
 };
 
 // The data holder of a transferred object. What the steps throw is created in the realm of the transfer.
