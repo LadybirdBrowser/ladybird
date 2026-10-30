@@ -370,11 +370,27 @@ static WebIDL::ExceptionOr<void> validate_jwk_key_ops(JS::Realm&, JsonWebKey con
     return {};
 }
 
-static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u16 const size_in_bits)
+static WebIDL::ExceptionOr<ByteBuffer> generate_random_key(JS::VM& vm, u32 const size_in_bits)
 {
-    auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(size_in_bits / 8));
+    auto key_buffer = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(ceil_div(size_in_bits, 8u)));
     fill_with_random(key_buffer);
+
+    // NB: Zero the unused low-order bits of the last byte when the length is not a whole number of bytes.
+    if (auto remainder_bits = size_in_bits % 8; remainder_bits != 0)
+        key_buffer[key_buffer.size() - 1] &= ~(0xff >> remainder_bits);
+
     return key_buffer;
+}
+
+// NB: Our KMAC implementation is byte-oriented, so it cannot use keys with a partial last byte. OpenSSL also only
+//     accepts KMAC keys of up to 512 bytes.
+static WebIDL::ExceptionOr<void> validate_kmac_key_length(WebIDL::UnsignedLong length_in_bits)
+{
+    if (length_in_bits % 8 != 0)
+        return WebIDL::NotSupportedError::create("KMAC key length must be a multiple of 8"_utf16);
+    if (length_in_bits > 512 * 8)
+        return WebIDL::NotSupportedError::create("KMAC key length must not exceed 4096 bits"_utf16);
+    return {};
 }
 
 AlgorithmParams::~AlgorithmParams() = default;
@@ -8081,10 +8097,11 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_k
     }
 
     // 3. Generate a key of length length bits.
-    auto key_data = MUST(generate_random_key(realm.vm(), length));
-
     // 4. If the key generation step fails, then throw an OperationError.
-    // NOTE: Currently key generation must succeed
+    auto key_data_or_error = generate_random_key(realm.vm(), length);
+    if (key_data_or_error.is_error())
+        return WebIDL::OperationError::create("Failed to generate key"_utf16);
+    auto key_data = key_data_or_error.release_value();
 
     // 5. Let key be a new CryptoKey object representing the generated key.
     auto key = CryptoKey::create(move(key_data));
@@ -10415,9 +10432,14 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> KMAC::generate_k
         length = normalized_algorithm.length.value();
     }
 
+    TRY(validate_kmac_key_length(length));
+
     // 3. Generate a key of length bits.
     // 4. If key generation fails, throw an OperationError.
-    auto key_data = MUST(generate_random_key(realm.vm(), length));
+    auto key_data_or_error = generate_random_key(realm.vm(), length);
+    if (key_data_or_error.is_error())
+        return WebIDL::OperationError::create("Failed to generate key"_utf16);
+    auto key_data = key_data_or_error.release_value();
 
     // 5. Let key be a new CryptoKey object representing the generated key.
     auto key = CryptoKey::create(move(key_data));
