@@ -3567,7 +3567,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     fn size_table_box_inside_wrapper<R>(
         &self,
         wrapper: Node,
-        containing_block_inline_size: CssPixels,
+        padding_percentage_basis: CssPixels,
         table_constraints: ContainingBlockConstraints,
         size_table: impl FnOnce(&FormattingContextRun<'_>, used_values::RootInputCells) -> R,
     ) -> R {
@@ -3576,8 +3576,8 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let table_style = self.style(table_box);
         table_cells.border_left = table_style.border_left_width();
         table_cells.border_right = table_style.border_right_width();
-        table_cells.padding_left = table_style.padding_left().to_px(containing_block_inline_size);
-        table_cells.padding_right = table_style.padding_right().to_px(containing_block_inline_size);
+        table_cells.padding_left = table_style.padding_left().to_px(padding_percentage_basis);
+        table_cells.padding_right = table_style.padding_right().to_px(padding_percentage_basis);
 
         RunState::with_content_sizing_root(
             self.callbacks,
@@ -3627,9 +3627,13 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // wrapper's constraints unchanged. Callers measuring a table wrapper for grid alignment
         // pass the grid-area inline size as the wrapper's percentage basis.
         let table_constraints = table_wrapper_constraints;
+        // Percentages on the padding of the table box resolve against the table wrapper box's containing block too.
+        let table_padding_basis = table_constraints
+            .percentage_basis_inline_size
+            .unwrap_or(containing_block_inline_size);
         self.size_table_box_inside_wrapper(
             wrapper,
-            containing_block_inline_size,
+            table_padding_basis,
             table_constraints,
             |table_run, table_cells| {
                 let mut table = table_formatting_context::TableFormattingContext::new(

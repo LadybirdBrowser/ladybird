@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+.outer { position: relative; width: 200px; height: 100px; background: #ccc; }
+.a { display: block; position: absolute; left: 6px; top: 6px; width: 30px; background: red; }
+.a::after { content: ""; display: table; padding-bottom: 100%; }
+.b { width: 30px; background: blue; }
+.b::after { content: ""; display: table; padding-bottom: 100%; }
+.c { width: 400px; }
+.c table { padding: 10% 5%; }
+.d { width: 400px; }
+.d .float { float: left; width: 100px; height: 50px; }
+.d table { padding: 0 10%; border-spacing: 0; }
+.d td { padding: 0; width: 50px; }
+</style>
+<div class="outer"><div class="a"></div></div>
+<div class="b"></div>
+<div class="c"><table><td>x</td></table></div>
+<div class="d"><div class="float"></div><table><td>x</td></table></div>

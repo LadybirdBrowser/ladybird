@@ -1009,12 +1009,37 @@ impl<'pass> BlockFormattingContext<'pass> {
         &self,
         sized_child: ChildSizedHere<'_>,
         containing_block_inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
     ) {
         let node = sized_child.node;
         let style = self.style(node);
+        let padding_basis = self.padding_percentage_basis(node, &style, containing_block_inline_size, constraints);
         self.update_cells_of(sized_child, |cells| {
             cells.resolve_vertical_box_model(&style, containing_block_inline_size);
+            if padding_basis != containing_block_inline_size {
+                cells.padding_top = style.padding_top().to_px(padding_basis);
+                cells.padding_bottom = style.padding_bottom().to_px(padding_basis);
+            }
         });
+    }
+
+    /// The inline size that percentages on the padding of `node` resolve against. A table box takes its padding
+    /// percentages from the table wrapper box's containing block, whose constraints the wrapper passes through to it,
+    /// rather than from the wrapper itself.
+    fn padding_percentage_basis(
+        &self,
+        node: Node,
+        style: &StyleValues<'_>,
+        containing_block_inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> CssPixels {
+        if style.display().is_table_inside()
+            && self.facts(self.containing_block(node)).is_table_wrapper()
+            && let Some(basis) = constraints.percentage_basis_inline_size
+        {
+            return basis;
+        }
+        containing_block_inline_size
     }
 
     fn box_should_avoid_floats_because_it_establishes_fc(&self, node: Node) -> bool {
@@ -1171,8 +1196,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut margin_right_is_auto = style.margin_right().is_auto();
         let mut margin_left = style.margin_left().to_px(available_inline_size);
         let mut margin_right = style.margin_right().to_px(available_inline_size);
-        let padding_left = style.padding_left().to_px(available_inline_size);
-        let padding_right = style.padding_right().to_px(available_inline_size);
+        let padding_basis = self.padding_percentage_basis(node, &style, available_inline_size, constraints);
+        let padding_left = style.padding_left().to_px(padding_basis);
+        let padding_right = style.padding_right().to_px(padding_basis);
         let border_left_width = style.border_left_width();
         let border_right_width = style.border_right_width();
         self.update_cells_of(sized_child, |cells| {
@@ -2404,7 +2430,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             });
         }
 
-        self.resolve_vertical_box_model_metrics(sized_child, block_container_inline_size);
+        self.resolve_vertical_box_model_metrics(
+            sized_child,
+            block_container_inline_size,
+            input.containing_block_constraints,
+        );
         assert_eq!(self.containing_block(node), block_container.node);
         let continuation = self
             .run
@@ -4736,7 +4766,11 @@ impl<'pass> BlockFormattingContext<'pass> {
     ) {
         let available_space = input.available_space;
         let block_container_inline_size = block_container.cells.content_inline_size;
-        self.resolve_vertical_box_model_metrics(sized_float, block_container_inline_size);
+        self.resolve_vertical_box_model_metrics(
+            sized_float,
+            block_container_inline_size,
+            input.containing_block_constraints,
+        );
         let ParticipationInParentFormattingContext::Float {
             containing_block_position_in_bfc_root,
         } = input.participation
