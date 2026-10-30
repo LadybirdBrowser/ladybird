@@ -46,6 +46,7 @@ set(AK_TEST_SOURCES
     TestIPv6Address.cpp
     TestJSON.cpp
     TestLEB128.cpp
+    TestMath.cpp
     TestMemory.cpp
     TestMemoryStream.cpp
     TestNeverDestroyed.cpp

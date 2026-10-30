@@ -35,9 +35,9 @@ impl Default for BigFraction {
     }
 }
 
-/// AK::pow() of a double raised to an integral power, which multiplies the base by itself rather than calling the
-/// C library, and inverts the product for negative powers.
-fn ak_pow_integral(base: f64, power: i32) -> f64 {
+/// A double raised to an integral power by multiplying the base by itself rather than calling the C library, with the
+/// product inverted for negative powers. This keeps the digits that from_double() reads stable.
+fn pow_by_repeated_multiplication(base: f64, power: i32) -> f64 {
     if power == 0 {
         return 1.0;
     }
@@ -73,9 +73,9 @@ impl BigFraction {
         Self::new(value, SignedBigInteger::one())
     }
 
-    /// BigFraction(double), which reads the decimal digits of the double one at a time with AK::pow(), and so is
-    /// only exact for small values. Its exponent is an i8, which wraps for values of 10^127 and above, for which it
-    /// never finishes reading digits.
+    /// BigFraction(double), which reads the decimal digits of the double one at a time with repeated multiplication,
+    /// and so is only exact for small values. Its exponent is an i8, which wraps for values of 10^127 and above, for
+    /// which it never finishes reading digits.
     pub fn from_double(mut value: f64) -> Self {
         let mut numerator = SignedBigInteger::zero();
         let mut denominator = SignedBigInteger::one();
@@ -86,16 +86,16 @@ impl BigFraction {
             value = -value;
         }
         let mut current_power: i8 = 0;
-        while ak_pow_integral(10.0, i32::from(current_power)) <= value {
+        while pow_by_repeated_multiplication(10.0, i32::from(current_power)) <= value {
             current_power = current_power.wrapping_add(1);
         }
         current_power = current_power.wrapping_sub(1);
         let mut decimal_places: u32 = 0;
         while value >= f64::EPSILON || current_power >= 0 {
             numerator *= 10;
-            let digit = ((value * ak_pow_integral(0.1, i32::from(current_power))) as u64 % 10) as i8;
+            let digit = ((value * pow_by_repeated_multiplication(0.1, i32::from(current_power))) as u64 % 10) as i8;
             numerator += digit;
-            value -= f64::from(digit) * ak_pow_integral(10.0, i32::from(current_power));
+            value -= f64::from(digit) * pow_by_repeated_multiplication(10.0, i32::from(current_power));
             if current_power < 0 {
                 decimal_places += 1;
                 denominator = SignedBigInteger::from(10).pow(decimal_places);
