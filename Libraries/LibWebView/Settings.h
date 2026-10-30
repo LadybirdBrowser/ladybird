@@ -93,6 +93,12 @@ enum class LocationPolicy : u8 {
     Block,
 };
 
+// Whether sites may ask to send the user notifications at all.
+enum class NotificationsPolicy : u8 {
+    Ask,
+    Block,
+};
+
 struct BrowsingDataSettings {
     HTTP::DiskCacheSettings disk_cache_settings;
 };
@@ -158,6 +164,7 @@ public:
     virtual void dns_settings_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
     virtual void geolocation_settings_changed() { }
+    virtual void notifications_settings_changed() { }
     virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
 
@@ -227,6 +234,9 @@ public:
 
     LocationPolicy location_policy() const { return m_location_policy; }
     void set_location_policy(LocationPolicy);
+
+    NotificationsPolicy notifications_policy() const { return m_notifications_policy; }
+    void set_notifications_policy(NotificationsPolicy);
 
     static BrowsingDataSettings parse_browsing_data_settings(JsonValue const&);
     BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
@@ -302,6 +312,7 @@ private:
 
     AutoplaySiteSetting m_autoplay;
     LocationPolicy m_location_policy { LocationPolicy::Ask };
+    NotificationsPolicy m_notifications_policy { NotificationsPolicy::Ask };
 
     BrowsingDataSettings m_browsing_data_settings;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };

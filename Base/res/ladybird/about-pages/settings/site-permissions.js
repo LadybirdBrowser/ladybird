@@ -3,9 +3,10 @@ import { registerDialogDeepLink } from "./dialog-deep-link.js";
 const PERMISSIONS = {
     geolocation: { hash: "location-permissions", button: "#location-permissions-settings" },
     microphone: { hash: "microphone-permissions", button: "#microphone-permissions-settings" },
+    notifications: { hash: "notifications-permissions", button: "#notifications-permissions-settings" },
 };
 
-let SITE_PERMISSIONS = { geolocation: [], microphone: [] };
+let SITE_PERMISSIONS = { geolocation: [], microphone: [], notifications: [] };
 
 function dialogFor(permission) {
     return document.querySelector(`#site-permissions-${permission}`);

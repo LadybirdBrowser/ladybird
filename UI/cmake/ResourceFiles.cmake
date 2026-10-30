@@ -62,6 +62,7 @@ set(ABOUT_SETTINGS_RESOURCES
     geolocation.js
     languages.js
     network.js
+    notifications.js
     permissions.js
     privacy.js
     search.js
