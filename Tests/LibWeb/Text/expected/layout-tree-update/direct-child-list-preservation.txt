@@ -148,6 +148,30 @@ PASS: append relative item after whitespace in flex | preserve parent
 PASS: append relative item after whitespace in flex | preserve before
 PASS: append relative item after whitespace in flex | layout tree builds=1
 PASS: append relative item after whitespace in flex | incremental tree matches full rebuild
+PASS: append absolute block child after whitespace | preserve parent
+PASS: append absolute block child after whitespace | preserve before
+PASS: append absolute block child after whitespace | layout tree builds=1
+PASS: append absolute block child after whitespace | incremental tree matches full rebuild
+PASS: append floated block child after whitespace | preserve parent
+PASS: append floated block child after whitespace | preserve before
+PASS: append floated block child after whitespace | layout tree builds=1
+PASS: append floated block child after whitespace | incremental tree matches full rebuild
+PASS: append absolute block child between whitespace and blocks | preserve parent
+PASS: append absolute block child between whitespace and blocks | preserve before
+PASS: append absolute block child between whitespace and blocks | layout tree builds=1
+PASS: append absolute block child between whitespace and blocks | incremental tree matches full rebuild
+PASS: append block and whitespace ending in absolute block child | preserve parent
+PASS: append block and whitespace ending in absolute block child | preserve before
+PASS: append block and whitespace ending in absolute block child | layout tree builds=1
+PASS: append block and whitespace ending in absolute block child | incremental tree matches full rebuild
+PASS: append absolute block child after whitespace and anonymous inline run | preserve parent
+PASS: append absolute block child after whitespace and anonymous inline run | preserve before
+PASS: append absolute block child after whitespace and anonymous inline run | preserve inline
+PASS: append absolute block child after whitespace and anonymous inline run | layout tree builds=1
+PASS: append absolute block child after whitespace and anonymous inline run | incremental tree matches full rebuild
+PASS: fall back for absolute block child after whitespace before existing child | rebuild parent
+PASS: fall back for absolute block child after whitespace before existing child | layout tree builds=1
+PASS: fall back for absolute block child after whitespace before existing child | incremental tree matches full rebuild
 PASS: fall back for block child before anonymous inline run | rebuild parent
 PASS: fall back for block child before anonymous inline run | layout tree builds=1
 PASS: fall back for block child before anonymous inline run | incremental tree matches full rebuild

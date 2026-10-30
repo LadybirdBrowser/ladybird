@@ -1024,9 +1024,15 @@ impl ChildListInsertionReuse<'_, '_> {
         let mut all_indirect_existing_children_are_in_text_run_wrappers =
             self.layout.data(self.layout_node).kind.get() != NodeKind::FieldSetBox;
         let mut has_pending_collapsing_whitespace = false;
+        // An appended out-of-flow block joins the anonymous wrapper its preceding whitespace starts, as in a full
+        // build, only while that wrapper stays the parent's last child.
+        let mut inserted_whitespace_run_must_stay_last = false;
         for child in self.dom_children() {
             let child_layout_node = self.box_of(child);
             if !child_layout_node.is_invalid() {
+                if inserted_whitespace_run_must_stay_last {
+                    return false;
+                }
                 has_pending_collapsing_whitespace = false;
                 has_existing_child_after_insertion |= has_inserted_child;
                 if self.layout.parent(child_layout_node) != self.layout_node {
@@ -1106,7 +1112,7 @@ impl ChildListInsertionReuse<'_, '_> {
             }
             if parent_lays_out_block_children && child_display.is_block_outside() {
                 if has_pending_collapsing_whitespace && !child_is_in_flow {
-                    return false;
+                    inserted_whitespace_run_must_stay_last = true;
                 }
                 has_pending_collapsing_whitespace = false;
                 has_inserted_child = true;
