@@ -1119,8 +1119,9 @@ bool TabBar::event(QEvent* event)
             auto* tab = m_tab_widget ? m_tab_widget->tab(hovered_tab) : nullptr;
             if (tab && m_tabs_with_cut_titles.contains(tab)) {
                 auto text = tabText(hovered_tab);
-                if (auto host = tab->view().url().serialized_host(); !host.is_empty())
-                    text = qformatted("{}\n{}", ak_string_from_qstring(text), host);
+                // A URL without a host (about:blank, e.g.) has no site to show.
+                if (auto url = tab->view().url(); url.host().has_value() && !url.serialized_host().is_empty())
+                    text = qformatted("{}\n{}", ak_string_from_qstring(text), url.serialized_host());
                 QToolTip::showText(help_event->globalPos(), text, this, tabRect(hovered_tab));
                 event->accept();
                 return true;
