@@ -1,0 +1,2 @@
+auto-height: item measured again: false, width matches a fresh layout: true
+percentage-height: item measured again: true, width matches a fresh layout: true

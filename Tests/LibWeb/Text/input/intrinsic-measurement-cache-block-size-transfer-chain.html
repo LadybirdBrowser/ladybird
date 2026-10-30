@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+
+    body {
+        margin: 0;
+        font: 10px/20px Ahem;
+    }
+
+    .row {
+        display: flex;
+        height: 100px;
+        width: max-content;
+    }
+
+    .vertical {
+        writing-mode: vertical-rl;
+    }
+</style>
+<template id="rows">
+    <div class="row" id="auto-height"><div id="auto-height-item"><div><div class="vertical">alpha beta gamma delta</div></div></div></div>
+    <div class="row" id="percentage-height"><div id="percentage-height-item"><div style="height: 100%"><div class="vertical">alpha beta gamma delta</div></div></div></div>
+</template>
+<script>
+    function measuredAgain(work, id) {
+        return work.count({ event: "measure", box: `BlockContainer<DIV>#${id}`, cache: "miss" }) > 0;
+    }
+
+    // The items are measured at the height they stretch to. An orthogonal flow inside an item only reads that height
+    // when the boxes between them take their height from it.
+    asyncTest(async done => {
+        await document.fonts.load("10px Ahem");
+        document.body.appendChild(document.getElementById("rows").content.cloneNode(true));
+        document.body.offsetWidth;
+
+        for (const id of ["auto-height", "percentage-height"]) {
+            const container = document.getElementById(id);
+            const work = layoutWork(() => (container.style.height = "140px"));
+            const fresh = document.getElementById("rows").content.getElementById(id).cloneNode(true);
+            fresh.id = "";
+            fresh.firstElementChild.id = "";
+            fresh.style.height = "140px";
+            document.body.appendChild(fresh);
+            const item = document.getElementById(`${id}-item`);
+            println(
+                `${id}: item measured again: ${measuredAgain(work, `${id}-item`)}, width matches a fresh layout: ${item.getBoundingClientRect().width === fresh.firstElementChild.getBoundingClientRect().width}`
+            );
+            fresh.remove();
+        }
+        done();
+    });
+</script>

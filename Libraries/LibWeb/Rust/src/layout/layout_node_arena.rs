@@ -220,8 +220,6 @@ impl IntrinsicMeasurement for IntrinsicBlockSizeMeasurement {
 
 #[derive(Default)]
 struct IntrinsicSizeMaps {
-    // This is a subtree fact and shares the intrinsic cache's epoch so descendant changes invalidate it.
-    inline_size_depends_on_block_size: Option<bool>,
     content_inline_sizes: IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>,
     max_content_block_size: IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>,
 }
@@ -296,21 +294,6 @@ impl IntrinsicSizeCaches {
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
         self.with_maps(node, |maps| maps.content_inline_sizes.answer(&key))
-    }
-
-    pub(crate) fn intrinsic_inline_size_depends_on_block_size(
-        &self,
-        node: NodeSlotId,
-        compute: impl FnOnce() -> bool,
-    ) -> bool {
-        if let Some(value) = self.with_maps(node, |maps| maps.inline_size_depends_on_block_size) {
-            return value;
-        }
-        let value = compute();
-        self.with_maps_mut(node, |maps| {
-            maps.inline_size_depends_on_block_size = Some(value);
-        });
-        value
     }
 
     pub(crate) fn intrinsic_inline_size_measurement_cache_put(
@@ -6272,7 +6255,6 @@ const _: () = {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::Cell;
 
     use crate::layout::abspos_inputs::{
         AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionAlignment, StaticPositionRect,
@@ -7426,8 +7408,6 @@ mod tests {
             depends_on_percentage_inline_basis: false,
             depends_on_block_size: false,
         };
-        let dependency_computations = Cell::new(0);
-
         caches.max_content_block_size_cache_put(first.slot, key, value);
         caches.intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
         assert_eq!(caches.max_content_block_size_cache_get(first.slot, key), Some(value));
@@ -7435,12 +7415,6 @@ mod tests {
             caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
             Some(inline_measurement)
         );
-        assert!(caches.intrinsic_inline_size_depends_on_block_size(first.slot, || {
-            dependency_computations.set(dependency_computations.get() + 1);
-            true
-        }));
-        assert!(caches.intrinsic_inline_size_depends_on_block_size(first.slot, || false));
-        assert_eq!(dependency_computations.get(), 1);
 
         arena.reset_cached_intrinsic_sizes(first.slot);
         assert_eq!(
@@ -7454,11 +7428,6 @@ mod tests {
             caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
             None
         );
-        assert!(!caches.intrinsic_inline_size_depends_on_block_size(first.slot, || {
-            dependency_computations.set(dependency_computations.get() + 1);
-            false
-        }));
-        assert_eq!(dependency_computations.get(), 2);
 
         caches.intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
         arena
