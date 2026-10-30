@@ -147,7 +147,7 @@ private:
 
     virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
     virtual void focus_page_from_notification(WebView::WebContentPage&) override;
-    virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*) override;
+    virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate) override;
 
     virtual bool supports_picture_in_picture() const override { return true; }
     virtual OwnPtr<WebView::PictureInPictureWindow> create_picture_in_picture_window(WebView::WebContentPage& requesting_page, WebView::CanonicalTraversable&, Gfx::IntSize video_size) override;

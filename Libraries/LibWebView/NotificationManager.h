@@ -18,6 +18,7 @@
 #include <LibURL/URL.h>
 #include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibWebCommon/Page/PageId.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/NotificationBackend.h>
 
@@ -65,6 +66,9 @@ private:
         URL::URL origin_url;
         WeakPtr<CanonicalTraversable> traversable;
         Utf16String tag;
+        // Tag replacement and the per-origin cap never reach across sessions, so a private window's notification
+        // can't close a normal window's and the other way around.
+        IsPrivate is_private { IsPrivate::No };
     };
 
     NotificationManager() = default;

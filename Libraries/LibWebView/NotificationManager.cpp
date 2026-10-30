@@ -70,6 +70,7 @@ void NotificationManager::show(WebContentPage& page, u64 page_notification_id, U
         .origin_url = URL::Parser::basic_parse(origin.serialize()).value_or(url),
         .traversable = page.traversable().make_weak_ptr<CanonicalTraversable>(),
         .tag = data.tag,
+        .is_private = page.view().session().is_private(),
     };
 
     // Same origin and same tag take the place of the earlier notification (the spec's oldNotification): Its page
@@ -78,7 +79,7 @@ void NotificationManager::show(WebContentPage& page, u64 page_notification_id, U
     if (!data.tag.is_empty()) {
         for (size_t index = 0; index < m_records.size(); ++index) {
             auto const& existing = m_records[index];
-            if (existing.tag == data.tag && existing.origin.is_same_origin(origin)) {
+            if (existing.tag == data.tag && existing.is_private == record.is_private && existing.origin.is_same_origin(origin)) {
                 replaces = existing.id;
                 report_closed(existing, false);
                 m_records.remove(index);
@@ -90,12 +91,12 @@ void NotificationManager::show(WebContentPage& page, u64 page_notification_id, U
     // An origin shows a bounded number of notifications at a time; the oldest makes room for a new one.
     size_t live_for_origin = 0;
     for (auto const& existing : m_records) {
-        if (existing.origin.is_same_origin(origin))
+        if (existing.is_private == record.is_private && existing.origin.is_same_origin(origin))
             ++live_for_origin;
     }
     while (live_for_origin >= max_live_notifications_per_origin) {
         for (size_t index = 0; index < m_records.size(); ++index) {
-            if (m_records[index].origin.is_same_origin(origin)) {
+            if (m_records[index].is_private == record.is_private && m_records[index].origin.is_same_origin(origin)) {
                 close_record_from_browser(index);
                 --live_for_origin;
                 break;
@@ -246,8 +247,9 @@ void NotificationManager::backend_did_click(u64 id)
     auto origin_url = record.origin_url;
     auto page_id = record.page_id;
     auto traversable = record.traversable;
+    auto is_private = record.is_private;
     m_records.remove(*index);
-    Application::the().open_url_in_new_tab_from_notification(origin_url, page_id, traversable.ptr());
+    Application::the().open_url_in_new_tab_from_notification(origin_url, page_id, traversable.ptr(), is_private);
 }
 
 void NotificationManager::backend_did_close(u64 id, NotificationBackend::ByUser by_user)

@@ -162,7 +162,7 @@ public:
     virtual void focus_page_from_notification(WebContentPage&) { }
     // A click on a notification whose page is gone: Open the URL in a new foreground tab of that window, if it's
     // still open, or of the active window.
-    virtual void open_url_in_new_tab_from_notification(URL::URL const&, [[maybe_unused]] Web::PageId originating_page, CanonicalTraversable*) { }
+    virtual void open_url_in_new_tab_from_notification(URL::URL const&, [[maybe_unused]] Web::PageId originating_page, CanonicalTraversable*, IsPrivate) { }
 
     void appearance_changed(Badge<ApplicationSettingsObserver>);
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
