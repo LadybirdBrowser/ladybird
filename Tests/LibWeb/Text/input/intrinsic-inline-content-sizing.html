@@ -62,6 +62,7 @@
             ["float clearance", "", '<span style="float: left">alpha</span>beta<br style="clear: both">gamma'],
             ["absolute", "position: relative", 'alpha<span style="position: absolute">long positioned text</span> beta'],
             ["vertical", "writing-mode: vertical-rl", 'alpha <span class=atomic>beta gamma</span>'],
+            ["vertical clamped to a fixed width", "writing-mode: vertical-rl; min-width: 40px; max-width: 40px", 'alpha <span class=atomic>beta gamma</span>'],
             ["orthogonal atomic", "", '<span class=atomic style="writing-mode: vertical-rl; height: 60px">alpha beta gamma</span> delta'],
             ["vertical grid limited to min-content", "", '<div style="display: grid; writing-mode: vertical-rl; max-width: min-content; height: 60px"><div>alpha beta</div><div>gamma delta</div></div>'],
             ["vertical grid limited to max-content", "", '<div style="display: grid; writing-mode: vertical-rl; max-width: max-content; height: 60px"><div>alpha beta</div><div>gamma delta</div></div>'],

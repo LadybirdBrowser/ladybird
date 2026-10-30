@@ -2716,6 +2716,9 @@ fn body_input_in_own_frame(
         {
             used.content_inline_size()
         } else {
+            // NB: The root's own inline size comes from its parent's block size here, which its run observes like a
+            //     percentage block size.
+            run.state.note_box_depends_on_percentage_block_size(node);
             body_run.sizing().orthogonal_flow_inline_size(
                 sized_root_in_own_frame.sized_box(),
                 available_space,
