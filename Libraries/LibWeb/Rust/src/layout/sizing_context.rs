@@ -338,6 +338,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         !self.callbacks.first_child(node).is_invalid()
     }
 
+    fn contains_only_text(&self, node: Node) -> bool {
+        self.callbacks
+            .children(node)
+            .all(|child| self.facts(child).is_text_node())
+    }
+
     /// Whether the content inline sizes of `root` may read its block size: the root takes its inline size from it, or
     /// the block size reaches a box that does, through the boxes that size themselves from their parent's block size.
     pub(crate) fn intrinsic_inline_size_may_depend_on_block_size(&self, root: Node) -> bool {
@@ -1431,6 +1437,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let facts = self.facts(node);
         if facts.is_list_item_marker_box() {
             return self.list_item_marker_observes_percentage_inline_basis(node);
+        }
+        if facts.is_anonymous() && facts.is_generated_for_pseudo_element() && self.contains_only_text(node) {
+            let style = self.style(node);
+            return Self::own_box_resolves_percentage_against_inline_basis(style)
+                || style.text_indent().contains_percentage();
         }
         if facts.is_anonymous() || facts.is_replaced_box() || facts.has_auto_content_box_size() {
             return true;
