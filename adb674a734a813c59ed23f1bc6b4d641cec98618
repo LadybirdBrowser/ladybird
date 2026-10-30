@@ -1,0 +1,20 @@
+Ladybird’s permission manager follows Chrome’s model for how long a
+decision lasts. An “Allow this time” grant ends when no tab shows the
+site, after 5 minutes with no visible tab, or after 16 hours at most;
+Chrome’s OneTimePermissionsTracker uses the same limits
+(kOneTimePermissionTimeout and kOneTimePermissionMaximumLifetime in
+permission_context_base.h). Three dismissals or four ignored prompts
+put a site under a 7-day embargo during which it reads as denied, as in
+Chrome’s PermissionDecisionAutoBlocker (kDefaultDismissalsBeforeBlock,
+kDefaultIgnoresBeforeBlock, kDefaultEmbargoDays). A private session
+inherits the ordinary session’s blocks but not its grants, which is
+how Chrome registers geolocation (INHERIT_IF_LESS_PERMISSIVE in
+content_settings_registry.cc).
+
+Gecko and WebKit differ, deliberately not followed here. Gecko’s
+PermissionUI.sys.mjs keeps an unremembered answer for an hour per tab
+(privacy.temporary_permission_expire_time_ms), and only a checked
+“Remember this decision” box makes it persistent. WebKit’s
+WKWebGeolocationPolicyDeciderIOS.mm applies an answer automatically
+only once the same answer has been given twice within a day
+(kGeolocationChallengeThreshold).
