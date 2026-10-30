@@ -169,6 +169,60 @@ def run_test(default):
             wait_for_page(target_url + "-same-host-next")
             assert_force_dark("Reload", not default)
             print(f"PASS: per-host force-dark across navigation (default={default})")
+
+            def evaluate(script):
+                status, payload, raw = command("POST", "execute/sync", {"script": script, "args": []})
+                assert status == 200, raw
+                return payload["value"]
+
+            def wait_for_condition(script):
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    if evaluate(script):
+                        return
+                    time.sleep(0.01)
+                raise AssertionError(f"Condition did not become true: {script}")
+
+            status, payload, raw = command("GET", "window")
+            assert status == 200, raw
+            site_handle = payload["value"]
+            status, payload, raw = command("POST", "window/new", {"type": "tab"})
+            assert status == 200, raw
+            settings_handle = payload["value"]["handle"]
+
+            def switch_to(handle):
+                status, _, raw = command("POST", "window", {"handle": handle})
+                assert status == 200, raw
+
+            switch_to(settings_handle)
+            status, _, raw = command("POST", "url", {"url": "about:settings"})
+            assert status == 200, raw
+            wait_for_page("about:settings")
+            wait_for_condition("return document.querySelector('#force-dark-sites button') !== null")
+            assert evaluate(
+                "return document.querySelector('#force-dark-sites').textContent.includes('localhost: ' + "
+                + ("'Off'" if default else "'On'")
+                + ")"
+            )
+            evaluate("document.querySelector('#enable-force-dark').click()")
+            wait_for_condition(
+                "return document.querySelector('#enable-force-dark').checked === " + str(not default).lower()
+            )
+            switch_to(site_handle)
+            assert_force_dark("Explicit choice survives a global toggle", not default, check_initial=False)
+            switch_to(settings_handle)
+            evaluate("document.querySelector('#enable-force-dark').click()")
+            wait_for_condition(
+                "return document.querySelector('#enable-force-dark').checked === " + str(default).lower()
+            )
+            evaluate("document.querySelector('#force-dark-sites button').click()")
+            wait_for_condition("return document.querySelector('#force-dark-sites button') === null")
+            switch_to(site_handle)
+            wait_for_condition("return matchMedia('(prefers-color-scheme: dark)').matches === " + str(default).lower())
+            assert_force_dark("Reset updates an already-open page", default, check_initial=False)
+            saved = json.loads((config / "Settings.json").read_text())["content"]
+            assert "localhost" not in saved["forceDarkPerHost"]
+            print(f"PASS: settings toggle and per-host reset (default={default})")
         finally:
             try:
                 if session is not None:
