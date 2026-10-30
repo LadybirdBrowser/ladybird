@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1780 tests
 
-1632 Pass
-148 Fail
+1641 Pass
+139 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Document: original interface defined
@@ -1628,15 +1628,15 @@ Pass	SVGElement interface: objects.view must inherit property "ownerSVGElement" 
 Pass	SVGElement interface: objects.view must inherit property "viewportElement" with the proper type
 Fail	SVGElement interface: objects.view must inherit property "correspondingElement" with the proper type
 Fail	SVGElement interface: objects.view must inherit property "correspondingUseElement" with the proper type
-Fail	TimeEvent interface: existence and properties of interface object
-Fail	TimeEvent interface object length
-Fail	TimeEvent interface object name
-Fail	TimeEvent interface: existence and properties of interface prototype object
-Fail	TimeEvent interface: existence and properties of interface prototype object's "constructor" property
-Fail	TimeEvent interface: existence and properties of interface prototype object's @@unscopables property
-Fail	TimeEvent interface: attribute view
-Fail	TimeEvent interface: attribute detail
-Fail	TimeEvent interface: operation initTimeEvent(DOMString, optional Window?, optional long)
+Pass	TimeEvent interface: existence and properties of interface object
+Pass	TimeEvent interface object length
+Pass	TimeEvent interface object name
+Pass	TimeEvent interface: existence and properties of interface prototype object
+Pass	TimeEvent interface: existence and properties of interface prototype object's "constructor" property
+Pass	TimeEvent interface: existence and properties of interface prototype object's @@unscopables property
+Pass	TimeEvent interface: attribute view
+Pass	TimeEvent interface: attribute detail
+Pass	TimeEvent interface: operation initTimeEvent(DOMString, optional Window?, optional long)
 Pass	SVGAnimationElement interface: existence and properties of interface object
 Pass	SVGAnimationElement interface object length
 Pass	SVGAnimationElement interface object name

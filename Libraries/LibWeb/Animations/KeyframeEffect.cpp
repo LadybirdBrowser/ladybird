@@ -30,6 +30,8 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/SVG/SMILAnimation.h>
+#include <LibWeb/SVG/SVGAnimationElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Animations {
@@ -1254,6 +1256,16 @@ static bool event_is_heard_at(DOM::Element& target, Hears const& hears)
 // `only_iteration_events`.
 bool KeyframeEffect::css_animation_events_are_heard(bool only_iteration_events) const
 {
+    // NB: SMIL animations raise time events at their animation element instead, which do not bubble.
+    if (auto animation = associated_animation(); animation && animation->is_smil_animation()) {
+        auto& animation_element = as<SVG::SMILAnimation>(*animation).animation_element();
+        if (only_iteration_events)
+            return animation_element.has_event_listener(HTML::EventNames::repeatEvent);
+        return animation_element.has_event_listener(HTML::EventNames::beginEvent)
+            || animation_element.has_event_listener(HTML::EventNames::endEvent)
+            || animation_element.has_event_listener(HTML::EventNames::repeatEvent);
+    }
+
     // Script animations do not dispatch CSS animation events, even when an ancestor listens for them.
     if (auto animation = associated_animation(); animation && !animation->is_css_animation())
         return false;

@@ -1,0 +1,24 @@
+beginElement()
+  repeating: beginEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+seek into the second iteration
+  repeating: repeatEvent (TimeEvent, detail 1, bubbles false, cancelable false, trusted true, view is window true)
+  repeating: onrepeat
+seek into the third iteration
+  repeating: repeatEvent (TimeEvent, detail 2, bubbles false, cancelable false, trusted true, view is window true)
+  repeating: onrepeat
+seek back into the first iteration
+seek into the second iteration again
+  repeating: repeatEvent (TimeEvent, detail 1, bubbles false, cancelable false, trusted true, view is window true)
+  repeating: onrepeat
+restart while active
+  repeating: endEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+  repeating: beginEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+endElement()
+  repeating: endEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+begin again
+  repeating: beginEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+seek past the active end
+  repeating: endEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+interval that begins and ends between frames
+  short: beginEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)
+  short: endEvent (TimeEvent, detail 0, bubbles false, cancelable false, trusted true, view is window true)

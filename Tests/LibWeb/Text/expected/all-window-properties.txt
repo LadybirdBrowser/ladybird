@@ -557,6 +557,7 @@ TextTrack
 TextTrackCue
 TextTrackCueList
 TextTrackList
+TimeEvent
 TimeRanges
 ToggleEvent
 Touch
