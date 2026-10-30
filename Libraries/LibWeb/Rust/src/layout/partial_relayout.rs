@@ -7,7 +7,7 @@
 use crate::layout::LayoutNodeArena;
 use crate::layout::abspos_inputs::AbsposLayoutInputs;
 use crate::layout::formatting_context::{FormattingContextType, formatting_context_type_created_by_node_data};
-use crate::layout::layout_node_arena::AncestorInvalidation;
+use crate::layout::layout_node_arena::{AncestorIntrinsicSizes, AncestorInvalidation};
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::paint_read::PaintRead;
@@ -682,7 +682,7 @@ impl LayoutNodeArena {
         use crate::layout::node_data::DomPaintFact;
         use crate::painting::record::damage::PaintDamage;
 
-        self.bump_fragment_cache_epoch_of_self_and_ancestors(parent);
+        self.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(parent);
         // A committed row plans its children's paint, and an empty editable box is a caret target
         // only while it has nothing to paint in it.
         let mut damage = PaintDamage::ORDER;
@@ -692,39 +692,6 @@ impl LayoutNodeArena {
             damage |= PaintDamage::ALL_PRODUCERS;
         }
         self.push_paint_damage(parent, damage);
-    }
-
-    pub(crate) fn reset_cached_intrinsic_sizes_of_self_and_ancestors(&mut self, node: NodeSlotId) {
-        let node_kind = self.data(node).kind.get();
-        if node_facts::kind_is_box(node_kind) {
-            self.reset_cached_intrinsic_sizes(node);
-        }
-        self.reset_cached_intrinsic_sizes_of_ancestors(node);
-    }
-
-    // Reset intrinsic size caches for ancestors up to abspos or SVG root boundary.
-    fn reset_cached_intrinsic_sizes_of_ancestors(&mut self, node: NodeSlotId) {
-        let mut ancestor = self.data(node).parent.get();
-        while !ancestor.is_invalid() {
-            if node_facts::kind_is_box(self.data(ancestor).kind.get()) {
-                self.reset_cached_intrinsic_sizes(ancestor);
-                if self.content_does_not_size_box(ancestor) {
-                    break;
-                }
-            }
-            ancestor = self.data(ancestor).parent.get();
-        }
-    }
-
-    /// Whether a change inside the box leaves the intrinsic sizes of its ancestors as they are.
-    /// Absolutely positioned elements don't contribute to ancestor intrinsic sizes. SVG root
-    /// elements have intrinsic sizes determined solely by their own attributes (width, height,
-    /// viewBox), not by their children.
-    fn content_does_not_size_box(&self, node: NodeSlotId) -> bool {
-        self.data(node).kind.get() == NodeKind::SVGSVGBox
-            || self
-                .node_style_if_live(node)
-                .is_some_and(|style| style.is_absolutely_positioned())
     }
 
     pub(crate) fn set_needs_layout_update(&mut self, node: NodeSlotId, propagate_through_ancestors: bool) {
@@ -749,7 +716,11 @@ impl LayoutNodeArena {
         {
             // NB: A dirty node does not imply its whole ancestor chain was bumped for the current epoch values, and
             //     over-bumping is free.
-            self.bump_fragment_cache_epoch_of_self_and_ancestors(parent);
+            self.invalidate_ancestors_for_change_below(
+                node,
+                AncestorInvalidation::ContentChange,
+                AncestorIntrinsicSizes::Kept,
+            );
             return;
         }
 
@@ -780,10 +751,18 @@ impl LayoutNodeArena {
         }
 
         let mut marks_ancestors_for_layout_update = propagate_through_ancestors;
-        let mut resets_ancestor_intrinsic_sizes = propagate_through_ancestors;
+        let mut ancestor_intrinsic_sizes = if propagate_through_ancestors {
+            AncestorIntrinsicSizes::Reset
+        } else {
+            AncestorIntrinsicSizes::Kept
+        };
         let mut ancestor = parent;
         while !ancestor.is_invalid() {
-            self.invalidate_one(ancestor, AncestorInvalidation::ContentChange);
+            ancestor_intrinsic_sizes = self.invalidate_ancestor_for_change_below(
+                ancestor,
+                AncestorInvalidation::ContentChange,
+                ancestor_intrinsic_sizes,
+            );
             let ancestor_data = self.data(ancestor);
             let (ancestor_is_box, ancestor_is_dirty, ancestor_parent) = {
                 (
@@ -802,10 +781,6 @@ impl LayoutNodeArena {
                         marks_ancestors_for_layout_update = false;
                     }
                 }
-            }
-            if resets_ancestor_intrinsic_sizes && ancestor_is_box {
-                self.reset_cached_intrinsic_sizes(ancestor);
-                resets_ancestor_intrinsic_sizes = !self.content_does_not_size_box(ancestor);
             }
             ancestor = ancestor_parent;
         }
