@@ -1,0 +1,9 @@
+// Copyright (c) 2026-present, the Ladybird developers.
+
+#include <LibWebCommon/MixedContent/ProhibitsMixedSecurityContexts.h>
+
+[ExistingCpp]
+enum Web::MixedContent::ProhibitsMixedSecurityContexts : u8 {
+    ProhibitsMixedSecurityContexts,
+    DoesNotRestrictMixedSecurityContexts,
+}

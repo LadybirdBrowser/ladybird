@@ -8,6 +8,7 @@ set(TEST_SOURCES
     TestKeyEvent.cpp
     TestPermissionSnapshot.cpp
     TestPermissionsPolicy.cpp
+    TestProhibitsMixedSecurityContexts.cpp
     TestRemoteViolationDirective.cpp
     TestSiteCompatibility.cpp
     TestStorageEndpoint.cpp
