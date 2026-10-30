@@ -14,7 +14,7 @@
 
 namespace Audio {
 
-// Invariants (see AK/SingleProducerCircularQueue.h):
+// Invariants:
 // - head and tail are monotonically increasing frame counters, with tail >= head.
 // - tail is only written by the producer; head is only written by the consumer.
 // - tail - head is the number of frames in the ring, at most frame_capacity.
@@ -26,7 +26,7 @@ struct AudioFrameRingHeader {
 };
 
 // The lock-free single-producer/single-consumer discipline of a ring of interleaved float32 frames, over a header
-// and sample storage owned by the derived class, in the manner of AK/SingleProducerCircularQueueBase.
+// and sample storage owned by the derived class.
 class AUDIO_API AudioFrameRingBase {
 public:
     u32 channel_count() const { return m_channel_count; }
