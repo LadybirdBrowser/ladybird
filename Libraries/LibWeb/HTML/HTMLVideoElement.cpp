@@ -604,6 +604,12 @@ void HTMLVideoElement::run_the_video_frame_request_callbacks(HighResolutionTime:
         request_rendering_update_for_video_frame_callbacks();
     };
 
+    // AD-HOC: The playback state change that updates the ready state may arrive after the presented frame changes,
+    //         and createImageBitmap() requires at least HAVE_CURRENT_DATA. Don't let a callback run until it can
+    //         capture a frame.
+    if (ready_state() < ReadyState::HaveCurrentData)
+        return;
+
     // 2. Let metadata be the VideoFrameCallbackMetadata dictionary built from video's latest presented frame.
     // AD-HOC: The frame stays held until the rendering update has run its animation frame callbacks, so that the
     //         callbacks capture the frame that metadata describes.

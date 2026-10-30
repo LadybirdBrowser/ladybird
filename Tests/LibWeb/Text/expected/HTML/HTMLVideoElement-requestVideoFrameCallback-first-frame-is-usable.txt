@@ -1,0 +1,2 @@
+readyState in the callback: at least HAVE_CURRENT_DATA: true
+createImageBitmap() resolved: 64x36

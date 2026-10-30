@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The first frame callback runs once the frame is presented, which must not be before the readyState that the frame
+    // brings, so that the frame can be used from the callback.
+    promiseTest(async () => {
+        const video = document.createElement("video");
+        video.preload = "auto";
+        const callbackRan = new Promise(resolve => video.requestVideoFrameCallback(async () => {
+            println(`readyState in the callback: at least HAVE_CURRENT_DATA: ${video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA}`);
+            try {
+                const bitmap = await createImageBitmap(video);
+                println(`createImageBitmap() resolved: ${bitmap.width}x${bitmap.height}`);
+            } catch (error) {
+                println(`createImageBitmap() rejected: ${error.message}`);
+            }
+            resolve();
+        }));
+        video.src = "../../../Assets/red-with-second-in-gray-64x36.webm";
+        await callbackRan;
+    });
+</script>
