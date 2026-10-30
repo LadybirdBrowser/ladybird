@@ -568,8 +568,7 @@ impl FfiBoxMarks {
         }
         if self.image_data_changed {
             if kind == NodeKind::ImageBox && arena.node_style_if_live(row).is_some_and(size_is_independent_of_image) {
-                arena.bump_fragment_cache_epoch_of_self_and_ancestors(row);
-                arena.reset_cached_intrinsic_sizes_of_self_and_ancestors(row);
+                arena.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(row);
             } else {
                 arena.set_needs_layout_update(row, true);
             }

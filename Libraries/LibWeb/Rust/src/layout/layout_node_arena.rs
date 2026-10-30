@@ -640,6 +640,13 @@ pub(super) enum AncestorInvalidation {
     ContentChange,
 }
 
+/// Whether a walk up from a change resets the cached intrinsic sizes of the boxes it reaches.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum AncestorIntrinsicSizes {
+    Reset,
+    Kept,
+}
+
 pub(crate) type ShellFactory = (*mut c_void, unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind));
 
 /// How the host learns what boxes a DOM node has. The identity is 0 for the document, which has
@@ -1528,7 +1535,7 @@ impl LayoutNodeArena {
             // Changed facts invalidate cached formatting-context runs regardless of which channel
             // produced the change, including sources with no invalidation of their own.
             if self.set_replaced_content_facts(node, facts) {
-                self.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+                self.invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(node);
             }
         }
         self.nodes_enrolled_for_replaced_content_facts_sync = enrolled_nodes;
@@ -2365,8 +2372,7 @@ impl LayoutNodeArena {
         self.publish_new_size_container_geometry(slot);
         self.enroll_node_for_svg_paint_resources_sync(slot);
         if previous_payloads.is_some_and(|previous| !self.style_move_keeps_layout_inputs(slot, previous, payloads)) {
-            self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
-            self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
+            self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
         }
     }
 
@@ -2813,13 +2819,13 @@ impl LayoutNodeArena {
         if self.style_move_keeps_layout_inputs(row, previous_payloads, style.payloads) {
             return;
         }
-        self.bump_fragment_cache_epoch_of_self_and_ancestors(row);
         if let StyleRelayout::ByDamage(damage) = relayout
             && (damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32) < RELAYOUT_LEVEL
         {
+            self.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(row);
             return;
         }
-        self.reset_cached_intrinsic_sizes_of_self_and_ancestors(row);
+        self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(row);
         if let Some(style_node) = style_node {
             self.mark_row_for_relayout_after_style_change(style_node, row);
         }
@@ -3746,8 +3752,7 @@ impl LayoutNodeArena {
             !self.style_move_keeps_layout_inputs(slot, previous_payloads, derived.payloads);
         self.replace_arena_pinned_style_record(slot, derived);
         if changes_layout_affecting_style {
-            self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
-            self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
+            self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
         }
         self.notify_shell_of_style_change(host_calls, slot, false);
     }
@@ -3982,7 +3987,7 @@ impl LayoutNodeArena {
             let mut child = first_styled_child;
             while !child.is_invalid() {
                 if self.derive_ancestor_facts_for_node(child) {
-                    self.bump_fragment_cache_epoch_of_self_and_ancestors(child);
+                    self.invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(child);
                 }
                 child = self.data(child).next_sibling.get();
             }
@@ -4733,7 +4738,7 @@ impl LayoutNodeArena {
             if super::node_facts::has_flag(self.data(child), NodeFlag::Anonymous)
                 && self.derive_ancestor_facts_for_node(child)
             {
-                self.bump_fragment_cache_epoch_of_self_and_ancestors(child);
+                self.invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(child);
                 self.refresh_ancestor_facts_of_anonymous_children(child);
             }
             child = self.data(child).next_sibling.get();
@@ -5334,7 +5339,7 @@ impl LayoutNodeArena {
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
         // including mapping-only changes with identical rendered code units.
-        self.bump_fragment_cache_epoch_of_self_and_ancestors(id);
+        self.invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(id);
     }
 
     pub(crate) fn invalidate_text_content(&mut self, id: NodeSlotId) {
@@ -5590,14 +5595,65 @@ impl LayoutNodeArena {
     // parent pass sizing a child navigable's viewport invalidates the child document), so only
     // this arena's own pass may not see one. A bump landing between a run's probe and its store
     // is handled by storing the probe-time validity, which turns it into a fail-safe miss.
-    fn invalidate_at_and_above(&mut self, mut node: NodeSlotId, invalidation: AncestorInvalidation) {
-        while !node.is_invalid() {
-            self.invalidate_one(node, invalidation);
-            node = self.data(node).parent.get();
+    fn invalidate_self_and_ancestors(
+        &mut self,
+        node: NodeSlotId,
+        invalidation: AncestorInvalidation,
+        intrinsic_sizes: AncestorIntrinsicSizes,
+    ) {
+        self.invalidate_one(node, invalidation);
+        if intrinsic_sizes == AncestorIntrinsicSizes::Reset
+            && super::node_facts::kind_is_box(self.data(node).kind.get())
+        {
+            self.reset_cached_intrinsic_sizes(node);
+        }
+        self.invalidate_ancestors_for_change_below(node, invalidation, intrinsic_sizes);
+    }
+
+    pub(super) fn invalidate_ancestors_for_change_below(
+        &mut self,
+        node: NodeSlotId,
+        invalidation: AncestorInvalidation,
+        mut intrinsic_sizes: AncestorIntrinsicSizes,
+    ) {
+        let mut ancestor = self.data(node).parent.get();
+        while !ancestor.is_invalid() {
+            intrinsic_sizes = self.invalidate_ancestor_for_change_below(ancestor, invalidation, intrinsic_sizes);
+            ancestor = self.data(ancestor).parent.get();
         }
     }
 
-    /// The part of `invalidate_at_and_above` that applies to one node, for walks that also do other work on the way up.
+    /// The step of a walk up from a change that invalidates `ancestor`, for walks that also do other work on the way up.
+    /// Answers what the walk does to the intrinsic sizes of the ancestors above it.
+    pub(super) fn invalidate_ancestor_for_change_below(
+        &mut self,
+        ancestor: NodeSlotId,
+        invalidation: AncestorInvalidation,
+        intrinsic_sizes: AncestorIntrinsicSizes,
+    ) -> AncestorIntrinsicSizes {
+        self.invalidate_one(ancestor, invalidation);
+        if intrinsic_sizes == AncestorIntrinsicSizes::Reset
+            && super::node_facts::kind_is_box(self.data(ancestor).kind.get())
+        {
+            self.reset_cached_intrinsic_sizes(ancestor);
+            if self.content_does_not_size_box(ancestor) {
+                return AncestorIntrinsicSizes::Kept;
+            }
+        }
+        intrinsic_sizes
+    }
+
+    /// Whether a change inside the box leaves the intrinsic sizes of its ancestors as they are.
+    /// Absolutely positioned elements don't contribute to ancestor intrinsic sizes. SVG root
+    /// elements have intrinsic sizes determined solely by their own attributes (width, height,
+    /// viewBox), not by their children.
+    fn content_does_not_size_box(&self, node: NodeSlotId) -> bool {
+        self.data(node).kind.get() == NodeKind::SVGSVGBox
+            || self
+                .node_style_if_live(node)
+                .is_some_and(|style| style.is_absolutely_positioned())
+    }
+
     pub(super) fn invalidate_one(&mut self, node: NodeSlotId, invalidation: AncestorInvalidation) {
         if invalidation == AncestorInvalidation::StructuralChange {
             self.memo_invalidations.note_structural_inline_change(node);
@@ -5622,12 +5678,21 @@ impl LayoutNodeArena {
         self.memo_invalidations.note_fragment_cache_epoch_bumped(node);
     }
 
-    pub(crate) fn note_structural_change_at_and_above(&mut self, node: NodeSlotId) {
-        self.invalidate_at_and_above(node, AncestorInvalidation::StructuralChange);
+    pub(crate) fn invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(&mut self, node: NodeSlotId) {
+        self.invalidate_self_and_ancestors(node, AncestorInvalidation::ContentChange, AncestorIntrinsicSizes::Reset);
     }
 
-    pub(crate) fn bump_fragment_cache_epoch_of_self_and_ancestors(&mut self, node: NodeSlotId) {
-        self.invalidate_at_and_above(node, AncestorInvalidation::ContentChange);
+    pub(crate) fn invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(&mut self, node: NodeSlotId) {
+        self.invalidate_self_and_ancestors(node, AncestorInvalidation::ContentChange, AncestorIntrinsicSizes::Kept);
+    }
+
+    /// For a change whose cause resets the intrinsic sizes it moves itself, such as the layout mark that follows a text
+    /// change or the style change that refreshes ancestor facts.
+    pub(crate) fn invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(
+        &mut self,
+        node: NodeSlotId,
+    ) {
+        self.invalidate_self_and_ancestors(node, AncestorInvalidation::ContentChange, AncestorIntrinsicSizes::Kept);
     }
 
     pub(crate) fn insert_child(&mut self, parent: NodeSlotId, child: NodeSlotId, before: NodeSlotId) {
@@ -5697,7 +5762,12 @@ impl LayoutNodeArena {
         self.note_layout_subtree_attached(child);
         self.pending_attached_subtree_roots.push(child);
         self.note_overflow_contained_boxes_may_move_with_subtree(child);
-        self.note_structural_change_at_and_above(parent);
+        // NB: Resolving the deferred insertion marks the parent for layout, which resets its intrinsic sizes.
+        self.invalidate_self_and_ancestors(
+            parent,
+            AncestorInvalidation::StructuralChange,
+            AncestorIntrinsicSizes::Kept,
+        );
     }
 
     pub(crate) fn remove_child(&mut self, parent: NodeSlotId, child: NodeSlotId) {
@@ -5706,8 +5776,11 @@ impl LayoutNodeArena {
         }
         self.note_overflow_contained_boxes_may_move_with_subtree(child);
         self.unlink_child(parent, child);
-        self.note_structural_change_at_and_above(parent);
-        self.reset_cached_intrinsic_sizes_of_self_and_ancestors(parent);
+        self.invalidate_self_and_ancestors(
+            parent,
+            AncestorInvalidation::StructuralChange,
+            AncestorIntrinsicSizes::Reset,
+        );
     }
 
     fn unlink_child(&mut self, parent: NodeSlotId, child: NodeSlotId) {
@@ -7020,7 +7093,7 @@ mod tests {
         commit_from_layout(&mut arena);
         assert_eq!(current(&arena), Some(node));
 
-        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        arena.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(node);
         assert_eq!(current(&arena), None);
         commit_from_layout(&mut arena);
         assert_eq!(current(&arena), Some(node));
@@ -7037,7 +7110,7 @@ mod tests {
         *arena.unpublished_facts_mut(node).fragment_cache_epoch = 0;
         commit_from_layout(&mut arena);
         *arena.unpublished_facts_mut(node).fragment_cache_epoch = u32::MAX;
-        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        arena.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(node);
         assert_eq!(arena.data(node).fragment_cache_epoch, 0);
         assert_eq!(current(&arena), None);
     }
@@ -7048,7 +7121,7 @@ mod tests {
         let mut arena = LayoutNodeArena::new();
         let node = arena.allocate_for_test().slot;
         arena.begin_active_layout_pass();
-        arena.bump_fragment_cache_epoch_of_self_and_ancestors(node);
+        arena.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(node);
     }
 
     #[test]
