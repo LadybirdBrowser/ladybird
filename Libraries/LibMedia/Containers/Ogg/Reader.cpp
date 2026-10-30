@@ -386,15 +386,14 @@ static DecoderErrorOr<StreamIdentification> identify_opus(ReadonlyBytes packet)
 }
 
 static constexpr size_t OGG_FLAC_STREAM_INFO_OFFSET = 17;
-static constexpr size_t FLAC_STREAM_INFO_SIZE = 34;
 
 static DecoderErrorOr<StreamIdentification> identify_flac(ReadonlyBytes packet)
 {
     // The mapping header, the native stream marker, then the STREAMINFO block with its own header.
-    if (packet.size() < OGG_FLAC_STREAM_INFO_OFFSET + FLAC_STREAM_INFO_SIZE || packet[5] != 1
+    if (packet.size() < OGG_FLAC_STREAM_INFO_OFFSET + Codecs::FLAC::STREAM_INFO_SIZE || packet[5] != 1
         || !packet.slice(9).starts_with("fLaC"sv.bytes()) || (packet[13] & 0x7F) != 0)
         return DecoderError::corrupted("FLAC identification header is invalid"sv);
-    auto stream_info = packet.slice(OGG_FLAC_STREAM_INFO_OFFSET, FLAC_STREAM_INFO_SIZE);
+    auto stream_info = packet.slice(OGG_FLAC_STREAM_INFO_OFFSET, Codecs::FLAC::STREAM_INFO_SIZE);
     StreamIdentification identification;
     identification.codec_id = CodecID::FLAC;
     auto following_header_count = load_big_endian<u16>(packet, 7);
@@ -472,13 +471,13 @@ DecoderErrorOr<FixedArray<u8>> build_codec_initialization_data(StreamIdentificat
         return DECODER_TRY_ALLOC(FixedArray<u8>::create(header_packets[0].span()));
     case CodecID::FLAC: {
         // The native stream marker and a STREAMINFO block marked as the last, which is what FLAC streams start with.
-        auto stream_info = header_packets[0].span().slice(OGG_FLAC_STREAM_INFO_OFFSET, FLAC_STREAM_INFO_SIZE);
-        auto data = DECODER_TRY_ALLOC(FixedArray<u8>::create(8 + FLAC_STREAM_INFO_SIZE));
+        auto stream_info = header_packets[0].span().slice(OGG_FLAC_STREAM_INFO_OFFSET, Codecs::FLAC::STREAM_INFO_SIZE);
+        auto data = DECODER_TRY_ALLOC(FixedArray<u8>::create(8 + Codecs::FLAC::STREAM_INFO_SIZE));
         "fLaC"sv.bytes().copy_to(data.span());
         data[4] = 0x80;
         data[5] = 0;
         data[6] = 0;
-        data[7] = FLAC_STREAM_INFO_SIZE;
+        data[7] = Codecs::FLAC::STREAM_INFO_SIZE;
         stream_info.copy_to(data.span().slice(8));
         return data;
     }

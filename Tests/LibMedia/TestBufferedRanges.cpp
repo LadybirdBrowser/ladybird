@@ -206,6 +206,11 @@ static Array fixtures {
         { 256 * KiB, 3333120, 45056, 44100 },
         { 320 * KiB, 4189184, 45056, 44100 },
     },
+    Fixture {
+        "buffered-ranges/tone_vorbis.webm"sv,
+        { 256 * KiB, AK::Duration::from_milliseconds(71'866) + AK::Duration::from_time_units(1024, 1, 44100), AK::Duration::from_milliseconds(74'884) },
+        { 320 * KiB, AK::Duration::from_milliseconds(90'116) + AK::Duration::from_time_units(1024, 1, 44100), AK::Duration::from_milliseconds(94'853) },
+    },
 };
 
 TEST_CASE(complete_files_are_fully_buffered)

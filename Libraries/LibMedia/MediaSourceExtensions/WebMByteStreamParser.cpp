@@ -340,6 +340,8 @@ Media::DecoderErrorOr<ParseMediaSegmentResult> WebMByteStreamParser::parse_media
 void WebMByteStreamParser::reset_parser_state()
 {
     m_current_media_segment_data.clear();
+    for (auto& [track_number, context] : m_track_block_contexts)
+        context.packet_duration_parser.reset();
 }
 
 }

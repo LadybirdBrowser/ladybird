@@ -12,23 +12,12 @@
 #include <AK/Optional.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
+#include <LibMedia/Codecs/FLAC.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/MediaStream.h>
 #include <LibMediaCodecs/DecoderError.h>
 
 namespace Media::FLAC {
-
-struct StreamInfo {
-    u16 minimum_block_size { 0 };
-    u16 maximum_block_size { 0 };
-    u32 minimum_frame_size { 0 };
-    u32 maximum_frame_size { 0 };
-    u32 sample_rate { 0 };
-    u8 channel_count { 0 };
-    u8 bits_per_sample { 0 };
-    // Zero when the stream does not say.
-    u64 total_sample_count { 0 };
-};
 
 struct SeekPoint {
     u64 sample_number { 0 };
@@ -105,7 +94,7 @@ class MEDIA_API Reader {
 public:
     static DecoderErrorOr<Reader> from_stream(NonnullRefPtr<MediaStreamCursor> const&);
 
-    StreamInfo const& stream_info() const { return m_stream_info; }
+    Codecs::FLAC::StreamInfo const& stream_info() const { return m_stream_info; }
     FrameSync const& frame_sync() const { return m_frame_sync; }
     size_t first_frame_position() const { return m_first_frame_position; }
     Vector<SeekPoint> const& seek_points() const { return m_seek_points; }
@@ -115,9 +104,9 @@ public:
     AK::Duration duration() const;
 
 private:
-    Reader(StreamInfo, FrameSync, size_t first_frame_position, Vector<SeekPoint>, ByteBuffer codec_initialization_data);
+    Reader(Codecs::FLAC::StreamInfo, FrameSync, size_t first_frame_position, Vector<SeekPoint>, ByteBuffer codec_initialization_data);
 
-    StreamInfo m_stream_info;
+    Codecs::FLAC::StreamInfo m_stream_info;
     FrameSync m_frame_sync;
     size_t m_first_frame_position { 0 };
     Vector<SeekPoint> m_seek_points;

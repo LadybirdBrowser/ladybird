@@ -135,6 +135,23 @@ u16 FLAC::compute_frame_crc(ReadonlyBytes bytes)
     return crc;
 }
 
+DecoderErrorOr<FLAC::StreamInfo> FLAC::parse_stream_info(ReadonlyBytes bytes)
+{
+    BitReader reader { bytes };
+    StreamInfo stream_info;
+    stream_info.minimum_block_size = reader.read_bits<u16>(16);
+    stream_info.maximum_block_size = reader.read_bits<u16>(16);
+    stream_info.minimum_frame_size = reader.read_bits<u32>(24);
+    stream_info.maximum_frame_size = reader.read_bits<u32>(24);
+    stream_info.sample_rate = reader.read_bits<u32>(20);
+    stream_info.channel_count = reader.read_bits<u8>(3) + 1;
+    stream_info.bits_per_sample = reader.read_bits<u8>(5) + 1;
+    stream_info.total_sample_count = reader.read_bits<u64>(36);
+    if (stream_info.sample_rate == 0 || stream_info.maximum_block_size == 0)
+        return DecoderError::corrupted("FLAC STREAMINFO declares no sample rate or block size"sv);
+    return stream_info;
+}
+
 bool FLAC::is_sync_code(u16 value)
 {
     return (value >> 1) == 0b111111111111100;
@@ -231,6 +248,35 @@ Audio::ChannelMap FLAC::channel_map(u8 channel_count)
     default:
         return Audio::ChannelMap::surround_7_1();
     }
+}
+
+DecoderErrorOr<FLAC::PacketDurationParser> FLAC::PacketDurationParser::create(ReadonlyBytes codec_initialization_data)
+{
+    // The stream marker, then the header of the STREAMINFO block that must come first.
+    static constexpr size_t STREAM_INFO_POSITION = 8;
+    auto begins_with_stream_info = codec_initialization_data.size() >= STREAM_INFO_POSITION + STREAM_INFO_SIZE
+        && codec_initialization_data.starts_with("fLaC"sv.bytes())
+        && (codec_initialization_data[4] & 0x7F) == 0
+        && codec_initialization_data.slice(5, 3) == Array<u8, 3> { 0, 0, STREAM_INFO_SIZE }.span();
+    if (!begins_with_stream_info)
+        return DecoderError::corrupted("FLAC codec initialization data does not begin with STREAMINFO"sv);
+
+    auto stream_info = TRY(parse_stream_info(codec_initialization_data.slice(STREAM_INFO_POSITION, STREAM_INFO_SIZE)));
+    return PacketDurationParser { stream_info.sample_rate };
+}
+
+DecoderErrorOr<u32> FLAC::PacketDurationParser::parse_duration_in_samples(MediaStreamCursor& cursor, size_t packet_size)
+{
+    if (packet_size < sizeof(u16))
+        return DecoderError::corrupted("FLAC frame is too small"sv);
+    auto sync_code = TRY(cursor.read_value<u16>());
+    if (!is_sync_code(sync_code))
+        return DecoderError::corrupted("FLAC frame does not begin with a sync code"sv);
+    TRY(cursor.seek(-static_cast<i64>(sizeof(u16)), AK::SeekMode::FromCurrentPosition));
+    auto frame = TRY(parse_frame_header(cursor, sync_code, 0));
+    if (!frame.has_value())
+        return DecoderError::corrupted("FLAC frame header is invalid"sv);
+    return frame.value().block_size;
 }
 
 }

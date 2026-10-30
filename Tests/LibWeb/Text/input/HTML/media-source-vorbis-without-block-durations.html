@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<video id="video"></video>
+<script src="../include.js"></script>
+<script>
+    // WebM rarely states the duration of a Vorbis block, so a SourceBuffer takes it from the Vorbis packets. Without
+    // it, every audio frame would end where it starts and nothing would be buffered.
+    asyncTest(async done => {
+        const video = document.getElementById("video");
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+
+        const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp8,vorbis"');
+        // The Vorbis blocks of this file state no duration.
+        const response = await fetch("../wpt-import/media-source/webm/test.webm");
+        sourceBuffer.appendBuffer(await response.arrayBuffer());
+        await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+
+        const ranges = sourceBuffer.buffered;
+        for (let i = 0; i < ranges.length; i++)
+            println(`buffered: [${ranges.start(i).toFixed(3)}, ${ranges.end(i).toFixed(3)}]`);
+        println(`range count: ${ranges.length}`);
+        done();
+    });
+</script>

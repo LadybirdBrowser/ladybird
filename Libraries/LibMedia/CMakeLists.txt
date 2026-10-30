@@ -4,6 +4,7 @@ set(SOURCES
     Audio/WSOLAInternals.cpp
     Audio/WSOLATimeStretcher.cpp
     AudioDiscardIntervals.cpp
+    Codecs/AudioPacketDurationParser.cpp
     Codecs/FLAC.cpp
     Codecs/Opus.cpp
     Codecs/Vorbis.cpp
