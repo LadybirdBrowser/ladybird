@@ -12,6 +12,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/NotificationsAPI/Notification.h>
+#include <LibWeb/NotificationsAPI/NotificationPermission.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
 
 namespace Web::NotificationsAPI {
@@ -241,6 +242,27 @@ WebIDL::ExceptionOr<GC::Ref<Notification>> Notification::create_with_global_scop
     // FIXME: 2. Run the notification show steps for notification.
 
     return this_notification;
+}
+
+// https://notifications.spec.whatwg.org/#dom-notification-permission
+Bindings::NotificationPermission Notification::permission()
+{
+    // The static permission getter steps are to return the result of getting the notifications permission state.
+    // https://notifications.spec.whatwg.org/#permissions-integration
+    // 1. Let permissionState be the result of getting the current permission state with "notifications".
+    auto permission_state = get_the_notifications_permission_state(HTML::current_settings_object());
+
+    // 2. If permissionState is "prompt", then return "default".
+    // 3. Return permissionState.
+    switch (permission_state) {
+    case PermissionsAPI::PermissionState::Prompt:
+        return Bindings::NotificationPermission::Default;
+    case PermissionsAPI::PermissionState::Granted:
+        return Bindings::NotificationPermission::Granted;
+    case PermissionsAPI::PermissionState::Denied:
+        return Bindings::NotificationPermission::Denied;
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // https://notifications.spec.whatwg.org/#dom-notification-actions
