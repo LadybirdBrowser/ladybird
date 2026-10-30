@@ -8,7 +8,6 @@
  */
 
 #include <AK/LEB128.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
@@ -63,14 +62,6 @@ IPC::MessageBuffer TransferDataEncoder::take_buffer() const
     VERIFY(!m_buffer_has_been_taken);
     m_buffer_has_been_taken = true;
     return move(m_buffer);
-}
-
-void TransferDataEncoder::encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const& value)
-{
-    auto buffer = MUST(ByteBuffer::create_zeroed(value.byte_length()));
-    auto written = value.export_data(buffer.bytes());
-    VERIFY(written.size() == buffer.size());
-    MUST(m_encoder.encode(buffer));
 }
 
 void TransferDataEncoder::extend(Vector<TransferDataEncoder> data_holders)

@@ -9,7 +9,6 @@
 
 #include <AK/Array.h>
 #include <AK/Debug.h>
-#include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/VM.h>
@@ -199,12 +198,6 @@ WebIDL::ExceptionOr<ByteBuffer> TransferDataDecoder::decode_buffer()
         return WebIDL::DataCloneError::create("Unable to allocate memory for transferred buffer"_utf16);
     }
     return buffer.release_value();
-}
-
-WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> TransferDataDecoder::decode_unsigned_big_integer()
-{
-    auto buffer = TRY(decode_buffer());
-    return ::Crypto::UnsignedBigInteger::import_data(buffer);
 }
 
 }
