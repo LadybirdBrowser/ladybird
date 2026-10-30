@@ -4053,19 +4053,38 @@ impl<'pass> FlexFormattingContext<'pass> {
         //    the cross sizes of items in auto-sized flex containers are also considered definite for the purpose of layout.
         // NB: This refers to step 11, which stretches items. Other engines leave the content-based cross size of an item
         //     that is not stretched indefinite.
-        if self.should_treat_cross_size_as_auto(self.run.box_) {
-            for index in 0..self.flex_items.len() {
-                // NB: A button or a text input centers its content within its used block size, so it keeps it definite.
-                let item_facts = self.facts(self.flex_items[index].box_);
-                if !self.flex_item_is_stretched(index)
-                    && !item_facts.uses_button_layout()
-                    && !item_facts.is_text_input()
-                {
-                    continue;
-                }
-                let size = self.flex_items[index].cross_size.unwrap();
-                self.set_cross_size(index, size);
-                self.set_has_definite_cross_size(index);
+        // NB: A button or a text input centers its content within its used block size, so it keeps it definite, even
+        //     in a flex container with a definite cross size.
+        let container_cross_size_is_auto = self.should_treat_cross_size_as_auto(self.run.box_);
+        for index in 0..self.flex_items.len() {
+            let item_facts = self.facts(self.flex_items[index].box_);
+            let item_style = self.style(self.flex_items[index].box_);
+            // NB: A flex or grid button has no anonymous button content box, so it does not center its content.
+            let uses_button_layout = item_facts.uses_button_layout()
+                && !item_style.display().is_flex_inside()
+                && !item_style.display().is_grid_inside();
+            let centers_its_content = uses_button_layout || item_facts.is_text_input();
+            if !centers_its_content && !container_cross_size_is_auto {
+                continue;
+            }
+            let is_stretched = self.flex_item_is_stretched(index);
+            if !centers_its_content && !is_stretched {
+                continue;
+            }
+            let size = self.flex_items[index].cross_size.unwrap();
+            self.set_cross_size(index, size);
+            self.set_has_definite_cross_size(index);
+            // NB: The content-based cross size of a button that is not stretched stays indefinite for percentages
+            //     inside it.
+            if uses_button_layout
+                && !is_stretched
+                && !self.cross_axis_is_horizontal()
+                && (self.should_treat_cross_size_as_auto(self.flex_items[index].box_)
+                    || item_style.height().is_intrinsic_sizing_constraint())
+            {
+                self.flex_items[index]
+                    .cells
+                    .has_definite_block_size_only_for_button_content_alignment = true;
             }
         }
         // 16. Align all flex lines (per align-content)

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/flex-item-button-centers-content-in-clamped-automatic-height-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 400px;
+        height: 60px;
+        margin-bottom: 8px;
+        background: lightblue;
+    }
+    .column {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        width: 400px;
+        height: 60px;
+        background: lightblue;
+    }
+    button, input {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        font: 14px sans-serif;
+        background: pink;
+        min-height: 42px;
+    }
+    button {
+        width: 42px;
+    }
+    input {
+        appearance: none;
+        width: 80px;
+    }
+    .icon {
+        display: inline-block;
+        vertical-align: top;
+        width: 20px;
+        height: 20px;
+        background: green;
+    }
+</style>
+<div class="row">
+    <button><span class="icon"></span></button>
+    <button>Xyz</button>
+    <input value="Xyz">
+</div>
+<div class="row" style="align-items: flex-start">
+    <button><span class="icon"></span></button>
+    <button>Xyz</button>
+    <input value="Xyz">
+</div>
+<div class="row">
+    <button><div style="height: 100%; width: 20px; background: blue"><span class="icon"></span></div></button>
+</div>
+<div class="row" style="height: auto">
+    <div style="height: 60px"></div>
+    <button><div style="height: 100%; width: 20px; background: blue"><span class="icon"></span></div></button>
+</div>
+<div class="column">
+    <button><span class="icon"></span></button>
+</div>
