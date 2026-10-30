@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 2676 tests
 
-2669 Pass
-7 Fail
+2676 Pass
 Pass	Loading data…
 Pass	ToASCII("fass.de")
 Pass	ToASCII("faß.de")
@@ -1485,9 +1484,9 @@ Pass	ToASCII("j")
 Pass	ToASCII("Ⴍ𿣍ꡨ֮。Ⴞ‌‌") C1
 Pass	ToASCII("ⴍ𿣍ꡨ֮。ⴞ‌‌") C1
 Pass	ToASCII("xn--5cb172r175fug38a.xn--mlj")
-Fail	ToASCII("ⴍ𿣍ꡨ֮.ⴞ")
-Fail	ToASCII("Ⴍ𿣍ꡨ֮.Ⴞ")
-Fail	ToASCII("Ⴍ𿣍ꡨ֮.ⴞ")
+Pass	ToASCII("ⴍ𿣍ꡨ֮.ⴞ")
+Pass	ToASCII("Ⴍ𿣍ꡨ֮.Ⴞ")
+Pass	ToASCII("Ⴍ𿣍ꡨ֮.ⴞ")
 Pass	ToASCII("xn--5cb172r175fug38a.xn--0uga051h") C1
 Pass	ToASCII("xn--5cb347co96jug15a.xn--2nd") V7
 Pass	ToASCII("xn--5cb347co96jug15a.xn--2nd059ea") C1; V7
@@ -2499,11 +2498,11 @@ Pass	ToASCII("xn--4-w93ej7463a9io5a.xn--4xa31142bk3f0d") V7
 Pass	ToASCII("xn--4-w93ej7463a9io5a.xn--3xa51142bk3f0d") V7
 Pass	ToASCII("񗑿꠆₄򩞆｡𲩧󠒹Σ") V7
 Pass	ToASCII("񗑿꠆₄򩞆｡𲩧󠒹σ") V7
-Fail	ToASCII("𾢬。ܩ。쯙5")
-Fail	ToASCII("𾢬。ܩ。쯙5")
+Pass	ToASCII("𾢬。ܩ。쯙5")
+Pass	ToASCII("𾢬。ܩ。쯙5")
 Pass	ToASCII("xn--t92s.xn--znb.xn--5-y88f")
-Fail	ToASCII("𾢬.ܩ.쯙5")
-Fail	ToASCII("𾢬.ܩ.쯙5")
+Pass	ToASCII("𾢬.ܩ.쯙5")
+Pass	ToASCII("𾢬.ܩ.쯙5")
 Pass	ToASCII("៊.‍𝟮𑀿") C2; V6
 Pass	ToASCII("៊.‍2𑀿") C2; V6
 Pass	ToASCII("xn--m4e.xn--2-ku7i") V6

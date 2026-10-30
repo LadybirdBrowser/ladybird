@@ -1,5 +1,5 @@
 {
-  "builtin-baseline": "20ceb8adbf0504d4b0d5e4058a32f9d4fc896391",
+  "builtin-baseline": "e7791b55feda89cf9c8f4ccd6fa60aa48ca5e43e",
   "dependencies": [
     {
       "name": "angle",
@@ -324,7 +324,7 @@
     },
     {
       "name": "icu",
-      "version": "78.3#2"
+      "version": "79.1#0"
     },
     {
       "name": "libavif",
