@@ -207,7 +207,7 @@ bool ResourceLoader::is_known_hsts_host(Page& page, String const& host)
     return page.client().page_did_is_known_hsts_host(host);
 }
 
-static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, Optional<time_t> const& modified_time)
+static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path, size_t content_length, Optional<time_t> const& modified_time)
 {
     // For file:// and resource:// URLs, we have to guess the MIME type, since there's no HTTP header to tell us what
     // it is. We insert a fake Content-Type header here, so that clients can use it to learn the MIME type.
@@ -216,6 +216,7 @@ static NonnullRefPtr<HTTP::HeaderList> response_headers_for_file(StringView path
     auto response_headers = HTTP::HeaderList::create({
         { "Access-Control-Allow-Origin"sv, "null"sv },
         { "Content-Type"sv, mime_type },
+        { "Content-Length"sv, ByteString::number(content_length) },
     });
 
     if (modified_time.has_value()) {
@@ -380,7 +381,7 @@ void ResourceLoader::handle_file_load_request(LoadRequest& request, FileHandler 
 
         FileLoadResult load_result {
             .data = maybe_data.value().bytes(),
-            .response_headers = response_headers_for_file(request.url()->file_path(), st_or_error.value().st_mtime),
+            .response_headers = response_headers_for_file(request.url()->file_path(), maybe_data.value().size(), st_or_error.value().st_mtime),
         };
         on_file(load_result);
     });
@@ -460,7 +461,7 @@ void ResourceLoader::handle_resource_load_request(LoadRequest const& request, Re
 
     FileLoadResult load_result {
         .data = resource_value->data(),
-        .response_headers = response_headers_for_file(url.file_path(), resource_value->modified_time()),
+        .response_headers = response_headers_for_file(url.file_path(), resource_value->data().size(), resource_value->modified_time()),
         .timing_info = timing_info,
     };
     on_resource(load_result);
