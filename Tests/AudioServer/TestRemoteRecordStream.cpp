@@ -61,6 +61,9 @@ struct RemoteCaptureFixture {
     bool capture_permission_answer { true };
     bool answer_capture_requests_at_once { true };
     Vector<Function<void(bool)>> pending_capture_decisions;
+    // What the server counts as capturing, which the Browser shows.
+    Vector<Audio::PlaybackGroupId> capture_starts;
+    Vector<Audio::PlaybackGroupId> capture_stops;
 
     RemoteCaptureFixture()
     {
@@ -87,6 +90,8 @@ struct RemoteCaptureFixture {
         });
         server->set_capture_permitted(true);
         server->on_death = [this] { server_died = true; };
+        server->on_capture_started = [this](Audio::PlaybackGroupId group) { capture_starts.append(group); };
+        server->on_capture_stopped = [this](Audio::PlaybackGroupId group) { capture_stops.append(group); };
         server_weak = server->make_weak_ptr<Audio::ServerConnection>();
         client = adopt_ref(*new Audio::ClientConnection(MUST(paired.remote_handle.create_transport())));
         client_weak = client->make_weak_ptr<Audio::ClientConnection>();
@@ -217,6 +222,24 @@ TEST_CASE(a_device_that_will_not_open_rejects_the_stream)
     EXPECT(!stream);
     EXPECT(!fixture.server_died);
     EXPECT_EQ(fixture.capture_devices->open_device_count(), 0u);
+    // It counted from the Browser's yes until the device failed.
+    EXPECT_EQ(fixture.capture_starts, Vector<Audio::PlaybackGroupId> { Audio::PlaybackGroupId { 1 } });
+    EXPECT_EQ(fixture.capture_stops, Vector<Audio::PlaybackGroupId> { Audio::PlaybackGroupId { 1 } });
+}
+
+TEST_CASE(a_stream_counts_as_capturing_from_the_browsers_yes_until_it_is_destroyed)
+{
+    Sink sink;
+    RemoteCaptureFixture fixture;
+    bool rejected = false;
+    auto stream = fixture.create_record_stream("mic"sv, sink, rejected, Audio::PlaybackGroupId { 3 });
+    EXPECT(!rejected);
+    EXPECT_EQ(fixture.capture_starts, Vector<Audio::PlaybackGroupId> { Audio::PlaybackGroupId { 3 } });
+    EXPECT(fixture.capture_stops.is_empty());
+
+    stream = nullptr;
+    EXPECT(fixture.pump_until([&] { return !fixture.capture_stops.is_empty(); }));
+    EXPECT_EQ(fixture.capture_stops, Vector<Audio::PlaybackGroupId> { Audio::PlaybackGroupId { 3 } });
 }
 
 TEST_CASE(a_request_the_browser_refuses_is_rejected)
@@ -232,6 +255,7 @@ TEST_CASE(a_request_the_browser_refuses_is_rejected)
     EXPECT_EQ(fixture.capture_requests.size(), 1u);
     EXPECT_EQ(fixture.opened.size(), 0u);
     EXPECT_EQ(fixture.capture_devices->open_device_count(), 0u);
+    EXPECT(fixture.capture_starts.is_empty());
 }
 
 TEST_CASE(losing_the_permission_closes_the_streams)
@@ -251,6 +275,7 @@ TEST_CASE(losing_the_permission_closes_the_streams)
     EXPECT(fixture.pump_until([&] { return revoked; }));
     EXPECT(!lost);
     EXPECT_EQ(fixture.capture_devices->open_device_count(), 0u);
+    EXPECT_EQ(fixture.capture_stops.size(), 1u);
 
     // A new request asks the Browser afresh rather than reuse what was closed.
     fixture.server->set_capture_permitted(true);

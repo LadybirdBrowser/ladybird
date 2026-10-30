@@ -9,4 +9,8 @@ endpoint AudioServerControlClient
 
     // An authorized group of the tab is heard, muted or not, or has gone quiet for long enough to be forgotten.
     playback_group_audibility_changed(u64 tab_id, Audio::PlaybackGroupId group, Audio::Audibility audibility) =|
+
+    // A capture stream of the tab, labelled with the group, may capture, or the last such stream has been gone for long
+    // enough to be forgotten. Nothing about what the device delivers counts.
+    capture_activity_changed(u64 tab_id, Audio::PlaybackGroupId group, bool capturing) =|
 }

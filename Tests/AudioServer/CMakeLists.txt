@@ -1,6 +1,7 @@
 ladybird_test_suite(AudioServer)
 
 set(TEST_SOURCES
+    TestCaptureActivity.cpp
     TestCaptureDevices.cpp
     TestPlatformPlaybackStream.cpp
     TestPlaybackStreamMixer.cpp

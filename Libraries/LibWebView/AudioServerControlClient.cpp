@@ -38,4 +38,12 @@ void AudioServerControlClient::playback_group_audibility_changed(u64 tab_id, Aud
         on_playback_group_audibility_changed(tab_id, group, audibility);
 }
 
+void AudioServerControlClient::capture_activity_changed(u64 tab_id, Audio::PlaybackGroupId group, bool capturing)
+{
+    if (!is_open())
+        return;
+    if (on_capture_activity_changed)
+        on_capture_activity_changed(tab_id, group, capturing);
+}
+
 }
