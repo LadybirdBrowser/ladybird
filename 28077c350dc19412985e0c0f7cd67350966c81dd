@@ -1,0 +1,15 @@
+Ladybird’s Inspect Element item selects the element that was under the
+cursor when the context menu opened, or the nearest element around a
+text node there. WebKit does the same: ContextMenuController hands
+InspectorController::inspect() the node from the menu’s own hit-test
+result, and InspectorDOMAgent::inspect() steps from a text node up to
+its parent. Gecko also takes the target of the menu when it opens. Blink
+instead hit-tests when the item is chosen: Its WebDevToolsAgentImpl::
+InspectElement() hit-tests at the point where the menu opened, and
+InspectorOverlayAgent::Inspect() walks up to an element.
+
+Ladybird hit-tests only the process of the top-level page, so in a
+cross-site iframe it selects the iframe element. Blink hit-tests in the
+frame the menu came from. And all three engines show the item whenever
+their developer tools are available, opening them as needed, while
+Ladybird shows it only while a DevTools client is inspecting the tab.
