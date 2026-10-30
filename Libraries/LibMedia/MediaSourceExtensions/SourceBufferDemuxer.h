@@ -129,6 +129,7 @@ private:
 
     static bool contributes_to_buffered_ranges(TrackData const&);
     static AK::Duration maximum_time_range_gap(TrackData const&);
+    static bool is_within_start_gap_allowance(AK::Duration timestamp, AK::Duration first_data_start);
     static Media::TimeRanges coalesced_track_buffer_ranges(TrackData const&);
     static void count_frame_duration(TrackData&, AK::Duration);
     static void decrement_frames_with_maximum_duration(TrackData&, size_t count);

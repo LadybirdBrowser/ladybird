@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script>internals.setAutoplayPolicy("allow-audio-and-video");</script>
+<video id="near" muted></video>
+<video id="far" muted></video>
+<script src="../include.js"></script>
+<script src="HTMLMediaElement-include.js"></script>
+<script>
+    // Muxed streams often begin a track shortly after time 0, so a buffered range that starts within a second of it
+    // plays from the start rather than waiting for data before that range. A range that starts later does not.
+    asyncTest(async done => {
+        const media = await (await fetch("../wpt-import/media-source/webm/test.webm")).arrayBuffer();
+
+        async function appendStartingAfter(video, timestampOffset) {
+            const mediaSource = new MediaSource();
+            video.src = URL.createObjectURL(mediaSource);
+            await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+            const sourceBuffer = mediaSource.addSourceBuffer('video/webm;codecs="vp8,vorbis"');
+            sourceBuffer.timestampOffset = timestampOffset;
+            sourceBuffer.appendBuffer(media);
+            await new Promise(resolve => sourceBuffer.addEventListener("updateend", resolve, { once: true }));
+            println(`${video.id}: buffered: ${timeRangesToString(video.buffered)}`);
+        }
+
+        function playsWithin(video, milliseconds) {
+            const playing = new Promise(resolve => video.addEventListener("playing", () => resolve(true), { once: true }));
+            const timedOut = new Promise(resolve => setTimeout(() => resolve(false), milliseconds));
+            video.play();
+            return Promise.race([playing, timedOut]);
+        }
+
+        // The first video frame of this file is at 0.112 seconds.
+        const near = document.getElementById("near");
+        await appendStartingAfter(near, 0);
+        const nearPlayed = await playsWithin(near, 2000);
+        println(`near: playing fired: ${nearPlayed}, readyState=${readyStateName(near.readyState)}`);
+        if (nearPlayed) {
+            const firstRangeStart = near.buffered.start(0);
+            await new Promise(resolve => {
+                const check = () => {
+                    if (near.currentTime <= firstRangeStart)
+                        return;
+                    near.removeEventListener("timeupdate", check);
+                    resolve();
+                };
+                near.addEventListener("timeupdate", check);
+            });
+            println("near: played into the first range");
+            near.pause();
+        }
+
+        const far = document.getElementById("far");
+        await appendStartingAfter(far, 2);
+        const farPlayed = await playsWithin(far, 500);
+        println(`far: playing fired: ${farPlayed}, readyState=${readyStateName(far.readyState)}`);
+        done();
+    });
+</script>

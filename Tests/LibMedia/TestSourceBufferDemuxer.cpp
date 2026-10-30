@@ -263,6 +263,41 @@ TEST_CASE(a_track_stops_where_another_tracks_data_ends)
     EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(video_track)).presentation_timestamp(), AK::Duration::from_seconds(3));
 }
 
+static Media::CodedFrame tenth_of_a_second_frame_at(u64 milliseconds, Media::CodecID codec_id)
+{
+    auto data = MUST(FixedArray<u8>::create(1));
+    auto timestamp = AK::Duration::from_milliseconds(milliseconds);
+    return { codec_id, timestamp, timestamp, AK::Duration::from_milliseconds(100), Media::FrameFlags::Keyframe, move(data), {} };
+}
+
+TEST_CASE(a_seek_into_a_gap_after_the_first_range_does_not_play_across_it)
+{
+    Media::Track video_track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    Media::Track audio_track { Media::TrackType::Audio, 2, Media::Track::Kind::Main, {}, {} };
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { video_track, audio_track });
+
+    for (u64 milliseconds = 0; milliseconds < 1'000; milliseconds += 100)
+        demuxer->add_coded_frame(video_track, tenth_of_a_second_frame_at(milliseconds, Media::CodecID::H264));
+    for (u64 milliseconds : { 0, 100, 800, 900 })
+        demuxer->add_coded_frame(audio_track, tenth_of_a_second_frame_at(milliseconds, Media::CodecID::Opus));
+
+    // The range after the gap starts within the allowance for playing from the start, but a gap between ranges is
+    // not the start.
+    auto buffered = demuxer->buffered_ranges();
+    EXPECT_EQ(buffered.size(), 2u);
+    EXPECT_EQ(buffered[1].start, AK::Duration::from_milliseconds(800));
+
+    MUST(demuxer->seek_to_most_recent_keyframe(video_track, AK::Duration::from_milliseconds(400), Media::DemuxerSeekOptions::None));
+    EXPECT_EQ(MUST(demuxer->get_next_sample_for_track(video_track)).presentation_timestamp(), AK::Duration::from_milliseconds(400));
+
+    // The next video frame lies in the gap, so the read would wait; aborting it shows that it did not deliver the
+    // frame.
+    demuxer->set_blocking_reads_aborted_for_track(video_track);
+    auto blocked_read = demuxer->get_next_sample_for_track(video_track);
+    EXPECT(blocked_read.is_error());
+    EXPECT_EQ(blocked_read.error().category(), Media::DecoderErrorCategory::Aborted);
+}
+
 TEST_CASE(the_end_of_the_stream_lets_the_longer_track_play_out)
 {
     Media::Track video_track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
