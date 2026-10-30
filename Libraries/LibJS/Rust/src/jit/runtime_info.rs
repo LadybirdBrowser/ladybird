@@ -43,7 +43,7 @@ use crate::layout::executable::ExecutableHead;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{
     CallEnvironmentTemplate, EcmascriptFunctionObject, FUNCTION_ENVIRONMENT_WORDS, FunctionObject,
-    NATIVE_FUNCTION_TABLE_INDEX_MASK, NativeFunctionTableEntry, RawNativeFunction, SharedFunctionInstanceData,
+    NATIVE_FUNCTION_TABLE_INDEX_MASK, NativeFunction, NativeFunctionTableEntry, SharedFunctionInstanceData,
     asm_call_metadata,
 };
 use crate::layout::object::{
@@ -584,7 +584,7 @@ fn dynamic_call_layout(vm: &Vm) -> DynamicCallLayout {
         } else {
             0
         },
-        raw_native_function_index: offset(offset_of!(RawNativeFunction, native_function_index)),
+        raw_native_function_index: offset(offset_of!(NativeFunction, raw_native_function_index)),
         vm_native_function_table: offset(offset_of!(VmHead, native_function_table_data)),
         native_function_table_index_mask: NATIVE_FUNCTION_TABLE_INDEX_MASK,
         native_function_table_entry_size: offset(size_of::<NativeFunctionTableEntry>()),

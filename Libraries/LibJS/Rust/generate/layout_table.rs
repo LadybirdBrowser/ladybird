@@ -240,8 +240,8 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.section("ObjectPropertyIteratorCacheData layout");
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTIES", ObjectPropertyIteratorCacheData, storage);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES", ObjectPropertyIteratorCacheData, property_values);
-    field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE", "ObjectPropertyIteratorCacheData.shape", "Shape", ObjectPropertyIteratorCacheData, shape, 8, "nullable", "cell");
-    field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY", "ObjectPropertyIteratorCacheData.prototype_chain_validity", "WatchpointSet", ObjectPropertyIteratorCacheData, prototype_chain_validity, 8, "nullable", "cell");
+    field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE", "ObjectPropertyIteratorCacheData.shape", "Shape", ObjectPropertyIteratorCacheData, shape, 4, "nullable", "compressed");
+    field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROTOTYPE_CHAIN_VALIDITY", "ObjectPropertyIteratorCacheData.prototype_chain_validity", "WatchpointSet", ObjectPropertyIteratorCacheData, prototype_chain_validity, 4, "nullable", "compressed");
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_INDEXED_PROPERTY_COUNT", "ObjectPropertyIteratorCacheData.indexed_property_count", "u32", ObjectPropertyIteratorCacheData, indexed_property_count, 4, "nullable", "scalar");
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_DICTIONARY_GENERATION", "ObjectPropertyIteratorCacheData.shape_dictionary_generation", "u32", ObjectPropertyIteratorCacheData, shape_dictionary_generation, 4, "nullable", "scalar");
     field!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_SHAPE_IS_DICTIONARY", "ObjectPropertyIteratorCacheData.shape_is_dictionary", "bool", ObjectPropertyIteratorCacheData, shape_is_dictionary, 1, "nullable", "scalar");
@@ -471,7 +471,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field GlobalVariableCache.has_environment_binding_index u8 GLOBAL_VARIABLE_CACHE_HAS_ENVIRONMENT_BINDING nullable scalar");
 
     w.section("RawNativeFunction layout");
-    field!(w, "RAW_NATIVE_FUNCTION_NATIVE_FUNCTION_INDEX", "RawNativeFunction.native_function_index", "u32", RawNativeFunction, native_function_index, 4, "nullable", "scalar");
+    field!(w, "RAW_NATIVE_FUNCTION_NATIVE_FUNCTION_INDEX", "RawNativeFunction.native_function_index", "u32", NativeFunction, raw_native_function_index, 4, "nullable", "scalar");
     assert_eq!(size_of_field(|entry: &NativeFunctionTableEntry| &entry.function), 8);
     assert_eq!(size_of_field(|entry: &NativeFunctionTableEntry| &entry.function_type), 4);
     offset!(w, "NATIVE_FUNCTION_TABLE_ENTRY_FUNCTION", NativeFunctionTableEntry, function);

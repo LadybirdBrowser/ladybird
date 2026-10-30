@@ -1098,6 +1098,8 @@ pub struct ObjectPropertyIteratorCacheDataStorage {
 
 define_cell!(ObjectPropertyIteratorCacheData, Other, finalize: finalize);
 
+const _: () = assert!(size_of::<ObjectPropertyIteratorCacheData>() == 72);
+
 // SAFETY: Visits the shape, the validity, the materialized key values and the keys.
 unsafe impl Trace for ObjectPropertyIteratorCacheData {
     fn trace(&self, visitor: &mut Visitor) {
@@ -1132,8 +1134,8 @@ impl ObjectPropertyIteratorCacheData {
             receiver_has_magical_length: Cell::new(receiver_has_magical_length_property),
             indexed_property_count: Cell::new(indexed_property_count),
             shape_dictionary_generation: Cell::new(shape.dictionary_generation()),
-            shape: Cell::new(Some(shape)),
-            prototype_chain_validity: Cell::new(prototype_chain_validity),
+            shape: NullableMember::new(Some(shape)),
+            prototype_chain_validity: NullableMember::new(prototype_chain_validity),
             property_values: InterpreterBuffer::new(),
             storage: ObjectPropertyIteratorCacheDataStorage {
                 properties: properties.to_vec().into_boxed_slice(),
@@ -1169,8 +1171,8 @@ impl ObjectPropertyIteratorCacheData {
             receiver_has_magical_length: Cell::new(false),
             indexed_property_count: Cell::new(0),
             shape_dictionary_generation: Cell::new(0),
-            shape: Cell::new(None),
-            prototype_chain_validity: Cell::new(None),
+            shape: NullableMember::null(),
+            prototype_chain_validity: NullableMember::null(),
             property_values: InterpreterBuffer::new(),
             storage: ObjectPropertyIteratorCacheDataStorage {
                 properties: properties.to_vec().into_boxed_slice(),

@@ -6335,7 +6335,7 @@ asm_handler_Call:
     mov rdx, QWORD PTR [rbp - 48]
     mov QWORD PTR [rdx], rax
     lea rbx, [rax + 128]
-    mov eax, DWORD PTR [rcx + 96]
+    mov eax, DWORD PTR [rcx + 92]
     mov rcx, QWORD PTR [rdx + 80]
     test rcx, rcx
     jz .Lasm_Call.assert_failure_15
@@ -6461,14 +6461,14 @@ asm_handler_Call_hot_end:
 .p2align 6
 asm_handler_ObjectPropertyIteratorNext:
     mov eax, DWORD PTR [r14 + r13 + 12]
-    mov rdx, QWORD PTR [rbx + rax * 8]
-    mov r11, rdx
+    mov rsi, QWORD PTR [rbx + rax * 8]
+    mov r11, rsi
     shr r11, 48
     cmp r11w, 65529
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     movabs r11, 34359738367
-    and rdx, r11
-    add rdx, r15
+    and rsi, r11
+    add rsi, r15
     mov eax, DWORD PTR [r14 + r13 + 16]
     mov rax, QWORD PTR [rbx + rax * 8]
     mov rcx, rax
@@ -6478,17 +6478,20 @@ asm_handler_ObjectPropertyIteratorNext:
     movabs r11, 34359738367
     and rax, r11
     add rax, r15
-    movzx esi, BYTE PTR [rax + 12]
-    cmp rsi, 0
+    movzx edi, BYTE PTR [rax + 12]
+    cmp rdi, 0
     je .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    mov rdi, QWORD PTR [rax + 24]
-    test rdi, rdi
+    mov edx, DWORD PTR [rax + 24]
+    lea r11, [r15 + rdx * 8]
+    test edx, edx
+    cmovnz rdx, r11
+    test rdx, rdx
     jz .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_18
-    mov ecx, DWORD PTR [rdx + 20]
+    mov ecx, DWORD PTR [rsi + 20]
     test rcx, rcx
     jz .Lasm_ObjectPropertyIteratorNext.assert_failure_0
     lea rcx, [r15 + rcx * 8]
-    cmp rcx, rdi
+    cmp rcx, rdx
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     cmp BYTE PTR [rax + 11], 0
     jz .Lasm_ObjectPropertyIteratorNext.ssa_block_4
@@ -6496,15 +6499,18 @@ asm_handler_ObjectPropertyIteratorNext:
     cmp DWORD PTR [rax + 20], ecx
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_4:
-    cmp rsi, 2
+    cmp rdi, 2
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_6
-    cmp BYTE PTR [rdx + 14], 1
+    cmp BYTE PTR [rsi + 14], 1
     jnz .Lasm_ObjectPropertyIteratorNext.ssa_block_1
-    mov ecx, DWORD PTR [rdx + 16]
+    mov ecx, DWORD PTR [rsi + 16]
     cmp DWORD PTR [rax + 16], ecx
     jne .Lasm_ObjectPropertyIteratorNext.ssa_block_1
 .Lasm_ObjectPropertyIteratorNext.ssa_block_6:
-    mov rcx, QWORD PTR [rax + 32]
+    mov ecx, DWORD PTR [rax + 28]
+    lea r11, [r15 + rcx * 8]
+    test ecx, ecx
+    cmovnz rcx, r11
     test rcx, rcx
     jz .Lasm_ObjectPropertyIteratorNext.ssa_block_8
     cmp BYTE PTR [rcx + 11], 0
@@ -6523,10 +6529,10 @@ asm_handler_ObjectPropertyIteratorNext:
     inc esi
     jo .Lasm_ObjectPropertyIteratorNext.ssa_block_1
     movsxd rcx, ecx
-    mov rdi, QWORD PTR [rax + 48]
+    mov rdi, QWORD PTR [rax + 40]
     cmp rcx, rdi
     jae .Lasm_ObjectPropertyIteratorNext.ssa_block_13
-    mov rax, QWORD PTR [rax + 40]
+    mov rax, QWORD PTR [rax + 32]
     test rax, rax
     jz .Lasm_ObjectPropertyIteratorNext.assert_predicate_failure_65
     mov rax, QWORD PTR [rax + rcx * 8]
@@ -13708,19 +13714,19 @@ asm_handler_GetById_cold:
     movzx eax, WORD PTR [rsi + 12]
     test eax, 512
     jz .Lasm_GetById.ssa_block_3
-    mov eax, DWORD PTR [rcx + 104]
+    mov eax, DWORD PTR [rcx + 96]
     mov rax, QWORD PTR [rsi + rax * 8]
     test rax, rax
     jz .Lasm_GetById.ssa_block_3
-    mov edx, DWORD PTR [rcx + 112]
+    mov edx, DWORD PTR [rcx + 104]
     mov r8, QWORD PTR [rax + rdx * 8]
     test r8, r8
     jz .Lasm_GetById.ssa_block_3
-    mov edi, DWORD PTR [rcx + 116]
+    mov edi, DWORD PTR [rcx + 108]
     mov r8, QWORD PTR [r8 + rdi * 8]
     cmp r8, rsi
     jne .Lasm_GetById.ssa_block_3
-    mov ecx, DWORD PTR [rcx + 108]
+    mov ecx, DWORD PTR [rcx + 100]
     mov rax, QWORD PTR [rax + rcx * 8]
     test rax, rax
     jnz .Lasm_GetById.ssa_block_50
@@ -13747,7 +13753,7 @@ asm_handler_GetById_cold:
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
 .Lasm_GetById.ssa_block_25:
-    mov edi, DWORD PTR [rcx + 96]
+    mov edi, DWORD PTR [rcx + 92]
     mov rax, QWORD PTR [rbp - 48]
     mov rax, QWORD PTR [rax + 80]
     test rax, rax

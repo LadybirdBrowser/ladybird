@@ -49,13 +49,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         );
 
         // The receiver's shape, and for dictionaries its generation.
-        self.emit_load_compressed_cell(temp, &Address::new(object, self.runtime.offsets.object_shape as i32));
-        self.masm.branch64_memory(
-            Condition::NotEqual,
-            &Address::new(cache, layout.property_iterator_shape as i32),
-            temp,
-            no,
-        );
+        // OPTIMIZATION: Both shapes are compressed, so they compare before the receiver's decodes.
+        self.masm
+            .load32(temp, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.masm
+            .load32(scratch, &Address::new(cache, layout.property_iterator_shape as i32));
+        self.masm.branch32(Condition::NotEqual, temp, scratch, no);
+        self.emit_decompress_cell(temp);
         let not_dictionary = self.masm.new_label();
         self.masm.load8(
             scratch,
@@ -98,11 +98,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(not_indexed);
 
         // The prototype chain, if the keys depend on it.
-        self.masm.load64(
+        self.emit_load_compressed_cell_or_branch(
             scratch,
             &Address::new(cache, layout.property_iterator_prototype_chain_validity as i32),
+            yes,
         );
-        self.masm.branch_test64(Condition::Zero, scratch, u64::MAX, yes);
         self.branch_unless_prototype_chain_valid(scratch, no);
         self.masm.jump(yes);
     }

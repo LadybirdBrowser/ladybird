@@ -20,6 +20,7 @@ use crate::layout::execution_context::ExecutionContext;
 pub use crate::layout::function_object::{
     DirectGetterFunction, NativeFunction, NativeFunctionTableEntry, NativeFunctionType, RawNativeFunction,
 };
+use crate::layout::member::Member;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::layout_forward::FlyStringSlot;
@@ -135,7 +136,8 @@ impl NativeFunction {
             base,
             name: FlyStringSlot::new(name),
             initial_name: FlyStringSlot::new(None),
-            realm: Cell::new(realm),
+            realm: Member::new(realm),
+            raw_native_function_index: Cell::new(0),
         }
     }
 
@@ -715,13 +717,12 @@ impl RawNativeFunction {
     ) -> RawNativeFunction {
         let base = NativeFunction::new_with_realm(vm, class, prototype, realm, builtin);
         base.set_is_raw_native_function();
-        RawNativeFunction {
-            base,
-            native_function_index: Cell::new(vm.register_native_function(NativeFunctionTableEntry {
+        base.raw_native_function_index
+            .set(vm.register_native_function(NativeFunctionTableEntry {
                 function: native_function,
                 function_type: NativeFunctionType::RawNativeFunction,
-            })),
-        }
+            }));
+        RawNativeFunction { base }
     }
 
     pub fn new_with_name(
@@ -733,13 +734,12 @@ impl RawNativeFunction {
     ) -> RawNativeFunction {
         let base = NativeFunction::new_with_name(vm, class, name, prototype);
         base.set_is_raw_native_function();
-        RawNativeFunction {
-            base,
-            native_function_index: Cell::new(vm.register_native_function(NativeFunctionTableEntry {
+        base.raw_native_function_index
+            .set(vm.register_native_function(NativeFunctionTableEntry {
                 function: native_function,
                 function_type: NativeFunctionType::RawNativeFunction,
-            })),
-        }
+            }));
+        RawNativeFunction { base }
     }
 
     // 10.3.3 CreateBuiltinFunction ( behaviour, length, name, additionalInternalSlotsList [ , realm [ , prototype [ , prefix ] ] ] ), https://tc39.es/ecma262/#sec-createbuiltinfunction
@@ -782,7 +782,10 @@ impl RawNativeFunction {
     }
 
     pub fn native_function(&self, vm: &Vm) -> RawNativeFunctionPointer {
-        vm.native_function(self.native_function_index.get(), NativeFunctionType::RawNativeFunction)
+        vm.native_function(
+            self.raw_native_function_index.get(),
+            NativeFunctionType::RawNativeFunction,
+        )
     }
 }
 
