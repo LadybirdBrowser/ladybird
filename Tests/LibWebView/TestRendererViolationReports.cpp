@@ -327,10 +327,10 @@ TEST_CASE(renderer_violation_reports)
     };
 
     report(*worker, target, "not-the-navigation"_utf16, Web::ContentSecurityPolicy::RemoteViolationDirective::FrameSrc);
-    expect(worker->client().is_open(), "a report for another navigation is dropped"sv);
+    expect(worker->client().is_open(), "a report for another navigation does not terminate the worker"sv);
 
     report(source_page, target, held_navigation->navigation_id, Web::ContentSecurityPolicy::RemoteViolationDirective::FrameSrc);
-    expect(source_page.client().is_open(), "a report from a page that is not the navigation's worker is dropped"sv);
+    expect(source_page.client().is_open(), "a report from a page that is not the navigation's worker does not terminate that page"sv);
 
     // The source reports only for its policy at the given index, and only one governing the directive. Both channels
     // keep their order, so the last report's violation comes after every earlier report's.
@@ -341,6 +341,11 @@ TEST_CASE(renderer_violation_reports)
     expect(spin_until_or_timeout([&] { return saw_title("violation 3: frame-src"sv); }, 10'000), "the source reports the reports for its governing policy"sv);
     expect(!any_of(titles, [](auto const& title) { return title.contains("object-src"sv); }), "the source drops a report its policy does not govern"sv);
     expect(saw_title("violation 2: frame-src"sv), "the source drops a report for a policy it does not have"sv);
+
+    // A title the source sets two tasks after a later script comes after every violation the reports above add.
+    source_view->run_javascript("setTimeout(() => setTimeout(() => (document.title = 'reports handled')))"_string);
+    expect(spin_until_or_timeout([&] { return saw_title("reports handled"sv); }, 10'000), "the source handles every report it was sent"sv);
+    expect(!any_of(titles, [](auto const& title) { return title.starts_with("violation 4"sv); }), "neither a report for another navigation nor one from a page that is not the navigation's worker adds a violation"sv);
 
     report(*worker, target, held_navigation->navigation_id, Web::ContentSecurityPolicy::RemoteViolationDirective::FormAction);
     expect(!worker->client().is_open(), "the worker is terminated for a directive the navigation cannot violate"sv);
