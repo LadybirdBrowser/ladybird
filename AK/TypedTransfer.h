@@ -78,7 +78,9 @@ public:
             return;
 
         if constexpr (IsTriviallyRelocatable<T>) {
-            __builtin_memcpy(destination, source, count * sizeof(T));
+            // NB: A trivially relocatable type may still have a non-trivial assignment, which makes it not trivially
+            //     copyable, but relocating it never assigns.
+            __builtin_memcpy(static_cast<void*>(destination), static_cast<void const*>(source), count * sizeof(T));
             return;
         }
 

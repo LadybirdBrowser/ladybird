@@ -14,7 +14,6 @@ use num_traits::Zero;
 use crate::build_configuration::HEAP_REGION_OFFSET_MASK;
 use crate::bytecode::executable::{PropertyLookupCache, StaticPropertyLookupCacheSite};
 use crate::bytecode::property_access::{GetByIdMode, get_by_id};
-use crate::gc::capi::js_heap_region_base;
 use crate::gc::class_id::ClassId;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
@@ -22,6 +21,7 @@ use crate::layout::function_object::FunctionObject;
 use crate::layout::object::Object;
 use crate::layout::primitive_string::PrimitiveString;
 use crate::layout::value::Value;
+use crate::layout_forward::heap_region_base;
 use crate::runtime::abstract_operations::{call, call_function_object};
 use crate::runtime::accessor::Accessor;
 use crate::runtime::array::Array;
@@ -51,8 +51,8 @@ use libjs_abi::value as nan_box;
 /// compiler could otherwise keep instead of the value or the address while either is held across an allocation.
 #[inline(always)]
 fn decode_cell_address(encoded: u64) -> usize {
-    // SAFETY: Cell values are offsets into the heap region, whose base LibGC fixed before any cell existed.
-    let base = unsafe { js_heap_region_base } as u64;
+    // NB: Cell values are offsets into the heap region, whose base was fixed before any cell existed.
+    let base = heap_region_base() as u64;
     let mut address = base + (encoded & HEAP_REGION_OFFSET_MASK);
     // SAFETY: The assembly is empty: it only has the compiler put `encoded` and `address` in registers here.
     unsafe {
