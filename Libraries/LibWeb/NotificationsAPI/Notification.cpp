@@ -7,6 +7,8 @@
 #include <AK/Math.h>
 #include <AK/Time.h>
 #include <LibGC/Heap.h>
+#include <LibJS/Console.h>
+#include <LibJS/Runtime/ConsoleObject.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Compositor/CompositorHost.h>
@@ -19,6 +21,7 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
+#include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -26,9 +29,13 @@
 #include <LibWeb/NotificationsAPI/NotificationPermission.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/Platform/Timer.h>
 #include <LibWeb/ServiceWorker/ServiceWorkerGlobalScope.h>
+#include <LibWeb/WebIDL/AbstractOperations.h>
+#include <LibWeb/WebIDL/CallbackType.h>
+#include <LibWeb/WebIDL/Promise.h>
 
 namespace Web::NotificationsAPI {
 
@@ -630,14 +637,9 @@ __ENUMERATE(onerror, error)
 __ENUMERATE(onclose, close)
 #undef __ENUMERATE
 
-// https://notifications.spec.whatwg.org/#dom-notification-permission
-Bindings::NotificationPermission Notification::permission()
+static Bindings::NotificationPermission notification_permission_from(PermissionsAPI::PermissionState permission_state)
 {
-    // The static permission getter steps are to return the result of getting the notifications permission state.
     // https://notifications.spec.whatwg.org/#permissions-integration
-    // 1. Let permissionState be the result of getting the current permission state with "notifications".
-    auto permission_state = get_the_notifications_permission_state(HTML::current_settings_object());
-
     // 2. If permissionState is "prompt", then return "default".
     // 3. Return permissionState.
     switch (permission_state) {
@@ -649,6 +651,74 @@ Bindings::NotificationPermission Notification::permission()
         return Bindings::NotificationPermission::Denied;
     }
     VERIFY_NOT_REACHED();
+}
+
+// https://notifications.spec.whatwg.org/#dom-notification-permission
+Bindings::NotificationPermission Notification::permission()
+{
+    // The static permission getter steps are to return the result of getting the notifications permission state.
+    // https://notifications.spec.whatwg.org/#permissions-integration
+    // 1. Let permissionState be the result of getting the current permission state with "notifications".
+    return notification_permission_from(get_the_notifications_permission_state(HTML::current_settings_object()));
+}
+
+// https://notifications.spec.whatwg.org/#dom-notification-requestpermission
+GC::Ref<WebIDL::Promise> Notification::request_permission(GC::Ptr<WebIDL::CallbackType> deprecated_callback)
+{
+    // 1. Let global be the current global object.
+    auto& settings = HTML::current_settings_object();
+    auto& realm = settings.realm();
+    GC::Ref<JS::Object> global = settings.global_object();
+
+    // 2. Let promise be a new promise in this's relevant Realm.
+    // NB: A static method has no "this"; the current realm is the one the call was made from.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 3. Run these steps in parallel:
+    //    1. Let permissionState be the result of requesting permission to use "notifications".
+    //    2. Queue a global task on the DOM manipulation task source given global to run these steps:
+    auto settle = GC::create_function(realm.heap(), [&realm, global, promise, deprecated_callback, settings = GC::Ref(settings)](PermissionsAPI::PermissionState) {
+        // AD-HOC: "Request permission to use" reports "denied" for a prompt the user dismissed, though it stores nothing
+        //         for it, and the page would then take a shrug for a refusal. The state the store holds once the
+        //         answer is in is reported instead: "default" after a dismissal, so the page may ask again later.
+        auto permission_state = get_the_notifications_permission_state(settings);
+        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, global, GC::create_function(realm.heap(), [&realm, promise, deprecated_callback, permission_state] {
+            HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
+            auto permission = JS::PrimitiveString::create(realm.vm(), Bindings::idl_enum_to_string(notification_permission_from(permission_state)));
+
+            // 1. If deprecatedCallback is given, then invoke deprecatedCallback with « permissionState » and "report".
+            if (deprecated_callback)
+                (void)WebIDL::invoke_callback(*deprecated_callback, {}, WebIDL::ExceptionBehavior::Report, { { permission } });
+
+            // 2. Resolve promise with permissionState.
+            WebIDL::resolve_promise(realm, promise, permission);
+        }));
+    });
+
+    // AD-HOC: "Request permission to use" asks the user whenever the state is "prompt". We ask only from a document
+    //         that is its own top-level site, and only while it has transient activation, which the request consumes.
+    //         Any other request resolves with the state as it is, and nothing is stored, so the page may ask again
+    //         from a click. (A document that isn't a secure context already reads "denied" from the permission
+    //         state algorithm, so it never gets this far.) Each refusal is explained on the console.
+    auto current_state = get_the_notifications_permission_state(settings);
+    if (current_state == PermissionsAPI::PermissionState::Prompt) {
+        auto& window = *HTML::window_from_global_object(*global);
+        auto refuse = [&](StringView message) {
+            realm.intrinsics().console_object()->console().output_debug_message(JS::Console::LogLevel::Error, Utf16String::from_utf8(message));
+            settle->function()(current_state);
+            return promise;
+        };
+        auto const& top_level_origin = settings.top_level_origin;
+        if (!top_level_origin.has_value() || !window.associated_document().origin().is_same_origin(*top_level_origin))
+            return refuse("Notification permission can only be requested from a document whose origin is the top-level origin."sv);
+        if (!window.has_transient_activation())
+            return refuse("Notification permission can only be requested while handling a user gesture."sv);
+        window.consume_user_activation();
+    }
+    PermissionsAPI::request_permission_with_user_prompt({ "notifications"_utf16 }, settings, settle);
+
+    // 4. Return promise.
+    return promise;
 }
 
 // https://notifications.spec.whatwg.org/#dom-notification-actions
