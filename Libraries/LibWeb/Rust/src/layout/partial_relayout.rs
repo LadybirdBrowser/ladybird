@@ -714,12 +714,16 @@ impl LayoutNodeArena {
             && propagate_through_ancestors
             && !(node_is_box && self.node_is_partial_relayout_boundary(node))
         {
-            // NB: A dirty node does not imply its whole ancestor chain was bumped for the current epoch values, and
-            //     over-bumping is free.
+            // NB: A dirty node does not imply that its whole ancestor chain was bumped for the current epoch values or
+            //     had its intrinsic sizes reset: the walk that dirtied it may have stopped resetting below it. Doing
+            //     either again is free.
+            if node_is_box {
+                self.reset_cached_intrinsic_sizes(node);
+            }
             self.invalidate_ancestors_for_change_below(
                 node,
                 AncestorInvalidation::ContentChange,
-                AncestorIntrinsicSizes::Kept,
+                AncestorIntrinsicSizes::Reset,
             );
             return;
         }
@@ -948,7 +952,7 @@ mod tests {
     }
 
     #[test]
-    fn remarking_a_dirty_non_boundary_node_leaves_its_parent_clean() {
+    fn remarking_a_dirty_non_boundary_node_leaves_its_parent_clean_and_drops_their_intrinsic_sizes() {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
         let parent = allocate_box_with_a_dummy_shell(&mut arena);
@@ -956,13 +960,14 @@ mod tests {
         arena.insert_child(parent.slot, child.slot, NodeSlotId::INVALID);
         arena.set_node_flag(child.slot, NodeFlag::NeedsLayoutUpdate, true);
         scratch.apply_memo_invalidations(&mut arena);
-        store_intrinsic_sizes(&scratch, &[&parent]);
+        store_intrinsic_sizes(&scratch, &[&parent, &child]);
 
         arena.set_needs_layout_update(child.slot, true);
         scratch.apply_memo_invalidations(&mut arena);
 
         assert!(!node_is_dirty(&arena, &parent));
-        assert!(intrinsic_sizes_are_kept(&scratch, &parent));
+        assert!(!intrinsic_sizes_are_kept(&scratch, &child));
+        assert!(!intrinsic_sizes_are_kept(&scratch, &parent));
         free_node(&mut arena, &parent);
     }
 
