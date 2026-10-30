@@ -10,6 +10,7 @@
 #include <AK/IterationDecision.h>
 #include <AK/TypeCasts.h>
 #include <AK/Vector.h>
+#include <LibGC/Member.h>
 #include <LibGC/Ptr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
@@ -51,29 +52,29 @@ TraversalDecision traverse_preorder(T root, Callback callback)
 template<typename T>
 class WEB_API TreeNode {
 public:
-    T* parent() { return m_parent; }
-    T const* parent() const { return m_parent; }
+    T* parent() { return m_parent.ptr(); }
+    T const* parent() const { return m_parent.ptr(); }
 
-    bool has_children() const { return m_first_child; }
-    T* next_sibling() { return m_next_sibling; }
-    T* previous_sibling() { return m_previous_sibling; }
-    T* first_child() { return m_first_child; }
-    T* last_child() { return m_last_child; }
-    T const* next_sibling() const { return m_next_sibling; }
-    T const* previous_sibling() const { return m_previous_sibling; }
-    T const* first_child() const { return m_first_child; }
-    T const* last_child() const { return m_last_child; }
+    bool has_children() const { return !!m_first_child; }
+    T* next_sibling() { return m_next_sibling.ptr(); }
+    T* previous_sibling() { return m_previous_sibling.ptr(); }
+    T* first_child() { return m_first_child.ptr(); }
+    T* last_child() { return m_last_child.ptr(); }
+    T const* next_sibling() const { return m_next_sibling.ptr(); }
+    T const* previous_sibling() const { return m_previous_sibling.ptr(); }
+    T const* first_child() const { return m_first_child.ptr(); }
+    T const* last_child() const { return m_last_child.ptr(); }
 
     template<typename Derived>
-    static constexpr size_t parent_offset() { return offsetof(Derived, m_parent); }
+    static constexpr auto parent_offset() { return GC_FIELD_OFFSET(Derived, m_parent); }
     template<typename Derived>
-    static constexpr size_t first_child_offset() { return offsetof(Derived, m_first_child); }
+    static constexpr auto first_child_offset() { return GC_FIELD_OFFSET(Derived, m_first_child); }
     template<typename Derived>
-    static constexpr size_t last_child_offset() { return offsetof(Derived, m_last_child); }
+    static constexpr auto last_child_offset() { return GC_FIELD_OFFSET(Derived, m_last_child); }
     template<typename Derived>
-    static constexpr size_t previous_sibling_offset() { return offsetof(Derived, m_previous_sibling); }
+    static constexpr auto previous_sibling_offset() { return GC_FIELD_OFFSET(Derived, m_previous_sibling); }
     template<typename Derived>
-    static constexpr size_t next_sibling_offset() { return offsetof(Derived, m_next_sibling); }
+    static constexpr auto next_sibling_offset() { return GC_FIELD_OFFSET(Derived, m_next_sibling); }
 
     // https://dom.spec.whatwg.org/#concept-tree-index
     size_t index() const
@@ -483,11 +484,11 @@ protected:
     }
 
 private:
-    T* m_parent { nullptr };
-    T* m_first_child { nullptr };
-    T* m_last_child { nullptr };
-    T* m_next_sibling { nullptr };
-    T* m_previous_sibling { nullptr };
+    GC::Member<T> m_parent;
+    GC::Member<T> m_first_child;
+    GC::Member<T> m_last_child;
+    GC::Member<T> m_next_sibling;
+    GC::Member<T> m_previous_sibling;
 };
 
 template<typename T>

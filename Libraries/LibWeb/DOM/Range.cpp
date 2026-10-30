@@ -566,7 +566,7 @@ GC::Ref<Range> Range::clone_range() const
 GC::Ref<Node> Range::common_ancestor_container() const
 {
     // 1. Let container be start node.
-    auto container = m_start_container;
+    GC::Ref<Node> container = m_start_container;
 
     // 2. While container is not an inclusive ancestor of end node, let container be container’s parent.
     while (!container->is_inclusive_ancestor_of(m_end_container)) {

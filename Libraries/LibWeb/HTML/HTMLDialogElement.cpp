@@ -136,7 +136,7 @@ WebIDL::ExceptionOr<void> HTMLDialogElement::show()
     m_previously_focused_element = document().focused_area();
 
     // 8. Let document be this's node document.
-    auto document = m_document;
+    GC::Ptr<DOM::Document> document = m_document;
 
     // 9. Let hideUntil be the result of running topmost popover ancestor given this, document's showing hint popover
     //    list, null, and false.

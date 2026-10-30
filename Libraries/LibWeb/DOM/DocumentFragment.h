@@ -39,7 +39,7 @@ protected:
 
 private:
     // https://dom.spec.whatwg.org/#concept-documentfragment-host
-    GC::Ptr<Element> m_host;
+    GC::Member<Element> m_host;
 };
 
 template<>

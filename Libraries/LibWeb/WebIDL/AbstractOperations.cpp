@@ -192,7 +192,7 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
         this_argument = JS::js_undefined();
 
     // 3. Let O be the ECMAScript object corresponding to value.
-    auto& object = callback.callback;
+    GC::Ref<JS::Object> object = callback.callback;
 
     // 4. Let realm be O’s associated realm.
     auto& realm = callback.associated_realm();
@@ -201,7 +201,7 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
     auto& relevant_settings = HTML::principal_realm_settings_object(realm);
 
     // 6. Let stored settings be value’s callback context.
-    auto& stored_settings = callback.callback_context;
+    GC::Ref<HTML::EnvironmentSettingsObject> stored_settings = callback.callback_context;
 
     // AD-HOC: See is_settings_object_of_inactive_window().
     if (refuse_from_inactive_window == RefuseCallbackFromInactiveWindow::Yes && is_settings_object_of_inactive_window(relevant_settings))
@@ -300,7 +300,7 @@ static auto invoke_callback_impl(CallbackType& callback, Optional<JS::Value> thi
         this_argument = JS::js_undefined();
 
     // 3. Let F be the ECMAScript object corresponding to callable.
-    auto& function_object = callback.callback;
+    GC::Ref<JS::Object> function_object = callback.callback;
 
     // 5. Let realm be F’s associated realm.
     auto& realm = function_object->shape().realm();
@@ -317,7 +317,7 @@ static auto invoke_callback_impl(CallbackType& callback, Optional<JS::Value> thi
     }
 
     // 7. Let stored settings be callable’s callback context.
-    auto& stored_settings = callback.callback_context;
+    GC::Ref<HTML::EnvironmentSettingsObject> stored_settings = callback.callback_context;
 
     // AD-HOC: See is_settings_object_of_inactive_window().
     if (is_settings_object_of_inactive_window(relevant_settings))
@@ -431,7 +431,7 @@ JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args)
     JS::Completion completion;
 
     // 2. Let F be the JavaScript object corresponding to callable.
-    auto& function_object = callable.callback;
+    GC::Ref<JS::Object> function_object = callable.callback;
 
     // 3. If IsConstructor(F) is false, throw a TypeError exception.
     // 4. Let realm be F’s associated realm.
@@ -443,7 +443,7 @@ JS::Completion construct(CallbackType& callable, ReadonlySpan<JS::Value> args)
     auto& relevant_settings = HTML::principal_realm_settings_object(realm);
 
     // 6. Let stored settings be callable’s callback context.
-    auto& stored_settings = callable.callback_context;
+    GC::Ref<HTML::EnvironmentSettingsObject> stored_settings = callable.callback_context;
 
     // AD-HOC: See is_settings_object_of_inactive_window().
     if (is_settings_object_of_inactive_window(relevant_settings))

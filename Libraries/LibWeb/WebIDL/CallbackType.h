@@ -29,10 +29,10 @@ public:
 
     JS::Realm& associated_realm() const;
 
-    GC::Ref<JS::Object> callback;
+    GC::NonnullMember<JS::Object> callback;
 
     // https://webidl.spec.whatwg.org/#dfn-callback-context
-    GC::Ref<HTML::EnvironmentSettingsObject> callback_context;
+    GC::NonnullMember<HTML::EnvironmentSettingsObject> callback_context;
 
     // Non-standard property used to distinguish Promise-returning callbacks in callback-related AOs
     OperationReturnsPromise operation_returns_promise;

@@ -172,6 +172,10 @@
 
 namespace Web::DOM {
 
+#if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
+static_assert(sizeof(Element) == 400);
+#endif
+
 Element::RareData::~RareData() = default;
 
 void Element::RareData::visit_edges(Cell::Visitor& visitor)
@@ -2724,7 +2728,7 @@ WebIDL::ExceptionOr<GC::Ref<ShadowRoot>> Element::attach_shadow(ShadowRootOption
 GC::Ptr<ShadowRoot> Element::open_shadow_root() const
 {
     // 1. Let shadow be this’s shadow root.
-    auto shadow = m_shadow_root;
+    GC::Ptr<ShadowRoot> shadow = m_shadow_root;
 
     // 2. If shadow is null or its mode is "closed", then return null.
     if (shadow == nullptr || shadow->mode() == ShadowRootMode::Closed)
@@ -4334,7 +4338,7 @@ WebIDL::ExceptionOr<void> Element::insert_adjacent_html(String const& position, 
 void Element::request_fullscreen(GC::Ptr<WebIDL::Promise> promise, FullscreenRequester fullscreen_requester, Fullscreen::RequestType request_type)
 {
     // 1. Let pendingDoc be this’s node document.
-    auto pending_doc = m_document;
+    GC::Ptr<Document> pending_doc = m_document;
 
     // 3. If pendingDoc is not fully active, then reject promise with a TypeError exception and return promise.
     if (!pending_doc->is_fully_active()) {

@@ -74,6 +74,9 @@ struct CellTypeThunks {
     static constexpr CellTypeInfo info()
     {
         static_assert(alignof(T) <= max_cell_alignment);
+        // A free cell holds a link to the next one, so a cell that can be allocated must have room for that after its
+        // header.
+        static_assert(__is_abstract(T) || sizeof(T) >= sizeof(Cell) + sizeof(FlatPtr), "A cell must be at least as large as a free cell");
         return {
             .cell_size = static_cast<u32>(sizeof(T)),
             .alignment = static_cast<u32>(alignof(T)),

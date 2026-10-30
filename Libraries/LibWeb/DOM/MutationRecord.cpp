@@ -20,12 +20,12 @@ GC::Ref<MutationRecord> MutationRecord::create(Utf16FlyString const& type, Node 
 }
 
 MutationRecord::MutationRecord(Utf16FlyString const& type, Node const& target, NodeList& added_nodes, NodeList& removed_nodes, Node* previous_sibling, Node* next_sibling, Optional<Utf16FlyString> const& attribute_name, Optional<Utf16FlyString> const& attribute_namespace, Optional<Utf16String> const& old_value)
-    : m_type(type)
-    , m_target(GC::make_root(target))
+    : m_target(&target)
+    , m_type(type)
     , m_added_nodes(added_nodes)
     , m_removed_nodes(removed_nodes)
-    , m_previous_sibling(GC::make_root(previous_sibling))
-    , m_next_sibling(GC::make_root(next_sibling))
+    , m_previous_sibling(previous_sibling)
+    , m_next_sibling(next_sibling)
     , m_attribute_name(attribute_name)
     , m_attribute_namespace(attribute_namespace)
     , m_old_value(old_value)

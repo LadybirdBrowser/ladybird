@@ -17,6 +17,10 @@
 
 namespace Web::DOM {
 
+#if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
+static_assert(sizeof(Text) == 144);
+#endif
+
 struct Text::RareData final
     : CharacterData::RareData
     , SlottableMixin::RareData {

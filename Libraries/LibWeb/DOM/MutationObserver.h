@@ -73,7 +73,7 @@ private:
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
     // https://dom.spec.whatwg.org/#concept-mo-callback
-    GC::Ptr<WebIDL::CallbackType> m_callback;
+    GC::Member<WebIDL::CallbackType> m_callback;
 
     // https://dom.spec.whatwg.org/#mutationobserver-creation-index
     u64 m_creation_index { 0 };
@@ -114,7 +114,7 @@ protected:
     virtual void visit_edges(Cell::Visitor&) override;
 
 private:
-    GC::Ref<MutationObserver> m_observer;
+    GC::NonnullMember<MutationObserver> m_observer;
     MutationObserverOptions m_options;
 };
 
@@ -136,7 +136,7 @@ private:
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ref<RegisteredObserver> m_source;
+    GC::NonnullMember<RegisteredObserver> m_source;
 };
 
 template<>

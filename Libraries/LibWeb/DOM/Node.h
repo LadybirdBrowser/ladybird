@@ -413,11 +413,11 @@ public:
     Node* parent_node() { return parent(); }
     Node const* parent_node() const { return parent(); }
 
-    static constexpr size_t parent_node_offset() { return TreeNode<Node>::parent_offset<Node>(); }
-    static constexpr size_t first_child_offset() { return TreeNode<Node>::first_child_offset<Node>(); }
-    static constexpr size_t last_child_offset() { return TreeNode<Node>::last_child_offset<Node>(); }
-    static constexpr size_t previous_sibling_offset() { return TreeNode<Node>::previous_sibling_offset<Node>(); }
-    static constexpr size_t next_sibling_offset() { return TreeNode<Node>::next_sibling_offset<Node>(); }
+    static constexpr GC::MemberOffset parent_node_offset() { return TreeNode<Node>::parent_offset<Node>(); }
+    static constexpr GC::MemberOffset first_child_offset() { return TreeNode<Node>::first_child_offset<Node>(); }
+    static constexpr GC::MemberOffset last_child_offset() { return TreeNode<Node>::last_child_offset<Node>(); }
+    static constexpr GC::MemberOffset previous_sibling_offset() { return TreeNode<Node>::previous_sibling_offset<Node>(); }
+    static constexpr GC::MemberOffset next_sibling_offset() { return TreeNode<Node>::next_sibling_offset<Node>(); }
 
     GC::Ptr<Element> parent_element();
     GC::Ptr<Element const> parent_element() const;
@@ -674,8 +674,8 @@ protected:
         // "Nodes have a strong reference to registered observers in their registered observer list." https://dom.spec.whatwg.org/#garbage-collection
         OwnPtr<Vector<GC::Ref<RegisteredObserver>>> registered_observer_list;
 
-        GC::Ptr<NodeList> child_nodes;
-        GC::Ptr<HTMLCollection> children;
+        GC::Member<NodeList> child_nodes;
+        GC::Member<HTMLCollection> children;
         OwnPtr<HTMLCollectionCacheRegistration::List> html_collections_with_valid_caches;
 
         // The collections getElementsByTagName() returned, which it may return again for the same argument while the
@@ -706,8 +706,8 @@ protected:
     virtual void finalize() override;
     virtual size_t external_memory_size() const override;
 
-    GC::Ptr<Document> m_document;
-    GC::Ptr<Node> m_root;
+    GC::Member<Document> m_document;
+    GC::Member<Node> m_root;
     NodeType m_type { NodeType::INVALID };
     bool m_has_layout_box { false };
     bool m_has_committed_box { false };

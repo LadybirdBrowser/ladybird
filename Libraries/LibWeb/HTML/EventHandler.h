@@ -22,15 +22,16 @@ public:
     explicit EventHandler(Utf16String);
     explicit EventHandler(WebIDL::CallbackType&);
 
+    // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-listener
+    // NB: This comes first, so that it fills the padding at the end of the cell header.
+    GC::Member<DOM::DOMEventListener> listener;
+
     // Either uncompiled source code or a callback.
     // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-value
     // NOTE: This does not contain Empty as part of the optimization of not allocating all event handler attributes up front.
     // FIXME: The string should actually be an "internal raw uncompiled handler" struct. This struct is just the uncompiled source code plus a source location for reporting parse errors.
     //        https://html.spec.whatwg.org/multipage/webappapis.html#internal-raw-uncompiled-handler
     Variant<Utf16String, GC::Ptr<WebIDL::CallbackType>> value;
-
-    // https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-listener
-    GC::Ptr<DOM::DOMEventListener> listener;
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;

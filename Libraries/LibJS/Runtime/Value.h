@@ -19,6 +19,7 @@
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <LibGC/Member.h>
 #include <LibGC/NanBoxedValue.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Root.h>
@@ -287,6 +288,24 @@ public:
 
     template<typename T>
     requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::Ref<T>) = delete;
+
+    template<typename T>
+    requires(!HasForbiddenDirectJSValueConversion<T>) Value(GC::Member<T> const& member)
+        : Value(member.ptr())
+    {
+    }
+
+    template<typename T>
+    requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::Member<T> const&) = delete;
+
+    template<typename T>
+    requires(!HasForbiddenDirectJSValueConversion<T>) Value(GC::NonnullMember<T> const& member)
+        : Value(member.ptr())
+    {
+    }
+
+    template<typename T>
+    requires(HasForbiddenDirectJSValueConversion<T>) Value(GC::NonnullMember<T> const&) = delete;
 
     template<typename T>
     requires(!HasForbiddenDirectJSValueConversion<T>) Value(GC::Root<T> const& ptr)

@@ -13,6 +13,10 @@
 
 namespace Web::CSS {
 
+#if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
+static_assert(sizeof(CSSStyleDeclaration) == 40);
+#endif
+
 GC_DEFINE_ALLOCATOR(CSSStyleDeclaration);
 
 CSSStyleDeclaration::CSSStyleDeclaration(Computed computed, Readonly readonly)
@@ -81,8 +85,18 @@ void CSSStyleDeclaration::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_parent_rule);
-    if (m_owner_node.has_value())
-        m_owner_node->visit(visitor);
+    visitor.visit(m_owner_element);
+}
+
+void CSSStyleDeclaration::set_owner_node(Optional<DOM::AbstractElement> owner_node)
+{
+    if (!owner_node.has_value()) {
+        m_owner_element = nullptr;
+        m_owner_pseudo_element = {};
+        return;
+    }
+    m_owner_element = owner_node->element();
+    m_owner_pseudo_element = owner_node->pseudo_element();
 }
 
 }
