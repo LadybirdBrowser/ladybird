@@ -196,22 +196,6 @@ bool is_link(int fd)
     return S_ISLNK(st.st_mode);
 }
 
-static ErrorOr<ByteString> get_duplicate_file_name(StringView path)
-{
-    int duplicate_count = 0;
-    LexicalPath lexical_path(path);
-    auto parent_path = LexicalPath::canonicalized_path(lexical_path.dirname());
-    auto basename = lexical_path.basename();
-    auto current_name = LexicalPath::join(parent_path, basename).string();
-
-    while (exists(current_name)) {
-        ++duplicate_count;
-        current_name = LexicalPath::join(parent_path, ByteString::formatted("{} ({})", basename, duplicate_count)).string();
-    }
-
-    return current_name;
-}
-
 ErrorOr<void> copy_file(StringView destination_path, StringView source_path, struct stat const& source_stat, Core::File& source, PreserveMode preserve_mode)
 {
     auto destination_or_error = Core::File::open(destination_path, Core::File::OpenMode::Write, 0666);
@@ -263,81 +247,6 @@ ErrorOr<void> copy_file(StringView destination_path, StringView source_path, str
         TRY(Core::System::utimensat(AT_FDCWD, destination_path, times, 0));
     }
     return {};
-}
-
-ErrorOr<void> copy_directory(StringView destination_path, StringView source_path, struct stat const& source_stat, LinkMode link, PreserveMode preserve_mode)
-{
-    TRY(Core::System::mkdir(destination_path, 0755));
-
-    auto source_rp = TRY(real_path(source_path));
-    source_rp = ByteString::formatted("{}/", source_rp);
-
-    auto destination_rp = TRY(real_path(destination_path));
-    destination_rp = ByteString::formatted("{}/", destination_rp);
-
-    if (!destination_rp.is_empty() && destination_rp.starts_with(source_rp))
-        return Error::from_errno(EINVAL);
-
-    Core::DirIterator di(source_path, Core::DirIterator::SkipParentAndBaseDir);
-    if (di.has_error())
-        return di.error();
-
-    while (di.has_next()) {
-        auto filename = di.next_path();
-        TRY(copy_file_or_directory(
-            ByteString::formatted("{}/{}", destination_path, filename),
-            ByteString::formatted("{}/{}", source_path, filename),
-            RecursionMode::Allowed, link, AddDuplicateFileMarker::Yes, preserve_mode));
-    }
-
-    auto my_umask = umask(0);
-    umask(my_umask);
-
-    TRY(Core::System::chmod(destination_path, source_stat.st_mode & ~my_umask));
-
-    if (has_flag(preserve_mode, PreserveMode::Ownership))
-        TRY(Core::System::chown(destination_path, source_stat.st_uid, source_stat.st_gid));
-
-    if (has_flag(preserve_mode, PreserveMode::Timestamps)) {
-        struct timespec times[2] = {
-#    if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
-            source_stat.st_atimespec,
-            source_stat.st_mtimespec,
-#    else
-            source_stat.st_atim,
-            source_stat.st_mtim,
-#    endif
-        };
-        TRY(Core::System::utimensat(AT_FDCWD, destination_path, times, 0));
-    }
-
-    return {};
-}
-
-ErrorOr<void> copy_file_or_directory(StringView destination_path, StringView source_path, RecursionMode recursion_mode, LinkMode link_mode, AddDuplicateFileMarker add_duplicate_file_marker, PreserveMode preserve_mode)
-{
-    ByteString final_destination_path;
-    if (add_duplicate_file_marker == AddDuplicateFileMarker::Yes)
-        final_destination_path = TRY(get_duplicate_file_name(destination_path));
-    else
-        final_destination_path = destination_path;
-
-    auto source = TRY(Core::File::open(source_path, Core::File::OpenMode::Read));
-
-    auto source_stat = TRY(Core::System::fstat(source->fd()));
-
-    if (is_directory(source_path)) {
-        if (recursion_mode == RecursionMode::Disallowed) {
-            return Error::from_errno(EISDIR);
-        }
-
-        return copy_directory(final_destination_path, source_path, source_stat, link_mode, preserve_mode);
-    }
-
-    if (link_mode == LinkMode::Allowed)
-        return TRY(Core::System::link(source_path, final_destination_path));
-
-    return copy_file(final_destination_path, source_path, source_stat, *source, preserve_mode);
 }
 
 ErrorOr<void> move_file(StringView destination_path, StringView source_path, PreserveMode preserve_mode)
