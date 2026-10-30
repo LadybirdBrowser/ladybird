@@ -3177,10 +3177,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
 
         let trace = self.callbacks.layout_trace().intrinsic_size_miss(node, kind);
-        let depends_on_block_size = self.intrinsic_inline_size_may_depend_on_block_size(node);
         let scope = || intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
         let facts = self.facts(node);
-        let (source, sizes) = if self.establishes_orthogonal_flow(node) {
+        let (source, mut sizes) = if self.establishes_orthogonal_flow(node) {
             (
                 "ORTHOGONAL FLOW",
                 intrinsic_sizing::content_sizes_of_orthogonal_flow(self.callbacks, &scope(), constraints),
@@ -3188,66 +3187,35 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         } else if facts.is_table_wrapper() {
             (
                 "COLUMNS",
-                intrinsic_sizing::content_sizes_of_table(self.callbacks, &scope(), constraints, depends_on_block_size),
+                intrinsic_sizing::content_sizes_of_table(self.callbacks, &scope(), constraints),
             )
         } else {
             match formatting_context::independent_formatting_context_type(node, &self.callbacks) {
                 formatting_context::FormattingContextType::Block if facts.children_are_inline() => (
                     "ITEMS",
-                    intrinsic_sizing::content_sizes_of_inline_content(
-                        self.callbacks,
-                        &scope(),
-                        constraints,
-                        depends_on_block_size,
-                    ),
+                    intrinsic_sizing::content_sizes_of_inline_content(self.callbacks, &scope(), constraints),
                 ),
                 formatting_context::FormattingContextType::Block => (
                     "CHILDREN",
-                    intrinsic_sizing::content_sizes_of_block_container(
-                        self.callbacks,
-                        &scope(),
-                        constraints,
-                        depends_on_block_size,
-                    ),
+                    intrinsic_sizing::content_sizes_of_block_container(self.callbacks, &scope(), constraints),
                 ),
                 formatting_context::FormattingContextType::Table => (
                     "COLUMNS",
-                    intrinsic_sizing::content_sizes_of_table(
-                        self.callbacks,
-                        &scope(),
-                        constraints,
-                        depends_on_block_size,
-                    ),
+                    intrinsic_sizing::content_sizes_of_table(self.callbacks, &scope(), constraints),
                 ),
                 formatting_context::FormattingContextType::Flex => (
                     "FLEX ITEMS",
-                    intrinsic_sizing::content_sizes_of_flex_container(
-                        self.callbacks,
-                        node,
-                        constraints,
-                        block_size,
-                        depends_on_block_size,
-                    ),
+                    intrinsic_sizing::content_sizes_of_flex_container(self.callbacks, node, constraints, block_size),
                 ),
                 formatting_context::FormattingContextType::Grid => (
                     "GRID TRACKS",
-                    intrinsic_sizing::content_sizes_of_grid_container(
-                        self.callbacks,
-                        node,
-                        constraints,
-                        block_size,
-                        depends_on_block_size,
-                    ),
+                    intrinsic_sizing::content_sizes_of_grid_container(self.callbacks, node, constraints, block_size),
                 ),
                 formatting_context::FormattingContextType::Svg
                 | formatting_context::FormattingContextType::InternalReplaced
                 | formatting_context::FormattingContextType::ReplacedWithChildren => (
                     "REPLACED CONTENT",
-                    intrinsic_sizing::content_sizes_of_replaced_content(
-                        self.callbacks,
-                        &scope(),
-                        depends_on_block_size,
-                    ),
+                    intrinsic_sizing::content_sizes_of_replaced_content(self.callbacks, &scope()),
                 ),
                 formatting_context::FormattingContextType::Math => (
                     "MATH LAYOUT",
@@ -3255,6 +3223,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
                 ),
             }
         };
+        if !sizes.dependencies.block_size {
+            sizes.dependencies.block_size = self.intrinsic_inline_size_may_depend_on_block_size(node);
+        }
         if let Some(trace) = &trace {
             trace.append(" FROM ");
             trace.append(source);
