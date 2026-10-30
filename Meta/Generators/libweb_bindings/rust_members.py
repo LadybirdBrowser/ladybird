@@ -69,7 +69,9 @@ class RustAttribute:
     attribute: Attribute
     # The method of the implementation that the getter calls.
     getter_method: str
-    # The method of the implementation that the setter calls, for an attribute that is not read only.
+    # The method of the implementation that the setter calls, for an attribute that is not read only. An event handler
+    # IDL attribute has one only when the IDL names it with [ImplementedAs]: the setter of an interface that does more
+    # than set the event handler, which the method does itself.
     setter_method: Optional[str]
     # The event type of an event handler IDL attribute, whose getter and setter work on the C++ EventTarget that the
     # object owns: https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes
@@ -291,6 +293,19 @@ def rust_members(interface: Interface) -> RustMembers:
             fail(f"[ImplementedAs={method}] of {member_name} does not name a Rust method")
         return method
 
+    def event_handler_attribute(attribute: Attribute) -> RustAttribute:
+        """An event handler IDL attribute, which the bindings get and set on the EventTarget that the object owns. The
+        IDL names the method of its setter with [ImplementedAs] when the interface's setter does more than set the
+        event handler."""
+        if attribute.readonly or not attribute.name.startswith("on"):
+            fail(f"its event handler IDL attribute {attribute.name} is not a plain attribute named on<event type>")
+        check_extended_attributes(attribute.name, attribute.extended_attributes, {"ImplementedAs"})
+        setter_method = None
+        if "ImplementedAs" in attribute.extended_attributes:
+            setter_method = method_of(attribute.name, attribute.extended_attributes)
+        event_type = attribute.name.removeprefix("on")
+        return RustAttribute(attribute, rust_identifier(attribute.name), setter_method, event_type)
+
     special_operations = [
         interface.named_property_getter,
         interface.named_property_setter,
@@ -383,14 +398,12 @@ def rust_members(interface: Interface) -> RustMembers:
             continue
         if "CachedAccessor" in attribute.extended_attributes and not attribute.readonly:
             fail(f"its attribute {attribute.name} is [CachedAccessor] and not read only")
-        getter_method = method_of(attribute.name, attribute.extended_attributes)
-        setter_method = None if attribute.readonly else f"set_{generated_function_stem(getter_method)}"
-        event_type = None
         if attribute.type.name in ("EventHandler", "EventHandlerNonNull"):
-            if attribute.readonly or not attribute.name.startswith("on") or attribute.extended_attributes:
-                fail(f"its event handler IDL attribute {attribute.name} is not a plain attribute named on<event type>")
-            event_type = attribute.name.removeprefix("on")
-        rust_attribute = RustAttribute(attribute, getter_method, setter_method, event_type)
+            rust_attribute = event_handler_attribute(attribute)
+        else:
+            getter_method = method_of(attribute.name, attribute.extended_attributes)
+            setter_method = None if attribute.readonly else f"set_{generated_function_stem(getter_method)}"
+            rust_attribute = RustAttribute(attribute, getter_method, setter_method)
         members.attributes.append(rust_attribute)
         members.attributes_in_order.append(rust_attribute)
 
@@ -448,11 +461,7 @@ def rust_members(interface: Interface) -> RustMembers:
             members.constants.append(RustConstant(constant.name, value))
 
     methods = [attribute.getter_method for attribute in members.attributes if attribute.event_type is None]
-    methods.extend(
-        attribute.setter_method
-        for attribute in members.attributes
-        if attribute.setter_method is not None and attribute.event_type is None
-    )
+    methods.extend(attribute.setter_method for attribute in members.attributes if attribute.setter_method is not None)
     methods.extend(
         overload.method
         for operation_set in members.operation_sets + members.static_operation_sets
