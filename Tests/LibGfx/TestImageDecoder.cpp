@@ -9,6 +9,7 @@
 #include <LibCore/MappedFile.h>
 #include <LibGfx/ImageFormats/AVIFLoader.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
+#include <LibGfx/ImageFormats/ExifReader.h>
 #include <LibGfx/ImageFormats/GIFLoader.h>
 #include <LibGfx/ImageFormats/ICOLoader.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
@@ -681,6 +682,82 @@ TEST_CASE(test_exif_orientation_transpose_non_square)
     EXPECT_EQ(frame.image->get_pixel(0, 0), Gfx::Color(255, 0, 0));
     EXPECT_EQ(frame.image->get_pixel(0, 1), Gfx::Color(0, 255, 0));
     EXPECT_EQ(frame.image->get_pixel(0, 2), Gfx::Color(0, 0, 255));
+}
+
+TEST_CASE(test_exif_sub_ifd_chain)
+{
+    // Every IFD sets an orientation and points to the next one with an ExifIFD tag. Only the main IFD and the first
+    // sub-IFD are read, and the chain must not exhaust the stack.
+    static constexpr u32 ifd_count = 100'000;
+    static constexpr u32 ifd_size = 2 + 2 * 12 + 4;
+
+    ByteBuffer exif;
+    auto append_u16 = [&](u16 value) { exif.append(&value, sizeof(value)); };
+    auto append_u32 = [&](u32 value) { exif.append(&value, sizeof(value)); };
+
+    append_u16(0x4949);
+    append_u16(42);
+    append_u32(8);
+    for (u32 i = 0; i < ifd_count; ++i) {
+        append_u16(2);
+
+        // Orientation, Short, count 1.
+        append_u16(274);
+        append_u16(3);
+        append_u32(1);
+        append_u16(i == 0 ? 1 : (i == 1 ? 6 : 3));
+        append_u16(0);
+
+        // ExifIFD, UnsignedLong, count 1.
+        append_u16(34665);
+        append_u16(4);
+        append_u32(1);
+        append_u32(i + 1 < ifd_count ? 8 + (i + 1) * ifd_size : 0);
+
+        append_u32(0);
+    }
+
+    auto metadata = TRY_OR_FAIL(Gfx::TIFF::read_exif_metadata(exif));
+    EXPECT_EQ(*metadata->orientation(), Gfx::TIFF::Orientation::Rotate90Clockwise);
+}
+
+TEST_CASE(test_exif_repeated_sub_ifd_tag)
+{
+    // The main IFD points to two sub-IFDs that set different orientations. Only the first one is read.
+    ByteBuffer exif;
+    auto append_u16 = [&](u16 value) { exif.append(&value, sizeof(value)); };
+    auto append_u32 = [&](u32 value) { exif.append(&value, sizeof(value)); };
+    auto append_orientation_ifd = [&](u16 orientation) {
+        append_u16(1);
+        append_u16(274);
+        append_u16(3);
+        append_u32(1);
+        append_u16(orientation);
+        append_u16(0);
+        append_u32(0);
+    };
+
+    static constexpr u32 main_ifd_size = 2 + 2 * 12 + 4;
+    static constexpr u32 orientation_ifd_size = 2 + 12 + 4;
+
+    append_u16(0x4949);
+    append_u16(42);
+    append_u32(8);
+
+    append_u16(2);
+    for (u32 i = 0; i < 2; ++i) {
+        append_u16(34665);
+        append_u16(4);
+        append_u32(1);
+        append_u32(8 + main_ifd_size + i * orientation_ifd_size);
+    }
+    append_u32(0);
+
+    append_orientation_ifd(6);
+    append_orientation_ifd(3);
+
+    auto metadata = TRY_OR_FAIL(Gfx::TIFF::read_exif_metadata(exif));
+    EXPECT_EQ(*metadata->orientation(), Gfx::TIFF::Orientation::Rotate90Clockwise);
 }
 
 TEST_CASE(test_png_malformed_frame)

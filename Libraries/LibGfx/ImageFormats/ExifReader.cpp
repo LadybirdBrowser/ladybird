@@ -211,6 +211,13 @@ private:
         }()));
 
         auto subifd_handler = [&](u32 ifd_offset) -> ErrorOr<void> {
+            // NB: The Exif IFD is referenced once, from the main IFD. Following any further reference would let a chain of
+            //     them recurse until the stack runs out, or let repeated tags re-read the same sub-IFD over and over.
+            if (m_has_followed_sub_ifd) {
+                dbgln("ExifReader: Ignoring a repeated sub-IFD");
+                return {};
+            }
+            m_has_followed_sub_ifd = true;
             if (auto result = set_next_ifd(ifd_offset); result.is_error()) {
                 dbgln("{}", result.error());
                 return {};
@@ -227,6 +234,7 @@ private:
     FixedMemoryStream m_stream;
     ByteOrder m_byte_order {};
     Optional<u32> m_next_ifd {};
+    bool m_has_followed_sub_ifd { false };
 
     ExifMetadata m_metadata {};
 };
