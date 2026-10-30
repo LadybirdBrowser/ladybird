@@ -2,12 +2,11 @@ Harness status: OK
 
 Found 7 tests
 
-1 Pass
-6 Fail
+7 Pass
 Pass	Errors for same-origin script shouldn't be muted
-Fail	Errors for cross-origin script should be muted
-Fail	Errors for cross-origin script should be muted even if the script is once loaded as same-origin
-Fail	Errors for same-origin scripts redirected to a cross-origin url and redirected back to same-origin should be muted
-Fail	Errors for cross-origin scripts redirected to a same-origin url should be muted
-Fail	Non-synthetic errors for same-origin scripts redirected to a cross-origin URL and redirected back to same-origin should be muted
-Fail	Syntax error for same-origin script redirected to a cross-origin URL and redirected back to same-origin should be muted
+Pass	Errors for cross-origin script should be muted
+Pass	Errors for cross-origin script should be muted even if the script is once loaded as same-origin
+Pass	Errors for same-origin scripts redirected to a cross-origin url and redirected back to same-origin should be muted
+Pass	Errors for cross-origin scripts redirected to a same-origin url should be muted
+Pass	Non-synthetic errors for same-origin scripts redirected to a cross-origin URL and redirected back to same-origin should be muted
+Pass	Syntax error for same-origin script redirected to a cross-origin URL and redirected back to same-origin should be muted
