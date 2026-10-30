@@ -7,9 +7,9 @@
 import argparse
 import http.client
 import http.server
+import importlib
 import json
 import os
-import socket
 import subprocess
 import sys
 import tempfile
@@ -17,6 +17,8 @@ import threading
 import time
 
 from typing import cast
+
+webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
 
 BLOCKED_RESPONSE_TIMEOUT_SECONDS = 30
 EVENT_TIMEOUT_SECONDS = 30
@@ -823,23 +825,6 @@ window.initialNavigationCurrentIndex = navigation.currentEntry.index;
 
     def log_message(self, format, *args):
         pass
-
-
-def unused_port():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
-def wait_for_port(port, timeout=EVENT_TIMEOUT_SECONDS):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                return
-        except OSError:
-            time.sleep(0.05)
-    raise RuntimeError(f"Timed out waiting for port {port}")
 
 
 def wait_for_event(event, label, timeout=EVENT_TIMEOUT_SECONDS):
@@ -2999,7 +2984,6 @@ def run_test(webdriver_binary):
     page_server_thread = threading.Thread(target=page_server.serve_forever, daemon=True)
     page_server_thread.start()
 
-    webdriver_port = unused_port()
     env = os.environ.copy()
     env["LADYBIRD_SESSION_HISTORY_DEBUG"] = "1"
 
@@ -3008,19 +2992,13 @@ def run_test(webdriver_binary):
     expect_reload_pending_history_log = False
     expect_no_entry_history_log = False
 
-    webdriver = subprocess.Popen(
-        [webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(webdriver_port)],
-        stdout=webdriver_stdout,
-        stderr=webdriver_stderr,
-        text=True,
-        env=env,
+    webdriver, webdriver_port = webdriver_helpers.launch_webdriver(
+        webdriver_binary, "--headless", output=webdriver_stdout, stderr=webdriver_stderr, env=env
     )
 
     session_id = None
     failed = False
     try:
-        wait_for_port(webdriver_port)
-
         baseline_open_fds = count_open_fds(webdriver.pid)
         page_port = page_server.server_port
         url_a = f"http://localhost:{page_port}/a"

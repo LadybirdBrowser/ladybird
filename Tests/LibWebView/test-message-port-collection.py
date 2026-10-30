@@ -69,13 +69,9 @@ def main():
     parser.add_argument("webdriver_binary")
     webdriver_binary = parser.parse_args().webdriver_binary
 
-    port = helpers["unused_port"]()
-    process = subprocess.Popen(
-        [webdriver_binary, "--headless", "--expose-internals-object", "-l", "127.0.0.1", "-p", str(port)]
-    )
+    process, port = helpers["launch_webdriver"](webdriver_binary, "--headless", "--expose-internals-object")
     session = None
     try:
-        helpers["wait_for_port"](port)
         session = helpers["create_session"](port)
 
         def run(script, *args, asynchronous=False):

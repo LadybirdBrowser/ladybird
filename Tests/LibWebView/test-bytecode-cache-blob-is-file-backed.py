@@ -90,13 +90,9 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         with tempfile.TemporaryDirectory(prefix="ladybird-bytecode-cache-") as profile:
-            port = helpers["unused_port"]()
-            process = subprocess.Popen(
-                [webdriver_binary, "--headless", f"--profile-path={profile}", "-l", "127.0.0.1", "-p", str(port)]
-            )
+            process, port = helpers["launch_webdriver"](webdriver_binary, "--headless", f"--profile-path={profile}")
             session = None
             try:
-                helpers["wait_for_port"](port)
                 session = helpers["create_session"](port)
                 status, _, raw = helpers["request"](
                     port, "POST", f"/session/{session}/url", {"url": f"http://127.0.0.1:{server.server_port}/"}

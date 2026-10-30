@@ -82,13 +82,9 @@ def web_content_resident_bytes(root_pid):
 
 def measure(webdriver_binary, server_port, frame_count):
     with tempfile.TemporaryDirectory(prefix="ladybird-shared-sheet-") as profile:
-        port = helpers["unused_port"]()
-        process = subprocess.Popen(
-            [webdriver_binary, "--headless", f"--profile-path={profile}", "-l", "127.0.0.1", "-p", str(port)]
-        )
+        process, port = helpers["launch_webdriver"](webdriver_binary, "--headless", f"--profile-path={profile}")
         session = None
         try:
-            helpers["wait_for_port"](port)
             session = helpers["create_session"](port)
             status, _, raw = helpers["request"](
                 port,

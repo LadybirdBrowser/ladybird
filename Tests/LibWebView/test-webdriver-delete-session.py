@@ -8,8 +8,11 @@ import argparse
 import concurrent.futures
 import http.client
 import json
+import os
 import socket
 import subprocess
+import sys
+import threading
 import time
 
 EVENT_TIMEOUT_SECONDS = 30
@@ -22,15 +25,42 @@ def unused_port():
         return sock.getsockname()[1]
 
 
-def wait_for_port(port):
+def launch_webdriver(webdriver_binary, *arguments, output=None, **popen_arguments):
+    # A free port picked here could be taken by another test first, so WebDriver picks one and reports it.
+    command = [webdriver_binary, *arguments, "-l", "127.0.0.1", "-p", "0"]
+    if output is None:
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, bufsize=0, **popen_arguments)
+        assert process.stdout is not None
+        listening = process.stdout.readline()
+        os.write(sys.stdout.fileno(), listening)
+    else:
+        process = subprocess.Popen(command, stdout=output, **popen_arguments)
+        listening = wait_for_listening_line(process, output)
+    if not listening.startswith(b"Listening on "):
+        process.kill()
+        process.wait()
+        raise RuntimeError(f"WebDriver did not report its port: {listening!r}")
+    if output is None:
+        threading.Thread(target=forward_output, args=(process.stdout,), daemon=True).start()
+    return process, int(listening.rsplit(b":", 1)[1])
+
+
+def wait_for_listening_line(process, output):
     deadline = time.monotonic() + EVENT_TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
-        try:
-            with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-                return
-        except OSError:
-            time.sleep(0.05)
-    raise RuntimeError(f"Timed out waiting for port {port}")
+    while True:
+        written = os.pread(output.fileno(), 65536, 0)
+        for line in written.splitlines(keepends=True):
+            if line.startswith(b"Listening on ") and line.endswith(b"\n"):
+                return line
+        if process.poll() is not None or time.monotonic() >= deadline:
+            return written
+        time.sleep(0.05)
+
+
+def forward_output(stream):
+    # Unbuffered I/O takes no locks, so a browser still holding the pipe can't block Python's exit.
+    while output := stream.read(65536):
+        os.write(sys.stdout.fileno(), output)
 
 
 def request(webdriver_port, method, path, body=None):
@@ -63,10 +93,8 @@ def create_session(webdriver_port):
 
 
 def run_test(webdriver_binary):
-    webdriver_port = unused_port()
-    webdriver = subprocess.Popen([webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(webdriver_port)])
+    webdriver, webdriver_port = launch_webdriver(webdriver_binary, "--headless")
     try:
-        wait_for_port(webdriver_port)
         session_id = create_session(webdriver_port)
 
         expected_responses = (

@@ -79,13 +79,9 @@ with tempfile.TemporaryDirectory() as directory:
     (config / "Settings.json").write_text(json.dumps({"content": {"enableForceDark": True}}))
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    port = helpers["unused_port"]()
-    process = subprocess.Popen(
-        [sys.argv[1], "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory]
-    )
+    process, port = helpers["launch_webdriver"](sys.argv[1], "--headless", "--profile-path", directory)
     session = None
     try:
-        helpers["wait_for_port"](port)
         session = helpers["create_session"](port)
 
         def command(method, path, body=None):
