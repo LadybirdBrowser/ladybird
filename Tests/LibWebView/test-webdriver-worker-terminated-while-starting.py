@@ -51,12 +51,8 @@ def run_test(webdriver_binary):
             ("XDG_CACHE_HOME", "cache"),
         ):
             environment[variable] = str(Path(temporary) / directory)
-        port = webdriver_helpers.unused_port()
-        webdriver = subprocess.Popen(
-            [webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(port)], env=environment
-        )
+        webdriver, port = webdriver_helpers.launch_webdriver(webdriver_binary, "--headless", env=environment)
         try:
-            webdriver_helpers.wait_for_port(port)
             session = webdriver_helpers.create_session(port)
             status, _, body = webdriver_helpers.request(
                 port, "POST", f"/session/{session}/url", {"url": "data:text/html,<title>Workers</title>"}

@@ -8,7 +8,6 @@ import http.server
 import json
 import os
 import runpy
-import subprocess
 import sys
 import tempfile
 import threading
@@ -75,14 +74,15 @@ with tempfile.TemporaryDirectory() as directory:
     )
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    port = helpers["unused_port"]()
-    process = subprocess.Popen(
-        [sys.argv[1], "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory],
+    process, port = helpers["launch_webdriver"](
+        sys.argv[1],
+        "--headless",
+        "--profile-path",
+        directory,
         env={**os.environ, "LADYBIRD_CONTENT_BLOCKER_LIST_UPDATE_TIMEOUT_MS": "1000"},
     )
     session = None
     try:
-        helpers["wait_for_port"](port)
         session = helpers["create_session"](port)
 
         def command(path, body):

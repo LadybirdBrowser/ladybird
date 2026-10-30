@@ -18,13 +18,9 @@ helpers = runpy.run_path(str(Path(__file__).with_name("test-webdriver-delete-ses
 # the first page's channel to the UI process.
 def run_test(webdriver_binary):
     with tempfile.TemporaryDirectory() as directory:
-        port = helpers["unused_port"]()
-        process = subprocess.Popen(
-            [webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory]
-        )
+        process, port = helpers["launch_webdriver"](webdriver_binary, "--headless", "--profile-path", directory)
         session = None
         try:
-            helpers["wait_for_port"](port)
             session = helpers["create_session"](port)
 
             def command(path, body):

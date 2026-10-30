@@ -17,12 +17,7 @@ webdriver = importlib.import_module("test-webdriver-delete-session")
 
 
 def launch(webdriver_binary, environment):
-    port = webdriver.unused_port()
-    process = subprocess.Popen(
-        [webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(port)],
-        env=environment,
-    )
-    webdriver.wait_for_port(port)
+    process, port = webdriver.launch_webdriver(webdriver_binary, "--headless", env=environment)
     status, payload, response = webdriver.request(
         port, "POST", "/session", {"capabilities": {"alwaysMatch": {"ladybird:headless": True}}}
     )

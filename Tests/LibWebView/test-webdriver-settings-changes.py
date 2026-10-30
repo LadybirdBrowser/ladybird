@@ -37,13 +37,9 @@ def run_test(webdriver_binary):
         config = Path(directory) / "config"
         config.mkdir()
         (config / "Settings.json").write_text(json.dumps({"contentBlockers": {"enabled": True}}))
-        port = helpers["unused_port"]()
-        process = subprocess.Popen(
-            [webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory]
-        )
+        process, port = helpers["launch_webdriver"](webdriver_binary, "--headless", "--profile-path", directory)
         session = None
         try:
-            helpers["wait_for_port"](port)
             session = helpers["create_session"](port)
 
             def command(path, body):

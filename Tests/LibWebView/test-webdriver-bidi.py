@@ -22,6 +22,7 @@ import time
 import urllib.parse
 
 helpers = importlib.import_module("test-webdriver-error-keep-alive")
+webdriver_helpers = importlib.import_module("test-webdriver-delete-session")
 
 
 class BiDiConnection:
@@ -2462,27 +2463,19 @@ def run_test(
         os.mkdir(downloads)
         server = ReloadServer()
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        port = helpers.unused_port()
         webdriver = None
         connection = None
         bidi = None
         session_id = None
         try:
-            webdriver = subprocess.Popen(
-                [
-                    webdriver_binary,
-                    "--headless",
-                    "--expose-internals-object",
-                    "--site-isolation=iframe",
-                    f"--profile-path={profile}",
-                    "-l",
-                    "127.0.0.1",
-                    "-p",
-                    str(port),
-                ],
+            webdriver, port = webdriver_helpers.launch_webdriver(
+                webdriver_binary,
+                "--headless",
+                "--expose-internals-object",
+                "--site-isolation=iframe",
+                f"--profile-path={profile}",
                 env={**os.environ, "XDG_DOWNLOAD_DIR": downloads},
             )
-            helpers.wait_for_port(port)
             connection = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
             status, payload, _ = helpers.request(
                 connection,

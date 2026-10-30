@@ -31,14 +31,12 @@ def run_test(webdriver_binary, graphical):
                 }
             )
         )
-        port = helpers["unused_port"]()
-        arguments = [webdriver_binary, "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory]
+        arguments = ["--profile-path", directory]
         if not graphical:
             arguments.append("--headless")
-        process = subprocess.Popen(arguments)
+        process, port = helpers["launch_webdriver"](webdriver_binary, *arguments)
         session = None
         try:
-            helpers["wait_for_port"](port)
             status, payload, raw = helpers["request"](
                 port, "POST", "/session", {"capabilities": {"alwaysMatch": {"ladybird:headless": not graphical}}}
             )
