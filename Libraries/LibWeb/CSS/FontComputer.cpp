@@ -516,6 +516,7 @@ NonnullRefPtr<FontFaceSnapshot const> FontComputer::font_face_snapshot() const
                 .has_urls = face->has_urls(),
                 .is_unusable = face->is_unusable_for_rendering(),
                 .has_non_default_unicode_range = face->has_non_default_unicode_range(),
+                .weight_descriptor_is_auto = face->weight_descriptor_is_auto(),
             });
         }
         table.set(key, move(snapshot_faces));

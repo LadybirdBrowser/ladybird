@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/font-face-weight-descriptor-clamps-variable-font-weight-ref.html">
+<style>
+@font-face {
+    font-family: "Variable";
+    src: url(../../Screenshot/data/variable-font-example.woff2) format("woff2");
+    font-weight: 400;
+}
+@font-face {
+    font-family: "Variable";
+    src: url(../../Screenshot/data/variable-font-example.woff2) format("woff2");
+    font-weight: 600;
+}
+body { font: 40px "Variable"; font-synthesis: none; }
+</style>
+<div style="font-weight: 700">Bold text</div>
+<div style="font-weight: 300">Light text</div>
+<div style="font-weight: 700; font-variation-settings: 'wght' 900">Black text</div>
+<script>
+document.fonts.ready.then(() => document.documentElement.classList.remove("reftest-wait"));
+</script>

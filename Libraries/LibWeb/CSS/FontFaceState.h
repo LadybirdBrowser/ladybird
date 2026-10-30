@@ -80,6 +80,10 @@ public:
         };
     }
 
+    // Whether the font-weight descriptor is auto, which takes the weight range of the font file in place of the
+    // range the matching key carries.
+    [[nodiscard]] bool weight_descriptor_is_auto() const { return m_weight_descriptor_is_auto; }
+
     bool should_be_registered_with_font_computer() const;
 
     // What the face renders with right now, published for a cascade on any thread: its typeface while its font-display
@@ -140,6 +144,7 @@ private:
     Vector<Gfx::UnicodeRange> m_unicode_ranges;
 
     FontWeightRange m_cached_weight_range { 400, 400 };
+    bool m_weight_descriptor_is_auto { true };
     int m_cached_slope { 0 };
     int m_cached_width { 100 };
     GC::Ptr<FontLoader> m_font_loader;
