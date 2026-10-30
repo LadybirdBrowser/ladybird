@@ -1620,7 +1620,6 @@ impl<'context> InlineFormattingContext<'context> {
     pub(crate) fn content_sizes_from_items(
         &self,
         items: &[inline_level_iterator::Item],
-        depends_on_block_size: bool,
     ) -> sizing_context::ContentInlineSizes {
         let containing_style = self.style(self.containing_block);
         let container_wraps = containing_style.text_wrap_mode() == text_wrap_mode::WRAP;
@@ -1652,7 +1651,7 @@ impl<'context> InlineFormattingContext<'context> {
                 percentage_block_size: sizing.resolve_percentage_block_size_dependency(self.containing_block),
                 percentage_inline_basis: sizing
                     .measurement_root_observes_percentage_inline_basis(self.containing_block),
-                block_size: depends_on_block_size,
+                block_size: false,
             },
         }
     }
