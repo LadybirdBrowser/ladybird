@@ -23,7 +23,6 @@
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/EventSource.h>
 #include <LibWeb/HTML/MessageEvent.h>
-#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/PotentialCORSRequest.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>

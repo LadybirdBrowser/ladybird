@@ -71,14 +71,14 @@ WebIDL::ExceptionOr<GC::Ref<Worker>> Worker::create(WindowOrWorkerGlobalScopeMix
     }
 
     // 5. Let outsidePort be a new MessagePort in outsideSettings's realm.
-    auto outside_port = MessagePort::create(global_scope.this_impl());
+    auto outside_port = MessagePort::create(outside_settings.realm());
 
     // 8. Let worker be this.
     // AD-HOC: AD-HOC: We do this first so that we can use `this`.
     auto worker = GC::Heap::the().allocate<Worker>(compliant_script_url.to_utf8_but_should_be_ported_to_utf16(), options);
 
     // 6. Set outsidePort's message event target to this.
-    outside_port->set_message_event_target(worker);
+    outside_port->set_message_event_target(*worker);
 
     // 7. Set this's outside port to outsidePort.
     worker->m_outside_port = outside_port;
@@ -152,7 +152,7 @@ WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value messa
     // when invoked, they immediately invoked the respective postMessage(message, transfer) and
     // postMessage(message, options) on the port, with the same arguments, and returned the same return value.
 
-    return m_outside_port->post_message(realm, message, options);
+    return m_outside_port->post_message(realm, message, options.transfer);
 }
 
 WebIDL::ExceptionOr<void> Worker::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)

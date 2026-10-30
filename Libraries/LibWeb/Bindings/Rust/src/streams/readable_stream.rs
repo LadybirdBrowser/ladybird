@@ -586,7 +586,7 @@ impl Transferable for ReadableStream {
             mark_promise_as_handled(cx.vm(), promise);
 
             // 9. Set dataHolder.[[port]] to ! StructuredSerializeWithTransfer(port2, « port2 »).
-            serialize_message_port(cx, data_holder, &port2);
+            serialize_message_port(cx, data_holder, port2);
             Ok(())
         })
     }

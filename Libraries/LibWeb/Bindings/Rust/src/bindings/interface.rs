@@ -231,15 +231,19 @@ pub(crate) fn implementation_if<T: Interface>(wrapper: Gc<Object>) -> Option<Ref
     unsafe { T::CELL_CLASS.downcast(host_data) }
 }
 
+/// The object of the interface that the object is a wrapper of, if it is one.
+pub(crate) fn implementation_if_wrapper<T: Interface>(object: Gc<Object>) -> Option<Ref<T>> {
+    is_host_instance_of(&object, T::wrapper_class()).then(|| implementation_of(object))
+}
+
 /// An object of the interface converted from a JS value, https://webidl.spec.whatwg.org/#js-interface
 pub(crate) fn to_interface<T: Interface>(vm: &Vm, value: Value) -> ThrowCompletionOr<Ref<T>> {
     // 1. If V implements I, then return the IDL interface type value that represents a reference to that platform
     //    object.
-    if value.is_object() {
-        let object = value.as_object();
-        if is_host_instance_of(&object, T::wrapper_class()) {
-            return Ok(implementation_of(object));
-        }
+    if value.is_object()
+        && let Some(object) = implementation_if_wrapper(value.as_object())
+    {
+        return Ok(object);
     }
     // 2. Throw a TypeError.
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&T::NAME])

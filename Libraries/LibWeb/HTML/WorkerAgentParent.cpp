@@ -79,9 +79,7 @@ void WorkerAgentParent::start()
     auto& realm = m_outside_settings->realm();
     m_outside_settings->add_owned_worker_agent(*this);
 
-    auto* global_scope = window_or_worker_global_scope_from_global_object(realm.global_object());
-    VERIFY(global_scope);
-    m_message_port = MessagePort::create(global_scope->this_impl());
+    m_message_port = MessagePort::create(realm);
     m_message_port->entangle_with(*m_outside_port);
 
     TransferDataEncoder data_holder;
@@ -90,7 +88,7 @@ void WorkerAgentParent::start()
     // FIXME: Specification says this supposed to happen in step 11 of onComplete handler defined in https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
     //        but that would require introducing a new IPC message type to communicate this from WebWorker to WebContent process,
     //        so let's do it here for now.
-    m_outside_port->start();
+    m_outside_port->enable();
 
     auto serialized_outside_settings = m_outside_settings->serialize();
 

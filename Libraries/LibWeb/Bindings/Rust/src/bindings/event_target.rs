@@ -83,6 +83,16 @@ impl CppEventTarget {
         Self(unsafe { CppCell::from_raw(web_bindings_create_event_target()) })
     }
 
+    /// An EventTarget of LibWeb's C++ code, which this keeps alive.
+    ///
+    /// # Safety
+    ///
+    /// `event_target` must be a live EventTarget.
+    pub(crate) unsafe fn from_raw(event_target: *mut c_void) -> Self {
+        // SAFETY: The caller passes a live EventTarget.
+        Self(unsafe { CppCell::from_raw(event_target) })
+    }
+
     pub(crate) fn set_owner<T: GetTheParent>(&self, owner: Ref<T>) {
         unsafe extern "C" fn get_the_parent<T: GetTheParent>(owner: *mut c_void) -> *mut c_void {
             // SAFETY: LibWeb passes the owner that set_owner() gave it, which is the live cell of an object of T.

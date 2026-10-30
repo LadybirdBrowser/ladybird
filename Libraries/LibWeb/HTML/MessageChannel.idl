@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/web-messaging.html#messagechannel
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface MessageChannel {
 
     constructor();

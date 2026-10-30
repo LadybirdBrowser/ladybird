@@ -45,7 +45,7 @@ use std::sync::Arc;
 
 use libjs_rust::api::{
     EmbedderCell, EmbedderClass, EmbedderValue, ErrorKind, ErrorType, Gc, GcWeak, Realm, Throw, ThrowCompletionOr,
-    Trace, Value, Visitor, Vm, is_host_instance_of,
+    Trace, Value, Visitor, Vm,
 };
 use libwasm_engine::Module as CoreModule;
 use libwasm_engine::runtime::entity::{Entity, Handle};
@@ -54,7 +54,7 @@ use libwasm_engine::runtime::{InstantiationError, Store, TagAddress, Trap, Value
 use libwasm_engine::types::FuncType;
 
 use crate::bindings::conversions::BufferSource;
-use crate::bindings::interface::{Interface, Ref, Wrapped, implementation_of};
+use crate::bindings::interface::{Interface, Ref, Wrapped, implementation_if_wrapper};
 use crate::web_assembly::errors::{WebAssemblyError, throw_webassembly_error};
 use crate::web_assembly::exception::Exception;
 use crate::web_assembly::memory::{Memory, refresh_the_memory_buffer};
@@ -319,10 +319,10 @@ pub(crate) fn set_host_object<T>(cell: *mut u8, object: Gc<T>) {
 
 /// The object of the interface that the value is the wrapper of, if it is one.
 pub(crate) fn implementation_of_value<T: Interface>(value: Value) -> Option<Ref<T>> {
-    if !value.is_object() || !is_host_instance_of(&value.as_object(), T::wrapper_class()) {
+    if !value.is_object() {
         return None;
     }
-    Some(implementation_of::<T>(value.as_object()))
+    implementation_if_wrapper(value.as_object())
 }
 
 /// A copy of the bytes held by a buffer, which the algorithms compile: their stableBytes.
