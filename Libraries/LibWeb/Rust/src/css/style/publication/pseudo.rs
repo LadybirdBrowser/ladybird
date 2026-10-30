@@ -964,9 +964,11 @@ impl RetainedState {
             return Err(Unanswered::Refused);
         }
         // A record it already holds is replaced by a full drive. A composition laid over it is
-        // the element's own effects, sampled again over the new base.
+        // the element's own effects, sampled again over the new base, or ended effects, which the
+        // new base drops.
         let old_record = self.computed_group_sets.assigned_style_record(node);
-        if old_record.is_some_and(|old| !animates && self.record_holds_an_animation_overlay(old)) {
+        let composes_animations = old_record.is_some_and(|old| self.record_holds_an_animation_overlay(old));
+        if composes_animations && !scratch.host_applies_animation_plans {
             self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
@@ -1143,7 +1145,7 @@ impl RetainedState {
             self.table_counter_style_environment_identity(computed::ComputedStyleTarget::new(node, u8::MAX), &table);
         // The composition stays pinned for the host's step, which reads it as the before-change
         // style, until the host installs the new base or the derivation is reverted.
-        let detached_composition = animates
+        let detached_composition = composes_animations
             .then(|| self.computed_group_sets.detach_composition(node))
             .flatten();
         let replaced = self.computed_group_sets.replaced_columns(node);

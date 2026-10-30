@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #input::placeholder {
+        transition: opacity 100s linear;
+    }
+    #input.faded::placeholder {
+        opacity: 0;
+    }
+</style>
+<input id="input" placeholder="Placeholder">
+<script>
+    promiseTest(async () => {
+        const placeholderStyle = getComputedStyle(input, "::placeholder");
+        println(`initial: ${placeholderStyle.display}, opacity ${placeholderStyle.opacity}`);
+        input.classList.add("faded");
+        await animationFrame();
+        input.value = "Value";
+        println(`with a value: ${placeholderStyle.display}`);
+        await animationFrame();
+        input.value = "";
+        println(`without a value: ${placeholderStyle.display}, opacity ${placeholderStyle.opacity}`);
+    });
+</script>
