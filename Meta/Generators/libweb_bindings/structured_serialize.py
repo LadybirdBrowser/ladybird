@@ -35,7 +35,7 @@ def write_rust_entry_point_declarations(
             f"""
 // The serialization steps and the deserialization steps of {interface.name}.
 JSCompletion {rust_entry_point_name(interface, "serialization_steps")}(JSVM*, void* realm, void* cell, void* serialized, bool for_storage);
-JSCompletion {rust_entry_point_name(interface, "deserialization_steps")}(JSVM*, void* realm, RustSerializationReader*);
+JSCompletion {rust_entry_point_name(interface, "deserialization_steps")}(JSVM*, void* realm, void* serialized);
 """
         )
     for interface in transferable:
@@ -257,16 +257,15 @@ bool serializable_interface_is_implemented_in_rust(InterfaceName interface_name)
     }
 }
 
-WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName interface_name, JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory* memory)
+WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName interface_name, JS::Realm& realm, [[maybe_unused]] void* serialized)
 {
-    [[maybe_unused]] RustSerializationReader reader { .realm = realm, .serialized = serialized, .memory = memory };
     switch (interface_name) {
 """
     )
     for interface in rust_serializable:
         out.write(
             f"""    case InterfaceName::{interface.name}: {{
-        auto wrapper = TRY(JS::HostABI::completion_from_abi<JS::Value>({rust_entry_point_name(interface, "deserialization_steps")}(JS::HostABI::vm_to_abi(realm.vm()), &realm, &reader)));
+        auto wrapper = TRY(JS::HostABI::completion_from_abi<JS::Value>({rust_entry_point_name(interface, "deserialization_steps")}(JS::HostABI::vm_to_abi(realm.vm()), &realm, serialized)));
         return GC::Ref {{ as<JS::HostObject>(wrapper.as_object()) }};
     }}
 """

@@ -12,7 +12,7 @@ use core::ops::Deref;
 use core::ptr::NonNull;
 
 use ak::{Utf16String, Utf16StringUnits};
-use libjs_rust::api::{MarkedVec, RawNativeFunctionResult, Trace};
+use libjs_rust::api::{MarkedVec, Trace};
 
 use super::file::File;
 use crate::bindings::conversions::{BufferSource, UsvString};
@@ -29,10 +29,6 @@ unsafe extern "C" {
     fn web_blob_text(realm: *mut c_void, bytes: ak::Span<'_, u8>) -> *mut c_void;
     fn web_blob_array_buffer(realm: *mut c_void, bytes: ak::Span<'_, u8>) -> *mut c_void;
     fn web_blob_bytes(realm: *mut c_void, bytes: ak::Span<'_, u8>) -> *mut c_void;
-    fn web_blob_deserialize_byte_sequence(
-        serialized: *mut c_void,
-        out_bytes: &mut ForeignBytesAbi,
-    ) -> RawNativeFunctionResult;
 }
 
 /// The enumeration EndingType of FileAPI/Blob.idl.
@@ -547,16 +543,7 @@ impl Blob {
         let r#type = serialized.read_utf16_string()?;
 
         // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-        let mut bytes = ForeignBytesAbi {
-            owner: core::ptr::null_mut(),
-            data: core::ptr::null(),
-            length: 0,
-        };
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_blob_deserialize_byte_sequence(serialized.as_raw(), &mut bytes) }.into_completion()?;
-
-        // SAFETY: C++ hands over the bytes it decoded.
-        Ok(unsafe { Self::with_foreign_bytes(bytes, r#type) })
+        Ok(Self::new(serialized.read_bytes()?, r#type))
     }
 }
 

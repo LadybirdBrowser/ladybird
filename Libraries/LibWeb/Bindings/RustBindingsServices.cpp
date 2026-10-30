@@ -78,17 +78,6 @@ JSCompletion completion_to_abi(JS::Realm& realm, WebIDL::ExceptionOr<JS::Value> 
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { result.release_value() });
 }
 
-// A value of the type that the record of a structured deserialization holds next.
-template<typename T>
-static JSCompletion deserialize_plain_value(RustSerializationReader* reader, T* out_value)
-{
-    auto value = HTML::decode_or_throw_data_clone_error<T>(reader->realm, reader->serialized);
-    if (value.is_exception())
-        return completion_to_abi(reader->realm, value.exception());
-    *out_value = value.release_value();
-    return completion_to_abi(reader->realm, JS::js_undefined());
-}
-
 // A value that the data holder of a transferred object holds, which its transfer steps write.
 template<typename T>
 static JSCompletion encode_transfer_data(RustTransferDataWriter* writer, T const& value)
@@ -130,19 +119,6 @@ void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_e
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
-JSCompletion web_bindings_deserialize_value(RustSerializationReader*);
-bool web_bindings_deserialize_is_for_storage(RustSerializationReader*);
-JSCompletion web_bindings_deserialize_u8(RustSerializationReader*, u8* out_value);
-JSCompletion web_bindings_deserialize_i32(RustSerializationReader*, i32* out_value);
-JSCompletion web_bindings_deserialize_u32(RustSerializationReader*, u32* out_value);
-JSCompletion web_bindings_deserialize_u64(RustSerializationReader*, u64* out_value);
-JSCompletion web_bindings_deserialize_f64(RustSerializationReader*, double* out_value);
-JSCompletion web_bindings_deserialize_bool(RustSerializationReader*, bool* out_value);
-JSCompletion web_bindings_deserialize_i64(RustSerializationReader*, i64* out_value);
-JSCompletion web_bindings_deserialize_optional_u64(RustSerializationReader*, bool* out_has_value, u64* out_value);
-JSCompletion web_bindings_deserialize_bytes(RustSerializationReader*, void* bytes, void (*append)(void*, u8 const*, size_t));
-JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader*, FlatPtr* out_string);
-JSCompletion web_bindings_deserialize_inline_object_header(RustSerializationReader*, u16 interface_name);
 JSCompletion web_bindings_transfer_data_encode_bool(RustTransferDataWriter*, bool);
 JSCompletion web_bindings_transfer_data_encode_records(RustTransferDataWriter*, HTML::SerializedTransferRecord const* const*, size_t count);
 JSCompletion web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter*, IPC::TransportHandle const*);
@@ -227,97 +203,6 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
         on_origin(ctx, &ffi_origin);
     });
     return true;
-}
-
-// StructuredDeserialize of a value that the serialized form of an object holds, https://html.spec.whatwg.org/multipage/structured-data.html#sub-deserialization
-JSCompletion web_bindings_deserialize_value(RustSerializationReader* reader)
-{
-    return completion_to_abi(reader->realm, HTML::structured_deserialize_internal(reader->realm->vm(), reader->serialized, reader->realm, reader->memory));
-}
-
-bool web_bindings_deserialize_is_for_storage(RustSerializationReader* reader)
-{
-    return reader->serialized.type() == HTML::SerializationType::Storage;
-}
-
-JSCompletion web_bindings_deserialize_u8(RustSerializationReader* reader, u8* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_i32(RustSerializationReader* reader, i32* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_u32(RustSerializationReader* reader, u32* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_u64(RustSerializationReader* reader, u64* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_f64(RustSerializationReader* reader, double* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_bool(RustSerializationReader* reader, bool* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_i64(RustSerializationReader* reader, i64* out_value)
-{
-    return deserialize_plain_value(reader, out_value);
-}
-
-JSCompletion web_bindings_deserialize_optional_u64(RustSerializationReader* reader, bool* out_has_value, u64* out_value)
-{
-    Optional<u64> value;
-    auto result = deserialize_plain_value(reader, &value);
-    *out_has_value = value.has_value();
-    *out_value = value.value_or(0);
-    return result;
-}
-
-JSCompletion web_bindings_deserialize_bytes(RustSerializationReader* reader, void* bytes, void (*append)(void*, u8 const*, size_t))
-{
-    ByteBuffer buffer;
-    auto result = deserialize_plain_value(reader, &buffer);
-    if (!buffer.is_empty())
-        append(bytes, buffer.data(), buffer.size());
-    return result;
-}
-
-JSCompletion web_bindings_deserialize_utf16_string(RustSerializationReader* reader, FlatPtr* out_string)
-{
-    Utf16String string;
-    auto result = deserialize_plain_value(reader, &string);
-    *out_string = move(string).into_raw();
-    return result;
-}
-
-// Reads the start of the record of a serializable object of the interface, as StructuredSerializeInternal writes it for
-// an object that steps serialize in place, and throws a "DataCloneError" DOMException if it is not.
-JSCompletion web_bindings_deserialize_inline_object_header(RustSerializationReader* reader, u16 interface_name)
-{
-    auto result = [&]() -> WebIDL::ExceptionOr<JS::Value> {
-        auto tag = TRY(HTML::decode_or_throw_data_clone_error<u8>(reader->realm, reader->serialized));
-        auto name = TRY(HTML::decode_or_throw_data_clone_error<InterfaceName>(reader->realm, reader->serialized));
-        if (tag != to_underlying(HTML::ValueTag::SerializableObject) || name != static_cast<InterfaceName>(interface_name))
-            return WebIDL::DataCloneError::create(reader->realm, "Unexpected serializable object"_utf16);
-        if (reader->serialized.type() == HTML::SerializationType::Storage) {
-            auto version = TRY(HTML::decode_or_throw_data_clone_error<u64>(reader->realm, reader->serialized));
-            if (version != HTML::serializable_payload_version)
-                return WebIDL::DataCloneError::create(reader->realm, "Unsupported serializable payload version"_utf16);
-        }
-        return JS::js_undefined();
-    }();
-    return completion_to_abi(reader->realm, move(result));
 }
 
 JSCompletion web_bindings_transfer_data_encode_bool(RustTransferDataWriter* writer, bool value)

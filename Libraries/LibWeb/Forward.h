@@ -800,7 +800,6 @@ class SharedResourceRequest;
 class SharedWorker;
 class SharedWorkerGlobalScope;
 class Storage;
-class StructuredSerializeReader;
 class SubmitEvent;
 class TextTrack;
 class TextTrackCue;

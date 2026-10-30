@@ -49,6 +49,12 @@ impl BigInt {
         Self::create(vm, SignedBigInteger::from(value))
     }
 
+    /// The BigInt with the sign and the magnitude, big-endian, which can have leading zeros.
+    pub fn create_from_magnitude_bytes_be(vm: &Vm, is_negative: bool, magnitude: &[u8]) -> Gc<BigInt> {
+        let sign = if is_negative { Sign::Minus } else { Sign::Plus };
+        Self::create(vm, SignedBigInteger::from_bytes_be(sign, magnitude))
+    }
+
     pub fn big_integer(&self) -> &SignedBigInteger {
         &self.big_integer
     }

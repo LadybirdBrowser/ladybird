@@ -16,20 +16,6 @@
 
 namespace Web::HTML {
 
-// The memory of a structured deserialization, which the Rust implementation keeps, and which C++ only passes on to the
-// deserializations of the values that the deserialization steps of a platform object hold.
-struct DeserializationMemory;
-
-enum class SerializationType : u8 {
-    IPC,
-    Storage,
-};
-
-enum class CheckFullyConsumed : u8 {
-    No,
-    Yes,
-};
-
 enum class TransferType : u8 {
     Unknown = 0,
     MessagePort = 1,

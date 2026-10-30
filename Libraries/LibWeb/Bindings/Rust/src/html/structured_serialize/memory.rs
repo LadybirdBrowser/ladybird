@@ -4,12 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The memories of structured serializations and deserializations. C++ only passes the memory of a deserialization
-//! on, as an opaque pointer, to the deserializations of the values that the deserialization steps of a platform object
-//! hold.
+//! The memories of structured serializations and deserializations.
 
 use core::cell::RefCell;
-use core::ffi::c_void;
 use std::collections::HashMap;
 
 use libjs_rust::api::{MarkedVec, Value, Vm};
@@ -55,20 +52,6 @@ impl<'vm> DeserializationMemory<'vm> {
         Self {
             values: MarkedVec::new(vm),
         }
-    }
-
-    /// The memory that C++ passes on.
-    ///
-    /// # Safety
-    ///
-    /// `memory` must be a memory that Rust lent to C++ for the call that passes it back.
-    pub(crate) unsafe fn from_abi<'a>(memory: *mut c_void) -> &'a Self {
-        // SAFETY: The caller passes a memory that outlives the call.
-        unsafe { &*memory.cast::<Self>() }
-    }
-
-    pub(crate) fn as_abi(&self) -> *mut c_void {
-        core::ptr::from_ref(self).cast_mut().cast()
     }
 
     pub(crate) fn size(&self) -> usize {

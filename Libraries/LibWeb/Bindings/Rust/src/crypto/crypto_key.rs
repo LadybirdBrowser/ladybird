@@ -17,7 +17,7 @@ use libjs_rust::api::{Gc, Object, RawNativeFunctionResult, Realm};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::{Exception, WebIdlResult};
-use crate::html::structured_serialize::cpp::{DecodedBytes, StructuredSerializeReader};
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 
 /// The fields of a CryptoKey, as Libraries/LibWeb/Crypto/CryptoKey.cpp hands them over and creates a key from. A key
@@ -104,7 +104,7 @@ fn encode_identifier(serialized: &StructuredSerializeWriter, identifier: &[u8]) 
 
 /// The index of the identifier that a storage record holds.
 fn decode_identifier(
-    serialized: StructuredSerializeReader,
+    serialized: &StructuredSerializeReader,
     identifiers: &[&[u8]],
     unknown_message: &[u8],
 ) -> WebIdlResult<u8> {
@@ -215,7 +215,7 @@ fn write_fields(serialized: &StructuredSerializeWriter, value: &RawFields<'_>) {
 /// Runs the deserialization steps of CryptoKey, which create the key in the realm from what they read.
 pub(crate) fn deserialization_steps(
     realm: Gc<Realm>,
-    serialized: StructuredSerializeReader,
+    serialized: &StructuredSerializeReader,
 ) -> WebIdlResult<Gc<Object>> {
     let for_storage = serialized.serialization_type() == SerializationType::Storage;
 
@@ -243,7 +243,7 @@ pub(crate) fn deserialization_steps(
     match algorithm_type {
         ALGORITHM_RSA | ALGORITHM_RSA_HASHED => {
             modulus_length = serialized.decode_u32()?;
-            public_exponent = Some(serialized.decode_byte_buffer()?);
+            public_exponent = Some(serialized.decode_bytes()?);
             if algorithm_type == ALGORITHM_RSA_HASHED {
                 hash = serialized.decode_utf16_string()?;
             }
@@ -278,10 +278,10 @@ pub(crate) fn deserialization_steps(
     let Some(&buffer_count) = HANDLE_BUFFER_COUNTS.get(usize::from(handle_tag)) else {
         return Err(data_clone_error(b"Invalid CryptoKey handle tag"));
     };
-    let mut buffers: Vec<DecodedBytes> = Vec::new();
+    let mut buffers: Vec<&[u8]> = Vec::new();
     let (mut has_ec_parameters, mut ec_parameters, mut has_ec_public_key) = (false, Vec::new(), false);
     if handle_tag == HANDLE_EC_PRIVATE_KEY {
-        buffers.push(serialized.decode_byte_buffer()?);
+        buffers.push(serialized.decode_bytes()?);
         has_ec_parameters = serialized.decode_bool()?;
         if has_ec_parameters {
             let parameter_count = serialized.decode_u64()?;
@@ -291,18 +291,18 @@ pub(crate) fn deserialization_steps(
         }
         has_ec_public_key = serialized.decode_bool()?;
         if has_ec_public_key {
-            buffers.push(serialized.decode_byte_buffer()?);
-            buffers.push(serialized.decode_byte_buffer()?);
+            buffers.push(serialized.decode_bytes()?);
+            buffers.push(serialized.decode_bytes()?);
         }
     } else {
         for _ in 0..buffer_count {
-            buffers.push(serialized.decode_byte_buffer()?);
+            buffers.push(serialized.decode_bytes()?);
         }
     }
 
     let mut handle_buffers = [ak::Span::default(); MAX_HANDLE_BUFFERS];
     for (span, buffer) in handle_buffers.iter_mut().zip(&buffers) {
-        *span = ak::Span::new(buffer.bytes());
+        *span = ak::Span::new(buffer);
     }
     let fields = RawFields {
         r#type,
@@ -312,7 +312,7 @@ pub(crate) fn deserialization_steps(
         modulus_length,
         public_exponent: public_exponent
             .as_ref()
-            .map_or_else(ak::Span::default, |bytes| ak::Span::new(bytes.bytes())),
+            .map_or_else(ak::Span::default, |bytes| ak::Span::new(bytes)),
         hash: hash.raw_identity(),
         named_curve: named_curve.raw_identity(),
         length,

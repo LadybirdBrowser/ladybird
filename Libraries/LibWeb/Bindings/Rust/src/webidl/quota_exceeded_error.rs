@@ -15,7 +15,7 @@ use libjs_rust::api::{Gc, Object, Realm};
 
 use super::dom_exception::{self, DOMExceptionFields};
 use crate::bindings::WebIdlResult;
-use crate::html::structured_serialize::cpp::StructuredSerializeReader;
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 
 unsafe extern "C" {
@@ -98,7 +98,7 @@ pub(crate) fn serialization_steps(value: &QuotaExceededErrorFields, serialized: 
 }
 
 // https://webidl.spec.whatwg.org/#ref-for-quotaexceedederror⑦
-pub(crate) fn deserialization_steps(serialized: StructuredSerializeReader) -> WebIdlResult<QuotaExceededErrorFields> {
+pub(crate) fn deserialization_steps(serialized: &StructuredSerializeReader) -> WebIdlResult<QuotaExceededErrorFields> {
     // 1. Run the DOMException deserialization steps given serialized and value.
     let dom_exception = dom_exception::deserialization_steps(serialized)?;
 
