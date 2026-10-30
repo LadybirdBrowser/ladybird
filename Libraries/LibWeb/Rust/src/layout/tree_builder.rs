@@ -956,6 +956,16 @@ impl ChildListInsertionReuse<'_, '_> {
         false
     }
 
+    /// Whether a child before `inserted_child` resets a counter that counts down from its last item. The start value
+    /// of such a counter counts every increment in its scope, which includes the inserted child.
+    fn earlier_child_counts_a_counter_down(&self, inserted_child: StyleNodeID) -> bool {
+        self.dom_children()
+            .take_while(|&child| child != inserted_child)
+            .any(|child| {
+                child.element_index().is_some() && self.engine.element_counter_reset_has_reversed_counter(child)
+            })
+    }
+
     fn run(&self) -> bool {
         if self.pending_children_can_preserve_parent() {
             // An empty set means every insertion was canceled before layout. Moves are marked dirty
@@ -1027,10 +1037,14 @@ impl ChildListInsertionReuse<'_, '_> {
         // An appended out-of-flow block joins the anonymous wrapper its preceding whitespace starts, as in a full
         // build, only while that wrapper stays the parent's last child.
         let mut inserted_whitespace_run_must_stay_last = false;
+        // Counters are resolved from the boxes before a box, so an inserted subtree that touches one changes only what
+        // comes after it.
+        let mut first_inserted_child_touching_counters = None;
+        let mut inserted_subtree_increments_or_sets_counters = false;
         for child in self.dom_children() {
             let child_layout_node = self.box_of(child);
             if !child_layout_node.is_invalid() {
-                if inserted_whitespace_run_must_stay_last {
+                if inserted_whitespace_run_must_stay_last || first_inserted_child_touching_counters.is_some() {
                     return false;
                 }
                 has_pending_collapsing_whitespace = false;
@@ -1079,9 +1093,16 @@ impl ChildListInsertionReuse<'_, '_> {
             if !self.needs_layout_tree_update(child) || child_display.is_none() {
                 continue;
             }
-            if self.engine.subtree_affects_generated_content_state(child) {
+            let generated_content_effects = self.engine.subtree_generated_content_effects(child);
+            if generated_content_effects.opens_or_closes_quotes {
                 return false;
             }
+            if (generated_content_effects.resets_counters || generated_content_effects.increments_or_sets_counters)
+                && first_inserted_child_touching_counters.is_none()
+            {
+                first_inserted_child_touching_counters = Some(child);
+            }
+            inserted_subtree_increments_or_sets_counters |= generated_content_effects.increments_or_sets_counters;
             if self.layout.data(self.layout_node).kind.get() == NodeKind::FieldSetBox
                 && self.engine.element_box_kind(child) == ElementBoxKind::Legend
             {
@@ -1163,6 +1184,13 @@ impl ChildListInsertionReuse<'_, '_> {
             return false;
         }
         let after = self.arena().bound_pseudo_element_row(self.element, GENERATED_FOR_AFTER);
+        if let Some(first_inserted_child_touching_counters) = first_inserted_child_touching_counters
+            && (!after.is_invalid()
+                || (inserted_subtree_increments_or_sets_counters
+                    && self.earlier_child_counts_a_counter_down(first_inserted_child_touching_counters)))
+        {
+            return false;
+        }
         let after_is_in_inline_run = !after.is_invalid() && self.layout.parent(after) != self.layout_node;
         // OPTIMIZATION: Appended inline and out-of-flow children can join the trailing inline run. Do not
         //               reuse a run across generated content or text that a rebuild may need to make visible.

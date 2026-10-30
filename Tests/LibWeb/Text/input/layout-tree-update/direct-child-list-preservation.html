@@ -25,6 +25,9 @@
     .absolute { position: absolute; }
     .float { float: left; }
     .contents { display: contents; }
+    .appended-counter-reset { counter-reset: appended-counter; }
+    .appended-counter-increment { counter-increment: appended-counter; }
+    .appended-counter-value::before { content: counter(appended-counter); }
 </style>
 <div id="fixture"></div>
 <script>
@@ -303,6 +306,65 @@
             name: "fall back for absolute block child after whitespace before existing child",
             markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
             mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '\n<section class="target child absolute"><b></b></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "append ordered list subtree",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<ol class="target"><li>one</li><li>two</li></ol>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append unordered list subtree after whitespace",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<ul class="target"><li>one</li><li>two</li></ul>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append subtree with its own counter",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child appended-counter-reset"><i class="child appended-counter-increment appended-counter-value"></i><i class="child appended-counter-increment appended-counter-value"></i></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append block child incrementing a preceding counter",
+            markup: '<div class="parent counter"><i class="before child increment counter-value"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child increment counter-value"></section><section class="target child increment counter-value"></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append ordered list subtree before a sibling of the parent",
+            markup: '<div><div class="parent"><i class="before child"></i></div><i class="child"></i></div>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<ol class="target"><li>one</li></ol>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append counter increment before a sibling of the parent",
+            markup: '<div><div class="parent counter"><i class="before child increment"></i></div><i class="child"></i></div>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child increment counter-value"></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "fall back when appended counter subtree is followed by generated content",
+            markup: '<div class="parent generated"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<ol class="target"><li>one</li></ol>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when appending a list-item increment after a reversed list",
+            markup: '<div class="parent"><ol reversed class="before"><li>one</li><li>two</li></ol></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child" style="counter-increment: list-item"></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
+            name: "fall back when appending a subtree that opens a quote",
+            markup: '<div class="parent quotes"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><i class="quote-open"></i></section>'),
             tracked: ["parent"],
             preserve: false,
         },
