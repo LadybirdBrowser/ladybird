@@ -31,6 +31,11 @@ AK::Duration EndedStateHandler::current_time() const
     return manager().duration();
 }
 
+void EndedStateHandler::seek(AK::Duration timestamp, SeekMode mode)
+{
+    manager().replace_state_handler<SeekingStateHandler>(m_was_playing, timestamp, mode);
+}
+
 void EndedStateHandler::move_pipeline_to_end()
 {
     if (m_pipeline_is_at_end)

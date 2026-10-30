@@ -21,8 +21,9 @@ public:
 
     virtual AK::Duration current_time() const override;
 
-    virtual void play() override { }
-    virtual void pause() override { }
+    virtual void play() override { m_was_playing = true; }
+    virtual void pause() override { m_was_playing = false; }
+    virtual void seek(AK::Duration timestamp, SeekMode) override;
 
     virtual bool is_playing() override
     {
