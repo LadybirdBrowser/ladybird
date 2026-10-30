@@ -1741,7 +1741,8 @@ void PageClient::page_did_set_session_history_entry_document_state_reload_pendin
 
 void PageClient::page_did_request_set_system_focus(bool has_system_focus)
 {
-    client().async_did_request_set_system_focus(m_id, has_system_focus);
+    // Synchronous, so that the UI process has the new focus before input the test sends next over the test connection.
+    client().did_request_set_system_focus(m_id, has_system_focus);
 }
 
 void PageClient::page_did_change_focused_navigable(Web::HTML::CrossProcessId navigable_id)
