@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script type="worker">
+    postMessage(Notification.permission);
+</script>
+<script src="../include.js"></script>
+<script>
+    // A dedicated worker reads the permission its page's site was granted.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const workerSource = document.querySelector("[type=worker]").innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        worker.onmessage = event => {
+            println(`worker: ${event.data}`);
+            done();
+        };
+    });
+</script>

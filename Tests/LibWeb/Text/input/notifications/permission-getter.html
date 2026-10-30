@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Notification.permission reads the same store as the Permissions API, with "prompt" reported as "default".
+    asyncTest(async done => {
+        for (const state of ["granted", "denied", "prompt"]) {
+            await internals.setPermission("notifications", state);
+            const queried = (await navigator.permissions.query({ name: "notifications" })).state;
+            println(`${state}: ${Notification.permission} / ${queried}`);
+        }
+        done();
+    });
+</script>

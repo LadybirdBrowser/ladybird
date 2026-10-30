@@ -108,6 +108,8 @@ public:
         URL::URL base_url,
         HighResolutionTime::EpochTimeStamp fallback_timestamp);
 
+    static Bindings::NotificationPermission permission();
+
     static unsigned long max_actions()
     {
         // FIXME: Change the number of max_actions supported when actions will actually be supported

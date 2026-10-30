@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 67 tests
 
-49 Pass
-18 Fail
+50 Pass
+17 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface ServiceWorkerRegistration: original interface defined
@@ -17,7 +17,7 @@ Pass	Notification interface object name
 Pass	Notification interface: existence and properties of interface prototype object
 Pass	Notification interface: existence and properties of interface prototype object's "constructor" property
 Pass	Notification interface: existence and properties of interface prototype object's @@unscopables property
-Fail	Notification interface: attribute permission
+Pass	Notification interface: attribute permission
 Fail	Notification interface: operation requestPermission(optional NotificationPermissionCallback)
 Pass	Notification interface: attribute maxActions
 Fail	Notification interface: attribute onclick
