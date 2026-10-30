@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function registerEchoResponse(path, body) {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", "/echo", false);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.send(JSON.stringify({
+            method: "GET",
+            path,
+            status: 200,
+            headers: {
+                "Cache-Control": "no-store",
+                "Content-Type": "text/javascript",
+            },
+            body,
+        }));
+    }
+
+    const throwingScriptPath = "/echo/importScripts-cross-origin-errors-are-muted-throw.js";
+    registerEchoResponse(throwingScriptPath, `throw new Error("unmuted marker");`);
+
+    const crossOriginScriptUrl = new URL(throwingScriptPath, location.href);
+    crossOriginScriptUrl.hostname = uniqueLocalhostHostname("importScripts-cross-origin-errors-are-muted");
+
+    const workerPath = "/echo/importScripts-cross-origin-errors-are-muted-worker.js";
+    registerEchoResponse(workerPath, `
+        try {
+            importScripts(${JSON.stringify(crossOriginScriptUrl.href)});
+            postMessage("importScripts() did not throw");
+        } catch (error) {
+            postMessage(\`importScripts() threw \${error.name}: \${error.message}\`);
+        }
+    `);
+
+    asyncTest(done => {
+        const worker = new Worker(workerPath);
+        worker.onmessage = event => {
+            println(event.data);
+            done();
+        };
+    });
+</script>

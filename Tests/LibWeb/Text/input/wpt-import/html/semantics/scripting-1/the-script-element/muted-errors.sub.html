@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<title>Muted Errors</title>
+
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script>
+// https://html.spec.whatwg.org/multipage/webappapis.html#report-the-error
+// If script's muted errors is true, then set message to "Script error.",
+// urlString to the empty string, line and col to 0, and errorValue to null.
+    setup({allow_uncaught_exception: true});
+
+    window.log = [];
+    window.addEventListener("error", ev => log.push(ev));
+
+    function check(shouldBeMuted) {
+      assert_equals(log.length, 1);
+      var ev = log[0];
+      log = [];
+      if (shouldBeMuted) {
+        assert_equals(ev.message, "Script error.");
+        assert_equals(ev.error, null, 'error');
+        assert_equals(ev.filename, "", 'filename');
+        assert_equals(ev.lineno, 0, 'lineno');
+        assert_equals(ev.colno, 0, 'colno');
+      } else {
+        assert_not_equals(ev.message, "Script error.");
+        assert_not_equals(ev.error, null);
+      }
+    }
+
+    var test1 = async_test("Errors for same-origin script shouldn't be muted");
+    var check1 = test1.step_func_done(() => check(false));
+
+    var test2 = async_test("Errors for cross-origin script should be muted");
+    var check2 = test2.step_func_done(() => check(true));
+
+    var test3 = async_test("Errors for cross-origin script should be muted " +
+                           "even if the script is once loaded as same-origin");
+    function step3() {
+      var script = document.createElement('script');
+      script.setAttribute('src', "//{{domains[www2]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/cacheable-script-throw.py?iframe");
+      script.onerror = test3.unreached_func();
+      script.onload = test3.step_func_done(() => check(true));
+      document.body.appendChild(script);
+    }
+
+    var test4 = async_test("Errors for same-origin scripts redirected to a " +
+                           "cross-origin url and redirected back to " +
+                           "same-origin should be muted");
+    var check4 = test4.step_func_done(() => check(true));
+
+    var test5 = async_test("Errors for cross-origin scripts redirected to a " +
+                           "same-origin url should be muted");
+    var check5 = test5.step_func_done(() => check(true));
+
+    const test6 = async_test("Non-synthetic errors for same-origin scripts redirected to a " +
+                             "cross-origin URL and redirected back to same-origin should be " +
+                             "muted");
+    const check6 = test6.step_func_done(() => check(true));
+
+    const test7 = async_test("Syntax error for same-origin script redirected to a " +
+                             "cross-origin URL and redirected back to same-origin should be " +
+                             "muted");
+    const check7 = test7.step_func_done(() => check(true));
+
+    function unreachable() { log.push("unexpected"); }
+</script>
+<script src="cacheable-script-throw.py" onerror="test1.unreached_func()()" onload="check1()"></script>
+<script src="//{{domains[www2]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/cacheable-script-throw.py"
+    onerror="test2.unreached_func()()" onload="check2()"></script>
+<iframe src="//{{domains[www2]}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/muted-errors-iframe.html"
+    onerror="test3.unreached_func()()" onload="step3()"></iframe>
+<script src="/fetch/api/resources/redirect.py?location=
+//{{domains[www2]}}:{{ports[http][0]}}/fetch/api/resources/redirect.py?location=
+//{{host}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/cacheable-script-throw.py?same-cross-same"
+onerror="test4.unreached_func()()" onload="check4()"></script>
+<script src="//{{domains[www2]}}:{{ports[http][0]}}/fetch/api/resources/redirect.py?location=
+//{{host}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/cacheable-script-throw.py?cross-same"
+onerror="test5.unreached_func()()" onload="check5()"></script>
+<script src="//{{domains[www2]}}:{{ports[http][0]}}/fetch/api/resources/redirect.py?location=
+//{{host}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/resources/throw.js"
+onerror="test6.unreached_func()()" onload="check6()"></script>
+<script src="//{{domains[www2]}}:{{ports[http][0]}}/fetch/api/resources/redirect.py?location=
+//{{host}}:{{ports[http][0]}}/html/semantics/scripting-1/the-script-element/resources/syntax-error.js"
+onerror="test7.unreached_func()()" onload="check7()"></script>
