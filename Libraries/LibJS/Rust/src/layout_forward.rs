@@ -74,3 +74,13 @@ pub use crate::runtime::ecmascript_function_object::EcmascriptFunctionObjectStor
 pub use crate::runtime::shared_function_instance_data::SharedFunctionInstanceDataStorage;
 
 pub use crate::runtime::typed_array::TypedArrayBaseStorage;
+
+/// The base of the heap region, which compressed cell pointers are offsets from.
+#[inline(always)]
+pub fn heap_region_base() -> usize {
+    // SAFETY: LibGC sets the base once, when it sets up the region, before any cell exists.
+    unsafe { crate::gc::capi::js_heap_region_base }
+}
+
+const _: () =
+    assert!(crate::layout::member::COMPRESSED_POINTER_RANGE == crate::build_configuration::HEAP_REGION_OFFSET_MASK + 1);

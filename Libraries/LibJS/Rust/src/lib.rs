@@ -136,6 +136,13 @@ pub mod jit;
 pub mod layout;
 #[cfg(not(test))]
 pub mod layout_forward;
+// NB: The tests build the layout module with the build script's stand-ins for the rest of the crate.
+#[cfg(test)]
+#[allow(dead_code)]
+mod layout;
+#[cfg(test)]
+#[path = "../generate/layout_forward.rs"]
+mod layout_forward;
 pub mod lexer;
 #[cfg(not(test))]
 pub mod lexical_path;

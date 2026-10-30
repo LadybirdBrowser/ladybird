@@ -54,6 +54,12 @@ impl<T: ?Sized> core::hash::Hash for Gc<T> {
     }
 }
 
+impl<T: ?Sized> core::fmt::Debug for Gc<T> {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(formatter, "Gc({:p})", self.0)
+    }
+}
+
 /// Mirrors GC::CellKind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
