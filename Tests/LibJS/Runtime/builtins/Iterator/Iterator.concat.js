@@ -74,6 +74,22 @@ describe("errors", () => {
             iterator.next();
         }).toThrowWithMessage(TypeError, "iterator.next() returned a non-object value");
     });
+
+    test("iterator completes when the underlying return method throws", () => {
+        function* source() {
+            try {
+                yield 1;
+            } finally {
+                throw new Error("close failed");
+            }
+        }
+
+        const iterator = Iterator.concat(source());
+        expect(iterator.next().done).toBeFalse();
+        expect(() => iterator.return()).toThrowWithMessage(Error, "close failed");
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+        expect(iterator.return()).toEqual({ value: undefined, done: true });
+    });
 });
 
 describe("normal behavior", () => {

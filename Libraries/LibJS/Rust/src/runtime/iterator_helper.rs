@@ -210,17 +210,14 @@ impl IteratorHelper {
         let closure = self.closure.get();
 
         if completion.is_abrupt() {
-            // NB: This leaves the helper executing when closing its iterators throws, so that it throws on every later
-            //     call.
             let abrupt_result = match closure.abrupt_closure(vm, completion) {
-                Some(abrupt_result) => abrupt_result?,
-                None => {
-                    iterator_close_all(vm, &self.underlying_iterators(vm), completion).into_throw_completion_or()?
-                }
+                Some(abrupt_result) => abrupt_result,
+                None => iterator_close_all(vm, &self.underlying_iterators(vm), completion).into_throw_completion_or(),
             };
 
+            // NB: The helper remains executing while closing its iterators, but completes even if closing throws.
             self.set_generator_state(GeneratorState::Completed);
-            return Ok(IterationResult::new(abrupt_result, true));
+            return Ok(IterationResult::new(abrupt_result?, true));
         }
 
         let result_value = closure.call(vm, self);

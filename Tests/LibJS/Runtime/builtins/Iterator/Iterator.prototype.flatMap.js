@@ -74,10 +74,13 @@ describe("errors", () => {
             }
         }
 
-        expect(() => {
-            const iterator = new TestIterator().flatMap(() => 0);
-            iterator.return();
-        }).toThrow(TestError);
+        for (const started of [false, true]) {
+            const iterator = new TestIterator().flatMap(() => [0]);
+            if (started) iterator.next();
+            expect(() => iterator.return()).toThrow(TestError);
+            expect(iterator.next()).toEqual({ value: undefined, done: true });
+            expect(iterator.return()).toEqual({ value: undefined, done: true });
+        }
     });
 
     test("mapper function throws", () => {
