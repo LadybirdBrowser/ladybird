@@ -217,8 +217,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .load64(name, &Address::new(name, layout.primitive_string_storage as i32));
         self.emit_unbox_cell(object, base);
-        self.masm
-            .load64(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
         // The entry: the top bits of the Fibonacci hash of the shape and the name.
         let entry_size_log2 = layout.keyed_lookup_cache_entry_size.trailing_zeros();
         let bits = layout.keyed_lookup_cache_index_bits;
@@ -294,8 +293,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             );
             self.masm
                 .and64_imm(entry, entry, layout.property_lookup_cache_data_pointer_mask);
-            self.masm
-                .load64(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
+            self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
             self.emit_megamorphic_cache_lookup(shape, entry, MegamorphicKey::Keyed { key }, found, miss);
             self.masm.bind(not_megamorphic);
         }
@@ -306,8 +304,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.move64(scratch, entry);
         self.masm
             .and64_imm(entry, entry, layout.property_lookup_cache_data_pointer_mask);
-        self.masm
-            .load64(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
         let entry_key = Address::new(entry, layout.property_lookup_cache_entry_key as i32);
         for index in 0..layout.property_lookup_cache_polymorphic_entry_count {
             let next = self.masm.new_label();

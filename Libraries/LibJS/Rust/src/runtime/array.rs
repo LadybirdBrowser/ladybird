@@ -43,7 +43,7 @@ pub struct Array {
     is_proxy_target: Cell<bool>,
 }
 
-const _: () = assert!(size_of::<Array>() == 80);
+const _: () = assert!(size_of::<Array>() == 72);
 
 /// The offsets of the flags JIT code checks before writing elements of an array.
 pub const ARRAY_LENGTH_WRITABLE_OFFSET: usize = core::mem::offset_of!(Array, length_writable);

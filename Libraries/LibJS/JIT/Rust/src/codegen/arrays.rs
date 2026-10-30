@@ -160,8 +160,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             u32::from(layout.object_flag_has_magical_length),
             fail,
         );
-        self.masm
-            .load64(shape, &Address::new(object, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(shape, &Address::new(object, offsets.object_shape as i32));
         self.masm
             .load64(scratch, &Address::new(shape, layout.shape_prototype as i32));
         self.masm.branch64_imm(
@@ -225,8 +224,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let scratch = self.pinned.scratch;
         let offsets = self.runtime.offsets;
         let layout = self.runtime.layout;
-        self.masm
-            .load64(scratch, &Address::new(object, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(scratch, &Address::new(object, offsets.object_shape as i32));
         self.masm
             .load64(scratch, &Address::new(scratch, layout.shape_prototype as i32));
         self.masm.move_imm64(dst, expected);

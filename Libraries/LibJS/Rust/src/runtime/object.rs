@@ -27,6 +27,7 @@ use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, SharedFunctionInstanceData};
 use crate::layout::host_class::JSValue;
+use crate::layout::member::Member;
 pub use crate::layout::object::{
     INDEXED_ELEMENTS_HEADER_SIZE, INLINE_NAMED_STORAGE_CAPACITY, IndexedStorageKind, Object, object_flag,
 };
@@ -613,7 +614,7 @@ impl Object {
             indexed_storage_kind: Cell::new(IndexedStorageKind::None),
             inline_named_capacity: Cell::new(INLINE_NAMED_STORAGE_CAPACITY as u8),
             indexed_array_like_size: Cell::new(0),
-            shape: Cell::new(shape),
+            shape: Member::new(shape),
             named_properties: Cell::new(core::ptr::null_mut()),
             indexed_elements: Cell::new(core::ptr::null_mut()),
             private_elements: PrivateElements::default(),

@@ -13,10 +13,11 @@ use super::host_class::JSHostClass;
 use super::object::Object;
 use crate::layout_forward::ForeignCellSlot;
 
-pub const JS_HOST_OBJECT_HOST_CLASS_OFFSET: usize = 72;
-pub const JS_HOST_OBJECT_WRAPPABLE_OFFSET: usize = 80;
-pub const JS_HOST_OBJECT_HOST_DATA_OFFSET: usize = 88;
-pub const JS_HOST_OBJECT_SIZE: usize = 96;
+// NB: The host object's own fields follow the object. Layout.h checks these against LibJS/HostObjectABI.h.
+pub const JS_HOST_OBJECT_HOST_CLASS_OFFSET: usize = size_of::<Object>();
+pub const JS_HOST_OBJECT_WRAPPABLE_OFFSET: usize = JS_HOST_OBJECT_HOST_CLASS_OFFSET + size_of::<usize>();
+pub const JS_HOST_OBJECT_HOST_DATA_OFFSET: usize = JS_HOST_OBJECT_WRAPPABLE_OFFSET + size_of::<usize>();
+pub const JS_HOST_OBJECT_SIZE: usize = JS_HOST_OBJECT_HOST_DATA_OFFSET + size_of::<usize>();
 
 #[repr(C)]
 pub struct HostObject {

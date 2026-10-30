@@ -659,6 +659,69 @@ pub(super) mod fake_heap {
     pub fn decompressed(compressed: u64) -> u64 {
         base() + (compressed << COMPRESSED_POINTER_SHIFT)
     }
+
+    /// Committed memory below the size of the region, so that code with a
+    /// heap region base of 0 (like that of `test_runtime()`) decodes the
+    /// compressed pointers of the fake cells there to their addresses, like it
+    /// decodes cell values to any address.
+    fn low_region() -> &'static Region {
+        static REGION: OnceLock<Region> = OnceLock::new();
+        REGION.get_or_init(|| {
+            const LOWEST_ADDRESS: usize = 1 << 32;
+            let mut hint = LOWEST_ADDRESS;
+            loop {
+                assert!(hint + COMMITTED_SIZE <= REGION_SIZE, "no room for the low fake heap");
+                // NB: The address is only a hint, so this never replaces an
+                //     existing mapping, which MAP_FIXED_NOREPLACE would need
+                //     and only Linux has. The kernel places the mapping at the
+                //     hint if that is free, and anywhere else otherwise.
+                // SAFETY: A fresh private anonymous mapping.
+                let mapping = unsafe {
+                    libc::mmap(
+                        core::ptr::with_exposed_provenance_mut(hint),
+                        COMMITTED_SIZE,
+                        libc::PROT_READ | libc::PROT_WRITE,
+                        libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
+                        -1,
+                        0,
+                    )
+                };
+                assert_ne!(mapping, libc::MAP_FAILED);
+                let address = mapping.expose_provenance();
+                if address >= LOWEST_ADDRESS && address + COMMITTED_SIZE <= REGION_SIZE {
+                    return Region {
+                        base: address,
+                        next: Mutex::new(address),
+                    };
+                }
+                // SAFETY: The mapping was just made, and nothing uses it.
+                assert_eq!(unsafe { libc::munmap(mapping, COMMITTED_SIZE) }, 0);
+                hint += 1 << 30;
+            }
+        })
+    }
+
+    /// A fake cell with `words` whose compressed pointer `low_compressed()`
+    /// gives, for code with a heap region base of 0. It lives for the rest of
+    /// the test process.
+    pub fn low_cell(words: &[u64]) -> &'static mut [u64] {
+        let region = low_region();
+        let mut next = region.next.lock().unwrap();
+        let address = *next;
+        *next = (address + 8 * words.len().max(1)).next_multiple_of(16);
+        assert!(*next <= region.base + COMMITTED_SIZE, "the low fake heap is full");
+        // SAFETY: The words are committed, and no other cell has them.
+        let cell =
+            unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut(address), words.len()) };
+        cell.copy_from_slice(words);
+        cell
+    }
+
+    /// The compressed pointer to the low fake cell at `address`.
+    pub fn low_compressed(address: u64) -> u64 {
+        assert!(address < REGION_SIZE as u64 && address.is_multiple_of(8));
+        address >> COMPRESSED_POINTER_SHIFT
+    }
 }
 
 #[repr(C)]
@@ -1818,8 +1881,9 @@ mod execution {
             number_of_arguments: 2,
         };
         // Three shapes; the caches know the first two.
-        let shapes = [[0u64; 1], [0u64; 1], [0u64; 1]];
-        let shape = |index: usize| shapes[index].as_ptr() as u64;
+        let shapes = [0; 3].map(|_| fake_heap::low_cell(&[0]).as_ptr() as u64);
+        let shape = |index: usize| shapes[index];
+        let compressed_shape = |index: usize| fake_heap::low_compressed(shape(index));
         let cache_entries = [
             vec![(shape(0), 0), (shape(1), 0)],
             vec![(shape(0), 1), (shape(1), 2)],
@@ -1846,7 +1910,8 @@ mod execution {
             let program = ProgramGenerator::generate_with(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15), layout, true);
             let mut random = Random(seed);
             let toggles = random.chance(50);
-            // Objects: [shape word, flags, storage pointer] and their storage.
+            // Objects: [compressed shape, flags, storage pointer] and their
+            // storage.
             let mut storages = (0..3)
                 .map(|index| {
                     (0..3)
@@ -1855,7 +1920,7 @@ mod execution {
                 })
                 .collect::<Vec<_>>();
             let mut objects = (0..3)
-                .map(|index| [shape(index), 0, storages[index].as_mut_ptr() as u64])
+                .map(|index| [compressed_shape(index), 0, storages[index].as_mut_ptr() as u64])
                 .collect::<Vec<_>>();
             let object_value = |objects: &[[u64; 3]], index: usize| {
                 (u64::from(value::OBJECT_TAG) << 48) | objects[index].as_ptr() as u64
@@ -1887,7 +1952,8 @@ mod execution {
                 continue;
             }
             if toggles {
-                machine.state.borrow_mut().call_toggles = Some((objects[0].as_mut_ptr(), shape(0), shape(2)));
+                machine.state.borrow_mut().call_toggles =
+                    Some((objects[0].as_mut_ptr(), compressed_shape(0), compressed_shape(2)));
             }
             let result = machine.run(&snapshot, &compiled);
             // NB: Compiled code may exit before the reference interpreter
@@ -1906,7 +1972,10 @@ mod execution {
                         .map(|index| {
                             (
                                 objects[index].as_ptr() as u64,
-                                objects[index][0],
+                                (0..3)
+                                    .map(shape)
+                                    .find(|shape| fake_heap::low_compressed(*shape) == objects[index][0])
+                                    .expect("objects have one of the shapes"),
                                 storages[index].clone(),
                             )
                         })
@@ -1984,7 +2053,11 @@ mod execution {
             }
             for (index, (_, shape, values)) in heap.objects.iter().enumerate() {
                 assert_eq!(&storages[index], values, "seed {seed}: object {index}");
-                assert_eq!(objects[index][0], *shape, "seed {seed}: object {index}");
+                assert_eq!(
+                    objects[index][0],
+                    fake_heap::low_compressed(*shape),
+                    "seed {seed}: object {index}"
+                );
             }
             checked += 1;
         }
@@ -2244,11 +2317,13 @@ mod property_access {
     use crate::snapshot::PropertyCacheEntryType::GetPropertyInPrototypeChain;
     use crate::snapshot::PropertyCacheSnapshot;
 
-    struct Cell(Box<[u64; 3]>);
+    /// A fake cell, in the low fake heap so that objects can have it as
+    /// their compressed shape.
+    struct Cell(&'static mut [u64]);
 
     impl Cell {
         fn new(words: [u64; 3]) -> Self {
-            Self(Box::new(words))
+            Self(fake_heap::low_cell(&words))
         }
 
         fn address(&self) -> u64 {
@@ -2268,7 +2343,7 @@ mod property_access {
     impl Object {
         fn new(shape: &Cell, values: &[u64]) -> Self {
             let storage = values.to_vec().into_boxed_slice();
-            let cell = Cell::new([shape.address(), 0, storage.as_ptr() as u64]);
+            let cell = Cell::new([fake_heap::low_compressed(shape.address()), 0, storage.as_ptr() as u64]);
             Self { cell, storage }
         }
 
@@ -2385,7 +2460,7 @@ mod property_access {
         let receiver_shape = Cell::new([7, 0, 0]);
         let holder_shape = Cell::new([0; 3]);
         let holder = Object::new(&holder_shape, &[0, value::int32(42)]);
-        let mut validity = Cell::new([1, 0, 0]);
+        let validity = Cell::new([1, 0, 0]);
         let mut entry = own(GetPropertyInPrototypeChain, receiver_shape.address(), 1);
         entry.prototype = Some(holder.cell.id());
         entry.prototype_chain_validity = Some(validity.id());
@@ -2439,7 +2514,7 @@ mod property_access {
         impl FakeObject {
             fn new(shape: &Cell, flags: u64, elements: &[u64], size: u32) -> Self {
                 Self(Box::new([
-                    shape.address(),
+                    fake_heap::low_compressed(shape.address()),
                     flags,
                     0,
                     elements.as_ptr() as u64,
@@ -2652,7 +2727,7 @@ mod property_access {
             &program,
             caches(),
             object.value(),
-            Some((shape_word, other_shape.address())),
+            Some((shape_word, fake_heap::low_compressed(other_shape.address()))),
         );
         assert_eq!(result.status, RESUME);
         assert_eq!(exit_kinds_taken(&machine, &compiled), [ExitKind::BadShape]);
@@ -3638,7 +3713,7 @@ mod direct_calls {
             }
         }
 
-        /// A fake ECMAScript function for dynamic calls: shape, flags, shared
+        /// A fake ECMAScript function for dynamic calls: compressed shape, flags, shared
         /// data, then the words `FUNCTION_WORDS` has (see `dynamic_runtime()`),
         /// whose environments are compressed. The function, its shared data and
         /// its executable are in the fake heap region; shared data has the
@@ -3647,7 +3722,7 @@ mod direct_calls {
         struct DynamicCallee {
             callee: Callee,
             function: &'static mut [u64],
-            shape: Vec<u64>,
+            shape: &'static mut [u64],
             shared_data: &'static mut [u64],
         }
 
@@ -3665,14 +3740,14 @@ mod direct_calls {
             fn new(formal_parameter_count: u64, flags: u64) -> Self {
                 let callee = Callee::new();
                 callee.executable[EXECUTABLE_ARGUMENTS_BASE_WORD] = 9;
-                let shape = vec![REALM];
+                let shape = fake_heap::cell(&[REALM]);
                 let shared_data = fake_heap::cell(&[
                     fake_heap::compressed(callee.executable.as_ptr() as u64),
                     formal_parameter_count | flags,
                     0,
                 ]);
                 let mut function = vec![
-                    shape.as_ptr() as u64,
+                    fake_heap::compressed(shape.as_ptr() as u64),
                     u64::from(ECMASCRIPT_FUNCTION_FLAG),
                     fake_heap::compressed(shared_data.as_ptr() as u64),
                 ];
@@ -4136,9 +4211,13 @@ mod direct_calls {
             const RAW_NATIVE_FLAG: u16 = 1 << 7;
             for through_call in [false, true] {
                 let mut callee = DynamicCallee::new(0, 0);
-                let shape = vec![REALM];
+                let shape = fake_heap::cell(&[REALM]);
                 // Native function index 1, with a bit above the table's index mask that the call stub drops.
-                let native = fake_heap::cell(&[shape.as_ptr() as u64, u64::from(RAW_NATIVE_FLAG), 0x1_0001]);
+                let native = fake_heap::cell(&[
+                    fake_heap::compressed(shape.as_ptr() as u64),
+                    u64::from(RAW_NATIVE_FLAG),
+                    0x1_0001,
+                ]);
                 let table = vec![0, 0, fake_native as *const () as u64, 0];
                 let native_value = (u64::from(value::OBJECT_TAG) << 48) | native.as_ptr() as u64;
                 let call_function = (u64::from(value::OBJECT_TAG) << 48) | CALL_FUNCTION;

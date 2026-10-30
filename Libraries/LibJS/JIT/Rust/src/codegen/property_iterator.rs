@@ -49,8 +49,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         );
 
         // The receiver's shape, and for dictionaries its generation.
-        self.masm
-            .load64(temp, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.emit_load_compressed_cell(temp, &Address::new(object, self.runtime.offsets.object_shape as i32));
         self.masm.branch64_memory(
             Condition::NotEqual,
             &Address::new(cache, layout.property_iterator_shape as i32),

@@ -119,7 +119,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let fields_fit = u64::from(info.inline_storage_offset) <= template_bytes
             && info.inline_storage_offset.is_multiple_of(8)
             && info.named_properties_offset.is_multiple_of(8)
-            && info.shape_offset + 8 <= info.inline_storage_offset
+            && info.shape_offset + 4 <= info.inline_storage_offset
             && info.inline_capacity_offset < info.inline_storage_offset;
         let size_class = info.size_class_for(reserve).copied().filter(|_| fields_fit);
         let Some(size_class) = size_class else {
@@ -149,7 +149,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .take(info.inline_storage_offset as usize)
             .collect::<Vec<u8>>();
         let shape_offset = info.shape_offset as usize;
-        image[shape_offset..shape_offset + 8].copy_from_slice(&shape.0.to_le_bytes());
+        image[shape_offset..shape_offset + 4].copy_from_slice(&shape.compressed().to_le_bytes());
         image[info.inline_capacity_offset as usize] =
             u8::try_from(size_class.inline_capacity).map_err(|_| CompileFailure::CodeGeneration)?;
         let mut fields: Vec<ConstantField> = (0u32..)

@@ -237,8 +237,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             slow,
         );
 
-        self.masm
-            .load64(scratch, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.emit_load_compressed_cell(scratch, &Address::new(object, self.runtime.offsets.object_shape as i32));
         self.masm.branch64_memory(
             Condition::NotEqual,
             &Address::new(cache, layout.global_variable_cache_shape as i32),

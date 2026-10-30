@@ -6,7 +6,8 @@
 
 use core::cell::Cell;
 
-use super::cell::{CellHeader, Gc};
+use super::cell::CellHeader;
+use super::member::Member;
 use super::shape::Shape;
 use super::value::Value;
 use crate::layout_forward::{PrivateElements, TypedArrayBaseStorage};
@@ -56,7 +57,7 @@ pub struct Object {
     /// mapped arguments objects have cells with room for more than INLINE_NAMED_STORAGE_CAPACITY.
     pub inline_named_capacity: Cell<u8>,
     pub indexed_array_like_size: Cell<u32>,
-    pub shape: Cell<Gc<Shape>>,
+    pub shape: Member<Shape>,
     /// Points at `inline_named_storage` until the object needs more room.
     pub named_properties: Cell<*mut Value>,
     pub indexed_elements: Cell<*mut Value>,
@@ -65,7 +66,7 @@ pub struct Object {
 }
 
 // NB: The inline capacity fits in the padding in front of the array-like size, and the inline storage ends the object.
-const _: () = assert!(size_of::<Object>() == 72);
+const _: () = assert!(size_of::<Object>() == 64);
 const _: () = assert!(
     core::mem::offset_of!(Object, inline_named_storage) + INLINE_NAMED_STORAGE_CAPACITY * size_of::<Value>()
         == size_of::<Object>()

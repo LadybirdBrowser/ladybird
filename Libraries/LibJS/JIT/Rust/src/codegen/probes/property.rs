@@ -127,8 +127,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let scratch = self.pinned.scratch;
         let CacheRegisters { object, shape, entry } = *registers;
         let found = self.masm.new_label();
-        self.masm
-            .load64(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
         self.property_cache_address(entry, executable, cache_index)?;
         self.masm.load64(entry, &Address::new(entry, 0));
         let was_megamorphic = self.executables[executable as usize]
@@ -281,8 +280,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.branch_test64(Condition::NonZero, shape, u64::MAX, has_chain);
         // Entries without a prototype chain validity are for shapes without
         // a prototype.
-        self.masm
-            .load64(shape, &Address::new(object, offsets.object_shape as i32));
+        self.emit_load_compressed_cell(shape, &Address::new(object, offsets.object_shape as i32));
         self.masm.branch64_memory_imm(
             Condition::NotEqual,
             &Address::new(shape, layout.shape_prototype as i32),
@@ -438,8 +436,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         };
 
         self.unbox_object_or_branch(object, base, failure.0);
-        self.masm
-            .load64(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
+        self.emit_load_compressed_cell(shape, &Address::new(object, self.runtime.offsets.object_shape as i32));
         self.property_cache_address(entry, executable, cache_index)?;
         self.masm.load64(entry, &Address::new(entry, 0));
         self.masm.branch_test64(Condition::Zero, entry, u64::MAX, probe);
@@ -577,8 +574,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.branch32(Condition::Above, storage, scratch, grow);
 
         self.masm.bind(has_room);
-        self.masm
-            .store64(&Address::new(object, offsets.object_shape as i32), shape);
+        self.emit_store_compressed_cell(&Address::new(object, offsets.object_shape as i32), shape, shape);
         self.masm.load32(scratch, &Address::new(entry, fields.property_offset));
         self.masm
             .load64(storage, &Address::new(object, offsets.object_named_properties as i32));
