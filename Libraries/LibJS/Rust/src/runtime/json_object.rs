@@ -1681,6 +1681,12 @@ impl JSONObject {
         records: &JSONParseRecords<'_>,
         parse_record: Option<usize>,
     ) -> ThrowCompletionOr<Value> {
+        // NB: A reviver can replace a value with an arbitrarily deep object graph, which would otherwise run out of
+        //     stack.
+        if vm.did_reach_stack_space_limit() {
+            return vm.throw_completion(ErrorKind::InternalError, ErrorType::CallStackSizeExceeded, &[]);
+        }
+
         let realm = vm.current_realm().expect("JSON is parsed in a realm");
 
         // 1. Let value be ? Get(holder, name).
