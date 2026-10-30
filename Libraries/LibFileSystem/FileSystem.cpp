@@ -227,13 +227,12 @@ ErrorOr<void> copy_file(StringView destination_path, StringView source_path, str
     if (source_stat.st_size > 0)
         TRY(destination->truncate(source_stat.st_size));
 
+    Array<u8, 64 * KiB> buffer;
     while (true) {
-        auto bytes_read = TRY(source.read_until_eof());
-
-        if (bytes_read.is_empty())
+        auto bytes = TRY(source.read_some(buffer));
+        if (bytes.is_empty())
             break;
-
-        TRY(destination->write_until_depleted(bytes_read));
+        TRY(destination->write_until_depleted(bytes));
     }
 
     auto my_umask = umask(0);
