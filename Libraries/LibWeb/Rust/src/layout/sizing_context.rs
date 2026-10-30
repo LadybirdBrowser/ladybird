@@ -313,50 +313,52 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         !self.callbacks.first_child(node).is_invalid()
     }
 
-    fn intrinsic_inline_measurement_may_depend_on_block_size(&self, root: Node, block_size: Option<CssPixels>) -> bool {
-        if block_size.is_none() {
+    pub(crate) fn intrinsic_inline_size_may_depend_on_block_size(&self, root: Node) -> bool {
+        if self.establishes_orthogonal_flow(root) {
             return true;
         }
-        // OPTIMIZATION: A definite block size only distinguishes intrinsic inline measurements when a cross-axis
-        // dependency can transfer it back into the inline axis. Reuse the common horizontal-flow measurement across
-        // assigned block sizes, while preserving distinct entries for orthogonal flows and aspect-ratio transfers.
-        self.intrinsic_inline_size_may_depend_on_block_size(root)
-    }
-
-    pub(crate) fn intrinsic_inline_size_may_depend_on_block_size(&self, root: Node) -> bool {
+        // NB: Every frame the root is not orthogonal to transposes like the root's own, and frames that agree on that
+        //     read the same sizes, so the walk below answers the same for each of them.
         self.callbacks
             .intrinsic_size_caches()
             .intrinsic_inline_size_depends_on_block_size(root, || {
                 let mut pending = vec![root];
                 while let Some(node) = pending.pop() {
                     let facts = self.facts(node);
-                    if !facts.is_text_node() {
-                        let style = self.style(node);
-                        if geometry::Frame::of(style.writing_mode()).is_orthogonal_to(self.callbacks.frame) {
-                            return true;
-                        }
-                        if style.display().is_flex_inside()
-                            && matches!(
-                                style.effective_flex_direction(),
-                                flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
-                            )
-                            && style.flex_wrap() != flex_wrap::NOWRAP
-                        {
-                            return true;
-                        }
-                        if facts.has_preferred_aspect_ratio()
-                            && (style.height().contains_percentage()
-                                || style.min_height().contains_percentage()
-                                || style.max_height().contains_percentage()
-                                || (style.height().is_auto()
-                                    && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
-                                        || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))))
-                        {
-                            return true;
-                        }
+                    if facts.is_text_node() {
+                        continue;
+                    }
+                    let style = self.style(node);
+                    if node != root && geometry::Frame::of(style.writing_mode()).is_orthogonal_to(self.callbacks.frame)
+                    {
+                        return true;
+                    }
+                    if style.display().is_flex_inside()
+                        && matches!(
+                            style.effective_flex_direction(),
+                            flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
+                        )
+                        && style.flex_wrap() != flex_wrap::NOWRAP
+                    {
+                        return true;
+                    }
+                    if facts.has_preferred_aspect_ratio()
+                        && (style.height().contains_percentage()
+                            || style.min_height().contains_percentage()
+                            || style.max_height().contains_percentage()
+                            || (style.height().is_auto()
+                                && (node_facts::has_flag(facts.data(), NodeFlag::IsFlexItem)
+                                    || node_facts::has_flag(facts.data(), NodeFlag::IsGridItem))))
+                    {
+                        return true;
+                    }
+                    if node != root && facts.is_svg_svg_box() {
+                        continue;
                     }
                     for child in self.callbacks.children(node) {
-                        pending.push(child);
+                        if !self.facts(child).is_absolutely_positioned() {
+                            pending.push(child);
+                        }
                     }
                 }
                 false
@@ -2560,11 +2562,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicInlineSizeMeasurement> {
         let key = self.key_in_frame(key);
-        let key = if self.intrinsic_inline_measurement_may_depend_on_block_size(node, key.measured_at_block_size) {
-            key
-        } else {
-            key.with_measured_at_block_size_masked()
-        };
         let measurement = self
             .callbacks
             .intrinsic_size_caches()
@@ -3100,7 +3097,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         }
 
         let trace = self.callbacks.layout_trace().intrinsic_size_miss(node, kind);
-        let depends_on_block_size = self.intrinsic_inline_measurement_may_depend_on_block_size(node, block_size);
+        let depends_on_block_size = self.intrinsic_inline_size_may_depend_on_block_size(node);
         let scope = || intrinsic_sizing::ContentSizingScope::new(&self.callbacks, node, constraints, block_size);
         let facts = self.facts(node);
         let (source, sizes) = if self.establishes_orthogonal_flow(node) {

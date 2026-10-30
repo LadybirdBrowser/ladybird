@@ -75,7 +75,7 @@ impl IntrinsicSizeCacheKey {
         }
     }
 
-    pub(crate) fn with_measured_at_block_size_masked(self) -> Self {
+    fn with_measured_at_block_size_masked(self) -> Self {
         Self {
             measured_at_block_size: None,
             ..self
