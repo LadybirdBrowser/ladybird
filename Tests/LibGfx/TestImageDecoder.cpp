@@ -202,8 +202,7 @@ TEST_CASE(test_bmp_v4)
 TEST_CASE(test_bmp_negative_int_min_height)
 {
     auto file = TRY_OR_FAIL(Core::MappedFile::map(TEST_INPUT("bmp/negative-height-int-min.bmp"sv)));
-    auto plugin_decoder = TRY_OR_FAIL(Gfx::BMPImageDecoderPlugin::create(file->bytes()));
-    EXPECT(plugin_decoder->frame(0).is_error());
+    EXPECT(Gfx::BMPImageDecoderPlugin::create(file->bytes()).is_error());
 }
 
 TEST_CASE(test_bmp_v5_icc_profile_out_of_bounds)
