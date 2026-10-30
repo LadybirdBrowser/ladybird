@@ -14,7 +14,7 @@ use libgfx_rust::*;
 
 pub struct CommandPayloadBuilder {
     payload_start_offset: usize,
-    payload_size: usize,
+    command_size: usize,
     inline_payload: Vec<u8>,
 }
 
@@ -23,33 +23,48 @@ impl CommandPayloadBuilder {
         debug_assert_eq!(builder.byte_size() % super::builder::COMMAND_ALIGNMENT, 0);
         Self {
             payload_start_offset: builder.byte_size() + HEADER_SIZE,
-            payload_size: std::mem::size_of::<C>(),
+            command_size: std::mem::size_of::<C>(),
             inline_payload: Vec::new(),
         }
     }
 
     pub fn append_data(&mut self, bytes: &[u8], alignment: usize) -> DisplayListDataSpan {
-        assert!(alignment > 0);
-        let absolute_offset = self.payload_start_offset + self.payload_size;
-        let padded_offset = absolute_offset.next_multiple_of(alignment);
-        let padding = padded_offset - absolute_offset;
-        let payload_relative_offset = self.payload_size + padding;
-        self.inline_payload.resize(self.inline_payload.len() + padding, 0);
+        let payload_relative_offset = self.pad_payload_to_alignment(alignment);
         self.inline_payload.extend_from_slice(bytes);
-        self.payload_size = payload_relative_offset + bytes.len();
-        DisplayListDataSpan {
-            offset: u32::try_from(payload_relative_offset).expect("display list payload exceeds u32"),
-            size: u32::try_from(bytes.len()).expect("display list payload exceeds u32"),
-        }
+        self.data_span_from(payload_relative_offset)
     }
 
-    pub fn append_objects<T: FfiBytes>(&mut self, objects: &[T]) -> DisplayListDataSpan {
-        let size = std::mem::size_of::<T>();
-        let mut bytes = vec![0u8; std::mem::size_of_val(objects)];
-        for (index, object) in objects.iter().enumerate() {
-            object.write_ffi_bytes(&mut bytes[index * size..(index + 1) * size]);
+    pub fn append_objects<T: FfiBytes>(&mut self, objects: impl IntoIterator<Item = T>) -> DisplayListDataSpan {
+        let payload_relative_offset = self.pad_payload_to_alignment(std::mem::align_of::<T>());
+        let object_size = std::mem::size_of::<T>();
+        let objects = objects.into_iter();
+        self.inline_payload.reserve(objects.size_hint().0 * object_size);
+        for object in objects {
+            let object_start = self.inline_payload.len();
+            self.inline_payload.resize(object_start + object_size, 0);
+            object.write_ffi_bytes(&mut self.inline_payload[object_start..]);
         }
-        self.append_data(&bytes, std::mem::align_of::<T>())
+        self.data_span_from(payload_relative_offset)
+    }
+
+    fn payload_size(&self) -> usize {
+        self.command_size + self.inline_payload.len()
+    }
+
+    fn pad_payload_to_alignment(&mut self, alignment: usize) -> usize {
+        assert!(alignment > 0);
+        let absolute_offset = self.payload_start_offset + self.payload_size();
+        let padding = absolute_offset.next_multiple_of(alignment) - absolute_offset;
+        self.inline_payload.resize(self.inline_payload.len() + padding, 0);
+        self.payload_size()
+    }
+
+    fn data_span_from(&self, payload_relative_offset: usize) -> DisplayListDataSpan {
+        DisplayListDataSpan {
+            offset: u32::try_from(payload_relative_offset).expect("display list payload exceeds u32"),
+            size: u32::try_from(self.payload_size() - payload_relative_offset)
+                .expect("display list payload exceeds u32"),
+        }
     }
 
     pub fn append_f32s(&mut self, values: &[f32]) -> DisplayListDataSpan {
@@ -1052,7 +1067,7 @@ impl DisplayListRecorder {
         }
         let color = self.resolve_color(color, force_dark_role);
         let mut payload = CommandPayloadBuilder::new::<DrawGlyphRun>(&self.builder);
-        let glyphs = payload.append_objects(run.glyphs);
+        let glyphs = payload.append_objects(run.glyphs.iter().copied());
         let command = DrawGlyphRun {
             font_smoothing: run.font_smoothing,
             font_id: run.font_id,
@@ -1123,16 +1138,12 @@ impl DisplayListRecorder {
         orientation: Orientation,
         force_dark_role: ForceDarkRole,
     ) {
-        let resolved_layers: Vec<TextShadowLayer> = layers
-            .iter()
-            .map(|layer| TextShadowLayer {
-                color: self.resolve_color(layer.color, force_dark_role),
-                ..*layer
-            })
-            .collect();
         let mut payload = CommandPayloadBuilder::new::<PaintTextShadow>(&self.builder);
-        let glyphs = payload.append_objects(run.glyphs);
-        let layers = payload.append_objects(&resolved_layers);
+        let glyphs = payload.append_objects(run.glyphs.iter().copied());
+        let layers = payload.append_objects(layers.iter().map(|layer| TextShadowLayer {
+            color: self.resolve_color(layer.color, force_dark_role),
+            ..*layer
+        }));
         let command = PaintTextShadow {
             font_smoothing: run.font_smoothing,
             font_id: run.font_id,
