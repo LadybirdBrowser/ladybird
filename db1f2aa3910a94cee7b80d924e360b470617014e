@@ -1,0 +1,11 @@
+Ladybird’s previews take the shapes that Gecko’s DevTools server gives
+them in its previewers (ArrayLike, MapLike, DOMNode, Error, and Object,
+with the same field names), since a Firefox client is what renders them.
+Like Gecko’s OBJECT_PREVIEW_MAX_ITEMS, a preview lists ten items at
+most. And like Gecko, it lists contents only one level down, lowercases
+the nodeName of an HTML element, and calls only native getters.
+
+Blink and WebKit build previews in their engines too, with smaller
+limits for properties: The value-mirror.cc of V8 lists five names and
+100 indexes at most, and the InjectedScriptSource.js of WebKit lists
+five properties and ten indexes.
