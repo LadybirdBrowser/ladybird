@@ -1,0 +1,5 @@
+Ladybird ends a one-time grant once no view shows the site, which each
+view reports as its top-level document or visibility changes. Chrome’s
+OneTimePermissionsTracker does the same from its tabs: It ends the
+grant when the last tab of the origin goes away, and after a timeout
+once none of them is visible.
