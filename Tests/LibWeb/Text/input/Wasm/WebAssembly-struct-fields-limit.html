@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function leb(value) {
+        const bytes = [];
+        do {
+            let byte = value % 128;
+            value = Math.floor(value / 128);
+            if (value !== 0)
+                byte |= 0x80;
+            bytes.push(byte);
+        } while (value !== 0);
+        return bytes;
+    }
+
+    function section(id, contents) {
+        return [id, ...leb(contents.length), ...contents];
+    }
+
+    // A module that defines one struct type with `fieldCount` mutable i64 fields.
+    function moduleWithStructFields(fieldCount) {
+        const fields = [];
+        for (let i = 0; i < fieldCount; ++i)
+            fields.push(0x7e, 0x01);
+        return new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+            ...section(1, [0x01, 0x5f, ...leb(fieldCount), ...fields]),
+        ]);
+    }
+
+    test(() => {
+        println(`10000 fields: ${WebAssembly.validate(moduleWithStructFields(10000))}`);
+        println(`10001 fields: ${WebAssembly.validate(moduleWithStructFields(10001))}`);
+    });
+</script>
