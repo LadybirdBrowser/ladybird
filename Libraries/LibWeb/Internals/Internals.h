@@ -229,6 +229,7 @@ public:
     Utf16String dump_stacking_context_tree();
     Utf16String stacking_context_structure_verification_report();
     Utf16String dump_gc_graph();
+    Utf16String heap_census();
     Utf16String dump_session_history();
     Utf16String dump_ui_process_session_history();
     Utf16String dump_ui_process_session_history_without_update();

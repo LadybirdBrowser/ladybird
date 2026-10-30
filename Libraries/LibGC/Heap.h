@@ -122,6 +122,10 @@ public:
     void enable_stats();
     void add_stats(AK::JsonObject&) const;
 
+    // Per allocator: its blocks, its live cells and bytes, and per class the live cells and the edges to cells they
+    // visit. Finishes any pending sweep first.
+    AK::JsonObject census();
+
     void register_sweep_callback(AK::Function<void()>);
 
     void register_cell_allocator(Badge<CellAllocator>, CellAllocator&);

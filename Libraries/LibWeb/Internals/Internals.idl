@@ -229,6 +229,7 @@ interface Internals {
     DOMString dumpStackingContextTree();
     DOMString stackingContextStructureVerificationReport();
     DOMString dumpGCGraph();
+    DOMString heapCensus();
     DOMString dumpSessionHistory();
     DOMString dumpUIProcessSessionHistory();
     DOMString dumpUIProcessSessionHistoryWithoutUpdate();

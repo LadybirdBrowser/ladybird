@@ -1906,6 +1906,14 @@ Utf16String Internals::dump_gc_graph()
     return dump_string_to_utf16(GC::Heap::the().dump_graph().serialized());
 }
 
+Utf16String Internals::heap_census()
+{
+    // Collect first, so that the census counts what is reachable rather than what the last collection left behind.
+    auto& heap = window().principal_realm().vm().heap();
+    heap.collect_garbage();
+    return dump_string_to_utf16(heap.census().serialized());
+}
+
 Utf16String Internals::dump_session_history()
 {
     auto& document = window().associated_document();

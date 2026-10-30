@@ -919,6 +919,112 @@ void Heap::dump_allocators()
     dbgln("Total wasted on fragmentation: {} KiB", total_waste / KiB);
 }
 
+// Counts the edges to cells that cells visit, in their own fields or in storage they own, without marking anything.
+class CensusVisitor final : public Cell::Visitor {
+public:
+    size_t cell_edges { 0 };
+
+    virtual void visit_possible_values(ReadonlyBytes) override { }
+
+private:
+    virtual void visit_impl(Cell&) override { ++cell_edges; }
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    {
+        for (auto const& value : values) {
+            if (value.is_cell())
+                ++cell_edges;
+        }
+    }
+};
+
+AK::JsonObject Heap::census()
+{
+    VERIFY(!m_collecting_garbage);
+
+    // NB: Unswept cells of the last collection are still in the Live state, and cells an allocator has taken out of
+    //     its block's lazy region would count as dead ones, so finish the sweep and give those back first.
+    finish_pending_incremental_sweep();
+    give_back_local_free_lists();
+
+    size_t total_block_bytes = 0;
+    size_t total_live_bytes = 0;
+    AK::JsonArray allocators;
+    for (auto& allocator : m_all_cell_allocators) {
+        auto const& type_info = allocator.type_info();
+
+        size_t blocks = 0;
+        size_t cell_slots = 0;
+        size_t live_cells = 0;
+        size_t external_bytes = 0;
+        CensusVisitor visitor;
+        struct ClassCounts {
+            size_t live_cells { 0 };
+            size_t cell_edges { 0 };
+        };
+        HashMap<StringView, ClassCounts> counts_by_class;
+        allocator.for_each_block([&](HeapBlock& block) {
+            ++blocks;
+            cell_slots += block.cell_count();
+            block.for_each_cell([&](Cell* cell) {
+                if (cell->state() != Cell::State::Live)
+                    return;
+                ++live_cells;
+                auto edges_before = visitor.cell_edges;
+                type_info.visit_edges(cell, &visitor);
+                if (type_info.external_memory_size)
+                    external_bytes += type_info.external_memory_size(cell);
+                // A C++ allocator holds exactly one class, but cells defined in other languages can share an allocator
+                // with their subclasses.
+                if (type_info.class_name) {
+                    size_t length = 0;
+                    auto const* name = type_info.class_name(cell, &length);
+                    auto& counts = counts_by_class.ensure(StringView { name, length }, [] { return ClassCounts {}; });
+                    ++counts.live_cells;
+                    counts.cell_edges += visitor.cell_edges - edges_before;
+                }
+            });
+            return IterationDecision::Continue;
+        });
+        if (blocks == 0)
+            continue;
+
+        auto block_bytes = blocks * HeapBlock::BLOCK_SIZE;
+        auto live_bytes = live_cells * allocator.cell_size();
+        total_block_bytes += block_bytes;
+        total_live_bytes += live_bytes;
+
+        AK::JsonObject entry;
+        entry.set("name"sv, allocator.class_name().value_or("generic"sv));
+        entry.set("cell_size"sv, allocator.cell_size());
+        entry.set("blocks"sv, blocks);
+        entry.set("block_bytes"sv, block_bytes);
+        entry.set("cell_slots"sv, cell_slots);
+        entry.set("live_cells"sv, live_cells);
+        entry.set("live_bytes"sv, live_bytes);
+        entry.set("free_bytes"sv, block_bytes - live_bytes);
+        entry.set("external_bytes"sv, external_bytes);
+        entry.set("cell_edges"sv, visitor.cell_edges);
+        if (!counts_by_class.is_empty()) {
+            AK::JsonObject classes;
+            for (auto& it : counts_by_class) {
+                AK::JsonObject counts;
+                counts.set("live_cells"sv, it.value.live_cells);
+                counts.set("cell_edges"sv, it.value.cell_edges);
+                classes.set(it.key, move(counts));
+            }
+            entry.set("classes"sv, move(classes));
+        }
+        allocators.must_append(move(entry));
+    }
+
+    AK::JsonObject census;
+    census.set("block_size"sv, HeapBlock::BLOCK_SIZE);
+    census.set("block_bytes"sv, total_block_bytes);
+    census.set("live_bytes"sv, total_live_bytes);
+    census.set("allocators"sv, move(allocators));
+    return census;
+}
+
 void Heap::enqueue_post_gc_task(AK::Function<void()> task)
 {
     m_post_gc_tasks.append(move(task));
