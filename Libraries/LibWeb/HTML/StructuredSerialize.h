@@ -15,7 +15,6 @@
 #include <AK/StringView.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCrypto/Forward.h>
 #include <LibGC/RootVector.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -49,7 +48,6 @@ public:
     }
 
     WebIDL::ExceptionOr<ByteBuffer> decode_buffer();
-    WebIDL::ExceptionOr<::Crypto::UnsignedBigInteger> decode_unsigned_big_integer();
 
     // The shared memory of the record that this transfer data belongs to, for transfer-receiving steps that map theirs.
     void set_shared_buffers(Vector<Core::AnonymousBuffer> const& shared_buffers) { m_shared_buffers = &shared_buffers; }

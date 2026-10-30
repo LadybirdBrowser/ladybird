@@ -15,7 +15,6 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCrypto/Forward.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
@@ -136,7 +135,6 @@ public:
     }
 
     void extend(Vector<TransferDataEncoder>);
-    void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);
 
     IPC::MessageBuffer const& buffer() const;
     IPC::MessageBuffer take_buffer() const;
