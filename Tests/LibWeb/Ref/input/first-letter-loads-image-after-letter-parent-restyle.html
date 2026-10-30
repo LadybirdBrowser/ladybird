@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/first-letter-loads-image-after-letter-parent-restyle-ref.html">
+<style>
+    div::first-letter { background-image: var(--image); }
+    span { font-size: 40px; --image: url("../data/50x50-red.svg"); }
+</style>
+<div><span id="letter-parent">Sample text</span></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        const image = new Image();
+        image.src = "../data/50x50-green.svg";
+        await image.decode();
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("letter-parent").style.setProperty("--image", 'url("../data/50x50-green.svg")');
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>

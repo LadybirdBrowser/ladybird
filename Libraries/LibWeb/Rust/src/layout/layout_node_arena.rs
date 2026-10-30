@@ -3706,11 +3706,17 @@ impl LayoutNodeArena {
             );
             return;
         }
+        let shown_record = self.node_style_record(slot);
+        let damage = self
+            .with_style_engine(|engine| engine.element_record_damage(originating, true, shown_record, derived.record));
         if self.apply_reinherited_style_record(host_calls, slot, derived) {
             self.set_needs_layout_update(slot, true);
         }
         if self.owe_style_image_resources_once(slot) {
             self.notify_shell_of_style_change(host_calls, slot, true);
+        }
+        if damage & crate::css::style::bridge::FfiStyleInvalidationField::LevelMask as u32 != 0 {
+            host_calls.shell_style_damaged(slot, damage);
         }
     }
 

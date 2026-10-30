@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/first-letter-repaints-after-letter-parent-restyle-ref.html">
+<style>
+    div::first-letter { color: var(--color, green); }
+    span { font-size: 40px; }
+</style>
+<div><span id="letter-parent">Sample text</span></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("letter-parent").style.setProperty("--color", "blue");
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>
