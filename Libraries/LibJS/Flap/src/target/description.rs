@@ -173,6 +173,11 @@ pub(crate) enum Operation {
     ExtractTag,
     UnboxInt32,
     UnboxObject,
+    /// The cell pointer a compressed cell pointer (zero-extended to 64 bits) names, in the heap region; 0 stays 0 if
+    /// `nullable`.
+    DecompressCellPointer {
+        nullable: bool,
+    },
     BoxInt32 {
         clean: bool,
     },
@@ -954,6 +959,10 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
             &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[]) }
         }
         Operation::UnboxObject => &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[]) },
+        Operation::DecompressCellPointer { nullable: false } => &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]) },
+        Operation::DecompressCellPointer { nullable: true } => {
+            &const { plain(&[GprOut, GprIn]).coalesces(&[(0, 1)]).scratches(&[R11], &[X9]) }
+        }
         Operation::UnboxInt32 => &const { plain(&[GprOut, GprIn]) },
         Operation::BoxInt32 { clean: false } => &const { plain(&[GprOut, GprIn]).scratches(&[R11], &[]) },
         Operation::IntegerBinary {
@@ -1156,7 +1165,11 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
         Operation::AssertNonzero => &const { plain(&[GprIn]) },
         Operation::StorePairIndexed(PairWidth::Word) => unreachable!("indexed 32-bit pair stores are unsupported"),
         Operation::Memory(
-            MemoryOperation::Load64NonZero | MemoryOperation::LoadCellPointer | MemoryOperation::LoadNonnullCellPointer,
+            MemoryOperation::Load64NonZero
+            | MemoryOperation::LoadCellPointer
+            | MemoryOperation::LoadNonnullCellPointer
+            | MemoryOperation::LoadCompressedCellPointer
+            | MemoryOperation::LoadNonnullCompressedCellPointer,
         ) => {
             unreachable!("specialized loads must be lowered before target selection")
         }

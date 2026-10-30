@@ -200,8 +200,17 @@ impl From<FieldWidth> for MemoryWidth {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) enum FieldAccessKind {
-    Load { width: FieldWidth, nonzero: bool },
-    LoadCellPointer { nonzero: bool },
+    Load {
+        width: FieldWidth,
+        nonzero: bool,
+    },
+    LoadCellPointer {
+        nonzero: bool,
+    },
+    /// A cell pointer stored compressed in 32 bits, which the load decodes.
+    LoadCompressedCellPointer {
+        nonzero: bool,
+    },
     Store(FieldWidth),
 }
 
@@ -210,6 +219,7 @@ impl FieldAccessKind {
         match self {
             Self::Load { width, .. } | Self::Store(width) => width,
             Self::LoadCellPointer { .. } => FieldWidth::U64,
+            Self::LoadCompressedCellPointer { .. } => FieldWidth::U32,
         }
     }
 
@@ -220,7 +230,9 @@ impl FieldAccessKind {
     pub(crate) fn nonzero(self) -> bool {
         matches!(
             self,
-            Self::Load { nonzero: true, .. } | Self::LoadCellPointer { nonzero: true }
+            Self::Load { nonzero: true, .. }
+                | Self::LoadCellPointer { nonzero: true }
+                | Self::LoadCompressedCellPointer { nonzero: true }
         )
     }
 
@@ -232,6 +244,8 @@ impl FieldAccessKind {
             } => MemoryOperation::Load64NonZero,
             Self::LoadCellPointer { nonzero: true } => MemoryOperation::LoadNonnullCellPointer,
             Self::LoadCellPointer { nonzero: false } => MemoryOperation::LoadCellPointer,
+            Self::LoadCompressedCellPointer { nonzero: true } => MemoryOperation::LoadNonnullCompressedCellPointer,
+            Self::LoadCompressedCellPointer { nonzero: false } => MemoryOperation::LoadCompressedCellPointer,
             Self::Load { width, .. } => MemoryOperation::Load {
                 width: width.into(),
                 signed: false,
@@ -1441,6 +1455,8 @@ pub(crate) enum MemoryOperation {
     Load64NonZero,
     LoadCellPointer,
     LoadNonnullCellPointer,
+    LoadCompressedCellPointer,
+    LoadNonnullCompressedCellPointer,
     Store(MemoryWidth),
     LoadPair(PairWidth),
     StorePair(PairWidth),
@@ -1456,6 +1472,8 @@ intrinsic_names!(MemoryOperation {
     Self::Load64NonZero => "load64_nonzero" signatures [signature!([Out AnyGpr, In Memory])];
     Self::LoadCellPointer => "load_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
     Self::LoadNonnullCellPointer => "load_nonnull_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
+    Self::LoadCompressedCellPointer => "load_compressed_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
+    Self::LoadNonnullCompressedCellPointer => "load_nonnull_compressed_cell_ptr" signatures [signature!([Out AnyGpr, In Memory])];
     Self::Load { width: MemoryWidth::Float, signed: false } => "loadf32" signatures [signature!([Out F32, In Memory])];
     Self::Load { width: MemoryWidth::Double, signed: false } => "loadf64" signatures [signature!([Out F64, In Memory])];
     Self::Load { width: MemoryWidth::Vector, signed: false } => "load128" signatures [signature!([Out V128, In Memory])];
@@ -1476,7 +1494,10 @@ impl MemoryOperation {
     pub(crate) fn effects(self) -> IntrinsicEffects {
         IntrinsicEffects {
             memory: if self.writes() { ModRef::Write } else { ModRef::Read },
-            may_trap: matches!(self, Self::Load64NonZero | Self::LoadNonnullCellPointer),
+            may_trap: matches!(
+                self,
+                Self::Load64NonZero | Self::LoadNonnullCellPointer | Self::LoadNonnullCompressedCellPointer
+            ),
             ..IntrinsicEffects::PURE
         }
     }
@@ -1495,6 +1516,7 @@ impl MemoryOperation {
         match self {
             Self::Load { width, .. } | Self::Store(width) => width,
             Self::Load64NonZero | Self::LoadCellPointer | Self::LoadNonnullCellPointer => MemoryWidth::DoubleWord,
+            Self::LoadCompressedCellPointer | Self::LoadNonnullCompressedCellPointer => MemoryWidth::Word,
             Self::LoadPair(PairWidth::Word) | Self::StorePair(PairWidth::Word) => MemoryWidth::Word,
             Self::LoadPair(PairWidth::DoubleWord) | Self::StorePair(PairWidth::DoubleWord) => MemoryWidth::DoubleWord,
         }

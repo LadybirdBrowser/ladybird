@@ -33,7 +33,7 @@ use crate::target::ir::{
 use crate::target::machine_verify::emit_machine_instructions as emit;
 use crate::target::registers::{
     PhysicalRegister,
-    aarch64::{X21, X22, X23, X24, X25, X26, XZR},
+    aarch64::{X9, X21, X22, X23, X24, X25, X26, XZR},
 };
 use crate::{Architecture, CompileError, CompileStage, Target};
 
@@ -1628,6 +1628,24 @@ impl Backend for Aarch64Backend {
             } => [register destination, register destination, register X24];
         );
         Ok(())
+    }
+
+    fn decompress_cell_pointer(
+        &self,
+        emit: &mut Emit<'_>,
+        destination: PhysicalRegister,
+        source: PhysicalRegister,
+        nullable: bool,
+    ) {
+        if !nullable {
+            emit!(emit.output, Aarch64; Opcode::DecompressCellPointer => [register destination, register source];);
+            return;
+        }
+        emit!(emit.output, Aarch64;
+            Opcode::DecompressCellPointer => [register X9, register source];
+            Opcode::CompareImmediate(IntegerWidth::U32) => [register source, immediate 0];
+            Opcode::SelectNotEqualElseZero => [register destination, register X9];
+        );
     }
 
     fn float_operation(

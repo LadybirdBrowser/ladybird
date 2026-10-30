@@ -192,6 +192,9 @@ pub(crate) struct Field {
     pub(crate) nonnull: bool,
     pub(crate) embedded: bool,
     pub(crate) cell_pointer: bool,
+    /// Whether the cell pointer is stored compressed, as the cell's offset into the heap region in units of 8 bytes in
+    /// a u32 (0 for null), which loads decode with the heap region base.
+    pub(crate) compressed: bool,
     pub(crate) pair: Option<String>,
     pub(crate) pinned_base: Option<String>,
     pub(crate) pinned_offset: Option<LayoutValue>,
@@ -207,6 +210,7 @@ struct UnresolvedField {
     nonnull: bool,
     embedded: bool,
     cell_pointer: bool,
+    compressed: bool,
     pair: Option<String>,
     pinned_base: Option<String>,
     pinned_offset: Option<String>,
@@ -287,9 +291,10 @@ impl LayoutDatabase {
                     ));
                 }
             };
-            let cell_pointer = match words[4] {
-                "cell" => true,
-                "scalar" => false,
+            let (cell_pointer, compressed) = match words[4] {
+                "cell" => (true, false),
+                "compressed" => (true, true),
+                "scalar" => (false, false),
                 representation => {
                     return Err(LayoutError::new(
                         line_number,
@@ -301,6 +306,12 @@ impl LayoutDatabase {
                 return Err(LayoutError::new(
                     line_number,
                     "embedded fields must use scalar representation",
+                ));
+            }
+            if compressed && words.len() > 5 {
+                return Err(LayoutError::new(
+                    line_number,
+                    "compressed cell pointer fields take no modifiers",
                 ));
             }
             if cell_pointer && ty.width() != Some(8) {
@@ -357,6 +368,7 @@ impl LayoutDatabase {
                 nonnull,
                 embedded,
                 cell_pointer,
+                compressed,
                 pair,
                 pinned_base,
                 pinned_offset,
@@ -375,6 +387,7 @@ impl LayoutDatabase {
                     nonnull: field.nonnull,
                     embedded: field.embedded,
                     cell_pointer: field.cell_pointer,
+                    compressed: field.compressed,
                     pair: field.pair,
                     pinned_base: field.pinned_base,
                     pinned_offset: field
@@ -480,6 +493,31 @@ mod tests {
         assert_eq!(database.fields()[0].ty, Type::Shape);
         assert!(database.fields()[0].nonnull);
         assert!(database.fields()[0].cell_pointer);
+        assert!(!database.fields()[0].compressed);
+    }
+
+    #[test]
+    fn parses_compressed_cell_pointer_fields() {
+        let database = LayoutDatabase::parse(
+            "const ENVIRONMENT_OUTER = 16\nfield Environment.outer Environment ENVIRONMENT_OUTER nullable compressed\n",
+        )
+        .unwrap();
+
+        assert_eq!(database.fields()[0].ty, Type::Environment);
+        assert!(!database.fields()[0].nonnull);
+        assert!(database.fields()[0].cell_pointer);
+        assert!(database.fields()[0].compressed);
+
+        let error = LayoutDatabase::parse("field Environment.outer Environment 16 nullable compressed outer_pair\n")
+            .unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("compressed cell pointer fields take no modifiers")
+        );
+
+        let error = LayoutDatabase::parse("field Environment.declarative u8 0 nullable compressed\n").unwrap_err();
+        assert!(error.message.contains("cell pointer field must be 64 bits"));
     }
 
     #[test]

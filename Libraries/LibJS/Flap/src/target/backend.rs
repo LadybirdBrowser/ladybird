@@ -81,6 +81,16 @@ pub(crate) trait Backend: Sync {
         source: PhysicalRegister,
     ) -> Result<(), CompileError>;
 
+    /// `destination = heap_region_base + (source << 3)`, with the base in its pinned register, and 0 if `nullable` and
+    /// `source` is 0. `source` holds a compressed cell pointer, zero-extended.
+    fn decompress_cell_pointer(
+        &self,
+        emit: &mut Emit<'_>,
+        destination: PhysicalRegister,
+        source: PhysicalRegister,
+        nullable: bool,
+    );
+
     fn float_operation(
         &self,
         emit: &mut Emit<'_>,

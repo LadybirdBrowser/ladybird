@@ -189,6 +189,7 @@ define_machine_opcodes! {
     } printing simple!("call"; SimpleOperand::Relocation(0));
     [CallRegister] => Self::CallRegister => [[R]] printing simple!("call"; native(0));
     [TestRegister(IntegerWidth)] => Self::TestRegister(width) => [[R]] printing simple!("test"; integer(0, width), integer(0, width));
+    [ConditionalMoveNonZero64] => Self::ConditionalMoveNonZero64 => [[R, R]] printing simple!("cmovnz"; native(0), native(1));
     [JumpNegativeToExit] => Self::JumpNegativeToExit => [[]] printing simple!("js"; SimpleOperand::Literal(".Lexit"));
     [LoadEffectiveAddress] => Self::LoadEffectiveAddress => [[R, A]] printing simple!("lea"; native(0), SimpleOperand::Resolved(1, ""));
     [LoadValuesAddress] => Self::LoadValuesAddress => [[R, A]];
