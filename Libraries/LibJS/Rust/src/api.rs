@@ -18,7 +18,7 @@ pub use crate::gc::defer_gc::DeferGc;
 pub use crate::gc::embedder_cell::{EmbedderCell, EmbedderClass, EmbedderValue};
 pub use crate::gc::foreign::ForeignCellSlot;
 pub use crate::gc::gc_ref_cell::{GcRefCell, GcRefMut};
-pub use crate::gc::root::{MarkedVec, Root};
+pub use crate::gc::root::{CellRoot, MarkedVec, Root};
 pub use crate::gc::visitor::{Trace, Visitor};
 pub use crate::gc::weak::GcWeak;
 pub use crate::interpreter::vm::{TypeErrorRealmScope, Vm};

@@ -7,11 +7,15 @@
 //! Precise roots for values that live outside cells and outside the stack, where the collector would not find them.
 
 use core::cell::{OnceCell, Ref, RefCell};
+use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
+use core::ptr::NonNull;
 
+use super::capi::{self, GCRoot};
 use super::gc_ref_cell::{GcRefCell, GcRefMut};
 use super::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
+use crate::layout::cell::Gc;
 
 /// The roots a VM keeps alive. Entries are boxed values registered by address, so slots never move.
 #[derive(Default)]
@@ -74,6 +78,32 @@ impl<T: Trace + Copy + 'static> Root<'_, T> {
 impl<T: Trace + 'static> Drop for Root<'_, T> {
     fn drop(&mut self) {
         self.vm.roots().unregister(self.slot);
+    }
+}
+
+/// Keeps a cell alive for as long as it exists, through a root of LibGC, without borrowing the VM: for a cell to hold
+/// while it must stay alive without being referenced, and to drop once it may be collected.
+pub struct CellRoot<T> {
+    root: NonNull<GCRoot>,
+    // NB: A CellRoot holds its cell through LibGC, not through a pointer of its own.
+    _cell: PhantomData<fn() -> Gc<T>>,
+}
+
+impl<T> CellRoot<T> {
+    pub fn new(cell: Gc<T>) -> Self {
+        // SAFETY: The cell is live. The root comes with a reference this value owns.
+        let root = unsafe { capi::gc_root_create(cell.as_ptr().cast()) };
+        Self {
+            root: NonNull::new(root).expect("LibGC creates the root"),
+            _cell: PhantomData,
+        }
+    }
+}
+
+impl<T> Drop for CellRoot<T> {
+    fn drop(&mut self) {
+        // SAFETY: This value owns the root.
+        unsafe { capi::gc_root_destroy(self.root.as_ptr()) };
     }
 }
 
