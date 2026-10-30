@@ -270,6 +270,43 @@
             tracked: ["parent", "before"],
         },
         {
+            name: "append absolute block child after whitespace",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child absolute"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append floated block child after whitespace",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child float"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append absolute block child between whitespace and blocks",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child absolute"><b></b></section>\n<section class="target child"></section>\n<section class="target child absolute"></section>\n<section class="target child"></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append block and whitespace ending in absolute block child",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"></section>\n<section class="target child absolute"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append absolute block child after whitespace and anonymous inline run",
+            markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child absolute"><b></b></section>'),
+            tracked: ["parent", "before", "inline"],
+        },
+        {
+            name: "fall back for absolute block child after whitespace before existing child",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '\n<section class="target child absolute"><b></b></section>'),
+            tracked: ["parent"],
+            preserve: false,
+        },
+        {
             name: "fall back for block child before anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate: parent => parent.querySelector(".inline").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
