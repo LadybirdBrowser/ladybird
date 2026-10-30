@@ -13,6 +13,10 @@
 //! every crate it links, so linking the runtime would make it link every C function the runtime imports as well; the
 //! modules that use the runtime are left out of the tests instead, as the runtime's own crate leaves out its engine.
 
+// NB: The implementations of Serializable return concrete types where the trait has an opaque one. The trait is
+//     pub(crate), so refining it exposes nothing.
+#![allow(refining_impl_trait)]
+
 #[cfg(feature = "allocator")]
 extern crate ladybird_allocator;
 
