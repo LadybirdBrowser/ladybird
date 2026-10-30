@@ -12,6 +12,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringUtils.h>
 #include <LibCore/Environment.h>
+#include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <stdlib.h>
@@ -30,6 +31,71 @@ static Optional<StringView> get_environment_if_not_empty(StringView name)
         return {};
     return maybe_value;
 }
+
+#if !defined(AK_OS_WINDOWS)
+// https://www.freedesktop.org/wiki/Software/xdg-user-dirs/
+// Desktop environments keep the user's directories in the user-dirs.dirs file, under names in the user's language, as
+// shell assignments like XDG_DOWNLOAD_DIR="$HOME/Downloads": Each path is absolute, or relative to $HOME.
+static Optional<ByteString> user_directory_from_user_dirs_file(StringView name)
+{
+    // https://specifications.freedesktop.org/basedir-spec/latest/
+    // If an implementation encounters a relative path in any of these variables it should consider the path invalid
+    // and ignore it.
+    ByteString path;
+    if (auto config_home = get_environment_if_not_empty("XDG_CONFIG_HOME"sv); config_home.has_value() && config_home->starts_with('/'))
+        path = ByteString::formatted("{}/user-dirs.dirs", *config_home);
+    else
+        path = ByteString::formatted("{}/.config/user-dirs.dirs", StandardPaths::home_directory());
+
+    auto file = File::open(path, File::OpenMode::Read);
+    if (file.is_error())
+        return {};
+    auto contents = file.value()->read_until_eof();
+    if (contents.is_error())
+        return {};
+
+    // NB: As when a shell runs the file, a later assignment of the same name replaces an earlier one.
+    Optional<ByteString> directory;
+    for (auto line : StringView { contents.value() }.lines()) {
+        line = line.trim_whitespace();
+        if (!line.starts_with(name))
+            continue;
+        auto value = line.substring_view(name.length()).trim_whitespace(TrimMode::Left);
+        if (!value.starts_with('='))
+            continue;
+        value = value.substring_view(1).trim_whitespace(TrimMode::Left);
+        if (!value.starts_with('"'))
+            continue;
+        value = value.substring_view(1);
+
+        StringBuilder builder;
+        if (value.starts_with("$HOME"sv)) {
+            builder.append(StandardPaths::home_directory());
+            value = value.substring_view(5);
+        } else if (!value.starts_with('/')) {
+            continue;
+        }
+        // As in a double-quoted shell string, a backslash escapes only $, `, " and \; before others, it's literal.
+        // The string ends at the first unescaped quote, after which only a comment can follow.
+        Optional<size_t> closing_quote;
+        for (size_t i = 0; i < value.length(); ++i) {
+            if (value[i] == '"') {
+                closing_quote = i;
+                break;
+            }
+            if (value[i] == '\\' && i + 1 < value.length() && "$`\"\\"sv.contains(value[i + 1]))
+                ++i;
+            builder.append(value[i]);
+        }
+        if (!closing_quote.has_value())
+            continue;
+        if (auto rest = value.substring_view(*closing_quote + 1).trim_whitespace(); !rest.is_empty() && !rest.starts_with('#'))
+            continue;
+        directory = LexicalPath::canonicalized_path(builder.to_byte_string());
+    }
+    return directory;
+}
+#endif
 
 ByteString StandardPaths::home_directory()
 {
@@ -51,6 +117,8 @@ ByteString StandardPaths::desktop_directory()
 #if !defined(AK_OS_WINDOWS)
     if (auto desktop_directory = get_environment_if_not_empty("XDG_DESKTOP_DIR"sv); desktop_directory.has_value())
         return LexicalPath::canonicalized_path(*desktop_directory);
+    if (auto desktop_directory = user_directory_from_user_dirs_file("XDG_DESKTOP_DIR"sv); desktop_directory.has_value())
+        return desktop_directory.release_value();
 #endif
 
     StringBuilder builder;
@@ -64,6 +132,8 @@ ByteString StandardPaths::documents_directory()
 #if !defined(AK_OS_WINDOWS)
     if (auto documents_directory = get_environment_if_not_empty("XDG_DOCUMENTS_DIR"sv); documents_directory.has_value())
         return LexicalPath::canonicalized_path(*documents_directory);
+    if (auto documents_directory = user_directory_from_user_dirs_file("XDG_DOCUMENTS_DIR"sv); documents_directory.has_value())
+        return documents_directory.release_value();
 #endif
 
     StringBuilder builder;
@@ -77,6 +147,8 @@ ByteString StandardPaths::downloads_directory()
 #if !defined(AK_OS_WINDOWS)
     if (auto downloads_directory = get_environment_if_not_empty("XDG_DOWNLOAD_DIR"sv); downloads_directory.has_value())
         return LexicalPath::canonicalized_path(*downloads_directory);
+    if (auto downloads_directory = user_directory_from_user_dirs_file("XDG_DOWNLOAD_DIR"sv); downloads_directory.has_value())
+        return downloads_directory.release_value();
 #endif
 
     StringBuilder builder;
@@ -90,6 +162,8 @@ ByteString StandardPaths::music_directory()
 #if !defined(AK_OS_WINDOWS)
     if (auto music_directory = get_environment_if_not_empty("XDG_MUSIC_DIR"sv); music_directory.has_value())
         return LexicalPath::canonicalized_path(*music_directory);
+    if (auto music_directory = user_directory_from_user_dirs_file("XDG_MUSIC_DIR"sv); music_directory.has_value())
+        return music_directory.release_value();
 #endif
 
     StringBuilder builder;
@@ -103,6 +177,8 @@ ByteString StandardPaths::pictures_directory()
 #if !defined(AK_OS_WINDOWS)
     if (auto pictures_directory = get_environment_if_not_empty("XDG_PICTURES_DIR"sv); pictures_directory.has_value())
         return LexicalPath::canonicalized_path(*pictures_directory);
+    if (auto pictures_directory = user_directory_from_user_dirs_file("XDG_PICTURES_DIR"sv); pictures_directory.has_value())
+        return pictures_directory.release_value();
 #endif
 
     StringBuilder builder;
@@ -116,6 +192,8 @@ ByteString StandardPaths::videos_directory()
 #if !defined(AK_OS_WINDOWS)
     if (auto videos_directory = get_environment_if_not_empty("XDG_VIDEOS_DIR"sv); videos_directory.has_value())
         return LexicalPath::canonicalized_path(*videos_directory);
+    if (auto videos_directory = user_directory_from_user_dirs_file("XDG_VIDEOS_DIR"sv); videos_directory.has_value())
+        return videos_directory.release_value();
 #endif
 
     StringBuilder builder;
