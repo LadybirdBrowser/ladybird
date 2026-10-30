@@ -10,6 +10,9 @@
 #include <LibWeb/Bindings/RustEventTarget.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/EventDispatcher.h>
+#include <LibWeb/DOM/IDLEventListener.h>
+#include <LibWeb/HTML/MessageEvent.h>
+#include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -100,9 +103,13 @@ RustEventTarget* web_bindings_create_event_target();
 void web_bindings_set_event_target_owner(RustEventTarget*, u16 interface_name, RustInterfaceCell* owner, RustEventTarget::GetTheParent);
 JSValue web_bindings_event_handler_attribute(RustEventTarget*, ReadonlyBytes name);
 void web_bindings_set_event_handler_attribute(RustEventTarget*, ReadonlyBytes name, JSValue);
+void web_bindings_add_event_listener(void* realm, DOM::EventTarget*, ReadonlyBytes type, JSObject* callback);
 DOM::Event* web_bindings_create_event(void* realm, ReadonlyBytes type, bool bubbles, bool cancelable, bool composed);
 RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubbles, bool cancelable, bool composed);
+DOM::Event* web_bindings_create_message_event(void* realm, ReadonlyBytes type, JSValue data, JSObject* const* ports, size_t count);
+JSValue web_bindings_message_event_data(JSValue event);
 void web_bindings_set_event_owner(RustEvent*, u16 interface_name, RustInterfaceCell* owner);
+void web_bindings_event_set_is_trusted(DOM::Event*, bool is_trusted);
 bool web_bindings_dispatch_event(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_dispatch_event_with_legacy_output_did_listeners_throw_flag(DOM::EventTarget*, DOM::Event*);
 bool web_bindings_event_canceled(DOM::Event*);
@@ -138,6 +145,14 @@ void web_bindings_set_event_handler_attribute(RustEventTarget* event_target, Rea
     event_target->set_event_handler_attribute(Utf16FlyString::from_utf8_without_validation(name), callback);
 }
 
+// https://dom.spec.whatwg.org/#add-an-event-listener, for a listener whose callback is the function, with no options.
+void web_bindings_add_event_listener(void* realm, DOM::EventTarget* target, ReadonlyBytes type, JSObject* callback)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto callback_type = GC::Heap::the().allocate<WebIDL::CallbackType>(*JS::HostABI::object_from_abi(callback), js_realm);
+    target->add_event_listener_without_options(Utf16FlyString::from_utf8_without_validation(type), DOM::IDLEventListener::create(callback_type));
+}
+
 DOM::Event* web_bindings_create_event(void* realm, ReadonlyBytes type, bool bubbles, bool cancelable, bool composed)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
@@ -153,9 +168,34 @@ RustEvent* web_bindings_create_rust_event(void* realm, FlatPtr type, bool bubble
     return RustEvent::create(Utf16FlyString::from_utf16(type_string.utf16_view()), event_init, HighResolutionTime::current_high_resolution_time(js_realm.global_object())).ptr();
 }
 
+DOM::Event* web_bindings_create_message_event(void* realm, ReadonlyBytes type, JSValue data, JSObject* const* ports, size_t count)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    HTML::MessageEventInit event_init;
+    event_init.data = JS::HostABI::value_from_abi(data);
+    for (size_t i = 0; i < count; ++i) {
+        auto* port = impl_from<HTML::MessagePort>(JS::HostABI::object_from_abi(ports[i]));
+        VERIFY(port);
+        event_init.ports.append(*port);
+    }
+    return HTML::MessageEvent::create(js_realm.global_object(), Utf16FlyString::from_utf8_without_validation(type), event_init).ptr();
+}
+
+JSValue web_bindings_message_event_data(JSValue event)
+{
+    auto* message_event = impl_from<HTML::MessageEvent>(&JS::HostABI::value_from_abi(event).as_object());
+    VERIFY(message_event);
+    return JS::HostABI::value_to_abi(message_event->data());
+}
+
 void web_bindings_set_event_owner(RustEvent* event, u16 interface_name, RustInterfaceCell* owner)
 {
     event->set_owner(static_cast<InterfaceName>(interface_name), *owner);
+}
+
+void web_bindings_event_set_is_trusted(DOM::Event* event, bool is_trusted)
+{
+    event->set_is_trusted(is_trusted);
 }
 
 bool web_bindings_dispatch_event(DOM::EventTarget* target, DOM::Event* event)

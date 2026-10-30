@@ -15,7 +15,6 @@
 #include <LibWeb/DOM/AbortSignal.h>
 #include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
@@ -73,7 +72,6 @@ void web_streams_abort_signal_remove_algorithm(DOM::AbortSignal*, u64 id);
 void web_streams_abort_signal_signal_abort(DOM::AbortSignal*, JSValue reason, void* realm);
 void web_streams_create_entangled_ports(void* realm, void** port1, void** port2);
 void web_streams_message_port_add_handlers(void* realm, HTML::MessagePort*, JSObject* on_message, JSObject* on_message_error);
-JSValue web_streams_message_event_data(JSValue event);
 JSCompletion web_streams_message_port_post_message(void* realm, HTML::MessagePort*, JSValue message);
 void web_streams_message_port_disentangle(HTML::MessagePort*);
 void web_streams_message_port_enable(HTML::MessagePort*);
@@ -377,13 +375,6 @@ void web_streams_message_port_add_handlers(void* realm, HTML::MessagePort* port,
 {
     add_message_event_listener(realm_of(realm), *port, HTML::EventNames::message, on_message);
     add_message_event_listener(realm_of(realm), *port, HTML::EventNames::messageerror, on_message_error);
-}
-
-JSValue web_streams_message_event_data(JSValue event)
-{
-    auto* message_event = Bindings::impl_from<HTML::MessageEvent>(&JS::HostABI::value_from_abi(event).as_object());
-    VERIFY(message_event);
-    return JS::HostABI::value_to_abi(message_event->data());
 }
 
 JSCompletion web_streams_message_port_post_message(void* realm, HTML::MessagePort* port, JSValue message)

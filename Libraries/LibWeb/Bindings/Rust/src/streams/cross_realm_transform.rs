@@ -17,6 +17,7 @@ use libjs_rust::api::{
 };
 
 use crate::bindings::cpp_cell::CppCell;
+use crate::bindings::event_target::message_event_data;
 use crate::bindings::interface::{Ref, allocate};
 use crate::bindings::promise::{
     NativeSteps, WebIdlPromise, create_promise, create_rejected_promise_from_exception, create_resolved_promise,
@@ -51,9 +52,6 @@ unsafe extern "C" {
         on_message: *mut c_void,
         on_message_error: *mut c_void,
     );
-
-    /// The data of a MessageEvent, whose wrapper the handlers of a port are called with.
-    fn web_streams_message_event_data(event: u64) -> u64;
 
     /// Runs the message port post message steps providing the port with which the port is entangled, if any, the
     /// message and «[ "transfer" → « » ]».
@@ -121,8 +119,8 @@ impl CrossRealmTransformPort {
             },
             |vm: &Vm, function: &NativeSteps<(C, Gc<Realm>), MessageSteps<C>>| {
                 let (state, realm) = function.captures;
-                // SAFETY: The port's message event handler is called with a MessageEvent, whose data is live.
-                let data = unsafe { Value::from_raw(web_streams_message_event_data(vm.argument(0).to_raw())) };
+                // NB: The port's message event handler is called with a MessageEvent.
+                let data = message_event_data(vm.argument(0));
                 (function.steps)(&CallContext::new(vm, realm), state, data);
                 Ok(Value::UNDEFINED)
             },
