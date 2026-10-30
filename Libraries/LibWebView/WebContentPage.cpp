@@ -1682,9 +1682,14 @@ bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web
         return false;
     if (!permission_reaches_document(name, *document, *top_level_origin))
         return false;
-    if (top_level_origin->is_opaque())
+    auto& manager = *view().session().permission_manager;
+    if (top_level_origin->is_opaque()) {
+        // A file: page's grant lasts as long as the page, but the global default still binds it.
+        if (manager.global_default(name) == Web::Permissions::EffectiveState::Denied)
+            return false;
         return m_file_permission_grants.find_first_index_if([&](auto const& grant) { return grant.document_id == document_id && grant.name == name; }).has_value();
-    return view().session().permission_manager->effective_state(name, *top_level_origin) == Web::Permissions::EffectiveState::Granted;
+    }
+    return manager.effective_state(name, *top_level_origin) == Web::Permissions::EffectiveState::Granted;
 }
 
 void WebContentPage::did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId document_id)
@@ -1776,6 +1781,10 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
             async_permission_request_completed(request_id, state);
             return;
         }
+    } else if (manager.global_default(*permission_name) == Web::Permissions::EffectiveState::Denied) {
+        // The global default binds a file: page too; its own grant only matters while sites may ask.
+        deny();
+        return;
     }
 
     // A page asks for notifications only from a gesture, and the UI process holds it to the activation it delivered
