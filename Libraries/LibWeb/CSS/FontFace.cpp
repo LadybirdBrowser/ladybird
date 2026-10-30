@@ -875,6 +875,7 @@ void FontFaceState::apply_descriptor(DescriptorID descriptor, StyleValue const& 
         break;
     case DescriptorID::FontWeight:
         m_cached_weight_range = compute_weight_range(*absolutized());
+        m_weight_descriptor_is_auto = value.to_keyword() == Keyword::Auto;
         break;
     case DescriptorID::FontWidth:
         m_cached_width = compute_width(*absolutized());
