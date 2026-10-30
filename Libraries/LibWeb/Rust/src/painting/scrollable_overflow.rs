@@ -772,9 +772,10 @@ impl LayoutNodeArena {
             return;
         }
         let rows = std::mem::take(&mut self.scrollable_overflow.rows_to_measure);
+        let mut memo = Default::default();
         for slot in rows {
             if self.slot_is_live(slot) {
-                self.ensure_scrollable_overflow(slot);
+                self.ensure_scrollable_overflow(slot, &mut memo);
             }
         }
     }
@@ -783,7 +784,11 @@ impl LayoutNodeArena {
         self.scrollable_overflow.rows_to_measure.push(slot);
     }
 
-    fn ensure_scrollable_overflow(&mut self, slot: NodeSlotId) {
+    fn ensure_scrollable_overflow(
+        &mut self,
+        slot: NodeSlotId,
+        memo: &mut crate::painting::record::recorder_state::AbsoluteRectMemo,
+    ) {
         if !self.paintable_row_is_populated(slot)
             || !self
                 .scrollable_overflow
@@ -802,8 +807,9 @@ impl LayoutNodeArena {
             return;
         }
         self.ensure_overflow_contained_boxes();
-        let assignments =
-            measure_box_scrollable_overflow(&self.paintable_rows(), &self.scrollable_overflow.non_child_boxes, slot);
+        let rows = self.paintable_rows_with_absolute_rect_memo(std::mem::take(memo));
+        let assignments = measure_box_scrollable_overflow(&rows, &self.scrollable_overflow.non_child_boxes, slot);
+        *memo = rows.into_absolute_rect_memo();
         let mut rows = self.paintable_rows_mut();
         for assignment in assignments {
             assignment.apply(&mut rows);
@@ -897,8 +903,9 @@ fn settle_scheduled_scrollable_overflow(arena: &mut LayoutNodeArena) -> Vec<(Nod
     // The new overflow can leave a stored scroll offset outside the range the box now allows. The
     // pass has the measurement, so it decides the offset itself, and tells the document what to
     // store once every root is measured rather than handing each box back to be clamped.
+    let mut memo = Default::default();
     for slot in roots {
-        arena.ensure_scrollable_overflow(slot);
+        arena.ensure_scrollable_overflow(slot, &mut memo);
         let offset = arena.row_scroll_offset(slot);
         if offset == CssPixelPoint::default() {
             continue;
