@@ -1,6 +1,7 @@
 include(audio)
 
 set(SOURCES
+    CaptureActivity.cpp
     CaptureDevices.cpp
     ControlConnection.cpp
     PlatformAudio.cpp

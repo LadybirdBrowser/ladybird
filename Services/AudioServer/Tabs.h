@@ -13,6 +13,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <AK/WeakPtr.h>
+#include <AudioServer/CaptureActivity.h>
 #include <AudioServer/CaptureDevices.h>
 #include <AudioServer/PlaybackStreamMixer.h>
 #include <AudioServer/ServerConnection.h>
@@ -29,6 +30,8 @@ class ControlConnection;
 class Tabs {
 public:
     static Tabs& the();
+
+    Tabs();
 
     // Decides what every tab's devices are; headless instances discard their mix into a null stream and capture from a
     // null input device.
@@ -68,6 +71,7 @@ private:
     WeakPtr<ControlConnection> m_control_connection;
     HashMap<u64, Function<void(bool)>> m_pending_capture_decisions;
     u64 m_next_capture_request_id { 1 };
+    CaptureActivity m_capture_activity;
 };
 
 }

@@ -28,6 +28,14 @@ Tabs& Tabs::the()
     return *instance;
 }
 
+Tabs::Tabs()
+    : m_capture_activity([this](u64 tab_id, Audio::PlaybackGroupId group, bool capturing) {
+        if (auto control_connection = m_control_connection.strong_ref())
+            control_connection->async_capture_activity_changed(tab_id, group, capturing);
+    })
+{
+}
+
 void Tabs::set_control_connection(ControlConnection& connection)
 {
     m_control_connection = connection.make_weak_ptr<ControlConnection>();
@@ -148,6 +156,12 @@ ErrorOr<IPC::TransportHandle> Tabs::connect_client(u64 tab_id)
     connection->set_capture_permitted(m_tabs_with_capture_permission.contains(tab_id));
     connection->on_death = [tab_id, client_id] {
         Tabs::the().connection_died(tab_id, client_id);
+    };
+    connection->on_capture_started = [tab_id](Audio::PlaybackGroupId group) {
+        Tabs::the().m_capture_activity.stream_started(tab_id, group);
+    };
+    connection->on_capture_stopped = [tab_id](Audio::PlaybackGroupId group) {
+        Tabs::the().m_capture_activity.stream_stopped(tab_id, group);
     };
     tab.connections.set(client_id, move(connection));
     return handle;

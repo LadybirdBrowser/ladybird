@@ -41,11 +41,16 @@ void ServerConnection::die()
 
 void ServerConnection::remove_record_streams()
 {
-    for (auto& [stream_id, stream] : m_record_streams) {
-        if (stream.subscriber_id.has_value())
-            m_capture_devices->unsubscribe(stream.subscriber_id.value());
-    }
-    m_record_streams.clear();
+    for (auto& [stream_id, stream] : exchange(m_record_streams, {}))
+        record_stream_gone(stream);
+}
+
+void ServerConnection::record_stream_gone(RecordStreamState const& stream)
+{
+    if (stream.subscriber_id.has_value())
+        m_capture_devices->unsubscribe(stream.subscriber_id.value());
+    if (stream.may_capture && on_capture_stopped)
+        on_capture_stopped(stream.group);
 }
 
 void ServerConnection::set_capture_permitted(bool permitted)
@@ -272,7 +277,7 @@ void ServerConnection::create_record_stream(u64 stream_id, ByteString device_id,
     }
 
     // The Browser rules on every request, so a client once allowed cannot simply start another.
-    m_record_streams.set(stream_id, RecordStreamState {});
+    m_record_streams.set(stream_id, RecordStreamState { .group = group, .subscriber_id = {}, .may_capture = false });
     m_request_capture_permission(device_id, group, [weak_self = make_weak_ptr<ServerConnection>(), stream_id, device_id](bool allowed) {
         auto self = weak_self.strong_ref();
         if (self)
@@ -290,6 +295,12 @@ void ServerConnection::capture_permission_decided(u64 stream_id, ByteString cons
         async_record_stream_creation_failed(stream_id, RecordStreamFailure::Refused);
         return;
     }
+
+    // The stream counts as capturing from here on, even while the device opens.
+    auto& stream = m_record_streams.get(stream_id).value();
+    stream.may_capture = true;
+    if (on_capture_started)
+        on_capture_started(stream.group);
 
     // The state exists before subscribing, since a device that is already open reports at once.
     auto subscriber_id = m_capture_devices->subscribe(device_id, [weak_self = make_weak_ptr<ServerConnection>(), stream_id](CaptureSubscriberId subscriber_id, ErrorOr<SampleSpecification> const& result) {
@@ -309,8 +320,9 @@ void ServerConnection::capture_device_ready(u64 stream_id, CaptureSubscriberId s
         return;
 
     auto fail = [&] {
-        m_capture_devices->unsubscribe(subscriber_id);
-        m_record_streams.remove(stream_id);
+        auto stream = m_record_streams.take(stream_id).release_value();
+        stream.subscriber_id = subscriber_id;
+        record_stream_gone(stream);
         async_record_stream_creation_failed(stream_id, RecordStreamFailure::DeviceUnavailable);
     };
     if (result.is_error()) {
@@ -331,10 +343,8 @@ void ServerConnection::capture_device_ready(u64 stream_id, CaptureSubscriberId s
 
 void ServerConnection::destroy_record_stream(u64 stream_id)
 {
-    auto stream = m_record_streams.take(stream_id);
-    if (!stream.has_value() || !stream->subscriber_id.has_value())
-        return;
-    m_capture_devices->unsubscribe(stream->subscriber_id.value());
+    if (auto stream = m_record_streams.take(stream_id); stream.has_value())
+        record_stream_gone(*stream);
 }
 
 }

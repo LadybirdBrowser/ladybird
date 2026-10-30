@@ -31,6 +31,9 @@ public:
 
     // Runs when the client disconnects, after its streams have left the mixer.
     Function<void()> on_death;
+    // A capture stream counts from the moment the Browser lets it capture until it is gone, however it goes.
+    Function<void(PlaybackGroupId)> on_capture_started;
+    Function<void(PlaybackGroupId)> on_capture_stopped;
 
     // Whether the Browser says the client's tab holds the microphone permission. Without it the client learns of the
     // devices by their existence alone, and the capture streams it has are closed.
@@ -75,8 +78,11 @@ private:
 
     // No subscriber while the Browser is being asked.
     struct RecordStreamState {
+        PlaybackGroupId group;
         Optional<CaptureSubscriberId> subscriber_id;
+        bool may_capture { false };
     };
+    void record_stream_gone(RecordStreamState const&);
 
     NonnullRefPtr<PlaybackStreamMixer> m_mixer;
     HashMap<u64, PlaybackGroupId> m_session_groups;
