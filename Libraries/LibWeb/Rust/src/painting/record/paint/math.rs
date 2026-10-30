@@ -59,24 +59,19 @@ pub(crate) fn paint_foreground<O: Observer>(
         let font_id = recorder.register_font(&run.font);
         // NB: Display list glyphs are positioned by the top of the font's ascent rather than by their baseline.
         let ascent = run.font.facts().ascent;
-        let glyphs: Vec<DisplayListGlyph> = run
-            .glyphs
-            .iter()
-            .map(|glyph| DisplayListGlyph {
-                position: FloatPoint {
-                    x: glyph.x,
-                    y: glyph.y - ascent,
-                },
-                glyph_id: glyph.glyph_id,
-            })
-            .collect();
         let ink_rect = converter.enclosing_device_rect(run.ink_bounds.translated_by(content_box.location()));
         recorder.recorder.draw_glyph_run(
             origin,
             GlyphRunForRecording {
                 font_smoothing,
                 font_id: FontResourceId(font_id),
-                glyphs: &glyphs,
+                glyphs: run.glyphs.iter().map(|glyph| DisplayListGlyph {
+                    position: FloatPoint {
+                        x: glyph.x,
+                        y: glyph.y - ascent,
+                    },
+                    glyph_id: glyph.glyph_id,
+                }),
             },
             glyph_color,
             ink_rect,

@@ -565,6 +565,15 @@ pub struct DisplayListGlyph {
 }
 ffi_bytes_fields!(DisplayListGlyph { position, glyph_id });
 
+impl From<&text_layout::DrawGlyph> for DisplayListGlyph {
+    fn from(glyph: &text_layout::DrawGlyph) -> Self {
+        Self {
+            position: FloatPoint { x: glyph.x, y: glyph.y },
+            glyph_id: glyph.glyph_id,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum CompositorScrollNodeKind {

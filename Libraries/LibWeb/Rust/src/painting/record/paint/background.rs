@@ -1036,7 +1036,10 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
                     .inherited_text()
                     .font_smoothing,
                 font_id: crate::painting::display_list::commands::FontResourceId(font_id),
-                glyphs: &emission.glyphs,
+                glyphs: run
+                    .glyphs
+                    .iter()
+                    .map(crate::painting::display_list::commands::DisplayListGlyph::from),
             },
             libgfx_rust::Color::from_rgb(0, 0, 0),
             fragment_absolute_device_rect,
