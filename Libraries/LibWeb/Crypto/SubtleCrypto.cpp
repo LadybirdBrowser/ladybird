@@ -40,6 +40,12 @@ static void define_an_algorithm(String op, StringView algorithm);
 
 GC_DEFINE_ALLOCATOR(SubtleCrypto);
 
+// NB: Getting a copy of the bytes held by a buffer source can only fail when allocating the copy fails.
+static WebIDL::ExceptionOr<ByteBuffer> get_a_copy_of_the_bytes(JS::VM& vm, WebIDL::BufferSource const& buffer_source)
+{
+    return TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(buffer_source));
+}
+
 GC::Ref<SubtleCrypto> SubtleCrypto::create()
 {
     return GC::Heap::the().allocate<SubtleCrypto>();
@@ -160,11 +166,9 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::encrypt(JS::Realm& realm, AlgorithmIdenti
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the encrypt() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error()) {
-        VERIFY(data_or_error.error().code() == ENOMEM);
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
-    }
+    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
+    if (data_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
     auto data = data_or_error.release_value();
 
     // 5. Let realm be the relevant realm of this.
@@ -234,11 +238,9 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decrypt(JS::Realm& realm, AlgorithmIdenti
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the decrypt() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error()) {
-        VERIFY(data_or_error.error().code() == ENOMEM);
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
-    }
+    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
+    if (data_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
     auto data = data_or_error.release_value();
 
     // 5. Let realm be the relevant realm of this.
@@ -309,11 +311,9 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::digest(JS::Realm& realm, AlgorithmIdentif
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the digest() method.
-    auto data_buffer_or_error = WebIDL::get_buffer_source_copy(WebIDL::BufferSource { data });
-    if (data_buffer_or_error.is_error()) {
-        VERIFY(data_buffer_or_error.error().code() == ENOMEM);
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
-    }
+    auto data_buffer_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data });
+    if (data_buffer_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, data_buffer_or_error.release_error());
     auto data_buffer = data_buffer_or_error.release_value();
 
     // 5. Let realm be the relevant realm of this.
@@ -450,7 +450,10 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::import_key(JS::Realm& realm, KeyFormat fo
 
         // 2. Let keyData be the result of getting a copy of the bytes held by the keyData parameter passed to the
         //    importKey() method.
-        real_key_data = MUST(WebIDL::get_buffer_source_copy(key_data.downcast<WebIDL::BufferSourceVariant>()));
+        auto key_data_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { key_data.downcast<WebIDL::BufferSourceVariant>() });
+        if (key_data_or_error.is_error())
+            return WebIDL::create_rejected_promise_from_exception(realm, key_data_or_error.release_error());
+        real_key_data = key_data_or_error.release_value();
     }
 
     // 5. Let realm be the relevant realm of this.
@@ -563,11 +566,9 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::sign(JS::Realm& realm, AlgorithmIdentifie
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let data be the result of getting a copy of the bytes held by the data parameter passed to the sign() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error()) {
-        VERIFY(data_or_error.error().code() == ENOMEM);
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
-    }
+    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
+    if (data_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
     auto data = data_or_error.release_value();
 
     // 5. Let realm be the relevant realm of this.
@@ -640,19 +641,15 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::verify(JS::Realm& realm, AlgorithmIdentif
         return WebIDL::create_rejected_promise_from_exception(realm, normalized_algorithm.release_error());
 
     // 4. Let signature be the result of getting a copy of the bytes held by the signature parameter passed to the verify() method.
-    auto signature_or_error = WebIDL::get_buffer_source_copy(WebIDL::BufferSource { signature_data });
-    if (signature_or_error.is_error()) {
-        VERIFY(signature_or_error.error().code() == ENOMEM);
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
-    }
+    auto signature_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { signature_data });
+    if (signature_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, signature_or_error.release_error());
     auto signature = signature_or_error.release_value();
 
     // 5. Let data be the result of getting a copy of the bytes held by the data parameter passed to the verify() method.
-    auto data_or_error = WebIDL::get_buffer_source_copy(WebIDL::BufferSource { data_parameter });
-    if (data_or_error.is_error()) {
-        VERIFY(data_or_error.error().code() == ENOMEM);
-        return WebIDL::create_rejected_promise_from_exception(realm, vm.throw_completion<JS::InternalError>(vm.error_message(JS::VM::ErrorMessage::OutOfMemory)));
-    }
+    auto data_or_error = get_a_copy_of_the_bytes(vm, WebIDL::BufferSource { data_parameter });
+    if (data_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, data_or_error.release_error());
     auto data = data_or_error.release_value();
 
     // 6. Let realm be the relevant realm of this.
@@ -1015,7 +1012,10 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(JS::Realm& realm, KeyFormat fo
     auto normalized_key_algorithm = normalized_key_algorithm_or_error.release_value();
 
     // 7. Let wrappedKey be the result of getting a copy of the bytes held by the wrappedKey parameter passed to the unwrapKey() method.
-    auto real_wrapped_key = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { wrapped_key }));
+    auto real_wrapped_key_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { wrapped_key });
+    if (real_wrapped_key_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, real_wrapped_key_or_error.release_error());
+    auto real_wrapped_key = real_wrapped_key_or_error.release_value();
 
     // 9. Let promise be a new Promise.
     auto promise = WebIDL::create_promise(realm);
@@ -1340,7 +1340,10 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_key(JS::Realm& realm, Algorit
 
     // 6. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
     //    decapsulateKey() method.
-    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { ciphertext }));
+    auto cipher_text_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { ciphertext });
+    if (cipher_text_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, cipher_text_or_error.release_error());
+    auto cipher_text = cipher_text_or_error.release_value();
 
     // 7. Let realm be the relevant realm of this.
 
@@ -1437,7 +1440,10 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(JS::Realm& realm, Algori
 
     // 4. Let ciphertext be the result of getting a copy of the bytes held by the ciphertext parameter passed to the
     //    decapsulateBits() method.
-    auto cipher_text = MUST(WebIDL::get_buffer_source_copy(WebIDL::BufferSource { ciphertext }));
+    auto cipher_text_or_error = get_a_copy_of_the_bytes(realm.vm(), WebIDL::BufferSource { ciphertext });
+    if (cipher_text_or_error.is_error())
+        return WebIDL::create_rejected_promise_from_exception(realm, cipher_text_or_error.release_error());
+    auto cipher_text = cipher_text_or_error.release_value();
 
     // 5. Let realm be the relevant realm of this.
 

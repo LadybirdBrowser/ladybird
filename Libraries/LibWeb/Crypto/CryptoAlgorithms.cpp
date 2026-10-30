@@ -174,14 +174,14 @@ static StringView key_format_to_string(KeyFormat format)
 AlgorithmMethods::~AlgorithmMethods() = default;
 
 // https://w3c.github.io/webcrypto/#big-integer
-static ::Crypto::UnsignedBigInteger big_integer_from_api_big_integer(GC::Ptr<JS::Uint8Array> const& big_integer)
+static JS::ThrowCompletionOr<::Crypto::UnsignedBigInteger> big_integer_from_api_big_integer(JS::VM& vm, GC::Ptr<JS::Uint8Array> const& big_integer)
 {
     // The BigInteger typedef is a Uint8Array that holds an arbitrary magnitude unsigned integer
     // **in big-endian order**. Values read from the API SHALL have minimal typed array length
     // (that is, at most 7 leading zero bits, except the value 0 which shall have length 8 bits).
     // The API SHALL accept values with any number of leading zero bits, including the empty array, which represents zero.
 
-    auto buffer = MUST(WebIDL::get_buffer_source_copy(*big_integer));
+    auto buffer = TRY_OR_THROW_OOM(vm, WebIDL::get_buffer_source_copy(*big_integer));
     if (!buffer.is_empty())
         return ::Crypto::UnsignedBigInteger::import_data(buffer);
     return ::Crypto::UnsignedBigInteger(0);
@@ -526,7 +526,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaKeyGenParams::from_valu
 
     public_exponent = static_cast<JS::Uint8Array&>(public_exponent_value.as_object());
 
-    return adopt_own<AlgorithmParams>(*new RsaKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent) });
+    return adopt_own<AlgorithmParams>(*new RsaKeyGenParams { modulus_length, TRY(big_integer_from_api_big_integer(vm, public_exponent)) });
 }
 
 RsaHashedKeyGenParams::~RsaHashedKeyGenParams() = default;
@@ -550,7 +550,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> RsaHashedKeyGenParams::fro
     auto hash_value = TRY(object.get("hash"_utf16_fly_string));
     auto hash = TRY(hash_algorithm_identifier_from_value(realm, hash_value));
 
-    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { modulus_length, big_integer_from_api_big_integer(public_exponent), hash });
+    return adopt_own<AlgorithmParams>(*new RsaHashedKeyGenParams { modulus_length, TRY(big_integer_from_api_big_integer(vm, public_exponent)), hash });
 }
 
 RsaHashedImportParams::~RsaHashedImportParams() = default;
