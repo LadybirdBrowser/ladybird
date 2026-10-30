@@ -33,6 +33,8 @@ public:
     virtual DecoderErrorOr<void> seek(i64 offset, AK::SeekMode) = 0;
     virtual DecoderErrorOr<size_t> read_into(Bytes) = 0;
     virtual DecoderErrorOr<FixedArray<u8>> read_bytes(size_t size) = 0;
+    // Advances past the bytes once they are all present without copying anything.
+    virtual DecoderErrorOr<void> read_and_discard(size_t size) = 0;
     virtual size_t position() const = 0;
     virtual Optional<u64> size() const = 0;
     // Waits for the size of the stream to become known. Only for callers with no way to express an
