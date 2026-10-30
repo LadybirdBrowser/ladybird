@@ -280,9 +280,18 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
         if (!linkify_attribute)
             return {};
 
-        auto attribute_url_without_quotes = attribute_value.as_string().trim("\""sv);
+        // NB: Only a leading quote starts a quoted value. Quotes elsewhere in an unquoted value are part of the value.
+        auto attribute_url = attribute_value.as_string();
+        if (attribute_url.starts_with('"') || attribute_url.starts_with('\'')) {
+            // NB: A quoted value that spans several lines reaches us one line at a time, so do not link any part of it.
+            if (attribute_url.length() < 2 || attribute_url[attribute_url.length() - 1] != attribute_url[0]) {
+                linkify_attribute = false;
+                return {};
+            }
+            attribute_url = attribute_url.substring_view(1, attribute_url.length() - 2);
+        }
 
-        return Web::DOMURL::parse(attribute_url_without_quotes, base_url);
+        return Web::DOMURL::parse(attribute_url, base_url);
     };
 
     size_t span_index = 0;
