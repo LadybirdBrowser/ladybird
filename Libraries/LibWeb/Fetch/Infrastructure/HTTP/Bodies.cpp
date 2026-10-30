@@ -224,7 +224,7 @@ GC::Ref<Body> byte_sequence_as_body(JS::Realm& realm, ReadonlyBytes bytes)
 }
 
 // https://fetch.spec.whatwg.org/#byte-sequence-as-a-body
-// NB: The body's stream is made from its bytes where the body is first read.
+// NB: Each view of the body makes its stream from these bytes.
 ResponseBody byte_sequence_as_response_body(ReadonlyBytes bytes)
 {
     return ResponseBody::from_bytes(MUST(Core::ImmutableBytes::copy(bytes)));

@@ -611,7 +611,7 @@ static bool handle_navigation_response_as_download(GC::Ref<NavigationParams> nav
         }
         auto suggested_filename = suggested_download_filename(download_url, *response->header_list(), {}, interface_origin);
 
-        // The UI process downloads the bytes this process received from the body first, then the rest of the request.
+        // A download the UI process starts reads the bytes released here before the rest of the request.
         ByteBuffer initial_data;
         for (auto const& received : response->release_body_for_transfer())
             initial_data.append(received.bytes());
