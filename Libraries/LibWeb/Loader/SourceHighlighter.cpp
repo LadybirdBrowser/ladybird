@@ -316,7 +316,13 @@ String SourceHighlighterClient::to_html_string(Optional<URL::URL> const& url, UR
             attribute_url = attribute_url.substring_view(1, attribute_url.length() - 2);
         }
 
-        return Web::DOMURL::parse(attribute_url, base_url);
+        auto url = Web::DOMURL::parse(attribute_url, base_url);
+
+        // NB: Following a javascript:, data: or blob: link could run the page's script inside the view-source document,
+        //     so only link to schemes that load an ordinary resource.
+        if (url.has_value() && !url->scheme().is_one_of("http"sv, "https"sv, "file"sv))
+            return {};
+        return url;
     };
 
     size_t span_index = 0;
