@@ -1845,7 +1845,9 @@ fn property_iterator_next_reads_key_snapshots() {
 }
 
 // Environments, laid out like this, in words: 2 the outer environment, 3
-// the shape, 6 the binding values, 7 the rare data, 8 the serial number.
+// the shape (both compressed, in the low half), 6 the binding values, 7 the
+// rare data, 8 the serial number. Environments and their shapes are cells in
+// the fake heap region.
 // Rare data has its binding flags at word 5. Environment shapes have their
 // flag count at word 5 and their flags at word 7. Realms have the global
 // object at word 3 and the global declarative environment at word 4. The
@@ -1854,11 +1856,11 @@ fn property_iterator_next_reads_key_snapshots() {
 const BINDING_MUTABLE: u8 = 2;
 
 struct FakeEnvironment {
-    words: Vec<u64>,
+    words: &'static mut [u64],
     values: Vec<u64>,
     rare_data: Vec<u64>,
     rare_flags: Vec<u8>,
-    shape: Vec<u64>,
+    shape: &'static mut [u64],
     shape_flags: Vec<u8>,
 }
 
@@ -1868,19 +1870,19 @@ impl FakeEnvironment {
     fn new(values: &[u64], flags: &[u8], shape_flags: Option<usize>, outer: Option<&FakeEnvironment>) -> Box<Self> {
         let in_shape = shape_flags.unwrap_or(0);
         let mut environment = Box::new(Self {
-            words: vec![0; 10],
+            words: super::fake_heap::cell(&[0; 10]),
             values: values.to_vec(),
             rare_data: vec![0; 8],
             rare_flags: flags[in_shape..].to_vec(),
-            shape: vec![0; 8],
+            shape: super::fake_heap::cell(&[0; 8]),
             shape_flags: flags[..in_shape].to_vec(),
         });
         environment.rare_data[5] = environment.rare_flags.as_ptr() as u64;
         environment.shape[5] = in_shape as u64;
         environment.shape[7] = environment.shape_flags.as_ptr() as u64;
-        environment.words[2] = outer.map_or(0, |outer| outer.words.as_ptr() as u64);
+        environment.words[2] = outer.map_or(0, |outer| super::fake_heap::compressed(outer.address()));
         if shape_flags.is_some() {
-            environment.words[3] = environment.shape.as_ptr() as u64;
+            environment.words[3] = super::fake_heap::compressed(environment.shape.as_ptr() as u64);
         }
         environment.words[6] = environment.values.as_ptr() as u64;
         environment.words[7] = environment.rare_data.as_ptr() as u64;
@@ -1910,7 +1912,10 @@ fn run_with_environments(
     let (result, machine) = run_program_with_snapshot(
         &program,
         arguments,
-        |snapshot| snapshot.executables[0].exit_sites = exit_sites,
+        |snapshot| {
+            snapshot.executables[0].exit_sites = exit_sites;
+            super::fake_heap::use_in(&mut snapshot.runtime);
+        },
         |machine| {
             machine.frame[1] = lexical.address();
             machine.frame[12] = variable.address();
@@ -2091,7 +2096,10 @@ fn create_variable() {
         let (result, machine) = run_program_with_snapshot(
             &program,
             &[],
-            |snapshot| snapshot.executables[0].identifiers = NAMES.to_vec(),
+            |snapshot| {
+                snapshot.executables[0].identifiers = NAMES.to_vec();
+                super::fake_heap::use_in(&mut snapshot.runtime);
+            },
             |machine| {
                 machine.frame[1] = environment.address();
                 machine.frame[12] = environment.address();
@@ -2103,7 +2111,7 @@ fn create_variable() {
     // A declarative environment with room for `capacity` values, `size` of
     // them bindings already.
     let environment = |size: u64, capacity: usize| {
-        let mut environment = FakeEnvironment::new(&vec![value::int32(7); capacity], &flags, Some(2), None);
+        let environment = FakeEnvironment::new(&vec![value::int32(7); capacity], &flags, Some(2), None);
         environment.words[1] = 1 << 40;
         environment.words[4] = size;
         environment.words[5] = capacity as u64;
@@ -2132,14 +2140,14 @@ fn create_variable() {
     assert_eq!(slow(environment(0, 2), 1, true, true), 0);
     assert_eq!(slow(environment(0, 2), 0, true, false), 0);
     assert_eq!(slow(environment(0, 2), 0, false, true), 0);
-    let mut duplicates = environment(0, 2);
+    let duplicates = environment(0, 2);
     duplicates.shape[4] = 0;
     assert_eq!(slow(duplicates, 0, false, false), 0);
     assert_eq!(slow(environment(1, 1), 1, true, true), 1);
-    let mut module = environment(0, 2);
+    let module = environment(0, 2);
     module.words[0] = MODULE_ENVIRONMENT_CLASS;
     assert_eq!(slow(module, 0, false, false), 0);
-    let mut object_environment = environment(0, 2);
+    let object_environment = environment(0, 2);
     object_environment.words[1] = 0;
     assert_eq!(slow(object_environment, 0, false, false), 0);
 }

@@ -229,12 +229,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .store64(&at(cell, layout.function_environment_binding_values), scratch);
         self.masm.bind(outside_the_cell);
-        // NB: The outer environment is the callee's environment, which ECMAScript functions always have.
-        self.emit_load_compressed_cell(
+        // NB: The outer environment is the callee's environment, which stays
+        //     compressed on the way.
+        self.masm.load32(
             scratch,
             &at(function, self.runtime.offsets.ecmascript_function_environment),
         );
-        self.masm.store64(&at(cell, layout.function_environment_outer), scratch);
+        self.masm.store32(&at(cell, layout.function_environment_outer), scratch);
         self.masm
             .store64(&at(cell, layout.function_environment_function_object), function);
         let no_this = self.masm.new_label();

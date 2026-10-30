@@ -559,7 +559,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .ok_or(CompileFailure::CodeGeneration)?;
         let (entry, resume) = self.defer_allocation(node, AllocationCall::Environment(shape_cache, capacity));
         let template_bytes = 8 * template.words.len() as u64;
-        let stored = [(template.binding_values_offset, 8), (template.outer_offset, 8)];
+        let stored = [(template.binding_values_offset, 8), (template.outer_offset, 4)];
         let fits = template.allocator != 0
             && template_bytes <= u64::from(template.cell_size)
             && stored_fields_fit(&stored, template_bytes);
@@ -590,8 +590,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm
                 .store_imm64(&at(environment, template.binding_values_offset), 0);
         }
-        self.emit_unbox_cell(temp, parent);
-        self.masm.store64(&at(environment, template.outer_offset), temp);
+        // NB: A cell value has the cell's offset into the heap region below its tag, so its low 32 bits shifted like
+        //     a cell pointer are the cell's compressed pointer.
+        self.emit_store_compressed_cell(&at(environment, template.outer_offset), parent, temp);
         self.masm.move64(output, environment);
         self.box_cell(output, output);
         self.masm.bind(resume);

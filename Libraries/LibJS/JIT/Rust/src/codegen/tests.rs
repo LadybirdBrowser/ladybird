@@ -1413,12 +1413,14 @@ mod execution {
 
     #[test]
     fn frame_fields() {
-        // Environments and objects are cells; the fake heap region starts at 0.
-        let outer_private_environment = [0u64; 2];
-        let private_environment = [outer_private_environment.as_ptr() as u64, 0];
-        let lexical_environment = [0u64; 2];
-        let function_object = [0, u64::from(FUNCTION_FLAG)];
-        let plain_object = [0u64, 0];
+        // Environments and objects are cells in the fake heap region, and a
+        // private environment has its outer environment compressed.
+        let outer_private_environment = fake_heap::cell(&[0; 2]);
+        let private_environment =
+            fake_heap::cell(&[fake_heap::compressed(outer_private_environment.as_ptr() as u64), 0]);
+        let lexical_environment = fake_heap::cell(&[0; 2]);
+        let function_object = fake_heap::cell(&[0, u64::from(FUNCTION_FLAG)]);
+        let plain_object = fake_heap::cell(&[0, 0]);
         let object_tag = u64::from(value::OBJECT_TAG) << 48;
         let program = assemble(|_| {
             vec![
@@ -1436,10 +1438,13 @@ mod execution {
             (plain_object.as_ptr() as u64 | object_tag, value::FALSE),
             (value::int32(1), value::FALSE),
         ] {
-            let (result, machine) = run_with(&program, test_layout(), &[argument], &[], |machine| {
-                machine.frame[1] = lexical_environment.as_ptr() as u64;
-                machine.frame[2] = private_environment.as_ptr() as u64;
+            let (snapshot, compiled) = compile_program_with(&program, test_layout(), &[], |snapshot| {
+                fake_heap::use_in(&mut snapshot.runtime)
             });
+            let mut machine = Machine::new(test_layout(), &[argument]);
+            machine.frame[1] = lexical_environment.as_ptr() as u64;
+            machine.frame[2] = private_environment.as_ptr() as u64;
+            let result = machine.run(&snapshot, &compiled);
             assert_eq!(result, returned(expected));
             assert_eq!(machine.frame[2], outer_private_environment.as_ptr() as u64);
             assert_eq!(machine.frame[1], lexical_environment.as_ptr() as u64);
@@ -4054,7 +4059,7 @@ mod direct_calls {
                 assert_eq!(frame[120 / 8], this, "this");
                 assert_eq!(&cell[..2], &[0x1000, 0x1001]);
                 assert_eq!(cell[2], if in_cell { address + 48 } else { 0 });
-                assert_eq!(cell[3], environment(FUNCTION_WORDS[0]), "outer environment");
+                assert_eq!(cell[3] as u32, FUNCTION_WORDS[0] as u32, "compressed outer environment");
                 assert_eq!(cell[4], callee.function.as_ptr() as u64, "function object");
                 assert_eq!(cell[5], if binds_this { value::int32(3) } else { 0 });
                 assert_eq!(heap, [164, 10_000, 1064]);

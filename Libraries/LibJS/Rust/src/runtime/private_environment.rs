@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::{Cell, RefCell};
+use core::cell::RefCell;
 
 use ak::Utf16FlyString;
 
@@ -13,6 +13,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 pub use crate::layout::environment::PrivateEnvironment;
+use crate::layout::member::NullableMember;
 
 #[derive(Clone, Default)]
 pub struct PrivateName {
@@ -58,6 +59,8 @@ pub struct PrivateEnvironmentStorage {
     unique_id: u64,
 }
 
+const _: () = assert!(size_of::<PrivateEnvironment>() == 56);
+
 define_cell!(PrivateEnvironment, Other);
 
 // SAFETY: The outer environment is the only cell a private environment reaches; names hold no cells.
@@ -76,7 +79,7 @@ impl PrivateEnvironment {
         vm.next_private_environment_id().set(unique_id + 1);
         vm.heap().allocate(|_| PrivateEnvironment {
             header: CellHeader::for_class(Self::CLASS),
-            outer: Cell::new(parent),
+            outer: NullableMember::new(parent),
             storage: PrivateEnvironmentStorage {
                 private_names: RefCell::new(Vec::new()),
                 unique_id,
