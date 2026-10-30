@@ -374,7 +374,10 @@ ErrorOr<struct stat> lstat(StringView path)
 
 ErrorOr<size_t> read(int fd, Bytes buffer)
 {
-    auto rc = ::read(fd, buffer.data(), buffer.size());
+    ssize_t rc;
+    do {
+        rc = ::read(fd, buffer.data(), buffer.size());
+    } while (rc < 0 && errno == EINTR);
     if (rc < 0)
         return Error::from_syscall("read"sv, errno);
     return rc;
@@ -382,7 +385,10 @@ ErrorOr<size_t> read(int fd, Bytes buffer)
 
 ErrorOr<size_t> write(int fd, ReadonlyBytes buffer)
 {
-    auto rc = ::write(fd, buffer.data(), buffer.size());
+    ssize_t rc;
+    do {
+        rc = ::write(fd, buffer.data(), buffer.size());
+    } while (rc < 0 && errno == EINTR);
     if (rc < 0)
         return Error::from_syscall("write"sv, errno);
     return rc;
