@@ -6,6 +6,7 @@
 
 #include <AK/MemoryStream.h>
 #include <LibGfx/Bitmap.h>
+#include <LibGfx/CMYKBitmap.h>
 #include <LibGfx/ImageFormats/BMPLoader.h>
 #include <LibGfx/ImageFormats/BMPWriter.h>
 #include <LibGfx/ImageFormats/JPEGLoader.h>
@@ -106,6 +107,35 @@ TEST_CASE(test_jpeg)
 {
     // JPEG is lossy, so the roundtripped bitmap won't match the original bitmap. But it should still have the same size.
     (void)TRY_OR_FAIL((get_roundtrip_bitmap<Gfx::JPEGWriter, Gfx::JPEGImageDecoderPlugin>(TRY_OR_FAIL(create_test_rgb_bitmap()))));
+}
+
+TEST_CASE(test_jpeg_cmyk)
+{
+    auto bitmap = TRY_OR_FAIL(Gfx::CMYKBitmap::create_with_size({ 47, 33 }));
+    for (int y = 0; y < bitmap->size().height(); ++y)
+        for (int x = 0; x < bitmap->size().width(); ++x)
+            bitmap->scanline(y)[x] = { static_cast<u8>(x * 5), static_cast<u8>(y * 7), static_cast<u8>(x + y), 30 };
+
+    AllocatingMemoryStream stream;
+    TRY_OR_FAIL(Gfx::JPEGWriter::encode(stream, *bitmap));
+    auto encoded_data = TRY_OR_FAIL(stream.read_until_eof());
+
+    auto decoder = TRY_OR_FAIL(Gfx::JPEGImageDecoderPlugin::create(encoded_data));
+    EXPECT_EQ(decoder->natural_frame_format(), Gfx::NaturalFrameFormat::CMYK);
+    auto decoded = TRY_OR_FAIL(decoder->cmyk_frame());
+    EXPECT_EQ(decoded->size(), bitmap->size());
+
+    // Lossy compression and chroma subsampling allow some error, but every channel must keep its meaning.
+    for (int y = 0; y < bitmap->size().height(); ++y) {
+        for (int x = 0; x < bitmap->size().width(); ++x) {
+            auto expected = bitmap->scanline(y)[x];
+            auto actual = decoded->scanline(y)[x];
+            EXPECT(abs(expected.c - actual.c) <= 16);
+            EXPECT(abs(expected.m - actual.m) <= 16);
+            EXPECT(abs(expected.y - actual.y) <= 16);
+            EXPECT(abs(expected.k - actual.k) <= 16);
+        }
+    }
 }
 
 TEST_CASE(test_jpeg_icc_profile)
