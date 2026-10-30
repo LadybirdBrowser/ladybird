@@ -3948,6 +3948,15 @@ impl<'pass> GridFormattingContext<'pass> {
         let mut constraints = self.grid_area_constraints(item);
         if axis.is_column() {
             constraints = self.column_sizing_constraints(item, constraints);
+            if constraints.percentage_basis_block_size.is_none() && self.sizing().establishes_orthogonal_flow(item.box_)
+            {
+                // NB: An orthogonal item can take its own inline size from its percentage block basis. Where no row
+                //     gives it one yet, its column contributions were measured against the container's, so its inline
+                //     size is resolved against that too.
+                constraints.percentage_basis_block_size = self.container_constraints().percentage_basis_block_size;
+                constraints.quirks_mode_percentage_basis_block_size =
+                    self.quirks_mode_percentage_basis_for_items(constraints.percentage_basis_block_size);
+            }
         } else if is_stacking_axis {
             constraints.percentage_basis_block_size = self.grid_lanes_stacking_containing_block_size(axis);
         } else {
