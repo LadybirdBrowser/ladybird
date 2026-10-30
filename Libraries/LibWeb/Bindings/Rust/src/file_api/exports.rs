@@ -4,8 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! The C ABI through which LibWeb's C++ creates the Blob and File objects that it hands to script, and reads those that
-//! it receives, which Libraries/LibWeb/FileAPI/Blob.h and File.h declare. A Blob cell can be that of a File.
+//! The C ABI through which LibWeb's C++ creates the Blob, File and FileList objects that it hands to script, and reads
+//! those that it receives, which Libraries/LibWeb/FileAPI/Blob.h, File.h and FileList.h declare. A Blob cell can be that
+//! of a File.
 
 use core::ffi::c_void;
 
@@ -14,6 +15,7 @@ use libjs_rust::api::Vm;
 
 use super::blob::{Blob, BlobPropertyBag, EndingType, ForeignBytesAbi};
 use super::file::{File, FilePropertyBag};
+use super::file_list::FileList;
 use crate::bindings::interface::{Inherits, Interface, Ref, allocate, cell_from_abi, cell_if_abi, cell_into_abi};
 
 /// # Safety
@@ -215,4 +217,54 @@ pub unsafe extern "C" fn web_file_name(cell: *mut c_void) -> usize {
 pub unsafe extern "C" fn web_file_last_modified(cell: *mut c_void) -> i64 {
     // SAFETY: The caller passes a live cell of a File.
     unsafe { object_from_abi::<File>(cell) }.last_modified_value()
+}
+
+/// A new FileList with no files.
+///
+/// # Safety
+///
+/// `vm` must be the live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_file_list_create(vm: *mut c_void) -> *mut c_void {
+    // SAFETY: The caller passes the live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    cell_into_abi(allocate(vm, |defer_gc| FileList::new(defer_gc, &[])))
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `list` the live cell of a FileList, and `file` that of a File.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_file_list_add_file(vm: *mut c_void, list: *mut c_void, file: *mut c_void) {
+    // SAFETY: The caller passes the live VM, and live cells of a FileList and a File.
+    let (vm, list, file) = unsafe {
+        (
+            vm_from_abi(vm),
+            object_from_abi::<FileList>(list),
+            cell_from_abi::<File>(file),
+        )
+    };
+    list.add_file(vm, file);
+}
+
+/// # Safety
+///
+/// `list` must be the live cell of a FileList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_file_list_length(list: *mut c_void) -> u32 {
+    // SAFETY: The caller passes a live cell of a FileList.
+    unsafe { object_from_abi::<FileList>(list) }.file_count()
+}
+
+/// The cell of the File at the index of the FileList, or null if it has none there.
+///
+/// # Safety
+///
+/// `list` must be the live cell of a FileList.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_file_list_item(list: *mut c_void, index: u32) -> *mut c_void {
+    // SAFETY: The caller passes a live cell of a FileList.
+    unsafe { object_from_abi::<FileList>(list) }
+        .file(index)
+        .map_or(core::ptr::null_mut(), cell_into_abi)
 }

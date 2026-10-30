@@ -7,53 +7,29 @@
 
 #pragma once
 
-#include <AK/Vector.h>
 #include <LibGC/Ptr.h>
-#include <LibWeb/Bindings/Serializable.h>
-#include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/Bindings/FileList.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/FileAPI/File.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::FileAPI {
 
-class WEB_API FileList
-    : public Bindings::GCAllocatedWrappable
-    , public Bindings::Serializable {
-    WEB_WRAPPABLE(FileList, Bindings::GCAllocatedWrappable);
-    GC_DECLARE_ALLOCATOR(FileList);
+// https://w3c.github.io/FileAPI/#filelist-section
+class WEB_API FileList : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(FileList, file_list)
 
 public:
     [[nodiscard]] static GC::Ref<FileList> create();
 
-    void add_file(GC::Ref<File> file) { m_files.append(file); }
-
-    virtual ~FileList() override;
+    void add_file(GC::Ref<File>);
 
     // https://w3c.github.io/FileAPI/#dfn-length
-    WebIDL::UnsignedLong length() const { return m_files.size(); }
+    WebIDL::UnsignedLong length() const;
 
     // https://w3c.github.io/FileAPI/#dfn-item
-    File* item(size_t index)
-    {
-        return index < m_files.size() ? m_files[index].ptr() : nullptr;
-    }
-
-    // https://w3c.github.io/FileAPI/#dfn-item
-    File const* item(size_t index) const
-    {
-        return index < m_files.size() ? m_files[index].ptr() : nullptr;
-    }
-
-    virtual WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory&) override;
-    virtual WebIDL::ExceptionOr<void> deserialization_steps(JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory&) override;
-
-private:
-    explicit FileList();
-
-    virtual void visit_edges(GC::Cell::Visitor&) override;
-
-    Vector<GC::Ref<File>> m_files;
+    GC::Ptr<File> item(size_t index) const;
 };
 
 }

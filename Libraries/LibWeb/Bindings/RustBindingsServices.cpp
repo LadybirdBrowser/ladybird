@@ -132,6 +132,7 @@ JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, Fla
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 JSCompletion web_bindings_serialize_value(RustSerializationWriter*, JSValue);
 void web_bindings_serialize_u32(RustSerializationWriter*, u32);
+void web_bindings_serialize_u64(RustSerializationWriter*, u64);
 void web_bindings_serialize_f64(RustSerializationWriter*, double);
 void web_bindings_serialize_bool(RustSerializationWriter*, bool);
 void web_bindings_serialize_i64(RustSerializationWriter*, i64);
@@ -140,6 +141,7 @@ void web_bindings_serialize_utf16_string(RustSerializationWriter*, FlatPtr strin
 void web_bindings_serialize_bytes(RustSerializationWriter*, ReadonlyBytes);
 JSCompletion web_bindings_deserialize_value(RustSerializationReader*);
 JSCompletion web_bindings_deserialize_u32(RustSerializationReader*, u32* out_value);
+JSCompletion web_bindings_deserialize_u64(RustSerializationReader*, u64* out_value);
 JSCompletion web_bindings_deserialize_f64(RustSerializationReader*, double* out_value);
 JSCompletion web_bindings_deserialize_bool(RustSerializationReader*, bool* out_value);
 JSCompletion web_bindings_deserialize_i64(RustSerializationReader*, i64* out_value);
@@ -249,6 +251,11 @@ void web_bindings_serialize_u32(RustSerializationWriter* writer, u32 value)
     writer->serialized.encode(value);
 }
 
+void web_bindings_serialize_u64(RustSerializationWriter* writer, u64 value)
+{
+    writer->serialized.encode(value);
+}
+
 void web_bindings_serialize_f64(RustSerializationWriter* writer, double value)
 {
     writer->serialized.encode(value);
@@ -286,6 +293,11 @@ JSCompletion web_bindings_deserialize_value(RustSerializationReader* reader)
 }
 
 JSCompletion web_bindings_deserialize_u32(RustSerializationReader* reader, u32* out_value)
+{
+    return deserialize_plain_value(reader, out_value);
+}
+
+JSCompletion web_bindings_deserialize_u64(RustSerializationReader* reader, u64* out_value)
 {
     return deserialize_plain_value(reader, out_value);
 }
