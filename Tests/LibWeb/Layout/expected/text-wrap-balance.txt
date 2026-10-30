@@ -14,12 +14,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "Servo aims to empower"
         frag 1 from TextNode start: 22, length: 17, rect: [69.40625,78 177.171875x20] baseline: 16
             "developers with a"
-        frag 2 from TextNode start: 40, length: 29, rect: [12.75,98 290.5x20] baseline: 16
-            "lightweight, high-performance"
-        frag 3 from TextNode start: 70, length: 25, rect: [30.796875,118 254.40625x20] baseline: 16
-            "alternative for embedding"
-        frag 4 from TextNode start: 96, length: 17, rect: [70.296875,138 175.40625x20] baseline: 16
-            "web technologies."
+        frag 2 from TextNode start: 40, length: 18, rect: [76.109375,98 163.78125x20] baseline: 16
+            "lightweight, high-"
+        frag 3 from TextNode start: 58, length: 27, rect: [15.296875,118 285.390625x20] baseline: 16
+            "performance alternative for"
+        frag 4 from TextNode start: 86, length: 27, rect: [17.421875,138 281.140625x20] baseline: 16
+            "embedding web technologies."
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,168] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
