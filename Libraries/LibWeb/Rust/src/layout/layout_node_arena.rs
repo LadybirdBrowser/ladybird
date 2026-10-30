@@ -50,8 +50,8 @@ pub(crate) const SLOTS_PER_CHUNK: usize = 256;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IntrinsicSizeCacheKey {
-    pub(crate) measured_at_inline_size: Option<CssPixels>,
-    pub(crate) measured_at_block_size: Option<CssPixels>,
+    /// The block size inline sizes were measured at, or the inline size a block size was measured at.
+    pub(crate) measured_at_other_axis_size: Option<CssPixels>,
     pub(crate) percentage_basis_inline_size: Option<CssPixels>,
     pub(crate) percentage_basis_block_size: Option<CssPixels>,
     pub(crate) quirks_mode_percentage_basis_block_size: Option<CssPixels>,
@@ -61,23 +61,29 @@ pub(crate) struct IntrinsicSizeCacheKey {
 
 impl IntrinsicSizeCacheKey {
     /// Whether a measurement made under this key answers `probe`: the keys agree on every part the measurement observed.
-    fn answers(&self, probe: &Self, observed: IntrinsicMeasurementDependencies) -> bool {
+    fn answers(&self, probe: &Self, observed: ObservedKeyParts) -> bool {
         let Self {
-            measured_at_inline_size,
-            measured_at_block_size,
+            measured_at_other_axis_size,
             percentage_basis_inline_size,
             percentage_basis_block_size,
             quirks_mode_percentage_basis_block_size,
             measured_in_transposed_frame,
         } = *self;
-        measured_at_inline_size == probe.measured_at_inline_size
-            && measured_in_transposed_frame == probe.measured_in_transposed_frame
-            && (!observed.block_size || measured_at_block_size == probe.measured_at_block_size)
+        measured_in_transposed_frame == probe.measured_in_transposed_frame
+            && (!observed.other_axis_size || measured_at_other_axis_size == probe.measured_at_other_axis_size)
             && (!observed.percentage_inline_basis || percentage_basis_inline_size == probe.percentage_basis_inline_size)
-            && (!observed.percentage_block_size
+            && (!observed.percentage_block_bases
                 || (percentage_basis_block_size == probe.percentage_basis_block_size
                     && quirks_mode_percentage_basis_block_size == probe.quirks_mode_percentage_basis_block_size))
     }
+}
+
+/// The parts of its key an intrinsic size measurement read.
+#[derive(Clone, Copy)]
+struct ObservedKeyParts {
+    other_axis_size: bool,
+    percentage_inline_basis: bool,
+    percentage_block_bases: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -97,8 +103,8 @@ impl IntrinsicMeasurementDependencies {
     }
 }
 
-pub(crate) trait IntrinsicMeasurement: Copy {
-    fn dependencies(&self) -> IntrinsicMeasurementDependencies;
+trait IntrinsicMeasurement: Copy {
+    fn observed_key_parts(&self) -> ObservedKeyParts;
 }
 
 /// The intrinsic size measurements of one box, each under the key it was measured for, answering every key that agrees
@@ -124,9 +130,10 @@ impl<V> IntrinsicMeasurements<V> {
     where
         V: IntrinsicMeasurement,
     {
-        self.entries
-            .iter()
-            .find_map(|(key, measurement)| key.answers(probe, measurement.dependencies()).then_some(*measurement))
+        self.entries.iter().find_map(|(key, measurement)| {
+            key.answers(probe, measurement.observed_key_parts())
+                .then_some(*measurement)
+        })
     }
 
     fn insert(&mut self, key: IntrinsicSizeCacheKey, value: V) {
@@ -174,12 +181,22 @@ pub(crate) struct IntrinsicInlineSizeMeasurement {
     pub(crate) depends_on_block_size: bool,
 }
 
-impl IntrinsicMeasurement for IntrinsicInlineSizeMeasurement {
-    fn dependencies(&self) -> IntrinsicMeasurementDependencies {
+impl IntrinsicInlineSizeMeasurement {
+    pub(crate) fn dependencies(&self) -> IntrinsicMeasurementDependencies {
         IntrinsicMeasurementDependencies {
             percentage_block_size: self.depends_on_percentage_block_size,
             percentage_inline_basis: self.depends_on_percentage_inline_basis,
             block_size: self.depends_on_block_size,
+        }
+    }
+}
+
+impl IntrinsicMeasurement for IntrinsicInlineSizeMeasurement {
+    fn observed_key_parts(&self) -> ObservedKeyParts {
+        ObservedKeyParts {
+            other_axis_size: self.depends_on_block_size,
+            percentage_inline_basis: self.depends_on_percentage_inline_basis,
+            percentage_block_bases: self.depends_on_percentage_block_size,
         }
     }
 }
@@ -192,11 +209,11 @@ pub(crate) struct IntrinsicBlockSizeMeasurement {
 }
 
 impl IntrinsicMeasurement for IntrinsicBlockSizeMeasurement {
-    fn dependencies(&self) -> IntrinsicMeasurementDependencies {
-        IntrinsicMeasurementDependencies {
-            percentage_block_size: self.depends_on_percentage_block_size,
+    fn observed_key_parts(&self) -> ObservedKeyParts {
+        ObservedKeyParts {
+            other_axis_size: true,
             percentage_inline_basis: self.depends_on_percentage_inline_basis,
-            block_size: false,
+            percentage_block_bases: self.depends_on_percentage_block_size,
         }
     }
 }
@@ -207,28 +224,6 @@ struct IntrinsicSizeMaps {
     inline_size_depends_on_block_size: Option<bool>,
     content_inline_sizes: IntrinsicMeasurements<IntrinsicInlineSizeMeasurement>,
     max_content_block_size: IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>,
-}
-
-impl IntrinsicSizeMaps {
-    fn block_sizes(
-        &self,
-        kind: IntrinsicSizeCacheKind,
-    ) -> Option<&IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>> {
-        match kind {
-            IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
-            IntrinsicSizeCacheKind::MaxContentBlock => Some(&self.max_content_block_size),
-        }
-    }
-
-    fn block_sizes_mut(
-        &mut self,
-        kind: IntrinsicSizeCacheKind,
-    ) -> Option<&mut IntrinsicMeasurements<IntrinsicBlockSizeMeasurement>> {
-        match kind {
-            IntrinsicSizeCacheKind::MinContentInline | IntrinsicSizeCacheKind::MaxContentInline => None,
-            IntrinsicSizeCacheKind::MaxContentBlock => Some(&mut self.max_content_block_size),
-        }
-    }
 }
 
 #[derive(Default)]
@@ -262,18 +257,12 @@ impl IntrinsicSizeCaches {
         answer(slot.sizes.as_ref()?)
     }
 
-    pub(crate) fn intrinsic_block_size_cache_get(
+    pub(crate) fn max_content_block_size_cache_get(
         &self,
         node: NodeSlotId,
-        kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
     ) -> Option<IntrinsicBlockSizeMeasurement> {
-        self.with_maps(node, |maps| {
-            let map = maps
-                .block_sizes(kind)
-                .expect("block size cache kind must use the block axis");
-            map.answer(&key)
-        })
+        self.with_maps(node, |maps| maps.max_content_block_size.answer(&key))
     }
 
     fn with_maps_mut(&self, node: NodeSlotId, callback: impl FnOnce(&mut IntrinsicSizeMaps)) {
@@ -292,19 +281,13 @@ impl IntrinsicSizeCaches {
         callback(slot.sizes.get_or_insert_with(Box::default));
     }
 
-    pub(crate) fn intrinsic_block_size_cache_put(
+    pub(crate) fn max_content_block_size_cache_put(
         &self,
         node: NodeSlotId,
-        kind: IntrinsicSizeCacheKind,
         key: IntrinsicSizeCacheKey,
         value: IntrinsicBlockSizeMeasurement,
     ) {
-        self.with_maps_mut(node, |maps| {
-            let map = maps
-                .block_sizes_mut(kind)
-                .expect("block size cache kind must use the block axis");
-            map.insert(key, value);
-        });
+        self.with_maps_mut(node, |maps| maps.max_content_block_size.insert(key, value));
     }
 
     pub(crate) fn intrinsic_inline_size_measurement_cache_get(
@@ -6296,8 +6279,7 @@ mod tests {
     };
     use crate::layout::layout_node_arena::{
         Chunk, DerivedStyleRecord, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement,
-        IntrinsicMeasurementDependencies, IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena,
-        SLOTS_PER_CHUNK,
+        IntrinsicMeasurementDependencies, IntrinsicSizeCacheKey, LayoutNodeArena, SLOTS_PER_CHUNK,
     };
     use crate::layout::node_data::{NodeConstructionFacts, NodeFlag, NodeKind, NodeSlotId};
     use crate::layout::{CssPixels, fragment_tree};
@@ -7428,7 +7410,7 @@ mod tests {
         let first = arena.allocate_for_test();
         scratch.apply_memo_invalidations(&mut arena);
         let key = IntrinsicSizeCacheKey {
-            measured_at_inline_size: Some(CssPixels::from_raw(64)),
+            measured_at_other_axis_size: Some(CssPixels::from_raw(64)),
             ..Default::default()
         };
         let value = IntrinsicBlockSizeMeasurement {
@@ -7446,12 +7428,9 @@ mod tests {
         };
         let dependency_computations = Cell::new(0);
 
-        caches.intrinsic_block_size_cache_put(first.slot, IntrinsicSizeCacheKind::MaxContentBlock, key, value);
+        caches.max_content_block_size_cache_put(first.slot, key, value);
         caches.intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
-        assert_eq!(
-            caches.intrinsic_block_size_cache_get(first.slot, IntrinsicSizeCacheKind::MaxContentBlock, key),
-            Some(value)
-        );
+        assert_eq!(caches.max_content_block_size_cache_get(first.slot, key), Some(value));
         assert_eq!(
             caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
             Some(inline_measurement)
@@ -7470,10 +7449,7 @@ mod tests {
             "a reset reaches the cache when the stage applies the arena's notes"
         );
         scratch.apply_memo_invalidations(&mut arena);
-        assert_eq!(
-            caches.intrinsic_block_size_cache_get(first.slot, IntrinsicSizeCacheKind::MaxContentBlock, key),
-            None
-        );
+        assert_eq!(caches.max_content_block_size_cache_get(first.slot, key), None);
         assert_eq!(
             caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
             None
@@ -7513,33 +7489,32 @@ mod tests {
         let allocation = arena.allocate_for_test();
         let dependent_allocation = arena.allocate_for_test();
         let key_with_basis = |basis: i32| IntrinsicSizeCacheKey {
-            measured_at_inline_size: Some(CssPixels::from_raw(64)),
+            measured_at_other_axis_size: Some(CssPixels::from_raw(64)),
             percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
             quirks_mode_percentage_basis_block_size: Some(CssPixels::from_raw(basis)),
             ..Default::default()
         };
         let key_without_basis = IntrinsicSizeCacheKey {
-            measured_at_inline_size: Some(CssPixels::from_raw(64)),
+            measured_at_other_axis_size: Some(CssPixels::from_raw(64)),
             ..Default::default()
         };
-        let max_content = IntrinsicSizeCacheKind::MaxContentBlock;
 
         let independent = IntrinsicBlockSizeMeasurement {
             size: CssPixels::from_raw(128),
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: false,
         };
-        caches.intrinsic_block_size_cache_put(allocation.slot, max_content, key_with_basis(100), independent);
+        caches.max_content_block_size_cache_put(allocation.slot, key_with_basis(100), independent);
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(allocation.slot, max_content, key_with_basis(100)),
+            caches.max_content_block_size_cache_get(allocation.slot, key_with_basis(100)),
             Some(independent)
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(allocation.slot, max_content, key_with_basis(200)),
+            caches.max_content_block_size_cache_get(allocation.slot, key_with_basis(200)),
             Some(independent)
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(allocation.slot, max_content, key_without_basis),
+            caches.max_content_block_size_cache_get(allocation.slot, key_without_basis),
             Some(independent)
         );
 
@@ -7548,27 +7523,27 @@ mod tests {
             depends_on_percentage_block_size: true,
             depends_on_percentage_inline_basis: false,
         };
-        caches.intrinsic_block_size_cache_put(dependent_allocation.slot, max_content, key_without_basis, dependent);
+        caches.max_content_block_size_cache_put(dependent_allocation.slot, key_without_basis, dependent);
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(dependent_allocation.slot, max_content, key_without_basis),
+            caches.max_content_block_size_cache_get(dependent_allocation.slot, key_without_basis),
             Some(dependent)
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(dependent_allocation.slot, max_content, key_with_basis(100)),
+            caches.max_content_block_size_cache_get(dependent_allocation.slot, key_with_basis(100)),
             None
         );
-        caches.intrinsic_block_size_cache_put(dependent_allocation.slot, max_content, key_with_basis(100), dependent);
+        caches.max_content_block_size_cache_put(dependent_allocation.slot, key_with_basis(100), dependent);
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(dependent_allocation.slot, max_content, key_with_basis(100)),
+            caches.max_content_block_size_cache_get(dependent_allocation.slot, key_with_basis(100)),
             Some(dependent)
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(dependent_allocation.slot, max_content, key_with_basis(200)),
+            caches.max_content_block_size_cache_get(dependent_allocation.slot, key_with_basis(200)),
             None
         );
 
         let key_at_another_inline_size_with_inline_basis = |basis: i32| IntrinsicSizeCacheKey {
-            measured_at_inline_size: Some(CssPixels::from_raw(96)),
+            measured_at_other_axis_size: Some(CssPixels::from_raw(96)),
             percentage_basis_inline_size: Some(CssPixels::from_raw(basis)),
             ..key_with_basis(100)
         };
@@ -7577,24 +7552,18 @@ mod tests {
             depends_on_percentage_block_size: false,
             depends_on_percentage_inline_basis: true,
         };
-        caches.intrinsic_block_size_cache_put(
+        caches.max_content_block_size_cache_put(
             allocation.slot,
-            max_content,
             key_at_another_inline_size_with_inline_basis(300),
             observes_inline_basis,
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(
-                allocation.slot,
-                max_content,
-                key_at_another_inline_size_with_inline_basis(300)
-            ),
+            caches.max_content_block_size_cache_get(allocation.slot, key_at_another_inline_size_with_inline_basis(300)),
             Some(observes_inline_basis)
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(
+            caches.max_content_block_size_cache_get(
                 allocation.slot,
-                max_content,
                 IntrinsicSizeCacheKey {
                     percentage_basis_block_size: Some(CssPixels::from_raw(200)),
                     ..key_at_another_inline_size_with_inline_basis(300)
@@ -7603,11 +7572,7 @@ mod tests {
             Some(observes_inline_basis)
         );
         assert_eq!(
-            caches.intrinsic_block_size_cache_get(
-                allocation.slot,
-                max_content,
-                key_at_another_inline_size_with_inline_basis(400)
-            ),
+            caches.max_content_block_size_cache_get(allocation.slot, key_at_another_inline_size_with_inline_basis(400)),
             None
         );
         arena
@@ -7624,8 +7589,7 @@ mod tests {
         measured_at_block_size: Option<i32>,
     ) -> IntrinsicSizeCacheKey {
         IntrinsicSizeCacheKey {
-            measured_at_inline_size: None,
-            measured_at_block_size: measured_at_block_size.map(CssPixels::from_raw),
+            measured_at_other_axis_size: measured_at_block_size.map(CssPixels::from_raw),
             percentage_basis_inline_size: percentage_basis_inline_size.map(CssPixels::from_raw),
             percentage_basis_block_size: percentage_basis_block_size.map(CssPixels::from_raw),
             quirks_mode_percentage_basis_block_size: percentage_basis_block_size.map(CssPixels::from_raw),

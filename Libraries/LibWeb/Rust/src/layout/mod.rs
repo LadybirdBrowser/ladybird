@@ -71,7 +71,6 @@ use crate::css::style::fast_hash::FastSet as HashSet;
 use crate::layout::layout_node_arena::FirstLineMaxContent;
 use crate::layout::layout_node_arena::IntrinsicBlockSizeMeasurement;
 use crate::layout::layout_node_arena::IntrinsicInlineSizeMeasurement;
-use crate::layout::layout_node_arena::IntrinsicMeasurement;
 use crate::layout::layout_node_arena::IntrinsicMeasurementDependencies;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKey;
 use crate::layout::layout_node_arena::IntrinsicSizeCacheKind;
