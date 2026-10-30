@@ -1557,8 +1557,8 @@ static void send_global_privacy_control(WebContentPage const& page)
 // embedding an out-of-process iframe doesn't have.
 static void send_force_dark(WebContentPage const& page)
 {
-    // FIXME: This is not a "debug request". Add a proper endpoint for this toggle.
-    page.async_debug_request("set-force-dark"sv, Application::settings().content_settings().enable_force_dark ? "on"sv : "off"sv);
+    auto const& settings = Application::settings().content_settings();
+    page.async_set_force_dark_settings(settings.enable_force_dark, settings.force_dark_per_host);
 }
 
 void ViewImplementation::send_preferences_to_page(WebContentPage& page)

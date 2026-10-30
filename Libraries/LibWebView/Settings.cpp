@@ -47,6 +47,7 @@ static constexpr auto WINDOW_MAXIMIZED_KEY = "maximized"sv;
 
 static constexpr auto CONTENT_SETTINGS_KEY = "content"sv;
 static constexpr auto DEFAULT_ZOOM_LEVEL_FACTOR_KEY = "defaultZoomLevelFactor"sv;
+static constexpr auto FORCE_DARK_PER_HOST_KEY = "forceDarkPerHost"sv;
 static constexpr auto ZOOM_PER_HOST_KEY = "zoomPerHost"sv;
 static constexpr auto ENABLE_FORCE_DARK_KEY = "enableForceDark"sv;
 
@@ -592,6 +593,10 @@ JsonValue Settings::serialize_json() const
     content_settings.set(DEFAULT_ZOOM_LEVEL_FACTOR_KEY, m_content_settings.default_zoom_level_factor);
     content_settings.set(ZOOM_PER_HOST_KEY, move(zoom_per_host));
     content_settings.set(ENABLE_FORCE_DARK_KEY, m_content_settings.enable_force_dark);
+    JsonObject force_dark_per_host;
+    for (auto const& [host, enabled] : m_content_settings.force_dark_per_host)
+        force_dark_per_host.set(host, enabled);
+    content_settings.set(FORCE_DARK_PER_HOST_KEY, move(force_dark_per_host));
     settings.set(CONTENT_SETTINGS_KEY, move(content_settings));
 
     JsonObject tab_settings;
@@ -890,6 +895,13 @@ ContentSettings Settings::parse_content_settings(JsonValue const& settings)
     if (auto enable_force_dark = settings.as_object().get_bool(ENABLE_FORCE_DARK_KEY); enable_force_dark.has_value())
         content_settings.enable_force_dark = *enable_force_dark;
 
+    if (auto per_host = settings.as_object().get_object(FORCE_DARK_PER_HOST_KEY); per_host.has_value()) {
+        per_host->for_each_member([&](auto const& host, JsonValue const& value) {
+            if (!host.is_empty() && value.is_bool())
+                content_settings.force_dark_per_host.set(host, value.as_bool());
+        });
+    }
+
     return content_settings;
 }
 
@@ -898,6 +910,32 @@ void Settings::set_content_settings(ContentSettings content_settings)
     m_content_settings = move(content_settings);
     persist_settings();
 
+    for (auto& observer : m_observers)
+        observer.content_settings_changed();
+}
+
+bool Settings::force_dark_for_host(StringView host) const
+{
+    if (host.is_empty())
+        return m_content_settings.enable_force_dark;
+    return m_content_settings.force_dark_per_host.get(host).value_or(m_content_settings.enable_force_dark);
+}
+
+void Settings::set_force_dark_for_host(String const& host, bool enabled)
+{
+    if (host.is_empty() || m_content_settings.force_dark_per_host.get(host) == enabled)
+        return;
+    m_content_settings.force_dark_per_host.set(host, enabled);
+    persist_settings();
+    for (auto& observer : m_observers)
+        observer.content_settings_changed();
+}
+
+void Settings::reset_force_dark_for_host(StringView host)
+{
+    if (!m_content_settings.force_dark_per_host.remove(host))
+        return;
+    persist_settings();
     for (auto& observer : m_observers)
         observer.content_settings_changed();
 }
@@ -1375,7 +1413,12 @@ void Settings::remove_observer(Badge<SettingsObserver>, SettingsObserver& observ
 }
 
 SettingsObserver::SettingsObserver()
-    : m_settings(Application::settings())
+    : SettingsObserver(Application::settings())
+{
+}
+
+SettingsObserver::SettingsObserver(Settings& settings)
+    : m_settings(settings)
 {
     m_settings->add_observer({}, *this);
 }

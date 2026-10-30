@@ -1643,6 +1643,7 @@ void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
     DOM::Document::invalidate_full_activity();
     if (document)
         document->set_navigable(this);
+    update_force_dark_for_active_document();
     set_needs_to_record_display_list();
 
     VERIFY(m_active_session_history_entry);
@@ -6727,6 +6728,26 @@ void LocalNavigable::set_should_show_line_box_borders(bool value)
 
     for (auto const& child_navigable : child_navigables())
         child_navigable->set_should_show_line_box_borders(value);
+}
+
+void LocalNavigable::set_force_dark_settings(bool enabled, HashMap<String, bool> per_host)
+{
+    m_force_dark_default = enabled;
+    m_force_dark_per_host = move(per_host);
+    update_force_dark_for_active_document();
+}
+
+void LocalNavigable::update_force_dark_for_active_document()
+{
+    if (!is_top_level_traversable())
+        return;
+    auto enabled = m_force_dark_default;
+    if (auto document = active_document(); document && document->url().host().has_value()) {
+        auto host = MUST(String::from_utf8(document->url().serialized_host()));
+        if (!host.is_empty())
+            enabled = m_force_dark_per_host.get(host).value_or(enabled);
+    }
+    set_force_dark_enabled(enabled);
 }
 
 void LocalNavigable::set_force_dark_enabled(bool value)
