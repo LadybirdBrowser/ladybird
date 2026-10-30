@@ -15,7 +15,7 @@
 
 namespace Web::Fetch::Infrastructure {
 
-// The sum of the body lengths of a fetch group's keepalive requests whose done flag is unset.
+// The sum of the body lengths that a fetch group's keepalive requests hold reservations for.
 class WEB_API KeepaliveQuotaAccountant final : public AtomicRefCounted<KeepaliveQuotaAccountant> {
 public:
     // Keeps its byte count in the accountant's sum until it is destroyed.
