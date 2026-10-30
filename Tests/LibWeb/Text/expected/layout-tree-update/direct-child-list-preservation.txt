@@ -131,6 +131,23 @@ PASS: append positioned in-flow block child after anonymous inline run | preserv
 PASS: append positioned in-flow block child after anonymous inline run | preserve before
 PASS: append positioned in-flow block child after anonymous inline run | layout tree builds=1
 PASS: append positioned in-flow block child after anonymous inline run | incremental tree matches full rebuild
+PASS: append relative block child after whitespace | preserve parent
+PASS: append relative block child after whitespace | preserve before
+PASS: append relative block child after whitespace | layout tree builds=1
+PASS: append relative block child after whitespace | incremental tree matches full rebuild
+PASS: append sticky block child after whitespace | preserve parent
+PASS: append sticky block child after whitespace | preserve before
+PASS: append sticky block child after whitespace | layout tree builds=1
+PASS: append sticky block child after whitespace | incremental tree matches full rebuild
+PASS: insert relative block child after whitespace | preserve parent
+PASS: insert relative block child after whitespace | preserve before
+PASS: insert relative block child after whitespace | preserve after
+PASS: insert relative block child after whitespace | layout tree builds=1
+PASS: insert relative block child after whitespace | incremental tree matches full rebuild
+PASS: append relative item after whitespace in flex | preserve parent
+PASS: append relative item after whitespace in flex | preserve before
+PASS: append relative item after whitespace in flex | layout tree builds=1
+PASS: append relative item after whitespace in flex | incremental tree matches full rebuild
 PASS: fall back for block child before anonymous inline run | rebuild parent
 PASS: fall back for block child before anonymous inline run | layout tree builds=1
 PASS: fall back for block child before anonymous inline run | incremental tree matches full rebuild

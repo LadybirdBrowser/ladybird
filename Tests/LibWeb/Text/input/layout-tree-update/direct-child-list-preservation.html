@@ -246,6 +246,30 @@
             tracked: ["parent", "before"],
         },
         {
+            name: "append relative block child after whitespace",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child" style="position: relative"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append sticky block child after whitespace",
+            markup: '<div class="parent"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child" style="position: sticky"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "insert relative block child after whitespace",
+            markup: '<div class="parent"><i class="before child"></i><i class="after child"></i></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '\n<section class="target child" style="position: relative"><b></b></section>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "append relative item after whitespace in flex",
+            markup: '<div class="parent flex"><i class="before child"></i></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '\n<section class="target child" style="position: relative"><b></b></section>'),
+            tracked: ["parent", "before"],
+        },
+        {
             name: "fall back for block child before anonymous inline run",
             markup: '<div class="parent"><i class="before child"></i><span class="inline">inline</span></div>',
             mutate: parent => parent.querySelector(".inline").insertAdjacentHTML("beforebegin", '<section class="target child"><b></b></section>'),
