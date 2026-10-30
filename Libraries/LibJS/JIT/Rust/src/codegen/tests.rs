@@ -572,6 +572,95 @@ fn runtime() -> RuntimeInfo {
     }
 }
 
+/// A stand-in for the GC heap region, for the fake cells of tests that hold
+/// compressed cell pointers, which only name cells in the region: a
+/// reservation as large as the runtime's, aligned to its size, whose start is
+/// committed. Code that runs on such cells decodes with the region's base
+/// (see `use_in()`), so cell values must point into the region as well.
+pub(super) mod fake_heap {
+    use crate::snapshot::COMPRESSED_POINTER_SHIFT;
+    use crate::snapshot::RuntimeInfo;
+    use std::sync::Mutex;
+    use std::sync::OnceLock;
+
+    const REGION_SIZE: usize = 1 << 35;
+    const COMMITTED_SIZE: usize = 64 << 20;
+    /// The bottom of the region is never a cell, so 0 is never a pointer.
+    const FIRST_CELL_OFFSET: usize = 4096;
+
+    struct Region {
+        base: usize,
+        next: Mutex<usize>,
+    }
+
+    fn region() -> &'static Region {
+        static REGION: OnceLock<Region> = OnceLock::new();
+        REGION.get_or_init(|| {
+            // SAFETY: A fresh reservation that nothing else uses.
+            unsafe {
+                let reservation = libc::mmap(
+                    core::ptr::null_mut(),
+                    2 * REGION_SIZE,
+                    libc::PROT_NONE,
+                    libc::MAP_PRIVATE | libc::MAP_ANONYMOUS | libc::MAP_NORESERVE,
+                    -1,
+                    0,
+                );
+                assert_ne!(reservation, libc::MAP_FAILED);
+                let base = reservation.expose_provenance().next_multiple_of(REGION_SIZE);
+                let committed = libc::mprotect(
+                    core::ptr::with_exposed_provenance_mut(base),
+                    COMMITTED_SIZE,
+                    libc::PROT_READ | libc::PROT_WRITE,
+                );
+                assert_eq!(committed, 0);
+                Region {
+                    base,
+                    next: Mutex::new(base + FIRST_CELL_OFFSET),
+                }
+            }
+        })
+    }
+
+    /// The region's base, which is aligned to its size.
+    pub fn base() -> u64 {
+        region().base as u64
+    }
+
+    /// Makes code of `runtime` decode cell values and compressed cell
+    /// pointers into the region.
+    pub fn use_in(runtime: &mut RuntimeInfo) {
+        runtime.heap_region_base = base();
+        runtime.heap_region_offset_mask = REGION_SIZE as u64 - 1;
+    }
+
+    /// A fake cell in the region with `words`, 16-byte aligned like cells.
+    /// It lives for the rest of the test process.
+    pub fn cell(words: &[u64]) -> &'static mut [u64] {
+        let region = region();
+        let mut next = region.next.lock().unwrap();
+        let address = *next;
+        *next = (address + 8 * words.len().max(1)).next_multiple_of(16);
+        assert!(*next <= region.base + COMMITTED_SIZE, "the fake heap is full");
+        // SAFETY: The words are committed, and no other cell has them.
+        let cell =
+            unsafe { core::slice::from_raw_parts_mut(core::ptr::with_exposed_provenance_mut(address), words.len()) };
+        cell.copy_from_slice(words);
+        cell
+    }
+
+    /// The compressed pointer to the cell at `address` in the region.
+    pub fn compressed(address: u64) -> u64 {
+        assert!(address >= base() && address - base() < REGION_SIZE as u64);
+        (address >> COMPRESSED_POINTER_SHIFT) & u64::from(u32::MAX)
+    }
+
+    /// The address of the cell the compressed pointer `compressed` names.
+    pub fn decompressed(compressed: u64) -> u64 {
+        base() + (compressed << COMPRESSED_POINTER_SHIFT)
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct JitResult {
@@ -3117,7 +3206,8 @@ mod direct_calls {
     /// The fake heap of one direct call test.
     struct Callee {
         function: Vec<u64>,
-        executable: Vec<u64>,
+        /// In the fake heap region, for shared data that has it compressed.
+        executable: &'static mut [u64],
         entry_table: Vec<u64>,
         interpreter_stack: Vec<u64>,
     }
@@ -3126,7 +3216,7 @@ mod direct_calls {
         fn new() -> Self {
             let mut callee = Self {
                 function: FUNCTION_WORDS.to_vec(),
-                executable: vec![0; 7],
+                executable: fake_heap::cell(&[0; 7]),
                 entry_table: vec![0; 2 * ENTRY_TABLE_OWNERS_WORD],
                 interpreter_stack: vec![0xdead_beef_dead_beef; 512],
             };
@@ -3544,12 +3634,16 @@ mod direct_calls {
         }
 
         /// A fake ECMAScript function for dynamic calls: shape, flags, shared
-        /// data, then the words `FUNCTION_WORDS` has (see `dynamic_runtime()`).
+        /// data, then the words `FUNCTION_WORDS` has (see `dynamic_runtime()`),
+        /// whose environments are compressed. The function, its shared data and
+        /// its executable are in the fake heap region; shared data has the
+        /// executable compressed, then the metadata, then the compressed call
+        /// environment template.
         struct DynamicCallee {
             callee: Callee,
-            function: Vec<u64>,
+            function: &'static mut [u64],
             shape: Vec<u64>,
-            shared_data: Vec<u64>,
+            shared_data: &'static mut [u64],
         }
 
         const ECMASCRIPT_FUNCTION_FLAG: u16 = 1 << 6;
@@ -3564,16 +3658,21 @@ mod direct_calls {
 
         impl DynamicCallee {
             fn new(formal_parameter_count: u64, flags: u64) -> Self {
-                let mut callee = Callee::new();
+                let callee = Callee::new();
                 callee.executable[EXECUTABLE_ARGUMENTS_BASE_WORD] = 9;
                 let shape = vec![REALM];
-                let shared_data = vec![callee.executable.as_ptr() as u64, formal_parameter_count | flags];
+                let shared_data = fake_heap::cell(&[
+                    fake_heap::compressed(callee.executable.as_ptr() as u64),
+                    formal_parameter_count | flags,
+                    0,
+                ]);
                 let mut function = vec![
                     shape.as_ptr() as u64,
                     u64::from(ECMASCRIPT_FUNCTION_FLAG),
-                    shared_data.as_ptr() as u64,
+                    fake_heap::compressed(shared_data.as_ptr() as u64),
                 ];
                 function.extend(FUNCTION_WORDS);
+                let function = fake_heap::cell(&function);
                 Self {
                     callee,
                     function,
@@ -3587,7 +3686,14 @@ mod direct_calls {
             }
         }
 
+        /// The environment a compressed environment word of `FUNCTION_WORDS`
+        /// names.
+        fn environment(word: u64) -> u64 {
+            fake_heap::decompressed(word)
+        }
+
         fn dynamic_runtime(runtime: &mut crate::snapshot::RuntimeInfo, callee: &DynamicCallee) {
+            fake_heap::use_in(runtime);
             runtime.offsets.ecmascript_function_environment = 24;
             runtime.offsets.ecmascript_function_private_environment = 32;
             runtime.offsets.ecmascript_function_script_or_module = 40;
@@ -3660,7 +3766,11 @@ mod direct_calls {
             assert_eq!((word(80), word(88)), (FUNCTION_WORDS[2], FUNCTION_WORDS[3]));
             assert_eq!(
                 (word(8), word(96), word(16)),
-                (FUNCTION_WORDS[0], FUNCTION_WORDS[0], FUNCTION_WORDS[1])
+                (
+                    environment(FUNCTION_WORDS[0]),
+                    environment(FUNCTION_WORDS[0]),
+                    environment(FUNCTION_WORDS[1])
+                )
             );
             assert_eq!(word(104), 0, "no frame id yet");
             assert_eq!(word(120), value::EMPTY, "no this value");
@@ -3812,7 +3922,7 @@ mod direct_calls {
                         (ENVIRONMENT, ENVIRONMENT),
                         "environments"
                     );
-                    assert_eq!(frame[16 / 8], FUNCTION_WORDS[1], "private environment");
+                    assert_eq!(frame[16 / 8], environment(FUNCTION_WORDS[1]), "private environment");
                     assert_eq!(frame[120 / 8], value::int32(5), "this");
                     assert_eq!(
                         frame[FRAME_HEADER_WORDS + crate::bytecode::THIS_VALUE_REGISTER as usize],
@@ -3861,15 +3971,14 @@ mod direct_calls {
                 let free_lists = vec![0, 0, free_list.as_mut_ptr() as u64, 0];
                 let mut template = vec![6, 64, if case.inline { 48 } else { 0 }, u64::from(case.binds_this)];
                 template.extend([0x1000, 0x1001, 0, 0, 0, 0]);
-                callee
-                    .shared_data
-                    // NB: Bits above the heap region, which the stub drops.
-                    .push(if case.template {
-                        (0xbad << 48) | template.as_ptr() as u64
+                let template = fake_heap::cell(&template);
+                // NB: Bits in the other half of the word, which the stub ignores.
+                callee.shared_data[2] = (0xbad << 32)
+                    | if case.template {
+                        fake_heap::compressed(template.as_ptr() as u64)
                     } else {
                         0
-                    });
-                callee.function[2] = callee.shared_data.as_ptr() as u64;
+                    };
                 let arguments = [callee.value(), value::int32(7), case.this_value];
                 let (snapshot, compiled) = compile_program_with(&caller(), caller_layout(), &[], |snapshot| {
                     dynamic_runtime(&mut snapshot.runtime, &callee);
@@ -3945,7 +4054,7 @@ mod direct_calls {
                 assert_eq!(frame[120 / 8], this, "this");
                 assert_eq!(&cell[..2], &[0x1000, 0x1001]);
                 assert_eq!(cell[2], if in_cell { address + 48 } else { 0 });
-                assert_eq!(cell[3], FUNCTION_WORDS[0], "outer environment");
+                assert_eq!(cell[3], environment(FUNCTION_WORDS[0]), "outer environment");
                 assert_eq!(cell[4], callee.function.as_ptr() as u64, "function object");
                 assert_eq!(cell[5], if binds_this { value::int32(3) } else { 0 });
                 assert_eq!(heap, [164, 10_000, 1064]);
@@ -4024,7 +4133,7 @@ mod direct_calls {
                 let mut callee = DynamicCallee::new(0, 0);
                 let shape = vec![REALM];
                 // Native function index 1, with a bit above the table's index mask that the call stub drops.
-                let native = vec![shape.as_ptr() as u64, u64::from(RAW_NATIVE_FLAG), 0x1_0001];
+                let native = fake_heap::cell(&[shape.as_ptr() as u64, u64::from(RAW_NATIVE_FLAG), 0x1_0001]);
                 let table = vec![0, 0, fake_native as *const () as u64, 0];
                 let native_value = (u64::from(value::OBJECT_TAG) << 48) | native.as_ptr() as u64;
                 let call_function = (u64::from(value::OBJECT_TAG) << 48) | CALL_FUNCTION;

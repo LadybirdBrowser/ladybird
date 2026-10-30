@@ -464,12 +464,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             u32::from(layout.object_flag_is_ecmascript_function),
             fail,
         );
-        self.masm.load64(
-            scratch,
+        // OPTIMIZATION: The function's compressed shared data is the shared
+        //               data's compressed pointer exactly when it is that
+        //               shared data, so it is compared without decoding.
+        self.masm.branch32_memory_imm(
+            Condition::NotEqual,
             &Address::new(temp, layout.ecmascript_function_shared_data as i32),
+            shared_data.compressed() as i32,
+            fail,
         );
-        self.masm.move_imm64(temp, shared_data.0);
-        self.masm.branch64(Condition::NotEqual, scratch, temp, fail);
     }
 
     /// Branches to the dynamic call of `call` unless its callee is `target`,
@@ -680,13 +683,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 }
             }
             self.masm.store64(&field(offsets.execution_context_function), aux);
-            self.masm
-                .load64(temp, &Address::new(aux, offsets.ecmascript_function_environment as i32));
+            self.emit_load_compressed_cell(temp, &Address::new(aux, offsets.ecmascript_function_environment as i32));
             self.masm
                 .store64(&field(offsets.execution_context_lexical_environment), temp);
             self.masm
                 .store64(&field(offsets.execution_context_variable_environment), temp);
-            self.masm.load64(
+            self.emit_load_nullable_compressed_cell(
                 temp,
                 &Address::new(aux, offsets.ecmascript_function_private_environment as i32),
             );
@@ -1624,14 +1626,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm
                 .store64(&field(offsets.execution_context_script_or_module + word), temp);
         }
-        self.masm
-            .load64(temp, &function_field(offsets.ecmascript_function_environment));
+        // NB: ECMAScript functions always have an environment.
+        self.emit_load_compressed_cell(temp, &function_field(offsets.ecmascript_function_environment));
         self.masm
             .store64(&field(offsets.execution_context_lexical_environment), temp);
         self.masm
             .store64(&field(offsets.execution_context_variable_environment), temp);
-        self.masm
-            .load64(temp, &function_field(offsets.ecmascript_function_private_environment));
+        self.emit_load_nullable_compressed_cell(temp, &function_field(offsets.ecmascript_function_private_environment));
         self.masm
             .store64(&field(offsets.execution_context_private_environment), temp);
         // NB: Frames get their id when the debugger first needs it.

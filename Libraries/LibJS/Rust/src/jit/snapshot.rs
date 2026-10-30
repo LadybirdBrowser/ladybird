@@ -362,8 +362,12 @@ fn function_frame_fields(function: Gc<EcmascriptFunctionObject>) -> FunctionFram
             word_of(function, offset_of!(EcmascriptFunctionObject, script_or_module)),
             word_of(function, offset_of!(EcmascriptFunctionObject, script_or_module) + 8),
         ],
-        environment: word_of(function, offset_of!(EcmascriptFunctionObject, environment)),
-        private_environment: word_of(function, offset_of!(EcmascriptFunctionObject, private_environment)),
+        environment: function
+            .environment()
+            .map_or(0, |environment| environment.as_ptr() as u64),
+        private_environment: function
+            .private_environment()
+            .map_or(0, |environment| environment.as_ptr() as u64),
     }
 }
 

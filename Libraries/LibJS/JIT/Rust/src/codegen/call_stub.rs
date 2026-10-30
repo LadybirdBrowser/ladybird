@@ -156,13 +156,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let prepared_this = self.stub_local(local::PREPARED_THIS);
         let this_local = self.stub_local(local::THIS);
 
-        self.masm
-            .load64(template, &at(shared_data, layout.shared_data_call_environment_template));
-        self.masm
-            .branch_test64(Condition::Zero, template, u64::MAX, from_runtime);
-        // NB: The template is a cell, whose pointer is decoded into the heap
-        //     region like a cell value.
-        self.emit_unbox_cell(template, template);
+        self.emit_load_compressed_cell_or_branch(
+            template,
+            &at(shared_data, layout.shared_data_call_environment_template),
+            from_runtime,
+        );
 
         // The `this` value: as is for strict callees and objects only for
         // sloppy ones, like the runtime binds it then, or none.
@@ -231,7 +229,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .store64(&at(cell, layout.function_environment_binding_values), scratch);
         self.masm.bind(outside_the_cell);
-        self.masm.load64(
+        // NB: The outer environment is the callee's environment, which ECMAScript functions always have.
+        self.emit_load_compressed_cell(
             scratch,
             &at(function, self.runtime.offsets.ecmascript_function_environment),
         );
@@ -346,12 +345,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // An ECMAScript function the interpreter's call fast path calls in an
         // inline frame.
         self.masm.bind(ecmascript_function);
+        // NB: The executable is decoded once it is known not to be null,
+        //     which it stays.
         let load_function_data = |codegen: &mut Self| {
-            codegen.masm.load64(
+            codegen.emit_load_compressed_cell(
                 other,
                 &Address::new(function_register, layout.ecmascript_function_shared_data as i32),
             );
-            codegen.masm.load64(
+            codegen.masm.load32(
                 executable_register,
                 &Address::new(other, layout.shared_data_executable as i32),
             );
@@ -363,7 +364,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         load_function_data(self);
         self.masm
             .branch_test64(Condition::Zero, receiver, layout.metadata_can_inline_call, slow);
-        self.masm.branch64_imm(Condition::Equal, executable_register, 0, slow);
+        self.masm
+            .branch_test32(Condition::Zero, executable_register, u32::MAX, slow);
+        self.emit_decompress_cell(executable_register);
         let environment_local = self.stub_local(local::ENVIRONMENT);
         self.masm.store_imm64(&environment_local, 0);
 
@@ -409,6 +412,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm.load64(temp, &callee_local);
             self.emit_unbox_cell(function_register, temp);
             load_function_data(self);
+            self.emit_decompress_cell(executable_register);
         } else {
             self.masm.branch_test64(
                 Condition::NonZero,

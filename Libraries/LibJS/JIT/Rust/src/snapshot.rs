@@ -26,6 +26,20 @@ use crate::code::ExitKind;
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct CellId(pub u64);
 
+/// How far a cell's address is shifted right to compress it: cells store
+/// pointers to other cells as the low 32 bits of the shifted address (their
+/// offset into the 32 GiB heap region, which is aligned to its size, in units
+/// of the 8-byte cell alignment), and 0 for null.
+pub const COMPRESSED_POINTER_SHIFT: u8 = 3;
+
+impl CellId {
+    /// The cell's compressed pointer, which a field that holds the cell
+    /// compares equal to without decoding.
+    pub fn compressed(self) -> u32 {
+        (self.0 >> COMPRESSED_POINTER_SHIFT) as u32
+    }
+}
+
 /// One bytecode executable: the function being compiled (index 0) or an
 /// inlining candidate.
 ///

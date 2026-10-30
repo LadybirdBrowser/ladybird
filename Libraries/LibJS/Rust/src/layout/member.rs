@@ -180,6 +180,20 @@ impl<T> NullableMember<T> {
         Some(unsafe { Gc::from_non_null(NonNull::new_unchecked(core::ptr::without_provenance_mut(address))) })
     }
 
+    /// The cell of a member that is known not to be null, without checking.
+    ///
+    /// # Safety
+    ///
+    /// The member must not be null.
+    #[inline(always)]
+    pub unsafe fn get_unchecked(&self) -> Gc<T> {
+        debug_assert!(!self.is_null());
+        let address = decompress_address(self.compressed());
+        // SAFETY: The member was set to a cell, which a member keeps alive. A compressed pointer that is not null
+        //         decodes to an address in the heap region, which is never null.
+        unsafe { Gc::from_non_null(NonNull::new_unchecked(core::ptr::without_provenance_mut(address))) }
+    }
+
     #[inline(always)]
     pub fn set(&self, cell: Option<Gc<T>>) {
         let compressed = Self::compress(cell);

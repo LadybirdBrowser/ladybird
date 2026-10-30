@@ -106,6 +106,7 @@ use crate::regalloc::Location;
 use crate::regalloc::Move;
 use crate::regalloc::RegisterMask;
 use crate::regalloc::RegisterSet;
+use crate::snapshot::COMPRESSED_POINTER_SHIFT;
 use crate::snapshot::CellId;
 use crate::snapshot::ExecutableSnapshot;
 use crate::snapshot::RuntimeInfo;
@@ -1387,12 +1388,15 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             Op::LoadFunctionEnvironment { private } => {
                 let (output, function) = (self.output(node_id), self.input(node_id, 0));
-                let offset = if *private {
-                    self.runtime.offsets.ecmascript_function_private_environment
+                let offsets = self.runtime.offsets;
+                if *private {
+                    let address = Address::new(function, offsets.ecmascript_function_private_environment as i32);
+                    self.emit_load_nullable_compressed_cell(output, &address);
                 } else {
-                    self.runtime.offsets.ecmascript_function_environment
-                };
-                self.masm.load64(output, &Address::new(function, offset as i32));
+                    // NB: ECMAScript functions always have an environment.
+                    let address = Address::new(function, offsets.ecmascript_function_environment as i32);
+                    self.emit_load_compressed_cell(output, &address);
+                }
             }
             Op::CellAddress => {
                 // NB: Only objects get their cell addresses taken.
@@ -2091,6 +2095,47 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
     fn emit_unbox_cell(&mut self, dst: Gpr, value: Gpr) {
         self.masm.and64_imm(dst, value, self.runtime.heap_region_offset_mask);
         self.masm.add64_imm(dst, dst, self.runtime.heap_region_base as i64);
+    }
+
+    /// `dst = heap_region_base + (dst << 3)`, the cell pointer the
+    /// compressed cell pointer in `dst` (zero-extended, not null) names,
+    /// which is in the heap region whatever its 32 bits are.
+    fn emit_decompress_cell(&mut self, dst: Gpr) {
+        self.masm.shl64_imm(dst, dst, COMPRESSED_POINTER_SHIFT);
+        self.masm.add64_imm(dst, dst, self.runtime.heap_region_base as i64);
+    }
+
+    /// Loads the compressed cell pointer field at `address`, which is not
+    /// null, into `dst` as a cell pointer.
+    fn emit_load_compressed_cell(&mut self, dst: Gpr, address: &Address) {
+        self.masm.load32(dst, address);
+        self.emit_decompress_cell(dst);
+    }
+
+    /// Loads the compressed cell pointer field at `address` into `dst` as a
+    /// cell pointer, or 0 if it is null.
+    fn emit_load_nullable_compressed_cell(&mut self, dst: Gpr, address: &Address) {
+        let null = self.masm.new_label();
+        self.masm.load32(dst, address);
+        self.masm.branch_test32(Condition::Zero, dst, u32::MAX, null);
+        self.emit_decompress_cell(dst);
+        self.masm.bind(null);
+    }
+
+    /// Loads the compressed cell pointer field at `address` into `dst` as a
+    /// cell pointer, or branches to `null` if it is null.
+    fn emit_load_compressed_cell_or_branch(&mut self, dst: Gpr, address: &Address, null: Label) {
+        self.masm.load32(dst, address);
+        self.masm.branch_test32(Condition::Zero, dst, u32::MAX, null);
+        self.emit_decompress_cell(dst);
+    }
+
+    /// Stores the cell pointer `cell` (or 0 for null) to the compressed cell
+    /// pointer field at `address`, through `temp`, which may be `cell`. The
+    /// heap region is aligned to its size, so compressing needs no base.
+    fn emit_store_compressed_cell(&mut self, address: &Address, cell: Gpr, temp: Gpr) {
+        self.masm.shr64_imm(temp, cell, COMPRESSED_POINTER_SHIFT);
+        self.masm.store32(address, temp);
     }
 
     /// The `Enter` bytecode: empty registers and locals, constants copied

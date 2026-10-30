@@ -71,6 +71,10 @@ use crate::runtime::object::{ORDINARY_OBJECT_METHODS, ObjectMethods, PropertyKin
 use crate::runtime::string_object::StringObject;
 use crate::runtime::string_prototype::StringPrototype;
 
+// JIT code compresses and decodes the compressed cell pointers of cells like the runtime does.
+const _: () =
+    assert!(libjs_jit::snapshot::COMPRESSED_POINTER_SHIFT as u32 == crate::layout::member::COMPRESSED_POINTER_SHIFT);
+
 /// The addresses of the runtime functions JIT code calls, which every compile job's runtime info has.
 pub struct RuntimeFunctionAddresses {
     /// The address of the slow path JIT code calls for each generic opcode, indexed by opcode, or 0 for opcodes
@@ -558,7 +562,7 @@ fn dynamic_call_layout(vm: &Vm) -> DynamicCallLayout {
         .expect("the VM has a JIT entry table while the JIT is on");
     DynamicCallLayout {
         object_flag_is_ecmascript_function: object_flag::IS_ECMASCRIPT_FUNCTION_OBJECT,
-        ecmascript_function_shared_data: offset(offset_of!(EcmascriptFunctionObject, shared_data)),
+        ecmascript_function_shared_data: offset(offset_of!(FunctionObject, ecmascript_shared_data)),
         shared_data_executable: offset(offset_of!(SharedFunctionInstanceData, executable)),
         shared_data_asm_call_metadata: offset(offset_of!(SharedFunctionInstanceData, asm_call_metadata)),
         executable_jit_entry_slot: offset(offset_of!(ExecutableHead, jit_entry_slot)),
