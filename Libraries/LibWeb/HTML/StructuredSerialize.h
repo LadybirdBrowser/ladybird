@@ -11,7 +11,6 @@
 #include <AK/Assertions.h>
 #include <AK/Error.h>
 #include <AK/MemoryStream.h>
-#include <AK/NonnullOwnPtr.h>
 #include <AK/Span.h>
 #include <AK/StringView.h>
 #include <AK/Vector.h>
@@ -37,13 +36,10 @@ class HostObject;
 
 namespace Web::HTML {
 
-class StructuredSerializeDataDecoder;
-
 class WEB_API TransferDataDecoder {
     AK_ALLOC_WITH_KMALLOC;
 
 public:
-    explicit TransferDataDecoder(IPCSerializationRecord const&);
     explicit TransferDataDecoder(TransferDataEncoder&&);
 
     template<typename T>
@@ -67,33 +63,6 @@ private:
 
     IPC::Decoder m_decoder;
 
-    Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
-};
-
-class WEB_API StructuredSerializeReader {
-public:
-    explicit StructuredSerializeReader(IPCSerializationRecord const&);
-    explicit StructuredSerializeReader(StorageSerializationRecord const&);
-    explicit StructuredSerializeReader(TransferDataEncoder&&);
-    ~StructuredSerializeReader();
-
-    SerializationType type() const;
-    bool is_at_end() const;
-
-    template<typename T>
-    ErrorOr<T> decode();
-
-    // The record's SharedArrayBuffer side table; empty for records that crossed a process boundary
-    // and for the storage and transfer-data paths.
-    ReadonlySpan<GC::Root<JS::ArrayBuffer>> shared_array_buffers() const { return m_shared_array_buffers; }
-
-    // Set on the messaging path so the deserializer can map SharedArrayBuffers back to their cross-process shared memory.
-    void set_shared_buffers(Vector<Core::AnonymousBuffer> const& shared_buffers) { m_shared_buffers = &shared_buffers; }
-    Vector<Core::AnonymousBuffer> const* shared_buffers() const { return m_shared_buffers; }
-
-private:
-    NonnullOwnPtr<StructuredSerializeDataDecoder> m_decoder;
-    Vector<GC::Root<JS::ArrayBuffer>> m_shared_array_buffers;
     Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
 };
 
@@ -128,20 +97,8 @@ WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_st
 
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&);
-WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, StructuredSerializeReader&, JS::Realm&, DeserializationMemory* = nullptr, CheckFullyConsumed = CheckFullyConsumed::No);
 
 WEB_API WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm&, AK::Error const&);
-
-WebIDL::ExceptionOr<::Crypto::SignedBigInteger> decode_signed_big_integer(StructuredSerializeReader&, JS::Realm&);
-
-template<typename T>
-WebIDL::ExceptionOr<T> decode_or_throw_data_clone_error(JS::Realm& realm, StructuredSerializeReader& reader)
-{
-    auto result = reader.decode<T>();
-    if (result.is_error())
-        return data_clone_error_from_serialization_error(realm, result.release_error());
-    return result.release_value();
-}
 
 // Pairs each serializable interface with its storage identifier.
 struct SerializableRegistryEntry {
@@ -218,8 +175,9 @@ WEB_API bool is_platform_object(JS::Object const&);
 WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
 
 // The deserialization steps of an interface implemented in Rust create its object from what they read, rather than
-// fill in an object that was created before them.
+// fill in an object that was created before them. The record that they read is the Rust SerializationReader that the
+// deserialization passes on.
 WEB_API bool serializable_interface_is_implemented_in_rust(InterfaceName);
-WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName, JS::Realm&, HTML::StructuredSerializeReader&, HTML::DeserializationMemory*);
+WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> deserialize_rust_platform_object(InterfaceName, JS::Realm&, void* serialized);
 
 }

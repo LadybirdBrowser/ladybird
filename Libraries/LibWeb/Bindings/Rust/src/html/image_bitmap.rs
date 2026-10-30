@@ -207,10 +207,10 @@ fn deserialize_bitmap_data(cx: &CallContext, serialized: &mut SerializationReade
         b"Invalid structured serialize alpha type",
         b"Unknown structured serialize alpha type",
     )?;
-    let data = serialized.read_bytes()?;
+    let data = serialized.read_borrowed_bytes()?;
 
     let (mut color_space_kind, mut color_primaries, mut transfer_characteristics) = (COLOR_SPACE_KIND_SRGB, 0, 0);
-    let mut icc_profile = Vec::new();
+    let mut icc_profile: &[u8] = &[];
     if kind == BITMAP_KIND_WITH_COLOR_SPACE {
         color_space_kind = serialized.read_u8()?;
         match color_space_kind {
@@ -219,7 +219,7 @@ fn deserialize_bitmap_data(cx: &CallContext, serialized: &mut SerializationReade
                 color_primaries = serialized.read_u8()?;
                 transfer_characteristics = serialized.read_u8()?;
             }
-            COLOR_SPACE_KIND_ICC_PROFILE => icc_profile = serialized.read_bytes()?,
+            COLOR_SPACE_KIND_ICC_PROFILE => icc_profile = serialized.read_borrowed_bytes()?,
             _ => return Err(data_clone_error(b"Invalid ImageBitmap color space")),
         }
     }

@@ -10,12 +10,12 @@
 
 //! Safe passing of structured data, https://html.spec.whatwg.org/multipage/structured-data.html
 //!
-//! The algorithms run here, and write their records through writer.rs. The records that they read stay LibWeb's C++
-//! HTML::StructuredSerializeReader (cpp.rs).
+//! The algorithms run here, and write and read their records through writer.rs and reader.rs.
 
 pub(crate) mod cpp;
 pub(crate) mod exports;
 pub(crate) mod memory;
+pub(crate) mod reader;
 pub(crate) mod writer;
 
 use ak::Utf16String;
@@ -29,12 +29,13 @@ use libjs_rust::api::{
 };
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
-use crate::bindings::structured_data::SerializationWriter;
+use crate::bindings::interface::with_temporary_execution_context;
+use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto_key;
 use crate::html::structured_serialize::cpp::{
-    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, StructuredSerializeReader,
-    TransferDataDecoder, TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
+    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, TransferDataDecoder,
+    TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
     deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
     is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
@@ -42,6 +43,7 @@ use crate::html::structured_serialize::cpp::{
     transferable_set_detached,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::webidl::dom_exception::{self, DOMExceptionFields};
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
@@ -198,7 +200,7 @@ fn encode_error_type(serialized: &StructuredSerializeWriter, error_type: ErrorTy
     }
 }
 
-fn decode_error_type(serialized: StructuredSerializeReader) -> WebIdlResult<ErrorType> {
+fn decode_error_type(serialized: &StructuredSerializeReader) -> WebIdlResult<ErrorType> {
     if serialized.serialization_type() == SerializationType::Ipc {
         let decoded = serialized.decode_u8()?;
         return match error_type_from_ipc(decoded) {
@@ -921,15 +923,56 @@ pub(crate) fn encode_serializable_object_header(serialized: &StructuredSerialize
     }
 }
 
-struct Deserializer<'a, 'vm, 'memory> {
+pub(crate) fn decode_serializable_object_header(
+    serialized: &StructuredSerializeReader,
+    interface_name: u16,
+) -> WebIdlResult<()> {
+    let tag = serialized.decode_u8()?;
+    let name = serialized.decode_interface_name()?;
+    if tag != ValueTag::SerializableObject as u8 || name != interface_name {
+        return Err(data_clone_error("Unexpected serializable object"));
+    }
+    if serialized.serialization_type() == SerializationType::Storage
+        && serialized.decode_u64()? != serializable_payload_version()
+    {
+        return Err(data_clone_error("Unsupported serializable payload version"));
+    }
+    Ok(())
+}
+
+/// A new ArrayBuffer in the realm with a copy of the bytes. If this throws an exception, catch it, and then throw a
+/// "DataCloneError" DOMException.
+fn array_buffer_from_bytes(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    bytes: &[u8],
+    is_shared: ArrayBufferShared,
+) -> WebIdlResult<Gc<ArrayBuffer>> {
+    ArrayBuffer::try_create_written_by(vm, realm, bytes.len(), is_shared, |data| {
+        for (byte, &value) in data.iter_mut().zip(bytes) {
+            byte.write(value);
+        }
+        bytes.len()
+    })
+    .map_err(|_| data_clone_error_from_serialization_error(realm, "Unable to allocate an ArrayBuffer"))
+}
+
+pub(crate) struct Deserializer<'a, 'vm, 'memory> {
     cx: &'a CallContext<'vm>,
-    serialized: StructuredSerializeReader,
+    serialized: &'a StructuredSerializeReader<'a>,
     memory: &'a DeserializationMemory<'memory>,
+}
+
+impl<'a> Deserializer<'a, '_, '_> {
+    /// The record that the deserialization reads.
+    pub(crate) fn serialized(&self) -> &'a StructuredSerializeReader<'a> {
+        self.serialized
+    }
 }
 
 impl Deserializer<'_, '_, '_> {
     // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-    fn deserialize(&self) -> WebIdlResult<Value> {
+    pub(crate) fn deserialize(&self) -> WebIdlResult<Value> {
         self.deserialize_value(self.serialized.decode_u8()?)
     }
 
@@ -1030,7 +1073,7 @@ impl Deserializer<'_, '_, '_> {
                 is_primitive = true;
             }
             ValueTag::BigIntPrimitive => {
-                value = self.serialized.decode_big_int()?;
+                value = self.serialized.decode_big_int(vm)?;
                 is_primitive = true;
             }
             ValueTag::StringPrimitive => {
@@ -1050,7 +1093,7 @@ impl Deserializer<'_, '_, '_> {
 
             // 9. Otherwise, if serialized.[[Type]] is "BigInt", then set value to a new BigInt object in targetRealm whose [[BigIntData]] internal slot value is serialized.[[BigIntData]].
             ValueTag::BigIntObject => {
-                let big_int = self.serialized.decode_big_int()?.as_bigint();
+                let big_int = self.serialized.decode_big_int(vm)?.as_bigint();
                 value = Value::from_object(BigIntObject::create(vm, realm, big_int));
             }
 
@@ -1100,11 +1143,11 @@ impl Deserializer<'_, '_, '_> {
                     break 'shared_array_buffer;
                 }
 
-                let buffer = self.serialized.decode_byte_buffer()?;
+                let bytes = self.serialized.decode_bytes()?;
 
                 if let Some(array_buffer) =
                     self.serialized
-                        .array_buffer_sharing_side_table_entry(side_table_index, buffer.len(), false)
+                        .array_buffer_sharing_side_table_entry(side_table_index, bytes.len(), false)
                 {
                     value = Value::from_object(array_buffer);
                     break 'shared_array_buffer;
@@ -1112,7 +1155,7 @@ impl Deserializer<'_, '_, '_> {
 
                 // A buffer with no cross-process shared memory to share (a zero-length one, e.g.) whose record crossed a
                 // process boundary arrives with an empty side table — so it's reconstructed from the byte copy.
-                value = Value::from_object(buffer.into_array_buffer(realm, ArrayBufferShared::Yes));
+                value = Value::from_object(array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::Yes)?);
             }
 
             // 14. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]], and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
@@ -1122,11 +1165,11 @@ impl Deserializer<'_, '_, '_> {
                 self.deserialize_agent_cluster()?;
 
                 let side_table_index = self.serialized.decode_u32()?;
-                let buffer = self.serialized.decode_byte_buffer()?;
+                let bytes = self.serialized.decode_bytes()?;
                 let max_byte_length = self.serialized.decode_size()?;
 
                 // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
-                if max_byte_length < buffer.len() {
+                if max_byte_length < bytes.len() {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
                         "ArrayBuffer byte length exceeds its max byte length",
@@ -1135,7 +1178,7 @@ impl Deserializer<'_, '_, '_> {
 
                 if let Some(array_buffer) =
                     self.serialized
-                        .array_buffer_sharing_side_table_entry(side_table_index, buffer.len(), true)
+                        .array_buffer_sharing_side_table_entry(side_table_index, bytes.len(), true)
                 {
                     let data = array_buffer
                         .downcast::<ArrayBuffer>()
@@ -1145,7 +1188,7 @@ impl Deserializer<'_, '_, '_> {
                     break 'growable_shared_array_buffer;
                 }
 
-                let data = buffer.into_array_buffer(realm, ArrayBufferShared::Yes);
+                let data = array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::Yes)?;
                 data.set_max_byte_length(max_byte_length);
 
                 value = Value::from_object(data);
@@ -1153,28 +1196,26 @@ impl Deserializer<'_, '_, '_> {
 
             // 15. Otherwise, if serialized.[[Type]] is "ArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
             //     If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
-            // NB: The bytes were allocated when they were decoded, which throws a "DataCloneError" DOMException if it fails.
             ValueTag::ArrayBuffer => {
-                let buffer = self.serialized.decode_byte_buffer()?;
-                value = Value::from_object(buffer.into_array_buffer(realm, ArrayBufferShared::No));
+                let bytes = self.serialized.decode_bytes()?;
+                value = Value::from_object(array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::No)?);
             }
 
             // 16. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
             //     If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
-            // NB: The bytes were allocated when they were decoded, which throws a "DataCloneError" DOMException if it fails.
             ValueTag::ResizeableArrayBuffer => {
-                let buffer = self.serialized.decode_byte_buffer()?;
+                let bytes = self.serialized.decode_bytes()?;
                 let max_byte_length = self.serialized.decode_size()?;
 
                 // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
-                if max_byte_length < buffer.len() {
+                if max_byte_length < bytes.len() {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
                         "ArrayBuffer byte length exceeds its max byte length",
                     ));
                 }
 
-                let data = buffer.into_array_buffer(realm, ArrayBufferShared::No);
+                let data = array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::No)?;
                 data.set_max_byte_length(max_byte_length);
 
                 value = Value::from_object(data);
@@ -1409,7 +1450,7 @@ impl Deserializer<'_, '_, '_> {
                         Value::from_object(crypto_key::deserialization_steps(realm, self.serialized)?)
                     }
                     SerializableSteps::Rust => {
-                        deserialize_rust_platform_object(interface_name, self.serialized, self.memory)?
+                        deserialize_rust_platform_object(interface_name, realm, &mut SerializationReader::new(self))?
                     }
                 };
                 self.memory.set(memory_index, value);
@@ -1690,7 +1731,15 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
     }
 
     // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
-    let deserialized = serialize_with_transfer_result.deserialize(target_realm, &memory)?;
+    let serialized = StructuredSerializeReader::new_ipc(
+        target_realm,
+        // SAFETY: The caller lends the record for the deserialization.
+        unsafe { serialize_with_transfer_result.serialized() },
+        Some(serialize_with_transfer_result.shared_buffers()),
+    );
+    let deserialized = with_temporary_execution_context(target_realm, || {
+        structured_deserialize_internal(cx, &serialized, &memory, false)
+    })?;
 
     // NB: The deserialized values hold their own references to the shared memory they use. The record can outlive its
     //     delivery, as in a task that awaits garbage collection, so it must not keep that memory alive.
@@ -1787,7 +1836,7 @@ pub(crate) fn structured_serialize_internal<'memory>(
 
 pub(crate) fn structured_deserialize_internal(
     cx: &CallContext,
-    serialized: StructuredSerializeReader,
+    serialized: &StructuredSerializeReader,
     memory: &DeserializationMemory,
     check_fully_consumed: bool,
 ) -> WebIdlResult<Value> {

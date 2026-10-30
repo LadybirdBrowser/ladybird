@@ -10,11 +10,11 @@
 //!
 //! The algorithms of crate::html::structured_serialize run the steps of such an interface through LibWeb's C++, which
 //! dispatches to the entry points that the generated bindings of the interface define, which call the functions here.
-//! The serialization steps write to the record of the serialization, which the algorithms pass through C++ to them.
-//! The other steps read and write what C++ lends them; the structs that it lends are in
-//! Libraries/LibWeb/Bindings/RustSerialization.h. Unlike an object of an interface implemented in C++, which is
-//! created before its deserialization steps fill it in, an object of an interface implemented in Rust is what its
-//! deserialization steps and its transfer-receiving steps return.
+//! The serialization and deserialization steps write and read the record of the algorithm, which it passes through C++
+//! to them. The transfer steps and the transfer-receiving steps read and write what C++ lends them; the structs that it
+//! lends are in Libraries/LibWeb/Bindings/RustSerialization.h. Unlike an object of an interface implemented in C++,
+//! which is created before its deserialization steps fill it in, an object of an interface implemented in Rust is what
+//! its deserialization steps and its transfer-receiving steps return.
 
 use core::cell::Cell;
 use core::ffi::c_void;
@@ -23,45 +23,22 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{RawNativeFunctionResult, ThrowCompletionOr, Value};
+use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, cell_from_abi, realm_arguments, wrap};
 use crate::bindings::transport::TransportHandle;
 use crate::bindings::{CallContext, WebIdlResult};
-use crate::html::structured_serialize::cpp::{OwnedSerializedTransferRecord, TransferDataDecoder};
+use crate::html::structured_serialize::cpp::{
+    OwnedSerializedTransferRecord, TransferDataDecoder, data_clone_error_from_serialization_error,
+};
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
-    Serializer, encode_serializable_object_header, structured_deserialize_with_transfer_internal,
-    structured_serialize_with_transfer,
+    Deserializer, Serializer, decode_serializable_object_header, encode_serializable_object_header,
+    structured_deserialize_with_transfer_internal, structured_serialize_with_transfer,
 };
 
 unsafe extern "C" {
-    fn web_bindings_deserialize_value(serialized: *mut c_void) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_is_for_storage(serialized: *mut c_void) -> bool;
-    fn web_bindings_deserialize_u8(serialized: *mut c_void, out_value: &mut u8) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_i32(serialized: *mut c_void, out_value: &mut i32) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_u32(serialized: *mut c_void, out_value: &mut u32) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_u64(serialized: *mut c_void, out_value: &mut u64) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_f64(serialized: *mut c_void, out_value: &mut f64) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_bool(serialized: *mut c_void, out_value: &mut bool) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_i64(serialized: *mut c_void, out_value: &mut i64) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_optional_u64(
-        serialized: *mut c_void,
-        out_has_value: &mut bool,
-        out_value: &mut u64,
-    ) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_bytes(
-        serialized: *mut c_void,
-        bytes: *mut c_void,
-        append: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-    ) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_utf16_string(
-        serialized: *mut c_void,
-        out_string: &mut usize,
-    ) -> RawNativeFunctionResult;
-    fn web_bindings_deserialize_inline_object_header(
-        serialized: *mut c_void,
-        interface_name: u16,
-    ) -> RawNativeFunctionResult;
     fn web_bindings_transfer_data_encode_bool(data_holder: *mut c_void, value: bool) -> RawNativeFunctionResult;
     fn web_bindings_transfer_data_encode_records(
         data_holder: *mut c_void,
@@ -164,118 +141,93 @@ impl<'a, 'memory> SerializationWriter<'a, 'memory> {
     }
 }
 
-/// The record of a structured deserialization, which the deserialization steps of an object read from: a
-/// Web::Bindings::RustSerializationReader that C++ lends for the steps. What it reads that the record does not hold
+/// The record of a structured deserialization, which the deserialization steps of an object read from, and the
+/// deserialization that the sub-deserializations of the steps run in. What it reads that the record does not hold
 /// throws a "DataCloneError" DOMException.
-pub(crate) struct SerializationReader<'a> {
-    raw: NonNull<c_void>,
-    _lent: PhantomData<&'a mut c_void>,
+pub(crate) struct SerializationReader<'a, 'memory> {
+    deserializer: &'a Deserializer<'a, 'a, 'memory>,
 }
 
-impl SerializationReader<'_> {
-    /// The reader as the C ABI of an interface's C++ class takes it, for what only C++ decodes.
-    pub(crate) fn as_raw(&mut self) -> *mut c_void {
-        self.raw.as_ptr()
+impl<'a, 'memory> SerializationReader<'a, 'memory> {
+    pub(crate) fn new(deserializer: &'a Deserializer<'a, 'a, 'memory>) -> Self {
+        Self { deserializer }
+    }
+
+    fn serialized(&self) -> &'a StructuredSerializeReader<'a> {
+        self.deserializer.serialized()
     }
 
     /// The value of a field of the serialized form, which is a sub-serialization,
     /// https://html.spec.whatwg.org/multipage/structured-data.html#sub-deserialization
     pub(crate) fn read_value(&mut self) -> WebIdlResult<Value> {
-        // SAFETY: The reader is lent for the steps.
-        Ok(unsafe { web_bindings_deserialize_value(self.raw.as_ptr()) }.into_completion()?)
+        self.deserializer.deserialize()
     }
 
     /// Whether the record is one for storage, rather than for IPC.
     pub(crate) fn is_for_storage(&mut self) -> bool {
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_is_for_storage(self.raw.as_ptr()) }
+        self.serialized().serialization_type() == SerializationType::Storage
     }
 
     pub(crate) fn read_u8(&mut self) -> WebIdlResult<u8> {
-        let mut value = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_u8(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_u8()
     }
 
     pub(crate) fn read_i32(&mut self) -> WebIdlResult<i32> {
-        let mut value = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_i32(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_i32()
     }
 
     pub(crate) fn read_u32(&mut self) -> WebIdlResult<u32> {
-        let mut value = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_u32(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_u32()
     }
 
     pub(crate) fn read_u64(&mut self) -> WebIdlResult<u64> {
-        let mut value = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_u64(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_u64()
     }
 
     pub(crate) fn read_f64(&mut self) -> WebIdlResult<f64> {
-        let mut value = 0.0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_f64(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_f64()
     }
 
     /// Reads what SerializationWriter::write_object_in_place() writes, and returns the new object.
     pub(crate) fn read_object_in_place<T: Serializable>(&mut self, cx: &mut CallContext) -> WebIdlResult<Ref<T>> {
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_inline_object_header(self.raw.as_ptr(), T::INTERFACE_NAME) }
-            .into_completion()?;
+        decode_serializable_object_header(self.serialized(), T::INTERFACE_NAME)?;
         let object = T::deserialization_steps(cx, self)?;
         Ok(object.into_object(cx.vm()))
     }
 
     pub(crate) fn read_bool(&mut self) -> WebIdlResult<bool> {
-        let mut value = false;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_bool(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_bool()
     }
 
     pub(crate) fn read_i64(&mut self) -> WebIdlResult<i64> {
-        let mut value = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_i64(self.raw.as_ptr(), &mut value) }.into_completion()?;
-        Ok(value)
+        self.serialized().decode_i64()
     }
 
     pub(crate) fn read_optional_u64(&mut self) -> WebIdlResult<Option<u64>> {
-        let mut has_value = false;
-        let mut value = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_optional_u64(self.raw.as_ptr(), &mut has_value, &mut value) }
-            .into_completion()?;
-        Ok(has_value.then_some(value))
+        self.serialized().decode_optional_u64()
     }
 
+    /// Bytes that the record holds, which it lends for as long as the deserialization runs.
+    pub(crate) fn read_borrowed_bytes(&mut self) -> WebIdlResult<&'a [u8]> {
+        self.serialized().decode_bytes()
+    }
+
+    /// A copy of bytes that the record holds. If the copy cannot be allocated, a "DataCloneError" DOMException.
     pub(crate) fn read_bytes(&mut self) -> WebIdlResult<Vec<u8>> {
-        unsafe extern "C" fn append(bytes: *mut c_void, data: *const u8, length: usize) {
-            // SAFETY: The bytes are the Vec that read_bytes() lends, and LibWeb passes that many bytes.
-            unsafe { (*bytes.cast::<Vec<u8>>()).extend_from_slice(ak::slice_from_raw_parts(data, length)) };
-        }
-        let mut bytes = Vec::new();
-        // SAFETY: The reader and the bytes are lent for the steps.
-        unsafe { web_bindings_deserialize_bytes(self.raw.as_ptr(), (&raw mut bytes).cast(), append) }
-            .into_completion()?;
-        Ok(bytes)
+        let bytes = self.read_borrowed_bytes()?;
+        let mut copy = Vec::new();
+        copy.try_reserve_exact(bytes.len()).map_err(|_| {
+            data_clone_error_from_serialization_error(
+                self.serialized().realm(),
+                "Unable to allocate a copy of the bytes",
+            )
+        })?;
+        copy.extend_from_slice(bytes);
+        Ok(copy)
     }
 
     pub(crate) fn read_utf16_string(&mut self) -> WebIdlResult<Utf16String> {
-        let mut string = 0;
-        // SAFETY: The reader is lent for the steps.
-        unsafe { web_bindings_deserialize_utf16_string(self.raw.as_ptr(), &mut string) }.into_completion()?;
-        // SAFETY: LibWeb hands over the string it read.
-        Ok(unsafe { Utf16String::from_raw_owned(string) })
+        self.serialized().decode_utf16_string()
     }
 }
 
@@ -448,7 +400,8 @@ pub(crate) unsafe fn serialization_steps<T: Serializable>(
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a live realm, and a reader that C++ lends.
+/// The pointers must be the VM, a live realm, and the SerializationReader that crate::html::structured_serialize
+/// lends through C++.
 pub(crate) unsafe fn deserialization_steps<T: Serializable>(
     vm: *mut c_void,
     realm: *mut c_void,
@@ -457,11 +410,9 @@ pub(crate) unsafe fn deserialization_steps<T: Serializable>(
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     let mut cx = CallContext::new(vm, realm);
-    let mut serialized = SerializationReader {
-        raw: NonNull::new(serialized).expect("C++ lends a reader"),
-        _lent: PhantomData,
-    };
-    let result = T::deserialization_steps(&mut cx, &mut serialized);
+    // SAFETY: The caller passes the reader that the deserialization lends for the steps.
+    let serialized = unsafe { &mut *serialized.cast::<SerializationReader<'_, '_>>() };
+    let result = T::deserialization_steps(&mut cx, serialized);
     completion(&cx, result.map(|implementation| wrap_new_object(&cx, implementation)))
 }
 

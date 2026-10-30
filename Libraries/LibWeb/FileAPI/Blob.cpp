@@ -65,7 +65,6 @@ void* web_blob_get_stream(void* realm, ReadonlyBytes);
 WebIDL::Promise* web_blob_text(void* realm, ReadonlyBytes);
 WebIDL::Promise* web_blob_array_buffer(void* realm, ReadonlyBytes);
 WebIDL::Promise* web_blob_bytes(void* realm, ReadonlyBytes);
-JSCompletion web_blob_deserialize_byte_sequence(Bindings::RustSerializationReader*, BlobBytesABI* out_bytes);
 }
 
 GC::Ref<Blob> Blob::create(ByteBuffer bytes, Utf16String type)
@@ -253,15 +252,6 @@ WebIDL::Promise* web_blob_bytes(void* realm, ReadonlyBytes blob_bytes)
 void web_blob_bytes_destroy(BlobBytes* bytes)
 {
     delete bytes;
-}
-
-JSCompletion web_blob_deserialize_byte_sequence(Bindings::RustSerializationReader* reader, BlobBytesABI* out_bytes)
-{
-    auto bytes = HTML::decode_or_throw_data_clone_error<ByteBuffer>(reader->realm, reader->serialized);
-    if (bytes.is_exception())
-        return Bindings::completion_to_abi(reader->realm, bytes.exception());
-    *out_bytes = hand_over(bytes.release_value());
-    return Bindings::completion_to_abi(reader->realm, JS::js_undefined());
 }
 
 }

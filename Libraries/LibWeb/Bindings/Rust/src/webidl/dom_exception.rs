@@ -15,7 +15,7 @@ use ak::Utf16String;
 use libjs_rust::api::{Gc, Object, Realm};
 
 use crate::bindings::WebIdlResult;
-use crate::html::structured_serialize::cpp::StructuredSerializeReader;
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 
 unsafe extern "C" {
@@ -71,7 +71,7 @@ pub(crate) fn serialization_steps(value: &DOMExceptionFields, serialized: &Struc
 }
 
 // https://webidl.spec.whatwg.org/#idl-DOMException
-pub(crate) fn deserialization_steps(serialized: StructuredSerializeReader) -> WebIdlResult<DOMExceptionFields> {
+pub(crate) fn deserialization_steps(serialized: &StructuredSerializeReader) -> WebIdlResult<DOMExceptionFields> {
     // 1. Set value’s name to serialized.[[Name]].
     let name = serialized.decode_utf16_string()?;
 

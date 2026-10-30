@@ -16,10 +16,11 @@ use libwebcommon_rust::html::serialization_records::SerializationType;
 use crate::bindings::interface::realm_arguments;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    IPCSerializationRecord, SerializedTransferRecord, SharedBuffers, StorageSerializationRecord,
-    StructuredSerializeReader, TransferDataDecoder, TransferredValues,
+    IPCSerializationRecord, ReceivedIPCSerializationRecord, SerializedTransferRecord, SharedBuffers,
+    StorageSerializationRecord, TransferDataDecoder, TransferredValues,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
     AllowSharedArrayBuffers, structured_deserialize_internal, structured_deserialize_with_transfer,
@@ -127,35 +128,53 @@ pub unsafe extern "C" fn web_rust_structured_serialize_for_storage(
     RawNativeFunctionResult::from_completion(Ok(Value::UNDEFINED))
 }
 
-/// StructuredDeserialize in the realm, which throws a "DataCloneError" DOMException for a storage record with bytes
-/// after its value if `check_fully_consumed` is true.
+/// StructuredDeserialize of the IPC record in the realm. The record shares the cross-process shared memory of
+/// SharedArrayBuffers through the list, if there is one.
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a live realm, a reader that C++ lends, and the memory of the deserialization that a
-/// deserialization step deserializes a value of, or null for a new one.
+/// The pointers must be the VM, a live realm, a record that C++ lends, and a list that C++ lends or null.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_structured_deserialize_internal(
+pub unsafe extern "C" fn web_rust_structured_deserialize(
     vm: *mut c_void,
     target_realm: *mut c_void,
-    serialized: *mut c_void,
-    memory: *mut c_void,
-    check_fully_consumed: bool,
+    record: *const c_void,
+    shared_buffers: *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
     let cx = CallContext::new(vm, target_realm);
-    // SAFETY: The caller lends the reader.
-    let serialized = unsafe { StructuredSerializeReader::from_raw(serialized, target_realm) };
-    let new_memory;
-    let memory = if memory.is_null() {
-        new_memory = DeserializationMemory::new(vm);
-        &new_memory
-    } else {
-        // SAFETY: The caller passes the memory of the deserialization that it runs in.
-        unsafe { DeserializationMemory::from_abi(memory) }
+    // SAFETY: The caller lends the record, and the list if there is one.
+    let (record, shared_buffers) = unsafe {
+        (
+            ReceivedIPCSerializationRecord::from_raw(record),
+            (!shared_buffers.is_null()).then(|| SharedBuffers::from_raw(shared_buffers)),
+        )
     };
-    let result = structured_deserialize_internal(&cx, serialized, memory, check_fully_consumed);
+    let serialized = StructuredSerializeReader::new_ipc(target_realm, record, shared_buffers);
+    let memory = DeserializationMemory::new(vm);
+    completion(&cx, structured_deserialize_internal(&cx, &serialized, &memory, false))
+}
+
+/// StructuredDeserialize of the bytes of the storage record in the realm, which throws a "DataCloneError" DOMException
+/// for bytes after its value.
+///
+/// # Safety
+///
+/// The pointers must be the VM and a live realm.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_structured_deserialize_for_storage(
+    vm: *mut c_void,
+    target_realm: *mut c_void,
+    data: ak::Span<'_, u8>,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the VM and a live realm.
+    let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
+    let cx = CallContext::new(vm, target_realm);
+    let result = StructuredSerializeReader::new_storage(target_realm, data.as_slice()).and_then(|serialized| {
+        let memory = DeserializationMemory::new(vm);
+        structured_deserialize_internal(&cx, &serialized, &memory, true)
+    });
     completion(&cx, result)
 }
 

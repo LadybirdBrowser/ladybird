@@ -120,7 +120,8 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         match self.serialization_type() {
             SerializationType::Ipc => self.encode_u16(interface_name),
             SerializationType::Storage => {
-                let identifier = serializable_interface_storage_identifier(interface_name);
+                let identifier =
+                    serializable_interface_storage_identifier(interface_name).expect("the interface is serializable");
                 self.encoder
                     .borrow_mut()
                     .encode_utf16_string(Utf16StringUnits::Ascii(identifier));

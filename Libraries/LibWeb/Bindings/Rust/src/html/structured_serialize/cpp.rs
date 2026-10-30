@@ -6,20 +6,18 @@
 
 //! What structured serialization asks of LibWeb's C++ code, which implements it in
 //! Libraries/LibWeb/HTML/StructuredSerializeRustIntegration.cpp: the C++ records that the serializations hand their
-//! bytes over to, the records that the deserializations read, the platform objects, and the side tables that
-//! SharedArrayBuffers are shared through.
+//! bytes over to and the deserializations read the bytes of, the registry of serializable interfaces, the platform
+//! objects, and the side tables that SharedArrayBuffers are shared through.
 
 use core::ffi::c_void;
+use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use ak::Utf16String;
 use libjs_rust::api::{ArrayBuffer, ArrayBufferShared, Gc, Object, RawNativeFunctionResult, Realm, Value};
-use libwebcommon_rust::html::serialization_records::SerializationType;
 
-use crate::bindings::structured_data::SerializationWriter;
+use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::html::structured_serialize::memory::DeserializationMemory;
 
 unsafe extern "C" {
     fn web_structured_serialize_set_ipc_record(
@@ -32,72 +30,31 @@ unsafe extern "C" {
     fn web_structured_serialize_interface_storage_identifier(
         interface_name: u16,
         identifier: &mut ak::Span<'static, u8>,
-    );
+    ) -> bool;
+    fn web_structured_serialize_interface_name_from_storage_identifier(
+        identifier: ak::Span<'_, u8>,
+        interface_name: &mut u16,
+    ) -> bool;
     fn web_structured_serialize_shared_buffers_append_shared_memory(
         shared_buffers: *mut c_void,
         array_buffer: *mut c_void,
         index: &mut u32,
     ) -> bool;
 
-    fn web_structured_serialize_reader_type(reader: *mut c_void) -> u8;
-    fn web_structured_serialize_reader_is_at_end(reader: *mut c_void) -> bool;
-    fn web_structured_serialize_reader_decode_u8(
-        reader: *mut c_void,
+    fn web_structured_serialize_ipc_record_data(record: *const c_void, data: &mut ak::Span<'static, u8>);
+    fn web_structured_serialize_ipc_record_shared_array_buffer(
+        record: *const c_void,
         realm: *mut c_void,
-        value: &mut u8,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_bool(
-        reader: *mut c_void,
+        side_table_index: u32,
+        byte_length: usize,
+        preserve_growability: bool,
+    ) -> *mut c_void;
+    fn web_structured_serialize_shared_buffers_shared_array_buffer(
+        shared_buffers: *mut c_void,
         realm: *mut c_void,
-        value: &mut bool,
+        index: u32,
+        shared_object_id: u64,
     ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_i32(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        value: &mut i32,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_u16(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        value: &mut u16,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_u32(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        value: &mut u32,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_u64(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        value: &mut u64,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_size(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        value: &mut usize,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_f64(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        value: &mut f64,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_utf16_string(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        string: &mut usize,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_optional_utf16_string(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        has_value: &mut bool,
-        string: &mut usize,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_byte_buffer(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        buffer: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_byte_buffer_data(buffer: *mut c_void) -> *const u8;
     fn web_structured_serialize_byte_buffer_size(buffer: *mut c_void) -> usize;
     fn web_structured_serialize_array_buffer_from_byte_buffer(
         realm: *mut c_void,
@@ -105,28 +62,6 @@ unsafe extern "C" {
         shared: bool,
     ) -> *mut c_void;
     fn web_structured_serialize_byte_buffer_destroy(buffer: *mut c_void);
-    fn web_structured_serialize_reader_decode_interface_name(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        interface_name: &mut u16,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_decode_big_int(
-        reader: *mut c_void,
-        realm: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_array_buffer_from_shared_memory(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        index: u32,
-        shared_object_id: u64,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_reader_array_buffer_sharing_side_table_entry(
-        reader: *mut c_void,
-        realm: *mut c_void,
-        side_table_index: u32,
-        byte_length: usize,
-        preserve_growability: bool,
-    ) -> *mut c_void;
     fn web_structured_serialize_data_clone_error_from_serialization_error(
         realm: *mut c_void,
         message: ak::Span<'_, u8>,
@@ -151,8 +86,7 @@ unsafe extern "C" {
     fn web_structured_serialize_deserialize_rust_platform_object(
         interface_name: u16,
         realm: *mut c_void,
-        reader: *mut c_void,
-        memory: *mut c_void,
+        serialized: *mut c_void,
     ) -> RawNativeFunctionResult;
 
     fn web_structured_serialize_is_transferable(object: *mut c_void) -> bool;
@@ -195,11 +129,7 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_record_append_data_holder(record: *mut c_void, data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_data_holder_count(record: *mut c_void) -> usize;
     fn web_structured_serialize_transfer_record_take_data_holder(record: *mut c_void, index: usize) -> *mut c_void;
-    fn web_structured_serialize_transfer_record_deserialize(
-        record: *mut c_void,
-        realm: *mut c_void,
-        memory: *mut c_void,
-    ) -> RawNativeFunctionResult;
+    fn web_structured_serialize_transfer_record_serialized(record: *mut c_void) -> *const c_void;
     fn web_structured_serialize_transfer_record_clear_shared_buffers(record: *mut c_void);
     fn web_structured_serialize_transferred_values_append(transferred_values: *mut c_void, value: *mut c_void);
     fn web_structured_serialize_transfer_data_decoder_decode_u8(
@@ -220,14 +150,6 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_data_decoder_destroy(decoder: *mut c_void);
 }
 
-fn serialization_type_from_abi(value: u8) -> SerializationType {
-    match value {
-        0 => SerializationType::Ipc,
-        1 => SerializationType::Storage,
-        _ => unreachable!("LibWeb has no other serialization type"),
-    }
-}
-
 fn object_into_abi<T>(object: Gc<T>) -> *mut c_void {
     object.as_ptr().cast()
 }
@@ -244,18 +166,13 @@ fn completion(result: RawNativeFunctionResult) -> WebIdlResult<Value> {
     Ok(result.into_completion()?)
 }
 
-/// The bytes of a record, which C++ decoded into a buffer that this owns until an ArrayBuffer takes it over.
+/// The bytes of a data holder, which C++ decoded into a buffer that this owns until an ArrayBuffer takes it over.
 pub(crate) struct DecodedBytes(NonNull<c_void>);
 
 impl DecodedBytes {
     pub(crate) fn len(&self) -> usize {
         // SAFETY: This owns the buffer.
         unsafe { web_structured_serialize_byte_buffer_size(self.0.as_ptr()) }
-    }
-
-    pub(crate) fn bytes(&self) -> &[u8] {
-        // SAFETY: This owns the buffer, whose bytes live as long as it does.
-        unsafe { ak::slice_from_raw_parts(web_structured_serialize_byte_buffer_data(self.0.as_ptr()), self.len()) }
     }
 
     /// A new ArrayBuffer in the realm, which takes over the bytes.
@@ -332,12 +249,70 @@ impl StorageSerializationRecord {
     }
 }
 
-/// The identifier of the serializable interface that a storage record holds, from LibWeb's registry of them.
-pub(crate) fn serializable_interface_storage_identifier(interface_name: u16) -> &'static [u8] {
+/// The identifier of the serializable interface that a storage record holds, from LibWeb's registry of them, if the
+/// Bindings::InterfaceName names one.
+pub(crate) fn serializable_interface_storage_identifier(interface_name: u16) -> Option<&'static [u8]> {
     let mut identifier = ak::Span::default();
     // SAFETY: The call writes a span of static storage to the local.
-    unsafe { web_structured_serialize_interface_storage_identifier(interface_name, &mut identifier) };
-    identifier.as_slice()
+    unsafe { web_structured_serialize_interface_storage_identifier(interface_name, &mut identifier) }
+        .then(|| identifier.as_slice())
+}
+
+/// The Bindings::InterfaceName of the serializable interface with the identifier, if LibWeb's registry has one.
+pub(crate) fn serializable_interface_name_from_storage_identifier(identifier: &[u8]) -> Option<u16> {
+    let mut interface_name = 0;
+    // SAFETY: The call borrows the identifier, and writes to the local.
+    unsafe {
+        web_structured_serialize_interface_name_from_storage_identifier(ak::Span::new(identifier), &mut interface_name)
+    }
+    .then_some(interface_name)
+}
+
+/// An HTML::IPCSerializationRecord that C++ lends for a deserialization to read.
+#[derive(Clone, Copy)]
+pub(crate) struct ReceivedIPCSerializationRecord<'a> {
+    raw: NonNull<c_void>,
+    _lent: PhantomData<&'a c_void>,
+}
+
+impl<'a> ReceivedIPCSerializationRecord<'a> {
+    /// # Safety
+    ///
+    /// `record` must be a record that C++ lends for `'a`.
+    pub(crate) unsafe fn from_raw(record: *const c_void) -> Self {
+        Self {
+            raw: NonNull::new(record.cast_mut()).expect("C++ lends a record"),
+            _lent: PhantomData,
+        }
+    }
+
+    pub(crate) fn data(self) -> &'a [u8] {
+        let mut data = ak::Span::default();
+        // SAFETY: The record is lent for 'a, and its bytes with it.
+        unsafe { web_structured_serialize_ipc_record_data(self.raw.as_ptr(), &mut data) };
+        data.as_slice()
+    }
+
+    /// A new SharedArrayBuffer in the realm that shares the storage of the buffer at the index of the record's
+    /// same-process side table, if there is such a buffer, and its storage can be shared.
+    pub(crate) fn shared_array_buffer(
+        self,
+        realm: Gc<Realm>,
+        side_table_index: u32,
+        byte_length: usize,
+        preserve_growability: bool,
+    ) -> Option<Gc<Object>> {
+        // SAFETY: The record is lent, and the realm is live. LibWeb returns a live object or null.
+        unsafe {
+            object_from_abi(web_structured_serialize_ipc_record_shared_array_buffer(
+                self.raw.as_ptr(),
+                realm.as_ptr().cast(),
+                side_table_index,
+                byte_length,
+                preserve_growability,
+            ))
+        }
+    }
 }
 
 /// The side list of the cross-process shared memory that a record on the messaging path shares its SharedArrayBuffers
@@ -368,6 +343,24 @@ impl SharedBuffers {
         .then_some(index)
     }
 
+    /// A new SharedArrayBuffer in the realm over the cross-process shared memory at the index of the list.
+    pub(crate) fn shared_array_buffer(
+        self,
+        realm: Gc<Realm>,
+        index: u32,
+        shared_object_id: u64,
+    ) -> WebIdlResult<Value> {
+        // SAFETY: The list is lent, and the realm is live.
+        completion(unsafe {
+            web_structured_serialize_shared_buffers_shared_array_buffer(
+                self.0.as_ptr(),
+                realm.as_ptr().cast(),
+                index,
+                shared_object_id,
+            )
+        })
+    }
+
     /// Gathers the pixels of the ImageBitmaps of the transfer list in one buffer of shared memory, which the list
     /// holds.
     pub(crate) fn gather_image_bitmap_pixels(self, transfer_list: &[Gc<Object>]) -> ImageBitmapSharedPixels {
@@ -380,203 +373,6 @@ impl SharedBuffers {
                 transfer_list.len(),
             )
         }))
-    }
-}
-
-/// The record that a structured deserialization reads: an HTML::StructuredSerializeReader that C++ lends. What it
-/// reads that the record does not hold throws a "DataCloneError" DOMException in the realm.
-#[derive(Clone, Copy)]
-pub(crate) struct StructuredSerializeReader {
-    raw: NonNull<c_void>,
-    realm: Gc<Realm>,
-}
-
-impl StructuredSerializeReader {
-    /// # Safety
-    ///
-    /// `reader` must be a reader that C++ lends while this is used.
-    pub(crate) unsafe fn from_raw(reader: *mut c_void, realm: Gc<Realm>) -> Self {
-        Self {
-            raw: NonNull::new(reader).expect("C++ lends a reader"),
-            realm,
-        }
-    }
-
-    pub(crate) fn as_raw(self) -> *mut c_void {
-        self.raw.as_ptr()
-    }
-
-    fn realm_raw(self) -> *mut c_void {
-        self.realm.as_ptr().cast()
-    }
-
-    pub(crate) fn serialization_type(self) -> SerializationType {
-        // SAFETY: The reader is lent.
-        serialization_type_from_abi(unsafe { web_structured_serialize_reader_type(self.as_raw()) })
-    }
-
-    pub(crate) fn is_at_end(self) -> bool {
-        // SAFETY: The reader is lent.
-        unsafe { web_structured_serialize_reader_is_at_end(self.as_raw()) }
-    }
-
-    pub(crate) fn decode_u8(self) -> WebIdlResult<u8> {
-        let mut value = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_u8(self.as_raw(), self.realm_raw(), &mut value) })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_bool(self) -> WebIdlResult<bool> {
-        let mut value = false;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_reader_decode_bool(self.as_raw(), self.realm_raw(), &mut value)
-        })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_i32(self) -> WebIdlResult<i32> {
-        let mut value = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_i32(self.as_raw(), self.realm_raw(), &mut value) })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_u16(self) -> WebIdlResult<u16> {
-        let mut value = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_u16(self.as_raw(), self.realm_raw(), &mut value) })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_u32(self) -> WebIdlResult<u32> {
-        let mut value = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_u32(self.as_raw(), self.realm_raw(), &mut value) })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_u64(self) -> WebIdlResult<u64> {
-        let mut value = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_u64(self.as_raw(), self.realm_raw(), &mut value) })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_size(self) -> WebIdlResult<usize> {
-        let mut value = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_reader_decode_size(self.as_raw(), self.realm_raw(), &mut value)
-        })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_f64(self) -> WebIdlResult<f64> {
-        let mut value = 0.0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_f64(self.as_raw(), self.realm_raw(), &mut value) })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_optional_f64(self) -> WebIdlResult<Option<f64>> {
-        if !self.decode_bool()? {
-            return Ok(None);
-        }
-        Ok(Some(self.decode_f64()?))
-    }
-
-    pub(crate) fn decode_utf16_string(self) -> WebIdlResult<Utf16String> {
-        let mut string = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        let result = unsafe {
-            web_structured_serialize_reader_decode_utf16_string(self.as_raw(), self.realm_raw(), &mut string)
-        };
-        // SAFETY: LibWeb hands over the string it read, which is empty if it read none.
-        let string = unsafe { Utf16String::from_raw_owned(string) };
-        completion(result)?;
-        Ok(string)
-    }
-
-    pub(crate) fn decode_optional_utf16_string(self) -> WebIdlResult<Option<Utf16String>> {
-        let mut has_value = false;
-        let mut string = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        let result = unsafe {
-            web_structured_serialize_reader_decode_optional_utf16_string(
-                self.as_raw(),
-                self.realm_raw(),
-                &mut has_value,
-                &mut string,
-            )
-        };
-        // SAFETY: LibWeb hands over the string it read, if it read one.
-        let string = has_value.then(|| unsafe { Utf16String::from_raw_owned(string) });
-        completion(result)?;
-        Ok(string)
-    }
-
-    pub(crate) fn decode_byte_buffer(self) -> WebIdlResult<DecodedBytes> {
-        let mut buffer = core::ptr::null_mut();
-        // SAFETY: The reader is lent, the realm is live, and the buffer outlives the call.
-        completion(unsafe {
-            web_structured_serialize_reader_decode_byte_buffer(self.as_raw(), self.realm_raw(), &mut buffer)
-        })?;
-        Ok(DecodedBytes(NonNull::new(buffer).expect("LibWeb decodes a buffer")))
-    }
-
-    pub(crate) fn decode_interface_name(self) -> WebIdlResult<u16> {
-        let mut interface_name = 0;
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_reader_decode_interface_name(self.as_raw(), self.realm_raw(), &mut interface_name)
-        })?;
-        Ok(interface_name)
-    }
-
-    /// A new BigInt with the value that decode_signed_big_integer() reads.
-    pub(crate) fn decode_big_int(self) -> WebIdlResult<Value> {
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe { web_structured_serialize_reader_decode_big_int(self.as_raw(), self.realm_raw()) })
-    }
-
-    /// A new SharedArrayBuffer over the cross-process shared memory at the index of the reader's side list.
-    pub(crate) fn array_buffer_from_shared_memory(self, index: u32, shared_object_id: u64) -> WebIdlResult<Value> {
-        // SAFETY: The reader is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_reader_array_buffer_from_shared_memory(
-                self.as_raw(),
-                self.realm_raw(),
-                index,
-                shared_object_id,
-            )
-        })
-    }
-
-    /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-process side
-    /// table, if there is such a buffer, and its storage can be shared.
-    pub(crate) fn array_buffer_sharing_side_table_entry(
-        self,
-        side_table_index: u32,
-        byte_length: usize,
-        preserve_growability: bool,
-    ) -> Option<Gc<Object>> {
-        // SAFETY: The reader is lent, and the realm is live. LibWeb returns a live object or null.
-        unsafe {
-            object_from_abi(web_structured_serialize_reader_array_buffer_sharing_side_table_entry(
-                self.as_raw(),
-                self.realm_raw(),
-                side_table_index,
-                byte_length,
-                preserve_growability,
-            ))
-        }
-    }
-
-    /// The realm that the deserialization creates its values in.
-    pub(crate) fn realm(self) -> Gc<Realm> {
-        self.realm
     }
 }
 
@@ -690,19 +486,19 @@ pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
     }
 }
 
-/// The deserialization steps of an interface implemented in Rust, which create the new instance from what they read.
+/// The deserialization steps of an interface implemented in Rust, which create the new instance in the realm from what
+/// they read, and which C++ runs through the bindings of the interface, given the reader, which it passes on.
 pub(crate) fn deserialize_rust_platform_object(
     interface_name: u16,
-    serialized: StructuredSerializeReader,
-    memory: &DeserializationMemory,
+    realm: Gc<Realm>,
+    serialized: &mut SerializationReader,
 ) -> WebIdlResult<Value> {
-    // SAFETY: The realm is live, and the reader and the memory are lent.
+    // SAFETY: The realm is live, and the reader is lent for the call.
     completion(unsafe {
         web_structured_serialize_deserialize_rust_platform_object(
             interface_name,
-            serialized.realm_raw(),
-            serialized.as_raw(),
-            memory.as_abi(),
+            realm.as_ptr().cast(),
+            core::ptr::from_mut(serialized).cast(),
         )
     })
 }
@@ -875,16 +671,18 @@ impl SerializedTransferRecord {
             .map(|decoder| OwnedTransferDataDecoder(TransferDataDecoder(decoder)))
     }
 
-    /// StructuredDeserialize of the record's [[Serialized]], with its shared memory.
-    pub(crate) fn deserialize(self, realm: Gc<Realm>, memory: &DeserializationMemory) -> WebIdlResult<Value> {
-        // SAFETY: The record and the memory are lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_transfer_record_deserialize(
+    /// The record's [[Serialized]], which it lends for as long as it is lent.
+    ///
+    /// # Safety
+    ///
+    /// The record must be lent for `'a`.
+    pub(crate) unsafe fn serialized<'a>(self) -> ReceivedIPCSerializationRecord<'a> {
+        // SAFETY: The caller lends the record for 'a, and so its [[Serialized]].
+        unsafe {
+            ReceivedIPCSerializationRecord::from_raw(web_structured_serialize_transfer_record_serialized(
                 self.0.as_ptr(),
-                realm.as_ptr().cast(),
-                memory.as_abi(),
-            )
-        })
+            ))
+        }
     }
 
     pub(crate) fn clear_shared_buffers(self) {
