@@ -103,6 +103,7 @@ jobs:
           build_preset: 'Distribution'
           version: ${{ inputs.version }}
           vcpkg_cache_sas: ${{ secrets.VCPKG_CACHE_SAS }}
+          use_caches: ${{ inputs.version == '' }}
 
       - name: Start PulseAudio
         if: ${{ matrix.os_name == 'Linux' }}
@@ -279,7 +280,7 @@ jobs:
           build-debug-bundle: true
           manifest-path: Meta/CMake/flatpak/org.ladybird.Ladybird.json
           arch: ${{ matrix.arch }}
-          save-cache: false
+          cache: false
           upload-artifact: false
 
       - name: Attest

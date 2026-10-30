@@ -27,6 +27,10 @@ inputs:
     description: 'Access token that lets builds on master write to the vcpkg binary cache'
     required: false
     default: ''
+  use_caches:
+    description: 'Whether to restore and save caches of downloaded files and build artifacts'
+    required: false
+    default: 'true'
 
 runs:
   using: 'composite'
@@ -50,6 +54,7 @@ runs:
         arch: ${{ inputs.arch }}
         toolchain: ${{ inputs.toolchain }}
         build_preset: ${{ inputs.build_preset }}
+        use_caches: ${{ inputs.use_caches }}
 
     # Use the compiler version for the ccache compiler hash. Otherwise, if plugins are enabled, the plugin .so files
     # are included in the hash. This results in clean builds on every run as the .so files are rebuilt.
@@ -98,6 +103,7 @@ runs:
         echo "cmake_options=$CMAKE_OPTIONS" >> "$GITHUB_OUTPUT"
 
     - name: Restore Caches
+      if: ${{ inputs.use_caches == 'true' }}
       uses: ./.github/actions/cache-restore
       id: 'cache-restore'
       with:
@@ -111,7 +117,7 @@ runs:
 
     - name: Restore the WebAssembly spec test suite
       id: 'wasm-spec-tests-cache'
-      if: ${{ inputs.os != 'Windows' }}
+      if: ${{ inputs.use_caches == 'true' && inputs.os != 'Windows' }}
       uses: actions/cache/restore@v6
       with:
         path: ${{ github.workspace }}/Build/caches/WasmSpecTests
@@ -179,13 +185,14 @@ runs:
       run: cmake --install . --strip --prefix "${{ github.workspace }}/Install"
 
     - name: Save the WebAssembly spec test suite
-      if: ${{ github.ref == 'refs/heads/master' && inputs.os != 'Windows' && steps.wasm-spec-tests-cache.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref == 'refs/heads/master' && inputs.use_caches == 'true' && inputs.os != 'Windows' && steps.wasm-spec-tests-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ github.workspace }}/Build/caches/WasmSpecTests
         key: ${{ steps.wasm-spec-tests-cache.outputs.cache-primary-key }}
 
     - name: Save Caches
+      if: ${{ inputs.use_caches == 'true' }}
       uses: ./.github/actions/cache-save
       with:
         arch: ${{ inputs.arch }}

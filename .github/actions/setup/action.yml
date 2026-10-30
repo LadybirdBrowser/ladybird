@@ -22,6 +22,10 @@ inputs:
     description: 'When the setup is for building, set the build preset (e.g. Release)'
     required: false
     default: 'Release'
+  use_caches:
+    description: 'Whether to restore and save caches of downloaded files'
+    required: false
+    default: 'true'
 outputs:
   ccache_path:
     description: 'Path to the ccache directory'
@@ -57,7 +61,7 @@ runs:
       if: ${{ inputs.os != 'Linux' }}
       with:
         python-version: 3.12
-        cache: 'pip'
+        cache: ${{ inputs.use_caches == 'true' && 'pip' || '' }}
 
     # actions/setup-python can fail to find its tool-cache pip inside job containers.
     - name: 'Set up Python environment'
@@ -175,7 +179,7 @@ runs:
 
     - name: 'Restore wasm-tools'
       id: 'wasm-tools-cache'
-      if: ${{ inputs.type == 'build' && inputs.os != 'Linux' }}
+      if: ${{ inputs.use_caches == 'true' && inputs.type == 'build' && inputs.os != 'Linux' }}
       uses: actions/cache/restore@v6
       with:
         path: ${{ github.workspace }}/wasm-tools
@@ -211,7 +215,7 @@ runs:
     # Saved right after the install rather than by actions/cache's post-job step, which runs only if the whole job
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save wasm-tools'
-      if: ${{ github.ref == 'refs/heads/master' && inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref == 'refs/heads/master' && inputs.use_caches == 'true' && inputs.type == 'build' && inputs.os != 'Linux' && steps.wasm-tools-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
       with:
         path: ${{ github.workspace }}/wasm-tools
@@ -224,6 +228,7 @@ runs:
 
     - name: 'Restore cargo registry'
       id: 'cargo-registry'
+      if: ${{ inputs.use_caches == 'true' }}
       uses: actions/cache/restore@v6
       with:
         path: |
@@ -248,7 +253,7 @@ runs:
     # Saved right after the fetch rather than by actions/cache's post-job step, which runs only if the whole job
     # succeeds — so a flaky test would keep the cache from ever being saved.
     - name: 'Save cargo registry'
-      if: ${{ github.ref == 'refs/heads/master' && steps.cargo-registry.outputs.cache-hit != 'true' }}
+      if: ${{ github.ref == 'refs/heads/master' && inputs.use_caches == 'true' && steps.cargo-registry.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v6
       with:
         path: |
