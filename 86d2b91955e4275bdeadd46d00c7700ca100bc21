@@ -1,0 +1,19 @@
+Ladybird tells each WebContent or WebWorker process the permission
+states of only the sites it shows. A process asks the UI process the
+first time it reads a site’s state, and gets an answer only for a
+top-level origin it hosts a document of (or, for a worker, the worker’s
+own top-level site) — and from then on, only those sites’ changes.
+
+Gecko does the same: ContentParent::AboutToLoadDocumentForChild() calls
+TransmitPermissionsForPrincipal(), which sends a content process the
+permissions for the keys of the principals it loads, and the content
+process’s PermissionManager::PermissionAvailableInternal() refuses a
+key it hasn’t received. Blink and WebKit keep no permission state in
+the renderer at all — every query is a message to the browser or UI
+process, which checks the origin against the sender: In WebKit, the
+UI process’s WebPermissionControllerProxy::query() checks the claimed
+ClientOrigin with ProcessCommittedClientOrigin, while in Blink, the
+PermissionServiceImpl::GetPermissionResult() takes it from the frame’s
+RenderFrameHost. Ladybird keeps a per-site cache in the renderer
+instead, so that a read stays synchronous, as the spec’s permission
+state algorithm requires.
