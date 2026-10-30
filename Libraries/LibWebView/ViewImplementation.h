@@ -307,6 +307,11 @@ public:
         return displayed_frame().map([](auto const& frame) { return frame.device_pixel_ratio; });
     }
 
+    String force_dark_host() const;
+    bool force_dark_enabled() const;
+    bool can_set_force_dark() const;
+    void set_force_dark_enabled(bool);
+
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     // Sends the interface theme to the pages showing the browser's own pages, which follow it.
     void update_interface_color_scheme();
