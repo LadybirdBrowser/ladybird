@@ -1,0 +1,72 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @property --index {
+        syntax: "<integer>";
+        inherits: false;
+        initial-value: 0;
+    }
+
+    @property --count {
+        syntax: "<integer>";
+        inherits: false;
+        initial-value: 0;
+    }
+
+    #siblings > div {
+        --index: sibling-index();
+        --count: sibling-count();
+        --index-equality: if(style(--index: 3): yes; else: no);
+        --index-range: if(style(--index >= 3): yes; else: no);
+        --count-equality: if(style(--count: 4): yes; else: no);
+        --count-range: if(style(2 < --count < 4): yes; else: no);
+        --unregistered: if(style(sibling-index() >= 2): yes; else: no);
+    }
+
+    #containers > div {
+        container-type: normal;
+        --index: sibling-index();
+    }
+
+    @container style(--index >= 2) {
+        #containers span {
+            --container: yes;
+        }
+    }
+</style>
+<div id="siblings">
+    <div></div>
+    <div></div>
+    <div id="target"></div>
+</div>
+<div id="containers">
+    <div><span></span></div>
+    <div><span></span></div>
+</div>
+<script>
+    test(() => {
+        const properties = ["--index-equality", "--index-range", "--count-equality", "--count-range", "--unregistered"];
+        const report = label => {
+            println(label);
+            for (const [index, element] of document.querySelectorAll("#siblings > div").entries()) {
+                const style = getComputedStyle(element);
+                const results = properties.map(name => `${name}=${style.getPropertyValue(name).trim()}`);
+                println(`  ${index + 1}: ${results.join(" ")}`);
+            }
+            for (const [index, element] of document.querySelectorAll("#containers span").entries())
+                println(`  container ${index + 1}: ${getComputedStyle(element).getPropertyValue("--container").trim() || "(none)"}`);
+        };
+        report("initial");
+
+        const siblings = document.getElementById("siblings");
+        siblings.insertBefore(document.createElement("div"), siblings.firstChild);
+        const containers = document.getElementById("containers");
+        containers.insertBefore(document.createElement("div"), containers.firstChild);
+        report("after inserting a first child");
+
+        siblings.firstChild.remove();
+        siblings.firstElementChild.remove();
+        containers.firstElementChild.remove();
+        report("after removing the first two children");
+    });
+</script>
