@@ -549,13 +549,13 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.section("Environment layout");
     field!(w, "ENVIRONMENT_SCREWED_BY_EVAL", "Environment.permanently_screwed_by_eval", "bool", Environment, permanently_screwed_by_eval, 1, "nullable", "scalar");
     field!(w, "ENVIRONMENT_DECLARATIVE", "Environment.declarative", "bool", Environment, declarative, 1, "nullable", "scalar");
-    field!(w, "ENVIRONMENT_OUTER", "Environment.outer", "Environment", Environment, outer, 8, "nullable", "cell");
+    field!(w, "ENVIRONMENT_OUTER", "Environment.outer", "Environment", Environment, outer, 4, "nullable", "compressed");
 
     w.section("PrivateEnvironment layout");
-    field!(w, "PRIVATE_ENVIRONMENT_OUTER", "PrivateEnvironment.outer", "PrivateEnvironment", PrivateEnvironment, outer, 8, "nullable", "cell");
+    field!(w, "PRIVATE_ENVIRONMENT_OUTER", "PrivateEnvironment.outer", "PrivateEnvironment", PrivateEnvironment, outer, 4, "nullable", "compressed");
 
     w.section("DeclarativeEnvironment binding storage layout");
-    field!(w, "DECLARATIVE_ENVIRONMENT_SHAPE", "DeclarativeEnvironment.shape", "EnvironmentShape", DeclarativeEnvironment, shape, 8, "nullable", "cell");
+    field!(w, "DECLARATIVE_ENVIRONMENT_SHAPE", "DeclarativeEnvironment.shape", "EnvironmentShape", Environment, shape, 4, "nullable", "compressed");
     offset!(w, "DECLARATIVE_ENVIRONMENT_BINDING_VALUES", DeclarativeEnvironment, binding_values);
     offset!(w, "DECLARATIVE_ENVIRONMENT_RARE_DATA_BINDING_FLAGS", DeclarativeEnvironmentRareData, binding_flags);
     offset!(w, "ENVIRONMENT_SHAPE_BINDING_FLAGS", EnvironmentShape, binding_flags);

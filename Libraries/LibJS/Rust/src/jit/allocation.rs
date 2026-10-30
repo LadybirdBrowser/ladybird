@@ -28,6 +28,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment};
 use crate::layout::function_object::{CallEnvironmentTemplate, EcmascriptFunctionObject, FUNCTION_ENVIRONMENT_WORDS};
+use crate::layout::member::NullableMember;
 use crate::layout::object::{INLINE_NAMED_STORAGE_CAPACITY, Object};
 use crate::layout::primitive_string::PrimitiveString;
 use crate::layout::realm::Realm;
@@ -67,6 +68,13 @@ fn cell_words<T>(cell: Gc<T>, size: usize) -> Vec<u64> {
     // SAFETY: The mark is a byte within the words.
     unsafe { words.as_mut_ptr().cast::<u8>().add(mark).write(0) };
     words
+}
+
+/// Clears the `size` bytes at `offset` of `words`, which may share their word with other fields.
+fn clear_bytes(words: &mut [u64], offset: usize, size: usize) {
+    for byte in offset..offset + size {
+        words[byte / 8] &= !(0xff << (8 * (byte % 8)));
+    }
 }
 
 /// What JIT code needs to allocate cells itself, for code of `realm`. The templates come from cells allocated here,
@@ -303,13 +311,16 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
         words: [0; FUNCTION_ENVIRONMENT_WORDS],
     };
     template.words.copy_from_slice(&words);
-    for offset in [
-        core::mem::offset_of!(DeclarativeEnvironment, binding_values.data),
-        core::mem::offset_of!(Environment, outer),
-        FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET,
-        FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET,
+    for (offset, size) in [
+        (core::mem::offset_of!(DeclarativeEnvironment, binding_values.data), 8),
+        (
+            core::mem::offset_of!(Environment, outer),
+            size_of::<NullableMember<Environment>>(),
+        ),
+        (FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, 8),
+        (FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET, 8),
     ] {
-        template.words[offset / 8] = 0;
+        clear_bytes(&mut template.words, offset, size);
     }
     shared_data
         .call_environment_template

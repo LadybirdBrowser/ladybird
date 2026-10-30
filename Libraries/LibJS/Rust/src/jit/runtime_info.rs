@@ -270,7 +270,7 @@ fn runtime_layout() -> RuntimeLayout {
         environment_shape_binding_names: offset(offset_of!(EnvironmentShape, binding_names)),
         environment_shape_has_unique_binding_names: offset(offset_of!(EnvironmentShape, has_unique_binding_names)),
         declarative_environment_binding_values: offset(offset_of!(DeclarativeEnvironment, binding_values.data)),
-        declarative_environment_shape: offset(offset_of!(DeclarativeEnvironment, shape)),
+        declarative_environment_shape: offset(offset_of!(Environment, shape)),
         declarative_environment_rare_data: offset(offset_of!(DeclarativeEnvironment, rare_data)),
         rare_data_binding_flags: offset(offset_of!(DeclarativeEnvironmentRareData, binding_flags.data)),
         environment_shape_binding_flags_size: offset(offset_of!(EnvironmentShape, binding_flags.size)),

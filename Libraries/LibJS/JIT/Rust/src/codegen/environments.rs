@@ -48,12 +48,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 .load64(scratch, &Address::new(scratch, layout.rare_data_binding_flags as i32));
         };
 
-        self.masm.load64(
+        self.emit_load_compressed_cell_or_branch(
             scratch,
             &Address::new(environment, layout.declarative_environment_shape as i32),
+            rare_at_index,
         );
-        self.masm
-            .branch_test64(Condition::Zero, scratch, u64::MAX, rare_at_index);
         // Flags past the shape's are in the rare data, after the shape's.
         self.masm.load64(
             temp,
@@ -113,11 +112,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.move_imm64(shape, layout.module_environment_class);
         self.masm.branch64(Condition::Equal, scratch, shape, fail);
 
-        self.masm.load64(
+        self.emit_load_compressed_cell_or_branch(
             shape,
             &Address::new(environment, layout.declarative_environment_shape as i32),
+            fail,
         );
-        self.masm.branch_test64(Condition::Zero, shape, u64::MAX, fail);
         self.masm.load8(
             scratch,
             &Address::new(shape, layout.environment_shape_has_unique_binding_names as i32),

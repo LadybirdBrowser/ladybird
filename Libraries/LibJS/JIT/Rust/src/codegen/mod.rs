@@ -1314,9 +1314,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             }
             Op::PublishFrame => self.emit_publish_frame(),
             Op::LoadOuterEnvironment => {
+                // NB: The environments static coordinates walk through have outer environments.
                 let (output, input) = (self.output(node_id), self.input(node_id, 0));
                 let outer = Address::new(input, self.runtime.layout.environment_outer as i32);
-                self.masm.load64(output, &outer);
+                self.emit_load_compressed_cell(output, &outer);
             }
             Op::LoadEnvironmentBinding { index } => {
                 let (output, input) = (self.output(node_id), self.input(node_id, 0));
@@ -1374,7 +1375,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let scratch = self.pinned.scratch;
                 let field = self.frame_field(self.runtime.offsets.execution_context_private_environment);
                 self.masm.load64(scratch, &field);
-                self.masm.load64(
+                self.emit_load_nullable_compressed_cell(
                     scratch,
                     &Address::new(scratch, self.runtime.offsets.private_environment_outer as i32),
                 );

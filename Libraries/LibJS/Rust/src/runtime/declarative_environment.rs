@@ -171,15 +171,14 @@ unsafe impl Trace for DeclarativeEnvironmentRareData {
 
 define_cell!(DeclarativeEnvironment, Other, extends: [Environment], finalize: finalize);
 
-// SAFETY: Visits the outer environment, the rare data's dispose capability and shape cache, the shape and every
-// binding value.
+// SAFETY: Visits the outer environment and the shape (in the Environment), the rare data's dispose capability and shape
+// cache and every binding value.
 unsafe impl Trace for DeclarativeEnvironment {
     fn trace(&self, visitor: &mut Visitor) {
         self.base.trace(visitor);
         if let Some(rare_data) = self.rare_data() {
             rare_data.trace(visitor);
         }
-        self.shape.trace(visitor);
         self.binding_values.trace(visitor);
     }
 }
@@ -300,7 +299,6 @@ impl DeclarativeEnvironment {
     pub fn new(class: &'static Class, outer_environment: Option<Gc<Environment>>) -> Self {
         Self {
             base: Environment::new(class, outer_environment, true),
-            shape: Cell::new(None),
             binding_values: InterpreterBuffer::new(),
             rare_data: Cell::new(core::ptr::null_mut()),
             serial_number: Cell::new(0),

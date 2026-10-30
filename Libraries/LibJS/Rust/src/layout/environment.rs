@@ -8,6 +8,7 @@ use core::cell::Cell;
 
 use super::buffer::InterpreterBuffer;
 use super::cell::{CellHeader, Gc};
+use super::member::NullableMember;
 use super::object::Object;
 use super::value::Value;
 use crate::layout_forward::{
@@ -25,17 +26,22 @@ pub struct Environment {
     pub declarative: Cell<bool>,
     /// Whether the binding values of a declarative environment are stored in its cell, after the fields of its class.
     pub binding_values_are_inline: Cell<bool>,
-    pub outer: Cell<Option<Gc<Environment>>>,
+    pub outer: NullableMember<Environment>,
+    /// The shape of a declarative environment, in what would otherwise be padding (null for other environments).
+    pub shape: NullableMember<EnvironmentShape>,
 }
+
+const _: () = assert!(size_of::<Environment>() == 24);
 
 #[repr(C)]
 pub struct DeclarativeEnvironment {
     pub base: Environment,
-    pub shape: Cell<Option<Gc<EnvironmentShape>>>,
     pub binding_values: InterpreterBuffer<Value>,
     pub rare_data: Cell<*mut DeclarativeEnvironmentRareData>,
     pub serial_number: Cell<u64>,
 }
+
+const _: () = assert!(size_of::<DeclarativeEnvironment>() == 64);
 
 #[repr(C)]
 pub struct DeclarativeEnvironmentRareData {
@@ -54,7 +60,7 @@ pub struct GlobalEnvironment {
 #[repr(C)]
 pub struct PrivateEnvironment {
     pub header: CellHeader,
-    pub outer: Cell<Option<Gc<PrivateEnvironment>>>,
+    pub outer: NullableMember<PrivateEnvironment>,
     pub storage: PrivateEnvironmentStorage,
 }
 
