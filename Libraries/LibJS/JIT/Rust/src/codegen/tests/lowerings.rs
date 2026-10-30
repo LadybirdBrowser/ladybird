@@ -3899,7 +3899,7 @@ fn short_string_concatenations_through_the_fly_string_cache() {
                     cell_size: 64,
                     template: vec![0; 8],
                     lhs_offset: 32,
-                    rhs_offset: 40,
+                    rhs_offset: 36,
                     length_offset: 16,
                     min_length: 8,
                     slow_path: 0,
@@ -4469,7 +4469,7 @@ fn rope_strings_come_from_the_runtime_without_a_local_free_cell() {
                     cell_size: 64,
                     template: vec![0x1234; 8],
                     lhs_offset: 32,
-                    rhs_offset: 40,
+                    rhs_offset: 36,
                     length_offset: 16,
                     min_length: 8,
                     slow_path: fake_create_rope_string as *const () as u64,
@@ -4501,7 +4501,19 @@ fn rope_strings_come_from_the_runtime_without_a_local_free_cell() {
     // A local free cell becomes the rope string.
     let (result, strings, cell, address) = concatenate(lhs, rhs, 10_000, true);
     assert_eq!((result, strings), (string(address), [0, 0]));
-    assert_eq!(cell, [0x1234, 0x1234, 9, 0x1234, pointer(lhs), pointer(rhs)]);
+    // NB: The halves are compressed, and the heap region base is 0 here.
+    let compressed = |string: u64| (pointer(string) >> 3) & u64::from(u32::MAX);
+    assert_eq!(
+        cell,
+        [
+            0x1234,
+            0x1234,
+            9,
+            0x1234,
+            compressed(lhs) | compressed(rhs) << 32,
+            0x1234
+        ]
+    );
 
     // Without one, or without room before the next collection, the runtime
     // makes it.

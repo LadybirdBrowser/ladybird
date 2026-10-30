@@ -665,7 +665,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
 /// Whether the fields at `stored` (offsets and sizes of 4 or 8 bytes), which
 /// allocation stores itself, are aligned to their sizes and within the first
 /// `template_bytes` bytes of a cell.
-fn stored_fields_fit(stored: &[(u32, u32)], template_bytes: u64) -> bool {
+pub(super) fn stored_fields_fit(stored: &[(u32, u32)], template_bytes: u64) -> bool {
     stored.iter().all(|&(offset, size)| {
         matches!(size, 4 | 8) && offset.is_multiple_of(size) && u64::from(offset) + u64::from(size) <= template_bytes
     })
@@ -674,7 +674,7 @@ fn stored_fields_fit(stored: &[(u32, u32)], template_bytes: u64) -> bool {
 /// The constant fields of a cell image `words` without the fields at
 /// `stored` (see `stored_fields_fit()`): whole words, and the halves of the
 /// words that share theirs with a 4-byte stored field.
-fn template_fields(words: &[u64], stored: &[(u32, u32)]) -> Vec<ConstantField> {
+pub(super) fn template_fields(words: &[u64], stored: &[(u32, u32)]) -> Vec<ConstantField> {
     let is_stored = |offset: u32, size: u32| {
         stored
             .iter()

@@ -14,6 +14,7 @@ use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::{StringToAtomCacheEntry, Vm};
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::member::NullableMember;
 use crate::layout::primitive_string::{DEFERRED_KIND_MASK, INTERNED_FLAG};
 pub use crate::layout::primitive_string::{DeferredKind, INLINE_STRING_CAPACITY, InlineString, PrimitiveString};
 use crate::layout::value::Value;
@@ -50,9 +51,11 @@ unsafe impl Trace for PrimitiveString {
 #[derive(Trace)]
 pub struct RopeString {
     base: PrimitiveString,
-    lhs: Cell<Option<Gc<PrimitiveString>>>,
-    rhs: Cell<Option<Gc<PrimitiveString>>>,
+    lhs: NullableMember<PrimitiveString>,
+    rhs: NullableMember<PrimitiveString>,
 }
+
+const _: () = assert!(size_of::<RopeString>() == 32);
 
 /// Where a rope string keeps its two halves, for JIT code that creates rope strings itself.
 pub const ROPE_STRING_LHS_OFFSET: usize = core::mem::offset_of!(RopeString, lhs);
@@ -66,9 +69,12 @@ pub const ROPE_STRING_MIN_LENGTH: u32 = crate::utf16::MAX_SHORT_STRING_BYTE_COUN
 #[derive(Trace)]
 pub struct Substring {
     base: PrimitiveString,
-    source_string: Cell<Option<Gc<PrimitiveString>>>,
-    code_unit_offset: usize,
+    source_string: NullableMember<PrimitiveString>,
+    /// Strings are shorter than 2^32 code units, like their lengths.
+    code_unit_offset: u32,
 }
+
+const _: () = assert!(size_of::<Substring>() == 32);
 
 // SAFETY: The characters hold no cells.
 unsafe impl Trace for InlineString {
@@ -399,7 +405,7 @@ impl PrimitiveString {
             return Self::create_from_substring(
                 vm,
                 substring.source_string(),
-                substring.code_unit_offset + code_unit_offset,
+                substring.code_unit_offset() + code_unit_offset,
                 code_unit_length,
             );
         }
@@ -532,7 +538,7 @@ impl PrimitiveString {
                 let source_string = unsafe { source_string.as_non_null().as_ref() };
                 return source_string
                     .utf16_string_view()
-                    .substring_view(substring.code_unit_offset, self.length_in_utf16_code_units());
+                    .substring_view(substring.code_unit_offset(), self.length_in_utf16_code_units());
             }
             self.resolve_if_needed();
         }
@@ -704,8 +710,8 @@ impl RopeString {
                 DeferredKind::Rope,
                 lhs.length_in_utf16_code_units() + rhs.length_in_utf16_code_units(),
             ),
-            lhs: Cell::new(Some(lhs)),
-            rhs: Cell::new(Some(rhs)),
+            lhs: NullableMember::new(Some(lhs)),
+            rhs: NullableMember::new(Some(rhs)),
         }
     }
 
@@ -811,9 +817,13 @@ impl Substring {
     fn new(source_string: Gc<PrimitiveString>, code_unit_offset: usize, code_unit_length: usize) -> Self {
         Self {
             base: PrimitiveString::new_deferred(Self::CLASS, DeferredKind::Substring, code_unit_length),
-            source_string: Cell::new(Some(source_string)),
-            code_unit_offset,
+            source_string: NullableMember::new(Some(source_string)),
+            code_unit_offset: u32::try_from(code_unit_offset).expect("strings are shorter than 2^32 code units"),
         }
+    }
+
+    fn code_unit_offset(&self) -> usize {
+        self.code_unit_offset as usize
     }
 
     fn source_string(&self) -> Gc<PrimitiveString> {
@@ -826,7 +836,7 @@ impl Substring {
         let source_string = self.source_string();
         let source_view = source_string
             .utf16_string_view()
-            .substring_view(self.code_unit_offset, self.base.length_in_utf16_code_units());
+            .substring_view(self.code_unit_offset(), self.base.length_in_utf16_code_units());
 
         self.set_resolved_utf16_string(source_view.to_utf16_string());
     }
