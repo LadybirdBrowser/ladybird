@@ -38,7 +38,6 @@ class HostObject;
 namespace Web::HTML {
 
 class StructuredSerializeDataDecoder;
-class StructuredSerializeDataEncoder;
 
 class WEB_API TransferDataDecoder {
     AK_ALLOC_WITH_KMALLOC;
@@ -69,40 +68,6 @@ private:
     IPC::Decoder m_decoder;
 
     Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
-};
-
-class WEB_API StructuredSerializeWriter {
-public:
-    static StructuredSerializeWriter create_ipc();
-    static StructuredSerializeWriter create_storage();
-    ~StructuredSerializeWriter();
-
-    SerializationType type() const;
-
-    template<typename T>
-    void encode(T const&);
-
-    void append(IPCSerializationRecord&&);
-
-    u32 add_shared_array_buffer(JS::ArrayBuffer&);
-
-    IPCSerializationRecord take_ipc_record();
-    StorageSerializationRecord take_storage_record();
-
-    // AD-HOC: On the messaging path, a side list carries each SharedArrayBuffer's cross-process shared memory by file
-    //         descriptor — so an agent in another process can share it. enable_shared_buffers() opts a writer in.
-    void enable_shared_buffers() { m_supports_shared_buffers = true; }
-    bool supports_shared_buffers() const { return m_supports_shared_buffers; }
-    Vector<Core::AnonymousBuffer>& shared_buffers() { return m_shared_buffers; }
-    Vector<Core::AnonymousBuffer> take_shared_buffers() { return move(m_shared_buffers); }
-
-private:
-    explicit StructuredSerializeWriter(NonnullOwnPtr<StructuredSerializeDataEncoder>);
-
-    NonnullOwnPtr<StructuredSerializeDataEncoder> m_encoder;
-    Vector<GC::Root<JS::ArrayBuffer>> m_shared_array_buffers;
-    Vector<Core::AnonymousBuffer> m_shared_buffers;
-    bool m_supports_shared_buffers { false };
 };
 
 class WEB_API StructuredSerializeReader {
@@ -153,13 +118,13 @@ enum class AllowSharedArrayBuffers : u8 {
 
 // The SharedArrayBuffers that a record produced in this process aliases instead of copying.
 WEB_API ReadonlySpan<GC::Root<JS::ArrayBuffer>> same_process_shared_array_buffers(IPCSerializationRecord const&);
+IPCSerializationRecord create_ipc_serialization_record(ReadonlyBytes data, Vector<GC::Root<JS::ArrayBuffer>> shared_array_buffers);
 
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, AllowSharedArrayBuffers);
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, Vector<Core::AnonymousBuffer>& shared_buffers);
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value);
-WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory* = nullptr, AllowSharedArrayBuffers = AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
 
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&);
@@ -167,7 +132,6 @@ WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, 
 
 WEB_API WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm&, AK::Error const&);
 
-void encode_signed_big_integer(StructuredSerializeWriter&, ::Crypto::SignedBigInteger const&);
 WebIDL::ExceptionOr<::Crypto::SignedBigInteger> decode_signed_big_integer(StructuredSerializeReader&, JS::Realm&);
 
 template<typename T>
@@ -230,7 +194,8 @@ struct SerializablePlatformObject {
     InterfaceName interface_name;
     GC::Ptr<JS::Realm> realm;
 
-    WebIDL::ExceptionOr<void> serialization_steps(HTML::StructuredSerializeWriter&, bool for_storage, HTML::SerializationMemory*) const;
+    // NB: The record that the steps write is the Rust SerializationWriter that the serialization passes on.
+    WebIDL::ExceptionOr<void> serialization_steps(void* serialized, bool for_storage) const;
 };
 
 // A platform object that is a transferable object, of an interface implemented in C++ or in Rust.

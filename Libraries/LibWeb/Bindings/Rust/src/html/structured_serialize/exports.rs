@@ -11,14 +11,16 @@ use core::ffi::c_void;
 use core::ptr::NonNull;
 
 use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, ThrowCompletionOr, Value, Vm};
+use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::realm_arguments;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    SerializedTransferRecord, StructuredSerializeReader, StructuredSerializeWriter, TransferDataDecoder,
-    TransferredValues,
+    IPCSerializationRecord, SerializedTransferRecord, SharedBuffers, StorageSerializationRecord,
+    StructuredSerializeReader, TransferDataDecoder, TransferredValues,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
+use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
     AllowSharedArrayBuffers, structured_deserialize_internal, structured_deserialize_with_transfer,
     structured_deserialize_with_transfer_internal, structured_serialize_internal, structured_serialize_with_transfer,
@@ -30,54 +32,99 @@ fn completion(cx: &CallContext, result: WebIdlResult<Value>) -> RawNativeFunctio
     RawNativeFunctionResult::from_completion(result)
 }
 
-/// StructuredSerializeInternal, which runs in the current realm.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a writer that C++ lends, and the memory of the serialization that a serialization step
-/// serializes a value of, or null for a new one. The value must be live.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_structured_serialize_internal(
-    vm: *mut c_void,
-    serialized: *mut c_void,
-    value: u64,
+/// StructuredSerializeInternal(value, forStorage) in the current realm, with a new memory.
+fn structured_serialize_in_current_realm<'vm>(
+    vm: &'vm Vm,
+    serialized: &StructuredSerializeWriter<'vm>,
+    value: Value,
     for_storage: bool,
-    memory: *mut c_void,
-    allow_shared_array_buffers: u8,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM.
-    let vm = unsafe { &*vm.cast::<Vm>() };
-    // SAFETY: The caller lends the writer, and passes a live value.
-    let (serialized, value) = unsafe { (StructuredSerializeWriter::from_raw(serialized), Value::from_raw(value)) };
-    let new_memory;
-    let memory = if memory.is_null() {
-        new_memory = SerializationMemory::new(vm);
-        &new_memory
-    } else {
-        // SAFETY: The caller passes the memory of the serialization that it runs in.
-        unsafe { SerializationMemory::from_abi(memory) }
-    };
+    allow_shared_array_buffers: AllowSharedArrayBuffers,
+) -> Result<(), RawNativeFunctionResult> {
+    let memory = SerializationMemory::new(vm);
     // NB: Code outside of any script serializes values too, with no current realm. An object's exception is created in
     //     its realm then; a Symbol throws too, but only script serializes one.
     let realm = vm
         .current_realm()
         .or_else(|| value.is_object().then(|| value.as_object().shape().realm()));
-    let result = structured_serialize_internal(
+    structured_serialize_internal(
         vm,
         realm,
         serialized,
         value,
         for_storage,
-        memory,
+        &memory,
+        allow_shared_array_buffers,
+    )
+    .map_err(|exception| {
+        let cx = CallContext::new(vm, realm.expect("what throws has a realm"));
+        completion(&cx, Err(exception))
+    })
+}
+
+/// StructuredSerialize, which runs in the current realm, and sets the record. The record shares the cross-process
+/// shared memory of SharedArrayBuffers through the list, if there is one.
+///
+/// # Safety
+///
+/// The pointers must be the VM, a list that C++ lends or null, and a record that C++ lends. The value must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_structured_serialize(
+    vm: *mut c_void,
+    value: u64,
+    allow_shared_array_buffers: u8,
+    shared_buffers: *mut c_void,
+    record: *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the VM.
+    let vm = unsafe { &*vm.cast::<Vm>() };
+    // SAFETY: The caller passes a live value, and lends the list and the record.
+    let (value, record) = unsafe { (Value::from_raw(value), IPCSerializationRecord::from_raw(record)) };
+    let serialized = if shared_buffers.is_null() {
+        StructuredSerializeWriter::new(vm, SerializationType::Ipc)
+    } else {
+        // SAFETY: The caller lends the list.
+        StructuredSerializeWriter::new_with_shared_buffers(vm, unsafe { SharedBuffers::from_raw(shared_buffers) })
+    };
+    if let Err(result) = structured_serialize_in_current_realm(
+        vm,
+        &serialized,
+        value,
+        false,
         AllowSharedArrayBuffers::from_abi(allow_shared_array_buffers),
-    );
-    match result {
-        Ok(()) => RawNativeFunctionResult::from_completion(Ok(Value::UNDEFINED)),
-        Err(exception) => {
-            let cx = CallContext::new(vm, realm.expect("what throws has a realm"));
-            completion(&cx, Err(exception))
-        }
+    ) {
+        return result;
     }
+    serialized.finish_ipc_record(record);
+    RawNativeFunctionResult::from_completion(Ok(Value::UNDEFINED))
+}
+
+/// StructuredSerializeForStorage, which runs in the current realm, and sets the record.
+///
+/// # Safety
+///
+/// The pointers must be the VM and a record that C++ lends. The value must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_structured_serialize_for_storage(
+    vm: *mut c_void,
+    value: u64,
+    record: *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the VM.
+    let vm = unsafe { &*vm.cast::<Vm>() };
+    // SAFETY: The caller passes a live value, and lends the record.
+    let (value, record) = unsafe { (Value::from_raw(value), StorageSerializationRecord::from_raw(record)) };
+    let serialized = StructuredSerializeWriter::new(vm, SerializationType::Storage);
+    if let Err(result) = structured_serialize_in_current_realm(
+        vm,
+        &serialized,
+        value,
+        true,
+        AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
+    ) {
+        return result;
+    }
+    serialized.finish_storage_record(record);
+    RawNativeFunctionResult::from_completion(Ok(Value::UNDEFINED))
 }
 
 /// StructuredDeserialize in the realm, which throws a "DataCloneError" DOMException for a storage record with bytes

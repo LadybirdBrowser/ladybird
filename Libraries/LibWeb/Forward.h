@@ -801,7 +801,6 @@ class SharedWorker;
 class SharedWorkerGlobalScope;
 class Storage;
 class StructuredSerializeReader;
-class StructuredSerializeWriter;
 class SubmitEvent;
 class TextTrack;
 class TextTrackCue;

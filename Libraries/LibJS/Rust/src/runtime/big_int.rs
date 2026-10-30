@@ -6,6 +6,7 @@
 
 use ak::Utf16String;
 use libjs_runtime_macros::Trace;
+use num_bigint::Sign;
 use num_traits::FromPrimitive;
 
 use crate::gc::class::{GcCell, define_cell};
@@ -50,6 +51,18 @@ impl BigInt {
 
     pub fn big_integer(&self) -> &SignedBigInteger {
         &self.big_integer
+    }
+
+    pub fn is_negative(&self) -> bool {
+        self.big_integer.sign() == Sign::Minus
+    }
+
+    /// The magnitude of the value, big-endian and without leading zeros, which has no bytes for zero.
+    pub fn magnitude_to_bytes_be(&self) -> Vec<u8> {
+        if self.big_integer.sign() == Sign::NoSign {
+            return Vec::new();
+        }
+        self.big_integer.magnitude().to_bytes_be()
     }
 
     /// The value, if it is an integer in the range of u64.

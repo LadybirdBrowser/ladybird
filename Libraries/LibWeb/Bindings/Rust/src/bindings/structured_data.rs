@@ -8,9 +8,10 @@
 //! https://html.spec.whatwg.org/multipage/structured-data.html#serializable-objects and
 //! https://html.spec.whatwg.org/multipage/structured-data.html#transferable-objects
 //!
-//! StructuredSerialize of LibWeb's C++ runs the algorithms, and runs the steps of such an interface through the entry
-//! points that the generated bindings of the interface define, which call the functions here. The steps read and
-//! write the records of the serialization through what C++ lends them; the structs that it lends are in
+//! The algorithms of crate::html::structured_serialize run the steps of such an interface through LibWeb's C++, which
+//! dispatches to the entry points that the generated bindings of the interface define, which call the functions here.
+//! The serialization steps write to the record of the serialization, which the algorithms pass through C++ to them.
+//! The other steps read and write what C++ lends them; the structs that it lends are in
 //! Libraries/LibWeb/Bindings/RustSerialization.h. Unlike an object of an interface implemented in C++, which is
 //! created before its deserialization steps fill it in, an object of an interface implemented in Rust is what its
 //! deserialization steps and its transfer-receiving steps return.
@@ -27,22 +28,13 @@ use crate::bindings::interface::{ConstructedObject, Interface, Ref, cell_from_ab
 use crate::bindings::transport::TransportHandle;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{OwnedSerializedTransferRecord, TransferDataDecoder};
+use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
-    structured_deserialize_with_transfer_internal, structured_serialize_with_transfer,
+    Serializer, encode_serializable_object_header, structured_deserialize_with_transfer_internal,
+    structured_serialize_with_transfer,
 };
 
 unsafe extern "C" {
-    fn web_bindings_serialize_value(serialized: *mut c_void, value: u64) -> RawNativeFunctionResult;
-    fn web_bindings_serialize_u8(serialized: *mut c_void, value: u8);
-    fn web_bindings_serialize_i32(serialized: *mut c_void, value: i32);
-    fn web_bindings_serialize_u32(serialized: *mut c_void, value: u32);
-    fn web_bindings_serialize_u64(serialized: *mut c_void, value: u64);
-    fn web_bindings_serialize_f64(serialized: *mut c_void, value: f64);
-    fn web_bindings_serialize_bool(serialized: *mut c_void, value: bool);
-    fn web_bindings_serialize_i64(serialized: *mut c_void, value: i64);
-    fn web_bindings_serialize_optional_u64(serialized: *mut c_void, has_value: bool, value: u64);
-    fn web_bindings_serialize_utf16_string(serialized: *mut c_void, string: usize);
-    fn web_bindings_serialize_bytes(serialized: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_bindings_deserialize_value(serialized: *mut c_void) -> RawNativeFunctionResult;
     fn web_bindings_deserialize_is_for_storage(serialized: *mut c_void) -> bool;
     fn web_bindings_deserialize_u8(serialized: *mut c_void, out_value: &mut u8) -> RawNativeFunctionResult;
@@ -66,7 +58,6 @@ unsafe extern "C" {
         serialized: *mut c_void,
         out_string: &mut usize,
     ) -> RawNativeFunctionResult;
-    fn web_bindings_serialize_inline_object_header(serialized: *mut c_void, interface_name: u16);
     fn web_bindings_deserialize_inline_object_header(
         serialized: *mut c_void,
         interface_name: u16,
@@ -98,75 +89,65 @@ unsafe extern "C" {
     fn web_bindings_transfer_data_decoder(data_holder: *mut c_void) -> *mut c_void;
 }
 
-/// The record of a structured serialization, which the serialization steps of an object write to: a
-/// Web::Bindings::RustSerializationWriter that C++ lends for the steps.
-pub(crate) struct SerializationWriter<'a> {
-    raw: NonNull<c_void>,
-    _lent: PhantomData<&'a mut c_void>,
+/// The record of a structured serialization, which the serialization steps of an object write to, and the serialization
+/// that the sub-serializations of the steps run in.
+pub(crate) struct SerializationWriter<'a, 'memory> {
+    serializer: &'a Serializer<'a, 'a, 'memory>,
 }
 
-impl SerializationWriter<'_> {
-    /// The writer as the C ABI of an interface's C++ class takes it, for what only C++ encodes.
-    pub(crate) fn as_raw(&mut self) -> *mut c_void {
-        self.raw.as_ptr()
+impl<'a, 'memory> SerializationWriter<'a, 'memory> {
+    pub(crate) fn new(serializer: &'a Serializer<'a, 'a, 'memory>) -> Self {
+        Self { serializer }
+    }
+
+    fn serialized(&self) -> &StructuredSerializeWriter<'memory> {
+        self.serializer.serialized()
     }
 
     /// Sets a field of the serialized form to the sub-serialization of the value,
     /// https://html.spec.whatwg.org/multipage/structured-data.html#sub-serialization
     pub(crate) fn write_value(&mut self, value: Value) -> WebIdlResult<()> {
-        // SAFETY: The writer is lent for the steps, and the value is live while they run.
-        unsafe { web_bindings_serialize_value(self.raw.as_ptr(), value.to_raw()) }.into_completion()?;
-        Ok(())
+        self.serializer.serialize(value)
     }
 
     pub(crate) fn write_u8(&mut self, value: u8) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_u8(self.raw.as_ptr(), value) };
+        self.serialized().encode_u8(value);
     }
 
     pub(crate) fn write_i32(&mut self, value: i32) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_i32(self.raw.as_ptr(), value) };
+        self.serialized().encode_i32(value);
     }
 
     pub(crate) fn write_u32(&mut self, value: u32) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_u32(self.raw.as_ptr(), value) };
+        self.serialized().encode_u32(value);
     }
 
     pub(crate) fn write_u64(&mut self, value: u64) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_u64(self.raw.as_ptr(), value) };
+        self.serialized().encode_u64(value);
     }
 
     pub(crate) fn write_f64(&mut self, value: f64) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_f64(self.raw.as_ptr(), value) };
+        self.serialized().encode_f64(value);
     }
 
     pub(crate) fn write_bool(&mut self, value: bool) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_bool(self.raw.as_ptr(), value) };
+        self.serialized().encode_bool(value);
     }
 
     pub(crate) fn write_i64(&mut self, value: i64) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_i64(self.raw.as_ptr(), value) };
+        self.serialized().encode_i64(value);
     }
 
     pub(crate) fn write_optional_u64(&mut self, value: Option<u64>) {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_optional_u64(self.raw.as_ptr(), value.is_some(), value.unwrap_or(0)) };
+        self.serialized().encode_optional_u64(value);
     }
 
     pub(crate) fn write_utf16_string(&mut self, string: &Utf16String) {
-        // SAFETY: The writer is lent for the steps, and the call borrows the string.
-        unsafe { web_bindings_serialize_utf16_string(self.raw.as_ptr(), string.raw_identity()) };
+        self.serialized().encode_utf16_string(string);
     }
 
     pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
-        // SAFETY: The writer is lent for the steps, and the call borrows the bytes.
-        unsafe { web_bindings_serialize_bytes(self.raw.as_ptr(), ak::Span::new(bytes)) };
+        self.serialized().encode_bytes(bytes);
     }
 
     /// Writes the record of a serializable object in place, as StructuredSerializeInternal writes it, but without
@@ -178,8 +159,7 @@ impl SerializationWriter<'_> {
         object: &T,
         for_storage: bool,
     ) -> WebIdlResult<()> {
-        // SAFETY: The writer is lent for the steps.
-        unsafe { web_bindings_serialize_inline_object_header(self.raw.as_ptr(), T::INTERFACE_NAME) };
+        encode_serializable_object_header(self.serialized(), T::INTERFACE_NAME);
         object.serialization_steps(cx, self, for_storage)
     }
 }
@@ -446,7 +426,8 @@ fn wrap_new_object<T: Interface>(cx: &CallContext, object: impl ConstructedObjec
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a live realm, the live cell of an object of `T`, and a writer that C++ lends.
+/// The pointers must be the VM, a live realm, the live cell of an object of `T`, and the SerializationWriter that
+/// crate::html::structured_serialize lends through C++.
 pub(crate) unsafe fn serialization_steps<T: Serializable>(
     vm: *mut c_void,
     realm: *mut c_void,
@@ -457,11 +438,9 @@ pub(crate) unsafe fn serialization_steps<T: Serializable>(
     // SAFETY: The caller passes the VM, a live realm and a live cell of an object of T.
     let ((vm, realm), object) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<T>(cell)) };
     let mut cx = CallContext::new(vm, realm);
-    let mut serialized = SerializationWriter {
-        raw: NonNull::new(serialized).expect("C++ lends a writer"),
-        _lent: PhantomData,
-    };
-    let result = object.serialization_steps(&mut cx, &mut serialized, for_storage);
+    // SAFETY: The caller passes the writer that the serialization lends for the steps.
+    let serialized = unsafe { &mut *serialized.cast::<SerializationWriter<'_, '_>>() };
+    let result = object.serialization_steps(&mut cx, serialized, for_storage);
     completion(&cx, result.map(|()| Value::UNDEFINED))
 }
 

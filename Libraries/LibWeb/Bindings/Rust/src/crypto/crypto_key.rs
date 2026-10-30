@@ -14,11 +14,11 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{Gc, Object, RawNativeFunctionResult, Realm};
+use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::{Exception, WebIdlResult};
-use crate::html::structured_serialize::cpp::{
-    DecodedBytes, SerializationType, StructuredSerializeReader, StructuredSerializeWriter,
-};
+use crate::html::structured_serialize::cpp::{DecodedBytes, StructuredSerializeReader};
+use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 
 /// The fields of a CryptoKey, as Libraries/LibWeb/Crypto/CryptoKey.cpp hands them over and creates a key from. A key
 /// that it hands over owns its strings for the receiver, and borrows its bytes from the key for the call.
@@ -98,7 +98,7 @@ fn data_clone_error(message: &[u8]) -> Exception {
     Exception::Dom("DataCloneError", Utf16String::from_ascii(message))
 }
 
-fn encode_identifier(serialized: StructuredSerializeWriter, identifier: &[u8]) {
+fn encode_identifier(serialized: &StructuredSerializeWriter, identifier: &[u8]) {
     serialized.encode_utf16_string(&Utf16String::from_ascii(identifier));
 }
 
@@ -117,18 +117,23 @@ fn decode_identifier(
 }
 
 /// Runs the serialization steps of the CryptoKey, given the record.
-pub(crate) fn serialization_steps(key: Gc<Object>, serialized: StructuredSerializeWriter) {
+pub(crate) fn serialization_steps(key: Gc<Object>, serialized: &StructuredSerializeWriter) {
     unsafe extern "C" fn steps(state: *mut c_void, fields: *const RawFields<'_>) {
         // SAFETY: The state is the writer that serialization_steps() lends, and the fields live for the call.
-        let (serialized, fields) = unsafe { (*state.cast::<StructuredSerializeWriter>(), &*fields) };
+        let (serialized, fields) = unsafe { (&*state.cast::<StructuredSerializeWriter>(), &*fields) };
         write_fields(serialized, fields);
     }
-    let mut state = serialized;
-    // SAFETY: The object is a live CryptoKey, and the state lives for the call.
-    unsafe { web_crypto_key_with_fields(key.as_ptr().cast(), (&raw mut state).cast(), steps) };
+    // SAFETY: The object is a live CryptoKey, and the writer lives for the call.
+    unsafe {
+        web_crypto_key_with_fields(
+            key.as_ptr().cast(),
+            core::ptr::from_ref(serialized).cast_mut().cast(),
+            steps,
+        );
+    }
 }
 
-fn write_fields(serialized: StructuredSerializeWriter, value: &RawFields<'_>) {
+fn write_fields(serialized: &StructuredSerializeWriter, value: &RawFields<'_>) {
     let for_storage = serialized.serialization_type() == SerializationType::Storage;
     // SAFETY: LibWeb hands over the strings.
     let (algorithm_name, hash, named_curve) = unsafe {

@@ -59,61 +59,6 @@ inline Record ipc_round_trip(Record const& record)
     return MUST(decoder.decode<Record>());
 }
 
-template<typename T>
-inline T structured_ipc_round_trip(T const& value)
-{
-    auto writer = Web::HTML::StructuredSerializeWriter::create_ipc();
-    writer.encode(value);
-
-    auto record = writer.take_ipc_record();
-    Web::HTML::StructuredSerializeReader reader { record };
-    EXPECT_EQ(reader.type(), Web::HTML::SerializationType::IPC);
-    return MUST(reader.decode<T>());
-}
-
-template<typename T>
-inline T structured_storage_round_trip(T const& value)
-{
-    auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    writer.encode(value);
-
-    auto record = writer.take_storage_record();
-    Web::HTML::StructuredSerializeReader reader { record };
-    EXPECT_EQ(reader.type(), Web::HTML::SerializationType::Storage);
-    return MUST(reader.decode<T>());
-}
-
-template<typename T>
-inline void expect_structured_round_trip(T const& value)
-{
-    EXPECT_EQ(structured_ipc_round_trip(value), value);
-    EXPECT_EQ(structured_storage_round_trip(value), value);
-}
-
-template<typename T>
-inline ByteBuffer structured_ipc_buffer_round_trip(T const& value)
-{
-    auto writer = Web::HTML::StructuredSerializeWriter::create_ipc();
-    writer.encode(value);
-
-    auto record = writer.take_ipc_record();
-    Web::HTML::StructuredSerializeReader reader { record };
-    EXPECT_EQ(reader.type(), Web::HTML::SerializationType::IPC);
-    return MUST(reader.decode<ByteBuffer>());
-}
-
-template<typename T>
-inline ByteBuffer structured_storage_buffer_round_trip(T const& value)
-{
-    auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    writer.encode(value);
-
-    auto record = writer.take_storage_record();
-    Web::HTML::StructuredSerializeReader reader { record };
-    EXPECT_EQ(reader.type(), Web::HTML::SerializationType::Storage);
-    return MUST(reader.decode<ByteBuffer>());
-}
-
 inline void expect_utf16_equals(Utf16String const& actual, Utf16String const& expected)
 {
     EXPECT(actual.utf16_view() == expected.utf16_view());
@@ -160,28 +105,6 @@ inline void append_storage_ascii_utf16(Vector<u8>& bytes, StringView ascii)
 {
     append_storage_string_header(bytes, true, ascii.length());
     bytes.append(ascii.bytes().data(), ascii.length());
-}
-
-inline Vector<u8> expected_storage_identifier_record(StringView identifier)
-{
-    Vector<u8> expected;
-    append_storage_record_header(expected);
-    append_storage_ascii_utf16(expected, identifier);
-    return expected;
-}
-
-template<typename T>
-inline void expect_storage_identifier_encoding(T const& value, StringView identifier)
-{
-    auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    writer.encode(value);
-
-    auto record = writer.take_storage_record();
-    auto expected = expected_storage_identifier_record(identifier);
-    EXPECT_EQ(record.data.span(), expected.span());
-
-    Web::HTML::StructuredSerializeReader reader { record };
-    EXPECT_EQ(MUST(reader.decode<T>()), value);
 }
 
 // CryptoKey needs the principal realm below because it is [SecureContext].
