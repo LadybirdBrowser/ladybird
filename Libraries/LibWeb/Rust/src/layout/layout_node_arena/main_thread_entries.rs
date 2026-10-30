@@ -136,6 +136,16 @@ pub unsafe extern "C" fn render_state_reinherit_anonymous_descendants(
     host.queue_change(crate::render_state::ArenaChange::ReinheritAnonymousDescendants(node));
 }
 
+/// The anonymous boxes that give the text of the `display: contents` element `element` its style take it again, which
+/// their layout nodes hear of once the host has its next job back.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_reinherit_display_contents_text(host: &DocumentHost, element: u32) {
+    let Some(element) = StyleNodeID::from_raw(element) else {
+        return;
+    };
+    host.queue_change(crate::render_state::ArenaChange::ReinheritDisplayContentsText(element));
+}
+
 /// The viewport and the boxes of the root element and its body take the styles viewport propagation gives them, which
 /// their layout nodes hear of before the host goes on.
 ///

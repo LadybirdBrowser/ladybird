@@ -356,6 +356,8 @@ pub(crate) enum ArenaChange {
     /// [`crate::layout::LayoutNodeArena::reinherit_anonymous_descendants`]), which owes their layout
     /// nodes the records they take, paid once the job that applies it is done.
     ReinheritAnonymousDescendants(crate::layout::node_data::NodeSlotId),
+    /// The anonymous boxes that give the text of a `display: contents` element its style take it again.
+    ReinheritDisplayContentsText(crate::css::style::tree::StyleNodeID),
     /// A removed node's box leaves its parent's box in place, or the parent is marked for a rebuild, as the render state
     /// finds the boxes (see [`crate::layout::box_removal`]), which owes the host what it pays once the job that applies
     /// it is done.
@@ -409,6 +411,11 @@ impl ArenaChange {
                     );
                 }
             }
+            Self::ReinheritDisplayContentsText(element) => owed.push(
+                crate::layout::layout_changes::LayoutWrite::ReinheritDisplayContentsText { element }
+                    .apply(arena)
+                    .host_work,
+            ),
             Self::RemoveBox(removal) => removal.apply(arena, owed),
             Self::Paint(change) => change.apply(arena),
             Self::Style(change) => change.apply(state.engine_mut()),
@@ -434,6 +441,7 @@ impl ArenaChange {
             | Self::Paint(_)
             | Self::DetachForRemoval(_)
             | Self::ReinheritAnonymousDescendants(_)
+            | Self::ReinheritDisplayContentsText(_)
             | Self::RemoveBox(_) => false,
         }
     }
@@ -447,9 +455,11 @@ impl ArenaChange {
             Self::Layout(change) => (false, change.may_move_facts()),
             Self::Style(change) => (change.may_move_facts(), change.may_move_facts()),
             Self::Engine(write) => (write.may_move_facts(), write.may_move_facts()),
-            Self::DetachForRemoval(_) | Self::ReinheritAnonymousDescendants(_) | Self::RemoveBox(_) | Self::Rule(_) => {
-                (true, true)
-            }
+            Self::DetachForRemoval(_)
+            | Self::ReinheritAnonymousDescendants(_)
+            | Self::ReinheritDisplayContentsText(_)
+            | Self::RemoveBox(_)
+            | Self::Rule(_) => (true, true),
         };
         Moves {
             rows: self.row_write(),
@@ -465,7 +475,7 @@ impl ArenaChange {
             Self::Layout(change) => change.row_write(),
             Self::Paint(change) => change.row_write(),
             Self::DetachForRemoval(_) | Self::RemoveBox(_) => RowWrite::Identities,
-            Self::ReinheritAnonymousDescendants(_) => RowWrite::NamedStyles,
+            Self::ReinheritAnonymousDescendants(_) | Self::ReinheritDisplayContentsText(_) => RowWrite::NamedStyles,
             Self::Style(_) | Self::Engine(_) | Self::Rule(_) => RowWrite::None,
         }
     }
@@ -576,7 +586,9 @@ impl ChangeQueue {
             ArenaChange::Layout(crate::layout::layout_changes::LayoutChange::SetNodeStyle { node, .. }) => {
                 self.styled_rows.borrow_mut().insert(*node);
             }
-            ArenaChange::ReinheritAnonymousDescendants(_) => self.restyles_anonymous_rows.set(true),
+            ArenaChange::ReinheritAnonymousDescendants(_) | ArenaChange::ReinheritDisplayContentsText(_) => {
+                self.restyles_anonymous_rows.set(true);
+            }
             _ => {}
         }
         let (moves, change) = (self.moves.get(), change.moves());

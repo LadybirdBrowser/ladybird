@@ -11,7 +11,7 @@
 
 use super::LayoutNodeArena;
 use super::formatting_context::FfiLayoutHostCallbacks;
-use super::layout_node_arena::{ShellFactory, ShellStyleChangedHost};
+use super::layout_node_arena::{FfiStyleRecordHostCallbacks, ShellFactory};
 use super::node_data::{NodeKind, NodeSlotId};
 use super::trace::DescribeNode;
 use super::update_layout::FfiLayoutUpdateHostCallbacks;
@@ -36,7 +36,7 @@ pub(crate) struct HostTables {
     pub(super) layout_update_host: Cell<Option<FfiLayoutUpdateHostCallbacks>>,
     /// Makes the shell of an anonymous row the first time something asks for it.
     pub(super) shell_factory: Cell<Option<ShellFactory>>,
-    pub(super) shell_style_changed_host: Cell<Option<ShellStyleChangedHost>>,
+    pub(super) style_record_host: Cell<Option<FfiStyleRecordHostCallbacks>>,
     pub(crate) chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     /// What the overflow pass tells the document once it has settled a box's scroll offset.
     pub(crate) geometry_host: Cell<Option<FfiGeometryHostCallbacks>>,
@@ -70,7 +70,7 @@ impl HostTables {
         self.layout_host.set(None);
         self.layout_update_host.set(None);
         self.shell_factory.set(None);
-        self.shell_style_changed_host.set(None);
+        self.style_record_host.set(None);
         self.chrome_state_callback.set(None);
         self.geometry_host.set(None);
     }
