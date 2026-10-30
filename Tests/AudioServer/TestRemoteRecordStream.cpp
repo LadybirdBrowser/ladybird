@@ -76,7 +76,7 @@ struct RemoteCaptureFixture {
             return Audio::RecordStream::CreatePromise::resolved(NonnullRefPtr<Audio::RecordStream>(stream));
         });
         auto paired = MUST(IPC::Transport::create_paired());
-        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, Audio::ServerConnection::DeviceEnumeration::None, *capture_devices, [this](ByteString const& device_id, Function<void(bool)> on_decided) {
+        server = Audio::ServerConnection::construct(move(paired.local), 1, *mixer, *capture_devices, [this](ByteString const& device_id, Function<void(bool)> on_decided) {
             capture_requests.append(device_id);
             if (answer_capture_requests_at_once)
                 on_decided(capture_permission_answer);

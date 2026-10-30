@@ -75,9 +75,6 @@ MediaDevices::MediaDevices(HTML::Window& window)
     : DOM::EventTarget()
     , m_window(window)
 {
-    if (HTML::Window::in_test_mode())
-        return;
-
     m_audio_device_cache_listener_id = Audio::AudioDevices::the().add_devices_changed_listener([this] {
         did_observe_audio_device_cache_update();
     });
@@ -250,7 +247,7 @@ void MediaDevices::enumerate_devices(GC::Ref<WebIDL::Promise> promise)
         return;
     }
 
-    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list()) {
+    if (!Audio::AudioDevices::the().has_device_list()) {
         m_pending_enumerate_devices_requests.append({ promise });
         return;
     }
@@ -402,9 +399,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
     GC::Ref<MediaDevices> media_devices = *this;
 
     // FIXME: Add camera/video
-    Vector<Audio::AudioDeviceInfo> audio_input_devices;
-    if (!HTML::Window::in_test_mode())
-        audio_input_devices = Audio::AudioDevices::the().input_devices();
+    auto audio_input_devices = Audio::AudioDevices::the().input_devices();
 
     Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, device_id_constraint = move(device_id_constraint), audio_input_devices = move(audio_input_devices)] mutable {
         auto& realm = WebIDL::promise_realm(*promise);
@@ -601,7 +596,7 @@ void MediaDevices::process_pending_enumerate_devices_requests()
 {
     if (!device_enumeration_can_proceed())
         return;
-    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list())
+    if (!Audio::AudioDevices::the().has_device_list())
         return;
 
     run_device_change_notification_steps(current_audio_device_snapshot());
@@ -615,7 +610,7 @@ void MediaDevices::process_pending_get_user_media_requests()
 {
     if (!get_user_media_can_proceed())
         return;
-    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list())
+    if (!Audio::AudioDevices::the().has_device_list())
         return;
 
     GC::ConservativeVector pending_requests { move(m_pending_get_user_media_requests) };
@@ -753,7 +748,7 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
         return;
     }
 
-    if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list()) {
+    if (!Audio::AudioDevices::the().has_device_list()) {
         m_pending_get_user_media_requests.append({ .promise = promise, .device_id_constraint = move(device_id_constraint) });
         return;
     }
@@ -775,9 +770,6 @@ void MediaDevices::set_ondevicechange(WebIDL::CallbackType* event_handler)
 Vector<MediaDevices::StoredDevice> MediaDevices::current_audio_device_snapshot()
 {
     Vector<StoredDevice> stored_devices;
-    if (HTML::Window::in_test_mode())
-        return stored_devices;
-
     auto input_devices = Audio::AudioDevices::the().input_devices();
     auto output_devices = Audio::AudioDevices::the().output_devices();
     stored_devices.ensure_capacity(input_devices.size() + output_devices.size());
@@ -818,7 +810,7 @@ void MediaDevices::did_observe_audio_device_cache_update()
 
 void MediaDevices::run_with_fresh_audio_device_list(GC::Ref<GC::Function<void()>> callback)
 {
-    if (HTML::Window::in_test_mode() || !Audio::AudioDevices::the().request_fresh_device_list()) {
+    if (!Audio::AudioDevices::the().request_fresh_device_list()) {
         callback->function()();
         return;
     }

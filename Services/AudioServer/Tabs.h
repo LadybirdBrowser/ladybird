@@ -30,9 +30,9 @@ class Tabs {
 public:
     static Tabs& the();
 
-    // Decides what every tab's device stream is; headless instances discard their mix into a null stream and have no
-    // devices to capture from.
-    void set_audio_output(Audio::AudioOutput audio_output) { m_audio_output = audio_output; }
+    // Decides what every tab's devices are; headless instances discard their mix into a null stream and capture from a
+    // null input device.
+    void set_audio_output(Audio::AudioOutput);
     // The Browser rules on every capture request, and is asked over this connection.
     void set_control_connection(ControlConnection&);
 

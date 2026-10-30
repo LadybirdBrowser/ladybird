@@ -24,12 +24,6 @@ class ServerConnection final
     C_OBJECT(ServerConnection);
 
 public:
-    // What the client is told about devices; a headless server has none to tell of.
-    enum class DeviceEnumeration : u8 {
-        Platform,
-        None,
-    };
-
     // Asks the Browser whether the client's tab may capture from the device; the answer comes once, on this thread.
     using CapturePermissionRequest = Function<void(ByteString const& device_id, Function<void(bool allowed)> on_decided)>;
 
@@ -43,7 +37,7 @@ public:
     void set_capture_permitted(bool);
 
 private:
-    ServerConnection(NonnullOwnPtr<IPC::Transport>, int client_id, NonnullRefPtr<PlaybackStreamMixer>, DeviceEnumeration, NonnullRefPtr<CaptureDevices>, CapturePermissionRequest);
+    ServerConnection(NonnullOwnPtr<IPC::Transport>, int client_id, NonnullRefPtr<PlaybackStreamMixer>, NonnullRefPtr<CaptureDevices>, CapturePermissionRequest);
 
     virtual void die() override;
     void remove_streams_from_mixer();
@@ -93,7 +87,6 @@ private:
     HashMap<u64, RecordStreamState> m_record_streams;
     bool m_capture_permitted { false };
 
-    DeviceEnumeration m_device_enumeration { DeviceEnumeration::None };
     Optional<AudioDevices::ListenerId> m_devices_changed_listener_id;
     bool m_client_watches_devices { false };
 };
