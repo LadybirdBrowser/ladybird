@@ -12128,7 +12128,7 @@ Vector<URL::Origin> Document::internal_ancestor_origin_objects_list_creation_ste
         masked = true;
 
     // 9. Otherwise, if referrerPolicy is "same-origin" and parentDoc's origin is not same origin with document's origin, then set masked to true.
-    else if (referrer_policy == ReferrerPolicy::ReferrerPolicy::SameOrigin && parent_doc->origin().is_same_origin(origin()))
+    else if (referrer_policy == ReferrerPolicy::ReferrerPolicy::SameOrigin && !parent_doc->origin().is_same_origin(origin()))
         masked = true;
 
     // 10. If masked is true, then append a new opaque origin to output.
