@@ -573,17 +573,23 @@ pub(crate) fn define_operation(
     );
 }
 
+/// Defines the @@iterator property of the interface prototype object of an interface that supports indexed properties,
+/// which is %Array.prototype.values%, https://webidl.spec.whatwg.org/#es-iterator
+pub(crate) fn define_indexed_properties_iterator(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) {
+    let array_prototype = realm.intrinsics().array_prototype(vm);
+    prototype.define_direct_property(
+        vm,
+        &PropertyKey::from(vm.well_known_symbols().iterator),
+        array_prototype.get_without_side_effects(vm, &vm.names.values),
+        PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE),
+    );
+}
+
 /// Defines the properties of a value iterator on the interface prototype object of an interface that supports indexed
 /// properties, which are those of %Array.prototype%, https://webidl.spec.whatwg.org/#define-the-iteration-methods
 pub(crate) fn define_value_iterator_properties(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) {
     let array_prototype = realm.intrinsics().array_prototype(vm);
     let names = &vm.names;
-    prototype.define_direct_property(
-        vm,
-        &PropertyKey::from(vm.well_known_symbols().iterator),
-        array_prototype.get_without_side_effects(vm, &names.values),
-        PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE),
-    );
     for name in [&names.entries, &names.keys, &names.values, &names.forEach] {
         prototype.define_direct_property(
             vm,

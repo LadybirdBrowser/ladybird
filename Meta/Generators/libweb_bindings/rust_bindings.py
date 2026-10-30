@@ -806,10 +806,11 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     };
     use crate::bindings::interface::{
         Inherits, Interface, Ref, Wrapped, cell_class, construct_arguments, construct_wrapper, create_dictionary_object,
-        define_attribute, define_cached_attribute, define_constants, define_interface_object_properties,
-        define_operation, define_to_string_tag, define_unimplemented_property, define_value_iterator_properties,
-        entry_point_arguments, implementation_if, implementation_of, prototype_from_new_target, realm_is_window,
-        rejected_promise, set_dictionary_member, set_interface_prototype_object_prototype, this_object, to_interface,
+        define_attribute, define_cached_attribute, define_constants, define_indexed_properties_iterator,
+        define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
+        define_value_iterator_properties, entry_point_arguments, implementation_if, implementation_of,
+        prototype_from_new_target, realm_is_window, rejected_promise, set_dictionary_member,
+        set_interface_prototype_object_prototype, this_object, to_interface,
     };
     use crate::bindings::async_iterable::{
         AsyncIterable, DefaultAsyncIterator, DefaultAsyncIteratorClasses, async_iterator_next, async_iterator_return,
@@ -1044,6 +1045,7 @@ def write_rust_interface(
             f"{getter_set.length});\n"
         )
         defined_property_names.append(getter_set.name)
+        out.write("        define_indexed_properties_iterator(vm, realm, prototype);\n")
         if members.indexed_property_getter.has_value_iterator:
             out.write("        define_value_iterator_properties(vm, realm, prototype);\n")
     if members.pair_iterator is not None:
