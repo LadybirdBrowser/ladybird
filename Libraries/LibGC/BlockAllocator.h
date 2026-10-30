@@ -33,6 +33,8 @@ public:
 
     static FlatPtr heap_region_start();
     static FlatPtr heap_region_end();
+    // The end of the part of the region that chunks have been committed from so far. No block starts at or above it.
+    static FlatPtr heap_region_committed_end();
 
     // Wake the global decommit worker so it processes any deferred madvise
     // work that's piled up. Call this at the end of a GC sweep.
