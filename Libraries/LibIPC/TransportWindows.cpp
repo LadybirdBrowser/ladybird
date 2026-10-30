@@ -131,10 +131,8 @@ static bool send_error_means_peer_has_hung_up(Error const& error)
     case ERROR_NO_DATA:
     case ERROR_BROKEN_PIPE:
     case ERROR_PIPE_NOT_CONNECTED:
-    case WSAECONNRESET:
-    case WSAECONNABORTED:
-    case WSAESHUTDOWN:
-    case WSAENOTCONN:
+    case ERROR_NETNAME_DELETED:
+    case ERROR_CONNECTION_ABORTED:
         return true;
     default:
         return false;
@@ -189,17 +187,6 @@ void TransportWindows::wait_until_readable()
 
 ErrorOr<size_t> TransportWindows::write_some(ReadonlyBytes bytes)
 {
-    if (m_kind == Kind::Socket) {
-        auto sent = ::send(static_cast<SOCKET>(m_handle), reinterpret_cast<char const*>(bytes.data()), static_cast<int>(min(bytes.size(), static_cast<size_t>(NumericLimits<int>::max()))), 0);
-        if (sent == SOCKET_ERROR) {
-            if (WSAGetLastError() == WSAEWOULDBLOCK)
-                return Error::from_errno(EWOULDBLOCK);
-            return Error::from_windows_error();
-        }
-        return static_cast<size_t>(sent);
-    }
-
-    // A pipe write completes only once every byte is in the pipe, so it is waited for in slices that notice a close.
     OverlappedOperation operation;
     DWORD bytes_written = 0;
     auto size = static_cast<DWORD>(min(bytes.size(), static_cast<size_t>(NumericLimits<DWORD>::max())));
@@ -233,22 +220,9 @@ ErrorOr<void> TransportWindows::transfer(ReadonlyBytes bytes_to_write)
         auto written = write_some(bytes_to_write);
         if (written.is_error()) {
             auto error = written.release_error();
-            if (!error.is_errno() || error.code() != EWOULDBLOCK) {
-                if (send_error_means_peer_has_hung_up(error))
-                    m_peer_has_hung_up.store(true, AK::MemoryOrder::memory_order_relaxed);
-                return error;
-            }
-            if (m_disconnects_when_peer_stops_reading)
-                return Error::from_string_literal("Peer has stopped reading");
-
-            WSAPOLLFD poll_fd {
-                .fd = static_cast<SOCKET>(m_handle),
-                .events = POLLWRNORM,
-                .revents = 0,
-            };
-            if (WSAPoll(&poll_fd, 1, SEND_WAIT_SLICE_MS) == SOCKET_ERROR)
-                return Error::from_windows_error();
-            continue;
+            if (send_error_means_peer_has_hung_up(error))
+                m_peer_has_hung_up.store(true, AK::MemoryOrder::memory_order_relaxed);
+            return error;
         }
         bytes_to_write = bytes_to_write.slice(written.value());
     }
