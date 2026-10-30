@@ -13,7 +13,6 @@
 #include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
@@ -56,7 +55,6 @@ void web_streams_read_request_error_steps(ReadRequest*, JSValue error);
 void web_streams_call_bytes_steps(ReadableStreamDefaultReader::SuccessSteps*, ReadonlyBytes);
 void web_streams_call_value_steps(ReadableStreamDefaultReader::FailureSteps*, JSValue);
 void web_streams_complete_rendering_pending_stream(ReadableStream*);
-JSCompletion web_streams_structured_clone(void* realm, JSValue);
 void* web_streams_abort_signal_from_wrapper(JSObject* wrapper);
 JSObject* web_streams_abort_signal_wrapper(void* realm, DOM::AbortSignal*);
 void* web_streams_create_abort_signal();
@@ -274,21 +272,6 @@ void web_streams_call_value_steps(ReadableStreamDefaultReader::FailureSteps* ste
 void web_streams_complete_rendering_pending_stream(ReadableStream* stream)
 {
     complete_rendering_pending_stream(*stream);
-}
-
-// https://streams.spec.whatwg.org/#abstract-opdef-structuredclone
-JSCompletion web_streams_structured_clone(void* realm, JSValue value)
-{
-    auto& js_realm = realm_of(realm);
-    auto& vm = js_realm.vm();
-    auto result = [&]() -> WebIDL::ExceptionOr<JS::Value> {
-        // 1. Let serialized be ? StructuredSerialize(v).
-        auto serialized = TRY(HTML::structured_serialize(vm, JS::HostABI::value_from_abi(value)));
-
-        // 2. Return ? StructuredDeserialize(serialized, the current Realm).
-        return TRY(HTML::structured_deserialize(vm, serialized, js_realm));
-    }();
-    return Bindings::completion_to_abi(js_realm, move(result));
 }
 
 void* web_streams_abort_signal_from_wrapper(JSObject* wrapper)

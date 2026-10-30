@@ -6,19 +6,11 @@
 
 //! Miscellaneous abstract operations, https://streams.spec.whatwg.org/#misc-abstract-ops
 
-use core::ffi::c_void;
-
-use libjs_rust::api::{
-    ArrayBuffer, Gc, Must, RawNativeFunctionResult, Value, clone_array_buffer, construct, same_value,
-};
+use libjs_rust::api::{ArrayBuffer, Gc, Must, Value, clone_array_buffer, construct, same_value};
 
 use crate::bindings::conversions::{ArrayBufferView, BufferSource};
 use crate::bindings::{CallContext, WebIdlResult};
-
-unsafe extern "C" {
-    /// StructuredDeserialize(? StructuredSerialize(value), realm).
-    fn web_streams_structured_clone(realm: *mut c_void, value: u64) -> RawNativeFunctionResult;
-}
+use crate::html::structured_serialize::{structured_deserialize_with_transfer, structured_serialize_with_transfer};
 
 // https://streams.spec.whatwg.org/#can-transfer-array-buffer
 pub(crate) fn can_transfer_array_buffer(array_buffer: &ArrayBuffer) -> bool {
@@ -106,9 +98,11 @@ pub(crate) fn clone_as_uint8_array(cx: &CallContext, view: ArrayBufferView) -> W
 // https://streams.spec.whatwg.org/#abstract-opdef-structuredclone
 pub(crate) fn structured_clone(cx: &CallContext, value: Value) -> WebIdlResult<Value> {
     // 1. Let serialized be ? StructuredSerialize(v).
+    // NB: StructuredSerializeWithTransfer with an empty transfer list is StructuredSerialize, in a record that Rust owns.
+    let serialized = structured_serialize_with_transfer(cx, value, &[])?;
+
     // 2. Return ? StructuredDeserialize(serialized, the current Realm).
-    // SAFETY: The realm and the value are live.
-    Ok(unsafe { web_streams_structured_clone(cx.realm().as_ptr().cast(), value.to_raw()) }.into_completion()?)
+    Ok(structured_deserialize_with_transfer(cx, serialized.record())?.deserialized)
 }
 
 // https://streams.spec.whatwg.org/#abstract-opdef-cancopydatablockbytes
