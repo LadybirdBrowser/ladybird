@@ -28,6 +28,7 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::function_object::CallEnvironmentTemplate;
 pub use crate::layout::function_object::{SharedFunctionInstanceData, asm_call_metadata};
+use crate::layout::member::NullableMember;
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
 use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_key::PropertyKey;
@@ -106,8 +107,8 @@ pub struct SharedFunctionInstanceDataStorage {
 
     function_environment_bindings_count: Cell<usize>,
     var_environment_bindings_count: Cell<usize>,
-    function_environment_shape: Cell<Option<Gc<EnvironmentShape>>>,
-    var_environment_shape: Cell<Option<Gc<EnvironmentShape>>>,
+    function_environment_shape: NullableMember<EnvironmentShape>,
+    var_environment_shape: NullableMember<EnvironmentShape>,
 
     class_field_initializer_name: GcRefCell<ClassFieldInitializerName>, // [[ClassFieldInitializerName]]
     #[gc(untraced)]
@@ -140,6 +141,9 @@ pub struct SharedFunctionInstanceDataStorage {
     #[gc(untraced)]
     closure_count: Cell<ClosureCount>,
 }
+
+// NB: Every function has these bytes.
+const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 280);
 
 /// The most properties that constructions make room for ahead (the largest inline capacity of plain objects).
 const MAX_CONSTRUCT_RESERVE: u32 = 16;
@@ -246,8 +250,8 @@ impl SharedFunctionInstanceData {
                 this_value_needs_environment_resolution: Cell::new(false),
                 function_environment_bindings_count: Cell::new(0),
                 var_environment_bindings_count: Cell::new(0),
-                function_environment_shape: Cell::new(None),
-                var_environment_shape: Cell::new(None),
+                function_environment_shape: NullableMember::null(),
+                var_environment_shape: NullableMember::null(),
                 class_field_initializer_name: GcRefCell::new(ClassFieldInitializerName::Empty),
                 constructor_kind: Cell::new(ConstructorKind::Base),
                 is_class_constructor: Cell::new(false),
@@ -801,11 +805,11 @@ impl SharedFunctionInstanceData {
         EnvironmentShapeCache::VarEnvironment(Gc::from_ref(self))
     }
 
-    pub(crate) fn function_environment_shape_slot(&self) -> &Cell<Option<Gc<EnvironmentShape>>> {
+    pub(crate) fn function_environment_shape_slot(&self) -> &NullableMember<EnvironmentShape> {
         &self.storage.function_environment_shape
     }
 
-    pub(crate) fn var_environment_shape_slot(&self) -> &Cell<Option<Gc<EnvironmentShape>>> {
+    pub(crate) fn var_environment_shape_slot(&self) -> &NullableMember<EnvironmentShape> {
         &self.storage.var_environment_shape
     }
 

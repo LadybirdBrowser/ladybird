@@ -11,6 +11,7 @@
 
 pub struct Class;
 pub struct Symbol;
+pub struct SpecialPropertyCache;
 pub struct Script;
 pub struct Module;
 pub struct ObjectEnvironment;

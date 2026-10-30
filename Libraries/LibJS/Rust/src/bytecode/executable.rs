@@ -37,6 +37,7 @@ use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::executable::ExecutableHead;
 use crate::layout::feedback::ExecutableFeedbackHead;
 use crate::layout::function_object::FunctionObject;
+use crate::layout::member::NullableMember;
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::KeyedPropertyLookupCacheEntryLayout;
 pub use crate::layout::property_lookup_cache::{
@@ -1246,7 +1247,7 @@ pub struct Executable {
     /// The global variable caches of the dynamic binding accesses that found their binding in the global environment,
     /// indexed like the environment coordinate caches. Made when the first such access needs one.
     dynamic_global_variable_caches: OnceCell<Box<[GlobalVariableCache]>>,
-    environment_shape_caches: Box<[Cell<Option<Gc<EnvironmentShape>>>]>,
+    environment_shape_caches: Box<[NullableMember<EnvironmentShape>]>,
     template_object_caches: Box<[Gc<TemplateObjectCache>]>,
     object_shape_caches: Box<[ObjectShapeCache]>,
     object_property_iterator_caches: Box<[ObjectPropertyIteratorCache]>,
@@ -1443,7 +1444,7 @@ impl Executable {
             .map(|_| Cell::new(EnvironmentCoordinate::invalid()))
             .collect();
         let environment_shape_caches = (0..cache_counts.environment_shape_caches)
-            .map(|_| Cell::new(None))
+            .map(|_| NullableMember::null())
             .collect();
         let registers_and_locals_count = number_of_registers + number_of_locals;
         let constant_count = u32::try_from(constants.len()).expect("constant count fits in u32");
@@ -2010,7 +2011,7 @@ impl Executable {
         EnvironmentShapeCache::Executable(Gc::from_ref(self), index)
     }
 
-    pub(crate) fn environment_shape_cache_slot(&self, index: u32) -> &Cell<Option<Gc<EnvironmentShape>>> {
+    pub(crate) fn environment_shape_cache_slot(&self, index: u32) -> &NullableMember<EnvironmentShape> {
         &self.environment_shape_caches[index as usize]
     }
 
