@@ -233,6 +233,7 @@ public:
         Blocked,
     };
     NavigationOrHistoryUpdatePermission allowed_to_perform_a_navigation_or_history_update();
+    void reset_navigation_or_history_update_rate_limit_for_testing();
 
     virtual bool is_local_navigable() const override { return true; }
 
