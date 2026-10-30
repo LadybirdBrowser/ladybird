@@ -641,11 +641,17 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         percentage_basis_block_size: constraints.percentage_basis_inline_size,
         quirks_mode_percentage_basis_block_size: None,
     };
-    let observes_percentage_inline_basis = scope.enter(callbacks, |run| {
-        run.sizing().measurement_root_observes_percentage_inline_basis(node)
-    });
+    let (observes_percentage_inline_basis, own_style_depends_on_percentage_block_size) =
+        scope.enter(callbacks, |run| {
+            let sizing = run.sizing();
+            (
+                sizing.measurement_root_observes_percentage_inline_basis(node),
+                sizing.own_style_depends_on_percentage_block_size(node),
+            )
+        });
     let available_inline_size_in_own_frame = scope.available_block_size();
     let mut root_cells = scope.root_cells().in_frame(callbacks.frame, own_frame);
+    let inline_size_is_sized_from_parent_block_size = !root_cells.has_definite_inline_size;
     let inline_size = if root_cells.has_definite_inline_size {
         root_cells.content_inline_size
     } else {
@@ -682,7 +688,9 @@ pub(super) fn content_sizes_of_orthogonal_flow(
         sizes: sizing_context::ContentSizes { min: size, max: size },
         first_line_max_content: FirstLineMaxContent::without_floats(size),
         dependencies: IntrinsicMeasurementDependencies {
-            percentage_block_size: result.depends_on_percentage_block_size,
+            percentage_block_size: result.depends_on_percentage_block_size
+                || own_style_depends_on_percentage_block_size
+                || inline_size_is_sized_from_parent_block_size,
             percentage_inline_basis: observes_percentage_inline_basis,
             block_size: true,
         },
