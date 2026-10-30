@@ -1452,7 +1452,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         Self::own_box_resolves_percentage_against_inline_basis(self.style(node))
     }
 
-    fn own_box_resolves_percentage_against_inline_basis(style: StyleValues<'_>) -> bool {
+    pub(crate) fn own_box_resolves_percentage_against_inline_basis(style: StyleValues<'_>) -> bool {
         style.width().contains_percentage()
             || style.min_width().contains_percentage()
             || style.max_width().contains_percentage()
