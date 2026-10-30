@@ -4,7 +4,6 @@ set(SOURCES
     ByteString.cpp
     ByteStringImpl.cpp
     CircularBuffer.cpp
-    ConstrainedStream.cpp
     CountingStream.cpp
     Demangle.cpp
     Error.cpp
