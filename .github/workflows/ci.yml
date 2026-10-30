@@ -24,8 +24,6 @@ jobs:
         toolchain: ['GNU']
         clang_plugins: [false]
         runner_labels: ['["blacksmith-16vcpu-ubuntu-2404"]']
-        # The runners pipe core dumps to systemd-coredump, which a crashed process waits seconds for before it exits.
-        # Only a core size limit of exactly 1 byte makes the kernel skip piped core dumps.
         container: [&ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.29","options":"--ulimit core=1"}']
 
         include:

@@ -66,13 +66,11 @@ jobs:
           - os_name: 'macOS'
             arch: 'arm64'
             runner_labels: '{"group": "Distribution build runners", "labels": ["self-hosted", "macos-27", "arm64"]}'
-            snapshot_runner_labels: '["blacksmith-6vcpu-macos-26"]'
+            snapshot_runner_labels: '["blacksmith-12vcpu-macos-26"]'
             container: 'null'
           - os_name: 'Linux'
             arch: 'x86_64'
             runner_labels: '["blacksmith-16vcpu-ubuntu-2404"]'
-            # The runners pipe core dumps to systemd-coredump, which a crashed process waits seconds for before it
-            # exits. Only a core size limit of exactly 1 byte makes the kernel skip piped core dumps.
             container: &ci_container '{"image":"ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.29","options":"--ulimit core=1"}'
           - os_name: 'Linux'
             arch: 'arm64'
