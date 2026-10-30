@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const message = new TextEncoder().encode("Hello friends");
+        const { privateKey, publicKey } = await crypto.subtle.generateKey(
+            { name: "RSA-PSS", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+            false,
+            ["sign", "verify"]
+        );
+
+        const signature = await crypto.subtle.sign({ name: "RSA-PSS", saltLength: 32 }, privateKey, message);
+
+        for (const saltLength of [32, 31, 1000, 2147483647, 2147483648, 4294967292, 4294967294, 4294967295]) {
+            try {
+                const result = await crypto.subtle.verify({ name: "RSA-PSS", saltLength }, publicKey, signature, message);
+                println(`verify saltLength ${saltLength}: ${result}`);
+            } catch (error) {
+                println(`verify saltLength ${saltLength}: ${error.name}`);
+            }
+        }
+
+        for (const saltLength of [1000, 2147483648, 4294967294, 4294967295]) {
+            try {
+                await crypto.subtle.sign({ name: "RSA-PSS", saltLength }, privateKey, message);
+                println(`sign saltLength ${saltLength}: ok`);
+            } catch (error) {
+                println(`sign saltLength ${saltLength}: ${error.name}`);
+            }
+        }
+    });
+</script>
