@@ -8,6 +8,7 @@ use super::*;
 
 use libgfx_rust::font::{EmojiPresentation, FontHandle, FrozenFontList, emoji_presentation_for_code_point};
 
+#[derive(Clone, Copy)]
 #[repr(u8)]
 enum LineBreakMode {
     Strict,
@@ -476,8 +477,10 @@ impl GraphemeSegmenter {
 }
 
 struct LineSegmenter<'text> {
-    handle: IcuSegmenterHandle,
     text: &'text [u16],
+    mode: LineBreakMode,
+    text_is_broken_with_ascii_rules: std::cell::OnceCell<bool>,
+    handle: std::cell::OnceCell<IcuSegmenterHandle>,
     /// Where the last search for a boundary started, and the boundary it found, so that no boundary lies before it.
     last_search: std::cell::Cell<Option<(usize, usize)>>,
 }
@@ -491,14 +494,37 @@ impl<'text> LineSegmenter<'text> {
             (line_break::NORMAL, _) => LineBreakMode::Normal,
             _ => LineBreakMode::Strict,
         };
-        // SAFETY: See GraphemeSegmenter::new; the same lifetime contract holds,
-        // and the C++ side picks the ASCII line-breaking fast path internally.
-        let raw = unsafe { unicode_layout_line_segmenter_create(text.as_ptr(), text.len(), mode) };
         Self {
-            handle: IcuSegmenterHandle { raw },
             text,
+            mode,
+            text_is_broken_with_ascii_rules: std::cell::OnceCell::new(),
+            handle: std::cell::OnceCell::new(),
             last_search: std::cell::Cell::new(None),
         }
+    }
+
+    fn handle(&self) -> &IcuSegmenterHandle {
+        self.handle.get_or_init(|| {
+            // SAFETY: See GraphemeSegmenter::new; the same lifetime contract holds,
+            // and the C++ side picks the ASCII line-breaking fast path internally.
+            let raw = unsafe { unicode_layout_line_segmenter_create(self.text.as_ptr(), self.text.len(), self.mode) };
+            IcuSegmenterHandle { raw }
+        })
+    }
+
+    fn is_boundary(&self, index: usize) -> bool {
+        let text_is_broken_with_ascii_rules = *self.text_is_broken_with_ascii_rules.get_or_init(|| {
+            self.text
+                .iter()
+                .all(|&code_unit| matches!(code_unit, 0x09..=0x0d | 0x20..=0x7e))
+        });
+        if text_is_broken_with_ascii_rules
+            && let Some(is_boundary) = ascii_line_break_at_whitespace_or_text_edge(self.text, index)
+        {
+            debug_assert_eq!(is_boundary, self.handle().next_boundary(index, true) == Some(index));
+            return is_boundary;
+        }
+        self.next_boundary(index, true) == Some(index)
     }
 
     fn next_boundary(&self, index: usize, inclusive: bool) -> Option<usize> {
@@ -509,7 +535,7 @@ impl<'text> LineSegmenter<'text> {
             && is_utf16_low_surrogate(self.text[index])
             && is_utf16_high_surrogate(self.text[index - 1]);
         if starts_inside_surrogate_pair {
-            return self.handle.next_boundary(index, inclusive);
+            return self.handle().next_boundary(index, inclusive);
         }
         // OPTIMIZATION: The chunker asks about every position from the start of the text to its end. A search finds
         //               the first boundary at or after where it starts, so the boundary the last search found answers
@@ -520,7 +546,7 @@ impl<'text> LineSegmenter<'text> {
         {
             return Some(boundary);
         }
-        let boundary = self.handle.next_boundary(index, inclusive)?;
+        let boundary = self.handle().next_boundary(index, inclusive)?;
         self.last_search.set(Some((search_start, boundary)));
         Some(boundary)
     }
@@ -632,6 +658,55 @@ fn ascii_line_break_at(text: &[u16], index: usize) -> Option<bool> {
         return Some(false);
     }
     Some(matches!(after, b'(' | b'<' | b'[' | b'{') || matches!(before, b'-' | b'?'))
+}
+
+/// Mirrors LibUnicode's compute_ascii_line_boundaries() at the edges of a text of printable ASCII and ASCII whitespace,
+/// and next to its whitespace.
+fn ascii_line_break_at_whitespace_or_text_edge(text: &[u16], index: usize) -> Option<bool> {
+    if index == 0 || index == text.len() {
+        return Some(true);
+    }
+    let (Some(&before), Some(&after)) = (text.get(index - 1), text.get(index)) else {
+        return None;
+    };
+    let (Ok(before), Ok(after)) = (u8::try_from(before), u8::try_from(after)) else {
+        return None;
+    };
+    let is_ascii_space = |code_unit: u8| matches!(code_unit, b'\t'..=b'\r' | b' ');
+    if !is_ascii_space(before) && !is_ascii_space(after) {
+        return None;
+    }
+
+    let is_mandatory_break = |code_unit: u8| matches!(code_unit, b'\n'..=b'\r');
+    if before == b'\r' && after == b'\n' {
+        return Some(false);
+    }
+    if is_mandatory_break(before) {
+        return Some(true);
+    }
+    if is_mandatory_break(after) || after == b' ' {
+        return Some(false);
+    }
+    let last_non_space_before = text[..index]
+        .iter()
+        .rev()
+        .find(|&&code_unit| code_unit != u16::from(b' '));
+    if last_non_space_before.is_some_and(|&code_unit| matches!(u8::try_from(code_unit), Ok(b'(' | b'[' | b'{'))) {
+        return Some(false);
+    }
+    if matches!(after, b')' | b']' | b'}' | b'!' | b'?' | b'/') {
+        return Some(false);
+    }
+    if matches!(after, b',' | b'.' | b':' | b';') {
+        let followed_by_digit = text
+            .get(index + 1)
+            .is_some_and(|&code_unit| matches!(u8::try_from(code_unit), Ok(b'0'..=b'9')));
+        return Some(before == b' ' && followed_by_digit);
+    }
+    if before == b' ' {
+        return Some(true);
+    }
+    Some(!matches!(before, b'"' | b'\'') && !matches!(after, b'"' | b'\'' | b'\t' | b'|' | b'-'))
 }
 
 // A chunk while it is still being accumulated: where it starts, plus the properties shared by
@@ -764,7 +839,7 @@ impl<'text> LineBreaker<'text> {
             {
                 return is_boundary;
             }
-            self.line_segmenter.next_boundary(index, true) == Some(index)
+            self.line_segmenter.is_boundary(index)
         };
 
         match self.word_break {
