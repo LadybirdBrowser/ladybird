@@ -1967,6 +1967,34 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
     }
 
+    // https://html.spec.whatwg.org/multipage/interaction.html#close-requests
+    // NB: Stopping autoscroll and dismissing a writing suggestion take Escape ahead of fullscreen, below.
+    if (key == UIEvents::KeyCode::Key_Escape && !m_middle_button_scroll_handler) {
+        GC::Ref<DOM::Document> document = *m_navigable->active_document();
+        auto* controller = document->writing_suggestion_controller_if_exists();
+        bool suggestion_is_showing = controller && controller->showing().has_value();
+
+        // AD-HOC: The spec checks only the document that the close request targets. But while an ancestor document's
+        //         element is fullscreen (one containing this document's iframe, e.g.), this document has no fullscreen
+        //         element of its own. So check the topmost ancestor document in this process instead — otherwise a
+        //         page that cancels Escape in a focused iframe keeps the user in fullscreen.
+        GC::Ref<DOM::Document> topmost_document = document;
+        while (auto container_document = topmost_document->container_document())
+            topmost_document = *container_document;
+
+        // 1. If document's fullscreen element is not null, then:
+        if (!suggestion_is_showing && topmost_document->fullscreen()) {
+            // 1. Fully exit fullscreen given document's node navigable's top-level traversable's active document.
+            // NB: That document runs the steps in the process holding the top-level traversable, which the chrome
+            //     hands the request to.
+            m_navigable->page().client().page_did_request_fully_exit_fullscreen();
+            // 2. Return.
+            // NOTE: This does not fire any relevant event, such as keydown; it only causes fullscreenchange to be
+            //       eventually fired.
+            return EventResult::Handled;
+        }
+    }
+
     GC::Root<DOM::Document> native_command_document;
     if (native_editing_binding_resolved)
         native_command_document = m_navigable->active_document();
@@ -2045,16 +2073,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         //         a suggestion in a modal dialog doesn't also close the dialog.
         if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && controller->showing().has_value()) {
             controller->dismiss();
-            return EventResult::Handled;
-        }
-
-        // 1. If document's fullscreen element is not null, then:
-        if (document->fullscreen()) {
-            // 1. Fully exit fullscreen given document's node navigable's top-level traversable's active document.
-            // NB: That document runs the steps in the process holding the top-level traversable, which the chrome
-            //     hands the request to.
-            m_navigable->page().client().page_did_request_fully_exit_fullscreen();
-            // 2. Return.
             return EventResult::Handled;
         }
 

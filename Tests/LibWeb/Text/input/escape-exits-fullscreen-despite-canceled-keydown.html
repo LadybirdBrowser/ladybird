@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="target" tabindex="0">fullscreen content</div>
+<script>
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        const keys = [];
+        // A page that keeps Escape for itself, as video players do.
+        document.addEventListener("keydown", event => {
+            keys.push(`keydown ${event.key}`);
+            event.preventDefault();
+        });
+
+        internals.grantTransientActivation();
+        await target.requestFullscreen();
+        const results = [`fullscreen element before Escape: ${document.fullscreenElement?.id}`];
+
+        const exitedFullscreen = new Promise(resolve => {
+            document.addEventListener("fullscreenchange", function listener() {
+                if (document.fullscreenElement)
+                    return;
+                document.removeEventListener("fullscreenchange", listener);
+                resolve();
+            });
+        });
+        internals.sendKey(target, "Escape");
+        await exitedFullscreen;
+        results.push(`fullscreen element after Escape: ${document.fullscreenElement}`);
+        results.push(`keydowns the page saw for that Escape: ${keys.length ? keys.join(", ") : "none"}`);
+
+        // Out of fullscreen, Escape reaches the page as usual.
+        internals.sendKey(target, "Escape");
+        results.push(`keydowns after a second Escape: ${keys.join(", ")}`);
+
+        for (const result of results)
+            println(result);
+        done();
+    });
+</script>
