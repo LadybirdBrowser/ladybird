@@ -160,7 +160,6 @@ input[type=range] {
     &::slider-thumb {
         display: block;
         position: relative;
-        z-index: 1;
         margin-top: -6px;
         width: 16px;
         height: 16px;

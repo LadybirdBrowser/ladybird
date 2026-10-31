@@ -1734,7 +1734,8 @@ void HTMLInputElement::update_slider_ticks()
     if (!m_slider_ticks_element) {
         m_slider_ticks_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
         m_slider_ticks_element->set_attribute_value(HTML::AttributeNames::style, "position: absolute; inset-inline: 0; top: calc(100% + 2px); height: 4px; pointer-events: none;"_utf16);
-        MUST(m_slider_runnable_track->append_child(*m_slider_ticks_element));
+        // NB: The ticks go before the thumb in tree order, so the thumb paints over them.
+        m_slider_runnable_track->insert_before(*m_slider_ticks_element, m_slider_thumb);
     }
 
     static constexpr double thumb_width = 16;
