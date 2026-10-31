@@ -7,10 +7,6 @@ ladybird_utility(wasm SOURCES wasm.cpp LIBS LibFileSystem LibWasm LibMain LibJSS
 ladybird_utility(xml SOURCES xml.cpp LIBS LibFileSystem LibMain LibXML LibURL)
 ladybird_utility(dns SOURCES dns.cpp LIBS LibDNS LibMain LibTLS LibCrypto)
 
-if (ENABLE_GUI_TARGETS)
-    ladybird_utility(image SOURCES image.cpp LIBS LibGfx LibImageDecoders LibMain)
-endif()
-
 # FIXME: Increase support for building targets on Windows
 if (WIN32)
     return()
