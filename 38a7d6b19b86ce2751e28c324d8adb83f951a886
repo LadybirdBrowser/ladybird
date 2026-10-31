@@ -1,0 +1,9 @@
+Ladybird builds an in-flow box blockified as a flex or grid item from
+its blockified display, so a table-row-group flex item is a block and
+gets an anonymous table only around its rows. Blink does the same:
+StyleAdjuster::AdjustStyleForDisplay() sets EquivalentBlockDisplay()
+when the layout parent BlockifiesChildren(), and the box is built from
+that display. WebKit’s Style::Adjuster::adjust() applies blockified()
+under a flex or grid parent, and Gecko’s Servo StyleAdjuster::
+blockify_if_necessary() does the same before frame construction. None of
+them keeps the original table display for an in-flow flex or grid item.
