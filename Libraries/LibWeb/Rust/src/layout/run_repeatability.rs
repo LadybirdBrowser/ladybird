@@ -222,17 +222,17 @@ impl ComparedLayouts<'_> {
         );
         assert!(
             same_elements_in_any_order(
-                &checked_root.propagated_pending_abspos,
-                &reference_root.propagated_pending_abspos
+                &checked_root.payloads_past_run.pending_abspos,
+                &reference_root.payloads_past_run.pending_abspos
             ) && same_elements_in_any_order(
-                &checked_root.propagated_anchor_candidates,
-                &reference_root.propagated_anchor_candidates
+                &checked_root.payloads_past_run.anchor_candidates,
+                &reference_root.payloads_past_run.anchor_candidates
             ) && same_elements_in_any_order(
-                &checked_root.propagated_inline_containing_block_rects,
-                &reference_root.propagated_inline_containing_block_rects
+                &checked_root.payloads_past_run.inline_containing_block_rects,
+                &reference_root.payloads_past_run.inline_containing_block_rects
             ) && same_elements_in_any_order(
-                &checked_root.propagated_abspos_containing_block_info,
-                &reference_root.propagated_abspos_containing_block_info
+                &checked_root.payloads_past_run.abspos_containing_block_info,
+                &reference_root.payloads_past_run.abspos_containing_block_info
             ),
             "{checked} propagates payloads {reference} does not"
         );
