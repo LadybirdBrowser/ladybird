@@ -1537,7 +1537,7 @@ void Node::update_layout_tree_for_removal(Layout::BegunRead const& read, Node& p
     auto* parent_element = as_if<Element>(parent);
     auto const* element = as_if<Element>(*this);
     if (removal == LayoutSubtreeRemoval::DetachInPlace && has_layout_box() && parent_element && parent_element->has_layout_box()
-        && !(element && element->rendered_in_top_layer()) && !CSS::subtree_affects_generated_content_state(*this)) {
+        && !(element && element->rendered_in_top_layer()) && !CSS::subtree_affects_counters(*this)) {
         Layout::RustFFI::render_state_remove_box(document().layout_node_arena().host(), parent_element->style_node_id().value(), Layout::Node::style_node_of(this).value(),
             detached_box_facts(*this, parent, Layout::RustFFI::FfiDetachedBoxLevel::FromStyle));
         document().set_needs_repaint(Badge<Node> {}, InvalidateDisplayList::No);

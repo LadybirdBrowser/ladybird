@@ -18,6 +18,7 @@ use crate::css::computed_longhand_table::{
     ComputedLonghandTable, DEPENDS_ON_VIEWPORT_METRICS, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS,
     IN_DISPLAY_NONE_SUBTREE,
 };
+use crate::css::computed_value_views::QuoteTransfer;
 use crate::css::computed_values::StyleGroupMasks;
 use animations::DeclarationScope;
 pub(super) use demand::WinnerRepublication;
@@ -126,8 +127,9 @@ pub(crate) struct SubtreeGeneratedContentEffects {
     /// The counter can be one that an ancestor or an earlier box created, and that boxes outside the subtree read. An
     /// inserted `<li>` itself has the DOM renumber the list it joins.
     pub(crate) increments_or_sets_counters: bool,
-    /// A `content` opens or closes a quote. The walk stops once it finds one.
-    pub(crate) opens_or_closes_quotes: bool,
+    /// An element's own quotes leave the quote depth after it other than they found it: its `::before` and `::after`
+    /// together do, or its `::marker` or its own `content` names a quote. The walk stops once it finds one.
+    pub(crate) has_element_with_unbalanced_quotes: bool,
 }
 
 impl RetainedState {
@@ -3087,9 +3089,24 @@ impl RetainedState {
                     effects.increments_or_sets_counters |= !view.counter_increment().is_empty()
                         || !view.counter_set().is_empty()
                         || (view.display().is_list_item() && !is_root_element);
-                    effects.opens_or_closes_quotes |= view.content_opens_or_closes_quotes();
                 }
-                if effects.opens_or_closes_quotes {
+                let [element_record, before_record, after_record, marker_record] = records;
+                let names_quotes = |record| {
+                    self.published_style_record_view(record)
+                        .is_some_and(|view| view.content_opens_or_closes_quotes())
+                };
+                let generated_quote_transfer = |record| {
+                    self.published_style_record_view(record)
+                        .filter(|view| !view.display().is_none())
+                        .map_or(QuoteTransfer::IDENTITY, |view| view.content_quote_transfer())
+                };
+                if names_quotes(element_record)
+                    || names_quotes(marker_record)
+                    || !generated_quote_transfer(before_record)
+                        .then(generated_quote_transfer(after_record))
+                        .is_identity()
+                {
+                    effects.has_element_with_unbalanced_quotes = true;
                     return effects;
                 }
             }

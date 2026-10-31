@@ -20,6 +20,7 @@ use crate::layout::node_data::{
     GENERATED_FOR_AFTER, GENERATED_FOR_BACKDROP, GENERATED_FOR_BEFORE, GENERATED_FOR_FIRST_LETTER,
     GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId, pseudo_kind_of,
 };
+use crate::layout::quote_depth::{QuoteDepthCursor, box_subtree_moves_quote_depth};
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
 use crate::layout::tree_mutation::{HostCalls, OwedHostWork, UnplacedLayoutNode};
 use crate::layout::tree_update_marks::layout_tree_update_reuse_reason;
@@ -31,6 +32,8 @@ type LayoutNode = NodeSlotId;
 pub(crate) struct TreeBuilderState {
     pub(crate) ancestor_stack: Vec<LayoutNode>,
     pub(crate) quote_nesting_level: u32,
+    quote_depth_cursor: Option<QuoteDepthCursor>,
+    built_quote_owner_count: usize,
     // Partial-rebuild bookkeeping: boxes replaced in place become rebuild roots, and any tree
     // restructuring that reaches outside every rebuild root downgrades the update to a full one.
     current_rebuild_root: LayoutNode,
@@ -61,6 +64,8 @@ impl Default for TreeBuilderState {
         Self {
             ancestor_stack: Vec::new(),
             quote_nesting_level: 0,
+            quote_depth_cursor: None,
+            built_quote_owner_count: 0,
             current_rebuild_root: NodeSlotId::INVALID,
             rebuilt_subtree_roots: Vec::new(),
             reused_child_list_update_roots: Vec::new(),
@@ -1112,7 +1117,7 @@ impl ChildListInsertionReuse<'_, '_> {
         {
             return false;
         }
-        // The rebuild regenerates these after the walk, which leaves the quote depth of the boxes it keeps out.
+        // Regenerating these can move the quote depth that the boxes the rebuild keeps were resolved at.
         for generated_for in [GENERATED_FOR_BEFORE, GENERATED_FOR_AFTER, GENERATED_FOR_MARKER] {
             if self
                 .engine
@@ -1182,7 +1187,7 @@ impl ChildListInsertionReuse<'_, '_> {
                 continue;
             }
             let generated_content_effects = self.engine.subtree_generated_content_effects(child);
-            if generated_content_effects.opens_or_closes_quotes {
+            if generated_content_effects.has_element_with_unbalanced_quotes {
                 return false;
             }
             if (generated_content_effects.resets_counters || generated_content_effects.increments_or_sets_counters)
@@ -1336,7 +1341,7 @@ impl ChildListInsertionReuse<'_, '_> {
                 continue;
             }
             let generated_content_effects = self.engine.subtree_generated_content_effects(child);
-            if generated_content_effects.opens_or_closes_quotes {
+            if generated_content_effects.has_element_with_unbalanced_quotes {
                 return false;
             }
             if (generated_content_effects.resets_counters || generated_content_effects.increments_or_sets_counters)
@@ -1643,6 +1648,9 @@ impl TreeBuildJob {
         };
         // Whether the document already had a viewport, read before the build replaces it.
         let document_had_layout_node = !host.arena().layout_root().is_invalid();
+        if document_had_layout_node && !context.document_needs_full_layout_tree_update {
+            state.quote_depth_cursor = Some(QuoteDepthCursor::new(host.arena(), document_identity));
+        }
 
         update_layout_tree_from(
             host,
@@ -1760,10 +1768,31 @@ fn update_layout_tree_for_dom_children(
 ) {
     let mut node = host.first_dom_child(parent);
     while let Some(current) = node {
-        if !keeps_its_box_as_it_is(host, current, context, must_create_subtree) {
+        if insertion_mode == FfiInsertionMode::InDomOrder && host.arena().bound_row(current).is_invalid() {
+            update_layout_tree_for_spliced_child(host, state, current, context, must_create_subtree, insertion_mode);
+        } else if !keeps_its_box_as_it_is(host, current, context, must_create_subtree) {
             update_layout_tree(host, state, current, context, must_create_subtree, insertion_mode);
         }
         node = host.next_dom_sibling(current);
+    }
+}
+
+fn update_layout_tree_for_spliced_child(
+    host: &mut TreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
+    child: StyleNodeID,
+    context: &mut TreeBuilderContext,
+    must_create_subtree: bool,
+    insertion_mode: FfiInsertionMode,
+) {
+    let built_quote_owner_count = state.built_quote_owner_count;
+    update_layout_tree(host, state, child, context, must_create_subtree, insertion_mode);
+    if state.built_quote_owner_count == built_quote_owner_count {
+        return;
+    }
+    let row = host.arena().bound_row(child);
+    if row.is_invalid() || box_subtree_moves_quote_depth(host.arena(), row) {
+        state.layout_tree_rebuild_requests.push(None);
     }
 }
 
@@ -2670,7 +2699,7 @@ fn rebuild_child_list_from_dom_children(
             kept_box = host.parent(kept_box);
         }
         if kept_box.is_invalid() {
-            update_layout_tree(host, state, child, context, false, FfiInsertionMode::Append);
+            update_layout_tree_for_spliced_child(host, state, child, context, false, FfiInsertionMode::Append);
         } else if host.arena().needs_layout_tree_update(child)
             && (host.arena().layout_tree_update_reuse_reasons(child) == 0
                 || host.data(kept_box).kind.get() == NodeKind::TableWrapper)
@@ -3694,6 +3723,31 @@ fn create_generated_content_item(
     slot
 }
 
+fn quote_nesting_level_before(
+    host: &TreeBuilderHost<'_>,
+    state: &mut TreeBuilderState,
+    element: StyleNodeID,
+    pseudo_element: FfiPseudoElement,
+    layout_node: LayoutNode,
+) -> u32 {
+    if !host
+        .style(layout_node)
+        .is_some_and(|style| style.content_opens_or_closes_quotes())
+    {
+        return state.quote_nesting_level;
+    }
+    state.built_quote_owner_count += 1;
+    let Some(cursor) = state.quote_depth_cursor.as_mut() else {
+        return state.quote_nesting_level;
+    };
+    if let Some(depth) = cursor.depth_before(host.arena(), element, generated_for_of(pseudo_element)) {
+        return depth;
+    }
+    state.quote_depth_cursor = None;
+    state.layout_tree_rebuild_requests.push(None);
+    state.quote_nesting_level
+}
+
 fn create_pseudo_element(
     host: &mut TreeBuilderHost<'_>,
     state: &mut TreeBuilderState,
@@ -3748,7 +3802,8 @@ fn create_pseudo_element(
         }
     }
 
-    let initial_quote_nesting_level = state.quote_nesting_level;
+    let initial_quote_nesting_level =
+        quote_nesting_level_before(host, state, element_identity, pseudo_element, layout_node);
     let layout_node_kind = host.data(layout_node).kind.get();
     let is_outside_marker = layout_node_kind == NodeKind::ListItemMarkerBox && !facts.marker_position_is_inside;
     if let Some(insertion_mode) = insertion_mode

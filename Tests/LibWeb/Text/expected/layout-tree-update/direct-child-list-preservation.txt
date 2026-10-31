@@ -209,6 +209,44 @@ PASS: rebuild child list when appended counter subtree is followed by generated 
 PASS: fall back when appending a list-item increment after a reversed list | rebuild parent
 PASS: fall back when appending a list-item increment after a reversed list | layout tree builds=1
 PASS: fall back when appending a list-item increment after a reversed list | incremental tree matches full rebuild
+PASS: append balanced quotes after an existing quote | preserve parent
+PASS: append balanced quotes after an existing quote | preserve before
+PASS: append balanced quotes after an existing quote | preserve deep
+PASS: append balanced quotes after an existing quote | preserve leaf
+PASS: append balanced quotes after an existing quote | layout tree builds=1
+PASS: append balanced quotes after an existing quote | incremental tree matches full rebuild
+PASS: insert balanced quotes before later quotes | preserve parent
+PASS: insert balanced quotes before later quotes | preserve before
+PASS: insert balanced quotes before later quotes | preserve after
+PASS: insert balanced quotes before later quotes | layout tree builds=1
+PASS: insert balanced quotes before later quotes | incremental tree matches full rebuild
+PASS: append nested balanced quotes | preserve parent
+PASS: append nested balanced quotes | preserve before
+PASS: append nested balanced quotes | layout tree builds=1
+PASS: append nested balanced quotes | incremental tree matches full rebuild
+PASS: append quotes inside an open quote | preserve parent
+PASS: append quotes inside an open quote | preserve before
+PASS: append quotes inside an open quote | layout tree builds=1
+PASS: append quotes inside an open quote | incremental tree matches full rebuild
+PASS: append quotes after an unclosed quote outside the parent | preserve parent
+PASS: append quotes after an unclosed quote outside the parent | preserve before
+PASS: append quotes after an unclosed quote outside the parent | layout tree builds=1
+PASS: append quotes after an unclosed quote outside the parent | incremental tree matches full rebuild
+PASS: append quotes after an unclosed quote in a style-contained sibling | preserve parent
+PASS: append quotes after an unclosed quote in a style-contained sibling | preserve before
+PASS: append quotes after an unclosed quote in a style-contained sibling | layout tree builds=1
+PASS: append quotes after an unclosed quote in a style-contained sibling | incremental tree matches full rebuild
+PASS: append quotes inside a display contents quote pair | preserve parent
+PASS: append quotes inside a display contents quote pair | preserve before
+PASS: append quotes inside a display contents quote pair | layout tree builds=1
+PASS: append quotes inside a display contents quote pair | incremental tree matches full rebuild
+PASS: append quotes before a list item marker that opens a quote | preserve parent
+PASS: append quotes before a list item marker that opens a quote | preserve before
+PASS: append quotes before a list item marker that opens a quote | layout tree builds=1
+PASS: append quotes before a list item marker that opens a quote | incremental tree matches full rebuild
+PASS: rebuild child list when a block with quotes splits generated inline wrapper | preserve parent
+PASS: rebuild child list when a block with quotes splits generated inline wrapper | layout tree builds=1
+PASS: rebuild child list when a block with quotes splits generated inline wrapper | incremental tree matches full rebuild
 PASS: fall back when appending a subtree that opens a quote | rebuild parent
 PASS: fall back when appending a subtree that opens a quote | layout tree builds=1
 PASS: fall back when appending a subtree that opens a quote | incremental tree matches full rebuild
@@ -407,6 +445,11 @@ PASS: fall back when list-item after marker follows removed item | incremental t
 PASS: fall back when removed pseudo-element changes quote depth | rebuild parent
 PASS: fall back when removed pseudo-element changes quote depth | layout tree builds=1
 PASS: fall back when removed pseudo-element changes quote depth | incremental tree matches full rebuild
+PASS: remove balanced quotes between quotes | preserve parent
+PASS: remove balanced quotes between quotes | preserve before
+PASS: remove balanced quotes between quotes | preserve after
+PASS: remove balanced quotes between quotes | layout tree builds=0
+PASS: remove balanced quotes between quotes | incremental tree matches full rebuild
 PASS: fall back when removed pseudo-element affects following counters | rebuild parent
 PASS: fall back when removed pseudo-element affects following counters | layout tree builds=1
 PASS: fall back when removed pseudo-element affects following counters | incremental tree matches full rebuild

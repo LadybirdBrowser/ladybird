@@ -43,6 +43,7 @@ pub(crate) mod node_facts;
 pub(crate) mod tree_shape;
 pub use libcompositing_rust::node_slot_id;
 mod partial_relayout;
+pub(crate) mod quote_depth;
 pub(crate) mod rendered_text;
 mod replaced_with_children_formatting_context;
 pub(crate) mod row_reads;

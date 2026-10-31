@@ -14,6 +14,10 @@
     .parent.first-line::first-line { color: red; }
     .parent.quotes { quotes: "«" "»" "‹" "›"; }
     .quote-open::before { content: open-quote; }
+    .quote-pair::before { content: open-quote; }
+    .quote-pair::after { content: close-quote; }
+    .marker-quote::marker { content: open-quote; }
+    .style-contained { contain: style; }
     .pseudo-increment::before { counter-increment: direct-child-counter; content: ""; }
     .columns { columns: 2; }
     .list-item { display: list-item; }
@@ -357,6 +361,65 @@
             preserve: false,
         },
         {
+            name: "append balanced quotes after an existing quote",
+            markup: '<div class="parent quotes"><p class="before child"><q>before</q></p><div class="deep child"><p><span class="leaf">leaf</span></p></div></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before", "deep", "leaf"],
+        },
+        {
+            name: "insert balanced quotes before later quotes",
+            markup: '<div class="parent quotes"><p class="before child"><q>before</q></p><p class="after child"><q>after</q><q>last</q></p></div>',
+            mutate: parent => parent.querySelector(".after").insertAdjacentHTML("beforebegin", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before", "after"],
+        },
+        {
+            name: "append nested balanced quotes",
+            markup: '<div class="parent quotes"><p class="before child"><q>before</q></p></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>outer <q>inner</q></q></p>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append quotes inside an open quote",
+            markup: '<div class="quotes"><q><span class="parent inline-block"><i class="before child">before</i></span> <q>after</q></q></div>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append quotes after an unclosed quote outside the parent",
+            markup: '<div class="quotes"><i class="quote-open"></i><div class="parent"><i class="before child"></i></div><q>after</q></div>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append quotes after an unclosed quote in a style-contained sibling",
+            markup: '<div class="quotes"><div class="style-contained"><i class="quote-open"></i></div><div class="parent"><i class="before child"></i></div></div>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append quotes inside a display contents quote pair",
+            markup: '<div class="quotes"><div class="contents quote-pair"><div class="parent"><i class="before child"></i></div></div><q>after</q></div>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "append quotes before a list item marker that opens a quote",
+            markup: '<ol class="quotes"><li class="parent marker-quote"><i class="before child"></i></li><li><q>after</q></li></ol>',
+            parentSelector: ".parent",
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<p class="target child"><q>target</q></p>'),
+            tracked: ["parent", "before"],
+        },
+        {
+            name: "rebuild child list when a block with quotes splits generated inline wrapper",
+            markup: '<div class="parent inline-generated quotes"></div>',
+            mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><q>target</q></section>'),
+            tracked: ["parent"],
+        },
+        {
             name: "fall back when appending a subtree that opens a quote",
             markup: '<div class="parent quotes"><i class="before child"></i></div>',
             mutate: parent => parent.insertAdjacentHTML("beforeend", '<section class="target child"><i class="quote-open"></i></section>'),
@@ -630,6 +693,13 @@
             mutate: parent => parent.querySelector(".target").remove(),
             tracked: ["parent"],
             preserve: false,
+        },
+        {
+            name: "remove balanced quotes between quotes",
+            markup: '<div class="parent quotes"><p class="before child"><q>before</q></p><p class="target child"><q>target <q>nested</q></q></p><p class="after child"><q>after</q></p></div>',
+            mutate: parent => parent.querySelector(".target").remove(),
+            tracked: ["parent", "before", "after"],
+            expectNoBuild: true,
         },
         {
             name: "fall back when removed pseudo-element affects following counters",

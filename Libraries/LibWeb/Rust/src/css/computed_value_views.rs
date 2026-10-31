@@ -390,6 +390,58 @@ fn decode_css_preferred_aspect_ratio(ratio: &ComputedAspectRatio) -> (CssPixels,
     (numerator, denominator)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct QuoteTransfer {
+    outer_quotes_closed: u32,
+    quotes_left_open: u32,
+}
+
+impl QuoteTransfer {
+    pub(crate) const IDENTITY: Self = Self {
+        outer_quotes_closed: 0,
+        quotes_left_open: 0,
+    };
+
+    fn then_quote(self, opens: bool) -> Self {
+        match (opens, self.quotes_left_open) {
+            (true, quotes_left_open) => Self {
+                quotes_left_open: quotes_left_open + 1,
+                ..self
+            },
+            (false, 0) => Self {
+                outer_quotes_closed: self.outer_quotes_closed + 1,
+                ..self
+            },
+            (false, quotes_left_open) => Self {
+                quotes_left_open: quotes_left_open - 1,
+                ..self
+            },
+        }
+    }
+
+    pub(crate) fn then(self, next: Self) -> Self {
+        if self.quotes_left_open >= next.outer_quotes_closed {
+            Self {
+                outer_quotes_closed: self.outer_quotes_closed,
+                quotes_left_open: self.quotes_left_open - next.outer_quotes_closed + next.quotes_left_open,
+            }
+        } else {
+            Self {
+                outer_quotes_closed: self.outer_quotes_closed + next.outer_quotes_closed - self.quotes_left_open,
+                quotes_left_open: next.quotes_left_open,
+            }
+        }
+    }
+
+    pub(crate) fn is_identity(self) -> bool {
+        self == Self::IDENTITY
+    }
+
+    pub(crate) fn apply(self, depth: u32) -> u32 {
+        depth.saturating_sub(self.outer_quotes_closed) + self.quotes_left_open
+    }
+}
+
 /// A borrowed view over one node's computed style group payloads: the Rust
 /// twin of the C++ ComputedValues accessor surface. Every read hands out
 /// payload references or lazy views; the payloads must stay alive and
@@ -678,22 +730,36 @@ impl<'a> ComputedValuesView<'a> {
 
     /// Whether `content` opens or closes a quote, which moves the quote depth that every quote after it reads.
     pub(crate) fn content_opens_or_closes_quotes(self) -> bool {
-        let Some(StyleValueData::Content { content, .. }) = self.content().content.data() else {
-            return false;
+        self.content_quote_keywords().next().is_some()
+    }
+
+    pub(crate) fn content_quote_transfer(self) -> QuoteTransfer {
+        use crate::css::style_compute::keyword;
+        self.content_quote_keywords()
+            .fold(QuoteTransfer::IDENTITY, |transfer, quote_keyword| {
+                transfer.then_quote(matches!(quote_keyword, keyword::OPEN_QUOTE | keyword::NO_OPEN_QUOTE))
+            })
+    }
+
+    fn content_quote_keywords(self) -> impl Iterator<Item = u16> + 'a {
+        use crate::css::style_compute::keyword;
+        let values = match self.content().content.data() {
+            Some(StyleValueData::Content { content, .. }) => match content.optional_data() {
+                Some(StyleValueData::ValueList { values, .. }) => values.as_slice(),
+                _ => &[],
+            },
+            _ => &[],
         };
-        let Some(StyleValueData::ValueList { values, .. }) = content.optional_data() else {
-            return false;
-        };
-        values.as_slice().iter().any(|item| {
-            use crate::css::style_compute::keyword;
-            matches!(
-                item.optional_data(),
-                Some(StyleValueData::Keyword { keyword })
-                    if matches!(
-                        *keyword,
-                        keyword::OPEN_QUOTE | keyword::CLOSE_QUOTE | keyword::NO_OPEN_QUOTE | keyword::NO_CLOSE_QUOTE
-                    )
-            )
+        values.iter().filter_map(|item| match item.optional_data() {
+            Some(StyleValueData::Keyword { keyword })
+                if matches!(
+                    *keyword,
+                    keyword::OPEN_QUOTE | keyword::CLOSE_QUOTE | keyword::NO_OPEN_QUOTE | keyword::NO_CLOSE_QUOTE
+                ) =>
+            {
+                Some(*keyword)
+            }
+            _ => None,
         })
     }
 

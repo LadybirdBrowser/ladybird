@@ -11,15 +11,10 @@
 
 namespace Web::CSS {
 
-static bool style_affects_generated_content_state(ComputedValues const& style)
+static bool subtree_has_generated_content_facts(DOM::Node const& node, u8 facts)
 {
-    return style.generated_content_facts() & (ComputedValuesFFI::GENERATED_CONTENT_DEFINES_COUNTERS | ComputedValuesFFI::GENERATED_CONTENT_HAS_QUOTES);
-}
-
-bool subtree_affects_generated_content_state(DOM::Node const& node)
-{
-    auto style_affects_state = [](auto const& style) {
-        return style && style_affects_generated_content_state(*style);
+    auto style_affects_state = [facts](auto const& style) {
+        return style && (style->generated_content_facts() & facts);
     };
     bool affects_generated_content_state = false;
     node.for_each_in_inclusive_subtree([&](DOM::Node const& descendant) {
@@ -41,6 +36,16 @@ bool subtree_affects_generated_content_state(DOM::Node const& node)
         return TraversalDecision::Break;
     });
     return affects_generated_content_state;
+}
+
+bool subtree_affects_generated_content_state(DOM::Node const& node)
+{
+    return subtree_has_generated_content_facts(node, ComputedValuesFFI::GENERATED_CONTENT_DEFINES_COUNTERS | ComputedValuesFFI::GENERATED_CONTENT_HAS_QUOTES);
+}
+
+bool subtree_affects_counters(DOM::Node const& node)
+{
+    return subtree_has_generated_content_facts(node, ComputedValuesFFI::GENERATED_CONTENT_DEFINES_COUNTERS);
 }
 
 }
