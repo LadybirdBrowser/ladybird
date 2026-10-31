@@ -1602,14 +1602,32 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
     double maximum = *max();
     double position = (value - minimum) / (maximum - minimum) * 100;
 
+    // NB: The thumb travels between the ends of the track without overhanging them, and the fill reaches its center.
+    //     The fill assumes the 16px thumb width from the UA style sheet.
+    static constexpr double thumb_width = 16;
+    auto thumb_offset = thumb_width * position / 100;
+
+    // NB: Only the native slider rounds its track and shows how far the value is along it; a slider with
+    //     `appearance: none` leaves both for the author to style.
+    auto style = computed_style();
+    bool const is_native = !style || style->appearance() != CSS::Appearance::None;
+
+    if (m_slider_runnable_track)
+        MUST(m_slider_runnable_track->style()->set_property(CSS::PropertyID::BorderRadius, is_native ? u"2px"sv : u"0"sv));
+
     if (m_slider_progress_element) {
-        auto width = Utf16String::formatted("{}%", position);
+        auto width = Utf16String::formatted("calc({}% + {}px)", position, thumb_width / 2 - thumb_offset);
         MUST(m_slider_progress_element->style()->set_property(CSS::PropertyID::Width, width.utf16_view()));
+        auto fill_color = is_native ? (enabled() ? u"AccentColor"sv : u"GrayText"sv) : u"transparent"sv;
+        MUST(m_slider_progress_element->style()->set_property(CSS::PropertyID::BackgroundColor, fill_color));
     }
 
     if (m_slider_thumb) {
+        // NB: The thumb moves back by the same fraction of its own width, whatever width an author gives it.
         auto margin_left = Utf16String::formatted("{}%", position);
         MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::MarginLeft, margin_left.utf16_view()));
+        auto translate = Utf16String::formatted("{}%", -position);
+        MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::Translate, translate.utf16_view()));
     }
 }
 

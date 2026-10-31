@@ -102,34 +102,39 @@ option {
 /* Custom <input type="range"> styles */
 input[type=range] {
     display: inline-block;
+    width: 129px;
     height: 16px;
+    margin: 2px;
 
     &::slider-track {
         display: block;
         position: relative;
-        height: 6px;
+        height: 4px;
         width: 100%;
-        box-sizing: border-box;
-        background-color: AccentColorText;
-        border: 1px solid rgba(0, 0, 0, 0.5);
+        background-color: color-mix(in srgb, CanvasText 20%, transparent);
     }
 
     &::slider-fill {
         display: block;
         position: absolute;
         height: 100%;
+        border-radius: inherit;
     }
 
+    /* NB: The thumb's position assumes this width, see HTMLInputElement::update_slider_shadow_tree_elements(). */
     &::slider-thumb {
         display: block;
+        position: relative;
+        z-index: 1;
         margin-top: -6px;
         width: 16px;
         height: 16px;
-        transform: translateX(-50%);
         border-radius: 50%;
-        outline: 1px solid rgba(0, 0, 0, 0.5);
-        z-index: 1;
         background-color: AccentColor;
+    }
+
+    &:disabled::slider-thumb {
+        background-color: GrayText;
     }
 }
 
