@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<input type="range" list="marks">
+<datalist id="marks"><option value="0"><option value="50"><option value="100"><option>25</option></datalist>
+<script>
+    document.body.offsetWidth;
+    const options = document.getElementById("marks").options;
+    options[0].setAttribute("value", "10");
+    options[2].disabled = true;
+    options[3].textContent = "75";
+</script>

@@ -101,6 +101,12 @@ void HTMLOptionElement::attribute_changed(Utf16FlyString const& name, Optional<U
     if (namespace_.has_value())
         return;
 
+    // NB: The inputs that show this option's datalist as ticks read its value and whether it is disabled.
+    if (name == HTML::AttributeNames::value || name == HTML::AttributeNames::disabled) {
+        if (auto* data_list = first_ancestor_of_type<HTMLDataListElement>())
+            data_list->notify_inputs_using_this_as_suggestions_source();
+    }
+
     if (name == HTML::AttributeNames::selected) {
         // https://html.spec.whatwg.org/multipage/form-elements.html#attr-option-selected
         // Whenever an option element option's selected attribute is added or removed:
@@ -436,6 +442,12 @@ void HTMLOptionElement::children_changed(ChildrenChangedMetadata const& metadata
     Base::children_changed(metadata);
 
     update_selection_label();
+
+    // NB: Without a value attribute, the text of the option is its value.
+    if (!has_attribute(AttributeNames::value)) {
+        if (auto* data_list = first_ancestor_of_type<HTMLDataListElement>())
+            data_list->notify_inputs_using_this_as_suggestions_source();
+    }
 }
 
 }
