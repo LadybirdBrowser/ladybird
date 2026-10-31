@@ -109,10 +109,17 @@ void HTMLProgressElement::create_shadow_tree_if_needed()
 
 void HTMLProgressElement::update_progress_value_element()
 {
-    if (m_progress_value_element) {
-        auto width = Utf16String::formatted("{}%", position() * 100);
-        MUST(m_progress_value_element->style()->set_property(CSS::PropertyID::Width, width.utf16_view()));
+    if (!m_progress_value_element)
+        return;
+
+    // NB: An indeterminate progress bar takes the width of its animated fill from the UA style sheet.
+    if (!is_determinate()) {
+        (void)MUST(m_progress_value_element->style()->remove_property(CSS::PropertyID::Width));
+        return;
     }
+
+    auto width = Utf16String::formatted("{}%", position() * 100);
+    MUST(m_progress_value_element->style()->set_property(CSS::PropertyID::Width, width.utf16_view()));
 }
 
 }

@@ -141,14 +141,17 @@ input[type=range] {
 /* Custom <meter> styles */
 meter {
     display: inline-block;
-    width: 300px;
-    height: 12px;
+    width: 5em;
+    height: 1em;
+    vertical-align: -0.2em;
 
     &::slider-track {
         display: block;
-        height: 100%;
-        background-color: hsl(0, 0%, 96%);
-        border: 1px solid rgba(0, 0, 0, 0.5);
+        height: 0.5em;
+        margin-top: 0.25em;
+        border-radius: 0.25em;
+        overflow: hidden;
+        background-color: color-mix(in srgb, CanvasText 15%, transparent);
     }
 
     &::slider-fill {
@@ -157,35 +160,54 @@ meter {
     }
 
     &:optimal-value::slider-fill {
-        background-color: hsl(141, 53%, 53%);
+        background-color: #107c10;
     }
 
     &:suboptimal-value::slider-fill {
-        background-color: hsl(48, 100%, 67%);
+        background-color: #ffb900;
     }
 
     &:even-less-good-value::slider-fill {
-        background-color: hsl(348, 100%, 61%);
+        background-color: #d83b01;
     }
 }
 
 /* Custom <progress> styles */
 progress {
     display: inline-block;
-    width: 300px;
-    height: 12px;
+    width: 10em;
+    height: 1em;
+    vertical-align: -0.2em;
 
     &::slider-track {
         display: block;
-        height: 100%;
-        background-color: AccentColorText;
-        border: 1px solid rgba(0, 0, 0, 0.5);
+        height: 0.5em;
+        margin-top: 0.25em;
+        border-radius: 0.25em;
+        overflow: hidden;
+        background-color: color-mix(in srgb, CanvasText 15%, transparent);
     }
 
     &::slider-fill {
         display: block;
         height: 100%;
         background-color: AccentColor;
+    }
+
+    /* NB: An indeterminate progress bar slides a fifth of the track to the far end and back. */
+    &:indeterminate::slider-fill {
+        width: 20%;
+        border-radius: inherit;
+        animation: -ua-progress-indeterminate 1.25s linear infinite alternate;
+    }
+}
+
+@keyframes -ua-progress-indeterminate {
+    from {
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(400%);
     }
 }
 
