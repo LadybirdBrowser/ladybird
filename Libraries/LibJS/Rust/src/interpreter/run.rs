@@ -579,6 +579,12 @@ impl Vm {
     /// Unwinds to the innermost handler of an exception thrown at `program_counter` in the running frame, leaving
     /// frames the interpreter entered without returning to the runtime.
     pub fn handle_exception(&self, mut program_counter: u32, exception: Value) -> HandleExceptionResponse {
+        // An exception that unwinds out to a native caller enters here again in the frame that called it, so remember
+        // only where it was first thrown.
+        if !self.is_last_throw(exception) {
+            self.did_throw(exception, program_counter);
+        }
+
         if let Some(debugger) = self.debugger() {
             let mut exception_will_be_caught = false;
             // The caller frame and return offset of the previous frame that runs an executable.
@@ -627,10 +633,11 @@ impl Vm {
             if let Some(handler) = executable.exception_handlers_for_offset(program_counter) {
                 context.register(register::EXCEPTION).set(exception);
                 context.program_counter.set(handler.handler_offset);
-                if handler.catches_exception
-                    && let Some(debugger) = self.debugger()
-                {
-                    debugger.did_finish_exception_propagation(exception);
+                if handler.catches_exception {
+                    self.forget_throw_site_of(exception);
+                    if let Some(debugger) = self.debugger() {
+                        debugger.did_finish_exception_propagation(exception);
+                    }
                 }
                 return HandleExceptionResponse::ContinueInThisExecutable;
             }
