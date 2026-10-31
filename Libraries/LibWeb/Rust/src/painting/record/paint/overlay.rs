@@ -9,9 +9,7 @@ use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::chrome_geometry::{
-    ChromeGeometry, is_chrome_mirrored, scrollbar_colors_for_paint, scrollbar_is_enlarged,
-};
+use crate::painting::chrome_geometry::{ChromeGeometry, is_chrome_mirrored, scrollbar_colors_for_paint};
 use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
 use crate::painting::ffi::ScrollDirection;
@@ -47,22 +45,26 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
                 .blend(recorder.inputs.uncaptured.background_color),
         );
         let scroll_node_index = own_scroll_node_index;
+        // The scrollbar is recorded thin, and the compositor presents it growing as it is hovered.
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
-            let enlarged = scrollbar_is_enlarged(recorder.source, paintable, direction);
-            let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, enlarged) else {
+            let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, false) else {
                 continue;
             };
+            let expanded_gutter_rect = chrome_geometry
+                .compute_scrollbar_data(paintable, direction, true)
+                .map(|expanded| expanded.gutter_rect)
+                .unwrap_or_default();
             recorder.record_compositor_scrollbar_painted_by_display_list(
                 paintable,
                 direction,
                 (thumb_color, track_color),
-                enlarged,
             );
             recorder.recorder.paint_scrollbar(
                 scroll_node_index,
                 converter.rounded_device_rect(scrollbar.gutter_rect),
                 converter.rounded_device_rect(scrollbar.thumb_rect),
                 converter.rounded_device_rect(scrollbar.track_rect),
+                converter.rounded_device_rect(expanded_gutter_rect),
                 scrollbar.thumb_travel_to_scroll_ratio.to_double(),
                 thumb_color,
                 track_color,

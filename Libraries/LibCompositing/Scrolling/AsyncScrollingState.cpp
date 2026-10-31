@@ -162,7 +162,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
                 .track_color = command.track_color,
                 .vertical = command.vertical,
                 .is_painted_by_compositor = command.is_painted_by_compositor,
-                .display_list_paints_enlarged_scrollbar = command.display_list_paints_enlarged_scrollbar,
             });
             break;
         }

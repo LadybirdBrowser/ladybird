@@ -26,6 +26,8 @@ struct HitTestResult {
     Compositing::RustFFI::NodeSlotId hit_node;
     NonnullRefPtr<Layout::NodeArena> arena;
     RefPtr<ChromeWidget> chrome_widget {};
+    // A scrollbar takes the pointer in the compositor, and the scroller is hit here.
+    bool is_scrollbar { false };
     size_t index_in_node { 0 };
     bool is_text_fragment { false };
 

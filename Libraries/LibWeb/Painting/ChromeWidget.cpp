@@ -9,7 +9,6 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/ResizeHandle.h>
-#include <LibWeb/Painting/Scrollbar.h>
 
 namespace Web::Painting {
 
@@ -20,63 +19,30 @@ ChromeWidgetRegistry::~ChromeWidgetRegistry()
     clear();
 }
 
-RefPtr<Scrollbar> ChromeWidgetRegistry::scrollbar(Compositing::RustFFI::NodeSlotId slot, ScrollDirection direction) const
-{
-    auto entry = m_entries.find(slot.index);
-    if (entry == m_entries.end())
-        return nullptr;
-    return direction == ScrollDirection::Horizontal ? entry->value.horizontal_scrollbar : entry->value.vertical_scrollbar;
-}
-
-NonnullRefPtr<Scrollbar> ChromeWidgetRegistry::get_or_create_scrollbar(Layout::NodeArena& arena, Compositing::RustFFI::NodeSlotId slot, ScrollDirection direction)
-{
-    auto& entry = m_entries.ensure(slot.index);
-    auto& scrollbar = direction == ScrollDirection::Horizontal ? entry.horizontal_scrollbar : entry.vertical_scrollbar;
-    if (!scrollbar)
-        scrollbar = Scrollbar::create(arena, slot, direction);
-    return *scrollbar;
-}
-
 RefPtr<ResizeHandle> ChromeWidgetRegistry::resize_handle(Compositing::RustFFI::NodeSlotId slot) const
 {
-    auto entry = m_entries.find(slot.index);
-    if (entry == m_entries.end())
+    auto resize_handle = m_resize_handles.find(slot.index);
+    if (resize_handle == m_resize_handles.end())
         return nullptr;
-    return entry->value.resize_handle;
+    return resize_handle->value;
 }
 
 NonnullRefPtr<ResizeHandle> ChromeWidgetRegistry::get_or_create_resize_handle(Layout::NodeArena& arena, Compositing::RustFFI::NodeSlotId slot)
 {
-    auto& entry = m_entries.ensure(slot.index);
-    if (!entry.resize_handle)
-        entry.resize_handle = ResizeHandle::create(arena, slot);
-    return *entry.resize_handle;
+    return m_resize_handles.ensure(slot.index, [&] { return ResizeHandle::create(arena, slot); });
 }
 
 void ChromeWidgetRegistry::drop_widgets_for_slot(Compositing::RustFFI::NodeSlotId slot)
 {
-    auto entry = m_entries.take(slot.index);
-    if (!entry.has_value())
-        return;
-    if (entry->horizontal_scrollbar)
-        entry->horizontal_scrollbar->detach({});
-    if (entry->vertical_scrollbar)
-        entry->vertical_scrollbar->detach({});
-    if (entry->resize_handle)
-        entry->resize_handle->detach({});
+    if (auto resize_handle = m_resize_handles.take(slot.index); resize_handle.has_value())
+        resize_handle.value()->detach({});
 }
 
 void ChromeWidgetRegistry::clear()
 {
-    for (auto& entry : m_entries) {
-        if (entry.value.horizontal_scrollbar)
-            entry.value.horizontal_scrollbar->detach({});
-        if (entry.value.vertical_scrollbar)
-            entry.value.vertical_scrollbar->detach({});
-        if (entry.value.resize_handle)
-            entry.value.resize_handle->detach({});
-    }
-    m_entries.clear();
+    for (auto& entry : m_resize_handles)
+        entry.value->detach({});
+    m_resize_handles.clear();
 }
 
 ChromeWidget::ChromeWidget(Layout::NodeArena& arena, Compositing::RustFFI::NodeSlotId slot)

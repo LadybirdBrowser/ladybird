@@ -148,7 +148,6 @@ Optional<Web::ScrollbarDraggedByCompositor> ScrollbarController::captured_scroll
     return Web::ScrollbarDraggedByCompositor {
         .context_id = context_id,
         .scroller_stable_node_id = *scrollbar.scroller_stable_node_id,
-        .vertical = scrollbar.vertical,
     };
 }
 
@@ -168,9 +167,9 @@ Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_compositor(C
     return {};
 }
 
-// A scrollbar the display list paints takes a press only where the main thread would give it one: inside the rect of
-// the scrollbar as it is painted now, and with nothing that takes pointer input painted over it there. A scrollbar that
-// has faded out takes none, as the main thread passes it by. Any other press is left to the main thread.
+// A scrollbar the display list paints takes the pointer inside the rect of the scrollbar as it is presented now, and only
+// with nothing that takes pointer input painted over it there. A scrollbar that has faded out takes none, as the main
+// thread passes it by.
 Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_display_list(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
 {
     for (size_t i = m_scrollbars.size(); i-- > 0;) {
@@ -183,8 +182,8 @@ Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_display_list
         auto position_in_scrollbar_space = position_in_space_of_scrollbar(scrollbar, visual_context_tree, scroll_state_snapshot, position, Compositing::AccumulatedVisualContextTree::ClipBehavior::Respect);
         if (!position_in_scrollbar_space.has_value())
             continue;
-        auto const& painted_scrollbar_rect = scrollbar.display_list_paints_enlarged_scrollbar || expansion(i) > 0 ? scrollbar.expanded_gutter_rect : scrollbar.track_rect;
-        if (!painted_scrollbar_rect.to_type<float>().contains(*position_in_scrollbar_space))
+        auto const& presented_scrollbar_rect = expansion(i) > 0 ? scrollbar.expanded_gutter_rect : scrollbar.track_rect;
+        if (!presented_scrollbar_rect.to_type<float>().contains(*position_in_scrollbar_space))
             continue;
 
         if (async_scroll_tree.is_covered_by_hit_test_target_painted_after(scrollbar.paint_order_index, visual_context_tree, position))
@@ -234,9 +233,7 @@ Optional<ScrollbarController::Drag> ScrollbarController::begin_drag(Compositing:
     }
 
     m_captured_scrollbar_index = *scrollbar_index;
-    // The main thread expands a scrollbar the display list paints, on the press it still receives.
-    if (scrollbar.is_painted_by_compositor)
-        m_hovered_scrollbar_index = *scrollbar_index;
+    m_hovered_scrollbar_index = *scrollbar_index;
     m_thumb_grab_position = thumb_grab_position;
     m_last_primary_position_of_captured_drag = primary_position;
     return Drag { *scrollbar_index, primary_position, thumb_grab_position, !position_is_along_thumb };
@@ -324,9 +321,8 @@ int ScrollbarController::paging_direction(size_t scrollbar_index, float primary_
     return 0;
 }
 
-Gfx::IntRect ScrollbarController::update_visibility(Compositing::AccumulatedVisualContextTree const* visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, MonotonicTime now)
+void ScrollbarController::update_visibility(Compositing::ScrollStateSnapshot const& scroll_state_snapshot, MonotonicTime now)
 {
-    Gfx::IntRect damage_rect;
     for (size_t i = 0; i < m_scrollbars.size(); ++i) {
         auto& visibility = m_visibilities[i];
         auto const& scrollbar = m_scrollbars[i];
@@ -334,15 +330,9 @@ Gfx::IntRect ScrollbarController::update_visibility(Compositing::AccumulatedVisu
         auto scrolled = visibility.scroll_offset.has_value() && *visibility.scroll_offset != scroll_offset;
         visibility.scroll_offset = scroll_offset;
 
-        // The display list damages only the rect of the scrollbar as it gives it when it scrolls.
-        if (scrolled && visual_context_tree && !scrollbar.is_painted_by_compositor && expansion(i) != (scrollbar.display_list_paints_enlarged_scrollbar ? 1 : 0)) {
-            if (auto rect = rect_in_viewport(i, *visual_context_tree, scroll_state_snapshot); rect.has_value())
-                damage_rect.unite(*rect);
-        }
-
         auto was_held_shown = visibility.is_held_shown;
         // Hovering a hidden scrollbar does not show it. Only a scroll does.
-        visibility.is_held_shown = is_held_shown(i) && (scrolled || visibility.fade.opacity() > 0);
+        visibility.is_held_shown = is_expanded(i) && (scrolled || visibility.fade.opacity() > 0);
         if (visibility.is_held_shown) {
             visibility.fade.jump_to(1);
             visibility.fade_out_time.clear();
@@ -354,7 +344,6 @@ Gfx::IntRect ScrollbarController::update_visibility(Compositing::AccumulatedVisu
         if (scrolled || was_held_shown)
             visibility.fade_out_time = now + shown_duration_after_activity;
     }
-    return damage_rect;
 }
 
 Optional<MonotonicTime> ScrollbarController::next_fade_out_time() const
@@ -511,15 +500,6 @@ bool ScrollbarController::is_expanded(size_t scrollbar_index) const
     return m_hovered_scrollbar_index == scrollbar_index || m_captured_scrollbar_index == scrollbar_index;
 }
 
-// The main thread hovers and drags the scrollbars the display list paints, and paints them enlarged meanwhile.
-bool ScrollbarController::is_held_shown(size_t scrollbar_index) const
-{
-    auto const& scrollbar = m_scrollbars[scrollbar_index];
-    if (scrollbar.is_painted_by_compositor)
-        return is_expanded(scrollbar_index);
-    return scrollbar.display_list_paints_enlarged_scrollbar || m_captured_scrollbar_index == scrollbar_index;
-}
-
 float ScrollbarController::opacity(size_t scrollbar_index) const
 {
     if (s_scrollbars_always_shown)
@@ -530,7 +510,7 @@ float ScrollbarController::opacity(size_t scrollbar_index) const
 float ScrollbarController::expansion(size_t scrollbar_index) const
 {
     if (s_scrollbars_always_shown)
-        return is_held_shown(scrollbar_index) ? 1 : 0;
+        return is_expanded(scrollbar_index) ? 1 : 0;
     return m_visibilities[scrollbar_index].expansion.opacity();
 }
 

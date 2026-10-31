@@ -1,3 +1,0 @@
-PASS: paint with overlays (work)
-PASS: hover the vertical scrollbar (work)
-PASS: leave the scrollbar (work)

@@ -64,12 +64,6 @@ pub(crate) enum PaintChange {
         element: StyleNodeID,
         style_records: HighlightStyleRecords,
     },
-    /// Whether the scrollbar of the row in `direction` is drawn enlarged, as it is while the user hovers or drags it.
-    SetScrollbarEnlarged {
-        node: NodeSlotId,
-        direction: ScrollDirection,
-        enlarged: bool,
-    },
     /// Whether the overlay scrollbar of the row in `direction` has faded out, so that it takes no pointer input.
     SetScrollbarHidden {
         node: NodeSlotId,
@@ -165,25 +159,6 @@ impl PaintChange {
             Self::ClearSpellingErrors => super::selection::clear_spelling_errors(&mut arena.paintable_rows_mut()),
             Self::SyncHighlightPseudoStyles { element, style_records } => {
                 super::selection::sync_highlight_pseudo_styles(arena, element, style_records);
-            }
-            Self::SetScrollbarEnlarged {
-                node,
-                direction,
-                enlarged,
-            } => {
-                let mut rows = arena.paintable_rows_mut();
-                if !rows.paintable_row_is_populated(node) {
-                    return;
-                }
-                let flag = match direction {
-                    ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarEnlarged,
-                    ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarEnlarged,
-                };
-                if rows.paintable_data(node).has_flag(flag) == enlarged {
-                    return;
-                }
-                rows.paintable_data_mut(node).set_flag(flag, enlarged);
-                rows.push_paint_damage(node, PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY);
             }
             Self::SetScrollbarHidden {
                 node,
@@ -330,21 +305,6 @@ pub extern "C" fn render_state_sync_highlight_pseudo_styles(
             search_text_current_style_record,
             spelling_error_style_record,
         ],
-    };
-    queue(host, change);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_set_scrollbar_enlarged(
-    host: &DocumentHost,
-    node: NodeSlotId,
-    direction: ScrollDirection,
-    enlarged: bool,
-) {
-    let change = PaintChange::SetScrollbarEnlarged {
-        node,
-        direction,
-        enlarged,
     };
     queue(host, change);
 }

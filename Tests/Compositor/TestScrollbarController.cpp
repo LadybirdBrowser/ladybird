@@ -15,11 +15,11 @@ static void show_scrollbars_by_scrolling_away_and_back(Compositor::ScrollbarCont
 {
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto now = MonotonicTime::now();
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, now);
+    controller.update_visibility(scroll_state_snapshot, now);
     scroll_state_snapshot.set_device_offset_for_index(scroll_node_index, { 1, 1 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, now);
+    controller.update_visibility(scroll_state_snapshot, now);
     scroll_state_snapshot.set_device_offset_for_index(scroll_node_index, { 0, 0 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, now);
+    controller.update_visibility(scroll_state_snapshot, now);
 }
 
 static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
@@ -73,7 +73,6 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
         .track_color = Gfx::Color::Transparent,
         .vertical = vertical,
         .is_painted_by_compositor = true,
-        .display_list_paints_enlarged_scrollbar = false,
     });
 
     Compositing::VisualContextTreeTestBuilder visual_context_tree_builder;
@@ -119,7 +118,7 @@ TEST_CASE(starting_scrollbar_drag_uses_expanded_thumb_geometry)
     EXPECT_EQ(horizontal_drag.thumb_grab_position, 7);
 }
 
-static Compositing::AsyncScrollbar scrollbar_painted_by_display_list(bool display_list_paints_enlarged_scrollbar = false)
+static Compositing::AsyncScrollbar scrollbar_painted_by_display_list()
 {
     return {
         .scroll_node_id = {
@@ -147,7 +146,6 @@ static Compositing::AsyncScrollbar scrollbar_painted_by_display_list(bool displa
         .track_color = Gfx::Color::Transparent,
         .vertical = true,
         .is_painted_by_compositor = false,
-        .display_list_paints_enlarged_scrollbar = display_list_paints_enlarged_scrollbar,
     };
 }
 
@@ -179,12 +177,12 @@ TEST_CASE(scrollbar_is_hidden_until_its_scroller_scrolls)
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto start = MonotonicTime::now();
 
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT_EQ(opacity_of_scrollbar(controller), 0);
     EXPECT(!controller.next_fade_out_time().has_value());
 
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT_EQ(opacity_of_scrollbar(controller), 1);
     EXPECT(controller.next_fade_out_time() == start + Compositor::ScrollbarController::shown_duration_after_activity);
 }
@@ -196,9 +194,9 @@ TEST_CASE(scrollbar_fades_out_after_its_scroller_stops_scrolling)
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto visual_context_tree = visual_context_tree_with_scroller();
     auto start = MonotonicTime::now();
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
 
     auto shown_until = start + Compositor::ScrollbarController::shown_duration_after_activity;
     EXPECT(!controller.fades_need_frame(shown_until - AK::Duration::from_milliseconds(1)));
@@ -225,9 +223,9 @@ TEST_CASE(scroll_while_fading_out_shows_scrollbar_again)
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto visual_context_tree = visual_context_tree_with_scroller();
     auto start = MonotonicTime::now();
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
 
     auto shown_until = start + Compositor::ScrollbarController::shown_duration_after_activity;
     (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, shown_until);
@@ -236,7 +234,7 @@ TEST_CASE(scroll_while_fading_out_shows_scrollbar_again)
 
     auto scrolled_again_at = shown_until + half_fade_duration;
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 20 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, scrolled_again_at);
+    controller.update_visibility(scroll_state_snapshot, scrolled_again_at);
     EXPECT_EQ(opacity_of_scrollbar(controller), 1);
     EXPECT(!controller.fades_need_frame(scrolled_again_at));
     EXPECT(controller.next_fade_out_time() == scrolled_again_at + Compositor::ScrollbarController::shown_duration_after_activity);
@@ -248,16 +246,16 @@ TEST_CASE(hovering_hidden_scrollbar_does_not_show_it)
     controller.set_scrollbars({ scrollbar_painted_by_display_list() });
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto start = MonotonicTime::now();
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
 
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(true) });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.set_hovered_scrollbar(0);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT_EQ(opacity_of_scrollbar(controller), 0);
     EXPECT(!controller.fades_need_frame(start));
 
     // A scroll shows it, and the hover then keeps it shown and grows it.
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT_EQ(opacity_of_scrollbar(controller), 1);
     EXPECT(!controller.next_fade_out_time().has_value());
     EXPECT(controller.fades_need_frame(start));
@@ -269,23 +267,23 @@ TEST_CASE(hovered_scrollbar_stays_shown_until_the_pointer_leaves_it)
     controller.set_scrollbars({ scrollbar_painted_by_display_list() });
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto start = MonotonicTime::now();
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
 
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(true) });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.set_hovered_scrollbar(0);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT_EQ(opacity_of_scrollbar(controller), 1);
     EXPECT(!controller.next_fade_out_time().has_value());
 
     auto much_later = start + AK::Duration::from_seconds(10);
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, much_later);
+    controller.update_visibility(scroll_state_snapshot, much_later);
     (void)controller.advance_fades(visual_context_tree_with_scroller(), scroll_state_snapshot, much_later);
     EXPECT_EQ(opacity_of_scrollbar(controller), 1);
     EXPECT(!controller.fades_need_frame(much_later));
 
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(false) });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, much_later);
+    controller.set_hovered_scrollbar({});
+    controller.update_visibility(scroll_state_snapshot, much_later);
     EXPECT_EQ(opacity_of_scrollbar(controller), 1);
     EXPECT(controller.next_fade_out_time() == much_later + Compositor::ScrollbarController::shown_duration_after_activity);
 }
@@ -297,18 +295,18 @@ TEST_CASE(hovered_scrollbar_grows_and_stays_expanded_until_it_has_faded_out)
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     auto visual_context_tree = visual_context_tree_with_scroller();
     auto start = MonotonicTime::now();
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
 
     // A scroll shows the thin scrollbar.
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT_EQ(presented_scrollbar(controller).thumb_rect.width(), 2);
     EXPECT_EQ(presented_scrollbar(controller).thumb_color.alpha(), 100);
     EXPECT_EQ(presented_scrollbar(controller).track_color.alpha(), 0);
 
     // Hovering it grows it over the duration of a fade.
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(true) });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.set_hovered_scrollbar(0);
+    controller.update_visibility(scroll_state_snapshot, start);
     EXPECT(controller.fades_need_frame(start));
     auto damage_rect = controller.advance_fades(visual_context_tree, scroll_state_snapshot, start + half_fade_duration);
     EXPECT(damage_rect.contains(Gfx::IntRect { 92, 0, 8, 100 }));
@@ -323,8 +321,8 @@ TEST_CASE(hovered_scrollbar_grows_and_stays_expanded_until_it_has_faded_out)
     EXPECT(!controller.fades_need_frame(grown_at));
 
     // It stays expanded after the pointer leaves it, while it is shown and while it fades out.
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(false) });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, grown_at);
+    controller.set_hovered_scrollbar({});
+    controller.update_visibility(scroll_state_snapshot, grown_at);
     auto shown_until = grown_at + Compositor::ScrollbarController::shown_duration_after_activity;
     (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, shown_until);
     (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, shown_until + half_fade_duration);
@@ -336,30 +334,6 @@ TEST_CASE(hovered_scrollbar_grows_and_stays_expanded_until_it_has_faded_out)
     EXPECT_EQ(opacity_of_scrollbar(controller), 0);
     EXPECT_EQ(presented_scrollbar(controller).thumb_rect.width(), 2);
     EXPECT(!controller.fades_need_frame(shown_until + Compositing::OverlayFade::duration));
-}
-
-TEST_CASE(scrolling_expanded_scrollbar_the_display_list_paints_thin_damages_it)
-{
-    Compositor::ScrollbarController controller;
-    controller.set_scrollbars({ scrollbar_painted_by_display_list() });
-    Compositing::ScrollStateSnapshot scroll_state_snapshot;
-    auto visual_context_tree = visual_context_tree_with_scroller();
-    auto start = MonotonicTime::now();
-    (void)controller.update_visibility(&visual_context_tree, scroll_state_snapshot, start);
-    scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 5 });
-    (void)controller.update_visibility(&visual_context_tree, scroll_state_snapshot, start);
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(true) });
-    (void)controller.update_visibility(&visual_context_tree, scroll_state_snapshot, start);
-    (void)controller.advance_fades(visual_context_tree, scroll_state_snapshot, start + Compositing::OverlayFade::duration);
-
-    // While the display list paints the scrollbar expanded, it damages it on a scroll itself.
-    scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    EXPECT(controller.update_visibility(&visual_context_tree, scroll_state_snapshot, start).is_empty());
-
-    controller.set_scrollbars({ scrollbar_painted_by_display_list(false) });
-    scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 20 });
-    auto damage_rect = controller.update_visibility(&visual_context_tree, scroll_state_snapshot, start);
-    EXPECT(damage_rect.contains(Gfx::IntRect { 92, 0, 8, 100 }));
 }
 
 TEST_CASE(press_beside_thumb_pages_toward_pointer_until_thumb_reaches_it)
@@ -384,7 +358,7 @@ TEST_CASE(scrollbar_that_has_faded_out_is_reported_hidden)
     auto start = MonotonicTime::now();
 
     // A scrollbar starts out hidden, which the main thread hears once.
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     auto changes = controller.take_visibility_changes();
     EXPECT_EQ(changes.size(), 1u);
     EXPECT(changes[0].vertical);
@@ -393,7 +367,7 @@ TEST_CASE(scrollbar_that_has_faded_out_is_reported_hidden)
 
     // A scroll shows it.
     scroll_state_snapshot.set_device_offset_for_index(Compositing::SpatialNodeIndex { 1 }, { 0, 10 });
-    (void)controller.update_visibility(nullptr, scroll_state_snapshot, start);
+    controller.update_visibility(scroll_state_snapshot, start);
     changes = controller.take_visibility_changes();
     EXPECT_EQ(changes.size(), 1u);
     EXPECT(!changes[0].hidden);

@@ -15,7 +15,6 @@
 #include <LibWeb/Painting/HitTestDisplayList.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ResizeHandle.h>
-#include <LibWeb/Painting/Scrollbar.h>
 
 namespace Web::Painting {
 
@@ -32,15 +31,11 @@ NonnullRefPtr<HitTestDisplayList> HitTestDisplayList::create_from_rust_recording
             auto& context = *static_cast<VisitContext*>(sink);
             switch (static_cast<ChromeWidgetKind>(chrome_widget_kind)) {
             case ChromeWidgetKind::None:
+            case ChromeWidgetKind::HorizontalScrollbar:
+            case ChromeWidgetKind::VerticalScrollbar:
                 break;
             case ChromeWidgetKind::ResizeHandle:
                 (void)context.chrome_widget_registry.get_or_create_resize_handle(context.arena, paintable);
-                break;
-            case ChromeWidgetKind::HorizontalScrollbar:
-                (void)context.chrome_widget_registry.get_or_create_scrollbar(context.arena, paintable, ScrollDirection::Horizontal);
-                break;
-            case ChromeWidgetKind::VerticalScrollbar:
-                (void)context.chrome_widget_registry.get_or_create_scrollbar(context.arena, paintable, ScrollDirection::Vertical);
                 break;
             }
         });
@@ -173,17 +168,9 @@ Layout::Node const* HitTestDisplayList::layout_node_for_item(Layout::BegunRead c
 
 RefPtr<ChromeWidget> HitTestDisplayList::chrome_widget_for_item(Item item) const
 {
-    switch (item.chrome_widget_kind()) {
-    case ChromeWidgetKind::None:
-        return nullptr;
-    case ChromeWidgetKind::ResizeHandle:
+    if (item.chrome_widget_kind() == ChromeWidgetKind::ResizeHandle)
         return m_chrome_widget_registry->resize_handle(item.paintable());
-    case ChromeWidgetKind::HorizontalScrollbar:
-        return m_chrome_widget_registry->scrollbar(item.paintable(), ScrollDirection::Horizontal);
-    case ChromeWidgetKind::VerticalScrollbar:
-        return m_chrome_widget_registry->scrollbar(item.paintable(), ScrollDirection::Vertical);
-    }
-    VERIFY_NOT_REACHED();
+    return nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/image-maps.html#image-map-processing-model
@@ -244,6 +231,7 @@ HitTestResult HitTestDisplayList::hit_test_result_for_item(Layout::BegunRead con
         .hit_node = hit_node,
         .arena = *m_arena,
         .chrome_widget = chrome_widget_for_item(item),
+        .is_scrollbar = first_is_one_of(item.chrome_widget_kind(), ChromeWidgetKind::HorizontalScrollbar, ChromeWidgetKind::VerticalScrollbar),
         .is_text_fragment = resolved.is_text_fragment,
     };
     if (resolved.has_index_in_node)

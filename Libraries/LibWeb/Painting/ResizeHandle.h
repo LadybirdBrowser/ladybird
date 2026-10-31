@@ -16,8 +16,6 @@ public:
     static NonnullRefPtr<ResizeHandle> create(Layout::NodeArena&, Compositing::RustFFI::NodeSlotId);
 
     virtual MouseAction handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) override;
-    virtual void mouse_enter() override { }
-    virtual void mouse_leave() override { }
 
     virtual Optional<CSS::CursorPredefined> cursor() const override;
 

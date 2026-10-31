@@ -13,16 +13,14 @@ use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 #[repr(u32)]
 pub enum PaintableFlag {
     HasNonInvertibleCssTransform = 1 << 0,
-    HorizontalScrollbarEnlarged = 1 << 1,
-    VerticalScrollbarEnlarged = 1 << 2,
-    HorizontalScrollbarHidden = 1 << 3,
-    VerticalScrollbarHidden = 1 << 4,
-    InLaterContainingBlockFragment = 1 << 5,
-    HasLaterBoxFragments = 1 << 6,
+    HorizontalScrollbarHidden = 1 << 1,
+    VerticalScrollbarHidden = 1 << 2,
+    InLaterContainingBlockFragment = 1 << 3,
+    HasLaterBoxFragments = 1 << 4,
 }
 
 /// The flag bits that hold the writing mode of the frame a box was laid out in.
-const FRAME_WRITING_MODE_SHIFT: u32 = 7;
+const FRAME_WRITING_MODE_SHIFT: u32 = 5;
 const FRAME_WRITING_MODE_MASK: u32 = 0b111;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

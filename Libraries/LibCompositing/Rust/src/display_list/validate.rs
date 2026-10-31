@@ -525,7 +525,6 @@ fn validate_command_fields(
         T::CompositorScrollbar => {
             p.bool_at(offset_of!(CompositorScrollbar, vertical))?;
             p.bool_at(offset_of!(CompositorScrollbar, is_painted_by_compositor))?;
-            p.bool_at(offset_of!(CompositorScrollbar, display_list_paints_enlarged_scrollbar))?;
         }
         T::PaintScrollBar => p.bool_at(offset_of!(PaintScrollBar, vertical))?,
         T::CompositorSnapContainer => {
