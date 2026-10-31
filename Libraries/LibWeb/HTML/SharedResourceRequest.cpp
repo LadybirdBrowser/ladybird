@@ -257,11 +257,16 @@ Optional<u64> SharedResourceRequest::add_removable_callbacks(Function<void()> on
 
 void SharedResourceRequest::remove_callbacks(u64 id)
 {
-    // NB: Only mark the entry as no longer waiting, and skip it when invoking the callbacks. A callback that is being
-    //     invoked can get here, and the invocation goes on over m_callbacks.
-    for (auto& callbacks : m_callbacks) {
-        if (callbacks.id == id)
-            callbacks.id = 0;
+    // NB: The callbacks are only invoked once the request is no longer new or fetching. A callback that is being
+    //     invoked can get here, and the invocation goes on over m_callbacks, so then only mark the entry as no longer
+    //     waiting, and skip it when invoking the callbacks.
+    if (m_state == State::New || m_state == State::Fetching) {
+        m_callbacks.remove_first_matching([id](auto const& callbacks) { return callbacks.id == id; });
+    } else {
+        for (auto& callbacks : m_callbacks) {
+            if (callbacks.id == id)
+                callbacks.id = 0;
+        }
     }
 
     // NB: The fetch keeps going so that its result can still be cached, but once nothing waits for it anymore, it

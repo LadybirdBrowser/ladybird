@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<svg width="0" height="0"><symbol id="local"><rect id="local-rect" width="10" height="10"/></symbol></svg>
+<script>
+    const server = httpTestServer();
+    const spriteURL = server.echoURL("/use-element-repeated-href-changes-stalled-sprite.svg");
+    const unblockToken = `use-element-repeated-href-changes-stalled-sprite-${crypto.randomUUID()}`;
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${server.baseURL}/echo`, false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path: new URL(spriteURL).pathname,
+        status: 200,
+        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
+        body: `<svg xmlns="http://www.w3.org/2000/svg">
+            <symbol id="first"><rect id="first-rect" width="10" height="10"/></symbol>
+            <symbol id="second"><circle id="second-circle" r="5"/></symbol>
+        </svg>`,
+        wait_for_unblock: unblockToken,
+    }));
+
+    document.write(`
+        <svg width="10" height="10"><use id="useChanging" href="${spriteURL}#first"/></svg>
+        <svg width="10" height="10"><use id="useStable" href="${spriteURL}#first"/></svg>
+    `);
+
+    const useChanging = document.getElementById("useChanging");
+    for (let i = 0; i < 100; ++i) {
+        useChanging.setAttribute("href", "#local");
+        useChanging.setAttribute("href", `${spriteURL}#first`);
+    }
+    useChanging.setAttribute("href", `${spriteURL}#second`);
+
+    asyncTest(done => {
+        window.addEventListener("load", async () => {
+            const requestCount = await (await fetch(server.recordedRequestCountURL(spriteURL))).json();
+            println(`Requests for the sprite: ${requestCount}`);
+            for (const id of ["useChanging", "useStable"]) {
+                const instance = internals.getShadowRoot(document.getElementById(id)).firstElementChild;
+                println(`${id}: ${instance?.firstElementChild?.id ?? "nothing"}`);
+            }
+            done();
+        });
+        fetch(`${server.baseURL}/unblock/${unblockToken}`);
+    });
+</script>
