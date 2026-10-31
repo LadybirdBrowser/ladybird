@@ -5225,7 +5225,15 @@ impl LayoutNodeArena {
         node: NodeSlotId,
         read: impl FnOnce(&std::sync::Arc<super::fragment_tree::Fragment>) -> R,
     ) -> Option<R> {
-        self.paintable_rows.with_current_committed_fragment(
+        self.with_current_committed_fragment_link(node, |link| read(&link.fragment))
+    }
+
+    pub(crate) fn with_current_committed_fragment_link<R>(
+        &self,
+        node: NodeSlotId,
+        read: impl FnOnce(&super::fragment_tree::FragmentLink) -> R,
+    ) -> Option<R> {
+        self.paintable_rows.with_current_committed_fragment_link(
             node.slot_index(),
             node.generation(),
             self.data(node).fragment_cache_epoch,

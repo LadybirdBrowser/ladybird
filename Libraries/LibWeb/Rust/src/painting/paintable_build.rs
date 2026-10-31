@@ -251,6 +251,7 @@ impl<'a> PaintableCommit<'a> {
         let mut inline_content_unchanged = false;
         let mut inline_item_order_unchanged = false;
         let mut child_sequence_unchanged = false;
+        let mut link_shows_box_the_same = true;
         let (old_identity, old_content_size, old_content_inline_size) =
             self.arena().with_committed_fragment_link(node, |old_link| {
                 old_link.map_or((0, used_values::FfiCssPixelSize::default(), None), |old_link| {
@@ -277,6 +278,7 @@ impl<'a> PaintableCommit<'a> {
                         child_sequence_unchanged = fragment.has_same_child_sequence(previous);
                     }
                     own_paint_unchanged &= old_link.has_same_placement(link);
+                    link_shows_box_the_same = link.shows_box_as(old_link);
                     (
                         old_link.fragment.identity,
                         frame.size_to_physical(
@@ -311,8 +313,10 @@ impl<'a> PaintableCommit<'a> {
             || (enclosing_line_root_changes.fragment_changed && painted_geometry_lives_in_enclosing_line_root);
         // Keep fragment identity as the conservative signal for overflow and visual contexts.
         // A reused run root can have a new identity while its box and subtree are unchanged.
-        let fragment_content_unchanged =
-            (reuses_committed_subtree && root_box_unchanged) || (old_identity != 0 && !fragment_content_changed);
+        // The fragment stays the same when only the link's margins or parent-decided facts change, but margin-box clip
+        // paths, line clamp clips and overflow read those.
+        let fragment_content_unchanged = link_shows_box_the_same
+            && ((reuses_committed_subtree && root_box_unchanged) || (old_identity != 0 && !fragment_content_changed));
         let offset_unchanged = previous_offset == Some(new_offset);
         let enclosing_inline_paint_changed = painted_geometry_lives_in_enclosing_line_root
             && (enclosing_line_root_changes.inline_content_changed

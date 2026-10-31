@@ -475,16 +475,7 @@ pub(crate) fn place_child(
         Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
             fragment,
             reuses_subtree,
-        }) => Some((
-            fragment_tree::committed_fragment_showing_box(
-                callbacks,
-                node,
-                || geometry.clone(),
-                facts_decided_by_parent.fragment_facts,
-                fragment,
-            ),
-            reuses_subtree,
-        )),
+        }) => Some((fragment, reuses_subtree)),
         Some(fragment_tree::ChildFragmentArrival::RunRoot {
             root,
             reuses_committed_subtree,
@@ -501,6 +492,7 @@ pub(crate) fn place_child(
             reuses_subtree,
             (!containing_block.is_invalid()).then_some(containing_block),
             facts_decided_by_parent,
+            &geometry.cells,
             abspos_layout_inputs,
             resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
             point_add(

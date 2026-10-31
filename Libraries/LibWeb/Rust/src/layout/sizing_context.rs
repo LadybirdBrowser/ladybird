@@ -2222,9 +2222,9 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let used = sized_cells.cells;
         self.callbacks
             .arena()
-            .with_current_committed_fragment(node, |fragment| {
-                used.update_cells(|cells| cells.take_box_metrics_of_fragment(fragment));
-                fragment.clone()
+            .with_current_committed_fragment_link(node, |link| {
+                used.update_cells(|cells| cells.take_box_metrics_of_committed_link(link));
+                link.fragment.clone()
             })
     }
 

@@ -614,9 +614,7 @@ pub(crate) fn is_floating(arena: &impl PaintRead, node: NodeSlotId) -> bool {
 }
 
 pub(crate) fn is_invisible_for_line_clamp(arena: &impl PaintRead, node: NodeSlotId) -> bool {
-    arena.with_committed_fragment_link(node, |link| {
-        link.is_some_and(|link| link.fragment.is_invisible_for_line_clamp)
-    })
+    arena.with_committed_fragment_link(node, |link| link.is_some_and(|link| link.is_invisible_for_line_clamp))
 }
 
 pub(crate) fn has_line_clamp_point(arena: &impl PaintRead, node: NodeSlotId) -> bool {
