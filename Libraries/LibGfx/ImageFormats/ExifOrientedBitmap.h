@@ -6,40 +6,27 @@
 
 #pragma once
 
-#include <AK/Concepts.h>
 #include <AK/NonnullOwnPtr.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 
 namespace Gfx {
 
-namespace Detail {
-
-template<typename BitmapLike>
 class ExifOrientedBitmap {
 public:
     static ErrorOr<ExifOrientedBitmap> create(TIFF::Orientation orientation, IntSize size, BitmapFormat format)
-    requires(SameAs<BitmapLike, Bitmap>)
     {
         auto bitmap = TRY(Bitmap::create(format, oriented_size(size, orientation)));
         return ExifOrientedBitmap(move(bitmap), size, orientation);
     }
 
-    static ErrorOr<ExifOrientedBitmap> create(TIFF::Orientation orientation, IntSize size)
-    requires(SameAs<BitmapLike, CMYKBitmap>)
-    {
-        auto bitmap = TRY(CMYKBitmap::create_with_size(oriented_size(size, orientation)));
-        return ExifOrientedBitmap(move(bitmap), size, orientation);
-    }
-
-    template<OneOf<RawPixel, CMYK> Value>
-    void set_pixel(u32 x, u32 y, Value color)
+    void set_pixel(u32 x, u32 y, RawPixel color)
     {
         auto const new_position = oriented_position(IntPoint(x, y));
         m_bitmap->scanline(new_position.y())[new_position.x()] = color;
     }
 
-    NonnullRefPtr<BitmapLike>& bitmap()
+    NonnullRefPtr<Bitmap>& bitmap()
     {
         return m_bitmap;
     }
@@ -64,7 +51,7 @@ public:
 private:
     using Orientation = TIFF::Orientation;
 
-    ExifOrientedBitmap(NonnullRefPtr<BitmapLike> bitmap, IntSize size, Orientation orientation)
+    ExifOrientedBitmap(NonnullRefPtr<Bitmap> bitmap, IntSize size, Orientation orientation)
         : m_bitmap(move(bitmap))
         , m_orientation(orientation)
         , m_width(size.width())
@@ -103,16 +90,11 @@ private:
         VERIFY_NOT_REACHED();
     }
 
-    NonnullRefPtr<BitmapLike> m_bitmap;
+    NonnullRefPtr<Bitmap> m_bitmap;
     Orientation m_orientation;
 
     u32 m_width {};
     u32 m_height {};
 };
-
-}
-
-using ExifOrientedBitmap = Detail::ExifOrientedBitmap<Bitmap>;
-using ExifOrientedCMYKBitmap = Detail::ExifOrientedBitmap<CMYKBitmap>;
 
 }
