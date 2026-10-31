@@ -1,0 +1,6 @@
+fixed box placed by insets, body resized: runs=0 matches fresh layout=true
+box with only left set, inline static position moved: runs=0 matches fresh layout=true
+box with auto inline insets, static position moved: laid out again=true at static position=true matches fresh layout=true
+anchor-centered box, anchor moved: laid out again=true centered=true
+vertical-rl box with top set, moved along its inset axis: runs=0 matches fresh layout=true
+vertical-rl box with top set, moved along its static axis: laid out again=true matches fresh layout=true

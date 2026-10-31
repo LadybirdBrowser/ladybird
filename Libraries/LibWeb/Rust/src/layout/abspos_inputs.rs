@@ -130,6 +130,18 @@ pub(crate) struct AbsposContainingBlockInfo {
 }
 
 impl AbsposContainingBlockInfo {
+    // NB: A grid area, a position area and anchor-center give an axis an alignment, and set its mode whatever the
+    //     insets are. They may size or align the box against the static position rect.
+    fn axes_placed_by_own_insets(&self) -> (bool, bool) {
+        let placed_by_own_insets = |mode: AbsposAxisMode, alignment: Option<AbsposAlignment>| {
+            mode == AbsposAxisMode::InsetFromRect && alignment.is_none()
+        };
+        (
+            placed_by_own_insets(self.inline_axis_mode, self.inline_alignment),
+            placed_by_own_insets(self.block_axis_mode, self.block_alignment),
+        )
+    }
+
     /// Whether a position area or anchor-center aligns the box in the inline and the block axis.
     /// https://drafts.csswg.org/css-anchor-position-1/#position-area
     /// https://drafts.csswg.org/css-anchor-position-1/#anchor-center
@@ -176,6 +188,22 @@ pub(crate) struct AbsposLayoutInputs {
     pub(crate) resolved_anchor_sizes: super::style_values::ResolvedAnchorSizes,
     /// The position option the box is laid out with, or none for a box without position options.
     pub(crate) position_option: Option<PositionOptionChoice>,
+}
+
+impl AbsposLayoutInputs {
+    pub(crate) fn without_static_position_in_axes_placed_by_own_insets(mut self) -> Self {
+        let (inline_placed_by_insets, block_placed_by_insets) = self.containing_block_info.axes_placed_by_own_insets();
+        let rect = &mut self.static_position_rect.rect;
+        if inline_placed_by_insets {
+            rect.offset.inline_offset = CssPixels::default();
+            rect.size.inline_size = CssPixels::default();
+        }
+        if block_placed_by_insets {
+            rect.offset.block_offset = CssPixels::default();
+            rect.size.block_size = CssPixels::default();
+        }
+        self
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

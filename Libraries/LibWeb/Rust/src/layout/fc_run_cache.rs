@@ -113,6 +113,9 @@ impl FcRunCacheKey {
         {
             *containing_block_position_in_bfc_root = FfiCssPixelPoint::default();
         }
+        if let ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs) = &mut input.participation {
+            *inputs = inputs.without_static_position_in_axes_placed_by_own_insets();
+        }
         Self {
             fc_type,
             input,

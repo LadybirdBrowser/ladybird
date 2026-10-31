@@ -45,20 +45,17 @@ layoutTest({
                   @viewport/block RUN (cache=bypass)
                     BlockContainer<HTML>/block RUN (cache=miss)
                       BlockContainer<DIV>#target/block REUSE SUBTREE
-                  BlockContainer<DIV>#boundary/block RUN (cache=miss)
-                    BlockContainer<DIV>#inside REUSE IN-FLOW SUBTREE
+                  BlockContainer<DIV>#boundary/block REUSE SUBTREE
                 layout FULL
                   @viewport/block RUN (cache=bypass)
                     BlockContainer<HTML>/block RUN (cache=miss)
                       BlockContainer<DIV>#target/block REUSE SUBTREE
-                  BlockContainer<DIV>#boundary/block RUN (cache=miss)
-                    BlockContainer<DIV>#inside REUSE IN-FLOW SUBTREE
+                  BlockContainer<DIV>#boundary/block REUSE SUBTREE
                 layout FULL
                   @viewport/block RUN (cache=bypass)
                     BlockContainer<HTML>/block RUN (cache=miss)
                       BlockContainer<DIV>#target/block REUSE SUBTREE
-                  BlockContainer<DIV>#boundary/block RUN (cache=miss)
-                    BlockContainer<DIV>#inside REUSE IN-FLOW SUBTREE
+                  BlockContainer<DIV>#boundary/block REUSE SUBTREE
             `,
             check: equal => {
                 equal(target.getBoundingClientRect().top, 30, "top after flush");
@@ -80,8 +77,7 @@ layoutTest({
                     BlockContainer<HTML>/block RUN (cache=miss)
                       BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
                       BlockContainer<DIV>#target/block RUN (cache=miss)
-                  BlockContainer<DIV>#boundary/block RUN (cache=miss)
-                    BlockContainer<DIV>#inside REUSE IN-FLOW SUBTREE
+                  BlockContainer<DIV>#boundary/block REUSE SUBTREE
                 layout FULL
                   @viewport/block RUN (cache=bypass)
                     BlockContainer<HTML>/block RUN (cache=miss)

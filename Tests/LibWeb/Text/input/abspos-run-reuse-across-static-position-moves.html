@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .page { width: 600px; }
+    .relative { position: relative; width: 300px; height: 200px; }
+    .marker { float: left; width: 10px; }
+    #fixed { position: fixed; top: 10px; left: 20px; bottom: 30px; width: 100px; }
+    #left-only { position: absolute; left: 10px; width: 50px; }
+    #auto-inline { position: absolute; top: 5px; width: 50px; }
+    #anchor { anchor-name: --anchor; width: 40px; height: 10px; margin-left: 20px; }
+    #anchor-centered { position: absolute; position-anchor: --anchor; justify-self: anchor-center; top: 50px; width: 20px; height: 10px; }
+    .vertical { writing-mode: vertical-rl; position: relative; width: 200px; height: 300px; }
+    #vertical-top { position: absolute; top: 10px; width: 20px; height: 30px; }
+</style>
+<div class="page" id="page"><p>text</p><div id="fixed"><span class="marker">1</span>fixed</div></div>
+<div class="relative" id="left-only-container"><div id="left-only-wrapper">before<div id="left-only"><span class="marker">1</span>left</div></div></div>
+<div class="relative" id="auto-inline-container"><div id="auto-inline-wrapper">before<div id="auto-inline">auto</div></div></div>
+<div class="relative" id="anchor-container"><div id="anchor"></div><div id="anchor-centered"></div></div>
+<div class="vertical" id="vertical-container"><div id="vertical-wrapper">before<div id="vertical-top">v</div></div></div>
+<script>
+    // An absolutely positioned box takes its offset from its insets in an axis where one of them is set, and sizes
+    // against them there, so moving its static position along that axis reuses its run. Along an axis with both insets
+    // auto, and for an anchor-centered box, the static position rect is read, so the box is laid out again.
+    test(() => {
+        document.body.offsetHeight;
+
+        const runsOf = (id, change) => {
+            internals.beginLayoutTrace();
+            change();
+            document.body.offsetHeight;
+            return internals.takeLayoutTrace().split("\n").filter(line => line.includes(`#${id}/`) && line.includes(" RUN (")).length;
+        };
+        const geometry = root => {
+            const rootRect = root.getBoundingClientRect();
+            const isInFixedBox = element => {
+                for (let ancestor = element; ancestor !== root; ancestor = ancestor.parentElement) {
+                    if (getComputedStyle(ancestor).position === "fixed")
+                        return true;
+                }
+                return false;
+            };
+            return Array.from(root.querySelectorAll("*")).map(element => {
+                const rect = element.getBoundingClientRect();
+                const origin = isInFixedBox(element) ? { left: 0, top: 0 } : rootRect;
+                return `${rect.left - origin.left},${rect.top - origin.top},${rect.width},${rect.height}`;
+            }).join(" ");
+        };
+        const matchesFreshLayout = root => {
+            const fresh = root.cloneNode(true);
+            document.body.appendChild(fresh);
+            const matches = geometry(root) === geometry(fresh);
+            fresh.remove();
+            document.body.offsetHeight;
+            return matches;
+        };
+
+        const page = document.getElementById("page");
+        const fixedRuns = runsOf("fixed", () => {
+            document.body.style.width = "500px";
+            document.body.style.paddingLeft = "40px";
+        });
+        println(`fixed box placed by insets, body resized: runs=${fixedRuns} matches fresh layout=${matchesFreshLayout(page)}`);
+        document.body.style.width = "";
+        document.body.style.paddingLeft = "";
+        document.body.offsetHeight;
+
+        const leftOnlyContainer = document.getElementById("left-only-container");
+        const leftOnlyRuns = runsOf("left-only", () => {
+            document.getElementById("left-only-wrapper").style.paddingLeft = "30px";
+        });
+        println(`box with only left set, inline static position moved: runs=${leftOnlyRuns} matches fresh layout=${matchesFreshLayout(leftOnlyContainer)}`);
+
+        const autoInlineContainer = document.getElementById("auto-inline-container");
+        const autoInlineWrapper = document.getElementById("auto-inline-wrapper");
+        const autoInlineRuns = runsOf("auto-inline", () => {
+            autoInlineWrapper.style.paddingLeft = "30px";
+        });
+        const autoInlineLeft = document.getElementById("auto-inline").getBoundingClientRect().left;
+        const wrapperContentLeft = autoInlineWrapper.getBoundingClientRect().left + 30;
+        println(`box with auto inline insets, static position moved: laid out again=${autoInlineRuns > 0} at static position=${autoInlineLeft === wrapperContentLeft} matches fresh layout=${matchesFreshLayout(autoInlineContainer)}`);
+
+        const anchor = document.getElementById("anchor");
+        const anchorCenteredRuns = runsOf("anchor-centered", () => {
+            anchor.style.marginLeft = "100px";
+        });
+        const anchorRect = anchor.getBoundingClientRect();
+        const centeredRect = document.getElementById("anchor-centered").getBoundingClientRect();
+        const centered = anchorRect.left + anchorRect.width / 2 === centeredRect.left + centeredRect.width / 2;
+        println(`anchor-centered box, anchor moved: laid out again=${anchorCenteredRuns > 0} centered=${centered}`);
+
+        const verticalContainer = document.getElementById("vertical-container");
+        const verticalWrapper = document.getElementById("vertical-wrapper");
+        const alongInsetAxisRuns = runsOf("vertical-top", () => {
+            verticalWrapper.style.paddingTop = "25px";
+        });
+        println(`vertical-rl box with top set, moved along its inset axis: runs=${alongInsetAxisRuns} matches fresh layout=${matchesFreshLayout(verticalContainer)}`);
+        const alongStaticAxisRuns = runsOf("vertical-top", () => {
+            verticalWrapper.style.paddingRight = "35px";
+        });
+        println(`vertical-rl box with top set, moved along its static axis: laid out again=${alongStaticAxisRuns > 0} matches fresh layout=${matchesFreshLayout(verticalContainer)}`);
+    });
+</script>
