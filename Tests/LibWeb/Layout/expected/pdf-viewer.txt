@@ -108,6 +108,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                                 frag 0 from TextNode start: 0, length: 1, rect: [200.84375,9.5 5.15625x13] baseline: 10.390625
                                     "1"
                                 TextNode <#text> (not painted)
+                            Box <div> at [206,9.5] flex-container(column) flex-item [0+0+0 0 0+0+0] [0+0+0 13 0+0+0] [FFC] children: not-inline
                         BlockContainer <(anonymous)> (not painted) [BFC] children: inline
                           TextNode <#text> (not painted)
                       BlockContainer <(anonymous)> (not painted) [BFC] children: inline
