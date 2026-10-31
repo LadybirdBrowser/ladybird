@@ -3454,6 +3454,12 @@ void ConnectionFromClient::color_picker_update(Web::PageId page_id, Optional<Col
         page->page().color_picker_update(picked_color, state);
 }
 
+void ConnectionFromClient::date_picker_closed(Web::PageId page_id, Optional<Utf16String> picked_value)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().date_picker_closed(move(picked_value));
+}
+
 void ConnectionFromClient::file_picker_closed(Web::PageId page_id, Vector<Web::HTML::SelectedFile> selected_files)
 {
     if (auto page = this->page(page_id); page.has_value())

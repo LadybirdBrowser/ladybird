@@ -36,6 +36,7 @@
 #include <QWidget>
 
 class QColorDialog;
+class QDialog;
 class QFileDialog;
 class QMessageBox;
 class QTimer;
@@ -326,6 +327,7 @@ private:
     JavaScriptDialog* m_javascript_dialog { nullptr };
     Function<void(bool)> m_before_unload_completion;
     QPointer<QColorDialog> m_color_picker_dialog;
+    QPointer<QDialog> m_date_picker_dialog;
     QPointer<QFileDialog> m_file_picker_dialog;
     QPointer<QMessageBox> m_external_url_confirmation_dialog;
     PermissionPromptQueue m_permission_prompts;

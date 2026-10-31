@@ -293,6 +293,7 @@ endpoint WebContentServer routed by Web::PageId page_id
     confirm_closed(Web::PageId page_id, bool accepted) =|
     prompt_closed(Web::PageId page_id, Optional<Utf16String> response) =|
     color_picker_update(Web::PageId page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) =|
+    date_picker_closed(Web::PageId page_id, Optional<Utf16String> picked_value) =|
     file_picker_closed(Web::PageId page_id, Vector<Web::HTML::SelectedFile> selected_files) =|
     select_dropdown_closed(Web::PageId page_id, Optional<u32> selected_item_id) =|
 

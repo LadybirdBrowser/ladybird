@@ -1,0 +1,8 @@
+date: open during click=true
+date: value=2026-10-31 open=false
+date: open during click=true
+date: value=2026-10-31 open=false
+time: open during click=true
+time: value=13:37 open=false
+time: open during click=true
+time: value=13:37 open=false

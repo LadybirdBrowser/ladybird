@@ -286,6 +286,7 @@ private:
     virtual void confirm_closed(Web::PageId page_id, bool accepted) override;
     virtual void prompt_closed(Web::PageId page_id, Optional<Utf16String> response) override;
     virtual void color_picker_update(Web::PageId page_id, Optional<Color> picked_color, Web::HTML::ColorPickerUpdateState state) override;
+    virtual void date_picker_closed(Web::PageId page_id, Optional<Utf16String> picked_value) override;
     virtual void file_picker_closed(Web::PageId page_id, Vector<Web::HTML::SelectedFile> selected_files) override;
     virtual void select_dropdown_closed(Web::PageId page_id, Optional<u32> selected_item_id) override;
 

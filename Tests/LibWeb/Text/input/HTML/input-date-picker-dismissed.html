@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    input {
+        width: 200px;
+    }
+</style>
+<input id="date" type="date" value="2026-10-31">
+<input id="time" type="time" value="13:37">
+<script>
+    asyncTest(async done => {
+        for (const input of document.querySelectorAll("input")) {
+            input.addEventListener("change", () => println(`${input.id}: change`));
+            input.addEventListener("click", () => println(`${input.id}: open during click=${input.matches(":open")}`));
+            const rect = input.getBoundingClientRect();
+            for (let i = 0; i < 2; ++i) {
+                internals.click(rect.right - 8, rect.top + rect.height / 2);
+                // The UI dismisses the picker asynchronously.
+                while (input.matches(":open"))
+                    await new Promise(resolve => requestAnimationFrame(resolve));
+                println(`${input.id}: value=${input.value} open=${input.matches(":open")}`);
+            }
+        }
+        done();
+    });
+</script>

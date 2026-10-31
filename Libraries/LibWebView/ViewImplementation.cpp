@@ -2761,6 +2761,23 @@ void ViewImplementation::color_picker_update(Optional<Color> picked_color, Web::
     target->async_color_picker_update(picked_color, state);
 }
 
+void ViewImplementation::did_request_date_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum)
+{
+    if (another_page_awaits(m_date_picker_page, requesting_page) || !on_request_date_picker) {
+        requesting_page.async_date_picker_closed({});
+        return;
+    }
+    m_date_picker_page = requesting_page;
+    on_request_date_picker(input_type, value, minimum, maximum);
+}
+
+void ViewImplementation::date_picker_closed(Optional<Utf16String> picked_value)
+{
+    NonnullRefPtr<WebContentPage> target = m_date_picker_page ? *m_date_picker_page : page();
+    m_date_picker_page.clear();
+    target->async_date_picker_closed(move(picked_value));
+}
+
 void ViewImplementation::did_request_file_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
 {
     if (another_page_awaits(m_file_picker_page, requesting_page)) {
