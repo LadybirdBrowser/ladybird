@@ -1,0 +1,9 @@
+Ladybird now applies a grid item’s min size to its min-content and
+max-content contributions, so a flexible row with a zero minimum
+in an indefinite grid grows to its items’ min-height. Blink, WebKit
+and Gecko all get a block-axis contribution by measuring the item,
+which applies its min-height already: Blink’s GridLayoutAlgorithm::
+ContributionSizeForGridItem() lays the item out for measure, WebKit’s
+GridTrackSizingAlgorithmStrategy::maxContentContributionForGridItem()
+uses logicalHeightForGridItem(), and Gecko’s ContentContribution() in
+nsGridContainerFrame.cpp runs a MeasuringReflow() of the item.
