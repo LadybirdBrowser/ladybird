@@ -6,6 +6,7 @@
     #container { width: 300px; height: 100px; }
     table { border-spacing: 0; width: 100px; }
     td { padding: 0; }
+    #percentage-table { height: 100%; }
     #percentage-cell { height: 50%; }
     #fixed-cell { height: 20px; }
 </style>
@@ -21,28 +22,30 @@
                 name: "only the fixed-height table is reused",
                 mutate: () => {
                     heightBefore = document.getElementById("percentage-table").getBoundingClientRect().height;
-                    // The percentage-height cell observes the basis forwarded by its table.
+                    // The percentage-height cell observes the basis forwarded by its table, whose own percentage height
+                    // follows the container.
                     container.style.height = "200px";
                 },
                 expect: `
                     layout FULL
                       @viewport/block RUN (cache=bypass)
                         BlockContainer<HTML>/block RUN (cache=miss)
-                          BlockContainer<TD>#percentage-cell MEASURE min-content inline (cache=hit)
+                          BlockContainer<TD>#percentage-cell MEASURE min-content inline (cache=miss) FROM ITEMS
                           TableWrapper(anonymous)/block RUN (cache=miss)
                             Box<TABLE>#percentage-table/table RUN (cache=miss)
                               BlockContainer<TD>#percentage-cell MEASURE min-content inline (cache=hit)
+                              BlockContainer<TD>#percentage-cell MEASURE max-content block (cache=miss)
+                                BlockContainer<TD>#percentage-cell/block RUN (cache=miss)
                               BlockContainer<TD>#percentage-cell MEASURE max-content block (cache=hit)
-                              BlockContainer<TD>#percentage-cell MEASURE max-content block (cache=hit)
-                              BlockContainer<TD>#percentage-cell/block READ RESULT AHEAD OF INTRINSIC BLOCK PADDING
                               BlockContainer<TD>#percentage-cell/block RUN AHEAD OF INTRINSIC BLOCK PADDING
+                              BlockContainer<TD>#percentage-cell/block READ RESULT AHEAD OF INTRINSIC BLOCK PADDING
                               BlockContainer<TD>#percentage-cell/block REPLAY FRAGMENTS
                           BlockContainer<TD>#fixed-cell MEASURE min-content inline (cache=hit)
                           TableWrapper(anonymous)/block REUSE SUBTREE
                 `,
                 check: equal => {
-                    equal(heightBefore, 50, "percentage table height before");
-                    equal(document.getElementById("percentage-table").getBoundingClientRect().height, 100, "percentage table height after");
+                    equal(heightBefore, 100, "percentage table height before");
+                    equal(document.getElementById("percentage-table").getBoundingClientRect().height, 200, "percentage table height after");
                     equal(document.getElementById("fixed-table").getBoundingClientRect().height, 20, "fixed table height");
                 },
             },

@@ -1,0 +1,16 @@
+middle 1: row height 24, cell height 24, content offset 0
+middle 2: row height 24, cell height 24, content offset 0
+middle 3: row height 24, cell height 24, content offset 0
+middle 4: row height 24, cell height 24, content offset 0
+middle table height 121
+bottom 1: row height 24, cell height 24, content offset 0
+bottom 2: row height 24, cell height 24, content offset 0
+bottom 3: row height 24, cell height 24, content offset 0
+bottom 4: row height 24, cell height 24, content offset 0
+bottom table height 121
+single 1: row height 24, cell height 24, content offset 0
+single table height 34
+50% td: row height 24, cell height 24, content offset 0
+50% td table height 34
+calc(50% + 1px) td: row height 24, cell height 24, content offset 0
+calc(50% + 1px) td table height 34
