@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/HTML/ErrorInformation.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
 
@@ -22,21 +23,27 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
 
     // 3. Set attributes[message], attributes[filename], attributes[lineno], and attributes[colno] to
     //    implementation-defined values derived from exception.
+    // NB: An Error's or a DOMException's message is prefixed with its name, as Error.prototype.toString() does.
+    auto prefix_with_name = [](Utf16String name, Utf16String message) {
+        if (message.is_empty())
+            return name;
+        if (name.is_empty())
+            return message;
+        return Utf16String::formatted("{}: {}", name, message);
+    };
+
     attributes.message = [&] {
         if (auto object = exception.as_if<JS::Object>()) {
+            // NB: A DOMException's name and message are accessors on its prototype.
+            if (auto const* dom_exception = Bindings::dom_exception_from_object(*object))
+                return prefix_with_name(dom_exception->name().to_utf16_string(), dom_exception->message().to_utf16_string());
+
             if (MUST(object->has_own_property(vm.names.message))) {
                 auto message = object->get_without_side_effects(vm.names.message).to_utf16_string_without_side_effects();
-
-                // NB: The message of an Error object is prefixed with its name, as Error.prototype.toString() does.
                 if (is<JS::Error>(*object)) {
                     auto name = object->get_without_side_effects(vm.names.name);
-                    if (name.is_string()) {
-                        auto name_string = name.to_utf16_string_without_side_effects();
-                        if (message.is_empty())
-                            return name_string;
-                        if (!name_string.is_empty())
-                            return Utf16String::formatted("{}: {}", name_string, message);
-                    }
+                    if (name.is_string())
+                        return prefix_with_name(name.to_utf16_string_without_side_effects(), move(message));
                 }
                 return message;
             }
