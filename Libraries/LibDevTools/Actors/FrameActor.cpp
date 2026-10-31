@@ -460,8 +460,10 @@ void FrameActor::on_console_message(WebView::ConsoleOutput console_output)
                     message.set("level"sv, "info"sv);
                     break;
                 case JS::ConsoleLogLevel::Table:
+                    message.set("level"sv, "table"sv);
+                    break;
                 case JS::ConsoleLogLevel::Trace:
-                    // FIXME: Show tables. A trace arrives as a ConsoleTrace instead.
+                    // A trace arrives as a ConsoleTrace instead.
                     return;
                 }
                 break;

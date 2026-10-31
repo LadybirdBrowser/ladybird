@@ -140,6 +140,7 @@ public:
     Utf16String devtools_properties(JS::Value);
     Utf16String devtools_log(GC::RootVector<JS::Value> const& arguments);
     Utf16String devtools_logged_properties(u64 object_id);
+    Utf16String devtools_log_table(GC::Root<JS::Object> const& table_data);
     Optional<Vector<String>> complete_console_input(Utf16String const& input);
 
     void find_in_page(Utf16String const& query, bool highlight_all);

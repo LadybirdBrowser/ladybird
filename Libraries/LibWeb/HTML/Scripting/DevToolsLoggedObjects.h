@@ -22,14 +22,18 @@ namespace Web::HTML {
 class WEB_API DevToolsLoggedObjects {
 public:
     static constexpr size_t MESSAGES_PER_TABLE = 500;
+    static constexpr size_t MAX_CONSOLE_TABLE_ROWS = 1000;
 
     Vector<JsonValue> serialize_message_arguments(ReadonlySpan<JS::Value>);
+    Vector<JsonValue> serialize_console_table_arguments(JS::VM&, JS::Object& table_data);
     bool contains(u64 object_id) const;
     ErrorOr<WebView::DebuggerObjectProperties> properties_for_object(u64 object_id);
     void clear();
     void visit_edges(GC::Cell::Visitor&);
 
 private:
+    void start_message();
+
     DevToolsObjectTable m_current_table { DevToolsObjectTable::RootObjects::No };
     DevToolsObjectTable m_previous_table { DevToolsObjectTable::RootObjects::No };
     size_t m_messages_in_current_table { 0 };

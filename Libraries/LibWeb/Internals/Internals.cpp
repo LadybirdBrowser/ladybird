@@ -1191,6 +1191,15 @@ Utf16String Internals::devtools_log(GC::RootVector<JS::Value> const& arguments)
     return Utf16String::from_utf8(grips.serialized());
 }
 
+// The arguments of a console.table() message, from the rows and columns that the console made of the data.
+Utf16String Internals::devtools_log_table(GC::Root<JS::Object> const& table_data)
+{
+    JsonArray arguments;
+    for (auto& argument : m_devtools_logged_objects.serialize_console_table_arguments(vm(), *table_data))
+        arguments.must_append(move(argument));
+    return Utf16String::from_utf8(arguments.serialized());
+}
+
 // The names of the own properties of a logged object, if it's still kept.
 Utf16String Internals::devtools_logged_properties(u64 object_id)
 {

@@ -220,10 +220,6 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
         return JS::js_undefined();
     }
 
-    // FIXME: Implement this.
-    if (log_level == JS::Console::LogLevel::Table)
-        return JS::js_undefined();
-
     auto const& argument_values = arguments.get<GC::RootVector<JS::Value>>();
 
     auto output = TRY(generically_format_values(argument_values));
@@ -231,7 +227,13 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
 
     // An attached DevTools client gets grips for the objects, which it may expand; otherwise they're printed.
     Vector<JsonValue> serialized_arguments;
-    if (m_client->has_devtools_client()) {
+    if (log_level == JS::Console::LogLevel::Table) {
+        // The console hands a table over as the one object that holds its rows and columns.
+        auto table_data = argument_values.is_empty() ? JS::js_undefined() : argument_values.first();
+        if (!m_client->has_devtools_client() || !table_data.is_object())
+            return JS::js_undefined();
+        serialized_arguments = m_logged_objects.serialize_console_table_arguments(m_console->realm().vm(), table_data.as_object());
+    } else if (m_client->has_devtools_client()) {
         serialized_arguments = m_logged_objects.serialize_message_arguments(argument_values.span());
     } else {
         serialized_arguments.ensure_capacity(argument_values.size());
