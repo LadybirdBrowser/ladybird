@@ -1405,6 +1405,10 @@ impl Vm {
         self.static_property_lookup_caches.get(site)
     }
 
+    pub fn is_static_property_lookup_cache(&self, cache: &PropertyLookupCache) -> bool {
+        self.static_property_lookup_caches.contains(cache)
+    }
+
     pub fn keyed_property_lookup_cache(&self) -> &KeyedPropertyLookupCache {
         &self.keyed_property_lookup_cache
     }

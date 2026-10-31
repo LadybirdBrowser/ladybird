@@ -41,8 +41,8 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
-    JS_HOST_CLASS_IMMUTABLE_PROTOTYPE, JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE,
-    JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE,
+    JS_HOST_CLASS_IMMUTABLE_PROTOTYPE, JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS,
+    JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE, JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE,
     JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH, JS_HOST_CLASS_OBJECT, JS_PD_CONFIGURABLE,
     JS_PD_ENUMERABLE, JS_PD_HAS_CONFIGURABLE, JS_PD_HAS_ENUMERABLE, JS_PD_HAS_VALUE, JS_PD_HAS_WRITABLE, JS_PD_PRESENT,
     JS_PD_WRITABLE, JSHostClass, JSHostObjectHooks, JSObject, JSPropertyDescriptor, JSVM, JSValue, JSValueSink,
@@ -58,6 +58,7 @@ use crate::runtime::object::{
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::shape::Shape;
 
 // The class that the class of every host class table of this kind extends. Its own internal methods are ordinary,
 // and no object has it as its class.
@@ -139,6 +140,9 @@ fn host_object_methods(table: &'static JSHostClass) -> ObjectMethods {
     }
     if hooks.is_cacheable_for_inherited_property.is_some() {
         methods.is_cacheable_for_inherited_property = is_cacheable_for_inherited_property_through_hook;
+    }
+    if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS) {
+        methods.is_cacheable_across_realms = |_| false;
     }
     // The fast paths read keys, attributes and values straight from the shape and storage and follow the shape's
     // prototype, so they would bypass these hooks.
@@ -417,8 +421,8 @@ fn error_data_through_hook(object: &Object) -> Option<&ErrorData> {
 }
 
 impl HostObject {
-    /// HostObject::create(): a host object of the class `table` describes, with the realm's empty object shape
-    /// transitioned to `prototype`, holding the embedder's `wrappable` and `host_data` cells.
+    /// HostObject::create(): a host object of the class `table` describes, with `prototype` as its [[Prototype]],
+    /// holding the embedder's `wrappable` and `host_data` cells.
     ///
     /// # Safety
     ///
@@ -433,13 +437,15 @@ impl HostObject {
         host_data: Option<NonNull<c_void>>,
     ) -> Gc<HostObject> {
         let (class, allocator) = runtime_class_and_allocator_of_host_class(vm, table, JS_HOST_CLASS_OBJECT);
-        let base = Object::new_with_realm_and_prototype(
-            vm,
-            class,
-            realm,
-            prototype,
-            MayInterfereWithIndexedPropertyAccess::No,
-        );
+        let base = if table.has_flag(JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS) {
+            let shape = Shape::create(vm, realm);
+            if let Some(prototype) = prototype {
+                shape.set_prototype_without_transition(vm, prototype);
+            }
+            Object::new_with_shape(class, shape, MayInterfereWithIndexedPropertyAccess::No)
+        } else {
+            Object::new_with_realm_and_prototype(vm, class, realm, prototype, MayInterfereWithIndexedPropertyAccess::No)
+        };
         copy_host_class_flags_into_object(vm, table, &base);
         let host_object = HostObject {
             base,
@@ -506,8 +512,8 @@ pub unsafe fn set_host_data(object: &Object, host_data: Option<NonNull<c_void>>)
 
 // The embedding ABI of host objects, and of what every kind of host object shares
 
-/// HostObject::create(): a host object of `host_class`, a table of kind JS_HOST_CLASS_OBJECT, made from the realm's
-/// empty object shape with `prototype_or_null` as its [[Prototype]]. `wrappable_or_null` is the embedder's
+/// HostObject::create(): a host object of `host_class`, a table of kind JS_HOST_CLASS_OBJECT, with
+/// `prototype_or_null` as its [[Prototype]]. `wrappable_or_null` is the embedder's
 /// implementation object, which direct getter functions read at JS_HOST_OBJECT_WRAPPABLE_OFFSET, and
 /// `host_data_or_null` a cell with the rest of its per-object state; the object keeps both alive. Returns an unrooted
 /// object. Main thread only.

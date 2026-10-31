@@ -140,6 +140,10 @@ enum {
     // answer for keys missing from its shape must set the first flag, or the second if they only answer for array
     // indices, and one whose hooks can start shadowing inherited properties must have that hook return false.
     //
+    // A class whose hooks answer differently depending on the realm that asks must set
+    // JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS, which keeps its objects out of the caches that every realm shares. Its
+    // hooks must also give no cacheable metadata to lookups that reach its objects through a prototype chain.
+    //
     // Enumeration (for-in, Object.keys, Object.assign, object spread, JSON.stringify) has fast paths that read keys,
     // attributes and values straight from the shape and storage. The engine never takes them for an object whose class
     // has a get_prototype_of, get_own_property, has_property, get or own_property_keys hook, nor for one whose class sets
@@ -148,6 +152,7 @@ enum {
     JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE = 1 << 6,
     JS_HOST_CLASS_NOT_ELIGIBLE_FOR_OWN_PROPERTY_ENUMERATION_FAST_PATH = 1 << 7,
     JS_HOST_CLASS_NOT_CACHEABLE_FOR_INDEXED_PROPERTY_ABSENCE = 1 << 10,
+    JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS = 1 << 11,
 
     // Only for JS_HOST_CLASS_FUNCTION, which must then have a construct hook.
     JS_HOST_CLASS_HAS_CONSTRUCTOR = 1 << 8,

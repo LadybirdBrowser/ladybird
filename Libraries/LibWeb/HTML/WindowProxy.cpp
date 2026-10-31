@@ -92,7 +92,8 @@ static constexpr JSHostObjectHooks window_proxy_hooks = JS::make_host_object_hoo
 constexpr JSHostClass window_proxy_host_class = JS::make_host_class(JS_HOST_CLASS_OBJECT, "WindowProxy"sv, nullptr, &window_proxy_hooks, nullptr,
     Bindings::platform_object_host_class_flags
         | JS_HOST_CLASS_MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS
-        | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE);
+        | JS_HOST_CLASS_NOT_CACHEABLE_FOR_PROPERTY_ABSENCE
+        | JS_HOST_CLASS_NOT_CACHEABLE_ACROSS_REALMS);
 
 // NB: Direct getters read the wrappable slot of any platform object without checking what it holds, so it stays null
 //     here. [[Window]] is not an implementation object that this proxy wraps.
