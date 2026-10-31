@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Throw DOMException-TypeError in toplevel: module: listener
+Pass	Throw DOMException-TypeError in toplevel: module: handler
+Pass	Throw DOMException-TypeError in setTimeout-function: module: listener
+Pass	Throw DOMException-TypeError in setTimeout-function: module: handler
+Pass	Throw DOMException-TypeError in setTimeout-string: module: listener
+Pass	Throw DOMException-TypeError in setTimeout-string: module: handler
+Pass	Throw DOMException-TypeError in onmessage: module: listener
+Pass	Throw DOMException-TypeError in onmessage: module: handler
+Pass	Throw DOMException-TypeError in onerror: module: listener
+Pass	Throw DOMException-TypeError in onerror: module: handler
