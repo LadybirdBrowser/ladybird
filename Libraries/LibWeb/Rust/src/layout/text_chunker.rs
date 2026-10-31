@@ -6,6 +6,8 @@
 
 use super::*;
 
+use std::borrow::Cow;
+
 use libgfx_rust::font::{EmojiPresentation, FontHandle, FrozenFontList, emoji_presentation_for_code_point};
 
 #[derive(Clone, Copy)]
@@ -901,10 +903,26 @@ struct TextChunker<'text> {
     splits_at_orientation_changes: bool,
     current_index: usize,
     last_non_whitespace_font: Option<FontHandle>,
+    first_font_and_ascii_code_points_it_resolves: Option<(&'text FontHandle, u128)>,
+    font_for_every_space: Option<&'text FontHandle>,
 }
 
 impl<'text> TextChunker<'text> {
     fn new(inputs: TextChunkInputs<'text>) -> Self {
+        let first_font_and_ascii_code_points_it_resolves = inputs
+            .frozen_font_list
+            .first_font_and_ascii_code_points_it_resolves_in_text_presentation()
+            .filter(|_| inputs.font_variant_emoji != font_variant_emoji::EMOJI);
+        let font_for_every_space = first_font_and_ascii_code_points_it_resolves.and_then(|(font, code_points)| {
+            let space = 1u128 << b' ';
+            let spaces_and_line_feeds = space | 1 << b'\n';
+            let every_code_point_but_spaces_and_line_feeds_resolves_to_first_font = inputs
+                .text
+                .iter()
+                .all(|&code_unit| code_unit < 128 && (code_points | spaces_and_line_feeds) & (1 << code_unit) != 0);
+            (code_points & space != 0 && every_code_point_but_spaces_and_line_feeds_resolves_to_first_font)
+                .then_some(font)
+        });
         Self {
             text: inputs.text,
             frozen_font_list: inputs.frozen_font_list,
@@ -928,6 +946,8 @@ impl<'text> TextChunker<'text> {
             splits_at_orientation_changes: inputs.splits_at_orientation_changes,
             current_index: 0,
             last_non_whitespace_font: None,
+            first_font_and_ascii_code_points_it_resolves,
+            font_for_every_space,
         }
     }
 
@@ -1009,7 +1029,23 @@ impl<'text> TextChunker<'text> {
         }
     }
 
-    fn font_for_space(&self, at_index: usize, space_code_point: u32) -> FontHandle {
+    fn font_for_code_point_at(&self, code_unit_offset: usize, code_point: u32) -> Cow<'text, FontHandle> {
+        if let Some((font, code_points)) = self.first_font_and_ascii_code_points_it_resolves
+            && code_point < 128
+            && code_points & (1 << code_point) != 0
+            && !matches!(self.text.get(code_unit_offset + 1), Some(0xfe0e | 0xfe0f))
+        {
+            return Cow::Borrowed(font);
+        }
+        self.frozen_font_list
+            .font_for_code_point_borrowed(code_point, self.emoji_presentation_at(code_unit_offset, code_point))
+    }
+
+    fn font_for_space(&self, at_index: usize, space_code_point: u32) -> Cow<'_, FontHandle> {
+        if let Some(font) = self.font_for_every_space {
+            return Cow::Borrowed(font);
+        }
+
         let has_glyph = |font: &FontHandle| font.contains_glyph(space_code_point);
 
         // 1. Prefer the last non-whitespace font in this node/run.
@@ -1017,7 +1053,7 @@ impl<'text> TextChunker<'text> {
             && !last_font.is_emoji_font()
             && has_glyph(last_font)
         {
-            return last_font.clone();
+            return Cow::Borrowed(last_font);
         }
 
         // 2. Look ahead to the next non-space to infer the base font of this run.
@@ -1025,9 +1061,7 @@ impl<'text> TextChunker<'text> {
         while i < self.text.len() {
             let code_point = code_point_at(self.text, i);
             if !is_interword_space(code_point) && code_point != '\t' as u32 && code_point != '\n' as u32 {
-                let font = self
-                    .frozen_font_list
-                    .font_for_code_point(code_point, self.emoji_presentation_at(i, code_point));
+                let font = self.font_for_code_point_at(i, code_point);
                 if !font.is_emoji_font() && has_glyph(&font) {
                     return font;
                 }
@@ -1041,7 +1075,7 @@ impl<'text> TextChunker<'text> {
         }
 
         // 3. No text around (leading/trailing/all spaces) — pick a font with the glyph from the cascade.
-        self.frozen_font_list.font_for_code_point(
+        self.frozen_font_list.font_for_code_point_borrowed(
             space_code_point,
             EmojiPresentation {
                 is_emoji: false,
@@ -1050,12 +1084,11 @@ impl<'text> TextChunker<'text> {
         )
     }
 
-    fn expected_font_for(&self, code_point: u32) -> FontHandle {
+    fn expected_font_for(&self, code_point: u32) -> Cow<'_, FontHandle> {
         if is_interword_space(code_point) {
             self.font_for_space(self.current_index, code_point)
         } else {
-            self.frozen_font_list
-                .font_for_code_point(code_point, self.emoji_presentation_at(self.current_index, code_point))
+            self.font_for_code_point_at(self.current_index, code_point)
         }
     }
 
@@ -1074,7 +1107,7 @@ impl<'text> TextChunker<'text> {
         let is_all_whitespace = self.text[start..end]
             .iter()
             .all(|unit| *unit <= 0x7f && code_point_is_ascii_space(u32::from(*unit)));
-        if !is_all_whitespace {
+        if !is_all_whitespace && self.last_non_whitespace_font.as_ref() != Some(&font) {
             self.last_non_whitespace_font = Some(font.clone());
         }
         Some(TextChunk {
@@ -1099,7 +1132,7 @@ impl<'text> TextChunker<'text> {
             let mut can_break_at_current_position = self.is_at_line_break_opportunity();
             let mut pending = PendingChunk {
                 start: self.current_index,
-                font: self.expected_font_for(code_point),
+                font: self.expected_font_for(code_point).into_owned(),
                 text_type: self.current_text_type(),
                 is_upright: self.current_code_point_is_upright(),
                 broken_on_tab: false,
@@ -1118,9 +1151,9 @@ impl<'text> TextChunker<'text> {
                     can_break_at_current_position = self.is_at_line_break_opportunity();
                 }
 
-                let expected_font = self.expected_font_for(code_point);
+                let font_changes = *self.expected_font_for(code_point) != pending.font;
 
-                if pending.font != expected_font
+                if font_changes
                     && let Some(chunk) = self.try_commit_chunk_at_cursor(&pending, can_break_at_current_position)
                 {
                     return Some(chunk);
@@ -1144,7 +1177,7 @@ impl<'text> TextChunker<'text> {
                             has_breaking_tab: pending.broken_on_tab,
                             can_break_after: false,
                         },
-                        pending.font.clone(),
+                        pending.font,
                         pending.text_type,
                     );
                     return Some(chunk.expect("newline chunk must be non-empty"));
@@ -1199,12 +1232,18 @@ impl<'text> TextChunker<'text> {
                         // Otherwise, commit the whitespace!
                         self.current_index = self.next_grapheme_boundary();
                         can_break_at_current_position = self.is_at_line_break_opportunity();
-                        let space_font = self.font_for_space(self.current_index, code_point);
-                        let space = PendingChunk {
-                            font: space_font,
-                            ..pending.clone()
-                        };
-                        if let Some(chunk) = self.try_commit_chunk_at_cursor(&space, false) {
+                        let space_font = self.font_for_space(self.current_index, code_point).into_owned();
+                        if let Some(chunk) = self.try_commit_chunk(
+                            pending.start,
+                            self.current_index,
+                            ChunkBreakFlags {
+                                has_breaking_newline: false,
+                                has_breaking_tab: pending.broken_on_tab,
+                                can_break_after: false,
+                            },
+                            space_font,
+                            pending.text_type,
+                        ) {
                             return Some(chunk);
                         }
                         continue;
@@ -1231,7 +1270,7 @@ impl<'text> TextChunker<'text> {
                         has_breaking_tab: pending.broken_on_tab,
                         can_break_after: false,
                     },
-                    pending.font.clone(),
+                    pending.font,
                     pending.text_type,
                 ) {
                     return Some(chunk);
@@ -1244,6 +1283,9 @@ impl<'text> TextChunker<'text> {
 
     // Commits everything accumulated since `pending.start` up to the cursor, if that range is non-empty.
     fn try_commit_chunk_at_cursor(&mut self, pending: &PendingChunk, can_break_after: bool) -> Option<TextChunk> {
+        if self.current_index == pending.start {
+            return None;
+        }
         self.try_commit_chunk(
             pending.start,
             self.current_index,
