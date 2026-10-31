@@ -1254,7 +1254,8 @@ after_step_7:
         if (delay_load_event)
             m_load_event_delayer.emplace(document());
 
-        add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view());
+        add_callbacks_to_image_request(*image_request, maybe_omit_events, url_string->utf16_view(), previous_url.utf16_view(),
+            delay_load_event ? SharedResourceRequest::DelaysLoadEvent::Yes : SharedResourceRequest::DelaysLoadEvent::No);
 
         // AD-HOC: If the image request is already available or fetching, no need to start another fetch.
         if (image_request->is_available() || image_request->is_fetching())
@@ -1310,7 +1311,7 @@ after_step_7:
     }));
 }
 
-void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url)
+void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> image_request, bool maybe_omit_events, Utf16View url_string, Utf16View previous_url, SharedResourceRequest::DelaysLoadEvent delays_load_event)
 {
     auto captured_url_string = Utf16String::from_utf16(url_string);
     auto captured_previous_url = Utf16String::from_utf16(previous_url);
@@ -1422,7 +1423,8 @@ void HTMLImageElement::add_callbacks_to_image_request(GC::Ref<ImageRequest> imag
         },
         [this] {
             m_load_event_delayer.clear();
-        });
+        },
+        delays_load_event);
 }
 
 // NB: Aborting the image requests aborts their fetches, so nothing that the img element is fetching delays the load
