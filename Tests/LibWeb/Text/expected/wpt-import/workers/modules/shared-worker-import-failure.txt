@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	importScripts() on module worker should throw an exception.
+Pass	Worker construction for non-existent script should dispatch an ErrorEvent.
+Pass	Static import for non-existent script should dispatch an ErrorEvent.
+Pass	Dynamic import for non-existent script should throw an exception.
+Pass	SharedWorker construction for an invalid URL should throw an exception.
+Pass	SharedWorker construction for a file URL should throw an exception.
