@@ -33,13 +33,16 @@
         println(`scroll offset after a down arrow key press: ${scroller.scrollLeft},${scroller.scrollTop}`);
 
         // Dragging the scrollbar thumb is an absolute scroll, so it snaps to the position nearest the drop point. The
-        // drag ends beyond the gutter so that every update along the way clamps to the maximal scroll position.
+        // drag ends beyond the gutter so that every update along the way clamps to the maximal scroll position. The
+        // press is on the thumb, as a press beside it pages instead.
         const rect = scroller.getBoundingClientRect();
-        await scrollSettled(scroller, () => {
-            internals.mouseDown(rect.right - 5, rect.bottom - 5);
-            internals.mouseMove(rect.right - 5, rect.bottom + 200);
-            internals.mouseUp(rect.right - 5, rect.bottom + 200);
-        });
+        const dragThumbToTheEnd = async () => {
+            const thumbY = rect.top + 10 + (scroller.scrollTop / scroller.scrollHeight) * rect.height;
+            await internals.mouseEventThroughUIProcess("mousedown", rect.right - 5, thumbY);
+            await internals.mouseEventThroughUIProcess("mousemove", rect.right - 5, rect.bottom + 200, { buttons: 1 });
+            await internals.mouseEventThroughUIProcess("mouseup", rect.right - 5, rect.bottom + 200);
+        };
+        await scrollSettled(scroller, dragThumbToTheEnd);
         println(`scroll offset after dragging the scrollbar to the end: ${scroller.scrollLeft},${scroller.scrollTop}`);
 
         scroller.scrollTo({ top: 0, behavior: "instant" });
@@ -55,11 +58,7 @@
 
         // The next drag reports no gesture phase of its own, so the momentum rules of the gesture before it do not
         // apply to it.
-        await scrollSettled(scroller, () => {
-            internals.mouseDown(rect.right - 5, rect.bottom - 5);
-            internals.mouseMove(rect.right - 5, rect.bottom + 200);
-            internals.mouseUp(rect.right - 5, rect.bottom + 200);
-        });
+        await scrollSettled(scroller, dragThumbToTheEnd);
         println(`scroll offset after dragging the scrollbar to the end again: ${scroller.scrollLeft},${scroller.scrollTop}`);
     });
 </script>

@@ -1,1 +1,1 @@
-scrolled after scrollbar click: true
+scrollbar hit after invalidation: true

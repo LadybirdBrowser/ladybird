@@ -49,7 +49,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
         let scroll_node_index = own_scroll_node_index;
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
             let enlarged = scrollbar_is_enlarged(recorder.source, paintable, direction);
-            let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, enlarged, None) else {
+            let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, enlarged) else {
                 continue;
             };
             recorder.record_compositor_scrollbar_painted_by_display_list(

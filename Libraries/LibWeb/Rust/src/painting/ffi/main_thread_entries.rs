@@ -40,44 +40,6 @@ pub extern "C" fn layout_row_paintable_physical_resize_axes(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_row_paintable_compute_scrollbar_data(
-    host: &crate::render_state::DocumentHost,
-    slot: NodeSlotId,
-    direction: ScrollDirection,
-    metrics: FfiChromeMetrics,
-    enlarged: bool,
-    has_device_scroll_offset: bool,
-    device_scroll_offset: f32,
-    device_pixels_per_css_pixel: f64,
-    out: &mut FfiOptionalScrollbarData,
-) {
-    let data = read_measured_rows(host, super::node_read(), |rows| {
-        crate::painting::chrome_geometry::ChromeGeometry { arena: rows, metrics }.compute_scrollbar_data(
-            slot,
-            direction,
-            enlarged,
-            has_device_scroll_offset.then_some(crate::painting::chrome_geometry::ScrollbarScrollState {
-                device_scroll_offset,
-                device_pixels_per_css_pixel,
-            }),
-        )
-    });
-    let Some(data) = data else {
-        *out = FfiOptionalScrollbarData::default();
-        return;
-    };
-    *out = FfiOptionalScrollbarData {
-        has_value: true,
-        value: FfiScrollbarData {
-            gutter_rect: data.gutter_rect.into(),
-            thumb_rect: data.thumb_rect.into(),
-            track_rect: data.track_rect.into(),
-            thumb_travel_to_scroll_ratio: data.thumb_travel_to_scroll_ratio.to_double(),
-        },
-    };
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn layout_row_paintable_minimum_scroll_offset(
     host: &crate::render_state::DocumentHost,
     slot: NodeSlotId,

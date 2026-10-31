@@ -4,13 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/GenericShorthands.h>
-#include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWeb/Painting/ChromeWidget.h>
 #include <LibWeb/Painting/ResizeHandle.h>
 #include <LibWeb/Painting/Scrollbar.h>
@@ -105,28 +101,6 @@ PhysicalResizeAxes physical_resize_axes(Layout::Node const& node)
 {
     auto axes = Layout::RustFFI::layout_row_paintable_physical_resize_axes(node.document_host(), committed_row_slot(node));
     return { axes.horizontal, axes.vertical };
-}
-
-Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const& node, ScrollDirection direction, ChromeMetrics const& metrics, Compositing::ScrollStateSnapshot const* scroll_state_snapshot, ScrollbarSizing scrollbar_sizing)
-{
-    float device_scroll_offset = 0;
-    if (scroll_state_snapshot) {
-        auto own_offset = scroll_state_snapshot->device_offset_for_index(own_scroll_node_index(node));
-        device_scroll_offset = direction == ScrollDirection::Horizontal ? -own_offset.x() : -own_offset.y();
-    }
-    Layout::RustFFI::FfiOptionalScrollbarData result;
-    Layout::RustFFI::layout_row_paintable_compute_scrollbar_data(
-        node.document_host(), committed_row_slot(node), static_cast<Layout::RustFFI::ScrollDirection>(direction),
-        metrics, scrollbar_sizing == ScrollbarSizing::Enlarged, scroll_state_snapshot, device_scroll_offset,
-        node.document().page().client().device_pixels_per_css_pixel(), &result);
-    if (!result.has_value)
-        return {};
-    return ScrollbarData {
-        .gutter_rect = result.value.gutter_rect,
-        .thumb_rect = result.value.thumb_rect,
-        .track_rect = result.value.track_rect,
-        .thumb_travel_to_scroll_ratio = result.value.thumb_travel_to_scroll_ratio,
-    };
 }
 
 }

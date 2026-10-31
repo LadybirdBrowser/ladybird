@@ -16,4 +16,4 @@
 #5 web-content: finished-handled
 pointerdown reached the scroller: true
 scrollTop after the drag: 900
-scrolled by an ordinary drag afterwards: true
+scrolled by another drag afterwards: true
