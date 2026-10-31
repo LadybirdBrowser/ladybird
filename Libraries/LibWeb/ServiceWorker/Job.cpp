@@ -310,7 +310,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
         //        Is this actually what the spec wants us to do?
         IGNORE_USE_IN_ESCAPING_LAMBDA auto process_response_completion_result = Optional<WebIDL::ExceptionOr<void>> {};
 
-        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &registration, &process_response_completion_result](GC::Ref<Fetch::Infrastructure::ResponseView> response) mutable -> void {
+        fetch_algorithms_input.process_response = [request, job, state, newest_worker, &registration, consume_body, &process_response_completion_result](GC::Ref<Fetch::Infrastructure::ResponseView> response) mutable -> void {
             // 7. Extract a MIME type from the response’s header list. If s MIME type (ignoring parameters) is not a JavaScript MIME type, then:
             auto mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
             if (!mime_type.has_value() || !mime_type->is_javascript()) {
@@ -318,7 +318,8 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script response is not a JavaScript MIME type"_utf16);
 
                 // 2. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create("Service Worker script response is not a JavaScript MIME type"_utf16);
+                consume_body->run(Fetch::Infrastructure::ResponseView::network_error("Service Worker script response is not a JavaScript MIME type"_string), Empty {});
+                process_response_completion_result = WebIDL::ExceptionOr<void> {};
                 return;
             }
 
@@ -334,7 +335,8 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 // FIXME: Should we reject the job promise with a security error here?
 
                 // 1. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create("Failed to extract Service-Worker-Allowed header from fetch response"_utf16);
+                consume_body->run(Fetch::Infrastructure::ResponseView::network_error("Failed to extract Service-Worker-Allowed header from fetch response"_string), Empty {});
+                process_response_completion_result = WebIDL::ExceptionOr<void> {};
                 return;
             }
 
@@ -380,7 +382,8 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 reject_job_promise<WebIDL::SecurityError>(job, "Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
 
                 // 2. Asynchronously complete these steps with a network error.
-                process_response_completion_result = WebIDL::NetworkError::create("Service Worker script scope does not match Service-Worker-Allowed header"_utf16);
+                consume_body->run(Fetch::Infrastructure::ResponseView::network_error("Service Worker script scope does not match Service-Worker-Allowed header"_string), Empty {});
+                process_response_completion_result = WebIDL::ExceptionOr<void> {};
                 return;
             }
 
