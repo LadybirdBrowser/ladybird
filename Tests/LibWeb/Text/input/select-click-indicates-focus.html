@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<select id="select"><option>One</option><option>Two</option></select>
+<script>
+    test(() => {
+        const rect = select.getBoundingClientRect();
+        internals.mouseDown(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        println(`focused: ${document.activeElement === select}`);
+        println(`focus-visible: ${select.matches(":focus-visible")}`);
+    });
+</script>
