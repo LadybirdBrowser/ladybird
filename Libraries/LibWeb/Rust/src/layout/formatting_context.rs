@@ -2503,7 +2503,7 @@ fn lay_out_run_root_and_contents<'pass>(
         let contents = run
             .fragments
             .as_ref()
-            .map(|fragments| fragments.take_unplaced_root(&body_run.callbacks))?;
+            .map(|fragments| fragments.take_run_contents(&body_run.callbacks))?;
         if let Some(fragmentainer) = &run.fragmentainer {
             fragmentainer.keep_contents(contents);
             return None;

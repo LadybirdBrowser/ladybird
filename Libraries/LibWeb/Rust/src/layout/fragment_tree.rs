@@ -764,8 +764,10 @@ impl PayloadsPastRun {
 }
 
 /// What a run laid out inside its root, before the root's fragment exists: the links at the top of the run's
-/// fragments, and what goes past the run.
-pub(crate) struct UnplacedRootFragment {
+/// fragments, what goes past the run, and what the run's layout of its root hands the root's fragment. A normal run
+/// turns them into its root's fragment, a fragmentainer's run hands them to the run of the box it belongs to, and a
+/// whole layout pass hands its links to commit.
+pub(crate) struct RunContents {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
     pub(crate) payloads_past_run: PayloadsPastRun,
@@ -773,7 +775,7 @@ pub(crate) struct UnplacedRootFragment {
     pub(crate) root_payloads: Option<Box<FragmentPayloads>>,
 }
 
-impl UnplacedRootFragment {
+impl RunContents {
     /// The root's fragment around what the run laid out inside it, showing the root's own layout `geometry`.
     pub(crate) fn into_run_root_fragment(
         self,
@@ -1440,18 +1442,20 @@ impl RunFragmentBuilder {
             .any(|child| child.root.fragment.node == node)
     }
 
-    pub(crate) fn adopt_fragmentainer_root(
+    /// Takes in what the run of a fragmentainer of this run's root laid out, `offset` to where the fragmentainer
+    /// sits, with its lines after the `root_line_index_offset` lines of the root's earlier fragmentainers.
+    pub(crate) fn adopt_fragmentainer_contents(
         &self,
-        root: UnplacedRootFragment,
+        contents: RunContents,
         offset: FfiCssPixelPoint,
         root_line_index_offset: usize,
     ) {
         debug_assert!(
-            root.node == self.root_node,
+            contents.node == self.root_node,
             "a fragmentainer run's root is the box of the run that adopts it"
         );
         let mut inner = self.inner.borrow_mut();
-        for mut link in root.scoped_descendants {
+        for mut link in contents.scoped_descendants {
             link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
             if link.containing_block == self.root_node
                 && let Some(line_index) = link.containing_line_box_index.as_mut()
@@ -1460,7 +1464,7 @@ impl RunFragmentBuilder {
             }
             inner.top_scope_links.push(link);
         }
-        for mut entry in root.payloads_past_run.pending_abspos {
+        for mut entry in contents.payloads_past_run.pending_abspos {
             entry.translate_by(offset);
             inner.pending_abspos_at_root.push(entry);
         }
@@ -1472,7 +1476,7 @@ impl RunFragmentBuilder {
             .enumerate()
             .map(|(index, candidate)| ((candidate.node, candidate.coordinate_space_box), index))
             .collect();
-        for mut candidate in root.payloads_past_run.anchor_candidates {
+        for mut candidate in contents.payloads_past_run.anchor_candidates {
             candidate.translate_by(offset);
             let key = (candidate.node, candidate.coordinate_space_box);
             if let Some(&index) = anchor_indices.get(&key) {
@@ -1484,11 +1488,11 @@ impl RunFragmentBuilder {
                 inner.anchor_candidates_at_root.push(candidate);
             }
         }
-        for mut payload in root.payloads_past_run.inline_containing_block_rects {
+        for mut payload in contents.payloads_past_run.inline_containing_block_rects {
             payload.translate_by(offset);
             inner.inline_containing_block_rects_at_root.push(payload);
         }
-        inner.receive_abspos_containing_block_info(root.payloads_past_run.abspos_containing_block_info);
+        inner.receive_abspos_containing_block_info(contents.payloads_past_run.abspos_containing_block_info);
     }
 
     /// Takes in the root fragment of the run that laid out `node`, which is being placed, and what goes past that run.
@@ -1745,7 +1749,7 @@ impl RunFragmentBuilder {
             .insert(containing_block.slot_index(), pending_fragment);
     }
 
-    pub(crate) fn take_unplaced_root(&self, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
+    pub(crate) fn take_run_contents(&self, callbacks: &LayoutPass<'_>) -> RunContents {
         debug_assert!(
             !self.is_entry_accumulator,
             "an entry accumulator closes as a pass, not a run"
@@ -1756,7 +1760,7 @@ impl RunFragmentBuilder {
     pub(crate) fn take_completed_pass(&self, callbacks: &LayoutPass<'_>) -> CompletedPassFragments {
         debug_assert!(
             self.is_entry_accumulator,
-            "an ordinary run closes as a singular unplaced root"
+            "an ordinary run closes into the contents of its root"
         );
         let root = self.close(callbacks);
         CompletedPassFragments {
@@ -1764,7 +1768,7 @@ impl RunFragmentBuilder {
         }
     }
 
-    fn close(&self, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
+    fn close(&self, callbacks: &LayoutPass<'_>) -> RunContents {
         let mut inner = self.inner.take();
         let mut payloads_past_run = PayloadsPastRun {
             pending_abspos: std::mem::take(&mut inner.pending_abspos_at_root),
@@ -1827,7 +1831,7 @@ impl RunFragmentBuilder {
         for payload in &mut payloads_past_run.inline_containing_block_rects {
             propagate_payload_toward_run_root_space(payload, self.root_node, placed_boxes, callbacks);
         }
-        UnplacedRootFragment {
+        RunContents {
             node: self.root_node,
             scoped_descendants: inner.top_scope_links,
             payloads_past_run,

@@ -22,7 +22,7 @@ struct ColumnLayout {
     consumed_block_size: CssPixels,
     baselines: formatting_context::DerivedBaselines,
     root_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
-    root: Option<fragment_tree::UnplacedRootFragment>,
+    contents: Option<fragment_tree::RunContents>,
 }
 
 #[derive(Clone, Copy)]
@@ -3972,7 +3972,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     consumed_block_size,
                     baselines: column_baselines,
                     root_line_data,
-                    root,
+                    contents,
                 } = self.layout_column(
                     ColumnLayoutUse::ContainerContent,
                     column_input,
@@ -3984,8 +3984,8 @@ impl<'pass> BlockFormattingContext<'pass> {
                     incoming.take(),
                     column_index,
                 );
-                if let (Some(fragments), Some(root)) = (self.run.fragments.as_deref(), root) {
-                    fragments.adopt_fragmentainer_root(root, origin, root_line_count);
+                if let (Some(fragments), Some(contents)) = (self.run.fragments.as_deref(), contents) {
+                    fragments.adopt_fragmentainer_contents(contents, origin, root_line_count);
                 }
                 let filled_column = outcome
                     .outgoing
@@ -4346,7 +4346,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 consumed_block_size: outputs.result.automatic_content_block_size,
                 baselines: outputs.result.baselines,
                 root_line_data: outputs.root_outcome.line_data,
-                root: fragmentainer.take_contents(),
+                contents: fragmentainer.take_contents(),
             };
         }
     }
