@@ -59,16 +59,12 @@ textarea {
     overflow-wrap: break-word;
 }
 
-input[type=color] {
-    border-color: ButtonBorder;
-}
-
 input::placeholder, textarea::placeholder {
     color: GrayText;
     line-height: initial;
 }
 
-button, input[type=submit], input[type=button], input[type=reset], select, ::file-selector-button {
+button, input[type=submit], input[type=button], input[type=reset], input[type=color], select, ::file-selector-button {
     padding: 2px 8px;
     background-color: ButtonFace;
     border: 1px solid ButtonBorder;
@@ -87,6 +83,12 @@ button, input[type=submit], input[type=button], input[type=reset], select, ::fil
         background-color: -libweb-ButtonFaceDisabled;
         color: GrayText;
     }
+}
+
+input[type=color] {
+    width: 50px;
+    height: 27px;
+    padding: 1px 2px;
 }
 
 input[type=image] {
@@ -663,6 +665,10 @@ input, select, button, textarea {
     text-transform: initial;
     text-indent: initial;
     text-shadow: initial;
+    appearance: auto;
+}
+
+::file-selector-button {
     appearance: auto;
 }
 

@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input type="color" value="#4488ff">
+<input type="file">
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

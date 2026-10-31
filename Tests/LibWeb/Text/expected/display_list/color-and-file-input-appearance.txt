@@ -1,0 +1,21 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  clips:
+    [c0 in s1] clip=[9,9 48x25] radii=(3,3,3,3) (BlockContainer<INPUT>)
+    [c1 in s1] clip=[66,15 208x20] (BlockContainer<INPUT>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+FillRectWithRoundedCorners@s1/e0 rect=[8,8 50x27] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[8,8 50x27] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRect@s1/c0/e0 rect=[13,14 40x15] color=rgb(68, 136, 255)
+FillRoundedRectRing@s1/c0/e0 rect=[13,14 40x15] widths=[1,1,1,1] color=rgb(119, 119, 119)
+DrawGlyphRun@s1/e0 rect=[58,16 8x16] translation=[58,28.796875] color=rgb(0, 0, 0)
+FillRectWithRoundedCorners@s1/c1/e0 rect=[66,15 97x20] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/c1/e0 rect=[66,15 97x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/c1/e0 rect=[75,18 79x14] translation=[75,28.984375] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/c1/e0 rect=[166,18 107x14] translation=[166.65625,28.984375] color=rgb(0, 0, 0)
+
