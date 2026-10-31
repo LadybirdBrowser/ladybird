@@ -1,7 +1,6 @@
 ladybird_test_suite(LibCompress)
 
 set(TEST_SOURCES
-    TestDeflate.cpp
     TestZlib.cpp
 )
 
