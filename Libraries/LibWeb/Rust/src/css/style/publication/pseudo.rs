@@ -1018,7 +1018,10 @@ impl RetainedState {
         }
         let state = self.with_cascade_interning_counters(|groups| groups.intern_sorted(&winners, None));
         for property in self.winner_groups.semantic_delta_properties(None, state) {
-            if self.first_record_winner_needs_cpp(property) {
+            if self.first_record_winner_needs_cpp(property)
+                && !(super::property_declares_css_animations(property)
+                    && self.may_plan_css_animations(node, state, scratch))
+            {
                 self.counters.bump(Counter::EngineComputedRecordBailProperty);
                 return Err(Unanswered::Refused);
             }
@@ -1168,6 +1171,11 @@ impl RetainedState {
         scratch.noted_substitution = Some(substituted);
         let reads_sibling_position = store.uses_tree_counting_function(self);
         self.note_sibling_position_reads(node, u8::MAX, reads_sibling_position);
+        // NB: The record is bound to the state it was cascaded from, so that installing it can find where the winning
+        //     `animation-name` was declared and start the animations it names.
+        let generation = self.winner_groups.generation();
+        self.computed_group_sets
+            .bind_cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX), (generation, state));
         let old_record = old_record.unwrap_or(computed::FinalStyleRecordID::NONE);
         let owes_a_transition_step = owes_a_transition_step && old_record != record;
         if owes_a_transition_step || detached_composition.is_some() {
