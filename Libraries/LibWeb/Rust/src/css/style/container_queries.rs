@@ -55,7 +55,7 @@ impl ContainerVerdict {
 /// `Length::container_relative_length_to_px_without_rounding` finds it: the content size of the
 /// nearest flat-tree ancestor that accepts size queries on that axis as of the last layout commit,
 /// zero while that container has no box, and the viewport's size when there is no such container.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ContainerUnitBasis {
     basis: f64,
     /// The container the basis is read from, or none for the viewport.
@@ -77,7 +77,7 @@ impl ContainerUnitBasis {
 }
 
 /// The bases of both physical axes, width and height.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ContainerUnitBases([ContainerUnitBasis; 2]);
 
 impl ContainerUnitBases {

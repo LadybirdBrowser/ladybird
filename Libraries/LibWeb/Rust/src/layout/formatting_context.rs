@@ -3624,18 +3624,23 @@ impl LayoutStageJob {
         let super::run_state::HostFindings {
             messages,
             document_svg_root_natural_size,
+            container_length_reads,
         } = output.host_findings;
         if let Some((root_box, natural_size)) = document_svg_root_natural_size {
             state
                 .arena_mut()
                 .note_document_svg_root_natural_size(root_box, natural_size);
         }
+        state
+            .arena_mut()
+            .note_container_bases_read_by_committed_layout(container_length_reads);
         notifications.prepend_layout_messages(messages);
         let (arena, scratch) = state.arena_mut_and_layout_scratch();
         scratch.layout_trace.hand_back_to(&mut arena.layout_trace);
         scratch.end_layout_pass(arena);
         arena.reset_layout_update_flags_in_subtree(root);
         arena.leave_active_layout_pass();
+        arena.mark_container_length_readers_whose_bases_moved_for_layout();
         match kind {
             // NB: The full pass covered every subtree the last build rebuilt.
             LayoutStageKind::Root { .. } => arena.clear_pending_rebuilt_subtree_roots(),
@@ -3772,6 +3777,7 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind) {
     if matches!(kind, LayoutStageKind::Root { .. }) {
         arena.clear_partial_relayout_escape();
     }
+    arena.mark_container_length_readers_whose_bases_moved_for_layout();
     scratch.apply_memo_invalidations(arena);
     scratch.layout_trace.take_over_from(&mut arena.layout_trace);
     arena.begin_active_layout_pass();

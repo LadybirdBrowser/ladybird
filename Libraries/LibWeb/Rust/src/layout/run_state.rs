@@ -13,6 +13,7 @@ use super::*;
 pub(crate) struct LayoutScratch {
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(super) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
+    host_findings_noted_in_pass: Cell<u64>,
     /// The results of formatting context runs, kept for the runs after them in this pass and the passes after it.
     fc_run_cache_store: super::fc_run_cache::FcRunCacheStore,
     /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
@@ -34,19 +35,35 @@ pub(crate) struct LayoutScratch {
 pub(crate) struct HostFindings {
     pub(crate) messages: Vec<super::commit::FfiCommitMessage>,
     pub(crate) document_svg_root_natural_size: Option<(NodeSlotId, crate::css::style::NaturalSize)>,
+    pub(crate) container_length_reads: Vec<ContainerLengthRead>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ContainerLengthRead {
+    pub(crate) reader: NodeSlotId,
+    pub(crate) element: crate::css::style::tree::StyleNodeID,
+    pub(crate) bases: crate::css::style::ContainerUnitBases,
 }
 
 impl HostFindings {
     pub(crate) fn is_empty(&self) -> bool {
-        self.messages.is_empty() && self.document_svg_root_natural_size.is_none()
+        self.messages.is_empty()
+            && self.document_svg_root_natural_size.is_none()
+            && self.container_length_reads.is_empty()
     }
 
     pub(crate) fn note_container_length_dependencies(
         &mut self,
+        reader: NodeSlotId,
         element: crate::css::style::tree::StyleNodeID,
         bases: &crate::css::style::ContainerUnitBases,
     ) {
         use super::commit::{FfiCommitMessage, FfiCommitMessageKind};
+        self.note_container_length_read(ContainerLengthRead {
+            reader,
+            element,
+            bases: *bases,
+        });
         self.note_message(FfiCommitMessage::new(
             element.raw(),
             FfiCommitMessageKind::StyleDependsOnSizeContainerQuery,
@@ -74,9 +91,18 @@ impl HostFindings {
         }
     }
 
+    fn note_container_length_read(&mut self, read: ContainerLengthRead) {
+        if !self.container_length_reads.contains(&read) {
+            self.container_length_reads.push(read);
+        }
+    }
+
     pub(crate) fn receive(&mut self, other: HostFindings) {
         for message in other.messages {
             self.note_message(message);
+        }
+        for read in other.container_length_reads {
+            self.note_container_length_read(read);
         }
         if other.document_svg_root_natural_size.is_some() {
             self.document_svg_root_natural_size = other.document_svg_root_natural_size;
@@ -138,6 +164,15 @@ impl LayoutScratch {
             &mut self.prepared_inline_content_memos,
             &mut self.intrinsic_size_caches,
         );
+    }
+
+    pub(super) fn note_host_findings_noted_in_pass(&self) {
+        self.host_findings_noted_in_pass
+            .set(self.host_findings_noted_in_pass.get() + 1);
+    }
+
+    pub(super) fn host_findings_noted_in_pass(&self) -> u64 {
+        self.host_findings_noted_in_pass.get()
     }
 
     /// Brings the run memos up to date with what the commit into `arena` did to their boxes, and sweeps the run cache.

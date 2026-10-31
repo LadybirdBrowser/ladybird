@@ -1,0 +1,2 @@
+After load, in a 300px container: x 150
+After the container grew to 400px: x 200
