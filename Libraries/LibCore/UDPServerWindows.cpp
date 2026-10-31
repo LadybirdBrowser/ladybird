@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Format.h>
 #include <AK/IPv4Address.h>
 #include <AK/Types.h>
 #include <LibCore/Notifier.h>
@@ -37,7 +38,7 @@ bool UDPServer::bind(IPv4Address const& address, u16 port)
     auto in = socket_address.to_sockaddr_in();
     auto bind_result = Core::System::bind(m_fd, (sockaddr const*)&in, sizeof(in));
     if (bind_result.is_error()) {
-        perror("UDPServer::bind");
+        warnln("UDPServer::bind: {}", bind_result.error());
         return false;
     }
 
