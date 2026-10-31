@@ -1775,7 +1775,7 @@ impl<'context> InlineFormattingContext<'context> {
                 );
                 continue;
             };
-            line_builder.append_text_item(&mut prefix, style.line_height());
+            line_builder.append_text_item(&mut prefix, style);
             self.set_current_line_start_offset(item_index, item.offset_in_node);
             line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
         }
@@ -2289,7 +2289,7 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
-                    line_builder.append_text_item(&mut item, style.line_height());
+                    line_builder.append_text_item(&mut item, style);
                 }
             }
         }
@@ -2307,7 +2307,13 @@ impl<'context> InlineFormattingContext<'context> {
         let fragmentation = self.parent.line_root_fragmentation(self.containing_block);
         let resume = fragmentation.and_then(|fragmentation| fragmentation.resume);
         let balances_lines = self.balances_lines(&iterator, fragmentation);
-        let (reused_lines, reused_item_count) = if self.parent.has_line_clamp() || resume.is_some() || balances_lines {
+        // NB: A reused first line box keeps the outside marker it was laid out with.
+        let (reused_lines, reused_item_count) = if self.parent.has_line_clamp()
+            || resume.is_some()
+            || balances_lines
+            || self.parent.pending_outside_marker_line().is_some()
+            || self.facts(self.containing_block).is_list_item_box()
+        {
             Default::default()
         } else {
             self.parent

@@ -72,6 +72,8 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     only_finds_line_breaks: bool,
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
+    /// The outside markers that the first line box this builder lays out contributes to.
+    outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
     text_indentation: inline_formatting_context::TextIndentation,
     direction: u8,
@@ -138,6 +140,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             only_finds_line_breaks: false,
             current_block_offset: CssPixels::default(),
             max_block_size_on_current_line: CssPixels::default(),
+            outside_marker_line: context.parent.pending_outside_marker_line(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
@@ -455,7 +458,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
     }
 
-    pub(crate) fn append_text_item(&mut self, item: &mut inline_level_iterator::Item, content_block_size: CssPixels) {
+    pub(crate) fn append_text_item(&mut self, item: &mut inline_level_iterator::Item, style: StyleValues) {
+        let glyphs = item.glyphs.take().unwrap();
+        let content_block_size = TextLayoutBounds::new(style, Some(&glyphs.font)).block_size();
         self.append_text_chunk(
             item.node,
             item.offset_in_node,
@@ -466,7 +471,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             item.margin_end,
             item.inline_size,
             content_block_size,
-            item.glyphs.take().unwrap(),
+            glyphs,
             item.trailing_whitespace,
         );
     }
@@ -809,6 +814,16 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             .unwrap_or(normal_subtree_shift)
     }
 
+    fn text_fragment_layout_bounds(
+        &self,
+        line_index: usize,
+        fragment_index: usize,
+        style: StyleValues,
+    ) -> TextLayoutBounds {
+        let fragment = &self.line(line_index).fragments[fragment_index];
+        TextLayoutBounds::new(style, fragment.glyphs.as_ref().map(|glyphs| &glyphs.font))
+    }
+
     fn inline_box_alignment_metrics(&self, node: Node) -> VerticalAlignMetrics {
         let style = self.style(node);
         let sides = self.context().sides_of_entered_inline_box(node);
@@ -844,7 +859,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             };
             let style = self.style(style_source);
             let fragment_baseline = if is_block_ellipsis || self.facts(node).is_text_node() {
-                Self::baseline_for_style(style, style.line_height())
+                self.text_fragment_layout_bounds(line_index, fragment_index, style)
+                    .ascent
             } else {
                 let box_cells = box_cells.expect("the fragment of an element item carries the cells of its box");
                 formatting_context::inline_box_baseline(
@@ -879,7 +895,31 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 line_box_baseline = adjusted_baseline;
             }
         }
+        if let Some(marker_line) = self.outside_marker_line(line_index)
+            && marker_line.ascent > line_box_baseline
+        {
+            should_align_strut_to_line_box_baseline = true;
+            line_box_baseline = marker_line.ascent;
+        }
         (line_box_baseline, should_align_strut_to_line_box_baseline)
+    }
+
+    /// The outside markers whose list items have the line at `line_index` as their first line box.
+    fn outside_marker_line(&self, line_index: usize) -> Option<block_formatting_context::OutsideMarkerLine> {
+        let line = self.line(line_index);
+        if line.is_empty() || line.has_block_level_box || self.has_line_box_before(line_index) {
+            return None;
+        }
+        self.outside_marker_line
+    }
+
+    /// Whether a line before the line at `line_index` holds content.
+    pub(crate) fn has_line_box_before(&self, line_index: usize) -> bool {
+        (0..line_index).any(|index| !self.line(index).is_empty())
+    }
+
+    pub(crate) fn set_outside_marker_line(&mut self, marker_line: Option<block_formatting_context::OutsideMarkerLine>) {
+        self.outside_marker_line = marker_line;
     }
 
     // https://drafts.csswg.org/css2/#line-height
@@ -1074,6 +1114,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         };
         let mut earliest = strut_start;
         let mut latest = strut_end;
+        if let Some(marker_line) = self.outside_marker_line(line_index) {
+            earliest = earliest.min(self.current_block_offset + line_box_baseline - marker_line.ascent);
+            latest = latest.max(self.current_block_offset + line_box_baseline + marker_line.descent);
+        }
         let mut aligned_subtrees: Vec<LineRelativeAlignedSubtree> = Vec::new();
         let mut first_unshifted_text_baseline: Option<CssPixels> = None;
         let current_block_offset = self.current_block_offset;
@@ -1212,16 +1256,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                         + atomic_inline.border_box_bottom(false),
                 )
             } else {
-                let typographic = CssPixels::nearest_value_for_f32(style.font_ascent() + style.font_descent());
-                let half_leading = (style.line_height() - typographic) / 2;
+                let bounds = self.text_fragment_layout_bounds(line_index, fragment_index, style);
                 (
-                    snapshot.block_offset + snapshot.baseline
-                        - CssPixels::nearest_value_for_f32(style.font_ascent())
-                        - half_leading,
-                    snapshot.block_offset
-                        + snapshot.baseline
-                        + CssPixels::nearest_value_for_f32(style.font_descent())
-                        + half_leading,
+                    snapshot.block_offset + snapshot.baseline - bounds.ascent,
+                    snapshot.block_offset + snapshot.baseline + bounds.descent,
                 )
             };
             if !alignment_style.vertical_align_is_keyword() {
@@ -1381,6 +1419,43 @@ fn aligned_subtree_shift(subtrees: &[LineRelativeAlignedSubtree], root: Node) ->
         .iter()
         .find(|subtree| subtree.root == root)
         .map(|subtree| subtree.shift)
+}
+
+// https://drafts.csswg.org/css-inline-3/#inline-height
+/// The extent of the layout bounds of a text fragment above and below its baseline.
+#[derive(Clone, Copy)]
+pub(crate) struct TextLayoutBounds {
+    pub(crate) ascent: CssPixels,
+    pub(crate) descent: CssPixels,
+}
+
+impl TextLayoutBounds {
+    pub(crate) fn new(style: StyleValues, font: Option<&libgfx_rust::font::FontHandle>) -> Self {
+        let typographic = CssPixels::nearest_value_for_f32(style.font_ascent() + style.font_descent());
+        let half_leading = (style.line_height() - typographic) / 2;
+        let mut bounds = Self {
+            ascent: CssPixels::nearest_value_for_f32(style.font_ascent()) + half_leading,
+            descent: CssPixels::nearest_value_for_f32(style.font_descent()) + half_leading,
+        };
+        // When its computed line-height is normal, the layout bounds of an inline box encloses all its glyphs, going
+        // from the highest A to the deepest D. (Note that glyphs in a single box can come from different fonts and
+        // thus might not all have the same A and D.)
+        // NB: The bounds above already enclose the glyphs of the first available font.
+        if let Some(font) = font
+            && style.line_height_is_normal()
+            && font.as_raw() != style.font().first_available_font
+        {
+            bounds.ascent = bounds.ascent.max(CssPixels::nearest_value_for_f32(font.facts().ascent));
+            bounds.descent = bounds
+                .descent
+                .max(CssPixels::nearest_value_for_f32(font.facts().descent));
+        }
+        bounds
+    }
+
+    pub(crate) fn block_size(self) -> CssPixels {
+        self.ascent + self.descent
+    }
 }
 
 pub(crate) fn normal_line_height(style: StyleValues) -> CssPixels {

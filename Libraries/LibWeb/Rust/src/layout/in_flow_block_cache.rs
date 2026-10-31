@@ -23,6 +23,7 @@ pub(super) struct InFlowBlockKey {
     pub(super) containing_block_inline_size: CssPixels,
     pub(super) containing_block_is_right_to_left: bool,
     pub(super) incoming_margins: block_formatting_context::BlockMarginState,
+    pub(super) incoming_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     pub(super) run_root: Node,
     pub(super) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(super) initial_containing_block_size: (CssPixels, CssPixels),
@@ -36,12 +37,14 @@ impl InFlowBlockKey {
         containing_block_inline_size: CssPixels,
         containing_block_is_right_to_left: bool,
         incoming_margins: block_formatting_context::BlockMarginState,
+        incoming_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     ) -> Self {
         Self {
             input,
             containing_block_inline_size,
             containing_block_is_right_to_left,
             incoming_margins,
+            incoming_outside_marker_line,
             run_root: run.box_,
             treat_block_axis_percentage_insets_as_auto_beyond_root: run
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
@@ -67,6 +70,7 @@ pub(super) struct InFlowBlockEntry {
     pub(super) offset_from_flow_position: FfiCssPixelPoint,
     pub(super) flow_position_advance: CssPixels,
     pub(super) outgoing_margins: block_formatting_context::BlockMarginState,
+    pub(super) outgoing_outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     pub(super) margin_box_bottom_from_flow_position: CssPixels,
     pub(super) depends_on_percentage_block_size: bool,
     /// The fragment the stored layout placed. The committed subtree is reused only while it is still that fragment.

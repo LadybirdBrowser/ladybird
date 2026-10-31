@@ -1,0 +1,13 @@
+Harness status: OK
+
+Found 8 tests
+
+8 Pass
+Pass	Intrinsic contribution of outside symbol marker
+Pass	Intrinsic contribution of outside decimal marker
+Pass	Intrinsic contribution of outside string marker
+Pass	Intrinsic contribution of outside content marker
+Pass	Intrinsic contribution of inside symbol marker
+Pass	Intrinsic contribution of inside decimal marker
+Pass	Intrinsic contribution of inside string marker
+Pass	Intrinsic contribution of inside content marker

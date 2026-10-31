@@ -1,0 +1,51 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html><head>
+  <meta charset="utf-8">
+  <title>Reference: Insert text node as first child in LI</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.org">
+  <style>
+    ul.inside { list-style-position: inside; }
+    .before::before { content: "before"; }
+    .after::after { content: "after"; }
+  </style>
+</head>
+<body>
+
+<ul class="inside">
+  <li>AB</li>
+</ul>
+
+<ul class="inside">
+  <li class="before">AB</li>
+</ul>
+
+<ul class="inside">
+  <li class="after">AB</li>
+</ul>
+
+<ul class="inside">
+  <li class="before after">AB</li>
+</ul>
+
+<ul>
+  <li>AB</li>
+</ul>
+
+<ul>
+  <li class="before">AB</li>
+</ul>
+
+<ul>
+  <li class="after">AB</li>
+</ul>
+
+<ul>
+  <li class="before after">AB</li>
+</ul>
+
+</body>
+</html>

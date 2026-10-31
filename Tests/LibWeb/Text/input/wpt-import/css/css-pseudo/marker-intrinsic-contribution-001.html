@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test: intrinsic contribution of ::marker</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#marker-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-sizing-3/#intrinsic">
+<meta name="assert" content="Checks that that outside markers have an intrinsic contribution of 0, and inside markers greater than 0.">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+li {
+  font: 10px/1 Ahem;
+  border: 5px solid orange;
+  float: left;
+  clear: left;
+}
+.inside {
+  list-style-position: inside;
+}
+.symbol {
+  list-style-type: disc;
+}
+.decimal {
+  list-style-type: decimal;
+}
+.string {
+  list-style-type: "string";
+}
+.content::marker {
+  content: "content";
+}
+</style>
+<div id="log"></div>
+<ol class="outside">
+  <li class="symbol" data-width="0"></li>
+  <li class="decimal" data-width="0"></li>
+  <li class="string" data-width="0"></li>
+  <li class="content" data-width="0"></li>
+</ol>
+<ol class="inside">
+  <li class="symbol" data-min-width="0"></li>
+  <li class="decimal" data-width="30"></li>
+  <li class="string" data-width="60"></li>
+  <li class="content" data-width="70"></li>
+</ol>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+"use strict";
+function check(item, msg) {
+  test(function() {
+    if (item.dataset.width) {
+      assert_equals(item.clientWidth, +item.dataset.width, "clientWidth");
+    } else {
+      assert_greater_than(item.clientWidth, +item.dataset.minWidth, "clientWidth");
+    }
+  }, msg);
+}
+
+setup({ explicit_done: true });
+
+document.fonts.ready.then(() => {
+  for (let item of document.querySelectorAll(".outside > li")) {
+    check(item, `Intrinsic contribution of outside ${item.className} marker`);
+  }
+  for (let item of document.querySelectorAll(".inside > li")) {
+    check(item, `Intrinsic contribution of inside ${item.className} marker`);
+  }
+  done();
+});
+</script>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: outside marker position with relatively positioned list and block content</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#list-style-position-property">
+<link rel="author" title="Yulun Wu" href="mailto:yulun_wu@apple.com">
+<link rel="match" href="../../../../expected/wpt-import/css/css-lists/outside-marker-with-relpos-block-content-ref.html">
+<meta name="assert" content="Outside list markers must not overlap when the list and its block-level item content are relatively positioned.">
+<style>
+.list {
+    position: relative;
+    margin: 0;
+    padding-inline-start: 20px;
+    font: 16px/1.4 monospace;
+}
+
+.itemContent {
+    position: relative;
+    margin: 0;
+}
+</style>
+</head>
+<body>
+<ol class="list">
+    <li class="item"><p class="itemContent">Item A</p></li>
+    <li class="item"><p class="itemContent">Item B</p></li>
+    <li class="item"><p class="itemContent">Item C</p></li>
+</ol>
+</body>
+</html>

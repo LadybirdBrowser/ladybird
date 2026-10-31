@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS2 Line height test: normal sizing</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#line-height">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visudet/reference/line-height-202-ref.html">
+<meta name="assert" content="The height of an inline-level box whose line-height is normal and uses both the first available font and fallback fonts
+                             is the same as the union of
+                             baseline-aligned adjacent inline-level boxes, each using the various fonts as their primary one.">
+<style>
+@font-face {
+  font-family: 'high-a-only';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../fonts/Revalia.woff) format('woff');
+  unicode-range: U+0020, U+0061;
+}
+@font-face {
+  font-family: 'deep-b-only';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../../../fonts/AD.woff) format('woff');
+  unicode-range: U+0020, U+0062;
+}
+
+div {
+  position: absolute;
+  line-height: normal;
+  font-size: 100px;
+  color: transparent;
+}
+
+.h { font-family: high-a-only; }
+.d { font-family: deep-b-only; }
+.hd { font-family: high-a-only, deep-b-only; }
+.white { background: white; }
+.red { background: red; }
+.shift { margin-left: 300px; }
+</style>
+
+<p>Test passes if there is <strong>no red</strong> below.
+
+<!-- Check if the hd div is larger-->
+
+<div class="hd red">ab</div>
+<div class=white><span class=h>a</span><span class=d>b</span></div>
+
+<!-- Same thing, reversed, to check if the hd dix is smaller -->
+
+<div class="red shift"><span class=h>a</span><span class=d>b</span></div>
+<div class="hd white shift">ab</div>
+

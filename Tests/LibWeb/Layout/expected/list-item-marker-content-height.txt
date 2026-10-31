@@ -5,20 +5,20 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <(anonymous)> at [48,16] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,16] [0+0+0 744 0+0+0] [0+0+0 30 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [48,16 6.34375x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [48,27 6.34375x16] baseline: 12.796875
               "1"
-          ListItemMarkerBox <(anonymous)> at [13,4.796875] [0+0+0 35.03125 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [13,4.796875 35.03125x30] baseline: 24
+          ListItemMarkerBox <(anonymous)> at [13,15.796875] [0+0+0 35.03125 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [13,15.796875 35.03125x30] baseline: 24
                 "1. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [48,46] [0+0+0 744 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         ListItemBox <li> at [48,46] [0+0+0 744 0+0+0] [0+0+0 30 0+0+0] children: inline
-          frag 0 from TextNode start: 0, length: 1, rect: [48,46 8.8125x16] baseline: 12.796875
+          frag 0 from TextNode start: 0, length: 1, rect: [48,57 8.8125x16] baseline: 12.796875
               "2"
-          ListItemMarkerBox <(anonymous)> at [8,34.796875] [0+0+0 39.671875 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
-            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,34.796875 39.671875x30] baseline: 24
+          ListItemMarkerBox <(anonymous)> at [8,45.796875] [0+0+0 39.671875 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
+            frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,45.796875 39.671875x30] baseline: 24
                 "2. "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
