@@ -1,11 +1,11 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 116 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 100 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [13,10 143.515625x96] baseline: 54.796875
-      BlockContainer <button> at [13,10] inline-block [0+1+4 143.515625 4+1+0] [0+1+1 96 1+1+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 143.515625 0+0+0] [0+0+0 96 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [13,50] flex-item [0+0+0 143.515625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 19, rect: [13,50 143.515625x16] baseline: 12.796875
+      frag 0 from BlockContainer start: 0, length: 0, rect: [17,11 143.515625x94] baseline: 54.796875
+      BlockContainer <button> at [17,11] inline-block [0+1+8 143.515625 8+1+0] [0+1+2 94 2+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [17,11] flex-container(column) [0+0+0 143.515625 0+0+0] [0+0+0 94 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [17,50] flex-item [0+0+0 143.515625 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 19, rect: [17,50 143.515625x16] baseline: 12.796875
                 "Middle-aligned text"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
