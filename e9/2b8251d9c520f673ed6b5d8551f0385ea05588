@@ -1,0 +1,9 @@
+Ladybird reports “unable to capture screen” for a WebDriver screenshot
+the compositor didn’t take, instead of a blank image. WebKit’s WebDriver
+also reports it when its automation session fails a screenshot, mapping
+ScreenshotError to UnableToCaptureScreen in CommandResult.cpp. Gecko’s
+Marionette throws UnableToCaptureScreen instead of returning an empty
+image when a screenshot’s dimensions come out empty, in takeScreenshot()
+in MarionetteCommandsParent.sys.mjs. And chromedriver makes the error
+from DevTools’ Page.captureScreenshot the command’s own, after one
+retry, in ExecuteScreenshot() in window_commands.cc.
