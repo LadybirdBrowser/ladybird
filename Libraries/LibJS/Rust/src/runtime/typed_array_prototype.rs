@@ -1611,27 +1611,27 @@ impl TypedArrayPrototype {
             return Ok(Value::from_i32(-1));
         }
 
-        let mut k: i32;
         // 7. If n ≥ 0, then
-        if n >= 0.0 {
+        let k = if n >= 0.0 {
             // a. Let k be min(n, len - 1).
-            k = n.min(f64::from(length as i32 - 1)) as i32;
+            n.min(f64::from(length - 1)) as u32
         }
         // 8. Else,
         else {
             // a. Let k be len + n.
-            let mut relative_k = f64::from(length) + n; // Ensures we dont overflow `k`.
+            let relative_k = f64::from(length) + n;
 
+            // NB: Step 9 visits nothing for a negative k, so return step 10's result now.
             if relative_k < 0.0 {
-                relative_k = -1.0;
+                return Ok(Value::from_i32(-1));
             }
 
-            k = relative_k as i32;
-        }
+            relative_k as u32
+        };
 
         // 9. Repeat, while k ≥ 0,
-        while k >= 0 {
-            let property_key = PropertyKey::from(k as u32);
+        for k in (0..=k).rev() {
+            let property_key = PropertyKey::from(k);
 
             // a. Let kPresent be ! HasProperty(O, ! ToString(𝔽(k))).
             let k_present = typed_array.has_property(vm, &property_key).must();
@@ -1643,12 +1643,11 @@ impl TypedArrayPrototype {
 
                 // ii. If IsStrictlyEqual(searchElement, elementK) is true, return 𝔽(k).
                 if is_strictly_equal(search_element, element_k) {
-                    return Ok(Value::from_i32(k));
+                    return Ok(index_value(k));
                 }
             }
 
             // c. Set k to k - 1.
-            k -= 1;
         }
 
         // 10. Return -1𝔽.
@@ -1819,7 +1818,8 @@ impl TypedArrayPrototype {
         }
 
         // 6. Let k be len - 1.
-        let mut k = length as i32 - 1;
+        // NB: end is k + 1, so that an unsigned index can represent k = -1.
+        let mut end = length;
 
         // 7. Let accumulator be undefined.
         let mut accumulator;
@@ -1832,19 +1832,19 @@ impl TypedArrayPrototype {
         // 9. Else,
         else {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let property_key = PropertyKey::from(k as u32);
+            let property_key = PropertyKey::from(end - 1);
 
             // b. Set accumulator to ! Get(O, Pk).
             accumulator = typed_array.get(vm, &property_key).must();
 
             // c. Set k to k - 1.
-            k -= 1;
+            end -= 1;
         }
 
         // 10. Repeat, while k ≥ 0,
-        while k >= 0 {
+        for k in (0..end).rev() {
             // a. Let Pk be ! ToString(𝔽(k)).
-            let property_key = PropertyKey::from(k as u32);
+            let property_key = PropertyKey::from(k);
 
             // b. Let kValue be ! Get(O, Pk).
             let value = typed_array.get(vm, &property_key).must();
@@ -1854,11 +1854,10 @@ impl TypedArrayPrototype {
                 vm,
                 callback_function,
                 Value::UNDEFINED,
-                &[accumulator, value, Value::from_i32(k), Value::from_object(typed_array)],
+                &[accumulator, value, index_value(k), Value::from_object(typed_array)],
             )?;
 
             // d. Set k to k - 1.
-            k -= 1;
         }
 
         // 11. Return accumulator.
@@ -1970,16 +1969,16 @@ impl TypedArrayPrototype {
         let relative_start = start.to_integer_or_infinity(vm)?;
 
         // 5. If relativeStart = -∞, let k be 0.
-        let mut k: i32 = if relative_start == f64::NEG_INFINITY {
+        let mut k: u32 = if relative_start == f64::NEG_INFINITY {
             0
         }
         // 6. Else if relativeStart < 0, let k be max(len + relativeStart, 0).
         else if relative_start < 0.0 {
-            (f64::from(length) + relative_start).max(0.0) as i32
+            (f64::from(length) + relative_start).max(0.0) as u32
         }
         // 7. Else, let k be min(relativeStart, len).
         else {
-            relative_start.min(f64::from(length)) as i32
+            relative_start.min(f64::from(length)) as u32
         };
 
         // 8. If end is undefined, let relativeEnd be len; else let relativeEnd be ? ToIntegerOrInfinity(end).
@@ -1990,28 +1989,28 @@ impl TypedArrayPrototype {
         };
 
         // 9. If relativeEnd is -∞, let final be 0.
-        let mut final_: i32 = if relative_end == f64::NEG_INFINITY {
+        let mut final_: u32 = if relative_end == f64::NEG_INFINITY {
             0
         }
         // 10. Else if relativeEnd < 0, let final be max(len + relativeEnd, 0).
         else if relative_end < 0.0 {
-            (f64::from(length) + relative_end).max(0.0) as i32
+            (f64::from(length) + relative_end).max(0.0) as u32
         }
         // 11. Else, let final be min(relativeEnd, len).
         else {
-            relative_end.min(f64::from(length)) as i32
+            relative_end.min(f64::from(length)) as u32
         };
 
         // 12. Let count be max(final - k, 0).
-        let mut count = (final_ - k).max(0);
+        let mut count = final_.saturating_sub(k);
 
         // 13. Let A be ? TypedArraySpeciesCreate(O, « 𝔽(count) »).
         let realm = vm.current_realm().expect("a builtin runs in a realm");
         let array = typed_array_species_create(
             vm,
             &typed_array,
-            || typed_array.create_default(vm, realm, count as u32),
-            &[Value::from_i32(count)],
+            || typed_array.create_default(vm, realm, count),
+            &[index_value(count)],
         )?;
 
         // 14. If count > 0, then
@@ -2028,10 +2027,10 @@ impl TypedArrayPrototype {
             length = typed_array_length(&typed_array_record);
 
             // d. Set final to min(final, len).
-            final_ = final_.min(length as i32);
+            final_ = final_.min(length);
 
             // e. Set count to max(final - k, 0).
-            count = (final_ - k).max(0);
+            count = final_.saturating_sub(k);
 
             // NB: The source shrank away while its bounds were being coerced, so there is
             //     nothing left to copy. The remaining steps are all no-ops for an empty
@@ -2063,7 +2062,7 @@ impl TypedArrayPrototype {
                 let source_byte_offset = typed_array.byte_offset();
 
                 // vi. Let srcByteIndex be (k × elementSize) + srcByteOffset.
-                let Some(mut source_byte_index) = (k as u32)
+                let Some(mut source_byte_index) = k
                     .checked_mul(element_size)
                     .and_then(|index| index.checked_add(source_byte_offset))
                 else {
@@ -2075,7 +2074,7 @@ impl TypedArrayPrototype {
                 let mut target_byte_index = array.byte_offset();
 
                 // viii. Let limit be targetByteIndex + (count × elementSize).
-                let Some(limit) = (count as u32)
+                let Some(limit) = count
                     .checked_mul(element_size)
                     .and_then(|limit| limit.checked_add(target_byte_index))
                 else {
@@ -2136,7 +2135,7 @@ impl TypedArrayPrototype {
                 // ii. Repeat, while k < final,
                 while k < final_ {
                     // 1. Let Pk be ! ToString(𝔽(k)).
-                    let property_key = PropertyKey::from(k as u32);
+                    let property_key = PropertyKey::from(k);
 
                     // 2. Let kValue be ! Get(O, Pk).
                     let value = typed_array.get(vm, &property_key).must();
