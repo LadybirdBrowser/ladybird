@@ -3289,14 +3289,14 @@ impl<'pass> BlockFormattingContext<'pass> {
             node,
             formatting_context::PlacedChild::new(fragment_tree::FragmentGeometry {
                 cells: self.metrics_of(sized_child),
-                line_data: None,
+                line_data: fragment.line_data.clone(),
             })
             .with_in_flow_box_insets(insets),
             content_offset,
             None,
             Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
                 fragment,
-                reuses_subtree: true,
+                reuses_committed_subtree: true,
             }),
         );
         self.block_offset_of_current_block_container
@@ -4349,7 +4349,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 consumed_block_size: outputs.result.automatic_content_block_size,
                 baselines: outputs.result.baselines,
                 root_line_data: outputs.root_outcome.line_data,
-                root: outputs.root,
+                root: fragmentainer.take_contents(),
             };
         }
     }

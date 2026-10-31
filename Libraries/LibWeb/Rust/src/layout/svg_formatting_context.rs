@@ -2233,10 +2233,6 @@ impl<'pass> SvgFormattingContext<'pass> {
         {
             return None;
         }
-        // An anchor registers itself only when its box is placed with a fragment of its own.
-        if NodeFacts::new(&self.run.callbacks, shape).has_anchor_names() {
-            return None;
-        }
         // A line's coordinates are attribute lengths resolved here against the initial containing block, the root font
         // and size query containers, and a change to any of those does not mark the line for layout.
         if self.svg_attributes(shape).geometry_kind == SVG_GEOMETRY_KIND_LINE {
@@ -2273,7 +2269,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             committed_offset.y,
             Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
                 fragment,
-                reuses_subtree: false,
+                reuses_committed_subtree: false,
             }),
         );
         Some(LaidOutSvgElement {

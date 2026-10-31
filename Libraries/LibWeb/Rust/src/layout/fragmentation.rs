@@ -239,6 +239,9 @@ pub(crate) struct FragmentainerContext {
     pub(crate) early_break_before: Option<Node>,
     pub(crate) allows_early_break_requests: bool,
     outcome: RefCell<FragmentainerOutcome>,
+    /// What the run laid out in the fragmentainer, which the run of the box it belongs to takes in, as the
+    /// fragmentainer has no fragment of its own.
+    contents: RefCell<Option<super::fragment_tree::UnplacedRootFragment>>,
 }
 
 impl FragmentainerContext {
@@ -258,7 +261,16 @@ impl FragmentainerContext {
             early_break_before,
             allows_early_break_requests,
             outcome: RefCell::new(FragmentainerOutcome::default()),
+            contents: RefCell::new(None),
         }
+    }
+
+    pub(crate) fn keep_contents(&self, contents: super::fragment_tree::UnplacedRootFragment) {
+        *self.contents.borrow_mut() = Some(contents);
+    }
+
+    pub(crate) fn take_contents(&self) -> Option<super::fragment_tree::UnplacedRootFragment> {
+        self.contents.take()
     }
 
     pub(crate) fn outcome_mut(&self) -> RefMut<'_, FragmentainerOutcome> {
