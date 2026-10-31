@@ -335,7 +335,7 @@ fn to_utf8_bytes(vm: &Vm) -> ThrowCompletionOr<Value> {
     let realm = vm.current_realm().expect("toUTF8Bytes runs in a realm");
 
     let string = Utf16View::of_string(&vm.argument(0).to_utf16_string(vm)?).to_wtf8();
-    let typed_array = Uint8Array::create(vm, realm, string.len() as u32)?;
+    let typed_array = Uint8Array::create(vm, realm, string.len())?;
 
     for (i, &byte) in string.iter().enumerate() {
         typed_array.set_value_in_buffer(vm, i, Value::from_i32(i32::from(byte)), Order::SeqCst);
@@ -349,7 +349,7 @@ fn create_default_typed_array(vm: &Vm) -> ThrowCompletionOr<Value> {
 
     let typed_array = typed_array_from(vm, vm.argument(0))?;
     let length = vm.argument(1).to_index(vm)?;
-    let Ok(length) = u32::try_from(length) else {
+    let Ok(length) = usize::try_from(length) else {
         return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
     };
 

@@ -173,13 +173,13 @@ fn as_typed_array(object: &Object) -> &TypedArrayBase {
 }
 
 impl TypedArrayBase {
-    /// TypedArray<T>(Object& prototype, u32 array_length, ArrayBuffer& array_buffer, Kind kind), for `class`, which is
+    /// TypedArray<T>(Object& prototype, size_t array_length, ArrayBuffer& array_buffer, Kind kind), for `class`, which is
     /// the class of the typed array of `kind`.
     fn new(
         vm: &Vm,
         class: &'static Class,
         prototype: Gc<Object>,
-        array_length: u32,
+        array_length: usize,
         array_buffer: Gc<ArrayBuffer>,
         kind: Kind,
     ) -> TypedArrayBase {
@@ -199,7 +199,7 @@ impl TypedArrayBase {
                 content_type: Cell::new(kind.content_type()),
             },
         };
-        assert!(array_length.checked_mul(u32::from(element_size)).is_some());
+        assert!(array_length.checked_mul(usize::from(element_size)).is_some());
         // NB: The data offset can only be cached once the view is a cell. Its creators do that with
         //     update_cached_data_offset() right after allocating it.
         typed_array.storage.viewed_array_buffer.set(Some(array_buffer));
@@ -207,11 +207,11 @@ impl TypedArrayBase {
             assert!(!array_buffer.is_detached() && array_buffer.byte_length() > 0);
         }
         typed_array.array_length.set(ByteLength::Length(array_length));
-        // NB: The byte length starts out as the length of the whole buffer, truncated to the u32 a ByteLength holds.
+        // NB: The byte length starts out as the length of the whole buffer.
         typed_array
             .storage
             .byte_length
-            .set(ByteLength::Length(array_buffer.byte_length() as u32));
+            .set(ByteLength::Length(array_buffer.byte_length()));
         typed_array
     }
 
@@ -223,7 +223,7 @@ impl TypedArrayBase {
         self.storage.byte_length.get()
     }
 
-    pub fn byte_offset(&self) -> u32 {
+    pub fn byte_offset(&self) -> usize {
         self.byte_offset.get()
     }
 
@@ -252,7 +252,7 @@ impl TypedArrayBase {
         self.storage.byte_length.set(length);
     }
 
-    pub fn set_byte_offset(&self, vm: &Vm, offset: u32) {
+    pub fn set_byte_offset(&self, vm: &Vm, offset: usize) {
         self.byte_offset.set(offset);
         self.update_cached_data_offset(vm);
     }
@@ -274,8 +274,8 @@ impl TypedArrayBase {
         Kind::from_u8(self.kind.get())
     }
 
-    pub fn element_size(&self) -> u32 {
-        u32::from(self.element_size.get())
+    pub fn element_size(&self) -> usize {
+        usize::from(self.element_size.get())
     }
 
     pub fn element_name(&self, vm: &Vm) -> Utf16FlyString {
@@ -361,10 +361,10 @@ impl TypedArrayBase {
         &self,
         vm: &Vm,
         realm: Gc<Realm>,
-        array_length: u32,
+        array_length: usize,
     ) -> ThrowCompletionOr<Gc<TypedArrayBase>> {
         let kind = self.kind();
-        validate_typed_array_length(vm, array_length as usize, kind.element_type().size())?;
+        validate_typed_array_length(vm, array_length, kind.element_type().size())?;
         create_typed_array(vm, realm, kind, array_length)
     }
 
@@ -386,16 +386,16 @@ impl TypedArrayBase {
         array_buffer: Gc<ArrayBuffer>,
         array_length: ByteLength,
         byte_length: ByteLength,
-        byte_offset: u32,
+        byte_offset: usize,
     ) -> Gc<TypedArrayBase> {
-        let element_size = kind.element_type().size() as u32;
+        let element_size = kind.element_type().size();
         assert!(array_length.is_auto() == byte_length.is_auto());
         assert!(byte_offset.is_multiple_of(element_size));
         if !array_length.is_auto() {
             let byte_length_of_array_length = array_length
                 .length()
                 .checked_mul(element_size)
-                .expect("the byte length of the array length fits in 32 bits");
+                .expect("the byte length of the array length fits in a usize");
             assert!(byte_length_of_array_length == byte_length.length());
         }
 
@@ -423,7 +423,7 @@ impl TypedArrayBase {
         }
 
         let cached_data_offset = data_offset
-            .checked_add(self.byte_offset() as usize)
+            .checked_add(self.byte_offset())
             .expect("the cached data offset does not overflow");
 
         // NB: A view with a cached offset is registered with its buffer, so only one without needs registering.
@@ -709,8 +709,7 @@ impl TypedArrayBase {
             for i in 0..length {
                 // i. Append ! ToString(𝔽(i)) to keys.
                 keys.push(Value::from_string(PrimitiveString::create_from_unsigned_integer(
-                    vm,
-                    u64::from(i),
+                    vm, i as u64,
                 )));
             }
         }
@@ -769,8 +768,7 @@ pub fn make_typed_array_with_buffer_witness_record(
     // 3. Else,
     else {
         // a. Let byteLength be ArrayBufferByteLength(buffer, order).
-        // NB: The length is truncated to the u32 a ByteLength holds.
-        ByteLength::Length(array_buffer_byte_length(&buffer, order) as u32)
+        ByteLength::Length(array_buffer_byte_length(&buffer, order))
     };
 
     // 4. Return the TypedArray With Buffer Witness Record { [[Object]]: obj, [[CachedBufferByteLength]]: byteLength }.
@@ -781,7 +779,7 @@ pub fn make_typed_array_with_buffer_witness_record(
 }
 
 // 10.4.5.12 TypedArrayByteLength ( taRecord ), https://tc39.es/ecma262/#sec-typedarraybytelength
-pub fn typed_array_byte_length(typed_array_record: &TypedArrayWithBufferWitness) -> u32 {
+pub fn typed_array_byte_length(typed_array_record: &TypedArrayWithBufferWitness) -> usize {
     // 1. If IsTypedArrayOutOfBounds(taRecord) is true, return 0.
     if is_typed_array_out_of_bounds(typed_array_record) {
         return 0;
@@ -807,11 +805,11 @@ pub fn typed_array_byte_length(typed_array_record: &TypedArrayWithBufferWitness)
     let element_size = object.element_size();
 
     // 7. Return length × elementSize.
-    length.wrapping_mul(element_size)
+    length * element_size
 }
 
 // 10.4.5.13 TypedArrayLength ( taRecord ), https://tc39.es/ecma262/#sec-typedarraylength
-pub fn typed_array_length(typed_array_record: &TypedArrayWithBufferWitness) -> u32 {
+pub fn typed_array_length(typed_array_record: &TypedArrayWithBufferWitness) -> usize {
     // 1. Assert: IsTypedArrayOutOfBounds(taRecord) is false.
     assert!(!is_typed_array_out_of_bounds(typed_array_record));
 
@@ -839,7 +837,7 @@ pub fn typed_array_length(typed_array_record: &TypedArrayWithBufferWitness) -> u
     assert!(!byte_length.is_detached());
 
     // 9. Return floor((byteLength - byteOffset) / elementSize).
-    byte_length.length().wrapping_sub(byte_offset) / element_size
+    (byte_length.length() - byte_offset) / element_size
 }
 
 // 10.4.5.14 IsTypedArrayOutOfBounds ( taRecord ), https://tc39.es/ecma262/#sec-istypedarrayoutofbounds
@@ -872,8 +870,7 @@ pub fn is_typed_array_out_of_bounds(typed_array_record: &TypedArrayWithBufferWit
         let element_size = object.element_size();
 
         // b. Let byteOffsetEnd be byteOffsetStart + O.[[ArrayLength]] × elementSize.
-        // NB: This is computed in 32 bits.
-        byte_offset_start.wrapping_add(object.array_length().length().wrapping_mul(element_size))
+        byte_offset_start + object.array_length().length() * element_size
     };
 
     // 8. If byteOffsetStart > bufferByteLength or byteOffsetEnd > bufferByteLength, return true.
@@ -925,14 +922,11 @@ pub fn is_valid_integer_index(typed_array: &TypedArrayBase, property_index: Cano
     let array_length = typed_array.array_length();
     if !array_length.is_auto() {
         let byte_length = array_buffer_byte_length(&buffer, Order::Unordered);
-        // NB: The end is computed in 32 bits.
-        let byte_offset_end = typed_array
-            .byte_offset()
-            .wrapping_add(array_length.length().wrapping_mul(typed_array.element_size()));
+        let byte_offset_end = typed_array.byte_offset() + array_length.length() * typed_array.element_size();
 
-        return typed_array.byte_offset() as usize <= byte_length
-            && byte_offset_end as usize <= byte_length
-            && property_index.as_index() < array_length.length();
+        return typed_array.byte_offset() <= byte_length
+            && byte_offset_end <= byte_length
+            && (property_index.as_index() as usize) < array_length.length();
     }
 
     is_valid_integer_index_slow_case(typed_array, property_index)
@@ -953,7 +947,7 @@ pub fn is_valid_integer_index_slow_case(typed_array: &TypedArrayBase, property_i
     let length = typed_array_length(&typed_array_record);
 
     // 8. If ℝ(index) < 0 or ℝ(index) ≥ length, return false.
-    if property_index.as_index() >= length {
+    if property_index.as_index() as usize >= length {
         return false;
     }
 
@@ -974,8 +968,8 @@ pub fn typed_array_get_element(vm: &Vm, typed_array: &TypedArrayBase, property_i
     // 3. Let elementSize be TypedArrayElementSize(O).
     // 4. Let byteIndexInBuffer be (ℝ(index) × elementSize) + offset.
     let byte_index_in_buffer = (property_index.as_index() as usize)
-        .checked_mul(typed_array.element_size() as usize)
-        .and_then(|byte_index| byte_index.checked_add(offset as usize));
+        .checked_mul(typed_array.element_size())
+        .and_then(|byte_index| byte_index.checked_add(offset));
     // FIXME: Not exactly sure what we should do when overflow occurs.
     //        Just return as if it's an invalid index for now.
     let Some(byte_index_in_buffer) = byte_index_in_buffer else {
@@ -1019,8 +1013,8 @@ pub fn typed_array_set_element(
     // b. Let elementSize be TypedArrayElementSize(O).
     // c. Let byteIndexInBuffer be (ℝ(index) × elementSize) + offset.
     let byte_index_in_buffer = (property_index.as_index() as usize)
-        .checked_mul(typed_array.element_size() as usize)
-        .and_then(|byte_index| byte_index.checked_add(offset as usize));
+        .checked_mul(typed_array.element_size())
+        .and_then(|byte_index| byte_index.checked_add(offset));
     // FIXME: Not exactly sure what we should do when overflow occurs.
     //        Just return as if it succeeded for now.
     let Some(byte_index_in_buffer) = byte_index_in_buffer else {
@@ -1066,7 +1060,7 @@ pub fn initialize_typed_array_from_array_buffer(
     length: Value,
 ) -> ThrowCompletionOr<()> {
     // 1. Let elementSize be TypedArrayElementSize(O).
-    let element_size = typed_array.element_size() as usize;
+    let element_size = typed_array.element_size();
 
     // 2. Let offset be ? ToIndex(byteOffset).
     let offset = byte_offset.to_index(vm)? as usize;
@@ -1167,20 +1161,17 @@ pub fn initialize_typed_array_from_array_buffer(
         validate_typed_array_length(vm, new_array_length, element_size)?;
 
         // c. Set O.[[ByteLength]] to newByteLength.
-        typed_array.set_byte_length(ByteLength::Length(new_byte_length as u32));
+        typed_array.set_byte_length(ByteLength::Length(new_byte_length));
 
         // d. Set O.[[ArrayLength]] to newByteLength / elementSize.
-        typed_array.set_array_length(ByteLength::Length(new_array_length as u32));
+        typed_array.set_array_length(ByteLength::Length(new_array_length));
     }
 
     // 10. Set O.[[ViewedArrayBuffer]] to buffer.
     typed_array.set_viewed_array_buffer(vm, array_buffer);
 
     // 11. Set O.[[ByteOffset]] to offset.
-    if offset > u32::MAX as usize {
-        return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
-    }
-    typed_array.set_byte_offset(vm, offset as u32);
+    typed_array.set_byte_offset(vm, offset);
 
     // 12. Return unused.
     Ok(())
@@ -1201,7 +1192,7 @@ fn initialize_typed_array_from_typed_array(
     let element_type = typed_array.element_name(vm);
 
     // 3. Let elementSize be TypedArrayElementSize(O).
-    let element_size = typed_array.element_size() as usize;
+    let element_size = typed_array.element_size();
 
     // 4. Let srcType be TypedArrayElementType(srcArray).
     let source_type = source_array.element_name(vm);
@@ -1224,13 +1215,13 @@ fn initialize_typed_array_from_typed_array(
     let element_length = typed_array_length(&source_record);
 
     // 10. Let byteLength be elementSize × elementLength.
-    validate_typed_array_length(vm, element_length as usize, element_size)?;
-    let byte_length = element_size * element_length as usize;
+    validate_typed_array_length(vm, element_length, element_size)?;
+    let byte_length = element_size * element_length;
 
     // 11. If elementType is srcType, then
     let data = if element_type == source_type {
         // a. Let data be ? CloneArrayBuffer(srcData, srcByteOffset, byteLength).
-        clone_array_buffer(vm, source_data, source_byte_offset as usize, byte_length)?
+        clone_array_buffer(vm, source_data, source_byte_offset, byte_length)?
     }
     // 12. Else,
     else {
@@ -1247,7 +1238,7 @@ fn initialize_typed_array_from_typed_array(
         }
 
         // c. Let srcByteIndex be srcByteOffset.
-        let mut source_byte_index = u64::from(source_byte_offset);
+        let mut source_byte_index = source_byte_offset as u64;
 
         // d. Let targetByteIndex be 0.
         let mut target_byte_index: u64 = 0;
@@ -1260,11 +1251,11 @@ fn initialize_typed_array_from_typed_array(
         } else {
             source_data.convert_elements_to(
                 &data,
-                source_byte_offset as usize,
+                source_byte_offset,
                 source_array.kind().element_type(),
                 0,
                 typed_array.kind().element_type(),
-                element_length as usize,
+                element_length,
             );
             0
         };
@@ -1298,7 +1289,7 @@ fn initialize_typed_array_from_typed_array(
     typed_array.set_viewed_array_buffer(vm, data);
 
     // 14. Set O.[[ByteLength]] to byteLength.
-    typed_array.set_byte_length(ByteLength::Length(byte_length as u32));
+    typed_array.set_byte_length(ByteLength::Length(byte_length));
 
     // 15. Set O.[[ByteOffset]] to 0.
     typed_array.set_byte_offset(vm, 0);
@@ -1322,7 +1313,7 @@ fn allocate_typed_array_buffer(vm: &Vm, typed_array: &TypedArrayBase, length: us
     // 1. Assert: O.[[ViewedArrayBuffer]] is undefined.
 
     // 2. Let elementSize be TypedArrayElementSize(O).
-    let element_size = typed_array.element_size() as usize;
+    let element_size = typed_array.element_size();
     if element_size.checked_mul(length).is_none() {
         return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
     }
@@ -1337,13 +1328,13 @@ fn allocate_typed_array_buffer(vm: &Vm, typed_array: &TypedArrayBase, length: us
     typed_array.set_viewed_array_buffer(vm, data);
 
     // 6. Set O.[[ByteLength]] to byteLength.
-    typed_array.set_byte_length(ByteLength::Length(byte_length as u32));
+    typed_array.set_byte_length(ByteLength::Length(byte_length));
 
     // 7. Set O.[[ByteOffset]] to 0.
     typed_array.set_byte_offset(vm, 0);
 
     // 8. Set O.[[ArrayLength]] to length.
-    typed_array.set_array_length(ByteLength::Length(length as u32));
+    typed_array.set_array_length(ByteLength::Length(length));
 
     // 9. Return unused.
     Ok(())
@@ -1400,7 +1391,7 @@ pub(crate) fn set_elements_to_numbers_if_unobservable(typed_array: &TypedArrayBa
         ElementType::Float64 => encode_numbers(values, |value| value.as_f64().to_bits().to_le_bytes()),
         ElementType::BigInt64 | ElementType::BigUint64 => unreachable!("the typed array holds numbers"),
     };
-    buffer.overwrite(typed_array.byte_offset() as usize, &bytes);
+    buffer.overwrite(typed_array.byte_offset(), &bytes);
     true
 }
 
@@ -1522,7 +1513,7 @@ pub fn typed_array_create(
         let length = typed_array_length(&typed_array_record);
 
         // c. If length < ℝ(argumentList[0]), throw a TypeError exception.
-        if f64::from(length) < first_argument {
+        if (length as f64) < first_argument {
             return vm.throw_completion(ErrorKind::TypeError, ErrorType::InvalidLength, &[&"typed array"]);
         }
     }
@@ -1688,13 +1679,13 @@ macro_rules! define_typed_arrays {
                 pub fn create_with_new_target(
                     vm: &Vm,
                     realm: Gc<Realm>,
-                    length: u32,
+                    length: usize,
                     new_target: Gc<FunctionObject>,
                 ) -> ThrowCompletionOr<Gc<$class>> {
                     let prototype = get_prototype_from_constructor(vm, new_target, Intrinsics::$prototype_accessor)?;
                     let element_size = Kind::$class.element_type().size();
                     let array_buffer =
-                        ArrayBuffer::create(vm, realm, length as usize * element_size, crate::runtime::array_buffer::Shared::No)?;
+                        ArrayBuffer::create(vm, realm, length * element_size, crate::runtime::array_buffer::Shared::No)?;
                     let typed_array = realm.create_object(
                         vm,
                         |_| $class {
@@ -1705,19 +1696,19 @@ macro_rules! define_typed_arrays {
                     Ok(typed_array)
                 }
 
-                /// ClassName::create(Realm&, u32 length)
-                pub fn create(vm: &Vm, realm: Gc<Realm>, length: u32) -> ThrowCompletionOr<Gc<$class>> {
+                /// ClassName::create(Realm&, size_t length)
+                pub fn create(vm: &Vm, realm: Gc<Realm>, length: usize) -> ThrowCompletionOr<Gc<$class>> {
                     let element_size = Kind::$class.element_type().size();
                     let array_buffer =
-                        ArrayBuffer::create(vm, realm, length as usize * element_size, crate::runtime::array_buffer::Shared::No)?;
+                        ArrayBuffer::create(vm, realm, length * element_size, crate::runtime::array_buffer::Shared::No)?;
                     Ok(Self::create_on_buffer(vm, realm, length, array_buffer))
                 }
 
-                /// ClassName::create(Realm&, u32 length, ArrayBuffer& buffer)
+                /// ClassName::create(Realm&, size_t length, ArrayBuffer& buffer)
                 pub fn create_on_buffer(
                     vm: &Vm,
                     realm: Gc<Realm>,
-                    length: u32,
+                    length: usize,
                     array_buffer: Gc<ArrayBuffer>,
                 ) -> Gc<$class> {
                     let prototype = realm.intrinsics().$prototype_accessor(vm);
@@ -1860,7 +1851,7 @@ macro_rules! define_typed_arrays {
             vm: &Vm,
             realm: Gc<Realm>,
             kind: Kind,
-            length: u32,
+            length: usize,
             new_target: Gc<FunctionObject>,
         ) -> ThrowCompletionOr<Gc<TypedArrayBase>> {
             match kind {
@@ -1868,24 +1859,24 @@ macro_rules! define_typed_arrays {
             }
         }
 
-        /// ClassName::create(Realm&, u32 length) for the typed array of `kind`.
+        /// ClassName::create(Realm&, size_t length) for the typed array of `kind`.
         pub fn create_typed_array(
             vm: &Vm,
             realm: Gc<Realm>,
             kind: Kind,
-            length: u32,
+            length: usize,
         ) -> ThrowCompletionOr<Gc<TypedArrayBase>> {
             match kind {
                 $(Kind::$class => Ok($class::create(vm, realm, length)?.upcast()),)*
             }
         }
 
-        /// ClassName::create(Realm&, u32 length, ArrayBuffer&) for the typed array of `kind`.
+        /// ClassName::create(Realm&, size_t length, ArrayBuffer&) for the typed array of `kind`.
         pub fn create_typed_array_on_buffer(
             vm: &Vm,
             realm: Gc<Realm>,
             kind: Kind,
-            length: u32,
+            length: usize,
             array_buffer: Gc<ArrayBuffer>,
         ) -> Gc<TypedArrayBase> {
             match kind {
@@ -1950,7 +1941,7 @@ fn construct_typed_array(vm: &Vm, kind: Kind, new_target: Gc<FunctionObject>) ->
         }
     };
     validate_typed_array_length(vm, array_length, kind.element_type().size())?;
-    Ok(create_typed_array_with_new_target(vm, realm, kind, array_length as u32, new_target)?.upcast())
+    Ok(create_typed_array_with_new_target(vm, realm, kind, array_length, new_target)?.upcast())
 }
 
 /// The typed array of an object whose flags say it is one.

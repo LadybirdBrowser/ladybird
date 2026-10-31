@@ -16,7 +16,7 @@ public:
     static ByteLength auto_() { return { Auto {} }; }
     static ByteLength detached() { return { Detached {} }; }
 
-    ByteLength(u32 length)
+    ByteLength(size_t length)
         : m_length(length)
     {
     }
@@ -24,17 +24,17 @@ public:
     bool is_auto() const { return m_length.has<Auto>(); }
     bool is_detached() const { return m_length.has<Detached>(); }
 
-    u32 length() const
+    size_t length() const
     {
-        VERIFY(m_length.has<u32>());
-        return m_length.get<u32>();
+        VERIFY(m_length.has<size_t>());
+        return m_length.get<size_t>();
     }
 
 private:
     struct Auto { };
     struct Detached { };
 
-    using Length = Variant<Auto, Detached, u32>;
+    using Length = Variant<Auto, Detached, size_t>;
 
     ByteLength(Length length)
         : m_length(move(length))

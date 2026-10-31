@@ -13,13 +13,13 @@ namespace JS {
 
 using namespace EmbeddingABI;
 
-GC::Ref<TypedArrayBase> TypedArrayBase::create_from_slots(Realm& realm, Kind kind, ArrayBuffer& array_buffer, ByteLength array_length, ByteLength byte_length, u32 byte_offset)
+GC::Ref<TypedArrayBase> TypedArrayBase::create_from_slots(Realm& realm, Kind kind, ArrayBuffer& array_buffer, ByteLength array_length, ByteLength byte_length, size_t byte_offset)
 {
     auto element_size = typed_array_element_size(kind);
     VERIFY(array_length.is_auto() == byte_length.is_auto());
     VERIFY(byte_offset % element_size == 0);
     if (!array_length.is_auto()) {
-        Checked<u32> byte_length_of_array_length = array_length.length();
+        Checked<size_t> byte_length_of_array_length = array_length.length();
         byte_length_of_array_length *= element_size;
         VERIFY(!byte_length_of_array_length.has_overflow());
         VERIFY(byte_length_of_array_length.value() == byte_length.length());
@@ -57,13 +57,13 @@ TypedArrayWithBufferWitness make_typed_array_with_buffer_witness_record(TypedArr
     };
 }
 
-u32 typed_array_byte_length(TypedArrayWithBufferWitness const& typed_array_record)
+size_t typed_array_byte_length(TypedArrayWithBufferWitness const& typed_array_record)
 {
     auto record = witness_record_to_abi(typed_array_record);
     return js_typed_array_byte_length_of_witness(&record);
 }
 
-u32 typed_array_length(TypedArrayWithBufferWitness const& typed_array_record)
+size_t typed_array_length(TypedArrayWithBufferWitness const& typed_array_record)
 {
     auto record = witness_record_to_abi(typed_array_record);
     return js_typed_array_length_of_witness(&record);
@@ -87,12 +87,12 @@ ThrowCompletionOr<TypedArrayBase*> typed_array_from(VM& vm, Value typed_array_va
 }
 
 #define __JS_ENUMERATE(ClassName, snake_name, PrototypeName, ConstructorName, Type)                                                                                                         \
-    ThrowCompletionOr<GC::Ref<ClassName>> ClassName::create(Realm& realm, u32 length)                                                                                                       \
+    ThrowCompletionOr<GC::Ref<ClassName>> ClassName::create(Realm& realm, size_t length)                                                                                                    \
     {                                                                                                                                                                                       \
         return completion_from_abi<GC::Ref<ClassName>>(js_typed_array_create(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), to_underlying(Kind::ClassName), length));                  \
     }                                                                                                                                                                                       \
                                                                                                                                                                                             \
-    GC::Ref<ClassName> ClassName::create(Realm& realm, u32 length, ArrayBuffer& array_buffer)                                                                                               \
+    GC::Ref<ClassName> ClassName::create(Realm& realm, size_t length, ArrayBuffer& array_buffer)                                                                                            \
     {                                                                                                                                                                                       \
         auto* typed_array = js_typed_array_create_on_buffer(vm_to_abi(realm.vm()), cell_to_abi<JSRealm>(realm), to_underlying(Kind::ClassName), length, array_buffer_to_abi(array_buffer)); \
         VERIFY(typed_array);                                                                                                                                                                \

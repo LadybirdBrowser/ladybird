@@ -1,0 +1,12 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const memory = new WebAssembly.Memory({ initial: 65536 });
+        const view = new Uint8Array(memory.buffer);
+        println(`byteLength: ${memory.buffer.byteLength}`);
+        println(`Uint8Array length: ${view.length}`);
+        println(`DataView byteLength: ${new DataView(memory.buffer).byteLength}`);
+        println(`Float64Array length: ${new Float64Array(memory.buffer).length}`);
+    });
+</script>

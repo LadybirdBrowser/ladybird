@@ -31,7 +31,7 @@ ByteLength DataView::byte_length() const
     return byte_length_from_abi(js_array_buffer_data_view_byte_length(object_to_abi(*this)));
 }
 
-u32 DataView::byte_offset() const
+size_t DataView::byte_offset() const
 {
     return js_array_buffer_data_view_byte_offset(object_to_abi(*this));
 }
@@ -53,7 +53,7 @@ DataViewWithBufferWitness make_data_view_with_buffer_witness_record(DataView con
     };
 }
 
-u32 get_view_byte_length(DataViewWithBufferWitness const& view_record)
+size_t get_view_byte_length(DataViewWithBufferWitness const& view_record)
 {
     auto record = witness_record_to_abi(view_record);
     return js_array_buffer_data_view_view_byte_length(&record);

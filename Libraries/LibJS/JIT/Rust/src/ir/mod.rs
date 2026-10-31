@@ -675,8 +675,8 @@ pub enum Op {
     CheckNonNegativeInt32,
     /// The length of the typed array at the `Repr::Pointer` input 0, as a
     /// `Repr::Int32`, or 0 if its data is not cached (because its buffer is
-    /// detached or resizable): how many elements `LoadElementAt` and
-    /// `StoreElementAt` may access.
+    /// detached or resizable) or its length does not fit in 32 bits: how
+    /// many elements `LoadElementAt` and `StoreElementAt` may access.
     LoadTypedArrayLength,
     /// The cached offset of the typed array at the `Repr::Pointer` input 0
     /// within the primitive storage cage, as a `Repr::Pointer`. It may be

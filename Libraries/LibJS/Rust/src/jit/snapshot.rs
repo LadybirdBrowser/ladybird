@@ -616,7 +616,8 @@ impl SnapshotBuilder<'_> {
                     Some(TypedArraySnapshot {
                         element,
                         fixed_length: (array.cached_data_offset() != TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID)
-                            .then(|| array.array_length.length.get()),
+                            .then(|| array.array_length.length.get())
+                            .and_then(|length| u32::try_from(length).ok()),
                     })
                 }),
         }

@@ -25,7 +25,7 @@ public:
     // The runtime keeps [[ByteLength]] where only it reads it, so this returns a copy.
     ByteLength byte_length() const;
 
-    u32 byte_offset() const;
+    size_t byte_offset() const;
 };
 
 // 25.3.1.1 DataView With Buffer Witness Records, https://tc39.es/ecma262/#sec-dataview-with-buffer-witness-records
@@ -35,7 +35,7 @@ struct DataViewWithBufferWitness {
 };
 
 JS_API DataViewWithBufferWitness make_data_view_with_buffer_witness_record(DataView const&, ArrayBuffer::Order);
-JS_API u32 get_view_byte_length(DataViewWithBufferWitness const&);
+JS_API size_t get_view_byte_length(DataViewWithBufferWitness const&);
 JS_API bool is_view_out_of_bounds(DataViewWithBufferWitness const&);
 
 }

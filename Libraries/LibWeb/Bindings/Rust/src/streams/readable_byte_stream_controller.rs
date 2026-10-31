@@ -1301,7 +1301,7 @@ pub(crate) fn readable_byte_stream_controller_pull_into(
     if let ArrayBufferView::TypedArray(typed_array) = view {
         // 1. Set elementSize to the element size specified in the typed array constructors table for
         //    view.[[TypedArrayName]].
-        element_size = u64::from(typed_array.element_size());
+        element_size = typed_array.element_size() as u64;
 
         // 2. Set ctor to the constructor specified in the typed array constructors table for view.[[TypedArrayName]].
         ctor = typed_array.intrinsic_constructor(vm, cx.realm());

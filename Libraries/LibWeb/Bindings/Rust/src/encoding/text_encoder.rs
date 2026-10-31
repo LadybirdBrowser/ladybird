@@ -10,14 +10,14 @@ use core::mem::MaybeUninit;
 
 use ak::Utf16String;
 use libjs_rust::api::{
-    ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, ErrorType, Gc, Trace, TypedArrayBase, TypedArrayKind,
+    ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, Gc, Trace, TypedArrayBase, TypedArrayKind,
     create_typed_array_on_buffer, is_typed_array_out_of_bounds, make_typed_array_with_buffer_witness_record,
     typed_array_byte_length,
 };
 
 use crate::bindings::conversions::UsvString;
 use crate::bindings::interface::Wrappable;
-use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::bindings::{CallContext, WebIdlResult};
 use crate::encoding::utf8::{self, EncodeIntoProgress};
 
 /// A TextEncoder has no state: it always encodes UTF-8.
@@ -73,8 +73,6 @@ impl TextEncoder {
         //     4. If result is finished, then convert output into a byte sequence and return a Uint8Array object
         //        wrapping an ArrayBuffer containing output.
         let length = input.utf8_length();
-        let array_length = u32::try_from(length)
-            .map_err(|_| Exception::RangeError(ErrorType::InvalidLength.message(&[&"typed array"])))?;
         let buffer =
             ArrayBuffer::try_create_written_by(cx.vm(), cx.realm(), length, ArrayBufferShared::No, |output| {
                 // SAFETY: The buffer has the length of the encoding.
@@ -84,7 +82,7 @@ impl TextEncoder {
             cx.vm(),
             cx.realm(),
             TypedArrayKind::Uint8Array,
-            array_length,
+            length,
             buffer,
         ))
     }
@@ -111,8 +109,7 @@ impl TextEncoder {
         if destination_byte_length == 0 {
             return Ok(encode_into_result(EncodeIntoProgress { read: 0, written: 0 }));
         }
-        let destination_bytes =
-            buffer.with_data_block(|data_block| data_block.data_at(destination.byte_offset() as usize));
+        let destination_bytes = buffer.with_data_block(|data_block| data_block.data_at(destination.byte_offset()));
         assert!(!destination_bytes.is_null());
 
         // OPTIMIZATION: Encode the whole source at once into a destination that is not shared when it fits.

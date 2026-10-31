@@ -128,8 +128,7 @@ impl DataViewConstructor {
             // a. If bufferIsFixedLength is true, then
             if buffer_is_fixed_length {
                 // i. Let viewByteLength be bufferByteLength - offset.
-                // NB: The length is truncated to the u32 that a ByteLength holds.
-                view_byte_length = ByteLength::Length((buffer_byte_length - offset) as u32);
+                view_byte_length = ByteLength::Length(buffer_byte_length - offset);
             }
             // b. Else,
             else {
@@ -140,11 +139,10 @@ impl DataViewConstructor {
         // 9. Else,
         else {
             // a. Let viewByteLength be ? ToIndex(byteLength).
-            // NB: The length is truncated to the u32 that a ByteLength holds.
-            view_byte_length = ByteLength::Length(byte_length.to_index(vm)? as u32);
+            view_byte_length = ByteLength::Length(byte_length.to_index(vm)? as usize);
 
             // b. If offset + viewByteLength > bufferByteLength, throw a RangeError exception.
-            let checked_add = offset.checked_add(view_byte_length.length() as usize);
+            let checked_add = offset.checked_add(view_byte_length.length());
 
             if checked_add.is_none_or(|end| end > buffer_byte_length) {
                 return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&vm.names.DataView]);
@@ -180,7 +178,7 @@ impl DataViewConstructor {
         // 14. If byteLength is not undefined, then
         if !byte_length.is_undefined() {
             // a. If offset + viewByteLength > bufferByteLength, throw a RangeError exception.
-            let checked_add = offset.checked_add(view_byte_length.length() as usize);
+            let checked_add = offset.checked_add(view_byte_length.length());
 
             if checked_add.is_none_or(|end| end > buffer_byte_length) {
                 return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&vm.names.DataView]);

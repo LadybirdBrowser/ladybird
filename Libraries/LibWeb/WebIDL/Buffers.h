@@ -55,8 +55,8 @@ public:
     BufferSource(ArrayBufferViewVariant const&);
     BufferSource(ArrayBufferView const&);
 
-    u32 byte_length() const;
-    u32 byte_offset() const;
+    size_t byte_length() const;
+    size_t byte_offset() const;
     u32 element_size() const;
 
     BufferSourceVariant const& buffer_source() const { return m_buffer_source; }
@@ -80,8 +80,8 @@ public:
 
     ArrayBufferView(ArrayBufferViewVariant const&);
 
-    u32 byte_length() const;
-    u32 byte_offset() const;
+    size_t byte_length() const;
+    size_t byte_offset() const;
     u32 element_size() const;
 
     ArrayBufferViewVariant const& array_buffer_view() const { return m_array_buffer_view; }

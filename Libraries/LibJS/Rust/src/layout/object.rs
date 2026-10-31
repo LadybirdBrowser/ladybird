@@ -72,14 +72,14 @@ const _: () = assert!(
         == size_of::<Object>()
 );
 
-/// Mirrors the Variant<Auto, Detached, u32> the interpreter reads: the length first, then the alternative's index.
+/// Mirrors the Variant<Auto, Detached, size_t> the interpreter reads: the length first, then the alternative's index.
 #[repr(C)]
 pub struct ByteLengthSlot {
-    pub length: Cell<u32>,
+    pub length: Cell<usize>,
     pub alternative_index: Cell<u8>,
 }
 
-pub const BYTE_LENGTH_U32_INDEX: u8 = 2;
+pub const BYTE_LENGTH_LENGTH_INDEX: u8 = 2;
 
 /// Mirrors JS::TypedArrayBase::Kind, in the order of JS_ENUMERATE_TYPED_ARRAYS.
 pub mod typed_array_kind {
@@ -105,7 +105,7 @@ pub struct TypedArrayBase {
     pub kind: Cell<u8>,
     pub element_size: Cell<u8>,
     pub array_length: ByteLengthSlot,
-    pub byte_offset: Cell<u32>,
+    pub byte_offset: Cell<usize>,
     pub cached_data_offset: Cell<usize>,
     pub storage: TypedArrayBaseStorage,
 }

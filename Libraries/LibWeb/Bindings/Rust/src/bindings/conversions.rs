@@ -25,7 +25,7 @@ use crate::ak_format::ak_formatted;
 use crate::bindings::interface::{Interface, Ref, create_dictionary_object, wrap};
 use crate::bindings::promise::WebIdlPromise;
 use crate::bindings::services::web_bindings_object_implements_interface;
-use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::bindings::{CallContext, WebIdlResult};
 
 /// A USVString, a string without lone surrogates. Its UTF-16 code units are always well-formed.
 #[derive(Clone, Eq, PartialEq)]
@@ -562,9 +562,9 @@ impl BufferSource {
                 BufferSourceExtent {
                     buffer: typed_array.viewed_array_buffer(),
                     is_out_of_bounds,
-                    byte_offset: typed_array.byte_offset() as usize,
+                    byte_offset: typed_array.byte_offset(),
                     byte_length,
-                    element_size: typed_array.element_size() as usize,
+                    element_size: typed_array.element_size(),
                 }
             }
             Self::DataView(view) => {
@@ -580,7 +580,7 @@ impl BufferSource {
                 BufferSourceExtent {
                     buffer: view.viewed_array_buffer(),
                     is_out_of_bounds,
-                    byte_offset: view.byte_offset() as usize,
+                    byte_offset: view.byte_offset(),
                     byte_length,
                     element_size: 1,
                 }
@@ -692,8 +692,6 @@ pub(crate) fn buffer_source_type_of(value: Value) -> Option<BufferSource> {
 
 /// https://webidl.spec.whatwg.org/#arraybufferview-create, for a Uint8Array in the realm of the call context.
 pub(crate) fn create_uint8_array(cx: &CallContext, bytes: &[u8]) -> WebIdlResult<Gc<Object>> {
-    let length = u32::try_from(bytes.len())
-        .map_err(|_| Exception::RangeError(ErrorType::InvalidLength.message(&[&"typed array"])))?;
     let buffer =
         ArrayBuffer::try_create_written_by(cx.vm(), cx.realm(), bytes.len(), ArrayBufferShared::No, |output| {
             for (byte, value) in output.iter_mut().zip(bytes) {
@@ -701,7 +699,7 @@ pub(crate) fn create_uint8_array(cx: &CallContext, bytes: &[u8]) -> WebIdlResult
             }
             bytes.len()
         })?;
-    Ok(create_typed_array_on_buffer(cx.vm(), cx.realm(), TypedArrayKind::Uint8Array, length, buffer).upcast())
+    Ok(create_typed_array_on_buffer(cx.vm(), cx.realm(), TypedArrayKind::Uint8Array, bytes.len(), buffer).upcast())
 }
 
 impl ArrayBufferView {

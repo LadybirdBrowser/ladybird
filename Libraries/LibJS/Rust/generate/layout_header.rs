@@ -397,7 +397,7 @@ pub fn generate() -> LayoutHeader {
     offset!(w, "TYPED_ARRAY_ELEMENT_SIZE", TypedArrayBase, element_size);
     offset!(w, "TYPED_ARRAY_ARRAY_LENGTH", TypedArrayBase, array_length.length);
     offset!(w, "TYPED_ARRAY_ARRAY_LENGTH_ALTERNATIVE_INDEX", TypedArrayBase, array_length.alternative_index);
-    w.define("TYPED_ARRAY_ARRAY_LENGTH_U32_ALTERNATIVE_INDEX", BYTE_LENGTH_U32_INDEX);
+    w.define("TYPED_ARRAY_ARRAY_LENGTH_LENGTH_ALTERNATIVE_INDEX", BYTE_LENGTH_LENGTH_INDEX);
     offset!(w, "TYPED_ARRAY_BYTE_OFFSET", TypedArrayBase, byte_offset);
 
     w.section("TypedArrayBase kinds");

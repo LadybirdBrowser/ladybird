@@ -54,7 +54,7 @@ pub const JS_ARRAY_BUFFER_ORDER_UNORDERED: u8 = 1;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct JSByteLength {
-    pub length: u32,
+    pub length: usize,
     pub kind: u8,
 }
 
@@ -650,7 +650,7 @@ pub unsafe extern "C" fn js_array_buffer_data_view_viewed_buffer(data_view: *mut
 ///
 /// `data_view` must be a live DataView.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_array_buffer_data_view_byte_offset(data_view: *mut JSObject) -> u32 {
+pub unsafe extern "C" fn js_array_buffer_data_view_byte_offset(data_view: *mut JSObject) -> usize {
     // SAFETY: The caller passes a live DataView.
     unsafe { data_view_from_abi(data_view) }.byte_offset()
 }
@@ -718,7 +718,9 @@ pub unsafe extern "C" fn js_array_buffer_is_data_view_out_of_bounds(
 ///
 /// `record` must point to a record of a live DataView that is not out of bounds.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_array_buffer_data_view_view_byte_length(record: *const JSDataViewWithBufferWitness) -> u32 {
+pub unsafe extern "C" fn js_array_buffer_data_view_view_byte_length(
+    record: *const JSDataViewWithBufferWitness,
+) -> usize {
     // SAFETY: The caller passes a valid record.
     get_view_byte_length(&unsafe { data_view_witness_record_from_abi(record) })
 }

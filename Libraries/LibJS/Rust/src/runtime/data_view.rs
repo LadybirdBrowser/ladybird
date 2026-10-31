@@ -76,8 +76,8 @@ impl DataView {
     }
 
     /// NB: This truncates the byte offset to a u32.
-    pub fn byte_offset(&self) -> u32 {
-        self.byte_offset.get() as u32
+    pub fn byte_offset(&self) -> usize {
+        self.byte_offset.get()
     }
 }
 
@@ -101,8 +101,7 @@ pub fn make_data_view_with_buffer_witness_record(data_view: Gc<DataView>, order:
     // 3. Else,
     else {
         // a. Let byteLength be ArrayBufferByteLength(buffer, order).
-        // NB: The length is truncated to the u32 that a ByteLength holds.
-        ByteLength::Length(array_buffer_byte_length(&buffer, order) as u32)
+        ByteLength::Length(array_buffer_byte_length(&buffer, order))
     };
 
     // 4. Return the DataView With Buffer Witness Record { [[Object]]: obj, [[CachedBufferByteLength]]: byteLength }.
@@ -113,7 +112,7 @@ pub fn make_data_view_with_buffer_witness_record(data_view: Gc<DataView>, order:
 }
 
 // 25.3.1.3 GetViewByteLength ( viewRecord ), https://tc39.es/ecma262/#sec-getviewbytelength
-pub fn get_view_byte_length(view_record: &DataViewWithBufferWitness) -> u32 {
+pub fn get_view_byte_length(view_record: &DataViewWithBufferWitness) -> usize {
     // 1. Assert: IsViewOutOfBounds(viewRecord) is false.
     assert!(!is_view_out_of_bounds(view_record));
 
@@ -138,7 +137,7 @@ pub fn get_view_byte_length(view_record: &DataViewWithBufferWitness) -> u32 {
     assert!(!byte_length.is_detached());
 
     // 8. Return byteLength - byteOffset.
-    byte_length.length().wrapping_sub(byte_offset)
+    byte_length.length() - byte_offset
 }
 
 // 25.3.1.4 IsViewOutOfBounds ( viewRecord ), https://tc39.es/ecma262/#sec-isviewoutofbounds
@@ -168,8 +167,7 @@ pub fn is_view_out_of_bounds(view_record: &DataViewWithBufferWitness) -> bool {
     // 7. Else,
     else {
         // a. Let byteOffsetEnd be byteOffsetStart + view.[[ByteLength]].
-        // NB: This is computed in 32 bits.
-        byte_offset_start.wrapping_add(view.byte_length().length())
+        byte_offset_start + view.byte_length().length()
     };
 
     // 8. If byteOffsetStart > bufferByteLength or byteOffsetEnd > bufferByteLength, return true.
