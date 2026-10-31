@@ -1804,6 +1804,7 @@ static constexpr int SUBMENU_DELAY_MS = 150;
 static constexpr int MENU_PADDING = 6;
 static constexpr int MENU_RADIUS = 10;
 static constexpr int MENU_ROW_HEIGHT = 26;
+static constexpr int SELECT_DROPDOWN_ROW_HEIGHT = 22;
 static constexpr int MENU_ROW_INSET = 10;
 static constexpr int MENU_ROW_RADIUS = 6;
 static constexpr int MENU_SEPARATOR_HEIGHT = 11;
@@ -1952,13 +1953,15 @@ public:
             if (auto const* item = qstyleoption_cast<QStyleOptionMenuItem const*>(option)) {
                 if (item->menuItemType == QStyleOptionMenuItem::Separator)
                     return { contents_size.width(), MENU_SEPARATOR_HEIGHT };
+                // A select's options have no shortcuts, and sit in compact rows like the options of a list box.
+                bool const is_select_dropdown = widget && widget->objectName() == QLatin1StringView("LadybirdSelectDropdown");
                 // NB: Qt measures the label and the shortcut column into the contents' width.
-                auto width = contents_size.width() + (2 * MENU_ROW_INSET) + MENU_SHORTCUT_GAP;
+                auto width = contents_size.width() + (2 * MENU_ROW_INSET) + (is_select_dropdown ? 0 : MENU_SHORTCUT_GAP);
                 if (menu_item_has_leading_column(*item))
                     width += MENU_ICON_SIZE + MENU_ICON_GAP;
                 if (item->menuItemType == QStyleOptionMenuItem::SubMenu)
                     width += MENU_CHEVRON_SIZE + MENU_SHORTCUT_GAP;
-                return { width, MENU_ROW_HEIGHT };
+                return { width, is_select_dropdown ? SELECT_DROPDOWN_ROW_HEIGHT : MENU_ROW_HEIGHT };
             }
         }
         return QProxyStyle::sizeFromContents(type, option, contents_size, widget);
