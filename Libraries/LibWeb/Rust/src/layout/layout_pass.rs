@@ -209,7 +209,12 @@ impl<'arena> LayoutPass<'arena> {
 
     /// Notes what the run this pass view was handed to found out for the host, or the pass outside any run.
     pub(crate) fn note_host_findings(&self, note: impl FnOnce(&mut super::run_state::HostFindings)) {
+        self.scratch.note_host_findings_noted_in_pass();
         note(&mut self.host_findings.borrow_mut());
+    }
+
+    pub(crate) fn host_findings_noted_in_pass(&self) -> u64 {
+        self.scratch.host_findings_noted_in_pass()
     }
 
     /// Hands what a finished run found out to the run this pass view was handed to, which used its result.
