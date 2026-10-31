@@ -458,6 +458,7 @@ impl_computed_payload_clone_and_eq!(AlignmentValues {
     align_self,
     align_items_is_last_baseline,
     align_self_is_last_baseline,
+    align_content_is_last_baseline,
     justify_content,
     justify_items,
     justify_self,
@@ -465,6 +466,7 @@ impl_computed_payload_clone_and_eq!(AlignmentValues {
     justify_items_overflow,
     align_self_overflow,
     justify_self_overflow,
+    align_content_overflow,
     column_gap,
     row_gap,
 });
@@ -3007,6 +3009,7 @@ impl AlignmentValues {
             align_self: align_self::AUTO,
             align_items_is_last_baseline: false,
             align_self_is_last_baseline: false,
+            align_content_is_last_baseline: false,
             justify_content: justify_content::FLEX_START,
             justify_items: justify_items::LEGACY,
             justify_self: justify_self::AUTO,
@@ -3014,6 +3017,7 @@ impl AlignmentValues {
             justify_items_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             align_self_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             justify_self_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
+            align_content_overflow: crate::css::computed_value_types::OVERFLOW_ALIGNMENT_DEFAULT,
             column_gap: ComputedGap {
                 is_normal: true,
                 value: ComputedStyleValueHandle::empty(),
@@ -3951,6 +3955,7 @@ pub(crate) fn rust_build_alignment_group(
             align_self: alignment_code(align_self, css_enums::keyword_to_align_self, false)?,
             align_items_is_last_baseline: alignment_is_last_baseline(align_items),
             align_self_is_last_baseline: alignment_is_last_baseline(align_self),
+            align_content_is_last_baseline: alignment_is_last_baseline(align_content),
             justify_content: alignment_code(justify_content, css_enums::keyword_to_justify_content, true)?,
             justify_items: alignment_code(justify_items, css_enums::keyword_to_justify_items, false)?,
             justify_self: alignment_code(justify_self, css_enums::keyword_to_justify_self, false)?,
@@ -3958,6 +3963,7 @@ pub(crate) fn rust_build_alignment_group(
             justify_items_overflow: alignment_overflow(justify_items),
             align_self_overflow: alignment_overflow(align_self),
             justify_self_overflow: alignment_overflow(justify_self),
+            align_content_overflow: alignment_overflow(align_content),
             column_gap: ComputedGap::from_data(column_gap),
             row_gap: ComputedGap::from_data(row_gap),
         };
@@ -4335,6 +4341,8 @@ pub(crate) fn copy_fieldset_content_alignment(source: &AlignmentValues, target: 
     target.flex_direction = source.flex_direction;
     target.flex_wrap = source.flex_wrap;
     target.align_content = source.align_content;
+    target.align_content_is_last_baseline = source.align_content_is_last_baseline;
+    target.align_content_overflow = source.align_content_overflow;
     target.align_items = source.align_items;
     target.align_items_is_last_baseline = source.align_items_is_last_baseline;
     target.align_items_overflow = source.align_items_overflow;

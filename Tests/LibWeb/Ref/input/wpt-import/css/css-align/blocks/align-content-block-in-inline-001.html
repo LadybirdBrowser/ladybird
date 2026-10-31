@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment: align-content center with block-in-inline</title>
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#align-block">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-align/blocks/align-content-block-in-inline-001-ref.html">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css">
+<meta name="flags" content="ahem">
+<meta name="assert" content="A block-level box inside an inline element should be
+                             vertically centered when its containing block has
+                             align-content: center.">
+<style>
+body {
+    margin: 0;
+}
+.container {
+    width: 200px;
+    height: 100px;
+    align-content: center;
+    font: 20px/1 Ahem;
+    color: green;
+    background: white;
+    outline: 1px solid gray;
+}
+</style>
+<p>Test passes if the green square is vertically centered in the gray box.</p>
+<div class="container"><span><div>X</div></span></div>

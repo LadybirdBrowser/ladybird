@@ -82,6 +82,7 @@ pub struct AlignmentValues {
     pub align_self: u8,
     pub align_items_is_last_baseline: bool,
     pub align_self_is_last_baseline: bool,
+    pub align_content_is_last_baseline: bool,
     pub justify_content: u8,
     pub justify_items: u8,
     pub justify_self: u8,
@@ -90,6 +91,7 @@ pub struct AlignmentValues {
     pub justify_items_overflow: u8,
     pub align_self_overflow: u8,
     pub justify_self_overflow: u8,
+    pub align_content_overflow: u8,
     pub column_gap: ComputedGap,
     pub row_gap: ComputedGap,
 }

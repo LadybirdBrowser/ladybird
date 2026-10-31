@@ -1317,7 +1317,7 @@ impl<'pass> NodeFacts<'pass> {
             && !self.has_fieldset_content_wrapper()
     }
 
-    fn has_fieldset_content_wrapper(&self) -> bool {
+    pub(crate) fn has_fieldset_content_wrapper(&self) -> bool {
         let data = self.data();
         if data.kind.get() != NodeKind::FieldSetBox {
             return false;

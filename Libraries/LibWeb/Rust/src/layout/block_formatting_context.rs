@@ -703,6 +703,36 @@ pub(crate) fn root_lays_out_content_against_its_own_block_size(
         || facts.is_anonymous_button_content_box()
         || facts.is_table_wrapper()
         || marker_resolves_against_list_item_block_size
+        || aligns_content_in_block_axis(&facts)
+}
+
+pub(crate) fn aligns_content_in_block_axis(facts: &NodeFacts<'_>) -> bool {
+    facts.is_block_container()
+        && !facts.has_fieldset_content_wrapper()
+        && !facts.is_table_wrapper()
+        && !facts.lays_out_in_columns()
+        && facts
+            .computed_values_view_if_styled()
+            .is_some_and(|style| style.align_content() != align_content::NORMAL && !style.display().is_table_cell())
+}
+
+pub(crate) fn content_alignment_offset(style: ComputedValuesView<'_>, free_space: CssPixels) -> CssPixels {
+    // https://drafts.csswg.org/css-align-3/#auto-safety
+    // UAs that have not implemented the “smart” default behavior must behave as safe for align-content on block
+    // containers and unsafe otherwise.
+    let free_space = if style.align_content_overflow() == OVERFLOW_ALIGNMENT_UNSAFE {
+        free_space
+    } else {
+        free_space.max(CssPixels::default())
+    };
+    // https://drafts.csswg.org/css-align-3/#distribution-block
+    // If a <content-distribution> is specified its fallback alignment is used instead.
+    match style.align_content() {
+        align_content::CENTER | align_content::SPACE_AROUND | align_content::SPACE_EVENLY => free_space / 2,
+        align_content::END | align_content::FLEX_END => free_space,
+        align_content::BASELINE if style.align_content_is_last_baseline() => free_space,
+        _ => CssPixels::default(),
+    }
 }
 
 impl<'pass> BlockFormattingContext<'pass> {
@@ -721,7 +751,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         Self {
             run: run.clone(),
             root_cells,
-            previous_line_data,
+            previous_line_data: previous_line_data
+                .filter(|_| !aligns_content_in_block_axis(&NodeFacts::new(&run.callbacks, run.box_))),
             block_offset_of_current_block_container: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
             outside_marker_line: Cell::new(None),
@@ -5489,6 +5520,14 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     pub(crate) fn automatic_content_block_size(&self) -> CssPixels {
+        self.block_size_of_contents(self.run.fragmentainer.is_none())
+    }
+
+    pub(crate) fn laid_out_content_block_size(&self) -> CssPixels {
+        self.block_size_of_contents(false)
+    }
+
+    fn block_size_of_contents(&self, honors_size_containment: bool) -> CssPixels {
         if let Some(block_size) = self.multicol_automatic_content_block_size.get() {
             return block_size;
         }
@@ -5498,7 +5537,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.run.callbacks,
             self.run.box_,
             &self.root_flow_children.borrow(),
-            self.run.fragmentainer.is_none(),
+            honors_size_containment,
             (!line_clamp_reached)
                 .then_some(self.lowest_floating_descendant_bottom_margin_edge.get())
                 .flatten(),

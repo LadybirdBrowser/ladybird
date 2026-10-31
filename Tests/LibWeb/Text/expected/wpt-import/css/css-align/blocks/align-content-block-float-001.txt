@@ -2,9 +2,8 @@ Harness status: OK
 
 Found 4 tests
 
-1 Pass
-3 Fail
+4 Pass
 Pass	.box 1: start
-Fail	.box 2: center
-Fail	.box 3: end
-Fail	.box 4: space-around
+Pass	.box 2: center
+Pass	.box 3: end
+Pass	.box 4: space-around

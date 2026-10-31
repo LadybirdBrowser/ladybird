@@ -1419,6 +1419,48 @@ impl RunFragmentBuilder {
         inner.receive_abspos_containing_block_info(contents.payloads_past_run.abspos_containing_block_info);
     }
 
+    pub(crate) fn translate_root_contents(&self, offset: FfiCssPixelPoint) {
+        let root = self.root_node;
+        let mut inner = self.inner.borrow_mut();
+        for link in inner
+            .top_scope_links
+            .iter_mut()
+            .filter(|link| link.containing_block == root)
+        {
+            link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
+        }
+        for placement in inner
+            .placed_boxes
+            .placements
+            .values_mut()
+            .filter(|placement| placement.containing_block == root)
+        {
+            placement.content_offset_in_containing_block =
+                formatting_context::point_add(placement.content_offset_in_containing_block, offset);
+        }
+        for entry in inner
+            .pending_abspos_at_root
+            .iter_mut()
+            .filter(|entry| entry.coordinate_space_box == root)
+        {
+            entry.translate_by(offset);
+        }
+        for candidate in inner
+            .anchor_candidates_at_root
+            .iter_mut()
+            .filter(|candidate| candidate.coordinate_space_box == root)
+        {
+            candidate.translate_by(offset);
+        }
+        for payload in inner
+            .inline_containing_block_rects_at_root
+            .iter_mut()
+            .filter(|payload| payload.coordinate_space_box == root)
+        {
+            payload.translate_by(offset);
+        }
+    }
+
     /// Takes in the root fragment of the run that laid out `node`, which is being placed, and what goes past that run.
     pub(crate) fn take_in_child_root_at_placement(
         &self,

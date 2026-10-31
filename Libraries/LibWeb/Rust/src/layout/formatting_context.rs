@@ -2274,6 +2274,7 @@ fn lay_out_run_root_and_contents<'pass>(
 
     let mut implementation = None;
     let mut root_lines = used_values::LineDataState::Empty;
+    let mut laid_out_content_block_size = None;
     let (mut result, own_root_after_body) = if !changes_frame
         && run.fragments.is_some()
         && matches!(
@@ -2302,6 +2303,7 @@ fn lay_out_run_root_and_contents<'pass>(
         let result_and_own_root_after_body = match &mut context_implementation {
             FormattingContextImplementation::Block(context) => {
                 context.run(body_run, body_input);
+                laid_out_content_block_size = Some(context.laid_out_content_block_size());
                 let mut result = ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
                     automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
@@ -2380,6 +2382,7 @@ fn lay_out_run_root_and_contents<'pass>(
         implementation = Some(context_implementation);
         result_and_own_root_after_body
     };
+    let baselines_in_own_frame = result.baselines;
     // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
     // If an element has an explicit intrinsic inner size in an axis, then after laying out the element as normal for
     // size containment, the size of the contents in that axis are instead treated as being the explicit intrinsic inner
@@ -2475,11 +2478,52 @@ fn lay_out_run_root_and_contents<'pass>(
     }
     let root_cells_left_by_run = root.get();
     let root_in_own_frame_left_by_run = root_cells_left_by_run.in_frame(parent_frame, own_frame);
-    let root_line_data = root_lines.finish(
-        callbacks.arena(),
-        root_in_own_frame_left_by_run.content_inline_size,
-        own_frame.writing_mode(),
-    );
+    let content_alignment_offset = FfiCssPixelPoint {
+        x: CssPixels::default(),
+        y: match laid_out_content_block_size {
+            Some(content_block_size) if block_formatting_context::aligns_content_in_block_axis(&containment_facts) => {
+                block_formatting_context::content_alignment_offset(
+                    *containment_facts.style(),
+                    root_in_own_frame_left_by_run.content_block_size - content_block_size,
+                )
+            }
+            _ => CssPixels::default(),
+        },
+    };
+    if content_alignment_offset.y != CssPixels::default() {
+        if let Some(fragments) = run.fragments.as_deref() {
+            fragments.translate_root_contents(content_alignment_offset);
+        }
+        let shift = |baseline: Option<CssPixels>| baseline.map(|baseline| baseline + content_alignment_offset.y);
+        let shifted_baselines = DerivedBaselines {
+            first: shift(baselines_in_own_frame.first),
+            last: shift(baselines_in_own_frame.last),
+            inline_alignment: shift(baselines_in_own_frame.inline_alignment),
+        };
+        if parent_frame.is_orthogonal_to(own_frame) {
+            result.orthogonal_flow_baselines = orthogonal_flow_baselines(
+                shifted_baselines,
+                root_in_own_frame_left_by_run.content_block_size,
+                parent_frame,
+                own_frame,
+            );
+        } else {
+            result.baselines = shifted_baselines;
+        }
+    }
+    let root_line_data = root_lines
+        .finish(
+            callbacks.arena(),
+            root_in_own_frame_left_by_run.content_inline_size,
+            own_frame.writing_mode(),
+        )
+        .map(|content| {
+            if content_alignment_offset.y == CssPixels::default() {
+                content
+            } else {
+                inline_content::InlineContent::concatenate_translated(&[(content, content_alignment_offset)])
+            }
+        });
     result.depends_on_percentage_block_size = run.sizing().resolve_percentage_block_size_dependency(run.box_);
     let item_run_observations_are_known = !run_is_handed_table_inline_layout_outside_its_key;
     let table_wrapper_sized_by_its_parent = is_run_of_table_wrapper_sized_by_its_parent(run, fc_type, &input);
@@ -2706,28 +2750,12 @@ fn result_in_parent_frame(
         // content-based size is used as input to the inline-axis min-content size and max-content size of the
         // parent.
         let content_inline_size = root_in_own_frame.content_inline_size;
-        // NB: The root's baselines lie across its own block axis, which is the horizontal axis of its parent's frame.
-        let block_start_is_left = matches!(
-            own_frame.side_in(geometry::Side::Top, parent_frame),
-            geometry::Side::Left
+        result.orthogonal_flow_baselines = orthogonal_flow_baselines(
+            result.baselines,
+            root_in_own_frame.content_block_size,
+            parent_frame,
+            own_frame,
         );
-        let content_block_size = root_in_own_frame.content_block_size;
-        let along_parent_horizontal_axis = |baseline: Option<CssPixels>| {
-            baseline.map(|baseline| {
-                if block_start_is_left {
-                    baseline
-                } else {
-                    content_block_size - baseline
-                }
-            })
-        };
-        let orthogonal_flow_baselines = DerivedBaselines {
-            inline_alignment: None,
-            first: along_parent_horizontal_axis(result.baselines.first),
-            last: along_parent_horizontal_axis(result.baselines.last),
-        };
-        result.orthogonal_flow_baselines =
-            (orthogonal_flow_baselines != DerivedBaselines::default()).then_some(orthogonal_flow_baselines);
         // NB: The wrapper's content inline size in its own frame is the border box inline size of its table box.
         let table_box_border_box_inline_size = result.table_wrapper_content_inline_size;
         // NB: The inline size of a table wrapper in its parent's frame is the block size of its content in its own
@@ -2744,6 +2772,34 @@ fn result_in_parent_frame(
         }
     }
     result
+}
+
+fn orthogonal_flow_baselines(
+    baselines: DerivedBaselines,
+    content_block_size: CssPixels,
+    parent_frame: geometry::Frame,
+    own_frame: geometry::Frame,
+) -> Option<DerivedBaselines> {
+    // NB: The root's baselines lie across its own block axis, which is the horizontal axis of its parent's frame.
+    let block_start_is_left = matches!(
+        own_frame.side_in(geometry::Side::Top, parent_frame),
+        geometry::Side::Left
+    );
+    let along_parent_horizontal_axis = |baseline: Option<CssPixels>| {
+        baseline.map(|baseline| {
+            if block_start_is_left {
+                baseline
+            } else {
+                content_block_size - baseline
+            }
+        })
+    };
+    let orthogonal_flow_baselines = DerivedBaselines {
+        inline_alignment: None,
+        first: along_parent_horizontal_axis(baselines.first),
+        last: along_parent_horizontal_axis(baselines.last),
+    };
+    (orthogonal_flow_baselines != DerivedBaselines::default()).then_some(orthogonal_flow_baselines)
 }
 
 fn finalize_atomic_root_block_size(

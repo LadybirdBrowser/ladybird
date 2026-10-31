@@ -407,6 +407,13 @@ impl InlineContent {
                 rect.y += offset.y;
                 (line_index + line_offset, rect)
             }));
+        if let Some(rect) = content.lines_after_clamp_point_rect.as_deref() {
+            let mut united = crate::css::css_pixels::CssPixelRect::from(*rect).translated(offset.x, offset.y);
+            if let Some(existing) = self.lines_after_clamp_point_rect.as_deref() {
+                united.unite((*existing).into());
+            }
+            self.lines_after_clamp_point_rect = Some(Box::new(united.into()));
+        }
         self.fragments
             .extend(content.fragments.iter().cloned().map(|mut fragment| {
                 fragment.line_index += line_offset;
