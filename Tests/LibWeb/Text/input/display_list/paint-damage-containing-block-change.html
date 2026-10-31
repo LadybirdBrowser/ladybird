@@ -20,9 +20,9 @@ displayListTest({
             mutate: () => { document.getElementById("parent").style.position = "relative"; },
             check: equal => { equal(document.elementFromPoint(20, 20).id, "child", "hit target"); },
             expect: `
-                damage: rows=5 moved=2 order=4 eligibility=0 all=false
+                damage: rows=5 moved=2 order=5 eligibility=0 all=false
                 @canvas RECORD (empty)
-                @viewport ASSEMBLE
+                @viewport REPLAN
                   @viewport/preamble COPY
                   @viewport/background/hit-test COPY
                   @viewport/scroll-metadata COPY

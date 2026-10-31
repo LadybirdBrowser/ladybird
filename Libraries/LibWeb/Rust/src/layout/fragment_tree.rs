@@ -411,6 +411,18 @@ fn propagate_payload_toward_run_root_space<Payload: PropagatedPayload>(
     }
 }
 
+fn sort_in_tree_order(entries: &mut [abspos_inputs::PendingAbsposChild], callbacks: &LayoutPass<'_>) {
+    entries.sort_by(|left, right| {
+        if left.child_box == right.child_box {
+            std::cmp::Ordering::Equal
+        } else if callbacks.is_before(left.child_box, right.child_box) {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+}
+
 /// The sizes and box sides of a box, in the frame `frame`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct CellsInFrame {
@@ -1274,15 +1286,38 @@ impl RunFragmentBuilder {
                     .extract_if(.., |entry| containing_block_is_owned_and_placed(entry)),
             );
         }
-        taken.sort_by(|left, right| {
-            if left.child_box == right.child_box {
-                std::cmp::Ordering::Equal
-            } else if callbacks.is_before(left.child_box, right.child_box) {
-                std::cmp::Ordering::Less
-            } else {
-                std::cmp::Ordering::Greater
-            }
-        });
+        sort_in_tree_order(&mut taken, callbacks);
+        taken
+    }
+
+    /// Keeps the sizes and box sides of the run's root, in the frame its contents are laid out in, for the absolutely
+    /// positioned boxes the run lays out against the root at its end.
+    pub(crate) fn keep_root_cells_for_contained_abspos(&self, cells: CellsInFrame) {
+        debug_assert!(
+            !self.is_entry_accumulator,
+            "an entry accumulator has no root of its own"
+        );
+        self.inner
+            .borrow_mut()
+            .placed_boxes
+            .cells_of_abspos_containing_blocks
+            .insert(self.root_node.slot_index(), cells);
+    }
+
+    /// Takes the absolutely positioned boxes whose containing block is the run's root and whose positions the run
+    /// knows, in tree order. Those inside a child the run left unplaced stay for the run's parent.
+    pub(crate) fn take_abspos_contained_by_root(
+        &self,
+        callbacks: &LayoutPass<'_>,
+    ) -> Vec<abspos_inputs::PendingAbsposChild> {
+        let root = self.root_node;
+        let mut taken: Vec<abspos_inputs::PendingAbsposChild> = self
+            .inner
+            .borrow_mut()
+            .pending_abspos_at_root
+            .extract_if(.., |entry| entry.containing_block() == root)
+            .collect();
+        sort_in_tree_order(&mut taken, callbacks);
         taken
     }
 
