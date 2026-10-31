@@ -60,7 +60,9 @@ pub(super) fn layout_replaced_with_children(
         },
         None,
     );
-    let wrapper_result = wrapper_outcome.result;
+    let formatting_context::ChildLayoutOutcome::Created(wrapper_result) = wrapper_outcome.outcome else {
+        unreachable!("a run creates its root's result");
+    };
     formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
         run.state,
         &run.callbacks,

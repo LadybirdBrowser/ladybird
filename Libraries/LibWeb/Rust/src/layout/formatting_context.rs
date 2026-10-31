@@ -123,11 +123,10 @@ pub(crate) fn run_root_without_parent_fragments(
     );
     let fc_type = independent_formatting_context_type(node, &callbacks);
     let root_containing_block = callbacks.containing_block_for_child_run(node, &input.participation);
-    let ChildRunOutcome {
-        result,
+    let ChildLayout {
+        outcome: ChildLayoutOutcome::Created(result),
         laid_out_box,
         fragment_arrival,
-        ..
     } = run_formatting_context(
         None,
         root_cells,
@@ -139,7 +138,10 @@ pub(crate) fn run_root_without_parent_fragments(
         callbacks,
         input,
         None,
-    );
+    )
+    else {
+        unreachable!("a run creates its root's result");
+    };
     debug_assert!(
         fragment_arrival.is_none(),
         "a run without parent fragments hands its placement nothing"
@@ -1923,22 +1925,6 @@ fn body_input_with_inner_available_space(root: &impl BoxMetricCells, input: &Lay
     body_input
 }
 
-/// What a child's run gives its parent: its result, the box as the parent keeps it, and the fragments its placement
-/// takes where the parent builds fragments.
-#[must_use]
-pub(crate) struct ChildRunOutcome {
-    pub(crate) result: ChildLayoutResult,
-    pub(crate) laid_out_box: run_state::LaidOutChildBox,
-    pub(crate) fragment_arrival: Option<fragment_tree::RunRootFragment>,
-}
-
-impl ChildRunOutcome {
-    /// What placing the child takes of the box its run handed back.
-    pub(crate) fn placed_child(&self) -> PlacedChild {
-        PlacedChild::of_laid_out_box(&self.laid_out_box)
-    }
-}
-
 #[expect(clippy::too_many_arguments)]
 /// Runs the formatting context of `box_` with the input cells `root_cells` its parent sized it in.
 pub(super) fn run_formatting_context(
@@ -1952,7 +1938,7 @@ pub(super) fn run_formatting_context(
     callbacks: LayoutPass<'_>,
     input: LayoutInput,
     table_inline_layout: Option<table_formatting_context::TableInlineLayout>,
-) -> ChildRunOutcome {
+) -> ChildLayout {
     let builds_fragments = run_builds_fragments(&input, parent_fragments.is_some());
     assert!(
         parent_fragments.is_none() || builds_fragments,
@@ -1973,7 +1959,7 @@ pub(super) fn run_formatting_context(
             table_inline_layout,
             None,
         );
-        return child_run_outcome_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false);
+        return child_layout_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false);
     }
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -2000,15 +1986,7 @@ pub(super) fn run_formatting_context(
             } else {
                 hit.entry.outputs_without_fragments()
             };
-            return child_run_outcome_from_outputs(
-                &callbacks,
-                parent_fragments,
-                box_,
-                &input,
-                root_cells,
-                outputs,
-                true,
-            );
+            return child_layout_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, true);
         }
     };
     let _trace = callbacks
@@ -2074,7 +2052,7 @@ pub(super) fn run_formatting_context(
         );
     }
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
-    child_run_outcome_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false)
+    child_layout_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false)
 }
 
 fn keep_inline_margins_resolved_now_where_unobserved(
@@ -2815,8 +2793,9 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
     state.note_descendant_depends_on_percentage_block_size(box_resolving_the_dependency);
 }
 
-/// The layout of a child: its outcome, the fragments its placement takes, and the child's box as its layout left it,
-/// unless the parent lays out the child's contents itself.
+/// The layout of a child: its outcome, the root fragment its placement takes, and the child's box as its layout left
+/// it, unless the parent lays out the child's contents itself.
+#[must_use]
 pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
     pub(crate) fragment_arrival: Option<fragment_tree::RunRootFragment>,
@@ -2824,6 +2803,11 @@ pub(crate) struct ChildLayout {
 }
 
 impl ChildLayout {
+    /// What placing the child takes of the box its layout handed back.
+    pub(crate) fn placed_child(&self) -> PlacedChild {
+        PlacedChild::of_laid_out_box(&self.laid_out_box)
+    }
+
     fn of_child_sized_in_parent_run(outcome: ChildLayoutOutcome, cells: used_values::RootInputCells) -> Self {
         Self {
             outcome,
@@ -2906,7 +2890,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         force_independent_context_run,
         percentage_block_insets_of_containing_block_have_definite_basis,
     );
-    let child_run_outcome = run_formatting_context(
+    run_formatting_context(
         run.fragments.as_deref(),
         child_input_cells,
         child,
@@ -2919,17 +2903,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         parent_block
             .and_then(|block| block.take_table_inline_layout_of(child))
             .or_else(|| parent_grid.and_then(|grid| grid.take_table_inline_layout_of(child))),
-    );
-    let ChildRunOutcome {
-        result,
-        laid_out_box,
-        fragment_arrival,
-    } = child_run_outcome;
-    ChildLayout {
-        outcome: ChildLayoutOutcome::Created(result),
-        fragment_arrival,
-        laid_out_box,
-    }
+    )
 }
 
 /// Hands what the layout of a child handed its placement to the run's fragment builder, where the child is laid out
@@ -3290,7 +3264,7 @@ pub(super) fn content_block_size_adopted_after_run(
         .then_some(automatic_content_block_size))
 }
 
-fn child_run_outcome_from_outputs(
+fn child_layout_from_outputs(
     callbacks: &LayoutPass<'_>,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
     child: Node,
@@ -3298,7 +3272,7 @@ fn child_run_outcome_from_outputs(
     root_cells: used_values::RootInputCells,
     outputs: RunOutputs,
     outputs_are_stored_ones: bool,
-) -> ChildRunOutcome {
+) -> ChildLayout {
     let RunOutputs {
         result,
         root,
@@ -3327,8 +3301,8 @@ fn child_run_outcome_from_outputs(
         }
         root
     });
-    ChildRunOutcome {
-        result,
+    ChildLayout {
+        outcome: ChildLayoutOutcome::Created(result),
         laid_out_box,
         fragment_arrival,
     }
@@ -3742,7 +3716,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         input,
         None,
     );
-    let ChildRunOutcome {
+    let ChildLayout {
         laid_out_box: root_box,
         fragment_arrival,
         ..
