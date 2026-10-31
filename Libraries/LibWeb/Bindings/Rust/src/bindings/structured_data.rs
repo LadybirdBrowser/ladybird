@@ -39,16 +39,9 @@ use crate::html::structured_serialize::{
 };
 
 unsafe extern "C" {
-    fn web_bindings_transfer_data_encode_bool(data_holder: *mut c_void, value: bool) -> RawNativeFunctionResult;
-    fn web_bindings_transfer_data_encode_records(
-        data_holder: *mut c_void,
-        records: *const *mut c_void,
-        count: usize,
-    ) -> RawNativeFunctionResult;
-    fn web_bindings_transfer_data_encode_transport_handle(
-        data_holder: *mut c_void,
-        handle: *mut c_void,
-    ) -> RawNativeFunctionResult;
+    fn web_bindings_transfer_data_encode_bool(data_holder: *mut c_void, value: bool);
+    fn web_bindings_transfer_data_encode_records(data_holder: *mut c_void, records: *const *mut c_void, count: usize);
+    fn web_bindings_transfer_data_encode_transport_handle(data_holder: *mut c_void, handle: *mut c_void);
     fn web_bindings_transfer_data_extend(data_holder: *mut c_void, record: *mut c_void);
     fn web_bindings_transfer_data_decode_bool(
         data_holder: *mut c_void,
@@ -249,7 +242,7 @@ pub(crate) trait Serializable: Interface {
 }
 
 /// The data holder of a transferred object, which its transfer steps write to: a Web::Bindings::RustTransferDataWriter
-/// that C++ lends for the steps. What the steps write that cannot be encoded throws a "DataCloneError" DOMException.
+/// that C++ lends for the steps.
 pub(crate) struct TransferDataWriter<'a> {
     raw: NonNull<c_void>,
     _lent: PhantomData<&'a mut c_void>,
@@ -261,27 +254,22 @@ impl TransferDataWriter<'_> {
         self.raw.as_ptr()
     }
 
-    pub(crate) fn write_bool(&mut self, value: bool) -> WebIdlResult<()> {
+    pub(crate) fn write_bool(&mut self, value: bool) {
         // SAFETY: The data holder is lent for the steps.
-        unsafe { web_bindings_transfer_data_encode_bool(self.raw.as_ptr(), value) }.into_completion()?;
-        Ok(())
+        unsafe { web_bindings_transfer_data_encode_bool(self.raw.as_ptr(), value) };
     }
 
     /// Writes the records of structured serializations with transfer, as a list.
-    pub(crate) fn write_records(&mut self, records: &[OwnedSerializedTransferRecord]) -> WebIdlResult<()> {
+    pub(crate) fn write_records(&mut self, records: &[OwnedSerializedTransferRecord]) {
         let records: Vec<*mut c_void> = records.iter().map(|record| record.record().as_raw()).collect();
         // SAFETY: The data holder is lent for the steps, and the call borrows the records.
-        unsafe { web_bindings_transfer_data_encode_records(self.raw.as_ptr(), records.as_ptr(), records.len()) }
-            .into_completion()?;
-        Ok(())
+        unsafe { web_bindings_transfer_data_encode_records(self.raw.as_ptr(), records.as_ptr(), records.len()) };
     }
 
     /// Writes the handle of one end of an IPC transport, whose rights the data holder takes.
-    pub(crate) fn write_transport_handle(&mut self, handle: TransportHandle) -> WebIdlResult<()> {
+    pub(crate) fn write_transport_handle(&mut self, handle: TransportHandle) {
         // SAFETY: The data holder is lent for the steps, and the call borrows the handle.
-        unsafe { web_bindings_transfer_data_encode_transport_handle(self.raw.as_ptr(), handle.as_raw()) }
-            .into_completion()?;
-        Ok(())
+        unsafe { web_bindings_transfer_data_encode_transport_handle(self.raw.as_ptr(), handle.as_raw()) };
     }
 
     /// Writes ! StructuredSerializeWithTransfer(value, « value ») as the data holder of value, which is all that the
