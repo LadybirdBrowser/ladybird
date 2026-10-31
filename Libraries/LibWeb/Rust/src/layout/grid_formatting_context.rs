@@ -2256,6 +2256,9 @@ impl<'pass> GridFormattingContext<'pass> {
         // The auto-fit keyword behaves the same as auto-fill, except that after grid item placement any
         // empty repeated tracks are collapsed. An empty track is one with no in-flow grid items placed into
         // or spanning across it. (This can result in all tracks being collapsed, if they’re all empty.)
+        if !self.axis_tracks(axis).iter().any(|track| track.is_auto_fit) {
+            return;
+        }
         let occupied = |track_index: usize, items: &[GridItem]| {
             items.iter().any(|item| {
                 let start = item.position(axis).max(0) as usize;
@@ -2268,12 +2271,12 @@ impl<'pass> GridFormattingContext<'pass> {
             .then(|| self.grid_lanes_occupied_tracks(axis));
         let items = &self.items;
         let tracks = axis.select(&mut self.columns, &mut self.rows);
-        for (index, track) in tracks.iter_mut().enumerate() {
+        for (index, track) in tracks.iter_mut().enumerate().filter(|(_, track)| track.is_auto_fit) {
             let is_occupied = match &grid_lanes_occupied_tracks {
                 Some(occupied_tracks) => occupied_tracks[index],
                 None => occupied(index, items),
             };
-            if track.is_auto_fit && !is_occupied {
+            if !is_occupied {
                 // A collapsed grid track is treated as having a fixed track sizing function of 0px, and the gutters on
                 // either side of it--including any space allotted through distributed alignment--collapse.
                 // NB: The gutter collapsing is handled by initialize_gap_tracks(), which runs after this.
