@@ -23,8 +23,8 @@ use crate::runtime::abstract_operations::{
 };
 use crate::runtime::array::Array;
 use crate::runtime::array_buffer::{
-    ArrayBuffer, ElementType, INVALID_DATA_OFFSET, Order, ReadWriteModifyOperation, allocate_array_buffer,
-    array_buffer_byte_length, clone_array_buffer, f64_to_binary16_bits,
+    ArrayBuffer, ElementType, INVALID_DATA_OFFSET, MAX_ARRAY_BUFFER_BYTE_LENGTH, Order, ReadWriteModifyOperation,
+    allocate_array_buffer, array_buffer_byte_length, clone_array_buffer, f64_to_binary16_bits,
 };
 use crate::runtime::array_iterator::packed_array_iteration_is_unobservable;
 use crate::runtime::byte_length::{ByteLength, ByteLengthSlot};
@@ -1041,11 +1041,12 @@ pub fn typed_array_from(vm: &Vm, typed_array_value: Value) -> ThrowCompletionOr<
         .expect("an object with the typed array flag is a typed array"))
 }
 
+/// Whether a typed array of `array_length` elements of `element_size` fits in the largest buffer.
 pub fn validate_typed_array_length(vm: &Vm, array_length: usize, element_size: usize) -> ThrowCompletionOr<()> {
-    if array_length > i32::MAX as usize / element_size {
-        return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
-    }
-    if array_length.checked_mul(element_size).is_none() {
+    if array_length
+        .checked_mul(element_size)
+        .is_none_or(|byte_length| byte_length > MAX_ARRAY_BUFFER_BYTE_LENGTH)
+    {
         return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
     }
     Ok(())
@@ -1158,7 +1159,6 @@ pub fn initialize_typed_array_from_array_buffer(
         }
 
         let new_array_length = new_byte_length / element_size;
-        validate_typed_array_length(vm, new_array_length, element_size)?;
 
         // c. Set O.[[ByteLength]] to newByteLength.
         typed_array.set_byte_length(ByteLength::Length(new_byte_length));
@@ -1305,18 +1305,11 @@ fn initialize_typed_array_from_typed_array(
 fn allocate_typed_array_buffer(vm: &Vm, typed_array: &TypedArrayBase, length: usize) -> ThrowCompletionOr<()> {
     let realm = vm.current_realm().expect("a typed array is initialized in a realm");
 
-    // Enforce 2GB "Excessive Length" limit
-    if length > i32::MAX as usize / typed_array.kind().element_type().size() {
-        return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
-    }
-
     // 1. Assert: O.[[ViewedArrayBuffer]] is undefined.
 
     // 2. Let elementSize be TypedArrayElementSize(O).
     let element_size = typed_array.element_size();
-    if element_size.checked_mul(length).is_none() {
-        return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
-    }
+    validate_typed_array_length(vm, length, element_size)?;
 
     // 3. Let byteLength be elementSize × length.
     let byte_length = element_size * length;

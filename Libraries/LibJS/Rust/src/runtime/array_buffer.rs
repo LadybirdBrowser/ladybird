@@ -914,6 +914,9 @@ impl ArrayBuffer {
         byte_length: usize,
         is_shared: Shared,
     ) -> ThrowCompletionOr<Gc<ArrayBuffer>> {
+        if exceeds_max_array_buffer_byte_length(byte_length, None) {
+            return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"array buffer"]);
+        }
         let Ok(buffer) = allocate_or_retry_after_gc(vm.heap(), || OwnedBackingStore::create_zeroed(byte_length)) else {
             return vm.throw_completion(
                 ErrorKind::RangeError,
@@ -951,6 +954,9 @@ impl ArrayBuffer {
         is_shared: Shared,
         write: impl FnOnce(&mut [MaybeUninit<u8>]) -> usize,
     ) -> ThrowCompletionOr<Gc<ArrayBuffer>> {
+        if exceeds_max_array_buffer_byte_length(byte_length, None) {
+            return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"array buffer"]);
+        }
         let Ok(buffer) = allocate_or_retry_after_gc(vm.heap(), || OwnedBackingStore::create_uninitialized(byte_length))
         else {
             return vm.throw_completion(
@@ -1550,6 +1556,14 @@ impl ArrayBuffer {
     }
 }
 
+/// The largest byte length of a buffer. Every byte of a buffer this long can be indexed by a Uint8Array, whose element
+/// indices are u32s.
+pub const MAX_ARRAY_BUFFER_BYTE_LENGTH: usize = 1 << 32;
+
+fn exceeds_max_array_buffer_byte_length(size: usize, capacity: Option<usize>) -> bool {
+    capacity.unwrap_or(size).max(size) > MAX_ARRAY_BUFFER_BYTE_LENGTH
+}
+
 // 6.2.9.1 CreateByteDataBlock ( size ), https://tc39.es/ecma262/#sec-createbytedatablock
 pub fn create_byte_data_block(vm: &Vm, size: usize, capacity: Option<usize>) -> ThrowCompletionOr<DataBlock> {
     // 1. If size > 2^53 - 1, throw a RangeError exception.
@@ -1559,6 +1573,11 @@ pub fn create_byte_data_block(vm: &Vm, size: usize, capacity: Option<usize>) -> 
     if let Some(capacity) = capacity
         && capacity as f64 > MAX_ARRAY_LIKE_INDEX
     {
+        return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"array buffer"]);
+    }
+
+    // AD-HOC: See MAX_ARRAY_BUFFER_BYTE_LENGTH.
+    if exceeds_max_array_buffer_byte_length(size, capacity) {
         return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"array buffer"]);
     }
 
@@ -1583,6 +1602,15 @@ pub fn create_byte_data_block(vm: &Vm, size: usize, capacity: Option<usize>) -> 
 // FIXME: The returned DataBlock is not shared in the sense that the standard specifies it.
 // 6.2.9.2 CreateSharedByteDataBlock ( size ), https://tc39.es/ecma262/#sec-createsharedbytedatablock
 fn create_shared_byte_data_block(vm: &Vm, size: usize, capacity: Option<usize>) -> ThrowCompletionOr<DataBlock> {
+    // AD-HOC: See MAX_ARRAY_BUFFER_BYTE_LENGTH.
+    if exceeds_max_array_buffer_byte_length(size, capacity) {
+        return vm.throw_completion(
+            ErrorKind::RangeError,
+            ErrorType::InvalidLength,
+            &[&"shared array buffer"],
+        );
+    }
+
     let capacity = capacity.unwrap_or(size);
 
     // AD-HOC: A fixed-length shared Data Block is backed by cross-process shared memory (Core::AnonymousBuffer) — so

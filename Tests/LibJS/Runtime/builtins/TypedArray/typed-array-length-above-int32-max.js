@@ -1,13 +1,10 @@
-// Only a length-tracking view can be this long, since fixed-length views are capped at INT32_MAX bytes.
 const length = 0x80000001;
 const typedArray = new Uint8Array(new ArrayBuffer(length, { maxByteLength: length }));
 typedArray[length - 2] = 11;
 typedArray[length - 1] = 22;
 
-test("copying into a fixed-length view", () => {
-    [Uint8Array, Float64Array].forEach(T => {
-        expect(() => new T(typedArray)).toThrowWithMessage(RangeError, "Invalid typed array length");
-    });
+test("copying into a view longer than the largest buffer", () => {
+    expect(() => new Float64Array(typedArray)).toThrowWithMessage(RangeError, "Invalid typed array length");
 });
 
 test("find, findIndex, findLast and findLastIndex", () => {
