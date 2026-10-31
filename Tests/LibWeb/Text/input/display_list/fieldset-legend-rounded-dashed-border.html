@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    fieldset {
+        border: 3px dashed blue;
+        border-radius: 12px;
+        width: 200px;
+    }
+</style>
+<fieldset><legend>Legend</legend>Content</fieldset>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

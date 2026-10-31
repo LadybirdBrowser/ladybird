@@ -61,22 +61,16 @@ pub(crate) fn visual_border_box_rect(arena: &impl PaintRead, fieldset: NodeSlotI
     rect
 }
 
-pub(crate) struct FieldsetBordersData {
-    pub without_top: BordersDataDevicePixels,
-    pub top_only: BordersDataDevicePixels,
-}
-
 pub(crate) fn fieldset_borders_data(
     style: ComputedValuesView<'_>,
     converter: &DevicePixelConverter,
-) -> FieldsetBordersData {
+) -> BordersDataDevicePixels {
     let side = |color: u32, line_style: u8, width: CssPixels| BorderDataDevicePixels {
         color: Color(color),
         line_style,
         width: converter.enclosing_device_pixels(width),
     };
-    let none = BorderDataDevicePixels::default();
-    let all = BordersDataDevicePixels {
+    BordersDataDevicePixels {
         force_dark_role: ForceDarkRole::Border,
         top: side(
             style.border_top_color(),
@@ -98,15 +92,6 @@ pub(crate) fn fieldset_borders_data(
             style.border_left_style(),
             style.border_left_width(),
         ),
-    };
-    FieldsetBordersData {
-        without_top: BordersDataDevicePixels { top: none, ..all },
-        top_only: BordersDataDevicePixels {
-            right: none,
-            bottom: none,
-            left: none,
-            ..all
-        },
     }
 }
 
@@ -132,21 +117,11 @@ pub(crate) fn paint_border<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fie
     let device_border_rect = converter.rounded_device_rect(visual_border_box_rect(recorder.source, fieldset));
     let corners = recorder.border_radii(fieldset).as_corners(&converter);
     let borders = fieldset_borders_data(style, &converter);
-    paint_all_borders(
-        &mut recorder.recorder,
-        device_border_rect,
-        corners,
-        &borders.without_top,
-    );
 
     // The top border is not expected to be painted behind the border box of the legend.
+    // NB: The cutout only covers the top border band, so all the borders are painted together and their corners join
+    //     as they would without a legend.
     let top_border = converter.enclosing_device_pixels(css_border_top_width(recorder.source, fieldset));
-    let top_border_band = IntRect::new(
-        device_border_rect.x,
-        device_border_rect.y,
-        device_border_rect.width,
-        top_border,
-    );
     let legend_border_rect = converter.rounded_device_rect(absolute_border_box_rect(recorder.source, legend));
     let legend_cutout = IntRect::new(
         legend_border_rect.x,
@@ -154,11 +129,8 @@ pub(crate) fn paint_border<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fie
         legend_border_rect.width,
         top_border,
     );
-    let top_border_inline_clips = [
-        PendingInlineClip::intersecting_float_rect(top_border_band.to_float()),
-        PendingInlineClip::subtracting_rect(legend_cutout.to_float()),
-    ];
-    recorder.record_with_inline_clips(&top_border_inline_clips, |recorder| {
-        paint_all_borders(&mut recorder.recorder, device_border_rect, corners, &borders.top_only);
+    let legend_cutout_clip = [PendingInlineClip::subtracting_rect(legend_cutout.to_float())];
+    recorder.record_with_inline_clips(&legend_cutout_clip, |recorder| {
+        paint_all_borders(&mut recorder.recorder, device_border_rect, corners, &borders);
     });
 }
