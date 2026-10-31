@@ -7,7 +7,5 @@ document
     text leaf name="
 "
      name="Password field" value="●●●●●●●●●●●●●" editable password
-    text leaf name="
-"
     textbox name="Notes" value="note text" editable multiline
       text leaf name="note text"
