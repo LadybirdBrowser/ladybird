@@ -37,6 +37,7 @@ private:
     virtual void handle_message(Message const&) override;
 
     FrameActor& create_frame_target();
+    void start_sending_console_output(bool messages, bool errors);
     void send_frame_target_available_message(FrameActor&);
     void send_frame_target_destroyed_message(FrameActor&);
     BlackboxingActor& blackboxing_actor();
@@ -73,6 +74,8 @@ private:
     bool m_is_watching_indexed_db_resources { false };
     bool m_is_watching_local_storage_resources { false };
     bool m_is_watching_session_storage_resources { false };
+    bool m_is_watching_console_messages { false };
+    bool m_is_watching_console_errors { false };
     bool m_is_watching_source_resources { false };
     bool m_is_watching_thread_state_resources { false };
     bool m_debugger_is_attached { false };

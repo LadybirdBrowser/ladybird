@@ -32,6 +32,7 @@ public:
     JsonObject serialize_source(Web::HTML::ScriptRegistryDescription const&);
     JsonArray serialize_sources(Vector<Web::HTML::ScriptRegistryDescription> const&);
     JsonValue serialize_debugger_value(WebView::DebuggerValue const&, WebView::DebuggerObjectScope = WebView::DebuggerObjectScope::Pause);
+    JsonValue resolve_object_references(JsonValue const&, WebView::DebuggerObjectScope);
     Optional<u64> frame_id_for_actor(StringView actor) const;
     void get_frame_environment(DebuggerFrameActor&, Actor::Message const&, u64 frame_id);
     void get_object_properties(ObjectActor&, Actor::Message const&, ObjectPropertiesRequest, Optional<String> property_name = {});
@@ -50,7 +51,6 @@ private:
     void prune_source_actors(Vector<Web::HTML::ScriptRegistryDescription> const&);
     SourceActor& source_actor_for(Web::HTML::ScriptRegistryDescription const&);
     ObjectActor& object_actor_for(u64 object_id, String const& class_name, WebView::DebuggerObjectScope);
-    JsonValue resolve_object_references(JsonValue const&, WebView::DebuggerObjectScope);
     void track_actor(Actor&, WebView::DebuggerObjectScope);
     JsonObject serialize_environment_chain(Vector<WebView::DebuggerEnvironment>);
     JsonObject serialize_property_descriptor(WebView::DebuggerProperty const&, WebView::DebuggerObjectScope);

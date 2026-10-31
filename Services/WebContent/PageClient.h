@@ -120,6 +120,9 @@ public:
     void set_has_devtools_client(bool);
     bool has_devtools_client() const { return m_has_devtools_client; }
     virtual bool has_active_devtools_client() const override { return has_devtools_client(); }
+    void start_sending_console_output(bool messages, bool errors);
+    bool devtools_takes_console_messages() const { return m_devtools_takes_console_messages; }
+    bool devtools_takes_console_errors() const { return m_devtools_takes_console_errors; }
 
     void initialize_js_console(Web::DOM::Document& document);
     void js_console_input(StringView js_source);
@@ -469,6 +472,8 @@ private:
     Optional<i64> m_pending_accessibility_focus;
 
     bool m_has_devtools_client { false };
+    bool m_devtools_takes_console_messages { false };
+    bool m_devtools_takes_console_errors { false };
 };
 
 }

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const log = (...values) => JSON.parse(internals.devtoolsLog(values));
+        const kept = grip => internals.devtoolsLoggedProperties(grip.objectId);
+
+        // Object IDs depend on the run, so they're shown as whether they're there.
+        const [first, ...rest] = log({ answer: 42 }, "text", 1, undefined);
+        println(`first object: class ${first.class}, has an object ID: ${typeof first.objectId === "number"}`);
+        println(`other arguments: ${JSON.stringify(rest)}`);
+        println(`first message kept: ${kept(first)}`);
+
+        // The first 500 messages share a table, and the next 500 share another.
+        let lastOfFirstTable, firstOfSecondTable;
+        for (let message = 2; message <= 1000; ++message) {
+            const [grip] = log({ message });
+            if (message === 500)
+                lastOfFirstTable = grip;
+            if (message === 501)
+                firstOfSecondTable = grip;
+        }
+        println(`after 1000 messages, first message kept: ${kept(first)}`);
+
+        // The 1001st message starts a new table, so the first table's messages are dropped.
+        log({ message: 1001 });
+        println(`after 1001 messages, first message kept: ${kept(first)}`);
+        println(`message 500 kept: ${kept(lastOfFirstTable)}`);
+        println(`message 501 kept: ${kept(firstOfSecondTable)}`);
+    });
+</script>

@@ -118,6 +118,7 @@ class DevToolsClient:
         watcher = self.receive_matching(lambda packet: packet.get("from") == tab and "actor" in packet)["actor"]
         self.send({"to": watcher, "type": "watchTargets", "targetType": "frame"})
         self.follow_frame_target()
+        return watcher
 
     def follow_frame_target(self):
         self.receive_matching(lambda packet: packet.get("type") == "target-available-form")

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Object IDs depend on the run, so they're dropped.
+        const show = (label, tableData) =>
+            println(`${label}: ${internals.devtoolsLogTable(tableData).replace(/,?"objectId":\d+/g, "")}`);
+
+        // The rows and columns that console.table() makes of its data, which a client gets as one grip per row.
+        show("rows", {
+            rows: [
+                { "(index)": 0, name: "a", size: 1 },
+                { "(index)": 1, name: "b", nested: { x: 1 } },
+            ],
+            columns: ["(index)", "name", "size", "nested"],
+        });
+        show("keyed rows", { rows: [{ "(index)": "first", Value: 5 }], columns: ["(index)", "Value"] });
+
+        // A client shows at most 1000 rows, so no more are sent.
+        const rows = Array.from({ length: 1001 }, (_, i) => ({ "(index)": i, Value: i }));
+        const grip = JSON.parse(internals.devtoolsLogTable({ rows, columns: ["(index)", "Value"] }))[0];
+        println(`rows sent of 1001: ${Object.keys(grip.ownProperties).length}`);
+    });
+</script>

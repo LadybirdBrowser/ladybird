@@ -1385,6 +1385,7 @@ public:
             navigation_listeners.take_first();
     }
 
+    virtual void start_sending_console_output(DevTools::TabDescription const&, bool messages, bool errors) const override { console_output_requests.append({ messages, errors }); }
     virtual void listen_for_inspect_element_requests(DevTools::TabDescription const&, OnInspectElementRequest callback) const override { on_inspect_element_request = move(callback); }
     virtual void stop_listening_for_inspect_element_requests(DevTools::TabDescription const&) const override { on_inspect_element_request = nullptr; }
     virtual void did_connect_devtools_client(DevTools::TabDescription const&) const override { ++did_connect_devtools_client_call_count; }
@@ -1447,6 +1448,12 @@ public:
                 .stacktrace = {},
             },
         });
+    }
+
+    void emit_console_group_end() const
+    {
+        VERIFY(on_console_message);
+        on_console_message({ UnixDateTime::from_seconds_since_epoch(13), WebView::ConsoleGroupEnd {} });
     }
 
     void emit_console_trace() const
@@ -1739,6 +1746,7 @@ public:
     mutable size_t listen_for_navigation_events_call_count { 0 };
     mutable size_t stop_listening_for_navigation_events_call_count { 0 };
     mutable size_t did_connect_devtools_client_call_count { 0 };
+    mutable Vector<Array<bool, 2>> console_output_requests;
     mutable size_t did_disconnect_devtools_client_call_count { 0 };
     mutable size_t navigate_tab_call_count { 0 };
     mutable size_t reload_tab_call_count { 0 };
@@ -4715,6 +4723,102 @@ TEST_CASE(console_evaluation_result_object_grips)
     EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 8u);
     EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
     EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
+}
+
+TEST_CASE(console_log_object_grips)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+
+    // WebContent names a logged object by ID; the server makes it an object actor.
+    auto logged_object = MUST(JsonValue::from_string(R"~~~({"type":"object","objectId":9,"class":"Object",
+        "preview":{"kind":"Object","ownProperties":{"answer":42},"ownPropertiesLength":1}})~~~"sv));
+    session->delegate.emit_console_log(JS::ConsoleLogLevel::Log, { "label"_string, move(logged_object) });
+    auto arguments = read_resource(client, "console-message"sv).get_array("arguments"sv).release_value();
+    EXPECT_EQ(arguments.at(0).as_string(), "label"sv);
+    auto grip = arguments.at(1).as_object();
+    EXPECT_EQ(grip.get_string("class"sv).value(), "Object"sv);
+    EXPECT(!grip.has("objectId"sv));
+    EXPECT_EQ(grip.get_object("preview"sv)->get_object("ownProperties"sv)->get_integer<u32>("answer"sv).value(), 42u);
+
+    // Expanding a logged object asks for the properties of the console's object, not the debugger's.
+    auto properties = client.request(actor_from(grip, "actor"sv), "prototypeAndProperties"sv);
+    EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 9u);
+    EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
+    EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
+}
+
+TEST_CASE(console_output_is_requested_when_watched)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    auto watch = [&](StringView resource_type) {
+        JsonObject watch_resources;
+        watch_resources.set("to"sv, watcher_actor);
+        watch_resources.set("type"sv, "watchResources"sv);
+        JsonArray resource_types;
+        resource_types.must_append(resource_type);
+        watch_resources.set("resourceTypes"sv, move(resource_types));
+        (void)client.request(move(watch_resources));
+    };
+
+    // Nothing listens for the page's output before there's a frame target, so the request waits for one.
+    watch("error-message"sv);
+    EXPECT(session->delegate.console_output_requests.is_empty());
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    client.send(move(watch_targets));
+    (void)read_packet_with_type(client, "target-available-form"sv);
+    EXPECT_EQ(session->delegate.console_output_requests.size(), 1u);
+    EXPECT_EQ(session->delegate.console_output_requests[0], (Array { false, true }));
+
+    // Watching messages later asks for those the page output before, which watching errors alone left out.
+    watch("console-message"sv);
+    EXPECT_EQ(session->delegate.console_output_requests.size(), 2u);
+    EXPECT_EQ(session->delegate.console_output_requests[1], (Array { true, false }));
+
+    watch("console-message"sv);
+    EXPECT_EQ(session->delegate.console_output_requests.size(), 2u);
+}
+
+TEST_CASE(console_message_levels)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+
+    // Every console method reaches the client as a level it knows. The console formats counts and times itself.
+    auto level_of = [&](JS::ConsoleLogLevel level) {
+        session->delegate.emit_console_log(level, { "text"_string });
+        return read_resource(client, "console-message"sv).get_string("level"sv).release_value();
+    };
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Assert), "error"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Count), "log"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::CountReset), "warn"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Dir), "dir"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::DirXML), "dirxml"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Group), "group"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::GroupCollapsed), "groupCollapsed"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Table), "table"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::TimeEnd), "log"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::TimeLog), "log"sv);
+
+    session->delegate.emit_console_group_end();
+    auto group_end = read_resource(client, "console-message"sv);
+    EXPECT_EQ(group_end.get_string("level"sv).value(), "groupEnd"sv);
+    EXPECT(group_end.get_array("arguments"sv)->is_empty());
 }
 
 TEST_CASE(console_autocomplete)
