@@ -55,6 +55,9 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
     // FIXME: This offset is relative to the javascript source. Other browsers appear to do it relative
     //        to the entire source document! Calculate that somehow.
 
+    // NB: Take the throw site even when an Error's traceback gives the location, so the VM stops keeping it alive.
+    auto throw_site = vm.take_throw_site_of(exception);
+
     // NB: If we got an Error object, then try and extract the information from the location the object was made.
     if (auto object = exception.as_if<JS::Object>(); object && object->error_data()) {
         for (auto const& frame : object->error_data()->traceback()) {
@@ -66,6 +69,12 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
                 break;
             }
         }
+    }
+    // NB: Otherwise, if a throw statement threw it, take the location from there.
+    else if (throw_site.has_value()) {
+        attributes.filename = throw_site->filename();
+        attributes.lineno = throw_site->start.line;
+        attributes.colno = throw_site->start.column;
     }
     // NB: Otherwise, we fall back to try and find the location of the invocation of the function itself.
     else {
