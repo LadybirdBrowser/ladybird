@@ -97,8 +97,12 @@ static constexpr int HORIZONTAL_WINDOW_ITEM_CENTER = 18;
 static constexpr int HORIZONTAL_WINDOW_CONTROL_HEIGHT = 2 * (HORIZONTAL_WINDOW_ITEM_CENTER - (HORIZONTAL_TAB_STRIP_HEIGHT - HORIZONTAL_TAB_HEIGHT));
 // The first item on the strip is as far from the window's edge as the traffic lights are from its corner on macOS.
 static constexpr int HORIZONTAL_TAB_STRIP_LEADING_MARGIN = use_native_macos_window_controls() ? NATIVE_MACOS_WINDOW_CONTROLS_INSET : 13;
-// Horizontal tabs shrink to this width, and past that the strip scrolls.
-static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 112;
+// Horizontal tabs shrink until they are just wide enough for their favicon, and past that the strip scrolls. Below the
+// padded width, a tab gives up the room around its card and its content, until only its favicon is left.
+static constexpr int HORIZONTAL_TAB_MIN_WIDTH = 20;
+static constexpr int HORIZONTAL_TAB_PADDED_MIN_WIDTH = 32;
+// One notch of the mouse wheel scrolls the horizontal strip this far.
+static constexpr int HORIZONTAL_TAB_STRIP_WHEEL_SCROLL_STEP = 112;
 // After the pointer leaves the tab bar, the tabs keep their locked widths for this long.
 static constexpr int TAB_WIDTH_UNLOCK_DELAY_MS = 300;
 static constexpr qreal ATTENTION_DOT_RADIUS = 3.5;
@@ -324,10 +328,18 @@ static HorizontalTabEndRoom settled_horizontal_tab_end_room(int index, int count
     return { index == 0 ? static_cast<qreal>(HORIZONTAL_TAB_END_ROOM) : 0, index == count - 1 ? static_cast<qreal>(HORIZONTAL_TAB_END_ROOM) : 0 };
 }
 
+// How much of its padding a horizontal tab keeps, from all of it at the padded width down to none at the minimum width.
+static qreal horizontal_tab_padding_scale(QRectF const& rect, HorizontalTabEndRoom end_room)
+{
+    auto width = rect.width() - end_room.left - end_room.right;
+    return clamp((width - HORIZONTAL_TAB_MIN_WIDTH) / static_cast<qreal>(HORIZONTAL_TAB_PADDED_MIN_WIDTH - HORIZONTAL_TAB_MIN_WIDTH), 0.0, 1.0);
+}
+
 static QRectF horizontal_tab_card_shape_rect(QRectF const& rect, HorizontalTabEndRoom end_room = {})
 {
-    auto left_inset = HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET + end_room.left;
-    auto right_inset = HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET + end_room.right;
+    auto inset = HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET * horizontal_tab_padding_scale(rect, end_room);
+    auto left_inset = inset + end_room.left;
+    auto right_inset = inset + end_room.right;
     return rect.adjusted(left_inset, HORIZONTAL_TAB_CARD_SHAPE_TOP_INSET, -right_inset, -HORIZONTAL_TAB_CARD_SHAPE_BOTTOM_INSET);
 }
 
@@ -370,11 +382,26 @@ static QPainterPath horizontal_hovered_tab_path(QRectF const& body)
     return path;
 }
 
+// Whether a horizontal tab's favicon fits before its close button, where the button starts at the given place.
+static bool horizontal_tab_has_room_for_favicon_before(qreal close_button_left, qreal content_left)
+{
+    return close_button_left - HORIZONTAL_TAB_CONTENT_GAP >= content_left + TAB_ICON_SIZE;
+}
+
+// The selected tab, once it is too narrow for its favicon beside its close button, shows the close button in its
+// favicon's place, so that it can still be closed with a click. A tab playing audio shows its speaker there instead.
+static bool horizontal_tab_close_button_replaces_favicon(QRectF const& content_rect, QWidget const& close_button, bool is_selected, bool has_audio_button)
+{
+    if (!is_selected || has_audio_button)
+        return false;
+    auto has_room_for_both = horizontal_tab_has_room_for_favicon_before(content_rect.right() - close_button.width(), content_rect.left());
+    return !has_room_for_both && content_rect.width() >= close_button.width();
+}
+
 // The selected horizontal tab's body: the whole width of the tab, from just below its top down to the toolbar.
 static QRectF horizontal_selected_tab_body_rect(QRectF const& tab_rect, HorizontalTabEndRoom end_room)
 {
-    auto card = horizontal_tab_card_shape_rect(tab_rect, end_room);
-    return { card.left() - HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET, tab_rect.top() + HORIZONTAL_SELECTED_TAB_TOP_INSET, card.width() + (2 * HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET), tab_rect.height() - HORIZONTAL_SELECTED_TAB_TOP_INSET };
+    return { tab_rect.left() + end_room.left, tab_rect.top() + HORIZONTAL_SELECTED_TAB_TOP_INSET, tab_rect.width() - end_room.left - end_room.right, tab_rect.height() - HORIZONTAL_SELECTED_TAB_TOP_INSET };
 }
 
 static QRect tab_card_shape_rect(QRect const& rect)
@@ -1267,7 +1294,7 @@ void TabBar::paintEvent(QPaintEvent*)
             if (next_index < count() && index != currentIndex() && next_index != currentIndex() && !next_is_pinned && separator_opacity > 0.0) {
                 auto separator_center_y = shape_rect.center().y();
                 // NB: The separator sits just inside the edge between two tabs. This keeps it on whole device pixels.
-                auto separator_x = shape_rect.right() + HORIZONTAL_TAB_CARD_SHAPE_HORIZONTAL_INSET - 1;
+                auto separator_x = horizontal_body_rect.right() - 1;
                 QRectF separator_rect { separator_x, separator_center_y - (HORIZONTAL_TAB_SEPARATOR_HEIGHT / 2.0), HORIZONTAL_TAB_SEPARATOR_WIDTH, HORIZONTAL_TAB_SEPARATOR_HEIGHT };
                 painter.save();
                 painter.setOpacity(separator_opacity);
@@ -1380,7 +1407,7 @@ void TabBar::paintEvent(QPaintEvent*)
         // NB: A horizontal tab keeps its close button's slot whether the button shows or not, so that the title ends at
         //     the same place either way.
         if (auto* right_button = tabButton(index, QTabBar::RightSide)) {
-            auto keeps_slot = !is_vertical && right_button->x() - HORIZONTAL_TAB_CONTENT_GAP >= contents_rect.left() + TAB_ICON_SIZE;
+            auto keeps_slot = !is_vertical && horizontal_tab_has_room_for_favicon_before(right_button->x(), contents_rect.left());
             if (right_button->isVisible() || keeps_slot)
                 contents_rect.setRight(min(contents_rect.right(), right_button->geometry().left() - 6));
         }
@@ -1390,6 +1417,10 @@ void TabBar::paintEvent(QPaintEvent*)
             //     drawing the favicon over it.
             if (contents_rect.width() < TAB_ICON_SIZE)
                 continue;
+            if (auto* close_button = tabButton(index, QTabBar::RightSide); close_button && close_button->isVisible()
+                && horizontal_tab_close_button_replaces_favicon(horizontal_tab_contents_rect(index, layout_rect), *close_button, is_selected, tabButton(index, QTabBar::LeftSide))) {
+                continue;
+            }
             QRect icon_rect {
                 contents_rect.left() + ((contents_rect.width() - TAB_ICON_SIZE) / 2),
                 contents_rect.top() + ((contents_rect.height() - TAB_ICON_SIZE) / 2),
@@ -1751,7 +1782,7 @@ void TabBar::wheelEvent(QWheelEvent* event)
     if (pixel_delta != 0) {
         set_scroll_offset(m_scroll_offset - pixel_delta);
     } else if (angle_delta != 0) {
-        auto scroll_delta = angle_delta * (is_horizontal ? HORIZONTAL_TAB_MIN_WIDTH : VERTICAL_TAB_HEIGHT) / 120;
+        auto scroll_delta = angle_delta * (is_horizontal ? HORIZONTAL_TAB_STRIP_WHEEL_SCROLL_STEP : VERTICAL_TAB_HEIGHT) / 120;
         if (scroll_delta == 0)
             scroll_delta = angle_delta > 0 ? 1 : -1;
         set_scroll_offset(m_scroll_offset - scroll_delta);
@@ -2126,8 +2157,10 @@ qreal TabBar::selection_of(int index) const
 QRectF TabBar::horizontal_tab_contents_rect(int index, QRect const& tab_rect) const
 {
     // NB: A tab's contents keep their place as it is selected, while only its background grows around them.
-    auto card = horizontal_tab_card_shape_rect(QRectF(tab_rect), horizontal_tab_end_room(index));
-    return card.adjusted(HORIZONTAL_TAB_CONTENT_LEFT_PADDING, 0, -HORIZONTAL_TAB_CONTENT_RIGHT_PADDING, 0);
+    auto end_room = horizontal_tab_end_room(index);
+    auto card = horizontal_tab_card_shape_rect(QRectF(tab_rect), end_room);
+    auto padding_scale = horizontal_tab_padding_scale(QRectF(tab_rect), end_room);
+    return card.adjusted(HORIZONTAL_TAB_CONTENT_LEFT_PADDING * padding_scale, 0, -HORIZONTAL_TAB_CONTENT_RIGHT_PADDING * padding_scale, 0);
 }
 
 int TabBar::horizontal_tabs_end_offset() const
@@ -2916,13 +2949,20 @@ void TabBar::update_tab_button_geometry()
             auto trailing_edge = qRound(content_rect.right());
             if (close_button) {
                 QPoint close_button_position { trailing_edge - close_button->width(), button_y_in(close_button, shape_rect) };
-                if (close_button->pos() != close_button_position)
-                    close_button->move(close_button_position);
                 // NB: Every tab with room for it keeps a slot for its close button, which shows on the selected tab and
                 //     the hovered one. While the strip scrolls, only the selected tab shows it. A tab too narrow for
                 //     its favicon beside the slot, such as one opening or closing, has none.
-                auto has_room = close_button_position.x() - HORIZONTAL_TAB_CONTENT_GAP >= content_rect.left() + TAB_ICON_SIZE;
-                auto show_close_button = !is_dragged && !is_growing && has_room && (is_selected || (index == m_hovered_tab_index && max_scroll_offset() <= 0)) && is_in_view(close_button);
+                auto has_room = horizontal_tab_has_room_for_favicon_before(close_button_position.x(), content_rect.left());
+                auto replaces_favicon = horizontal_tab_close_button_replaces_favicon(content_rect, *close_button, is_selected, left_button);
+                if (replaces_favicon)
+                    close_button_position.setX(qRound(content_rect.center().x() - (close_button->width() / 2.0)));
+                if (close_button->pos() != close_button_position)
+                    close_button->move(close_button_position);
+                auto show_close_button = !is_dragged && !is_growing && (has_room || replaces_favicon) && (is_selected || (index == m_hovered_tab_index && max_scroll_offset() <= 0)) && is_in_view(close_button);
+                // NB: A close button that stood in the favicon's place hides at once as its tab is deselected, rather
+                //     than fading out over the favicon.
+                if (!show_close_button && !has_room && close_button->isVisible())
+                    close_button->hide();
                 if (auto* tab_bar_button = qobject_cast<TabBarButton*>(close_button))
                     tab_bar_button->set_revealed(show_close_button);
                 else if (close_button->isVisible() != show_close_button)
