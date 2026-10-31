@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<div id="host"></div>
+<table>
+    <tr><th>Header in a table</th><td>Cell in a table</td></tr>
+</table>
+<script>
+    test(() => {
+        // A script can put a table cell into any element; none of the cells below is in a table.
+        const cell = (tag, text, scope) => {
+            const element = document.createElement(tag);
+            element.textContent = text;
+            if (scope)
+                element.setAttribute("scope", scope);
+            return element;
+        };
+        const head = document.createElement("thead");
+        head.append(cell("th", "Header in a thead outside a table"));
+        host.append(cell("td", "Cell outside a table"), cell("th", "Header outside a table"),
+            cell("th", "Column header outside a table", "col"), cell("th", "Row header outside a table", "row"), head);
+
+        const dump = (node, depth) => {
+            const name = node.role === "text leaf" ? ` ${JSON.stringify(node.name)}` : node.name ? ` "${node.name}"` : "";
+            println(`${"  ".repeat(depth)}${node.role || "(no role)"}${name}`);
+            for (const child of node.children ?? [])
+                dump(child, depth + 1);
+        };
+        dump(JSON.parse(internals.dumpAccessibilityTree()), 0);
+    });
+</script>

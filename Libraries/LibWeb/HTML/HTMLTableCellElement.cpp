@@ -204,6 +204,11 @@ WebIDL::Long HTMLTableCellElement::cell_index() const
 
 Optional<ARIA::Role> HTMLTableCellElement::default_role() const
 {
+    // A cell that isn't in a table (one a script inserted into some other element, e.g.) has none of the roles below.
+    auto const* table_element = first_ancestor_of_type<HTMLTableElement>();
+    if (!table_element)
+        return {};
+
     if (local_name() == TagNames::th) {
         // https://w3c.github.io/html-aam/#el-th-columnheader
         // th (is a column header or column group header): columnheader role
@@ -235,7 +240,6 @@ Optional<ARIA::Role> HTMLTableCellElement::default_role() const
                 return ARIA::Role::rowheader;
         }
     }
-    auto const* table_element = first_ancestor_of_type<HTMLTableElement>();
     // https://w3c.github.io/html-aam/#el-td
     // https://w3c.github.io/html-aam/#el-th/
     // (ancestor table element has table role)
