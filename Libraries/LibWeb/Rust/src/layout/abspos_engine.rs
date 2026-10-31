@@ -2352,7 +2352,9 @@ pub(crate) struct InsideLayoutBlockSizes {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum BlockSizePass {
-    BeforeInsideLayout,
+    BeforeInsideLayout {
+        inside_layout_resolves_automatic_block_size: bool,
+    },
     AfterInsideLayout {
         inside_layout: Option<InsideLayoutBlockSizes>,
     },
@@ -2434,9 +2436,15 @@ impl AbsposEngine<'_> {
         {
             return Some(inside_layout.automatic_content_block_size);
         }
+        if let BlockSizePass::BeforeInsideLayout {
+            inside_layout_resolves_automatic_block_size: true,
+        } = pass
+        {
+            return None;
+        }
         if self.facts(node).creates_block_formatting_context() {
             return match pass {
-                BlockSizePass::BeforeInsideLayout => None,
+                BlockSizePass::BeforeInsideLayout { .. } => None,
                 BlockSizePass::AfterInsideLayout { .. } => Some(CssPixels::default()),
             };
         }
@@ -2718,7 +2726,7 @@ impl AbsposEngine<'_> {
 
         let used = sized.cells;
         used.set_content_block_size(auto_px_value(solution.block_size));
-        if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
+        if style.height().is_auto() && matches!(pass, BlockSizePass::BeforeInsideLayout { .. }) {
             // NB: A box that establishes an orthogonal flow is sized in this axis before its contents are laid out,
             //     which they are at that size.
             if solution.block_size.is_some() && self.sizing().establishes_orthogonal_flow(node) {
@@ -2808,7 +2816,7 @@ impl AbsposEngine<'_> {
 
         let used = sized.cells;
         used.set_content_block_size(block_size);
-        if style.height().is_auto() && pass == BlockSizePass::BeforeInsideLayout {
+        if style.height().is_auto() && matches!(pass, BlockSizePass::BeforeInsideLayout { .. }) {
             // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-automatic
             // A block size transferred through the preferred aspect ratio from a definite inline size is definite, so
             // the content resolves percentages against it.
@@ -2872,11 +2880,14 @@ impl<'pass> AbsposEngine<'pass> {
     // Run-prelude sizing for an absolutely positioned root: box-model
     // metrics, the inset-aware inline solve, the pre-inside-layout block
     // pass, and the definiteness overrides insets and aspect ratios provide.
+    // Answers the space a flex root resolves its own automatic block size in,
+    // if it does.
     pub(crate) fn dimension_out_of_flow_root(
         &self,
         sized: OutOfFlowBox<'_>,
         inputs: abspos_inputs::AbsposLayoutInputs,
-    ) {
+        inside_layout_follows: bool,
+    ) -> Option<AvailableSpace> {
         let node = sized.node;
         let (available_space, constraints) = out_of_flow_root_space(inputs);
         let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
@@ -2909,12 +2920,28 @@ impl<'pass> AbsposEngine<'pass> {
             resolved,
             self.auto_margin_overflow(inputs.containing_block, SizingAxis::Inline),
         );
+        let fc_type = formatting_context::formatting_context_type_created_by_box(self.facts(node));
+        let flex_self_resolution_space = AvailableSpace {
+            inline_size: AvailableSize::definite(sized.cells.content_inline_size()),
+            block_size: AvailableSize::Indefinite,
+        };
+        let inside_layout_resolves_automatic_block_size = inside_layout_follows
+            && self.inside_layout_resolves_automatic_block_size(
+                sized,
+                style,
+                fc_type,
+                available_space,
+                flex_self_resolution_space,
+                constraints,
+            );
         self.compute_block_size(
             sized,
             available_space,
             constraints,
             static_position_rect_for_sizing(&inputs),
-            BlockSizePass::BeforeInsideLayout,
+            BlockSizePass::BeforeInsideLayout {
+                inside_layout_resolves_automatic_block_size,
+            },
             resolved,
             self.auto_margin_overflow(inputs.containing_block, SizingAxis::Block),
         );
@@ -2946,6 +2973,66 @@ impl<'pass> AbsposEngine<'pass> {
 
         self.sizing()
             .make_form_control_content_box_definite(sized.sized_cells(), available_space, constraints, None);
+        (inside_layout_resolves_automatic_block_size
+            && fc_type == Some(formatting_context::FormattingContextType::Flex))
+        .then_some(flex_self_resolution_space)
+    }
+
+    fn inside_layout_resolves_automatic_block_size(
+        &self,
+        sized: OutOfFlowBox<'_>,
+        style: StyleValues<'_>,
+        fc_type: Option<formatting_context::FormattingContextType>,
+        available_space: AvailableSpace,
+        flex_self_resolution_space: AvailableSpace,
+        constraints: ContainingBlockConstraints,
+    ) -> bool {
+        let node = sized.node;
+        let sizing = self.sizing();
+        let facts = self.facts(node);
+        if !crate::layout::sizing_context::is_plain_auto(style.height())
+            || (!style.inset_top().is_auto() && !style.inset_bottom().is_auto())
+            || sizing.establishes_orthogonal_flow(node)
+            || facts.has_preferred_aspect_ratio()
+            || facts.node_has_size_containment()
+            || sizing.box_is_sized_as_replaced_element(sized.sized_box(), available_space, constraints)
+        {
+            return false;
+        }
+        let style_seen_by_inside_layout = self.style(node);
+        let inside_layout_reads_the_same_min_and_max_height = style_seen_by_inside_layout.min_height()
+            == style.min_height()
+            && style_seen_by_inside_layout.max_height() == style.max_height();
+        if !inside_layout_reads_the_same_min_and_max_height {
+            return false;
+        }
+        match fc_type {
+            Some(formatting_context::FormattingContextType::Grid) => {
+                crate::layout::sizing_context::is_plain_auto(style_seen_by_inside_layout.min_height())
+                    || style_seen_by_inside_layout.max_height().is_none()
+            }
+            Some(formatting_context::FormattingContextType::Flex) => {
+                let main_axis_is_block_axis = matches!(
+                    style_seen_by_inside_layout.effective_flex_direction(),
+                    flex_direction::COLUMN | flex_direction::COLUMN_REVERSE
+                );
+                let lays_out_its_lines_against_its_block_size =
+                    main_axis_is_block_axis && style_seen_by_inside_layout.flex_wrap() != flex_wrap::NOWRAP;
+                !lays_out_its_lines_against_its_block_size
+                    && matches!(
+                        style_seen_by_inside_layout.max_height().kind,
+                        ComputedSizeKind::None | ComputedSizeKind::Length | ComputedSizeKind::Percentage
+                    )
+                    && formatting_context::flex_self_block_size_resolution_space(
+                        &sizing,
+                        sized.sized_box(),
+                        flex_self_resolution_space,
+                        constraints,
+                    )
+                    .is_some()
+            }
+            _ => false,
+        }
     }
 
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(

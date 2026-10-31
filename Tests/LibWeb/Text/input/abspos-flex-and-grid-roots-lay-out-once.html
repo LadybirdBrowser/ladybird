@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script src="layout-test.js"></script>
+<style>
+    body { margin: 0; }
+    .cb { position: relative; width: 400px; height: 300px; }
+    .cb > div { position: absolute; left: 0; top: 0; width: 200px; }
+    .leaf { width: 20px; height: 20px; }
+</style>
+<div class="cb">
+    <div id="gridWithFrRow" style="display: grid; grid-template-rows: 1fr auto">
+        <div class="leaf"></div>
+        <div class="leaf" id="gridWithFrRowLeaf"></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="rowFlex" style="display: flex">
+        <div class="leaf"></div>
+        <div class="leaf" id="rowFlexLeaf"></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="columnFlex" style="display: flex; flex-direction: column; box-sizing: border-box; padding: 10px; gap: 5px">
+        <div class="leaf"></div>
+        <div style="flex-grow: 1"><div class="leaf" id="columnFlexLeaf"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="columnFlexWithMaxHeight" style="display: flex; flex-direction: column; max-height: 30px">
+        <div class="leaf" style="min-height: 0"></div>
+        <div class="leaf" id="columnFlexWithMaxHeightLeaf" style="min-height: 0"></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="rowFlexWithPercentageMaxHeight" style="display: flex; max-height: 50%">
+        <div class="leaf"></div>
+        <div class="leaf" id="rowFlexWithPercentageMaxHeightLeaf"></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="flexWithMinHeight" style="display: flex; min-height: 100px">
+        <div class="leaf" id="flexWithMinHeightLeaf"></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="gridAlignedWithinBothInsets" style="display: grid; bottom: 0; align-self: start">
+        <div class="leaf" id="gridAlignedWithinBothInsetsLeaf"></div>
+    </div>
+</div>
+<div class="cb">
+    <div id="wrappingColumnFlex" style="display: flex; flex-flow: column wrap">
+        <div class="leaf" id="wrappingColumnFlexLeaf"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const output = [];
+        const roots = [
+            gridWithFrRow,
+            rowFlex,
+            columnFlex,
+            columnFlexWithMaxHeight,
+            rowFlexWithPercentageMaxHeight,
+            flexWithMinHeight,
+            gridAlignedWithinBothInsets,
+            wrappingColumnFlex,
+        ];
+        for (const root of roots) {
+            const leaf = document.getElementById(`${root.id}Leaf`);
+            const work = layoutWork(() => (leaf.style.height = "40px"));
+            const isRoot = event => event.box.endsWith(`#${root.id}`);
+            const measurements = work.count(event => event.event === "measure" && isRoot(event) && event.size === "max-content block");
+            const runs = work.count(event => event.event === "run" && isRoot(event) && event.action === "RUN");
+            const heights = [...root.children].map(child => child.getBoundingClientRect().height).join(", ");
+            output.push(`${root.id}: measurements=${measurements} runs=${runs} height=${root.getBoundingClientRect().height} items=${heights}`);
+        }
+        for (const line of output)
+            println(line);
+    });
+</script>

@@ -1629,15 +1629,18 @@ fn apply_root_sizing_directives(
             body_input
         }
         ParticipationInParentFormattingContext::AbsolutelyPositioned(abspos_inputs) => {
-            abspos_engine::AbsposEngine::for_run(run).dimension_out_of_flow_root(
+            let flex_self_resolution_space = abspos_engine::AbsposEngine::for_run(run).dimension_out_of_flow_root(
                 abspos_engine::OutOfFlowBox::new(
                     sized_root,
                     root_used_insets,
                     run.state.anchor_resolved_values_of(run.box_),
                 ),
                 abspos_inputs,
+                true,
             );
-            body_input_with_inner_available_space(sized_root.cells, input)
+            let mut body_input = body_input_with_inner_available_space(sized_root.cells, input);
+            body_input.sizing.flex_self_block_size_resolution_space = flex_self_resolution_space;
+            body_input
         }
         ParticipationInParentFormattingContext::Item => {
             if cfg!(debug_assertions) && run.fragments.is_some() {
@@ -1905,7 +1908,7 @@ fn size_skipped_independent_root(
                 &used_insets,
                 anchor_resolved_values.as_ref(),
             );
-            engine.dimension_out_of_flow_root(sized_child, abspos_inputs);
+            engine.dimension_out_of_flow_root(sized_child, abspos_inputs, false);
             engine.finalize_out_of_flow_root_after_inside_layout(sized_child, abspos_inputs, None);
             Some(used_insets.get())
         }
