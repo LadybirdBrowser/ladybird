@@ -193,6 +193,12 @@ impl ImpactRegion {
                 None => Self::Empty,
             },
 
+            // An element backing a pseudo-element reaches its shadow host, and only its host.
+            (Self::Node(node), InverseStep::ShadowHost) => match tree.shadow_host_of(node) {
+                Some(host) => Self::Node(host),
+                None => Self::Empty,
+            },
+
             // A slotted node reaches its slot, and only its slot.
             (Self::Node(node), InverseStep::SlotAssignment) => match tree.assigned_slot_of(node) {
                 Some(slot) => Self::Node(slot),
@@ -219,6 +225,7 @@ impl ImpactRegion {
                 _,
                 InverseStep::HostedTree
                 | InverseStep::HostedTrees
+                | InverseStep::ShadowHost
                 | InverseStep::SlotAssignment
                 | InverseStep::SlotAssignees,
             ) => Self::Document,

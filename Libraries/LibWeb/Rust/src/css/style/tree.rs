@@ -478,6 +478,8 @@ struct ShadowRelations {
     /// when one level exposes the name it writes and the host of that same level is the element its
     /// outer compound describes.
     part_hosts: HashMap<StyleNodeID, Vec<(StyleAtomID, StyleNodeID)>>,
+    /// The element-backed pseudo-element kind an element of a shadow tree stands for on its host.
+    backing_pseudo_kinds: HashMap<StyleNodeID, u16>,
 }
 
 impl ShadowRelations {
@@ -505,6 +507,7 @@ impl ShadowRelations {
             self.shadow_root.remove(host);
         }
         self.part_hosts.remove(&node);
+        self.backing_pseudo_kinds.remove(&node);
     }
 
     fn retire_text(&mut self, node: StyleNodeID) {
@@ -1637,6 +1640,28 @@ impl StyleNodeTree {
         } else {
             pairs.clone_into(shadow.part_hosts.entry(node).or_default());
         }
+    }
+
+    pub fn set_backing_pseudo_kind(&mut self, node: StyleNodeID, kind: Option<u16>) {
+        match kind {
+            Some(kind) => {
+                self.shadow_mut().backing_pseudo_kinds.insert(node, kind);
+            }
+            None => {
+                if let Some(shadow) = self.shadow.as_mut() {
+                    shadow.backing_pseudo_kinds.remove(&node);
+                }
+            }
+        }
+    }
+
+    /// The element-backed pseudo-element kind the element stands for on its shadow host.
+    #[must_use]
+    pub fn backing_pseudo_kind_of(&self, node: StyleNodeID) -> Option<u16> {
+        self.shadow
+            .as_ref()
+            .and_then(|shadow| shadow.backing_pseudo_kinds.get(&node))
+            .copied()
     }
 
     /// Every (name, host) pair the element answers a `::part()` rule under.

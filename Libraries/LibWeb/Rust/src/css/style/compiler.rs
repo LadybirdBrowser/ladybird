@@ -518,6 +518,18 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
         })
     }
 
+    /// The kind of the element-backed pseudo-element this compound names, when it also writes
+    /// something after it.
+    fn backed_pseudo_element_with_pseudo_classes(compound: &CompoundSelector) -> Option<u16> {
+        let Some(SimpleSelector::PseudoElement(pseudo_element)) = compound.simple_selectors.first() else {
+            return None;
+        };
+        let kind = pseudo_element.pseudo_element as u16;
+        let backed_kinds = u16::from(super::bridge::FIRST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND)
+            ..=u16::from(super::bridge::LAST_ELEMENT_REFERENCE_PSEUDO_ELEMENT_KIND);
+        (backed_kinds.contains(&kind) && compound.simple_selectors.len() > 1).then_some(kind)
+    }
+
     fn names_slotted(compound: &CompoundSelector) -> bool {
         compound.simple_selectors.iter().any(|simple| {
             matches!(simple, SimpleSelector::PseudoElement(pseudo_element)
@@ -582,6 +594,25 @@ impl<'a, A: AtomSpace> SelectorCompiler<'a, A> {
             let compound = self.compile_compound(&compounds[index], marker);
             let step = self.builder.push(SelectorOp::AssignedSlot(slot));
             return self.builder.push_compound(&[compound, step]);
+        }
+
+        // `X::file-selector-button:hover` is the same shape again: the pseudo-classes written after
+        // an element-backed pseudo-element describe the element in `X`'s shadow tree that backs it,
+        // not `X`. Conjoining them onto `X` would match `:hover` wherever `X` is hovered, including
+        // over the rest of its shadow tree, so they become a step to the backing element.
+        if (index == 0 || compounds[index].combinator == Combinator::PseudoElement)
+            && let Some(kind) = Self::backed_pseudo_element_with_pseudo_classes(&compounds[index])
+        {
+            let inner = self.compile_compound(&compounds[index], marker);
+            let step = self.builder.push(SelectorOp::BackingElement { kind, inner });
+            let host = match index {
+                0 => leftmost,
+                _ => Some(self.compile_chain_anchored(compounds, index - 1, marker, leftmost)),
+            };
+            return match host {
+                Some(host) => self.builder.push_compound(&[host, step]),
+                None => step,
+            };
         }
 
         let compound = self.compile_compound(&compounds[index], marker);

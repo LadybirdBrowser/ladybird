@@ -382,6 +382,14 @@ pub enum SelectorOp {
         host: SelectorNodeID,
         parts: SelectorNodeID,
     },
+    /// `X::file-selector-button:hover` from the host: the element of the host's shadow tree that
+    /// stands for its element-backed pseudo-element of `kind` satisfies `inner`, the pseudo-classes
+    /// written after the pseudo-element. Those describe the pseudo-element rather than the host,
+    /// so they are a step to the element backing it, not conjuncts on the host.
+    BackingElement {
+        kind: u16,
+        inner: SelectorNodeID,
+    },
     /// `:root`: the subject is the root of its tree.
     Root,
     /// `:empty`: the subject has no element or significant text children.
@@ -513,7 +521,7 @@ impl SelectorOp {
             // Shadow operators are a lookup in a sparse relation: cheap, but only meaningful once
             // the local compound has already accepted the candidate.
             Self::Part(_) => 5,
-            Self::ExposedToHost { .. } => 7,
+            Self::ExposedToHost { .. } | Self::BackingElement { .. } => 7,
             Self::Root | Self::Empty | Self::Scope | Self::ScopeRootInstance => 5,
             Self::IsNode(_) | Self::RelativeAnchorInstance => 0,
             Self::AssignedSlot(_) => 7,
@@ -855,7 +863,8 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::Parent(inner)
             | SelectorOp::Ancestor(inner)
             | SelectorOp::PreviousSibling(inner)
-            | SelectorOp::PrecedingSibling(inner) => self.subtree_tests_position(inner),
+            | SelectorOp::PrecedingSibling(inner)
+            | SelectorOp::BackingElement { inner, .. } => self.subtree_tests_position(inner),
             SelectorOp::RelativeExists(query) => self.subtree_tests_position(self.relative_query(query).compound),
             _ => false,
         }
@@ -1290,6 +1299,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::Slotted(_)
             | SelectorOp::Part(_)
             | SelectorOp::ExposedToHost { .. }
+            | SelectorOp::BackingElement { .. }
             | SelectorOp::Empty
             | SelectorOp::Scope
             | SelectorOp::IsNode(_)
@@ -2064,6 +2074,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::PreviousSibling(_)
             | SelectorOp::PrecedingSibling(_)
             | SelectorOp::AssignedSlot(_)
+            | SelectorOp::BackingElement { .. }
             | SelectorOp::RelativeExists(_) => false,
         }
     }
@@ -2113,7 +2124,8 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::PrecedingSibling(inner)
             | SelectorOp::Host(inner)
             | SelectorOp::Slotted(inner)
-            | SelectorOp::AssignedSlot(inner) => self.entry_is_monotone_under_arrivals(inner),
+            | SelectorOp::AssignedSlot(inner)
+            | SelectorOp::BackingElement { inner, .. } => self.entry_is_monotone_under_arrivals(inner),
             SelectorOp::ExposedToHost { host, parts } => {
                 self.entry_is_monotone_under_arrivals(host) && self.entry_is_monotone_under_arrivals(parts)
             }
@@ -2169,6 +2181,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::Slotted(_)
             | SelectorOp::Part(_)
             | SelectorOp::ExposedToHost { .. }
+            | SelectorOp::BackingElement { .. }
             | SelectorOp::Empty
             | SelectorOp::Scope
             | SelectorOp::AssignedSlot(_)
@@ -2194,7 +2207,8 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::Ancestor(inner)
             | SelectorOp::Host(inner)
             | SelectorOp::Slotted(inner)
-            | SelectorOp::AssignedSlot(inner) => self.entry_observes_sibling_relation(inner),
+            | SelectorOp::AssignedSlot(inner)
+            | SelectorOp::BackingElement { inner, .. } => self.entry_observes_sibling_relation(inner),
             SelectorOp::ExposedToHost { host, parts } => {
                 self.entry_observes_sibling_relation(host) || self.entry_observes_sibling_relation(parts)
             }
@@ -2238,6 +2252,9 @@ impl<A: AtomSpace> SelectorProgram<A> {
             // The step lands on the slot, which is inside the scope; what stands outside it is the
             // subject, and the `::slotted()` beside this says so.
             SelectorOp::AssignedSlot(_) => false,
+            // The element backing a pseudo-element stands in the shadow tree its host hosts, which
+            // is a tree of its own.
+            SelectorOp::BackingElement { .. } => true,
             // An implicit scoping root is the parent of its sheet's owner node, which for a sheet
             // that is a direct child of a shadow root is the host - outside the tree. Which element
             // it is is not a property of the program, so this is the widest of the two answers and
@@ -2304,6 +2321,7 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::RelativeExists(_)
             | SelectorOp::NthPosition(_)
             | SelectorOp::AssignedSlot(_)
+            | SelectorOp::BackingElement { .. }
             | SelectorOp::Language { .. }
             | SelectorOp::ScopeRootInstance
             | SelectorOp::RelativeAnchorInstance
@@ -2446,7 +2464,8 @@ impl<A: AtomSpace> SelectorProgram<A> {
             | SelectorOp::Parent(inner)
             | SelectorOp::Ancestor(inner)
             | SelectorOp::Host(inner)
-            | SelectorOp::Slotted(inner) => self.count_sibling_steps(inner),
+            | SelectorOp::Slotted(inner)
+            | SelectorOp::BackingElement { inner, .. } => self.count_sibling_steps(inner),
             SelectorOp::ExposedToHost { host, parts } => {
                 self.count_sibling_steps(host).max(self.count_sibling_steps(parts))
             }
@@ -3161,6 +3180,8 @@ pub enum InverseStep {
     /// `::part()` rule names can sit several shadow roots below the host its outer compound
     /// describes - past boundaries `HostedTree` stops at.
     HostedTrees,
+    /// From an element backing a pseudo-element to the shadow host it stands for it on.
+    ShadowHost,
     /// From a slotted node to the slot it is assigned to, and thence into the shadow tree.
     SlotAssignment,
     /// From a slot to the light-DOM elements it assigns.
@@ -3929,6 +3950,11 @@ impl<A: AtomSpace> SelectorProgram<A> {
             SelectorOp::ExposedToHost { host, parts } => {
                 self.walk_step(host, enclosing, InverseStep::HostedTrees, anchor, walk, visit);
                 self.walk_transpose(parts, enclosing, anchor, walk, visit);
+            }
+            // A change on the element backing a pseudo-element reaches the host it stands for it on,
+            // whose match carries the pseudo-element's rules.
+            SelectorOp::BackingElement { inner, .. } => {
+                self.walk_step(inner, enclosing, InverseStep::ShadowHost, anchor, walk, visit);
             }
             // Root, emptiness, scope membership and the place of a named element all change with
             // the shape of the tree.
@@ -5923,6 +5949,11 @@ impl<'a> EngineTree<'a> {
 
 impl SelectorTree for EngineTree<'_> {
     type Node = StyleNodeID;
+
+    #[inline]
+    fn backs_pseudo_element(self, node: StyleNodeID, kind: u16) -> bool {
+        self.tree.backing_pseudo_kind_of(node) == Some(kind)
+    }
 
     #[inline]
     fn parent(self, node: StyleNodeID) -> Option<StyleNodeID> {
