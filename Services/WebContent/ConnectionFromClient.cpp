@@ -1874,7 +1874,7 @@ void ConnectionFromClient::clear_grid_highlight(Web::PageId page_id, Web::Unique
 
 void ConnectionFromClient::inspect_accessibility_tree(Web::PageId page_id)
 {
-    if (auto page = this->page(page_id); page.has_value()) {
+    if (auto page = this->page(page_id); page.has_value() && page->page().has_local_traversable()) {
         if (auto doc = page->page().local_traversable()->active_document())
             async_did_inspect_accessibility_tree(page_id, doc->dump_accessibility_tree_as_json().to_utf8());
     }
@@ -1888,6 +1888,10 @@ void ConnectionFromClient::request_accessibility_tree(Web::PageId page_id)
     // path, so they pay for neither.
     if (auto page = this->page(page_id); page.has_value()) {
         page->page().set_accessibility_interested(true);
+        // A request can arrive after the tab's document moved to another process, which leaves this page's traversable
+        // remote, with no document of its own to report.
+        if (!page->page().has_local_traversable())
+            return;
         if (auto doc = page->page().local_traversable()->active_document()) {
             doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
             async_did_get_accessibility_tree(page_id, doc->build_accessibility_node_data());
