@@ -452,7 +452,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         {
             let mut line = self.line_mut(line_index);
             let fragment = &mut line.fragments[fragment_index];
-            fragment.content_baselines = Some(item.content_baselines);
+            fragment.content_baselines = Some(item.content_baselines());
             fragment.box_cells = Some(box_cells);
         }
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
