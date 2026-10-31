@@ -154,6 +154,11 @@ void DevToolsConsoleClient::report_exception(Utf16View name, Utf16View message, 
     });
 }
 
+void DevToolsConsoleClient::end_group()
+{
+    send_console_output({ .timestamp = UnixDateTime::now(), .output = WebView::ConsoleGroupEnd {} });
+}
+
 void DevToolsConsoleClient::send_console_output(WebView::ConsoleOutput console_output)
 {
     m_client->did_output_js_console_message(move(console_output));
@@ -198,8 +203,25 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
         return JS::js_undefined();
     }
 
-    // FIXME: Implement these.
-    if (first_is_one_of(log_level, JS::Console::LogLevel::Table, JS::Console::LogLevel::Group, JS::Console::LogLevel::GroupCollapsed))
+    if (first_is_one_of(log_level, JS::Console::LogLevel::Group, JS::Console::LogLevel::GroupCollapsed)) {
+        auto const& group = arguments.get<JS::Console::Group>();
+        m_console->output_debug_message(log_level, group.label);
+
+        send_console_output({
+            .timestamp = UnixDateTime::now(),
+            .output = WebView::ConsoleLog {
+                .level = log_level,
+                .arguments = { group.label.to_utf8() },
+                .type = WebView::ConsoleLogType::ConsoleAPI,
+                .location = {},
+                .stacktrace = {},
+            },
+        });
+        return JS::js_undefined();
+    }
+
+    // FIXME: Implement this.
+    if (log_level == JS::Console::LogLevel::Table)
         return JS::js_undefined();
 
     auto const& argument_values = arguments.get<GC::RootVector<JS::Value>>();

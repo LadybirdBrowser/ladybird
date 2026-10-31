@@ -1449,6 +1449,12 @@ public:
         });
     }
 
+    void emit_console_group_end() const
+    {
+        VERIFY(on_console_message);
+        on_console_message({ UnixDateTime::from_seconds_since_epoch(13), WebView::ConsoleGroupEnd {} });
+    }
+
     void emit_console_trace() const
     {
         VERIFY(on_console_message);
@@ -4741,6 +4747,35 @@ TEST_CASE(console_log_object_grips)
     EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 9u);
     EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
     EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
+}
+
+TEST_CASE(console_message_levels)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    (void)get_frame_target(client, actor_from(get_tab(client), "actor"sv));
+
+    // Every console method reaches the client as a level it knows. The console formats counts and times itself.
+    auto level_of = [&](JS::ConsoleLogLevel level) {
+        session->delegate.emit_console_log(level, { "text"_string });
+        return read_resource(client, "console-message"sv).get_string("level"sv).release_value();
+    };
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Assert), "error"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Count), "log"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::CountReset), "warn"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Dir), "dir"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::DirXML), "dirxml"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Group), "group"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::GroupCollapsed), "groupCollapsed"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::TimeEnd), "log"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::TimeLog), "log"sv);
+
+    session->delegate.emit_console_group_end();
+    auto group_end = read_resource(client, "console-message"sv);
+    EXPECT_EQ(group_end.get_string("level"sv).value(), "groupEnd"sv);
+    EXPECT(group_end.get_array("arguments"sv)->is_empty());
 }
 
 TEST_CASE(console_autocomplete)
