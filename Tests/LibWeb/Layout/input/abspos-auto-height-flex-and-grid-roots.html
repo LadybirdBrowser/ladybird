@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    .cb { position: relative; width: 400px; height: 300px; }
+    .root { position: absolute; left: 0; top: 0; width: 200px; }
+    .column { display: flex; flex-direction: column; }
+    .row { display: flex; }
+    .grid { display: grid; }
+    .item { width: 20px; height: 20px; }
+    .half { width: 10px; height: 50%; }
+    .anchor { anchor-name: --a; width: 50px; height: 50px; }
+    .anchor-sized-root { position: absolute; left: 0; top: 0; writing-mode: vertical-lr; inline-size: 100px; position-anchor: --a; max-block-size: anchor-size(block); }
+    .rigid { inline-size: 20px; block-size: 200px; flex-shrink: 0; }
+    .shrinkable { inline-size: 20px; block-size: 100px; min-block-size: 0; }
+    .line { inline-size: 60px; block-size: 100px; }
+</style>
+<div class="cb">
+    <div class="root column" id="columnGrow" style="box-sizing: border-box; padding: 7px 3px 5px; border: 2px solid; gap: 10%">
+        <div class="item"></div>
+        <div style="flex-grow: 1"><div class="half"></div></div>
+        <div class="item"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root column" id="columnMaxPx" style="box-sizing: border-box; padding: 4px; border: 1px solid; max-height: 30px">
+        <div class="item" style="min-height: 0"></div>
+        <div class="item" style="min-height: 0"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root column" id="columnMaxPercent" style="box-sizing: border-box; padding: 6px; max-height: 15%">
+        <div class="item" style="min-height: 0"></div>
+        <div class="item" style="min-height: 0"></div>
+        <div class="item" style="min-height: 0"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root row" id="rowWrap" style="flex-wrap: wrap; align-content: stretch; row-gap: 10%; width: 50px">
+        <div class="item"></div>
+        <div class="item" style="height: 35px"></div>
+        <div class="item"></div>
+        <div style="width: 20px"><div class="half"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root row" id="rowMaxPercent" style="max-height: 10%; padding: 3px">
+        <div class="item" style="height: 50px"></div>
+        <div style="width: 20px"><div class="half"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root grid" id="gridRows" style="grid-template-rows: 1fr 20% auto 2fr; row-gap: 5%">
+        <div class="item"></div>
+        <div class="item"></div>
+        <div><div class="half"></div></div>
+        <div class="item" style="height: 30px"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root grid" id="gridMinHeight" style="min-height: 100px; align-content: center; grid-template-rows: auto auto">
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root grid" id="gridMinMaxHeight" style="min-height: 40px; max-height: 60px; grid-template-rows: 1fr auto">
+        <div class="item" style="height: 50px"></div>
+        <div class="item" style="height: 30px"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root column" id="columnBothInsetsStretch" style="bottom: 0">
+        <div class="item"></div>
+        <div style="flex-grow: 1"><div class="half"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root column" id="columnBothInsetsEnd" style="bottom: 0; align-self: end">
+        <div class="item"></div>
+        <div style="flex-grow: 1"><div class="half"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root grid" id="gridBothInsetsStretch" style="bottom: 0; grid-template-rows: 1fr auto">
+        <div class="item"></div>
+        <div><div class="half"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root grid" id="gridBothInsetsEnd" style="bottom: 0; align-self: end; grid-template-rows: 1fr auto">
+        <div class="item"></div>
+        <div><div class="half"></div></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root row" id="rowBottomInset" style="top: auto; bottom: 10px">
+        <div class="item"></div>
+        <div class="item" style="height: 40px"></div>
+    </div>
+</div>
+<div class="cb">
+    <div class="root column" id="columnStaticPosition" style="top: auto; padding-top: 5%">
+        <div class="item"></div>
+        <div class="item"></div>
+    </div>
+</div>
+<div class="cb" style="writing-mode: vertical-rl">
+    <div class="anchor"></div>
+    <div class="anchor-sized-root column" id="columnEndWithAnchorSizedMaxHeightInOtherWritingMode" style="justify-content: flex-end">
+        <div class="rigid"></div>
+    </div>
+</div>
+<div class="cb" style="writing-mode: vertical-rl">
+    <div class="anchor"></div>
+    <div class="anchor-sized-root column" id="columnReverseWithAnchorSizedMaxHeightInOtherWritingMode" style="flex-direction: column-reverse">
+        <div class="rigid"></div>
+    </div>
+</div>
+<div class="cb" style="writing-mode: vertical-rl">
+    <div class="anchor"></div>
+    <div class="anchor-sized-root column" id="columnShrinkWithAnchorSizedMaxHeightInOtherWritingMode">
+        <div class="shrinkable"></div>
+        <div class="shrinkable"></div>
+    </div>
+</div>
+<div class="cb" style="writing-mode: vertical-rl">
+    <div class="anchor"></div>
+    <div class="anchor-sized-root row" id="rowWrapEndWithAnchorSizedMaxHeightInOtherWritingMode" style="flex-wrap: wrap; align-content: flex-end">
+        <div class="line"></div>
+        <div class="line"></div>
+    </div>
+</div>
