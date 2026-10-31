@@ -897,7 +897,7 @@ impl RetainedState {
         }
         let reads_any = |reads: &[Arc<[u16]>]| reads.iter().any(|read| names.binary_search(read).is_ok());
         let groups = self.current_winner_groups();
-        let Lookup::Known((_, state)) = groups.token_for(WinnerGroupKey::current(node, self.program.version())) else {
+        let Some(state) = self.element_record_winner_state(node) else {
             return true;
         };
         let states_read_any = std::iter::once(state)

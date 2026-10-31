@@ -1,0 +1,2 @@
+before: rgb(255, 0, 0), rgb(255, 0, 0)
+after a root class change: rgb(0, 128, 0), rgb(0, 128, 0), child rgb(0, 128, 0)
