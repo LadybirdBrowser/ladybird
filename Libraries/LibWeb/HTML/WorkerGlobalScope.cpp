@@ -96,7 +96,9 @@ WebIDL::ExceptionOr<void> WorkerGlobalScope::import_scripts(Vector<Utf16String> 
     // which if provided will be used when invoking fetch a classic worker-imported script.
     // NOTE: Service Workers is an example of a specification that runs this algorithm with its own options for the perform the fetch hook.
 
-    // FIXME: 1. If worker global scope's type is "module", throw a TypeError exception.
+    // 1. If worker global scope's type is "module", throw a TypeError exception.
+    if (m_type == WorkerType::Module)
+        return WebIDL::SimpleException { WebIDL::SimpleExceptionType::TypeError, "importScripts() is not allowed in module workers"_utf16 };
 
     // 2. Let settings object be the current settings object.
     auto& settings_object = HTML::current_settings_object();
