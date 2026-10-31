@@ -5384,12 +5384,11 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
                 weak_this->m_context_menu_url = selected_text_url.release_value();
                 weak_this->m_context_menu_navigation.clear();
                 weak_this->m_open_in_new_tab_action->set_text("Open Link in New Tab"sv);
-                weak_this->m_selected_text_link_context_menu->on_activation(weak_this->to_widget_position(content_position));
+                weak_this->activate_context_menu(*weak_this->m_selected_text_link_context_menu, content_position);
                 return;
             }
 
-            if (weak_this->m_page_context_menu->on_activation)
-                weak_this->m_page_context_menu->on_activation(weak_this->to_widget_position(content_position));
+            weak_this->activate_context_menu(*weak_this->m_page_context_menu, content_position);
         };
 
         if (lookup.has_value()) {
@@ -5427,8 +5426,7 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gf
         break;
     }
 
-    if (m_link_context_menu->on_activation)
-        m_link_context_menu->on_activation(to_widget_position(content_position));
+    activate_context_menu(*m_link_context_menu, content_position);
 }
 
 void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path)
@@ -5464,8 +5462,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
 
     m_copy_image_action->set_enabled(m_image_context_menu_bitmap.has_value());
 
-    if (m_image_context_menu->on_activation)
-        m_image_context_menu->on_activation(to_widget_position(content_position));
+    activate_context_menu(*m_image_context_menu, content_position);
 }
 
 void ViewImplementation::send_to_media_context_menu_page(Function<void(WebContentPage&)> const& send)
@@ -5476,6 +5473,17 @@ void ViewImplementation::send_to_media_context_menu_page(Function<void(WebConten
 }
 
 // The context menus share these actions, and only a media element can leave them without a URL to act on.
+void ViewImplementation::activate_context_menu(Menu& menu, Gfx::IntPoint content_position)
+{
+    if (!menu.on_activation)
+        return;
+    // A frontend can show the menu in a nested event loop, and destroy this view (and with it, its menus) from inside
+    // that loop: a page can close its own tab while its context menu is open, e.g. So keep the menu alive until its
+    // activation returns, rather than destroy the function that's running it.
+    NonnullRefPtr protected_menu = menu;
+    protected_menu->on_activation(to_widget_position(content_position));
+}
+
 void ViewImplementation::set_context_menu_url_actions_enabled(bool enabled)
 {
     m_open_in_new_tab_action->set_enabled(enabled);
@@ -5516,8 +5524,7 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, W
     m_media_enter_picture_in_picture_action->set_visible(menu.can_enter_picture_in_picture && !menu.is_picture_in_picture);
     m_media_exit_picture_in_picture_action->set_visible(menu.is_picture_in_picture);
 
-    if (m_media_context_menu->on_activation)
-        m_media_context_menu->on_activation(to_widget_position(content_position));
+    activate_context_menu(*m_media_context_menu, content_position);
 }
 
 u64 ViewImplementation::add_navigation_listener(NavigationListener listener)
