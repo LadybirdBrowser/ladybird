@@ -293,17 +293,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn item_containing_block_constraints(&self) -> ContainingBlockConstraints {
-        let mut constraints = self.constraints_for_children(self.layout_input.unwrap().containing_block_constraints);
-        constraints.percentage_basis_inline_size = self.item_percentage_bases.percentage_basis_inline_size;
-        constraints.percentage_basis_block_size = self.item_percentage_bases.percentage_basis_block_size;
-        let block_axis_is_cross_axis = self.is_row_layout();
-        constraints.quirks_mode_percentage_basis_block_size =
-            if self.facts(self.run.box_).document_in_quirks_mode() && block_axis_is_cross_axis {
-                constraints.percentage_basis_block_size
-            } else {
-                None
-            };
-        constraints
+        self.item_percentage_bases
     }
 
     // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
@@ -3883,7 +3873,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.available_space = Some(available_space);
         self.layout_input = Some(layout_input);
         self.item_runs_offered_to_block_size_measurements = None;
-        self.item_percentage_bases = self.constraints_for_children(layout_input.containing_block_constraints);
+        let mut item_percentage_bases = self.constraints_for_children(layout_input.containing_block_constraints);
+        let block_axis_is_cross_axis = self.is_row_layout();
+        item_percentage_bases.quirks_mode_percentage_basis_block_size =
+            if self.facts(self.run.box_).document_in_quirks_mode() && block_axis_is_cross_axis {
+                item_percentage_bases.percentage_basis_block_size
+            } else {
+                None
+            };
+        self.item_percentage_bases = item_percentage_bases;
         // 1. Generate anonymous flex items
         self.generate_anonymous_flex_items();
         // 2. Determine the available main and cross space for the flex items
