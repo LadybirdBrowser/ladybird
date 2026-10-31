@@ -310,7 +310,7 @@ void compute_missing_keyframe_offsets(Vector<BaseKeyframe>& keyframes)
             auto index = static_cast<double>(keyframe_index - index_a);
 
             // 4. Set the computed keyframe offset of keyframe to offsetA + (offsetB − offsetA) × index / n.
-            keyframes[keyframe_index].computed_offset = (offset_a + (offset_b - offset_a)) * index / n;
+            keyframes[keyframe_index].computed_offset = offset_a + (offset_b - offset_a) * index / n;
         }
 
         index_a = index_b;

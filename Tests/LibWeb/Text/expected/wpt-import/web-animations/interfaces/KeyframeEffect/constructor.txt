@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 175 tests
 
-121 Pass
-54 Fail
+124 Pass
+51 Fail
 Pass	A KeyframeEffect can be constructed with no frames
 Pass	easing values are parsed correctly when passed to the KeyframeEffect constructor in KeyframeEffectOptions
 Pass	Invalid easing values are correctly rejected when passed to the KeyframeEffect constructor in KeyframeEffectOptions
@@ -40,7 +40,7 @@ Pass	A KeyframeEffect can be constructed with a one property two value property-
 Fail	A KeyframeEffect constructed with a one property two value property-indexed keyframes specification where the second value is invalid roundtrips
 Pass	A KeyframeEffect can be constructed with a property-indexed keyframes specification with a CSS variable as the property
 Fail	A KeyframeEffect constructed with a property-indexed keyframes specification with a CSS variable as the property roundtrips
-Fail	A KeyframeEffect can be constructed with a property-indexed keyframe with a single offset
+Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with a single offset
 Fail	A KeyframeEffect constructed with a property-indexed keyframe with a single offset roundtrips
 Pass	A KeyframeEffect can be constructed with a property-indexed keyframe with an array of offsets
 Pass	A KeyframeEffect constructed with a property-indexed keyframe with an array of offsets roundtrips
@@ -124,11 +124,11 @@ Pass	A KeyframeEffect can be constructed with a single keyframe sequence with st
 Pass	A KeyframeEffect constructed with a single keyframe sequence with string offset roundtrips
 Fail	A KeyframeEffect can be constructed with a single keyframe sequence with a single calc() offset
 Fail	A KeyframeEffect constructed with a single keyframe sequence with a single calc() offset roundtrips
-Fail	A KeyframeEffect can be constructed with a one property keyframe sequence with some omitted offsets
+Pass	A KeyframeEffect can be constructed with a one property keyframe sequence with some omitted offsets
 Fail	A KeyframeEffect constructed with a one property keyframe sequence with some omitted offsets roundtrips
 Fail	A KeyframeEffect can be constructed with a one property keyframe sequence with some null offsets
 Fail	A KeyframeEffect constructed with a one property keyframe sequence with some null offsets roundtrips
-Fail	A KeyframeEffect can be constructed with a two property keyframe sequence with some omitted offsets
+Pass	A KeyframeEffect can be constructed with a two property keyframe sequence with some omitted offsets
 Fail	A KeyframeEffect constructed with a two property keyframe sequence with some omitted offsets roundtrips
 Pass	A KeyframeEffect can be constructed with a one property keyframe sequence with all omitted offsets
 Fail	A KeyframeEffect constructed with a one property keyframe sequence with all omitted offsets roundtrips

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 80 tests
 
-69 Pass
-11 Fail
+72 Pass
+8 Fail
 Pass	Keyframes can be replaced with an empty keyframe
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification
 Pass	Keyframes can be replaced with a one shorthand property two value property-indexed keyframes specification
@@ -20,7 +20,7 @@ Pass	Keyframes can be replaced with a one property one non-array value property-
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification where the first value is invalid
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification where the second value is invalid
 Pass	Keyframes can be replaced with a property-indexed keyframes specification with a CSS variable as the property
-Fail	Keyframes can be replaced with a property-indexed keyframe with a single offset
+Pass	Keyframes can be replaced with a property-indexed keyframe with a single offset
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too short
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too long
@@ -62,9 +62,9 @@ Pass	Keyframes can be replaced with a single keyframe sequence with omitted offs
 Fail	Keyframes can be replaced with a single keyframe sequence with null offset
 Pass	Keyframes can be replaced with a single keyframe sequence with string offset
 Fail	Keyframes can be replaced with a single keyframe sequence with a single calc() offset
-Fail	Keyframes can be replaced with a one property keyframe sequence with some omitted offsets
+Pass	Keyframes can be replaced with a one property keyframe sequence with some omitted offsets
 Fail	Keyframes can be replaced with a one property keyframe sequence with some null offsets
-Fail	Keyframes can be replaced with a two property keyframe sequence with some omitted offsets
+Pass	Keyframes can be replaced with a two property keyframe sequence with some omitted offsets
 Pass	Keyframes can be replaced with a one property keyframe sequence with all omitted offsets
 Pass	Keyframes can be replaced with a keyframe sequence with different easing values, but the same easing value for a given offset
 Pass	Keyframes can be replaced with a keyframe sequence with different composite values, but the same composite value for a given offset
