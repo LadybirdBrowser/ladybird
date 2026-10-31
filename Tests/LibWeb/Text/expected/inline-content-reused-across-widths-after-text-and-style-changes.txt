@@ -1,0 +1,12 @@
+before any change: true true true
+text edit: moved true, matches a fresh layout: true true true
+font-size: moved true, matches a fresh layout: true true true
+letter-spacing: moved true, matches a fresh layout: true true true
+word-spacing: moved true, matches a fresh layout: true true true
+text-transform on: moved true, matches a fresh layout: true true true
+text-transform off: moved true, matches a fresh layout: true true true
+white-space: moved true, matches a fresh layout: true true true
+span insert: moved true, matches a fresh layout: true true true
+span remove: moved true, matches a fresh layout: true true true
+lang: moved true, matches a fresh layout: true true true
+direction: moved true, matches a fresh layout: true true true

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: Mplus;
+        src: url("wpt-import/fonts/mplus-1p-regular.woff");
+    }
+    body { margin: 0; font: 16px/20px serif; }
+    p { margin: 0 0 8px; }
+    .cjk { font: 20px/1 Mplus; line-break: loose; }
+    .min-content { display: inline-block; width: min-content; }
+</style>
+<div id="container">
+    <p class="edited">The quick brown fox jumps over the lazy dog and then runs far away from it.</p>
+    <p>Some <span class="sized">sized text</span> and <span class="spaced">letter spaced words</span> in a line.</p>
+    <p class="words">Word spacing moves every word of this paragraph a little further apart.</p>
+    <p class="transformed">transformed text changes its case and with it the shaping of the line</p>
+    <p class="spaces">Collapsible    spaces     become      preserved    spaces    here</p>
+    <p class="host">A paragraph that gets an inserted span and then loses it again.</p>
+    <p class="cjk">文文文文文文・字字 <span class="min-content">文・文・</span></p>
+    <p class="bidi">Mixed English and עברית text with 123 numbers and more words after it.</p>
+</div>
+<script>
+    const widths = [240, 320, 410];
+
+    function geometry(root) {
+        const origin = root.getBoundingClientRect();
+        const relative = rect => `${rect.left - origin.left},${rect.top - origin.top},${rect.width},${rect.height}`;
+        const parts = Array.from(root.querySelectorAll("*"), element => relative(element.getBoundingClientRect()));
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        while (walker.nextNode()) {
+            range.selectNodeContents(walker.currentNode);
+            parts.push(Array.from(range.getClientRects(), relative).join(";"));
+        }
+        return parts.join(" ");
+    }
+
+    function layOutAt(width) {
+        container.style.width = `${width}px`;
+        return geometry(container);
+    }
+
+    function matchesFreshLayoutAt(width) {
+        const relaidOut = layOutAt(width);
+        const fresh = container.cloneNode(true);
+        fresh.removeAttribute("id");
+        document.body.appendChild(fresh);
+        const freshGeometry = geometry(fresh);
+        fresh.remove();
+        return relaidOut === freshGeometry;
+    }
+
+    asyncTest(async done => {
+        await document.fonts.load("20px Mplus");
+        const paragraph = name => container.querySelector(`.${name}`);
+        let inserted = null;
+        const changes = [
+            ["text edit", () => (paragraph("edited").firstChild.data = "A different sentence, which wraps in other places than the first one.")],
+            ["font-size", () => (paragraph("sized").style.fontSize = "26px")],
+            ["letter-spacing", () => (paragraph("spaced").style.letterSpacing = "3px")],
+            ["word-spacing", () => (paragraph("words").style.wordSpacing = "9px")],
+            ["text-transform on", () => (paragraph("transformed").style.textTransform = "uppercase")],
+            ["text-transform off", () => (paragraph("transformed").style.textTransform = "none")],
+            ["white-space", () => (paragraph("spaces").style.whiteSpace = "pre-wrap")],
+            [
+                "span insert",
+                () => {
+                    inserted = document.createElement("span");
+                    inserted.textContent = "with a few more inserted words ";
+                    paragraph("host").insertBefore(inserted, paragraph("host").firstChild.splitText(2));
+                },
+            ],
+            ["span remove", () => inserted.remove()],
+            ["lang", () => (paragraph("cjk").lang = "ja")],
+            ["direction", () => (paragraph("bidi").style.direction = "rtl")],
+        ];
+
+        for (const width of widths)
+            layOutAt(width);
+        println(`before any change: ${widths.map(matchesFreshLayoutAt).join(" ")}`);
+        for (const [name, change] of changes) {
+            const before = layOutAt(widths[0]);
+            change();
+            const moved = layOutAt(widths[0]) !== before;
+            const matches = [...widths.slice(1), widths[0]].map(matchesFreshLayoutAt);
+            println(`${name}: moved ${moved}, matches a fresh layout: ${matches.join(" ")}`);
+        }
+        done();
+    });
+</script>

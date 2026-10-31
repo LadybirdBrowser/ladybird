@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::fc_run_cache::{FcRunCacheValidity, run_root_validity};
 use super::inline_level_iterator::ItemType;
 use super::*;
 use libgfx_rust::font::FontHandle;
 use libgfx_rust::text_layout::SharedShape;
+use std::sync::Arc;
 
 pub(crate) struct PreparedInlineContent {
+    pub(super) validity: FcRunCacheValidity,
     pub(super) items: Box<[PreparedItem]>,
     pub(super) box_events: Box<[InlineBoxEvent]>,
     pub(super) fonts: Box<[FontHandle]>,
@@ -21,7 +24,7 @@ const _: () = {
     assert_send_and_sync::<PreparedInlineContent>();
 };
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub(super) struct PreparedItem {
     shape: Option<SharedShape>,
     node: Node,
@@ -119,7 +122,7 @@ impl PreparedItem {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct InlineBoxEvent {
     position: u32,
     entered_box: Node,
@@ -155,7 +158,7 @@ impl InlineBoxEvent {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct PreparedTabStop {
     pub(super) tab_count: u32,
     pub(super) tab_inline_size: CssPixels,
@@ -175,13 +178,103 @@ pub(crate) struct InlineContentPreparationBuffers {
 }
 
 impl InlineContentPreparationBuffers {
-    pub(super) fn take_prepared_inline_content(&mut self) -> PreparedInlineContent {
+    pub(super) fn take_prepared_inline_content(&mut self, validity: FcRunCacheValidity) -> PreparedInlineContent {
         self.box_stack.clear();
         PreparedInlineContent {
+            validity,
             items: self.items.drain(..).collect(),
             box_events: self.box_events.drain(..).collect(),
             fonts: self.fonts.drain(..).collect(),
             tab_stops: self.tab_stops.drain(..).collect(),
+        }
+    }
+}
+
+impl PreparedInlineContent {
+    pub(crate) fn for_block_container(pass: LayoutPass<'_>, block_container: Node) -> Arc<Self> {
+        if pass.reads_no_memoized_layout() || pass.lays_out_with_position_option() {
+            return Arc::new(Self::prepare(pass, block_container));
+        }
+        let memos = pass.prepared_inline_content_memos();
+        if let Some(kept) = memos.kept(block_container, run_root_validity(&pass, block_container)) {
+            if cfg!(debug_assertions) || run_repeatability::verification_is_enabled() {
+                kept.verify_against_fresh_preparation(pass, block_container);
+            }
+            return kept;
+        }
+        let prepared = Arc::new(Self::prepare(pass, block_container));
+        if !prepared.is_empty() {
+            memos.keep(block_container, prepared.clone());
+        }
+        prepared
+    }
+
+    fn is_empty(&self) -> bool {
+        self.items.is_empty() && self.box_events.is_empty()
+    }
+
+    fn verify_against_fresh_preparation(&self, pass: LayoutPass<'_>, block_container: Node) {
+        let fresh = Self::prepare(pass, block_container);
+        if let Some(difference) = self.first_difference_from(&fresh) {
+            panic!(
+                "the inline content kept for {block_container:?} differs from its fresh preparation in {difference}"
+            );
+        }
+    }
+
+    fn first_difference_from(&self, fresh: &Self) -> Option<String> {
+        fn first_difference<T: PartialEq + std::fmt::Debug>(name: &str, kept: &[T], fresh: &[T]) -> Option<String> {
+            let index = (0..kept.len().max(fresh.len())).find(|index| kept.get(*index) != fresh.get(*index))?;
+            Some(format!(
+                "{name} {index}: kept {:?}, prepared {:?}",
+                kept.get(index),
+                fresh.get(index)
+            ))
+        }
+        first_difference("item", &self.items, &fresh.items)
+            .or_else(|| first_difference("inline box event", &self.box_events, &fresh.box_events))
+            .or_else(|| first_difference("font", &self.fonts, &fresh.fonts))
+            .or_else(|| first_difference("tab stop", &self.tab_stops, &fresh.tab_stops))
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct PreparedInlineContentMemos {
+    by_slot: RefCell<Vec<Option<Arc<PreparedInlineContent>>>>,
+}
+
+impl PreparedInlineContentMemos {
+    pub(crate) fn fork(&self) -> Self {
+        Self {
+            by_slot: self.by_slot.clone(),
+        }
+    }
+
+    pub(crate) fn kept(
+        &self,
+        block_container: Node,
+        validity: FcRunCacheValidity,
+    ) -> Option<Arc<PreparedInlineContent>> {
+        self.by_slot
+            .borrow()
+            .get(block_container.slot_index() as usize)?
+            .as_ref()
+            .filter(|kept| kept.validity == validity)
+            .cloned()
+    }
+
+    pub(crate) fn keep(&self, block_container: Node, prepared: Arc<PreparedInlineContent>) {
+        let index = block_container.slot_index() as usize;
+        let mut by_slot = self.by_slot.borrow_mut();
+        if by_slot.len() <= index {
+            by_slot.resize_with(index + 1, || None);
+        }
+        by_slot[index] = Some(prepared);
+    }
+
+    pub(crate) fn forget(&self, slot: u32) {
+        if let Some(kept) = self.by_slot.borrow_mut().get_mut(slot as usize) {
+            *kept = None;
         }
     }
 }

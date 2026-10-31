@@ -1,0 +1,5 @@
+before any change: true true true
+balances its lines: true true true true true true
+fills three columns: 3 3 3
+text edit in columns: moved true, matches a fresh layout: true true true
+fills three columns after the edit: 3 3 3

@@ -1,0 +1,3 @@
+before the font loads: true true true
+font load: moved true, matches a fresh layout: true true true
+font removal: moved true, matches a fresh layout: true true true

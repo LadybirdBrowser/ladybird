@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px serif; }
+    p { margin: 0 0 8px; }
+    .loaded { font-family: ReusedAcrossWidths, monospace; }
+</style>
+<div id="container">
+    <p class="loaded">This paragraph is shaped with a fallback font until its own font face loads.</p>
+    <p>Only <span class="loaded">these few words</span> of this paragraph use the face that loads.</p>
+    <p>This paragraph never uses the face, so it keeps the inline content it prepared.</p>
+</div>
+<script>
+    const widths = [240, 320, 410];
+
+    function geometry(root) {
+        const origin = root.getBoundingClientRect();
+        const relative = rect => `${rect.left - origin.left},${rect.top - origin.top},${rect.width},${rect.height}`;
+        const parts = Array.from(root.querySelectorAll("*"), element => relative(element.getBoundingClientRect()));
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        while (walker.nextNode()) {
+            range.selectNodeContents(walker.currentNode);
+            parts.push(Array.from(range.getClientRects(), relative).join(";"));
+        }
+        return parts.join(" ");
+    }
+
+    function layOutAt(width) {
+        container.style.width = `${width}px`;
+        return geometry(container);
+    }
+
+    function matchesFreshLayoutAt(width) {
+        const relaidOut = layOutAt(width);
+        const fresh = container.cloneNode(true);
+        fresh.removeAttribute("id");
+        document.body.appendChild(fresh);
+        const freshGeometry = geometry(fresh);
+        fresh.remove();
+        return relaidOut === freshGeometry;
+    }
+
+    async function afterChange(name, change) {
+        const before = layOutAt(widths[0]);
+        await change();
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const moved = layOutAt(widths[0]) !== before;
+        const matches = [...widths.slice(1), widths[0]].map(matchesFreshLayoutAt);
+        println(`${name}: moved ${moved}, matches a fresh layout: ${matches.join(" ")}`);
+    }
+
+    asyncTest(async done => {
+        for (const width of widths)
+            layOutAt(width);
+        println(`before the font loads: ${widths.map(matchesFreshLayoutAt).join(" ")}`);
+        const face = new FontFace("ReusedAcrossWidths", "url(../../Assets/HashSans.woff)");
+        await afterChange("font load", async () => {
+            await face.load();
+            document.fonts.add(face);
+        });
+        await afterChange("font removal", () => document.fonts.delete(face));
+        done();
+    });
+</script>

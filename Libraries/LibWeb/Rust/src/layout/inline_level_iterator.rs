@@ -541,7 +541,7 @@ struct InlineContentPreparer<'pass> {
 }
 
 impl PreparedInlineContent {
-    pub(crate) fn prepare(pass: LayoutPass<'_>, block_container: Node) -> Self {
+    pub(super) fn prepare(pass: LayoutPass<'_>, block_container: Node) -> Self {
         InlineContentPreparer::prepare(pass, block_container)
     }
 
@@ -590,7 +590,9 @@ impl<'pass> InlineContentPreparer<'pass> {
         while let Some(item) = preparer.prepare_next_item() {
             preparer.buffers.items.push(item);
         }
-        let prepared = preparer.buffers.take_prepared_inline_content();
+        let prepared = preparer
+            .buffers
+            .take_prepared_inline_content(super::fc_run_cache::run_root_validity(&pass, block_container));
         pass.return_inline_content_preparation_buffers(preparer.buffers);
         prepared
     }
@@ -1486,7 +1488,7 @@ impl InlineLevelIterator {
         let callbacks = context.callbacks;
         match callbacks.inline_item_stash(context.containing_block) {
             Some(stash) => Self::from_stash(context, stash),
-            None => PreparedInlineContent::prepare(callbacks, context.containing_block)
+            None => PreparedInlineContent::for_block_container(callbacks, context.containing_block)
                 .resolve_items_for_run(context, atomic_sizing),
         }
     }

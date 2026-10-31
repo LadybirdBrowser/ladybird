@@ -1,0 +1,5 @@
+before any change: true true true
+percentage padding: moved true, matches a fresh layout: true true true
+text after tabs: moved true, matches a fresh layout: true true true
+float width: moved true, matches a fresh layout: true true true
+vertical text: moved true, matches a fresh layout: true true true
