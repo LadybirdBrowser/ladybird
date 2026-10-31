@@ -112,6 +112,11 @@ void DevToolsConsoleClient::handle_result(JS::Value result)
     m_client->did_execute_js_console_input(m_object_table.serialize_value(result));
 }
 
+bool DevToolsConsoleClient::has_object(u64 object_id) const
+{
+    return m_object_table.contains(object_id) || m_logged_objects.contains(object_id);
+}
+
 ErrorOr<WebView::DebuggerObjectProperties> DevToolsConsoleClient::properties_for_object(u64 object_id)
 {
     auto& settings = Web::HTML::relevant_settings_object(m_console_global_environment_extensions->binding_object());
@@ -161,20 +166,11 @@ void DevToolsConsoleClient::end_group()
 
 void DevToolsConsoleClient::send_console_output(WebView::ConsoleOutput console_output)
 {
-    m_buffered_output.append(console_output);
+    m_client->buffer_console_output(console_output);
 
     auto is_error = console_output.output.has<WebView::ConsoleError>();
     if (is_error ? m_client->devtools_takes_console_errors() : m_client->devtools_takes_console_messages())
         m_client->did_output_js_console_message(move(console_output));
-}
-
-void DevToolsConsoleClient::send_buffered_console_output(bool messages, bool errors)
-{
-    m_buffered_output.for_each([&](WebView::ConsoleOutput const& console_output) {
-        auto is_error = console_output.output.has<WebView::ConsoleError>();
-        if (is_error ? errors : messages)
-            m_client->did_output_js_console_message(console_output);
-    });
 }
 
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
@@ -264,7 +260,7 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
         for (auto value : argument_values)
             printed_arguments.unchecked_append(serialize_value(m_console->realm(), value));
     }
-    m_buffered_output.append(console_log(is_table ? JS::Console::LogLevel::Log : log_level, printed_arguments));
+    m_client->buffer_console_output(console_log(is_table ? JS::Console::LogLevel::Log : log_level, printed_arguments));
 
     // A DevTools client that takes the messages gets grips for the objects instead, which it may expand.
     if (!m_client->devtools_takes_console_messages())
