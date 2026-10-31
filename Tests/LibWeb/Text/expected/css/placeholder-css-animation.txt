@@ -1,0 +1,4 @@
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+        [s2] transform=[1,0,0,1,50,0] origin=(92.84375,18) (BlockContainer<DIV>)
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+        [s2] transform=[1,0,0,1,50,0] origin=(92.84375,18) (BlockContainer<DIV>)

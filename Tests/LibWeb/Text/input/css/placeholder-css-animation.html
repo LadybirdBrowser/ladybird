@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes slide {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(100px);
+        }
+    }
+    input::placeholder {
+        display: inline-block;
+        animation: slide 1s linear -0.5s paused;
+    }
+</style>
+<input placeholder="hello">
+<script>
+    test(() => {
+        const dumpTransforms = () =>
+            println(internals.dumpDisplayList().split("\n").filter(line => line.includes("transform=")).join("\n"));
+        dumpTransforms();
+
+        // Restyling the placeholder again keeps the animation where it was.
+        const input = document.querySelector("input");
+        for (const name of ["first", "second"]) {
+            input.className = name;
+            getComputedStyle(input, "::placeholder").transform;
+        }
+        dumpTransforms();
+    });
+</script>
