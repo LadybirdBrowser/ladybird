@@ -278,8 +278,14 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     if (document().is_temporary_document_for_fragment_parsing())
         return;
 
+    // NB: The fragment only identifies the target element within the fetched document, so every reference to the same
+    //     external document shares one fetch and one parsed document. The spec allows this re-use under "Processing
+    //     the subresource document".
+    auto document_url = url;
+    document_url.set_fragment({});
+
     m_load_event_delayer.emplace(document());
-    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url, HTML::CORSSettingAttribute::NoCORS);
+    m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), document_url, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request->add_callbacks(
         [this] {
             clone_element_tree_as_our_shadow_tree(referenced_element());
@@ -293,7 +299,7 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
         });
 
     if (m_resource_request->needs_fetching()) {
-        auto request = HTML::create_potential_CORS_request(url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
+        auto request = HTML::create_potential_CORS_request(document_url, Fetch::Infrastructure::Request::Destination::Image, HTML::CORSSettingAttribute::NoCORS);
         request->set_client(document().relevant_settings_object().address());
         m_resource_request->fetch_resource(request);
     }
