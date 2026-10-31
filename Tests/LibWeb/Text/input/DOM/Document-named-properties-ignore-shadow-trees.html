@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    test(() => {
+        const root = host.attachShadow({ mode: "open" });
+
+        const form = document.createElement("form");
+        root.appendChild(form);
+        form.setAttribute("name", "shadowform");
+
+        const img = document.createElement("img");
+        img.setAttribute("name", "shadowimg");
+        root.appendChild(img);
+
+        const object = document.createElement("object");
+        root.appendChild(object);
+        object.id = "shadowobject";
+
+        println(`document.shadowform: ${document.shadowform}`);
+        println(`document.shadowimg: ${document.shadowimg}`);
+        println(`document.shadowobject: ${document.shadowobject}`);
+        println(`window.shadowimg: ${window.shadowimg}`);
+
+        document.body.append(form, img, object);
+        println(`document.shadowform after moving: ${document.shadowform}`);
+        println(`document.shadowimg after moving: ${document.shadowimg}`);
+        println(`document.shadowobject after moving: ${document.shadowobject}`);
+        println(`window.shadowimg after moving: ${window.shadowimg}`);
+    });
+</script>
