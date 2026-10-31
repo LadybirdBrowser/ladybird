@@ -10,7 +10,9 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
-use crate::runtime::abstract_operations::get_options_object;
+use crate::runtime::abstract_operations::{
+    checked_js_string_length_product, checked_js_string_length_sum, get_options_object,
+};
 use crate::runtime::array_buffer::{ArrayBuffer, Order, Shared};
 use crate::runtime::completion::{Must, Throw, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
@@ -449,6 +451,22 @@ impl Uint8ArrayPrototypeHelpers {
         let length = typed_array_length(&typed_array_record) as usize;
         let byte_offset = typed_array.byte_offset() as usize;
 
+        // NB: Every 3 bytes become 4 characters. A final 1 or 2 bytes become 4 characters with padding, or 2 or 3 without
+        //     it. Reject a result too long for a string before copying or encoding any bytes.
+        let full_groups_length =
+            checked_js_string_length_product(vm, length / 3, 4, ErrorType::StringSizeMustNotOverflow)?;
+        let final_group_length = match length % 3 {
+            0 => 0,
+            remaining_bytes if omit_padding => remaining_bytes + 1,
+            _ => 4,
+        };
+        checked_js_string_length_sum(
+            vm,
+            full_groups_length,
+            final_group_length,
+            ErrorType::StringSizeMustNotOverflow,
+        )?;
+
         let to_encode = typed_array
             .viewed_array_buffer()
             .copy_to_byte_buffer(byte_offset, length);
@@ -481,8 +499,11 @@ impl Uint8ArrayPrototypeHelpers {
         let length = typed_array_length(&typed_array_record) as usize;
         let byte_offset = typed_array.byte_offset() as usize;
 
+        // NB: Every byte becomes 2 characters. Reject a result too long for a string before copying or encoding any bytes.
+        let out_length = checked_js_string_length_product(vm, length, 2, ErrorType::StringSizeMustNotOverflow)?;
+
         // 4. Let out be the empty String.
-        let mut out = Utf16StringBuilder::with_capacity(length * 2);
+        let mut out = Utf16StringBuilder::with_capacity(out_length);
 
         let to_encode = typed_array
             .viewed_array_buffer()
