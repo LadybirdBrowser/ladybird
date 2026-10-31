@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    const server = httpTestServer();
+    const spriteURL = server.echoURL("/use-element-external-fragments-sprite.svg");
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${server.baseURL}/echo`, false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path: new URL(spriteURL).pathname,
+        status: 200,
+        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
+        body: `<svg xmlns="http://www.w3.org/2000/svg">
+            <symbol id="first" viewBox="0 0 10 10"><rect id="first-rect" width="10" height="10"/></symbol>
+            <symbol id="second" viewBox="0 0 10 10"><circle id="second-circle" r="5"/></symbol>
+            <symbol id="third" viewBox="0 0 10 10"><path id="third-path" d="M0 0h10v10z"/></symbol>
+        </svg>`,
+    }));
+
+    document.write(`
+        <svg width="10" height="10"><use id="useFirst" href="${spriteURL}#first"/></svg>
+        <svg width="10" height="10"><use id="useSecond" href="${spriteURL}#second"/></svg>
+        <svg width="10" height="10"><use id="useThird" href="${spriteURL}#third"/></svg>
+        <svg width="10" height="10"><use id="useFirstAgain" href="${spriteURL}#first"/></svg>
+    `);
+
+    asyncTest(done => {
+        window.addEventListener("load", async () => {
+            const requestCount = await (await fetch(server.recordedRequestCountURL(spriteURL))).json();
+            println(`Requests for the sprite: ${requestCount}`);
+            for (const id of ["useFirst", "useSecond", "useThird", "useFirstAgain"]) {
+                const instance = internals.getShadowRoot(document.getElementById(id)).firstElementChild;
+                println(`${id}: ${instance?.firstElementChild?.id ?? "nothing"}`);
+            }
+            done();
+        });
+    });
+</script>

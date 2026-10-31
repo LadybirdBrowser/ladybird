@@ -40,6 +40,8 @@ Endpoints:
       server first sends a binary frame of that many bytes: a 1, zeros, and then a 2.
     - GET /reflect-websocket-cookie with an "Upgrade: websocket" header: As above, but first sends the
       handshake's Cookie header (or an empty string) as a text frame.
+    - GET /recorded-request-count/<echo path>: Responds with the number of requests the server has seen at <echo path>,
+      with any query ignored.
     - GET /downloads/<name>: Reports the browser's download of <name> into the --downloads-directory: 404 while
       there is none, 202 while it is in progress, and the downloaded file once it has finished. A <name> longer
       than 188 bytes in UTF-8 gets a 400.
@@ -83,6 +85,10 @@ echo_store: Dict[str, Echo] = {}
 
 # Headers from the most recent request at each echo path, queryable via GET /recorded-request-headers<echo-path>.
 recorded_request_headers: Dict[str, Dict[str, list]] = {}
+
+# Number of requests seen at each echo path, query excluded, queryable via GET /recorded-request-count<echo-path>.
+recorded_request_counts: Dict[str, int] = {}
+recorded_request_counts_lock = threading.Lock()
 
 # Named events used by tests that need deterministic delayed responses.
 unblock_events: Dict[str, threading.Event] = {}
@@ -388,6 +394,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_echo()
         elif request_path.startswith("/recorded-request-headers/"):
             self._serve_recorded_request_headers()
+        elif request_path.startswith("/recorded-request-count/"):
+            self._serve_recorded_request_count()
         elif request_path.startswith("/downloads/"):
             self._serve_download()
         elif request_path.endswith(".py"):
@@ -534,6 +542,14 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(json.dumps(headers).encode("utf-8"))
 
+    def _serve_recorded_request_count(self):
+        echo_path = self.path.partition("?")[0][len("/recorded-request-count") :]
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(recorded_request_counts.get(echo_path, 0)).encode("utf-8"))
+
     def _serve_download(self):
         name = urllib.parse.unquote(self.path.partition("?")[0][len("/downloads/") :])
         directory = TestHTTPRequestHandler.downloads_directory
@@ -569,6 +585,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         for header, value in self.headers.items():
             headers_for_path.setdefault(header, []).append(value)
         recorded_request_headers[self.path] = headers_for_path
+        with recorded_request_counts_lock:
+            recorded_request_counts[parsed_url.path] = recorded_request_counts.get(parsed_url.path, 0) + 1
 
         if parsed_url.path != self.path:
             recorded_request_headers[parsed_url.path] = recorded_request_headers[self.path]
