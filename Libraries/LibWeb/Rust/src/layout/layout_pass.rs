@@ -285,6 +285,11 @@ impl<'arena> LayoutPass<'arena> {
         self.arena.replaced_content_facts(node)
     }
 
+    #[inline]
+    pub(crate) fn has_replaced_content_facts(&self, node: Node) -> bool {
+        self.arena.has_replaced_content_facts(node)
+    }
+
     pub(crate) fn computed_values_view_if_styled(&self, node: Node) -> Option<ComputedValuesView<'arena>> {
         self.style_payloads_if_styled(node)
             .map(|payloads| ComputedValuesView::new(&payloads.groups))

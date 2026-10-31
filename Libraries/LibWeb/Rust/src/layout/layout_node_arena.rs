@@ -5413,6 +5413,14 @@ impl LayoutNodeArena {
             .and_then(|slot| slot.facts)
     }
 
+    #[inline]
+    pub(crate) fn has_replaced_content_facts(&self, id: NodeSlotId) -> bool {
+        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
+        self.replaced_content_facts
+            .get(id.slot_index() as usize)
+            .is_some_and(|slot| slot.generation == id.generation() && slot.facts.is_some())
+    }
+
     pub(crate) fn invalidate_searchable_text(&mut self) {
         self.searchable_text = None;
     }
