@@ -24,7 +24,6 @@ struct WEBCOMMON_API WorkerAgentStartRequest {
     WorkerType type { WorkerType::Classic };
     RequestCredentials credentials { RequestCredentials::SameOrigin };
     String name;
-    // FIXME: We don't implement SharedWorkerOptions/extendedLifetime yet.
     bool extended_lifetime { false };
     TransferDataEncoder outside_port;
     SerializedEnvironmentSettingsObject outside_settings;

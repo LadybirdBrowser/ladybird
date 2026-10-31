@@ -145,7 +145,7 @@ pub(crate) fn stack_frame_into_abi(element: &StackTraceElement) -> JSDebuggerSta
     }
 }
 
-fn source_range_into_abi(source_range: Option<&SourceRange>) -> JSDebuggerSourceRange {
+pub(crate) fn source_range_into_abi(source_range: Option<&SourceRange>) -> JSDebuggerSourceRange {
     source_range.map_or(
         JSDebuggerSourceRange {
             source_code: core::ptr::null(),

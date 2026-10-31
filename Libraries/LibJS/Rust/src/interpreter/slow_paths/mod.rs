@@ -1464,6 +1464,7 @@ impl RuntimeFunctions for Runtime {
     }
 
     fn throw(vm: &Vm, pc: u32, _instruction: &op::Throw, values: &mut op::ThrowValues) -> SlowPathControl {
+        vm.did_throw(values.src, pc);
         handle_asm_exception(vm, pc, values.src)
     }
 

@@ -37,6 +37,8 @@ public:
         return m_port;
     }
 
+    Bindings::SharedWorkerOptions const& options() const { return m_options; }
+
     void set_agent(WorkerAgentParent& agent) { m_agent = agent; }
 
 private:

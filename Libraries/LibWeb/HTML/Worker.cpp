@@ -113,8 +113,13 @@ void run_a_worker(Variant<GC::Ref<Worker>, GC::Ref<SharedWorker>> worker, URL::U
 
     auto event_target = worker.visit([](auto& worker) -> GC::Ref<DOM::EventTarget> { return worker; });
 
+    // NB: Only SharedWorkerOptions has an extendedLifetime member.
+    auto extended_lifetime = worker.visit(
+        [](GC::Ref<Worker>) { return false; },
+        [](GC::Ref<SharedWorker> shared_worker) { return shared_worker->options().extended_lifetime; });
+
     // Note: This spawns a new process to act as the 'agent' for the worker.
-    auto agent = WorkerAgentParent::create(url, options, port, outside_settings, event_target, agent_type);
+    auto agent = WorkerAgentParent::create(url, options, extended_lifetime, port, outside_settings, event_target, agent_type);
     worker.visit([&](auto worker) { worker->set_agent(agent); });
 }
 

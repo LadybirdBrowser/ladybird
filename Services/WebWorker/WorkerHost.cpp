@@ -140,6 +140,11 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
         // FIXME: 5. Set worker global scope's extended lifetime to options["extendedLifetime"].
     }
+    // AD-HOC: The spec only sets a shared worker's type, which leaves a dedicated module worker "classic" and lets it
+    //         call importScripts().
+    else {
+        worker_global_scope->set_type(m_type);
+    }
 
     // 11. Let destination be "sharedworker" if is shared is true, and "worker" otherwise.
     auto destination = is_shared ? Web::Fetch::Infrastructure::Request::Destination::SharedWorker

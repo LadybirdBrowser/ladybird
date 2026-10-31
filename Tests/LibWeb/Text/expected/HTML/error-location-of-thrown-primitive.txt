@@ -1,0 +1,3 @@
+Uncaught exception: 42 at line 14, column 13
+Uncaught exception: 42 at line 17, column 20
+Uncaught exception: 42 at line 22, column 20

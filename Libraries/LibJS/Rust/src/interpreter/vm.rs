@@ -586,6 +586,9 @@ pub struct Vm {
     intrinsic_accessors: RefCell<IntrinsicAccessorMap>,
     /// The debugger, which the head points to while it is attached.
     debugger: RefCell<Option<Box<Debugger>>>,
+    /// The value the last throw statement threw, and where. A thrown value that is not an Error carries no location of
+    /// its own, and its frames are gone by the time the embedder reports it.
+    last_throw: RefCell<Option<(Value, SourceRange)>>,
     /// The properties defined with Object::define_unimplemented_property. The objects are weak: the sweep callback
     /// forgets the ones that die.
     unimplemented_properties: RefCell<UnimplementedPropertyMap>,
@@ -728,6 +731,7 @@ impl Vm {
             next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::default()),
             debugger: RefCell::new(None),
+            last_throw: RefCell::new(None),
             unimplemented_properties: RefCell::new(HashMap::default()),
             on_unimplemented_property_access: Cell::new(None),
             options,
@@ -1088,6 +1092,9 @@ impl Vm {
         if let Some(debugger) = self.debugger.borrow().as_ref() {
             debugger.trace(visitor);
         }
+        if let Some((value, _)) = self.last_throw.borrow().as_ref() {
+            value.trace(visitor);
+        }
     }
 
     pub fn enable_debugging(&self) {
@@ -1293,6 +1300,33 @@ impl Vm {
     pub fn restore_type_error_realm_override(&self, previous: TypeErrorRealmOverride) {
         self.head.type_error_realm_override.set(previous.realm);
         self.head.type_error_realm_override_depth.set(previous.depth);
+    }
+
+    /// Remembers that the running executable's throw statement at `program_counter` threw `value`.
+    pub fn did_throw(&self, value: Value, program_counter: u32) {
+        let source_range = self.current_executable().source_range_at(program_counter);
+        *self.last_throw.borrow_mut() = source_range.map(|source_range| (value, source_range));
+    }
+
+    /// Forgets where `value` was thrown once a catch clause catches it or a report takes its location, so that reporting
+    /// an equal value later does not take its location from this throw.
+    pub fn forget_throw_site_of(&self, value: Value) {
+        let mut last_throw = self.last_throw.borrow_mut();
+        if last_throw
+            .as_ref()
+            .is_some_and(|(thrown_value, _)| *thrown_value == value)
+        {
+            *last_throw = None;
+        }
+    }
+
+    /// Where the last throw statement threw `value`, if it was the last value one threw.
+    pub fn throw_site_of(&self, value: Value) -> Option<SourceRange> {
+        self.last_throw
+            .borrow()
+            .as_ref()
+            .filter(|(thrown_value, _)| *thrown_value == value)
+            .map(|(_, source_range)| source_range.clone())
     }
 
     /// The frames of every execution context, from the running one down, with where each is in its executable.

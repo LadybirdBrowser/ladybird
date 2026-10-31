@@ -8,6 +8,7 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/HTML/ErrorInformation.h>
+#include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
 
@@ -22,21 +23,27 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
 
     // 3. Set attributes[message], attributes[filename], attributes[lineno], and attributes[colno] to
     //    implementation-defined values derived from exception.
+    // NB: An Error's or a DOMException's message is prefixed with its name, as Error.prototype.toString() does.
+    auto prefix_with_name = [](Utf16String name, Utf16String message) {
+        if (message.is_empty())
+            return name;
+        if (name.is_empty())
+            return message;
+        return Utf16String::formatted("{}: {}", name, message);
+    };
+
     attributes.message = [&] {
         if (auto object = exception.as_if<JS::Object>()) {
+            // NB: A DOMException's name and message are accessors on its prototype.
+            if (auto const* dom_exception = Bindings::dom_exception_from_object(*object))
+                return prefix_with_name(dom_exception->name().to_utf16_string(), dom_exception->message().to_utf16_string());
+
             if (MUST(object->has_own_property(vm.names.message))) {
                 auto message = object->get_without_side_effects(vm.names.message).to_utf16_string_without_side_effects();
-
-                // NB: The message of an Error object is prefixed with its name, as Error.prototype.toString() does.
                 if (is<JS::Error>(*object)) {
                     auto name = object->get_without_side_effects(vm.names.name);
-                    if (name.is_string()) {
-                        auto name_string = name.to_utf16_string_without_side_effects();
-                        if (message.is_empty())
-                            return name_string;
-                        if (!name_string.is_empty())
-                            return Utf16String::formatted("{}: {}", name_string, message);
-                    }
+                    if (name.is_string())
+                        return prefix_with_name(name.to_utf16_string_without_side_effects(), move(message));
                 }
                 return message;
             }
@@ -47,6 +54,9 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
 
     // FIXME: This offset is relative to the javascript source. Other browsers appear to do it relative
     //        to the entire source document! Calculate that somehow.
+
+    // NB: Take the throw site even when an Error's traceback gives the location, so the VM stops keeping it alive.
+    auto throw_site = vm.take_throw_site_of(exception);
 
     // NB: If we got an Error object, then try and extract the information from the location the object was made.
     if (auto object = exception.as_if<JS::Object>(); object && object->error_data()) {
@@ -59,6 +69,12 @@ ErrorInformation extract_error_information(JS::VM& vm, JS::Value exception)
                 break;
             }
         }
+    }
+    // NB: Otherwise, if a throw statement threw it, take the location from there.
+    else if (throw_site.has_value()) {
+        attributes.filename = throw_site->filename();
+        attributes.lineno = throw_site->start.line;
+        attributes.colno = throw_site->start.column;
     }
     // NB: Otherwise, we fall back to try and find the location of the invocation of the function itself.
     else {
