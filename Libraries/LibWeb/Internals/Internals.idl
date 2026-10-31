@@ -204,6 +204,7 @@ interface Internals {
     DOMString getComputedLabel(Element element);
     DOMString getComputedAriaLevel(Element element);
     undefined setAccessibilityFocusTarget(Element element);
+    undefined setAccessibilityInterested();
     unsigned short getEchoServerPort();
     unsigned short getHttpsEchoServerPort();
 

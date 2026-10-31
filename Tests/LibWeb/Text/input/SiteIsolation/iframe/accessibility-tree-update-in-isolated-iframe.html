@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Once an assistive technology has asked for the accessibility tree, a DOM change schedules an update of the tree
+    // 200ms out. In an isolated iframe's process, the page's top-level traversable is remote: The update has no
+    // document of its own to report, and the iframe's process keeps running.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", "/oop-accessibility-tree-update-child", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>child<script>
+                    addEventListener("message", event => {
+                        if (event.data === "mutate") {
+                            internals.setAccessibilityInterested();
+                            document.body.append(document.createElement("p"));
+                        }
+                        parent.postMessage(event.data + "-done", "*");
+                    });
+                    addEventListener("load", () => parent.postMessage("loaded", "*"));
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-accessibility-tree-update");
+
+        const received = [];
+        window.addEventListener("message", event => received.push(event.data));
+        const waitFor = what => waitForCondition(() => received.includes(what));
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        println(`child loaded: ${await waitFor("loaded")}`);
+        println(`child is remote: ${await waitForCondition(() => remoteFrameCount() === 1)}`);
+
+        frames[0].postMessage("mutate", "*");
+        println(`child mutated: ${await waitFor("mutate-done")}`);
+
+        // Outlast the update's 200ms delay, then check that the child's process still answers.
+        await timeout(500);
+        frames[0].postMessage("ping", "*");
+        println(`child still answers: ${await waitFor("ping-done")}`);
+    });
+</script>
