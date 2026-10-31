@@ -60,7 +60,7 @@ input::placeholder, textarea::placeholder {
 }
 
 button, input[type=submit], input[type=button], input[type=reset], select, ::file-selector-button {
-    padding: 1px 4px;
+    padding: 2px 8px;
     background-color: ButtonFace;
     border: 1px solid ButtonBorder;
     color: ButtonText;

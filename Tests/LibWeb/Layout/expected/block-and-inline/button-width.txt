@@ -1,18 +1,18 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 56 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 40 0+0+8] children: not-inline
-      BlockContainer <button.btn.fixed-width> at [13,10] [0+1+4 190 4+1+584] [0+1+1 16 1+1+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [13,10] flex-container(column) [0+0+0 190 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [13,10] flex-item [0+0+0 190 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 11, rect: [60.53125,10 94.921875x16] baseline: 12.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: not-inline
+      BlockContainer <button.btn.fixed-width> at [17,11] [0+1+8 182 8+1+584] [0+1+2 16 2+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [17,11] flex-container(column) [0+0+0 182 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [17,11] flex-item [0+0+0 182 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 11, rect: [60.53125,11 94.921875x16] baseline: 12.796875
                 "200px width"
             TextNode <#text> (not painted)
-      BlockContainer <button.btn> at [13,30] [0+1+4 324.671875 4+1+449.328125] [0+1+1 16 1+1+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [13,30] flex-container(column) [0+0+0 324.671875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [13,30] flex-item [0+0+0 324.671875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 39, rect: [13,30 324.671875x16] baseline: 12.796875
+      BlockContainer <button.btn> at [17,33] [0+1+8 324.671875 8+1+441.328125] [0+1+2 16 2+1+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [17,33] flex-container(column) [0+0+0 324.671875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [17,33] flex-item [0+0+0 324.671875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 39, rect: [17,33 324.671875x16] baseline: 12.796875
                 "auto width should behave as fit-content"
             TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x56] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x60] (z-index: auto)
