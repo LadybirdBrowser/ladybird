@@ -2963,22 +2963,23 @@ void TabBar::update_tab_button_geometry()
             // NB: A tab shows its buttons once it has grown to its width.
             auto is_growing = is_growing_horizontal_tab(index, tab_rect);
 
-            // The close button ends the tab's content, and only shows on the selected tab and the hovered one.
+            // The close button ends the tab's content, and shows on every tab, so nothing on a tab changes as it is
+            // hovered.
             auto* close_button = tabButton(index, QTabBar::RightSide);
             prepare_button(close_button, TabBarButton::Placement::Tab);
             auto trailing_edge = qRound(content_rect.right());
             if (close_button) {
                 QPoint close_button_position { trailing_edge - close_button->width(), button_y_in(close_button, shape_rect) };
-                // NB: Every tab with room for it keeps a slot for its close button, which shows on the selected tab and
-                //     the hovered one. While the strip scrolls, only the selected tab shows it. A tab too narrow for
-                //     its favicon beside the slot, such as one opening or closing, has none.
+                // NB: A tab too narrow for its favicon beside the close button, such as one opening or closing, or one
+                //     of many in a full strip, has none, unless it is selected (see
+                //     horizontal_tab_close_button_replaces_favicon()).
                 auto has_room = horizontal_tab_has_room_for_favicon_before(close_button_position.x(), content_rect.left());
                 auto replaces_favicon = horizontal_tab_close_button_replaces_favicon(content_rect, *close_button, is_selected, left_button);
                 if (replaces_favicon)
                     close_button_position.setX(qRound(content_rect.center().x() - (close_button->width() / 2.0)));
                 if (close_button->pos() != close_button_position)
                     close_button->move(close_button_position);
-                auto show_close_button = !is_dragged && !is_growing && (has_room || replaces_favicon) && (is_selected || (index == m_hovered_tab_index && max_scroll_offset() <= 0)) && is_in_view(close_button);
+                auto show_close_button = !is_dragged && !is_growing && (has_room || replaces_favicon) && is_in_view(close_button);
                 // NB: A close button that stood in the favicon's place hides at once as its tab is deselected, rather
                 //     than fading out over the favicon.
                 if (!show_close_button && !has_room && close_button->isVisible())
@@ -3043,10 +3044,9 @@ void TabBar::update_tab_button_geometry()
             did_update_button = true;
         }
 
-        // NB: The close buttons stay hidden while the sidebar opens or closes, as the titles fade.
+        // NB: Every row shows its close button, but for while the sidebar opens or closes, as the titles fade.
         auto is_toggling = m_tab_widget && m_tab_widget->vertical_tabs_are_toggling();
-        auto should_be_visible = index != dragged_index && has_room_for_icon
-            && (position != QTabBar::RightSide || ((index == currentIndex() || index == m_hovered_tab_index) && !is_toggling));
+        auto should_be_visible = index != dragged_index && has_room_for_icon && (position != QTabBar::RightSide || !is_toggling);
         if (button->isVisible() != should_be_visible) {
             button->setVisible(should_be_visible);
             did_update_button = true;
