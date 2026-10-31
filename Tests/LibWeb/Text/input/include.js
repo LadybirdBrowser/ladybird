@@ -267,6 +267,9 @@ class HTTPTestServer {
     recordedRequestHeadersURL(echoURL) {
         return `${this.baseURL}/recorded-request-headers${new URL(echoURL).pathname}`;
     }
+    recordedRequestCountURL(echoURL) {
+        return `${this.baseURL}/recorded-request-count${new URL(echoURL).pathname}`;
+    }
     // Resolves once the echo server has seen a request for echoURL, query included.
     async waitForRequest(echoURL) {
         const url = new URL(echoURL);
