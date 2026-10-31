@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<select size="8">
+    <optgroup id="hidden" label="Hidden"><option>A</option></optgroup>
+    <optgroup id="relabeled" label="Old label"><option>B</option></optgroup>
+    <optgroup id="disabled" label="Disabled"><option>C</option></optgroup>
+</select>
+<script>
+    document.body.offsetWidth;
+    document.getElementById("hidden").hidden = true;
+    document.getElementById("relabeled").label = "New label";
+    document.getElementById("disabled").disabled = true;
+</script>

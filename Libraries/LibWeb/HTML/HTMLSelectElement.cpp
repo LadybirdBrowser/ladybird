@@ -7,15 +7,19 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Runtime/NativeFunction.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
+#include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ElementFactory.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/IDLEventListener.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLDataListElement.h>
@@ -33,6 +37,9 @@
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/UIEvents/EventNames.h>
+#include <LibWeb/UIEvents/MouseEvent.h>
+#include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWebCommon/Infra/Strings.h>
 
 namespace Web::HTML {
@@ -68,6 +75,11 @@ void HTMLSelectElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_chevron_icon_element);
     visitor.visit(m_cached_list_of_options);
     visitor.visit(m_select_item_option_elements);
+    visitor.visit(m_list_box_element);
+    for (auto const& row : m_list_box_rows) {
+        visitor.visit(row.element);
+        visitor.visit(row.option);
+    }
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#concept-select-size
@@ -383,6 +395,7 @@ void HTMLSelectElement::children_changed(ChildrenChangedMetadata const& metadata
 
     update_cached_list_of_options();
     update_selectedness();
+    list_box_options_did_change();
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-select-type
@@ -615,6 +628,9 @@ WebIDL::ExceptionOr<void> HTMLSelectElement::show_picker()
 
 void HTMLSelectElement::activation_behavior(DOM::Event const& event)
 {
+    // NB: A list box shows its options in place, and is interacted with there.
+    if (renders_as_list_box())
+        return;
     if (event.is_trusted())
         show_the_picker_if_applicable();
 }
@@ -671,6 +687,24 @@ void HTMLSelectElement::form_associated_element_attribute_changed(Utf16FlyString
         reset_selectedness(HasChanged::Yes);
     }
 
+    // NB: The size and multiple attributes decide whether the select renders as a drop-down box or a list box.
+    if ((name == HTML::AttributeNames::size || name == HTML::AttributeNames::multiple) && shadow_root()
+        && renders_as_list_box() != !!m_list_box_element) {
+        set_shadow_root(nullptr);
+        m_inner_text_element = nullptr;
+        m_selected_label_element = nullptr;
+        m_label_sizer_element = nullptr;
+        m_chevron_icon_element = nullptr;
+        m_chevron_icon_hidden = false;
+        m_list_box_element = nullptr;
+        m_list_box_rows.clear();
+        m_list_box_anchor_index = {};
+        m_list_box_focus_index = {};
+        create_shadow_tree_if_needed();
+    } else if (name == HTML::AttributeNames::size && m_list_box_element) {
+        update_list_box();
+    }
+
     // AD-HOC: Changing the required or multiple attribute can change whether the select satisfies its constraints.
     if (name == HTML::AttributeNames::required || name == HTML::AttributeNames::multiple)
         CSS::Invalidation::invalidate_style_after_validity_change(*this);
@@ -707,6 +741,11 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     auto shadow_root = DOM::ShadowRoot::create(document(), *this, Web::DOM::ShadowRootMode::Closed);
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
+
+    if (renders_as_list_box()) {
+        create_list_box_shadow_tree(shadow_root);
+        return;
+    }
 
     auto border = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     border->set_attribute_value(HTML::AttributeNames::style, R"~~~(
@@ -1042,6 +1081,299 @@ GC::Ptr<HTMLSelectElement> get_nearest_ancestor_select(DOM::Element& element)
 GC::Ptr<HTMLSelectElement const> get_nearest_ancestor_select(DOM::Element const& element)
 {
     return get_nearest_ancestor_select(const_cast<DOM::Element&>(element));
+}
+
+static constexpr double list_box_row_height_in_em = 1.2;
+
+// https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2
+bool HTMLSelectElement::renders_as_list_box() const
+{
+    // A select element whose multiple attribute is present, or whose display size is greater than 1, is expected to
+    // render as a multi-select list box.
+    return has_attribute(AttributeNames::multiple) || display_size() > 1;
+}
+
+bool HTMLSelectElement::is_presentational_hint(Utf16FlyString const& name) const
+{
+    if (Base::is_presentational_hint(name))
+        return true;
+    return first_is_one_of(name, HTML::AttributeNames::size, HTML::AttributeNames::multiple);
+}
+
+void HTMLSelectElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
+{
+    Base::apply_presentational_hints(properties);
+
+    // AD-HOC: A list box is as tall as the number of rows its display size asks for, whatever options it holds. Its
+    //         rows are its contents, so size containment keeps that height through its contain-intrinsic-block-size.
+    if (!renders_as_list_box())
+        return;
+    auto rows = max(display_size(), 1u);
+    properties.append({ .property_id = CSS::PropertyID::ContainIntrinsicBlockSize, .value = CSS::LengthStyleValue::create(CSS::Length(rows * list_box_row_height_in_em, CSS::LengthUnit::Em)) });
+}
+
+void HTMLSelectElement::create_list_box_shadow_tree(DOM::ShadowRoot& shadow_root)
+{
+    m_list_box_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    MUST(shadow_root.append_child(*m_list_box_element));
+
+    auto mousedown_function = JS::NativeFunction::create(
+        HTML::relevant_realm(*this), [this](JS::VM& vm) {
+            auto event = vm.argument(0).is_object()
+                ? Bindings::impl_from<UIEvents::MouseEvent>(&vm.argument(0).as_object())
+                : nullptr;
+            if (event)
+                handle_list_box_mousedown(*event);
+            return JS::js_undefined();
+        },
+        1, Utf16FlyString {}, &HTML::relevant_realm(*this));
+    auto mousedown_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*mousedown_function, HTML::relevant_realm(*this));
+    m_list_box_element->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(mousedown_callback));
+
+    update_list_box();
+}
+
+void HTMLSelectElement::list_box_options_did_change()
+{
+    // NB: The rows are built again once for any number of changes made to the options before the next task, so that
+    //     inserting the options of a long list one by one does not build its rows over and over.
+    if (!m_list_box_element || m_list_box_update_queued)
+        return;
+    m_list_box_update_queued = true;
+    queue_an_element_task(HTML::Task::Source::DOMManipulation, [this] {
+        m_list_box_update_queued = false;
+        if (m_list_box_element)
+            update_list_box();
+    });
+}
+
+void HTMLSelectElement::update_list_box_row_styles()
+{
+    for (auto const& row : m_list_box_rows)
+        update_list_box_row_style(row.element, row.option);
+}
+
+void HTMLSelectElement::did_receive_focus()
+{
+    m_list_box_is_focused = true;
+    update_list_box_row_styles();
+}
+
+void HTMLSelectElement::did_lose_focus()
+{
+    m_list_box_is_focused = false;
+    update_list_box_row_styles();
+}
+
+void HTMLSelectElement::list_box_option_selectedness_did_change(HTMLOptionElement const& option)
+{
+    if (!m_list_box_element)
+        return;
+    for (auto const& row : m_list_box_rows) {
+        if (row.option.ptr() == &option) {
+            update_list_box_row_style(row.element, option);
+            return;
+        }
+    }
+}
+
+void HTMLSelectElement::update_list_box_row_style(DOM::Element& row, HTMLOptionElement const& option) const
+{
+    StringBuilder style;
+    style.append("display: block; min-block-size: 1.2em; line-height: 1.2em; padding-inline: 4px; user-select: none;"sv);
+    if (as_if<HTMLOptGroupElement>(option.parent()))
+        style.append(" padding-inline-start: 1.25em;"sv);
+    // NB: The selection of a list box without focus is gray, so that it stands out less than one the keys move.
+    if (option.selected() && m_list_box_is_focused)
+        style.append(" background-color: AccentColor; color: AccentColorText;"sv);
+    else if (option.selected())
+        style.append(" background-color: color-mix(in srgb, currentcolor 22%, transparent);"sv);
+    else if (option.disabled())
+        style.append(" color: GrayText;"sv);
+    row.set_attribute_value(HTML::AttributeNames::style, Utf16String::from_utf8(style.string_view()));
+}
+
+void HTMLSelectElement::update_list_box()
+{
+    VERIFY(m_list_box_element);
+
+    auto rows = max(display_size(), 1u);
+    m_list_box_element->set_attribute_value(HTML::AttributeNames::style, Utf16String::formatted("block-size: {}em; overflow-x: hidden; overflow-y: auto;", rows * list_box_row_height_in_em));
+
+    m_list_box_rows.clear();
+    m_list_box_anchor_index = {};
+    m_list_box_focus_index = {};
+    m_list_box_element->replace_all(nullptr);
+
+    auto append_option_row = [&](HTMLOptionElement& option) {
+        if (option.has_attribute(AttributeNames::hidden))
+            return;
+        auto row = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        MUST(row->append_child(document().create_text_node(Infra::strip_and_collapse_whitespace(option.label()))));
+        update_list_box_row_style(row, option);
+        MUST(m_list_box_element->append_child(row));
+        m_list_box_rows.append({ row, option });
+    };
+
+    for (auto const& child : children_as_vector()) {
+        if (auto* option = as_if<HTMLOptionElement>(*child)) {
+            append_option_row(*option);
+        } else if (auto* group = as_if<HTMLOptGroupElement>(*child)) {
+            if (group->has_attribute(AttributeNames::hidden))
+                continue;
+            auto label_row = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+            label_row->set_attribute_value(HTML::AttributeNames::style, "display: block; min-block-size: 1.2em; line-height: 1.2em; padding-inline: 4px; font-weight: bold; user-select: none;"_utf16);
+            MUST(label_row->append_child(document().create_text_node(group->get_attribute(AttributeNames::label).value_or({}))));
+            MUST(m_list_box_element->append_child(label_row));
+            for (auto const& group_child : group->children_as_vector()) {
+                if (auto* group_option = as_if<HTMLOptionElement>(*group_child))
+                    append_option_row(*group_option);
+            }
+        }
+    }
+}
+
+void HTMLSelectElement::handle_list_box_mousedown(UIEvents::MouseEvent& event)
+{
+    if (event.button() != 0 || !is_mutable())
+        return;
+
+    // Find the row that was pressed, as the child of the list box that holds the event's target.
+    auto* node = as_if<DOM::Node>(event.target().ptr());
+    while (node && node->parent() != m_list_box_element.ptr())
+        node = node->parent();
+    if (!node)
+        return;
+
+    Optional<size_t> index;
+    for (size_t i = 0; i < m_list_box_rows.size(); ++i) {
+        if (m_list_box_rows[i].element.ptr() == node) {
+            index = i;
+            break;
+        }
+    }
+    if (!index.has_value() || m_list_box_rows[*index].option->disabled())
+        return;
+
+    // NB: Pressing an option chooses it. In a multiple select, a press with Ctrl or Cmd held toggles the option, and a
+    //     press with Shift held chooses the options from the last one pressed up to this one.
+    bool const multiple = has_attribute(AttributeNames::multiple);
+    bool const toggle = multiple && (event.ctrl_key() || event.meta_key());
+    if (!toggle) {
+        choose_list_box_row(*index, multiple && event.shift_key());
+        return;
+    }
+
+    auto& option = m_list_box_rows[*index].option;
+    option->set_selected(!option->selected());
+    m_list_box_anchor_index = *index;
+    m_list_box_focus_index = *index;
+    send_select_update_notifications();
+}
+
+void HTMLSelectElement::choose_list_box_row(size_t index, bool extend)
+{
+    update_cached_list_of_options();
+    Vector<bool> was_selected;
+    for (auto const& option : m_cached_list_of_options)
+        was_selected.append(option->selected());
+
+    // NB: Set the selectedness and dirtiness of each option directly, then run the selectedness setting algorithm
+    //     once, instead of letting every option ask for a reset.
+    auto set_selectedness = [](HTMLOptionElement& option, bool selected) {
+        option.set_selected_internal(selected);
+        option.m_dirty = true;
+    };
+    for (auto const& option : m_cached_list_of_options)
+        set_selectedness(*option, false);
+    if (extend && m_list_box_anchor_index.has_value()) {
+        auto first = min(*m_list_box_anchor_index, index);
+        auto last = max(*m_list_box_anchor_index, index);
+        for (size_t i = first; i <= last; ++i) {
+            if (!m_list_box_rows[i].option->disabled())
+                set_selectedness(*m_list_box_rows[i].option, true);
+        }
+    } else {
+        set_selectedness(*m_list_box_rows[index].option, true);
+        m_list_box_anchor_index = index;
+    }
+    update_selectedness();
+    m_list_box_focus_index = index;
+    Bindings::ScrollIntoViewOptions scroll_options;
+    scroll_options.block = Bindings::ScrollLogicalPosition::Nearest;
+    scroll_options.inline_ = Bindings::ScrollLogicalPosition::Nearest;
+    m_list_box_rows[index].element->scroll_into_view(scroll_options, nullptr);
+
+    bool changed = false;
+    for (size_t i = 0; i < m_cached_list_of_options.size(); ++i) {
+        if (m_cached_list_of_options[i]->selected() != was_selected[i])
+            changed = true;
+    }
+    if (changed)
+        send_select_update_notifications();
+}
+
+bool HTMLSelectElement::handle_list_box_key(UIEvents::KeyCode key, u32 modifiers)
+{
+    if (m_list_box_rows.is_empty() || !is_mutable())
+        return false;
+    if (modifiers != UIEvents::Mod_None && modifiers != UIEvents::Mod_Shift)
+        return false;
+
+    // NB: The keys move from the option last chosen, or from the first selected option.
+    Optional<size_t> current = m_list_box_focus_index;
+    if (!current.has_value()) {
+        for (size_t i = 0; i < m_list_box_rows.size(); ++i) {
+            if (m_list_box_rows[i].option->selected()) {
+                current = i;
+                break;
+            }
+        }
+    }
+
+    auto is_choosable = [&](size_t i) { return !m_list_box_rows[i].option->disabled(); };
+    Optional<size_t> target;
+    switch (key) {
+    case UIEvents::KeyCode::Key_Down:
+        for (size_t i = current.has_value() ? *current + 1 : 0; i < m_list_box_rows.size(); ++i) {
+            if (is_choosable(i)) {
+                target = i;
+                break;
+            }
+        }
+        break;
+    case UIEvents::KeyCode::Key_Up:
+        // NB: Without a current option, Up starts from the end of the list.
+        for (size_t i = current.value_or(m_list_box_rows.size()); i-- > 0;) {
+            if (is_choosable(i)) {
+                target = i;
+                break;
+            }
+        }
+        break;
+    case UIEvents::KeyCode::Key_Home:
+        for (size_t i = 0; i < m_list_box_rows.size(); ++i) {
+            if (is_choosable(i)) {
+                target = i;
+                break;
+            }
+        }
+        break;
+    case UIEvents::KeyCode::Key_End:
+        for (size_t i = m_list_box_rows.size(); i-- > 0;) {
+            if (is_choosable(i)) {
+                target = i;
+                break;
+            }
+        }
+        break;
+    default:
+        return false;
+    }
+
+    if (target.has_value())
+        choose_list_box_row(*target, has_attribute(AttributeNames::multiple) && modifiers == UIEvents::Mod_Shift);
+    return true;
 }
 
 }

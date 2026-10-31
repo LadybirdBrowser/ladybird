@@ -2014,6 +2014,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
 
     GC::Ref<DOM::Document> document = *m_navigable->active_document();
 
+    // NB: A focused list box moves its selection with the arrow, Home and End keys instead of scrolling.
+    if (auto* select = as_if<HTML::HTMLSelectElement>(document->focused_area().ptr()); select && select->renders_as_list_box()) {
+        if (select->handle_list_box_key(key, modifiers & ~UIEvents::Mod_Keypad))
+            return EventResult::Handled;
+    }
+
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
         if (key == UIEvents::KeyCode::Key_Tab)
             return focus_sequentially(modifiers & UIEvents::KeyModifier::Mod_Shift ? HTML::SequentialFocusDirection::Backward : HTML::SequentialFocusDirection::Forward);

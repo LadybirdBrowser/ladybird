@@ -85,6 +85,20 @@ button, input[type=submit], input[type=button], input[type=reset], input[type=co
     }
 }
 
+/* https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2
+ * NB: A select that renders as a list box looks like a text field holding its options, which have their own padding.
+ */
+select:is([multiple], [size]:not([size="0"], [size="1"])) {
+    padding: 1px 0;
+    vertical-align: text-bottom;
+    background-color: Field;
+    color: FieldText;
+
+    &:hover, &:active:hover {
+        background-color: Field;
+    }
+}
+
 input[type=file]:enabled::file-selector-button:hover {
     background-color: -libweb-ButtonFaceHover;
 }
