@@ -923,12 +923,17 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     EXPECT_EQ(ranges_1[0].end, AK::Duration::from_milliseconds(51));
 
     // Stage 2: extend to two thirds.
+    // The scan publishes intermediate ranges as it works through the new bytes, so wait for the range to reach the end
+    // of the second third rather than for any change.
     stream->add_chunk_at(one_third, file_data.bytes().slice(one_third, two_thirds - one_third));
-    auto ranges_2 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) { return ranges != ranges_1; });
+    auto stage_2_end = AK::Duration::from_milliseconds(531);
+    auto ranges_2 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) {
+        return !ranges.is_empty() && ranges[ranges.size() - 1].end >= stage_2_end;
+    });
     EXPECT_EQ(ranges_2.size(), 1u);
     EXPECT_EQ(ranges_2[0].start, start);
     EXPECT(ranges_2[0].end > ranges_1[0].end);
-    EXPECT_EQ(ranges_2[0].end, AK::Duration::from_milliseconds(531));
+    EXPECT_EQ(ranges_2[0].end, stage_2_end);
 
     // Stage 3: complete the file.
     stream->add_chunk_at(two_thirds, file_data.bytes().slice(two_thirds, CUES_START - two_thirds));
