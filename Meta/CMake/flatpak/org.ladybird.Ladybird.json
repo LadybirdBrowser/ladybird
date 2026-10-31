@@ -410,7 +410,7 @@
         "-DCMAKE_PREFIX_PATH=/app",
         "-DCMAKE_INSTALL_LIBDIR=lib",
         "-DAVIF_CODEC_AOM=OFF",
-        "-DAVIF_CODEC_DAV1D=ON",
+        "-DAVIF_CODEC_DAV1D=SYSTEM",
         "-DAVIF_BUILD_APPS=OFF"
       ]
     },
