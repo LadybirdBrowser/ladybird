@@ -328,15 +328,24 @@ bool web_bindings_message_port_transport_send(IPC::Transport* transport, HTML::S
 }
 
 // Hands over every message that has arrived as the record it carries, and returns whether the peer is gone, so that
-// nothing more arrives.
+// nothing more arrives. A message that is not a record is treated as the peer going away, along with what follows it.
 bool web_bindings_message_port_transport_read_messages(IPC::Transport* transport, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
 {
+    bool failed_to_decode = false;
     auto should_shutdown = transport->read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+        if (failed_to_decode)
+            return;
         FixedMemoryStream stream { message.bytes.bytes() };
         IPC::Decoder decoder { stream, message.attachments };
-        append(records, new HTML::SerializedTransferRecord(MUST(decoder.decode<HTML::SerializedTransferRecord>())));
+        auto record = decoder.decode<HTML::SerializedTransferRecord>();
+        if (record.is_error()) {
+            dbgln("Failed to decode a MessagePort message: {}", record.error());
+            failed_to_decode = true;
+            return;
+        }
+        append(records, new HTML::SerializedTransferRecord(record.release_value()));
     });
-    return should_shutdown == IPC::Transport::ShouldShutdown::Yes;
+    return failed_to_decode || should_shutdown == IPC::Transport::ShouldShutdown::Yes;
 }
 
 JSObject* web_bindings_rejected_promise(void* current_realm, JSValue this_value, JSValue reason)
