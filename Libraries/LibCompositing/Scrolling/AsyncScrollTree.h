@@ -73,12 +73,15 @@ enum class NestedContextRegions : u8 {
     Ignore,
 };
 
-// Where a wheel over the content of a nested context lands in it.
-struct NestedContextWheelHit {
+// Where a wheel or the pointer over the content of a nested context lands in it.
+struct NestedContextHit {
     Web::CompositorContextId child_context_id;
     // Relative to the origin of the nested context's content box, in the device pixels of the containing context.
     Gfx::FloatPoint position_in_content_box;
     Gfx::FloatSize content_box_size;
+    // Where the nested context's content is painted among the other things in the containing context that take
+    // pointer input.
+    u32 paint_order_index { 0 };
 };
 
 struct WheelScrollTarget {
@@ -149,7 +152,13 @@ public:
     bool blocks_wheel_event_at_position(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for = {}, WheelStepDispatch = WheelStepDispatch::NotYetDispatched, NestedContextRegions = NestedContextRegions::LeaveToMainThread) const;
     // The nested context whose content is the topmost thing taking pointer input at the position, if any.
-    Optional<NestedContextWheelHit> nested_context_for_wheel_at(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
+    Optional<NestedContextHit> nested_context_at(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
+    // As above, unless the main thread takes the wheel events at the position.
+    Optional<NestedContextHit> nested_context_for_wheel_at(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
+    // Where the position lands in the content of the nested context, even outside of that content and its clips, as
+    // the pointer of a drag that began in there moves on.
+    Optional<NestedContextHit> position_in_content_of_nested_context(Web::CompositorContextId, Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
+    bool has_nested_contexts() const { return !m_nested_context_wheel_regions.is_empty(); }
     bool has_wheel_hit_test_targets_for(Compositing::AccumulatedVisualContextTree const& visual_context_tree) const { return m_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch(); }
     // Whether something painted above the given place in paint order takes pointer input at the position. It is taken
     // to be covered whenever that cannot be told.

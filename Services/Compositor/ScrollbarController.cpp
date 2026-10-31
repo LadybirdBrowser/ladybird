@@ -138,7 +138,7 @@ void ScrollbarController::set_scrollbars(Vector<Compositing::AsyncScrollbar> con
         m_thumb_grab_position = 0;
 }
 
-Optional<Web::ScrollbarDraggedByCompositor> ScrollbarController::captured_scrollbar_painted_by_display_list() const
+Optional<Web::ScrollbarDraggedByCompositor> ScrollbarController::captured_scrollbar_painted_by_display_list(Web::CompositorContextId context_id) const
 {
     if (!m_captured_scrollbar_index.has_value())
         return {};
@@ -146,6 +146,7 @@ Optional<Web::ScrollbarDraggedByCompositor> ScrollbarController::captured_scroll
     if (scrollbar.is_painted_by_compositor || !scrollbar.scroller_stable_node_id.has_value())
         return {};
     return Web::ScrollbarDraggedByCompositor {
+        .context_id = context_id,
         .scroller_stable_node_id = *scrollbar.scroller_stable_node_id,
         .vertical = scrollbar.vertical,
     };
@@ -168,13 +169,13 @@ Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_compositor(C
 }
 
 // A scrollbar the display list paints takes a press only where the main thread would give it one: inside the rect of
-// the scrollbar as it is painted now, and with nothing that takes pointer input painted over it there. Any other press
-// is left to the main thread.
+// the scrollbar as it is painted now, and with nothing that takes pointer input painted over it there. A scrollbar that
+// has faded out takes none, as the main thread passes it by. Any other press is left to the main thread.
 Optional<size_t> ScrollbarController::hit_test_scrollbar_painted_by_display_list(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Gfx::FloatPoint position) const
 {
     for (size_t i = m_scrollbars.size(); i-- > 0;) {
         auto const& scrollbar = m_scrollbars[i];
-        if (scrollbar.is_painted_by_compositor || !scrollbar.scroller_stable_node_id.has_value())
+        if (scrollbar.is_painted_by_compositor || !scrollbar.scroller_stable_node_id.has_value() || !is_shown(i))
             continue;
         if (!async_scroll_tree.scroll_offset_for_node(scrollbar.scroll_node_id, scroll_state_snapshot).has_value())
             continue;

@@ -1,0 +1,25 @@
+#1 compositor: handed-to-nested-context
+#1 compositor: not-over-a-scrollbar
+#1 compositor: forwarded-to-page
+#1 web-content: forwarded-to-remote-frame
+#2 compositor: handed-to-nested-context
+#2 compositor: began-scrollbar-drag
+#2 compositor: forwarded-to-page
+#2 web-content: forwarded-to-remote-frame
+#3 compositor: handed-to-nested-context
+#3 compositor: continued-scrollbar-drag
+#3 compositor: forwarded-to-page
+#3 web-content: forwarded-to-remote-frame
+#4 compositor: handed-to-nested-context
+#4 compositor: continued-scrollbar-drag
+#4 compositor: forwarded-to-page
+#4 web-content: finished-handled
+#5 compositor: handed-to-nested-context
+#5 compositor: ended-scrollbar-drag
+#5 compositor: forwarded-to-page
+#5 web-content: finished-handled
+the scroller in the frame's document scrolled to: 900
+pointerdown reached: scroller
+this document did not scroll: true
+WebContent#0
+  iframe#0: remote WebContent#1

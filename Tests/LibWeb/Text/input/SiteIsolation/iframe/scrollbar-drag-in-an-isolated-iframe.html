@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    body { margin: 0; }
+    iframe { display: block; width: 200px; height: 150px; border: 0; }
+</style>
+<script>
+    // The drag goes through the UI process to the Compositor, which drags the scrollbar of the frame's document for the
+    // process hosting it. The press still reaches that document's scroller, through the UI process.
+    promiseTest(async () => {
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", "/oop-iframe-scrollbar-drag", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><style>
+                    body { margin: 0; }
+                    #scroller { width: 150px; height: 100px; overflow-y: scroll; overflow-x: hidden; }
+                    #content { height: 1000px; }
+                </style><div id="scroller"><div id="content"></div></div><script>
+                    let pointerDownTarget = "none";
+                    scroller.addEventListener("pointerdown", event => (pointerDownTarget = event.target.id));
+                    const afterTwoFrames = callback => requestAnimationFrame(() => requestAnimationFrame(callback));
+                    addEventListener("message", event => {
+                        if (event.data === "report")
+                            afterTwoFrames(() => parent.postMessage({ scrollTop: scroller.scrollTop, pointerDownTarget }, "*"));
+                    });
+                    // The compositor has this document's scrollbar before the drag starts.
+                    afterTwoFrames(() => {
+                        internals.synchronizeCompositor();
+                        parent.postMessage("ready", "*");
+                    });
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-iframe-scrollbar-drag");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+        // The frame's document came in a process of its own, which this document draws the frame from once it has
+        // rendered again.
+        await animationFrame();
+        await animationFrame();
+
+        // The output element is above the iframe and grows with each line, so nothing is printed before the drag.
+        const rect = iframe.getBoundingClientRect();
+        const x = rect.left + 147;
+        internals.beginInputTrace();
+        await internals.mouseEventThroughUIProcess("mousemove", x, rect.top + 5);
+        await internals.mouseEventThroughUIProcess("mousedown", x, rect.top + 5);
+        await internals.mouseEventThroughUIProcess("mousemove", x, rect.top + 60, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mousemove", x + 150, rect.top + 250, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mouseup", x + 150, rect.top + 250);
+
+        printInputTrace(internals.takeInputTrace());
+        const report = nextMessage();
+        iframe.contentWindow.postMessage("report", "*");
+        const { scrollTop, pointerDownTarget } = await report;
+        println(`the scroller in the frame's document scrolled to: ${scrollTop}`);
+        println(`pointerdown reached: ${pointerDownTarget}`);
+        println(`this document did not scroll: ${window.scrollY === 0}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

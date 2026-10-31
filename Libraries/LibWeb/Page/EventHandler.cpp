@@ -389,8 +389,13 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     if (!node)
         return EventResult::Dropped;
 
-    // The compositor already scrolls for this press, so its scrollbar takes it whatever is hit here by now.
-    if (scrollbar_dragged_by_compositor.has_value()) {
+    // The compositor already scrolls for this press, so its scrollbar takes it whatever is hit here by now. A scrollbar
+    // of a document nested in this one takes it there, and only the process that owns that document's context can tell
+    // which scroller the compositor names.
+    auto scrollbar_is_in_this_document = scrollbar_dragged_by_compositor.has_value()
+        && m_navigable->has_compositor_context()
+        && m_navigable->compositor_context().id() == scrollbar_dragged_by_compositor->context_id;
+    if (scrollbar_is_in_this_document) {
         auto scrollbar = m_navigable->scrollbar_dragged_by_compositor(read, *scrollbar_dragged_by_compositor);
         if (!scrollbar)
             return EventResult::Dropped;
@@ -406,12 +411,14 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
 
     m_mousedown_click_count = click_count;
 
-    if (!scrollbar_dragged_by_compositor.has_value() && !next_pointer_event_is_captured()) {
+    if (!scrollbar_is_in_this_document && (scrollbar_dragged_by_compositor.has_value() || !next_pointer_event_is_captured())) {
         auto dispath_result = dispatch_event_to_nested_navigable(*this, *target_layout_node, node, visual_viewport_position, remote_target, [=](EventHandler& event_handler, CSSPixelPoint position) -> EventResult {
-            return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count, {}, remote_target);
+            return event_handler.handle_mousedown(position, screen_position, button, buttons, modifiers, click_count, scrollbar_dragged_by_compositor, remote_target);
         });
         if (dispath_result.has_value())
             return *dispath_result;
+        if (scrollbar_dragged_by_compositor.has_value())
+            return EventResult::Dropped;
     }
 
     m_navigable->page().set_focused_navigable(m_navigable);

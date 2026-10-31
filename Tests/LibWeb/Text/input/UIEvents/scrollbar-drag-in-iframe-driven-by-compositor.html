@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+        margin-left: 30px;
+        margin-top: 20px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `<!DOCTYPE html><style>
+            body { margin: 0; }
+            #scroller { width: 150px; height: 100px; overflow-y: scroll; overflow-x: hidden; }
+            #content { height: 1000px; }
+        </style><div id="scroller"><div id="content"></div></div>`;
+        document.body.appendChild(iframe);
+        await loaded;
+        await animationFrame();
+        await animationFrame();
+
+        const scroller = iframe.contentDocument.getElementById("scroller");
+        let pointerDownCount = 0;
+        scroller.addEventListener("pointerdown", () => ++pointerDownCount);
+
+        // The compositor of the iframe's document drags the scrollbar, and the drag goes on after the pointer leaves
+        // the iframe.
+        const rect = iframe.getBoundingClientRect();
+        const x = rect.left + 147;
+        internals.beginInputTrace();
+        await internals.mouseEventThroughUIProcess("mousemove", x, rect.top + 5);
+        await internals.mouseEventThroughUIProcess("mousedown", x, rect.top + 5);
+        await internals.mouseEventThroughUIProcess("mousemove", x, rect.top + 60, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mousemove", x + 150, rect.top + 250, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mouseup", x + 150, rect.top + 250);
+        printInputTrace(internals.takeInputTrace());
+        await animationFrame();
+        println(`pointerdown reached the scroller in the iframe: ${pointerDownCount === 1}`);
+        println(`scrollTop after the drag: ${scroller.scrollTop}`);
+        println(`this document did not scroll: ${window.scrollY === 0}`);
+    });
+</script>

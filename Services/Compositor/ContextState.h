@@ -75,7 +75,7 @@ public:
     struct NestedContextWheelStep {
         Web::CompositorContextId context_id;
         // Where the first step lands in the content of the nested context.
-        Optional<Compositing::NestedContextWheelHit> hit {};
+        Optional<Compositing::NestedContextHit> hit {};
     };
 
     struct ContextUpdateResult {
@@ -90,6 +90,9 @@ public:
         Optional<Web::InputRoutingDecision> nested_context_hand_off {};
         // Set instead of everything else for a wheel step that a nested context is to take.
         Optional<NestedContextWheelStep> nested_context_wheel_step {};
+        // Set, with at most the frame of the scrollbar the pointer left here, for a mouse event that the nested context
+        // under the pointer is to take.
+        Optional<Compositing::NestedContextHit> nested_context_mouse_hit {};
 
         static ContextUpdateResult declined(Web::InputRoutingDecision decision) { return { .routing_decision = decision }; }
     };
@@ -120,7 +123,7 @@ public:
         Web::InputRoutingDecision decision;
         Optional<Compositing::AsyncScrollNodeID> node_id {};
         Optional<Web::AsyncScrollNodeStableID> scroller {};
-        Optional<Compositing::NestedContextWheelHit> nested_context_hit {};
+        Optional<Compositing::NestedContextHit> nested_context_hit {};
     };
 
     ContextState(Web::CompositorContextId, Optional<u64> page_id, CompositorStateWebContentClient&, OwnedCanvasSurfaces, Function<void(Gfx::IntRect)> schedule_caret_repaint = {}, Function<void()> request_animation_frames = {});
@@ -161,6 +164,22 @@ public:
     ContextUpdateResult handle_key_event(Web::KeyEvent const&);
     Optional<Web::AsyncScrollNodeStableID> box_scrolled_for_key_event(Web::KeyEvent const&) const;
     ContextUpdateResult handle_mouse_event(Web::MouseEvent const&);
+    // A mouse event that the context this one is nested in hands to it, at a position in this context's device pixels.
+    ContextUpdateResult handle_mouse_event_from_containing_context(Web::MouseEvent const&, Gfx::FloatPoint position);
+    bool has_captured_scrollbar() const { return m_scrollbar_controller.has_captured_scrollbar(); }
+    // The pointer left the scrollbar it was over here for a context nested in this one, or for the one around it.
+    Optional<PendingFrame> clear_scrollbar_hover();
+    Optional<Compositing::NestedContextHit> position_in_content_of_nested_context(Web::CompositorContextId, Gfx::FloatPoint position);
+    // What a presenting context keeps of the contexts nested in it that the pointer is in, with positions in the device
+    // pixels of those contexts.
+    struct PointerInNestedContexts {
+        // The context whose scrollbar the pointer is dragging, which takes the pointer wherever it goes until the drag
+        // ends.
+        Optional<Web::CompositorContextId> context_with_captured_scrollbar;
+        Gfx::FloatPoint last_position_in_context_with_captured_scrollbar;
+        Optional<Web::CompositorContextId> context_under_pointer;
+    };
+    PointerInNestedContexts& pointer_in_nested_contexts() { return m_pointer_in_nested_contexts; }
     // The UI's wheel deltas are in CSS pixels; this scales them for the scroll tree, which works in device pixels.
     ContextUpdateResult handle_wheel_event(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
     // Takes note of a wheel event from the UI as it arrives, ahead of anything that may turn it away or leave it to
@@ -170,7 +189,7 @@ public:
     bool admits_async_pinch() const { return m_wheel_gesture_routing.admits_async_pinch(); }
 
     bool may_hand_first_wheel_steps_to_nested_contexts() const;
-    Optional<Compositing::NestedContextWheelHit> nested_context_for_wheel_at(Gfx::FloatPoint position);
+    Optional<Compositing::NestedContextHit> nested_context_for_wheel_at(Gfx::FloatPoint position);
     ContextUpdateResult scroll_for_wheel_event_passed_on_by_nested_context(Web::MouseEvent const&, MonotonicTime now);
     void latch_wheel_gesture_to_nested_context(Web::CompositorContextId, Optional<Web::AsyncScrollNodeStableID> scroller, Web::MouseEvent const&);
     void forget_wheel_gesture_latch() { m_wheel_gesture_routing.clear_latch(); }
@@ -362,6 +381,9 @@ private:
     // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
     // that it settles the gesture then rather than on a clock of its own.
     void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
+    ContextUpdateResult handle_mouse_event_at(Web::MouseEvent const&, Gfx::FloatPoint position);
+    Optional<Compositing::NestedContextHit> nested_context_taking_mouse_event_at(Web::MouseEvent::Type, Gfx::FloatPoint position);
+    Optional<PendingFrame> frame_repainting_scrollbars_painted_by_compositor() const;
     Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
     Optional<PendingFrame> start_scrollbar_press_scroll(Compositing::AsyncScrollNode const&, Gfx::FloatPoint old_scroll_offset, Gfx::FloatPoint destination, bool is_absolute_scroll);
     Optional<PendingFrame> page_captured_scrollbar();
@@ -415,6 +437,7 @@ private:
     Optional<ScrollbarPaging> m_scrollbar_paging;
     bool m_scrollbar_track_press_jumps { false };
     RefPtr<Core::Timer> m_scrollbar_paging_timer;
+    PointerInNestedContexts m_pointer_in_nested_contexts;
     ScrollFlingController m_scroll_fling_controller;
     Optional<Web::MouseEvent> m_last_reported_scroll_momentum_step;
     bool m_reported_scroll_momentum_was_interrupted { false };

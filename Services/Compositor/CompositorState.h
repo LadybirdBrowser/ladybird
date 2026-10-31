@@ -259,7 +259,14 @@ private:
     };
     // The context that takes the first step of a gesture over the content of a context nested in the context
     // `context_id`, among that context and the contexts nested in it. Empty when each of them passes the step on.
-    Optional<NestedContextTakingWheelStep> nested_context_taking_first_wheel_step(Web::CompositorContextId, Compositing::NestedContextWheelHit, Gfx::FloatPoint delta_in_css_pixels, Web::WheelDeltaPrecision);
+    Optional<NestedContextTakingWheelStep> nested_context_taking_first_wheel_step(Web::CompositorContextId, Compositing::NestedContextHit, Gfx::FloatPoint delta_in_css_pixels, Web::WheelDeltaPrecision);
+    // The scrollbars of a context nested in the presenting context `context_id` take the pointer over that context's
+    // content, and a drag of one of them takes the pointer wherever it goes until the drag ends.
+    ContextState::ContextUpdateResult handle_mouse_event_in_nested_contexts(Web::CompositorContextId, ContextState&, Web::MouseEvent const&);
+    ContextState* context_still_nested_in(Web::CompositorContextId containing_context_id, Optional<Web::CompositorContextId>);
+    // Where the position in the presenting context lands in the nested context, through each context in between and
+    // without regard to where their content is or what clips it.
+    Optional<Gfx::FloatPoint> position_in_nested_context_ignoring_clips(Web::CompositorContextId presenting_context_id, ContextState& presenting_context, ContextState& nested_context, Gfx::FloatPoint position);
     bool is_nested_in(Web::CompositorContextId containing_context_id, ContextState const&) const;
     bool nested_context_may_cancel_pinch(Web::CompositorContextId) const;
     void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<Web::MouseEvent>, MonotonicTime now);
