@@ -231,6 +231,7 @@ if (NOT WIN32)
         TestBeforeUnload.cpp
         TestBrowserHistoryTraversal.cpp
         TestCompositorInputRouting.cpp
+        TestContextMenuLifetime.cpp
         TestCrashOverlay.cpp
         TestCrashReportSubmission.cpp
         TestFavicon.cpp

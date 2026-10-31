@@ -828,6 +828,7 @@ protected:
     void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
     void request_text_fragment_url(Optional<u64> generation_id);
     void set_context_menu_url_actions_enabled(bool);
+    void activate_context_menu(Menu&, Gfx::IntPoint content_position);
     void request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete);
     NonnullRefPtr<Core::Promise<bool>> select_word_for_dictionary_lookup(Gfx::IntPoint widget_position);
     void reject_pending_selection_requests();
