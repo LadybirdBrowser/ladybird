@@ -1238,18 +1238,18 @@ def check_network_intercepted_adopted_navigation(bidi, context, server, action):
                     return bidi.events.pop(index)
             bidi.read_message()
 
-    def wait_for_commit():
+    def wait_for_value(expression, expected):
         deadline = time.monotonic() + 10
         while True:
             result = bidi.response(
                 bidi.send(
                     "script.evaluate",
-                    {"target": {"context": context}, "expression": "document.URL", "awaitPromise": False},
+                    {"target": {"context": context}, "expression": expression, "awaitPromise": False},
                 )
             )
-            if result["type"] == "success" and result["result"]["result"].get("value") == url:
+            if result["type"] == "success" and result["result"]["result"].get("value") == expected:
                 return
-            assert time.monotonic() < deadline, "The navigation did not commit its document"
+            assert time.monotonic() < deadline, f"{expression} did not become {expected!r}"
 
     try:
         navigation = bidi.send("browsingContext.navigate", {"context": context, "url": url, "wait": "none"})
@@ -1259,7 +1259,7 @@ def check_network_intercepted_adopted_navigation(bidi, context, server, action):
         expected_size = len(provided) if action == "provide" else len(server.document_body)
         if action == "continue":
             bidi.command("network.continueResponse", {"request": request_id})
-            wait_for_commit()
+            wait_for_value("document.URL", url)
             server.release_document.set()
         elif action == "fail":
             bidi.command("network.failRequest", {"request": request_id})
@@ -1268,8 +1268,9 @@ def check_network_intercepted_adopted_navigation(bidi, context, server, action):
                 "network.provideResponse",
                 {"request": request_id, "body": {"type": "string", "value": provided}},
             )
-            wait_for_commit()
-            assert bidi.evaluate(context, "document.title")["result"]["value"] == "Provided document"
+            wait_for_value("document.URL", url)
+            # The URL changes when the document is created, before the parser reaches its title.
+            wait_for_value("document.title", "Provided document")
         # A failed navigation settles too, with an error document, before the next navigation starts.
         result = bidi.response(navigation)
         if action != "fail":
