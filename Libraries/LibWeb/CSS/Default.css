@@ -41,6 +41,10 @@ input:not([type=submit], input[type=button], input[type=image], input[type=reset
 
     background-color: Field;
     color: FieldText;
+
+    &:disabled {
+        color: GrayText;
+    }
 }
 
 textarea {
