@@ -222,7 +222,8 @@ impl ComparedLayouts<'_> {
             "{checked}: {reference} reused a subtree"
         );
         assert!(
-            checked_root.root_payloads == reference_root.root_payloads,
+            fragment_tree::FragmentPayloads::of_fragment(&checked_root.fragment)
+                == fragment_tree::FragmentPayloads::of_fragment(&reference_root.fragment),
             "{checked} hands its root's fragment payloads {reference} does not"
         );
         assert!(
@@ -242,7 +243,7 @@ impl ComparedLayouts<'_> {
             "{checked} propagates payloads {reference} does not"
         );
         let mut nodes_laid_out_afresh = HashSet::default();
-        collect_nodes_of_fragment_subtrees(&reference_root.scoped_descendants, &mut nodes_laid_out_afresh);
+        collect_nodes_of_fragment_subtrees(&reference_root.fragment.children, &mut nodes_laid_out_afresh);
         let comparison = FreshDescendantComparison {
             callbacks,
             reused_subtree_roots: &checked_root.reused_subtree_roots,
@@ -250,8 +251,8 @@ impl ComparedLayouts<'_> {
         };
         if let Err(difference) = comparison.compare_children(
             box_,
-            &checked_root.scoped_descendants,
-            &reference_root.scoped_descendants,
+            &checked_root.fragment.children,
+            &reference_root.fragment.children,
             false,
         ) {
             panic!("{checked} lays out descendants unlike {reference}: {difference}");

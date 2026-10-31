@@ -470,49 +470,8 @@ pub(crate) fn place_child(
             .is_none_or(|arrival| arrival.node() == node && !fragments.left_child_unplaced(node)),
         "a box is placed with fragments handed to it for another box, or after it was left unplaced"
     );
-    let mut child_run_root = None;
-    let committed_fragment = match fragment_arrival {
-        Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
-            fragment,
-            reuses_subtree,
-        }) => Some((fragment, reuses_subtree)),
-        Some(fragment_tree::ChildFragmentArrival::RunRoot {
-            root,
-            reuses_committed_subtree,
-        }) => {
-            child_run_root = Some((root, reuses_committed_subtree));
-            None
-        }
-        None => None,
-    };
-    if let Some((fragment, reuses_subtree)) = committed_fragment {
-        fragments.attach_committed_fragment(
-            node,
-            fragment.clone(),
-            reuses_subtree,
-            (!containing_block.is_invalid()).then_some(containing_block),
-            facts_decided_by_parent,
-            &geometry.cells,
-            abspos_layout_inputs,
-            resolve_containing_line_box_index(callbacks, node, containing_line_box_fragment),
-            point_add(
-                offset,
-                committed_offset_delta_at_placement(
-                    callbacks,
-                    node,
-                    facts_decided_by_parent.used_insets,
-                    offset_from_relatively_positioned_inline_ancestors,
-                ),
-            ),
-            callbacks.frame,
-        );
-        return Some(fragment_tree::PlacedFragment {
-            fragment,
-            exports_payloads: false,
-            abspos_boxes_placed_with_it: Vec::new(),
-        });
-    }
-    match child_run_root {
+    let child_root = fragment_arrival.map(fragment_tree::ChildFragmentArrival::into_root);
+    match child_root {
         Some((root, reuses_committed_subtree)) => {
             fragments.take_in_child_root_at_placement(node, root, reuses_committed_subtree, callbacks);
         }
@@ -1086,7 +1045,8 @@ impl RunRootOutcome {
 #[derive(Clone)]
 pub(crate) struct RunOutputs {
     pub(crate) result: ChildLayoutResult,
-    pub(crate) root: Option<fragment_tree::UnplacedRootFragment>,
+    /// The fragment of the root, where the run builds fragments and is not a fragmentainer's.
+    pub(crate) root: Option<fragment_tree::RunRootFragment>,
     pub(crate) root_outcome: RunRootOutcome,
     pub(crate) inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
     /// Boxed, as most runs find out nothing for the host.
@@ -1348,7 +1308,7 @@ impl<'pass> FormattingContextRun<'pass> {
     pub(crate) fn outputs(
         &self,
         result: ChildLayoutResult,
-        root: Option<fragment_tree::UnplacedRootFragment>,
+        root: Option<fragment_tree::RunRootFragment>,
         root_cells_left_by_run: used_values::RootInputCells,
         root_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
         inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
@@ -2039,17 +1999,6 @@ pub(super) fn run_formatting_context(
     ) {
         Ok(attempt) => attempt,
         Err(hit) => {
-            if let Some(outcome) = reuse_committed_subtree_as_it_is(
-                parent_fragments,
-                box_,
-                &input,
-                root_cells,
-                &callbacks,
-                &cache_key,
-                &hit,
-            ) {
-                return outcome;
-            }
             let reuses_committed_subtree = hit.reuses_committed_subtree;
             let action = if !builds_fragments {
                 "READ RESULT"
@@ -2149,68 +2098,6 @@ pub(super) fn run_formatting_context(
         false,
         false,
     )
-}
-
-/// Takes a committing run of `box_` from the cache hit `hit` with nothing replayed: the box gets what the stored run
-/// left, and the run's placement attaches the box's committed fragment as it is. That is exact where the committed
-/// subtree is the one the stored run produced, the box is plain, and nothing from the stored run reaches past its root.
-fn reuse_committed_subtree_as_it_is(
-    parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
-    box_: Node,
-    input: &LayoutInput,
-    root_cells: used_values::RootInputCells,
-    callbacks: &LayoutPass<'_>,
-    cache_key: &fc_run_cache::FcRunCacheKey,
-    hit: &fc_run_cache::FcRunCacheHit,
-) -> Option<ChildRunOutcome> {
-    parent_fragments?;
-    let entry = &*hit.entry;
-    if !hit.reuses_committed_subtree
-        || !cache_key.has_no_table_cell_intrinsic_block_padding()
-        || entry
-            .outputs
-            .root
-            .as_ref()
-            .is_some_and(|root| !root.propagates_nothing())
-        || NodeFacts::new(callbacks, box_).has_anchor_names()
-    {
-        return None;
-    }
-    let fragment = callbacks
-        .arena()
-        .with_current_committed_fragment(box_, |fragment| fragment.is_plain_box().then(|| fragment.clone()))
-        .flatten()?;
-    let content_block_size_adopted_after_run =
-        content_block_size_adopted_after_run(input, entry.outputs.result.automatic_content_block_size);
-    let mut laid_out_box = entry.outputs.root_outcome.laid_out_child_box(
-        root_cells,
-        &entry.outputs.result,
-        content_block_size_adopted_after_run,
-    );
-    keep_inline_margins_resolved_now_where_unobserved(
-        &mut laid_out_box,
-        root_cells,
-        entry.outputs.inputs_never_observed,
-    );
-    let geometry = fragment_tree::FragmentGeometry {
-        cells: laid_out_box.cells,
-        line_data: laid_out_box.line_data.clone(),
-    };
-    if !geometry.shows_box_of_fragment(&fragment) {
-        return None;
-    }
-    let _trace = callbacks
-        .layout_trace()
-        .run(box_, cache_key.fc_type(), || "REUSE SUBTREE");
-    callbacks.receive_host_findings(entry.outputs.host_findings.clone());
-    Some(ChildRunOutcome {
-        result: entry.outputs.result,
-        laid_out_box,
-        fragment_arrival: Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
-            fragment,
-            reuses_subtree: true,
-        }),
-    })
 }
 
 fn keep_inline_margins_resolved_now_where_unobserved(
@@ -2632,11 +2519,25 @@ fn lay_out_run_root_and_contents<'pass>(
             && !fc_type.registers_abspos_children_against_its_final_block_size(),
     };
 
-    // NB: The root's descendants are laid out in the frame the root establishes.
+    // NB: The root's descendants are laid out in the frame the root establishes. A fragmentainer has no fragment of its
+    //     own, so the run hands what it laid out there to the run of the box the fragmentainer belongs to. Any other
+    //     run builds its root's fragment around what it laid out inside it.
     let take_run_fragments = || {
-        run.fragments
+        let contents = run
+            .fragments
             .as_ref()
-            .map(|fragments| fragments.take_unplaced_root(&body_run.callbacks))
+            .map(|fragments| fragments.take_unplaced_root(&body_run.callbacks))?;
+        if let Some(fragmentainer) = &run.fragmentainer {
+            fragmentainer.keep_contents(contents);
+            return None;
+        }
+        Some(contents.into_run_root_fragment(
+            &callbacks,
+            fragment_tree::FragmentGeometry {
+                cells: root_cells_left_by_run,
+                line_data: root_line_data.clone(),
+            },
+        ))
     };
 
     let registered_abspos_children_could_never_be_laid_out = run.fragments.is_none();
@@ -3001,22 +2902,12 @@ pub(crate) fn layout_inside_child_with_input_cells(
             input.containing_block_constraints,
             child_run_builds_fragments,
         );
-        // OPTIMIZATION: A box that took its metrics from its committed fragment is placed with that fragment, where
-        // it shows the box as its cells hold it.
+        // OPTIMIZATION: A box that took its metrics from its committed fragment hands that fragment to its placement.
         let fragment_arrival = committed_fragment
-            .filter(|fragment| {
-                run.fragments.is_some()
-                    && fragment.is_plain_box()
-                    && fragment_tree::FragmentGeometry {
-                        cells: cells_of_this_layout.get(),
-                        line_data: None,
-                    }
-                    .shows_box_of_fragment(fragment)
-                    && !facts.has_anchor_names()
-            })
+            .filter(|fragment| run.fragments.is_some() && fragment.is_plain_box())
             .map(|fragment| fragment_tree::ChildFragmentArrival::CommittedFragment {
                 fragment,
-                reuses_subtree: false,
+                reuses_committed_subtree: false,
             });
         let laid_out_box =
             run_state::LaidOutChildBox::sized_here(cells_of_this_layout.get(), DerivedBaselines::default());
@@ -3461,8 +3352,17 @@ fn child_run_outcome_from_outputs(
     if outputs_are_stored_ones {
         keep_inline_margins_resolved_now_where_unobserved(&mut laid_out_box, root_cells, inputs_never_observed);
     }
-    let fragment_arrival = parent_fragments.and(root).map(|root| {
-        debug_assert!(root.node == child, "a child run returned a root for a different box");
+    let fragment_arrival = parent_fragments.and(root).map(|mut root| {
+        debug_assert!(
+            root.fragment.node == child,
+            "a child run returned a root for a different box"
+        );
+        // NB: A stored run's fragment can show the box as it was committed since through another fragment.
+        if outputs_are_stored_ones
+            && let Some(committed) = fragment_tree::previously_committed_fragment_matching(callbacks, &root.fragment)
+        {
+            root.fragment = committed;
+        }
         fragment_tree::ChildFragmentArrival::RunRoot {
             root,
             reuses_committed_subtree,
@@ -3904,13 +3804,13 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
     let Some(fragment_tree::ChildFragmentArrival::RunRoot {
-        root: unplaced_root,
+        root: run_root_fragment,
         reuses_committed_subtree,
     }) = fragment_arrival
     else {
         panic!("the root of a partial relayout is laid out by a run of its own");
     };
-    fragments.take_in_child_root_at_placement(root, unplaced_root, reuses_committed_subtree, callbacks);
+    fragments.take_in_child_root_at_placement(root, run_root_fragment, reuses_committed_subtree, callbacks);
     fragments.build_fragment_for_placed_box(
         callbacks,
         root,
