@@ -4304,6 +4304,15 @@ void Application::stop_listening_for_console_messages(DevTools::TabDescription c
     view->on_console_message = nullptr;
 }
 
+void Application::start_sending_console_output(DevTools::TabDescription const& description, bool messages, bool errors) const
+{
+    auto view = ViewImplementation::find_view_by_id(description.id);
+    if (!view.has_value())
+        return;
+
+    view->start_sending_console_output(messages, errors);
+}
+
 void Application::listen_for_network_events(DevTools::TabDescription const& description, OnNetworkRequestStarted on_request_started, OnNetworkResponseHeadersReceived on_response_headers, OnNetworkResponseBodyReceived on_response_body, OnNetworkRequestFinished on_request_finished) const
 {
     auto view = ViewImplementation::find_view_by_id(description.id);

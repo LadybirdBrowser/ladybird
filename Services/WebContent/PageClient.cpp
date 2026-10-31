@@ -2371,9 +2371,26 @@ void PageClient::set_has_devtools_client(bool has_devtools_client)
             active_document->clear_devtools_layout_inspection_data();
     }
 
-    // No client is left to expand the objects of the messages logged for the last one.
-    if (!has_devtools_client && m_top_level_document_console_client)
-        as<DevToolsConsoleClient>(*m_top_level_document_console_client).forget_logged_objects();
+    // No client is left to take messages, or to expand the objects of those logged for the last one.
+    if (!has_devtools_client) {
+        m_devtools_takes_console_messages = false;
+        m_devtools_takes_console_errors = false;
+        if (m_top_level_document_console_client)
+            as<DevToolsConsoleClient>(*m_top_level_document_console_client).forget_logged_objects();
+    }
+}
+
+// A DevTools client takes the console's messages, and its errors, each from the moment it asks for them: first those
+// the console output before, and then each new one as it comes.
+void PageClient::start_sending_console_output(bool messages, bool errors)
+{
+    auto new_messages = messages && !m_devtools_takes_console_messages;
+    auto new_errors = errors && !m_devtools_takes_console_errors;
+    m_devtools_takes_console_messages |= messages;
+    m_devtools_takes_console_errors |= errors;
+
+    if ((new_messages || new_errors) && m_top_level_document_console_client)
+        as<DevToolsConsoleClient>(*m_top_level_document_console_client).send_buffered_console_output(new_messages, new_errors);
 }
 
 void PageClient::page_did_finish_network_request(u64 request_id, u64 body_size, Requests::RequestTimingInfo const& timing_info, Optional<Requests::NetworkError> const& network_error)

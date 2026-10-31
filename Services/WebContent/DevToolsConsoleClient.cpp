@@ -161,7 +161,20 @@ void DevToolsConsoleClient::end_group()
 
 void DevToolsConsoleClient::send_console_output(WebView::ConsoleOutput console_output)
 {
-    m_client->did_output_js_console_message(move(console_output));
+    m_buffered_output.append(console_output);
+
+    auto is_error = console_output.output.has<WebView::ConsoleError>();
+    if (is_error ? m_client->devtools_takes_console_errors() : m_client->devtools_takes_console_messages())
+        m_client->did_output_js_console_message(move(console_output));
+}
+
+void DevToolsConsoleClient::send_buffered_console_output(bool messages, bool errors)
+{
+    m_buffered_output.for_each([&](WebView::ConsoleOutput const& console_output) {
+        auto is_error = console_output.output.has<WebView::ConsoleError>();
+        if (is_error ? errors : messages)
+            m_client->did_output_js_console_message(console_output);
+    });
 }
 
 // 2.3. Printer(logLevel, args[, options]), https://console.spec.whatwg.org/#printer
@@ -225,32 +238,46 @@ JS::ThrowCompletionOr<JS::Value> DevToolsConsoleClient::printer(JS::Console::Log
     auto output = TRY(generically_format_values(argument_values));
     m_console->output_debug_message(log_level, output);
 
-    // An attached DevTools client gets grips for the objects, which it may expand; otherwise they're printed.
-    Vector<JsonValue> serialized_arguments;
-    if (log_level == JS::Console::LogLevel::Table) {
-        // The console hands a table over as the one object that holds its rows and columns.
-        auto table_data = argument_values.is_empty() ? JS::js_undefined() : argument_values.first();
-        if (!m_client->has_devtools_client() || !table_data.is_object())
-            return JS::js_undefined();
-        serialized_arguments = m_logged_objects.serialize_console_table_arguments(m_console->realm().vm(), table_data.as_object());
-    } else if (m_client->has_devtools_client()) {
-        serialized_arguments = m_logged_objects.serialize_message_arguments(argument_values.span());
-    } else {
-        serialized_arguments.ensure_capacity(argument_values.size());
-        for (auto value : argument_values)
-            serialized_arguments.unchecked_append(serialize_value(m_console->realm(), value));
-    }
+    auto timestamp = UnixDateTime::now();
+    auto console_log = [&](JS::Console::LogLevel level, Vector<JsonValue> serialized_arguments) {
+        return WebView::ConsoleOutput {
+            .timestamp = timestamp,
+            .output = WebView::ConsoleLog {
+                .level = level,
+                .arguments = move(serialized_arguments),
+                .type = WebView::ConsoleLogType::ConsoleAPI,
+                .location = {},
+                .stacktrace = {},
+            },
+        };
+    };
 
-    send_console_output({
-        .timestamp = UnixDateTime::now(),
-        .output = WebView::ConsoleLog {
-            .level = log_level,
-            .arguments = move(serialized_arguments),
-            .type = WebView::ConsoleLogType::ConsoleAPI,
-            .location = {},
-            .stacktrace = {},
-        },
-    });
+    // The console hands a table over as the one object that holds its rows and columns.
+    auto is_table = log_level == JS::Console::LogLevel::Table && !argument_values.is_empty() && argument_values.first().is_object();
+
+    // The buffer keeps the arguments printed, so it keeps no objects alive, and a table as its text.
+    Vector<JsonValue> printed_arguments;
+    if (is_table) {
+        printed_arguments.append(output.to_utf8());
+    } else {
+        printed_arguments.ensure_capacity(argument_values.size());
+        for (auto value : argument_values)
+            printed_arguments.unchecked_append(serialize_value(m_console->realm(), value));
+    }
+    m_buffered_output.append(console_log(is_table ? JS::Console::LogLevel::Log : log_level, printed_arguments));
+
+    // A DevTools client that takes the messages gets grips for the objects instead, which it may expand.
+    if (!m_client->devtools_takes_console_messages())
+        return JS::js_undefined();
+
+    Vector<JsonValue> serialized_arguments;
+    if (is_table) {
+        auto table_data = argument_values.first();
+        serialized_arguments = m_logged_objects.serialize_console_table_arguments(m_console->realm().vm(), table_data.as_object());
+    } else {
+        serialized_arguments = m_logged_objects.serialize_message_arguments(argument_values.span());
+    }
+    m_client->did_output_js_console_message(console_log(log_level, move(serialized_arguments)));
 
     return JS::js_undefined();
 }

@@ -52,7 +52,9 @@ def main():
             process, _, client = devtools["launch"](ladybird_binary, profile, url)
             try:
                 devtools["wait_for_page"](client, url, "worker-console")
-                client.watch_frame_targets()
+                watcher = client.watch_frame_targets()
+                # The page sends its errors once a client watches them.
+                client.send({"to": watcher, "type": "watchResources", "resourceTypes": ["error-message"]})
                 errors = []
                 receive = client.receive
 

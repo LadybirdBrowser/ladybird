@@ -1385,6 +1385,7 @@ public:
             navigation_listeners.take_first();
     }
 
+    virtual void start_sending_console_output(DevTools::TabDescription const&, bool messages, bool errors) const override { console_output_requests.append({ messages, errors }); }
     virtual void listen_for_inspect_element_requests(DevTools::TabDescription const&, OnInspectElementRequest callback) const override { on_inspect_element_request = move(callback); }
     virtual void stop_listening_for_inspect_element_requests(DevTools::TabDescription const&) const override { on_inspect_element_request = nullptr; }
     virtual void did_connect_devtools_client(DevTools::TabDescription const&) const override { ++did_connect_devtools_client_call_count; }
@@ -1745,6 +1746,7 @@ public:
     mutable size_t listen_for_navigation_events_call_count { 0 };
     mutable size_t stop_listening_for_navigation_events_call_count { 0 };
     mutable size_t did_connect_devtools_client_call_count { 0 };
+    mutable Vector<Array<bool, 2>> console_output_requests;
     mutable size_t did_disconnect_devtools_client_call_count { 0 };
     mutable size_t navigate_tab_call_count { 0 };
     mutable size_t reload_tab_call_count { 0 };
@@ -4747,6 +4749,46 @@ TEST_CASE(console_log_object_grips)
     EXPECT_EQ(session->delegate.last_debugger_object_id.value(), 9u);
     EXPECT_EQ(session->delegate.last_debugger_object_scope.value(), WebView::DebuggerObjectScope::Console);
     EXPECT(properties.get_object("ownProperties"sv)->has("answer"sv));
+}
+
+TEST_CASE(console_output_is_requested_when_watched)
+{
+    auto session = create_session();
+    auto& client = *session->client;
+    (void)client.read_message();
+
+    auto tab_actor = actor_from(get_tab(client), "actor"sv);
+    auto watcher_actor = actor_from(client.request(tab_actor, "getWatcher"sv), "actor"sv);
+    auto watch = [&](StringView resource_type) {
+        JsonObject watch_resources;
+        watch_resources.set("to"sv, watcher_actor);
+        watch_resources.set("type"sv, "watchResources"sv);
+        JsonArray resource_types;
+        resource_types.must_append(resource_type);
+        watch_resources.set("resourceTypes"sv, move(resource_types));
+        (void)client.request(move(watch_resources));
+    };
+
+    // Nothing listens for the page's output before there's a frame target, so the request waits for one.
+    watch("error-message"sv);
+    EXPECT(session->delegate.console_output_requests.is_empty());
+
+    JsonObject watch_targets;
+    watch_targets.set("to"sv, watcher_actor);
+    watch_targets.set("type"sv, "watchTargets"sv);
+    watch_targets.set("targetType"sv, "frame"sv);
+    client.send(move(watch_targets));
+    (void)read_packet_with_type(client, "target-available-form"sv);
+    EXPECT_EQ(session->delegate.console_output_requests.size(), 1u);
+    EXPECT_EQ(session->delegate.console_output_requests[0], (Array { false, true }));
+
+    // Watching messages later asks for those the page output before, which watching errors alone left out.
+    watch("console-message"sv);
+    EXPECT_EQ(session->delegate.console_output_requests.size(), 2u);
+    EXPECT_EQ(session->delegate.console_output_requests[1], (Array { true, false }));
+
+    watch("console-message"sv);
+    EXPECT_EQ(session->delegate.console_output_requests.size(), 2u);
 }
 
 TEST_CASE(console_message_levels)
