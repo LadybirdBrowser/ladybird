@@ -1,0 +1,14 @@
+When the user presses Escape, Ladybird now exits fullscreen before
+any keydown reaches the page, so the page can’t cancel it, and never
+sees that keydown. That’s what Blink, WebKit and Gecko all do. In
+WebKit, EventHandler::internalKeyEvent() calls fullyExitFullscreen()
+and returns before it dispatches the keydown. In Gecko, PresShell::
+EventHandler::MaybeHandleKeyboardEventBeforeDispatch() marks that
+Escape mOnlyChromeDispatch, so content never gets it. And in Chromium,
+ExclusiveAccessManager::HandleUserKeyEvent() takes the Escape in the
+browser process, before the renderer gets it.
+
+To decide if fullscreen is active, Ladybird checks the topmost ancestor
+document in its process rather than the focused document alone. Gecko
+does the same, with nsContentUtils::GetInProcessSubtreeRootDocument()
+and that root document’s GetFullscreenElement().
