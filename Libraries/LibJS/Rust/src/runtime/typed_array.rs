@@ -967,15 +967,7 @@ pub fn typed_array_get_element(vm: &Vm, typed_array: &TypedArrayBase, property_i
 
     // 3. Let elementSize be TypedArrayElementSize(O).
     // 4. Let byteIndexInBuffer be (ℝ(index) × elementSize) + offset.
-    let byte_index_in_buffer = (property_index.as_index() as usize)
-        .checked_mul(typed_array.element_size())
-        .and_then(|byte_index| byte_index.checked_add(offset));
-    // FIXME: Not exactly sure what we should do when overflow occurs.
-    //        Just return as if it's an invalid index for now.
-    let Some(byte_index_in_buffer) = byte_index_in_buffer else {
-        eprintln!("typed_array_get_element(): byte_index_in_buffer overflowed, returning as if it's an invalid index.");
-        return Value::UNDEFINED;
-    };
+    let byte_index_in_buffer = property_index.as_index() as usize * typed_array.element_size() + offset;
 
     // 5. Let elementType be TypedArrayElementType(O).
     // 6. Return GetValueFromBuffer(O.[[ViewedArrayBuffer]], byteIndexInBuffer, elementType, true, unordered).
@@ -1012,15 +1004,7 @@ pub fn typed_array_set_element(
 
     // b. Let elementSize be TypedArrayElementSize(O).
     // c. Let byteIndexInBuffer be (ℝ(index) × elementSize) + offset.
-    let byte_index_in_buffer = (property_index.as_index() as usize)
-        .checked_mul(typed_array.element_size())
-        .and_then(|byte_index| byte_index.checked_add(offset));
-    // FIXME: Not exactly sure what we should do when overflow occurs.
-    //        Just return as if it succeeded for now.
-    let Some(byte_index_in_buffer) = byte_index_in_buffer else {
-        eprintln!("typed_array_set_element(): byte_index_in_buffer overflowed, returning as if succeeded.");
-        return Ok(());
-    };
+    let byte_index_in_buffer = property_index.as_index() as usize * typed_array.element_size() + offset;
 
     // d. Let elementType be TypedArrayElementType(O).
     // e. Perform SetValueInBuffer(O.[[ViewedArrayBuffer]], byteIndexInBuffer, elementType, numValue, true, unordered).
