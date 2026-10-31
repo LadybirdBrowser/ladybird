@@ -26,7 +26,6 @@ set(SOURCES
     LinuxDmaBufHandle.cpp
     DecodedImageFrame.cpp
     RustProcessState.cpp
-    ImageFormats/BMPWriter.cpp
     ImageFormats/JPEGWriter.cpp
     ImageFormats/PNGWriter.cpp
     ImageFormats/WebPSharedLossless.cpp
