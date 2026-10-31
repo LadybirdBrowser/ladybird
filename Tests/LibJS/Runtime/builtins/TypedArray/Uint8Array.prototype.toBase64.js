@@ -53,6 +53,16 @@ describe("errors", () => {
             "TypedArray contains a property which references a value at an index not contained within its buffer's bounds"
         );
     });
+
+    test("result too long for a string", () => {
+        // 3,221,225,470 bytes encode to 4,294,967,296 characters, which is more than a string can hold.
+        let arrayBuffer = new ArrayBuffer(0, { maxByteLength: 3221225470 });
+        arrayBuffer.resize(3221225470);
+
+        expect(() => {
+            new Uint8Array(arrayBuffer).toBase64();
+        }).toThrowWithMessage(RangeError, "string size must not overflow");
+    });
 });
 
 describe("correct behavior", () => {
