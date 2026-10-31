@@ -1,0 +1,2 @@
+Load event fired while the image was loading: true
+Image loaded once unblocked: true

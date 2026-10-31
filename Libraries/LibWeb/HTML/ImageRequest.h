@@ -14,6 +14,7 @@
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/CORSSettingAttribute.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 
 namespace Web::HTML {
 
@@ -58,7 +59,7 @@ public:
     void prepare_for_presentation(HTMLImageElement&);
 
     void fetch_image(NonnullRefPtr<Fetch::Infrastructure::Request>);
-    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
+    void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {}, SharedResourceRequest::DelaysLoadEvent = SharedResourceRequest::DelaysLoadEvent::Yes);
 
     // Adds callbacks that do not make the fetch delay the load event, and that stop_waiting_for_fetch() keeps.
     void add_callbacks_without_delaying_the_load_event(Function<void()> on_finish, Function<void()> on_fail);

@@ -1,0 +1,49 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = uniqueID();
+        const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        const image = await server.createEcho("GET", `/lazy-made-eager-${token}.png`, {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: png,
+            body_encoding: "base64",
+            wait_for_unblock: token,
+        });
+        const frame = document.createElement("iframe");
+        let resolveLoaded, resolveImageLoaded;
+        const loaded = new Promise(resolve => (resolveLoaded = resolve));
+        const imageLoaded = new Promise(resolve => (resolveImageLoaded = resolve));
+        const onMessage = event => {
+            if (event.source !== frame.contentWindow || event.data.token !== token) return;
+            if (event.data.kind === "loaded") resolveLoaded(event.data);
+            if (event.data.kind === "image") resolveImageLoaded(event.data);
+        };
+        addEventListener("message", onMessage);
+        // NB: The image is lazy when its source is first processed, so its fetch must not delay the load event, even
+        //     though the image becomes eager before the document has finished loading.
+        frame.srcdoc = `<!doctype html><body>
+            <div style="height: 10000px"></div>
+            <img id="image" src=${JSON.stringify(image)} loading="lazy">
+            <script>
+                const send = (kind, data) => parent.postMessage({ token: ${JSON.stringify(token)}, kind, ...data }, "*");
+                image.onload = () => send("image", { width: image.naturalWidth });
+                addEventListener("load", () => send("loaded", { complete: image.complete }), { once: true });
+                image.loading = "eager";
+            <\/script>`;
+        document.body.appendChild(frame);
+        try {
+            const result = await loaded;
+            println(`Load event fired while the image was loading: ${!result.complete}`);
+            await fetch(new URL(`/unblock/${token}`, image));
+            const imageResult = await imageLoaded;
+            println(`Image loaded once unblocked: ${imageResult.width === 1}`);
+        } finally {
+            await fetch(new URL(`/unblock/${token}`, image));
+            removeEventListener("message", onMessage);
+            frame.remove();
+        }
+    });
+</script>

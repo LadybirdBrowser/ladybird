@@ -51,6 +51,9 @@ public:
 
     void fetch_resource(NonnullRefPtr<Fetch::Infrastructure::Request>);
 
+    // Records a user that waits for the fetch without callbacks, so that the fetch delays the load event for it.
+    void wait_without_callbacks();
+
     void add_callbacks(Function<void()> on_finish, Function<void()> on_fail, Function<void()> on_stop = {});
 
     enum class DelaysLoadEvent : u8 {
@@ -107,7 +110,7 @@ private:
     Vector<Callbacks> m_callbacks;
     u64 m_next_callbacks_id { 1 };
 
-    // NB: Set when the fetch was started for a user that waits for it without callbacks.
+    // NB: Set once a user waits for the fetch without callbacks.
     bool m_fetch_has_user_without_callbacks { false };
 
     Key m_key;

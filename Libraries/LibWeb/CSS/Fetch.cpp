@@ -180,6 +180,9 @@ GC::Ptr<HTML::SharedResourceRequest> fetch_an_external_image_for_a_stylesheet(St
 
     auto shared_resource_request = HTML::SharedResourceRequest::get_or_create(document, *request);
 
+    // NB: A stylesheet's image waits for the fetch without callbacks, or adds them only once the fetch has started,
+    //     including a fetch that another user already started.
+    shared_resource_request->wait_without_callbacks();
     if (shared_resource_request->needs_fetching())
         shared_resource_request->fetch_resource(*request);
 
