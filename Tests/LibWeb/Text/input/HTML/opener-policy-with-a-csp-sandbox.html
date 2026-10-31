@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An opener policy can't give a clean slate to a document that a navigation sandboxes, so that navigation fails.
+    // But a response's own CSP sandbox isn't the navigation's, and a page served with both still loads.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+
+        const pageLoading = async (name, extraHeaders) => {
+            const markerUrl = await httpServer.createEcho("GET", `/opener-policy-csp-sandbox-${name}-loaded`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" },
+                body: "recorded",
+            });
+            const pageUrl = await httpServer.createEcho("GET", `/opener-policy-csp-sandbox-${name}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html", "Cross-Origin-Opener-Policy": "same-origin", ...extraHeaders },
+                body: `<!DOCTYPE html><script>
+                    fetch(${JSON.stringify(markerUrl)}).finally(() => window.close());
+                <\/script>`,
+            });
+            const requestRecorded = async (url, attempts) => {
+                for (let attempt = 0; attempt < attempts; ++attempt) {
+                    try {
+                        if ((await fetch(httpServer.recordedRequestHeadersURL(url))).ok)
+                            return true;
+                    } catch {}
+                    await timeout(25);
+                }
+                return false;
+            };
+            return {
+                pageUrl,
+                requested: attempts => requestRecorded(pageUrl, attempts),
+                loaded: attempts => requestRecorded(markerUrl, attempts),
+            };
+        };
+
+        const selfSandboxed = await pageLoading("self-sandboxed", { "Content-Security-Policy": "sandbox allow-scripts" });
+        window.open(selfSandboxed.pageUrl, "_blank", "noopener");
+        println(`page with its own CSP sandbox loaded: ${await selfSandboxed.loaded(400)}`);
+
+        // A popup from a sandboxed iframe inherits its sandboxing flags.
+        const fromSandbox = await pageLoading("from-sandboxed-iframe", {});
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts allow-popups";
+        iframe.srcdoc = `<script>window.open(${JSON.stringify(fromSandbox.pageUrl)}, "_blank");<\/script>`;
+        document.body.appendChild(iframe);
+        println(`page opened from a sandboxed iframe was requested: ${await fromSandbox.requested(400)}`);
+        println(`page opened from a sandboxed iframe loaded: ${await fromSandbox.loaded(80)}`);
+    });
+</script>
