@@ -98,7 +98,7 @@ All sizes are in logical pixels.
 | End insets | Favicon 7 px from the left edge; × glyph 11 px from the right edge | Rule: each end item is as far from the tab's side as it is from the tab's top (the 16 px favicon sits 7 px down, the 8 px × glyph 11 px down). Padding: active 0 6 px 0 7 px; inactive 3 px inset + 0 3 px 0 4 px, so favicons and × never move when a tab becomes active. |
 | Favicon to title | 8 px | |
 | Close button | 18 px hover square, 7 px × (14 px glyph box); click area extends to the full tab height | The slot is reserved on every tab; the × shows on hover and on the active tab. Indicators like the speaker sit to its left, so nothing moves on hover. |
-| Tab width | 112 to 232 px | Tabs shrink to 112 px, then the strip scrolls |
+| Tab width | 20 to 232 px | Tabs shrink until only the favicon is left, giving up their padding below 32 px, then the strip scrolls. A tab too narrow for its favicon beside its × shows only the favicon; the active one shows its × in the favicon's place. |
 | Pinned tab | 44 px wide | Favicon only, always first |
 | New tab (+) | 26 px button, 14 px glyph | Follows the last tab directly, 8 px after it (just clear of the active tab's foot), centered on the tab row; with few tabs it does not move to the end of the strip. Click area at least 32 px. |
 | Separators | 1 × 16 px | Between inactive tabs only, hidden next to hovered or active tabs |
