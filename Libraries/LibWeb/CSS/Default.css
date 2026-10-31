@@ -759,6 +759,16 @@ input:is([type=radio i], [type=checkbox i], [type=reset i], [type=button i],
 
 textarea { white-space: pre-wrap; }
 
+input[type=checkbox i] {
+    margin-block: 3px;
+    margin-inline: 4px 3px;
+}
+
+input[type=radio i] {
+    margin-block: 3px 0;
+    margin-inline: 5px 3px;
+}
+
 /* 15.3.11 The hr element
  * https://html.spec.whatwg.org/multipage/rendering.html#the-hr-element-2
  */
