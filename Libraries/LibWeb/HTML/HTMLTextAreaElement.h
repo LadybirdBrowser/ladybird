@@ -66,6 +66,10 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-textarea-element-2
+    // The textarea element is a devolvable widget [...]
+    virtual bool is_devolvable_widget() const override { return true; }
+
     virtual void reset_algorithm() override;
     virtual void clear_algorithm() override;
 

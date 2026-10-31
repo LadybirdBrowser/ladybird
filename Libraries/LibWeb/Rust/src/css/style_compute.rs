@@ -3701,6 +3701,73 @@ impl DriveZoom {
     }
 }
 
+// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
+pub(crate) const PROPERTIES_DISABLING_NATIVE_APPEARANCE: &[u16] = {
+    use crate::css::property_metadata::property_id as prop;
+    &[
+        prop::BACKGROUND_COLOR,
+        prop::BORDER_TOP_COLOR,
+        prop::BORDER_TOP_STYLE,
+        prop::BORDER_TOP_WIDTH,
+        prop::BORDER_RIGHT_COLOR,
+        prop::BORDER_RIGHT_STYLE,
+        prop::BORDER_RIGHT_WIDTH,
+        prop::BORDER_BOTTOM_COLOR,
+        prop::BORDER_BOTTOM_STYLE,
+        prop::BORDER_BOTTOM_WIDTH,
+        prop::BORDER_LEFT_COLOR,
+        prop::BORDER_LEFT_STYLE,
+        prop::BORDER_LEFT_WIDTH,
+        prop::BORDER_BLOCK_START_COLOR,
+        prop::BORDER_BLOCK_END_COLOR,
+        prop::BORDER_INLINE_START_COLOR,
+        prop::BORDER_INLINE_END_COLOR,
+        prop::BORDER_BLOCK_START_STYLE,
+        prop::BORDER_BLOCK_END_STYLE,
+        prop::BORDER_INLINE_START_STYLE,
+        prop::BORDER_INLINE_END_STYLE,
+        prop::BORDER_BLOCK_START_WIDTH,
+        prop::BORDER_BLOCK_END_WIDTH,
+        prop::BORDER_INLINE_START_WIDTH,
+        prop::BORDER_INLINE_END_WIDTH,
+        prop::BACKGROUND_IMAGE,
+        prop::BACKGROUND_ATTACHMENT,
+        // NB: The spec lists background-position, which is a shorthand for these two here.
+        prop::BACKGROUND_POSITION_X,
+        prop::BACKGROUND_POSITION_Y,
+        prop::BACKGROUND_CLIP,
+        prop::BACKGROUND_ORIGIN,
+        prop::BACKGROUND_SIZE,
+        prop::BORDER_IMAGE_SOURCE,
+        prop::BORDER_IMAGE_SLICE,
+        prop::BORDER_IMAGE_WIDTH,
+        prop::BORDER_IMAGE_OUTSET,
+        prop::BORDER_IMAGE_REPEAT,
+        prop::BORDER_TOP_LEFT_RADIUS,
+        prop::BORDER_TOP_RIGHT_RADIUS,
+        prop::BORDER_BOTTOM_RIGHT_RADIUS,
+        prop::BORDER_BOTTOM_LEFT_RADIUS,
+        prop::BORDER_START_START_RADIUS,
+        prop::BORDER_START_END_RADIUS,
+        prop::BORDER_END_START_RADIUS,
+        prop::BORDER_END_END_RADIUS,
+    ]
+};
+
+// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
+// Certain properties, when declared in the Author Origin, will disable the native appearance of certain widgets.
+// Specifically, if all the declarations of the Author Origin pertaining to such a widget are cascaded and a cascaded
+// value exists--after having rolled back any number revert or revert-layer values--for any property that disables
+// native appearance for widgets, then that widget is rendered as a devolved widget.
+fn has_author_value_disabling_native_appearance(store: &impl crate::css::cascaded_properties::CascadedValues) -> bool {
+    PROPERTIES_DISABLING_NATIVE_APPEARANCE.iter().any(|&property_id| {
+        matches!(
+            store.winning_origin(property_id),
+            Some(CascadeOrigin::Author | CascadeOrigin::AuthorPresentationalHint)
+        )
+    })
+}
+
 /// Drives the property computation loop: iterates every longhand in
 /// computation order, resolves logical pairing, reads the winning cascaded
 /// declarations straight from the store, selects between the cascaded,
@@ -5022,6 +5089,16 @@ pub(crate) unsafe fn drive_property_computation(
         results.highlight_colors_authored,
         results.highlight_color_is_current_color,
     );
+    if phase == LONGHAND_DRIVE_PHASE_REMAINING {
+        // NB: Only an element whose appearance is not none can have a native appearance to disable. Leaving the flag
+        //     clear for every other element keeps their author backgrounds and borders from splitting style groups.
+        let appearance_is_none = matches!(
+            longhand_table.get(prop::APPEARANCE).map(RetainedStyleValueData::data),
+            Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NONE
+        );
+        longhand_table
+            .set_native_appearance_disabled(!appearance_is_none && has_author_value_disabling_native_appearance(store));
+    }
     if pending_effective_color_scheme >= 0 {
         longhand_table.set_effective_color_scheme(pending_effective_color_scheme);
     }

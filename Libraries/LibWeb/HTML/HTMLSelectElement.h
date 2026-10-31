@@ -88,6 +88,11 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2
+    // When the element renders as a list box, it is a devolvable widget [...]
+    // When the element renders as a drop-down box, it is a devolvable widget [...]
+    virtual bool is_devolvable_widget() const override { return true; }
+
     virtual void reset_algorithm() override;
 
     Utf16FlyString type() const;

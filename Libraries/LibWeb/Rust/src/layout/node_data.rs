@@ -247,6 +247,9 @@ pub enum DomPaintFact {
     EditableOrEditingHost = 1 << 1,
     InsideBlockingWheelEventHandler = 1 << 2,
     NestedNavigableContainer = 1 << 3,
+    /// The node is an element HTML classifies as a devolvable widget.
+    /// https://drafts.csswg.org/css-ui/#devolvable
+    DevolvableWidget = 1 << 4,
 }
 
 #[cfg(test)]

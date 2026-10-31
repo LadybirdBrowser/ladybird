@@ -41,6 +41,10 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-meter-element-2
+    // The meter element is a devolvable widget.
+    virtual bool is_devolvable_widget() const override { return true; }
+
     // https://www.w3.org/TR/html-aria/#el-meter
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::meter; }
 

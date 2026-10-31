@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    div {
+        height: 30px;
+    }
+    #revert {
+        border: 3px solid red;
+    }
+    #revert {
+        border: revert;
+    }
+</style>
+<div><button id="native">Native</button></div>
+<div><button style="color: green; padding: 3px">Padding and color</button></div>
+<div><button id="revert">Reverted border</button></div>
+<div><button style="background-color: lime">Background</button></div>
+<div><button style="border-color: red">Border</button></div>
+<div><button style="appearance: none">Appearance none</button></div>
+<div><input value="Text"></div>
+<div><input value="Bordered" style="border-width: 3px"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

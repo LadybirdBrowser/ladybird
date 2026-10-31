@@ -2321,8 +2321,11 @@ fn build_misc_reset_group(
     let implicit_will_change = values
         .animated_overlay
         .map_or(&[][..], |overlay| overlay.implicit_will_change.as_slice());
+    let native_appearance_disabled =
+        values.table.dependency_flags() & crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED != 0;
 
-    if implicit_will_change.is_empty() {
+    // NB: The generic builder only decodes property values, which leaves native_appearance_disabled at its default.
+    if implicit_will_change.is_empty() && !native_appearance_disabled {
         let generic = build_generic_group(group_index::MISC_RESET, values, input, used_color_scheme, parent);
         if !generic.is_null() {
             return generic;
@@ -2495,6 +2498,7 @@ fn build_misc_reset_group(
             };
             payload.appearance = normalized_appearance;
             payload.computed_appearance = computed_appearance;
+            payload.native_appearance_disabled = native_appearance_disabled;
             payload.column_height = ComputedSize::from_data(values.handle(property_id::COLUMN_HEIGHT));
             payload.outline_color = outline_color;
             payload.object_position_x = position_offset(edge_x);

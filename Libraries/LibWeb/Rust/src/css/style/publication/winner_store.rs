@@ -32,6 +32,9 @@ pub(super) struct WinnerDeclaration {
     pub(super) property: u16,
     pub(super) important: bool,
     pub(super) value: WinnerValue,
+    /// The origin of the winning declaration, or none for a declaration that rolled back past every other one and
+    /// leaves the property without a cascaded value.
+    pub(super) origin: Option<CascadeOrigin>,
     /// `external_value_dependencies(value)`, memoized, packed into one word with a bit saying
     /// it has been computed. A `Cell` would do on one thread, but a winner store is on the read
     /// side an evaluation step borrows, which has to be `Sync`. The memo is a pure function of
@@ -76,11 +79,12 @@ fn unpack_dependencies(bits: u32) -> ExternalValueDependencies {
 }
 
 impl WinnerDeclaration {
-    pub(super) fn new(property: u16, important: bool, value: WinnerValue) -> Self {
+    pub(super) fn new(property: u16, important: bool, value: WinnerValue, origin: Option<CascadeOrigin>) -> Self {
         Self {
             property,
             important,
             value,
+            origin,
             dependencies: AtomicU32::new(0),
         }
     }
@@ -429,7 +433,7 @@ impl CascadedValues for WinnerView<'_> {
     }
 
     fn winning_origin(&self, property: u16) -> Option<CascadeOrigin> {
-        self.store.declaration(property).map(|_| CascadeOrigin::Author)
+        self.store.declaration(property)?.1.origin
     }
 
     fn property_with_higher_priority(&self, first: u16, second: u16) -> u16 {
@@ -472,6 +476,7 @@ mod tests {
                 value: RetainedStyleValueData::from_owned(StyleValueData::Length { value, unit }),
                 source: WinnerSource::Element(ElementDeclarationKind::InlineStyle),
             },
+            Some(CascadeOrigin::Author),
         )])
     }
 
@@ -515,6 +520,7 @@ mod tests {
                     value: RetainedStyleValueData::from_owned(value),
                     source: WinnerSource::Element(ElementDeclarationKind::InlineStyle),
                 },
+                Some(CascadeOrigin::Author),
             )])
         };
         let engine = StyleEngine::new();
@@ -609,6 +615,7 @@ mod tests {
                             source: WinnerSource::Element(kind),
                             index,
                         },
+                        Some(CascadeOrigin::Author),
                     )
                 })
                 .collect(),

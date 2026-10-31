@@ -445,6 +445,7 @@ scalar_accessors! {
     }
     misc_reset: {
         appearance: u8 => appearance,
+        native_appearance_disabled: bool => native_appearance_disabled,
         column_fill: u8 => column_fill,
         column_span: u8 => column_span,
         column_rule_style: u8 => column_rule_style,

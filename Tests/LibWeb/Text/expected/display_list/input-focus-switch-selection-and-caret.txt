@@ -3,21 +3,21 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[9,9 196x18] (TextInputBox<INPUT>#foo)
+    [c0 in s1] clip=[9,9 196x18] radii=(3,3,3,3) (TextInputBox<INPUT>#foo)
       [c1 in s1] clip=[11,10 192x16] (BlockContainer<DIV>)
-    [c2 in s1] clip=[215,9 196x18] (TextInputBox<INPUT>#bar)
+    [c2 in s1] clip=[215,9 196x18] radii=(3,3,3,3) (TextInputBox<INPUT>#bar)
       [c3 in s1] clip=[217,10 192x16] (BlockContainer<DIV>)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[8,8 198x20] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[8,8 198x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[8,8 198x20] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[8,8 198x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c1/e0 rect=[11,10 28x16] translation=[11,22.796875] color=rgb(0, 0, 0)
 DrawGlyphRun@s1/e0 rect=[205,10 8x16] translation=[205.875,22.796875] color=rgb(0, 0, 0)
-FillRect@s1/e0 rect=[214,8 198x20] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[214,8 198x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[214,8 198x20] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[214,8 198x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c3/e0 rect=[216,10 28x16] translation=[216.875,22.796875] color=rgb(0, 0, 0)
 PaintCaret@s1/c3/e0 rect=[217,10 1x16] color=rgb(0, 0, 0) should_blink=false
-FillRoundedRectRing@s1/e0 rect=[212,6 202x24] widths=[2,2,2,2] color=rgb(61, 174, 233)
+FillRoundedRectRing@s1/e0 rect=[212,6 202x24] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
 

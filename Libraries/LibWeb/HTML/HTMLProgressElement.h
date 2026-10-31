@@ -33,6 +33,10 @@ public:
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-progress-element-2
+    // The progress element is a devolvable widget.
+    virtual bool is_devolvable_widget() const override { return true; }
+
     // https://www.w3.org/TR/html-aria/#el-progress
     virtual Optional<ARIA::Role> default_role() const override { return ARIA::Role::progressbar; }
 

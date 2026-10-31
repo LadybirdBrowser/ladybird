@@ -4304,6 +4304,39 @@ bool HTMLInputElement::uses_button_layout() const
         TypeAttributeState::Button, TypeAttributeState::Color, TypeAttributeState::FileUpload);
 }
 
+// https://drafts.csswg.org/css-ui/#devolvable
+bool HTMLInputElement::is_devolvable_widget() const
+{
+    switch (type_state()) {
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-a-text-entry-widget
+    // An input element whose type attribute is in the Text, Telephone, URL, or Email state, is a devolvable widget.
+    case TypeAttributeState::Text:
+    case TypeAttributeState::Telephone:
+    case TypeAttributeState::URL:
+    case TypeAttributeState::Email:
+    // An input element whose type attribute is in the Search state is a devolvable widget.
+    case TypeAttributeState::Search:
+    // An input element whose type attribute is in the Password state is a devolvable widget.
+    case TypeAttributeState::Password:
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-input-element-as-domain-specific-widgets
+    // An input element whose type attribute is in the Date state is a devolvable widget [...]
+    // An input element whose type attribute is in the Month state is a devolvable widget [...]
+    // An input element whose type attribute is in the Week state is a devolvable widget [...]
+    // An input element whose type attribute is in the Time state is a devolvable widget [...]
+    // An input element whose type attribute is in the Local Date and Time state is a devolvable widget [...]
+    // An input element whose type attribute is in the Number state is a devolvable widget [...]
+    case TypeAttributeState::Date:
+    case TypeAttributeState::Month:
+    case TypeAttributeState::Week:
+    case TypeAttributeState::Time:
+    case TypeAttributeState::LocalDateAndTime:
+    case TypeAttributeState::Number:
+        return true;
+    default:
+        return HTMLElement::is_devolvable_widget();
+    }
+}
+
 Optional<Utf16String> HTMLInputElement::selected_text_for_stringifier() const
 {
     // https://w3c.github.io/selection-api/#dom-selection-stringifier

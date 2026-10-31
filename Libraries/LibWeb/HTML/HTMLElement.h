@@ -198,6 +198,11 @@ public:
     // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
     virtual bool uses_button_layout() const { return false; }
 
+    // https://drafts.csswg.org/css-ui/#devolvable
+    // https://html.spec.whatwg.org/multipage/rendering.html#button-layout
+    // When an element uses button layout, it is a devolvable widget [...]
+    virtual bool is_devolvable_widget() const { return uses_button_layout(); }
+
     WebIDL::UnsignedLong computed_heading_level() const;
     WebIDL::UnsignedLong computed_heading_offset() const;
 

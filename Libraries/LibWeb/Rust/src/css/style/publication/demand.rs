@@ -735,6 +735,11 @@ impl RetainedState {
                         value: invalid_as_unset(value),
                         source: WinnerSource::Element(kind),
                     },
+                    Some(match kind {
+                        ElementDeclarationKind::InlineStyle => CascadeOrigin::Author,
+                        ElementDeclarationKind::PresentationalHint
+                        | ElementDeclarationKind::SvgPresentationAttribute => CascadeOrigin::AuthorPresentationalHint,
+                    }),
                 ));
             }
         }
