@@ -31,6 +31,7 @@ pub(crate) mod promise;
 pub(crate) mod realm_data;
 pub(crate) mod services;
 pub(crate) mod structured_data;
+pub(crate) mod transport;
 
 use core::ptr::NonNull;
 

@@ -21,28 +21,6 @@ struct ImageBitmapSharedPixels;
 
 namespace Web::Bindings {
 
-// What the steps of a serializable or transferable interface implemented in Rust read and write, which the Rust bindings
-// hold as opaque pointers (Libraries/LibWeb/Bindings/Rust/src/bindings/structured_data.rs). They read and write through
-// the C ABI of RustBindingsServices.cpp, and through that of the C++ class of their interface for what only C++
-// encodes.
-
-// The record of a structured serialization, and its memory, which the sub-serializations of the steps use. What they
-// throw is created in the realm of the serialized object.
-struct RustSerializationWriter {
-    GC::Ref<JS::Realm> realm;
-    HTML::StructuredSerializeWriter& serialized;
-    bool for_storage { false };
-    HTML::SerializationMemory& memory;
-};
-
-// The record of a structured deserialization, and its memory, in the realm that the deserialization creates its values
-// in.
-struct RustSerializationReader {
-    GC::Ref<JS::Realm> realm;
-    HTML::StructuredSerializeReader& serialized;
-    HTML::DeserializationMemory& memory;
-};
-
 // The data holder of a transferred object. What the steps throw is created in the realm of the transfer.
 struct RustTransferDataWriter {
     GC::Ref<JS::Realm> realm;

@@ -74,22 +74,4 @@ static constexpr Array<KeyAlgorithmTagExpectation, 7> s_key_algorithm_tag_expect
     { KeyAlgorithmTag::KmacKeyAlgorithm, HTML::Expectation::PositiveGolden },
 } };
 
-static constexpr bool handle_tag_is_in_table(HandleTag tag)
-{
-    for (auto const& entry : s_handle_tag_expectations) {
-        if (entry.tag == tag)
-            return true;
-    }
-    return false;
-}
-
-static constexpr bool key_algorithm_tag_is_in_table(KeyAlgorithmTag tag)
-{
-    for (auto const& entry : s_key_algorithm_tag_expectations) {
-        if (entry.tag == tag)
-            return true;
-    }
-    return false;
-}
-
 }

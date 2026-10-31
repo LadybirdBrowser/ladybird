@@ -74,7 +74,6 @@ void WorkerGlobalScope::finalize()
 void WorkerGlobalScope::set_internal_port(GC::Ref<MessagePort> port)
 {
     m_internal_port = port;
-    m_internal_port->set_worker_event_target(*this);
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#close-a-worker

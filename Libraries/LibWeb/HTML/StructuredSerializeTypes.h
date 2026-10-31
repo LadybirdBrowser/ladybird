@@ -8,28 +8,13 @@
 
 #include <AK/Array.h>
 #include <AK/ByteBuffer.h>
-#include <AK/HashMap.h>
 #include <AK/Vector.h>
-#include <LibGC/Root.h>
 #include <LibIPC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWebCommon/HTML/SerializationRecords.h>
 
 namespace Web::HTML {
-
-using DeserializationMemory = GC::RootVector<JS::Value>;
-using SerializationMemory = HashMap<GC::Root<JS::Value>, u32>;
-
-enum class SerializationType : u8 {
-    IPC,
-    Storage,
-};
-
-enum class CheckFullyConsumed : u8 {
-    No,
-    Yes,
-};
 
 enum class TransferType : u8 {
     Unknown = 0,

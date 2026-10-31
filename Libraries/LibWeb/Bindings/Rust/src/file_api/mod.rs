@@ -13,6 +13,8 @@ pub(crate) mod exports;
 #[cfg(not(test))]
 pub(crate) mod file;
 #[cfg(not(test))]
+pub(crate) mod file_list;
+#[cfg(not(test))]
 pub(crate) mod file_reader;
 #[cfg(not(test))]
 pub(crate) mod file_reader_sync;

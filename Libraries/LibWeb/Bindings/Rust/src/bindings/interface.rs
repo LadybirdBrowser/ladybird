@@ -231,15 +231,19 @@ pub(crate) fn implementation_if<T: Interface>(wrapper: Gc<Object>) -> Option<Ref
     unsafe { T::CELL_CLASS.downcast(host_data) }
 }
 
+/// The object of the interface that the object is a wrapper of, if it is one.
+pub(crate) fn implementation_if_wrapper<T: Interface>(object: Gc<Object>) -> Option<Ref<T>> {
+    is_host_instance_of(&object, T::wrapper_class()).then(|| implementation_of(object))
+}
+
 /// An object of the interface converted from a JS value, https://webidl.spec.whatwg.org/#js-interface
 pub(crate) fn to_interface<T: Interface>(vm: &Vm, value: Value) -> ThrowCompletionOr<Ref<T>> {
     // 1. If V implements I, then return the IDL interface type value that represents a reference to that platform
     //    object.
-    if value.is_object() {
-        let object = value.as_object();
-        if is_host_instance_of(&object, T::wrapper_class()) {
-            return Ok(implementation_of(object));
-        }
+    if value.is_object()
+        && let Some(object) = implementation_if_wrapper(value.as_object())
+    {
+        return Ok(object);
     }
     // 2. Throw a TypeError.
     vm.throw_completion(ErrorKind::TypeError, ErrorType::NotAnObjectOfType, &[&T::NAME])
@@ -569,17 +573,23 @@ pub(crate) fn define_operation(
     );
 }
 
+/// Defines the @@iterator property of the interface prototype object of an interface that supports indexed properties,
+/// which is %Array.prototype.values%, https://webidl.spec.whatwg.org/#es-iterator
+pub(crate) fn define_indexed_properties_iterator(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) {
+    let array_prototype = realm.intrinsics().array_prototype(vm);
+    prototype.define_direct_property(
+        vm,
+        &PropertyKey::from(vm.well_known_symbols().iterator),
+        array_prototype.get_without_side_effects(vm, &vm.names.values),
+        PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE),
+    );
+}
+
 /// Defines the properties of a value iterator on the interface prototype object of an interface that supports indexed
 /// properties, which are those of %Array.prototype%, https://webidl.spec.whatwg.org/#define-the-iteration-methods
 pub(crate) fn define_value_iterator_properties(vm: &Vm, realm: Gc<Realm>, prototype: Gc<Object>) {
     let array_prototype = realm.intrinsics().array_prototype(vm);
     let names = &vm.names;
-    prototype.define_direct_property(
-        vm,
-        &PropertyKey::from(vm.well_known_symbols().iterator),
-        array_prototype.get_without_side_effects(vm, &names.values),
-        PropertyAttributes::new(Attribute::CONFIGURABLE | Attribute::WRITABLE),
-    );
     for name in [&names.entries, &names.keys, &names.values, &names.forEach] {
         prototype.define_direct_property(
             vm,

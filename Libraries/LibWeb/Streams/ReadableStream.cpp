@@ -13,16 +13,9 @@
 #include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/AbortSignal.h>
-#include <LibWeb/DOM/IDLEventListener.h>
-#include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/MessageEvent.h>
-#include <LibWeb/HTML/MessagePort.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/Streams/ReadableStreamDefaultReader.h>
-#include <LibWeb/WebIDL/CallbackType.h>
 #include <LibWeb/WebIDL/ExceptionOrUtils.h>
 
 namespace Web::Streams {
@@ -62,7 +55,6 @@ void web_streams_read_request_error_steps(ReadRequest*, JSValue error);
 void web_streams_call_bytes_steps(ReadableStreamDefaultReader::SuccessSteps*, ReadonlyBytes);
 void web_streams_call_value_steps(ReadableStreamDefaultReader::FailureSteps*, JSValue);
 void web_streams_complete_rendering_pending_stream(ReadableStream*);
-JSCompletion web_streams_structured_clone(void* realm, JSValue);
 void* web_streams_abort_signal_from_wrapper(JSObject* wrapper);
 JSObject* web_streams_abort_signal_wrapper(void* realm, DOM::AbortSignal*);
 void* web_streams_create_abort_signal();
@@ -71,16 +63,6 @@ JSValue web_streams_abort_signal_reason(DOM::AbortSignal*);
 bool web_streams_abort_signal_add_algorithm(DOM::AbortSignal*, JSObject* function, u64* id);
 void web_streams_abort_signal_remove_algorithm(DOM::AbortSignal*, u64 id);
 void web_streams_abort_signal_signal_abort(DOM::AbortSignal*, JSValue reason, void* realm);
-void web_streams_create_entangled_ports(void* realm, void** port1, void** port2);
-void web_streams_message_port_add_handlers(void* realm, HTML::MessagePort*, JSObject* on_message, JSObject* on_message_error);
-JSValue web_streams_message_event_data(JSValue event);
-JSCompletion web_streams_message_port_post_message(void* realm, HTML::MessagePort*, JSValue message);
-void web_streams_message_port_disentangle(HTML::MessagePort*);
-void web_streams_message_port_enable(HTML::MessagePort*);
-void* web_streams_message_port_from_object(JSObject*);
-JSObject* web_streams_message_port_wrapper(void* realm, HTML::MessagePort*);
-void web_streams_serialize_with_transfer(Bindings::RustTransferDataWriter*, JSValue);
-JSValue web_streams_deserialize_with_transfer(Bindings::RustTransferDataReader*);
 }
 
 static JSVM* vm_abi()
@@ -292,21 +274,6 @@ void web_streams_complete_rendering_pending_stream(ReadableStream* stream)
     complete_rendering_pending_stream(*stream);
 }
 
-// https://streams.spec.whatwg.org/#abstract-opdef-structuredclone
-JSCompletion web_streams_structured_clone(void* realm, JSValue value)
-{
-    auto& js_realm = realm_of(realm);
-    auto& vm = js_realm.vm();
-    auto result = [&]() -> WebIDL::ExceptionOr<JS::Value> {
-        // 1. Let serialized be ? StructuredSerialize(v).
-        auto serialized = TRY(HTML::structured_serialize(vm, JS::HostABI::value_from_abi(value)));
-
-        // 2. Return ? StructuredDeserialize(serialized, the current Realm).
-        return TRY(HTML::structured_deserialize(vm, serialized, js_realm));
-    }();
-    return Bindings::completion_to_abi(js_realm, move(result));
-}
-
 void* web_streams_abort_signal_from_wrapper(JSObject* wrapper)
 {
     auto* signal = Bindings::impl_from<DOM::AbortSignal>(JS::HostABI::object_from_abi(wrapper));
@@ -355,88 +322,6 @@ void web_streams_abort_signal_remove_algorithm(DOM::AbortSignal* signal, u64 id)
 void web_streams_abort_signal_signal_abort(DOM::AbortSignal* signal, JSValue reason, void* realm)
 {
     signal->signal_abort(JS::HostABI::value_from_abi(reason), realm_of(realm).global_object());
-}
-
-void web_streams_create_entangled_ports(void* realm, void** port1, void** port2)
-{
-    auto* global_scope = HTML::window_or_worker_global_scope_from_global_object(realm_of(realm).global_object());
-    VERIFY(global_scope);
-    auto first_port = HTML::MessagePort::create(global_scope->this_impl());
-    auto second_port = HTML::MessagePort::create(global_scope->this_impl());
-    first_port->entangle_with(second_port);
-    *port1 = first_port.ptr();
-    *port2 = second_port.ptr();
-}
-
-static void add_message_event_listener(JS::Realm& realm, HTML::MessagePort& port, Utf16FlyString const& name, JSObject* function)
-{
-    auto& callback_object = *JS::HostABI::object_from_abi(function);
-    auto callback = GC::Heap::the().allocate<WebIDL::CallbackType>(callback_object, realm);
-    port.add_event_listener_without_options(name, DOM::IDLEventListener::create(callback));
-}
-
-void web_streams_message_port_add_handlers(void* realm, HTML::MessagePort* port, JSObject* on_message, JSObject* on_message_error)
-{
-    add_message_event_listener(realm_of(realm), *port, HTML::EventNames::message, on_message);
-    add_message_event_listener(realm_of(realm), *port, HTML::EventNames::messageerror, on_message_error);
-}
-
-JSValue web_streams_message_event_data(JSValue event)
-{
-    auto* message_event = Bindings::impl_from<HTML::MessageEvent>(&JS::HostABI::value_from_abi(event).as_object());
-    VERIFY(message_event);
-    return JS::HostABI::value_to_abi(message_event->data());
-}
-
-JSCompletion web_streams_message_port_post_message(void* realm, HTML::MessagePort* port, JSValue message)
-{
-    auto& js_realm = realm_of(realm);
-
-    // 4. Let targetPort be the port with which port is entangled, if any; otherwise let it be null.
-    auto target_port = port->entangled_port();
-
-    // 5. Let options be «[ "transfer" → « » ]».
-    HTML::StructuredSerializeOptions options;
-
-    // 6. Run the message port post message steps providing targetPort, message, and options.
-    auto result = port->message_port_post_message_steps(js_realm, target_port, JS::HostABI::value_from_abi(message), options);
-    if (result.is_exception())
-        return Bindings::completion_to_abi(js_realm, result.release_error());
-    return Bindings::completion_to_abi(js_realm, JS::js_undefined());
-}
-
-void web_streams_message_port_disentangle(HTML::MessagePort* port)
-{
-    port->disentangle();
-}
-
-void web_streams_message_port_enable(HTML::MessagePort* port)
-{
-    port->enable();
-}
-
-void* web_streams_message_port_from_object(JSObject* object)
-{
-    auto* port = Bindings::message_port_from_object(*JS::HostABI::object_from_abi(object));
-    VERIFY(port);
-    return port;
-}
-
-JSObject* web_streams_message_port_wrapper(void* realm, HTML::MessagePort* port)
-{
-    return JS::HostABI::object_to_abi(Bindings::message_port(realm_of(realm), *port).ptr());
-}
-
-void web_streams_serialize_with_transfer(Bindings::RustTransferDataWriter* writer, JSValue value)
-{
-    auto js_value = JS::HostABI::value_from_abi(value);
-    auto result = MUST(HTML::structured_serialize_with_transfer(writer->realm, js_value, { { js_value.as_object() } }));
-    writer->data_holder.extend(move(result.transfer_data_holders));
-}
-
-JSValue web_streams_deserialize_with_transfer(Bindings::RustTransferDataReader* reader)
-{
-    return JS::HostABI::value_to_abi(MUST(HTML::structured_deserialize_with_transfer_internal(reader->data_holder, reader->realm)));
 }
 
 }

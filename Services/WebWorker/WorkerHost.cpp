@@ -255,15 +255,14 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
         //         (step 5) to connect_shared_worker_impl. Each connecting page gets its own pair
         //         since the connect event fires once per owner, not once at worker startup.
         if (!is_shared) {
-            inside_port = Web::HTML::MessagePort::create(worker_global_scope);
+            Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
+            inside_port = Web::HTML::MessagePort::create_from_transfer(realm, decoder);
 
-            // FIXME:  1. Set inside port's message event target to worker global scope.
+            // 1. Set inside port's message event target to worker global scope.
+            inside_port->set_message_event_target(*worker_global_scope);
 
             // 2. Set worker global scope's inside port to inside port.
             worker_global_scope->set_internal_port(*inside_port);
-
-            Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-            MUST(inside_port->transfer_receiving_steps(realm, decoder));
         }
 
         // 6. Create a new WorkerLocation object and associate it with worker global scope.
@@ -364,12 +363,10 @@ void WorkerHost::connect_shared_worker_impl(Web::HTML::TransferDataEncoder messa
     VERIFY(m_inside_settings);
 
     // 11.5.5. Let insidePort be a new MessagePort in insideSettings's realm.
-    auto inside_port = Web::HTML::MessagePort::create(*m_worker_global_scope);
-
     // 11.5.6. Entangle outsidePort and insidePort.
     auto& realm = m_inside_settings->realm();
     Web::HTML::TransferDataDecoder decoder { move(message_port_data) };
-    MUST(inside_port->transfer_receiving_steps(realm, decoder));
+    auto inside_port = Web::HTML::MessagePort::create_from_transfer(realm, decoder);
 
     // 11.5.7. Queue a global task on the DOM manipulation task source given workerGlobalScope to
     //         fire an event named connect at workerGlobalScope, using MessageEvent, with the data

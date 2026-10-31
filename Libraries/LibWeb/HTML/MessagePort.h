@@ -8,134 +8,60 @@
 
 #pragma once
 
-#include <AK/RefCounted.h>
-#include <AK/Weakable.h>
-#include <LibCore/Socket.h>
-#include <LibIPC/File.h>
-#include <LibIPC/Transport.h>
-#include <LibWeb/Bindings/Transferable.h>
-#include <LibWeb/DOM/EventTarget.h>
+#include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
+#include <LibJS/Forward.h>
+#include <LibWeb/Bindings/MessagePort.h>
+#include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
-
-namespace JS {
-
-class HostObject;
-
-}
-
-namespace Web::Bindings {
-
-struct StructuredSerializeOptions;
-
-}
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
 
-struct StructuredSerializeOptions;
-
 // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports
-class WEB_API MessagePort final
-    : public DOM::EventTarget
-    , public Bindings::Transferable {
-    WEB_WRAPPABLE(MessagePort, DOM::EventTarget);
-    GC_DECLARE_ALLOCATOR(MessagePort);
+class WEB_API MessagePort : public Bindings::RustInterfaceCell {
+    WEB_RUST_INTERFACE(MessagePort, message_port)
 
 public:
-    [[nodiscard]] static GC::Ref<MessagePort> create(GC::Ref<DOM::EventTarget> relevant_global_event_target);
+    [[nodiscard]] static GC::Ref<MessagePort> create(JS::Realm&);
 
-    static void for_each_message_port(Function<void(MessagePort&)>);
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:transfer-receiving-steps
+    [[nodiscard]] static GC::Ref<MessagePort> create_from_transfer(JS::Realm&, TransferDataDecoder&);
 
-    virtual ~MessagePort() override;
-
-    JS::Object& relevant_global_object() const;
+    static void disentangle_ports_of_realm(JS::Realm&);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#entangle
     void entangle_with(MessagePort&);
 
-    void disentangle();
+    GC::Ptr<MessagePort> entangled_port();
 
-    GC::Ptr<MessagePort> entangled_port() { return m_remote_port; }
-    GC::Ptr<MessagePort const> entangled_port() const { return m_remote_port; }
-    size_t pending_outgoing_message_count() const { return m_pending_outgoing_messages.size(); }
-    void fail_next_transfer_for_testing() { m_fail_next_transfer_for_testing = true; }
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#message-event-target
+    void set_message_event_target(DOM::EventTarget&);
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage
     WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, GC::RootVector<GC::Ref<JS::Object>> const& transfer);
 
-    // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-messageport-postmessage-options
-    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, StructuredSerializeOptions const& options);
-    WebIDL::ExceptionOr<void> post_message(JS::Realm&, JS::Value message, Bindings::StructuredSerializeOptions const& options);
-
     void enable();
-    void start();
 
     void close();
+
     void discard_pending_messages();
 
-    void set_onmessageerror(GC::Ptr<WebIDL::CallbackType>);
-    GC::Ptr<WebIDL::CallbackType> onmessageerror();
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:transfer-steps
+    WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, TransferDataEncoder&);
 
-    void set_onmessage(GC::Ptr<WebIDL::CallbackType>);
-    GC::Ptr<WebIDL::CallbackType> onmessage();
+    // https://html.spec.whatwg.org/multipage/structured-data.html#detached
+    bool is_detached() const;
 
-    // ^Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
-    virtual HTML::TransferType primary_interface() const override { return HTML::TransferType::MessagePort; }
-
-    void set_worker_event_target(GC::Ref<DOM::EventTarget>);
-
-    WebIDL::ExceptionOr<void> message_port_post_message_steps(JS::Realm&, GC::Ptr<MessagePort> target_port, JS::Value message, StructuredSerializeOptions const& options);
-
-private:
-    explicit MessagePort(GC::Ref<DOM::EventTarget> relevant_global_event_target);
-
-    virtual void finalize() override;
-    virtual void visit_edges(Cell::Visitor&) override;
-
-    bool is_entangled() const;
-
-    void dispatch_pending_messages();
-    void flush_pending_outgoing_messages();
-    void queue_message_task(SerializedTransferRecord&&);
-    void drain_transport();
-    void post_message_task_steps(SerializedTransferRecord&);
-    void post_port_message(SerializedTransferRecord const&);
-    ErrorOr<void> send_message_on_transport(SerializedTransferRecord const&);
-    void read_from_transport();
-    void update_keep_alive();
-
-    // The HTML spec implies(!) that this is MessagePort.[[RemotePort]]
-    GC::Ptr<MessagePort> m_remote_port;
-
-    // https://html.spec.whatwg.org/multipage/web-messaging.html#has-been-shipped
-    bool m_has_been_shipped { false };
-    bool m_has_ever_been_entangled { false };
-    bool m_fail_next_transfer_for_testing { false };
-
-    OwnPtr<IPC::Transport> m_transport;
-
-    GC::Ref<DOM::EventTarget> m_global_event_target;
-    GC::Ptr<DOM::EventTarget> m_worker_event_target;
-
-    Vector<SerializedTransferRecord> m_pending_incoming_messages;
-    Vector<SerializedTransferRecord> m_pending_outgoing_messages;
-    u64 m_message_task_generation { 0 };
-    bool m_should_shutdown_on_enable { false };
-    bool m_enabled { false };
-    GC::Root<MessagePort> m_keep_alive;
+    size_t pending_outgoing_message_count() const;
+    void fail_next_transfer_for_testing();
 };
 
 }
 
 namespace Web::Bindings {
 
-WEB_API GC::Ref<JS::HostObject> message_port(JS::Realm&, GC::Ref<HTML::MessagePort>);
-WEB_API HTML::MessagePort* message_port_from_value(JS::Value);
 WEB_API GC::RootVector<GC::Ref<HTML::MessagePort>> message_ports_from_transferred_values(Vector<GC::Root<JS::Object>> const&);
-WEB_API bool transfer_list_contains_message_port(GC::RootVector<GC::Ref<JS::Object>> const&, HTML::MessagePort const&);
-WEB_API HTML::MessagePort* message_port_from_object(JS::Object&);
-WEB_API void serialize_message_port_with_transfer(JS::Realm&, HTML::TransferDataEncoder&, GC::Ref<HTML::MessagePort>);
 
 }

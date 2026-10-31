@@ -23,7 +23,6 @@ use crate::streams::algorithms::{
     AbortAlgorithm, CancelAlgorithm, CloseAlgorithm, FlushAlgorithm, PullAlgorithm, SizeAlgorithm, StartAlgorithm,
     TransformAlgorithm, WriteAlgorithm,
 };
-use crate::streams::cross_realm_transform::{deserialize_with_transfer, serialize_with_transfer};
 use crate::streams::queuing_strategy::{QueuingStrategy, extract_high_water_mark, extract_size_algorithm};
 use crate::streams::readable_stream::{
     ReadableStream, ReadableStreamState, create_readable_stream, is_readable_stream_locked,
@@ -335,10 +334,14 @@ impl Transferable for TransformStream {
         }
 
         // 5. Set dataHolder.[[readable]] to ! StructuredSerializeWithTransfer(readable, « readable »).
-        serialize_with_transfer(data_holder, Value::from_object(wrap(cx, readable)));
+        data_holder
+            .write_transferred_value(cx, Value::from_object(wrap(cx, readable)))
+            .must();
 
         // 6. Set dataHolder.[[writable]] to ! StructuredSerializeWithTransfer(writable, « writable »).
-        serialize_with_transfer(data_holder, Value::from_object(wrap(cx, writable)));
+        data_holder
+            .write_transferred_value(cx, Value::from_object(wrap(cx, writable)))
+            .must();
 
         Ok(())
     }
@@ -348,10 +351,10 @@ impl Transferable for TransformStream {
         let value = allocate(cx.vm(), |_| Self::new(cx.realm()));
 
         // 1. Let readableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[readable]], the current Realm).
-        let readable_record = deserialize_with_transfer(data_holder);
+        let readable_record = data_holder.read_transferred_value(cx).must();
 
         // 2. Let writableRecord be ! StructuredDeserializeWithTransfer(dataHolder.[[writable]], the current Realm).
-        let writable_record = deserialize_with_transfer(data_holder);
+        let writable_record = data_holder.read_transferred_value(cx).must();
 
         // 3. Set value.[[readable]] to readableRecord.[[Deserialized]].
         assert!(readable_record.is_object());

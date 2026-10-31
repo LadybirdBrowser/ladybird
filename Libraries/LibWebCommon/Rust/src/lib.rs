@@ -14,4 +14,5 @@ mod rust_demangle;
 mod rust_panic;
 
 pub mod fetch;
+pub mod html;
 pub mod mime_sniff;

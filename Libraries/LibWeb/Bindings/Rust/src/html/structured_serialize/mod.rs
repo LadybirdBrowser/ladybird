@@ -10,12 +10,13 @@
 
 //! Safe passing of structured data, https://html.spec.whatwg.org/multipage/structured-data.html
 //!
-//! The algorithms run here. The records they write and read stay LibWeb's C++ HTML::StructuredSerializeWriter and
-//! HTML::StructuredSerializeReader, which the serialization steps of the interfaces implemented in C++ write and read
-//! as well (cpp.rs).
+//! The algorithms run here, and write and read their records through writer.rs and reader.rs.
 
 pub(crate) mod cpp;
 pub(crate) mod exports;
+pub(crate) mod memory;
+pub(crate) mod reader;
+pub(crate) mod writer;
 
 use ak::Utf16String;
 use libjs_rust::api::{
@@ -26,19 +27,26 @@ use libjs_rust::api::{
     length_of_array_like, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
     regexp_create,
 };
+use libwebcommon_rust::html::serialization_records::SerializationType;
 
+use crate::bindings::interface::with_temporary_execution_context;
+use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::crypto::crypto_key;
 use crate::html::structured_serialize::cpp::{
-    DeserializationMemory, OwnedDeserializationMemory, SerializationMemory, SerializationType,
-    SerializedTransferRecord, StructuredSerializeReader, StructuredSerializeWriter, TransferDataDecoder,
-    TransferDataHolder, TransferredValues, create_serialized_platform_object, create_transferred_platform_object,
-    current_settings_object_agent_cluster, current_settings_object_cross_origin_isolated_capability,
-    data_clone_error_from_serialization_error, deserialization_steps, deserialize_rust_platform_object, is_exposed,
-    is_platform_object, is_transferable, is_transferable_interface_exposed, realm_agent_cluster,
-    serializable_interface_is_implemented_in_rust, serializable_interface_name, serializable_payload_version,
-    serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
+    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, TransferDataDecoder,
+    TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
+    current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
+    deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
+    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
+    serializable_steps, serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
     transferable_set_detached,
 };
+use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
+use crate::html::structured_serialize::reader::StructuredSerializeReader;
+use crate::html::structured_serialize::writer::StructuredSerializeWriter;
+use crate::webidl::dom_exception::{self, DOMExceptionFields};
+use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
 
 /// HTML::ValueTag, the tags of the values of a record, which are part of the stable storage serialization format.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -184,7 +192,7 @@ fn error_kind_of(error_type: ErrorType) -> ErrorKind {
 }
 
 /// An IPC record holds an error type as its index, and a storage record as its name.
-fn encode_error_type(serialized: StructuredSerializeWriter, error_type: ErrorType) {
+fn encode_error_type(serialized: &StructuredSerializeWriter, error_type: ErrorType) {
     if serialized.serialization_type() == SerializationType::Ipc {
         serialized.encode_u8(error_type as u8);
     } else {
@@ -192,7 +200,7 @@ fn encode_error_type(serialized: StructuredSerializeWriter, error_type: ErrorTyp
     }
 }
 
-fn decode_error_type(serialized: StructuredSerializeReader) -> WebIdlResult<ErrorType> {
+fn decode_error_type(serialized: &StructuredSerializeReader) -> WebIdlResult<ErrorType> {
     if serialized.serialization_type() == SerializationType::Ipc {
         let decoded = serialized.decode_u8()?;
         return match error_type_from_ipc(decoded) {
@@ -269,7 +277,7 @@ impl AllowSharedArrayBuffers {
 // the target realm's against — so the buffer never leaves the cluster it was created in. A SameAgentAlways clone never
 // leaves its agent, and names no cluster.
 fn serialize_agent_cluster(
-    data_holder: StructuredSerializeWriter,
+    data_holder: &StructuredSerializeWriter,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 ) -> WebIdlResult<()> {
     if allow_shared_array_buffers == AllowSharedArrayBuffers::SameAgentAlways {
@@ -290,7 +298,7 @@ fn serialize_agent_cluster(
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 fn serialize_array_buffer(
     vm: &Vm,
-    data_holder: StructuredSerializeWriter,
+    data_holder: &StructuredSerializeWriter,
     array_buffer: Gc<ArrayBuffer>,
     for_storage: bool,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
@@ -340,14 +348,15 @@ fn serialize_array_buffer(
             //         descriptor survive structured clone, whose main record is bytes-only, so an agent in another
             //         process references the same [[ArrayBufferData]]. Without a side list (e.g., serialization for
             //         storage) or a shared backing (e.g., a zero-length buffer), fall back to copying the bytes.
-            let can_share = data_holder.can_share_array_buffer_memory(array_buffer);
-            data_holder.encode_bool(can_share);
-            if can_share {
-                data_holder.encode_u32(data_holder.shared_buffer_count());
+            let shared_buffer_index = data_holder
+                .shared_buffers()
+                .and_then(|shared_buffers| shared_buffers.append_shared_memory_of(array_buffer));
+            data_holder.encode_bool(shared_buffer_index.is_some());
+            if let Some(index) = shared_buffer_index {
+                data_holder.encode_u32(index);
                 // Carried beside the index — so the receiving agent can tell this object apart from any other, even
                 // when it maps this same one twice, from two separate messages.
                 data_holder.encode_u64(array_buffer.with_data_block(|data_block| data_block.shared_object_id()));
-                data_holder.append_shared_buffer(array_buffer);
             } else {
                 data_holder.encode_bytes(&array_buffer.copy_all_to_byte_buffer());
             }
@@ -401,7 +410,7 @@ enum ViewType {
     DataView(Gc<DataView>),
 }
 
-fn serialize_byte_length(data_holder: StructuredSerializeWriter, byte_length: ByteLength) {
+fn serialize_byte_length(data_holder: &StructuredSerializeWriter, byte_length: ByteLength) {
     assert!(!byte_length.is_detached());
 
     data_holder.encode_bool(byte_length.is_auto());
@@ -411,13 +420,13 @@ fn serialize_byte_length(data_holder: StructuredSerializeWriter, byte_length: By
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-fn serialize_viewed_array_buffer(
+fn serialize_viewed_array_buffer<'memory>(
     vm: &Vm,
     realm: Option<Gc<Realm>>,
-    data_holder: StructuredSerializeWriter,
+    data_holder: &StructuredSerializeWriter<'memory>,
     view: ViewType,
     for_storage: bool,
-    memory: SerializationMemory,
+    memory: &SerializationMemory<'memory>,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 ) -> WebIdlResult<()> {
     // 15. Otherwise, if value has a [[ViewedArrayBuffer]] internal slot:
@@ -503,19 +512,24 @@ fn serialize_viewed_array_buffer(
 // Serializing and deserializing are each two passes:
 // 1. Fill up the memory with all the values, but without translating references
 // 2. Translate all the references into the appropriate form
-struct Serializer<'vm> {
+pub(crate) struct Serializer<'a, 'vm, 'memory> {
     vm: &'vm Vm,
     // NB: The current realm, which a serialization outside of any script has none of.
     realm: Option<Gc<Realm>>,
-    serialized: StructuredSerializeWriter,
-    memory: SerializationMemory, // JS value -> index
+    serialized: &'a StructuredSerializeWriter<'memory>,
+    memory: &'a SerializationMemory<'memory>, // JS value -> index
     for_storage: bool,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 }
 
-impl Serializer<'_> {
+impl<'memory> Serializer<'_, '_, 'memory> {
+    /// The record that the serialization writes.
+    pub(crate) fn serialized(&self) -> &StructuredSerializeWriter<'memory> {
+        self.serialized
+    }
+
     // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-    fn serialize(&self, value: Value) -> WebIdlResult<()> {
+    pub(crate) fn serialize(&self, value: Value) -> WebIdlResult<()> {
         let vm = self.vm;
         if vm.did_reach_stack_space_limit() {
             return Err(call_stack_size_exceeded(vm));
@@ -557,7 +571,7 @@ impl Serializer<'_> {
             serialized.encode_f64(value.as_f64());
         } else if value.is_bigint() {
             self.encode_tag(ValueTag::BigIntPrimitive);
-            serialized.encode_big_int(value);
+            serialized.encode_big_int(value.as_bigint());
         } else if value.is_string() {
             self.encode_tag(ValueTag::StringPrimitive);
             serialized.encode_utf16_string(&value.as_string().utf16_string());
@@ -592,7 +606,7 @@ impl Serializer<'_> {
             // 10. Otherwise, if value has a [[BigIntData]] internal slot, then set serialized to { [[Type]]: "BigInt", [[BigIntData]]: value.[[BigIntData]] }.
             else if let Some(big_int_object) = object.downcast::<BigIntObject>() {
                 self.encode_tag(ValueTag::BigIntObject);
-                serialized.encode_big_int(Value::from_bigint(big_int_object.bigint()));
+                serialized.encode_big_int(big_int_object.bigint());
             }
             // 11. Otherwise, if value has a [[StringData]] internal slot, then set serialized to { [[Type]]: "String", [[StringData]]: value.[[StringData]] }.
             else if let Some(string_object) = object.downcast::<StringObject>() {
@@ -733,11 +747,7 @@ impl Serializer<'_> {
 
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.
-                self.encode_tag(ValueTag::SerializableObject);
-                serialized.encode_interface_name(interface_name);
-                if self.for_storage {
-                    serialized.encode_u64(serializable_payload_version());
-                }
+                encode_serializable_object_header(serialized, interface_name);
 
                 // FIXME: 4. If value's primary interface is decorated with [SameAgentCluster], then set sameAgentCluster to true.
 
@@ -842,15 +852,25 @@ impl Serializer<'_> {
                 }
             }
             // 3. Otherwise, if value is a platform object that is a serializable object, then perform the serialization steps for value's primary interface, given value, serialized, and forStorage.
-            else if serializable_interface_name(object).is_some() {
-                let realm = self.realm.unwrap_or_else(|| object.shape().realm());
-                serialization_steps(
-                    &CallContext::new(vm, realm),
-                    object,
-                    serialized,
-                    self.for_storage,
-                    self.memory,
-                )?;
+            else if let Some(interface_name) = serializable_interface_name(object) {
+                match serializable_steps(interface_name) {
+                    SerializableSteps::DOMException => {
+                        dom_exception::serialization_steps(&DOMExceptionFields::of(object), serialized);
+                    }
+                    SerializableSteps::QuotaExceededError => {
+                        quota_exceeded_error::serialization_steps(&QuotaExceededErrorFields::of(object), serialized);
+                    }
+                    SerializableSteps::CryptoKey => crypto_key::serialization_steps(object, serialized),
+                    SerializableSteps::Rust => {
+                        let realm = self.realm.unwrap_or_else(|| object.shape().realm());
+                        serialization_steps(
+                            &CallContext::new(vm, realm),
+                            object,
+                            &mut SerializationWriter::new(self),
+                            self.for_storage,
+                        )?;
+                    }
+                }
             }
             // 4. Otherwise, for each key in ! EnumerableOwnProperties(value, key):
             else {
@@ -895,15 +915,64 @@ impl Serializer<'_> {
     }
 }
 
-struct Deserializer<'a, 'vm> {
-    cx: &'a CallContext<'vm>,
-    serialized: StructuredSerializeReader,
-    memory: DeserializationMemory,
+pub(crate) fn encode_serializable_object_header(serialized: &StructuredSerializeWriter, interface_name: u16) {
+    serialized.encode_u8(ValueTag::SerializableObject as u8);
+    serialized.encode_interface_name(interface_name);
+    if serialized.serialization_type() == SerializationType::Storage {
+        serialized.encode_u64(serializable_payload_version());
+    }
 }
 
-impl Deserializer<'_, '_> {
+pub(crate) fn decode_serializable_object_header(
+    serialized: &StructuredSerializeReader,
+    interface_name: u16,
+) -> WebIdlResult<()> {
+    let tag = serialized.decode_u8()?;
+    let name = serialized.decode_interface_name()?;
+    if tag != ValueTag::SerializableObject as u8 || name != interface_name {
+        return Err(data_clone_error("Unexpected serializable object"));
+    }
+    if serialized.serialization_type() == SerializationType::Storage
+        && serialized.decode_u64()? != serializable_payload_version()
+    {
+        return Err(data_clone_error("Unsupported serializable payload version"));
+    }
+    Ok(())
+}
+
+/// A new ArrayBuffer in the realm with a copy of the bytes. If this throws an exception, catch it, and then throw a
+/// "DataCloneError" DOMException.
+fn array_buffer_from_bytes(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    bytes: &[u8],
+    is_shared: ArrayBufferShared,
+) -> WebIdlResult<Gc<ArrayBuffer>> {
+    ArrayBuffer::try_create_written_by(vm, realm, bytes.len(), is_shared, |data| {
+        for (byte, &value) in data.iter_mut().zip(bytes) {
+            byte.write(value);
+        }
+        bytes.len()
+    })
+    .map_err(|_| data_clone_error_from_serialization_error(realm, "Unable to allocate an ArrayBuffer"))
+}
+
+pub(crate) struct Deserializer<'a, 'vm, 'memory> {
+    cx: &'a CallContext<'vm>,
+    serialized: &'a StructuredSerializeReader<'a>,
+    memory: &'a DeserializationMemory<'memory>,
+}
+
+impl<'a> Deserializer<'a, '_, '_> {
+    /// The record that the deserialization reads.
+    pub(crate) fn serialized(&self) -> &'a StructuredSerializeReader<'a> {
+        self.serialized
+    }
+}
+
+impl Deserializer<'_, '_, '_> {
     // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-    fn deserialize(&self) -> WebIdlResult<Value> {
+    pub(crate) fn deserialize(&self) -> WebIdlResult<Value> {
         self.deserialize_value(self.serialized.decode_u8()?)
     }
 
@@ -1004,7 +1073,7 @@ impl Deserializer<'_, '_> {
                 is_primitive = true;
             }
             ValueTag::BigIntPrimitive => {
-                value = self.serialized.decode_big_int()?;
+                value = self.serialized.decode_big_int(vm)?;
                 is_primitive = true;
             }
             ValueTag::StringPrimitive => {
@@ -1024,7 +1093,7 @@ impl Deserializer<'_, '_> {
 
             // 9. Otherwise, if serialized.[[Type]] is "BigInt", then set value to a new BigInt object in targetRealm whose [[BigIntData]] internal slot value is serialized.[[BigIntData]].
             ValueTag::BigIntObject => {
-                let big_int = self.serialized.decode_big_int()?.as_bigint();
+                let big_int = self.serialized.decode_big_int(vm)?.as_bigint();
                 value = Value::from_object(BigIntObject::create(vm, realm, big_int));
             }
 
@@ -1074,11 +1143,11 @@ impl Deserializer<'_, '_> {
                     break 'shared_array_buffer;
                 }
 
-                let buffer = self.serialized.decode_byte_buffer()?;
+                let bytes = self.serialized.decode_bytes()?;
 
                 if let Some(array_buffer) =
                     self.serialized
-                        .array_buffer_sharing_side_table_entry(side_table_index, buffer.len(), false)
+                        .array_buffer_sharing_side_table_entry(side_table_index, bytes.len(), false)
                 {
                     value = Value::from_object(array_buffer);
                     break 'shared_array_buffer;
@@ -1086,7 +1155,7 @@ impl Deserializer<'_, '_> {
 
                 // A buffer with no cross-process shared memory to share (a zero-length one, e.g.) whose record crossed a
                 // process boundary arrives with an empty side table — so it's reconstructed from the byte copy.
-                value = Value::from_object(buffer.into_array_buffer(realm, ArrayBufferShared::Yes));
+                value = Value::from_object(array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::Yes)?);
             }
 
             // 14. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]], and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
@@ -1096,11 +1165,11 @@ impl Deserializer<'_, '_> {
                 self.deserialize_agent_cluster()?;
 
                 let side_table_index = self.serialized.decode_u32()?;
-                let buffer = self.serialized.decode_byte_buffer()?;
+                let bytes = self.serialized.decode_bytes()?;
                 let max_byte_length = self.serialized.decode_size()?;
 
                 // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
-                if max_byte_length < buffer.len() {
+                if max_byte_length < bytes.len() {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
                         "ArrayBuffer byte length exceeds its max byte length",
@@ -1109,7 +1178,7 @@ impl Deserializer<'_, '_> {
 
                 if let Some(array_buffer) =
                     self.serialized
-                        .array_buffer_sharing_side_table_entry(side_table_index, buffer.len(), true)
+                        .array_buffer_sharing_side_table_entry(side_table_index, bytes.len(), true)
                 {
                     let data = array_buffer
                         .downcast::<ArrayBuffer>()
@@ -1119,7 +1188,7 @@ impl Deserializer<'_, '_> {
                     break 'growable_shared_array_buffer;
                 }
 
-                let data = buffer.into_array_buffer(realm, ArrayBufferShared::Yes);
+                let data = array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::Yes)?;
                 data.set_max_byte_length(max_byte_length);
 
                 value = Value::from_object(data);
@@ -1127,28 +1196,26 @@ impl Deserializer<'_, '_> {
 
             // 15. Otherwise, if serialized.[[Type]] is "ArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
             //     If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
-            // NB: The bytes were allocated when they were decoded, which throws a "DataCloneError" DOMException if it fails.
             ValueTag::ArrayBuffer => {
-                let buffer = self.serialized.decode_byte_buffer()?;
-                value = Value::from_object(buffer.into_array_buffer(realm, ArrayBufferShared::No));
+                let bytes = self.serialized.decode_bytes()?;
+                value = Value::from_object(array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::No)?);
             }
 
             // 16. Otherwise, if serialized.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]], whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]], and whose [[ArrayBufferMaxByteLength]] internal slot value is serialized.[[ArrayBufferMaxByteLength]].
             //     If this throws an exception, catch it, and then throw a "DataCloneError" DOMException.
-            // NB: The bytes were allocated when they were decoded, which throws a "DataCloneError" DOMException if it fails.
             ValueTag::ResizeableArrayBuffer => {
-                let buffer = self.serialized.decode_byte_buffer()?;
+                let bytes = self.serialized.decode_bytes()?;
                 let max_byte_length = self.serialized.decode_size()?;
 
                 // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
-                if max_byte_length < buffer.len() {
+                if max_byte_length < bytes.len() {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
                         "ArrayBuffer byte length exceeds its max byte length",
                     ));
                 }
 
-                let data = buffer.into_array_buffer(realm, ArrayBufferShared::No);
+                let data = array_buffer_from_bytes(vm, realm, bytes, ArrayBufferShared::No)?;
                 data.set_max_byte_length(max_byte_length);
 
                 value = Value::from_object(data);
@@ -1356,25 +1423,6 @@ impl Deserializer<'_, '_> {
                     return Err(data_clone_error("Unsupported type"));
                 }
 
-                // NB: The deserialization steps of an interface implemented in Rust create the new instance from what they
-                //     read, so they run here, at the position in memory that the instance has.
-                if serializable_interface_is_implemented_in_rust(interface_name) {
-                    if version.is_some_and(|version| version != serializable_payload_version()) {
-                        return Err(data_clone_error_from_serialization_error(
-                            realm,
-                            "Unsupported serializable payload version",
-                        ));
-                    }
-                    let memory_index = self.memory.size();
-                    self.memory.append(Value::UNDEFINED);
-                    let value = deserialize_rust_platform_object(interface_name, self.serialized, self.memory)?;
-                    self.memory.set(memory_index, value);
-                    return Ok(value);
-                }
-
-                // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
-                value = Value::from_object(create_serialized_platform_object(interface_name, realm));
-
                 if version.is_some_and(|version| version != serializable_payload_version()) {
                     return Err(data_clone_error_from_serialization_error(
                         realm,
@@ -1382,8 +1430,31 @@ impl Deserializer<'_, '_> {
                     ));
                 }
 
+                // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
                 // 4. Set deep to true.
-                deep = true;
+                // NB: The deserialization steps of an interface implemented in Rust, and those that run here for
+                //     DOMException, QuotaExceededError and CryptoKey, create the new instance from what they read, so
+                //     they run here, at the position in memory that the instance has, rather than in step 25.4.
+                let memory_index = self.memory.size();
+                self.memory.append(Value::UNDEFINED);
+                let value = match serializable_steps(interface_name) {
+                    SerializableSteps::DOMException => {
+                        let fields = dom_exception::deserialization_steps(self.serialized)?;
+                        Value::from_object(dom_exception::create(realm, &fields))
+                    }
+                    SerializableSteps::QuotaExceededError => {
+                        let fields = quota_exceeded_error::deserialization_steps(self.serialized)?;
+                        Value::from_object(quota_exceeded_error::create(realm, &fields))
+                    }
+                    SerializableSteps::CryptoKey => {
+                        Value::from_object(crypto_key::deserialization_steps(realm, self.serialized)?)
+                    }
+                    SerializableSteps::Rust => {
+                        deserialize_rust_platform_object(interface_name, realm, &mut SerializationReader::new(self))?
+                    }
+                };
+                self.memory.set(memory_index, value);
+                return Ok(value);
             }
         }
 
@@ -1461,10 +1532,8 @@ impl Deserializer<'_, '_> {
                 }
             }
             // 4. Otherwise:
-            else {
-                // 1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
-                deserialization_steps(value.as_object(), self.serialized, self.memory)?;
-            }
+            //    1. Perform the appropriate deserialization steps for the interface identified by serialized.[[Type]], given serialized, value, and targetRealm.
+            // NB: Step 23 runs the deserialization steps of a platform object.
         }
 
         // 26. Return value.
@@ -1475,16 +1544,13 @@ impl Deserializer<'_, '_> {
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
 pub(crate) fn structured_serialize_with_transfer(
     cx: &CallContext,
-    serialized_writer: StructuredSerializeWriter,
-    record: SerializedTransferRecord,
     value: Value,
     transfer_list: &[Gc<Object>],
-) -> WebIdlResult<()> {
+) -> WebIdlResult<OwnedSerializedTransferRecord> {
     let vm = cx.vm();
 
     // 1. Let memory be an empty map.
-    // NB: C++ creates the writer, and makes the record of what this returns.
-    let memory = cpp::OwnedSerializationMemory::new();
+    let memory = SerializationMemory::new(vm);
 
     // 2. For each transferable of transferList:
     for transferable in transfer_list {
@@ -1504,31 +1570,38 @@ pub(crate) fn structured_serialize_with_transfer(
         let transferable_value = Value::from_object(*transferable);
 
         // 3. If memory[transferable] exists, then throw a "DataCloneError" DOMException.
-        if memory.memory().contains(transferable_value) {
+        if memory.contains(transferable_value) {
             return Err(data_clone_error("Cannot transfer value twice"));
         }
 
         // 4. Set memory[transferable] to { [[Type]]: an uninitialized value, [[AgentCluster]]: null }.
-        memory.memory().set(transferable_value, memory.memory().size());
+        memory.set(transferable_value, memory.size());
     }
 
+    // NB: The record of the result holds the shared memory that serialized and the data holders share through.
+    let result = OwnedSerializedTransferRecord::new();
+    let shared_buffers = result.record().shared_buffers();
+
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
+    // NB: The record may cross a process boundary, so it is an IPC record, with the memory of its SharedArrayBuffers
+    //     shared on the side.
+    let serialized = StructuredSerializeWriter::new_with_shared_buffers(vm, shared_buffers);
     structured_serialize_internal(
         vm,
         Some(cx.realm()),
-        serialized_writer,
+        &serialized,
         value,
         false,
-        memory.memory(),
+        &memory,
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
 
     // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
     //         is not enough memory for it, the pixels travel inline.
-    let image_bitmap_pixels = serialized_writer.gather_image_bitmap_pixels(transfer_list);
+    let image_bitmap_pixels = shared_buffers.gather_image_bitmap_pixels(transfer_list);
 
     // 4. Let transferDataHolders be a new empty List.
-    // NB: The data holders are appended to the record that C++ returns.
+    // NB: The record of the result holds the list.
 
     // 5. For each transferable of transferList:
     for transferable in transfer_list {
@@ -1601,34 +1674,45 @@ pub(crate) fn structured_serialize_with_transfer(
         }
 
         // 6. Append dataHolder to transferDataHolders.
-        record.append_data_holder(data_holder);
+        result.record().append_data_holder(data_holder);
     }
 
     // 6. Let result be { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders, [[InterfaceNames]]: an empty ordered set, [[AgentCluster]]: null }.
+    serialized.finish_transfer_record(result.record());
+
     // FIXME: 7. For each object → record of memory:
     //     1. If object is a platform object, then append record.[[Type]] to result.[[InterfaceNames]].
     //     2. If record.[[AgentCluster]] is not null, then restrict result to the same agent cluster.
+
     // 8. Return result.
-    Ok(())
+    Ok(result)
+}
+
+/// The record that StructuredDeserializeWithTransfer returns,
+/// https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer
+pub(crate) struct DeserializedTransferRecord<'vm> {
+    /// [[Deserialized]], the deserialized value.
+    pub(crate) deserialized: Value,
+    /// [[TransferredValues]], the transferred objects in the order of their data holders.
+    pub(crate) transferred_values: MarkedVec<'vm, Gc<Object>>,
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserializewithtransfer
-pub(crate) fn structured_deserialize_with_transfer(
-    cx: &CallContext,
+pub(crate) fn structured_deserialize_with_transfer<'vm>(
+    cx: &CallContext<'vm>,
     serialize_with_transfer_result: SerializedTransferRecord,
-    transferred_values: TransferredValues,
-) -> WebIdlResult<Value> {
+) -> WebIdlResult<DeserializedTransferRecord<'vm>> {
     let target_realm = cx.realm();
 
     // 1. Let memory be an empty map.
-    let memory = OwnedDeserializationMemory::new();
+    let memory = DeserializationMemory::new(cx.vm());
 
     // FIXME: 2. If serializeWithTransferResult.[[AgentCluster]] is not null and targetRealm's corresponding agent cluster is not serializeWithTransferResult.[[AgentCluster]], then throw a "DataCloneError" DOMException.
     // FIXME: 3. For each interfaceName of serializeWithTransferResult.[[InterfaceNames]]:
     //     1. If the interface identified by interfaceName is not exposed in targetRealm, then throw a "DataCloneError" DOMException.
 
     // 4. Let transferredValues be a new empty List.
-    // NB: C++ lends the list that it returns.
+    let transferred_values = MarkedVec::new(cx.vm());
 
     // 5. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
     for index in 0..serialize_with_transfer_result.data_holder_count() {
@@ -1640,21 +1724,32 @@ pub(crate) fn structured_deserialize_with_transfer(
         let value = structured_deserialize_with_transfer_internal(cx, decoder.decoder())?;
 
         // 5. Set memory[transferDataHolder] to value.
-        memory.memory().append(value);
+        memory.append(value);
 
         // 6. Append value to transferredValues.
-        transferred_values.append(value.as_object());
+        transferred_values.push(value.as_object());
     }
 
     // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
-    let deserialized = serialize_with_transfer_result.deserialize(target_realm, memory.memory())?;
+    let serialized = StructuredSerializeReader::new_ipc(
+        target_realm,
+        // SAFETY: The caller lends the record for the deserialization.
+        unsafe { serialize_with_transfer_result.serialized() },
+        Some(serialize_with_transfer_result.shared_buffers()),
+    );
+    let deserialized = with_temporary_execution_context(target_realm, || {
+        structured_deserialize_internal(cx, &serialized, &memory, false)
+    })?;
 
     // NB: The deserialized values hold their own references to the shared memory they use. The record can outlive its
     //     delivery, as in a task that awaits garbage collection, so it must not keep that memory alive.
     serialize_with_transfer_result.clear_shared_buffers();
 
     // 7. Return { [[Deserialized]]: deserialized, [[TransferredValues]]: transferredValues }.
-    Ok(deserialized)
+    Ok(DeserializedTransferRecord {
+        deserialized,
+        transferred_values,
+    })
 }
 
 // AD-HOC: This non-standard overload is meant to extract just one transferrable value from a serialized transfer record.
@@ -1718,14 +1813,45 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     Ok(value)
 }
 
+// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
+pub(crate) fn structured_serialize_for_storage(cx: &CallContext, value: Value) -> WebIdlResult<Vec<u8>> {
+    let vm = cx.vm();
+    let memory = SerializationMemory::new(vm);
+    let serialized = StructuredSerializeWriter::new(vm, SerializationType::Storage);
+
+    // 1. Return ? StructuredSerializeInternal(value, true).
+    structured_serialize_internal(
+        vm,
+        Some(cx.realm()),
+        &serialized,
+        value,
+        true,
+        &memory,
+        AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
+    )?;
+    Ok(serialized.into_storage_bytes())
+}
+
+// https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
+// NB: The bytes of a storage record, which throws a "DataCloneError" DOMException for bytes after its value, in the realm
+//     of the call.
+pub(crate) fn structured_deserialize_for_storage(cx: &CallContext, serialized: &[u8]) -> WebIdlResult<Value> {
+    let target_realm = cx.realm();
+    let serialized = StructuredSerializeReader::new_storage(target_realm, serialized)?;
+    let memory = DeserializationMemory::new(cx.vm());
+    with_temporary_execution_context(target_realm, || {
+        structured_deserialize_internal(cx, &serialized, &memory, true)
+    })
+}
+
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
-pub(crate) fn structured_serialize_internal(
+pub(crate) fn structured_serialize_internal<'memory>(
     vm: &Vm,
     realm: Option<Gc<Realm>>,
-    serialized: StructuredSerializeWriter,
+    serialized: &StructuredSerializeWriter<'memory>,
     value: Value,
     for_storage: bool,
-    memory: SerializationMemory,
+    memory: &SerializationMemory<'memory>,
     allow_shared_array_buffers: AllowSharedArrayBuffers,
 ) -> WebIdlResult<()> {
     let serializer = Serializer {
@@ -1741,8 +1867,8 @@ pub(crate) fn structured_serialize_internal(
 
 pub(crate) fn structured_deserialize_internal(
     cx: &CallContext,
-    serialized: StructuredSerializeReader,
-    memory: DeserializationMemory,
+    serialized: &StructuredSerializeReader,
+    memory: &DeserializationMemory,
     check_fully_consumed: bool,
 ) -> WebIdlResult<Value> {
     let deserializer = Deserializer { cx, serialized, memory };

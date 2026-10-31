@@ -81,6 +81,16 @@
         transferredPort.postMessage("reply after transfer");
         println((await reply).data);
 
+        internals.failNextMessagePortTransfer(transferredPort);
+        try {
+            window.postMessage({ port: transferredPort }, "*", [transferredPort]);
+        } catch (error) {
+            println(`transport transfer failed: ${error.name}`);
+        }
+        const messageAfterFailedTransportTransfer = nextMessage(transferredPort);
+        transferredChannel.port2.postMessage("after failed transport transfer");
+        println((await messageAfterFailedTransportTransfer).data);
+
         const failedTransferChannel = new MessageChannel();
         internals.failNextMessagePortTransfer(failedTransferChannel.port1);
         try {

@@ -4,70 +4,42 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGC/Heap.h>
+#include <AK/NumericLimits.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/FileAPI/FileList.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 
 namespace Web::FileAPI {
 
-GC_DEFINE_ALLOCATOR(FileList);
+extern "C" {
+
+// Defined in Bindings/Rust/src/file_api/exports.rs.
+void* web_file_list_create(JSVM*);
+void web_file_list_add_file(JSVM*, void* list, void* file);
+u32 web_file_list_length(void* list);
+void* web_file_list_item(void* list, u32 index);
+}
 
 GC::Ref<FileList> FileList::create()
 {
-    return GC::Heap::the().allocate<FileList>();
+    return GC::Ref { *static_cast<FileList*>(web_file_list_create(JS::HostABI::vm_to_abi(JS::VM::the()))) };
 }
 
-FileList::FileList()
+void FileList::add_file(GC::Ref<File> file)
 {
+    web_file_list_add_file(JS::HostABI::vm_to_abi(JS::VM::the()), this, file.ptr());
 }
 
-FileList::~FileList() = default;
-
-void FileList::visit_edges(GC::Cell::Visitor& visitor)
+WebIDL::UnsignedLong FileList::length() const
 {
-    Base::visit_edges(visitor);
-    visitor.visit(m_files);
+    return web_file_list_length(const_cast<FileList*>(this));
 }
 
-WebIDL::ExceptionOr<void> FileList::serialization_steps(HTML::StructuredSerializeWriter& serialized, bool for_storage, HTML::SerializationMemory& memory)
+GC::Ptr<File> FileList::item(size_t index) const
 {
-    // 1. Set serialized.[[Files]] to an empty list.
-    // 2. For each file in value, append the sub-serialization of file to serialized.[[Files]].
-    serialized.encode(static_cast<u64>(m_files.size()));
-
-    for (auto file : m_files) {
-        serialized.encode(to_underlying(HTML::ValueTag::SerializableObject));
-        serialized.encode(Bindings::InterfaceName::File);
-        if (serialized.type() == HTML::SerializationType::Storage)
-            serialized.encode(u64 { 1 });
-        auto serializable = Bindings::SerializablePlatformObject { .rust_object = file, .interface_name = Bindings::InterfaceName::File, .realm = JS::VM::the().current_realm() };
-        TRY(serializable.serialization_steps(serialized, for_storage, memory));
-    }
-
-    return {};
-}
-
-WebIDL::ExceptionOr<void> FileList::deserialization_steps(JS::Realm& realm, HTML::StructuredSerializeReader& serialized, HTML::DeserializationMemory& memory)
-{
-    // 1. For each file of serialized.[[Files]], add the sub-deserialization of file to value.
-    auto size = TRY(HTML::decode_or_throw_data_clone_error<u64>(realm, serialized));
-
-    for (size_t i = 0; i < size; ++i) {
-        auto tag = TRY(HTML::decode_or_throw_data_clone_error<u8>(realm, serialized));
-        auto interface_name = TRY(HTML::decode_or_throw_data_clone_error<Bindings::InterfaceName>(realm, serialized));
-        if (tag != to_underlying(HTML::ValueTag::SerializableObject) || interface_name != Bindings::InterfaceName::File)
-            return WebIDL::DataCloneError::create("Invalid FileList entry"_utf16);
-        if (serialized.type() == HTML::SerializationType::Storage) {
-            auto version = TRY(HTML::decode_or_throw_data_clone_error<u64>(realm, serialized));
-            if (version != 1)
-                return WebIDL::DataCloneError::create("Unsupported FileList entry version"_utf16);
-        }
-        auto wrapper = TRY(Bindings::deserialize_rust_platform_object(Bindings::InterfaceName::File, realm, serialized, memory));
-        m_files.append(*Bindings::impl_from<File>(wrapper.ptr()));
-    }
-
-    return {};
+    if (index > NumericLimits<u32>::max())
+        return {};
+    return static_cast<File*>(web_file_list_item(const_cast<FileList*>(this), index));
 }
 
 }

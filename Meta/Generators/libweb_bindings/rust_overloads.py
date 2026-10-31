@@ -71,6 +71,10 @@ def is_plain(idl_type: IDLType) -> bool:
     return not isinstance(idl_type, (IDLUnionType, IDLParameterizedType))
 
 
+def is_sequence(idl_type: IDLType) -> bool:
+    return isinstance(idl_type, IDLParameterizedType) and idl_type.name == "sequence"
+
+
 def type_and_flattened_members(idl_type: IDLType) -> List[IDLType]:
     """The types that has_overload_with_argument_type_or_subtype_matching() of OverloadResolution.cpp tests for one
     entry."""
@@ -85,7 +89,7 @@ def type_or_flattened_member_matches(idl_type: IDLType, matches: Callable[[IDLTy
 
 def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolutionStep]:
     """The sub-steps of step 12 of the algorithm that resolve_overload() runs, in its order, without the ones for
-    functions and sequences and for the type object, which check_type_at_distinguishing_index() keeps out."""
+    functions and for the type object, which check_type_at_distinguishing_index() keeps out."""
 
     def is_dictionary(idl_type: IDLType) -> bool:
         return is_plain(idl_type) and context.dictionary(idl_type) is not None
@@ -180,6 +184,13 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
             "value.is_object() && value.as_object().downcast::<TypedArrayBase>().is_some()",
             typed_array_of_kind,
         ),
+        # NB: resolve_overload() takes an argument whose @@iterator getter throws for one without the method, where
+        #     the algorithm rethrows.
+        OverloadResolutionStep(
+            "The argument is an object with an @@iterator method, and an overload takes a sequence there.",
+            "value.is_object() && iterator_method(vm, value).is_ok_and(|method| method.is_some())",
+            with_members(is_sequence),
+        ),
         OverloadResolutionStep(
             "The argument is an object, and an overload takes a dictionary there.",
             "value.is_object()",
@@ -230,16 +241,20 @@ def overload_resolution_steps(context: GenerationContext) -> List[OverloadResolu
 
 def check_type_at_distinguishing_index(idl_type: IDLType, context: GenerationContext, what: str) -> None:
     """Rejects the types that the steps of resolve_overload() which are not written out here would take an argument
-    for: those for functions and sequences, and the type object, which every step for an object takes."""
+    for: those for functions, and the type object, which every step for an object takes."""
     member_types = idl_type.flattened_member_types() if isinstance(idl_type, IDLUnionType) else [idl_type]
     for member_type in member_types:
-        handled = is_plain(member_type) and (
-            context.dictionary(member_type) is not None
-            or context.enumeration(member_type) is not None
-            or cpp_interface(member_type, context) is not None
-            or rust_interface(member_type, context) is not None
-            or member_type.name in STRING_TYPES | INTEGER_TYPES | FLOATING_POINT_TYPES | TYPED_ARRAY_NAMES
-            or member_type.name in ("boolean", "bigint", "any", "ArrayBuffer", "DataView")
+        handled = (
+            is_sequence(member_type)
+            or is_plain(member_type)
+            and (
+                context.dictionary(member_type) is not None
+                or context.enumeration(member_type) is not None
+                or cpp_interface(member_type, context) is not None
+                or rust_interface(member_type, context) is not None
+                or member_type.name in STRING_TYPES | INTEGER_TYPES | FLOATING_POINT_TYPES | TYPED_ARRAY_NAMES
+                or member_type.name in ("boolean", "bigint", "any", "ArrayBuffer", "DataView")
+            )
         )
         if not handled:
             raise UnsupportedByRustBindings(

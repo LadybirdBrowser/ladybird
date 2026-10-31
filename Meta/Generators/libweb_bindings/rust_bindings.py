@@ -530,7 +530,7 @@ def write_parameter_conversions(
             parameter.name,
             context,
             parameter_what,
-            is_parameter=True,
+            keeps_cells_alive=True,
         )
         out.write(f"        let argument{index} = vm.argument({index});\n")
         if parameter.optional and parameter.default_value is not None:
@@ -575,6 +575,10 @@ def implementation_method_signatures(
     for attribute in members.attributes:
         what = f"{interface.name}.{attribute.attribute.name}"
         if attribute.event_type is not None:
+            # NB: The bindings get and set an event handler on the EventTarget that the object owns, unless the IDL
+            #     names the method of the setter.
+            if attribute.setter_method is not None:
+                signatures.append(f"fn {attribute.setter_method}(&self, cx: &mut CallContext, value: Value)")
             continue
         if not attribute.attribute.inherit:
             result_type = rust_type(attribute.attribute.type, context, what, is_result=True)
@@ -792,8 +796,8 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
 
     use crate::bindings::conversions::{
         ArrayBufferView, BufferSource, BufferSourceRules, CppInterface, EmptyDictionary, FromJs, ToJs, UsvString,
-        implements_cpp_interface, record_from_js, record_to_js, rooted_sequence_to_js, sequence_from_js,
-        sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
+        implements_cpp_interface, iterator_method, record_from_js, record_to_js, rooted_sequence_to_js,
+        sequence_from_js, sequence_to_js, to_array_buffer_view, to_boolean, to_buffer_source, to_cpp_interface,
         to_cpp_interface_in_union, to_dom_string,
         to_dom_string_treating_null_as_empty, to_double, to_float, to_long, to_long_enforcing_range, to_long_long,
         to_long_long_clamping, to_long_long_enforcing_range, to_object, to_promise, to_typed_array,
@@ -802,10 +806,11 @@ RUST_BINDINGS_IMPORTS = """    #![allow(unused_imports)]
     };
     use crate::bindings::interface::{
         Inherits, Interface, Ref, Wrapped, cell_class, construct_arguments, construct_wrapper, create_dictionary_object,
-        define_attribute, define_cached_attribute, define_constants, define_interface_object_properties,
-        define_operation, define_to_string_tag, define_unimplemented_property, define_value_iterator_properties,
-        entry_point_arguments, implementation_if, implementation_of, prototype_from_new_target, realm_is_window,
-        rejected_promise, set_dictionary_member, set_interface_prototype_object_prototype, this_object, to_interface,
+        define_attribute, define_cached_attribute, define_constants, define_indexed_properties_iterator,
+        define_interface_object_properties, define_operation, define_to_string_tag, define_unimplemented_property,
+        define_value_iterator_properties, entry_point_arguments, implementation_if, implementation_of,
+        prototype_from_new_target, realm_is_window, rejected_promise, set_dictionary_member,
+        set_interface_prototype_object_prototype, this_object, to_interface,
     };
     use crate::bindings::async_iterable::{
         AsyncIterable, DefaultAsyncIterator, DefaultAsyncIteratorClasses, async_iterator_next, async_iterator_return,
@@ -1014,7 +1019,7 @@ def write_rust_interface(
             out.write(f'        define_cached_attribute(vm, realm, prototype, "{name}", {getter});\n')
             defined_property_names.append(name)
             continue
-        setter = "None" if attribute.setter_method is None else f"raw_native!({attribute.setter_function})"
+        setter = "None" if attribute.attribute.readonly else f"raw_native!({attribute.setter_function})"
         out.write(f'        define_attribute(vm, realm, prototype, "{name}", {getter}, {setter});\n')
         defined_property_names.append(name)
     for operation_set in members.operation_sets:
@@ -1040,6 +1045,7 @@ def write_rust_interface(
             f"{getter_set.length});\n"
         )
         defined_property_names.append(getter_set.name)
+        out.write("        define_indexed_properties_iterator(vm, realm, prototype);\n")
         if members.indexed_property_getter.has_value_iterator:
             out.write("        define_value_iterator_properties(vm, realm, prototype);\n")
     if members.pair_iterator is not None:
@@ -1579,7 +1585,8 @@ def write_this_implementation(out: TextIO, context: GenerationContext, interface
 
 def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) -> None:
     """The getter and the setter of an event handler IDL attribute, which get and set the event handler of the C++
-    EventTarget that the object owns, https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes"""
+    EventTarget that the object owns, https://html.spec.whatwg.org/multipage/webappapis.html#event-handler-idl-attributes
+    The setter calls the method of the implementation that the IDL names instead, which sets the event handler itself."""
     out.write(
         f"""
     pub(super) fn {attribute.getter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
@@ -1587,7 +1594,22 @@ def write_rust_event_handler_attribute(out: TextIO, attribute: RustAttribute) ->
         let object: &Implementation = &implementation;
         Ok(event_handler_attribute(object, "{attribute.event_type}"))
     }}
-
+"""
+    )
+    if attribute.setter_method is not None:
+        out.write(
+            f"""
+    fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
+        let value = vm.argument(0);
+        let (implementation, mut cx) = this_implementation(vm)?;
+        Implementation::{attribute.setter_method}(&implementation, &mut cx, value);
+        Ok(Value::UNDEFINED)
+    }}
+"""
+        )
+        return
+    out.write(
+        f"""
     fn {attribute.setter_function}(vm: &Vm) -> ThrowCompletionOr<Value> {{
         let value = vm.argument(0);
         let (implementation, _) = this_implementation(vm)?;
@@ -1784,8 +1806,8 @@ pub(crate) mod definitions {
 
     use ak::Utf16String;
     use libjs_rust::api::{
-        ErrorKind, ErrorType, Gc, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind, Value, Vm,
-        is_host_instance_of,
+        ErrorKind, ErrorType, Gc, MarkedVec, Object, PropertyKey, ThrowCompletionOr, TypedArrayBase, TypedArrayKind,
+        Value, Vm, is_host_instance_of,
     };
 
     use crate::bindings::CallContext;

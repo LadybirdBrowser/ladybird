@@ -8,9 +8,7 @@
 #include <LibGfx/Bitmap.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
-#include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/HTML/ImageData.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
 namespace Web::HTML {
@@ -29,25 +27,6 @@ u32 web_image_data_height(void const* image_data);
 bool web_image_data_is_detached(void const* image_data);
 u8* web_image_data_pixels(void const* image_data);
 u8 web_image_data_color_space(void const* image_data);
-
-// What the serialization steps of Bindings/Rust/src/html/image_data.rs ask of C++: the color space, encoded as for
-// any other Bindings::PredefinedColorSpace.
-void web_image_data_serialize_color_space(Bindings::RustSerializationWriter*, Bindings::PredefinedColorSpace);
-JSCompletion web_image_data_deserialize_color_space(Bindings::RustSerializationReader*, Bindings::PredefinedColorSpace* out_color_space);
-
-void web_image_data_serialize_color_space(Bindings::RustSerializationWriter* writer, Bindings::PredefinedColorSpace color_space)
-{
-    writer->serialized.encode(color_space);
-}
-
-JSCompletion web_image_data_deserialize_color_space(Bindings::RustSerializationReader* reader, Bindings::PredefinedColorSpace* out_color_space)
-{
-    auto color_space = decode_or_throw_data_clone_error<Bindings::PredefinedColorSpace>(reader->realm, reader->serialized);
-    if (color_space.is_exception())
-        return Bindings::completion_to_abi(reader->realm, color_space.release_error());
-    *out_color_space = color_space.release_value();
-    return Bindings::completion_to_abi(reader->realm, JS::js_undefined());
-}
 }
 
 WebIDL::ExceptionOr<GC::Ref<ImageData>> ImageData::create(JS::Realm& realm, u32 width, u32 height)

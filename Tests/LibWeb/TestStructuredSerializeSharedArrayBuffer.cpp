@@ -237,24 +237,11 @@ TEST_CASE(cross_origin_isolation_gate_still_applies_by_default)
     EXPECT(result.is_error());
 }
 
-TEST_CASE(storage_serialization_rejects_shared_array_buffers_even_when_same_agent)
+TEST_CASE(storage_serialization_rejects_shared_array_buffers)
 {
     auto& vm = Web::Bindings::main_thread_vm();
     auto source = make_shared_array_buffer(source_realm(), "not for storage"sv.bytes());
 
-    auto writer = Web::HTML::StructuredSerializeWriter::create_storage();
-    Web::HTML::SerializationMemory memory;
-    auto result = Web::HTML::structured_serialize_internal(vm, writer, JS::Value { source.ptr() }, true, memory, Web::HTML::AllowSharedArrayBuffers::SameAgentAlways);
+    auto result = Web::HTML::structured_serialize_for_storage(vm, JS::Value { source.ptr() });
     EXPECT(result.is_error());
-}
-
-TEST_CASE(appending_an_ipc_record_rejects_a_shared_array_buffer_side_table)
-{
-    auto record = serialize_same_agent(JS::Value { make_shared_array_buffer(source_realm(), "side table"sv.bytes()).ptr() });
-    EXPECT(!Web::HTML::same_process_shared_array_buffers(record).is_empty());
-
-    auto writer = Web::HTML::StructuredSerializeWriter::create_ipc();
-    EXPECT_DEATH("Appending an IPC record with a SharedArrayBuffer side table", [&] {
-        writer.append(move(record));
-    }());
 }

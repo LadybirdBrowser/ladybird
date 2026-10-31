@@ -180,7 +180,7 @@ WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& re
     // The postMessage(message, transfer) and postMessage(message, options) methods on DedicatedWorkerGlobalScope objects act as if,
     // when invoked, it immediately invoked the respective postMessage(message, transfer) and postMessage(message, options)
     // on the port, with the same arguments, and returned the same return value.
-    return m_internal_port->post_message(realm, message, options);
+    return m_internal_port->post_message(realm, message, options.transfer);
 }
 
 WebIDL::ExceptionOr<void> DedicatedWorkerGlobalScope::post_message(JS::Realm& realm, JS::Value message, Bindings::StructuredSerializeOptions const& options)
@@ -211,7 +211,7 @@ void DedicatedWorkerGlobalScope::set_onmessage(WebIDL::CallbackType* callback)
     // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:handler-messageeventtarget-onmessage
     // The first time a MessagePort object's onmessage IDL attribute is set, the port's port message queue must be enabled,
     // as if the start() method had been called.
-    m_internal_port->start();
+    m_internal_port->enable();
 }
 
 void DedicatedWorkerGlobalScope::set_onmessageerror(WebIDL::CallbackType* callback)

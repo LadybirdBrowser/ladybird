@@ -15,7 +15,6 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCrypto/Forward.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/Message.h>
@@ -128,9 +127,14 @@ public:
         return m_encoder.encode(value);
     }
 
-    void append(IPCSerializationRecord&&);
+    // The size of a list, as the encoding of a Vector begins.
+    ErrorOr<void> encode_size(size_t size)
+    {
+        VERIFY(!m_buffer_has_been_taken);
+        return m_encoder.encode_size(size);
+    }
+
     void extend(Vector<TransferDataEncoder>);
-    void encode_unsigned_big_integer(::Crypto::UnsignedBigInteger const&);
 
     IPC::MessageBuffer const& buffer() const;
     IPC::MessageBuffer take_buffer() const;
@@ -142,6 +146,8 @@ private:
 };
 
 struct SerializedTransferRecord {
+    AK_ALLOC_WITH_KMALLOC;
+
     IPCSerializationRecord serialized;
     Vector<TransferDataEncoder> transfer_data_holders;
     // AD-HOC: Cross-process shared memory backing serialized SharedArrayBuffers — referenced by index from the main
