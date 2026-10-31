@@ -7,11 +7,13 @@
         const a = new Notification("A", { tag: "x" });
         await new Promise(resolve => (a.onshow = resolve));
         let closes = 0;
-        a.onclose = () => closes++;
+        const aClosed = new Promise(resolve => (a.onclose = () => { ++closes; resolve(); }));
         const b = new Notification("B", { tag: "x" });
         a.close();
         await new Promise(resolve => (b.onshow = resolve));
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await aClosed;
+        // A second close, were one to come, would be queued by now; let it run before counting.
+        await new Promise(resolve => setTimeout(resolve, 0));
         println(`close events on a: ${closes}`);
         b.close();
         done();

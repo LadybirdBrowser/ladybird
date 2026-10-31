@@ -53,6 +53,8 @@ public:
 
     // The manager's id of a page's notification, for tests that act on it through the backend.
     Optional<u64> id_for(WebContentPage const&, u64 page_notification_id) const;
+    // The ids of a page's notifications whose document has gone, so a test can wait for the page to have said so.
+    Vector<u64> ids_without_a_page_for_testing(Web::PageId) const;
 
 private:
     struct Record {
