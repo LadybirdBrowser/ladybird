@@ -82,7 +82,7 @@ All sizes are in logical pixels.
 | Element | Size | Notes |
 |---|---|---|
 | Traffic lights inset | 12 px from the top, 12 px from the left (centered 18 px down; if the system draws larger lights, keep the center) | The same on both sides. Never change one without the other. |
-| Tab strip | 35 px | Window-level items (traffic lights, Ladybird button, Linux close button) sit on one line 18 px from the top. The Ladybird button runs from 5 to 31 px: its top is level with the active tab's top, with 4 px below it. Tab contents, the new tab button and the all-tabs button are centered on the tab row, 20 px from the top, the exact middle of the active tab. |
+| Tab strip | 35 px | Window-level items (traffic lights, Ladybird button, Linux close button) sit on one line 18 px from the top. The Ladybird button and the all-tabs button run from 5 to 31 px: their tops are level with the active tab's top, with 4 px below. Tab contents and the new tab button are centered on the tab row, 20 px from the top, the exact middle of the active tab. |
 | Toolbar | 40 px | Directly below the tab strip, in the toolbar color. |
 | Drag space | 44 px | Always kept free after the + button (before the window controls on Windows), so there is somewhere to grab and move the window even with many tabs open. |
 | Bookmarks bar | 30 px | Optional, below the toolbar. |
@@ -117,12 +117,13 @@ All sizes are in logical pixels.
 | Property | Value |
 |---|---|
 | Size | 46 × 26 px, 7 px radius |
-| Content | 20 px logomark + 3 px gap + 10 px chevron, padding 0 6 px 0 7 px |
+| Content | 20 px logomark + 3 px gap + 10 px chevron, padding 0 6 px 0 7 px. Keep the chevron: it is the only thing that says this is the main menu (a bare logo reads as branding), and it tells the Ladybird button apart from the All tabs button next to it. The outline keeps it from reading as a pinned tab. |
 | Rest | No fill, 1 px inside hairline: black 14% in light, white 16% in dark and private, 45% in increased contrast. Never a gray fill at rest (it reads as stuck hover) and never a colored ring (it reads as focus). |
 | Hover | Hover fill (black 9% / white 12%) plus the hairline |
 | Menu open | Pressed fill (black 12% / white 16%) plus the hairline |
-| Clear space | 24 px on both sides: from the traffic lights to the button, and from the button to the first tab's straight left edge (the active tab's foot reaches 8 px closer). On Windows and Linux, where the button comes first, 24 px to the first tab. |
-| Purpose | Opens the Ladybird menu. Belongs to the window, not to a tab, so it lives in the tab strip (or the sidebar header). |
+| Clear space | 24 px from the traffic lights to the button. Then 6 px to the all-tabs button, and 24 px from that to the first tab's straight left edge (the active tab's foot reaches 8 px closer). On Windows and Linux the button comes first, with the same 6 and 24 px after it. |
+| All-tabs button | 28 × 26 px, 16 px card-stack glyph (a wide rounded card with two shorter lines stacked above it, like a pile of pages; not overlapping squares, which read as Copy, and not a chevron, which would read as the Ladybird button's old dropdown) in the `icon` color, no outline. Not a magnifier: it sits next to the address field, which already means search; hover and pressed fills like other buttons. Always shown, in every tab layout, right after the Ladybird button. Opens the all-tabs panel (list with a filter field) directly below it, left-aligned to it (also ⇧⌘A). There is no separate overflow button at the end of the strip. |
+| Purpose | Opens the Ladybird menu. Belongs to the window, not to a tab, so it lives in the tab strip (or the sidebar header). It sits in the same place, right after the traffic lights, in horizontal tabs and in both sidebar modes, so it never jumps when the layout changes. |
 
 ### Sidebar (vertical tabs)
 
@@ -131,7 +132,7 @@ All sizes are in logical pixels.
 | Sidebar width | 236 px |
 | Tab rows | 30 px, 6 px radius. Selected: toolbar color with a soft shadow in light; white 15% with a white 10% hairline ring in dark and private. |
 | Collapsed rail | 52 px. Tiles are 36 × 32 with the favicon centered. Badges sit on the favicon's corners, 18 px round on a toolbar-colored backing with a hairline ring: × top left (on hover only), speaker bottom right (while playing or muted). Both are buttons, and opposite corners keep them apart. |
-| Header | Traffic lights, Ladybird button, hide-sidebar toggle |
+| Header | Traffic lights, Ladybird button, all tabs, then empty space, then the hide-sidebar toggle at the sidebar's right edge. With the sidebar collapsed, the toolbar starts the same way: traffic lights, Ladybird button, all tabs, show-sidebar toggle. |
 | Background | `sidebar` token: the strip color in light, the toolbar color in dark and private. The page must never sit directly against near-black chrome. |
 
 ### Popovers and pages
@@ -327,7 +328,7 @@ Don't invent new shadows. Pick a level.
 - On 1× screens, small chrome icons (close, new tab, speaker, muted, sidebar, downloads) use a pixel-snapped drawing: 1 px lines on half-pixel coordinates so straight edges are crisp, and a 1.25 line for diagonal-only glyphs like ×. At 2× and above, use the regular drawing. See the "Icons at 1×" board.
 - The current set: back, forward, reload, stop (✕), site settings (two sliders), content
   blocking (shield, used inside site settings only), bookmark, bookmarked, new tab, close
-  tab, all tabs, sidebar, downloads, audio, muted, pin, warning, loading, search, private
+  tab, all tabs (card stack), sidebar, downloads, audio, muted, pin, warning, loading, search, private
   (domino mask, the only filled glyph besides the bookmarked star). Add to this set rather than mixing in icons from another family.
 
 ### The logomark

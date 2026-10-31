@@ -295,6 +295,12 @@ QWidget#LadybirdNavigationToolbar QToolButton {{
     padding: 0;
 }}
 
+/* NB: Beside the collapsed sidebar, the all-tabs button sits in the toolbar, and keeps its own size there. */
+QWidget#LadybirdNavigationToolbar QToolButton#LadybirdAllTabsButton {{
+    min-width: 0;
+    min-height: 0;
+}}
+
 QWidget#LadybirdNavigationToolbar QToolButton:hover {{
     background: transparent;
     border-color: transparent;
@@ -1071,6 +1077,7 @@ QWidget#LadybirdVerticalTabBar[verticalTabsPosition="right"][active="true"] {{
     border-left: 1px solid {8};
 }}
 
+QToolButton#LadybirdAllTabsButton,
 QToolButton#LadybirdVerticalTabsToggleButton {{
     background: transparent;
     border: 0;

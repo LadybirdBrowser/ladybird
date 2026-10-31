@@ -281,6 +281,8 @@ static constexpr auto CHECK_CIRCLE_ICON_PATH = "M14.5 8a6.5 6.5 0 1 1-13 0a6.5 6
 static constexpr auto STAR_ICON_PATH = "M8 2.3l1.75 3.55 3.9.57-2.83 2.75.67 3.88L8 11.22l-3.49 1.83.67-3.88L2.35 6.42l3.9-.57z"sv;
 static constexpr auto CONTENT_BLOCKING_ICON_PATH = "M8 1.8l5 1.9v4c0 3.1-2.1 5.3-5 6.5-2.9-1.2-5-3.4-5-6.5v-4z"sv;
 static constexpr auto NEW_TAB_ICON_PATH = "M8 3v10M3 8h10"sv;
+// A stack of cards: a wide one in front, with the edges of two shorter ones above it.
+static constexpr auto ALL_TABS_ICON_PATH = "M3 7h10a1.5 1.5 0 0 1 1.5 1.5v3.5A1.5 1.5 0 0 1 13 13.5H3A1.5 1.5 0 0 1 1.5 12V8.5A1.5 1.5 0 0 1 3 7zM3.25 4.75h9.5M5 2.5h6"sv;
 static constexpr auto CLOSE_ICON_PATH = "M4.5 4.5l7 7M11.5 4.5l-7 7"sv;
 static constexpr auto TAB_CLOSE_ICON_PATH = "M4 4l8 8M12 4l-8 8"sv;
 static constexpr auto CHEVRON_DOWN_ICON_PATH = "M4.5 6.5L8 10l3.5-3.5"sv;
@@ -324,6 +326,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return STOP_ICON_PATH;
     case ChromeIcon::NewTab:
         return NEW_TAB_ICON_PATH;
+    case ChromeIcon::AllTabs:
+        return ALL_TABS_ICON_PATH;
     case ChromeIcon::Close:
         return CLOSE_ICON_PATH;
     case ChromeIcon::TabClose:
