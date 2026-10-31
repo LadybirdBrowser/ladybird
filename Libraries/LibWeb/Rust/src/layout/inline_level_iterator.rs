@@ -1357,14 +1357,6 @@ fn lay_out_entered_inline_box(
     sides
 }
 
-/// The inline items a block container generated, kept for the later runs of the container in the same pass. Their
-/// glyphs are shared, so that each run that reads them copies no glyphs.
-#[derive(Clone)]
-pub(crate) struct StashedInlineItems {
-    items: Vec<Item>,
-    entered_box_model_nodes: Vec<Node>,
-}
-
 struct SharedInlineItems {
     items: std::rc::Rc<[Item]>,
     entered_box_model_nodes: std::rc::Rc<[Node]>,
@@ -1485,60 +1477,8 @@ impl InlineLevelIterator {
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
         atomic_sizing: AtomicInlineSizing,
     ) -> Self {
-        let callbacks = context.callbacks;
-        match callbacks.inline_item_stash(context.containing_block) {
-            Some(stash) => Self::from_stash(context, stash),
-            None => PreparedInlineContent::for_block_container(callbacks, context.containing_block)
-                .resolve_items_for_run(context, atomic_sizing),
-        }
-    }
-
-    fn from_stash(context: &inline_formatting_context::InlineFormattingContext<'_>, stash: StashedInlineItems) -> Self {
-        for node in &stash.entered_box_model_nodes {
-            lay_out_entered_inline_box(context, *node);
-        }
-        Self {
-            entered_box_model_nodes: stash.entered_box_model_nodes,
-            items: ItemQueue::Owned(stash.items.into_iter()),
-            items_kept_for_looking_ahead: 0,
-        }
-    }
-
-    /// Element items and percentage inline-box margins and paddings depend on the run's available space.
-    fn is_independent_of_available_space(
-        &self,
-        context: &inline_formatting_context::InlineFormattingContext<'_>,
-    ) -> bool {
-        self.items
-            .as_slice()
-            .iter()
-            .all(|item| matches!(item.type_, ItemType::Text | ItemType::ForcedBreak))
-            && self.entered_box_model_nodes.iter().all(|node| {
-                let style = context.style(*node);
-                !style.margin_left().contains_percentage()
-                    && !style.margin_right().contains_percentage()
-                    && !style.padding_left().contains_percentage()
-                    && !style.padding_right().contains_percentage()
-            })
-    }
-
-    pub(crate) fn stash_for_reuse(self, context: &inline_formatting_context::InlineFormattingContext<'_>) {
-        if !self.is_independent_of_available_space(context) {
-            return;
-        }
-        let mut items = self.items.into_vec();
-        for glyphs in items.iter_mut().filter_map(|item| item.glyphs.as_mut()) {
-            if let libgfx_rust::text_layout::GlyphBuffer::Owned(owned) = &mut glyphs.glyphs {
-                glyphs.glyphs = libgfx_rust::text_layout::GlyphBuffer::Shared(std::mem::take(owned).into());
-            }
-        }
-        context.callbacks.store_inline_item_stash(
-            context.containing_block,
-            StashedInlineItems {
-                items,
-                entered_box_model_nodes: self.entered_box_model_nodes,
-            },
-        );
+        PreparedInlineContent::for_block_container(context.callbacks, context.containing_block)
+            .resolve_items_for_run(context, atomic_sizing)
     }
 
     pub(crate) fn next(&mut self) -> Option<Item> {

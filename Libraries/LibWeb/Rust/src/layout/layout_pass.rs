@@ -38,8 +38,7 @@ pub(crate) struct LayoutPass<'arena> {
     /// passes after them, or inside a run whose result is discarded, that run's own.
     intrinsic_size_caches: &'arena super::layout_node_arena::IntrinsicSizeCaches,
     /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
-    /// and keeps none: the run cache, the in-flow block cache, inline item stashes, prepared inline content and
-    /// intrinsic sizes.
+    /// and keeps none: the run cache, the in-flow block cache, prepared inline content and intrinsic sizes.
     reads_no_memoized_layout: bool,
     /// The innermost of the position options the boxes this pass view lays out are laid out with.
     position_option_styles: Option<&'arena PositionOptionStyle<'arena>>,
@@ -190,31 +189,6 @@ impl<'arena> LayoutPass<'arena> {
     /// and keeps none.
     pub(crate) fn reads_no_memoized_layout(&self) -> bool {
         self.reads_no_memoized_layout
-    }
-
-    /// The inline items a block container generated earlier in the pass, which a run whose result is discarded does not
-    /// read.
-    pub(crate) fn inline_item_stash(
-        &self,
-        block_container: Node,
-    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
-        if self.reads_no_memoized_layout {
-            return None;
-        }
-        self.scratch.inline_item_stash(block_container)
-    }
-
-    /// Keeps the inline items `block_container` generated for its later runs in the pass, unless this pass view is
-    /// inside a run whose result is discarded.
-    pub(crate) fn store_inline_item_stash(
-        &self,
-        block_container: Node,
-        stash: super::inline_level_iterator::StashedInlineItems,
-    ) {
-        if self.reads_no_memoized_layout {
-            return;
-        }
-        self.scratch.store_inline_item_stash(block_container, stash);
     }
 
     /// Notes what the run this pass view was handed to found out for the host, or the pass outside any run.

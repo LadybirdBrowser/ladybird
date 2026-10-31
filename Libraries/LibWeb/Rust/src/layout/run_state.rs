@@ -12,9 +12,6 @@ use super::*;
 pub(crate) struct LayoutScratch {
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(super) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
-    /// The inline items a block container generated, kept for its later runs in the same pass. The
-    /// items borrow fonts for the current pass, so the stashes are cleared when the pass ends.
-    inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     /// What the pass found out for the host outside any run, which its driver reports itself.
     pub(super) host_findings_outside_runs: RefCell<HostFindings>,
     /// The results of formatting context runs, kept for the runs after them in this pass and the passes after it.
@@ -97,7 +94,6 @@ impl Default for LayoutScratch {
     fn default() -> Self {
         Self {
             intrinsic_size_caches: Default::default(),
-            inline_item_stashes: RefCell::new(HashMap::default()),
             host_findings_outside_runs: RefCell::new(HostFindings::default()),
             fc_run_cache_store: Default::default(),
             in_flow_block_cache_store: Default::default(),
@@ -155,31 +151,15 @@ impl LayoutScratch {
         );
     }
 
-    pub(super) fn store_inline_item_stash(
-        &self,
-        block_container: NodeSlotId,
-        stash: super::inline_level_iterator::StashedInlineItems,
-    ) {
-        self.inline_item_stashes.borrow_mut().insert(block_container, stash);
-    }
-
-    pub(super) fn inline_item_stash(
-        &self,
-        block_container: NodeSlotId,
-    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
-        self.inline_item_stashes.borrow().get(&block_container).cloned()
-    }
-
     /// What the pass found out outside any run, which its driver reports itself.
     pub(crate) fn take_host_findings_outside_runs(&self) -> HostFindings {
         std::mem::take(&mut self.host_findings_outside_runs.borrow_mut())
     }
 
-    /// Lets go of what the pass that just committed into `arena` kept for itself, and sweeps the run cache.
+    /// Brings the run memos up to date with what the commit into `arena` did to their boxes, and sweeps the run cache.
     pub(crate) fn end_layout_pass(&self, arena: &mut LayoutNodeArena) {
         self.apply_memo_invalidations(arena);
         arena.sweep_stale_fc_run_cache_entries(&self.fc_run_cache_store);
-        self.inline_item_stashes.borrow_mut().clear();
     }
 }
 
