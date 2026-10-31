@@ -470,11 +470,8 @@ pub(crate) fn place_child(
             .is_none_or(|arrival| arrival.node() == node && !fragments.left_child_unplaced(node)),
         "a box is placed with fragments handed to it for another box, or after it was left unplaced"
     );
-    let child_root = fragment_arrival.map(fragment_tree::ChildFragmentArrival::into_root);
-    match child_root {
-        Some((root, reuses_committed_subtree)) => {
-            fragments.take_in_child_root_at_placement(node, root, reuses_committed_subtree, callbacks);
-        }
+    match fragment_arrival.map(fragment_tree::ChildFragmentArrival::into_root) {
+        Some(root) => fragments.take_in_child_root_at_placement(node, root, callbacks),
         None => fragments.open_fragment_of_placed_box(node),
     }
     let mut abspos_boxes_placed_with_it = Vec::new();
@@ -1976,16 +1973,7 @@ pub(super) fn run_formatting_context(
             table_inline_layout,
             None,
         );
-        return child_run_outcome_from_outputs(
-            &callbacks,
-            parent_fragments,
-            box_,
-            &input,
-            root_cells,
-            outputs,
-            false,
-            false,
-        );
+        return child_run_outcome_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false);
     }
     let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
@@ -1999,17 +1987,16 @@ pub(super) fn run_formatting_context(
     ) {
         Ok(attempt) => attempt,
         Err(hit) => {
-            let reuses_committed_subtree = hit.reuses_committed_subtree;
             let action = if !builds_fragments {
                 "READ RESULT"
-            } else if reuses_committed_subtree {
+            } else if hit.reuses_committed_subtree {
                 "REUSE SUBTREE"
             } else {
                 "REPLAY FRAGMENTS"
             };
             let _trace = callbacks.layout_trace().run(box_, fc_type, || action);
             let outputs = if builds_fragments {
-                hit.entry.outputs_to_replay(reuses_committed_subtree)
+                hit.entry.outputs_to_replay()
             } else {
                 hit.entry.outputs_without_fragments()
             };
@@ -2020,7 +2007,6 @@ pub(super) fn run_formatting_context(
                 &input,
                 root_cells,
                 outputs,
-                reuses_committed_subtree,
                 true,
             );
         }
@@ -2060,7 +2046,7 @@ pub(super) fn run_formatting_context(
         None,
     );
     if let Some(discarded_outputs) = &discarded_outputs {
-        run_repeatability::verify_repeated_run(&callbacks, box_, discarded_outputs, &outputs);
+        run_repeatability::verify_repeated_run(box_, discarded_outputs, &outputs);
     }
     if cache_attempt.stores_outputs() {
         run_repeatability::verify_run_ignores_its_unobserved_own_block_size_and_block_margins(
@@ -2088,16 +2074,7 @@ pub(super) fn run_formatting_context(
         );
     }
     cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
-    child_run_outcome_from_outputs(
-        &callbacks,
-        parent_fragments,
-        box_,
-        &input,
-        root_cells,
-        outputs,
-        false,
-        false,
-    )
+    child_run_outcome_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, outputs, false)
 }
 
 fn keep_inline_margins_resolved_now_where_unobserved(
@@ -2905,10 +2882,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         // OPTIMIZATION: A box that took its metrics from its committed fragment hands that fragment to its placement.
         let fragment_arrival = committed_fragment
             .filter(|fragment| run.fragments.is_some() && fragment.is_plain_box())
-            .map(|fragment| fragment_tree::ChildFragmentArrival::CommittedFragment {
-                fragment,
-                reuses_committed_subtree: false,
-            });
+            .map(fragment_tree::ChildFragmentArrival::CommittedFragment);
         let laid_out_box =
             run_state::LaidOutChildBox::sized_here(cells_of_this_layout.get(), DerivedBaselines::default());
         return ChildLayout {
@@ -3190,7 +3164,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
         run_repeatability::lay_out_discarded_run(&callbacks, |callbacks| lay_out(callbacks, root_cells, input, None));
     let outputs = lay_out(callbacks, root_cells, input, previous_line_data);
     if let Some(discarded_outputs) = &discarded_outputs {
-        run_repeatability::verify_repeated_run(&callbacks, node, discarded_outputs, &outputs);
+        run_repeatability::verify_repeated_run(node, discarded_outputs, &outputs);
     }
     if cache_attempt.stores_outputs() {
         run_repeatability::verify_run_ignores_its_unobserved_own_block_size_and_block_margins(
@@ -3326,7 +3300,6 @@ pub(super) fn content_block_size_adopted_after_run(
         .then_some(automatic_content_block_size))
 }
 
-#[expect(clippy::too_many_arguments)]
 fn child_run_outcome_from_outputs(
     callbacks: &LayoutPass<'_>,
     parent_fragments: Option<&fragment_tree::RunFragmentBuilder>,
@@ -3334,7 +3307,6 @@ fn child_run_outcome_from_outputs(
     input: &LayoutInput,
     root_cells: used_values::RootInputCells,
     outputs: RunOutputs,
-    reuses_committed_subtree: bool,
     outputs_are_stored_ones: bool,
 ) -> ChildRunOutcome {
     let RunOutputs {
@@ -3363,10 +3335,7 @@ fn child_run_outcome_from_outputs(
         {
             root.fragment = committed;
         }
-        fragment_tree::ChildFragmentArrival::RunRoot {
-            root,
-            reuses_committed_subtree,
-        }
+        fragment_tree::ChildFragmentArrival::RunRoot(root)
     });
     ChildRunOutcome {
         result,
@@ -3803,14 +3772,10 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     );
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
-    let Some(fragment_tree::ChildFragmentArrival::RunRoot {
-        root: run_root_fragment,
-        reuses_committed_subtree,
-    }) = fragment_arrival
-    else {
+    let Some(fragment_tree::ChildFragmentArrival::RunRoot(run_root_fragment)) = fragment_arrival else {
         panic!("the root of a partial relayout is laid out by a run of its own");
     };
-    fragments.take_in_child_root_at_placement(root, run_root_fragment, reuses_committed_subtree, callbacks);
+    fragments.take_in_child_root_at_placement(root, run_root_fragment, callbacks);
     fragments.build_fragment_for_placed_box(
         callbacks,
         root,

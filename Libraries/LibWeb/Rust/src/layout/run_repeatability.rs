@@ -52,7 +52,6 @@ pub(super) fn lay_out_discarded_run(
 
 /// Checks that the run of `box_` that produced `used` repeated what the discarded run that produced `discarded` did.
 pub(super) fn verify_repeated_run(
-    callbacks: &LayoutPass<'_>,
     box_: Node,
     discarded: &formatting_context::RunOutputs,
     used: &formatting_context::RunOutputs,
@@ -61,7 +60,7 @@ pub(super) fn verify_repeated_run(
         checked: &format!("the run of {box_:?}"),
         reference: "its discarded repetition",
     }
-    .verify(callbacks, box_, used, discarded);
+    .verify(box_, used, discarded);
 }
 
 fn unobserved_own_block_size_verification_is_enabled() -> bool {
@@ -170,7 +169,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
             checked: &checked,
             reference: &reference,
         }
-        .verify(callbacks, box_, outputs, &reference_outputs);
+        .verify(box_, outputs, &reference_outputs);
     }
 }
 
@@ -182,7 +181,6 @@ struct ComparedLayouts<'a> {
 impl ComparedLayouts<'_> {
     fn verify(
         &self,
-        callbacks: &LayoutPass<'_>,
         box_: Node,
         checked_outputs: &formatting_context::RunOutputs,
         reference_outputs: &formatting_context::RunOutputs,
@@ -218,10 +216,6 @@ impl ComparedLayouts<'_> {
             _ => panic!("{checked} and {reference} do not both build fragments"),
         };
         assert!(
-            reference_root.reused_subtree_roots.is_empty(),
-            "{checked}: {reference} reused a subtree"
-        );
-        assert!(
             fragment_tree::FragmentPayloads::of_fragment(&checked_root.fragment)
                 == fragment_tree::FragmentPayloads::of_fragment(&reference_root.fragment),
             "{checked} hands its root's fragment payloads {reference} does not"
@@ -242,19 +236,9 @@ impl ComparedLayouts<'_> {
             ),
             "{checked} propagates payloads {reference} does not"
         );
-        let mut nodes_laid_out_afresh = HashSet::default();
-        collect_nodes_of_fragment_subtrees(&reference_root.fragment.children, &mut nodes_laid_out_afresh);
-        let comparison = FreshDescendantComparison {
-            callbacks,
-            reused_subtree_roots: &checked_root.reused_subtree_roots,
-            nodes_laid_out_afresh,
-        };
-        if let Err(difference) = comparison.compare_children(
-            box_,
-            &checked_root.fragment.children,
-            &reference_root.fragment.children,
-            false,
-        ) {
+        if let Err(difference) =
+            compare_children(box_, &checked_root.fragment.children, &reference_root.fragment.children)
+        {
             panic!("{checked} lays out descendants unlike {reference}: {difference}");
         }
     }
@@ -282,170 +266,59 @@ fn host_findings_match(left: Option<&run_state::HostFindings>, right: Option<&ru
         && left.document_svg_root_natural_size == right.document_svg_root_natural_size
 }
 
-fn collect_nodes_of_fragment_subtrees(links: &[fragment_tree::FragmentLink], nodes: &mut HashSet<u32>) {
-    for link in links {
-        nodes.insert(link.fragment.node.slot_index());
-        collect_nodes_of_fragment_subtrees(&link.fragment.children, nodes);
+/// Compares the descendant fragments a run produced with those a fresh layout of its root produced.
+fn compare_children(
+    parent: Node,
+    expected: &[fragment_tree::FragmentLink],
+    fresh: &[fragment_tree::FragmentLink],
+) -> Result<(), String> {
+    if expected.len() != fresh.len() {
+        return Err(format!(
+            "{parent:?} has children {:?} where the fresh layout has {:?}",
+            nodes_of(expected),
+            nodes_of(fresh)
+        ));
     }
+    for (index, fresh_link) in fresh.iter().enumerate() {
+        let node = fresh_link.fragment.node;
+        let expected_link = if expected[index].fragment.node == node {
+            &expected[index]
+        } else {
+            let occurrence = fresh[..index].iter().filter(|link| link.fragment.node == node).count();
+            expected
+                .iter()
+                .filter(|link| link.fragment.node == node)
+                .nth(occurrence)
+                .ok_or_else(|| {
+                    format!(
+                        "{parent:?} has children {:?} where the fresh layout has {:?}",
+                        nodes_of(expected),
+                        nodes_of(fresh)
+                    )
+                })?
+        };
+        compare_links(expected_link, fresh_link)?;
+    }
+    Ok(())
 }
 
-/// Compares the descendant fragments a run produced with those a fresh layout of its root produced. Where the run
-/// reused a committed subtree, the committed fragments stand for the ones it did not lay out again.
-struct FreshDescendantComparison<'comparison, 'pass> {
-    callbacks: &'comparison LayoutPass<'pass>,
-    reused_subtree_roots: &'comparison HashSet<u32>,
-    nodes_laid_out_afresh: HashSet<u32>,
-}
-
-impl FreshDescendantComparison<'_, '_> {
-    fn compare_children(
-        &self,
-        parent: Node,
-        expected: &[fragment_tree::FragmentLink],
-        fresh: &[fragment_tree::FragmentLink],
-        expected_is_committed: bool,
-    ) -> Result<(), String> {
-        if expected.is_empty() && expected_is_committed {
-            return self.compare_with_committed_fragments_of_descendants(parent, fresh);
-        }
-        // NB: Below a subtree the run reused, the run holds the committed fragments, whose children a commit that
-        //     reused them left out.
-        if !expected_is_committed && self.reused_subtree_roots.contains(&parent.slot_index()) {
-            return self.compare_with_committed_descendants(parent, fresh);
-        }
-        if expected.len() != fresh.len() {
-            return Err(format!(
-                "{parent:?} has children {:?} where the fresh layout has {:?}",
-                nodes_of(expected),
-                nodes_of(fresh)
-            ));
-        }
-        for (index, fresh_link) in fresh.iter().enumerate() {
-            let node = fresh_link.fragment.node;
-            let expected_link = if expected[index].fragment.node == node {
-                &expected[index]
-            } else {
-                let occurrence = fresh[..index].iter().filter(|link| link.fragment.node == node).count();
-                expected
-                    .iter()
-                    .filter(|link| link.fragment.node == node)
-                    .nth(occurrence)
-                    .ok_or_else(|| {
-                        format!(
-                            "{parent:?} has children {:?} where the fresh layout has {:?}",
-                            nodes_of(expected),
-                            nodes_of(fresh)
-                        )
-                    })?
-            };
-            self.compare_links(expected_link, fresh_link, expected_is_committed)?;
-        }
-        Ok(())
+fn compare_links(expected: &fragment_tree::FragmentLink, fresh: &fragment_tree::FragmentLink) -> Result<(), String> {
+    let node = fresh.fragment.node;
+    if !expected.has_same_placement(fresh) {
+        return Err(format!(
+            "{node:?} is placed at {} where the fresh layout places it at {}",
+            describe_placement(expected),
+            describe_placement(fresh)
+        ));
     }
-
-    fn compare_with_committed_descendants(
-        &self,
-        parent: Node,
-        fresh: &[fragment_tree::FragmentLink],
-    ) -> Result<(), String> {
-        let committed_children = self
-            .callbacks
-            .arena()
-            .with_current_committed_fragment(parent, |fragment| fragment.children.clone())
-            .unwrap_or_default();
-        if !committed_children.is_empty() {
-            return self.compare_children(parent, &committed_children, fresh, true);
-        }
-        self.compare_with_committed_fragments_of_descendants(parent, fresh)
+    let (expected, fresh) = (&expected.fragment, &fresh.fragment);
+    if !expected.has_same_box_properties_comparing_payloads_by_value(fresh) {
+        return Err(format!("{node:?} has box properties unlike the fresh layout"));
     }
-
-    fn compare_with_committed_fragments_of_descendants(
-        &self,
-        parent: Node,
-        fresh: &[fragment_tree::FragmentLink],
-    ) -> Result<(), String> {
-        self.ensure_every_committed_descendant_is_laid_out_afresh(parent)?;
-        for (index, fresh_link) in fresh.iter().enumerate() {
-            let node = fresh_link.fragment.node;
-            let fragment_index = fresh[..index].iter().filter(|link| link.fragment.node == node).count();
-            let Some(committed_link) = self.committed_fragment_link(node, fragment_index) else {
-                return Err(format!(
-                    "{node:?}, a child of the reused subtree of {parent:?}, has no committed fragment {fragment_index}"
-                ));
-            };
-            self.compare_links(&committed_link, fresh_link, true)?;
-            let is_last_fresh_fragment = !fresh[index + 1..].iter().any(|link| link.fragment.node == node);
-            if is_last_fresh_fragment && self.committed_fragment_link(node, fragment_index + 1).is_some() {
-                return Err(format!(
-                    "{node:?}, a child of the reused subtree of {parent:?}, has more committed fragments than the {} of \
-                     the fresh layout",
-                    fragment_index + 1
-                ));
-            }
-        }
-        Ok(())
+    if expected.line_data.as_deref() != fresh.line_data.as_deref() {
+        return Err(format!("{node:?} has line data unlike the fresh layout"));
     }
-
-    fn ensure_every_committed_descendant_is_laid_out_afresh(&self, subtree_root: Node) -> Result<(), String> {
-        let mut committed_descendant_missing_from_fresh_layout = None;
-        self.callbacks
-            .arena()
-            .for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
-                if node != subtree_root
-                    && committed_descendant_missing_from_fresh_layout.is_none()
-                    && self.callbacks.has_committed_fragment_link(node)
-                    && !self.nodes_laid_out_afresh.contains(&node.slot_index())
-                {
-                    committed_descendant_missing_from_fresh_layout = Some(node);
-                }
-            });
-        match committed_descendant_missing_from_fresh_layout {
-            None => Ok(()),
-            Some(node) => Err(format!(
-                "{node:?}, a descendant of the reused subtree of {subtree_root:?}, has a committed fragment where the \
-                 fresh layout has none"
-            )),
-        }
-    }
-
-    fn committed_fragment_link(&self, node: Node, fragment_index: usize) -> Option<fragment_tree::FragmentLink> {
-        if fragment_index == 0 {
-            return self.callbacks.committed_fragment_link(node);
-        }
-        let arena = self.callbacks.arena();
-        if !arena.paintable_row_is_populated(node) {
-            return None;
-        }
-        arena
-            .committed_side_data(node)
-            .box_fragments()
-            .get(fragment_index - 1)
-            .map(|later_fragment| later_fragment.link.clone())
-    }
-
-    fn compare_links(
-        &self,
-        expected: &fragment_tree::FragmentLink,
-        fresh: &fragment_tree::FragmentLink,
-        expected_is_committed: bool,
-    ) -> Result<(), String> {
-        let node = fresh.fragment.node;
-        if !expected.has_same_placement(fresh) {
-            return Err(format!(
-                "{node:?} is placed at {} where the fresh layout places it at {}",
-                describe_placement(expected),
-                describe_placement(fresh)
-            ));
-        }
-        let (expected, fresh) = (&expected.fragment, &fresh.fragment);
-        if !expected.has_same_box_properties_comparing_payloads_by_value(fresh) {
-            return Err(format!("{node:?} has box properties unlike the fresh layout"));
-        }
-        if expected.line_data.as_deref() != fresh.line_data.as_deref() {
-            return Err(format!("{node:?} has line data unlike the fresh layout"));
-        }
-        self.compare_children(node, &expected.children, &fresh.children, expected_is_committed)
-    }
+    compare_children(node, &expected.children, &fresh.children)
 }
 
 fn nodes_of(links: &[fragment_tree::FragmentLink]) -> Vec<Node> {

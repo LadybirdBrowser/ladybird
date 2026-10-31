@@ -1060,7 +1060,7 @@ impl<'context> InlineFormattingContext<'context> {
             None => arrivals.remove(&node),
         };
         debug_assert!(
-            !matches!(previous, Some(fragment_tree::ChildFragmentArrival::RunRoot { .. })),
+            !matches!(previous, Some(fragment_tree::ChildFragmentArrival::RunRoot(_))),
             "an atomic inline is laid out once by a run before its placement"
         );
     }

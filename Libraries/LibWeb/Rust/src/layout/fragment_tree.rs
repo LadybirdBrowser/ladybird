@@ -97,15 +97,18 @@ impl PayloadComparison {
 
 impl Fragment {
     fn builds_identically_to(&self, previous: &Fragment) -> bool {
-        std::ptr::eq(self, previous)
-            || self.has_same_box_properties(previous)
-                && same_allocation(self.line_data.as_ref(), previous.line_data.as_ref())
-                && self.children.len() == previous.children.len()
-                && self
-                    .children
-                    .iter()
-                    .zip(&previous.children)
-                    .all(|(link, previous_link)| link.places_same_fragment_identically_to(previous_link))
+        std::ptr::eq(self, previous) || self.has_same_box_properties(previous) && self.holds_same_contents_as(previous)
+    }
+
+    /// Whether the fragment holds the very lines and child fragments `previous` holds, placed the same way.
+    pub(crate) fn holds_same_contents_as(&self, previous: &Fragment) -> bool {
+        same_allocation(self.line_data.as_ref(), previous.line_data.as_ref())
+            && self.children.len() == previous.children.len()
+            && self
+                .children
+                .iter()
+                .zip(&previous.children)
+                .all(|(link, previous_link)| link.places_same_fragment_identically_to(previous_link))
     }
 
     /// Whether the fragment holds nothing beyond a plain box's metrics, line data and children: no table, grid, flex,
@@ -764,7 +767,6 @@ struct ChildLeftUnplaced {
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
-    pub(crate) reused_subtree_roots: HashSet<u32>,
     pub(crate) propagated_pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
     pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
     pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
@@ -783,7 +785,6 @@ impl UnplacedRootFragment {
         let Self {
             node,
             scoped_descendants,
-            reused_subtree_roots,
             propagated_pending_abspos,
             propagated_anchor_candidates,
             propagated_inline_containing_block_rects,
@@ -799,7 +800,6 @@ impl UnplacedRootFragment {
                 run_state::FragmentFactsDecidedByParent::default(),
                 root_payloads,
             ),
-            reused_subtree_roots,
             propagated_pending_abspos,
             propagated_anchor_candidates,
             propagated_inline_containing_block_rects,
@@ -808,12 +808,10 @@ impl UnplacedRootFragment {
     }
 }
 
-/// What a run hands its parent of its root: the root's fragment, the subtrees the run took from the cache as they
-/// were committed, and what goes past the run toward boxes outside it.
+/// What a run hands its parent of its root: the root's fragment, and what goes past the run toward boxes outside it.
 #[derive(Clone)]
 pub(crate) struct RunRootFragment {
     pub(crate) fragment: std::sync::Arc<Fragment>,
-    pub(crate) reused_subtree_roots: HashSet<u32>,
     pub(crate) propagated_pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
     pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
     pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
@@ -825,23 +823,10 @@ impl RunRootFragment {
     pub(crate) fn propagating_nothing(fragment: std::sync::Arc<Fragment>) -> Self {
         Self {
             fragment,
-            reused_subtree_roots: HashSet::default(),
             propagated_pending_abspos: Vec::new(),
             propagated_anchor_candidates: Vec::new(),
             propagated_inline_containing_block_rects: Vec::new(),
             propagated_abspos_containing_block_info: Vec::new(),
-        }
-    }
-
-    /// This root without the subtrees its run took from the cache as they were committed.
-    pub(crate) fn without_reused_subtree_roots(&self) -> Self {
-        Self {
-            fragment: self.fragment.clone(),
-            reused_subtree_roots: HashSet::default(),
-            propagated_pending_abspos: self.propagated_pending_abspos.clone(),
-            propagated_anchor_candidates: self.propagated_anchor_candidates.clone(),
-            propagated_inline_containing_block_rects: self.propagated_inline_containing_block_rects.clone(),
-            propagated_abspos_containing_block_info: self.propagated_abspos_containing_block_info.clone(),
         }
     }
 
@@ -859,21 +844,15 @@ impl RunRootFragment {
 /// as placed.
 #[must_use = "a child's fragments are lost unless its placement takes them"]
 pub(crate) enum ChildFragmentArrival {
-    RunRoot {
-        root: RunRootFragment,
-        reuses_committed_subtree: bool,
-    },
-    CommittedFragment {
-        fragment: std::sync::Arc<Fragment>,
-        reuses_committed_subtree: bool,
-    },
+    RunRoot(RunRootFragment),
+    CommittedFragment(std::sync::Arc<Fragment>),
 }
 
 impl ChildFragmentArrival {
     pub(crate) fn fragment(&self) -> &std::sync::Arc<Fragment> {
         match self {
-            Self::RunRoot { root, .. } => &root.fragment,
-            Self::CommittedFragment { fragment, .. } => fragment,
+            Self::RunRoot(root) => &root.fragment,
+            Self::CommittedFragment(fragment) => fragment,
         }
     }
 
@@ -881,18 +860,11 @@ impl ChildFragmentArrival {
         self.fragment().node
     }
 
-    /// The child's fragment as the root fragment of a run, and whether it keeps the committed subtree. Nothing goes past
-    /// a committed fragment.
-    pub(crate) fn into_root(self) -> (RunRootFragment, bool) {
+    /// The child's fragment as the root fragment of a run. Nothing goes past a committed fragment.
+    pub(crate) fn into_root(self) -> RunRootFragment {
         match self {
-            Self::RunRoot {
-                root,
-                reuses_committed_subtree,
-            } => (root, reuses_committed_subtree),
-            Self::CommittedFragment {
-                fragment,
-                reuses_committed_subtree,
-            } => (RunRootFragment::propagating_nothing(fragment), reuses_committed_subtree),
+            Self::RunRoot(root) => root,
+            Self::CommittedFragment(fragment) => RunRootFragment::propagating_nothing(fragment),
         }
     }
 }
@@ -909,9 +881,15 @@ pub(crate) type SlotFragments<'tree> = SmallVec<[SlotFragment<'tree>; 1]>;
 pub(crate) struct LinksBySlot<'tree> {
     in_first_containing_block_fragment: HashMap<u32, &'tree FragmentLink>,
     other: HashMap<u32, (SlotFragments<'tree>, usize)>,
+    kept_subtree_roots: HashSet<u32>,
 }
 
 impl<'tree> LinksBySlot<'tree> {
+    /// Whether the box in `slot` keeps its committed subtree, which commit then leaves as it is below the box.
+    pub(crate) fn keeps_committed_subtree(&self, slot: u32) -> bool {
+        self.kept_subtree_roots.contains(&slot)
+    }
+
     pub(crate) fn fragments(&self, slot: u32) -> SlotFragments<'tree> {
         if let Some(link) = self.in_first_containing_block_fragment.get(&slot) {
             return smallvec::smallvec![SlotFragment {
@@ -964,15 +942,61 @@ impl<'tree> LinksBySlot<'tree> {
 
 pub(crate) struct CompletedPassFragments {
     pub(crate) roots: Vec<FragmentLink>,
-    pub(crate) reused_subtree_roots: HashSet<u32>,
 }
 
 impl CompletedPassFragments {
-    pub(crate) fn links_by_slot(&self) -> LinksBySlot<'_> {
+    /// The links of the pass by the slot of their box, below `pass_root`. A box keeps its committed subtree where
+    /// `keeps_committed_subtree` holds for its link and the fragment of no box around it holds the link of a box inside
+    /// it, which the box's own fragment would then not show. Commit looks up nothing below such a box.
+    pub(crate) fn links_by_slot(
+        &self,
+        pass_root: crate::layout::node_data::NodeSlotId,
+        parent_of: impl Fn(crate::layout::node_data::NodeSlotId) -> crate::layout::node_data::NodeSlotId,
+        keeps_committed_subtree: impl Fn(&FragmentLink) -> bool,
+    ) -> LinksBySlot<'_> {
+        struct KeptSubtrees<ParentOf, KeepsCommittedSubtree> {
+            parent_of: ParentOf,
+            keeps_committed_subtree: KeepsCommittedSubtree,
+            boxes_around_links_held_outside_them: HashSet<u32>,
+            kept_subtree_roots: HashSet<u32>,
+        }
+        impl<ParentOf, KeepsCommittedSubtree> KeptSubtrees<ParentOf, KeepsCommittedSubtree>
+        where
+            ParentOf: Fn(crate::layout::node_data::NodeSlotId) -> crate::layout::node_data::NodeSlotId,
+            KeepsCommittedSubtree: Fn(&FragmentLink) -> bool,
+        {
+            /// Decides which of `links`, held by the fragment of `holder`, keep their committed subtrees, and answers
+            /// how many links commit looks up among them.
+            fn decide(&mut self, links: &[FragmentLink], holder: crate::layout::node_data::NodeSlotId) -> usize {
+                for link in links {
+                    if link.fragment.node == holder {
+                        continue;
+                    }
+                    let mut ancestor = (self.parent_of)(link.fragment.node);
+                    while !ancestor.is_invalid() && ancestor != holder {
+                        self.boxes_around_links_held_outside_them.insert(ancestor.slot_index());
+                        ancestor = (self.parent_of)(ancestor);
+                    }
+                }
+                links
+                    .iter()
+                    .map(|link| {
+                        let node = link.fragment.node;
+                        if !self.boxes_around_links_held_outside_them.contains(&node.slot_index())
+                            && (self.keeps_committed_subtree)(link)
+                        {
+                            self.kept_subtree_roots.insert(node.slot_index());
+                            return 1;
+                        }
+                        1 + self.decide(&link.fragment.children, node)
+                    })
+                    .sum()
+            }
+        }
         fn insert_links<'tree>(
             links: &'tree [FragmentLink],
             parent: Option<(crate::layout::node_data::NodeSlotId, u32, usize)>,
-            reused_subtree_roots: &HashSet<u32>,
+            kept_subtree_roots: &HashSet<u32>,
             links_by_slot: &mut LinksBySlot<'tree>,
         ) {
             for link in links {
@@ -994,43 +1018,32 @@ impl CompletedPassFragments {
                         containing_block_line_index_offset,
                     },
                 );
-                // NB: Commit stops at a reused subtree's root, so nothing looks up the links below it.
-                if !reused_subtree_roots.contains(&slot) {
+                if !kept_subtree_roots.contains(&slot) {
                     insert_links(
                         &link.fragment.children,
                         Some((link.fragment.node, fragment_index, line_index_offset)),
-                        reused_subtree_roots,
+                        kept_subtree_roots,
                         links_by_slot,
                     );
                 }
             }
         }
-        fn count_links(links: &[FragmentLink], reused_subtree_roots: &HashSet<u32>) -> usize {
-            links
-                .iter()
-                .map(|link| {
-                    let slot = link.fragment.node.slot_index();
-                    1 + if reused_subtree_roots.contains(&slot) {
-                        0
-                    } else {
-                        count_links(&link.fragment.children, reused_subtree_roots)
-                    }
-                })
-                .sum()
-        }
-        let mut links_by_slot = LinksBySlot {
-            in_first_containing_block_fragment: HashMap::with_capacity_and_hasher(
-                count_links(&self.roots, &self.reused_subtree_roots),
-                Default::default(),
-            ),
-            other: HashMap::default(),
+        let mut kept_subtrees = KeptSubtrees {
+            parent_of,
+            keeps_committed_subtree,
+            boxes_around_links_held_outside_them: HashSet::default(),
+            kept_subtree_roots: HashSet::default(),
         };
-        insert_links(&self.roots, None, &self.reused_subtree_roots, &mut links_by_slot);
+        let link_count = kept_subtrees.decide(&self.roots, pass_root);
+        let kept_subtree_roots = kept_subtrees.kept_subtree_roots;
+        let mut links_by_slot = LinksBySlot {
+            in_first_containing_block_fragment: HashMap::with_capacity_and_hasher(link_count, Default::default()),
+            other: HashMap::default(),
+            kept_subtree_roots: HashSet::default(),
+        };
+        insert_links(&self.roots, None, &kept_subtree_roots, &mut links_by_slot);
+        links_by_slot.kept_subtree_roots = kept_subtree_roots;
         links_by_slot
-    }
-
-    pub(crate) fn subtree_was_reused(&self, slot: u32) -> bool {
-        self.reused_subtree_roots.contains(&slot)
     }
 }
 
@@ -1076,7 +1089,6 @@ struct RunFragmentBuilderInner {
     /// How many abspos containing block info contributions the run has received, whether or not they are still listed.
     abspos_containing_block_info_contributions_received: u64,
     top_scope_links: Vec<FragmentLink>,
-    reused_subtree_roots: HashSet<u32>,
     /// What the layouts of children the run laid out but never placed handed their placements, which close() links at
     /// the top of the run's fragments.
     children_left_unplaced: Vec<ChildLeftUnplaced>,
@@ -1489,7 +1501,6 @@ impl RunFragmentBuilder {
             "a fragmentainer run's root is the box of the run that adopts it"
         );
         let mut inner = self.inner.borrow_mut();
-        inner.reused_subtree_roots.extend(root.reused_subtree_roots);
         for mut link in root.scoped_descendants {
             link.committed_offset = formatting_context::point_add(link.committed_offset, offset);
             if link.containing_block == self.root_node
@@ -1535,20 +1546,8 @@ impl RunFragmentBuilder {
         &self,
         node: crate::layout::node_data::NodeSlotId,
         root: RunRootFragment,
-        reuses_committed_subtree: bool,
         callbacks: &LayoutPass<'_>,
     ) {
-        {
-            let mut inner = self.inner.borrow_mut();
-            inner
-                .reused_subtree_roots
-                .extend(root.reused_subtree_roots.iter().copied());
-            if reuses_committed_subtree {
-                inner.reused_subtree_roots.insert(node.slot_index());
-            } else {
-                inner.reused_subtree_roots.remove(&node.slot_index());
-            }
-        }
         self.merge_child_root_into_pending_fragment(node, root, callbacks);
     }
 
@@ -1575,7 +1574,6 @@ impl RunFragmentBuilder {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
         let mut payloads_of_box = arrived_payloads;
-        inner.reused_subtree_roots.remove(&slot);
         if let Some(pending_fragment) = inner.pending_fragments.remove(&slot) {
             payloads_of_box = payloads_of_box.or(pending_fragment.payloads);
         }
@@ -1814,7 +1812,6 @@ impl RunFragmentBuilder {
         let root = self.close(callbacks);
         CompletedPassFragments {
             roots: root.scoped_descendants,
-            reused_subtree_roots: root.reused_subtree_roots,
         }
     }
 
@@ -1839,30 +1836,18 @@ impl RunFragmentBuilder {
                 pending_fragment.node
             );
         }
-        // NB: A child run's root or a reused subtree root that the run never placed keeps its fragment at the top of the
-        //     run's fragments, as its subtree goes with it. An empty box that was never placed has no fragment here.
+        // NB: A child run's root that the run never placed keeps its fragment at the top of the run's fragments, as its
+        //     subtree goes with it. A box whose parent sized it from its committed fragment and never placed has no
+        //     fragment here.
         for ChildLeftUnplaced {
             arrival,
             unplaced_child,
         } in std::mem::take(&mut inner.children_left_unplaced)
         {
-            if matches!(
-                arrival,
-                ChildFragmentArrival::CommittedFragment {
-                    reuses_committed_subtree: false,
-                    ..
-                }
-            ) {
+            let ChildFragmentArrival::RunRoot(root) = arrival else {
                 continue;
-            }
-            let (root, reuses_committed_subtree) = arrival.into_root();
-            inner
-                .reused_subtree_roots
-                .extend(root.reused_subtree_roots.iter().copied());
+            };
             let node = root.fragment.node;
-            if reuses_committed_subtree {
-                inner.reused_subtree_roots.insert(node.slot_index());
-            }
             let placement = PlacementData::of_unplaced_child(&unplaced_child, callbacks.frame);
             inner.top_scope_links.push(link_fragment(
                 fragment_of_placed_box(
@@ -1900,7 +1885,6 @@ impl RunFragmentBuilder {
         UnplacedRootFragment {
             node: self.root_node,
             scoped_descendants: inner.top_scope_links,
-            reused_subtree_roots: inner.reused_subtree_roots,
             propagated_pending_abspos,
             propagated_anchor_candidates,
             propagated_inline_containing_block_rects,

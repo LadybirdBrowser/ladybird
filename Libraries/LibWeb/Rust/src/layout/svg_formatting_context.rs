@@ -2267,10 +2267,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             formatting_context::PlacedChild::laid_out_here(cells.get(), None, &self.run),
             committed_offset.x,
             committed_offset.y,
-            Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
-                fragment,
-                reuses_committed_subtree: false,
-            }),
+            Some(fragment_tree::ChildFragmentArrival::CommittedFragment(fragment)),
         );
         Some(LaidOutSvgElement {
             cells: cells.get(),
