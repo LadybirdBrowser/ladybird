@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use std::borrow::Cow;
 use std::ffi::c_void;
 use std::ptr::NonNull;
 use std::sync::Arc;
@@ -518,6 +519,7 @@ pub struct FrozenFontList {
     /// OPTIMIZATION: The list is immutable, so an answer for a code point is the same answer
     ///               forever; a racing write stores the value the other thread computed.
     ascii_cache: [std::sync::atomic::AtomicU32; 128],
+    ascii_code_points_resolved_by_first_font: std::sync::OnceLock<Option<(usize, u128)>>,
     /// https://drafts.csswg.org/css-fonts-4/#invisible-fallback
     /// Built on demand, and only for a cascade that has a face in its block period.
     invisible_variants: std::sync::Mutex<std::collections::HashMap<FontId, FontHandle>>,
@@ -581,6 +583,7 @@ impl FrozenFontList {
             system_fallback: None,
             fonts: Box::new([]),
             ascii_cache: std::array::from_fn(|_| std::sync::atomic::AtomicU32::new(0)),
+            ascii_code_points_resolved_by_first_font: std::sync::OnceLock::new(),
             invisible_variants: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
     }
@@ -688,6 +691,7 @@ impl FrozenFontList {
             }),
             fonts: fonts.into_boxed_slice(),
             ascii_cache: std::array::from_fn(|_| std::sync::atomic::AtomicU32::new(0)),
+            ascii_code_points_resolved_by_first_font: std::sync::OnceLock::new(),
             invisible_variants: std::sync::Mutex::new(std::collections::HashMap::new()),
         }
     }
@@ -785,14 +789,50 @@ impl FrozenFontList {
     /// Mirrors `Gfx::FontCascadeList::font_for_code_point`, with every step that would have asked
     /// the document replaced by what the document decided before the pass began.
     pub fn font_for_code_point(&self, code_point: u32, presentation: EmojiPresentation) -> FontHandle {
-        let use_ascii_cache = code_point < 128 && !presentation.is_emoji && !presentation.forced;
-        if use_ascii_cache {
+        self.font_for_code_point_borrowed(code_point, presentation).into_owned()
+    }
+
+    #[inline]
+    pub fn font_for_code_point_borrowed(
+        &self,
+        code_point: u32,
+        presentation: EmojiPresentation,
+    ) -> Cow<'_, FontHandle> {
+        if code_point < 128 && !presentation.is_emoji && !presentation.forced {
             let cached = self.ascii_cache[code_point as usize].load(std::sync::atomic::Ordering::Relaxed);
             if cached != 0 {
-                return self.fonts[cached as usize - 1].clone();
+                return Cow::Borrowed(&self.fonts[cached as usize - 1]);
             }
         }
+        Cow::Owned(self.resolve_font_for_code_point(code_point, presentation))
+    }
 
+    pub fn first_font_and_ascii_code_points_it_resolves_in_text_presentation(&self) -> Option<(&FontHandle, u128)> {
+        let (index, code_points) = (*self.ascii_code_points_resolved_by_first_font.get_or_init(|| {
+            let index = self.entries.iter().position(|entry| entry.font.is_some())?;
+            let entry = &self.entries[index];
+            let font = entry.font.as_ref()?;
+            if font.is_emoji_font() {
+                return None;
+            }
+            let is_resolved_by_first_font = |code_point: u32| {
+                entry.covers(code_point, &self.ranges)
+                    && font.contains_glyph(code_point)
+                    && !self.entries[..index]
+                        .iter()
+                        .any(|earlier| earlier.pending.is_some() && earlier.covers(code_point, &self.ranges))
+            };
+            let code_points = (0..128)
+                .filter(|&code_point| is_resolved_by_first_font(code_point))
+                .fold(0u128, |code_points, code_point| code_points | 1 << code_point);
+            Some((index, code_points))
+        }))?;
+        self.entries[index].font.as_ref().map(|font| (font, code_points))
+    }
+
+    #[inline(never)]
+    fn resolve_font_for_code_point(&self, code_point: u32, presentation: EmojiPresentation) -> FontHandle {
+        let use_ascii_cache = code_point < 128 && !presentation.is_emoji && !presentation.forced;
         let presentation_matches = |font: &FontHandle| font.is_emoji_font() == presentation.is_emoji;
         let contains_glyph = |entry: &FrozenEntry, ranges: &[UnicodeRange]| -> bool {
             let Some(font) = &entry.font else { return false };

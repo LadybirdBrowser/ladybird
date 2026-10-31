@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    @font-face {
+        font-family: NoTabGlyph;
+        src: url("../../Assets/Lato-Bold.ttf");
+    }
+    @font-face {
+        font-family: TabGlyph;
+        src: url("wpt-import/fonts/CanvasTest.ttf");
+    }
+    pre {
+        font: 20px NoTabGlyph, TabGlyph;
+        width: max-content;
+    }
+</style>
+<pre id="pre">	A B</pre>
+<script>
+    promiseTest(async () => {
+        await Promise.all([...document.fonts].map(font => font.load()));
+        await document.fonts.ready;
+
+        println(`Width: ${document.getElementById("pre").getBoundingClientRect().width}`);
+    });
+</script>
