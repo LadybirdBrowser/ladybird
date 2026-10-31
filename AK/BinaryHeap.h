@@ -19,13 +19,6 @@ class IntrusiveBinaryHeap {
 public:
     IntrusiveBinaryHeap() = default;
 
-    IntrusiveBinaryHeap(Vector<Node, inline_capacity>&& nodes)
-        : m_nodes(move(nodes))
-    {
-        for (ssize_t i = m_nodes.size() / 2; i--;)
-            heapify_down(i);
-    }
-
     [[nodiscard]] size_t size() const { return m_nodes.size(); }
     [[nodiscard]] bool is_empty() const { return m_nodes.is_empty(); }
 
@@ -116,66 +109,8 @@ private:
     Vector<Node, inline_capacity> m_nodes;
 };
 
-template<typename K, typename V, size_t inline_capacity>
-class BinaryHeap {
-public:
-    BinaryHeap() = default;
-    ~BinaryHeap() = default;
-
-    // This constructor allows for O(n) construction of the heap (instead of O(nlogn) for repeated insertions)
-    BinaryHeap(K keys[], V values[], size_t size)
-    {
-        Vector<Node, inline_capacity> nodes;
-        nodes.ensure_capacity(size);
-        for (size_t i = 0; i < size; i++)
-            nodes.unchecked_append({ keys[i], values[i] });
-        m_heap = decltype(m_heap) { move(nodes) };
-    }
-
-    [[nodiscard]] size_t size() const { return m_heap.size(); }
-    [[nodiscard]] bool is_empty() const { return m_heap.is_empty(); }
-
-    void insert(K key, V value)
-    {
-        m_heap.insert({ key, value });
-    }
-
-    V pop_min()
-    {
-        return m_heap.pop_min().value;
-    }
-
-    [[nodiscard]] V const& peek_min() const
-    {
-        return m_heap.peek_min().value;
-    }
-
-    [[nodiscard]] K const& peek_min_key() const
-    {
-        return m_heap.peek_min().key;
-    }
-
-    void clear()
-    {
-        m_heap.clear();
-    }
-
-private:
-    struct Node {
-        K key;
-        V value;
-    };
-
-    IntrusiveBinaryHeap<
-        Node,
-        decltype([](Node const& a, Node const& b) { return a.key < b.key; }),
-        decltype([](Node&, size_t) { })>
-        m_heap;
-};
-
 }
 
 #if USING_AK_GLOBALLY
-using AK::BinaryHeap;
 using AK::IntrusiveBinaryHeap;
 #endif
