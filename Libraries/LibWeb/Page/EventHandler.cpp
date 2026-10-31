@@ -3473,6 +3473,15 @@ GC::Ptr<DOM::Node> EventHandler::focus_candidate_for_position(Layout::BegunRead 
 
 static bool selection_contains_position(DOM::Document&, Painting::CaretPosition const&);
 
+static bool is_inside_button(GC::Ptr<DOM::Node const> node)
+{
+    for (; node; node = node->parent_or_shadow_host_node()) {
+        if (auto const* element = as_if<HTML::HTMLElement>(*node); element && element->uses_button_layout())
+            return true;
+    }
+    return false;
+}
+
 void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document& document, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count)
 {
     if (m_middle_button_scroll_handler) {
@@ -3516,12 +3525,8 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
 
     // NB: Pressing a button activates it, so a drag that starts on one does not select its label or the page around
     //     it.
-    if (auto hit = document.hit_test(read, visual_viewport_position); hit.has_value()) {
-        for (GC::Ptr<DOM::Node const> node = hit->dom_node(); node; node = node->parent_or_shadow_host_node()) {
-            if (auto const* element = as_if<HTML::HTMLElement>(*node); element && element->uses_button_layout())
-                return;
-        }
-    }
+    if (auto hit = document.hit_test(read, visual_viewport_position); hit.has_value() && is_inside_button(hit->dom_node()))
+        return;
 
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
     // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting a
@@ -3640,6 +3645,14 @@ bool EventHandler::select_word_for_dictionary_lookup(CSSPixelPoint visual_viewpo
         dispatch_result.has_value()) {
         return *dispatch_result == EventResult::Handled;
     }
+
+    // NB: A button or file upload control has no words to look up, only labels.
+    for (GC::Ptr<DOM::Node const> node = result->dom_node(); node; node = node->parent_or_shadow_host_node()) {
+        if (auto const* input = as_if<HTML::HTMLInputElement>(*node); input && input->type_state() == HTML::HTMLInputElement::TypeAttributeState::FileUpload)
+            return false;
+    }
+    if (is_inside_button(result->dom_node()))
+        return false;
 
     return select_word_at_position(read, *document, visual_viewport_position);
 }
