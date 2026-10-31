@@ -43,6 +43,7 @@ enum class ChromeIcon {
     ChevronUp,
     ChevronDown,
     ContentBlocking,
+    Moon,
     SiteSettings,
     Microphone,
     Location,

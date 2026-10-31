@@ -18,6 +18,7 @@
 #include <LibWebView/CrashReportStore.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/SearchEngine.h>
+#include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebUI/SettingsUI.h>
 
 namespace WebView {
@@ -137,6 +138,9 @@ void SettingsUI::register_interfaces()
     register_interface("setAppearance"sv, [this](auto const& data) {
         set_appearance(data);
     });
+    register_interface("resetForceDarkForHost"sv, [this](auto const& data) {
+        reset_force_dark_for_host(data);
+    });
     register_interface("setContentSettings"sv, [this](auto const& data) {
         set_content_settings(data);
     });
@@ -226,6 +230,7 @@ void SettingsUI::load_features()
 JsonObject SettingsUI::serialize_settings() const
 {
     auto settings = Application::settings().serialize_json();
+    settings.as_object().set("forceDarkSitesReadOnly"sv, !has_client() || client().is_private() == IsPrivate::Yes);
 
     // The sites the user allowed or blocked, for each permission.
     JsonObject site_permissions;
@@ -382,8 +387,17 @@ void SettingsUI::set_content_settings(JsonValue const& content_settings)
 
     // Zoom-per-host is not controlled by the settings UI. Don't overwrite it.
     parsed_content_settings.zoom_per_host = current_content_settings.zoom_per_host;
+    // Host choices change through their own controls, independently of edits to the default.
+    parsed_content_settings.force_dark_per_host = current_content_settings.force_dark_per_host;
 
     Application::settings().set_content_settings(move(parsed_content_settings));
+}
+
+void SettingsUI::reset_force_dark_for_host(JsonValue const& host)
+{
+    if (!host.is_string() || !has_client() || client().is_private() == IsPrivate::Yes)
+        return;
+    Application::settings().reset_force_dark_for_host(host.as_string());
 }
 
 void SettingsUI::set_tab_settings(JsonValue const& tab_settings)

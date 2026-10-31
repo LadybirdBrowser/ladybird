@@ -109,6 +109,7 @@ enum class ActionID {
     ResetZoomViaToolbar,
 
     PreferredColorScheme,
+    ForceDark,
     PreferredContrast,
     PreferredMotion,
 

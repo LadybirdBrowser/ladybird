@@ -363,6 +363,8 @@ static StringView chrome_icon_path(ChromeIcon icon)
         return CHEVRON_DOWN_ICON_PATH;
     case ChromeIcon::ContentBlocking:
         return CONTENT_BLOCKING_ICON_PATH;
+    case ChromeIcon::Moon:
+        return "M13.5 9.5A5.8 5.8 0 0 1 6.5 2.5A5.8 5.8 0 1 0 13.5 9.5Z"sv;
     case ChromeIcon::SiteSettings:
         return SITE_SETTINGS_ICON_PATH;
     case ChromeIcon::Microphone:

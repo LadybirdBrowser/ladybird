@@ -25,14 +25,17 @@ class QVBoxLayout;
 namespace Ladybird {
 
 // What Ladybird knows about the site a page is from, and the settings that apply to it.
-class SiteSettingsPopover final : public Popover {
+class SiteSettingsPopover final : public Popover
+    , public WebView::SettingsObserver {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    explicit SiteSettingsPopover(QWidget* parent);
+    explicit SiteSettingsPopover(QWidget* parent, WebView::Settings&);
 
     struct Site {
         String host;
+        String force_dark_host;
+        bool is_private { false };
         bool is_secure { false };
         QIcon favicon;
         WebView::ContentBlockingSnapshot content_blocking;
@@ -52,6 +55,7 @@ public:
     Function<void()> on_open_filter_lists;
 
 private:
+    virtual void content_settings_changed() override;
     void update_autoplay();
     void update_reset_link();
     void update_icons();
@@ -64,7 +68,12 @@ private:
         QPushButton* button { nullptr };
     };
 
+    WebView::Settings& m_settings;
     String m_host;
+    String m_force_dark_host;
+    bool m_is_private { false };
+    QLabel* m_force_dark_icon { nullptr };
+    PopoverSwitch* m_force_dark_switch { nullptr };
     QWidget* m_site_page { nullptr };
     QWidget* m_blocked_page { nullptr };
     QLabel* m_favicon { nullptr };
