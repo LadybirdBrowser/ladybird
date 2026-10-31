@@ -9,6 +9,7 @@
 #include <AK/NonnullOwnPtr.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -323,22 +324,17 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
                 return;
             }
 
-            // 8. Let serviceWorkerAllowed be the result of extracting header list values given `Service-Worker-Allowed` and response’s header list.
+            // 8. Let serviceWorkerAllowed be the result of getting `Service-Worker-Allowed` from response’s header list.
             // Note: See the definition of the Service-Worker-Allowed header in Appendix B: Extended HTTP headers. https://w3c.github.io/ServiceWorker/#service-worker-allowed
-            auto service_worker_allowed = response->header_list()->extract_header_list_values("Service-Worker-Allowed"sv);
+            auto service_worker_allowed_bytes = response->header_list()->get("Service-Worker-Allowed"sv);
 
-            // 9. Set policyContainer to the result of creating a policy container from a fetch response given response.
+            // 9. If serviceWorkerAllowed is not null, then set serviceWorkerAllowed to the result of isomorphic decode serviceWorkerAllowed.
+            Optional<Utf16String> service_worker_allowed;
+            if (service_worker_allowed_bytes.has_value())
+                service_worker_allowed = TextCodec::isomorphic_decode_to_utf16(*service_worker_allowed_bytes);
+
+            // 10. Set policyContainer to the result of creating a policy container from a fetch response given response.
             // FIXME: CSP not implemented yet
-
-            // 10. If serviceWorkerAllowed is failure, then:
-            if (service_worker_allowed.has<HTTP::HeaderList::ExtractHeaderParseFailure>()) {
-                // FIXME: Should we reject the job promise with a security error here?
-
-                // 1. Asynchronously complete these steps with a network error.
-                consume_body->run(Fetch::Infrastructure::ResponseView::network_error("Failed to extract Service-Worker-Allowed header from fetch response"_string), Empty {});
-                process_response_completion_result = WebIDL::ExceptionOr<void> {};
-                return;
-            }
 
             // 11. Let scopeURL be registration’s scope url.
             auto const& scope_url = registration.scope_url();
@@ -354,7 +350,7 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             };
 
             // 13. If serviceWorkerAllowed is null, then:
-            if (service_worker_allowed.has<Empty>()) {
+            if (!service_worker_allowed.has_value()) {
                 // 1. Let resolvedScope be the result of parsing "./" using job’s script url as the base URL.
                 auto resolved_scope = DOMURL::parse({ u"./", 2 }, job->script_url);
 
@@ -364,9 +360,17 @@ static void update(JS::VM& vm, GC::Ref<Job> job)
             // 14. Else:
             else {
                 // 1. Let maxScope be the result of parsing serviceWorkerAllowed using job’s script url as the base URL.
-                auto max_scope = DOMURL::parse_from_byte_string(service_worker_allowed.get<Vector<ByteString>>()[0], job->script_url);
+                auto max_scope = DOMURL::parse(*service_worker_allowed, job->script_url);
 
-                // 2. If maxScope’s origin is job’s script url's origin, then:
+                // 2. If maxScope is failure, then:
+                if (!max_scope.has_value()) {
+                    // 1. Asynchronously complete these steps with a network error.
+                    consume_body->run(Fetch::Infrastructure::ResponseView::network_error("Failed to parse Service-Worker-Allowed header as a URL"_string), Empty {});
+                    process_response_completion_result = WebIDL::ExceptionOr<void> {};
+                    return;
+                }
+
+                // 3. If maxScope’s origin is job’s script url's origin, then:
                 if (max_scope->origin().is_same_origin(job->script_url.origin())) {
                     // 1. Set maxScopeString to "/", followed by the strings in maxScope’s path (including empty strings), separated from each other by "/".
                     max_scope_string = join_paths_with_slash(*max_scope);
