@@ -1,0 +1,7 @@
+A td or th that isn’t in a table now gets no implicit role in Ladybird,
+and Blink, WebKit and Gecko all do the same. Blink’s AXNodeObject::
+DetermineTableCellRole() returns kGenericContainer without a
+table-row and table ancestor. WebKit’s AccessibilityNodeObject::
+isExposedTableCell() is false without an exposable parentTable(). And
+Gecko’s td entry in HTMLMarkupMap.inc makes no table-cell accessible
+unless its context is a table row.
