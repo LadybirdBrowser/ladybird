@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptURL = await server.createEcho(
+            "GET",
+            `/service-worker-allowed-invalid-url-${crypto.randomUUID()}.js`,
+            {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/javascript",
+                    "Service-Worker-Allowed": "http://[",
+                },
+                body: "",
+            }
+        );
+        const pageURL = await server.createEcho(
+            "GET",
+            `/service-worker-allowed-invalid-url-${crypto.randomUUID()}.html`,
+            {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<script>navigator.serviceWorker.register("${scriptURL}").then(() => parent.postMessage("registered", "*"), error => parent.postMessage(error.name, "*"));<\/script>`,
+            }
+        );
+
+        const message = new Promise(resolve => addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = pageURL;
+        document.body.appendChild(iframe);
+
+        println(`register() result: ${(await message).data}`);
+    });
+</script>
