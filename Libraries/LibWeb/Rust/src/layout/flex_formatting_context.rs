@@ -42,6 +42,7 @@ enum UsedFlexBasis<'pass> {
     },
 }
 
+#[derive(Clone)]
 struct FlexItem<'pass> {
     box_: Node,
     /// The item's input cells as this flex container sizes it, which its run takes.
@@ -160,6 +161,7 @@ impl FlexItem<'_> {
     }
 }
 
+#[derive(Clone)]
 struct FlexLine {
     items: Vec<usize>,
     cross_size: CssPixels,
@@ -199,6 +201,7 @@ struct ItemRunsOfferedToBlockSizeMeasurements {
     space_for_items: AvailableSpace,
 }
 
+#[derive(Clone)]
 pub(super) struct FlexFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
     flex_lines: Vec<FlexLine>,
@@ -3834,15 +3837,39 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.post_flexing_main_size_is_definite(index)
     }
 
-    pub(super) fn content_inline_size(&mut self, layout_input: LayoutInput) -> CssPixels {
+    pub(super) fn content_inline_sizes(
+        mut self,
+        available_block_size: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> sizing_context::ContentSizes {
+        let layout_input_under = |inline_size| {
+            LayoutInput::new(
+                AvailableSpace {
+                    inline_size,
+                    block_size: available_block_size,
+                },
+                constraints,
+                ParticipationInParentFormattingContext::Root,
+            )
+        };
+        self.generate_items(constraints);
+        let mut context_under_max_content = self.clone();
+        let min = self.content_inline_size_of_generated_items(layout_input_under(AvailableSize::MinContent));
+        let max = context_under_max_content
+            .content_inline_size_of_generated_items(layout_input_under(AvailableSize::MaxContent));
+        sizing_context::ContentSizes { min, max }
+    }
+
+    fn content_inline_size_of_generated_items(&mut self, layout_input: LayoutInput) -> CssPixels {
+        self.take_layout_input(layout_input);
         if self.main_axis_is_horizontal() {
-            self.prepare_items(layout_input);
+            self.determine_flex_base_sizes_and_hypothetical_main_sizes();
             self.collect_flex_items_into_flex_lines();
             self.resolve_flexible_lengths();
             return self.calculate_intrinsic_main_size_of_flex_container();
         }
         if !self.is_single_line() && layout_input.available_space.inline_size == AvailableSize::MaxContent {
-            self.prepare_items(layout_input);
+            self.determine_flex_base_sizes_and_hypothetical_main_sizes();
             self.collect_flex_items_into_flex_lines();
             self.resolve_flexible_lengths();
             for index in 0..self.flex_items.len() {
@@ -3852,7 +3879,6 @@ impl<'pass> FlexFormattingContext<'pass> {
             self.handle_align_content_stretch();
             return self.calculate_intrinsic_cross_size_of_flex_container();
         }
-        self.generate_items_and_determine_available_space(layout_input);
         if (0..self.flex_items.len()).any(|index| self.cross_content_contribution_observes_used_main_size(index)) {
             self.determine_flex_base_sizes_and_hypothetical_main_sizes();
             self.collect_flex_items_into_flex_lines();
@@ -3867,13 +3893,14 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn generate_items_and_determine_available_space(&mut self, layout_input: LayoutInput) {
-        let available_space = layout_input.available_space;
         // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
-        self.available_space = Some(available_space);
-        self.layout_input = Some(layout_input);
-        self.item_runs_offered_to_block_size_measurements = None;
-        let mut item_percentage_bases = self.constraints_for_children(layout_input.containing_block_constraints);
+        self.generate_items(layout_input.containing_block_constraints);
+        self.take_layout_input(layout_input);
+    }
+
+    fn generate_items(&mut self, constraints: ContainingBlockConstraints) {
+        let mut item_percentage_bases = self.constraints_for_children(constraints);
         let block_axis_is_cross_axis = self.is_row_layout();
         item_percentage_bases.quirks_mode_percentage_basis_block_size =
             if self.facts(self.run.box_).document_in_quirks_mode() && block_axis_is_cross_axis {
@@ -3884,8 +3911,14 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.item_percentage_bases = item_percentage_bases;
         // 1. Generate anonymous flex items
         self.generate_anonymous_flex_items();
+    }
+
+    fn take_layout_input(&mut self, layout_input: LayoutInput) {
+        self.available_space = Some(layout_input.available_space);
+        self.layout_input = Some(layout_input);
+        self.item_runs_offered_to_block_size_measurements = None;
         // 2. Determine the available main and cross space for the flex items
-        self.determine_available_space_for_items(available_space);
+        self.determine_available_space_for_items(layout_input.available_space);
     }
 
     fn determine_flex_base_sizes_and_hypothetical_main_sizes(&mut self) {
