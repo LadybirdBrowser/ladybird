@@ -5674,12 +5674,16 @@ impl LayoutNodeArena {
         intrinsic_sizes: AncestorIntrinsicSizes,
     ) {
         self.invalidate_one(node, invalidation);
+        let mut ancestor_intrinsic_sizes = intrinsic_sizes;
         if intrinsic_sizes == AncestorIntrinsicSizes::Reset
             && super::node_facts::kind_is_box(self.data(node).kind.get())
         {
             self.reset_cached_intrinsic_sizes(node);
+            if self.box_contributes_to_no_ancestor_intrinsic_size(node) {
+                ancestor_intrinsic_sizes = AncestorIntrinsicSizes::Kept;
+            }
         }
-        self.invalidate_ancestors_for_change_below(node, invalidation, intrinsic_sizes);
+        self.invalidate_ancestors_for_change_below(node, invalidation, ancestor_intrinsic_sizes);
     }
 
     pub(super) fn invalidate_ancestors_for_change_below(
@@ -5716,14 +5720,16 @@ impl LayoutNodeArena {
     }
 
     /// Whether a change inside the box leaves the intrinsic sizes of its ancestors as they are.
-    /// Absolutely positioned elements don't contribute to ancestor intrinsic sizes. SVG root
-    /// elements have intrinsic sizes determined solely by their own attributes (width, height,
-    /// viewBox), not by their children.
+    /// SVG root elements have intrinsic sizes determined solely by their own attributes (width,
+    /// height, viewBox), not by their children.
     fn content_does_not_size_box(&self, node: NodeSlotId) -> bool {
-        self.data(node).kind.get() == NodeKind::SVGSVGBox
-            || self
-                .node_style_if_live(node)
-                .is_some_and(|style| style.is_absolutely_positioned())
+        self.data(node).kind.get() == NodeKind::SVGSVGBox || self.box_contributes_to_no_ancestor_intrinsic_size(node)
+    }
+
+    /// Absolutely positioned elements don't contribute to ancestor intrinsic sizes.
+    pub(super) fn box_contributes_to_no_ancestor_intrinsic_size(&self, node: NodeSlotId) -> bool {
+        self.node_style_if_live(node)
+            .is_some_and(|style| style.is_absolutely_positioned())
     }
 
     pub(super) fn invalidate_one(&mut self, node: NodeSlotId, invalidation: AncestorInvalidation) {

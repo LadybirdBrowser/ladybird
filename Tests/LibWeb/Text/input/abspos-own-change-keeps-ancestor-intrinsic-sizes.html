@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .shrink { position: absolute; display: flex; }
+    .item { position: relative; display: flex; width: 50px; height: 20px; }
+    .leaf { position: absolute; bottom: 0; width: 20px; height: 10px; }
+    .sib { width: 30px; height: 10px; }
+    .auto-width { width: auto; }
+    .wide { width: 200px; }
+</style>
+<div class="shrink" id="confined"><div class="item" id="confined-item"><div class="leaf" id="confined-leaf"></div></div><div class="sib"></div></div>
+<div class="shrink" id="escaping" style="top: 100px"><div class="item" id="escaping-item"><div class="leaf" id="escaping-leaf"><div style="position: fixed"></div></div></div><div class="sib"></div></div>
+<div class="shrink" id="switching" style="top: 200px"><div class="item auto-width"><div class="leaf wide" id="switching-leaf"></div></div><div class="sib"></div></div>
+<script>
+    // An absolutely positioned box contributes nothing to the intrinsic sizes of its ancestors, so a change of its own
+    // style measures none of them again.
+    test(() => {
+        const geometry = root => {
+            const rootRect = root.getBoundingClientRect();
+            return [root, ...root.querySelectorAll("div")].map(element => {
+                const rect = element.getBoundingClientRect();
+                return `${rect.left - rootRect.left},${rect.top - rootRect.top},${rect.width},${rect.height}`;
+            }).join(" ");
+        };
+        const matchesFreshLayout = container => {
+            const fresh = container.cloneNode(true);
+            fresh.id = "";
+            document.body.appendChild(fresh);
+            const matches = geometry(container) === geometry(fresh);
+            fresh.remove();
+            return matches;
+        };
+
+        for (const name of ["confined", "escaping"]) {
+            document.body.offsetHeight;
+            internals.beginLayoutTrace();
+            document.getElementById(`${name}-leaf`).style.width = "40px";
+            document.body.offsetHeight;
+            const pattern = new RegExp(`#${name}(-item)?\\.\\S* MEASURE .*\\(cache=miss\\)`);
+            const misses = internals.takeLayoutTrace().split("\n").filter(line => pattern.test(line));
+            println(`${name}: ancestor measurements missed: ${misses.length}`);
+            println(`${name}: geometry matches a fresh layout: ${matchesFreshLayout(document.getElementById(name))}`);
+        }
+
+        const switching = document.getElementById("switching");
+        const switchingLeaf = document.getElementById("switching-leaf");
+        for (const position of ["static", "absolute"]) {
+            switchingLeaf.style.position = position;
+            println(`switching: leaf ${position}, container width ${switching.getBoundingClientRect().width}`);
+            println(`switching: geometry matches a fresh layout: ${matchesFreshLayout(switching)}`);
+        }
+    });
+</script>
