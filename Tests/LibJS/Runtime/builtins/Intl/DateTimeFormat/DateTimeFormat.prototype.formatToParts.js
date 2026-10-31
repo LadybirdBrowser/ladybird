@@ -231,7 +231,7 @@ describe("timeStyle", () => {
             { type: "literal", value: " " },
             { type: "dayPeriod", value: "ص" },
             { type: "literal", value: " " },
-            { type: "timeZoneName", value: "UTC" },
+            { type: "timeZoneName", value: "التوقيت العالمي" },
         ]);
     });
 
