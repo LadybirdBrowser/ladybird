@@ -5,6 +5,9 @@
  */
 
 use super::*;
+use prepared_inline_content::{
+    InlineBoxEvent, InlineContentPreparationBuffers, PreparedInlineContent, PreparedItem, PreparedTabStop,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ItemType {
@@ -68,14 +71,18 @@ fn shape_glyph_data(
 ) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
     let shaped_text_type =
         libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType");
-    let shaped = libgfx_rust::text_layout::shape_text(
-        &font,
-        text,
-        shaped_text_type,
-        baseline_start_x,
-        letter_spacing,
-        word_spacing,
-    );
+    let shape =
+        libgfx_rust::text_layout::shape_text_shared(&font, text, shaped_text_type, letter_spacing, word_spacing);
+    glyph_data_from_shape(&shape, font, text_type, baseline_start_x)
+}
+
+fn glyph_data_from_shape(
+    shape: &libgfx_rust::text_layout::SharedShape,
+    font: libgfx_rust::font::FontHandle,
+    text_type: u8,
+    baseline_start_x: f32,
+) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
+    let shaped = shape.with_baseline_start(baseline_start_x);
     let trailing_whitespace = line_box_fragment::TrailingWhitespace {
         length_in_code_units: shaped.trailing_whitespace_length_in_code_units(),
         inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance()),
@@ -113,12 +120,11 @@ pub(crate) fn text_is_set_upright(writing_mode: u8, text_orientation: u8, code_p
     }
 }
 
-/// Sets shaped glyphs upright: each of them takes one em along the inline axis, which runs downwards in the frame of
-/// a vertical writing mode, while keeping its own horizontal width, which painting centers it within. Invisible
-/// characters such as soft hyphens take no space.
+/// Sets shaped glyphs upright and returns the inline size they take: each of them takes one em along the inline axis,
+/// which runs downwards in the frame of a vertical writing mode, while keeping its own horizontal width, which painting
+/// centers it within. Invisible characters such as soft hyphens take no space.
 // FIXME: Use the vertical metrics of the font, where it has them.
-fn set_glyphs_upright(glyph_data: &mut line_box_fragment::GlyphData, inline_offset: f32, advance: f32) {
-    let glyphs = glyph_data.glyphs.to_mut();
+fn set_glyphs_upright(glyphs: &mut [libgfx_rust::text_layout::DrawGlyph], inline_offset: f32, advance: f32) -> f32 {
     let mut pen = inline_offset;
     let mut count = 0usize;
     for glyph in glyphs.iter_mut() {
@@ -130,8 +136,21 @@ fn set_glyphs_upright(glyph_data: &mut line_box_fragment::GlyphData, inline_offs
         }
         glyph.x = pen;
     }
-    glyph_data.width = advance * count as f32;
-    glyph_data.is_upright = true;
+    advance * count as f32
+}
+
+fn shape_set_upright(
+    shape: &libgfx_rust::text_layout::SharedShape,
+    advance: f32,
+) -> libgfx_rust::text_layout::SharedShape {
+    let mut glyphs = shape.glyphs().to_vec();
+    let width = set_glyphs_upright(&mut glyphs, 0.0, advance);
+    libgfx_rust::text_layout::SharedShape::from_glyphs(
+        glyphs,
+        width,
+        shape.trailing_whitespace_length_in_code_units(),
+        shape.trailing_whitespace_advance(),
+    )
 }
 
 impl Item {
@@ -478,8 +497,17 @@ struct TextNodeContext<'pass> {
     chunks: std::sync::Arc<super::rendered_text::CachedTextChunks>,
     text: &'pass [u16],
     next_chunk_index: usize,
+    style: StyleValues<'pass>,
+    letter_spacing: f32,
+    word_spacing: f32,
+    writing_mode: u8,
+    text_orientation: u8,
+    should_wrap_lines: bool,
     should_collapse_whitespace: bool,
     should_respect_linebreaks: bool,
+    is_generated_for_pseudo_element: bool,
+    produces_line_box_fragment_when_empty: bool,
+    is_text_control_text: bool,
     last_known_direction: Option<u8>,
 }
 
@@ -489,23 +517,19 @@ pub(crate) enum AtomicInlineSizing {
     Contributions,
 }
 
-struct InlineLevelIteratorGenerator<'iterator, 'context> {
-    context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
-    atomic_sizing: AtomicInlineSizing,
+struct InlineContentPreparer<'pass> {
+    pass: LayoutPass<'pass>,
+    block_container: Node,
+    buffers: InlineContentPreparationBuffers,
     current_node: Node,
     next_node: Node,
-    text_node_context: Option<TextNodeContext<'context>>,
+    text_node_context: Option<TextNodeContext<'pass>>,
     is_unidirectional_left_to_right: bool,
-    extra_leading_metrics: Option<ExtraBoxMetrics>,
-    extra_trailing_metrics: Option<ExtraBoxMetrics>,
-    box_model_node_stack: Vec<Node>,
-    entered_box_model_nodes: Vec<Node>,
-    items: Vec<Item>,
-    accumulated_inline_size_for_tabs: CssPixels,
+    walks_within_item: bool,
     previous_chunk_can_break_after: bool,
     /// The text of the text node before the current one, when nothing but inline box boundaries and out-of-flow
     /// boxes lies between them.
-    previous_text: Option<&'context [u16]>,
+    previous_text: Option<&'pass [u16]>,
     /// The number of regional indicators that end the previous text, including any in the text nodes before it.
     previous_text_regional_indicators: usize,
     /// The number of regional indicators that end the text before the current text node.
@@ -516,26 +540,44 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
     code_unit_before_text: Option<u16>,
 }
 
-impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
-    fn generate(
-        context: &'iterator mut inline_formatting_context::InlineFormattingContext<'context>,
+impl PreparedInlineContent {
+    pub(crate) fn prepare(pass: LayoutPass<'_>, block_container: Node) -> Self {
+        InlineContentPreparer::prepare(pass, block_container)
+    }
+
+    pub(crate) fn resolve_items_for_run(
+        &self,
+        context: &mut inline_formatting_context::InlineFormattingContext<'_>,
         atomic_sizing: AtomicInlineSizing,
     ) -> InlineLevelIterator {
-        let containing_block = context.containing_block;
-        let next_node = context.first_child(containing_block);
-        let mut iterator = Self {
+        RunItemResolver {
             context,
+            prepared: self,
             atomic_sizing,
-            next_node,
-            current_node: NodeSlotId::INVALID,
-            text_node_context: None,
-            is_unidirectional_left_to_right: false,
             extra_leading_metrics: None,
             extra_trailing_metrics: None,
             box_model_node_stack: Vec::new(),
             entered_box_model_nodes: Vec::new(),
-            items: Vec::new(),
             accumulated_inline_size_for_tabs: CssPixels::default(),
+            next_box_event: 0,
+            next_tab_stop: 0,
+            fonts_taken: 0,
+        }
+        .resolve()
+    }
+}
+
+impl<'pass> InlineContentPreparer<'pass> {
+    fn prepare(pass: LayoutPass<'pass>, block_container: Node) -> PreparedInlineContent {
+        let mut preparer = Self {
+            pass,
+            block_container,
+            buffers: pass.take_inline_content_preparation_buffers(),
+            next_node: pass.first_child(block_container),
+            current_node: NodeSlotId::INVALID,
+            text_node_context: None,
+            is_unidirectional_left_to_right: false,
+            walks_within_item: false,
             previous_chunk_can_break_after: false,
             previous_text: None,
             previous_text_regional_indicators: 0,
@@ -543,55 +585,55 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             code_unit_before_previous_text: None,
             code_unit_before_text: None,
         };
-        iterator.is_unidirectional_left_to_right = iterator.compute_is_unidirectional_left_to_right();
-        iterator.skip_to_next();
-        iterator.generate_all_items();
-        InlineLevelIterator {
-            entered_box_model_nodes: iterator.entered_box_model_nodes,
-            items: ItemQueue::Owned(iterator.items.into_iter()),
-            items_kept_for_looking_ahead: 0,
+        preparer.is_unidirectional_left_to_right = preparer.compute_is_unidirectional_left_to_right();
+        preparer.skip_to_next();
+        while let Some(item) = preparer.prepare_next_item() {
+            preparer.buffers.items.push(item);
         }
+        let prepared = preparer.buffers.take_prepared_inline_content();
+        pass.return_inline_content_preparation_buffers(preparer.buffers);
+        prepared
     }
 
-    fn context(&self) -> &inline_formatting_context::InlineFormattingContext<'context> {
-        self.context
+    fn style(&self, node: Node) -> StyleValues<'pass> {
+        StyleValues::for_node(&self.pass, node)
     }
 
-    fn context_mut(&mut self) -> &mut inline_formatting_context::InlineFormattingContext<'context> {
-        self.context
+    fn facts(&self, node: Node) -> NodeFacts<'pass> {
+        NodeFacts::new(&self.pass, node)
     }
 
     fn is_out_of_flow(&self, node: Node) -> bool {
-        self.context().facts(node).is_floating_or_absolutely_positioned()
+        self.facts(node).is_floating_or_absolutely_positioned()
     }
 
     fn compute_is_unidirectional_left_to_right(&mut self) -> bool {
-        let containing_block = self.context().containing_block;
-        if self.context().style(containing_block).direction() == direction::RTL {
+        let containing_block = self.block_container;
+        if self.style(containing_block).direction() == direction::RTL {
             return false;
         }
 
-        let mut node = self.context().first_child(containing_block);
+        let mut node = self.pass.first_child(containing_block);
         while !node.is_invalid() {
-            let facts = self.context().facts(node);
+            let facts = self.facts(node);
             if !facts.is_text_node() {
-                let style = self.context().style(node);
+                let style = self.style(node);
                 if style.direction() == direction::RTL || style.unicode_bidi() != unicode_bidi::NORMAL {
                     return false;
                 }
-            } else if self.context().text_may_require_bidi_processing(node) {
+            } else if self.pass.text_content(node).may_require_bidi_processing {
                 return false;
             }
 
             loop {
                 node = self.next_inline_node_in_pre_order(node, containing_block);
-                if !node.is_invalid() && self.context().facts(node).is_svg_mask_box() {
-                    node = self.context().next_sibling(node);
+                if !node.is_invalid() && self.facts(node).is_svg_mask_box() {
+                    node = self.pass.next_sibling(node);
                 }
                 if node.is_invalid() {
                     break;
                 }
-                let facts = self.context().facts(node);
+                let facts = self.facts(node);
                 if facts.is_inline() || self.is_out_of_flow(node) || facts.is_inline_flow_interrupting_block() {
                     break;
                 }
@@ -600,45 +642,28 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         true
     }
 
-    fn generate_all_items(&mut self) {
-        while let Some(item) = self.generate_next_item() {
-            if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
-                self.accumulated_inline_size_for_tabs = CssPixels::default();
-            } else if item.type_ != ItemType::FloatingElement {
-                self.accumulated_inline_size_for_tabs += item.border_box_inline_size();
-            }
-            self.items.push(item);
-        }
+    fn inline_box_event_position(&self) -> u32 {
+        InlineBoxEvent::position_at(self.buffers.items.len(), self.walks_within_item)
     }
 
     fn enter_node_with_box_model_metrics(&mut self, node: Node) {
-        self.entered_box_model_nodes.push(node);
-        let sides = lay_out_entered_inline_box(self.context, node);
-        let leading = self.extra_leading_metrics.get_or_insert_default();
-        leading.margin += sides.margin_left;
-        leading.border += sides.border_left;
-        leading.padding += sides.padding_left;
-        self.box_model_node_stack.push(node);
+        let event = InlineBoxEvent::entering(self.inline_box_event_position(), node);
+        self.buffers.box_events.push(event);
+        self.buffers.box_stack.push(node);
     }
 
     fn exit_node_with_box_model_metrics(&mut self) {
-        let node = self.box_model_node_stack.pop().unwrap();
-        let sides = self.context().sides_of_entered_inline_box(node);
-        let margin = sides.margin_right;
-        let border = sides.border_right;
-        let padding = sides.padding_right;
-        let trailing = self.extra_trailing_metrics.get_or_insert_default();
-        trailing.margin += margin;
-        trailing.border += border;
-        trailing.padding += padding;
+        self.buffers.box_stack.pop().unwrap();
+        let event = InlineBoxEvent::leaving_innermost_box(self.inline_box_event_position());
+        self.buffers.box_events.push(event);
     }
 
     fn next_inline_node_in_pre_order(&mut self, current: Node, stay_within: Node) -> Node {
-        let first_child = self.context().first_child(current);
-        let current_facts = self.context().facts(current);
+        let first_child = self.pass.first_child(current);
+        let current_facts = self.facts(current);
         if !first_child.is_invalid() {
-            let child_facts = self.context().facts(first_child);
-            let current_style = self.context().style(current);
+            let child_facts = self.facts(first_child);
+            let current_style = self.style(current);
             if (child_facts.is_inline()
                 || child_facts.is_inline_flow_interrupting_block()
                 || self.is_out_of_flow(first_child))
@@ -653,15 +678,15 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
         let mut node = current;
         loop {
-            let next = self.context().next_sibling(node);
+            let next = self.pass.next_sibling(node);
             if !next.is_invalid() {
-                if self.box_model_node_stack.last().copied() == Some(node) {
+                if self.buffers.box_stack.last().copied() == Some(node) {
                     self.exit_node_with_box_model_metrics();
                 }
                 return next;
             }
-            node = self.context().parent_node(node);
-            if self.box_model_node_stack.last().copied() == Some(node) {
+            node = self.pass.parent(node);
+            if self.buffers.box_stack.last().copied() == Some(node) {
                 self.exit_node_with_box_model_metrics();
             }
             if node.is_invalid() || node == stay_within {
@@ -675,14 +700,14 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             return;
         }
         loop {
-            self.next_node = self.next_inline_node_in_pre_order(self.next_node, self.context().containing_block);
-            if !self.next_node.is_invalid() && self.context().facts(self.next_node).is_svg_mask_box() {
-                self.next_node = self.context().next_sibling(self.next_node);
+            self.next_node = self.next_inline_node_in_pre_order(self.next_node, self.block_container);
+            if !self.next_node.is_invalid() && self.facts(self.next_node).is_svg_mask_box() {
+                self.next_node = self.pass.next_sibling(self.next_node);
             }
             if self.next_node.is_invalid() {
                 break;
             }
-            let facts = self.context().facts(self.next_node);
+            let facts = self.facts(self.next_node);
             if facts.is_inline() || self.is_out_of_flow(self.next_node) || facts.is_inline_flow_interrupting_block() {
                 break;
             }
@@ -691,11 +716,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
     fn skip_to_next(&mut self) {
         if !self.next_node.is_invalid() {
-            let facts = self.context().facts(self.next_node);
+            let facts = self.facts(self.next_node);
             if facts.is_inline()
                 && facts.has_box_model_metrics()
                 && !facts.is_break_node()
-                && self.context().style(self.next_node).display().is_flow_inside()
+                && self.style(self.next_node).display().is_flow_inside()
                 && !self.is_out_of_flow(self.next_node)
                 && !facts.is_atomic_inline()
             {
@@ -706,8 +731,14 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         self.compute_next();
     }
 
+    fn skip_to_next_within_item(&mut self) {
+        self.walks_within_item = true;
+        self.skip_to_next();
+        self.walks_within_item = false;
+    }
+
     fn enter_text_node(&mut self, text_node: Node) {
-        let style = self.context().style(self.context().parent_node(text_node));
+        let style = self.style(self.pass.parent(text_node));
         let should_wrap_lines = style.text_wrap_mode() == text_wrap_mode::WRAP;
         let should_respect_linebreaks = matches!(
             style.white_space_collapse(),
@@ -717,20 +748,29 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             style.white_space_collapse(),
             white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
         );
-        let callbacks = self.context().callbacks;
         let chunks = text_chunker::text_chunks(
-            &callbacks,
+            &self.pass,
             text_node,
             should_wrap_lines,
             should_respect_linebreaks,
             self.is_unidirectional_left_to_right,
         );
+        let facts = self.facts(text_node);
         self.text_node_context = Some(TextNodeContext {
             chunks,
-            text: &callbacks.text_content(text_node).text,
+            text: &self.pass.text_content(text_node).text,
             next_chunk_index: 0,
+            style,
+            letter_spacing: style.letter_spacing().to_double() as f32,
+            word_spacing: style.word_spacing().to_double() as f32,
+            writing_mode: style.writing_mode(),
+            text_orientation: style.text_orientation(),
+            should_wrap_lines,
             should_collapse_whitespace,
             should_respect_linebreaks,
+            is_generated_for_pseudo_element: facts.is_generated_for_pseudo_element(),
+            produces_line_box_fragment_when_empty: facts.produces_line_box_fragment_when_empty(),
+            is_text_control_text: facts.is_text_control_text(),
             last_known_direction: None,
         });
     }
@@ -746,7 +786,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         if let (Some(last), Some(next)) = (context.last_known_direction, next_known_direction)
             && last != next
         {
-            return match self.context().style(self.context().containing_block).direction() {
+            return match self.style(self.block_container).direction() {
                 direction::LTR => line_box_fragment::GLYPH_TEXT_TYPE_LTR,
                 direction::RTL => line_box_fragment::GLYPH_TEXT_TYPE_RTL,
                 _ => unreachable!(),
@@ -758,45 +798,24 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             .unwrap_or(line_box_fragment::GLYPH_TEXT_TYPE_CONTEXT_DEPENDENT)
     }
 
-    /// The end edges of inline boxes that end right after an out-of-flow box are pending when the iterator reaches
-    /// that box. It takes no edges itself, so they precede the next item rather than follow its content.
-    fn carry_trailing_metrics_past_out_of_flow_box(&mut self) {
-        let Some(trailing) = self.extra_trailing_metrics.take() else {
-            return;
-        };
-        let leading = self.extra_leading_metrics.get_or_insert_default();
-        leading.margin += trailing.margin;
-        leading.border += trailing.border;
-        leading.padding += trailing.padding;
+    fn switch_to_font(&mut self, font: &libgfx_rust::font::FontHandle) -> bool {
+        let fonts = &mut self.buffers.fonts;
+        if fonts.last() == Some(font) {
+            return false;
+        }
+        fonts.push(font.clone());
+        true
     }
 
-    fn add_extra_box_model_metrics_to_item(
-        &mut self,
-        item: &mut Item,
-        add_leading_metrics: bool,
-        add_trailing_metrics: bool,
-    ) {
-        if add_leading_metrics && let Some(extra) = self.extra_leading_metrics.take() {
-            item.margin_start += extra.margin;
-            item.border_start += extra.border;
-            item.padding_start += extra.padding;
-        }
-        if add_trailing_metrics && let Some(extra) = self.extra_trailing_metrics.take() {
-            item.margin_end += extra.margin;
-            item.border_end += extra.border;
-            item.padding_end += extra.padding;
-        }
-    }
-
-    /// The text node's next item, or none once it has no more and the iterator has moved past it.
-    fn generate_text_item(&mut self, text_node: Node) -> Option<Item> {
+    /// The text node's next item, or none once it has no more and the preparer has moved past it.
+    fn prepare_text_item(&mut self, text_node: Node) -> Option<PreparedItem> {
         if self.text_node_context.is_none() {
             self.enter_text_node(text_node);
         }
         let mut text_context = self.text_node_context.take().unwrap();
         let chunks = &text_context.chunks;
         let is_first_chunk = text_context.next_chunk_index == 0;
-        let chunk = chunks.get(text_context.next_chunk_index).cloned();
+        let chunk = chunks.get(text_context.next_chunk_index);
         if chunk.is_some() {
             text_context.next_chunk_index += 1;
         }
@@ -805,29 +824,28 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             && is_first_chunk
             && is_last_chunk
             && text_context.text.is_empty()
-            && self.context().facts(text_node).produces_line_box_fragment_when_empty();
+            && text_context.produces_line_box_fragment_when_empty;
         // INTEROP: A text control's text that ends in a preserved newline keeps the empty line after it, which gives
         //          that line its height and the caret on it a fragment.
         let synthesize_chunk_after_trailing_newline = chunk.is_none()
             && text_context.next_chunk_index == chunks.len()
             && text_context.should_respect_linebreaks
             && chunks.last().is_some_and(|last| last.has_breaking_newline)
-            && self.context().facts(text_node).is_text_control_text();
+            && text_context.is_text_control_text;
         let chunk = if let Some(chunk) = chunk {
-            chunk
+            std::borrow::Cow::Borrowed(chunk)
         } else if synthesize_zero_length_chunk || synthesize_chunk_after_trailing_newline {
             text_context.next_chunk_index = chunks.len() + 1;
-            let parent_style = self.context().style(self.context().parent_node(text_node));
-            text_chunker::TextChunk {
+            std::borrow::Cow::Owned(text_chunker::TextChunk {
                 start: text_context.text.len(),
                 length: 0,
-                font: parent_style.first_available_font(),
+                font: text_context.style.first_available_font(),
                 has_breaking_newline: false,
                 has_breaking_tab: false,
                 is_all_whitespace: true,
                 can_break_after: false,
                 text_type: line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
-            }
+            })
         } else {
             if !text_context.text.is_empty() {
                 let regional_indicators = text_chunker::trailing_regional_indicator_count(text_context.text);
@@ -864,87 +882,70 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
             self.text_node_context = Some(text_context);
-            return Some(Item::new(ItemType::ForcedBreak, NodeSlotId::INVALID));
+            return Some(PreparedItem::new(ItemType::ForcedBreak, NodeSlotId::INVALID, 0));
         }
 
-        let style = self.context().style(self.context().parent_node(text_node));
-        let mut inline_offset = 0.0f32;
         let full_text = text_context.text;
         let mut shaped_start = chunk.start;
         let mut shaped_length = chunk.length;
-        let word_spacing = style.word_spacing();
+        let mut tab_stop = None;
         if chunk.has_breaking_tab {
+            let style = text_context.style;
             let tab_inline_size = if style.tab_size_is_number() {
                 let space = chunk.font.glyph_width(b' ' as u32);
                 CssPixels::nearest_value_for(
-                    style.tab_size_number()
-                        * (space + word_spacing.to_double() as f32 + style.letter_spacing().to_double() as f32) as f64,
+                    style.tab_size_number() * (space + text_context.word_spacing + text_context.letter_spacing) as f64,
                 )
             } else {
                 style.tab_size()
             };
-            let accumulated = self.accumulated_inline_size_for_tabs;
-            let mut tab_stop_distance = if accumulated > CssPixels::default() {
-                accumulated.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - accumulated
-            } else {
-                tab_inline_size
-            };
-            let zero_width = chunk.font.glyph_width(b'0' as u32);
-            if tab_stop_distance.to_double() < f64::from(zero_width) * 0.5 {
-                tab_stop_distance += tab_inline_size;
-            }
             let tab_count = full_text[chunk.start..chunk.start + chunk.length]
                 .iter()
                 .take_while(|unit| **unit == b'\t' as u16)
                 .count();
-            tab_stop_distance = tab_stop_distance * tab_count;
             shaped_start += tab_count;
             shaped_length -= tab_count;
-            inline_offset = tab_stop_distance.to_double() as f32;
+            tab_stop = Some(PreparedTabStop {
+                tab_count: u32::try_from(tab_count).expect("tab counts fit in 32 bits"),
+                tab_inline_size,
+                zero_advance: chunk.font.glyph_width(b'0' as u32),
+                upright_advance: None,
+            });
         }
         let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
-        let (mut glyphs, shaped_trailing_whitespace) = shape_glyph_data(
+        let mut shape = libgfx_rust::text_layout::shape_text_shared(
+            &chunk.font,
             shaped_text,
-            chunk.font.clone(),
-            text_type,
-            inline_offset,
-            style.letter_spacing().to_double() as f32,
-            word_spacing.to_double() as f32,
+            libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType"),
+            text_context.letter_spacing,
+            text_context.word_spacing,
         );
+        let mut flags = 0;
         if !shaped_text.is_empty()
             && text_is_set_upright(
-                style.writing_mode(),
-                style.text_orientation(),
+                text_context.writing_mode,
+                text_context.text_orientation,
                 text_chunker::code_point_at(shaped_text, 0),
             )
         {
             // NB: The font's own size takes any font-size-adjust into account.
-            set_glyphs_upright(
-                &mut glyphs,
-                inline_offset,
-                chunk.font.facts().pixel_size + style.letter_spacing().to_double() as f32,
-            );
+            let advance = chunk.font.facts().pixel_size + text_context.letter_spacing;
+            match &mut tab_stop {
+                Some(tab_stop) => tab_stop.upright_advance = Some(advance),
+                None => shape = shape_set_upright(&shape, advance),
+            }
+            flags |= PreparedItem::UPRIGHT;
         }
-        let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
         let generated_empty = synthesize_zero_length_chunk
             || synthesize_chunk_after_trailing_newline
-            || (self.context().facts(text_node).is_generated_for_pseudo_element() && chunk.length == 0);
-        let mut item = Item::new(ItemType::Text, text_node);
-        item.glyphs = Some(glyphs);
-        item.offset_in_node = chunk.start;
-        item.length_in_node = chunk.length;
-        item.inline_size = chunk_inline_size;
-        item.trailing_whitespace = if chunk.is_all_whitespace {
-            line_box_fragment::TrailingWhitespace {
-                length_in_code_units: chunk.length,
-                inline_size: chunk_inline_size,
-            }
-        } else {
-            shaped_trailing_whitespace
-        };
-        item.is_collapsible_whitespace =
-            text_context.should_collapse_whitespace && chunk.is_all_whitespace && !generated_empty;
-        item.can_break_before = self.previous_chunk_can_break_after;
+            || (text_context.is_generated_for_pseudo_element && chunk.length == 0);
+        if chunk.is_all_whitespace {
+            flags |= PreparedItem::TRAILING_WHITESPACE_IS_WHOLE_ITEM;
+        }
+        if text_context.should_collapse_whitespace && chunk.is_all_whitespace && !generated_empty {
+            flags |= PreparedItem::COLLAPSIBLE_WHITESPACE;
+        }
+        let mut can_break_before = self.previous_chunk_can_break_after;
         // NB: Look for a soft wrap opportunity between the texts of two text nodes, which the chunker of either text
         //     cannot see. This uses the line breaking properties of the text after it.
         if is_first_chunk {
@@ -956,16 +957,17 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             self.code_unit_before_text = self.previous_text.and_then(|text| text.last().copied());
         }
         if is_first_chunk
-            && !item.can_break_before
+            && !can_break_before
             && let Some(previous_text) = self.previous_text.take()
-            && style.text_wrap_mode() == text_wrap_mode::WRAP
+            && text_context.should_wrap_lines
         {
+            let style = text_context.style;
             let line_break_language = if style.line_break() == line_break::LOOSE {
-                self.context().callbacks.arena().text_line_break_language(text_node)
+                self.pass.arena().text_line_break_language(text_node)
             } else {
                 text_chunker::LineBreakLanguage::Other
             };
-            item.can_break_before = text_chunker::soft_wrap_opportunity_between(
+            can_break_before = text_chunker::soft_wrap_opportunity_between(
                 previous_text,
                 &full_text[chunk.start..],
                 self.code_unit_before_previous_text,
@@ -977,12 +979,34 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         }
         self.previous_text = None;
         self.previous_chunk_can_break_after = chunk.can_break_after;
-        self.add_extra_box_model_metrics_to_item(&mut item, is_first_chunk, is_last_chunk);
+        if can_break_before {
+            flags |= PreparedItem::CAN_BREAK_BEFORE;
+        }
+        if is_first_chunk {
+            flags |= PreparedItem::TAKES_LEADING_EDGES;
+        }
+        if is_last_chunk {
+            flags |= PreparedItem::TAKES_TRAILING_EDGES;
+        }
+        if let Some(tab_stop) = tab_stop {
+            flags |= PreparedItem::TAB_STOP;
+            self.buffers.tab_stops.push(tab_stop);
+        }
+        if self.switch_to_font(&chunk.font) {
+            flags |= PreparedItem::TAKES_NEXT_FONT;
+        }
+        let item = PreparedItem::text(
+            text_node,
+            chunk.start..chunk.start + chunk.length,
+            shape,
+            text_type,
+            flags,
+        );
         self.text_node_context = Some(text_context);
         Some(item)
     }
 
-    fn generate_next_item(&mut self) -> Option<Item> {
+    fn prepare_next_item(&mut self) -> Option<PreparedItem> {
         // A node that produces no item moves on to the next one in this loop rather than in a call: a line of ten
         // thousand empty spans would otherwise take ten thousand frames of the stack.
         loop {
@@ -990,48 +1014,35 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 return None;
             }
             let node = self.current_node;
-            let facts = self.context().facts(node);
+            let facts = self.facts(node);
             if facts.is_text_node() {
-                match self.generate_text_item(node) {
+                match self.prepare_text_item(node) {
                     Some(item) => return Some(item),
                     None => continue,
                 }
             }
             if facts.is_absolutely_positioned() {
-                let preceded = self.extra_leading_metrics.is_some_and(|extra| {
-                    extra.margin != CssPixels::default()
-                        || extra.border != CssPixels::default()
-                        || extra.padding != CssPixels::default()
-                });
-                self.carry_trailing_metrics_past_out_of_flow_box();
-                self.skip_to_next();
-                let mut item = Item::new(ItemType::AbsolutelyPositionedElement, node);
-                item.preceded_by_unattached_inline_start_edges = preceded;
-                return Some(item);
+                self.skip_to_next_within_item();
+                return Some(PreparedItem::new(ItemType::AbsolutelyPositionedElement, node, 0));
             }
             if facts.is_floating() {
-                self.carry_trailing_metrics_past_out_of_flow_box();
-                self.skip_to_next();
-                let mut item = Item::new(ItemType::FloatingElement, node);
-                if self.atomic_sizing == AtomicInlineSizing::Contributions {
-                    self.size_item_by_outer_inline_contributions(&mut item);
-                }
-                return Some(item);
+                self.skip_to_next_within_item();
+                return Some(PreparedItem::new(ItemType::FloatingElement, node, 0));
             }
             if facts.is_break_node() {
                 self.previous_text = None;
-                self.skip_to_next();
-                return Some(Item::new(ItemType::ForcedBreak, node));
+                self.skip_to_next_within_item();
+                return Some(PreparedItem::new(ItemType::ForcedBreak, node, 0));
             }
             if facts.is_fragmented_inline() {
                 self.skip_to_next();
                 continue;
             }
             if facts.is_list_item_marker_box() && !facts.list_marker_is_inside() {
-                let parent = self.context().parent_node(node);
+                let parent = self.pass.parent(node);
                 if parent.is_invalid()
-                    || !self.context().facts(parent).is_list_item_box()
-                    || !self.context().facts(parent).is_fragmented_inline()
+                    || !self.facts(parent).is_list_item_box()
+                    || !self.facts(parent).is_fragmented_inline()
                 {
                     self.skip_to_next();
                     continue;
@@ -1043,16 +1054,229 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             }
             if facts.is_inline_flow_interrupting_block() {
                 self.previous_text = None;
-                self.skip_to_next();
+                self.skip_to_next_within_item();
+                return Some(PreparedItem::new(ItemType::BlockLevelBox, node, 0));
+            }
+            self.previous_text = None;
+            self.skip_to_next_within_item();
+            return Some(PreparedItem::new(
+                ItemType::Element,
+                node,
+                PreparedItem::TAKES_LEADING_EDGES | PreparedItem::TAKES_TRAILING_EDGES,
+            ));
+        }
+    }
+}
+
+struct RunItemResolver<'resolver, 'context> {
+    context: &'resolver mut inline_formatting_context::InlineFormattingContext<'context>,
+    prepared: &'resolver PreparedInlineContent,
+    atomic_sizing: AtomicInlineSizing,
+    extra_leading_metrics: Option<ExtraBoxMetrics>,
+    extra_trailing_metrics: Option<ExtraBoxMetrics>,
+    box_model_node_stack: Vec<Node>,
+    entered_box_model_nodes: Vec<Node>,
+    accumulated_inline_size_for_tabs: CssPixels,
+    next_box_event: usize,
+    next_tab_stop: usize,
+    fonts_taken: usize,
+}
+
+impl<'context> RunItemResolver<'_, 'context> {
+    fn context(&self) -> &inline_formatting_context::InlineFormattingContext<'context> {
+        self.context
+    }
+
+    fn resolve(mut self) -> InlineLevelIterator {
+        let prepared = self.prepared;
+        let mut items = Vec::with_capacity(prepared.items.len());
+        for (index, prepared_item) in prepared.items.iter().enumerate() {
+            self.apply_inline_box_events_at(index, false);
+            let item = self.resolve_item(index, prepared_item);
+            if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
+                self.accumulated_inline_size_for_tabs = CssPixels::default();
+            } else if item.type_ != ItemType::FloatingElement {
+                self.accumulated_inline_size_for_tabs += item.border_box_inline_size();
+            }
+            items.push(item);
+        }
+        self.apply_inline_box_events_at(items.len(), false);
+        debug_assert_eq!(self.next_box_event, prepared.box_events.len());
+        InlineLevelIterator {
+            entered_box_model_nodes: self.entered_box_model_nodes,
+            items: ItemQueue::Owned(items.into_iter()),
+            items_kept_for_looking_ahead: 0,
+        }
+    }
+
+    fn apply_inline_box_events_at(&mut self, item_index: usize, within_item: bool) {
+        let position = InlineBoxEvent::position_at(item_index, within_item);
+        let prepared = self.prepared;
+        while let Some(event) = prepared.box_events.get(self.next_box_event)
+            && event.position() == position
+        {
+            self.next_box_event += 1;
+            match event.entered_box() {
+                Some(node) => self.enter_node_with_box_model_metrics(node),
+                None => self.exit_node_with_box_model_metrics(),
+            }
+        }
+    }
+
+    fn enter_node_with_box_model_metrics(&mut self, node: Node) {
+        self.entered_box_model_nodes.push(node);
+        let sides = lay_out_entered_inline_box(self.context, node);
+        let leading = self.extra_leading_metrics.get_or_insert_default();
+        leading.margin += sides.margin_left;
+        leading.border += sides.border_left;
+        leading.padding += sides.padding_left;
+        self.box_model_node_stack.push(node);
+    }
+
+    fn exit_node_with_box_model_metrics(&mut self) {
+        let node = self.box_model_node_stack.pop().unwrap();
+        let sides = self.context().sides_of_entered_inline_box(node);
+        let margin = sides.margin_right;
+        let border = sides.border_right;
+        let padding = sides.padding_right;
+        let trailing = self.extra_trailing_metrics.get_or_insert_default();
+        trailing.margin += margin;
+        trailing.border += border;
+        trailing.padding += padding;
+    }
+
+    /// The end edges of inline boxes that end right after an out-of-flow box are pending when the resolver reaches
+    /// that box. It takes no edges itself, so they precede the next item rather than follow its content.
+    fn carry_trailing_metrics_past_out_of_flow_box(&mut self) {
+        let Some(trailing) = self.extra_trailing_metrics.take() else {
+            return;
+        };
+        let leading = self.extra_leading_metrics.get_or_insert_default();
+        leading.margin += trailing.margin;
+        leading.border += trailing.border;
+        leading.padding += trailing.padding;
+    }
+
+    fn add_extra_box_model_metrics_to_item(
+        &mut self,
+        item: &mut Item,
+        add_leading_metrics: bool,
+        add_trailing_metrics: bool,
+    ) {
+        if add_leading_metrics && let Some(extra) = self.extra_leading_metrics.take() {
+            item.margin_start += extra.margin;
+            item.border_start += extra.border;
+            item.padding_start += extra.padding;
+        }
+        if add_trailing_metrics && let Some(extra) = self.extra_trailing_metrics.take() {
+            item.margin_end += extra.margin;
+            item.border_end += extra.border;
+            item.padding_end += extra.padding;
+        }
+    }
+
+    fn resolve_item(&mut self, item_index: usize, prepared_item: &PreparedItem) -> Item {
+        let node = prepared_item.node();
+        match prepared_item.type_() {
+            ItemType::Text => self.resolve_text_item(prepared_item),
+            ItemType::ForcedBreak => {
+                self.apply_inline_box_events_at(item_index, true);
+                Item::new(ItemType::ForcedBreak, node)
+            }
+            ItemType::AbsolutelyPositionedElement => {
+                let preceded = self.extra_leading_metrics.is_some_and(|extra| {
+                    extra.margin != CssPixels::default()
+                        || extra.border != CssPixels::default()
+                        || extra.padding != CssPixels::default()
+                });
+                self.carry_trailing_metrics_past_out_of_flow_box();
+                self.apply_inline_box_events_at(item_index, true);
+                let mut item = Item::new(ItemType::AbsolutelyPositionedElement, node);
+                item.preceded_by_unattached_inline_start_edges = preceded;
+                item
+            }
+            ItemType::FloatingElement => {
+                self.carry_trailing_metrics_past_out_of_flow_box();
+                self.apply_inline_box_events_at(item_index, true);
+                let mut item = Item::new(ItemType::FloatingElement, node);
+                if self.atomic_sizing == AtomicInlineSizing::Contributions {
+                    self.size_item_by_outer_inline_contributions(&mut item);
+                }
+                item
+            }
+            ItemType::BlockLevelBox => {
+                self.apply_inline_box_events_at(item_index, true);
                 let mut item = Item::new(ItemType::BlockLevelBox, node);
                 if self.atomic_sizing == AtomicInlineSizing::Contributions {
                     self.size_item_by_outer_inline_contributions(&mut item);
                 }
-                return Some(item);
+                item
             }
-            self.previous_text = None;
-            return Some(self.generate_element_item(node));
+            ItemType::Element => {
+                let item = self.resolve_element_item(prepared_item);
+                self.apply_inline_box_events_at(item_index, true);
+                item
+            }
         }
+    }
+
+    fn resolve_text_item(&mut self, prepared_item: &PreparedItem) -> Item {
+        let prepared = self.prepared;
+        let mut inline_offset = 0.0f32;
+        let mut upright_advance_after_tabs = None;
+        if prepared_item.has(PreparedItem::TAB_STOP) {
+            let tab_stop = prepared.tab_stops[self.next_tab_stop];
+            self.next_tab_stop += 1;
+            let tab_inline_size = tab_stop.tab_inline_size;
+            let accumulated = self.accumulated_inline_size_for_tabs;
+            let mut tab_stop_distance = if accumulated > CssPixels::default() {
+                accumulated.div_as_fraction(tab_inline_size).ceil() * tab_inline_size - accumulated
+            } else {
+                tab_inline_size
+            };
+            if tab_stop_distance.to_double() < f64::from(tab_stop.zero_advance) * 0.5 {
+                tab_stop_distance += tab_inline_size;
+            }
+            tab_stop_distance = tab_stop_distance * tab_stop.tab_count as usize;
+            inline_offset = tab_stop_distance.to_double() as f32;
+            upright_advance_after_tabs = tab_stop.upright_advance;
+        }
+        if prepared_item.has(PreparedItem::TAKES_NEXT_FONT) {
+            self.fonts_taken += 1;
+        }
+        let (mut glyphs, shaped_trailing_whitespace) = glyph_data_from_shape(
+            prepared_item.shape(),
+            prepared.fonts[self.fonts_taken - 1].clone(),
+            prepared_item.text_type(),
+            inline_offset,
+        );
+        glyphs.is_upright = prepared_item.has(PreparedItem::UPRIGHT);
+        if let Some(advance) = upright_advance_after_tabs {
+            glyphs.width = set_glyphs_upright(glyphs.glyphs.to_mut(), inline_offset, advance);
+        }
+        let chunk_inline_size = CssPixels::nearest_value_for_f32(glyphs.width + inline_offset);
+        let length_in_node = prepared_item.length_in_node();
+        let mut item = Item::new(ItemType::Text, prepared_item.node());
+        item.glyphs = Some(glyphs);
+        item.offset_in_node = prepared_item.offset_in_node();
+        item.length_in_node = length_in_node;
+        item.inline_size = chunk_inline_size;
+        item.trailing_whitespace = if prepared_item.has(PreparedItem::TRAILING_WHITESPACE_IS_WHOLE_ITEM) {
+            line_box_fragment::TrailingWhitespace {
+                length_in_code_units: length_in_node,
+                inline_size: chunk_inline_size,
+            }
+        } else {
+            shaped_trailing_whitespace
+        };
+        item.is_collapsible_whitespace = prepared_item.has(PreparedItem::COLLAPSIBLE_WHITESPACE);
+        item.can_break_before = prepared_item.has(PreparedItem::CAN_BREAK_BEFORE);
+        self.add_extra_box_model_metrics_to_item(
+            &mut item,
+            prepared_item.has(PreparedItem::TAKES_LEADING_EDGES),
+            prepared_item.has(PreparedItem::TAKES_TRAILING_EDGES),
+        );
+        item
     }
 
     fn size_item_by_outer_inline_contributions(&self, item: &mut Item) {
@@ -1072,13 +1296,14 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         item.margin_end = contributions.margin_end;
     }
 
-    fn generate_element_item(&mut self, node: Node) -> Item {
+    fn resolve_element_item(&mut self, prepared_item: &PreparedItem) -> Item {
+        let node = prepared_item.node();
         let mut item = Item::new(ItemType::Element, node);
         if self.atomic_sizing == AtomicInlineSizing::Contributions {
             self.size_item_by_outer_inline_contributions(&mut item);
         } else {
             let cells = self.context().hold_atomic_inline(node);
-            let (content_baselines, box_cells) = self.context_mut().dimension_box_on_line(node, cells);
+            let (content_baselines, box_cells) = self.context().dimension_box_on_line(node, cells);
             item.inline_size = box_cells.content_inline_size;
             item.padding_start = box_cells.padding_left;
             item.padding_end = box_cells.padding_right;
@@ -1092,8 +1317,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
                 box_cells: Some(box_cells),
             }));
         }
-        self.add_extra_box_model_metrics_to_item(&mut item, true, true);
-        self.skip_to_next();
+        self.add_extra_box_model_metrics_to_item(
+            &mut item,
+            prepared_item.has(PreparedItem::TAKES_LEADING_EDGES),
+            prepared_item.has(PreparedItem::TAKES_TRAILING_EDGES),
+        );
         item
     }
 }
@@ -1258,7 +1486,8 @@ impl InlineLevelIterator {
         let callbacks = context.callbacks;
         match callbacks.inline_item_stash(context.containing_block) {
             Some(stash) => Self::from_stash(context, stash),
-            None => InlineLevelIteratorGenerator::generate(context, atomic_sizing),
+            None => PreparedInlineContent::prepare(callbacks, context.containing_block)
+                .resolve_items_for_run(context, atomic_sizing),
         }
     }
 

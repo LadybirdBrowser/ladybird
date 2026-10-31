@@ -1317,10 +1317,6 @@ impl<'context> InlineFormattingContext<'context> {
         self.callbacks.first_child(node)
     }
 
-    pub(crate) fn next_sibling(&self, node: Node) -> Node {
-        self.callbacks.next_sibling(node)
-    }
-
     fn fragmented_inline_ancestors(&self, node: Node) -> Vec<Node> {
         let mut ancestors = Vec::new();
         let mut ancestor = self.nearest_fragmented_inline_ancestor(node);
@@ -1358,10 +1354,6 @@ impl<'context> InlineFormattingContext<'context> {
             ancestor = self.parent_node(ancestor);
         }
         NodeSlotId::INVALID
-    }
-
-    pub(crate) fn text_may_require_bidi_processing(&self, node: Node) -> bool {
-        self.callbacks.text_content(node).may_require_bidi_processing
     }
 
     /// Resolves the insets of `node`, an in-flow box in this context's lines, and keeps them for the box.

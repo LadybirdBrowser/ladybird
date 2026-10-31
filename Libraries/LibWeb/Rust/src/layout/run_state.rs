@@ -26,6 +26,7 @@ pub(crate) struct LayoutScratch {
     pub(super) layout_trace: super::trace::LayoutTrace,
     /// The chunks and grapheme segmenters of the text rows the passes laid out.
     text_memos: super::rendered_text::TextMemos,
+    inline_content_preparation_buffers: Cell<super::prepared_inline_content::InlineContentPreparationBuffers>,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -101,6 +102,7 @@ impl Default for LayoutScratch {
             in_flow_block_cache_store: Default::default(),
             layout_trace: Default::default(),
             text_memos: Default::default(),
+            inline_content_preparation_buffers: Default::default(),
         }
     }
 }
@@ -127,6 +129,12 @@ impl LayoutScratch {
 
     pub(super) fn text_memos(&self) -> &super::rendered_text::TextMemos {
         &self.text_memos
+    }
+
+    pub(super) fn inline_content_preparation_buffers(
+        &self,
+    ) -> &Cell<super::prepared_inline_content::InlineContentPreparationBuffers> {
+        &self.inline_content_preparation_buffers
     }
 
     /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.
