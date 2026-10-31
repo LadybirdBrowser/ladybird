@@ -1360,26 +1360,25 @@ void HTMLInputElement::create_color_input_shadow_tree()
 
     auto color = value_sanitization_algorithm(m_value);
 
-    auto border = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
-    border->set_attribute_value(HTML::AttributeNames::style, R"~~~(
-        width: fit-content;
-        height: fit-content;
-        padding: 4px;
-        border: 1px solid ButtonBorder;
-        background-color: ButtonFace;
+    auto swatch_wrapper = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
+    swatch_wrapper->set_attribute_value(HTML::AttributeNames::style, R"~~~(
+        display: flex;
+        width: 100%;
+        height: 100%;
+        padding: 4px 2px;
+        box-sizing: border-box;
 )~~~"_utf16);
 
     m_color_well_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_color_well_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
-        width: 32px;
-        height: 16px;
-        border: 1px solid ButtonBorder;
-        box-sizing: border-box;
+        flex: 1;
+        min-width: 0;
+        border: 1px solid #777777;
 )~~~"_utf16);
     MUST(m_color_well_element->style()->set_property(CSS::PropertyID::BackgroundColor, color.utf16_view()));
 
-    MUST(border->append_child(*m_color_well_element));
-    MUST(shadow_root->append_child(border));
+    MUST(swatch_wrapper->append_child(*m_color_well_element));
+    MUST(shadow_root->append_child(swatch_wrapper));
 }
 
 void HTMLInputElement::update_color_well_element()
