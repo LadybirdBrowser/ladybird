@@ -78,16 +78,6 @@ JSCompletion completion_to_abi(JS::Realm& realm, WebIDL::ExceptionOr<JS::Value> 
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { result.release_value() });
 }
 
-// A value that the data holder of a transferred object holds, which its transfer steps write.
-template<typename T>
-static JSCompletion encode_transfer_data(RustTransferDataWriter* writer, T const& value)
-{
-    auto result = HTML::encode_or_throw_data_clone_error(writer->realm, writer->data_holder, value);
-    if (result.is_exception())
-        return completion_to_abi(writer->realm, result.exception());
-    return completion_to_abi(writer->realm, JS::js_undefined());
-}
-
 // A value of the type that the data holder of a received object holds next, which its transfer-receiving steps read.
 template<typename T>
 static JSCompletion decode_transfer_data(RustTransferDataReader* reader, T* out_value)
@@ -119,9 +109,9 @@ void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_e
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
-JSCompletion web_bindings_transfer_data_encode_bool(RustTransferDataWriter*, bool);
-JSCompletion web_bindings_transfer_data_encode_records(RustTransferDataWriter*, HTML::SerializedTransferRecord const* const*, size_t count);
-JSCompletion web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter*, IPC::TransportHandle const*);
+void web_bindings_transfer_data_encode_bool(RustTransferDataWriter*, bool);
+void web_bindings_transfer_data_encode_records(RustTransferDataWriter*, HTML::SerializedTransferRecord const* const*, size_t count);
+void web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter*, IPC::TransportHandle const*);
 void web_bindings_transfer_data_extend(RustTransferDataWriter*, HTML::SerializedTransferRecord*);
 JSCompletion web_bindings_transfer_data_decode_bool(RustTransferDataReader*, bool* out_value);
 JSCompletion web_bindings_transfer_data_decode_records(RustTransferDataReader*, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
@@ -205,27 +195,22 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
     return true;
 }
 
-JSCompletion web_bindings_transfer_data_encode_bool(RustTransferDataWriter* writer, bool value)
+void web_bindings_transfer_data_encode_bool(RustTransferDataWriter* writer, bool value)
 {
-    return encode_transfer_data(writer, value);
+    MUST(writer->data_holder.encode(value));
 }
 
 // Writes the records as a Vector of them is encoded, which web_bindings_transfer_data_decode_records() and C++ read.
-JSCompletion web_bindings_transfer_data_encode_records(RustTransferDataWriter* writer, HTML::SerializedTransferRecord const* const* records, size_t count)
+void web_bindings_transfer_data_encode_records(RustTransferDataWriter* writer, HTML::SerializedTransferRecord const* const* records, size_t count)
 {
-    auto result = [&]() -> WebIDL::ExceptionOr<JS::Value> {
-        if (auto encoded = writer->data_holder.encode_size(count); encoded.is_error())
-            return HTML::data_clone_error_from_serialization_error(writer->realm, encoded.release_error());
-        for (size_t i = 0; i < count; ++i)
-            TRY(HTML::encode_or_throw_data_clone_error(writer->realm, writer->data_holder, *records[i]));
-        return JS::js_undefined();
-    }();
-    return completion_to_abi(writer->realm, move(result));
+    MUST(writer->data_holder.encode_size(count));
+    for (size_t i = 0; i < count; ++i)
+        MUST(writer->data_holder.encode(*records[i]));
 }
 
-JSCompletion web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter* writer, IPC::TransportHandle const* handle)
+void web_bindings_transfer_data_encode_transport_handle(RustTransferDataWriter* writer, IPC::TransportHandle const* handle)
 {
-    return encode_transfer_data(writer, *handle);
+    MUST(writer->data_holder.encode(*handle));
 }
 
 void web_bindings_transfer_data_extend(RustTransferDataWriter* writer, HTML::SerializedTransferRecord* record)

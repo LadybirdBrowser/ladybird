@@ -6,6 +6,8 @@ after GC
 before transfer, after transfer
 detached port received message: false
 reply after transfer
+transport transfer failed: DataCloneError
+after failed transport transfer
 transfer failed: DataCloneError
 directly entangled after failed transfer: true
 after failed transfer

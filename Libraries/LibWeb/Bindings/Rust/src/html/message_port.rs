@@ -610,7 +610,15 @@ impl Transferable for MessagePort {
         let this = *this;
         let vm = cx.vm();
 
-        // NB: The ports change only once every write to dataHolder has succeeded, so steps 1 and 3.1 run last.
+        if this.is_entangled() && this.fail_next_transfer_for_testing.replace(false) {
+            return Err(Exception::Dom(
+                "DataCloneError",
+                Utf16String::from_ascii(b"Forced MessagePort transfer failure"),
+            ));
+        }
+
+        // 1. Set value's has been shipped flag to true.
+        this.has_been_shipped.set(true);
 
         // NB: A port entangled over a transport hands its transport over. Stop the transport's IO thread before draining
         //     it below, so that no message arrives between the drain and the handle going to the new owner.
@@ -626,16 +634,19 @@ impl Transferable for MessagePort {
         let received_messages = this.drain_transport();
         let mut port_message_queue = this.port_message_queue.borrow_mut();
         port_message_queue.extend(received_messages);
-        data_holder.write_records(port_message_queue.make_contiguous())?;
+        data_holder.write_records(port_message_queue.make_contiguous());
         drop(port_message_queue);
-        data_holder.write_records(&this.pending_outgoing_messages.borrow())?;
-        data_holder.write_bool(this.should_shutdown_on_enable.get())?;
+        data_holder.write_records(&this.pending_outgoing_messages.borrow());
+        data_holder.write_bool(this.should_shutdown_on_enable.get());
 
         // 3. If value is entangled with another port remotePort:
         // NB: Ports in the same agent need no transport until one of them is shipped. Keep remotePort in this agent, and
         //     entangle it over a new transport with the port that the transfer-receiving steps create.
         let (remote_port, remote_port_handle) = match this.remote_port.get() {
             Some(remote_port) => {
+                //    1. Set remotePort's has been shipped flag to true.
+                remote_port.has_been_shipped.set(true);
+
                 let (transport, handle) = MessagePortTransport::create_paired();
                 (Some((remote_port, transport)), Some(handle))
             }
@@ -644,24 +655,12 @@ impl Transferable for MessagePort {
 
         //    2. Set dataHolder.[[RemotePort]] to remotePort.
         // 4. Otherwise, set dataHolder.[[RemotePort]] to null.
-        data_holder.write_bool(remote_port_handle.is_some())?;
+        data_holder.write_bool(remote_port_handle.is_some());
         if let Some(remote_port_handle) = remote_port_handle {
-            if this.fail_next_transfer_for_testing.replace(false) {
-                return Err(Exception::Dom(
-                    "DataCloneError",
-                    Utf16String::from_ascii(b"Forced MessagePort transfer failure"),
-                ));
-            }
-            data_holder.write_transport_handle(remote_port_handle)?;
+            data_holder.write_transport_handle(remote_port_handle);
         }
 
-        // 1. Set value's has been shipped flag to true.
-        this.has_been_shipped.set(true);
-
         if let Some((remote_port, mut transport)) = remote_port {
-            // 3.1. Set remotePort's has been shipped flag to true.
-            remote_port.has_been_shipped.set(true);
-
             remote_port.remote_port.set(None);
             this.remote_port.set(None);
             transport.set_up_read_hook(ReadHookState::new(vm, remote_port), ReadHookState::read_from_transport);
