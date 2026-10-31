@@ -88,6 +88,7 @@ pub enum FfiStyleInvalidationField {
     /// The white space of the element's text children collapses where it did not, or the other way round, so the white
     /// space text among them may gain or lose its box.
     WhiteSpaceCollapseChanged = 1 << 25,
+    CursorChanged = 1 << 26,
 }
 
 /// The `InvalidationLevel` of a style move at which its box is painted again, the one at which it lays out again, and

@@ -1,0 +1,2 @@
+initial cursor: Arrow
+cursor after element moves under mouse: Hand

@@ -1,0 +1,39 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #player {
+        cursor: pointer;
+        height: 200px;
+        width: 200px;
+    }
+
+    #controls {
+        height: 100px;
+        width: 100px;
+    }
+</style>
+<div id="player"><div id="controls"></div></div>
+<script>
+    function nextRenderingUpdate() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    // A player hides its cursor through the style of a container, which what is under the pointer inherits.
+    asyncTest(async done => {
+        internals.mouseMove(50, 50);
+        await nextRenderingUpdate();
+        println(`initial cursor: ${internals.currentCursor()}`);
+
+        player.style.cursor = "none";
+        await nextRenderingUpdate();
+        internals.synchronizeCompositor();
+        // The hover follows the frame between two tasks.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`cursor after ancestor style change: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

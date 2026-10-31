@@ -1837,6 +1837,13 @@ pub extern "C" fn document_host_take_clock_lanes_in(host: &DocumentHost, update:
     host.take_clock_lanes_in(update, outer_input_event)
 }
 
+/// Forgets where the compositor said the pointer of `host`'s document went: the lanes of the next document hear of no
+/// move before one of its own. For a test, whose documents follow each other with the pointer where the last left it.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_forget_pointer_for_testing(host: &DocumentHost) {
+    host.clock_ticks().pointer_state().forget();
+}
+
 /// Takes in what the lanes of `host`'s document did, as a task between two rendering updates handles a press, and
 /// answers as [`document_host_take_clock_lanes_in`] does. No frame of the host's follows yet, so the lanes tick on.
 /// `outer_input_event` is as there.

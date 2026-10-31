@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #target { cursor: pointer; position: absolute; left: 150px; top: 0; width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script>
+    // Script transforms a box under the pointer at rest, and away again, which keeps the frame's hit-test items: the
+    // frame places them through other visual contexts. The hover follows once the frame landed, and shows the cursor
+    // of what is under the pointer then. The output is printed at the end, so that no text of it lies under the pointer
+    // meanwhile.
+    asyncTest(async done => {
+        await whileLaneHovers(async frameTime => {
+            internals.mouseMove(50, 50);
+            let time = frameTime;
+            const lines = [];
+            const step = async change => {
+                change();
+                time += 16;
+                internals.injectRenderingOpportunity(time);
+                await untilLaneSettled();
+                await nextTask();
+            };
+            lines.push(`at rest: ${internals.currentCursor()}`);
+            await step(() => target.style.transform = "translateX(-150px)");
+            lines.push(`the target transformed under the pointer: ${internals.currentCursor()}`);
+            await step(() => target.style.transform = "translateX(-120px)");
+            lines.push(`the target transformed further, still under the pointer: ${internals.currentCursor()}`);
+            await step(() => target.style.transform = "translateX(-300px)");
+            lines.push(`the target transformed away: ${internals.currentCursor()}`);
+            println(lines.join("\n"));
+        });
+        done();
+    });
+</script>

@@ -90,10 +90,21 @@ public:
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
 #endif
-    void update_hover_after_scroll();
+    void update_hover_at_last_known_mouse_position();
     void update_hover_at(CSSPixelPoint visual_viewport_position, GC::Ptr<DOM::Node> hover_target = {});
     // Call once per rendering update, after its layout and before it paints.
-    void update_cursor_after_rendering_update();
+    void update_hover_after_rendering_update();
+    // Whether a frame that landed may have moved what is under the pointer: it has other hit-test items than the frame
+    // before it, or it places the items it kept through other visual contexts.
+    enum class FramePlacement {
+        Unchanged,
+        Changed,
+    };
+    // Call once a frame landed, or presented nothing.
+    void note_frame_landed(FramePlacement);
+    // Call where the hover may be stale (see EventLoop::note_hover_may_be_stale). Answers whether it still is: a
+    // frame to come shows what it waits for.
+    bool update_hover_where_the_pointer_rests(HTML::HoverUpdatePoint);
     GC::Ptr<DOM::Node> target_node_for_mouse_position(CSSPixelPoint);
 
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false);
@@ -303,6 +314,7 @@ private:
     void update_nested_navigable_under_pointer(GC::Ptr<HTML::LocalNavigable>);
 
     void update_cursor(Layout::BegunRead const& read, Layout::Node const*, GC::Ptr<DOM::Node> host_element, RefPtr<Painting::ChromeWidget>, bool hit_text_fragment = false);
+    void note_hover_may_be_stale();
     void record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers);
     EventResult cancel_drag_and_drop_event(CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
 
@@ -332,8 +344,8 @@ private:
 
     Optional<CSSPixelPoint> m_mousemove_previous_screen_position;
     Optional<CSSPixelPoint> m_last_known_mouse_visual_viewport_position;
-    // Whether a move resolved the cursor before it hovered what is under the pointer, since the last rendering update.
-    bool m_cursor_resolved_before_hover { false };
+    // Whether what is under the pointer may have moved, or changed its cursor, since the hover last followed it.
+    bool m_hover_may_be_stale { false };
     bool m_handling_outdated_input { false };
     // The UI process's id of the input event being handled, or 0.
     u64 m_handling_input_event_id { 0 };

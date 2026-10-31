@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #target { cursor: pointer; width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script>
+    // A style a rendering update applies gives what is under the pointer at rest an image cursor. The hover follows
+    // once the update's frame landed, and shows the image. The output is printed at the end, so that no text of it lies
+    // under the pointer meanwhile.
+    asyncTest(async done => {
+        const image = new Image();
+        image.src = "../../../../Assets/120.png";
+        await image.decode();
+        await whileLaneHovers(async frameTime => {
+            internals.mouseMove(50, 50);
+            let time = frameTime;
+            const lines = [];
+            const step = async change => {
+                change();
+                time += 16;
+                internals.injectRenderingOpportunity(time);
+                await untilLaneSettled();
+                await nextTask();
+            };
+            lines.push(`cursor over the target: ${internals.currentCursor()}`);
+            await step(() => target.style.cursor = "url(../../../../Assets/120.png), auto");
+            lines.push(`cursor once the frame with the style landed: ${internals.currentCursor()}`);
+            println(lines.join("\n"));
+        });
+        done();
+    });
+</script>

@@ -1,0 +1,4 @@
+at rest: Arrow
+the target transformed under the pointer: Hand
+the target transformed further, still under the pointer: Hand
+the target transformed away: Arrow

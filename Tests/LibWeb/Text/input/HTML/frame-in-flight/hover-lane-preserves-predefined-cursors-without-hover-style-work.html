@@ -31,7 +31,8 @@
             iframe.contentWindow.internals.injectClockTick(frameTime + 48);
             println(`cursor inside the iframe: ${internals.currentCursor()}`);
         }, [document, innerDocument]);
-        await twoFrames();
+        // The hover follows the frame with the moved box once it landed.
+        await twoFramesLanded();
         println(`mousemove targets: ${targets.join(", ")}`);
         println(`#second matches :hover: ${second.matches(":hover")}`);
         done();

@@ -576,6 +576,8 @@ private:
     ScrollSequence* begin_scroll_sequence(Web::AsyncScrollNodeStableID);
     void note_scroll_sequence_moved(Web::AsyncScrollNodeStableID);
     UserScrollGesture* user_scroll_gesture_for(Web::AsyncScrollNodeStableID);
+    // Whether the user scrolls a box of this navigable: a gesture of theirs goes on.
+    bool has_user_scroll_gesture() const;
     bool has_scroll_in_progress(ScrollSequence const&, MonotonicTime now) const;
     void note_scroll_sequences_may_have_completed();
     void end_completed_scroll_sequences();

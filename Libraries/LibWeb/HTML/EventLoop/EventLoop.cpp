@@ -851,6 +851,9 @@ Vector<GC::Root<DOM::Document>> EventLoop::take_clock_lanes_and_input_events_in(
         else
             owed.navigable->event_handler().handle_mouseleave();
     }
+    // AD-HOC: A hover left stale between the tasks, as the style or layout it reads was pending, follows now. The
+    //         update brings the style and layout up to date next, so the hover may bring them up to date first.
+    update_hovers_that_may_be_stale(HoverUpdatePoint::RenderingUpdateBegins);
     // What the lanes reported has been taken in: the style node ids that left their nodes since name nothing of theirs.
     // A document with no lanes has none that report any.
     for (auto& document : documents_in_this_event_loop_matching([](auto const&) { return true; })) {
@@ -1296,8 +1299,8 @@ void EventLoop::update_the_rendering_after_style_and_layout(Vector<GC::Root<DOM:
         auto now = relative_frame_timestamp_for(*document);
         document->run_the_update_intersection_observations_steps(now);
 
-        // AD-HOC: The cursor shows the style the update applied to what the pointer is over.
-        document->navigable()->event_handler().update_cursor_after_rendering_update();
+        // AD-HOC: The hover and the cursor follow a style the update applied to what the pointer is over.
+        document->navigable()->event_handler().update_hover_after_rendering_update();
     }
 
     // AD-HOC: Whether a video sink is ticked depends on whether the element would be painted, which is only known once
@@ -1571,6 +1574,25 @@ bool EventLoop::let_layout_of_rendering_update_fly()
     return true;
 }
 
+void EventLoop::note_hover_may_be_stale(LocalNavigable& navigable)
+{
+    if (any_of(m_navigables_with_hover_that_may_be_stale, [&](auto const& entry) { return entry.ptr() == &navigable; }))
+        return;
+    m_navigables_with_hover_that_may_be_stale.append(navigable);
+}
+
+void EventLoop::update_hovers_that_may_be_stale(HoverUpdatePoint hover_update_point)
+{
+    // What the hover dispatches may note a hover as stale again, which waits for the next point.
+    auto navigables = move(m_navigables_with_hover_that_may_be_stale);
+    for (auto& navigable : navigables) {
+        if (navigable->has_been_destroyed())
+            continue;
+        if (navigable->event_handler().update_hover_where_the_pointer_rests(hover_update_point))
+            note_hover_may_be_stale(*navigable);
+    }
+}
+
 void EventLoop::take_finished_frames_in()
 {
     // A rendering update whose style update, then layout, has landed goes on; the tasks before that run beside it,
@@ -1584,6 +1606,8 @@ void EventLoop::take_finished_frames_in()
     // A frame that was taken in leaves the list as it is, which moves only the entries after it.
     for (size_t index = m_navigables_with_frames_in_flight.size(); index-- > 0;)
         (void)m_navigables_with_frames_in_flight[index]->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished);
+    // The frames taken in are the ones the hover waits for.
+    update_hovers_that_may_be_stale(HoverUpdatePoint::BetweenTasks);
 
     // NB: This runs between tasks, so no end of a task takes what the style drains above queued, such as the reaction
     //     to a promise an animation resolved, and no task may follow for a long time.

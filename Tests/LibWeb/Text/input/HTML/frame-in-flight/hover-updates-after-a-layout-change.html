@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #target { cursor: pointer; position: absolute; left: 150px; top: 0; width: 100px; height: 100px; }
+    #target:hover { background: green; }
+</style>
+<div id="target"></div>
+<script>
+    // A layout a rendering update runs moves a box under the pointer at rest, and away again. The hover follows once
+    // the update's frame landed: the box is hovered while it is under the pointer, the boundary events fire as they
+    // would for a move, and the cursor is the box's while it is there.
+    asyncTest(async done => {
+        const events = [];
+        for (const type of ["mouseover", "mouseout"])
+            document.addEventListener(type, event => events.push(`${type} ${event.target.id || event.target.localName}`), { capture: true });
+        await whileLaneHovers(async frameTime => {
+            internals.mouseMove(50, 50);
+            let time = frameTime;
+            const step = async change => {
+                change();
+                time += 16;
+                internals.injectRenderingOpportunity(time);
+                await untilLaneSettled();
+                await nextTask();
+            };
+            events.length = 0;
+            const report = label => println(`${label}: hovered=${target.matches(":hover")} cursor=${internals.currentCursor()} events=${events.join(", ") || "none"}`);
+            report("beside the target");
+            events.length = 0;
+            await step(() => target.style.left = "0px");
+            report("the target laid out under the pointer");
+            events.length = 0;
+            await step(() => target.style.left = "150px");
+            report("the target laid out away again");
+        });
+        done();
+    });
+</script>

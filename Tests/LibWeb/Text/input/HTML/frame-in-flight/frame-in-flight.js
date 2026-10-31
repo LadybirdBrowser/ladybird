@@ -91,6 +91,13 @@ async function whileLaneAnimates(animate, during) {
     }
 }
 
+// Resolves in the first task after the rendering update a test injected has ended with nothing of it in flight, and the
+// lane of its frame, not that of an earlier frame, has come together from it.
+async function untilLaneSettled() {
+    do await nextTask();
+    while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
+}
+
 // Resolves once the srcdoc document of `iframe` has loaded, which it may have before the page's DOMContentLoaded, as the
 // test begins.
 function srcdocLoaded(iframe) {

@@ -1,2 +1,3 @@
 mousemove targets: inner
-#inner matches :hover: true
+#inner matches :hover: false
+#cover matches :hover: true

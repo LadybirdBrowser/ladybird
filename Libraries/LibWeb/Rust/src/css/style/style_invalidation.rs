@@ -102,6 +102,7 @@ struct StyleInvalidation {
     affects_hit_testing: bool,
     repaint_highlights: bool,
     white_space_collapse_changed: bool,
+    cursor_changed: bool,
 }
 
 impl StyleInvalidation {
@@ -153,6 +154,7 @@ impl StyleInvalidation {
         self.affects_hit_testing |= other.affects_hit_testing;
         self.repaint_highlights |= other.repaint_highlights;
         self.white_space_collapse_changed |= other.white_space_collapse_changed;
+        self.cursor_changed |= other.cursor_changed;
     }
 
     /// Whether the damage stays in the box of its element: no layout tree, stacking context, visual context, scroll
@@ -188,6 +190,7 @@ impl StyleInvalidation {
             affects_hit_testing: has(FfiStyleInvalidationField::AffectsHitTesting),
             repaint_highlights: has(FfiStyleInvalidationField::RepaintHighlights),
             white_space_collapse_changed: has(FfiStyleInvalidationField::WhiteSpaceCollapseChanged),
+            cursor_changed: has(FfiStyleInvalidationField::CursorChanged),
         }
     }
 
@@ -209,6 +212,7 @@ impl StyleInvalidation {
         packed |= u32::from(self.repaint_highlights) * FfiStyleInvalidationField::RepaintHighlights as u32;
         packed |=
             u32::from(self.white_space_collapse_changed) * FfiStyleInvalidationField::WhiteSpaceCollapseChanged as u32;
+        packed |= u32::from(self.cursor_changed) * FfiStyleInvalidationField::CursorChanged as u32;
         packed
     }
 }
@@ -599,6 +603,7 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
 
     let mut result = StyleInvalidation {
         affects_hit_testing: property_metadata::property_affects_hit_testing(property),
+        cursor_changed: property == property_id::CURSOR,
         ..StyleInvalidation::default()
     };
     if matches!(property, property_id::CONTAINER_NAME | property_id::CONTAINER_TYPE) {
