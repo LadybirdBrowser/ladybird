@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: not-inline
       Box <div.layout-container> at [8,8] flex-container(column) [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
         Box <div.cpd-form-field> at [8,8] flex-container(column) flex-item [0+0+0 784 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
-          TextInputBox <input> at [13,11] flex-item [0+1+4 774 4+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+          TextInputBox <input> at [13,11] flex-item [0+2+3 774 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
             Box <div> at [13,11] flex-container(row) [0+0+0 774 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
               BlockContainer <div> at [13,11] flex-item [0+0+0 774 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
                 frag 0 from TextNode start: 0, length: 0, rect: [13,11 0x14] baseline: 10.984375

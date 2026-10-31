@@ -2,7 +2,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 26 0+0+8] children: inline
       frag 0 from TextInputBox start: 0, length: 0, rect: [13,11 240x20] baseline: 19
-      TextInputBox <input> at [13,11] inline-block [0+1+4 240 4+1+0] [0+1+2 20 2+1+0] [BFC] children: not-inline
+      TextInputBox <input> at [13,11] inline-block [0+2+3 240 3+2+0] [0+2+1 20 1+2+0] [BFC] children: not-inline
         Box <div> at [13,11] flex-container(row) [0+0+0 240 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [13,11] flex-item [0+0+0 240 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [13,11 0x20] baseline: 16

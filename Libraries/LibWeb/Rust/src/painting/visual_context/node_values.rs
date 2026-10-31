@@ -376,7 +376,11 @@ const NATIVE_APPEARANCE_CORNER_RADIUS_PX: i64 = 4;
 /// Whether the node is a devolvable widget rendered with its native appearance: its appearance is not none, and no
 /// author declaration disables native appearance for it.
 /// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
-fn has_native_appearance(style: ComputedValuesView<'_>, layout_arena: &impl PaintRead, slot: NodeSlotId) -> bool {
+pub(crate) fn has_native_appearance(
+    style: ComputedValuesView<'_>,
+    layout_arena: &impl PaintRead,
+    slot: NodeSlotId,
+) -> bool {
     layout_arena.node_has_dom_paint_fact(slot, crate::layout::node_data::DomPaintFact::DevolvableWidget)
         && style.appearance() != css_enums::appearance::NONE
         && !style.native_appearance_disabled()

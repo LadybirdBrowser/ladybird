@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .none {
+        appearance: none;
+    }
+</style>
+<button>Native</button>
+<input value="Native">
+<br>
+<button class="none">Devolved</button>
+<input class="none" value="Devolved">
+<script>
+    test(() => {
+        println(internals.dumpDisplayList().split("\n").filter(line => /Border|RoundedRectRing|StrokePath|FillPath/.test(line)).join("\n"));
+    });
+</script>

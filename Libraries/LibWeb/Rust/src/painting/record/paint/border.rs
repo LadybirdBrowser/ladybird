@@ -30,6 +30,8 @@ use libgfx_rust::{
 
 pub use crate::painting::paintable_data::BorderEdge;
 
+const NATIVE_APPEARANCE_BORDER_WIDTH_PX: i64 = 1;
+
 pub(crate) const ALL_PIECE_EDGES: u8 = PIECE_EDGE_TOP | PIECE_EDGE_RIGHT | PIECE_EDGE_BOTTOM | PIECE_EDGE_LEFT;
 
 pub(crate) fn border_side(
@@ -1452,13 +1454,35 @@ pub(crate) fn paint_borders_from_style<O: Observer>(
     let Some(style) = recorder.source.node_style_if_live(paintable) else {
         return;
     };
-    let borders_data = style_borders_data(style, border, ALL_PIECE_EDGES, &converter);
+    let mut borders_data = style_borders_data(style, border, ALL_PIECE_EDGES, &converter);
+    let mut css_border_widths = present_css_border_widths(style, border, ALL_PIECE_EDGES);
+    // NB: The native appearance of a devolvable widget draws a thin solid line along the outer edge of whatever border
+    //     its style gives it, which is the inset or outset border it shows once devolved.
+    if crate::painting::visual_context::node_values::has_native_appearance(style, recorder.source, paintable) {
+        let native_width = CssPixels::from_integer(NATIVE_APPEARANCE_BORDER_WIDTH_PX);
+        for (side, css_width) in [
+            &mut borders_data.top,
+            &mut borders_data.right,
+            &mut borders_data.bottom,
+            &mut borders_data.left,
+        ]
+        .into_iter()
+        .zip(css_border_widths.iter_mut())
+        {
+            if side.width == 0 {
+                continue;
+            }
+            side.width = converter.enclosing_device_pixels(native_width);
+            side.line_style = line_style::SOLID;
+            *css_width = native_width;
+        }
+    }
     paint_box_borders(
         recorder,
         paintable,
         facts,
         border_box_rect,
-        present_css_border_widths(style, border, ALL_PIECE_EDGES),
+        css_border_widths,
         present_edges,
         &borders_data,
         border_radii,

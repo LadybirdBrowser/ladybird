@@ -1,24 +1,24 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 216 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 200 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [26,20 43.890625x176] baseline: 77.984375
+      frag 0 from BlockContainer start: 0, length: 0, rect: [25,19 43.890625x178] baseline: 77.984375
       TextNode <#text> (not painted)
-      BlockContainer <button.button.border-black> at [26,20] inline-block [0+10+8 43.890625 8+10+0] [0+10+2 176 2+10+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [26,20] flex-container(column) [0+0+0 43.890625 0+0+0] [0+0+0 176 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [26,31] flex-item [0+0+0 43.890625 0+0+0] [0+0+0 154 0+0+0] [BFC] children: not-inline
-            BlockContainer <(anonymous)> at [26,31] [0+0+0 43.890625 0+0+0] [0+0+0 0 0+0+0] children: inline
+      BlockContainer <button.button.border-black> at [25,19] inline-block [0+10+7 43.890625 7+10+0] [0+10+1 178 1+10+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [25,19] flex-container(column) [0+0+0 43.890625 0+0+0] [0+0+0 178 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [25,31] flex-item [0+0+0 43.890625 0+0+0] [0+0+0 154 0+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [25,31] [0+0+0 43.890625 0+0+0] [0+0+0 0 0+0+0] children: inline
               TextNode <#text> (not painted)
-            BlockContainer <div.border-black> at [36,41] [0+10+0 23.890625 0+10+0] [0+10+0 14 0+10+0] children: inline
-              frag 0 from TextNode start: 13, length: 3, rect: [36,41 23.890625x14] baseline: 10.984375
+            BlockContainer <div.border-black> at [35,41] [0+10+0 23.890625 0+10+0] [0+10+0 14 0+10+0] children: inline
+              frag 0 from TextNode start: 13, length: 3, rect: [35,41 23.890625x14] baseline: 10.984375
                   "one"
               TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [26,65] [0+0+0 43.890625 0+0+0] [0+0+0 0 0+0+0] children: inline
+            BlockContainer <(anonymous)> at [25,65] [0+0+0 43.890625 0+0+0] [0+0+0 0 0+0+0] children: inline
               TextNode <#text> (not painted)
-            BlockContainer <div.border-black> at [36,75] [0+10+0 23.890625 0+10+0] [0+10+0 100 0+10+0] children: inline
-              frag 0 from TextNode start: 13, length: 3, rect: [36.09375,75 23.6875x14] baseline: 10.984375
+            BlockContainer <div.border-black> at [35,75] [0+10+0 23.890625 0+10+0] [0+10+0 100 0+10+0] children: inline
+              frag 0 from TextNode start: 13, length: 3, rect: [35.09375,75 23.6875x14] baseline: 10.984375
                   "two"
               TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [26,185] [0+0+0 43.890625 0+0+0] [0+0+0 0 0+0+0] children: inline
+            BlockContainer <(anonymous)> at [25,185] [0+0+0 43.890625 0+0+0] [0+0+0 0 0+0+0] children: inline
               TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

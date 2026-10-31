@@ -1,0 +1,6 @@
+FillRoundedRectRing@s1/e0 rect=[0,0 58x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRoundedRectRing@s1/e0 rect=[66,0 170x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillPath@s1/e0 path_bounding_rect=[0,20 74x20]
+FillPath@s1/e0 path_bounding_rect=[0,20 74x20]
+FillPath@s1/e0 path_bounding_rect=[82,20 170x20]
+FillPath@s1/e0 path_bounding_rect=[82,20 170x20]

@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 2 from TextNode start: 0, length: 1, rect: [49.34375,8 11.65625x26] baseline: 20.796875
             "y"
         TextNode <#text> (not painted)
-        Box <button> at [32.765625,17] flex-container(row) [0+1+8 7.578125 8+1+0] [0+1+2 14 2+1+0] [FFC] children: not-inline
+        Box <button> at [32.765625,17] flex-container(row) [0+2+7 7.578125 7+2+0] [0+2+1 14 1+2+0] [FFC] children: not-inline
           Box <span> at [32.765625,17] flex-container(row) flex-item [0+0+0 7.578125 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> at [32.765625,17] flex-item [0+0+0 7.578125 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 1, rect: [32.765625,17 7.578125x14] baseline: 10.984375

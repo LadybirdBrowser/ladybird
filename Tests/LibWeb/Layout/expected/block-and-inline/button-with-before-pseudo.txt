@@ -2,14 +2,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 72 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 56 0+0+8] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [17,11 414.703125x50] baseline: 42.984375
-      BlockContainer <button.button_button___eDCW> at [17,11] positioned inline-block [0+1+8 414.703125 8+1+0] [0+1+2 50 2+1+0] [BFC] children: not-inline
+      BlockContainer <button.button_button___eDCW> at [17,11] positioned inline-block [0+2+7 414.703125 7+2+0] [0+2+1 50 1+2+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [17,11] flex-container(column) [0+0+0 414.703125 0+0+0] [0+0+0 50 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [17,11] flex-item [0+0+0 414.703125 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 14, rect: [17,11 414.703125x50] baseline: 39.984375
                 "See more games"
-            BlockContainer <(anonymous)> at [9,9] positioned [0+0+0 430.703125 0+0+0] [0+0+0 54 0+0+0] [BFC] children: not-inline
+            BlockContainer <(anonymous)> at [10,10] positioned [0+0+0 428.703125 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
             TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x72] (z-index: auto)
-  SC for BlockContainer(anonymous) [9,9 430.703125x54] (z-index: -1)
+  SC for BlockContainer(anonymous) [10,10 428.703125x52] (z-index: -1)
