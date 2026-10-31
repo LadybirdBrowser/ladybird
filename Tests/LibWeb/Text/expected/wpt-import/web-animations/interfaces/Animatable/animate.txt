@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 153 tests
 
-144 Pass
-9 Fail
+151 Pass
+2 Fail
 Pass	Element.animate() creates an Animation object
 Pass	Element.animate() creates an Animation object in the relevant realm of the target element
 Pass	Element.animate() creates an Animation object with a KeyframeEffect
@@ -31,11 +31,11 @@ Pass	Element.animate() accepts a property-indexed keyframe with an array of offs
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too short
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too long
 Pass	Element.animate() accepts a property-indexed keyframe with an empty array of offsets
-Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with an embedded null value
-Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with a trailing null value
-Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with leading and trailing null values
-Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with adjacent null values
-Fail	Element.animate() accepts a property-indexed keyframe with an array of offsets with all null values (and too many at that)
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets with an embedded null value
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets with a trailing null value
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets with leading and trailing null values
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets with adjacent null values
+Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets with all null values (and too many at that)
 Pass	Element.animate() accepts a property-indexed keyframe with a single null offset
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array
 Pass	Element.animate() accepts a property-indexed keyframe without any specified easing
@@ -65,11 +65,11 @@ Pass	Element.animate() accepts a keyframe sequence with duplicate values for a g
 Pass	Element.animate() accepts a keyframe sequence with duplicate values for offsets 0 and 1
 Pass	Element.animate() accepts a two property four keyframe sequence
 Pass	Element.animate() accepts a single keyframe sequence with omitted offset
-Fail	Element.animate() accepts a single keyframe sequence with null offset
+Pass	Element.animate() accepts a single keyframe sequence with null offset
 Pass	Element.animate() accepts a single keyframe sequence with string offset
 Fail	Element.animate() accepts a single keyframe sequence with a single calc() offset
 Pass	Element.animate() accepts a one property keyframe sequence with some omitted offsets
-Fail	Element.animate() accepts a one property keyframe sequence with some null offsets
+Pass	Element.animate() accepts a one property keyframe sequence with some null offsets
 Pass	Element.animate() accepts a two property keyframe sequence with some omitted offsets
 Pass	Element.animate() accepts a one property keyframe sequence with all omitted offsets
 Pass	Element.animate() accepts a keyframe sequence with different easing values, but the same easing value for a given offset

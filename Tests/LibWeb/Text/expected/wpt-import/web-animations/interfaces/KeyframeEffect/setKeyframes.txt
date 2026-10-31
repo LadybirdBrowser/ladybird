@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 80 tests
 
-72 Pass
-8 Fail
+79 Pass
+1 Fail
 Pass	Keyframes can be replaced with an empty keyframe
 Pass	Keyframes can be replaced with a one property two value property-indexed keyframes specification
 Pass	Keyframes can be replaced with a one shorthand property two value property-indexed keyframes specification
@@ -25,11 +25,11 @@ Pass	Keyframes can be replaced with a property-indexed keyframe with an array of
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too short
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is too long
 Pass	Keyframes can be replaced with a property-indexed keyframe with an empty array of offsets
-Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with an embedded null value
-Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with a trailing null value
-Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with leading and trailing null values
-Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with adjacent null values
-Fail	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with all null values (and too many at that)
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with an embedded null value
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with a trailing null value
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with leading and trailing null values
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with adjacent null values
+Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets with all null values (and too many at that)
 Pass	Keyframes can be replaced with a property-indexed keyframe with a single null offset
 Pass	Keyframes can be replaced with a property-indexed keyframe with an array of offsets that is not strictly ascending in the unused part of the array
 Pass	Keyframes can be replaced with a property-indexed keyframe without any specified easing
@@ -59,11 +59,11 @@ Pass	Keyframes can be replaced with a keyframe sequence with duplicate values fo
 Pass	Keyframes can be replaced with a keyframe sequence with duplicate values for offsets 0 and 1
 Pass	Keyframes can be replaced with a two property four keyframe sequence
 Pass	Keyframes can be replaced with a single keyframe sequence with omitted offset
-Fail	Keyframes can be replaced with a single keyframe sequence with null offset
+Pass	Keyframes can be replaced with a single keyframe sequence with null offset
 Pass	Keyframes can be replaced with a single keyframe sequence with string offset
 Fail	Keyframes can be replaced with a single keyframe sequence with a single calc() offset
 Pass	Keyframes can be replaced with a one property keyframe sequence with some omitted offsets
-Fail	Keyframes can be replaced with a one property keyframe sequence with some null offsets
+Pass	Keyframes can be replaced with a one property keyframe sequence with some null offsets
 Pass	Keyframes can be replaced with a two property keyframe sequence with some omitted offsets
 Pass	Keyframes can be replaced with a one property keyframe sequence with all omitted offsets
 Pass	Keyframes can be replaced with a keyframe sequence with different easing values, but the same easing value for a given offset
