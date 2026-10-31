@@ -416,13 +416,19 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
 
     m_internal_stream_data->read_notifier->on_activation = [this]() {
         static constexpr size_t buffer_size = 256 * KiB;
-        static thread_local char buffer[buffer_size];
+        // NB: The buffer lives on the heap, as a thread_local array this large would be static TLS that every thread
+        //     of the process zeroes as it starts, reading requests or not. It is allocated the first time a thread
+        //     reads a response and kept for the life of that thread's event loop.
+        static thread_local u8* buffer = nullptr;
 
         // If the request was stopped while this IPC was in-flight, just bail.
         if (!m_internal_stream_data || !m_internal_stream_data->read_stream)
             return;
 
         NonnullRefPtr protector { *this };
+
+        if (!buffer)
+            buffer = new u8[buffer_size];
 
         do {
             auto bytes_to_read = buffer_size;
