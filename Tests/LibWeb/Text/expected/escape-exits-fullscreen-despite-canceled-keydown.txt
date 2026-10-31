@@ -1,0 +1,4 @@
+fullscreen element before Escape: target
+fullscreen element after Escape: null
+keydowns the page saw for that Escape: none
+keydowns after a second Escape: keydown Escape
