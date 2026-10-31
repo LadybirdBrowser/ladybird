@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 153 tests
 
-141 Pass
-12 Fail
+144 Pass
+9 Fail
 Pass	Element.animate() creates an Animation object
 Pass	Element.animate() creates an Animation object in the relevant realm of the target element
 Pass	Element.animate() creates an Animation object with a KeyframeEffect
@@ -26,7 +26,7 @@ Pass	Element.animate() accepts a one property one non-array value property-index
 Pass	Element.animate() accepts a one property two value property-indexed keyframes specification where the first value is invalid
 Pass	Element.animate() accepts a one property two value property-indexed keyframes specification where the second value is invalid
 Pass	Element.animate() accepts a property-indexed keyframes specification with a CSS variable as the property
-Fail	Element.animate() accepts a property-indexed keyframe with a single offset
+Pass	Element.animate() accepts a property-indexed keyframe with a single offset
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too short
 Pass	Element.animate() accepts a property-indexed keyframe with an array of offsets that is too long
@@ -68,9 +68,9 @@ Pass	Element.animate() accepts a single keyframe sequence with omitted offset
 Fail	Element.animate() accepts a single keyframe sequence with null offset
 Pass	Element.animate() accepts a single keyframe sequence with string offset
 Fail	Element.animate() accepts a single keyframe sequence with a single calc() offset
-Fail	Element.animate() accepts a one property keyframe sequence with some omitted offsets
+Pass	Element.animate() accepts a one property keyframe sequence with some omitted offsets
 Fail	Element.animate() accepts a one property keyframe sequence with some null offsets
-Fail	Element.animate() accepts a two property keyframe sequence with some omitted offsets
+Pass	Element.animate() accepts a two property keyframe sequence with some omitted offsets
 Pass	Element.animate() accepts a one property keyframe sequence with all omitted offsets
 Pass	Element.animate() accepts a keyframe sequence with different easing values, but the same easing value for a given offset
 Pass	Element.animate() accepts a keyframe sequence with different composite values, but the same composite value for a given offset
