@@ -122,6 +122,7 @@ public:
     bool can_have_text_editing_cursor() const;
 
     GC::Ptr<HTMLDataListElement const> list() const;
+    void suggestions_source_element_did_change();
 
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
 
@@ -415,9 +416,12 @@ private:
     GC::Ptr<DOM::Element> m_file_label;
 
     void update_slider_shadow_tree_elements();
+    void update_slider_ticks();
     GC::Ptr<DOM::Element> m_slider_runnable_track;
     GC::Ptr<DOM::Element> m_slider_progress_element;
     GC::Ptr<DOM::Element> m_slider_thumb;
+    GC::Ptr<DOM::Element> m_slider_ticks_element;
+    Vector<double> m_slider_tick_positions;
 
     GC::Ptr<DecodedImageData> image_data() const;
     GC::Ptr<SharedResourceRequest> m_resource_request;

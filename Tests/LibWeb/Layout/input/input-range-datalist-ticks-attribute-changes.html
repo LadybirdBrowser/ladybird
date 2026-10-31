@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<input id="later" type="range">
+<input id="orphaned" type="range" list="other">
+<datalist id="marks"><option value="0"><option value="50"><option value="100"></datalist>
+<datalist id="other"><option value="25"><option value="75"></datalist>
+<script>
+    document.getElementById("later").setAttribute("list", "marks");
+    document.getElementById("other").remove();
+</script>

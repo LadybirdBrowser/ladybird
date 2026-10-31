@@ -51,6 +51,7 @@
 #include <LibWeb/HTML/HTMLDataListElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/RadioButtonGroupRegistry.h>
@@ -143,6 +144,7 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_slider_runnable_track);
     visitor.visit(m_slider_progress_element);
     visitor.visit(m_slider_thumb);
+    visitor.visit(m_slider_ticks_element);
     visitor.visit(m_resource_request);
 }
 
@@ -1462,6 +1464,8 @@ void HTMLInputElement::create_range_input_shadow_tree()
     MUST(m_slider_runnable_track->append_child(*m_slider_thumb));
     m_slider_thumb->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderThumb);
 
+    m_slider_ticks_element = nullptr;
+    m_slider_tick_positions.clear();
     update_slider_shadow_tree_elements();
 
     auto keydown_callback_function = JS::NativeFunction::create(
@@ -1622,6 +1626,8 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
         MUST(m_slider_progress_element->style()->set_property(CSS::PropertyID::BackgroundColor, fill_color));
     }
 
+    update_slider_ticks();
+
     if (m_slider_thumb) {
         // NB: The thumb moves back by the same fraction of its own width, whatever width an author gives it.
         auto margin_left = Utf16String::formatted("{}%", position);
@@ -1629,6 +1635,62 @@ void HTMLInputElement::update_slider_shadow_tree_elements()
         auto translate = Utf16String::formatted("{}%", -position);
         MUST(m_slider_thumb->style()->set_property(CSS::PropertyID::Translate, translate.utf16_view()));
     }
+}
+
+// NB: A native slider marks the values its suggestions source element suggests with ticks below its track, at the
+//     positions the center of its thumb takes for them.
+void HTMLInputElement::update_slider_ticks()
+{
+    if (!m_slider_runnable_track)
+        return;
+
+    Vector<double> positions;
+    auto style = computed_style();
+    bool const is_native = !style || style->appearance() != CSS::Appearance::None;
+    if (is_native && has_attribute(HTML::AttributeNames::list)) {
+        if (auto data_list = list()) {
+            double minimum = *min();
+            double maximum = *max();
+            data_list->for_each_in_subtree_of_type<HTMLOptionElement>([&](HTMLOptionElement const& option) {
+                if (option.disabled())
+                    return TraversalDecision::Continue;
+                auto value = convert_string_to_number(option.value());
+                if (value.has_value() && *value >= minimum && *value <= maximum && maximum > minimum)
+                    positions.append((*value - minimum) / (maximum - minimum) * 100);
+                return TraversalDecision::Continue;
+            });
+        }
+    }
+
+    if (positions == m_slider_tick_positions)
+        return;
+    m_slider_tick_positions = move(positions);
+
+    if (m_slider_tick_positions.is_empty()) {
+        if (m_slider_ticks_element)
+            m_slider_ticks_element->remove();
+        m_slider_ticks_element = nullptr;
+        return;
+    }
+    if (!m_slider_ticks_element) {
+        m_slider_ticks_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        m_slider_ticks_element->set_attribute_value(HTML::AttributeNames::style, "position: absolute; inset-inline: 0; top: calc(100% + 2px); height: 4px; pointer-events: none;"_utf16);
+        MUST(m_slider_runnable_track->append_child(*m_slider_ticks_element));
+    }
+
+    static constexpr double thumb_width = 16;
+    m_slider_ticks_element->replace_all(nullptr);
+    for (auto position : m_slider_tick_positions) {
+        auto tick = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        tick->set_attribute_value(HTML::AttributeNames::style, Utf16String::formatted("position: absolute; left: calc({}% + {}px); width: 1px; height: 100%; background-color: color-mix(in srgb, CanvasText 40%, transparent);", position, thumb_width / 2 - thumb_width * position / 100 - 0.5));
+        MUST(m_slider_ticks_element->append_child(tick));
+    }
+}
+
+void HTMLInputElement::suggestions_source_element_did_change()
+{
+    if (type_state() == TypeAttributeState::Range)
+        update_slider_ticks();
 }
 
 void HTMLInputElement::did_receive_focus()
@@ -1712,6 +1774,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
 
             update_shadow_tree();
         }
+    } else if (name == HTML::AttributeNames::list) {
+        suggestions_source_element_did_change();
     } else if (name == HTML::AttributeNames::alpha || name == HTML::AttributeNames::colorspace) {
         // https://html.spec.whatwg.org/multipage/input.html#color-state-(type=color)
         // Whenever the element's alpha or colorspace attributes are changed, the user agent must run update a color
