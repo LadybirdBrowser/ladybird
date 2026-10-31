@@ -32,8 +32,7 @@
                             ListItemBox<LI>#li4 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
-                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
-                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REUSE SUBTREE
                 `,
                 check: equal => {
                     equal(li4.getBoundingClientRect().top, 50, "last item top");
@@ -56,8 +55,7 @@
                             BlockContainer<P>#p2 REUSE IN-FLOW SUBTREE
                             BlockContainer<P>#p4 REUSE IN-FLOW SUBTREE
                           BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
-                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
-                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REUSE SUBTREE
                 `,
                 check: equal => {
                     equal(p4.getBoundingClientRect().top - text.getBoundingClientRect().top, 66, "last paragraph top");
@@ -76,8 +74,7 @@
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block RUN (cache=miss)
                             BlockContainer<DIV>#m3 REUSE IN-FLOW SUBTREE
-                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
-                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REUSE SUBTREE
                 `,
                 check: equal => {
                     equal(m3.getBoundingClientRect().top - margins.getBoundingClientRect().top, 27, "last box top");
@@ -98,8 +95,7 @@
                           BlockContainer<DIV>#text.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#margins.scenario/block RUN (cache=miss)
                             BlockContainer<DIV>.float/block RUN (cache=miss)
-                          BlockContainer<DIV>#abspos-scenario.scenario/block REPLAY FRAGMENTS
-                          BlockContainer<DIV>#escaping.escaping/block REUSE SUBTREE
+                          BlockContainer<DIV>#abspos-scenario.scenario/block REUSE SUBTREE
                 `,
             },
             {
@@ -116,7 +112,7 @@
                           BlockContainer<DIV>#margins.scenario/block REUSE SUBTREE
                           BlockContainer<DIV>#abspos-scenario.scenario/block RUN (cache=miss)
                             BlockContainer<DIV>#e3 REUSE IN-FLOW SUBTREE
-                          BlockContainer<DIV>#escaping.escaping/block RUN (cache=miss)
+                            BlockContainer<DIV>#escaping.escaping/block RUN (cache=miss)
                 `,
                 check: equal => {
                     equal(escaping.getBoundingClientRect().top - document.getElementById("abspos-scenario").getBoundingClientRect().top, 0, "escaping abspos top");

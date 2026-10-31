@@ -54,7 +54,7 @@
             const kind = context === "block" ? "BlockContainer" : "Box";
             const escaped = testCase.dependency === "absolute" || testCase.dependency === "fixed";
             const work = escaped
-                ? "REPLAY FRAGMENTS\n  BlockContainer<DIV>#target/block RUN (cache=miss)"
+                ? "REPLAY FRAGMENTS\n    BlockContainer<DIV>#target/block RUN (cache=miss)"
                 : "REUSE SUBTREE";
             return `layout FULL
   @viewport/block RUN (cache=bypass)

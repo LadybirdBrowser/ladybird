@@ -27,6 +27,8 @@ pub(crate) struct RunInputsTheStoredRunNeverObserved {
     pub(super) percentage_inline_basis: bool,
     pub(super) own_block_size: formatting_context::OwnBlockSizeObservation,
     pub(super) inline_space_around_root: bool,
+    /// The block size an item's root adopts at the end of a run whose contents never read it.
+    pub(super) content_block_size_adopted_after_run: bool,
 }
 
 impl RunInputsTheStoredRunNeverObserved {
@@ -47,12 +49,14 @@ impl RunInputsTheStoredRunNeverObserved {
             percentage_inline_basis,
             own_block_size,
             inline_space_around_root,
+            content_block_size_adopted_after_run,
         } = self;
         percentage_block_basis_and_block_size_definiteness
             || definite_available_inline_sizes_at_or_above.is_some()
             || percentage_inline_basis
             || own_block_size != formatting_context::OwnBlockSizeObservation::Observed
             || inline_space_around_root
+            || content_block_size_adopted_after_run
     }
 
     fn available_block_size_definiteness(self) -> bool {
@@ -101,10 +105,6 @@ impl FcRunCacheKey {
         mut input: LayoutInput,
         root_cells: used_values::RootInputCells,
     ) -> Self {
-        if !formatting_context::run_reads_content_block_size_adopted_after_it(fc_type, &input) {
-            input.sizing.adopt_automatic_content_block_size = false;
-            input.sizing.content_block_size_after_inside_layout = None;
-        }
         // NB: The parent block formatting context sizes a float against its containing block position before the
         //     run and places it after. The run lays the float out from its own origin.
         if let ParticipationInParentFormattingContext::Float {
@@ -215,6 +215,7 @@ fn layout_inputs_match_ignoring_unobserved(
             &b.sizing,
             unobserved.available_block_size_definiteness(),
             unobserved.inline_space_around_root,
+            unobserved.content_block_size_adopted_after_run,
         )
 }
 
@@ -223,6 +224,7 @@ fn sizing_directives_match_ignoring_unobserved(
     b: &RootSizingDirectives,
     block_size_definiteness_unobserved: bool,
     float_avoidance_inline_size_unobserved: bool,
+    content_block_size_adopted_after_run_unobserved: bool,
 ) -> bool {
     let RootSizingDirectives {
         forced_content_inline_size,
@@ -249,9 +251,10 @@ fn sizing_directives_match_ignoring_unobserved(
         && block_parent_resolved_content_inline_size == b.block_parent_resolved_content_inline_size
         && table_cell_intrinsic_block_padding == b.table_cell_intrinsic_block_padding
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
-        && adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
+        && ((adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
+            && content_block_size_after_inside_layout == b.content_block_size_after_inside_layout)
+            || content_block_size_adopted_after_run_unobserved)
         && finds_automatic_line_clamp_lines == b.finds_automatic_line_clamp_lines
-        && content_block_size_after_inside_layout == b.content_block_size_after_inside_layout
         && (float_avoidance_inline_size == b.float_avoidance_inline_size || float_avoidance_inline_size_unobserved)
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
@@ -296,7 +299,6 @@ pub(super) struct FcRunCacheEntry {
     /// Whether the run is a table cell's that did not observe the intrinsic block padding its table hands it (see
     /// run_observes_root_block_padding), so that it stands for runs with any such padding.
     table_cell_intrinsic_block_padding_unobserved: bool,
-    root_content_block_size_adopted_after_run: Option<CssPixels>,
     /// How many layouts the arena had committed when the run was stored. The subtrees the run took from the cache as
     /// they were committed are only known to be so while no layout was committed since.
     layout_commits_when_stored: u64,
@@ -352,8 +354,13 @@ impl FcRunCacheEntry {
             Some(cells) => (cells.content_inline_size, cells.content_block_size),
             None => (
                 self.key.root_cells.content_inline_size,
-                self.root_content_block_size_adopted_after_run
-                    .unwrap_or(self.key.root_cells.content_block_size),
+                formatting_context::content_block_size_adopted_after_run(
+                    &self.key.input,
+                    self.outputs.result.automatic_content_block_size,
+                )
+                .map_or(self.key.root_cells.content_block_size, |block_size| {
+                    clamp_to_max_dimension_value(block_size.max(CssPixels::default()))
+                }),
             ),
         }
     }
@@ -376,7 +383,6 @@ impl FcRunCacheEntry {
             validity: self.validity,
             outputs: outputs_without_descendant_fragments(&self.outputs),
             table_cell_intrinsic_block_padding_unobserved: self.table_cell_intrinsic_block_padding_unobserved,
-            root_content_block_size_adopted_after_run: self.root_content_block_size_adopted_after_run,
             layout_commits_when_stored: self.layout_commits_when_stored,
             committed_subtree_token_when_descendants_dropped: Some(token),
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(self.last_used_at_layout_commit()),
@@ -391,6 +397,7 @@ impl FcRunCacheEntry {
             root_outcome: self.outputs.root_outcome.clone(),
             inputs_never_observed: self.outputs.inputs_never_observed,
             host_findings: self.outputs.host_findings.clone(),
+            laid_out_abspos_contained_by_root: self.outputs.laid_out_abspos_contained_by_root,
         }
     }
 
@@ -487,6 +494,7 @@ fn outputs_without_descendant_fragments(outputs: &formatting_context::RunOutputs
         root_outcome: outputs.root_outcome.clone(),
         inputs_never_observed: outputs.inputs_never_observed,
         host_findings: outputs.host_findings.clone(),
+        laid_out_abspos_contained_by_root: outputs.laid_out_abspos_contained_by_root,
     }
 }
 
@@ -905,14 +913,8 @@ impl FcRunCacheAttempt {
         callbacks: &LayoutPass<'_>,
         box_: Node,
         key: FcRunCacheKey,
-        input: &LayoutInput,
         outputs: &formatting_context::RunOutputs,
     ) {
-        let root_content_block_size_adopted_after_run = formatting_context::content_block_size_adopted_after_run(
-            input,
-            outputs.result.automatic_content_block_size,
-        )
-        .map(|block_size| clamp_to_max_dimension_value(block_size.max(CssPixels::default())));
         let store = callbacks.fc_run_cache_store();
         let (validity, structurally_damaged_entry) = match self {
             Self::Bypass => return,
@@ -925,7 +927,6 @@ impl FcRunCacheAttempt {
                         validity,
                         outputs: outputs.clone(),
                         table_cell_intrinsic_block_padding_unobserved: false,
-                        root_content_block_size_adopted_after_run,
                         layout_commits_when_stored: callbacks.arena().layout_commit_count(),
                         committed_subtree_token_when_descendants_dropped: None,
                         last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(
@@ -963,7 +964,6 @@ impl FcRunCacheAttempt {
                 .is_some()
                 && outputs.root_outcome.parent_owns_root_input_cells()
                 && !run_observes_root_block_padding(callbacks, box_, outputs),
-            root_content_block_size_adopted_after_run,
             layout_commits_when_stored: callbacks.arena().layout_commit_count(),
             committed_subtree_token_when_descendants_dropped: None,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(callbacks.arena().layout_commit_count()),
@@ -1016,9 +1016,10 @@ pub(super) fn can_describe_run(
 
 /// Whether a run's outputs may depend on its root's block paddings. They hold the content in content box coordinates,
 /// so they stand for the same run at other block paddings unless the root is a scroll container, whose scrollable
-/// overflow area is bounded by its padding box, places a rendered legend on its border box, or passes payloads on to
-/// its ancestors (out-of-flow descendants, their containing block rects, anchors), which are placed against its
-/// padding box. Outputs without a root fragment cannot show those payloads.
+/// overflow area is bounded by its padding box, places a rendered legend on its border box, lays out absolutely
+/// positioned boxes against its padding box, or passes payloads on to its ancestors (out-of-flow descendants, their
+/// containing block rects, anchors), which are placed against its padding box. Outputs without a root fragment cannot
+/// show those payloads.
 pub(super) fn run_observes_root_block_padding(
     callbacks: &LayoutPass<'_>,
     box_: Node,
@@ -1028,6 +1029,7 @@ pub(super) fn run_observes_root_block_padding(
     let places_rendered_legend_on_its_border_box = facts.is_fieldset_box() && !facts.rendered_legend().is_invalid();
     facts.is_scroll_container()
         || places_rendered_legend_on_its_border_box
+        || outputs.laid_out_abspos_contained_by_root
         || outputs.root.as_ref().is_none_or(|root| !root.propagates_nothing())
 }
 
@@ -1107,9 +1109,9 @@ mod tests {
                     ..RunInputsTheStoredRunNeverObserved::default()
                 },
                 host_findings: None,
+                laid_out_abspos_contained_by_root: false,
             },
             table_cell_intrinsic_block_padding_unobserved: false,
-            root_content_block_size_adopted_after_run: None,
             layout_commits_when_stored: layout_commit_count,
             committed_subtree_token_when_descendants_dropped: None,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(layout_commit_count),
@@ -1386,7 +1388,7 @@ mod tests {
     }
 
     #[test]
-    fn item_keys_leave_out_the_block_size_adopted_after_the_run_unless_the_run_reads_it() {
+    fn an_item_run_that_never_read_the_block_size_its_root_adopts_matches_at_another() {
         let root_cells = used_values::RootInputCells::default();
         let item_input = LayoutInput::new(
             AvailableSpace {
@@ -1396,22 +1398,21 @@ mod tests {
             ContainingBlockConstraints::default(),
             ParticipationInParentFormattingContext::Item,
         );
-        let key_of = |fc_type, input| FcRunCacheKey::new(fc_type, input, root_cells);
-        let stored_block_key = key_of(formatting_context::FormattingContextType::Block, item_input);
-        let stored_flex_key = key_of(formatting_context::FormattingContextType::Flex, item_input);
+        let key_of = |input| FcRunCacheKey::new(formatting_context::FormattingContextType::Block, input, root_cells);
+        let stored = key_of(item_input);
 
         let mut adopting_input = item_input;
         adopting_input.sizing.adopt_automatic_content_block_size = true;
         adopting_input.sizing.content_block_size_after_inside_layout = Some(px(40));
+        let probe = key_of(adopting_input);
 
-        let exact = RunInputsTheStoredRunNeverObserved::default();
-        assert!(stored_block_key.matches(
-            &key_of(formatting_context::FormattingContextType::Block, adopting_input),
-            exact
-        ));
-        assert!(!stored_flex_key.matches(
-            &key_of(formatting_context::FormattingContextType::Flex, adopting_input),
-            exact
+        assert!(!stored.matches(&probe, RunInputsTheStoredRunNeverObserved::default()));
+        assert!(stored.matches(
+            &probe,
+            RunInputsTheStoredRunNeverObserved {
+                content_block_size_adopted_after_run: true,
+                ..RunInputsTheStoredRunNeverObserved::default()
+            }
         ));
     }
 

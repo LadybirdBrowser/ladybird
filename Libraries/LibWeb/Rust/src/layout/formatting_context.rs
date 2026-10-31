@@ -1091,6 +1091,9 @@ pub(crate) struct RunOutputs {
     pub(crate) inputs_never_observed: fc_run_cache::RunInputsTheStoredRunNeverObserved,
     /// Boxed, as most runs find out nothing for the host.
     pub(crate) host_findings: Option<Box<super::run_state::HostFindings>>,
+    /// Whether the run laid out absolutely positioned boxes against the final sizes and box sides of its root, which
+    /// its outputs then depend on.
+    pub(crate) laid_out_abspos_contained_by_root: bool,
 }
 
 pub(crate) enum ChildLayoutOutcome {
@@ -1361,6 +1364,7 @@ impl<'pass> FormattingContextRun<'pass> {
             root_outcome,
             inputs_never_observed,
             host_findings: self.state.take_host_findings(),
+            laid_out_abspos_contained_by_root: false,
         }
     }
 }
@@ -2134,7 +2138,7 @@ pub(super) fn run_formatting_context(
             },
         );
     }
-    cache_attempt.conclude(&callbacks, box_, cache_key, &input, &outputs);
+    cache_attempt.conclude(&callbacks, box_, cache_key, &outputs);
     child_run_outcome_from_outputs(
         &callbacks,
         parent_fragments,
@@ -2297,9 +2301,7 @@ fn execute_formatting_context_run(
             root_input_cells_the_run_must_leave.has_definite_inline_size = true;
             root_input_cells_the_run_must_leave.has_definite_block_size = true;
         }
-        if run_reads_content_block_size_adopted_after_it(fc_type, &input)
-            && content_block_size_adopted_after_run(&input, outputs.result.automatic_content_block_size).is_some()
-        {
+        if content_block_size_adopted_after_run(&input, outputs.result.automatic_content_block_size).is_some() {
             root_input_cells_the_run_must_leave.content_block_size = root_cells_left_by_run.content_block_size;
         }
         assert_eq!(
@@ -2577,9 +2579,7 @@ fn lay_out_run_root_and_contents<'pass>(
             result.out_of_flow_root_used_insets = Some(root_used_insets.get());
         }
         ParticipationInParentFormattingContext::Item => {
-            if run_reads_content_block_size_adopted_after_it(fc_type, &input)
-                && let Some(block_size) =
-                    content_block_size_adopted_after_run(&input, result.automatic_content_block_size)
+            if let Some(block_size) = content_block_size_adopted_after_run(&input, result.automatic_content_block_size)
             {
                 sized_root.cells.set_content_block_size(block_size);
             }
@@ -2628,6 +2628,8 @@ fn lay_out_run_root_and_contents<'pass>(
             OwnBlockSizeObservation::Observed
         },
         inline_space_around_root: table_wrapper_sized_by_its_parent,
+        content_block_size_adopted_after_run: input.participation == ParticipationInParentFormattingContext::Item
+            && !fc_type.registers_abspos_children_against_its_final_block_size(),
     };
 
     // NB: The root's descendants are laid out in the frame the root establishes.
@@ -2678,15 +2680,55 @@ fn lay_out_run_root_and_contents<'pass>(
             }
         }
     }
-    let outputs = run.outputs(
-        result,
-        take_run_fragments(),
-        root_cells_left_by_run,
-        root_line_data,
-        inputs_never_observed,
-        parent_owns_root_input_cells,
-    );
+    // NB: The absolutely positioned boxes whose containing block is the root are laid out against its final sizes and
+    //     box sides, in the frame its contents are laid out in, so that the root's fragment holds them. The columns of
+    //     a fragmentainer run leave them to the run of the box they belong to.
+    let laid_out_abspos_contained_by_root = run.fragmentainer.is_none()
+        && lay_out_abspos_contained_by_run_root(body_run, root_in_own_frame_left_by_run, own_frame);
+    let inputs_never_observed = if laid_out_abspos_contained_by_root {
+        fc_run_cache::RunInputsTheStoredRunNeverObserved::default()
+    } else {
+        inputs_never_observed
+    };
+    let outputs = RunOutputs {
+        laid_out_abspos_contained_by_root,
+        ..run.outputs(
+            result,
+            take_run_fragments(),
+            root_cells_left_by_run,
+            root_line_data,
+            inputs_never_observed,
+            parent_owns_root_input_cells,
+        )
+    };
     (outputs, root_cells_left_by_run)
+}
+
+/// Lays out the absolutely positioned boxes whose containing block is the root of `body_run`, against the root's
+/// final sizes and box sides `root_in_own_frame`. Returns whether there were any.
+fn lay_out_abspos_contained_by_run_root(
+    body_run: &FormattingContextRun,
+    root_in_own_frame: used_values::RootInputCells,
+    own_frame: geometry::Frame,
+) -> bool {
+    let Some(fragments) = body_run.fragments.as_deref() else {
+        return false;
+    };
+    let mut batch = fragments.take_abspos_contained_by_root(&body_run.callbacks);
+    if batch.is_empty() {
+        return false;
+    }
+    fragments.keep_root_cells_for_contained_abspos(fragment_tree::CellsInFrame {
+        cells: root_in_own_frame,
+        frame: own_frame,
+    });
+    // NB: Laying out an absolutely positioned box can hand the root more, such as a fixed-position descendant of one
+    //     whose containing block is the root.
+    while !batch.is_empty() {
+        lay_out_pending_abspos_children(body_run, batch);
+        batch = fragments.take_abspos_contained_by_root(&body_run.callbacks);
+    }
+    true
 }
 
 /// The frame in which `node` lays out its contents: that of its writing mode.
@@ -3269,7 +3311,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
             |callbacks, other_root_cells, other_input| lay_out(callbacks, other_root_cells, other_input, None),
         );
     }
-    cache_attempt.conclude(&callbacks, node, cache_key, &input, &outputs);
+    cache_attempt.conclude(&callbacks, node, cache_key, &outputs);
     result_with_host_findings(&outputs)
 }
 
@@ -3379,6 +3421,7 @@ fn item_run_never_observes_percentage_inline_basis(
         && !run.sizing().measurement_root_observes_percentage_inline_basis(run.box_)
 }
 
+/// The content block size an item takes once its contents are laid out, which its run gives its root at its end.
 pub(super) fn content_block_size_adopted_after_run(
     input: &LayoutInput,
     automatic_content_block_size: CssPixels,
@@ -3390,14 +3433,6 @@ pub(super) fn content_block_size_adopted_after_run(
         .sizing
         .adopt_automatic_content_block_size
         .then_some(automatic_content_block_size))
-}
-
-pub(super) fn run_reads_content_block_size_adopted_after_it(
-    fc_type: FormattingContextType,
-    input: &LayoutInput,
-) -> bool {
-    input.participation == ParticipationInParentFormattingContext::Item
-        && fc_type.registers_abspos_children_against_its_final_block_size()
 }
 
 #[expect(clippy::too_many_arguments)]
@@ -3417,6 +3452,7 @@ fn child_run_outcome_from_outputs(
         root_outcome,
         inputs_never_observed,
         host_findings,
+        laid_out_abspos_contained_by_root: _,
     } = outputs;
     callbacks.receive_host_findings(host_findings);
     let content_block_size_adopted_after_run =
