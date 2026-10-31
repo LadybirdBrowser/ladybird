@@ -35,7 +35,6 @@ pub(crate) struct Item {
     pub(crate) offset_in_node: usize,
     pub(crate) length_in_node: usize,
     pub(crate) inline_size: CssPixels,
-    pub(crate) min_content_inline_size: Option<CssPixels>,
     pub(crate) padding_start: CssPixels,
     pub(crate) padding_end: CssPixels,
     pub(crate) border_start: CssPixels,
@@ -45,10 +44,18 @@ pub(crate) struct Item {
     pub(crate) is_collapsible_whitespace: bool,
     pub(crate) can_break_before: bool,
     pub(crate) preceded_by_unattached_inline_start_edges: bool,
-    pub(crate) content_baselines: DerivedBaselines,
     pub(crate) trailing_whitespace: line_box_fragment::TrailingWhitespace,
+    atomic: Option<Box<AtomicItemMetrics>>,
+}
+
+const _: () = assert!(size_of::<Item>() == 120);
+
+#[derive(Clone, Copy, Debug, Default)]
+struct AtomicItemMetrics {
+    min_content_inline_size: Option<CssPixels>,
+    content_baselines: DerivedBaselines,
     /// For an element item laid out on a line, the sizes and box sides of its box, as its layout left them.
-    pub(crate) box_cells: Option<Box<used_values::RootInputCells>>,
+    box_cells: Option<used_values::RootInputCells>,
 }
 
 fn shape_glyph_data(
@@ -136,7 +143,6 @@ impl Item {
             offset_in_node: 0,
             length_in_node: 0,
             inline_size: CssPixels::default(),
-            min_content_inline_size: None,
             padding_start: CssPixels::default(),
             padding_end: CssPixels::default(),
             border_start: CssPixels::default(),
@@ -146,19 +152,33 @@ impl Item {
             is_collapsible_whitespace: false,
             can_break_before: false,
             preceded_by_unattached_inline_start_edges: false,
-            content_baselines: DerivedBaselines::default(),
             trailing_whitespace: line_box_fragment::TrailingWhitespace::default(),
-            box_cells: None,
+            atomic: None,
         }
+    }
+
+    pub(crate) fn min_content_inline_size(&self) -> Option<CssPixels> {
+        self.atomic.as_ref().and_then(|atomic| atomic.min_content_inline_size)
+    }
+
+    pub(crate) fn content_baselines(&self) -> DerivedBaselines {
+        self.atomic
+            .as_ref()
+            .map(|atomic| atomic.content_baselines)
+            .unwrap_or_default()
     }
 
     /// The sizes and box sides of the box of an element item laid out on a line.
     #[track_caller]
     pub(crate) fn box_cells(&self) -> used_values::RootInputCells {
-        *self
-            .box_cells
-            .as_deref()
+        self.atomic
+            .as_ref()
+            .and_then(|atomic| atomic.box_cells)
             .expect("an element item laid out on a line carries the cells of its box")
+    }
+
+    pub(crate) fn set_box_cells(&mut self, box_cells: used_values::RootInputCells) {
+        self.atomic.get_or_insert_default().box_cells = Some(box_cells);
     }
 
     pub(crate) fn border_box_inline_size(&self) -> CssPixels {
@@ -1043,7 +1063,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             context.input.containing_block_constraints,
         );
         item.inline_size = contributions.max_content_inline_size;
-        item.min_content_inline_size = Some(contributions.min_content_inline_size);
+        item.atomic.get_or_insert_default().min_content_inline_size = Some(contributions.min_content_inline_size);
         item.padding_start = contributions.padding_start;
         item.padding_end = contributions.padding_end;
         item.border_start = contributions.border_start;
@@ -1059,7 +1079,6 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         } else {
             let cells = self.context().hold_atomic_inline(node);
             let (content_baselines, box_cells) = self.context_mut().dimension_box_on_line(node, cells);
-            item.content_baselines = content_baselines;
             item.inline_size = box_cells.content_inline_size;
             item.padding_start = box_cells.padding_left;
             item.padding_end = box_cells.padding_right;
@@ -1067,7 +1086,11 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             item.border_end = box_cells.border_right;
             item.margin_start = box_cells.margin_left;
             item.margin_end = box_cells.margin_right;
-            item.box_cells = Some(Box::new(box_cells));
+            item.atomic = Some(Box::new(AtomicItemMetrics {
+                min_content_inline_size: None,
+                content_baselines,
+                box_cells: Some(box_cells),
+            }));
         }
         self.add_extra_box_model_metrics_to_item(&mut item, true, true);
         self.skip_to_next();

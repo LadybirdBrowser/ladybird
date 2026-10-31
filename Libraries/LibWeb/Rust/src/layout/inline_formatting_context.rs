@@ -1581,7 +1581,7 @@ impl<'context> InlineFormattingContext<'context> {
                     || fragment.inline_offset != expected_inline_offset
                     || fragment.inline_length != item.inline_size
                     || fragment.block_length != atomic_inline.content_block_size
-                    || fragment.content_baselines != Some(item.content_baselines)
+                    || fragment.content_baselines != Some(item.content_baselines())
                     || fragment.border_box_block_start != atomic_inline.border_box_top(false)
                 {
                     matched = false;
@@ -2109,7 +2109,7 @@ impl<'context> InlineFormattingContext<'context> {
                         // NB: The box is laid out again in this run, and keeps the content baselines it had.
                         let cells = self.hold_atomic_inline(item.node);
                         let (_, laid_out_cells) = self.dimension_box_on_line(item.node, cells);
-                        item.box_cells = Some(Box::new(laid_out_cells));
+                        item.set_box_cells(laid_out_cells);
                     }
                     if !line_builder.only_finds_line_breaks() {
                         let insets = self.compute_inset(item.node);
@@ -3291,7 +3291,7 @@ impl ContentSizingLines {
             return;
         }
         let content_inline_size = if self.measures_min_content() {
-            item.min_content_inline_size.unwrap_or(item.inline_size)
+            item.min_content_inline_size().unwrap_or(item.inline_size)
         } else {
             item.inline_size
         };
@@ -3411,7 +3411,7 @@ impl ContentSizingLines {
         };
         if self.measures_min_content() {
             self.lines.note_float_on_line_of_its_own(margin_box_inline_size(
-                item.min_content_inline_size.unwrap_or(item.inline_size),
+                item.min_content_inline_size().unwrap_or(item.inline_size),
             ));
             return;
         }
