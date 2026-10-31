@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .view-lines { position: relative; height: 54px; font: 14px monospace; user-select: none; }
+    .view-line { position: absolute; left: 0; width: 400px; height: 18px; white-space: nowrap; }
+</style>
+<div class="view-lines">
+    <div class="view-line" style="top: 0"><span><span>first line</span></span></div>
+    <div class="view-line" id="empty" style="top: 18px"><span><span></span></span></div>
+    <div class="view-line" style="top: 36px"><span><span>third line</span></span></div>
+</div>
+<script>
+    test(() => {
+        const describe = (position) => {
+            if (!position)
+                return "null";
+            const node = position.offsetNode;
+            const name = node.nodeType === Node.TEXT_NODE ? `#text "${node.data}"` : `${node.nodeName.toLowerCase()}${node.id ? "#" + node.id : ""}`;
+            return `${name} @ ${position.offset}`;
+        };
+        const results = [];
+        for (const [x, y] of [[5, 9], [5, 20], [5, 27], [200, 27], [5, 35], [5, 45]])
+            results.push(`(${x}, ${y}): ${describe(document.caretPositionFromPoint(x, y))}`);
+        for (const line of results)
+            println(line);
+    });
+</script>

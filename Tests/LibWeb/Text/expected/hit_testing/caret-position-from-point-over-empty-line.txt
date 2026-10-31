@@ -1,0 +1,6 @@
+(5, 9): #text "first line" @ 1
+(5, 20): div#empty @ 0
+(5, 27): div#empty @ 0
+(200, 27): div#empty @ 0
+(5, 35): div#empty @ 0
+(5, 45): #text "third line" @ 1

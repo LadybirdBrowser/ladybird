@@ -15,7 +15,7 @@ pseudo: pseudo / null
 first letter: letter-row / #text
 display: contents span inert:
 text: text-row / #text
-contents: contents-row / null
+contents: contents-row / contents-row
 pseudo: pseudo / null
 first letter: letter-row / #text
 display: contents span inert removed:
