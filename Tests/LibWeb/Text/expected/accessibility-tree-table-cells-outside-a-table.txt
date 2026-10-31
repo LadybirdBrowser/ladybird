@@ -1,0 +1,17 @@
+document
+  generic
+    generic
+      text leaf "Cell outside a table"
+      text leaf "Header outside a table"
+      text leaf "Column header outside a table"
+      text leaf "Row header outside a table"
+      rowgroup
+        text leaf "Header in a thead outside a table"
+    table
+      rowgroup
+        row "Header in a table Cell in a table"
+          rowheader "Header in a table"
+            text leaf "Header in a table"
+          cell "Cell in a table"
+            text leaf "Cell in a table"
+    generic
