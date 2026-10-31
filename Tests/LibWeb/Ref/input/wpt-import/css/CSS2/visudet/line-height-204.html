@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS2 Line height test: baseline position, normal sizing vs explicit sizing</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#line-height">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visudet/reference/line-height-202-ref.html">
+<meta name="assert" content="The position of the baseline in an inline-level box whose line-height is normal
+                             and the position of the baseline in an inline-level box whose line-height is set to a non normal value resulting in the same height
+                             are the same,
+                             assuming only the first available font is used.">
+<style>
+@font-face {
+  font-family: 'high';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../fonts/Revalia.woff) format('woff');
+}
+
+div {
+  position: absolute;
+  font-size: 100px;
+  width: 2em; /* plenty of room for the (invisible) text */
+  text-align: right;
+  color: transparent;
+}
+span { /* visible thing aligned to the baseline, and small enough to not influence its position */
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+
+/* white #lh-auto is on top of red #lh-manual,
+   and as their baselines should line up
+   #lh-manual should be fully covered,
+   and no red should be visible */
+#lh-manual { font-family: high; }
+#lh-manual span { background: red; }
+
+#lh-auto { font-family: high; line-height: normal; }
+#lh-auto span { background: white; }
+
+</style>
+
+<body onload="measure()">
+<p>Test passes if there is <strong>no red</strong> below.
+
+<div id=lh-manual>a<span></span></div>
+<div id=lh-auto>a<span></span></div>
+
+<script>
+function measure() { /* let layout complete first, so that we can measure things */
+  var lha = document.getElementById("lh-auto");
+  var lhm = document.getElementById("lh-manual")
+  var h = window.getComputedStyle(lha).height; /*getting the used-value of line-height by proxy */
+  lhm.style.lineHeight = h;
+  document.documentElement.className = "";
+}
+</script>

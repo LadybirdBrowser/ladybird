@@ -1775,7 +1775,7 @@ impl<'context> InlineFormattingContext<'context> {
                 );
                 continue;
             };
-            line_builder.append_text_item(&mut prefix, style.line_height());
+            line_builder.append_text_item(&mut prefix, style);
             self.set_current_line_start_offset(item_index, item.offset_in_node);
             line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
         }
@@ -2289,7 +2289,7 @@ impl<'context> InlineFormattingContext<'context> {
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
                     }
-                    line_builder.append_text_item(&mut item, style.line_height());
+                    line_builder.append_text_item(&mut item, style);
                 }
             }
         }

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS2 Line height test: normal sizing with fallback fonts</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#line-height">
+<link rel="mismatch" href="../../../../../expected/wpt-import/css/CSS2/visudet/reference/line-height-206-ref.html">
+<meta name="assert" content="The height of an inline-level box whose line-height is normal and which only uses glyphs from the fallback font
+                             must still take the strut from the first available font into account.">
+<style>
+@font-face {
+  font-family: 'high-a-only';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../fonts/Revalia.woff) format('woff');
+  unicode-range: U+0061, U+0020;
+}
+@font-face {
+  font-family: 'deep-b-only';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../../../fonts/AD.woff) format('woff');
+  unicode-range: U+0062, U+0020;
+}
+
+div {
+  position: absolute;
+  line-height: normal;
+  font-size: 100px;
+  color: transparent;
+  border: solid black 1px;
+}
+
+.h { font-family: high-a-only; }
+.dh { font-family: deep-b-only, high-a-only; }
+</style>
+
+<p>There should be two stacked rectangles below: a tall one above a short one, both the same width, sharing the edge at which they touch.
+
+<!-- Both divs show the same content with the same font,
+     but the first div has an unused first available font
+     while the second one does not.
+     As the height calculation takes the strut into account,
+     these two boxes should have different heights -->
+<div class="dh">a</div>
+<div class="h">a</div>

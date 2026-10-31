@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test Reference file</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<style>
+@font-face {
+  font-family: 'high-a-only';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../../fonts/Revalia.woff) format('woff');
+  unicode-range: U+0061, U+0020;
+}
+@font-face {
+  font-family: 'deep-b-only';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../../../../fonts/AD.woff) format('woff');
+  unicode-range: U+0062, U+0020;
+}
+
+div {
+  font-size: 50px;
+  display: inline-block;
+  color: transparent;
+  font-family: high-a-only, deep-b-only;
+}
+
+span { background: blue; }
+
+div { line-height: 200px; }
+</style>
+
+<p>Test passes if the blue shape below is a rectangle, but not some other polygon.
+
+<div><span>bb</span></div><div><span>bb</span></div><div><span>bb</span></div>

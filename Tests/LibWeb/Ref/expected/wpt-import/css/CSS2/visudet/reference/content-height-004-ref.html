@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS2 Line height test: explicit sizing</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<style>
+@font-face {
+  font-family: 'high-a-only';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../../fonts/Revalia.woff) format('woff');
+  unicode-range: U+0061, U+0020;
+}
+
+div {
+  font-size: 50px;
+  display: inline-block;
+  color: transparent;
+}
+
+span { background: blue; }
+
+div { font-family: high-a-only }
+aside {
+  max-width: 300px;
+  overflow: hidden;
+  white-space: pre;
+}
+</style>
+
+<p>Test passes if the blue shape below is a rectangle, but not some other polygon.
+
+<aside>
+<div><span>aaaaaaaaa</span></div>
+</aside>
