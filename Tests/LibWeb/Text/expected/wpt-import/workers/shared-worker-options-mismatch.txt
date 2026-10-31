@@ -1,0 +1,37 @@
+Harness status: OK
+
+Found 32 tests
+
+32 Pass
+Pass	Connecting to shared worker with different options should be blocked: default to module
+Pass	Connecting to shared worker with different options should be blocked: module to default
+Pass	Connecting to shared worker with different options should be blocked: classic to module
+Pass	Connecting to shared worker with different options should be blocked: module to classic
+Pass	Connecting to shared worker with different options should be blocked: default to omit in classic
+Pass	Connecting to shared worker with different options should be blocked: default to include in classic
+Pass	Connecting to shared worker with different options should be blocked: omit to default in classic
+Pass	Connecting to shared worker with different options should be blocked: omit to same-origin in classic
+Pass	Connecting to shared worker with different options should be blocked: omit to include in classic
+Pass	Connecting to shared worker with different options should be blocked: same-origin to omit in classic
+Pass	Connecting to shared worker with different options should be blocked: same-origin to include in classic
+Pass	Connecting to shared worker with different options should be blocked: include to default in classic
+Pass	Connecting to shared worker with different options should be blocked: include to omit in classic
+Pass	Connecting to shared worker with different options should be blocked: include to same-origin in classic
+Pass	Connecting to shared worker with different options should be blocked: default to extended in classic
+Pass	Connecting to shared worker with different options should be blocked: extended to default in classic
+Pass	Connecting to shared worker with different options should be blocked: true to false in classic
+Pass	Connecting to shared worker with different options should be blocked: false to true in classic
+Pass	Connecting to shared worker with different options should be blocked: default to omit in module
+Pass	Connecting to shared worker with different options should be blocked: default to include in module
+Pass	Connecting to shared worker with different options should be blocked: omit to default in module
+Pass	Connecting to shared worker with different options should be blocked: omit to same-origin in module
+Pass	Connecting to shared worker with different options should be blocked: omit to include in module
+Pass	Connecting to shared worker with different options should be blocked: same-origin to omit in module
+Pass	Connecting to shared worker with different options should be blocked: same-origin to include in module
+Pass	Connecting to shared worker with different options should be blocked: include to default in module
+Pass	Connecting to shared worker with different options should be blocked: include to omit in module
+Pass	Connecting to shared worker with different options should be blocked: include to same-origin in module
+Pass	Connecting to shared worker with different options should be blocked: default to extended in module
+Pass	Connecting to shared worker with different options should be blocked: extended to default in module
+Pass	Connecting to shared worker with different options should be blocked: true to false in module
+Pass	Connecting to shared worker with different options should be blocked: false to true in module
