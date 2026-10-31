@@ -247,6 +247,7 @@ if (NOT WIN32)
         TestGamepadExposure.cpp
         TestImageDecoderIsolation.cpp
         TestInputMethodState.cpp
+        TestInspectDOMTree.cpp
         TestLinkHoverStatus.cpp
         TestNavigationDownloads.cpp
         TestPictureInPictureUserActivation.cpp
