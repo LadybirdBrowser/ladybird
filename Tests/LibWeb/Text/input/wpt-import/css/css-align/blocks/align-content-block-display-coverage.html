@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align/#distribution-block">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+
+<style>
+@import "../../../fonts/ahem.css";
+body {
+  font: 10px/1 Ahem;
+  margin: 0;
+}
+.target {
+  height: 50px;
+  align-content: unsafe center;
+}
+</style>
+
+<div class="target">
+  <div class="content">foo</div>
+</div>
+
+<script>
+const supportedValues = ['block', 'flow', 'flow-root', 'inline-block',
+                         'list-item', 'flow-root list-item', 'table-caption'];
+const unsupportedValues = ['ruby-text'];
+
+const target = document.querySelector('.target');
+const content = document.querySelector('.content');
+for (let value of supportedValues) {
+  test(() => {
+    target.style.display = value;
+    assert_equals(content.offsetTop, 20);
+  }, `display:${value} should support align-content`);
+}
+
+for (let value of unsupportedValues) {
+  test(() => {
+    target.style.display = value;
+    assert_not_equals(content.offsetTop, 20);
+  }, `display:${value} should not support align-content`);
+}
+</script>

@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 4 tests
+
+1 Pass
+3 Fail
+Pass	.box 1: start
+Fail	.box 2: center
+Fail	.box 3: end
+Fail	.box 4: space-around
