@@ -859,7 +859,15 @@ static GC::Ref<CSS::CSSStyleProperties> stepper_button_style_when_visible()
     if (!style) {
         style = CSS::CSSStyleProperties::create({}, {});
         style->set_declarations_from_text(R"~~~(
-                padding: 0;
+                display: flex;
+                flex: 1;
+                align-items: center;
+                justify-content: center;
+                padding: 0 2px;
+                border: none;
+                background: none;
+                color: GrayText;
+                line-height: 0;
                 cursor: default;
             )~~~"sv);
     }
@@ -1272,14 +1280,18 @@ void HTMLInputElement::create_text_input_shadow_tree()
         // NB: The buttons start out with the style they have when shown, so that the style application that follows
         //     only rewrites their declarations when appearance hides them.
 
+        auto stepper_container = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        stepper_container->set_attribute_value(HTML::AttributeNames::style, "display: flex; flex-direction: column; align-self: stretch;"_utf16);
+        MUST(element->append_child(stepper_container));
+
         // Up button
         m_up_button_element = MUST(DOM::create_element(document(), HTML::TagNames::button, Namespace::HTML));
         set_own_inline_style(*m_up_button_element, stepper_button_style_when_visible());
 
         auto up_button_svg = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
-        up_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_utf16);
+        up_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 0.7em; height: 0.5em;"_utf16);
         up_button_svg->set_attribute_value(SVG::AttributeNames::xmlns, Namespace::SVG.to_utf16_string());
-        up_button_svg->set_attribute_value(SVG::AttributeNames::viewBox, "0 0 24 24"_utf16);
+        up_button_svg->set_attribute_value(SVG::AttributeNames::viewBox, "5 7 14 10"_utf16);
         MUST(m_up_button_element->append_child(up_button_svg));
 
         auto up_button_svg_path = MUST(DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG));
@@ -1287,7 +1299,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
         up_button_svg_path->set_attribute_value(SVG::AttributeNames::d, "M7.41,15.41L12,10.83L16.59,15.41L18,14L12,8L6,14L7.41,15.41Z"_utf16);
         MUST(up_button_svg->append_child(up_button_svg_path));
 
-        MUST(element->append_child(*m_up_button_element));
+        MUST(stepper_container->append_child(*m_up_button_element));
 
         auto mouseup_callback_function = JS::NativeFunction::create(
             HTML::relevant_realm(*this), [this](JS::VM&) {
@@ -1314,9 +1326,9 @@ void HTMLInputElement::create_text_input_shadow_tree()
         set_own_inline_style(*m_down_button_element, stepper_button_style_when_visible());
 
         auto down_button_svg = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
-        down_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_utf16);
+        down_button_svg->set_attribute_value(HTML::AttributeNames::style, "width: 0.7em; height: 0.5em;"_utf16);
         down_button_svg->set_attribute_value(SVG::AttributeNames::xmlns, Namespace::SVG.to_utf16_string());
-        down_button_svg->set_attribute_value(SVG::AttributeNames::viewBox, "0 0 24 24"_utf16);
+        down_button_svg->set_attribute_value(SVG::AttributeNames::viewBox, "5 7 14 10"_utf16);
         MUST(m_down_button_element->append_child(down_button_svg));
 
         auto down_button_svg_path = MUST(DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG));
@@ -1324,7 +1336,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
         down_button_svg_path->set_attribute_value(SVG::AttributeNames::d, "M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z"_utf16);
         MUST(down_button_svg->append_child(down_button_svg_path));
 
-        MUST(element->append_child(*m_down_button_element));
+        MUST(stepper_container->append_child(*m_down_button_element));
 
         auto down_callback_function = JS::NativeFunction::create(
             HTML::relevant_realm(*this), [this](JS::VM&) {
