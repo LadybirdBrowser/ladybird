@@ -1,5 +1,4 @@
 set(SOURCES
-    Deflate.cpp
     GenericZlib.cpp
     Zlib.cpp
 )
