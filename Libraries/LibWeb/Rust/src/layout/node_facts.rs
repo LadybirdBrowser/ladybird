@@ -8,6 +8,7 @@ use super::formatting_context::{PixelFraction, ReplacedIntrinsicSize};
 use super::*;
 use crate::css::style::{NaturalSize, ReplacedContentInput};
 
+#[inline]
 pub(crate) fn node_may_have_replaced_content_facts(data: &NodeData) -> bool {
     kind_is_replaced_box(data.kind.get())
         || matches!(
@@ -771,6 +772,7 @@ pub(crate) fn kind_is_non_devolvable_widget(kind: NodeKind) -> bool {
     matches!(kind, NodeKind::CheckBox | NodeKind::RadioButton)
 }
 
+#[inline]
 pub(crate) fn kind_is_replaced_box(kind: NodeKind) -> bool {
     matches!(
         kind,
@@ -892,8 +894,27 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     #[inline]
+    fn may_have_replaced_content_facts(&self) -> bool {
+        node_may_have_replaced_content_facts(self.data()) || self.callbacks.has_replaced_content_facts(self.node)
+    }
+
+    #[inline]
     /// The natural and default sizes of the box's replaced content, as width and height in the frame of the pass.
     fn replaced_content(&self) -> ReplacedContentFacts {
+        if !self.may_have_replaced_content_facts() {
+            // The style half of the enrollment predicate is debug-only because this is the steady state for
+            // ordinary boxes.
+            debug_assert!(
+                !node_may_have_replaced_content_facts_including_size_containment(self.data()),
+                "replaced content facts were not synced to the arena before layout"
+            );
+            return ReplacedContentFacts::default();
+        }
+        self.replaced_content_of_box_with_facts()
+    }
+
+    #[inline(never)]
+    fn replaced_content_of_box_with_facts(&self) -> ReplacedContentFacts {
         let facts = self.physical_replaced_content();
         if self.callbacks.frame.is_transposed() {
             facts.transposed()
@@ -949,21 +970,9 @@ impl<'pass> NodeFacts<'pass> {
         if self.data().kind.get() == NodeKind::SVGSVGBox {
             return self.svg_root_replaced_content();
         }
-        let Some(facts) = self.callbacks.replaced_content_facts(self.node) else {
-            // The kind check is cheap enough for release builds; the style
-            // half of the enrollment predicate is debug-only because this
-            // miss path is the steady state for ordinary boxes.
-            assert!(
-                !node_may_have_replaced_content_facts(self.data()),
-                "replaced content facts were not synced to the arena before layout"
-            );
-            debug_assert!(
-                !node_may_have_replaced_content_facts_including_size_containment(self.data()),
-                "replaced content facts were not synced to the arena before layout"
-            );
-            return ReplacedContentFacts::default();
-        };
-        facts
+        self.callbacks
+            .replaced_content_facts(self.node)
+            .expect("replaced content facts were not synced to the arena before layout")
     }
 
     /// An <svg> root's natural size resolves the lengths its element published against its style and the
@@ -1364,6 +1373,7 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::ListMarkerIsInside)
     }
 
+    #[inline]
     pub(crate) fn auto_content_size(&self) -> ReplacedIntrinsicSize {
         self.replaced_content().auto_content_size
     }
@@ -1383,13 +1393,15 @@ impl<'pass> NodeFacts<'pass> {
         style_has_inline_size_containment(*self.style())
     }
 
+    #[inline]
     pub(crate) fn has_preferred_aspect_ratio(&self) -> bool {
         self.preferred_aspect_ratio().is_some()
     }
 
     pub(crate) fn preferred_aspect_ratio(&self) -> Option<formatting_context::PixelFraction> {
         let style = self.style();
-        if !self.node_has_size_containment()
+        if self.may_have_replaced_content_facts()
+            && !self.node_has_size_containment()
             && style.aspect_ratio_uses_natural_when_available()
             && let Some(aspect_ratio) = self.auto_content_size().aspect_ratio
         {
@@ -1399,10 +1411,12 @@ impl<'pass> NodeFacts<'pass> {
         aspect_ratio_of(numerator, denominator)
     }
 
+    #[inline]
     pub(crate) fn default_preferred_width(&self) -> Option<CssPixels> {
         self.replaced_content().default_preferred_width
     }
 
+    #[inline]
     pub(crate) fn default_preferred_height(&self) -> Option<CssPixels> {
         self.replaced_content().default_preferred_height
     }
