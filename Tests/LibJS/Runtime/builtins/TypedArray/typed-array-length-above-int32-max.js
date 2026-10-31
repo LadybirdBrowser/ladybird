@@ -10,6 +10,13 @@ test("copying into a fixed-length view", () => {
     });
 });
 
+test("find, findIndex, findLast and findLastIndex", () => {
+    expect(typedArray.find(value => value === 0)).toBe(0);
+    expect(typedArray.findIndex(value => value === 0)).toBe(0);
+    expect(typedArray.findLast(value => value === 22)).toBe(22);
+    expect(typedArray.findLastIndex(value => value === 22)).toBe(length - 1);
+});
+
 test("lastIndexOf", () => {
     expect(typedArray.lastIndexOf(22)).toBe(length - 1);
     expect(typedArray.lastIndexOf(11, -2)).toBe(length - 2);

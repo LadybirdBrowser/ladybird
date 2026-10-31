@@ -158,15 +158,20 @@ fn find_via_predicate(
     // 1. If IsCallable(predicate) is false, throw a TypeError exception.
     let predicate = callback_from_args(vm, prototype_name)?;
 
+    let mut ascending_indices;
+    let mut descending_indices;
+
     // 2. If direction is ascending, then
-    let indices: Vec<u32> = if direction == Direction::Ascending {
+    let indices: &mut dyn Iterator<Item = u32> = if direction == Direction::Ascending {
         // a. Let indices be a List of the integers in the interval from 0 (inclusive) to len (exclusive), in ascending order.
-        (0..length).collect()
+        ascending_indices = 0..length;
+        &mut ascending_indices
     }
     // 3. Else,
     else {
         // a. Let indices be a List of the integers in the interval from 0 (inclusive) to len (exclusive), in descending order.
-        (0..length).rev().collect()
+        descending_indices = (0..length).rev();
+        &mut descending_indices
     };
 
     // 4. For each integer k of indices, do
