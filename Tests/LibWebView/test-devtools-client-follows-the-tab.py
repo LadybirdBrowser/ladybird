@@ -236,7 +236,8 @@ def assert_page_survives_disconnects(devtools_port, path, load):
     client = DevToolsClient(devtools_port)
     try:
         client.watch_frame_targets()
-        assert client.evaluate("window.load") == load
+        page_load = client.evaluate("window.load")
+        assert page_load == load, f"window.load is {page_load!r}"
     finally:
         client.close()
     assert load_count(path) == load, f"{path} was loaded {load_count(path)} times"
@@ -277,8 +278,8 @@ def test_crash_recovery(ladybird_binary, profile, server):
             # that page's document once it's active.
             panic = "internals.panicRenderStateForTesting()"
             client.send({"to": client.console, "type": "evaluateJSAsync", "text": panic})
-            client.follow_frame_target()
-            assert client.evaluate("window.load") == 2
+            # A target form for the crashed page itself can still arrive first.
+            wait_until("the client inspects the restored page", lambda: client.evaluate("window.load") == 2)
         finally:
             client.close()
 
