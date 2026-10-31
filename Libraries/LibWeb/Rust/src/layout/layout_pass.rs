@@ -254,6 +254,19 @@ impl<'arena> LayoutPass<'arena> {
             .text_chunks(node, self.text_content(node).rendered(), key, compute)
     }
 
+    pub(crate) fn take_inline_content_preparation_buffers(
+        &self,
+    ) -> super::prepared_inline_content::InlineContentPreparationBuffers {
+        self.scratch.inline_content_preparation_buffers().take()
+    }
+
+    pub(crate) fn return_inline_content_preparation_buffers(
+        &self,
+        buffers: super::prepared_inline_content::InlineContentPreparationBuffers,
+    ) {
+        self.scratch.inline_content_preparation_buffers().set(buffers);
+    }
+
     /// Runs `read` with the grapheme segmenter of the text row `node`.
     pub(crate) fn with_grapheme_segmenter<R>(
         &self,
