@@ -1,0 +1,6 @@
+time minute cleared: value="" badInput=true
+time minute typed again: value="13:30:05"
+date partly typed: value="" badInput=true
+date after setting an empty value: value="" badInput=false
+date partly typed again: value="" badInput=true
+date after form reset: value="" badInput=false

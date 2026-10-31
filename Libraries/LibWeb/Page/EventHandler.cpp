@@ -2020,6 +2020,12 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
             return EventResult::Handled;
     }
 
+    // NB: A focused date or time input edits its fields with the keyboard.
+    if (auto* input = as_if<HTML::HTMLInputElement>(document->focused_area().ptr()); input && input->has_date_picker()) {
+        if (input->handle_date_time_field_key(key, modifiers & ~UIEvents::Mod_Keypad, code_point))
+            return EventResult::Handled;
+    }
+
     if (!(modifiers & UIEvents::KeyModifier::Mod_Ctrl)) {
         if (key == UIEvents::KeyCode::Key_Tab)
             return focus_sequentially(modifiers & UIEvents::KeyModifier::Mod_Shift ? HTML::SequentialFocusDirection::Backward : HTML::SequentialFocusDirection::Forward);
@@ -3299,9 +3305,17 @@ EventResult EventHandler::focus_sequentially(HTML::SequentialFocusDirection dire
     //    direction, and selection mechanism.
     auto candidate = HTML::sequential_navigation_search(starting_point, direction, selection_mechanism);
 
+    auto focus_candidate = [&](DOM::Element& candidate) {
+        HTML::run_focusing_steps(&candidate, nullptr, HTML::FocusTrigger::Key);
+        if (direction != HTML::SequentialFocusDirection::Backward)
+            return;
+        if (auto* input = as_if<HTML::HTMLInputElement>(candidate); input && document->focused_area().ptr() == input)
+            input->activate_last_date_time_field();
+    };
+
     // 6. If candidate is not null, then run the focusing steps for candidate and return.
     if (candidate) {
-        HTML::run_focusing_steps(candidate, nullptr, HTML::FocusTrigger::Key);
+        focus_candidate(*candidate);
         return EventResult::Handled;
     }
 
@@ -3320,7 +3334,7 @@ EventResult EventHandler::focus_sequentially(HTML::SequentialFocusDirection dire
     candidate = HTML::sequential_navigation_search(GC::Ref<HTML::LocalNavigable> { *m_navigable }, direction, HTML::SelectionMechanism::Sequential);
     if (!candidate)
         return EventResult::Dropped;
-    HTML::run_focusing_steps(candidate, nullptr, HTML::FocusTrigger::Key);
+    focus_candidate(*candidate);
     return EventResult::Handled;
 }
 

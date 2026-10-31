@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="date" type="date">
+<button id="after">After</button>
+<input id="time" type="time">
+<script>
+    test(() => {
+        const date = document.getElementById("date");
+        const after = document.getElementById("after");
+        after.focus();
+        internals.sendKey(after, "Tab", 4);
+        println(`focused after Shift+Tab: ${document.activeElement.id}`);
+        internals.sendText(date, "2026");
+        internals.sendKey(date, "Home");
+        internals.sendText(date, "1031");
+        println(`date with the year typed first: value="${date.value}"`);
+
+        const time = document.getElementById("time");
+        time.step = 1;
+        time.focus();
+        internals.sendText(time, "013005a");
+        println(`time with step 1: value="${time.value}"`);
+        time.step = 60;
+        println(`time with step 60: value="${time.value}"`);
+    });
+</script>

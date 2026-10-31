@@ -7275,7 +7275,7 @@ bool Element::should_indicate_focus() const
     //   triggers a virtual keyboard to be shown on focus if a physical keyboard were not present), indicate focus.
     if (is<HTML::HTMLTextAreaElement>(this) || is_editable_or_editing_host())
         return true;
-    if (auto const* input = as_if<HTML::HTMLInputElement>(this); input && input->has_selectable_text())
+    if (auto const* input = as_if<HTML::HTMLInputElement>(this); input && (input->has_selectable_text() || input->has_date_picker()))
         return true;
     // INTEROP: A select element takes keyboard input to pick an option, and indicates focus when clicked.
     if (is<HTML::HTMLSelectElement>(this))

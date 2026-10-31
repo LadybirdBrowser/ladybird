@@ -6,8 +6,24 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <div> at [13,11] flex-container(row) [0+0+0 240 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
           Box <div> at [13,11] flex-container(row) flex-item [0+0+0 216 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [13,11] flex-item [0+0+0 216 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
-              frag 0 from TextNode start: 0, length: 0, rect: [13,11 0x20] baseline: 16
+              frag 0 from TextNode start: 0, length: 1, rect: [29.21875,11 4.734375x20] baseline: 16
+                  ":"
+              frag 1 from TextNode start: 0, length: 1, rect: [50.171875,11 10x20] baseline: 16
+                  " "
+              InlineNode <span> at [13,11] [0+0+0 16.21875 0+0+0] [0+0+0 20 0+0+0]
+                frag 0 from TextNode start: 0, length: 2, rect: [13,11 16.21875x20] baseline: 16
+                    "--"
+                TextNode <#text> (not painted)
               TextNode <#text> (not painted)
+              InlineNode <span> at [33.953125,11] [0+0+0 16.21875 0+0+0] [0+0+0 20 0+0+0]
+                frag 0 from TextNode start: 0, length: 2, rect: [33.953125,11 16.21875x20] baseline: 16
+                    "--"
+                TextNode <#text> (not painted)
+              TextNode <#text> (not painted)
+              InlineNode <span> at [60.171875,11] [0+0+0 16.21875 0+0+0] [0+0+0 20 0+0+0]
+                frag 0 from TextNode start: 0, length: 2, rect: [60.171875,11 16.21875x20] baseline: 16
+                    "--"
+                TextNode <#text> (not painted)
           Box <div> at [233,11] flex-container(row) flex-item [0+0+4 20 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
             SVGSVGBox <svg> at [233,11] flex-item [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] viewport-transform=[0.8333333 0 0 0.8333333 0 0] [SVG] children: not-inline
               SVGGeometryBox <path> at [2,2] [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] children: not-inline

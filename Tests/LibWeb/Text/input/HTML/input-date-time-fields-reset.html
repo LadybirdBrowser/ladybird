@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<form>
+<input id="time" type="time" value="13:56:05">
+<input id="date" type="date">
+</form>
+<script>
+    test(() => {
+        const time = document.getElementById("time");
+        time.focus();
+        internals.sendKey(time, "Tab");
+        internals.sendKey(time, "Backspace");
+        println(`time minute cleared: value="${time.value}" badInput=${time.validity.badInput}`);
+        internals.sendText(time, "30");
+        println(`time minute typed again: value="${time.value}"`);
+
+        const date = document.getElementById("date");
+        date.focus();
+        internals.sendText(date, "10");
+        println(`date partly typed: value="${date.value}" badInput=${date.validity.badInput}`);
+        date.value = "";
+        println(`date after setting an empty value: value="${date.value}" badInput=${date.validity.badInput}`);
+
+        internals.sendText(date, "10");
+        println(`date partly typed again: value="${date.value}" badInput=${date.validity.badInput}`);
+        document.querySelector("form").reset();
+        println(`date after form reset: value="${date.value}" badInput=${date.validity.badInput}`);
+    });
+</script>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<input id="input" type="time">
+<script>
+    input.addEventListener("change", () => {
+        input.type = "date";
+        input.type = "text";
+    });
+    input.focus();
+    internals.sendText(input, "12:30");
+    internals.sendText(input, "p");
+</script>

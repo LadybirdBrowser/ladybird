@@ -516,6 +516,7 @@ set(SOURCES
     HTML/HTMLIFrameElement.cpp
     HTML/HTMLImageElement.cpp
     HTML/HTMLInputElement.cpp
+    HTML/HTMLInputElementDateTimeFields.cpp
     HTML/HTMLInsertion.cpp
     HTML/HTMLLabelElement.cpp
     HTML/HTMLLegendElement.cpp

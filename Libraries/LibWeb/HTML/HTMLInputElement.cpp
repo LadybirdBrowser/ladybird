@@ -130,6 +130,9 @@ void HTMLInputElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_inner_text_element);
     visitor.visit(m_text_node);
+    visitor.visit(m_date_time_fields_container);
+    for (auto const& field : m_date_time_fields)
+        visitor.visit(field.element);
     visitor.visit(m_image_button_alt_text_node);
     visitor.visit(m_placeholder_element);
     visitor.visit(m_placeholder_text_node);
@@ -806,6 +809,12 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
                 set_the_selection_range(m_value.length_in_code_units(), m_value.length_in_code_units());
 
             update_shadow_tree();
+        } else if (!m_date_time_fields.is_empty()) {
+            // NB: Setting the value replaces what the user typed into the date and time fields, even when the value
+            //     stays the same, as it does for fields that do not yet make a value.
+            m_date_time_fields_value = {};
+            CSS::Invalidation::invalidate_style_after_validity_change(*this);
+            update_shadow_tree();
         }
 
         break;
@@ -974,6 +983,7 @@ void HTMLInputElement::update_button_input_shadow_tree()
 void HTMLInputElement::update_text_input_shadow_tree()
 {
     update_placeholder_visibility();
+    update_date_time_fields();
 
     if (m_type == TypeAttributeState::Number && m_up_button_element && m_down_button_element) {
         // The `textfield` appearance is used to hide the stepper buttons.
@@ -1251,13 +1261,26 @@ void HTMLInputElement::create_text_input_shadow_tree()
         MUST(element->append_child(*text_container));
     }
 
+    m_date_time_fields_container = nullptr;
+    m_date_time_fields.clear();
+    if (has_date_picker()) {
+        // NB: Date and time inputs are edited one field at a time, so they have no editable text.
+        m_inner_text_element = nullptr;
+        m_text_node = nullptr;
+        m_date_time_fields_container = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        m_date_time_fields_container->set_attribute_value(HTML::AttributeNames::style, "flex: 1; min-width: 0; height: 1lh; overflow: hidden; white-space: pre;"_utf16);
+        MUST(text_container->append_child(*m_date_time_fields_container));
+        create_date_time_fields();
+    }
+
     // https://drafts.csswg.org/css-ui-4/#input-rules
-    m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    {
-        static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
-        if (!style) {
-            style = CSS::CSSStyleProperties::create({}, {});
-            style->set_declarations_from_text(R"~~~(
+    if (!has_date_picker()) {
+        m_inner_text_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        {
+            static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
+            if (!style) {
+                style = CSS::CSSStyleProperties::create({}, {});
+                style->set_declarations_from_text(R"~~~(
                 width: 100%;
                 height: 1lh;
                 overflow: auto;
@@ -1265,16 +1288,17 @@ void HTMLInputElement::create_text_input_shadow_tree()
                 text-overflow: clip;
                 white-space: pre;
             )~~~"sv);
+            }
+            set_own_inline_style(*m_inner_text_element, *style);
         }
-        set_own_inline_style(*m_inner_text_element, *style);
-    }
-    MUST(text_container->append_child(*m_inner_text_element));
+        MUST(text_container->append_child(*m_inner_text_element));
 
-    m_text_node = DOM::Text::create(document(), m_value);
-    if (type_state() == TypeAttributeState::Password)
-        m_text_node->set_is_password_input({}, true);
-    handle_maxlength_attribute();
-    MUST(m_inner_text_element->append_child(*m_text_node));
+        m_text_node = DOM::Text::create(document(), m_value);
+        if (type_state() == TypeAttributeState::Password)
+            m_text_node->set_is_password_input({}, true);
+        handle_maxlength_attribute();
+        MUST(m_inner_text_element->append_child(*m_text_node));
+    }
 
     m_placeholder_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
     MUST(text_container->append_child(*m_placeholder_element));
@@ -1730,6 +1754,14 @@ void HTMLInputElement::suggestions_source_element_did_change()
 
 void HTMLInputElement::did_receive_focus()
 {
+    if (!m_date_time_fields.is_empty()) {
+        // NB: Keyboard focus starts at the first field; a click picks the field it lands on.
+        if (document().last_focus_trigger() == FocusTrigger::Key)
+            m_active_date_time_field = 0;
+        m_date_time_field_typed_digits = 0;
+        update_date_time_field_elements();
+    }
+
     if (!m_text_node)
         return;
     m_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
@@ -1748,6 +1780,11 @@ void HTMLInputElement::did_receive_focus()
 void HTMLInputElement::did_lose_focus()
 {
     reveal_cursor_if_pending();
+
+    if (!m_date_time_fields.is_empty()) {
+        m_date_time_field_typed_digits = 0;
+        update_date_time_field_elements();
+    }
 
     if (m_text_node)
         m_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
@@ -1845,6 +1882,8 @@ void HTMLInputElement::form_associated_element_attribute_changed(Utf16FlyString 
             m_value = value_sanitization_algorithm(m_value);
             update_shadow_tree();
         }
+        if (name == HTML::AttributeNames::step)
+            update_date_time_fields_for_step();
     } else if (name == HTML::AttributeNames::size) {
         // size feeds the element's default preferred width, which reaches layout only
         // through the replaced-content facts; nothing else schedules a relayout.
@@ -1926,6 +1965,8 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
     auto should_materialize_shadow_tree = shadow_root() || has_style();
     set_shadow_root(nullptr);
     m_image_button_alt_text_node = nullptr;
+    m_date_time_fields_container = nullptr;
+    m_date_time_fields.clear();
     if (should_materialize_shadow_tree)
         create_shadow_tree_if_needed();
 
@@ -2453,6 +2494,8 @@ void HTMLInputElement::reset_algorithm()
     if (m_value != old_value)
         relevant_value_was_changed();
 
+    // NB: Resetting the value also forgets what the user typed into the date and time fields.
+    m_date_time_fields_value = {};
     update_shadow_tree();
 }
 
@@ -2490,6 +2533,8 @@ void HTMLInputElement::clear_algorithm()
     if (m_value != old_value)
         relevant_value_was_changed();
 
+    // NB: Clearing the value also forgets what the user typed into the date and time fields.
+    m_date_time_fields_value = {};
     update_shadow_tree();
 }
 
@@ -3921,20 +3966,13 @@ bool HTMLInputElement::checked_applies() const
 
 bool HTMLInputElement::has_selectable_text() const
 {
-    // Potential FIXME: Date, Month, Week, Time and LocalDateAndTime are rendered as a basic text input for now,
-    // thus they have selectable text, this need to change when we will have a visual date/time selector.
-
+    // NB: Date, Month, Week, Time and LocalDateAndTime are edited one field at a time, and hold no text to select.
     switch (type_state()) {
     case TypeAttributeState::Text:
     case TypeAttributeState::Search:
     case TypeAttributeState::Telephone:
     case TypeAttributeState::URL:
     case TypeAttributeState::Password:
-    case TypeAttributeState::Date:
-    case TypeAttributeState::Month:
-    case TypeAttributeState::Week:
-    case TypeAttributeState::Time:
-    case TypeAttributeState::LocalDateAndTime:
     case TypeAttributeState::Number:
     case TypeAttributeState::Email:
         return true;
@@ -4344,22 +4382,32 @@ bool HTMLInputElement::suffering_from_bad_input() const
     case TypeAttributeState::Date:
         // https://html.spec.whatwg.org/multipage/input.html#date-state-(type%3Ddate)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid date string, the control is suffering from bad input.
+        if (!m_date_time_fields.is_empty())
+            return date_time_fields_describe_bad_input();
         return !relevant_value.is_empty() && !is_valid_date_string(relevant_value);
     case TypeAttributeState::Month:
         // https://html.spec.whatwg.org/multipage/input.html#month-state-(type%3Dmonth)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid month string, the control is suffering from bad input.
+        if (!m_date_time_fields.is_empty())
+            return date_time_fields_describe_bad_input();
         return !relevant_value.is_empty() && !is_valid_month_string(relevant_value);
     case TypeAttributeState::Week:
         // https://html.spec.whatwg.org/multipage/input.html#week-state-(type%3Dweek)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid week string, the control is suffering from bad input.
+        if (!m_date_time_fields.is_empty())
+            return date_time_fields_describe_bad_input();
         return !relevant_value.is_empty() && !is_valid_week_string(relevant_value);
     case TypeAttributeState::Time:
         // https://html.spec.whatwg.org/multipage/#time-state-(type=time):suffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid time string, the control is suffering from bad input.
+        if (!m_date_time_fields.is_empty())
+            return date_time_fields_describe_bad_input();
         return !relevant_value.is_empty() && !is_valid_time_string(relevant_value);
     case TypeAttributeState::LocalDateAndTime:
         // https://html.spec.whatwg.org/multipage/input.html#local-date-and-time-state-(type%3Ddatetime-local)%3Asuffering-from-bad-input
         // While the user interface describes input that the user agent cannot convert to a valid normalized local date and time string, the control is suffering from bad input.
+        if (!m_date_time_fields.is_empty())
+            return date_time_fields_describe_bad_input();
         return !relevant_value.is_empty() && !is_valid_local_date_and_time_string(relevant_value);
     case TypeAttributeState::Number:
         // https://html.spec.whatwg.org/multipage/input.html#number-state-(type%3Dnumber)%3Asuffering-from-bad-input
@@ -4398,18 +4446,19 @@ void HTMLInputElement::did_pick_date(Optional<Utf16String> picked_value)
     set_is_open(false);
     if (!has_date_picker() || !picked_value.has_value() || !is_mutable())
         return;
+    commit_date_time_value(value_sanitization_algorithm(*picked_value));
+}
 
-    auto old_value = m_value;
+void HTMLInputElement::commit_date_time_value(Utf16String new_value)
+{
+    if (new_value == m_value)
+        return;
+
     // then when the user changes the element's value
     m_dirty_value = true;
-    m_value = value_sanitization_algorithm(*picked_value);
-    if (m_value == old_value)
-        return;
-    if (m_text_node) {
-        m_text_node->set_data(m_value);
-        update_placeholder_visibility();
-    }
+    m_value = move(new_value);
     relevant_value_was_changed();
+    update_shadow_tree();
 
     // the user agent must queue an element task on the user interaction task source
     user_interaction_did_change_input_value();

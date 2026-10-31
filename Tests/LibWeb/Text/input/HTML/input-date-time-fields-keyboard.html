@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="date" type="date">
+<input id="time" type="time">
+<input id="month" type="month">
+<input id="week" type="week">
+<input id="local" type="datetime-local">
+<input id="readonly" type="date" value="2026-10-31" readonly>
+<script>
+    test(() => {
+        let events = [];
+        for (const input of document.querySelectorAll("input")) {
+            input.addEventListener("input", () => events.push("input"));
+            input.addEventListener("change", () => events.push("change"));
+        }
+        const report = (label, input) => {
+            println(`${label}: value="${input.value}" events=[${events.join(",")}]`);
+            events = [];
+        };
+
+        const date = document.getElementById("date");
+        date.focus();
+        internals.sendText(date, "1031");
+        report("date after month and day", date);
+        internals.sendText(date, "2026");
+        report("date after year", date);
+        internals.sendKey(date, "Up");
+        report("date year up", date);
+        internals.sendKey(date, "Home");
+        internals.sendKey(date, "Down");
+        report("date month down", date);
+        internals.sendKey(date, "Tab");
+        internals.sendKey(date, "Backspace");
+        report("date day cleared", date);
+        internals.sendText(date, "31");
+        report("date day 31 in September", date);
+        internals.sendKey(date, "Home");
+        internals.sendText(date, "1");
+        internals.sendText(date, "/");
+        report("date month typed with a separator", date);
+
+        date.value = "1999-12-31";
+        internals.sendKey(date, "Home");
+        internals.sendKey(date, "Up");
+        report("date month up wraps after script set the value", date);
+
+        const time = document.getElementById("time");
+        time.focus();
+        internals.sendText(time, "12:30");
+        report("time without day period", time);
+        internals.sendText(time, "p");
+        report("time with PM", time);
+        internals.sendKey(time, "Tab", 4);
+        internals.sendKey(time, "Tab", 4);
+        internals.sendText(time, "9");
+        report("time hour 9", time);
+        internals.sendKey(time, "End");
+        internals.sendText(time, "a");
+        report("time with AM", time);
+
+        const month = document.getElementById("month");
+        month.focus();
+        internals.sendText(month, "022026");
+        report("month", month);
+
+        const week = document.getElementById("week");
+        week.focus();
+        internals.sendText(week, "532027");
+        report("week 53 of 2027", week);
+        internals.sendKey(week, "Home");
+        internals.sendText(week, "52");
+        report("week 52 of 2027", week);
+
+        const local = document.getElementById("local");
+        local.focus();
+        internals.sendText(local, "02292028");
+        internals.sendText(local, "1159p");
+        report("datetime-local", local);
+
+        const readonly = document.getElementById("readonly");
+        readonly.focus();
+        internals.sendKey(readonly, "Up");
+        internals.sendText(readonly, "5");
+        internals.sendKey(readonly, "Backspace");
+        report("readonly", readonly);
+    });
+</script>
