@@ -1620,6 +1620,27 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
     if (!has_chrome_in_titlebar())
         return QMainWindow::eventFilter(object, event);
 
+    // A double click whose first click landed on another widget, such as the sidebar's toggle, which then moved away
+    // from under the pointer, is no double click on what is under the pointer now. On the empty chrome, it does not
+    // toggle whether the window is maximized. Other widgets still get it, as it is their only event for that click.
+    // NB: Widgets get the second click of a double click only as a double click, not as a press. An event that a
+    //     widget ignores goes on to its parent, and is seen here again with the same timestamp. Only the widget it
+    //     first went to counts.
+    if (event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonDblClick) {
+        auto* mouse_event = static_cast<QMouseEvent*>(event);
+        if (mouse_event->button() == Qt::LeftButton) {
+            if (event->type() == QEvent::MouseButtonPress && mouse_event->timestamp() != m_last_left_press_timestamp) {
+                m_last_left_press_widget = widget;
+                m_last_left_press_timestamp = mouse_event->timestamp();
+            } else if (event->type() == QEvent::MouseButtonDblClick && mouse_event->timestamp() != m_last_double_click_timestamp) {
+                m_last_double_click_timestamp = mouse_event->timestamp();
+                m_double_click_started_elsewhere = m_last_left_press_widget != widget;
+                m_last_left_press_widget = widget;
+                m_last_left_press_timestamp = mouse_event->timestamp();
+            }
+        }
+    }
+
     if (event->type() == QEvent::ContextMenu) {
         auto* context_menu_event = static_cast<QContextMenuEvent*>(event);
         auto position = context_menu_event->pos();
@@ -1672,7 +1693,8 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
 
     if (is_empty_window_drag_region(*widget, mouse_event->position().toPoint()) && !isFullScreen()) {
         if (event->type() == QEvent::MouseButtonDblClick) {
-            toggle_window_maximized();
+            if (!m_double_click_started_elsewhere)
+                toggle_window_maximized();
             return true;
         }
 
@@ -1684,7 +1706,8 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         return QMainWindow::eventFilter(object, event);
 
     if (event->type() == QEvent::MouseButtonDblClick) {
-        toggle_window_maximized();
+        if (!m_double_click_started_elsewhere)
+            toggle_window_maximized();
         return true;
     }
 
