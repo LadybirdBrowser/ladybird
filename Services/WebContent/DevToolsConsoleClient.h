@@ -14,7 +14,6 @@
 #include <LibWeb/HTML/Scripting/DevToolsLoggedObjects.h>
 #include <LibWeb/HTML/Scripting/DevToolsObjectTable.h>
 #include <LibWebCommon/WebView/ConsoleOutput.h>
-#include <LibWebCommon/WebView/ConsoleOutputBuffer.h>
 #include <WebContent/Forward.h>
 #include <WebContent/WebContentConsoleClient.h>
 
@@ -29,9 +28,9 @@ public:
     static JsonValue serialize_value(JS::Realm&, JS::Value);
     virtual ~DevToolsConsoleClient() override;
 
+    bool has_object(u64 object_id) const;
     ErrorOr<WebView::DebuggerObjectProperties> properties_for_object(u64 object_id);
     void forget_logged_objects() { m_logged_objects.clear(); }
-    void send_buffered_console_output(bool messages, bool errors);
 
 private:
     DevToolsConsoleClient(JS::Console&, PageClient&, ConsoleGlobalEnvironmentExtensions&);
@@ -52,9 +51,6 @@ private:
 
     // The objects of the messages that the page logged while a DevTools client was taking them.
     Web::HTML::DevToolsLoggedObjects m_logged_objects;
-
-    // The latest messages, which a DevTools client gets once it asks, so it sees what the page output before.
-    WebView::ConsoleOutputBuffer m_buffered_output;
 };
 
 }
