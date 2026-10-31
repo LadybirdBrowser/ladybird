@@ -1,0 +1,8 @@
+confined: ancestor measurements missed: 0
+confined: geometry matches a fresh layout: true
+escaping: ancestor measurements missed: 0
+escaping: geometry matches a fresh layout: true
+switching: leaf static, container width 230
+switching: geometry matches a fresh layout: true
+switching: leaf absolute, container width 30
+switching: geometry matches a fresh layout: true

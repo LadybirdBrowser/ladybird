@@ -706,6 +706,12 @@ impl LayoutNodeArena {
                 data.parent.get(),
             )
         };
+        let ancestor_intrinsic_sizes_after_change =
+            if node_is_box && self.box_contributes_to_no_ancestor_intrinsic_size(node) {
+                AncestorIntrinsicSizes::Kept
+            } else {
+                AncestorIntrinsicSizes::Reset
+            };
 
         // A dirty node normally implies dirty ancestors, but the walk that marked a partial
         // relayout boundary stopped there and left its ancestors clean, so a through-ancestors
@@ -723,7 +729,7 @@ impl LayoutNodeArena {
             self.invalidate_ancestors_for_change_below(
                 node,
                 AncestorInvalidation::ContentChange,
-                AncestorIntrinsicSizes::Reset,
+                ancestor_intrinsic_sizes_after_change,
             );
             return;
         }
@@ -756,7 +762,7 @@ impl LayoutNodeArena {
 
         let mut marks_ancestors_for_layout_update = propagate_through_ancestors;
         let mut ancestor_intrinsic_sizes = if propagate_through_ancestors {
-            AncestorIntrinsicSizes::Reset
+            ancestor_intrinsic_sizes_after_change
         } else {
             AncestorIntrinsicSizes::Kept
         };
