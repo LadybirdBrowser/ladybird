@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 341 tests
+Found 355 tests
 
-331 Pass
+345 Pass
 10 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testAddition function
@@ -46,6 +46,14 @@ Pass	list-style-position: "inside" onto "outside"
 Pass	list-style-type (type: discrete) has testAddition function
 Pass	list-style-type: "square" onto "circle"
 Pass	list-style-type: "circle" onto "square"
+Pass	math-depth (type: integer) has testAddition function
+Pass	math-depth: integer
+Pass	math-shift (type: discrete) has testAddition function
+Pass	math-shift: "compact" onto "normal"
+Pass	math-shift: "normal" onto "compact"
+Pass	math-style (type: discrete) has testAddition function
+Pass	math-style: "compact" onto "normal"
+Pass	math-style: "normal" onto "compact"
 Pass	mask (type: discrete) has testAddition function
 Pass	mask: "url("http://localhost/test-2")" onto "url("http://localhost/test-1")"
 Pass	mask: "url("http://localhost/test-1")" onto "url("http://localhost/test-2")"
@@ -167,6 +175,12 @@ Pass	position-try-order: "normal" onto "most-width"
 Pass	quotes (type: discrete) has testAddition function
 Pass	quotes: ""‘" "’" "“" "”"" onto ""“" "”" "‘" "’""
 Pass	quotes: ""“" "”" "‘" "’"" onto ""‘" "’" "“" "”""
+Pass	resize (type: discrete) has testAddition function
+Pass	resize: "horizontal" onto "both"
+Pass	resize: "both" onto "horizontal"
+Pass	scroll-behavior (type: discrete) has testAddition function
+Pass	scroll-behavior: "smooth" onto "auto"
+Pass	scroll-behavior: "auto" onto "smooth"
 Pass	scroll-snap-align (type: discrete) has testAddition function
 Pass	scroll-snap-align: "start" onto "none"
 Pass	scroll-snap-align: "none" onto "start"
