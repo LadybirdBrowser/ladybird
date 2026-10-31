@@ -1303,6 +1303,29 @@ impl GridItemPlacement {
     }
 }
 
+struct AxisTrackOffsets {
+    sum_of_tracks_and_gaps: CssPixels,
+    aligned_offset_after_interleaved_entries: Vec<CssPixels>,
+}
+
+impl AxisTrackOffsets {
+    fn aligned_offset_after(&self, interleaved_entry_count: i32) -> CssPixels {
+        let offsets = &self.aligned_offset_after_interleaved_entries;
+        offsets[(interleaved_entry_count.max(0) as usize).min(offsets.len() - 1)]
+    }
+}
+
+struct GridTrackOffsets {
+    columns: AxisTrackOffsets,
+    rows: AxisTrackOffsets,
+}
+
+impl GridTrackOffsets {
+    fn axis(&self, axis: Axis) -> &AxisTrackOffsets {
+        axis.select(&self.columns, &self.rows)
+    }
+}
+
 #[derive(Clone)]
 struct ParentGridData<'pass> {
     placement_of_this_container: Option<GridItemPlacement>,
@@ -4257,6 +4280,33 @@ impl<'pass> GridFormattingContext<'pass> {
             .fold(CssPixels::default(), |sum, track| sum + track.base_size)
     }
 
+    fn axis_track_offsets(&self, axis: Axis) -> AxisTrackOffsets {
+        let sum_of_tracks_and_gaps = self.track_sum(axis);
+        let mut offset = content_start_offset(
+            self.content_alignment(axis),
+            self.grid_container_alignment_size(axis),
+            sum_of_tracks_and_gaps,
+        );
+        let mut aligned_offset_after_interleaved_entries =
+            Vec::with_capacity(self.axis_tracks(axis).len().saturating_mul(2).saturating_add(1));
+        aligned_offset_after_interleaved_entries.push(offset);
+        for track in self.interleaved_track_iter(axis) {
+            offset += track.base_size;
+            aligned_offset_after_interleaved_entries.push(offset);
+        }
+        AxisTrackOffsets {
+            sum_of_tracks_and_gaps,
+            aligned_offset_after_interleaved_entries,
+        }
+    }
+
+    fn grid_track_offsets(&self) -> GridTrackOffsets {
+        GridTrackOffsets {
+            columns: self.axis_track_offsets(Axis::Column),
+            rows: self.axis_track_offsets(Axis::Row),
+        }
+    }
+
     fn grid_container_alignment_size(&self, axis: Axis) -> CssPixels {
         if axis.is_column() {
             return self.container_cells.content_inline_size();
@@ -4345,10 +4395,10 @@ impl<'pass> GridFormattingContext<'pass> {
         self.resolve_item_sizes(Axis::Row);
     }
 
-    fn grid_area(&self, item: GridItem) -> geometry::LogicalRect {
+    fn grid_area(&self, item: GridItem, track_offsets: &GridTrackOffsets) -> geometry::LogicalRect {
         let axis_area = |axis: Axis| match item.grid_lanes_stacking_area {
             Some(area) if self.is_grid_lanes_stacking_axis(axis) => self.grid_lanes_stacking_axis_area(area, axis),
-            _ => self.axis_grid_area(axis, Some((item.position(axis), item.span(axis)))),
+            _ => self.placed_axis_grid_area(axis, item.position(axis), item.span(axis), track_offsets.axis(axis)),
         };
         let (inline_offset, inline_size) = axis_area(Axis::Column);
         let (block_offset, block_size) = axis_area(Axis::Row);
@@ -4365,33 +4415,34 @@ impl<'pass> GridFormattingContext<'pass> {
     }
 
     fn axis_grid_area(&self, axis: Axis, placement: Option<(i32, usize)>) -> (CssPixels, CssPixels) {
-        let padding_start = self.container_padding_start(axis);
-        let padding_end = self.container_padding_end(axis);
         let Some((position, span)) = placement else {
+            let padding_start = self.container_padding_start(axis);
+            let padding_end = self.container_padding_end(axis);
             let content_size = match self.axis_available(axis) {
                 AvailableSize::Definite(size) => size,
                 _ => self.track_sum(axis),
             };
             return (-padding_start, content_size + padding_start + padding_end);
         };
+        self.placed_axis_grid_area(axis, position, span, &self.axis_track_offsets(axis))
+    }
+
+    fn placed_axis_grid_area(
+        &self,
+        axis: Axis,
+        position: i32,
+        span: usize,
+        track_offsets: &AxisTrackOffsets,
+    ) -> (CssPixels, CssPixels) {
         if position == self.axis_tracks(axis).len() as i32 {
-            return (self.track_sum(axis), padding_end);
+            return (track_offsets.sum_of_tracks_and_gaps, self.container_padding_end(axis));
         }
 
         // The area runs from the start of its first track to the end of its last, without the gutter after it.
         let start = position.saturating_mul(2);
         let end = start.saturating_add((span.saturating_mul(2) as i32).saturating_sub(1));
-        let container = self.grid_container_alignment_size(axis);
-        let alignment = self.content_alignment(axis);
-        let initial_offset = content_start_offset(alignment, container, self.track_sum(axis));
-        let mut start_offset = initial_offset;
-        let mut end_offset = initial_offset;
-        for track in self.interleaved_track_iter(axis).take(start.max(0) as usize) {
-            start_offset += track.base_size;
-        }
-        for track in self.interleaved_track_iter(axis).take(end.max(0) as usize) {
-            end_offset += track.base_size;
-        }
+        let start_offset = track_offsets.aligned_offset_after(start);
+        let end_offset = track_offsets.aligned_offset_after(end);
         (start_offset, end_offset - start_offset)
     }
 
@@ -4436,7 +4487,7 @@ impl<'pass> GridFormattingContext<'pass> {
         // is that of the corresponding padding edge of the grid container (the padding edge of the scrollable area, if the grid container
         // overflows). These lines become the first and last lines (0th and -0th) of the augmented grid used for positioning absolutely-positioned items.
         // NB: A line between two tracks has a gutter in it. An area's start edge comes after the gutter, and its end edge
-        //     before it, as in axis_grid_area().
+        //     before it, as in placed_axis_grid_area().
         let explicit_line_position = |line: i32, is_end: bool| {
             let tracks = self.interleaved_tracks(axis);
             let alignment = self.content_alignment(axis);
@@ -4583,9 +4634,10 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
         let mut baseline_aligned_items = Vec::new();
+        let track_offsets = self.grid_track_offsets();
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
-            let area = self.grid_area(item);
+            let area = self.grid_area(item, &track_offsets);
             let mut table_wrapper_inline_basis = None;
             if self.facts(item.box_).is_table_wrapper() {
                 // Track spacing can expand the final grid area after the earlier inline-size pass. Recompute the wrapper
