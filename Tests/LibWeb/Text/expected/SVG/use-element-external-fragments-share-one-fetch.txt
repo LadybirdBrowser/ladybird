@@ -1,4 +1,4 @@
-Requests for the sprite: 3
+Requests for the sprite: 1
 useFirst: first-rect
 useSecond: second-circle
 useThird: third-path
