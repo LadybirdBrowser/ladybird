@@ -760,8 +760,8 @@ private:
     static FinishedScroll finished_scroll(MainThreadSmoothScroll const&);
 };
 
-// Held user input, such as a pressed key or a grabbed scrollbar thumb, keeps the gesture of each box it holds going until
-// it is released.
+// Held user input, such as a pressed key or a scrollbar thumb the compositor drags, keeps the gesture of each box it
+// holds going until it is released.
 class WEB_API UserScrollGestureHold {
     AK_MAKE_NONCOPYABLE(UserScrollGestureHold);
     AK_MAKE_NONMOVABLE(UserScrollGestureHold);
@@ -774,7 +774,7 @@ public:
         No,
         Yes,
     };
-    explicit UserScrollGestureHold(LocalNavigable&, TakesOverMomentum = TakesOverMomentum::No, Optional<Web::AsyncScrollNodeStableID> held_box = {});
+    explicit UserScrollGestureHold(LocalNavigable&, TakesOverMomentum = TakesOverMomentum::No);
     ~UserScrollGestureHold();
 
     void hold(Web::AsyncScrollNodeStableID);

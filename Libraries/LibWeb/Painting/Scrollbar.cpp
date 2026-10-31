@@ -35,48 +35,21 @@ void Scrollbar::begin_drag_driven_by_compositor()
         Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
 }
 
-MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
+MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint)
 {
-    if (m_drag_is_driven_by_compositor) {
-        if (type != UIEvents::EventNames::pointerup || button != UIEvents::MouseButton::Primary)
-            return MouseAction::CaptureInput;
-        release_thumb_grab();
-        if (auto* node = layout_node())
-            Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
+    if (!m_drag_is_driven_by_compositor)
         return MouseAction::None;
-    }
-
-    if (type == UIEvents::EventNames::pointermove || type == UIEvents::EventNames::pointerup) {
-        if (!m_thumb_grab_position.has_value())
-            return MouseAction::None;
-    }
-    if (type != UIEvents::EventNames::pointermove && button != UIEvents::MouseButton::Primary)
-        return MouseAction::None;
-
-    auto* node = layout_node();
-    if (!node) {
-        release_thumb_grab();
-        return MouseAction::None;
-    }
-
-    auto position = Painting::transform_to_local_coordinates(*node, visual_viewport_position);
-    if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
-        return MouseAction::None;
-    Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
-
-    if (type == UIEvents::EventNames::pointerup) {
-        release_thumb_grab();
-        return MouseAction::None;
-    }
-
-    return MouseAction::CaptureInput;
+    if (type != UIEvents::EventNames::pointerup || button != UIEvents::MouseButton::Primary)
+        return MouseAction::CaptureInput;
+    release_drag();
+    if (auto* node = layout_node())
+        Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
+    return MouseAction::None;
 }
 
-void Scrollbar::release_thumb_grab()
+void Scrollbar::release_drag()
 {
     m_drag_is_driven_by_compositor = false;
-    m_thumb_grab_position.clear();
-    m_thumb_grab_gesture_hold = nullptr;
     push_enlarged_state();
 }
 
@@ -109,66 +82,10 @@ void Scrollbar::mouse_leave()
         Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
 }
 
-bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)
-{
-    auto* node = layout_node();
-    if (!node)
-        return false;
-    ChromeMetrics metrics = node->document().page().chrome_metrics();
-
-    auto const& scroll_state = node->document().scroll_state_snapshot();
-    auto scrollbar_data = compute_scrollbar_data(*node, m_direction, metrics, &scroll_state,
-        is_enlarged() ? ScrollbarSizing::Enlarged : ScrollbarSizing::Regular);
-    if (!scrollbar_data.has_value())
-        return false;
-
-    auto orientation = m_direction == ScrollDirection::Horizontal ? Orientation::Horizontal : Orientation::Vertical;
-    auto offset_relative_to_gutter = (position - scrollbar_data->gutter_rect.location()).primary_offset_for_orientation(orientation);
-    auto gutter_size = scrollbar_data->gutter_rect.primary_size_for_orientation(orientation);
-    auto thumb_size = scrollbar_data->thumb_rect.primary_size_for_orientation(orientation);
-
-    if (gutter_size <= thumb_size)
-        return true;
-
-    if (!m_thumb_grab_position.has_value()) {
-        auto primary_position = position.primary_offset_for_orientation(orientation);
-        auto position_is_along_thumb = orientation == Orientation::Vertical
-            ? scrollbar_data->thumb_rect.contains_vertically(primary_position)
-            : scrollbar_data->thumb_rect.contains_horizontally(primary_position);
-
-        m_thumb_grab_position = position_is_along_thumb
-            ? (position - scrollbar_data->thumb_rect.location()).primary_offset_for_orientation(orientation)
-            : max(min(offset_relative_to_gutter, thumb_size / 2), offset_relative_to_gutter - gutter_size + thumb_size);
-        push_enlarged_state();
-        if (auto navigable = node->document().navigable())
-            m_thumb_grab_gesture_hold = make<HTML::UserScrollGestureHold>(*navigable, HTML::UserScrollGestureHold::TakesOverMomentum::No, async_scroll_node_stable_id(*node));
-    }
-
-    auto constrained_offset = AK::clamp(offset_relative_to_gutter - m_thumb_grab_position.value(), 0, gutter_size - thumb_size);
-    auto scroll_position = constrained_offset.to_double() / (gutter_size - thumb_size).to_double();
-
-    auto scrollable_overflow_size = Painting::scrollable_overflow_rect(*node)->primary_size_for_orientation(orientation);
-    auto padding_size = Painting::absolute_padding_box_rect(*node).primary_size_for_orientation(orientation);
-    auto minimum_scroll_offset = Painting::minimum_scroll_offset(*node).primary_offset_for_orientation(orientation);
-    auto scroll_position_in_pixels = minimum_scroll_offset + CSSPixels::nearest_value_for(scroll_position * (scrollable_overflow_size - padding_size));
-
-    auto new_scroll_offset = Painting::scroll_offset(*node);
-    new_scroll_offset.set_primary_offset_for_orientation(orientation, scroll_position_in_pixels);
-
-    // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
-    // Common examples of absolute scrolls include:
-    //     manipulating the scrollbar "thumb" explicitly
-    if (auto navigable = node->document().navigable())
-        navigable->note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type::EndPosition);
-
-    Painting::set_scroll_offset_from_user_input(*node, new_scroll_offset, Painting::ScrollKind::Absolute);
-    return true;
-}
-
 void Scrollbar::did_detach()
 {
     m_hovered = false;
-    release_thumb_grab();
+    release_drag();
 }
 
 }

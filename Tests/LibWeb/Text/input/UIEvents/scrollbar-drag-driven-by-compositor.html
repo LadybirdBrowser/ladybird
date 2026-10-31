@@ -39,12 +39,14 @@ body {
         println(`pointerdown reached the scroller: ${pointerDownCount === 1}`);
         println(`scrollTop after the drag: ${scroller.scrollTop}`);
 
-        // The scrollbar takes an ordinary drag again once the compositor's has ended.
+        // The scrollbar takes another drag once the first one has ended.
         scroller.scrollTop = 0;
-        internals.mouseDown(147, 5);
-        internals.mouseMove(147, 60);
-        internals.mouseUp(147, 60);
         await animationFrame();
-        println(`scrolled by an ordinary drag afterwards: ${scroller.scrollTop > 0}`);
+        await animationFrame();
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 5);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 60, { buttons: 1 });
+        await internals.mouseEventThroughUIProcess("mouseup", 147, 60);
+        await animationFrame();
+        println(`scrolled by another drag afterwards: ${scroller.scrollTop > 0}`);
     });
 </script>

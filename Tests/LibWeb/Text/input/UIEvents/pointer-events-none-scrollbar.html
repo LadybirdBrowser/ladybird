@@ -22,12 +22,16 @@ body {
 </div>
 <script src="../include.js"></script>
 <script>
-    test(() => {
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
         // Move over the scrollbar area, then click on it. With pointer-events: none,
         // this should not crash and should not scroll.
-        internals.mouseMove(147, 50);
-        internals.mouseDown(147, 50);
-        internals.mouseUp(147, 50);
+        await internals.mouseEventThroughUIProcess("mousemove", 147, 50);
+        await internals.mouseEventThroughUIProcess("mousedown", 147, 50);
+        await internals.mouseEventThroughUIProcess("mouseup", 147, 50);
+        await animationFrame();
         println(`scrollTop after click on scrollbar: ${scrollable.scrollTop}`);
 
         // Wheel events should also not scroll the element.

@@ -43,15 +43,16 @@ body {
 <script>
     outer.scrollTop = 300;
 
-    asyncTest(done => {
-        // Move the cursor above the inner scrollbar gutter and click to scroll down.
-        internals.mouseMove(147, 50);
-        internals.mouseDown(147, 80);
-        internals.mouseUp(147, 80);
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
 
-        requestAnimationFrame(() => {
-            println(`inner scrolled: ${inner.scrollTop > 0}`);
-            done();
+        // Move the cursor over the inner scrollbar, and press its gutter below the thumb to page down.
+        await scrollSettled(inner, async () => {
+            await internals.mouseEventThroughUIProcess("mousemove", 147, 50);
+            await internals.mouseEventThroughUIProcess("mousedown", 147, 80);
+            await internals.mouseEventThroughUIProcess("mouseup", 147, 80);
         });
+        println(`inner scrolled: ${inner.scrollTop > 0}`);
     });
 </script>

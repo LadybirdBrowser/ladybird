@@ -26,12 +26,6 @@ pub(crate) struct ScrollbarData {
     pub(crate) thumb_travel_to_scroll_ratio: CssPixelFraction,
 }
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct ScrollbarScrollState {
-    pub(crate) device_scroll_offset: f32,
-    pub(crate) device_pixels_per_css_pixel: f64,
-}
-
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct PhysicalAxes {
     pub(crate) horizontal: bool,
@@ -399,7 +393,6 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
         slot: NodeSlotId,
         direction: ScrollDirection,
         enlarged: bool,
-        scroll_state: Option<ScrollbarScrollState>,
     ) -> Option<ScrollbarData> {
         let arena = self.arena;
         let metrics = self.metrics;
@@ -449,12 +442,6 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
         *thumb.primary_offset += thumb_margin - minimum_offset.mul_by_fraction(ratio);
         if enlarged || (direction == ScrollDirection::Vertical && is_chrome_mirrored(arena, slot)) {
             *thumb.secondary_offset += thumb_margin;
-        }
-        if let Some(scroll_state) = scroll_state {
-            let scroll_offset = CssPixels::nearest_value_for_f32(
-                scroll_state.device_scroll_offset / scroll_state.device_pixels_per_css_pixel as f32,
-            );
-            *thumb.primary_offset += scroll_offset.mul_by_fraction(ratio);
         }
         Some(ScrollbarData {
             gutter_rect: if enlarged {

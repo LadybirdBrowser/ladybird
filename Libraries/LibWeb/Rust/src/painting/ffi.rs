@@ -84,22 +84,6 @@ pub struct FfiPhysicalResizeAxes {
     pub vertical: bool,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiScrollbarData {
-    pub gutter_rect: FfiCssPixelRect,
-    pub thumb_rect: FfiCssPixelRect,
-    pub track_rect: FfiCssPixelRect,
-    pub thumb_travel_to_scroll_ratio: f64,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiOptionalScrollbarData {
-    pub has_value: bool,
-    pub value: FfiScrollbarData,
-}
-
 /// # Safety
 ///
 /// `host` must be a live document host, on its document's thread.

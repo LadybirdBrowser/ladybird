@@ -20,12 +20,6 @@
 #include <LibWeb/Painting/Scrolling.h>
 #include <LibWebCommon/PixelUnits.h>
 
-namespace Web {
-
-struct ChromeMetrics;
-
-}
-
 namespace Web::Painting {
 
 enum class MouseAction : u8 {
@@ -43,24 +37,11 @@ enum class ChromeWidgetKind : u8 {
     VerticalScrollbar,
 };
 
-struct ScrollbarData {
-    CSSPixelRect gutter_rect;
-    CSSPixelRect thumb_rect;
-    CSSPixelRect track_rect;
-    CSSPixelFraction thumb_travel_to_scroll_ratio { 0 };
-};
-
-enum class ScrollbarSizing {
-    Regular,
-    Enlarged,
-};
-
 struct PhysicalResizeAxes {
     bool horizontal;
     bool vertical;
 };
 
-Optional<ScrollbarData> compute_scrollbar_data(Layout::Node const&, ScrollDirection, ChromeMetrics const&, Compositing::ScrollStateSnapshot const* = nullptr, ScrollbarSizing = ScrollbarSizing::Regular);
 PhysicalResizeAxes physical_resize_axes(Layout::Node const&);
 
 class Scrollbar;

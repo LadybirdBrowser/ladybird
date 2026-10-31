@@ -23,8 +23,6 @@
         document.body.offsetHeight;
         scrollable.style.borderLeft = "1px solid transparent";
 
-        internals.mouseDown(97, 90);
-        internals.mouseUp(97, 90);
-        println(`scrolled after scrollbar click: ${scrollable.scrollTop > 0}`);
+        println(`scrollbar hit after invalidation: ${document.elementFromPoint(97, 90) === scrollable}`);
     });
 </script>

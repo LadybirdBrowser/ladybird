@@ -32,10 +32,10 @@
         await animationFrame();
 
         // Dragging the scrollbar thumb is an absolute scroll, so it does not set a scroll direction.
-        await scrollSettled(scroller, () => {
-            internals.mouseDown(rect.right - 5, rect.top + 10);
-            internals.mouseMove(rect.right - 5, rect.top + 60);
-            internals.mouseUp(rect.right - 5, rect.top + 60);
+        await scrollSettled(scroller, async () => {
+            await internals.mouseEventThroughUIProcess("mousedown", rect.right - 5, rect.top + 10);
+            await internals.mouseEventThroughUIProcess("mousemove", rect.right - 5, rect.top + 60, { buttons: 1 });
+            await internals.mouseEventThroughUIProcess("mouseup", rect.right - 5, rect.top + 60);
         });
         await animationFrame();
         await animationFrame();
@@ -48,11 +48,11 @@
         println(`After a wheel scroll up: scrolled=${scrolled()}`);
 
         // Dragging the thumb down again keeps the direction of the wheel scroll.
-        await scrollSettled(scroller, () => {
+        await scrollSettled(scroller, async () => {
             const thumbTop = rect.top + 10 + (scroller.scrollTop / scroller.scrollHeight) * rect.height;
-            internals.mouseDown(rect.right - 5, thumbTop);
-            internals.mouseMove(rect.right - 5, thumbTop + 50);
-            internals.mouseUp(rect.right - 5, thumbTop + 50);
+            await internals.mouseEventThroughUIProcess("mousedown", rect.right - 5, thumbTop);
+            await internals.mouseEventThroughUIProcess("mousemove", rect.right - 5, thumbTop + 50, { buttons: 1 });
+            await internals.mouseEventThroughUIProcess("mouseup", rect.right - 5, thumbTop + 50);
         });
         await animationFrame();
         await animationFrame();

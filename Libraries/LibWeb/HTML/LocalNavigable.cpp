@@ -7985,12 +7985,10 @@ bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const
     return false;
 }
 
-UserScrollGestureHold::UserScrollGestureHold(LocalNavigable& navigable, TakesOverMomentum takes_over_momentum, Optional<Web::AsyncScrollNodeStableID> held_box)
+UserScrollGestureHold::UserScrollGestureHold(LocalNavigable& navigable, TakesOverMomentum takes_over_momentum)
     : m_navigable(navigable)
     , m_takes_over_momentum(takes_over_momentum)
 {
-    if (held_box.has_value())
-        hold(held_box.value());
 }
 
 UserScrollGestureHold::~UserScrollGestureHold()

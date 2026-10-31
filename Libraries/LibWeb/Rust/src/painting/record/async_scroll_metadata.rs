@@ -347,9 +347,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         display_list_paints_enlarged_scrollbar: bool,
     ) -> Option<CompositorScrollbar> {
         let chrome_geometry = ChromeGeometry::for_recording(self.source, self.inputs);
-        let scrollbar = chrome_geometry.compute_scrollbar_data(paintable, direction, false, None)?;
+        let scrollbar = chrome_geometry.compute_scrollbar_data(paintable, direction, false)?;
         let expanded = chrome_geometry
-            .compute_scrollbar_data(paintable, direction, true, None)
+            .compute_scrollbar_data(paintable, direction, true)
             .expect("an enlarged scrollbar must exist when the regular scrollbar exists");
         let scale = self.inputs.device_pixels_per_css_pixel;
         let min_scroll_offset = css_point_to_device_point(minimum_scroll_offset(self.source, paintable), scale);
