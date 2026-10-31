@@ -426,7 +426,7 @@ pub(crate) fn place_child(
     placed_child: PlacedChild,
     offset: FfiCssPixelPoint,
     containing_line_box_fragment: Option<used_values::LineBoxFragmentCoordinate>,
-    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    fragment_arrival: Option<fragment_tree::RunRootFragment>,
 ) -> Option<fragment_tree::PlacedFragment> {
     let abspos_layout_inputs = placed_child.abspos_layout_inputs;
     let containing_block = abspos_layout_inputs.map_or_else(
@@ -467,10 +467,10 @@ pub(crate) fn place_child(
     debug_assert!(
         fragment_arrival
             .as_ref()
-            .is_none_or(|arrival| arrival.node() == node && !fragments.left_child_unplaced(node)),
+            .is_none_or(|root| root.fragment.node == node && !fragments.left_child_unplaced(node)),
         "a box is placed with fragments handed to it for another box, or after it was left unplaced"
     );
-    match fragment_arrival.map(fragment_tree::ChildFragmentArrival::into_root) {
+    match fragment_arrival {
         Some(root) => fragments.take_in_child_root_at_placement(node, root, callbacks),
         None => fragments.open_fragment_of_placed_box(node),
     }
@@ -1929,7 +1929,7 @@ fn body_input_with_inner_available_space(root: &impl BoxMetricCells, input: &Lay
 pub(crate) struct ChildRunOutcome {
     pub(crate) result: ChildLayoutResult,
     pub(crate) laid_out_box: run_state::LaidOutChildBox,
-    pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    pub(crate) fragment_arrival: Option<fragment_tree::RunRootFragment>,
 }
 
 impl ChildRunOutcome {
@@ -2819,7 +2819,7 @@ pub(crate) fn propagate_percentage_block_size_dependency_to_containing_block(
 /// unless the parent lays out the child's contents itself.
 pub(crate) struct ChildLayout {
     pub(crate) outcome: ChildLayoutOutcome,
-    pub(crate) fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    pub(crate) fragment_arrival: Option<fragment_tree::RunRootFragment>,
     pub(crate) laid_out_box: run_state::LaidOutChildBox,
 }
 
@@ -2873,23 +2873,13 @@ pub(crate) fn layout_inside_child_with_input_cells(
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
         // parent run, which will also construct its fragment when placing the box.
         let cells_of_this_layout = Cell::new(child_input_cells);
-        let committed_fragment = run.sizing().dimension_empty_atomic_root(
+        run.sizing().dimension_empty_atomic_root(
             sizing_context::SizedCells::new(child, &cells_of_this_layout, run.callbacks.frame),
             input.available_space,
             input.containing_block_constraints,
             child_run_builds_fragments,
         );
-        // OPTIMIZATION: A box that took its metrics from its committed fragment hands that fragment to its placement.
-        let fragment_arrival = committed_fragment
-            .filter(|fragment| run.fragments.is_some() && fragment.is_plain_box())
-            .map(fragment_tree::ChildFragmentArrival::CommittedFragment);
-        let laid_out_box =
-            run_state::LaidOutChildBox::sized_here(cells_of_this_layout.get(), DerivedBaselines::default());
-        return ChildLayout {
-            outcome: skipped(None),
-            fragment_arrival,
-            laid_out_box,
-        };
+        return ChildLayout::of_child_sized_in_parent_run(skipped(None), cells_of_this_layout.get());
     }
     let creates_replaced_context = matches!(
         formatting_context_type_created_by_box(facts),
@@ -2947,7 +2937,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
 pub(crate) fn leave_child_unplaced(
     run: &FormattingContextRun,
     unplaced_child: PlacedChild,
-    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    fragment_arrival: Option<fragment_tree::RunRootFragment>,
 ) {
     if let Some(arrival) = fragment_arrival {
         run.fragments
@@ -3335,7 +3325,7 @@ fn child_run_outcome_from_outputs(
         {
             root.fragment = committed;
         }
-        fragment_tree::ChildFragmentArrival::RunRoot(root)
+        root
     });
     ChildRunOutcome {
         result,
@@ -3772,7 +3762,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
     );
     // The retained offset already includes relative positioning. Publish it directly instead
     // of applying placement adjustments a second time.
-    let Some(fragment_tree::ChildFragmentArrival::RunRoot(run_root_fragment)) = fragment_arrival else {
+    let Some(run_root_fragment) = fragment_arrival else {
         panic!("the root of a partial relayout is laid out by a run of its own");
     };
     fragments.take_in_child_root_at_placement(root, run_root_fragment, callbacks);

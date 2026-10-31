@@ -111,25 +111,6 @@ impl Fragment {
                 .all(|(link, previous_link)| link.places_same_fragment_identically_to(previous_link))
     }
 
-    /// Whether the fragment holds nothing beyond a plain box's metrics, line data and children: no table, grid, flex,
-    /// SVG or line clamp state.
-    pub(crate) fn is_plain_box(&self) -> bool {
-        !self.is_collapsed_borders_table_box
-            && self.collapsed_table_borders.is_none()
-            && self.grid_layout_data.is_none()
-            && self.flex_layout_data.is_none()
-            && self.multicol_layout_data.is_none()
-            && self.math_paint_data.is_none()
-            && self.used_grid_tracks.is_none()
-            && self.svg.is_none()
-            && self.computed_svg_path.is_none()
-            && self.svg_text_character_cells.is_none()
-            && !self.has_line_clamp_point
-            && !self.clamped_content_is_scrollable_overflow
-            && !self.continues_from_previous_fragment
-            && !self.continues_in_next_fragment
-    }
-
     /// Box properties excluding inline content and child fragments. Painting compares those
     /// separately: a new descendant fragment does not necessarily change this box's commands.
     pub(crate) fn has_same_box_properties(&self, previous: &Fragment) -> bool {
@@ -755,10 +736,10 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
     }
 }
 
-/// A child the run laid out but does not place: what its layout handed its placement, and what placing it would have
-/// taken.
+/// A child the run laid out but does not place: the root fragment its layout handed its placement, and what placing
+/// it would have taken.
 struct ChildLeftUnplaced {
-    arrival: ChildFragmentArrival,
+    root: RunRootFragment,
     unplaced_child: crate::layout::formatting_context::PlacedChild,
 }
 
@@ -820,7 +801,9 @@ impl UnplacedRootFragment {
 }
 
 /// What a run hands its parent of its root: the root's fragment, and what goes past the run toward boxes outside it.
+/// A box its parent takes as it was committed hands its committed fragment the same way, with nothing past it.
 #[derive(Clone)]
+#[must_use = "a child's fragments are lost unless its placement takes them"]
 pub(crate) struct RunRootFragment {
     pub(crate) fragment: std::sync::Arc<Fragment>,
     pub(crate) payloads_past_run: PayloadsPastRun,
@@ -832,36 +815,6 @@ impl RunRootFragment {
         Self {
             fragment,
             payloads_past_run: PayloadsPastRun::default(),
-        }
-    }
-}
-
-/// What the layout of a child hands the child's placement: the root fragment of the child's run, or a committed
-/// fragment. The placement takes in either as the fragment of a child run's root, and keeps it where it shows the box
-/// as placed.
-#[must_use = "a child's fragments are lost unless its placement takes them"]
-pub(crate) enum ChildFragmentArrival {
-    RunRoot(RunRootFragment),
-    CommittedFragment(std::sync::Arc<Fragment>),
-}
-
-impl ChildFragmentArrival {
-    pub(crate) fn fragment(&self) -> &std::sync::Arc<Fragment> {
-        match self {
-            Self::RunRoot(root) => &root.fragment,
-            Self::CommittedFragment(fragment) => fragment,
-        }
-    }
-
-    pub(crate) fn node(&self) -> crate::layout::node_data::NodeSlotId {
-        self.fragment().node
-    }
-
-    /// The child's fragment as the root fragment of a run. Nothing goes past a committed fragment.
-    pub(crate) fn into_root(self) -> RunRootFragment {
-        match self {
-            Self::RunRoot(root) => root,
-            Self::CommittedFragment(fragment) => RunRootFragment::propagating_nothing(fragment),
         }
     }
 }
@@ -1466,17 +1419,17 @@ impl RunFragmentBuilder {
     /// child would have taken.
     pub(crate) fn leave_child_unplaced(
         &self,
-        arrival: ChildFragmentArrival,
+        root: RunRootFragment,
         unplaced_child: crate::layout::formatting_context::PlacedChild,
     ) {
         debug_assert!(
-            !self.left_child_unplaced(arrival.node()),
+            !self.left_child_unplaced(root.fragment.node),
             "a child was left unplaced twice"
         );
-        self.inner.borrow_mut().children_left_unplaced.push(ChildLeftUnplaced {
-            arrival,
-            unplaced_child,
-        });
+        self.inner
+            .borrow_mut()
+            .children_left_unplaced
+            .push(ChildLeftUnplaced { root, unplaced_child });
     }
 
     pub(crate) fn left_child_unplaced(&self, node: crate::layout::node_data::NodeSlotId) -> bool {
@@ -1484,7 +1437,7 @@ impl RunFragmentBuilder {
             .borrow()
             .children_left_unplaced
             .iter()
-            .any(|child| child.arrival.node() == node)
+            .any(|child| child.root.fragment.node == node)
     }
 
     pub(crate) fn adopt_fragmentainer_root(
@@ -1563,11 +1516,10 @@ impl RunFragmentBuilder {
     pub(crate) fn discard_unplaced_subtree(
         &self,
         node: crate::layout::node_data::NodeSlotId,
-        fragment_arrival: Option<ChildFragmentArrival>,
+        fragment_arrival: Option<RunRootFragment>,
     ) {
         debug_assert!(!self.left_child_unplaced(node), "a child left unplaced is discarded");
-        let arrived_payloads =
-            fragment_arrival.map(|arrival| Box::new(FragmentPayloads::of_fragment(arrival.fragment())));
+        let arrived_payloads = fragment_arrival.map(|root| Box::new(FragmentPayloads::of_fragment(&root.fragment)));
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();
         let mut payloads_of_box = arrived_payloads;
@@ -1838,16 +1790,8 @@ impl RunFragmentBuilder {
             );
         }
         // NB: A child run's root that the run never placed keeps its fragment at the top of the run's fragments, as its
-        //     subtree goes with it. A box whose parent sized it from its committed fragment and never placed has no
-        //     fragment here.
-        for ChildLeftUnplaced {
-            arrival,
-            unplaced_child,
-        } in std::mem::take(&mut inner.children_left_unplaced)
-        {
-            let ChildFragmentArrival::RunRoot(root) = arrival else {
-                continue;
-            };
+        //     subtree goes with it.
+        for ChildLeftUnplaced { root, unplaced_child } in std::mem::take(&mut inner.children_left_unplaced) {
             let node = root.fragment.node;
             let placement = PlacementData::of_unplaced_child(&unplaced_child, callbacks.frame);
             inner.top_scope_links.push(link_fragment(

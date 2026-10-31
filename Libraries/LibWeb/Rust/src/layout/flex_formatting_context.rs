@@ -3188,10 +3188,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         &mut self,
         run: &FormattingContextRun<'pass>,
         index: usize,
-    ) -> (
-        Option<fragment_tree::ChildFragmentArrival>,
-        formatting_context::PlacedChild,
-    ) {
+    ) -> (Option<fragment_tree::RunRootFragment>, formatting_context::PlacedChild) {
         let node = self.flex_items[index].box_;
         let cells = self.flex_items[index].cells;
         let input = self.item_layout_input(index, &cells, self.available_space_for_items.unwrap().space);

@@ -1463,7 +1463,7 @@ pub(super) struct MathFormattingContext<'pass> {
     content: MathContent,
     derived_baselines_of_root_box: DerivedBaselines,
     /// What the layout of each child hands its placement, which places the children once their positions are known.
-    fragment_arrivals_of_children: RefCell<Vec<fragment_tree::ChildFragmentArrival>>,
+    fragment_arrivals_of_children: RefCell<Vec<fragment_tree::RunRootFragment>>,
     /// What placing each child takes of the box its latest layout handed back.
     placed_children: RefCell<HashMap<Node, formatting_context::PlacedChild>>,
     /// The cells in which this context sizes the run's root, in the frame the root lays its contents out in.
@@ -1480,9 +1480,9 @@ impl<'pass> MathFormattingContext<'pass> {
             .expect("a math child is laid out before it is placed")
     }
 
-    fn take_fragment_arrival_of_child(&self, child: Node) -> Option<fragment_tree::ChildFragmentArrival> {
+    fn take_fragment_arrival_of_child(&self, child: Node) -> Option<fragment_tree::RunRootFragment> {
         let mut arrivals = self.fragment_arrivals_of_children.borrow_mut();
-        let index = arrivals.iter().position(|arrival| arrival.node() == child)?;
+        let index = arrivals.iter().position(|arrival| arrival.fragment.node == child)?;
         Some(arrivals.swap_remove(index))
     }
 
@@ -2335,7 +2335,7 @@ impl<'pass> MathFormattingContext<'pass> {
         for fragment_arrival in self.fragment_arrivals_of_children.take() {
             formatting_context::leave_child_unplaced(
                 run,
-                self.placed_child(fragment_arrival.node()),
+                self.placed_child(fragment_arrival.fragment.node),
                 Some(fragment_arrival),
             );
         }

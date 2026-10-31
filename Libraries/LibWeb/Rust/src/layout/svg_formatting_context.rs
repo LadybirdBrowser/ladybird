@@ -1890,7 +1890,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         placed_child: formatting_context::PlacedChild,
         x: CssPixels,
         y: CssPixels,
-        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+        fragment_arrival: Option<fragment_tree::RunRootFragment>,
     ) {
         formatting_context::place_child(
             &self.run,
@@ -2267,7 +2267,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             formatting_context::PlacedChild::laid_out_here(cells.get(), None, &self.run),
             committed_offset.x,
             committed_offset.y,
-            Some(fragment_tree::ChildFragmentArrival::CommittedFragment(fragment)),
+            Some(fragment_tree::RunRootFragment::propagating_nothing(fragment)),
         );
         Some(LaidOutSvgElement {
             cells: cells.get(),

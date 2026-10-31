@@ -1057,7 +1057,7 @@ pub(super) struct TableFormattingContext<'pass> {
     deferred_cell_inside_layouts: Vec<bool>,
     cell_measurements: Vec<Option<TableCellMeasurement>>,
     /// What the layout of each cell hands its placement, which places every cell once the rows are positioned.
-    cell_fragment_arrivals: Vec<Option<fragment_tree::ChildFragmentArrival>>,
+    cell_fragment_arrivals: Vec<Option<fragment_tree::RunRootFragment>>,
     /// What placing each cell takes of the box its committing layout handed back.
     placed_cells: Vec<Option<formatting_context::PlacedChild>>,
     /// The baselines of the contents of each cell whose layout handed the box back to this table, which keeps them.
@@ -2807,7 +2807,7 @@ impl<'pass> TableFormattingContext<'pass> {
         input: AvailableSpace,
         adopt_automatic_content_block_size: bool,
         intrinsic_block_padding: Option<(CssPixels, CssPixels)>,
-    ) -> (DerivedBaselines, Option<fragment_tree::ChildFragmentArrival>) {
+    ) -> (DerivedBaselines, Option<fragment_tree::RunRootFragment>) {
         let layout_input = LayoutInput {
             available_space: input,
             containing_block_constraints: ContainingBlockConstraints::default(),
@@ -2845,7 +2845,7 @@ impl<'pass> TableFormattingContext<'pass> {
     fn keep_fragment_arrival_of_cell(
         &mut self,
         cell_index: usize,
-        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+        fragment_arrival: Option<fragment_tree::RunRootFragment>,
     ) {
         debug_assert!(
             self.cell_fragment_arrivals[cell_index].is_none(),
