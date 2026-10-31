@@ -16,6 +16,12 @@ namespace Ladybird {
 SelectDropdown::SelectDropdown(QWidget* parent)
     : QMenu("Select Dropdown", parent)
 {
+    // NB: The options are sized to match the 13.333px font a select uses by default. A point size would grow with the
+    //     screen's DPI on some platforms, so the size is in pixels.
+    setObjectName("LadybirdSelectDropdown");
+    auto menu_font = font();
+    menu_font.setPixelSize(13);
+    setFont(menu_font);
 }
 
 void SelectDropdown::open(QPoint const& global_position, int minimum_width, Vector<Web::HTML::SelectItem> const& items)
