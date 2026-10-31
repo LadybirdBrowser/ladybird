@@ -78,6 +78,7 @@ set(SOURCES
     WebView/Attribute.cpp
     WebView/BrowsingBehavior.cpp
     WebView/ConsoleOutput.cpp
+    WebView/ConsoleOutputBuffer.cpp
     WebView/Debugger.cpp
     WebView/DOMNodeProperties.cpp
     WebView/Geolocation.cpp

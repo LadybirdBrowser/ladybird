@@ -202,6 +202,7 @@ public:
     using OnConsoleMessage = Function<void(WebView::ConsoleOutput)>;
     virtual void listen_for_console_messages(TabDescription const&, OnConsoleMessage) const { }
     virtual void stop_listening_for_console_messages(TabDescription const&) const { }
+    virtual void start_sending_console_output(TabDescription const&, bool, bool) const { }
 
     struct NetworkRequestData {
         u64 request_id { 0 };

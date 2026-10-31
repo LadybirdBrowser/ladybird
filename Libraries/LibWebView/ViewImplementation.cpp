@@ -2523,9 +2523,18 @@ void ViewImplementation::did_connect_devtools_client()
     page().async_set_has_devtools_client(true);
 }
 
+void ViewImplementation::start_sending_console_output(bool messages, bool errors)
+{
+    m_devtools_takes_console_messages |= messages;
+    m_devtools_takes_console_errors |= errors;
+    page().async_start_sending_console_output(messages, errors);
+}
+
 void ViewImplementation::did_disconnect_devtools_client()
 {
     m_devtools_connected = false;
+    m_devtools_takes_console_messages = false;
+    m_devtools_takes_console_errors = false;
     page().async_set_has_devtools_client(false);
 }
 
@@ -3570,8 +3579,11 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
     if (m_accessibility_tree_requested)
         page.async_request_accessibility_tree();
 
-    // DevTools inspects the page that displays the tab, and no other.
+    // DevTools inspects the page that displays the tab, and no other. A client that took the console's messages or
+    // errors takes those of this page too.
     page.async_set_has_devtools_client(m_devtools_connected);
+    if (m_devtools_takes_console_messages || m_devtools_takes_console_errors)
+        page.async_start_sending_console_output(m_devtools_takes_console_messages, m_devtools_takes_console_errors);
     handle_resize();
     update_ui_overlays();
 

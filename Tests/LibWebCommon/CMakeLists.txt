@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestCSSPixels.cpp
+    TestConsoleOutputBuffer.cpp
     TestGamepadSharedState.cpp
     TestGamepadStateBuffer.cpp
     TestInsecureRequestsPolicy.cpp

@@ -128,6 +128,8 @@ void WatcherActor::handle_message(Message const& message)
         bool should_send_local_storage_resources = false;
         bool should_send_session_storage_resources = false;
         bool should_send_source_resources = false;
+        bool should_send_console_messages = false;
+        bool should_send_console_errors = false;
         if constexpr (DEVTOOLS_DEBUG) {
             for (auto const& resource_type : resource_types->values()) {
                 if (!resource_type.is_string())
@@ -165,11 +167,16 @@ void WatcherActor::handle_message(Message const& message)
             } else if (resource_type.as_string() == "source"sv) {
                 start_watching_source_resources();
                 should_send_source_resources = true;
+            } else if (resource_type.as_string() == "console-message"sv) {
+                should_send_console_messages = !m_is_watching_console_messages;
+                m_is_watching_console_messages = true;
+            } else if (resource_type.as_string() == "error-message"sv) {
+                should_send_console_errors = !m_is_watching_console_errors;
+                m_is_watching_console_errors = true;
             } else if (resource_type.as_string() == "thread-state"sv) {
                 start_watching_thread_state_resources();
             } else if (first_is_one_of(resource_type.as_string(),
                            "document-event"sv,
-                           "error-message"sv,
                            "jstracer-state"sv,
                            "jstracer-trace"sv)) {
                 // These resource types are part of Firefox's Debugger startup sequence. Ladybird either sends them from
@@ -179,6 +186,9 @@ void WatcherActor::handle_message(Message const& message)
         }
 
         send_response(message, move(response));
+        // The page sends what it output before, and then each new message or error, to the frame target's listener.
+        if (m_target.strong_ref() && (should_send_console_messages || should_send_console_errors))
+            start_sending_console_output(should_send_console_messages, should_send_console_errors);
         if (should_send_cookie_resources)
             send_cookies_resource_available_message();
         if (should_send_indexed_db_resources)
@@ -290,11 +300,19 @@ FrameActor& WatcherActor::create_frame_target()
     m_target = target;
     m_thread = thread;
     attach_debugger_if_possible();
+    if (m_is_watching_console_messages || m_is_watching_console_errors)
+        start_sending_console_output(m_is_watching_console_messages, m_is_watching_console_errors);
     if (auto thread_configuration = m_thread_configuration.strong_ref())
         thread_configuration->reapply_configuration();
     if (auto breakpoint_list = m_breakpoint_list.strong_ref())
         breakpoint_list->reapply_breakpoints();
     return target;
+}
+
+void WatcherActor::start_sending_console_output(bool messages, bool errors)
+{
+    if (auto tab = m_tab.strong_ref())
+        devtools().delegate().start_sending_console_output(tab->description(), messages, errors);
 }
 
 void WatcherActor::send_frame_target_available_message()
