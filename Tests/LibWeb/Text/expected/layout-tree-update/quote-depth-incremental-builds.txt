@@ -1,0 +1,17 @@
+PASS: insert balanced quotes before later quotes | layout tree builds=1
+PASS: insert an unclosed quote before later quotes | layout tree builds=1
+PASS: insert a lone close quote before later quotes | layout tree builds=1
+PASS: remove the lone close quote | layout tree builds=1
+PASS: insert balanced quotes after the unclosed quote | layout tree builds=1
+PASS: remove the unclosed quote | layout tree builds=1
+PASS: remove balanced quotes before later quotes | layout tree builds=0
+PASS: insert quotes inside a quote | layout tree builds=1
+PASS: append quotes inside an open quote | layout tree builds=1
+PASS: append quotes after an unclosed quote in a style-contained element | layout tree builds=1
+PASS: append quotes after a style-contained element | layout tree builds=1
+PASS: append quotes inside a display contents quote pair | layout tree builds=1
+PASS: append quotes before a marker that opens a quote | layout tree builds=1
+PASS: append quotes after a marker that opens a quote | layout tree builds=1
+PASS: append quotes into slotted content after a quote opened in the shadow tree | layout tree builds=1
+PASS: append a shadow tree that opens a quote before later quotes | layout tree builds=2
+PASS: append quotes into a top layer element after an unclosed quote | layout tree builds=1

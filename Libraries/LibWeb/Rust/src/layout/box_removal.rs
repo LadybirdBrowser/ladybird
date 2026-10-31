@@ -13,6 +13,7 @@ use super::LayoutNodeArena;
 use super::layout_changes::LayoutWrite;
 use super::node_data::{NodeFlag, NodeSlotId};
 use super::node_facts::{self, has_flag};
+use super::quote_depth::box_subtree_moves_quote_depth;
 use super::tree_builder::node_kind_is_node_with_style;
 use super::tree_mutation::HostWorkDue;
 use super::tree_update_marks::FfiLayoutTreeUpdateMark;
@@ -237,6 +238,7 @@ impl BoxRemoval {
         if parent_row.is_invalid()
             || child_row.is_invalid()
             || !arena.can_detach_box_in_place(parent, parent_row, child_row, &facts)
+            || box_subtree_moves_quote_depth(arena, child_row)
         {
             arena.mark_layout_tree_update(Some(parent), FfiLayoutTreeUpdateMark::NODE_REMOVE);
             return;

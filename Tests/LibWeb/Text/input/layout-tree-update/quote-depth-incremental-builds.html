@@ -1,0 +1,71 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .open::before { content: open-quote; }
+    .close::after { content: close-quote; }
+    .marker-open::marker { content: open-quote; }
+    .contained { contain: style; }
+    .contents-pair { display: contents; }
+    .contents-pair::before { content: open-quote; }
+    .contents-pair::after { content: close-quote; }
+    .inline-block { display: inline-block; }
+</style>
+<div id="fixture"></div>
+<script>
+    function check(name, mutate) {
+        document.body.offsetHeight;
+        const buildsBefore = internals.layoutTreeBuildStats().builds;
+        mutate();
+        document.body.offsetHeight;
+        const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
+        const comparison = internals.compareLayoutTreeWithFullRebuild();
+        println(`${comparison.matches ? "PASS" : "FAIL"}: ${name} | layout tree builds=${builds}`);
+    }
+
+    function byId(id) {
+        return document.getElementById(id);
+    }
+
+    test(() => {
+        fixture.innerHTML = '<div id="list"><p><q>one</q></p><p id="middle"><q>two <q>three</q></q></p><p><q>four</q></p></div>';
+        const list = byId("list");
+        check("insert balanced quotes before later quotes", () => list.insertAdjacentHTML("afterbegin", '<p><q>zero</q></p>'));
+        check("insert an unclosed quote before later quotes", () => list.insertAdjacentHTML("afterbegin", '<p id="opener" class="open"></p>'));
+        check("insert a lone close quote before later quotes", () => byId("middle").insertAdjacentHTML("beforebegin", '<p id="closer" class="close"></p>'));
+        check("remove the lone close quote", () => byId("closer").remove());
+        check("insert balanced quotes after the unclosed quote", () => byId("middle").insertAdjacentHTML("beforebegin", '<p><q>nested by the opener</q></p>'));
+        check("remove the unclosed quote", () => byId("opener").remove());
+        check("remove balanced quotes before later quotes", () => byId("middle").remove());
+        check("insert quotes inside a quote", () => list.querySelector("q").insertAdjacentHTML("beforeend", '<span class="inline-block"><q>nested</q></span>'));
+
+        fixture.innerHTML = '<q><span id="inside-quote" class="inline-block"><span>start</span></span> <q>after</q></q>';
+        check("append quotes inside an open quote", () => byId("inside-quote").insertAdjacentHTML("beforeend", '<p><q>inside</q></p>'));
+
+        fixture.innerHTML = '<div class="contained"><span class="open"></span><div id="contained-parent"><p>start</p></div></div><div id="after-contained"><p>start</p></div><q>after</q>';
+        check("append quotes after an unclosed quote in a style-contained element", () => byId("contained-parent").insertAdjacentHTML("beforeend", '<p><q>contained</q></p>'));
+        check("append quotes after a style-contained element", () => byId("after-contained").insertAdjacentHTML("beforeend", '<p><q>outside</q></p>'));
+
+        fixture.innerHTML = '<div class="contents-pair"><div id="contents-parent"><p>start</p></div></div><q>after</q>';
+        check("append quotes inside a display contents quote pair", () => byId("contents-parent").insertAdjacentHTML("beforeend", '<p><q>inside</q></p>'));
+
+        fixture.innerHTML = '<ul><li class="marker-open"><div id="first-item"><p>start</p></div></li><li><div id="second-item"><p>start</p></div></li></ul>';
+        check("append quotes before a marker that opens a quote", () => byId("first-item").insertAdjacentHTML("beforeend", '<p><q>before marker</q></p>'));
+        check("append quotes after a marker that opens a quote", () => byId("second-item").insertAdjacentHTML("beforeend", '<p><q>after marker</q></p>'));
+
+        fixture.innerHTML = '<div id="host"><div id="slotted"><p>start</p></div></div><q>after</q>';
+        const shadow = byId("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = '<style>.open::before { content: open-quote; }</style><span class="open"></span><div><slot></slot></div><q>shadow</q>';
+        check("append quotes into slotted content after a quote opened in the shadow tree", () => byId("slotted").insertAdjacentHTML("beforeend", '<p><q>slotted</q></p>'));
+
+        fixture.innerHTML = '<div id="shadow-parent"><p>start</p></div><q>after</q>';
+        const unbalancedHost = document.createElement("div");
+        unbalancedHost.attachShadow({ mode: "open" }).innerHTML = '<style>.open::before { content: open-quote; }</style><span class="open"></span>';
+        check("append a shadow tree that opens a quote before later quotes", () => byId("shadow-parent").append(unbalancedHost));
+
+        fixture.innerHTML = '<span class="open"></span><dialog id="dialog"><div id="dialog-parent"><p>start</p></div></dialog>';
+        byId("dialog").showModal();
+        check("append quotes into a top layer element after an unclosed quote", () => byId("dialog-parent").insertAdjacentHTML("beforeend", '<p><q>top layer</q></p>'));
+        byId("dialog").close();
+        fixture.innerHTML = "";
+    });
+</script>
