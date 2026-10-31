@@ -353,6 +353,12 @@ private:
     // Determine if window should restore to maximized or normal, when exiting fullscreen.
     bool m_restore_to_maximized { false };
     bool m_resize_cursor_active { false };
+    // The widget the last left button press in the window landed on, so a double click can tell whether its first
+    // click landed on the same widget as its second.
+    QPointer<QWidget> m_last_left_press_widget;
+    u64 m_last_left_press_timestamp { 0 };
+    u64 m_last_double_click_timestamp { 0 };
+    bool m_double_click_started_elsewhere { false };
 };
 
 }
