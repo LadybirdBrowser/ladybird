@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS2 Line height test: baseline position with explicit sizing</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#line-height">
+<link rel="mismatch" href="../../../../../expected/wpt-import/css/CSS2/visudet/reference/line-height-203-ref.html">
+<meta name="assert" content="The position of the baseline in an inline-level box whose height is determined by a non-normal value of line-height
+                             does depend on the first available font.">
+<style>
+@font-face {
+  font-family: 'high';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../fonts/Revalia.woff) format('woff');
+}
+@font-face {
+  font-family: 'deep';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../../../fonts/AD.woff) format('woff');
+}
+
+div {
+  position: absolute;
+  line-height: 100px;
+  font-size: 100px;
+  width: 300px; /* plenty of room for the (invisible) text */
+  text-align: right;
+  color: transparent;
+}
+span { /* visible thing aligned to the baseline, and small enough to not influence its position */
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+}
+
+/* white #h is on top of green #d,
+   but as they have different primary fonts,
+   their baselines should not line up and green #d should be visible.*/
+#d { font-family: deep; }
+#d span { background: green; }
+
+#h { font-family: high; }
+#h span { background: white; }
+
+</style>
+
+<p>Test passes if there is a small green rectangle or square below.
+
+<div id=d>aa<span></span></div>
+<div id=h>aa<span></span></div>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS2 inline level box content height test</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#line-height">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visudet/reference/content-height-001-ref.html">
+<meta name="assert" content="The height of the content area of an inline-level box does not depend on the value of the line-height property">
+<style>
+
+div { font-size: 50px; display: inline-block; color: transparent; }
+
+span { background: blue; }
+
+div { line-height: 200px; }
+div:nth-of-type(2) { line-height: 30px; }
+div:nth-of-type(3) { line-height: normal; }
+</style>
+
+<p>Test passes if the blue shape below is a rectangle, but not some other polygon.
+
+<div><span>aa</span></div><div><span>aa</span></div><div><span>aa</span></div>

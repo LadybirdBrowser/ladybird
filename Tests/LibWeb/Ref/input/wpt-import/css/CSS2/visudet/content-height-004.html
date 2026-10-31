@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS2 inline level box content height test</title>
+<link rel="author" title="Florian Rivoal" href="https://florian.rivoal.net">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#line-height">
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/visudet/reference/content-height-004-ref.html">
+<meta name="fuzzy" content="maxDifference=0-255; totalPixels=0-150">
+<meta name="assert" content="The height of the content area of an inline-level does not depend on fallback fonts
+                             regardless of whether they are used on not.">
+<style>
+@font-face {
+  font-family: 'high-a-only';
+  font-style: normal;
+  font-weight: 400;
+  src:  url(../../../fonts/Revalia.woff) format('woff');
+  unicode-range: U+0061, U+0020;
+}
+@font-face {
+  font-family: 'deep-b-only';
+  font-style: normal;
+  font-weight: 400;
+  src: url(../../../fonts/AD.woff) format('woff');
+  unicode-range: U+0062, U+0020;
+}
+
+div {
+  font-size: 50px;
+  display: inline-block;
+  color: transparent;
+  font-family: high-a-only, deep-b-only;
+}
+
+span { background: blue; }
+
+div { }
+div:nth-of-type(2) { }
+div:nth-of-type(3) { }
+div:nth-of-type(4) { font-family: high-a-only }
+aside {
+  max-width: 300px;
+  overflow: hidden;
+  white-space: pre;
+}
+</style>
+
+<p>Test passes if the blue shape below is a rectangle, but not some other polygon.
+
+<aside>
+<div><span>aa</span></div><div><span>bb</span></div><div><span>ab</span></div><div><span>aaa</span></div>
+</aside>
