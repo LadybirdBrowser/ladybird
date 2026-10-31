@@ -25,22 +25,23 @@
         println(`window.scrollY: ${window.scrollY}`);
         println("visual viewport scroll and scrollend: received");
 
-        // The window's larger wheel step animates faster than the visual viewport's, so its scroll completes first.
-        const scrollendOrder = [];
+        // CSSOM View leaves open the order of scrollend events for scrolls that complete together. The window's last
+        // move comes from the compositor and the visual viewport's from this thread, so either can come first.
+        const scrollendTargets = [];
         const bothScrollends = Promise.all([
             new Promise(resolve => visualViewport.addEventListener("scrollend", () => {
-                scrollendOrder.push("visualViewport");
+                scrollendTargets.push("visualViewport");
                 resolve();
             }, { once: true })),
             new Promise(resolve => document.addEventListener("scrollend", () => {
-                scrollendOrder.push("document");
+                scrollendTargets.push("document");
                 resolve();
             }, { once: true })),
         ]);
         await internals.wheel(100, 100, 0, 800);
         await bothScrollends;
         println(`window scrolled: ${window.scrollY > 0}`);
-        println(`scrollend order: ${scrollendOrder.join(",")}`);
+        println(`scrollend targets: ${scrollendTargets.sort().join(",")}`);
 
         const resetScroll = new Promise(resolve => visualViewport.addEventListener("scroll", resolve, { once: true }));
         const resetScrollend = new Promise(resolve => visualViewport.addEventListener("scrollend", resolve, { once: true }));
