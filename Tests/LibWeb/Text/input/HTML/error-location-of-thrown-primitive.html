@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        removeTestErrorHandler();
+
+        window.onerror = (message, filename, lineno, colno) => {
+            println(`${message} at line ${lineno}, column ${colno}`);
+            return true;
+        };
+
+        const target = new EventTarget();
+        target.addEventListener("throw", () => {
+            throw 42;
+        });
+        target.dispatchEvent(new Event("throw"));
+        reportError(42);
+
+        try {
+            throw 42;
+        } catch {}
+        reportError(42);
+    });
+</script>

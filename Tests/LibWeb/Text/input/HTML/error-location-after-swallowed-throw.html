@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        removeTestErrorHandler();
+
+        window.onerror = (message, filename, lineno, colno) => {
+            println(`${message} at line ${lineno}, column ${colno}`);
+            done();
+            return true;
+        };
+
+        const reason = {};
+        new Promise(() => {
+            throw reason;
+        }).catch(() => {});
+
+        const controller = new AbortController();
+        controller.abort(reason);
+        setTimeout(() => controller.signal.throwIfAborted());
+    });
+</script>
