@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    .letter-parent {
+        color: green;
+    }
+    #queried {
+        container-type: inline-size;
+        width: 200px;
+    }
+    @container (min-width: 300px) {
+        #queried::first-letter {
+            font-size: 30px;
+        }
+    }
+    #transitioned::first-letter {
+        font-size: 16px;
+        transition: font-size 1000s steps(1, jump-start);
+    }
+    #transitioned.big::first-letter {
+        font-size: 30px;
+    }
+    #reference::first-letter {
+        font-size: 30px;
+    }
+</style>
+<div id="queried"><div class="letter-parent">First line</div></div>
+<div id="transitioned"><div class="letter-parent">First line</div></div>
+<div id="reference"><div class="letter-parent">First line</div></div>
+<script>
+    function firstLetterRect(element) {
+        const text = element.querySelector(".letter-parent").firstChild;
+        const range = new Range();
+        range.setStart(text, 0);
+        range.setEnd(text, 1);
+        return range.getBoundingClientRect();
+    }
+
+    function describe(element) {
+        const letter = firstLetterRect(element);
+        const reference = firstLetterRect(document.getElementById("reference"));
+        const letterParentHeight = element.querySelector(".letter-parent").getBoundingClientRect().height;
+        const referenceLetterParentHeight = document.querySelector("#reference .letter-parent").getBoundingClientRect().height;
+        println(`${element.id}: computed font-size ${getComputedStyle(element, "::first-letter").fontSize}, letter laid out like the 30px reference: ${letter.width === reference.width && letter.height === reference.height}, letter parent as tall as the reference's: ${letterParentHeight === referenceLetterParentHeight}`);
+    }
+
+    asyncTest(async done => {
+        await animationFrame();
+        queried.style.width = "300px";
+        transitioned.classList.add("big");
+        await animationFrame();
+        await animationFrame();
+        describe(queried);
+        describe(transitioned);
+        done();
+    });
+</script>

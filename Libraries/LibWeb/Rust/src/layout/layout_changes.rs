@@ -307,10 +307,12 @@ impl LayoutChange {
                 arena.set_node_needs_compositor_animation_frame(node, kind, value);
             }
             Self::SetNodeStyle { node, record, payloads } => {
-                // A style the arena derived is replaced only to be derived again, which decides the relayout itself.
-                let previous_payloads = (arena.slot_is_live(node) && !arena.node_style_record_is_derived(node))
-                    .then(|| arena.data(node).style.get());
-                arena.install_style_record(node, record, payloads, previous_payloads);
+                if arena.slot_is_live(node) && arena.node_style_record_is_derived(node) {
+                    arena.install_style_record_in_place_of_derived_style(node, record, payloads);
+                } else {
+                    let previous_payloads = arena.slot_is_live(node).then(|| arena.data(node).style.get());
+                    arena.install_style_record(node, record, payloads, previous_payloads);
+                }
             }
             Self::PinBoundBoxStyleRecordForDetachment {
                 style_node,

@@ -1,0 +1,2 @@
+queried: computed font-size 30px, letter laid out like the 30px reference: true, letter parent as tall as the reference's: true
+transitioned: computed font-size 30px, letter laid out like the 30px reference: true, letter parent as tall as the reference's: true

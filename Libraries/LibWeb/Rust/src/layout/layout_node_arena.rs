@@ -1092,6 +1092,7 @@ pub(crate) struct LayoutNodeArena {
     /// is a pin of its own beside the arena's, and it names the record it took rather than whichever
     /// record the row holds when it goes.
     style_records_pinned_by_host: Vec<u64>,
+    derived_styles_shown_before_host_installs: HashMap<NodeSlotId, DerivedStyleRecord>,
     /// The StyleNodeID of the element or text node each row is bound to, or of the element it is
     /// generated for. Rows carrying one identity are chained through `next_rows_with_same_style_node`
     /// from `first_rows_by_style_node`, so retiring an identity reaches every row that carries it,
@@ -1257,6 +1258,7 @@ impl LayoutNodeArena {
             image_resources_owed_records: Vec::new(),
             style_record_pins: Vec::new(),
             style_records_pinned_by_host: Vec::new(),
+            derived_styles_shown_before_host_installs: HashMap::default(),
             style_nodes: Vec::new(),
             next_rows_with_same_style_node: Vec::new(),
             first_rows_by_style_node: RowsByStyleNode::default(),
@@ -1573,6 +1575,9 @@ impl LayoutNodeArena {
             let host_pinned_style_record = self.style_records_pinned_by_host[slot.slot_index() as usize];
             if host_pinned_style_record != 0 {
                 arena_pinned_style_records.push(host_pinned_style_record);
+            }
+            if let Some(shown) = self.derived_styles_shown_before_host_installs.remove(&slot) {
+                arena_pinned_style_records.push(shown.record);
             }
             self.unlink_children_of_node_being_freed(slot);
             if let Some(reset) = self.free_unlinked_slot(slot) {
@@ -2327,6 +2332,55 @@ impl LayoutNodeArena {
         if previous_payloads.is_some_and(|previous| !self.style_move_keeps_layout_inputs(slot, previous, payloads)) {
             self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
         }
+    }
+
+    pub(crate) fn install_style_record_in_place_of_derived_style(
+        &mut self,
+        slot: NodeSlotId,
+        style_record: u64,
+        payloads: Option<LayoutStyleRef>,
+    ) {
+        let index = slot.slot_index() as usize;
+        debug_assert!(self.style_record_pins[index] == ArenaStylePin::Derived);
+        let shown = DerivedStyleRecord {
+            record: self.style_records[index],
+            payloads: self
+                .data(slot)
+                .style
+                .get()
+                .expect("a derived style row holds its style"),
+        };
+        self.style_record_pins[index] = ArenaStylePin::None;
+        let holds_an_older_shown_style = match self.derived_styles_shown_before_host_installs.entry(slot) {
+            std::collections::hash_map::Entry::Occupied(_) => true,
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                entry.insert(shown);
+                false
+            }
+        };
+        if holds_an_older_shown_style {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(shown.record));
+        }
+        self.install_style_record(slot, style_record, payloads, None);
+    }
+
+    fn holds_derived_style_shown_before_host_install(&self, slot: NodeSlotId) -> bool {
+        !self.derived_styles_shown_before_host_installs.is_empty()
+            && self.derived_styles_shown_before_host_installs.contains_key(&slot)
+    }
+
+    fn decide_relayout_against_derived_style_shown_before_host_install(&mut self, slot: NodeSlotId) {
+        if self.derived_styles_shown_before_host_installs.is_empty() {
+            return;
+        }
+        let Some(shown) = self.derived_styles_shown_before_host_installs.remove(&slot) else {
+            return;
+        };
+        if !self.style_move_keeps_layout_inputs(slot, Some(shown.payloads), self.data(slot).style.get()) {
+            self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
+            self.set_needs_layout_update(slot, true);
+        }
+        self.with_style_engine(|engine| engine.unpin_layout_style_record(shown.record));
     }
 
     /// Whether the box `slot` keeps the layout it cached when it shows `new` in place of `previous` (see
@@ -3562,7 +3616,10 @@ impl LayoutNodeArena {
             );
             return;
         }
-        let shown_record = self.node_style_record(slot);
+        let shown_record = self
+            .derived_styles_shown_before_host_installs
+            .get(&slot)
+            .map_or_else(|| self.node_style_record(slot), |shown| shown.record);
         let damage = self
             .with_style_engine(|engine| engine.element_record_damage(originating, true, shown_record, derived.record));
         if self.apply_reinherited_style_record(host_calls, slot, derived) {
@@ -3669,6 +3726,11 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn reinherit_anonymous_descendants(&mut self, host_calls: HostCalls<'_>, node: NodeSlotId) {
+        self.reinherit_own_derived_style_and_anonymous_descendants(host_calls, node);
+        self.decide_relayout_against_derived_style_shown_before_host_install(node);
+    }
+
+    fn reinherit_own_derived_style_and_anonymous_descendants(&mut self, host_calls: HostCalls<'_>, node: NodeSlotId) {
         if self.node_style_record(node) == 0 {
             return;
         }
@@ -3765,8 +3827,8 @@ impl LayoutNodeArena {
         derived: DerivedStyleRecord,
     ) -> bool {
         let previous_payloads = self.data(slot).style.get();
-        let changes_layout_affecting_style =
-            !self.style_move_keeps_layout_inputs(slot, previous_payloads, Some(derived.payloads));
+        let changes_layout_affecting_style = !self.holds_derived_style_shown_before_host_install(slot)
+            && !self.style_move_keeps_layout_inputs(slot, previous_payloads, Some(derived.payloads));
         self.replace_arena_pinned_style_record(slot, derived);
         if changes_layout_affecting_style {
             self.invalidate_fragments_and_intrinsic_sizes_of_self_and_ancestors(slot);
