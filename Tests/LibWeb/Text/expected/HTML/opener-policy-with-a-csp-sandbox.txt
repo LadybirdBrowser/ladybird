@@ -1,0 +1,3 @@
+page with its own CSP sandbox loaded: true
+page opened from a sandboxed iframe was requested: true
+page opened from a sandboxed iframe loaded: false
