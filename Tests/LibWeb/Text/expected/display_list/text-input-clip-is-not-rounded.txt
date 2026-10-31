@@ -1,0 +1,15 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  clips:
+    [c0 in s1] clip=[8,10 156x13] (TextInputBox<INPUT>#input)
+      [c1 in s1] clip=[8,10 156x13] (BlockContainer<DIV>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+FillRect@s1/c1/e0 rect=[8,10 23x13] color=rgba(101, 2, 0, 0.8)
+DrawGlyphRun@s1/c1/e0 rect=[8,10 23x13] translation=[8,20.390625] color=rgb(0, 0, 0)
+FillRoundedRectRing@s1/e0 rect=[6,8 160x17] corner_radii=[8x8,8x8,8x8,8x8] widths=[2,2,2,2] color=rgb(61, 174, 233)
+
