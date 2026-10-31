@@ -1694,6 +1694,12 @@ void Internals::set_accessibility_focus_target(DOM::Element& element)
     element.document().set_accessibility_focus_target(&element);
 }
 
+// Makes the page report accessibility tree changes as it does once an assistive technology has asked for the tree.
+void Internals::set_accessibility_interested()
+{
+    page().set_accessibility_interested(true);
+}
+
 u16 Internals::get_echo_server_port()
 {
     return s_echo_server_port;
