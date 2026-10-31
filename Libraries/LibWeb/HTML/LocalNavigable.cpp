@@ -2405,7 +2405,12 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             // 3. If finalSandboxFlags is not empty and responseCOOP's value is not "unsafe-none", then set response to an appropriate network error and break.
             // NOTE: This results in a network error as one cannot simultaneously provide a clean slate to a response
             //       using opener policy and sandbox the result of navigating to that response.
-            if (state_holder->final_sandbox_flags != SandboxingFlagSet {} && state_holder->response_coop.value != OpenerPolicyValue::UnsafeNone) {
+            // AD-HOC: The spec checks finalSandboxFlags, which include the sandboxing flags of the response's own CSP.
+            //         But a response that sandboxes itself isn't one the navigation sandboxed, and its opener policy
+            //         still gives it a clean slate, so check only the sandboxing flags the navigation brings. A page
+            //         served with both a CSP sandbox and an opener policy then loads rather than failing.
+            // https://github.com/web-platform-tests/wpt/blob/master/html/cross-origin-opener-policy/coop-navigate-same-origin-csp-sandbox.html
+            if (state_holder->target_snapshot_params.sandboxing_flags != SandboxingFlagSet {} && state_holder->response_coop.value != OpenerPolicyValue::UnsafeNone) {
                 // AD-HOC: Stop the fetch, as nothing will consume the response this replaces.
                 state_holder->fetch_controller->stop_fetch();
                 state_holder->response = Fetch::Infrastructure::ResponseView::network_error("Opener policy on a sandboxed navigation response"_string);
