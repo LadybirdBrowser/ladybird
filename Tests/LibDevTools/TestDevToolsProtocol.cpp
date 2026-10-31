@@ -4769,6 +4769,7 @@ TEST_CASE(console_message_levels)
     EXPECT_EQ(level_of(JS::ConsoleLogLevel::DirXML), "dirxml"sv);
     EXPECT_EQ(level_of(JS::ConsoleLogLevel::Group), "group"sv);
     EXPECT_EQ(level_of(JS::ConsoleLogLevel::GroupCollapsed), "groupCollapsed"sv);
+    EXPECT_EQ(level_of(JS::ConsoleLogLevel::Table), "table"sv);
     EXPECT_EQ(level_of(JS::ConsoleLogLevel::TimeEnd), "log"sv);
     EXPECT_EQ(level_of(JS::ConsoleLogLevel::TimeLog), "log"sv);
 
