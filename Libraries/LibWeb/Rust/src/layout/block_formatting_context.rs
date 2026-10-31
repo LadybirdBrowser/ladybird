@@ -66,7 +66,7 @@ struct BlockLevelBoxOutcome {
 struct DeferredLegend {
     flow_position: geometry::LogicalOffset,
     placed_child: formatting_context::PlacedChild,
-    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    fragment_arrival: Option<fragment_tree::RunRootFragment>,
 }
 
 impl BlockLevelBoxOutcome {
@@ -201,7 +201,7 @@ pub(crate) struct FloatLaidOutAheadOfItsPosition {
     placed_float: formatting_context::PlacedChild,
     pub(crate) cells: used_values::RootInputCells,
     laid_out_float_handed_back_by_its_run: Option<run_state::LaidOutChildBox>,
-    fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+    fragment_arrival: Option<fragment_tree::RunRootFragment>,
 }
 
 /// A box a block formatting context sizes, in cells the call laying the box out owns: the cells the context lays the
@@ -2255,7 +2255,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         force_independent_context_run: bool,
     ) -> (
         Option<formatting_context::ChildLayoutResult>,
-        Option<fragment_tree::ChildFragmentArrival>,
+        Option<fragment_tree::RunRootFragment>,
         run_state::LaidOutChildBox,
     ) {
         let formatting_context::ChildLayout {
@@ -3294,7 +3294,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .with_in_flow_box_insets(insets),
             content_offset,
             None,
-            Some(fragment_tree::ChildFragmentArrival::CommittedFragment(fragment)),
+            Some(fragment_tree::RunRootFragment::propagating_nothing(fragment)),
         );
         self.block_offset_of_current_block_container
             .set(Some(flow_position + entry.flow_position_advance));

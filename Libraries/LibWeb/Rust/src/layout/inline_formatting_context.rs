@@ -989,7 +989,7 @@ pub(crate) struct InlineFormattingContext<'context> {
     inline_boxes_continued_in_next_fragment: RefCell<Vec<Node>>,
     block_axis_float_clearance: Cell<CssPixels>,
     /// What the layout of each atomic inline hands its placement, which places it once its line is final.
-    atomic_inline_fragment_arrivals: RefCell<HashMap<Node, fragment_tree::ChildFragmentArrival>>,
+    atomic_inline_fragment_arrivals: RefCell<HashMap<Node, fragment_tree::RunRootFragment>>,
     /// What placing each atomic inline this context laid out takes.
     placed_atomic_inlines: RefCell<HashMap<Node, formatting_context::PlacedChild>>,
     /// The break token of the containing block, once the fragmentainer stops before one of its lines.
@@ -1052,7 +1052,7 @@ impl<'context> InlineFormattingContext<'context> {
     fn keep_atomic_inline_fragment_arrival(
         &self,
         node: Node,
-        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+        fragment_arrival: Option<fragment_tree::RunRootFragment>,
     ) {
         let mut arrivals = self.atomic_inline_fragment_arrivals.borrow_mut();
         let previous = match fragment_arrival {
@@ -1060,12 +1060,12 @@ impl<'context> InlineFormattingContext<'context> {
             None => arrivals.remove(&node),
         };
         debug_assert!(
-            !matches!(previous, Some(fragment_tree::ChildFragmentArrival::RunRoot(_))),
+            previous.is_none(),
             "an atomic inline is laid out once by a run before its placement"
         );
     }
 
-    fn take_atomic_inline_fragment_arrival(&self, node: Node) -> Option<fragment_tree::ChildFragmentArrival> {
+    fn take_atomic_inline_fragment_arrival(&self, node: Node) -> Option<fragment_tree::RunRootFragment> {
         self.atomic_inline_fragment_arrivals.borrow_mut().remove(&node)
     }
 

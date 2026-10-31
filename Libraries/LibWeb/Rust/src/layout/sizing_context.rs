@@ -2172,26 +2172,21 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         used.update_cells(|cells| cells.resolve_box_model(&style, containing_inline_size));
     }
 
-    /// Sizes an empty atomic block. Where a committing layout takes its metrics from its committed fragment as they
-    /// are, returns that fragment.
+    /// Sizes an empty atomic block. A committing layout takes its metrics from its committed fragment where they hold.
     pub(crate) fn dimension_empty_atomic_root(
         &self,
         sized_cells: SizedCells<'_>,
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         layout_builds_fragments: bool,
-    ) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
-        if layout_builds_fragments && let Some(fragment) = self.try_reuse_empty_atomic_root_metrics(sized_cells) {
-            return Some(fragment);
+    ) {
+        if layout_builds_fragments && self.try_reuse_empty_atomic_root_metrics(sized_cells) {
+            return;
         }
         self.dimension_empty_atomic_root_fresh(sized_cells, available_space, constraints);
-        None
     }
 
-    fn try_reuse_empty_atomic_root_metrics(
-        &self,
-        sized_cells: SizedCells<'_>,
-    ) -> Option<std::sync::Arc<fragment_tree::Fragment>> {
+    fn try_reuse_empty_atomic_root_metrics(&self, sized_cells: SizedCells<'_>) -> bool {
         let node = sized_cells.node;
         let facts = self.facts(node);
         debug_assert!(
@@ -2206,7 +2201,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             || facts.is_scroll_container()
             || !self.block_root_inline_size_follows_from_style(node)
         {
-            return None;
+            return false;
         }
         let style = self.style(node);
         if !(style.width().is_auto() || style.width().is_length())
@@ -2217,15 +2212,15 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             || !(style.max_height().is_none() || style.max_height().is_length())
             || Self::box_edges_contain_percentage(style)
         {
-            return None;
+            return false;
         }
         let used = sized_cells.cells;
         self.callbacks
             .arena()
             .with_current_committed_fragment_link(node, |link| {
                 used.update_cells(|cells| cells.take_box_metrics_of_committed_link(link));
-                link.fragment.clone()
             })
+            .is_some()
     }
 
     fn dimension_empty_atomic_root_fresh(

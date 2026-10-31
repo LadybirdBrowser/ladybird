@@ -4801,7 +4801,7 @@ impl<'pass> GridFormattingContext<'pass> {
             usize,
             formatting_context::PlacedChild,
             FfiCssPixelPoint,
-            Option<fragment_tree::ChildFragmentArrival>,
+            Option<fragment_tree::RunRootFragment>,
         )>,
     ) {
         if items.is_empty() {
@@ -4859,7 +4859,7 @@ impl<'pass> GridFormattingContext<'pass> {
         item: GridItem,
         placed_item: formatting_context::PlacedChild,
         offset: FfiCssPixelPoint,
-        fragment_arrival: Option<fragment_tree::ChildFragmentArrival>,
+        fragment_arrival: Option<fragment_tree::RunRootFragment>,
     ) {
         formatting_context::place_child(&self.run, item.box_, placed_item, offset, None, fragment_arrival);
         let laid_out = &self.collected_item(item).laid_out;
