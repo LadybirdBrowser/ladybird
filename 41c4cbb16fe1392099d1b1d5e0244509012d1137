@@ -1,0 +1,9 @@
+Ladybird now has an element that inherits a text shadow reading
+currentcolor take its parent’s computed shadow: absolute lengths,
+resolved against the parent’s font, with currentcolor kept for the
+child to resolve. Blink, WebKit, and Gecko all compute and inherit
+shadows that way: Blink’s StyleBuilderConverter::ConvertShadow()
+computes each length with ComputeLength() and keeps StyleColor::
+CurrentColor(), WebKit’s Style::TextShadow holds computed Length<>
+values and a Style::Color, and Gecko’s computed SimpleShadow is a
+GenericSimpleShadow of computed Color and Length values.
