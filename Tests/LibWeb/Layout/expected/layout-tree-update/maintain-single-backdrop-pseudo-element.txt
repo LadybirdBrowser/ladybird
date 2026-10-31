@@ -3,15 +3,15 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
       TextNode <#text> (not painted)
   BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <dialog#d> at [299.0625,289] positioned [280.0625+3+16 201.875 16+3+280.0625] [270+3+16 22 16+3+270] [BFC] children: inline
-    frag 0 from TextInputBox start: 0, length: 0, rect: [304.0625,292 191.875x16] baseline: 15.796875
-    TextInputBox <input> at [304.0625,292] inline-block [0+1+4 191.875 4+1+0] [0+1+2 16 2+1+0] [BFC] children: not-inline
-      Box <div> at [304.0625,292] flex-container(row) [0+0+0 191.875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-        BlockContainer <div> at [304.0625,292] flex-item [0+0+0 191.875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-          frag 0 from TextNode start: 0, length: 0, rect: [304.0625,292 0x16] baseline: 12.796875
+  BlockContainer <dialog#d> at [315.15625,290] positioned [296.15625+3+16 169.6875 16+3+296.15625] [271+3+16 20 16+3+271] [BFC] children: inline
+    frag 0 from TextInputBox start: 0, length: 0, rect: [320.15625,293 159.6875x14] baseline: 13.984375
+    TextInputBox <input> at [320.15625,293] inline-block [0+1+4 159.6875 4+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+      Box <div> at [320.15625,293] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+        BlockContainer <div> at [320.15625,293] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 0, rect: [320.15625,293 0x14] baseline: 10.984375
           TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)
  SC for BlockContainer(anonymous) [0,0 800x600] (z-index: auto)
- SC for BlockContainer<DIALOG>#d [299.0625,289 201.875x22] (z-index: auto)
+ SC for BlockContainer<DIALOG>#d [315.15625,290 169.6875x20] (z-index: auto)

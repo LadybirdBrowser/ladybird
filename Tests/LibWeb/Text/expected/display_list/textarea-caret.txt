@@ -3,20 +3,20 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[9,9 104x30] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>)
+    [c0 in s1] clip=[9,9 104x32] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRectWithRoundedCorners@s1/e0 rect=[8,8 106x32] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[8,8 106x32] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
-DrawGlyphRun@s1/c0/e0 rect=[11,11 30x13] translation=[11,21.390625] color=rgb(0, 0, 0)
-PaintCaret@s1/c0/e0 rect=[11,11 1x13] color=rgb(0, 0, 0) should_blink=false
-FillRoundedRectRing@s1/e0 rect=[6,6 110x36] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
-DrawLine@s1/e0 from=[109,37] to=[111,35] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-DrawLine@s1/e0 from=[108,37] to=[111,34] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-DrawLine@s1/e0 from=[106,37] to=[111,32] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-DrawLine@s1/e0 from=[105,37] to=[111,31] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
-DrawLine@s1/e0 from=[103,37] to=[111,29] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
-DrawLine@s1/e0 from=[102,37] to=[111,28] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+FillRectWithRoundedCorners@s1/e0 rect=[8,8 106x34] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[8,8 106x34] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/c0/e0 rect=[11,11 31x14] translation=[11,21.984375] color=rgb(0, 0, 0)
+PaintCaret@s1/c0/e0 rect=[11,11 1x14] color=rgb(0, 0, 0) should_blink=false
+FillRoundedRectRing@s1/e0 rect=[6,6 110x38] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
+DrawLine@s1/e0 from=[109,39] to=[111,37] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+DrawLine@s1/e0 from=[108,39] to=[111,36] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+DrawLine@s1/e0 from=[106,39] to=[111,34] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+DrawLine@s1/e0 from=[105,39] to=[111,33] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
+DrawLine@s1/e0 from=[103,39] to=[111,31] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
+DrawLine@s1/e0 from=[102,39] to=[111,30] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 

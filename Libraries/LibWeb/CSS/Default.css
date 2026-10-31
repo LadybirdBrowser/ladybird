@@ -28,11 +28,15 @@ label {
     cursor: default;
 }
 
+/* Form controls use a fixed system font size instead of inheriting the page font. */
+input, textarea, select, button {
+    font: 13.333333px system-ui;
+}
+
 /* FIXME: This is a temporary hack until we can render a native-looking frame for these. */
 input:not([type=submit], input[type=button], input[type=image], input[type=reset], input[type=color], input[type=checkbox], input[type=file], input[type=radio], input[type=range]), textarea {
     border: 1px solid ButtonBorder;
     padding: 2px 4px;
-    min-height: 16px;
     cursor: text;
 
     background-color: Field;
@@ -44,6 +48,7 @@ textarea {
     display: inline-block;
     overflow: auto;
     font-family: monospace;
+    font-size: 13.333333px;
     resize: both;
     /* This matches the behavior of other engines.
      * Spec issue: https://github.com/whatwg/html/issues/953 */

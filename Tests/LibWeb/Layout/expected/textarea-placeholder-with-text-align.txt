@@ -1,17 +1,17 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 51.203125 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 35.203125 0+0+8] children: inline
-      frag 0 from TextAreaBox start: 0, length: 0, rect: [11,11 155.9375x26] baseline: 32
-      TextAreaBox <textarea> at [11,11] inline-block [0+1+2 155.9375 2+1+0] [0+1+2 26 2+1+0] [BFC] children: not-inline
-        Box <div> at [11,11] flex-container(row) [0+0+0 155.9375 0+0+0] [0+0+0 13 0+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [11,11] flex-item [0+0+0 155.9375 0+0+0] [0+0+0 13 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 0, rect: [88.96875,11 0x13] baseline: 10.390625
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 53.203125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 37.203125 0+0+8] children: inline
+      frag 0 from TextAreaBox start: 0, length: 0, rect: [11,11 159.6875x28] baseline: 34
+      TextAreaBox <textarea> at [11,11] inline-block [0+1+2 159.6875 2+1+0] [0+1+2 28 2+1+0] [BFC] children: not-inline
+        Box <div> at [11,11] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [11,11] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [90.84375,11 0x14] baseline: 10.984375
             TextNode <#text> (not painted)
-          BlockContainer <div> at [11,11] flex-item [-155.9375+0+0 155.9375 0+0+0] [0+0+0 13 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 6, rect: [63.328125,11 51.265625x13] baseline: 10.390625
+          BlockContainer <div> at [11,11] flex-item [-159.6875+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 6, rect: [64.5625,11 52.546875x14] baseline: 10.984375
                 "Amount"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x51.203125] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x53.203125] (z-index: auto)
