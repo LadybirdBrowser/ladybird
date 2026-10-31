@@ -1,0 +1,14 @@
+When a table’s own height is auto, Ladybird sizes a cell that has a
+percentage height as if its height were auto: The percentage takes no
+part in the row measures or in the second pass of row sizing, and the
+cell is exactly as tall as its row. That matches all three engines.
+Blink’s ComputeMinimumRowBlockSize() turns a cell’s percentage into its
+row’s percent constraint, which matters only when the table has extra
+height to distribute, and TableRowLayoutAlgorithm::Layout() gives the
+cell its row’s height. WebKit’s logicalHeightForRowSizing() evaluates
+the percentage against zero while sizing the rows of an auto-height
+table, and layoutRows() stretches each cell to its row through the
+cell’s computeIntrinsicPadding(). And in Gecko, CalcCellActualBSize()
+records the percentage on the row through SetPctBSize(), GetBSizeBasis()
+returns zero for an auto-height table, and nsTableRowFrame::DidResize()
+sets each cell to its row’s height.
