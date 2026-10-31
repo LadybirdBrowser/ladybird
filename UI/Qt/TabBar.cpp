@@ -3326,6 +3326,11 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
 
         m_toolbar_container->setCurrentIndex(index);
         emit current_tab_changed(index);
+
+        // The all-tabs list closes as another tab is selected, such as a new tab opened in front of it. Tabs opened or
+        // closed behind it only change its rows.
+        if (m_all_tabs_popover && m_all_tabs_popover->isVisible())
+            m_all_tabs_popover->close();
         place_collapsed_sidebar_buttons();
         update_vertical_tabs_content_separator();
         update_vertical_tabs_overlay_geometry();
@@ -3393,6 +3398,8 @@ static void size_page_like(Tab& page, Tab const& current)
 
 void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
 {
+    update_all_tabs_entries_soon();
+
     if (widget->is_loaded()) {
         // A page inserted behind the current one stays at Qt's default geometry until it's selected, and a load can
         // start into it long before that. Size its view like the current page's view first, so the page's first layout
@@ -3438,6 +3445,8 @@ Tab* TabWidget::take_tab(int index)
     auto* widget = m_stacked_widget->widget(index);
     if (!widget)
         return nullptr;
+
+    update_all_tabs_entries_soon();
 
     // NB: Beside the collapsed sidebar, the Ladybird and all-tabs buttons and the sidebar's toggle sit in the current
     //     tab's toolbar, which the tab owns. They belong to this widget, so they don't go along with a tab that leaves
@@ -4277,6 +4286,46 @@ void TabWidget::show_all_tabs()
         };
     }
 
+    update_all_tabs_entries();
+
+    // The list hangs from the button that opens it, toward the middle of the window.
+    auto button_center = m_all_tabs_button->mapTo(window(), m_all_tabs_button->rect().center());
+    auto is_in_right_half = button_center.x() > window()->width() / 2;
+    move_popover_below(*m_all_tabs_popover, *m_all_tabs_button, is_in_right_half ? PopoverAlignment::Trailing : PopoverAlignment::Leading);
+    m_all_tabs_popover->show();
+}
+
+void TabWidget::set_tab_text(int index, QString const& text)
+{
+    m_tab_bar->setTabText(index, text);
+    update_all_tabs_entries_soon();
+}
+
+void TabWidget::set_tab_icon(int index, QIcon const& icon)
+{
+    m_tab_bar->setTabIcon(index, icon);
+    update_all_tabs_entries_soon();
+}
+
+// The open all-tabs list shows the tabs as they are, so it is filled again as tabs open, close or change behind it.
+// NB: It waits for the turn to end, so that a tab being inserted or taken out is in its new place, and several changes
+//     fill it once.
+void TabWidget::update_all_tabs_entries_soon()
+{
+    if (!m_all_tabs_popover || !m_all_tabs_popover->isVisible() || m_all_tabs_entries_update_is_pending)
+        return;
+    m_all_tabs_entries_update_is_pending = true;
+    Core::deferred_invoke([self = QPointer(this)] {
+        if (!self)
+            return;
+        self->m_all_tabs_entries_update_is_pending = false;
+        if (self->m_all_tabs_popover->isVisible())
+            self->update_all_tabs_entries();
+    });
+}
+
+void TabWidget::update_all_tabs_entries()
+{
     Vector<AllTabsPopover::Entry> entries;
     entries.ensure_capacity(count());
     for (int index = 0; index < count(); ++index) {
@@ -4287,6 +4336,7 @@ void TabWidget::show_all_tabs()
             .title = tab->title(),
             .detail = url.host().has_value() ? qstring_from_ak_string(url.serialized_host()) : QString {},
             .is_current = index == current_index(),
+            .tab = tab,
         });
     }
     m_all_tabs_popover->set_tabs(AK::move(entries));
@@ -4306,17 +4356,12 @@ void TabWidget::show_all_tabs()
                 .title = AK::move(title),
                 .detail = time_since_closed(now - unit.closed_at),
                 .is_current = false,
+                .tab = {},
             });
             m_recently_closed_unit_ids.append(unit.id);
         }
     }
     m_all_tabs_popover->set_recently_closed(AK::move(closed_entries));
-
-    // The list hangs from the button that opens it, toward the middle of the window.
-    auto button_center = m_all_tabs_button->mapTo(window(), m_all_tabs_button->rect().center());
-    auto is_in_right_half = button_center.x() > window()->width() / 2;
-    move_popover_below(*m_all_tabs_popover, *m_all_tabs_button, is_in_right_half ? PopoverAlignment::Trailing : PopoverAlignment::Leading);
-    m_all_tabs_popover->show();
 }
 
 void TabWidget::place_collapsed_sidebar_buttons()

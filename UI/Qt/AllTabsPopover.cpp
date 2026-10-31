@@ -50,6 +50,7 @@ public:
         , m_highlight(highlight)
     {
         setMouseTracking(true);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     }
 
     Function<void(size_t)> on_activate;
@@ -70,18 +71,42 @@ public:
         }
 
         // The current tab starts out highlighted, and otherwise the first match.
-        m_highlighted_row = m_rows.is_empty() || m_highlight == Highlight::Pointer ? -1 : 0;
-        if (query.isEmpty()) {
+        m_keyboard_row = m_rows.is_empty() || m_highlight == Highlight::Pointer ? -1 : 0;
+        if (query.isEmpty() && m_highlight == Highlight::Keyboard) {
             for (size_t row = 0; row < m_rows.size(); ++row) {
                 if (m_entries[m_rows[row]].is_current)
-                    m_highlighted_row = static_cast<int>(row);
+                    m_keyboard_row = static_cast<int>(row);
             }
         }
-        setFixedSize(POPOVER_WIDTH - 12, static_cast<int>(m_rows.size()) * ROW_HEIGHT);
+        m_highlighted_row = m_keyboard_row;
+        // NB: The list is as wide as the room it is given, so its rows' rounded ends both show.
+        setFixedHeight(static_cast<int>(m_rows.size()) * ROW_HEIGHT);
         update();
     }
 
     int highlighted_row() const { return m_highlighted_row; }
+
+    QObject* keyboard_tab() const
+    {
+        if (m_keyboard_row < 0)
+            return nullptr;
+        return m_entries[m_rows[m_keyboard_row]].tab;
+    }
+
+    bool set_keyboard_tab(QObject* tab)
+    {
+        if (!tab)
+            return false;
+        for (size_t row = 0; row < m_rows.size(); ++row) {
+            if (m_entries[m_rows[row]].tab == tab) {
+                m_keyboard_row = static_cast<int>(row);
+                m_highlighted_row = m_keyboard_row;
+                update();
+                return true;
+            }
+        }
+        return false;
+    }
     QRect row_rect(int row) const { return { 0, row * ROW_HEIGHT, width(), ROW_HEIGHT }; }
     size_t row_count() const { return m_rows.size(); }
 
@@ -90,6 +115,7 @@ public:
         if (m_rows.is_empty())
             return;
         m_highlighted_row = clamp(m_highlighted_row + delta, 0, static_cast<int>(m_rows.size()) - 1);
+        m_keyboard_row = m_highlighted_row;
         update();
     }
 
@@ -161,10 +187,11 @@ private:
         }
     }
 
+    // Once the pointer leaves, the highlight goes back to the row the keyboard had.
     virtual void leaveEvent(QEvent*) override
     {
-        if (m_highlight == Highlight::Pointer && m_highlighted_row >= 0) {
-            m_highlighted_row = -1;
+        if (m_highlighted_row != m_keyboard_row) {
+            m_highlighted_row = m_keyboard_row;
             update();
         }
     }
@@ -181,6 +208,9 @@ private:
     Vector<AllTabsPopover::Entry> m_entries;
     Vector<size_t> m_rows;
     int m_highlighted_row { -1 };
+    // The row highlighted for the keyboard, which the pointer's highlight only stands in for while the pointer is over
+    // the list.
+    int m_keyboard_row { -1 };
 };
 
 AllTabsPopover::AllTabsPopover(QWidget* parent)
@@ -218,6 +248,7 @@ AllTabsPopover::AllTabsPopover(QWidget* parent)
     m_scroll_area->setFrameShape(QFrame::NoFrame);
     m_scroll_area->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_scroll_area->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    m_scroll_area->setWidgetResizable(true);
     m_scroll_area->setWidget(m_tab_list);
     // NB: QScrollArea fills the background of the widget it scrolls, but the list sits on the card.
     m_tab_list->setAutoFillBackground(false);
@@ -256,15 +287,24 @@ AllTabsPopover::AllTabsPopover(QWidget* parent)
 void AllTabsPopover::set_recently_closed(Vector<Entry> entries)
 {
     m_recently_closed_list->set_entries(AK::move(entries));
-    update_search();
+    // NB: Only this list is filtered again, so that the open tabs keep the row picked with the keyboard.
+    filter_recently_closed(m_search_field->text().trimmed());
+    card().adjustSize();
+    adjustSize();
 }
 
 void AllTabsPopover::set_tabs(Vector<Entry> entries)
 {
     m_search_field->setPlaceholderText(QString("Search %1 tabs").arg(entries.size()));
+    // NB: The search and the tab picked with the keyboard stay as they were while the list is filled again for tabs that
+    //     open, close or change behind it. If that tab is gone, the highlight starts over.
+    QPointer<QObject> keyboard_tab = isVisible() ? m_tab_list->keyboard_tab() : nullptr;
     m_tab_list->set_entries(AK::move(entries));
-    m_search_field->clear();
+    if (!isVisible())
+        m_search_field->clear();
     update_search();
+    if (m_tab_list->set_keyboard_tab(keyboard_tab))
+        m_scroll_area->ensureVisible(0, m_tab_list->row_rect(m_tab_list->highlighted_row()).center().y(), 0, ROW_HEIGHT);
 }
 
 void AllTabsPopover::update_search()
@@ -272,12 +312,17 @@ void AllTabsPopover::update_search()
     auto query = m_search_field->text().trimmed();
     m_tab_list->filter(query);
     m_scroll_area->setFixedHeight(min(LIST_MAX_HEIGHT, m_tab_list->height()));
-    m_recently_closed_list->filter(query);
-    m_recently_closed_section->setVisible(m_recently_closed_list->row_count() > 0);
+    filter_recently_closed(query);
     if (auto row = m_tab_list->highlighted_row(); row >= 0)
         m_scroll_area->ensureVisible(0, m_tab_list->row_rect(row).center().y(), 0, ROW_HEIGHT);
     card().adjustSize();
     adjustSize();
+}
+
+void AllTabsPopover::filter_recently_closed(QString const& query)
+{
+    m_recently_closed_list->filter(query);
+    m_recently_closed_section->setVisible(m_recently_closed_list->row_count() > 0);
 }
 
 void AllTabsPopover::showEvent(QShowEvent* event)

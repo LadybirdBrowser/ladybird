@@ -11,6 +11,7 @@
 #include <UI/Qt/Popover.h>
 
 #include <QIcon>
+#include <QPointer>
 
 class QLineEdit;
 class QScrollArea;
@@ -31,6 +32,8 @@ public:
         QString title;
         QString detail;
         bool is_current { false };
+        // The tab the entry stands for, so the row picked with the keyboard stays on it as tabs open and close.
+        QPointer<QObject> tab;
     };
     void set_tabs(Vector<Entry>);
     void set_recently_closed(Vector<Entry>);
@@ -44,6 +47,7 @@ private:
     virtual bool eventFilter(QObject*, QEvent*) override;
 
     void update_search();
+    void filter_recently_closed(QString const& query);
 
     QLineEdit* m_search_field { nullptr };
     QScrollArea* m_scroll_area { nullptr };
