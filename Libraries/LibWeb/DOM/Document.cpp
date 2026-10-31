@@ -5487,7 +5487,16 @@ void Document::set_bg_color(Utf16View value)
 
 Utf16String Document::dump_dom_tree_as_json() const
 {
-    const_cast<Document&>(*this).update_layout(UpdateLayoutReason::InspectDOMTree);
+    auto& document = const_cast<Document&>(*this);
+    document.update_layout(UpdateLayoutReason::InspectDOMTree);
+
+    // The tree takes in the document of each nested navigable in this process (see Node::serialize_tree_as_json()) and
+    // reads its layout too, so bring each of those up to date as well, every parent before its children.
+    for (auto& navigable : document.descendant_navigables()) {
+        auto* local_navigable = as_if<HTML::LocalNavigable>(navigable.ptr());
+        if (auto nested_document = local_navigable ? local_navigable->active_document() : GC::Ptr<Document> {})
+            nested_document->update_layout(UpdateLayoutReason::InspectDOMTree);
+    }
 
     Utf16StringBuilder builder;
     auto json = MUST(JsonObjectSerializer<>::try_create(builder));
