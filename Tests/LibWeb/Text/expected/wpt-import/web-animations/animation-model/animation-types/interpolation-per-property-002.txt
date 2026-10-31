@@ -1,8 +1,8 @@
 Harness status: OK
 
-Found 423 tests
+Found 441 tests
 
-410 Pass
+428 Pass
 13 Fail
 Pass	Setup
 Pass	isolation (type: discrete) has testInterpolation function
@@ -53,6 +53,16 @@ Pass	list-style-type (type: discrete) has testInterpolation function
 Pass	list-style-type uses discrete animation when animating between "circle" and "square" with linear easing
 Pass	list-style-type uses discrete animation when animating between "circle" and "square" with effect easing
 Pass	list-style-type uses discrete animation when animating between "circle" and "square" with keyframe easing
+Pass	math-depth (type: integer) has testInterpolation function
+Pass	math-depth supports animating as an integer
+Pass	math-shift (type: discrete) has testInterpolation function
+Pass	math-shift uses discrete animation when animating between "normal" and "compact" with linear easing
+Pass	math-shift uses discrete animation when animating between "normal" and "compact" with effect easing
+Pass	math-shift uses discrete animation when animating between "normal" and "compact" with keyframe easing
+Pass	math-style (type: discrete) has testInterpolation function
+Pass	math-style uses discrete animation when animating between "normal" and "compact" with linear easing
+Pass	math-style uses discrete animation when animating between "normal" and "compact" with effect easing
+Pass	math-style uses discrete animation when animating between "normal" and "compact" with keyframe easing
 Pass	mask (type: discrete) has testInterpolation function
 Pass	mask uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with linear easing
 Pass	mask uses discrete animation when animating between "url("http://localhost/test-1")" and "url("http://localhost/test-2")" with effect easing
@@ -200,6 +210,14 @@ Pass	quotes (type: discrete) has testInterpolation function
 Pass	quotes uses discrete animation when animating between ""“" "”" "‘" "’"" and ""‘" "’" "“" "”"" with linear easing
 Pass	quotes uses discrete animation when animating between ""“" "”" "‘" "’"" and ""‘" "’" "“" "”"" with effect easing
 Pass	quotes uses discrete animation when animating between ""“" "”" "‘" "’"" and ""‘" "’" "“" "”"" with keyframe easing
+Pass	resize (type: discrete) has testInterpolation function
+Pass	resize uses discrete animation when animating between "both" and "horizontal" with linear easing
+Pass	resize uses discrete animation when animating between "both" and "horizontal" with effect easing
+Pass	resize uses discrete animation when animating between "both" and "horizontal" with keyframe easing
+Pass	scroll-behavior (type: discrete) has testInterpolation function
+Pass	scroll-behavior uses discrete animation when animating between "auto" and "smooth" with linear easing
+Pass	scroll-behavior uses discrete animation when animating between "auto" and "smooth" with effect easing
+Pass	scroll-behavior uses discrete animation when animating between "auto" and "smooth" with keyframe easing
 Pass	scroll-snap-align (type: discrete) has testInterpolation function
 Pass	scroll-snap-align uses discrete animation when animating between "none" and "start" with linear easing
 Pass	scroll-snap-align uses discrete animation when animating between "none" and "start" with effect easing
