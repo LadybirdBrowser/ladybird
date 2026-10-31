@@ -52,7 +52,7 @@ unsafe fn witness_record_from_abi(record: *const JSTypedArrayWithBufferWitness) 
     }
 }
 
-/// TypedArray<T>::create(Realm&, u32 length) for the kind: a typed array of `length` zero elements over a new
+/// TypedArray<T>::create(Realm&, size_t length) for the kind: a typed array of `length` zero elements over a new
 /// ArrayBuffer of its own, which is the payload of the normal completion. Throws a RangeError when there is not enough
 /// memory. Main thread only.
 ///
@@ -64,14 +64,14 @@ pub unsafe extern "C" fn js_typed_array_create(
     vm: *mut JSVM,
     realm: *mut JSRealm,
     kind: u8,
-    length: u32,
+    length: usize,
 ) -> JSCompletion {
     // SAFETY: The caller passes a live VM and realm.
     let (vm, realm) = unsafe { (vm_from_abi(vm), cell_from_abi(realm)) };
     completion_into_abi(create_typed_array(vm, realm, Kind::from_u8(kind), length))
 }
 
-/// TypedArray<T>::create(Realm&, u32 length, ArrayBuffer&) for the kind: a typed array of `length` elements from the
+/// TypedArray<T>::create(Realm&, size_t length, ArrayBuffer&) for the kind: a typed array of `length` elements from the
 /// start of `buffer`, which must have room for them. Main thread only.
 ///
 /// # Safety
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn js_typed_array_create_on_buffer(
     vm: *mut JSVM,
     realm: *mut JSRealm,
     kind: u8,
-    length: u32,
+    length: usize,
     buffer: *mut JSObject,
 ) -> *mut JSObject {
     // SAFETY: The caller passes a live VM, realm and buffer.
@@ -95,7 +95,7 @@ pub unsafe extern "C" fn js_typed_array_create_on_buffer(
     };
     let element_size = Kind::from_u8(kind).element_type().size();
     assert!(
-        (length as usize)
+        length
             .checked_mul(element_size)
             .is_some_and(|byte_length| byte_length <= buffer.byte_length()),
         "the embedder makes a typed array that fits in its buffer"
@@ -125,7 +125,7 @@ pub unsafe extern "C" fn js_typed_array_create_from_slots(
     buffer: *mut JSObject,
     array_length: JSByteLength,
     byte_length: JSByteLength,
-    byte_offset: u32,
+    byte_offset: usize,
 ) -> *mut JSObject {
     // SAFETY: The caller passes a live VM, realm and buffer.
     let (vm, realm, buffer) = unsafe {
@@ -205,7 +205,7 @@ pub unsafe extern "C" fn js_typed_array_is_out_of_bounds(record: *const JSTypedA
 ///
 /// `record` must point to a record of a live typed array that is not out of bounds.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_typed_array_length_of_witness(record: *const JSTypedArrayWithBufferWitness) -> u32 {
+pub unsafe extern "C" fn js_typed_array_length_of_witness(record: *const JSTypedArrayWithBufferWitness) -> usize {
     // SAFETY: The caller passes a valid record.
     typed_array_length(&unsafe { witness_record_from_abi(record) })
 }
@@ -216,7 +216,7 @@ pub unsafe extern "C" fn js_typed_array_length_of_witness(record: *const JSTyped
 ///
 /// `record` must point to a record of a live typed array.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn js_typed_array_byte_length_of_witness(record: *const JSTypedArrayWithBufferWitness) -> u32 {
+pub unsafe extern "C" fn js_typed_array_byte_length_of_witness(record: *const JSTypedArrayWithBufferWitness) -> usize {
     // SAFETY: The caller passes a valid record.
     typed_array_byte_length(&unsafe { witness_record_from_abi(record) })
 }

@@ -176,7 +176,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             done,
         );
         self.masm
-            .load32(output, &Address::new(object, layout.typed_array_array_length as i32));
+            .load64(output, &Address::new(object, layout.typed_array_array_length as i32));
+        // NB: A length that does not fit in 32 bits counts as 0, which sends every access to the slow path.
+        self.masm
+            .branch_test64(Condition::Zero, output, !u64::from(u32::MAX), done);
+        self.masm.move_imm32(output, 0);
         self.masm.bind(done);
     }
 

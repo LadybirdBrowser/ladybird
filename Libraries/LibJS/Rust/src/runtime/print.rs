@@ -937,11 +937,11 @@ fn print_typed_array(
     let length = typed_array_length(&typed_array_record);
 
     js_out(print_context, "\n  length: ")?;
-    print_value(print_context, Value::from_f64(f64::from(length)), seen_objects)?;
+    print_value(print_context, Value::from_f64(length as f64), seen_objects)?;
     js_out(print_context, "\n  byteLength: ")?;
     print_value(
         print_context,
-        Value::from_f64(f64::from(typed_array_byte_length(&typed_array_record))),
+        Value::from_f64(typed_array_byte_length(&typed_array_record) as f64),
         seen_objects,
     )?;
 
@@ -950,24 +950,24 @@ fn print_typed_array(
     // The current solution is limited to 100 lines, is hard to read, and hampers debugging.
     js_out(print_context, "[ ")?;
     let mut printed_count: usize = 0;
-    for i in 0..length as usize {
+    for i in 0..length {
         if i > 0 {
             js_out(print_context, ", ")?;
         }
         // NB: An embedder's stream can run JavaScript between two elements, which may have detached or shrunk the
         //     buffer since the length was read.
         let current_record = make_typed_array_with_buffer_witness_record(typed_array_base, Order::SeqCst);
-        if is_typed_array_out_of_bounds(&current_record) || i >= typed_array_length(&current_record) as usize {
+        if is_typed_array_out_of_bounds(&current_record) || i >= typed_array_length(&current_record) {
             break;
         }
-        let byte_index = typed_array_base.byte_offset() as usize + i * typed_array_base.element_size() as usize;
+        let byte_index = typed_array_base.byte_offset() + i * typed_array_base.element_size();
         print_value(
             print_context,
             typed_array_base.get_value_from_buffer(print_context.vm, byte_index, Order::Unordered),
             seen_objects,
         )?;
         printed_count += 1;
-        if printed_count > 100 && i < length as usize {
+        if printed_count > 100 && i < length {
             js_out(print_context, ", ...")?;
             break;
         }
@@ -996,13 +996,13 @@ fn print_data_view(
     js_out(print_context, "\n  byteLength: ")?;
     print_value(
         print_context,
-        Value::from_f64(f64::from(get_view_byte_length(&view_record))),
+        Value::from_f64(get_view_byte_length(&view_record) as f64),
         seen_objects,
     )?;
     js_out(print_context, "\n  byteOffset: ")?;
     print_value(
         print_context,
-        Value::from_f64(f64::from(data_view.byte_offset())),
+        Value::from_f64(data_view.byte_offset() as f64),
         seen_objects,
     )
 }

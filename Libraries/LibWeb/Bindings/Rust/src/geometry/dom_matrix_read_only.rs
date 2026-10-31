@@ -956,7 +956,7 @@ fn typed_array_elements(array: Gc<TypedArrayBase>) -> Vec<f64> {
     }
     let byte_length = typed_array_byte_length(&record) as usize;
     let mut bytes = vec![0; byte_length];
-    let byte_offset = array.byte_offset() as usize;
+    let byte_offset = array.byte_offset();
     array
         .viewed_array_buffer()
         .with_data_block(|data_block| data_block.copy_to(byte_offset, &mut bytes));

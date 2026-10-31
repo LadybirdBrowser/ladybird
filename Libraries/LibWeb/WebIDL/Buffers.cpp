@@ -51,17 +51,17 @@ BufferSource::BufferSource(ArrayBufferView const& source)
 {
 }
 
-u32 BufferSource::byte_length() const
+size_t BufferSource::byte_length() const
 {
     return m_buffer_source.visit(
-        [](GC::Ref<JS::DataView> data_view) {
+        [](GC::Ref<JS::DataView> data_view) -> size_t {
             auto view_record = JS::make_data_view_with_buffer_witness_record(data_view, JS::ArrayBuffer::Order::SeqCst);
             if (JS::is_view_out_of_bounds(view_record))
-                return 0u;
+                return 0;
             return JS::get_view_byte_length(view_record);
         },
         [](GC::Ref<JS::ArrayBuffer> array_buffer) {
-            return static_cast<u32>(array_buffer->byte_length());
+            return array_buffer->byte_length();
         },
         [](auto const& typed_array) {
             auto typed_array_record = JS::make_typed_array_with_buffer_witness_record(*typed_array, JS::ArrayBuffer::Order::SeqCst);
@@ -69,11 +69,11 @@ u32 BufferSource::byte_length() const
         });
 }
 
-u32 BufferSource::byte_offset() const
+size_t BufferSource::byte_offset() const
 {
     return m_buffer_source.visit(
-        [](GC::Ref<JS::ArrayBuffer>) -> u32 { return 0; },
-        [](auto const& view) -> u32 { return static_cast<u32>(view->byte_offset()); });
+        [](GC::Ref<JS::ArrayBuffer>) -> size_t { return 0; },
+        [](auto const& view) { return view->byte_offset(); });
 }
 
 u32 BufferSource::element_size() const
@@ -136,12 +136,12 @@ ArrayBufferView::ArrayBufferView(ArrayBufferViewVariant const& view)
 {
 }
 
-u32 ArrayBufferView::byte_length() const
+size_t ArrayBufferView::byte_length() const
 {
     return BufferSource { m_array_buffer_view }.byte_length();
 }
 
-u32 ArrayBufferView::byte_offset() const
+size_t ArrayBufferView::byte_offset() const
 {
     return BufferSource { m_array_buffer_view }.byte_offset();
 }

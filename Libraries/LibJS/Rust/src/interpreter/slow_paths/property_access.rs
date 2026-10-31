@@ -1641,7 +1641,7 @@ pub fn try_get_by_value_typed_array(vm: &Vm, values: &mut op::GetByValueValues) 
     }
 
     let length = array_length.length();
-    if index >= length {
+    if index as usize >= length {
         values.dst = Value::UNDEFINED;
         return true;
     }
@@ -1653,8 +1653,8 @@ pub fn try_get_by_value_typed_array(vm: &Vm, values: &mut op::GetByValueValues) 
 
     let buffer = typed_array.viewed_array_buffer();
     let Some(byte_index) = (index as usize)
-        .checked_mul(typed_array.element_size() as usize)
-        .and_then(|byte_index| byte_index.checked_add(typed_array.byte_offset() as usize))
+        .checked_mul(typed_array.element_size())
+        .and_then(|byte_index| byte_index.checked_add(typed_array.byte_offset()))
     else {
         return false;
     };
@@ -1704,7 +1704,7 @@ pub fn try_put_by_value_typed_array(vm: &Vm, values: &op::PutByValueValues) -> b
     // NB: An out-of-bounds write is not simply a no-op: TypedArraySetElement still
     //     evaluates ToNumber(value) for its side effects before discarding the store.
     //     Fall back to the slow path so those side effects happen.
-    if index >= array_length.length() {
+    if index as usize >= array_length.length() {
         return false;
     }
 
@@ -1714,8 +1714,8 @@ pub fn try_put_by_value_typed_array(vm: &Vm, values: &op::PutByValueValues) -> b
 
     let buffer = typed_array.viewed_array_buffer();
     let Some(byte_index) = (index as usize)
-        .checked_mul(typed_array.element_size() as usize)
-        .and_then(|byte_index| byte_index.checked_add(typed_array.byte_offset() as usize))
+        .checked_mul(typed_array.element_size())
+        .and_then(|byte_index| byte_index.checked_add(typed_array.byte_offset()))
     else {
         return false;
     };

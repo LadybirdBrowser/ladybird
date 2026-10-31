@@ -123,7 +123,7 @@ impl Uint8ArrayConstructorHelpers {
         // 14. Set the value at each index of ta.[[ViewedArrayBuffer]].[[ArrayBufferData]] to the value at the corresponding
         //     index of result.[[Bytes]].
         let array_buffer = ArrayBuffer::create_from_bytes(vm, realm, &result.bytes, Shared::No);
-        let typed_array = Uint8Array::create_on_buffer(vm, realm, result_length as u32, array_buffer);
+        let typed_array = Uint8Array::create_on_buffer(vm, realm, result_length, array_buffer);
 
         // 13. Assert: ta.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is the number of elements in result.[[Bytes]].
         assert!(typed_array.viewed_array_buffer().byte_length() == result_length);
@@ -157,7 +157,7 @@ impl Uint8ArrayConstructorHelpers {
         let result_length = result.bytes.len();
 
         // 5. Let ta be ? AllocateTypedArray("Uint8Array", %Uint8Array%, "%Uint8Array.prototype%", resultLength).
-        let typed_array = Uint8Array::create(vm, realm, result_length as u32)?;
+        let typed_array = Uint8Array::create(vm, realm, result_length)?;
 
         // 6. Assert: ta.[[ViewedArrayBuffer]].[[ArrayBufferByteLength]] is the number of elements in result.[[Bytes]].
         assert!(typed_array.viewed_array_buffer().byte_length() == result_length);
@@ -536,12 +536,12 @@ pub fn set_uint8_array_bytes(vm: &Vm, into: &TypedArrayBase, bytes: &[u8]) {
     for (index, byte) in bytes.iter().enumerate() {
         // a. Let byte be bytes[index].
         // b. Let byteIndexInBuffer be index + offset.
-        let byte_index_in_buffer = index as u32 + offset;
+        let byte_index_in_buffer = index + offset;
 
         // c. Perform SetValueInBuffer(into.[[ViewedArrayBuffer]], byteIndexInBuffer, uint8, 𝔽(byte), true, unordered).
         into.set_value_in_buffer(
             vm,
-            byte_index_in_buffer as usize,
+            byte_index_in_buffer,
             Value::from_i32(i32::from(*byte)),
             Order::Unordered,
         );

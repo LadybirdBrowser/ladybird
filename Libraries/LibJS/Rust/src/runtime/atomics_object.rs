@@ -97,7 +97,7 @@ fn validate_atomic_access(
     let access_index = request_index.to_index(vm)? as usize;
 
     // 4. If accessIndex ≥ length, throw a RangeError exception.
-    if access_index >= length as usize {
+    if access_index >= length {
         return vm.throw_completion(
             ErrorKind::RangeError,
             ErrorType::IndexOutOfRange,
@@ -109,10 +109,10 @@ fn validate_atomic_access(
     let typed_array = typed_array_record.object;
 
     // 6. Let elementSize be TypedArrayElementSize(typedArray).
-    let element_size = typed_array.element_size() as usize;
+    let element_size = typed_array.element_size();
 
     // 7. Let offset be typedArray.[[ByteOffset]].
-    let offset = typed_array.byte_offset() as usize;
+    let offset = typed_array.byte_offset();
 
     // 8. Return (accessIndex × elementSize) + offset.
     Ok((access_index * element_size) + offset)
@@ -150,7 +150,7 @@ fn revalidate_atomic_access(
     }
 
     // 4. Assert: byteIndexInBuffer ≥ typedArray.[[ByteOffset]].
-    assert!(byte_index_in_buffer >= typed_array.byte_offset() as usize);
+    assert!(byte_index_in_buffer >= typed_array.byte_offset());
 
     // 5. If byteIndexInBuffer ≥ taRecord.[[CachedBufferByteLength]], throw a RangeError exception.
     // AD-HOC: The spec step strictly only bounds-checks the element's first byte. A length-tracking element whose start
@@ -160,7 +160,7 @@ fn revalidate_atomic_access(
     //         (The OOB access from #10759 isn’t reproducible in any of those engines.)
     //         https://github.com/tc39/ecma262/issues/3924
     let buffer_byte_length = typed_array_record.cached_buffer_byte_length.length();
-    if byte_index_in_buffer + typed_array.element_size() as usize > buffer_byte_length as usize {
+    if byte_index_in_buffer + typed_array.element_size() > buffer_byte_length {
         return vm.throw_completion(
             ErrorKind::RangeError,
             ErrorType::IndexOutOfRange,
@@ -254,7 +254,7 @@ fn do_wait(
     let result = buffer.atomic_wait(
         byte_index_in_buffer,
         value as u64,
-        typed_array.element_size() as usize,
+        typed_array.element_size(),
         wait_timeout,
     );
     let result = match result {

@@ -272,7 +272,7 @@ impl DataViewPrototype {
         let size = get_view_byte_length(&view_record);
 
         // 7. Return 𝔽(size).
-        Ok(Value::from_f64(f64::from(size)))
+        Ok(Value::from_f64(size as f64))
     }
 
     // 25.3.4.3 get DataView.prototype.byteOffset, https://tc39.es/ecma262/#sec-get-dataview.prototype.byteoffset
@@ -294,7 +294,7 @@ impl DataViewPrototype {
         let offset = data_view.byte_offset();
 
         // 7. Return 𝔽(offset).
-        Ok(Value::from_f64(f64::from(offset)))
+        Ok(Value::from_f64(offset as f64))
     }
 
     // 25.3.4.5 DataView.prototype.getBigInt64 ( byteOffset [ , littleEndian ] ), https://tc39.es/ecma262/#sec-dataview.prototype.getbigint64

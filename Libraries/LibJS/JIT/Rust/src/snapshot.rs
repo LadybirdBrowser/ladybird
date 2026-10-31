@@ -1693,7 +1693,7 @@ pub struct RuntimeLayout {
     /// `typed_array_cached_data_offset_invalid`.
     pub typed_array_cached_data_offset: u32,
     pub typed_array_cached_data_offset_invalid: u64,
-    /// `TypedArrayBase::array_length.length`, as a u32.
+    /// `TypedArrayBase::array_length.length` (u64).
     pub typed_array_array_length: u32,
     /// `TypedArrayBase::kind` (u8).
     pub typed_array_kind: u32,

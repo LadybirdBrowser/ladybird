@@ -98,29 +98,29 @@ impl ImageData {
         let length = typed_array_byte_length(&data_record);
 
         // 2. If length is not a nonzero integral multiple of four, then throw an "InvalidStateError" DOMException.
-        if length == 0 || !length.is_multiple_of(BYTES_PER_PIXEL) {
+        if length == 0 || !length.is_multiple_of(BYTES_PER_PIXEL as usize) {
             return Err(invalid_state_error(
                 b"Source data must have a non-zero length that is a multiple of four.",
             ));
         }
 
         // 3. Let length be length divided by four.
-        let length = length / BYTES_PER_PIXEL;
+        let length = length / BYTES_PER_PIXEL as usize;
 
         // 4. If length is not an integral multiple of sw, then throw an "IndexSizeError" DOMException.
         // NOTE: At this step, the length is guaranteed to be greater than zero (otherwise the second step above would
         //       have aborted the steps), so if sw is zero, this step will throw the exception and return.
-        if sw == 0 || !length.is_multiple_of(sw) {
+        if sw == 0 || !length.is_multiple_of(sw as usize) {
             return Err(Exception::index_size_error(Utf16String::from_ascii(
                 b"Source width must be a multiple of source data's length.",
             )));
         }
 
         // 5. Let height be length divided by sw.
-        let height = length / sw;
+        let height = length / sw as usize;
 
         // 6. If sh was given and its value is not equal to height, then throw an "IndexSizeError" DOMException.
-        if sh.is_some_and(|sh| sh != height) {
+        if sh.is_some_and(|sh| sh as usize != height) {
             return Err(Exception::index_size_error(Utf16String::from_ascii(
                 b"Source height must be equal to the calculated height of the data.",
             )));
@@ -128,6 +128,11 @@ impl ImageData {
 
         // 7. Initialize this given sw, sh, settings set to settings, and source set to data.
         // FIXME: This seems to be a spec issue, sh is an optional but height always have a value.
+        let Ok(height) = u32::try_from(height) else {
+            return Err(Exception::index_size_error(Utf16String::from_ascii(
+                b"The specified image size could not be created",
+            )));
+        };
         Self::initialize(cx, height, sw, Some(&settings), Some(data), None)
     }
 
@@ -174,7 +179,13 @@ impl ImageData {
                 // 3. If the Canvas Pixel ArrayBuffer cannot be allocated, then rethrow the RangeError thrown by
                 //    JavaScript, and return.
                 let buffer = ArrayBuffer::create(cx.vm(), cx.realm(), size as usize, ArrayBufferShared::No)?;
-                create_typed_array_on_buffer(cx.vm(), cx.realm(), TypedArrayKind::Uint8ClampedArray, size, buffer)
+                create_typed_array_on_buffer(
+                    cx.vm(),
+                    cx.realm(),
+                    TypedArrayKind::Uint8ClampedArray,
+                    size as usize,
+                    buffer,
+                )
             }
         };
 
@@ -247,7 +258,7 @@ impl ImageData {
             return None;
         }
         let buffer = self.data.viewed_array_buffer();
-        let byte_offset = self.data.byte_offset() as usize;
+        let byte_offset = self.data.byte_offset();
         NonNull::new(buffer.with_data_block(|data_block| data_block.data_at(byte_offset)))
     }
 }

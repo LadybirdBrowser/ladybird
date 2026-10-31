@@ -118,7 +118,7 @@ fn keyed_bits(keyed: &KeyedFeedback, base: Value, property: Value) -> u32 {
         if let Some(typed_array) = object.downcast::<TypedArrayBase>() {
             bits |= keyed_feedback_bits::typed_array_bit(typed_array.kind() as u8);
             match typed_array.array_length() {
-                ByteLength::Length(length) if index < length => {}
+                ByteLength::Length(length) if (index as usize) < length => {}
                 _ => bits |= keyed_feedback_bits::OUT_OF_BOUNDS,
             }
         } else {

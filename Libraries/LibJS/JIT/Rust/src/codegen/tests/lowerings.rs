@@ -1206,7 +1206,7 @@ fn fake_object_layout() -> RuntimeLayout {
         typed_array_cached_data_offset: 32,
         typed_array_cached_data_offset_invalid: u64::MAX,
         typed_array_array_length: 40,
-        typed_array_kind: 44,
+        typed_array_kind: 48,
         typed_array_kind_uint8: 0,
         typed_array_kind_uint8_clamped: 1,
         typed_array_kind_uint16: 2,
@@ -1389,7 +1389,8 @@ fn fake_typed_array(kind: u8, data: &[u8], length: u32) -> Vec<u64> {
     let mut object = vec![0; 8];
     object[1] = u64::from(FLAG_IS_TYPED_ARRAY);
     object[4] = data.as_ptr() as u64 - PRIMITIVE_STORAGE_CAGE_BASE;
-    object[5] = u64::from(length) | u64::from(kind) << 32;
+    object[5] = u64::from(length);
+    object[6] = u64::from(kind);
     object
 }
 

@@ -2992,7 +2992,11 @@ handler PutByValue(
     let cached_offset = object.typed_array_cached_data_offset;
     guard cached_offset != TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID else try_typed_array_slow;
     let elements = primitive_storage_cage_base();
-    guard index < object.typed_array_array_length else slow;
+    # NB: A negative key wraps to an index below a length of 2^32.
+    let signed_index = unbox_i32(key);
+    guard signed_index >= 0 else slow;
+    let element_index: u64 = alias(index);
+    guard element_index < object.typed_array_array_length else slow;
     let typed_array_kind = object.typed_array_kind;
     record_typed_array_keyed_feedback(elements, keyed_feedback, typed_array_kind);
     let source = load(src);
@@ -3537,7 +3541,11 @@ handler GetByValue(
     let cached_offset = object.typed_array_cached_data_offset;
     guard cached_offset != TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID else try_typed_array_slow;
     let elements = primitive_storage_cage_base();
-    guard index < object.typed_array_array_length else try_typed_array_slow;
+    # NB: A negative key wraps to an index below a length of 2^32.
+    let signed_index = unbox_i32(key);
+    guard signed_index >= 0 else try_typed_array_slow;
+    let element_index: u64 = alias(index);
+    guard element_index < object.typed_array_array_length else try_typed_array_slow;
     let kind = object.typed_array_kind;
     record_typed_array_keyed_feedback(elements, keyed_feedback, kind);
 

@@ -415,7 +415,7 @@ fn serialize_byte_length(data_holder: &StructuredSerializeWriter, byte_length: B
 
     data_holder.encode_bool(byte_length.is_auto());
     if !byte_length.is_auto() {
-        data_holder.encode_u32(byte_length.length());
+        data_holder.encode_u64(byte_length.length() as u64);
     }
 }
 
@@ -480,7 +480,7 @@ fn serialize_viewed_array_buffer<'memory>(
             )?; // [[ArrayBufferSerialized]]
             data_holder.encode_utf16_string(&Utf16String::from_utf8("DataView")); // [[Constructor]]
             serialize_byte_length(data_holder, data_view.byte_length());
-            data_holder.encode_u32(data_view.byte_offset());
+            data_holder.encode_u64(data_view.byte_offset() as u64);
         }
         // 6. Otherwise:
         ViewType::TypedArray(typed_array) => {
@@ -501,7 +501,7 @@ fn serialize_viewed_array_buffer<'memory>(
             )?; // [[ArrayBufferSerialized]]
             data_holder.encode_utf16_string(&Utf16String::from_utf8(typed_array_name(typed_array.kind()))); // [[Constructor]]
             serialize_byte_length(data_holder, typed_array.byte_length());
-            data_holder.encode_u32(typed_array.byte_offset());
+            data_holder.encode_u64(typed_array.byte_offset() as u64);
             serialize_byte_length(data_holder, typed_array.array_length());
         }
     }
@@ -999,7 +999,7 @@ impl Deserializer<'_, '_, '_> {
             return Ok(ByteLength::auto_());
         }
 
-        let length = self.serialized.decode_u32()?;
+        let length = self.serialized.decode_size()?;
         Ok(ByteLength::from(length))
     }
 
@@ -1239,17 +1239,17 @@ impl Deserializer<'_, '_, '_> {
 
                 let constructor_name = self.serialized.decode_utf16_string()?;
                 let byte_length = self.deserialize_byte_length()?;
-                let byte_offset = self.serialized.decode_u32()?;
+                let byte_offset = self.serialized.decode_size()?;
 
-                // Validate in 64 bits; the engine's element-access check works in u32.
-                let length_fits_buffer = |length: ByteLength, element_size: u64| -> bool {
+                let length_fits_buffer = |length: ByteLength, element_size: usize| -> bool {
                     if length.is_auto() {
-                        return !array_buffer.is_fixed_length() && byte_offset as usize <= array_buffer.byte_length();
+                        return !array_buffer.is_fixed_length() && byte_offset <= array_buffer.byte_length();
                     }
-                    let end = u64::from(length.length())
+                    let end = length
+                        .length()
                         .checked_mul(element_size)
-                        .and_then(|end| end.checked_add(u64::from(byte_offset)));
-                    end.is_some_and(|end| end <= array_buffer.byte_length() as u64)
+                        .and_then(|end| end.checked_add(byte_offset));
+                    end.is_some_and(|end| end <= array_buffer.byte_length())
                 };
 
                 // 2. If serialized.[[Constructor]] is "DataView", then set value to a new DataView object in targetRealm whose [[ViewedArrayBuffer]] internal slot value is deserializedArrayBuffer,
@@ -1261,13 +1261,7 @@ impl Deserializer<'_, '_, '_> {
                             "DataView does not fit its ArrayBuffer",
                         ));
                     }
-                    value = Value::from_object(DataView::create(
-                        vm,
-                        realm,
-                        array_buffer,
-                        byte_length,
-                        byte_offset as usize,
-                    ));
+                    value = Value::from_object(DataView::create(vm, realm, array_buffer, byte_length, byte_offset));
                 }
                 // 3. Otherwise, set value to a new typed array object in targetRealm, using the constructor given by serialized.[[Constructor]], whose [[ViewedArrayBuffer]] internal slot value is
                 //    deserializedArrayBuffer, whose [[TypedArrayName]] internal slot value is serialized.[[Constructor]], whose [[ByteLength]] internal slot value is serialized.[[ByteLength]],
@@ -1287,14 +1281,14 @@ impl Deserializer<'_, '_, '_> {
                         ));
                     };
 
-                    let element_size = kind.element_type().size() as u64;
+                    let element_size = kind.element_type().size();
 
                     // Reject combinations a real typed array could not produce.
-                    let mut consistent_slots = byte_length.is_auto() == array_length.is_auto()
-                        && u64::from(byte_offset).is_multiple_of(element_size);
+                    let mut consistent_slots =
+                        byte_length.is_auto() == array_length.is_auto() && byte_offset.is_multiple_of(element_size);
                     if consistent_slots && !array_length.is_auto() {
-                        let expected_byte_length = u64::from(array_length.length()).checked_mul(element_size);
-                        consistent_slots = expected_byte_length == Some(u64::from(byte_length.length()));
+                        let expected_byte_length = array_length.length().checked_mul(element_size);
+                        consistent_slots = expected_byte_length == Some(byte_length.length());
                     }
                     if !consistent_slots || !length_fits_buffer(array_length, element_size) {
                         return Err(data_clone_error_from_serialization_error(

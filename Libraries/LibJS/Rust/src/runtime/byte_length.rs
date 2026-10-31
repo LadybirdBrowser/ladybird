@@ -6,7 +6,7 @@
 
 //! Libraries/LibJS/Runtime/ByteLength.h: a byte or element length that is auto (tracks a resizable buffer) or detached.
 
-use crate::layout::object::BYTE_LENGTH_U32_INDEX;
+use crate::layout::object::BYTE_LENGTH_LENGTH_INDEX;
 pub use crate::layout::object::ByteLengthSlot;
 
 /// Mirrors JS::ByteLength.
@@ -14,7 +14,7 @@ pub use crate::layout::object::ByteLengthSlot;
 pub enum ByteLength {
     Auto,
     Detached,
-    Length(u32),
+    Length(usize),
 }
 
 const BYTE_LENGTH_AUTO_INDEX: u8 = 0;
@@ -37,7 +37,7 @@ impl ByteLength {
         self == Self::Detached
     }
 
-    pub fn length(self) -> u32 {
+    pub fn length(self) -> usize {
         let Self::Length(length) = self else {
             panic!("ByteLength::length() of a byte length that has no length");
         };
@@ -45,8 +45,8 @@ impl ByteLength {
     }
 }
 
-impl From<u32> for ByteLength {
-    fn from(length: u32) -> Self {
+impl From<usize> for ByteLength {
+    fn from(length: usize) -> Self {
         Self::Length(length)
     }
 }
@@ -65,7 +65,7 @@ impl ByteLengthSlot {
         match self.alternative_index.get() {
             BYTE_LENGTH_AUTO_INDEX => ByteLength::Auto,
             BYTE_LENGTH_DETACHED_INDEX => ByteLength::Detached,
-            BYTE_LENGTH_U32_INDEX => ByteLength::Length(self.length.get()),
+            BYTE_LENGTH_LENGTH_INDEX => ByteLength::Length(self.length.get()),
             index => unreachable!("{index} is not an alternative of a ByteLength"),
         }
     }
@@ -74,7 +74,7 @@ impl ByteLengthSlot {
         let (index, length) = match byte_length {
             ByteLength::Auto => (BYTE_LENGTH_AUTO_INDEX, 0),
             ByteLength::Detached => (BYTE_LENGTH_DETACHED_INDEX, 0),
-            ByteLength::Length(length) => (BYTE_LENGTH_U32_INDEX, length),
+            ByteLength::Length(length) => (BYTE_LENGTH_LENGTH_INDEX, length),
         };
         self.length.set(length);
         self.alternative_index.set(index);

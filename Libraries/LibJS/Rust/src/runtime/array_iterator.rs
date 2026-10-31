@@ -200,7 +200,7 @@ pub fn iterated_array_like_length(vm: &Vm, array: &Object) -> ThrowCompletionOr<
         }
 
         // c. Let len be TypedArrayLength(taRecord).
-        return Ok(u64::from(typed_array_length(&typed_array_record)));
+        return Ok(typed_array_length(&typed_array_record) as u64);
     }
 
     // 9. Else,
