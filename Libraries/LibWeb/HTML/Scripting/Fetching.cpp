@@ -973,9 +973,9 @@ WebIDL::ExceptionOr<GC::Ref<ClassicScript>> fetch_a_classic_worker_imported_scri
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-module-worker-script-tree
-WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, FetchClient const& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete)
+WebIDL::ExceptionOr<void> fetch_module_worker_script_graph(URL::URL const& url, FetchClient const& fetch_client, Fetch::Infrastructure::Request::Destination destination, EnvironmentSettingsObject& settings_object, PerformTheFetchHook perform_fetch, OnFetchScriptComplete on_complete, Fetch::Infrastructure::Request::CredentialsMode credentials_mode)
 {
-    return fetch_worklet_module_worker_script_graph(url, fetch_client, destination, settings_object, move(perform_fetch), move(on_complete));
+    return fetch_worklet_module_worker_script_graph(url, fetch_client, destination, settings_object, move(perform_fetch), move(on_complete), credentials_mode);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#fetch-a-worklet/module-worker-script-graph
