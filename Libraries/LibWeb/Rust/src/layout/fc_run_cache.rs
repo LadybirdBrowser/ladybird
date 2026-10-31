@@ -313,7 +313,7 @@ impl FcRunCacheEntry {
         let Some(root) = self.outputs.root.as_ref() else {
             return false;
         };
-        if !root.propagated_pending_abspos.is_empty() {
+        if !root.payloads_past_run.pending_abspos.is_empty() {
             return false;
         }
         if !arena.paintable_row_is_populated(box_) {
@@ -975,7 +975,10 @@ pub(super) fn run_observes_root_block_padding(
     facts.is_scroll_container()
         || places_rendered_legend_on_its_border_box
         || outputs.laid_out_abspos_contained_by_root
-        || outputs.root.as_ref().is_none_or(|root| !root.propagates_nothing())
+        || outputs
+            .root
+            .as_ref()
+            .is_none_or(|root| !root.payloads_past_run.is_empty())
 }
 
 #[cfg(test)]

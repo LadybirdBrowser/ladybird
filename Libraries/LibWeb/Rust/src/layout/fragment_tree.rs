@@ -762,15 +762,32 @@ struct ChildLeftUnplaced {
     unplaced_child: crate::layout::formatting_context::PlacedChild,
 }
 
+/// What a run hands past its root toward the boxes outside it: the absolutely positioned boxes whose containing block
+/// is outside the run, the anchor candidates and inline containing block rects they are positioned against, and the
+/// containing block info of absolutely positioned boxes.
+#[derive(Clone, Default)]
+pub(crate) struct PayloadsPastRun {
+    pub(crate) pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
+    pub(crate) anchor_candidates: Vec<AnchorCandidate>,
+    pub(crate) inline_containing_block_rects: Vec<InlineContainingBlockRect>,
+    pub(crate) abspos_containing_block_info: Vec<AbsposContainingBlockInfoContribution>,
+}
+
+impl PayloadsPastRun {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.pending_abspos.is_empty()
+            && self.anchor_candidates.is_empty()
+            && self.inline_containing_block_rects.is_empty()
+            && self.abspos_containing_block_info.is_empty()
+    }
+}
+
 /// What a run laid out inside its root, before the root's fragment exists: the links at the top of the run's
 /// fragments, and what goes past the run.
 pub(crate) struct UnplacedRootFragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) scoped_descendants: Vec<FragmentLink>,
-    pub(crate) propagated_pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
-    pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
-    pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
-    pub(crate) propagated_abspos_containing_block_info: Vec<AbsposContainingBlockInfoContribution>,
+    pub(crate) payloads_past_run: PayloadsPastRun,
     /// What the run's layout of its root hands the root's fragment.
     pub(crate) root_payloads: Option<Box<FragmentPayloads>>,
 }
@@ -785,10 +802,7 @@ impl UnplacedRootFragment {
         let Self {
             node,
             scoped_descendants,
-            propagated_pending_abspos,
-            propagated_anchor_candidates,
-            propagated_inline_containing_block_rects,
-            propagated_abspos_containing_block_info,
+            payloads_past_run,
             root_payloads,
         } = self;
         RunRootFragment {
@@ -800,10 +814,7 @@ impl UnplacedRootFragment {
                 run_state::FragmentFactsDecidedByParent::default(),
                 root_payloads,
             ),
-            propagated_pending_abspos,
-            propagated_anchor_candidates,
-            propagated_inline_containing_block_rects,
-            propagated_abspos_containing_block_info,
+            payloads_past_run,
         }
     }
 }
@@ -812,10 +823,7 @@ impl UnplacedRootFragment {
 #[derive(Clone)]
 pub(crate) struct RunRootFragment {
     pub(crate) fragment: std::sync::Arc<Fragment>,
-    pub(crate) propagated_pending_abspos: Vec<abspos_inputs::PendingAbsposChild>,
-    pub(crate) propagated_anchor_candidates: Vec<AnchorCandidate>,
-    pub(crate) propagated_inline_containing_block_rects: Vec<InlineContainingBlockRect>,
-    pub(crate) propagated_abspos_containing_block_info: Vec<AbsposContainingBlockInfoContribution>,
+    pub(crate) payloads_past_run: PayloadsPastRun,
 }
 
 impl RunRootFragment {
@@ -823,19 +831,8 @@ impl RunRootFragment {
     pub(crate) fn propagating_nothing(fragment: std::sync::Arc<Fragment>) -> Self {
         Self {
             fragment,
-            propagated_pending_abspos: Vec::new(),
-            propagated_anchor_candidates: Vec::new(),
-            propagated_inline_containing_block_rects: Vec::new(),
-            propagated_abspos_containing_block_info: Vec::new(),
+            payloads_past_run: PayloadsPastRun::default(),
         }
-    }
-
-    /// Whether the root hands its ancestors no payload.
-    pub(crate) fn propagates_nothing(&self) -> bool {
-        self.propagated_pending_abspos.is_empty()
-            && self.propagated_anchor_candidates.is_empty()
-            && self.propagated_inline_containing_block_rects.is_empty()
-            && self.propagated_abspos_containing_block_info.is_empty()
     }
 }
 
@@ -1510,7 +1507,7 @@ impl RunFragmentBuilder {
             }
             inner.top_scope_links.push(link);
         }
-        for mut entry in root.propagated_pending_abspos {
+        for mut entry in root.payloads_past_run.pending_abspos {
             entry.translate_by(offset);
             inner.pending_abspos_at_root.push(entry);
         }
@@ -1522,7 +1519,7 @@ impl RunFragmentBuilder {
             .enumerate()
             .map(|(index, candidate)| ((candidate.node, candidate.coordinate_space_box), index))
             .collect();
-        for mut candidate in root.propagated_anchor_candidates {
+        for mut candidate in root.payloads_past_run.anchor_candidates {
             candidate.translate_by(offset);
             let key = (candidate.node, candidate.coordinate_space_box);
             if let Some(&index) = anchor_indices.get(&key) {
@@ -1534,11 +1531,11 @@ impl RunFragmentBuilder {
                 inner.anchor_candidates_at_root.push(candidate);
             }
         }
-        for mut payload in root.propagated_inline_containing_block_rects {
+        for mut payload in root.payloads_past_run.inline_containing_block_rects {
             payload.translate_by(offset);
             inner.inline_containing_block_rects_at_root.push(payload);
         }
-        inner.receive_abspos_containing_block_info(root.propagated_abspos_containing_block_info);
+        inner.receive_abspos_containing_block_info(root.payloads_past_run.abspos_containing_block_info);
     }
 
     /// Takes in the root fragment of the run that laid out `node`, which is being placed, and what goes past that run.
@@ -1630,17 +1627,17 @@ impl RunFragmentBuilder {
         pending_fragment.arrived = Some(root.fragment);
         pending_fragment
             .pending_abspos
-            .extend(root.propagated_pending_abspos.into_iter().map(|mut entry| {
+            .extend(root.payloads_past_run.pending_abspos.into_iter().map(|mut entry| {
                 formatting_context::resolve_pending_abspos_containing_block(callbacks, &mut entry, self.root_node);
                 entry
             }));
         pending_fragment
             .anchor_candidates
-            .extend(root.propagated_anchor_candidates);
+            .extend(root.payloads_past_run.anchor_candidates);
         pending_fragment
             .inline_containing_block_rects
-            .extend(root.propagated_inline_containing_block_rects);
-        inner.receive_abspos_containing_block_info(root.propagated_abspos_containing_block_info);
+            .extend(root.payloads_past_run.inline_containing_block_rects);
+        inner.receive_abspos_containing_block_info(root.payloads_past_run.abspos_containing_block_info);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1817,17 +1814,21 @@ impl RunFragmentBuilder {
 
     fn close(&self, callbacks: &LayoutPass<'_>) -> UnplacedRootFragment {
         let mut inner = self.inner.take();
-        let mut propagated_pending_abspos = std::mem::take(&mut inner.pending_abspos_at_root);
-        let mut propagated_anchor_candidates = std::mem::take(&mut inner.anchor_candidates_at_root);
-        let mut propagated_inline_containing_block_rects =
-            std::mem::take(&mut inner.inline_containing_block_rects_at_root);
-        let propagated_abspos_containing_block_info =
-            std::mem::take(&mut inner.abspos_containing_block_info_contributions);
+        let mut payloads_past_run = PayloadsPastRun {
+            pending_abspos: std::mem::take(&mut inner.pending_abspos_at_root),
+            anchor_candidates: std::mem::take(&mut inner.anchor_candidates_at_root),
+            inline_containing_block_rects: std::mem::take(&mut inner.inline_containing_block_rects_at_root),
+            abspos_containing_block_info: std::mem::take(&mut inner.abspos_containing_block_info_contributions),
+        };
         let pending_fragments = std::mem::take(&mut inner.pending_fragments);
         for (_, pending_fragment) in pending_fragments {
-            propagated_pending_abspos.extend(pending_fragment.pending_abspos);
-            propagated_anchor_candidates.extend(pending_fragment.anchor_candidates);
-            propagated_inline_containing_block_rects.extend(pending_fragment.inline_containing_block_rects);
+            payloads_past_run.pending_abspos.extend(pending_fragment.pending_abspos);
+            payloads_past_run
+                .anchor_candidates
+                .extend(pending_fragment.anchor_candidates);
+            payloads_past_run
+                .inline_containing_block_rects
+                .extend(pending_fragment.inline_containing_block_rects);
             // NB: Every formatting context places the containing blocks of the children it places, or leaves them
             //     unplaced with the children they contain.
             assert!(
@@ -1863,7 +1864,7 @@ impl RunFragmentBuilder {
             ));
         }
         let placed_boxes = &inner.placed_boxes;
-        for entry in &mut propagated_pending_abspos {
+        for entry in &mut payloads_past_run.pending_abspos {
             debug_assert!(
                 {
                     let containing_block = entry.containing_block();
@@ -1876,19 +1877,16 @@ impl RunFragmentBuilder {
             );
             propagate_payload_toward_run_root_space(entry, self.root_node, placed_boxes, callbacks);
         }
-        for candidate in &mut propagated_anchor_candidates {
+        for candidate in &mut payloads_past_run.anchor_candidates {
             propagate_payload_toward_run_root_space(candidate, self.root_node, placed_boxes, callbacks);
         }
-        for payload in &mut propagated_inline_containing_block_rects {
+        for payload in &mut payloads_past_run.inline_containing_block_rects {
             propagate_payload_toward_run_root_space(payload, self.root_node, placed_boxes, callbacks);
         }
         UnplacedRootFragment {
             node: self.root_node,
             scoped_descendants: inner.top_scope_links,
-            propagated_pending_abspos,
-            propagated_anchor_candidates,
-            propagated_inline_containing_block_rects,
-            propagated_abspos_containing_block_info,
+            payloads_past_run,
             root_payloads: inner.root_payloads,
         }
     }
