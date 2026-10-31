@@ -85,6 +85,19 @@ button, input[type=submit], input[type=button], input[type=reset], input[type=co
     }
 }
 
+input[type=file]:enabled::file-selector-button:hover {
+    background-color: -libweb-ButtonFaceHover;
+}
+
+input[type=file]:enabled::file-selector-button:active:hover {
+    background-color: color-mix(in srgb, ButtonFace, ButtonText 25%);
+}
+
+input[type=file]:disabled::file-selector-button {
+    background-color: -libweb-ButtonFaceDisabled;
+    color: GrayText;
+}
+
 input[type=color] {
     width: 50px;
     height: 27px;

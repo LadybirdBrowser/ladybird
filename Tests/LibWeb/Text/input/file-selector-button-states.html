@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<input type="file" id="file"><br>
+<input type="file" id="disabled" disabled>
+<script>
+    test(() => {
+        const rect = file.getBoundingClientRect();
+        const buttonX = rect.left + 10;
+        const labelX = rect.right - 10;
+        const buttonY = rect.top + rect.height / 2;
+        const outsideX = rect.right + 100;
+
+        const report = (step, input = file) => println(`${step}: ${getComputedStyle(input, "::file-selector-button").backgroundColor}`);
+
+        report("idle");
+        internals.mouseMove(labelX, buttonY);
+        report("label hovered");
+        internals.mouseMove(buttonX, buttonY);
+        report("hovered");
+        internals.mouseDown(buttonX, buttonY);
+        report("pressed");
+        internals.mouseMove(outsideX, buttonY, 0, 1);
+        report("dragged outside");
+        internals.mouseUp(outsideX, buttonY);
+        report("released outside");
+        report("disabled", disabled);
+    });
+</script>
