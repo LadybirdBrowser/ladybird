@@ -42,9 +42,11 @@
 
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <QApplication>
+#include <QCalendarWidget>
 #include <QClipboard>
 #include <QColorDialog>
 #include <QCursor>
+#include <QDialogButtonBox>
 #include <QDynamicPropertyChangeEvent>
 #include <QFileDialog>
 #include <QFont>
@@ -52,19 +54,23 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QImage>
+#include <QLocale>
 #include <QMenu>
 #include <QMessageBox>
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPixmap>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QScrollArea>
 #include <QStyleOptionToolButton>
 #include <QStylePainter>
+#include <QTimeEdit>
 #include <QTimer>
+#include <QToolButton>
 #include <QVBoxLayout>
 #include <QVariantAnimation>
 #include <UI/Qt/PerformanceMonitorWidget.h>
@@ -75,6 +81,34 @@ static constexpr int HOVER_TEXT_CORNER_RADIUS = 4;
 
 static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 static constexpr int BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
+
+// The calendar's month buttons get chevrons in the palette's text color, since the style's own arrows stay dark in dark
+// mode.
+enum class ChevronDirection {
+    Left,
+    Right,
+};
+
+static QIcon calendar_month_chevron_icon(QWidget const& widget, ChevronDirection direction)
+{
+    bool const points_left = direction == ChevronDirection::Left;
+    static constexpr int size = 16;
+    auto device_pixel_ratio = widget.devicePixelRatioF();
+    QPixmap pixmap(QSize(size, size) * device_pixel_ratio);
+    pixmap.setDevicePixelRatio(device_pixel_ratio);
+    pixmap.fill(Qt::transparent);
+
+    QPainterPath chevron;
+    chevron.moveTo(points_left ? 10 : 6, 4);
+    chevron.lineTo(points_left ? 6 : 10, 8);
+    chevron.lineTo(points_left ? 10 : 6, 12);
+
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(widget.palette().color(QPalette::WindowText), 1.75, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+    painter.drawPath(chevron);
+    return QIcon(pixmap);
+}
 
 static Web::HTML::ActivateTab activate_tab_for_modifiers(Qt::KeyboardModifiers modifiers)
 {
@@ -1566,6 +1600,13 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
             dialog->close();
             dialog->deleteLater();
         }
+        if (m_date_picker_dialog) {
+            auto* dialog = m_date_picker_dialog.data();
+            m_date_picker_dialog = nullptr;
+            QObject::disconnect(dialog, nullptr, this, nullptr);
+            dialog->close();
+            dialog->deleteLater();
+        }
         if (m_file_picker_dialog) {
             auto* dialog = m_file_picker_dialog.data();
             m_file_picker_dialog = nullptr;
@@ -1675,6 +1716,124 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
         });
 
         m_color_picker_dialog->open();
+    };
+
+    view().on_request_date_picker = [this](Utf16String const& input_type, Utf16String const& value, Utf16String const& minimum, Utf16String const& maximum) {
+        if (m_date_picker_dialog) {
+            view().date_picker_closed({});
+            return;
+        }
+
+        // NB: The values come from the page, so anything that does not parse leaves the picker at its defaults. The
+        //     page sanitizes the value the picker sends back.
+        auto type = qstring_from_utf16_string(input_type);
+        bool const picks_date = type != "time";
+        bool const picks_time = type == "time" || type == "datetime-local";
+
+        auto parse_date = [&](QString const& string) -> QDate {
+            if (type == "month")
+                return QDate::fromString(string + "-01", "yyyy-MM-dd");
+            if (type == "week") {
+                auto parts = string.split("-W");
+                if (parts.size() != 2)
+                    return {};
+                bool year_ok = false;
+                bool week_ok = false;
+                auto year = parts[0].toInt(&year_ok);
+                auto week = parts[1].toInt(&week_ok);
+                if (!year_ok || !week_ok)
+                    return {};
+                // The first ISO week of a year holds January 4th.
+                auto january_fourth = QDate(year, 1, 4);
+                return january_fourth.addDays(1 - january_fourth.dayOfWeek() + (week - 1) * 7);
+            }
+            return QDate::fromString(string.left(10), "yyyy-MM-dd");
+        };
+        auto current_value = qstring_from_utf16_string(value);
+        auto current_time = type == "datetime-local" ? current_value.mid(11) : current_value;
+        // NB: A value with seconds or a fraction of a second keeps them, so that confirming the picker does not drop
+        //     them. The "z" format reads and writes one to three digits of the fraction.
+        bool const picks_seconds = current_time.length() > 5;
+        bool const picks_milliseconds = current_time.contains('.');
+        auto const time_format = picks_milliseconds ? QStringLiteral("HH:mm:ss.z")
+            : picks_seconds                         ? QStringLiteral("HH:mm:ss")
+                                                    : QStringLiteral("HH:mm");
+        auto* dialog = new QDialog(&view());
+        m_date_picker_dialog = dialog;
+        dialog->setWindowTitle("Ladybird");
+        auto* layout = new QVBoxLayout(dialog);
+
+        QCalendarWidget* calendar = nullptr;
+        if (picks_date) {
+            calendar = new QCalendarWidget(dialog);
+            calendar->setGridVisible(false);
+            calendar->setVerticalHeaderFormat(type == "week" ? QCalendarWidget::ISOWeekNumbers : QCalendarWidget::NoVerticalHeader);
+            calendar->setFirstDayOfWeek(type == "week" ? Qt::Monday : QLocale().firstDayOfWeek());
+            // Draw weekends like other days, rather than in Qt's default red.
+            calendar->setWeekdayTextFormat(Qt::Saturday, {});
+            calendar->setWeekdayTextFormat(Qt::Sunday, {});
+            calendar->setStyleSheet(
+                "#qt_calendar_navigationbar { background: transparent; }"
+                "#qt_calendar_navigationbar QToolButton { background: transparent; border: none; padding: 2px 6px; font-weight: 600; }"
+                "#qt_calendar_navigationbar QToolButton::menu-indicator { image: none; width: 0; }"
+                "#qt_calendar_navigationbar QToolButton:hover { background: palette(midlight); border-radius: 4px; }"
+                "QCalendarWidget QAbstractItemView { selection-background-color: palette(accent); selection-color: palette(highlighted-text); }");
+            if (auto* previous_month = calendar->findChild<QToolButton*>("qt_calendar_prevmonth"))
+                previous_month->setIcon(calendar_month_chevron_icon(*calendar, ChevronDirection::Left));
+            if (auto* next_month = calendar->findChild<QToolButton*>("qt_calendar_nextmonth"))
+                next_month->setIcon(calendar_month_chevron_icon(*calendar, ChevronDirection::Right));
+            if (auto date = parse_date(current_value); date.isValid())
+                calendar->setSelectedDate(date);
+            if (auto date = parse_date(qstring_from_utf16_string(minimum)); date.isValid())
+                calendar->setMinimumDate(date);
+            if (auto date = parse_date(qstring_from_utf16_string(maximum)); date.isValid())
+                calendar->setMaximumDate(date);
+            layout->addWidget(calendar);
+        }
+
+        QTimeEdit* time_edit = nullptr;
+        if (picks_time) {
+            time_edit = new QTimeEdit(dialog);
+            time_edit->setDisplayFormat(picks_milliseconds ? QStringLiteral("HH:mm:ss.zzz") : time_format);
+            if (auto time = QTime::fromString(current_time, time_format); time.isValid())
+                time_edit->setTime(time);
+            layout->addWidget(time_edit);
+        }
+
+        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dialog);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, dialog, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, dialog, &QDialog::reject);
+        layout->addWidget(buttons);
+
+        QObject::connect(dialog, &QDialog::finished, this, [this, dialog, calendar, time_edit, type, time_format](int result) {
+            Optional<Utf16String> picked_value;
+            if (result == QDialog::Accepted) {
+                QString picked;
+                if (calendar) {
+                    auto date = calendar->selectedDate();
+                    if (type == "month") {
+                        picked = date.toString("yyyy-MM");
+                    } else if (type == "week") {
+                        int week_year = 0;
+                        auto week = date.weekNumber(&week_year);
+                        picked = QString("%1-W%2").arg(week_year, 4, 10, QChar('0')).arg(week, 2, 10, QChar('0'));
+                    } else {
+                        picked = date.toString("yyyy-MM-dd");
+                    }
+                }
+                if (time_edit) {
+                    if (!picked.isEmpty())
+                        picked += "T";
+                    picked += time_edit->time().toString(time_format);
+                }
+                picked_value = utf16_string_from_qstring(picked);
+            }
+            m_date_picker_dialog = nullptr;
+            dialog->deleteLater();
+            view().date_picker_closed(AK::move(picked_value));
+        });
+
+        dialog->open();
     };
 
     view().on_request_file_picker = [this](auto const& accepted_file_types, auto allow_multiple_files) {

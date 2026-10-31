@@ -459,6 +459,11 @@ static void show_the_picker_if_applicable(HTMLInputElement& element)
             auto weak_element = GC::Weak<HTMLInputElement> { element };
             element.set_is_open(true);
             element.document().page().did_request_color_picker(weak_element, element.value_as_color());
+        } else if (element.has_date_picker()) {
+            auto weak_element = GC::Weak<HTMLInputElement> { element };
+            element.set_is_open(true);
+            element.document().page().did_request_date_picker(weak_element, element.type().to_utf16_string(), element.value(),
+                element.get_attribute(AttributeNames::min).value_or({}), element.get_attribute(AttributeNames::max).value_or({}));
         }
     }
 }
@@ -1228,7 +1233,7 @@ void HTMLInputElement::create_text_input_shadow_tree()
     MUST(shadow_root->append_child(element));
 
     auto text_container = element;
-    if (type_state() == TypeAttributeState::Number) {
+    if (type_state() == TypeAttributeState::Number || has_date_picker()) {
         text_container = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
         {
             static auto& style = *new GC::Root<CSS::CSSStyleProperties>;
@@ -1349,6 +1354,36 @@ void HTMLInputElement::create_text_input_shadow_tree()
         auto step_down_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*down_callback_function, HTML::relevant_realm(*this));
         m_down_button_element->add_event_listener_without_options(UIEvents::EventNames::mousedown, DOM::IDLEventListener::create(step_down_callback));
         m_down_button_element->add_event_listener_without_options(UIEvents::EventNames::mouseup, DOM::IDLEventListener::create(mouseup_callback));
+    }
+
+    if (has_date_picker()) {
+        // NB: The picker indicator opens the picker, as the field itself is for typing a value.
+        auto picker_indicator = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+        picker_indicator->set_attribute_value(HTML::AttributeNames::style, "display: flex; align-items: center; padding-inline-start: 4px; opacity: 0.7; cursor: default;"_utf16);
+        MUST(element->append_child(picker_indicator));
+
+        auto icon = MUST(DOM::create_element(document(), SVG::TagNames::svg, Namespace::SVG));
+        icon->set_attribute_value(HTML::AttributeNames::style, "width: 1em; height: 1em;"_utf16);
+        icon->set_attribute_value(SVG::AttributeNames::xmlns, Namespace::SVG.to_utf16_string());
+        icon->set_attribute_value(SVG::AttributeNames::viewBox, "0 0 24 24"_utf16);
+        MUST(picker_indicator->append_child(icon));
+
+        auto icon_path = MUST(DOM::create_element(document(), SVG::TagNames::path, Namespace::SVG));
+        icon_path->set_attribute_value(SVG::AttributeNames::fill, "currentColor"_utf16);
+        if (type_state() == TypeAttributeState::Time)
+            icon_path->set_attribute_value(SVG::AttributeNames::d, "M12,2A10,10 0 1,0 22,12A10,10 0 0,0 12,2M12,20A8,8 0 1,1 20,12A8,8 0 0,1 12,20M12.5,7H11V13L16.2,16.2L17,14.9L12.5,12.2V7Z"_utf16);
+        else
+            icon_path->set_attribute_value(SVG::AttributeNames::d, "M19,4H18V2H16V4H8V2H6V4H5A2,2 0 0,0 3,6V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V6A2,2 0 0,0 19,4M19,20H5V10H19V20M19,8H5V6H19V8M7,12H12V17H7V12Z"_utf16);
+        MUST(icon->append_child(icon_path));
+
+        auto open_picker_function = JS::NativeFunction::create(
+            HTML::relevant_realm(*this), [this](JS::VM&) {
+                show_the_picker_if_applicable(*this);
+                return JS::js_undefined();
+            },
+            0, Utf16FlyString {}, &HTML::relevant_realm(*this));
+        auto open_picker_callback = GC::Heap::the().allocate<WebIDL::CallbackType>(*open_picker_function, HTML::relevant_realm(*this));
+        picker_indicator->add_event_listener_without_options(UIEvents::EventNames::click, DOM::IDLEventListener::create(open_picker_callback));
     }
 
     update_text_input_shadow_tree();
@@ -4350,7 +4385,44 @@ bool HTMLInputElement::supports_a_picker() const
     // The input element can support a picker. A picker is a user interface element that allows the end user to choose a value.
     // Whether an input element supports a picker depends on the type attribute state and implementation-defined behavior.
     // An input element must support a picker when its type attribute is in the File Upload state.
-    return first_is_one_of(type_state(), TypeAttributeState::FileUpload, TypeAttributeState::Color);
+    return first_is_one_of(type_state(), TypeAttributeState::FileUpload, TypeAttributeState::Color) || has_date_picker();
+}
+
+bool HTMLInputElement::has_date_picker() const
+{
+    return first_is_one_of(type_state(), TypeAttributeState::Date, TypeAttributeState::Time, TypeAttributeState::LocalDateAndTime, TypeAttributeState::Month, TypeAttributeState::Week);
+}
+
+void HTMLInputElement::did_pick_date(Optional<Utf16String> picked_value)
+{
+    set_is_open(false);
+    if (!has_date_picker() || !picked_value.has_value() || !is_mutable())
+        return;
+
+    auto old_value = m_value;
+    // then when the user changes the element's value
+    m_dirty_value = true;
+    m_value = value_sanitization_algorithm(*picked_value);
+    if (m_value == old_value)
+        return;
+    if (m_text_node) {
+        m_text_node->set_data(m_value);
+        update_placeholder_visibility();
+    }
+    relevant_value_was_changed();
+
+    // the user agent must queue an element task on the user interaction task source
+    user_interaction_did_change_input_value();
+
+    // https://html.spec.whatwg.org/multipage/input.html#common-input-element-events
+    // [...] any time the user commits the change, [...] set its user validity to true
+    m_user_validity = true;
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
+
+    // and fire an event named change at the input element, with the bubbles attribute initialized to true.
+    auto change_event = create_event_for_element(*this, HTML::EventNames::change);
+    change_event->set_bubbles(true);
+    dispatch_event(*change_event);
 }
 
 void HTMLInputElement::set_is_open(bool is_open)

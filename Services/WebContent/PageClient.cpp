@@ -1985,6 +1985,11 @@ void PageClient::page_did_request_color_picker(Color current_color)
     client().async_did_request_color_picker(m_id, current_color);
 }
 
+void PageClient::page_did_request_date_picker(Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum)
+{
+    client().async_did_request_date_picker(m_id, move(input_type), move(value), move(minimum), move(maximum));
+}
+
 void PageClient::page_did_request_file_picker(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files)
 {
     client().async_did_request_file_picker(m_id, accepted_file_types, allow_multiple_files);

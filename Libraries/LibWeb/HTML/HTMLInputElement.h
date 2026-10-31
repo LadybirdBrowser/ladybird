@@ -125,6 +125,8 @@ public:
     void suggestions_source_element_did_change();
 
     void did_pick_color(Optional<Color> picked_color, ColorPickerUpdateState state);
+    void did_pick_date(Optional<Utf16String> picked_value);
+    bool has_date_picker() const;
 
     enum class MultipleHandling {
         Replace,

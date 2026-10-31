@@ -1613,6 +1613,11 @@ void WebContentPage::did_request_color_picker(Color current_color)
     view().did_request_color_picker({}, *this, current_color);
 }
 
+void WebContentPage::did_request_date_picker(Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum)
+{
+    view().did_request_date_picker({}, *this, move(input_type), move(value), move(minimum), move(maximum));
+}
+
 static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16String const& name)
 {
     if (name == "geolocation"_utf16)

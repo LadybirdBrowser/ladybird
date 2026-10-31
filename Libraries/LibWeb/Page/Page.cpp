@@ -1315,6 +1315,37 @@ void Page::color_picker_update(Optional<Color> picked_color, HTML::ColorPickerUp
     }
 }
 
+void Page::did_request_date_picker(GC::Weak<HTML::HTMLInputElement> target, Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum)
+{
+    if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
+        m_pending_non_blocking_dialog = PendingNonBlockingDialog::DatePicker;
+        m_pending_non_blocking_dialog_target = move(target);
+        m_pending_date_picker_input_type = input_type;
+
+        m_client->page_did_request_date_picker(move(input_type), move(value), move(minimum), move(maximum));
+    } else if (target && target.ptr() != m_pending_non_blocking_dialog_target.ptr()) {
+        // NB: Another dialog is showing, so no picker opens for this input.
+        target->set_is_open(false);
+    }
+}
+
+void Page::date_picker_closed(Optional<Utf16String> picked_value)
+{
+    if (m_pending_non_blocking_dialog != PendingNonBlockingDialog::DatePicker)
+        return;
+    m_pending_non_blocking_dialog = PendingNonBlockingDialog::None;
+    auto requested_input_type = move(m_pending_date_picker_input_type);
+
+    if (m_pending_non_blocking_dialog_target) {
+        auto& input_element = as<HTML::HTMLInputElement>(*m_pending_non_blocking_dialog_target);
+        m_pending_non_blocking_dialog_target = nullptr;
+        // NB: A picker opened for another type of input gives a value that does not apply to this one.
+        if (input_element.type() != requested_input_type)
+            picked_value = {};
+        input_element.did_pick_date(move(picked_value));
+    }
+}
+
 void Page::did_request_file_picker(GC::Weak<HTML::HTMLInputElement> target, HTML::FileFilter const& accepted_file_types, HTML::AllowMultipleFiles allow_multiple_files)
 {
     if (m_pending_non_blocking_dialog == PendingNonBlockingDialog::None) {
