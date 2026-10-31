@@ -113,9 +113,11 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 ViewImplementation::~ViewImplementation()
 {
     // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it, nor
-    // cancelling the view's location requests that the location is no longer in use.
+    // cancelling the view's location requests that the location is no longer in use, nor closing the view's page (which
+    // revokes its audio playback) that the tab went quiet.
     on_url_change = nullptr;
     on_location_in_use_change = nullptr;
+    on_audibility_changed = nullptr;
     answer_pending_console_input_completions();
     TabPerformanceMonitor::forget_view(view_id());
     // Leave the views before the permission manager hears: a one-time grant that ends with this view has it revoke
