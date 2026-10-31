@@ -1224,9 +1224,8 @@ fn initialize_typed_array_from_typed_array(
     let element_length = typed_array_length(&source_record);
 
     // 10. Let byteLength be elementSize × elementLength.
-    let Some(byte_length) = element_size.checked_mul(element_length as usize) else {
-        return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidLength, &[&"typed array"]);
-    };
+    validate_typed_array_length(vm, element_length as usize, element_size)?;
+    let byte_length = element_size * element_length as usize;
 
     // 11. If elementType is srcType, then
     let data = if element_type == source_type {
