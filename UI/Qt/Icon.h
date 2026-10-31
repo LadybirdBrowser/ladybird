@@ -28,6 +28,7 @@ enum class ChromeIcon {
     Reload,
     Stop,
     NewTab,
+    AllTabs,
     Close,
     TabClose,
     Menu,

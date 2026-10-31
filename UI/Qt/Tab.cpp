@@ -79,7 +79,6 @@ namespace Ladybird {
 
 static constexpr int HOVER_TEXT_CORNER_RADIUS = 4;
 
-static constexpr auto WINDOW_DRAG_REGION_PROPERTY = "LadybirdWindowDragRegion";
 static constexpr int BOOKMARKS_BAR_HOVER_COLLAPSE_POLL_INTERVAL_MS = 250;
 
 // The calendar's month buttons get chevrons in the palette's text color, since the style's own arrows stay dark in dark
@@ -2219,7 +2218,7 @@ void Tab::set_toolbar_window_controls_visible(bool visible)
 
 // How far the navigation buttons sit past the toolbar's leading margin beside the collapsed sidebar, where the Ladybird
 // button and the sidebar's toggle come before them.
-int Tab::toolbar_lead_beside_collapsed_sidebar(QWidget const& ladybird_button, QSize sidebar_toggle_size) const
+int Tab::toolbar_lead_beside_collapsed_sidebar(QWidget const& ladybird_buttons, QSize sidebar_toggle_size) const
 {
     auto toolbar_spacing = m_toolbar->layout()->spacing();
     auto lead = 0;
@@ -2227,8 +2226,8 @@ int Tab::toolbar_lead_beside_collapsed_sidebar(QWidget const& ladybird_button, Q
         lead += m_toolbar_window_controls->width() + toolbar_spacing;
 
     auto slot_width = m_toolbar_sidebar_slot->layout()->sizeHint().width();
-    if (ladybird_button.parentWidget() != m_toolbar_sidebar_slot)
-        slot_width += ladybird_button.sizeHint().width() + sidebar_toggle_size.width() + (2 * m_toolbar_sidebar_slot->layout()->spacing());
+    if (ladybird_buttons.parentWidget() != m_toolbar_sidebar_slot)
+        slot_width += ladybird_buttons.sizeHint().width() + sidebar_toggle_size.width() + (2 * m_toolbar_sidebar_slot->layout()->spacing());
     return lead + slot_width + toolbar_spacing;
 }
 

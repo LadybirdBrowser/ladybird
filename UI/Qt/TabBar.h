@@ -367,7 +367,7 @@ private:
     void float_sidebar_buttons_while_toggling();
     bool slides_page_with_toggling_sidebar() const;
     void slide_page_with_toggling_sidebar();
-    QLabel* m_floating_ladybird_button { nullptr };
+    QLabel* m_floating_ladybird_buttons { nullptr };
     QLabel* m_floating_sidebar_toggle { nullptr };
     // Where the toolbar's slot for the buttons ends when the sidebar starts to open, in the window. The slot keeps
     // ending there until the sidebar is open, so the toolbar's other buttons stay in place under the sidebar.
@@ -411,6 +411,8 @@ private:
     AllTabsPopover* m_all_tabs_popover { nullptr };
     Vector<WebView::SessionWindowId> m_recently_closed_unit_ids;
     LadybirdButton* m_ladybird_button { nullptr };
+    // The Ladybird button and the all-tabs button after it, which move together.
+    QWidget* m_ladybird_buttons { nullptr };
     QToolButton* m_vertical_tabs_toggle_button { nullptr };
     QToolButton* m_minimize_window_button { nullptr };
     QToolButton* m_maximize_window_button { nullptr };
