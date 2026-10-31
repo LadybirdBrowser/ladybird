@@ -59,7 +59,6 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .prepare_for_rendering = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->prepare_for_rendering(*read); },
         .prepare_layout_tree_build = [](void* context, Layout::BegunRead const* read, bool may_create_viewport) -> u64 {
             auto& document = *static_cast<Document*>(context);
-            document.m_needs_throttled_animation_style_update_check = true;
             // The viewport's style is the document's, which the style computer makes rather than publishes, so a build
             // that may build the viewport is handed it before it starts.
             CSS::StyleRecordID document_style_record;
@@ -74,6 +73,7 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         // tree that was replaced and give the new one a paint state.
         .finish_layout_tree_build = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId replaced_root, Compositing::RustFFI::NodeSlotId viewport) {
             auto& document = *static_cast<Document*>(context);
+            document.m_needs_throttled_animation_style_update_check = true;
             auto& arena = document.layout_node_arena();
             VERIFY(is<Layout::Viewport>(arena.node_if_live(*read, viewport)));
             if (replaced_root.index == viewport.index)
