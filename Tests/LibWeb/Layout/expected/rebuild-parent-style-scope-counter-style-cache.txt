@@ -8,7 +8,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from ListItemMarkerBox start: 0, length: 0, rect: [8,8 13.84375x16] baseline: 12.796875
           ListItemMarkerBox <(anonymous)> at [8,8] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
             frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,8 13.84375x16] baseline: 12.796875
-                "▸ "
+                "► "
             GeneratedTextNode <(anonymous)> (not painted)
         BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
