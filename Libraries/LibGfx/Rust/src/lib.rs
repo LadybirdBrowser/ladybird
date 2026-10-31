@@ -61,4 +61,5 @@ const _: () = {
     assert_send_and_sync::<path::Path>();
     assert_send_and_sync::<image_frame::ImageFrameHandle>();
     assert_send_and_sync::<text_layout::GlyphBuffer>();
+    assert_send_and_sync::<text_layout::SharedShape>();
 };
