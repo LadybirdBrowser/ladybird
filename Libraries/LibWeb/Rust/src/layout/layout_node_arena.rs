@@ -3094,8 +3094,16 @@ impl LayoutNodeArena {
         }
         !self.node_needs_layout_update(layout_root)
             && !document_needs_layout_tree_build
+            && !self.layout_tree_update_marks_need_build()
             && !self.needs_full_layout_tree_update()
             && !self.has_partial_relayout_boundary_roots()
+    }
+
+    pub(crate) fn layout_tree_update_marks_need_build(&self) -> bool {
+        self.document_style_node.is_some_and(|document| {
+            let marks = self.layout_tree_update_marks();
+            marks.needs(document) || marks.child_needs(document)
+        })
     }
 
     pub(crate) fn set_pending_rebuilt_subtree_roots(
