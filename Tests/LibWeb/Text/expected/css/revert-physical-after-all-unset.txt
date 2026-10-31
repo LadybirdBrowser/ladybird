@@ -1,4 +1,4 @@
-same-rule: 1px solid
-later-rule: 1px solid
-longhands: 1px solid
+same-rule: 2px outset
+later-rule: 2px outset
+longhands: 2px outset
 logical-later: 0px none

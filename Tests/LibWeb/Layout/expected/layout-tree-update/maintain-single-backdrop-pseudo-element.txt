@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <dialog#d> at [315.15625,290] positioned [296.15625+3+16 169.6875 16+3+296.15625] [271+3+16 20 16+3+271] [BFC] children: inline
     frag 0 from TextInputBox start: 0, length: 0, rect: [320.15625,293 159.6875x14] baseline: 13.984375
-    TextInputBox <input> at [320.15625,293] inline-block [0+1+4 159.6875 4+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+    TextInputBox <input> at [320.15625,293] inline-block [0+2+3 159.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
       Box <div> at [320.15625,293] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
         BlockContainer <div> at [320.15625,293] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 0, rect: [320.15625,293 0x14] baseline: 10.984375

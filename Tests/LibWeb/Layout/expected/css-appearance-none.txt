@@ -19,7 +19,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 10 from BlockContainer start: 0, length: 0, rect: [13,117 0x0] baseline: 3
       frag 11 from TextNode start: 0, length: 19, rect: [16,104 169.234375x16] baseline: 12.796875
           "No appearance radio"
-      BlockContainer <input> at [17,11] inline-block [0+1+8 0 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+      BlockContainer <input> at [17,11] inline-block [0+2+7 0 7+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [17,11] flex-container(column) [0+0+0 0 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [17,11] flex-item [0+0+0 0 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [17,11 0x14] baseline: 10.984375
@@ -29,7 +29,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       TextNode <#text> (not painted)
       BreakNode <br> (not painted)
       TextNode <#text> (not painted)
-      BlockContainer <input> at [17,31] inline-block [0+1+8 0 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+      BlockContainer <input> at [17,31] inline-block [0+2+7 0 7+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [17,31] flex-container(column) [0+0+0 0 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [17,31] flex-item [0+0+0 0 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
             frag 0 from BlockContainer start: 0, length: 0, rect: [17,31 0x14] baseline: 10.984375

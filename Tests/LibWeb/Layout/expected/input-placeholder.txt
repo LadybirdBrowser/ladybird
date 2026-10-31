@@ -9,14 +9,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           " "
       frag 4 from TextInputBox start: 0, length: 0, rect: [453,11 200x20] baseline: 19
       frag 5 from TextInputBox start: 0, length: 0, rect: [13,37 200x20] baseline: 19
-      TextInputBox <input> at [13,11] inline-block [0+1+4 200 4+1+0] [0+1+2 20 2+1+0] [BFC] children: not-inline
+      TextInputBox <input> at [13,11] inline-block [0+2+3 200 3+2+0] [0+2+1 20 1+2+0] [BFC] children: not-inline
         Box <div> at [13,11] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [13,11] flex-item [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [13,11 40.1875x20] baseline: 16
                 "text"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-      TextInputBox <input> at [233,11] inline-block [0+1+4 200 4+1+0] [0+1+2 20 2+1+0] [BFC] children: not-inline
+      TextInputBox <input> at [233,11] inline-block [0+2+3 200 3+2+0] [0+2+1 20 1+2+0] [BFC] children: not-inline
         Box <div> at [233,11] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [233,11] flex-item [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [233,11 0x20] baseline: 16
@@ -26,14 +26,14 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "This placeholder should be visible"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-      TextInputBox <input> at [453,11] inline-block [0+1+4 200 4+1+0] [0+1+2 20 2+1+0] [BFC] children: not-inline
+      TextInputBox <input> at [453,11] inline-block [0+2+3 200 3+2+0] [0+2+1 20 1+2+0] [BFC] children: not-inline
         Box <div> at [453,11] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [453,11] flex-item [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [453,11 40.1875x20] baseline: 16
                 "text"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-      TextInputBox <input#placeholder> at [13,37] inline-block [0+1+4 200 4+1+0] [0+1+2 20 2+1+0] [BFC] children: not-inline
+      TextInputBox <input#placeholder> at [13,37] inline-block [0+2+3 200 3+2+0] [0+2+1 20 1+2+0] [BFC] children: not-inline
         Box <div> at [13,37] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [13,37] flex-item [0+0+0 200 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 0, rect: [13,37 0x20] baseline: 16

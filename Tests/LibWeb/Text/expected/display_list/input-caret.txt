@@ -3,7 +3,7 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[9,9 108x18] (TextInputBox<INPUT>)
+    [c0 in s1] clip=[10,10 106x16] (TextInputBox<INPUT>)
       [c1 in s1] clip=[13,11 100x14] (BlockContainer<DIV>)
   effects:
     [e0 in s0] effects=[]

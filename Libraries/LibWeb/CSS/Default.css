@@ -34,9 +34,11 @@ input, textarea, select, button {
 }
 
 /* FIXME: This is a temporary hack until we can render a native-looking frame for these. */
+/* NB: The native appearance of a text field or button paints a thin border of its own over the border box. Once an
+ *     author style devolves the widget, its border is the inset or outset one below. */
 input:not([type=submit], input[type=button], input[type=image], input[type=reset], input[type=color], input[type=checkbox], input[type=file], input[type=radio], input[type=range]), textarea {
-    border: 1px solid ButtonBorder;
-    padding: 2px 4px;
+    border: 2px inset ButtonBorder;
+    padding: 1px 3px;
     cursor: text;
 
     background-color: Field;
@@ -48,6 +50,7 @@ input:not([type=submit], input[type=button], input[type=image], input[type=reset
 }
 
 textarea {
+    border: 1px solid ButtonBorder;
     padding: 2px;
     display: inline-block;
     overflow: auto;
@@ -65,9 +68,9 @@ input::placeholder, textarea::placeholder {
 }
 
 button, input[type=submit], input[type=button], input[type=reset], input[type=color], select, ::file-selector-button {
-    padding: 2px 8px;
+    padding: 1px 7px;
     background-color: ButtonFace;
-    border: 1px solid ButtonBorder;
+    border: 2px outset ButtonBorder;
     color: ButtonText;
     cursor: default;
 
@@ -110,6 +113,11 @@ input[type=file]:enabled::file-selector-button:active:hover {
 input[type=file]:disabled::file-selector-button {
     background-color: -libweb-ButtonFaceDisabled;
     color: GrayText;
+}
+
+input[type=color], select {
+    padding: 2px 8px;
+    border: 1px solid ButtonBorder;
 }
 
 input[type=color] {

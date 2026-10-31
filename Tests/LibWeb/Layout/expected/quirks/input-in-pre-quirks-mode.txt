@@ -5,7 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
       BlockContainer <pre> at [8,13] [0+0+0 784 0+0+0] [13+0+0 20 0+0+13] children: inline
         frag 0 from TextInputBox start: 0, length: 0, rect: [13,16 159.6875x14] baseline: 13.984375
-        TextInputBox <input> at [13,16] inline-block [0+1+4 159.6875 4+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+        TextInputBox <input> at [13,16] inline-block [0+2+3 159.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
           Box <div> at [13,16] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [13,16] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
               frag 0 from TextNode start: 0, length: 0, rect: [13,16 0x14] baseline: 10.984375

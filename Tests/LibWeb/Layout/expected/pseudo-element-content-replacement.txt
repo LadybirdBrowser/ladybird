@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 320 0+0+8] children: not-inline
       BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      Box <button.flex-container.single-image> at [17,11] flex-container(row) [0+1+8 182 8+1+584] [0+1+2 42 2+1+0] [FFC] children: not-inline
+      Box <button.flex-container.single-image> at [17,11] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         ImageBox <(anonymous)> at [17,11] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [57,11] flex-item [0+0+0 106.515625 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 14, rect: [57,11 106.515625x14] baseline: 10.984375
@@ -11,7 +11,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      Box <button.flex-container.single-image.intrinsic-size> at [17,59] flex-container(row) [0+1+8 182 8+1+584] [0+1+2 42 2+1+0] [FFC] children: not-inline
+      Box <button.flex-container.single-image.intrinsic-size> at [17,59] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         ImageBox <(anonymous)> at [17,59] flex-item [0+0+0 40 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [65,59] flex-item [0+0+0 124.578125 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 18, rect: [65,59 124.578125x14] baseline: 10.984375
@@ -19,7 +19,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      Box <button.flex-container.single-image.with-alt-text> at [17,107] flex-container(row) [0+1+8 182 8+1+584] [0+1+2 42 2+1+0] [FFC] children: not-inline
+      Box <button.flex-container.single-image.with-alt-text> at [17,107] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         ImageBox <(anonymous)> at [17,107] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [57,107] flex-item [0+0+0 54.59375 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 8, rect: [57,107 54.59375x14] baseline: 10.984375
@@ -27,7 +27,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,152] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
-      Box <button.flex-container.after-only> at [17,155] flex-container(row) [0+1+8 182 8+1+584] [0+1+2 42 2+1+0] [FFC] children: not-inline
+      Box <button.flex-container.after-only> at [17,155] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [17,155] flex-item [0+0+0 37.59375 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [17,155 37.59375x14] baseline: 10.984375
               "After"

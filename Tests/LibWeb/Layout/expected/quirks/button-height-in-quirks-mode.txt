@@ -3,7 +3,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] children: inline
       frag 0 from BlockContainer start: 0, length: 0, rect: [9,3 81.671875x14] baseline: 13.984375
       TextNode <#text> (not painted)
-      BlockContainer <button> at [9,3] inline-block [0+1+8 81.671875 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+      BlockContainer <button> at [9,3] inline-block [0+2+7 81.671875 7+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
         BlockContainer <(anonymous)> at [9,3] flex-container(column) [0+0+0 81.671875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
           BlockContainer <(anonymous)> at [9,3] flex-item [0+0+0 81.671875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
             frag 0 from TextNode start: 0, length: 11, rect: [9,3 81.671875x14] baseline: 10.984375

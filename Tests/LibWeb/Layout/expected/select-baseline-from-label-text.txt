@@ -26,7 +26,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               SVGSVGBox <svg> at [97.296875,10] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
                 SVGGeometryBox <path> at [6,8.578125] [0+0+0 12 0+0+0] [0+0+0 7.421875 0+0+0] children: not-inline
         TextNode <#text> (not painted)
-        BlockContainer <input> at [139.296875,11] inline-block [0+1+8 19.65625 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+        BlockContainer <input> at [139.296875,11] inline-block [0+2+7 19.65625 7+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
           BlockContainer <(anonymous)> at [139.296875,11] flex-container(column) [0+0+0 19.65625 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <(anonymous)> at [139.296875,11] flex-item [0+0+0 19.65625 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
               frag 0 from BlockContainer start: 0, length: 0, rect: [139.296875,11 19.65625x14] baseline: 10.984375
