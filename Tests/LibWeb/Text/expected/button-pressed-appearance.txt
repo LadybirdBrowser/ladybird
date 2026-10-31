@@ -1,0 +1,5 @@
+hovered: rgb(191, 191, 191)
+pressed: color(srgb 0.702941 0.702941 0.702941)
+dragged outside: rgb(239, 239, 239)
+dragged back inside: color(srgb 0.702941 0.702941 0.702941)
+released: rgb(191, 191, 191)

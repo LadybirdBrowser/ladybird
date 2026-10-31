@@ -75,6 +75,10 @@ button, input[type=submit], input[type=button], input[type=reset], select, ::fil
         background-color: -libweb-ButtonFaceHover;
     }
 
+    &:active:hover:not(:disabled) {
+        background-color: color-mix(in srgb, ButtonFace, ButtonText 25%);
+    }
+
     &:disabled {
         background-color: -libweb-ButtonFaceDisabled;
         color: GrayText;

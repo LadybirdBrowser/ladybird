@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<button id="button">Press me</button>
+<script>
+    test(() => {
+        const rect = button.getBoundingClientRect();
+        const insideX = rect.left + rect.width / 2;
+        const insideY = rect.top + rect.height / 2;
+        const outsideX = rect.right + 100;
+        const outsideY = insideY;
+
+        const report = step => println(`${step}: ${getComputedStyle(button).backgroundColor}`);
+
+        internals.mouseMove(insideX, insideY);
+        report("hovered");
+        internals.mouseDown(insideX, insideY);
+        report("pressed");
+        internals.mouseMove(outsideX, outsideY, 0, 1);
+        report("dragged outside");
+        internals.mouseMove(insideX, insideY, 0, 1);
+        report("dragged back inside");
+        internals.mouseUp(insideX, insideY);
+        report("released");
+    });
+</script>
