@@ -2,13 +2,12 @@ Harness status: OK
 
 Found 8 tests
 
-1 Pass
-7 Fail
-Fail	display:block should support align-content
-Fail	display:flow should support align-content
-Fail	display:flow-root should support align-content
-Fail	display:inline-block should support align-content
-Fail	display:list-item should support align-content
-Fail	display:flow-root list-item should support align-content
-Fail	display:table-caption should support align-content
+8 Pass
+Pass	display:block should support align-content
+Pass	display:flow should support align-content
+Pass	display:flow-root should support align-content
+Pass	display:inline-block should support align-content
+Pass	display:list-item should support align-content
+Pass	display:flow-root list-item should support align-content
+Pass	display:table-caption should support align-content
 Pass	display:ruby-text should not support align-content

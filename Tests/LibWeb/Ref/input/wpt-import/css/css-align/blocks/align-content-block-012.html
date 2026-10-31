@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<title>CSS Box Alignment: align-content on large block container</title>
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#align-block">
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-align/blocks/align-content-block-012-ref.html">
+<style title="Needed for automation; delete to review/debug">
+  @import "../../../fonts/ahem.css";
+  html { font: 15px/1 Ahem; max-width: 800px;  }
+</style>
+
+<style>
+  .test { height: 3em; margin: 0.5em 1.25em;
+          /* show bounds of test box without interfering with margin-collapsing */
+          border-left: solid blue 5px;
+          /* ensure bullet follows first line */
+          display: list-item;
+          /* don't wrap, as that will throw off the reference */
+          white-space: nowrap; }
+
+  /* cram into 800x600 */
+  html { max-height: 600px; columns: 3 }
+  .wrapper { break-inside: avoid; border: solid 2px gray; }
+
+  /* predictability */
+  input { height: 4px; margin: 0; vertical-align: 4px; }
+  img { height: 8px }
+</style>
+
+<body>
+<div class="wrapper">
+  <div class="test" style="align-content: start" title="start">
+    STRT
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: center" title="center">
+    CNTR
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: end" title="end">
+    ENDD
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: baseline" title="baseline">
+    BSLN
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: last baseline" title="last baseline">
+    LBSL
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: flex-start" title="flex-start">
+    FSTR
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: flex-end" title="flex-end">
+    FEND
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: unsafe start" title="unsafe start">
+    USTR
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: unsafe center" title="unsafe center">
+    UCNT
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: unsafe end" title="unsafe end">
+    UEND
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: safe start" title="safe start">
+    SSTR
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: safe center" title="safe center">
+    SCNT
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: safe end" title="safe end">
+    SEND
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: space-evenly" title="space-evenly">
+    SEVN
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: space-between" title="space-between">
+    SBTW
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: space-around" title="space-around">
+    SARN
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+<div class="wrapper">
+  <div class="test" style="align-content: normal" title="normal">
+    NRML
+    <input type=checkbox>
+    <img src='../../support/swatch-orange.png'>
+    <span>
+      x
+      <input type=checkbox>
+      <img src='../../support/swatch-orange.png'>
+    </div>
+  </div>
+</div>
+
+<p>
+  <button onclick="document.querySelector('style[title]').textContent = 'html { font-size: 12px; }'">Show Text</button>
+</p>
+</body>
