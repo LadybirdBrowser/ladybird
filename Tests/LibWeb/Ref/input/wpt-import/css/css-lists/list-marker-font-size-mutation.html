@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: marker follows a font change made after layout</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#marker-pseudo">
+<link rel="match" href="../../../../expected/wpt-import/css/css-lists/list-marker-font-size-mutation-ref.html">
+<meta name="assert" content="Changing the font-size of a list item updates its marker, including when the marker text needs bidi resolution.">
+<style>
+li {
+  list-style-type: "\627\644\641";
+  font-size: 16px;
+}
+</style>
+<ul><li>text</li></ul>
+<script>
+document.body.offsetLeft;
+document.querySelector("li").style.fontSize = "32px";
+</script>

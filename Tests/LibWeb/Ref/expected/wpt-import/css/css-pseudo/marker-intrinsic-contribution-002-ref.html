@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Reference: intrinsic contribution of ::marker</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com">
+<style>
+li {
+  border: 5px solid;
+  float: left;
+  clear: left;
+}
+.inside {
+  list-style-position: inside;
+}
+.symbol {
+  list-style-type: disc;
+}
+.decimal {
+  list-style-type: decimal;
+}
+.string {
+  list-style-type: "string";
+}
+.content::marker {
+  content: "content";
+}
+</style>
+<ol class="inside">
+  <li class="symbol"></li>
+  <li class="decimal"></li>
+  <li class="string"></li>
+  <li class="content"></li>
+</ol>
+<ol>
+  <li class="symbol"></li>
+  <li class="decimal"></li>
+  <li class="string"></li>
+  <li class="content"></li>
+</ol>

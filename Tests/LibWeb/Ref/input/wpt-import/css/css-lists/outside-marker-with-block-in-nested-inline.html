@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>An outside list marker aligns with the block a nested inline's content starts with</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#list-style-position-outside">
+<link rel="match" href="../../../../expected/wpt-import/css/css-lists/outside-marker-with-block-in-nested-inline-ref.html">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<style>
+  body { margin: 0; font: 20px/1 Ahem }
+  ul { margin: 0; padding-inline-start: 40px }
+</style>
+</head>
+<body>
+  <ul><li><span><span><div>xx</div></span></span><br></li></ul>
+</body>
+</html>

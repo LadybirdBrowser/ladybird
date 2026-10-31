@@ -1,0 +1,60 @@
+<!DOCTYPE HTML>
+<!--
+     Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/
+-->
+<html class="reftest-wait"><head>
+  <meta charset="utf-8">
+  <title>Test: Insert text node as first child in LI</title>
+  <link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.org">
+  <link rel="help" href="https://bugzilla.mozilla.org/show_bug.cgi?id=1567773">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-lists/li-insert-child-ref.html">
+  <style>
+    ul.inside { list-style-position: inside; }
+    .before::before { content: "before"; }
+    .after::after { content: "after"; }
+  </style>
+</head>
+<body>
+
+<ul class="inside">
+  <li>B</li>
+</ul>
+
+<ul class="inside">
+  <li class="before">B</li>
+</ul>
+
+<ul class="inside">
+  <li class="after">B</li>
+</ul>
+
+<ul class="inside">
+  <li class="before after">B</li>
+</ul>
+
+<ul>
+  <li>B</li>
+</ul>
+
+<ul>
+  <li class="before">B</li>
+</ul>
+
+<ul>
+  <li class="after">B</li>
+</ul>
+
+<ul>
+  <li class="before after">B</li>
+</ul>
+
+<script>
+document.body.offsetHeight;
+let items = Array.prototype.slice.call(document.querySelectorAll('li'));
+items.map(li => li.insertBefore(document.createTextNode('A'), li.firstChild));
+document.documentElement.className = '';
+</script>
+
+</body>
+</html>

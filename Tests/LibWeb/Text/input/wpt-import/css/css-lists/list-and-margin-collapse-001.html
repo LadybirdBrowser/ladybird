@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test the margin collapse of marker</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<!-- https://bugs.chromium.org/p/chromium/issues/detail?id=767408 -->
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<ul id="target" style="margin-top:100px;">
+  <li>
+    <div style="overflow:hidden; margin-top:100px; height:25px;"><a href="#">xxx</a></div>
+  </li>
+</ul>
+
+<script>
+test(function() {
+  var height = document.getElementById("target").clientHeight;
+  assert_equals(height, 25, "the height of ul should be 25px")
+}, "list and margin collapse");
+</script>

@@ -1,0 +1,30 @@
+<!doctype html>
+<title>Check that :marker inherits line-height</title>
+<link rel=help href="https://drafts.csswg.org/css-pseudo-4/#tree-abiding">
+<link rel=help href="https://drafts.csswg.org/css-pseudo-4/#marker-pseudo">
+<link rel=help href="https://drafts.csswg.org/css-display-3/#list-items">
+<link rel=help href="https://bugzilla.mozilla.org/show_bug.cgi?id=1415759">
+<link rel=match href=../../../../expected/wpt-import/css/css-pseudo/marker-inherit-line-height-ref.html>
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<style>
+div {
+  font: 128px/1 Ahem;
+  border: 2px solid blue;
+  background: orange;
+  color: black;
+}
+ol {
+  margin: 0;
+  padding: 0;
+  list-style-position: inside;
+  list-style-type: decimal;
+}
+</style>
+
+<p>There should be two black rectangles below with no space between them and
+  the border above/below.</p>
+<div>
+  <ol>
+    <li>X
+  </ol>
+</div>
