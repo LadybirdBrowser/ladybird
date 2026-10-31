@@ -117,7 +117,7 @@ void CompositorContextHandle::hurry_rendering_opportunity()
     m_host.hurry_rendering_opportunity(m_context_id);
 }
 
-void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void()>&& callback)
+void CompositorContextHandle::request_screenshot(NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void(ScreenshotResult)>&& callback)
 {
     m_host.flush_canvas_2d_stream();
     m_host.request_screenshot(m_context_id, move(target_bitmap), move(callback));
@@ -535,14 +535,14 @@ void CompositorHost::hurry_rendering_opportunity(Web::CompositorContextId contex
         connection->hurry_rendering_opportunity(context_id);
 }
 
-void CompositorHost::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void()>&& callback)
+void CompositorHost::request_screenshot(Web::CompositorContextId context_id, NonnullRefPtr<Gfx::Bitmap> target_bitmap, Function<void(ScreenshotResult)>&& callback)
 {
     if (auto* connection = compositor_connection()) {
         connection->request_screenshot(context_id, move(target_bitmap), move(callback));
         return;
     }
     if (callback)
-        callback();
+        callback(ScreenshotResult::Failed);
 }
 
 }

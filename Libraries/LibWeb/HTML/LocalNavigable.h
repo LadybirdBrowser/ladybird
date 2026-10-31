@@ -317,7 +317,7 @@ public:
     bool has_recording_in_flight() const { return m_recording_in_flight; }
 
     // Paints into the target, which must be a shareable bitmap, then calls the callback.
-    void render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void()>&& callback);
+    void render_screenshot(NonnullRefPtr<Gfx::Bitmap> target, PaintConfig, Function<void(Compositor::ScreenshotResult)>&& callback);
     Compositing::DisplayListResourceStorage& display_list_resource_storage() { return presenter().display_list_resource_storage(); }
 
     // Tells the clock lanes of the active document whether a task begins or the event loop goes idle: a task that begins
