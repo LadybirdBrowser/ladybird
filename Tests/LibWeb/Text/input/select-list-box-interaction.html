@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px SerenitySans;
+    }
+</style>
+<select id="single" size="4"><option>One</option><option selected>Two</option><option disabled>Three</option><option>Four</option></select>
+<select id="multi" multiple><option>A</option><option>B</option><option>C</option><option>D</option></select>
+<select id="empty" multiple size="4"><option>W</option><option>X</option><option>Y</option><option disabled>Z</option></select>
+<script>
+    function rowPoint(select, index) {
+        const rect = select.getBoundingClientRect();
+        const rowHeight = (rect.height - 4) / select.size;
+        return [rect.left + 10, rect.top + 2 + rowHeight * (index + 0.5)];
+    }
+
+    function press(select, index, modifiers = 0) {
+        const [x, y] = rowPoint(select, index);
+        internals.mouseDown(x, y, 1, 0, modifiers);
+        internals.mouseUp(x, y, 0, modifiers);
+    }
+
+    function selectedLabels(select) {
+        return [...select.selectedOptions].map(option => option.label).join(",");
+    }
+
+    test(() => {
+        multi.size = 4;
+        for (const select of [single, multi])
+            select.addEventListener("change", () => println(`change on ${select.id}: ${selectedLabels(select)}`));
+
+        press(single, 0);
+        press(single, 2);
+        println(`single after pressing a disabled option: ${selectedLabels(single)}`);
+        press(single, 3);
+
+        press(multi, 0);
+        press(multi, 2, internals.MOD_SUPER);
+        press(multi, 0, internals.MOD_SUPER);
+        press(multi, 3, internals.MOD_SHIFT);
+        press(multi, 1);
+
+        single.focus();
+        internals.sendKey(single, "Up");
+        internals.sendKey(single, "Up");
+        println(`single after ArrowUp past a disabled option: ${selectedLabels(single)}`);
+        internals.sendKey(single, "Home");
+        internals.sendKey(single, "End");
+        multi.focus();
+        internals.sendKey(multi, "Down", internals.MOD_SHIFT);
+        internals.sendKey(multi, "Down");
+        empty.focus();
+        internals.sendKey(empty, "Up");
+        println(`empty after ArrowUp: ${selectedLabels(empty)}`);
+    });
+</script>

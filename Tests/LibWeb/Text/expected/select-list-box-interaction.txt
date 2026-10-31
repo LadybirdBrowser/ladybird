@@ -1,0 +1,15 @@
+change on single: One
+single after pressing a disabled option: One
+change on single: Four
+change on multi: A
+change on multi: A,C
+change on multi: C
+change on multi: A,B,C,D
+change on multi: B
+change on single: Two
+change on single: One
+single after ArrowUp past a disabled option: One
+change on single: Four
+change on multi: B,C
+change on multi: D
+empty after ArrowUp: Y

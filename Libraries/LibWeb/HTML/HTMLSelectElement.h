@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLOptionsCollection.h>
 #include <LibWebCommon/HTML/SelectItem.h>
+#include <LibWebCommon/UIEvents/KeyCode.h>
 #include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::HTML {
@@ -103,6 +104,9 @@ public:
     virtual void activation_behavior(DOM::Event const&) override;
 
     virtual void form_associated_element_was_inserted() override;
+
+    virtual bool is_presentational_hint(Utf16FlyString const&) const override;
+    virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;
     virtual void form_associated_element_attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
     void did_select_item(Optional<u32> const& id);
@@ -118,6 +122,12 @@ public:
     void reset_selectedness(HasChanged);
 
     void clone_selected_option_into_select_button();
+
+    // https://html.spec.whatwg.org/multipage/rendering.html#the-select-element-2
+    bool renders_as_list_box() const;
+    void list_box_options_did_change();
+    void list_box_option_selectedness_did_change(HTMLOptionElement const&);
+    bool handle_list_box_key(UIEvents::KeyCode, u32 modifiers);
 
     bool can_skip_selectedness_update_for_inserted_option(HTMLOptionElement const&) const;
 
@@ -176,6 +186,26 @@ private:
     GC::Ptr<DOM::Element> m_label_sizer_element;
     GC::Ptr<DOM::Element> m_chevron_icon_element;
     bool m_chevron_icon_hidden { false };
+
+    void create_list_box_shadow_tree(DOM::ShadowRoot&);
+    void update_list_box();
+    void update_list_box_row_style(DOM::Element& row, HTMLOptionElement const&) const;
+    void update_list_box_row_styles();
+    virtual void did_receive_focus() override;
+    virtual void did_lose_focus() override;
+    bool m_list_box_is_focused { false };
+    void handle_list_box_mousedown(UIEvents::MouseEvent&);
+    void choose_list_box_row(size_t index, bool extend);
+
+    GC::Ptr<DOM::Element> m_list_box_element;
+    struct ListBoxRow {
+        GC::Ref<DOM::Element> element;
+        GC::Ref<HTMLOptionElement> option;
+    };
+    Vector<ListBoxRow> m_list_box_rows;
+    Optional<size_t> m_list_box_anchor_index;
+    Optional<size_t> m_list_box_focus_index;
+    bool m_list_box_update_queued { false };
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#user-validity
     bool m_user_validity { false };
