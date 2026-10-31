@@ -54,6 +54,9 @@ Popover::Popover(QWidget* parent)
     setAttribute(Qt::WA_NativeWindow);
 #endif
     setAttribute(Qt::WA_TranslucentBackground);
+    // NB: The window is placed by its card, and macOS can report a safe area at its top, which would take a point from
+    //     the card's height.
+    setAttribute(Qt::WA_ContentsMarginsRespectsSafeArea, false);
 
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(POPOVER_SHADOW_MARGINS);
