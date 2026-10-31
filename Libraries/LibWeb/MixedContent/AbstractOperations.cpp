@@ -96,6 +96,11 @@ static bool target_browsing_context_is_top_level(Fetch::Infrastructure::Request 
     return environment && environment->target_browsing_context == Context::TargetBrowsingContext::TopLevel;
 }
 
+static bool is_blob_url(URL::URL const& url)
+{
+    return url.scheme() == "blob"sv;
+}
+
 // https://w3c.github.io/webappsec-mixed-content/#should-block-fetch
 Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_blocked_as_mixed_content(Fetch::Infrastructure::Request& request)
 {
@@ -108,6 +113,11 @@ Fetch::Infrastructure::RequestOrResponseBlocking should_fetching_request_be_bloc
         // INTEROP: Main fetch runs this algorithm again for every redirect. We check request's current URL rather than
         //          its URL, so that a redirect to an insecure URL is blocked as well.
         || SecureContexts::is_url_potentially_trustworthy(request.current_url()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy
+
+        // INTEROP: A blob URL is resolved from the blob URL store and never reaches the network. A blob URL created in
+        //          a context with an opaque origin, such as a sandboxed iframe, is not potentially trustworthy, but
+        //          is still never treated as mixed content.
+        || is_blob_url(request.current_url())
 
         // FIXME: 3. The user agent has been instructed to allow mixed content, as described in § 7.2 User Controls).
         || false
@@ -133,6 +143,9 @@ Web::Fetch::Infrastructure::RequestOrResponseBlocking should_response_to_request
 
         // 2. response’s url is a potentially trustworthy URL.
         || (response.url().has_value() && SecureContexts::is_url_potentially_trustworthy(response.url().value()) == SecureContexts::Trustworthiness::PotentiallyTrustworthy)
+
+        // INTEROP: A blob URL is never treated as mixed content. See should_fetching_request_be_blocked_as_mixed_content().
+        || (response.url().has_value() && is_blob_url(response.url().value()))
 
         // FIXME: 3. The user agent has been instructed to allow mixed content, as described in § 7.2 User Controls).
         || false
