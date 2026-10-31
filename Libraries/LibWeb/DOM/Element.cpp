@@ -7277,6 +7277,9 @@ bool Element::should_indicate_focus() const
         return true;
     if (auto const* input = as_if<HTML::HTMLInputElement>(this); input && input->has_selectable_text())
         return true;
+    // INTEROP: A select element takes keyboard input to pick an option, and indicates focus when clicked.
+    if (is<HTML::HTMLSelectElement>(this))
+        return true;
 
     // * If the user interacts with the page via keyboard or some other non-pointing device, indicate focus. (This means
     //   keyboard usage may change whether this pseudo-class matches even if it doesn’t affect :focus).
