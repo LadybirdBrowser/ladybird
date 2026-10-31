@@ -2500,9 +2500,13 @@ pub fn canonical_numeric_index_string(property_key: &PropertyKey, mode: Canonica
         return CanonicalIndex::new(CanonicalIndexType::Undefined, 0);
     };
 
-    // FIXME: We return 0 instead of n but it might not observable?
     // 3. If SameValue(! ToString(n), argument) is true, return n.
     if Utf16View::Utf16(&number_to_utf16_string(number)) == argument {
+        // NB: Array index keys are numbers, so the only integer a u32 holds that reaches here is 2^32 - 1, the last
+        //     index of a typed array of 2^32 elements. Other numbers are never valid integer indices.
+        if number == f64::from(u32::MAX) {
+            return CanonicalIndex::new(CanonicalIndexType::Index, u32::MAX);
+        }
         return CanonicalIndex::new(CanonicalIndexType::Numeric, 0);
     }
 

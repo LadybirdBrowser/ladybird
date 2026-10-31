@@ -4,8 +4,10 @@
     test(() => {
         const memory = new WebAssembly.Memory({ initial: 65536 });
         const view = new Uint8Array(memory.buffer);
+        view[2 ** 32 - 1] = 42;
         println(`byteLength: ${memory.buffer.byteLength}`);
         println(`Uint8Array length: ${view.length}`);
+        println(`last element: ${view[2 ** 32 - 1]}`);
         println(`DataView byteLength: ${new DataView(memory.buffer).byteLength}`);
         println(`Float64Array length: ${new Float64Array(memory.buffer).length}`);
     });

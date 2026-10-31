@@ -1,4 +1,5 @@
 byteLength: 4294967296
 Uint8Array length: 4294967296
+last element: 42
 DataView byteLength: 4294967296
 Float64Array length: 536870912
