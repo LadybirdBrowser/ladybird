@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    input {
+        font-size: 13px;
+        padding: 0;
+        border: none;
+        border-radius: 7px;
+        background: transparent;
+    }
+</style>
+<input id="input" value="abc">
+<script>
+    test(() => {
+        input.focus();
+        input.select();
+        println(internals.dumpDisplayList());
+    });
+</script>

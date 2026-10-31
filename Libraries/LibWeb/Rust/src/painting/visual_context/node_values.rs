@@ -962,7 +962,10 @@ pub(crate) fn compute_clip_data(layout_arena: &impl PaintRead, slot: NodeSlotId,
     //   clipping region is not rounded.
     // FIXME: Adjust the border radii for the overflow-clip-margin case.
     //        (see https://drafts.csswg.org/css-overflow-4/#valdef-overflow-clip-margin-length-0 )
-    let radii = if overflow_x != overflow::VISIBLE && overflow_y != overflow::VISIBLE {
+    // INTEROP: A single-line text field clips its contents to its padding box without rounding the corners, so that
+    //         text selected at the edge of a short field with rounded corners keeps its square highlight.
+    let is_text_input = layout_arena.node_kind_if_live(slot) == Some(crate::layout::node_data::NodeKind::TextInputBox);
+    let radii = if overflow_x != overflow::VISIBLE && overflow_y != overflow::VISIBLE && !is_text_input {
         padding_edge_border_radii(style, layout_arena, slot)
     } else {
         BorderRadii::default()
