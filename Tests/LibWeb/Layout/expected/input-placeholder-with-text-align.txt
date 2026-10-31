@@ -1,17 +1,17 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 120 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 104 0+0+8] children: inline
-      frag 0 from TextInputBox start: 0, length: 0, rect: [11,10 400x100] baseline: 56.796875
-      TextInputBox <input> at [11,10] inline-block [0+1+2 400 2+1+0] [0+1+1 100 1+1+0] [BFC] children: not-inline
-        Box <div> at [11,10] flex-container(row) [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
-          BlockContainer <div> at [11,52] flex-item [0+0+0 400 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 0, rect: [211,52 0x16] baseline: 12.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 122 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 106 0+0+8] children: inline
+      frag 0 from TextInputBox start: 0, length: 0, rect: [13,11 400x100] baseline: 57.796875
+      TextInputBox <input> at [13,11] inline-block [0+1+4 400 4+1+0] [0+1+2 100 2+1+0] [BFC] children: not-inline
+        Box <div> at [13,11] flex-container(row) [0+0+0 400 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [13,53] flex-item [0+0+0 400 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 0, rect: [213,53 0x16] baseline: 12.796875
             TextNode <#text> (not painted)
-          BlockContainer <div> at [11,52] flex-item [-400+0+0 400 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-            frag 0 from TextNode start: 0, length: 3, rect: [197.140625,52 27.703125x16] baseline: 12.796875
+          BlockContainer <div> at [13,53] flex-item [-400+0+0 400 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
+            frag 0 from TextNode start: 0, length: 3, rect: [199.140625,53 27.703125x16] baseline: 12.796875
                 "abc"
             TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x120] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x122] (z-index: auto)
