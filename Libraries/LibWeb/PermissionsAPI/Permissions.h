@@ -24,7 +24,7 @@ using PermissionState = Bindings::PermissionState;
 
 bool is_permission_supported(Utf16View);
 
-PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML::EnvironmentSettingsObject&> settings = {});
+PermissionState permission_state(PermissionDescriptor const& descriptor, Optional<HTML::EnvironmentSettingsObject&> settings = {});
 
 // Asks the user when the state is "prompt"; the callback runs once a state other than "prompt" is known.
 using PermissionDecisionCallback = GC::Ref<GC::Function<void(PermissionState)>>;
