@@ -157,21 +157,30 @@ int TestSuite::main(ByteString const& suite_name, Span<StringView> arguments)
         }
         int failures = 0;
         for (auto const& source : sources) {
+            LexicalPath source_path { source };
+            auto suite = source_path.title();
             Vector<ByteString> child_arguments;
             for (auto argument : arguments.slice(1))
                 child_arguments.append(ByteString { argument });
             child_arguments.append("--suite");
-            child_arguments.append(LexicalPath(source).title());
-            warnln("Running suite '{}'.", LexicalPath(source).title());
+            child_arguments.append(suite);
+            warnln("Running suite '{}'.", suite);
             auto process = Core::Process::spawn(executable.value(), child_arguments);
             if (process.is_error()) {
                 warnln("Cannot start the suite: {}", process.error());
                 ++failures;
                 continue;
             }
+            // A suite's process can die without printing anything, so say how it ended. An exit status above 128 is
+            // 128 plus the number of the signal that ended it.
             auto status = process.value().wait_for_termination();
-            if (status.is_error() || status.value() != 0)
+            if (status.is_error()) {
+                warnln("Cannot wait for suite '{}': {}", suite, status.error());
                 ++failures;
+            } else if (status.value() != 0) {
+                warnln("Suite '{}' exited with status {}.", suite, status.value());
+                ++failures;
+            }
         }
         return failures;
     }
