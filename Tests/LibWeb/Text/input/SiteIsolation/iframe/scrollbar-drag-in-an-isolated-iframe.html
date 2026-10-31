@@ -19,10 +19,15 @@
                 </style><div id="scroller"><div id="content"></div></div><script>
                     let pointerDownTarget = "none";
                     scroller.addEventListener("pointerdown", event => (pointerDownTarget = event.target.id));
+                    // The drag's last scroll can reach this document some frames after the drag ends, so report once
+                    // the scroll has ended.
+                    const scrollEnded = new Promise(resolve =>
+                        scroller.addEventListener("scrollend", resolve, { once: true }));
                     const afterTwoFrames = callback => requestAnimationFrame(() => requestAnimationFrame(callback));
                     addEventListener("message", event => {
                         if (event.data === "report")
-                            afterTwoFrames(() => parent.postMessage({ scrollTop: scroller.scrollTop, pointerDownTarget }, "*"));
+                            scrollEnded.then(() =>
+                                parent.postMessage({ scrollTop: scroller.scrollTop, pointerDownTarget }, "*"));
                     });
                     // The compositor has this document's scrollbar before the drag starts.
                     afterTwoFrames(() => {
