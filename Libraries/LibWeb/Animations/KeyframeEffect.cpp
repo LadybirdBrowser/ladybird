@@ -79,7 +79,7 @@ static WebIDL::ExceptionOr<KeyframeType<AL>> process_a_keyframe_like_object(JS::
     auto& vm = realm.vm();
 
     Function<WebIDL::ExceptionOr<Optional<double>>(JS::Value)> to_offset = [&vm](JS::Value value) -> WebIDL::ExceptionOr<Optional<double>> {
-        if (value.is_undefined())
+        if (value.is_nullish())
             return Optional<double> {};
         auto double_value = TRY(value.to_double(vm));
         if (isnan(double_value) || isinf(double_value))
