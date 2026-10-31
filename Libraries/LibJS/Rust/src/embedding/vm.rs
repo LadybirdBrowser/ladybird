@@ -9,8 +9,12 @@
 use core::ffi::c_void;
 use core::ptr::NonNull;
 
-use crate::embedding::abi_types::{JSRealm, cell_from_abi, completion_into_abi, optional_cell_from_abi, vm_from_abi};
-use crate::embedding::debugger::{JSDebuggerStackFrame, stack_frame_into_abi};
+use crate::embedding::abi_types::{
+    JSRealm, cell_from_abi, completion_into_abi, optional_cell_from_abi, value_from_abi, vm_from_abi,
+};
+use crate::embedding::debugger::{
+    JSDebuggerSourceRange, JSDebuggerStackFrame, source_range_into_abi, stack_frame_into_abi,
+};
 use crate::embedding::hooks::{
     Embedder, EmbedderAgent, JSAgent, JSImportedModulePayload, JSImportedModuleReferrer, JSModuleRequest, JSPromiseJob,
     JSVmHostHooks, imported_module_payload_from_abi, imported_module_referrer_from_abi, install_embedder,
@@ -131,6 +135,31 @@ pub unsafe extern "C" fn js_vm_finish_execution_generation(vm: *mut JSVM) {
 pub unsafe extern "C" fn js_vm_did_reach_stack_space_limit(vm: *mut JSVM) -> bool {
     // SAFETY: The caller passes a live VM.
     unsafe { vm_from_abi(vm) }.did_reach_stack_space_limit()
+}
+
+/// VM::take_throw_site_of(): where `value` was thrown, or no source code if it is not the last exception thrown. The VM
+/// keeps the source code alive until it forgets the throw. Only the VM's thread may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_throw_site_of(vm: *mut JSVM, value: JSValue) -> JSDebuggerSourceRange {
+    // SAFETY: The caller passes a live VM.
+    let vm = unsafe { vm_from_abi(vm) };
+    source_range_into_abi(vm.throw_site_of(value_from_abi(value)).as_ref())
+}
+
+/// VM::take_throw_site_of(): forgets where `value` was thrown, if it is the last exception thrown. Only the VM's thread
+/// may call this.
+///
+/// # Safety
+///
+/// `vm` must be a live VM.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_vm_forget_throw_site_of(vm: *mut JSVM, value: JSValue) {
+    // SAFETY: The caller passes a live VM.
+    unsafe { vm_from_abi(vm) }.forget_throw_site_of(value_from_abi(value));
 }
 
 /// Receives each StackTraceElement of a stack trace, which lives for the call.

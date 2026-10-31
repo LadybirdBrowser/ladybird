@@ -304,6 +304,9 @@ impl Promise {
     pub fn reject_function_steps(vm: &Vm, promise: Gc<Promise>, already_resolved: &Cell<bool>) -> Value {
         let reason = vm.argument(0);
 
+        // NB: An exception that rejects a promise is no longer thrown, even when the promise is already resolved.
+        vm.forget_throw_site_of(reason);
+
         // 1. Let F be the active function object.
         // 2. Assert: F has a [[Promise]] internal slot whose value is an Object.
         // 3. Let promise be F.[[Promise]].
@@ -351,6 +354,9 @@ impl Promise {
 
     // 27.2.1.7 RejectPromise ( promise, reason ), https://tc39.es/ecma262/#sec-rejectpromise
     pub fn reject(&self, vm: &Vm, reason: Value) {
+        // NB: An exception that rejects a promise is no longer thrown.
+        vm.forget_throw_site_of(reason);
+
         // 1. Assert: The value of promise.[[PromiseState]] is pending.
         assert!(self.state.get() == PromiseState::Pending);
 

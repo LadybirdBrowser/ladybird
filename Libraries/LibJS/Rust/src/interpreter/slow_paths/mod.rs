@@ -1464,6 +1464,8 @@ impl RuntimeFunctions for Runtime {
     }
 
     fn throw(vm: &Vm, pc: u32, _instruction: &op::Throw, values: &mut op::ThrowValues) -> SlowPathControl {
+        // A throw statement throws its value anew, even one that was thrown before and never caught by a catch clause.
+        vm.did_throw(values.src, pc);
         handle_asm_exception(vm, pc, values.src)
     }
 
