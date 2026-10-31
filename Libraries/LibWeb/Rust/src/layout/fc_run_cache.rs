@@ -291,9 +291,6 @@ pub(super) struct FcRunCacheEntry {
     /// Whether the run is a table cell's that did not observe the intrinsic block padding its table hands it (see
     /// run_observes_root_block_padding), so that it stands for runs with any such padding.
     table_cell_intrinsic_block_padding_unobserved: bool,
-    /// How many layouts the arena had committed when the run was stored. The subtrees the run took from the cache as
-    /// they were committed are only known to be so while no layout was committed since.
-    layout_commits_when_stored: u64,
     /// The committed subtree token of the box when its committed fragments were found to be the stored ones, which
     /// they stay while the token does.
     committed_subtree_token_when_found_committed: Option<u32>,
@@ -357,14 +354,10 @@ impl FcRunCacheEntry {
         }
     }
 
-    /// Whether the stored fragments can be replayed. Those of the subtrees the stored run took from the cache are the
-    /// committed ones, so such a run is replayed only before anything else is committed.
-    fn can_be_replayed(&self, callbacks: &LayoutPass<'_>) -> bool {
+    /// Whether a hit may replay the stored fragments. An entry found committed answers only while it describes the
+    /// committed subtree.
+    fn can_be_replayed(&self) -> bool {
         self.committed_subtree_token_when_found_committed.is_none()
-            && self.outputs.root.as_ref().is_none_or(|root| {
-                root.reused_subtree_roots.is_empty()
-                    || callbacks.arena().layout_commit_count() == self.layout_commits_when_stored
-            })
     }
 
     /// This entry as the one whose fragments the box committed, while its committed subtree token is `token`.
@@ -372,9 +365,8 @@ impl FcRunCacheEntry {
         Self {
             key: self.key,
             validity: self.validity,
-            outputs: self.outputs_reusing_committed_subtree(),
+            outputs: self.outputs.clone(),
             table_cell_intrinsic_block_padding_unobserved: self.table_cell_intrinsic_block_padding_unobserved,
-            layout_commits_when_stored: self.layout_commits_when_stored,
             committed_subtree_token_when_found_committed: Some(token),
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(self.last_used_at_layout_commit()),
             structural_epoch_bumps_when_stored: self.structural_epoch_bumps_when_stored,
@@ -389,19 +381,6 @@ impl FcRunCacheEntry {
             inputs_never_observed: self.outputs.inputs_never_observed,
             host_findings: self.outputs.host_findings.clone(),
             laid_out_abspos_contained_by_root: self.outputs.laid_out_abspos_contained_by_root,
-        }
-    }
-
-    /// The outputs of a hit that keeps the committed subtree. Commit stops at the reused root, so the reuse markers of
-    /// the subtrees below it never enter its scopes.
-    fn outputs_reusing_committed_subtree(&self) -> formatting_context::RunOutputs {
-        formatting_context::RunOutputs {
-            root: self
-                .outputs
-                .root
-                .as_ref()
-                .map(fragment_tree::RunRootFragment::without_reused_subtree_roots),
-            ..self.outputs_without_fragments()
         }
     }
 
@@ -440,12 +419,8 @@ impl FcRunCacheEntry {
     }
 
     /// The outputs a hit absorbs.
-    pub(super) fn outputs_to_replay(&self, reuses_committed_subtree: bool) -> formatting_context::RunOutputs {
-        if reuses_committed_subtree {
-            self.outputs_reusing_committed_subtree()
-        } else {
-            self.outputs.clone()
-        }
+    pub(super) fn outputs_to_replay(&self) -> formatting_context::RunOutputs {
+        self.outputs.clone()
     }
 }
 
@@ -856,7 +831,7 @@ impl FcRunCacheAttempt {
                 return false;
             }
             reuses_committed_subtree = entry.describes_committed_subtree(callbacks.arena(), box_);
-            reuses_committed_subtree || entry.can_be_replayed(callbacks)
+            reuses_committed_subtree || entry.can_be_replayed()
         }) {
             if !reuses_committed_subtree {
                 // NB: Once the replayed fragments are committed, the entry can drop them.
@@ -905,7 +880,6 @@ impl FcRunCacheAttempt {
                         validity,
                         outputs: outputs.clone(),
                         table_cell_intrinsic_block_padding_unobserved: false,
-                        layout_commits_when_stored: callbacks.arena().layout_commit_count(),
                         committed_subtree_token_when_found_committed: None,
                         last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(
                             callbacks.arena().layout_commit_count(),
@@ -922,13 +896,7 @@ impl FcRunCacheAttempt {
         };
         // Release the probed entry so that store() can replace it in place.
         drop(structurally_damaged_entry);
-        let Some(root) = &outputs.root else {
-            return;
-        };
-        // Commit stops at the subtrees a run reused. Do not store a run that reused one and exports an
-        // out-of-flow descendant: replaying the parent has to commit the subtree again so the freshly
-        // laid-out descendant can commit.
-        if !root.propagated_pending_abspos.is_empty() && !root.reused_subtree_roots.is_empty() {
+        if outputs.root.is_none() {
             return;
         }
         let entry = FcRunCacheEntry {
@@ -942,7 +910,6 @@ impl FcRunCacheAttempt {
                 .is_some()
                 && outputs.root_outcome.parent_owns_root_input_cells()
                 && !run_observes_root_block_padding(callbacks, box_, outputs),
-            layout_commits_when_stored: callbacks.arena().layout_commit_count(),
             committed_subtree_token_when_found_committed: None,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(callbacks.arena().layout_commit_count()),
             structural_epoch_bumps_when_stored: 0,
@@ -1085,7 +1052,6 @@ mod tests {
                 laid_out_abspos_contained_by_root: false,
             },
             table_cell_intrinsic_block_padding_unobserved: false,
-            layout_commits_when_stored: layout_commit_count,
             committed_subtree_token_when_found_committed: None,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(layout_commit_count),
             structural_epoch_bumps_when_stored: 0,

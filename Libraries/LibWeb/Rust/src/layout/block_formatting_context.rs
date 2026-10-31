@@ -3294,10 +3294,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             .with_in_flow_box_insets(insets),
             content_offset,
             None,
-            Some(fragment_tree::ChildFragmentArrival::CommittedFragment {
-                fragment,
-                reuses_committed_subtree: true,
-            }),
+            Some(fragment_tree::ChildFragmentArrival::CommittedFragment(fragment)),
         );
         self.block_offset_of_current_block_container
             .set(Some(flow_position + entry.flow_position_advance));

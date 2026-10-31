@@ -102,7 +102,7 @@
                 `,
             },
             {
-                name: "the stored measurement misses once the inline-block it reused was committed anew",
+                name: "the stored measurement replays the inline-block it laid out, though it was committed anew since",
                 mutate: () => {
                     button.style.width = "180px";
                     button.style.minHeight = "0px";
@@ -116,10 +116,7 @@
                               BlockContainer(anonymous)/flex RUN (cache=miss)
                                 BlockContainer(anonymous) MEASURE max-content block (cache=hit)
                                 BlockContainer(anonymous) MEASURE max-content block (cache=hit)
-                                BlockContainer(anonymous)/block RUN (cache=miss)
-                                  BlockContainer<DIV>#marker.marker/block RUN (cache=miss)
-                                    BlockContainer<DIV>#marker.marker MEASURE max-content inline (cache=hit)
-                                    BlockContainer<DIV>#marker.marker MEASURE min-content inline (cache=hit)
+                                BlockContainer(anonymous)/block REPLAY FRAGMENTS
                             BlockContainer(anonymous)/flex REPLAY FRAGMENTS
                           BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
                 `,

@@ -111,16 +111,26 @@ impl CommitNotifications {
     }
 }
 
-/// A box without children whose new fragment is the one it committed last has nothing a recommit would write, so it is
-/// committed like the root of a reused subtree. Its committed geometry must still be current: a layout-affecting change
-/// since that commit can keep the fragment while changing the facts a recommit gathers, such as its paint order inputs.
-fn keeps_committed_childless_box(arena: &LayoutNodeArena, node: Node, link: &FragmentLink) -> bool {
+/// Whether a box whose new fragment holds the lines and child fragments it committed last keeps its committed subtree,
+/// which then has nothing a recommit would write, so that only the box itself is committed. A stored run hit at another
+/// unobserved block size gives the box such a fragment around the committed contents. The box's committed geometry must
+/// still be current: every layout invalidation inside the box moves that epoch on, and a layout-affecting change since
+/// that commit can keep the fragment while changing the facts a recommit gathers, such as paint order inputs. The
+/// fragment shows every box inside it, except an absolutely positioned one whose containing block is outside, and
+/// boxes whose links a fragment around it holds (see CompletedPassFragments::links_by_slot). A box broken into several
+/// fragments is recommitted.
+fn keeps_committed_subtree(arena: &LayoutNodeArena, link: &FragmentLink) -> bool {
+    let node = link.fragment.node;
     let data = arena.data(node);
-    data.first_child.get().is_invalid()
-        && node_facts::kind_is_box(data.kind.get())
+    node_facts::kind_is_box(data.kind.get())
+        && !node_facts::has_flag(data, NodeFlag::AbsposDescendantEscapes)
+        && !link.fragment.continues_from_previous_fragment
+        && !link.fragment.continues_in_next_fragment
         && arena.paintable_row_is_populated(node)
         && arena
-            .with_current_committed_fragment(node, |committed| std::sync::Arc::ptr_eq(committed, &link.fragment))
+            .with_current_committed_fragment(node, |committed| {
+                std::sync::Arc::ptr_eq(committed, &link.fragment) || link.fragment.holds_same_contents_as(committed)
+            })
             .unwrap_or(false)
 }
 
@@ -129,7 +139,6 @@ fn commit_subtree(
     messages: &mut Vec<FfiCommitMessage>,
     paintables: &mut crate::painting::paintable_build::PaintableCommit<'_>,
     links_by_slot: &fragment_tree::LinksBySlot<'_>,
-    pass_fragments: &fragment_tree::CompletedPassFragments,
     enclosing_line_root_changes: crate::painting::paintable_build::LineRootChanges,
 ) {
     let slot_index = node.slot_index();
@@ -153,12 +162,10 @@ fn commit_subtree(
         first => first.map(|fragment| fragment.link),
     };
     let has_more_fragments = fragments.len() > 1;
-    let reuses_committed_subtree = !has_more_fragments
-        && (pass_fragments.subtree_was_reused(slot_index)
-            || entry.is_some_and(|link| keeps_committed_childless_box(paintables.arena(), node, link)));
-    debug_assert!(!reuses_committed_subtree || entry.is_some());
-    // A reused subtree whose root committed this very link already, in geometry that is still current, has nothing left
-    // to commit. A box placing an absolutely positioned box, or a navigable's viewport, notes itself on every commit, and
+    let reuses_committed_subtree = links_by_slot.keeps_committed_subtree(slot_index);
+    debug_assert!(!reuses_committed_subtree || (entry.is_some() && !has_more_fragments));
+    // A box that keeps its committed subtree and committed this very link already, in geometry that is still current,
+    // has nothing left to commit. A box placing an absolutely positioned box, or a navigable's viewport, notes itself on every commit, and
     // a link without a containing block leaves the commit to find it among ancestors that may have changed.
     if reuses_committed_subtree
         && let Some(link) = entry
@@ -216,7 +223,6 @@ fn commit_subtree(
         let replaced = paintables.replace_committed_fragment_link(
             node,
             link,
-            reuses_committed_subtree,
             enclosing_line_root_changes,
             prepared.previous_offset,
         );
@@ -264,10 +270,12 @@ fn commit_subtree(
     paintables.arena_mut().gather_layout_style_snapshot_geometry(node);
 
     paintables.stamp_containing_block(node, entry);
+    // NB: A link can change what orders the painting of a box that keeps its fragment, such as whether collapsed
+    //     columns hide it.
+    paintables.arena_mut().refresh_paint_order_inputs(node);
     if reuses_committed_subtree {
         return;
     }
-    paintables.arena_mut().refresh_paint_order_inputs(node);
 
     let mut child = paintables.arena().data(node).first_child.get();
     while !child.is_invalid() {
@@ -277,7 +285,6 @@ fn commit_subtree(
             messages,
             &mut *paintables,
             links_by_slot,
-            pass_fragments,
             line_root_changes_for_children,
         );
         child = next;
@@ -318,18 +325,15 @@ pub(crate) fn commit_replacing(
     arena.note_layout_commit();
     // NB: A partial relayout commits a subtree its ancestors' committed subtrees hold.
     arena.note_subtrees_of_self_and_ancestors_committed_anew(root);
-    let links_by_slot = pass_fragments.links_by_slot();
+    let links_by_slot = pass_fragments.links_by_slot(
+        root,
+        |node| arena.data(node).parent.get(),
+        |link| keeps_committed_subtree(arena, link),
+    );
     let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();
     let mut messages = Vec::new();
-    commit_subtree(
-        root,
-        &mut messages,
-        &mut paintables,
-        &links_by_slot,
-        pass_fragments,
-        Default::default(),
-    );
+    commit_subtree(root, &mut messages, &mut paintables, &links_by_slot, Default::default());
     paintables.discard_absolute_rects_memoized_during_commit();
     for &viewport in paintables.committed_navigable_container_viewports() {
         if let Some(style_node) = paintables.arena().commit_message_style_node(viewport) {
