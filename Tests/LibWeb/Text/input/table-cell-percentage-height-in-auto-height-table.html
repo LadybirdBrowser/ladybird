@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .table { display: table; border-spacing: 5px; }
+    .row { display: table-row; }
+    .label, .cell { display: table-cell; }
+    .cell { height: 100%; }
+    .box { height: 24px; width: 200px; }
+    .container { height: 100px; }
+    table { border-spacing: 5px; }
+    td { padding: 0; }
+</style>
+<div id="middle" class="table"></div>
+<div id="bottom" class="table"></div>
+<div id="single" class="table"></div>
+<div class="container"><table><tr><td id="half" style="height: 50%; vertical-align: middle"><div class="box"></div></td></tr></table></div>
+<div class="container"><table><tr><td id="calc" style="height: calc(50% + 1px); vertical-align: middle"><div class="box"></div></td></tr></table></div>
+<script>
+    function fill(table, rows, alignment) {
+        for (let i = 0; i < rows; ++i)
+            table.insertAdjacentHTML("beforeend", `<div class="row"><div class="label">Row ${i + 1}</div><div class="cell" style="vertical-align: ${alignment}"><div class="box"></div></div></div>`);
+    }
+
+    function report(name, cell) {
+        const row = cell.parentElement.getBoundingClientRect();
+        const cellRect = cell.getBoundingClientRect();
+        const box = cell.firstElementChild.getBoundingClientRect();
+        println(`${name}: row height ${row.height}, cell height ${cellRect.height}, content offset ${box.top - cellRect.top}`);
+    }
+
+    test(() => {
+        fill(document.getElementById("middle"), 4, "middle");
+        fill(document.getElementById("bottom"), 4, "bottom");
+        fill(document.getElementById("single"), 1, "middle");
+        for (const id of ["middle", "bottom", "single"]) {
+            document.getElementById(id).querySelectorAll(".cell").forEach((cell, index) => report(`${id} ${index + 1}`, cell));
+            println(`${id} table height ${document.getElementById(id).getBoundingClientRect().height}`);
+        }
+        const half = document.getElementById("half");
+        report("50% td", half);
+        println(`50% td table height ${half.closest("table").getBoundingClientRect().height}`);
+        const calc = document.getElementById("calc");
+        report("calc(50% + 1px) td", calc);
+        println(`calc(50% + 1px) td table height ${calc.closest("table").getBoundingClientRect().height}`);
+    });
+</script>
