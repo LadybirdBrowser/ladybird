@@ -1312,6 +1312,50 @@ pub(crate) fn style_payloads_layout_inputs_equal(
     })
 }
 
+/// https://drafts.csswg.org/css-anchor-position-1/#fallback-sensitive
+pub(crate) fn style_payloads_position_fallback_inputs_equal(
+    a: crate::css::computed_value_views::ComputedValuesView<'_>,
+    b: crate::css::computed_value_views::ComputedValuesView<'_>,
+) -> bool {
+    if a.position() != b.position() {
+        return false;
+    }
+    let (a, b) = (&a.record_groups().0, &b.record_groups().0);
+    /// # Safety
+    /// `T` must be the payload type of the group at `group`.
+    unsafe fn payloads_of_group<'a, T>(a: &'a StyleGroups, b: &'a StyleGroups, group: usize) -> (&'a T, &'a T) {
+        // SAFETY: Each style holds a live payload of each group, of the type the caller names.
+        unsafe { (payload_ref::<T>(a[group].as_ptr()), payload_ref::<T>(b[group].as_ptr())) }
+    }
+    // SAFETY: Each group is read as its own payload type.
+    let (surround_a, surround_b) = unsafe { payloads_of_group::<SurroundValues>(a, b, group_index::SURROUND) };
+    // SAFETY: As above.
+    let (sizing_a, sizing_b) = unsafe { payloads_of_group::<SizingValues>(a, b, group_index::SIZING) };
+    // SAFETY: As above.
+    let (alignment_a, alignment_b) = unsafe { payloads_of_group::<AlignmentValues>(a, b, group_index::ALIGNMENT) };
+    // SAFETY: As above.
+    let (anchor_a, anchor_b) = unsafe { payloads_of_group::<AnchorValues>(a, b, group_index::ANCHOR) };
+    surround_a.inset == surround_b.inset
+        && surround_a.top_anchor_inset == surround_b.top_anchor_inset
+        && surround_a.right_anchor_inset == surround_b.right_anchor_inset
+        && surround_a.bottom_anchor_inset == surround_b.bottom_anchor_inset
+        && surround_a.left_anchor_inset == surround_b.left_anchor_inset
+        && surround_a.position_anchor == surround_b.position_anchor
+        && surround_a.margin == surround_b.margin
+        && sizing_a == sizing_b
+        && alignment_a.align_self == alignment_b.align_self
+        && alignment_a.align_self_is_last_baseline == alignment_b.align_self_is_last_baseline
+        && alignment_a.align_self_overflow == alignment_b.align_self_overflow
+        && alignment_a.justify_self == alignment_b.justify_self
+        && alignment_a.justify_self_overflow == alignment_b.justify_self_overflow
+        && anchor_a.position_anchor_type == anchor_b.position_anchor_type
+        && anchor_a.position_anchor_name == anchor_b.position_anchor_name
+        && anchor_a.position_area == anchor_b.position_area
+        && anchor_a.position_try_fallbacks == anchor_b.position_try_fallbacks
+        && anchor_a.has_position_try_order == anchor_b.has_position_try_order
+        && anchor_a.position_try_order == anchor_b.position_try_order
+}
+
 /// Whether `a` and `b` hold equal payloads in each group `compares` answers true for.
 pub(crate) fn style_groups_equal_in(
     a: crate::css::computed_value_views::ComputedValuesView<'_>,
