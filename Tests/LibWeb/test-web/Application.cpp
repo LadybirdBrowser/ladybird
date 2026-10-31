@@ -97,6 +97,9 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
     request_server_options.http_disk_cache_mode = WebView::HTTPDiskCacheMode::Testing;
 
+    // Every test is served from a site of its own, so a site's RequestServer is never used again once its test is done.
+    request_server_options.idle_site_request_server_timeout = AK::Duration::zero();
+
     // Trust the AIA integration test's root CA (written by the http-test-server fixture) — so its broken-chain HTTPS
     // hosts validate once their intermediate is fetched. Must match the path passed in HttpEchoServerFixture::setup.
     // Create the file before sandbox startup; the fixture must overwrite the same inode.

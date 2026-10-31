@@ -10,6 +10,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/String.h>
+#include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibHTTP/Proxy.h>
 #include <LibURL/URL.h>
@@ -128,6 +129,8 @@ struct RequestServerOptions {
     // Per-session limit, excluding the RequestServer with no site. Sites beyond the limit share that server;
     // zero makes every process share it.
     size_t maximum_site_request_servers { NumericLimits<size_t>::max() };
+    // How long a site's RequestServer is kept around once its last client is gone, in case the site is visited again.
+    AK::Duration idle_site_request_server_timeout { AK::Duration::from_seconds(60) };
 };
 
 enum class IsTestMode {
