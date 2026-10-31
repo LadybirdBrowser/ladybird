@@ -1353,6 +1353,8 @@ impl RetainedState {
     pub fn set_element_associated_pseudo_kind(&mut self, node: StyleNodeID, pseudo_kind_plus_one: u8) {
         self.computed_group_sets
             .set_associated_pseudo_kind(node, pseudo_kind_plus_one);
+        self.tree
+            .set_backing_pseudo_kind(node, pseudo_kind_plus_one.checked_sub(1).map(u16::from));
         if pseudo_kind_plus_one != 0
             && let Some(host) = self.tree.shadow_host_of(node)
         {

@@ -136,6 +136,24 @@ pub(crate) trait SelectorTree: Copy {
     fn shadow_root_of(self, host: Self::Node) -> Option<Self::Node>;
     fn host_of(self, shadow_root: Self::Node) -> Option<Self::Node>;
 
+    /// Whether the element stands for its shadow host's element-backed pseudo-element of `kind`.
+    fn backs_pseudo_element(self, _node: Self::Node, _kind: u16) -> bool {
+        false
+    }
+
+    /// The element of `host`'s shadow tree that stands for its element-backed pseudo-element of `kind`.
+    fn backing_element_of(self, host: Self::Node, kind: u16) -> Option<Self::Node> {
+        let shadow_root = self.shadow_root_of(host)?;
+        let mut node = self.next_in_subtree(shadow_root, shadow_root);
+        while let Some(current) = node {
+            if self.backs_pseudo_element(current, kind) {
+                return Some(current);
+            }
+            node = self.next_in_subtree(current, shadow_root);
+        }
+        None
+    }
+
     /// The element after `node` in tree order that is a descendant of `root`, where `node` is `root` itself to start.
     fn next_in_subtree(self, node: Self::Node, root: Self::Node) -> Option<Self::Node> {
         if let Some(child) = self.first_child(node) {
@@ -1039,6 +1057,12 @@ impl<S: SelectorSubject> SelectorEvaluator<S> {
                 }
                 Ok(false)
             }
+            // The pseudo-classes written after an element-backed pseudo-element describe the element
+            // backing it, which stands in the host's shadow tree.
+            SelectorOp::BackingElement { kind, inner } => match tree.backing_element_of(node, kind) {
+                Some(backing) => self.matches_node(program, inner, backing, counters),
+                None => Ok(false),
+            },
             SelectorOp::Root => {
                 counters.bump(Counter::StructuralTests);
                 Ok(self.subject.is_root(node))

@@ -20,8 +20,14 @@
         report("idle");
         internals.mouseMove(labelX, buttonY);
         report("label hovered");
+        internals.mouseDown(labelX, buttonY);
+        report("label pressed");
+        internals.mouseUp(labelX, buttonY);
         internals.mouseMove(buttonX, buttonY);
         report("hovered");
+        internals.mouseMove(labelX, buttonY);
+        report("moved to label");
+        internals.mouseMove(buttonX, buttonY);
         internals.mouseDown(buttonX, buttonY);
         report("pressed");
         internals.mouseMove(outsideX, buttonY, 0, 1);
