@@ -7,7 +7,6 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <AK/EnumBits.h>
 #include <AK/HashMap.h>
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
@@ -23,12 +22,9 @@
 namespace Web::Painting {
 
 enum class MouseAction : u8 {
-    None = 0,
-    CaptureInput = 1 << 0,
-    SwallowEvent = 1 << 1,
+    None,
+    CaptureInput,
 };
-
-AK_ENUM_BITWISE_OPERATORS(MouseAction);
 
 enum class ChromeWidgetKind : u8 {
     None,

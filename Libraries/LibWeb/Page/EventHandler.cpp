@@ -458,7 +458,7 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
     // NB: The contextmenu event is dispatched even if the page cancelled the pointerdown or mousedown event,
     //     matching other engines. The page can still suppress the native context menu by cancelling the
     //     contextmenu event itself.
-    if (is_context_menu_trigger && dispatch_result != PointerEventDispatchResult::SwallowedByChromeWidget)
+    if (is_context_menu_trigger)
         maybe_show_context_menu(*node, coordinates, screen_position, viewport_position, buttons, modifiers);
 
     if (dispatch_result != PointerEventDispatchResult::RunDefaultActions)
@@ -5415,8 +5415,7 @@ EventHandler::DispatchedPointerEvent EventHandler::dispatch_a_pointer_event_for_
     // The events above may have changed layout, and chrome widgets are very likely to touch committed boxes.
     if (chrome_widget || m_captured_chrome_widget)
         document.update_layout(DOM::UpdateLayoutReason::EventHandlerDispatchChromeWidgetEvent);
-    if (!dispatch_chrome_widget_pointer_event(chrome_widget, pointer_event_name, button, coordinates.visual_viewport_position))
-        return { PointerEventDispatchResult::SwallowedByChromeWidget, pointer_capture_target };
+    dispatch_chrome_widget_pointer_event(chrome_widget, pointer_event_name, button, coordinates.visual_viewport_position);
 
     // FIXME: This will be moved to the click event and need to track the targets of the pointerdown and pointerup events.
     //        https://github.com/w3c/pointerevents/pull/460
@@ -5607,28 +5606,16 @@ void EventHandler::record_last_known_mouse_position(CSSPixelPoint visual_viewpor
     m_last_known_mouse_screen_position = screen_position;
 }
 
-bool EventHandler::dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget> target, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
+void EventHandler::dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget> target, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position)
 {
-    bool allow_default_behavior = true;
-
     if (m_captured_chrome_widget) {
-        auto action = m_captured_chrome_widget->handle_pointer_event(type, button, visual_viewport_position);
-        if (has_flag(action, Painting::MouseAction::SwallowEvent))
-            allow_default_behavior = false;
-        if (has_flag(action, Painting::MouseAction::CaptureInput))
-            return allow_default_behavior;
+        if (m_captured_chrome_widget->handle_pointer_event(type, button, visual_viewport_position) == Painting::MouseAction::CaptureInput)
+            return;
         m_captured_chrome_widget = nullptr;
     }
 
-    if (target) {
-        auto action = target->handle_pointer_event(type, button, visual_viewport_position);
-        if (has_flag(action, Painting::MouseAction::SwallowEvent))
-            allow_default_behavior = false;
-        if (has_flag(action, Painting::MouseAction::CaptureInput))
-            m_captured_chrome_widget = target;
-    }
-
-    return allow_default_behavior;
+    if (target && target->handle_pointer_event(type, button, visual_viewport_position) == Painting::MouseAction::CaptureInput)
+        m_captured_chrome_widget = target;
 }
 
 static Gfx::Cursor resolve_cursor(Layout::NodeWithStyle const& layout_node, Layout::NodeWithStyle const* cursor_values_owner, ReadonlySpan<CSS::ComputedValuesFFI::ComputedCursor> cursor_data, Gfx::StandardCursor auto_cursor)
