@@ -1,0 +1,7 @@
+button, drag inside: ""
+button, drag out to the right: ""
+button, drag out to the left: ""
+submit, drag inside: ""
+submit, drag out to the right: ""
+submit, drag out to the left: ""
+text, drag into the button: " text afte"

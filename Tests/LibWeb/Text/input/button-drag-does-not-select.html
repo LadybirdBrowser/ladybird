@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<p>Some text above the buttons.</p>
+<button id="button">Button element</button> text after the button
+<p><input id="submit" type="submit" value="Submit input"> text after the input</p>
+<script>
+    test(() => {
+        const drag = (fromX, toX, y) => {
+            internals.mouseDown(fromX, y);
+            for (let x = fromX; fromX < toX ? x <= toX : x >= toX; x += fromX < toX ? 5 : -5)
+                internals.mouseMove(x, y, 0, 1);
+            internals.mouseUp(toX, y);
+            const selection = getSelection().toString();
+            getSelection().removeAllRanges();
+            return selection;
+        };
+
+        for (const target of [button, submit]) {
+            const rect = target.getBoundingClientRect();
+            const y = rect.top + rect.height / 2;
+            println(`${target.id}, drag inside: "${drag(rect.left + 3, rect.right - 3, y)}"`);
+            println(`${target.id}, drag out to the right: "${drag(rect.left + 3, rect.right + 100, y)}"`);
+            println(`${target.id}, drag out to the left: "${drag(rect.right - 3, 0, y)}"`);
+        }
+
+        // A drag that starts on text still selects, even when it ends on a button.
+        const rect = button.getBoundingClientRect();
+        println(`text, drag into the button: "${drag(rect.right + 80, rect.left + 10, rect.top + rect.height / 2)}"`);
+    });
+</script>

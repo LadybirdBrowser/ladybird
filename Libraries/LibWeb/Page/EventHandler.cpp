@@ -3514,6 +3514,15 @@ void EventHandler::run_mousedown_default_actions(Layout::BegunRead const& read, 
     if (!caret_position.has_value())
         return;
 
+    // NB: Pressing a button activates it, so a drag that starts on one does not select its label or the page around
+    //     it.
+    if (auto hit = document.hit_test(read, visual_viewport_position); hit.has_value()) {
+        for (GC::Ptr<DOM::Node const> node = hit->dom_node(); node; node = node->parent_or_shadow_host_node()) {
+            if (auto const* element = as_if<HTML::HTMLElement>(*node); element && element->uses_button_layout())
+                return;
+        }
+    }
+
     // https://drafts.csswg.org/css-ui/#valdef-user-select-none
     // Attempting to start a selection in an element where user-select is none, such as by clicking in it or starting a
     // drag in it, must not cause a pre-existing selection to become unselected or to be affected in any way.
