@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Backgrounds and Borders: getComputedStyle().borderImageSlice</title>
+<link rel="help" href="https://drafts.csswg.org/css-backgrounds/#border-image-slice">
+<meta name="assert" content="border-image-slice computed value is four values, each either a number or percentage; plus a fill keyword if specified.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/computed-testcommon.js"></script>
+<style>
+  #container {
+    container-type: inline-size;
+    width: 100px;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="target"></div>
+</div>
+<script>
+
+test_computed_value("border-image-slice", "1");
+test_computed_value("border-image-slice", "1 2%");
+test_computed_value("border-image-slice", "1 2% 3");
+test_computed_value("border-image-slice", "1 2% 3 4%");
+
+test_computed_value("border-image-slice", "1% 2 3% 4 fill");
+
+test_computed_value("border-image-slice", 'calc(10 + (sign(2cqw - 10px) * 5))', '5');
+test_computed_value("border-image-slice", 'calc(10 + (sign(2cqw - 10px) * 5)) calc(20% + (sign(2cqw - 10px) * 5%))', '5 15%');
+</script>
+</body>
+</html>
