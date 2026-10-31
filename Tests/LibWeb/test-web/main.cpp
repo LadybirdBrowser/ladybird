@@ -301,34 +301,59 @@ static auto wait_for_reftest_completion = generate_wait_for_test_string("reftest
     afterFontsAndPaint(() => document.documentElement.dispatchEvent(new Event("TestRendered", { bubbles: true })));
 )"sv);
 
-// For PDF tests: by the time this runs (after on_load_finish), ladybirdpdf has already fired
-// and openPdf() is in progress; initializedPromise lets us hook in at the right moment.
-// This script ensures we wait until the text and annotation layers are rendered for the first page.
+// For PDF tests: this script waits until the text and annotation layers are rendered for the first page.
+// It runs once the viewer document has loaded. But ladybirdpdf has already fired by then, so openPdf() may have gone on
+// to render the page and send the events below before this script listens for them. So it also checks pdf.js's public
+// state for what it has already done.
 // pdf.js renders pages lazily, so only those pages visible in the viewport are rendered. We currently fail for PDFs
 // with more than one page, as we don't currently guarantee rendering of all pages.
 static auto const wait_for_pdf_done = R"(
-window.PDFViewerApplication.initializedPromise.then(() => {
-    const eventBus = window.PDFViewerApplication.eventBus;
+window.PDFViewerApplication.initializedPromise.then(async () => {
+    const { eventBus, pdfViewer } = window.PDFViewerApplication;
     let pagesCount = null;
     let textRendered = false;
     let annotationRendered = false;
-    const checkDone = () => {
-        if (pagesCount !== null && textRendered && annotationRendered) {
-            internals.signalTestIsDone(`Pages: ${pagesCount}`);
-        }
+    let signaled = false;
+    const signalDone = () => {
+        if (signaled)
+            return;
+        signaled = true;
+        internals.signalTestIsDone(`Pages: ${pagesCount}`);
     };
-    eventBus.on("pagesloaded", evt => {
-        pagesCount = evt.pagesCount;
+    const checkDone = () => {
+        if (pagesCount !== null && textRendered && annotationRendered)
+            signalDone();
+    };
+    const pagesLoaded = count => {
+        if (pagesCount !== null)
+            return;
+        pagesCount = count;
         if (pagesCount !== 1) {
             const message = `PDF tests must use a single-page PDF (got ${pagesCount} pages).`;
             document.body.replaceChildren(document.createTextNode(message));
-            internals.signalTestIsDone(`Pages: ${pagesCount}`);
+            signalDone();
             return;
         }
         checkDone();
-    });
+    };
+    eventBus.on("pagesloaded", evt => pagesLoaded(evt.pagesCount));
     eventBus.on("textlayerrendered", evt => { if (evt.pageNumber === 1) { textRendered = true; checkDone(); } });
     eventBus.on("annotationlayerrendered", evt => { if (evt.pageNumber === 1) { annotationRendered = true; checkDone(); } });
+
+    // pagesPromise is null until a document is set, and then settles when pagesloaded is sent.
+    if (!pdfViewer.pagesPromise)
+        return;
+    await pdfViewer.pagesPromise;
+    pagesLoaded(pdfViewer.pagesCount);
+    const pageView = pdfViewer.getPageView(0);
+    // The text layer gets its endOfContent element once it's rendered.
+    if (pageView?.textLayer?.div.querySelector(".endOfContent"))
+        textRendered = true;
+    // The annotation layer creates its element before it renders any annotations, but for a page without any, it's
+    // done once the element exists.
+    if (pageView?.annotationLayer?.div && (await pageView.pdfPage.getAnnotations()).length === 0)
+        annotationRendered = true;
+    checkDone();
 });
 )"_string;
 
