@@ -67,7 +67,45 @@ bool NotificationBackendFreedesktop::connect()
         },
         this, nullptr);
     dbus_bus_add_match(m_connection, "type='signal',interface='org.freedesktop.Notifications'", nullptr);
+    dbus_bus_add_match(m_connection, "type='signal',interface='org.freedesktop.DBus',member='NameOwnerChanged',arg0='org.freedesktop.Notifications'", nullptr);
     return true;
+}
+
+void NotificationBackendFreedesktop::remember_daemon_from(DBusMessage* reply)
+{
+    if (auto const* sender = dbus_message_get_sender(reply))
+        m_daemon_unique_name = sender;
+}
+
+bool NotificationBackendFreedesktop::signal_is_from_the_daemon(DBusMessage* message) const
+{
+    // Until a reply has named the daemon, there is nothing to hold a signal against.
+    if (m_daemon_unique_name.is_empty())
+        return true;
+    auto const* sender = dbus_message_get_sender(message);
+    return sender && m_daemon_unique_name == sender;
+}
+
+// The daemon that handed out the ids in the maps is gone, and its notifications went with it. A daemon that takes its
+// place numbers from one again, so none of those ids may match a later signal, and it may offer other capabilities.
+void NotificationBackendFreedesktop::daemon_owner_changed(char const* new_owner)
+{
+    ++m_daemon_generation;
+    m_daemon_unique_name = new_owner ? new_owner : "";
+    auto ids = m_daemon_id_for.keys();
+    m_daemon_id_for.clear();
+    m_id_for_daemon_id.clear();
+    m_capabilities.clear();
+    m_capabilities_requested = false;
+    for (auto id : ids) {
+        if (on_closed)
+            on_closed(id, ByUser::No);
+    }
+    // The successor answers for itself, and the notifications queued meanwhile go to it; with no successor yet, the
+    // next show() asks whoever takes the name. This also covers a daemon that the first GetCapabilities activated,
+    // whose NameOwnerChanged arrives ahead of its reply.
+    if (!m_daemon_unique_name.is_empty())
+        request_capabilities();
 }
 
 void NotificationBackendFreedesktop::dispatch()
@@ -152,21 +190,31 @@ void NotificationBackendFreedesktop::request_capabilities()
         return;
     }
     dbus_message_unref(message);
+    struct Context {
+        AK_ALLOC_WITH_KMALLOC;
+        NotificationBackendFreedesktop* backend;
+        u64 daemon_generation;
+    };
     dbus_pending_call_set_notify(
         pending, [](DBusPendingCall* pending, void* data) {
+            auto* context = static_cast<Context*>(data);
             auto* reply = dbus_pending_call_steal_reply(pending);
-            static_cast<NotificationBackendFreedesktop*>(data)->did_receive_capabilities(reply);
+            context->backend->did_receive_capabilities(context->daemon_generation, reply);
             if (reply)
-                dbus_message_unref(reply);
-        },
-        this, nullptr);
+                dbus_message_unref(reply); },
+        new Context { this, m_daemon_generation }, [](void* data) { delete static_cast<Context*>(data); });
     dbus_pending_call_unref(pending);
 }
 
-void NotificationBackendFreedesktop::did_receive_capabilities(DBusMessage* reply)
+void NotificationBackendFreedesktop::did_receive_capabilities(u64 daemon_generation, DBusMessage* reply)
 {
+    // A reply from a daemon that has since gone away; the daemon that took the name over has been asked anew.
+    if (daemon_generation != m_daemon_generation)
+        return;
     FreedesktopCapabilities capabilities;
     DBusMessageIter iterator;
+    if (reply && dbus_message_get_type(reply) == DBUS_MESSAGE_TYPE_METHOD_RETURN)
+        remember_daemon_from(reply);
     if (reply && dbus_message_get_type(reply) == DBUS_MESSAGE_TYPE_METHOD_RETURN && dbus_message_iter_init(reply, &iterator) && dbus_message_iter_get_arg_type(&iterator) == DBUS_TYPE_ARRAY) {
         DBusMessageIter entries;
         dbus_message_iter_recurse(&iterator, &entries);
@@ -202,6 +250,9 @@ void NotificationBackendFreedesktop::show(PlatformNotification const& notificati
         m_waiting_for_capabilities.remove_first_matching([&](auto const& waiting) { return waiting.id == *notification.replaces; });
     if (!m_capabilities.has_value()) {
         m_waiting_for_capabilities.append(notification);
+        // The daemon may have gone away without a successor; the next one to take the name is asked then.
+        if (!m_capabilities_requested)
+            request_capabilities();
         return;
     }
     send_notify(notification);
@@ -310,15 +361,16 @@ void NotificationBackendFreedesktop::send_notify(PlatformNotification const& not
         AK_ALLOC_WITH_KMALLOC;
         NotificationBackendFreedesktop* backend;
         u64 id;
+        u64 daemon_generation;
     };
     dbus_pending_call_set_notify(
         pending, [](DBusPendingCall* pending, void* data) {
             auto* context = static_cast<Context*>(data);
             auto* reply = dbus_pending_call_steal_reply(pending);
-            context->backend->did_receive_notify_reply(context->id, reply);
+            context->backend->did_receive_notify_reply(context->id, context->daemon_generation, reply);
             if (reply)
                 dbus_message_unref(reply); },
-        new Context { this, notification.id }, [](void* data) { delete static_cast<Context*>(data); });
+        new Context { this, notification.id, m_daemon_generation }, [](void* data) { delete static_cast<Context*>(data); });
     dbus_pending_call_unref(pending);
 }
 
@@ -331,10 +383,17 @@ void NotificationBackendFreedesktop::send_close_notification(u32 daemon_id)
     dbus_message_unref(message);
 }
 
-void NotificationBackendFreedesktop::did_receive_notify_reply(u64 id, DBusMessage* reply)
+void NotificationBackendFreedesktop::did_receive_notify_reply(u64 id, u64 daemon_generation, DBusMessage* reply)
 {
     m_awaiting_reply.remove(id);
     bool closed_meanwhile = m_close_when_acknowledged.remove(id);
+
+    // The daemon this was sent to has gone away since, so whatever it answers, the notification isn't up anywhere.
+    if (daemon_generation != m_daemon_generation) {
+        if (!closed_meanwhile && on_failed)
+            on_failed(id);
+        return;
+    }
 
     u32 daemon_id = 0;
     if (!reply || dbus_message_get_type(reply) != DBUS_MESSAGE_TYPE_METHOD_RETURN || !dbus_message_get_args(reply, nullptr, DBUS_TYPE_UINT32, &daemon_id, DBUS_TYPE_INVALID)) {
@@ -344,6 +403,8 @@ void NotificationBackendFreedesktop::did_receive_notify_reply(u64 id, DBusMessag
             on_failed(id);
         return;
     }
+
+    remember_daemon_from(reply);
 
     // Closed on this side while the daemon was still answering: It comes down now, and its close was reported then.
     if (closed_meanwhile) {
@@ -379,6 +440,20 @@ void NotificationBackendFreedesktop::close(u64 id)
 
 void NotificationBackendFreedesktop::did_receive_signal(DBusMessage* message)
 {
+    if (dbus_message_is_signal(message, DBUS_INTERFACE_DBUS, "NameOwnerChanged")) {
+        char const* name = nullptr;
+        char const* old_owner = nullptr;
+        char const* new_owner = nullptr;
+        if (!dbus_message_get_args(message, nullptr, DBUS_TYPE_STRING, &name, DBUS_TYPE_STRING, &old_owner, DBUS_TYPE_STRING, &new_owner, DBUS_TYPE_INVALID))
+            return;
+        if (ByteString { name } == bus_name)
+            daemon_owner_changed(new_owner);
+        return;
+    }
+
+    if (!signal_is_from_the_daemon(message))
+        return;
+
     if (dbus_message_is_signal(message, interface_name, "ActionInvoked")) {
         u32 daemon_id = 0;
         char const* action = nullptr;
