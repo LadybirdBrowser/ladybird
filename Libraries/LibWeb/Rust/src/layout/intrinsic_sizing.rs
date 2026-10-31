@@ -132,9 +132,7 @@ pub(super) fn content_sizes_of_inline_content(
                 &parent,
             );
             let iterator = inline_level_iterator::InlineLevelIterator::for_intrinsic_inline_size(&mut context);
-            let sizes = context.content_sizes_from_items(iterator.items());
-            iterator.stash_for_reuse(&context);
-            sizes
+            context.content_sizes_from_items(iterator.items())
         };
         if !facts.lays_out_in_columns() {
             return sizes;
