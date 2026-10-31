@@ -1,57 +1,59 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 60 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 44 0+0+8] children: inline
-      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 244.65625x22] baseline: 15.796875
-      frag 1 from TextNode start: 0, length: 1, rect: [252.65625,11 8x16] baseline: 12.796875
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: inline
+      frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 207.546875x20] baseline: 13.984375
+      frag 1 from TextNode start: 0, length: 1, rect: [215.546875,9 8x16] baseline: 12.796875
           " "
-      frag 2 from BlockContainer start: 0, length: 0, rect: [260.65625,8 263.34375x22] baseline: 15.796875
-      frag 3 from BlockContainer start: 0, length: 0, rect: [8,30 263.34375x22] baseline: 15.796875
-      BlockContainer <input> at [8,8] inline-block [0+0+0 244.65625 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [8,8] flex-container(column) [0+0+0 244.65625 0+0+0] [0+0+0 22 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 244.65625 0+0+0] [0+0+0 22 0+0+0] [BFC] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [17,11 94.375x16] baseline: 15.796875
-            BlockContainer <button> at [17,11] inline-block [0+1+8 94.375 8+1+0] [0+1+2 16 2+1+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at [17,11] flex-container(column) [0+0+0 94.375 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [17,11] flex-item [0+0+0 94.375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 14, rect: [17,11 94.375x16] baseline: 12.796875
+      frag 2 from BlockContainer start: 0, length: 0, rect: [223.546875,8 223.109375x20] baseline: 13.984375
+      frag 3 from TextNode start: 0, length: 1, rect: [446.65625,9 8x16] baseline: 12.796875
+          " "
+      frag 4 from BlockContainer start: 0, length: 0, rect: [454.65625,8 223.109375x20] baseline: 13.984375
+      BlockContainer <input> at [8,8] inline-block [0+0+0 207.546875 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [8,8] flex-container(column) [0+0+0 207.546875 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [8,8] flex-item [0+0+0 207.546875 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [17,11 78.65625x14] baseline: 13.984375
+            BlockContainer <button> at [17,11] inline-block [0+1+8 78.65625 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [17,11] flex-container(column) [0+0+0 78.65625 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+                BlockContainer <(anonymous)> at [17,11] flex-item [0+0+0 78.65625 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 14, rect: [17,11 78.65625x14] baseline: 10.984375
                       "Select file..."
                   TextNode <#text> (not painted)
-            InlineNode <label> at [124.375,11] [0+0+4 128.28125 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 17, rect: [124.375,11 128.28125x16] baseline: 12.796875
+            InlineNode <label> at [108.65625,11] [0+0+4 106.890625 0+0+0] [0+0+0 14 0+0+0]
+              frag 0 from TextNode start: 0, length: 17, rect: [108.65625,11 106.890625x14] baseline: 10.984375
                   "No file selected."
               TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-      BlockContainer <input> at [260.65625,8] inline-block [0+0+0 263.34375 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [260.65625,8] flex-container(column) [0+0+0 263.34375 0+0+0] [0+0+0 22 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [260.65625,8] flex-item [0+0+0 263.34375 0+0+0] [0+0+0 22 0+0+0] [BFC] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [269.65625,11 103.71875x16] baseline: 15.796875
-            BlockContainer <button> at [269.65625,11] inline-block [0+1+8 103.71875 8+1+0] [0+1+2 16 2+1+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at [269.65625,11] flex-container(column) [0+0+0 103.71875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [269.65625,11] flex-item [0+0+0 103.71875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 15, rect: [269.65625,11 103.71875x16] baseline: 12.796875
+      BlockContainer <input> at [223.546875,8] inline-block [0+0+0 223.109375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [223.546875,8] flex-container(column) [0+0+0 223.109375 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [223.546875,8] flex-item [0+0+0 223.109375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [232.546875,11 86.4375x14] baseline: 13.984375
+            BlockContainer <button> at [232.546875,11] inline-block [0+1+8 86.4375 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [232.546875,11] flex-container(column) [0+0+0 86.4375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+                BlockContainer <(anonymous)> at [232.546875,11] flex-item [0+0+0 86.4375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [232.546875,11 86.4375x14] baseline: 10.984375
                       "Select files..."
                   TextNode <#text> (not painted)
-            InlineNode <label> at [386.375,11] [0+0+4 137.625 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 18, rect: [386.375,11 137.625x16] baseline: 12.796875
+            InlineNode <label> at [331.984375,11] [0+0+4 114.671875 0+0+0] [0+0+0 14 0+0+0]
+              frag 0 from TextNode start: 0, length: 18, rect: [331.984375,11 114.671875x14] baseline: 10.984375
                   "No files selected."
               TextNode <#text> (not painted)
       TextNode <#text> (not painted)
-      BlockContainer <input#multiple> at [8,30] inline-block [0+0+0 263.34375 0+0+0] [0+0+0 22 0+0+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> at [8,30] flex-container(column) [0+0+0 263.34375 0+0+0] [0+0+0 22 0+0+0] [FFC] children: not-inline
-          BlockContainer <(anonymous)> at [8,30] flex-item [0+0+0 263.34375 0+0+0] [0+0+0 22 0+0+0] [BFC] children: inline
-            frag 0 from BlockContainer start: 0, length: 0, rect: [17,33 103.71875x16] baseline: 15.796875
-            BlockContainer <button> at [17,33] inline-block [0+1+8 103.71875 8+1+0] [0+1+2 16 2+1+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at [17,33] flex-container(column) [0+0+0 103.71875 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
-                BlockContainer <(anonymous)> at [17,33] flex-item [0+0+0 103.71875 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
-                  frag 0 from TextNode start: 0, length: 15, rect: [17,33 103.71875x16] baseline: 12.796875
+      BlockContainer <input#multiple> at [454.65625,8] inline-block [0+0+0 223.109375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        BlockContainer <(anonymous)> at [454.65625,8] flex-container(column) [0+0+0 223.109375 0+0+0] [0+0+0 20 0+0+0] [FFC] children: not-inline
+          BlockContainer <(anonymous)> at [454.65625,8] flex-item [0+0+0 223.109375 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
+            frag 0 from BlockContainer start: 0, length: 0, rect: [463.65625,11 86.4375x14] baseline: 13.984375
+            BlockContainer <button> at [463.65625,11] inline-block [0+1+8 86.4375 8+1+0] [0+1+2 14 2+1+0] [BFC] children: not-inline
+              BlockContainer <(anonymous)> at [463.65625,11] flex-container(column) [0+0+0 86.4375 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
+                BlockContainer <(anonymous)> at [463.65625,11] flex-item [0+0+0 86.4375 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [463.65625,11 86.4375x14] baseline: 10.984375
                       "Select files..."
                   TextNode <#text> (not painted)
-            InlineNode <label> at [133.71875,33] [0+0+4 137.625 0+0+0] [0+0+0 16 0+0+0]
-              frag 0 from TextNode start: 0, length: 18, rect: [133.71875,33 137.625x16] baseline: 12.796875
+            InlineNode <label> at [563.09375,11] [0+0+4 114.671875 0+0+0] [0+0+0 14 0+0+0]
+              frag 0 from TextNode start: 0, length: 18, rect: [563.09375,11 114.671875x14] baseline: 10.984375
                   "No files selected."
               TextNode <#text> (not painted)
       TextNode <#text> (not painted)
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x60] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

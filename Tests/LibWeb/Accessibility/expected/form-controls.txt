@@ -26,9 +26,9 @@ document
       text leaf name="
         "
       radio name="Pro plan" unchecked
-      text leaf name="Pro"
       text leaf name="
         "
+      text leaf name="Pro"
       combobox name="Country"
         option name="United States" selected
         option name="Canada"
