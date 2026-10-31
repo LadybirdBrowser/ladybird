@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<title>backdrop-filter: on SVG foreignObject</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-basic-ref.html">
+
+<div>
+  <p>Expected: A green box and an overlapping black box, with a magenta<br>
+  overlapping region.</p>
+</div>
+<div class="colorbox">
+  <svg>
+    <foreignObject class="filterbox"></foreignObject>
+  </svg>
+</div>
+
+<style>
+.colorbox {
+    position: absolute;
+    background: green;
+    width: 100px;
+    height: 100px;
+    left: 10px;
+    top: 100px;
+}
+svg {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    left: 50px;
+    top: 50px;
+}
+.filterbox {
+    width: 100px;
+    height: 100px;
+    backdrop-filter: invert(1);
+}
+</style>
+

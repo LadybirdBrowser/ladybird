@@ -263,6 +263,8 @@ pub struct ReplayLayer {
     pub backdrop_filter_bytes_size: usize,
     pub backdrop_region: IntRect,
     pub backdrop_corner_radii: CornerRadii,
+    /// The color the backdrop is read over, transparent unless the parent layer is the root isolation layer.
+    pub backdrop_base_color: Color,
     pub effect: EffectNodeIndex,
     /// Bounds of everything replay draws into the layer, in the effect's space, when known.
     pub content_bounds: OptionalFloatRect,

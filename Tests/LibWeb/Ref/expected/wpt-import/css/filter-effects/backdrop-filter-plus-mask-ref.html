@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Correctly apply masks/clips to backdrop-filter content</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+<div></div>
+
+<svg>
+  <clipPath id="heart" clipPathUnits="objectBoundingBox">
+    <path d="M0.5,1
+      C 0.5,1,0,0.7,0,0.3
+      A 0.25,0.25,1,1,1,0.5,0.3
+      A 0.25,0.25,1,1,1,1,0.3
+      C 1,0.7,0.5,1,0.5,1 Z" />
+  </clipPath>
+</svg>
+
+<style>
+div {
+  position: absolute;
+  top: 100px;
+  left: 50px;
+  width: 200px;
+  height: 200px;
+  background: black;
+  clip-path: url(#heart);
+}
+</style>

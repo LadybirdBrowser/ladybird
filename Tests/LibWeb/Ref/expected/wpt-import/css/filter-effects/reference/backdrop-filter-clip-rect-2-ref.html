@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="author" href="mailto:Hironori.Fujii@sony.com">
+<style>
+.box {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 100px;
+  height: 100px;
+  border-radius: 10px 20px 30px 40px;
+  border-width: 10px;
+}
+.no-bf > .box {
+  background: black;
+}
+</style>
+<div>
+  <p>Expected: Same size rounded black boxes.</p>
+</div>
+
+<div class="no-bf">
+  <div class="box"></div>
+  <div class="box"></div>
+  <div class="box"></div>
+</div>
+<div class="no-bf">
+  <div class="box"></div>
+  <div class="box"></div>
+  <div class="box"></div>
+</div>

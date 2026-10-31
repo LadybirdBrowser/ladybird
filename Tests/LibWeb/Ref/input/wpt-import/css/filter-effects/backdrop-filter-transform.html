@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name=fuzzy content="maxDifference=0-200; totalPixels=0-2000">
+<title>backdrop-filter: backdrop-filter plus transform should be applied correctly</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-transform-ref.html">
+
+<!--Expected: A green box with an overlapping rotated box that inverts content behind it. -->
+
+<div class="colorbox"></div>
+<div class="filterbox"></div>
+
+<style>
+div {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 100px;
+    top: 100px;
+}
+.colorbox {
+    background: green;
+}
+.filterbox {
+    top: 140px;
+    backdrop-filter: invert(1);
+    transform: rotate(30deg);
+    border-radius: 10px;
+}
+</style>
+

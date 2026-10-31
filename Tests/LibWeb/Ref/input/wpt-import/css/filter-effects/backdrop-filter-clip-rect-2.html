@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Clip the filter at border box of element</title>
+<link rel="author" href="mailto:Hironori.Fujii@sony.com">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/reference/backdrop-filter-clip-rect-2-ref.html">
+<meta name="fuzzy" content="maxDifference=0-80; totalPixels=0-1000" />
+<style>
+.box {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 100px;
+  height: 100px;
+  border-radius: 10px 20px 30px 40px;
+  border-width: 10px;
+}
+.no-bf > .box {
+  background: black;
+}
+.bf > .box {
+  border-color: transparent;
+  backdrop-filter: invert(1);
+}
+</style>
+<div>
+  <p>Expected: Same size rounded black boxes.</p>
+</div>
+
+<div class="no-bf">
+  <div class="box"></div>
+  <div class="box"></div>
+  <div class="box"></div>
+</div>
+<div class="bf">
+  <div class="box" style="border-style:none"></div>
+  <div class="box" style="border-style:solid"></div>
+  <div class="box" style="border-style:dotted"></div>
+</div>

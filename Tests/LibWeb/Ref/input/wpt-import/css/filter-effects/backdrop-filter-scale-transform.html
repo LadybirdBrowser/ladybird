@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<link rel="author" href="mailto:chrishtr@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-scale-transform-ref.html">
+<style>
+  #container {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    transform: scale(1.1);
+  }
+
+  #backdropfilter {
+    backdrop-filter: invert(100%);
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+<div id=container>
+  <div id=backdropfilter></div>
+</div>
+

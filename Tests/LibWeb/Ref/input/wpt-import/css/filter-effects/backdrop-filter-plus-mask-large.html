@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name=fuzzy content="maxDifference=0-100;totalPixels=0-2000">
+<title>backdrop-filter: Correctly apply masks/clips to backdrop-filter content</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-plus-mask-large-ref.html">
+
+<!--Expected: A large black circle.-->
+
+<div></div>
+
+<style>
+body {
+  overflow: hidden;
+}
+div {
+  position: absolute;
+  top: 100px;
+  left: 50px;
+  width: 2000px;
+  height: 2000px;
+  backdrop-filter: invert(1);
+  clip-path: circle(1000px at center);
+}
+</style>

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/backdrop-filter-will-change-is-a-backdrop-root-ref.html">
+<style>
+    div {
+        position: absolute;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+    #will-change {
+        left: 150px;
+        will-change: opacity;
+    }
+    .invert {
+        backdrop-filter: invert(1);
+    }
+</style>
+<div class="invert"></div>
+<div id="will-change"><div class="invert"></div></div>

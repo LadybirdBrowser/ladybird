@@ -333,7 +333,7 @@ impl DisplayListRecorder {
         self.ambient_inline_clips.truncate(enclosing_scope_clip_count);
     }
 
-    fn resolve_color(&mut self, color: Color, force_dark_role: ForceDarkRole) -> Color {
+    pub fn resolve_color(&mut self, color: Color, force_dark_role: ForceDarkRole) -> Color {
         let backdrop = self.contrast_backdrop;
         match &mut self.force_dark {
             Some(resolver) => resolver.resolve_against_backdrop(color, force_dark_role, backdrop),

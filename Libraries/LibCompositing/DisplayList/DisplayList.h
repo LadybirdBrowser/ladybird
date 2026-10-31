@@ -57,6 +57,7 @@ public:
         u64 id { 0 };
         u64 compatible_visual_context_tree_structural_epoch { 0 };
         Optional<Gfx::Color> surface_clear_color;
+        Gfx::Color root_group_color { Gfx::Color::Transparent };
         Optional<AsyncScrollingMetadata> async_scrolling_metadata;
     };
 
@@ -89,6 +90,8 @@ public:
 
     void set_surface_clear_color(Gfx::Color color) { m_surface_clear_color = color; }
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
+    void set_root_group_color(Gfx::Color color) { m_root_group_color = color; }
+    Gfx::Color root_group_color() const { return m_root_group_color; }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
 
@@ -118,13 +121,14 @@ private:
     // Takes over the storage of a tape that came from another process and passed its checks.
     static NonnullRefPtr<DisplayList> adopt_received_storage(Properties, void const* storage);
 
-    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, void const* storage, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
+    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, void const* storage, Optional<Gfx::Color> surface_clear_color, Gfx::Color root_group_color, Optional<AsyncScrollingMetadata>);
 
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
     // One strong reference to the Rust storage, which owns the tape.
     void const* m_storage { nullptr };
     Optional<Gfx::Color> m_surface_clear_color;
+    Gfx::Color m_root_group_color { Gfx::Color::Transparent };
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
 
     template<typename T>

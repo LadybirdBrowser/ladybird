@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Correctly apply masks/clips to backdrop-filter content</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+<div></div>
+
+<style>
+body {
+  overflow: hidden;
+}
+div {
+  position: absolute;
+  top: 100px;
+  left: 50px;
+  width: 2000px;
+  height: 2000px;
+  background: black;
+  clip-path: circle(1000px at center);
+}
+</style>

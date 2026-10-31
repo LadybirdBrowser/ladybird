@@ -21,11 +21,12 @@ static u64 next_id()
     return s_next_id.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
 }
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, void const* storage, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, void const* storage, Optional<Gfx::Color> surface_clear_color, Gfx::Color root_group_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
     : m_compatible_visual_context_tree_structural_epoch(compatible_visual_context_tree_structural_epoch)
     , m_id(id)
     , m_storage(storage)
     , m_surface_clear_color(surface_clear_color)
+    , m_root_group_color(root_group_color)
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
 {
     VERIFY(m_storage);
@@ -38,13 +39,13 @@ DisplayList::~DisplayList()
 
 NonnullRefPtr<DisplayList> DisplayList::create(AccumulatedVisualContextTree const& visual_context_tree)
 {
-    return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch(), next_id(), RustFFI::display_list_storage_create_empty(), {}, {}));
+    return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch(), next_id(), RustFFI::display_list_storage_create_empty(), {}, Gfx::Color::Transparent, {}));
 }
 
 NonnullRefPtr<DisplayList> DisplayList::adopt_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* recorded)
 {
     VERIFY(recorded);
-    return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch(), next_id(), RustFFI::display_list_storage_adopt_recorded(recorded), {}, {}));
+    return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch(), next_id(), RustFFI::display_list_storage_adopt_recorded(recorded), {}, Gfx::Color::Transparent, {}));
 }
 
 NonnullRefPtr<DisplayList> DisplayList::share_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* recorded)
@@ -55,7 +56,7 @@ NonnullRefPtr<DisplayList> DisplayList::share_rust_command_storage(AccumulatedVi
 
 NonnullRefPtr<DisplayList> DisplayList::adopt_received_storage(Properties properties, void const* storage)
 {
-    return adopt_ref(*new DisplayList(properties.compatible_visual_context_tree_structural_epoch, properties.id, storage, properties.surface_clear_color, move(properties.async_scrolling_metadata)));
+    return adopt_ref(*new DisplayList(properties.compatible_visual_context_tree_structural_epoch, properties.id, storage, properties.surface_clear_color, properties.root_group_color, move(properties.async_scrolling_metadata)));
 }
 
 // Copies a tape and run table that came from another process into Rust memory through `fill`, then checks them and
@@ -113,7 +114,7 @@ void DisplayList::replay(AccumulatedVisualContextTree const& visual_context_tree
 {
     VERIFY(m_compatible_visual_context_tree_structural_epoch == visual_context_tree.structural_epoch());
     auto scroll_offsets = scroll_state.device_offsets();
-    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    RustFFI::display_list_replay(visual_context_tree.rust_handle(), m_storage, m_root_group_color, scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 void DisplayList::replay_records(ReadonlyBytes records, ScrollStateSnapshot const& scroll_state, RustFFI::FfiDisplayListReplayCallbacks const& callbacks)
@@ -164,6 +165,7 @@ DisplayList::Properties DisplayList::properties() const
         .id = m_id,
         .compatible_visual_context_tree_structural_epoch = m_compatible_visual_context_tree_structural_epoch,
         .surface_clear_color = m_surface_clear_color,
+        .root_group_color = m_root_group_color,
         .async_scrolling_metadata = m_async_scrolling_metadata,
     };
 }
@@ -216,6 +218,7 @@ ErrorOr<void> encode(Encoder& encoder, Compositing::DisplayList::Properties cons
     TRY(encoder.encode(properties.id));
     TRY(encoder.encode(properties.compatible_visual_context_tree_structural_epoch));
     TRY(encoder.encode(properties.surface_clear_color));
+    TRY(encoder.encode(properties.root_group_color));
     TRY(encoder.encode(properties.async_scrolling_metadata));
     return {};
 }
@@ -227,6 +230,7 @@ ErrorOr<Compositing::DisplayList::Properties> decode(Decoder& decoder)
         .id = TRY(decoder.decode<u64>()),
         .compatible_visual_context_tree_structural_epoch = TRY(decoder.decode<u64>()),
         .surface_clear_color = TRY(decoder.decode<Optional<Gfx::Color>>()),
+        .root_group_color = TRY(decoder.decode<Gfx::Color>()),
         .async_scrolling_metadata = TRY(decoder.decode<Optional<Compositing::DisplayList::AsyncScrollingMetadata>>()),
     };
 }

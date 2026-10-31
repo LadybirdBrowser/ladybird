@@ -472,6 +472,8 @@ pub struct FfiPresentedRecording {
     /// The recorded display list, which the document's last recording holds until the next
     /// recording replaces it. The host takes a reference of its own to keep it longer.
     pub display_list: *const c_void,
+    /// The color the canvas holds below the recording's layers.
+    pub root_group_color: libgfx_rust::Color,
 }
 
 impl FfiPresentedRecording {
@@ -482,6 +484,7 @@ impl FfiPresentedRecording {
             is_identical_to_published_recording: output.is_identical_to_published_recording,
             has_blocking_wheel_event_listeners: output.has_blocking_wheel_event_listeners,
             display_list: std::sync::Arc::as_ptr(&output.display_list).cast(),
+            root_group_color: output.root_group_color,
         }
     }
 
@@ -497,6 +500,7 @@ impl FfiPresentedRecording {
             display_list: recording.map_or(std::ptr::null(), |recording| {
                 std::sync::Arc::as_ptr(&recording.display_list).cast()
             }),
+            root_group_color: recording.map_or(libgfx_rust::Color::TRANSPARENT, |recording| recording.root_group_color),
         }
     }
 }

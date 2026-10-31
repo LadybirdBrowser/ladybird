@@ -21,7 +21,7 @@ use crate::visual_context::{
 };
 use libgfx_rust::path::Path;
 use libgfx_rust::{
-    AffineTransform, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
+    AffineTransform, Color, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatVector3, IntRect, WindingRule,
     enclosing_int_rect, translation_matrix,
 };
 use std::cell::RefCell;
@@ -190,6 +190,7 @@ struct ReplayDriver<'a, Painter: ReplayPainter> {
     command_runs: &'a [DisplayListCommandRun],
     scroll_offsets: &'a [FloatPoint],
     effect_clips: &'a EffectClipPlan,
+    root_group_color: Color,
     painter: &'a mut Painter,
     palette: ReplayPaletteStorage,
     culling: TreeCullingScratch,
@@ -246,6 +247,7 @@ fn replay_layer_of(
         backdrop_filter_bytes_size,
         backdrop_region,
         backdrop_corner_radii,
+        backdrop_base_color: Color::TRANSPARENT,
         effect,
         content_bounds: OptionalFloatRect::from(content_bounds),
     }
@@ -467,11 +469,36 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             };
             match &tree.effect_nodes[effect.0 as usize].data {
                 EffectNodeData::Effects(effects) if backdrop_is_drawn_by_masks(tree, effect) => {
-                    Some(replay_layer_of(effects, effect, None))
+                    let mut layer = replay_layer_of(effects, effect, None);
+                    layer.backdrop_base_color = self.backdrop_base_color(mask_effect);
+                    Some(layer)
                 }
                 _ => None,
             }
         })
+    }
+
+    // https://drafts.fxtf.org/filter-effects-2/#BackdropRoot
+    // The root element group is a backdrop root, yet engines read the canvas surface below it into the backdrop, see
+    // https://github.com/w3c/fxtf-drafts/issues/557. Skia reads a backdrop from the parent layer only, so a layer
+    // whose nearest enclosing effect is the root isolation effect reads its backdrop over the color the canvas holds
+    // outside every layer. Any other effect is a backdrop root, even one that pushes no layer, such as will-change.
+    fn backdrop_base_color(&self, layer_effect: EffectNodeIndex) -> Color {
+        let tree = self.tree;
+        let mut enclosing_effect = tree.effect_nodes[layer_effect.0 as usize].parent;
+        while !enclosing_effect.is_none()
+            && matches!(
+                tree.effect_nodes[enclosing_effect.0 as usize].data,
+                EffectNodeData::BackgroundColorAnimation
+            )
+        {
+            enclosing_effect = tree.effect_nodes[enclosing_effect.0 as usize].parent;
+        }
+        if tree.root_isolation_effect == Some(enclosing_effect) {
+            self.root_group_color
+        } else {
+            Color::TRANSPARENT
+        }
     }
 
     // Merge the clip and effect chains from leaf to root. Each effect goes immediately
@@ -637,6 +664,8 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
                                     layer.backdrop_filter_bytes_size = 0;
                                     layer.opacity = 1.0;
                                     layer.blend_mode = libgfx_rust::CompositingAndBlendingOperator::Normal;
+                                } else if effects.backdrop_filter.is_some() {
+                                    layer.backdrop_base_color = self.backdrop_base_color(effect);
                                 }
                                 self.painter.push_layer(&layer);
                             }
@@ -759,6 +788,7 @@ pub fn replay_display_list(
     tape: &[u8],
     command_runs: &[DisplayListCommandRun],
     effect_clips: &EffectClipPlan,
+    root_group_color: Color,
     scroll_offsets: &[FloatPoint],
     painter: &mut impl ReplayPainter,
 ) {
@@ -771,6 +801,7 @@ pub fn replay_display_list(
         command_runs,
         scroll_offsets,
         effect_clips,
+        root_group_color,
         painter,
         palette: scratch.palette,
         culling: scratch.culling,
@@ -928,6 +959,7 @@ mod tests {
         base_matrix: FloatMatrix4x4,
         fully_clipped_x: i32,
         layer_content_bounds: Vec<Option<FloatRect>>,
+        backdrop_base_colors: Vec<Color>,
     }
 
     impl RecordingPainter {
@@ -937,6 +969,7 @@ mod tests {
                 base_matrix: translation_matrix(100.0, 200.0, 0.0),
                 fully_clipped_x: i32::MIN,
                 layer_content_bounds: Vec::new(),
+                backdrop_base_colors: Vec::new(),
             }
         }
     }
@@ -960,6 +993,9 @@ mod tests {
         fn push_layer(&mut self, layer: &ReplayLayer) {
             self.events.push(PainterEvent::PushLayer(layer.opacity));
             self.layer_content_bounds.push(layer.content_bounds.get());
+            if layer.backdrop_filter_bytes_size != 0 {
+                self.backdrop_base_colors.push(layer.backdrop_base_color);
+            }
         }
         fn push_mask(&mut self, mask: &ReplayMask, _backdrop: Option<&ReplayLayer>) {
             self.events.push(PainterEvent::PushMask(mask.rect));
@@ -1070,7 +1106,15 @@ mod tests {
     }
 
     fn replay(tree: &VisualContextTree, runs: &[DisplayListCommandRun], painter: &mut RecordingPainter) {
-        replay_display_list(tree, &[], runs, &EffectClipPlan::new(tree, runs).unwrap(), &[], painter);
+        replay_display_list(
+            tree,
+            &[],
+            runs,
+            &EffectClipPlan::new(tree, runs).unwrap(),
+            Color::TRANSPARENT,
+            &[],
+            painter,
+        );
     }
 
     #[test]
@@ -1697,6 +1741,52 @@ mod tests {
         assert_eq!(layer.backdrop_region, IntRect::default());
     }
 
+    #[test]
+    fn only_a_backdrop_whose_backdrop_root_is_the_root_isolation_effect_reads_the_root_group_color() {
+        let mut tree = identity_tree();
+        let root = effect_under(&mut tree, effects(1.0), EffectNodeIndex::NONE, ClipNodeIndex::NONE);
+        tree.root_isolation_effect = Some(root);
+        // will-change: opacity keeps an effects node that pushes no layer, which is a backdrop root nonetheless.
+        let will_change = effect_under(&mut tree, effects(1.0), root, ClipNodeIndex::NONE);
+        let backdrop = || {
+            EffectNodeData::Effects(EffectsData {
+                isolation: false,
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+                backdrop_filter: Some(BackdropFilterData {
+                    filter: std::sync::Arc::new(vec![1]),
+                    region: visible_bounds(),
+                    corner_radii: CornerRadii::default(),
+                }),
+            })
+        };
+        let in_root = effect_under(&mut tree, backdrop(), root, ClipNodeIndex::NONE);
+        let in_will_change = effect_under(&mut tree, backdrop(), will_change, ClipNodeIndex::NONE);
+        let runs = [in_root, in_will_change].map(|effect| {
+            run(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                ContextRef {
+                    effect,
+                    ..ContextRef::default()
+                },
+                visible_bounds(),
+            )
+        });
+        let white = Color::from_rgb(255, 255, 255);
+        let mut painter = RecordingPainter::new();
+        replay_display_list(
+            &tree,
+            &[],
+            &runs,
+            &EffectClipPlan::new(&tree, &runs).unwrap(),
+            white,
+            &[],
+            &mut painter,
+        );
+        assert_eq!(painter.backdrop_base_colors, vec![white, Color::TRANSPARENT]);
+    }
+
     // A background-color animation marker is an effect without canvas state: entering or leaving
     // it neither pushes nor invalidates the matrix.
     #[test]
@@ -1817,6 +1907,7 @@ mod tests {
             &[],
             &runs,
             &EffectClipPlan::new(&tree, &runs).unwrap(),
+            Color::TRANSPARENT,
             &scroll_offsets,
             &mut painter,
         );

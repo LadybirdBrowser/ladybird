@@ -54,6 +54,7 @@ pub struct RecordingOutput {
     pub(crate) root_background_canvas_rect: CssPixelRect,
     // The bytes before the viewport's scope: the canvas, recorded outside the tree.
     pub(crate) prologue_bytes: u32,
+    pub root_group_color: libgfx_rust::Color,
     pub hit_test_list: HitTestList,
     pub display_list: Arc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,

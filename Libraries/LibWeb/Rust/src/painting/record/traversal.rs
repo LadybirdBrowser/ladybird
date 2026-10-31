@@ -125,7 +125,7 @@ fn record_display_list_impl<O: Observer>(
     recorder
         .observer
         .observe(|log| log.damage = Some(source.frame().damage().summary()));
-    recorder.record_canvas();
+    let root_group_color = recorder.record_canvas();
     let prologue_bytes = u32::try_from(recorder.recorder.byte_size()).expect("display list exceeds u32");
     let has_inspector_overlays = inputs.inspector_highlight.is_some()
         || inputs.grid_overlays.is_some()
@@ -180,6 +180,7 @@ fn record_display_list_impl<O: Observer>(
         frame_inputs,
         root_background_canvas_rect,
         prologue_bytes,
+        root_group_color,
         hit_test_list,
         display_list,
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,

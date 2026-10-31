@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Basic operation of filter</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-basic-ref.html">
+
+<div>
+  <p>Expected: A green box and an overlapping black box, with a magenta<br>
+  overlapping region.</p>
+</div>
+<div class="colorbox">
+  <div class="filterbox"></div>
+</div>
+
+<style>
+.colorbox {
+    position: absolute;
+    background: green;
+    width: 100px;
+    height: 100px;
+    left: 10px;
+    top: 100px;
+}
+.filterbox {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 50px;
+    top: 50px;
+    backdrop-filter: invert(1);
+    opacity: 1.0;
+}
+</style>
+
