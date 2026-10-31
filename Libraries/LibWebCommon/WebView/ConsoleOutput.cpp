@@ -95,6 +95,18 @@ ErrorOr<WebView::ConsoleTrace> IPC::decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> IPC::encode(Encoder&, WebView::ConsoleGroupEnd const&)
+{
+    return {};
+}
+
+template<>
+ErrorOr<WebView::ConsoleGroupEnd> IPC::decode(Decoder&)
+{
+    return WebView::ConsoleGroupEnd {};
+}
+
+template<>
 ErrorOr<void> IPC::encode(Encoder& encoder, WebView::ConsoleOutput const& output)
 {
     TRY(encoder.encode(output.timestamp));
@@ -107,7 +119,7 @@ template<>
 ErrorOr<WebView::ConsoleOutput> IPC::decode(Decoder& decoder)
 {
     auto timestamp = TRY(decoder.decode<UnixDateTime>());
-    auto output = TRY(decoder.decode<Variant<WebView::ConsoleLog, WebView::ConsoleError, WebView::ConsoleTrace>>());
+    auto output = TRY(decoder.decode<Variant<WebView::ConsoleLog, WebView::ConsoleError, WebView::ConsoleTrace, WebView::ConsoleGroupEnd>>());
 
     return WebView::ConsoleOutput { timestamp, move(output) };
 }

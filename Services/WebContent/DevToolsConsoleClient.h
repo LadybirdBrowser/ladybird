@@ -36,7 +36,7 @@ private:
 
     virtual void handle_result(JS::Value) override;
     virtual void report_exception(Utf16View name, Utf16View message, JS::ErrorData const&, bool) override;
-    virtual void end_group() override { }
+    virtual void end_group() override;
     virtual void clear() override { }
 
     virtual JS::ThrowCompletionOr<JS::Value> printer(JS::Console::LogLevel, PrinterArguments) override;

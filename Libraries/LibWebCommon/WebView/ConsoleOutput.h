@@ -51,9 +51,13 @@ struct WEBCOMMON_API ConsoleTrace {
     Vector<StackFrame> stack;
 };
 
+// The end of the group that the latest console.group() or console.groupCollapsed() started.
+struct WEBCOMMON_API ConsoleGroupEnd {
+};
+
 struct WEBCOMMON_API ConsoleOutput {
     UnixDateTime timestamp;
-    Variant<ConsoleLog, ConsoleError, ConsoleTrace> output;
+    Variant<ConsoleLog, ConsoleError, ConsoleTrace, ConsoleGroupEnd> output;
 };
 
 }
@@ -83,6 +87,12 @@ WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleTrace const&);
 
 template<>
 WEBCOMMON_API ErrorOr<WebView::ConsoleTrace> decode(Decoder&);
+
+template<>
+WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleGroupEnd const&);
+
+template<>
+WEBCOMMON_API ErrorOr<WebView::ConsoleGroupEnd> decode(Decoder&);
 
 template<>
 WEBCOMMON_API ErrorOr<void> encode(Encoder&, WebView::ConsoleOutput const&);
