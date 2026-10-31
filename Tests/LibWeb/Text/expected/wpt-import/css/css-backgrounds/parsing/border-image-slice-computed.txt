@@ -1,0 +1,12 @@
+Harness status: OK
+
+Found 7 tests
+
+7 Pass
+Pass	Property border-image-slice value '1'
+Pass	Property border-image-slice value '1 2%'
+Pass	Property border-image-slice value '1 2% 3'
+Pass	Property border-image-slice value '1 2% 3 4%'
+Pass	Property border-image-slice value '1% 2 3% 4 fill'
+Pass	Property border-image-slice value 'calc(10 + (sign(2cqw - 10px) * 5))'
+Pass	Property border-image-slice value 'calc(10 + (sign(2cqw - 10px) * 5)) calc(20% + (sign(2cqw - 10px) * 5%))'

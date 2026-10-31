@@ -1678,6 +1678,29 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             )
         }
+        StyleValueData::BorderImageSlice {
+            top,
+            right,
+            bottom,
+            left,
+            fill,
+        } => {
+            let mut changed = false;
+            let top = absolutize_child(top, context, &mut changed)?;
+            let right = absolutize_child(right, context, &mut changed)?;
+            let bottom = absolutize_child(bottom, context, &mut changed)?;
+            let left = absolutize_child(left, context, &mut changed)?;
+            rebuild!(
+                changed,
+                StyleValueData::BorderImageSlice {
+                    top,
+                    right,
+                    bottom,
+                    left,
+                    fill: *fill,
+                }
+            )
+        }
         StyleValueData::BorderRadius {
             is_elliptical,
             horizontal_radius,
