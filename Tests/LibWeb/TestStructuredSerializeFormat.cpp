@@ -501,6 +501,8 @@ TEST_CASE(realm_helpers_share_vm_initialization)
     auto simple = Web::Bindings::create_a_simple_javascript_realm();
     EXPECT_EQ(&simple->vm(), &vm);
 
+    // The simple realm hands its execution context to the stack, so it's freed once popped.
+    delete vm.pop_execution_context();
     while (vm.execution_context_stack().size() > depth)
         vm.pop_execution_context();
 }
