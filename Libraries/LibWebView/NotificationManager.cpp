@@ -122,6 +122,16 @@ void NotificationManager::close(WebContentPage& page, u64 page_notification_id)
         backend().close(m_records[*index].id);
 }
 
+Vector<u64> NotificationManager::ids_without_a_page_for_testing(Web::PageId page_id) const
+{
+    Vector<u64> ids;
+    for (auto const& record : m_records) {
+        if (record.page_id == page_id && !record.page)
+            ids.append(record.id);
+    }
+    return ids;
+}
+
 void NotificationManager::abandon(WebContentPage& page, u64 page_notification_id)
 {
     if (auto index = index_of(page, page_notification_id); index.has_value())

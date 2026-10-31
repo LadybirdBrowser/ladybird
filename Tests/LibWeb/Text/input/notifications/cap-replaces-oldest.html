@@ -9,16 +9,17 @@
         let closes = 0;
         let firstClosed = null;
         const notifications = [];
-        const allShown = new Promise(resolve => {
-            for (let i = 0; i < total; ++i) {
-                const notification = new Notification(`n${i}`, { tag: `t${i}` });
-                notification.onshow = () => { if (++shows === total) resolve(); };
-                notification.onclose = () => { firstClosed ??= i; ++closes; };
-                notifications.push(notification);
-            }
-        });
-        await allShown;
-        await new Promise(resolve => setTimeout(resolve, 100));
+        let allShown, allEvicted;
+        const shown = new Promise(resolve => (allShown = resolve));
+        const evicted = new Promise(resolve => (allEvicted = resolve));
+        for (let i = 0; i < total; ++i) {
+            const notification = new Notification(`n${i}`, { tag: `t${i}` });
+            notification.onshow = () => { if (++shows === total) allShown(); };
+            notification.onclose = () => { firstClosed ??= i; if (++closes === total - 8) allEvicted(); };
+            notifications.push(notification);
+        }
+        await shown;
+        await evicted;
         const state = JSON.parse(internals.notificationsStateForTesting());
         println(`shown: ${state.shown.length}`);
         println(`show events: ${shows}`);

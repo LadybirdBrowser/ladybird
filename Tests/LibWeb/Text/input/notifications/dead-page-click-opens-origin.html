@@ -26,13 +26,21 @@
             return;
         }
 
-        iframe.remove();
-        // Let the frame's document go away, and the UI process hear of it, before the click.
-        await new Promise(resolve => setTimeout(resolve, 100));
-        internals.clickNotificationByIdForTesting(id);
-        await new Promise(resolve => setTimeout(resolve, 100));
+        const stateWhen = async predicate => {
+            for (;;) {
+                const state = JSON.parse(internals.notificationsStateForTesting());
+                if (predicate(state))
+                    return state;
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+        };
 
-        const state = JSON.parse(internals.notificationsStateForTesting());
+        iframe.remove();
+        // The frame's document goes away in a later task, and the UI process hears of it after that: Click only once
+        // it has, or the click would still be delivered to the page.
+        await stateWhen(state => state.abandoned.includes(id));
+        internals.clickNotificationByIdForTesting(id);
+        const state = await stateWhen(state => state.opened.length > 0 || state.focused.length > 0);
         println(`opened this page's site: ${state.opened.length === 1 && state.opened[0] === location.origin + "/"}`);
         println(`focused: ${state.focused.length}`);
         println(`still shown: ${state.shown.some(n => n.id === id)}`);

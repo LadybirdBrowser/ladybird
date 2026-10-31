@@ -87,7 +87,7 @@ void RecordingNotificationBackend::forget_page(Web::PageId page_id)
     m_opened.remove_all_matching([&](auto const& entry) { return entry.page_id == page_id; });
 }
 
-String RecordingNotificationBackend::state_json(Web::PageId page_id) const
+String RecordingNotificationBackend::state_json(Web::PageId page_id, Vector<u64> const& abandoned) const
 {
     JsonArray shown;
     for (auto const& notification : m_shown) {
@@ -129,11 +129,16 @@ String RecordingNotificationBackend::state_json(Web::PageId page_id) const
             opened.must_append(entry.url.serialize());
     }
 
+    JsonArray abandoned_ids;
+    for (auto id : abandoned)
+        abandoned_ids.must_append(id);
+
     JsonObject state;
     state.set("shown"sv, move(shown));
     state.set("closed"sv, move(closed));
     state.set("focused"sv, move(focused));
     state.set("opened"sv, move(opened));
+    state.set("abandoned"sv, move(abandoned_ids));
     return state.serialized();
 }
 

@@ -652,7 +652,7 @@ Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentCl
 Messages::WebContentClient::DidRequestNotificationsStateForTestingResponse WebContentClient::did_request_notifications_state_for_testing(Web::PageId page_id)
 {
     if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
-        return recording_backend->state_json(page_id);
+        return recording_backend->state_json(page_id, NotificationManager::the().ids_without_a_page_for_testing(page_id));
     return "{}"_string;
 }
 
