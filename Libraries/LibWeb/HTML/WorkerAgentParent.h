@@ -22,7 +22,7 @@ class WorkerAgentParent : public JS::Cell {
     GC_DECLARE_ALLOCATOR(WorkerAgentParent);
 
 public:
-    static GC::Ref<WorkerAgentParent> create(URL::URL, WorkerOptions const&,
+    static GC::Ref<WorkerAgentParent> create(URL::URL, WorkerOptions const&, bool extended_lifetime,
         GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings,
         GC::Ref<DOM::EventTarget> worker_event_target, AgentType);
 
@@ -39,7 +39,7 @@ protected:
     virtual void finalize() override;
 
 private:
-    WorkerAgentParent(URL::URL, WorkerOptions const&, GC::Ptr<MessagePort> outside_port,
+    WorkerAgentParent(URL::URL, WorkerOptions const&, bool extended_lifetime, GC::Ptr<MessagePort> outside_port,
         GC::Ref<EnvironmentSettingsObject> outside_settings, GC::Ref<DOM::EventTarget> worker_event_target,
         AgentType);
 
@@ -52,6 +52,7 @@ private:
     static WorkerAgentOwnerToken next_owner_token();
 
     WorkerOptions m_worker_options;
+    bool m_extended_lifetime { false };
     AgentType m_agent_type { AgentType::DedicatedWorker };
     URL::URL m_url;
     WorkerAgentId m_agent_id { 0 };

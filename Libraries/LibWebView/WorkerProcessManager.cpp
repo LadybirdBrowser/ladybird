@@ -135,7 +135,6 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
                     // AD-HOC: Error firing is routed back over IPC via notify_worker_script_load_failure;
                     //         the spec's queue-global-task happens inside WorkerAgentParent in the
                     //         requesting process.
-                    // FIXME: The extendedLifetime comparison becomes observable once SharedWorkerOptions is implemented.
                     if (agent.worker_type != request.type
                         || agent.credentials != request.credentials
                         || agent.extended_lifetime != request.extended_lifetime
