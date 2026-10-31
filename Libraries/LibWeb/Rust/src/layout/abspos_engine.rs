@@ -3546,17 +3546,14 @@ impl<'pass> AbsposEngine<'pass> {
 
         // 1. Let current styles be the current used styles of abspos, as derived from the computed base style (which
         //    might be the result of earlier fallback).
-        // NB: A box whose base styles, or the @position-try rule of its last successful position option, changed has
-        //     no last successful position option.
+        // NB: A box whose @position-try rule of its last successful position option changed has no last successful
+        //     position option.
         let last_successful_option = arena
             .last_successful_position_option(node)
             .filter(|choice| {
-                choice.base_style_record == base_style_record
-                    && entry_of(choice.option)
-                        .map_or(crate::css::style::position_try::PositionTryRuleID::NONE, |(_, rule)| {
-                            rule
-                        })
-                        == choice.rule
+                entry_of(choice.option).map_or(crate::css::style::position_try::PositionTryRuleID::NONE, |(_, rule)| {
+                    rule
+                }) == choice.rule
             })
             .map_or(0, |choice| choice.option);
         let current = options
@@ -3566,7 +3563,6 @@ impl<'pass> AbsposEngine<'pass> {
             .expect("the base styles are a position option");
         let choice_of = |option: u32| abspos_inputs::PositionOptionChoice {
             option,
-            base_style_record,
             rule: entry_of(option).map_or(crate::css::style::position_try::PositionTryRuleID::NONE, |(_, rule)| {
                 rule
             }),
