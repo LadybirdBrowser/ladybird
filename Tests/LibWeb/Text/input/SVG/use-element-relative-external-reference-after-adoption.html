@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe id="a" srcdoc='<base href="../../data/use-adoption-a/"><svg><use id="moved" href="icon.svg#icon"/></svg>'></iframe>
+<iframe id="b" srcdoc='<base href="../../data/use-adoption-b/"><svg><use id="resident" href="icon.svg#icon"/></svg>'></iframe>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            const a = document.getElementById("a").contentDocument;
+            const b = document.getElementById("b").contentDocument;
+            const box = (use) => { const r = use.getBBox(); return `${r.width}x${r.height}`; };
+            const moved = a.getElementById("moved");
+            println(`before the move: ${box(moved)}`);
+            // In the other document, the same relative href resolves to the other file, which is already loaded there.
+            b.body.appendChild(moved.ownerSVGElement);
+            println(`after the move: ${box(moved)} (the other document's own use: ${box(b.getElementById("resident"))})`);
+            done();
+        };
+    });
+</script>

@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<svg style="display: none"><symbol id="icon"><use href="#leaf"/></symbol><rect id="leaf" width="10" height="10"/></svg>
+<template id="template"><svg><use href="#icon"/></svg></template>
+<div id="target"></div>
+<script>
+    document.getElementById("target").replaceWith(document.getElementById("template").content.cloneNode(true));
+</script>

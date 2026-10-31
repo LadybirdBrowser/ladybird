@@ -75,6 +75,12 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
 
     m_document_observer->retarget_for_adoption(document());
 
+    // Adoption removed us from our tree, so nothing of ours renders, and our shadow tree is a clone made for the old
+    // document; our href may resolve to something else in this one. Drop it, and leave the new clone to inserted(),
+    // once we're in a document tree again. A clone made here would join the tree being adopted — so a nested use
+    // element in it would then run the adopting steps as if it had come from the old document.
+    clone_element_tree_as_our_shadow_tree(nullptr);
+
     auto href = href_value();
     if (!href.has_value())
         return;
@@ -83,33 +89,33 @@ void SVGUseElement::adopted_from(DOM::Document& old_document)
     if (!m_href.has_value())
         return;
 
-    if (!is_referenced_element_same_document()) {
+    if (!is_referenced_element_same_document())
         fetch_the_document(*m_href);
-        return;
-    }
-
-    if (auto to_clone = referenced_element())
-        clone_element_tree_as_our_shadow_tree(to_clone);
 }
 
 void SVGUseElement::inserted()
 {
     Base::inserted();
 
-    // Only use elements in the document's node tree react to changes of the elements they reference, mirroring the
-    // document-wide traversal this registry replaced. A use element inside a shadow tree is itself part of a clone.
-    if (!root().is_document())
+    // A use element inside another use element's shadow tree is itself part of a clone, so it's left alone.
+    auto* containing_shadow_root = as_if<DOM::ShadowRoot>(root());
+    if (containing_shadow_root && containing_shadow_root->is_user_agent_internal())
         return;
 
-    register_for_referenced_element_changes();
+    // Only use elements in the document's node tree react to changes of the elements they reference, mirroring the
+    // document-wide traversal this registry replaced.
+    if (root().is_document())
+        register_for_referenced_element_changes();
 
     // The insertion that connected us may have inserted our referenced element along with us, with its insertion
-    // steps running before ours, i.e. before we were registered to be notified about changes to it. If our shadow
-    // tree has not been populated yet, try resolving the reference again.
-    if (!instance_root()
-        && m_href.has_value() && m_href->fragment().has_value() && is_referenced_element_same_document()) {
-        clone_element_tree_as_our_shadow_tree(referenced_element());
-    }
+    // steps running before ours, i.e. before we were registered to be notified about changes to it. Adoption also
+    // drops our shadow tree (see adopted_from()), we may now be in an author's shadow tree, and an external document
+    // may have finished loading while we were disconnected. If our shadow tree has not been populated yet, try
+    // resolving the reference again.
+    if (!is_connected() || instance_root())
+        return;
+    if (auto to_clone = referenced_element())
+        clone_element_tree_as_our_shadow_tree(to_clone);
 }
 
 void SVGUseElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
@@ -282,7 +288,10 @@ void SVGUseElement::fetch_the_document(URL::URL const& url)
     m_resource_request = HTML::SharedResourceRequest::get_or_create(document(), url, HTML::CORSSettingAttribute::NoCORS);
     m_resource_request->add_callbacks(
         [this] {
-            clone_element_tree_as_our_shadow_tree(referenced_element());
+            // A request that already finished calls back right away, which from adopted_from() is in the middle of the
+            // adoption. Only a connected use element builds its shadow tree; inserted() builds it otherwise.
+            if (is_connected())
+                clone_element_tree_as_our_shadow_tree(referenced_element());
             m_load_event_delayer.clear();
         },
         [this] {
