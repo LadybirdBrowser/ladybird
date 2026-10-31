@@ -241,7 +241,7 @@ pub(crate) struct FragmentainerContext {
     outcome: RefCell<FragmentainerOutcome>,
     /// What the run laid out in the fragmentainer, which the run of the box it belongs to takes in, as the
     /// fragmentainer has no fragment of its own.
-    contents: RefCell<Option<super::fragment_tree::UnplacedRootFragment>>,
+    contents: RefCell<Option<super::fragment_tree::RunContents>>,
 }
 
 impl FragmentainerContext {
@@ -265,11 +265,11 @@ impl FragmentainerContext {
         }
     }
 
-    pub(crate) fn keep_contents(&self, contents: super::fragment_tree::UnplacedRootFragment) {
+    pub(crate) fn keep_contents(&self, contents: super::fragment_tree::RunContents) {
         *self.contents.borrow_mut() = Some(contents);
     }
 
-    pub(crate) fn take_contents(&self) -> Option<super::fragment_tree::UnplacedRootFragment> {
+    pub(crate) fn take_contents(&self) -> Option<super::fragment_tree::RunContents> {
         self.contents.take()
     }
 
