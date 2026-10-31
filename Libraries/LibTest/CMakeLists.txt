@@ -5,6 +5,7 @@ add_library(JavaScriptTestRunnerMain OBJECT JavaScriptTestRunnerMain.cpp)
 target_link_libraries(JavaScriptTestRunnerMain PRIVATE LibJSStandalone LibGC)
 
 set(SOURCES
+    TemporaryDirectory.cpp
     TestSuite.cpp
 )
 
