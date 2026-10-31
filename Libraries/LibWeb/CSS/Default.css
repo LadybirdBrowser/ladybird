@@ -2226,8 +2226,8 @@ iframe:fullscreen {
   suffix: " ";
   /* for symbols, see normative text below */
   /* FIXME: If the image is directional, it must respond to the writing mode of the element */
-  symbols: \25BE;
-    /* ▾ */
+  symbols: \25BC;
+  /* ▼ */
 }
 
 @counter-style disclosure-closed {
@@ -2235,8 +2235,8 @@ iframe:fullscreen {
   suffix: " ";
   /* for symbols, see normative text below */
   /* FIXME: If the image is directional, it must respond to the writing mode of the element */
-  symbols: \25B8;
-  /* ▸ */
+  symbols: \25BA;
+  /* ► */
 }
 
 /* https://drafts.csswg.org/css-pseudo-4/#highlight-ua-styles */
