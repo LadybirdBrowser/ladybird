@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A document whose origin differs from its top-level origin gets error, not a shown notification.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const server = httpTestServer();
+        const frameURL = new URL(await server.createEcho("GET", "/notifications/cross-origin-frame.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                const notification = new Notification("from a cross-origin frame");
+                const timeout = setTimeout(() => parent.postMessage("no event", "*"), 1000);
+                notification.onshow = () => { clearTimeout(timeout); parent.postMessage("show", "*"); };
+                notification.onerror = () => { clearTimeout(timeout); parent.postMessage("error", "*"); };
+            <\/script>`,
+        }));
+        frameURL.hostname = uniqueLocalhostHostname("notifications-cross-origin");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = frameURL.href;
+        const result = await new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+            document.body.appendChild(iframe);
+        });
+        println(`cross-origin iframe: ${result}`);
+        done();
+    });
+</script>

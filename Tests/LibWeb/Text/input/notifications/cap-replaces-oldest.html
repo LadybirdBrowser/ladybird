@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An origin keeps at most eight notifications at a time; each one past that closes the oldest.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const total = 100;
+        let shows = 0;
+        let closes = 0;
+        let firstClosed = null;
+        const notifications = [];
+        let allShown, allEvicted;
+        const shown = new Promise(resolve => (allShown = resolve));
+        const evicted = new Promise(resolve => (allEvicted = resolve));
+        for (let i = 0; i < total; ++i) {
+            const notification = new Notification(`n${i}`, { tag: `t${i}` });
+            notification.onshow = () => { if (++shows === total) allShown(); };
+            notification.onclose = () => { firstClosed ??= i; if (++closes === total - 8) allEvicted(); };
+            notifications.push(notification);
+        }
+        await shown;
+        await evicted;
+        const state = JSON.parse(internals.notificationsStateForTesting());
+        println(`shown: ${state.shown.length}`);
+        println(`show events: ${shows}`);
+        println(`close events: ${closes}`);
+        println(`first closed: n${firstClosed}`);
+        println(`oldest still shown: ${state.shown[0].title}`);
+        for (const notification of notifications)
+            notification.close();
+        done();
+    });
+</script>

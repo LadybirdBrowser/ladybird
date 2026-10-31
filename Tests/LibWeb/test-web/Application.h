@@ -35,6 +35,12 @@ public:
 
     virtual ErrorOr<LexicalPath> default_path_for_downloaded_file(ByteString const&) const override;
 
+    // Notifications go to a recording backend, which tests read through Internals; what a click would do to the
+    // browser's windows is recorded there too.
+    virtual NonnullOwnPtr<WebView::NotificationBackend> create_notification_backend() override;
+    virtual void focus_page_from_notification(WebView::WebContentPage&) override;
+    virtual void open_url_in_new_tab_from_notification(URL::URL const&, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate) override;
+
     ErrorOr<void> launch_test_fixtures();
 
     static constexpr u8 VERBOSITY_LEVEL_LOG_TEST_OUTPUT = 1;

@@ -38,6 +38,7 @@
 #include <LibWebCommon/HTML/PreparedNavigationDescriptor.h>
 #include <LibWebCommon/HTML/ReplicatedNavigableState.h>
 #include <LibWebCommon/HTML/SameDocumentNavigationEntry.h>
+#include <LibWebCommon/NotificationsAPI/NotificationData.h>
 #include <LibWebCommon/HTML/SandboxingFlagSet.h>
 #include <LibWebCommon/HTML/Scripting/ScriptRegistryTypes.h>
 #include <LibWebCommon/HTML/SelectItem.h>
@@ -241,6 +242,14 @@ endpoint WebContentClient routed by Web::PageId page_id
     did_stop_geolocation_position_watch(Web::PageId page_id, u64 request_id) =|
     did_request_permission(Web::PageId page_id, u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name) =|
     [NotRouted] did_request_permission_snapshot(Web::PageId page_id, URL::Origin top_level_origin) => (Web::Permissions::PermissionSnapshot snapshot)
+    did_request_show_notification(Web::PageId page_id, u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon) =|
+    did_request_close_notification(Web::PageId page_id, u64 notification_id) =|
+    did_abandon_notification(Web::PageId page_id, u64 notification_id) =|
+    did_handle_notification_click(Web::PageId page_id, u64 notification_id, bool into_focus) =|
+    [NotRouted] did_request_notifications_state_for_testing(Web::PageId page_id) => (String json)
+    did_request_click_notification_for_testing(Web::PageId page_id, u64 notification_id) =|
+    did_request_click_notification_by_id_for_testing(Web::PageId page_id, u64 browser_notification_id) =|
+    did_request_dismiss_notification_for_testing(Web::PageId page_id, u64 notification_id) =|
     did_request_file_picker(Web::PageId page_id, Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) =|
     did_request_select_dropdown(Web::PageId page_id, Web::HTML::CrossProcessId local_root_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) =|
     did_finish_handling_input_event(Web::PageId page_id, u64 event_id, Web::EventResult event_result) =|

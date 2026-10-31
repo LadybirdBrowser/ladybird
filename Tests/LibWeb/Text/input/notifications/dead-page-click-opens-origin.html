@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A click on a notification whose document has gone opens that document's site in a new tab instead of firing
+    // click into a dead document.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        // A srcdoc frame shares this page's origin, so its notification is allowed; removing it destroys its document
+        // while this page, and the notification, stay.
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<!DOCTYPE html><script>
+            const notification = new Notification("From a document about to go away");
+            notification.onshow = () => {
+                const state = JSON.parse(window.internals.notificationsStateForTesting());
+                parent.postMessage({ id: state.shown[state.shown.length - 1].id }, "*");
+            };
+            notification.onerror = () => parent.postMessage({ error: true }, "*");
+        <\/script>`;
+        const { id, error } = await new Promise(resolve => {
+            addEventListener("message", event => resolve(event.data), { once: true });
+            document.body.appendChild(iframe);
+        });
+        if (error) {
+            println("error");
+            done();
+            return;
+        }
+
+        const stateWhen = async predicate => {
+            for (;;) {
+                const state = JSON.parse(internals.notificationsStateForTesting());
+                if (predicate(state))
+                    return state;
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
+        };
+
+        iframe.remove();
+        // The frame's document goes away in a later task, and the UI process hears of it after that: Click only once
+        // it has, or the click would still be delivered to the page.
+        await stateWhen(state => state.abandoned.includes(id));
+        internals.clickNotificationByIdForTesting(id);
+        const state = await stateWhen(state => state.opened.length > 0 || state.focused.length > 0);
+        println(`opened this page's site: ${state.opened.length === 1 && state.opened[0] === location.origin + "/"}`);
+        println(`focused: ${state.focused.length}`);
+        println(`still shown: ${state.shown.some(n => n.id === id)}`);
+        done();
+    });
+</script>

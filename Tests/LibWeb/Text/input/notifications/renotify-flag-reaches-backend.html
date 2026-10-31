@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const shown = n => new Promise(resolve => (n.onshow = resolve));
+        const quiet = new Notification("first", { tag: "x" });
+        await shown(quiet);
+        const loud = new Notification("second", { tag: "x", renotify: true });
+        await shown(loud);
+        let state = JSON.parse(internals.notificationsStateForTesting());
+        println(`renotify on replacement: ${state.shown[0].renotify}`);
+        const quietAgain = new Notification("third", { tag: "x" });
+        await shown(quietAgain);
+        state = JSON.parse(internals.notificationsStateForTesting());
+        println(`renotify without the option: ${state.shown[0].renotify}`);
+        quietAgain.close();
+        done();
+    });
+</script>

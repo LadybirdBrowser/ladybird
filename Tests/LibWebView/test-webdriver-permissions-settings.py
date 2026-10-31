@@ -29,6 +29,7 @@ def run_test(webdriver_binary):
                     "decisions": [
                         {"origin": "https://example.com", "permission": "geolocation", "decision": "allow"},
                         {"origin": "https://talk.example.org", "permission": "microphone", "decision": "block"},
+                        {"origin": "https://news.example.net", "permission": "notifications", "decision": "allow"},
                     ],
                     "embargoes": [],
                 }
@@ -98,6 +99,7 @@ def run_test(webdriver_binary):
 
             assert rows("location-permissions", "geolocation") == [["https://example.com", "allow"]]
             assert rows("microphone-permissions", "microphone") == [["https://talk.example.org", "block"]]
+            assert rows("notifications-permissions", "notifications") == [["https://news.example.net", "allow"]]
 
             rows("location-permissions", "geolocation")
             script("""

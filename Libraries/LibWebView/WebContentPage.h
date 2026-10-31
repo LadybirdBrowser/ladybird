@@ -282,6 +282,13 @@ private:
     virtual void did_start_geolocation_position_watch(u64 request_id, Web::HTML::CrossProcessId document_id) override;
     virtual void did_stop_geolocation_position_watch(u64 request_id) override;
     virtual void did_request_permission(u64 request_id, Web::HTML::CrossProcessId document_id, Utf16String name) override;
+    virtual void did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon) override;
+    virtual void did_request_close_notification(u64 notification_id) override;
+    virtual void did_abandon_notification(u64 notification_id) override;
+    virtual void did_handle_notification_click(u64 notification_id, bool into_focus) override;
+    virtual void did_request_click_notification_for_testing(u64 notification_id) override;
+    virtual void did_request_click_notification_by_id_for_testing(u64 browser_notification_id) override;
+    virtual void did_request_dismiss_notification_for_testing(u64 notification_id) override;
     virtual void did_request_file_picker(Web::HTML::FileFilter accepted_file_types, Web::HTML::AllowMultipleFiles allow_multiple_files) override;
     virtual void did_finish_handling_input_event(u64 event_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;

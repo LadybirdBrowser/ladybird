@@ -1307,6 +1307,49 @@ void PageClient::page_did_request_permission(u64 request_id, Web::HTML::CrossPro
     client().async_did_request_permission(m_id, request_id, requesting_document_id, name);
 }
 
+void PageClient::page_did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData const& data, RefPtr<Gfx::Bitmap const> icon)
+{
+    Optional<Gfx::ShareableBitmap> shareable_icon;
+    if (icon)
+        shareable_icon = icon->to_shareable_bitmap();
+    client().async_did_request_show_notification(m_id, notification_id, document_id, data, move(shareable_icon));
+}
+
+void PageClient::page_did_request_close_notification(u64 notification_id)
+{
+    client().async_did_request_close_notification(m_id, notification_id);
+}
+
+void PageClient::page_did_abandon_notification(u64 notification_id)
+{
+    client().async_did_abandon_notification(m_id, notification_id);
+}
+
+void PageClient::page_did_handle_notification_click(u64 notification_id, bool into_focus)
+{
+    client().async_did_handle_notification_click(m_id, notification_id, into_focus);
+}
+
+String PageClient::page_did_request_notifications_state_for_testing()
+{
+    return client().did_request_notifications_state_for_testing(m_id);
+}
+
+void PageClient::page_did_request_click_notification_for_testing(u64 notification_id)
+{
+    client().async_did_request_click_notification_for_testing(m_id, notification_id);
+}
+
+void PageClient::page_did_request_click_notification_by_id_for_testing(u64 browser_notification_id)
+{
+    client().async_did_request_click_notification_by_id_for_testing(m_id, browser_notification_id);
+}
+
+void PageClient::page_did_request_dismiss_notification_for_testing(u64 notification_id)
+{
+    client().async_did_request_dismiss_notification_for_testing(m_id, notification_id);
+}
+
 Optional<Web::Permissions::PermissionSnapshot> PageClient::page_did_request_permission_snapshot(URL::Origin const& top_level_origin)
 {
     auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestPermissionSnapshot>(m_id, top_level_origin);

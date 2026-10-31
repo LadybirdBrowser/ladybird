@@ -7,9 +7,17 @@
 #include <LibCore/ArgsParser.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/URL.h>
+#include <LibWebView/CanonicalTraversable.h>
+#include <LibWebView/NotificationBackend.h>
+#if defined(AK_OS_MACOS)
+#    include <LibWebView/NotificationBackendMacOS.h>
+#elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+#    include <LibWebView/NotificationBackendFreedesktop.h>
+#endif
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/WebContentPage.h>
 #include <UI/Qt/Application.h>
 #include <UI/Qt/BookmarkDialog.h>
 #include <UI/Qt/ChromeLayout.h>
@@ -1283,6 +1291,65 @@ OwnPtr<WebView::PictureInPictureWindow> Application::create_picture_in_picture_w
     if (browser_options().headless_mode.has_value())
         return WebView::Application::create_picture_in_picture_window(requesting_page, traversable, video_size);
     return Ladybird::create_picture_in_picture_window(traversable, requesting_page.view(), video_size);
+}
+
+// The window that shows this view in one of its tabs, if any.
+static BrowserWindow* window_for_view(WebView::ViewImplementation const& view)
+{
+    for (auto* widget : QApplication::topLevelWidgets()) {
+        if (auto* window = as_if<BrowserWindow>(widget); window && window->tab_for_view(view))
+            return window;
+    }
+    return nullptr;
+}
+
+NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
+{
+#if defined(AK_OS_MACOS)
+    return make<WebView::NotificationBackendMacOS>();
+#elif defined(AK_OS_LINUX) || defined(AK_OS_FREEBSD)
+    return make<WebView::NotificationBackendFreedesktop>();
+#else
+    return WebView::Application::create_notification_backend();
+#endif
+}
+
+void Application::focus_page_from_notification(WebView::WebContentPage& page)
+{
+    auto* window = window_for_view(page.view());
+    if (!window)
+        return;
+    window->activate_tab(window->tab_index(window->tab_for_view(page.view())));
+    window->bring_to_front();
+}
+
+void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId, WebView::CanonicalTraversable* traversable, WebView::IsPrivate is_private)
+{
+    BrowserWindow* window = nullptr;
+    if (traversable) {
+        if (auto view = traversable->view(); view.has_value())
+            window = window_for_view(*view);
+    }
+    // The site opens in the notification's own session: a private window's notification never lands in a normal
+    // window, nor a normal one in a private window.
+    if (window && window->is_private() != is_private)
+        window = nullptr;
+    if (!window && m_active_window && m_active_window->is_private() == is_private)
+        window = m_active_window;
+    if (!window) {
+        for (auto* widget : QApplication::topLevelWidgets()) {
+            if (auto* candidate = qobject_cast<BrowserWindow*>(widget); candidate && candidate->is_private() == is_private) {
+                window = candidate;
+                break;
+            }
+        }
+    }
+    if (!window) {
+        new_window({ url }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private);
+        return;
+    }
+    window->new_tab_from_url(url, Web::HTML::ActivateTab::Yes, BrowserWindow::TabLocation::end());
+    window->bring_to_front();
 }
 
 Optional<WebView::ViewImplementation&> Application::active_web_view() const

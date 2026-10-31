@@ -61,6 +61,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
+#include <LibWebView/NoOpNotificationBackend.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureWindow.h>
 #include <LibWebView/ProcessType.h>
@@ -163,6 +164,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     virtual void geolocation_settings_changed() override
     {
         Application::the().location_policy_changed({});
+    }
+
+    virtual void notifications_settings_changed() override
+    {
+        Application::the().notifications_policy_changed({});
     }
 };
 
@@ -2480,6 +2486,11 @@ bool Application::supports_picture_in_picture() const
     return browser_options().headless_mode.has_value();
 }
 
+NonnullOwnPtr<NotificationBackend> Application::create_notification_backend()
+{
+    return make<NoOpNotificationBackend>();
+}
+
 OwnPtr<PictureInPictureWindow> Application::create_picture_in_picture_window(WebContentPage& requesting_page, CanonicalTraversable& traversable, Gfx::IntSize video_size)
 {
     if (!browser_options().headless_mode.has_value())
@@ -3027,6 +3038,16 @@ void Application::location_policy_changed(Badge<ApplicationSettingsObserver>)
     update_permission_defaults();
 }
 
+bool Application::sites_can_ask_for_notifications() const
+{
+    return settings().notifications_policy() == NotificationsPolicy::Ask;
+}
+
+void Application::notifications_policy_changed(Badge<ApplicationSettingsObserver>)
+{
+    update_permission_defaults();
+}
+
 void Application::update_os_location_authorization()
 {
     auto denied = m_geolocation_provider && m_geolocation_provider->authorization() == Core::GeolocationAuthorization::Denied;
@@ -3046,8 +3067,9 @@ Core::GeolocationAuthorization Application::geolocation_authorization()
 void Application::update_permission_defaults()
 {
     // NB: A private session reads its defaults from the ordinary one.
-    auto state = sites_can_ask_for_location() ? Web::Permissions::EffectiveState::Prompt : Web::Permissions::EffectiveState::Denied;
-    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Geolocation, state);
+    auto state_for = [](bool sites_can_ask) { return sites_can_ask ? Web::Permissions::EffectiveState::Prompt : Web::Permissions::EffectiveState::Denied; };
+    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Geolocation, state_for(sites_can_ask_for_location()));
+    m_default_session->permission_manager->set_global_default(Web::Permissions::PermissionName::Notifications, state_for(sites_can_ask_for_notifications()));
 }
 
 void Application::languages_changed(Badge<ApplicationSettingsObserver>)

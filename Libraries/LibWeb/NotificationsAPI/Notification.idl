@@ -3,15 +3,15 @@
 interface Notification : EventTarget {
     constructor(DOMString title, optional NotificationOptions options = {});
 
-    [FIXME] static readonly attribute NotificationPermission permission;
-    [FIXME, Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
+    static readonly attribute NotificationPermission permission;
+    [Exposed=Window] static Promise<NotificationPermission> requestPermission(optional NotificationPermissionCallback deprecatedCallback);
 
     static readonly attribute unsigned long maxActions;
 
-    [FIXME] attribute EventHandler onclick;
-    [FIXME] attribute EventHandler onshow;
-    [FIXME] attribute EventHandler onerror;
-    [FIXME] attribute EventHandler onclose;
+    attribute EventHandler onclick;
+    attribute EventHandler onshow;
+    attribute EventHandler onerror;
+    attribute EventHandler onclose;
 
     readonly attribute DOMString title;
     [ImplementedAs=notification_direction] readonly attribute NotificationDirection dir;
@@ -30,7 +30,7 @@ interface Notification : EventTarget {
     [SameObject] readonly attribute any data;
     [SameObject] readonly attribute FrozenArray<NotificationAction> actions;
 
-    [FIXME] undefined close();
+    undefined close();
 };
 
 dictionary NotificationOptions {
@@ -42,7 +42,7 @@ dictionary NotificationOptions {
     USVString image;
     USVString icon;
     USVString badge;
-    // FIXME: VibratePattern vibrate;
+    VibratePattern vibrate;
     EpochTimeStamp timestamp;
     boolean renotify = false;
     boolean? silent = null;
@@ -50,6 +50,9 @@ dictionary NotificationOptions {
     any data = null;
     sequence<NotificationAction> actions = [];
 };
+
+// https://w3c.github.io/vibration/#idl-def-vibratepattern
+typedef (unsigned long or sequence<unsigned long>) VibratePattern;
 
 enum NotificationPermission {
     "default",
@@ -70,4 +73,4 @@ dictionary NotificationAction {
     USVString icon;
 };
 
-[FIXME] callback NotificationPermissionCallback = undefined (NotificationPermission permission);
+callback NotificationPermissionCallback = undefined (NotificationPermission permission);

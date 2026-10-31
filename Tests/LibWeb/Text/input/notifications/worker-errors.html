@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script type="worker">
+    const notification = new Notification("from a worker");
+    const timeout = setTimeout(() => postMessage("no event"), 1000);
+    notification.onshow = () => { clearTimeout(timeout); postMessage("show"); };
+    notification.onerror = () => { clearTimeout(timeout); postMessage("error"); };
+</script>
+<script src="../include.js"></script>
+<script>
+    // A dedicated worker can construct a Notification, but showing it from a worker isn't supported yet: error fires.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const workerSource = document.querySelector("[type=worker]").innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        worker.onmessage = event => {
+            println(`worker: ${event.data}`);
+            done();
+        };
+    });
+</script>

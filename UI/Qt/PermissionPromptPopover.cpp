@@ -42,8 +42,31 @@ static QString feature_text(Web::Permissions::PermissionName name)
         return QStringLiteral("know your location");
     case Web::Permissions::PermissionName::Microphone:
         return QStringLiteral("use your microphone");
+    case Web::Permissions::PermissionName::Notifications:
+        return QStringLiteral("send you notifications");
     }
     VERIFY_NOT_REACHED();
+}
+
+// Shown while the system hasn't yet been asked whether Ladybird may use the feature: it asks right after this prompt.
+static QString hint_text(Web::Permissions::PermissionName name)
+{
+    switch (name) {
+    case Web::Permissions::PermissionName::Geolocation:
+        return QStringLiteral("macOS will then ask you to let Ladybird use your location.");
+    case Web::Permissions::PermissionName::Microphone:
+        return QStringLiteral("macOS will then ask you to let Ladybird use your microphone.");
+    case Web::Permissions::PermissionName::Notifications:
+        return QStringLiteral("macOS will then ask you to let Ladybird show notifications.");
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// A notification grant has no one-time form: One that lapsed once the site had no visible tab for a while would end
+// right when a notification is wanted. So that prompt offers a lasting Allow and Never allow only.
+static bool offers_one_time_grant(Web::Permissions::PermissionName name)
+{
+    return name != Web::Permissions::PermissionName::Notifications;
 }
 
 static ChromeIcon feature_icon(Web::Permissions::PermissionName name)
@@ -53,12 +76,14 @@ static ChromeIcon feature_icon(Web::Permissions::PermissionName name)
         return ChromeIcon::Location;
     case Web::Permissions::PermissionName::Microphone:
         return ChromeIcon::Microphone;
+    case Web::Permissions::PermissionName::Notifications:
+        return ChromeIcon::Notifications;
     }
     VERIFY_NOT_REACHED();
 }
 
 // The prompt is laid out like a message popover: the permission's icon in a tile before the question, and the answers
-// below. All three answers are secondary buttons, since the browser recommends none of them.
+// below. Every answer is a secondary button, since the browser recommends none of them.
 PermissionPromptPopover::PermissionPromptPopover(QWidget* parent, WebView::PermissionPromptRequest const& request)
     : Popover(parent)
     , m_request(request)
@@ -85,7 +110,7 @@ PermissionPromptPopover::PermissionPromptPopover(QWidget* parent, WebView::Permi
     header->addWidget(title, 1);
     layout->addLayout(header);
 
-    auto* hint = new QLabel(QStringLiteral("macOS will then ask you to let Ladybird use your location."), &card());
+    auto* hint = new QLabel(hint_text(request.name), &card());
     hint->setObjectName("LadybirdPermissionPromptHint");
     hint->setWordWrap(true);
     hint->setVisible(request.show_os_hint);
@@ -101,8 +126,10 @@ PermissionPromptPopover::PermissionPromptPopover(QWidget* parent, WebView::Permi
         QObject::connect(button, &QPushButton::clicked, this, [this, outcome] { finish(outcome); });
         layout->addWidget(button);
     };
-    add_button("LadybirdPermissionPromptAllowAlways", QStringLiteral("Allow while visiting the site"), Web::Permissions::PromptOutcome::AllowAlways);
-    add_button("LadybirdPermissionPromptAllowOnce", QStringLiteral("Allow this time"), Web::Permissions::PromptOutcome::AllowOnce);
+    auto one_time_grant = offers_one_time_grant(request.name);
+    add_button("LadybirdPermissionPromptAllowAlways", one_time_grant ? QStringLiteral("Allow while visiting the site") : QStringLiteral("Allow"), Web::Permissions::PromptOutcome::AllowAlways);
+    if (one_time_grant)
+        add_button("LadybirdPermissionPromptAllowOnce", QStringLiteral("Allow this time"), Web::Permissions::PromptOutcome::AllowOnce);
     add_button("LadybirdPermissionPromptBlock", QStringLiteral("Never allow"), Web::Permissions::PromptOutcome::Block);
 
     update_icon();

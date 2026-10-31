@@ -47,6 +47,9 @@ set(SOURCES
     NavigationLoader.cpp
     Omnibox.cpp
     OmniboxEngagement.cpp
+    NotificationAttribution.cpp
+    NotificationFreedesktopArguments.cpp
+    NotificationManager.cpp
     PictureInPictureManager.cpp
     PictureInPictureWindow.cpp
     PermissionManager.cpp
@@ -58,6 +61,7 @@ set(SOURCES
     ProcessMonitor.cpp
     Profile.cpp
     ReportSubmission.cpp
+    RecordingNotificationBackend.cpp
     RequestServerManager.cpp
     RequestServerSiteBindings.cpp
     SearchEngine.cpp
@@ -96,11 +100,19 @@ if (APPLE)
     list(APPEND SOURCES
         CrashReportPOSIX.cpp
         LaunchURLsMacOS.cpp
+        NotificationBackendMacOS.mm
         PlatformColorsMacOS.cpp
         ProcessReaper.cpp
     )
+    set_source_files_properties(NotificationBackendMacOS.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 elseif (LINUX)
     list(APPEND SOURCES AudioDaemonSocket.cpp CrashReportPOSIX.cpp)
+endif()
+
+if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    # Web notifications reach the desktop's notification daemon over the session bus.
+    pkg_check_modules(DBUS REQUIRED IMPORTED_TARGET dbus-1)
+    list(APPEND SOURCES NotificationBackendFreedesktop.cpp)
 endif()
 
 set(GENERATED_SOURCES ${CURRENT_LIB_GENERATED})
@@ -162,7 +174,11 @@ if (LINUX)
 endif()
 
 if (APPLE)
-    target_link_libraries(LibWebView PRIVATE "-framework Carbon")
+    target_link_libraries(LibWebView PRIVATE "-framework Carbon" "-framework UserNotifications")
+endif()
+
+if (LINUX OR CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    target_link_libraries(LibWebView PRIVATE PkgConfig::DBUS)
 endif()
 
 # Third-party

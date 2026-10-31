@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The notification is attributed to the page's origin as the browser knows it, scheme omitted.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Attributed");
+        notification.onshow = () => {
+            const state = JSON.parse(internals.notificationsStateForTesting());
+            const expected = location.protocol === "file:" ? "this page" : location.host;
+            println(`attribution matches: ${state.shown[0].attribution === expected}`);
+            notification.close();
+            done();
+        };
+        notification.onerror = () => { println("error"); done(); };
+    });
+</script>

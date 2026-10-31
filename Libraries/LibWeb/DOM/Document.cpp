@@ -6565,6 +6565,8 @@ void Document::destroy()
 
     // 2. Abort document.
     abort();
+
+    m_page->notifications_document_destroyed(*this);
     stop_compositor_animation_timers();
 
     // AD-HOC: Notify document observers that this document became inactive.

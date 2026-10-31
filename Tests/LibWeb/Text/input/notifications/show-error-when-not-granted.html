@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A notification created while the permission state isn't "granted" fires error and never show.
+    asyncTest(async done => {
+        const outcome = async state => {
+            await internals.setPermission("notifications", state);
+            return new Promise(resolve => {
+                const notification = new Notification("title");
+                const timeout = setTimeout(() => resolve("no event"), 1000);
+                notification.onshow = () => { clearTimeout(timeout); resolve("show"); };
+                notification.onerror = () => { clearTimeout(timeout); resolve("error"); };
+            });
+        };
+        println(`denied: ${await outcome("denied")}`);
+        println(`prompt: ${await outcome("prompt")}`);
+        done();
+    });
+</script>

@@ -1,0 +1,5 @@
+shown: 8
+show events: 100
+close events: 92
+first closed: n0
+oldest still shown: n92

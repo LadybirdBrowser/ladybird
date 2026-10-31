@@ -79,6 +79,8 @@ static QString permission_label(Web::Permissions::PermissionName name)
         return QStringLiteral("Location");
     case Web::Permissions::PermissionName::Microphone:
         return QStringLiteral("Microphone");
+    case Web::Permissions::PermissionName::Notifications:
+        return QStringLiteral("Notifications");
     }
     VERIFY_NOT_REACHED();
 }
@@ -90,6 +92,8 @@ static ChromeIcon permission_icon(Web::Permissions::PermissionName name)
         return ChromeIcon::Location;
     case Web::Permissions::PermissionName::Microphone:
         return ChromeIcon::Microphone;
+    case Web::Permissions::PermissionName::Notifications:
+        return ChromeIcon::Notifications;
     }
     VERIFY_NOT_REACHED();
 }
