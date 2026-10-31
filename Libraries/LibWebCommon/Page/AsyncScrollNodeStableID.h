@@ -12,6 +12,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Export.h>
 #include <LibWebCommon/Forward.h>
+#include <LibWebCommon/Page/CompositorContextId.h>
 #include <LibWebCommon/PixelUnits.h>
 
 namespace Web {
@@ -43,6 +44,9 @@ struct CompositorScrollOffset {
 // The compositor drags the thumb of a scrollbar the display list paints, while the mouse events of that drag still
 // reach the main thread so that everything but the scrolling stays there.
 struct ScrollbarDraggedByCompositor {
+    // The context of the document the scroller is in, which may be nested in the one the event is dispatched to. Only
+    // the process that owns that context can tell which node the scroller's id names.
+    CompositorContextId context_id;
     AsyncScrollNodeStableID scroller_stable_node_id;
     bool vertical { false };
 

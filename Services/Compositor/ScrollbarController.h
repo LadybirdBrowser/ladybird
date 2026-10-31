@@ -93,10 +93,15 @@ public:
     // Which way a press beside the thumb pages: -1 or 1 toward the pointer from where the thumb is at the given scroll
     // offset, or 0 when the thumb is under the pointer.
     int paging_direction(size_t scrollbar_index, float primary_position, Gfx::FloatPoint scroll_offset) const;
-    // The main thread still takes the mouse events of a drag that holds a scrollbar the display list paints.
-    Optional<Web::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list() const;
+    // The main thread still takes the mouse events of a drag that holds a scrollbar the display list paints. The
+    // context is the one this controller belongs to.
+    Optional<Web::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list(Web::CompositorContextId) const;
 
     Optional<size_t> hit_test_scrollbar_painted_by_compositor(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
+    // A scrollbar the display list paints takes the pointer only where the main thread would give it to it.
+    Optional<size_t> hit_test_scrollbar_painted_by_display_list(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
+    // Whether the scrollbar is shown, rather than hidden until its scroller next scrolls.
+    bool is_shown(size_t scrollbar_index) const { return opacity(scrollbar_index) > 0; }
     Optional<Drag> begin_drag(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
     Optional<Drag> captured_drag(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
     Optional<Drag> release_captured_drag(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
@@ -124,7 +129,6 @@ private:
     float expansion(size_t scrollbar_index) const;
     PresentedScrollbar presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const&, Color thumb_color, Color track_color) const;
     Optional<Gfx::IntRect> rect_in_viewport(size_t scrollbar_index, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&) const;
-    Optional<size_t> hit_test_scrollbar_painted_by_display_list(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
     float primary_position_of_captured_drag(Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position);
 
     Vector<Compositing::AsyncScrollbar> m_scrollbars;

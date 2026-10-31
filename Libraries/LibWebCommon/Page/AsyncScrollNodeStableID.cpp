@@ -49,6 +49,7 @@ ErrorOr<Web::CompositorScrollOffset> decode(Decoder& decoder)
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::ScrollbarDraggedByCompositor const& scrollbar)
 {
+    TRY(encoder.encode(scrollbar.context_id));
     TRY(encoder.encode(scrollbar.scroller_stable_node_id));
     TRY(encoder.encode(scrollbar.vertical));
     return {};
@@ -58,6 +59,7 @@ template<>
 ErrorOr<Web::ScrollbarDraggedByCompositor> decode(Decoder& decoder)
 {
     return Web::ScrollbarDraggedByCompositor {
+        .context_id = TRY(decoder.decode<Web::CompositorContextId>()),
         .scroller_stable_node_id = TRY(decoder.decode<Web::AsyncScrollNodeStableID>()),
         .vertical = TRY(decoder.decode<bool>()),
     };
