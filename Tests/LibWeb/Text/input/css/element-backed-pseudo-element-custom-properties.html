@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :root {
+        --shade: rgb(255, 0, 0);
+    }
+    :root.dark {
+        --shade: rgb(0, 128, 0);
+    }
+    input::placeholder, details::details-content {
+        color: var(--shade);
+    }
+</style>
+<input id="input" placeholder="Placeholder">
+<details id="details" open><summary>Summary</summary><p>Content</p></details>
+<script>
+    test(() => {
+        const placeholderStyle = getComputedStyle(input, "::placeholder");
+        const detailsContentStyle = getComputedStyle(details, "::details-content");
+        println(`before: ${placeholderStyle.color}, ${detailsContentStyle.color}`);
+
+        document.documentElement.classList.add("dark");
+        println(`after a root class change: ${placeholderStyle.color}, ${detailsContentStyle.color}, child ${getComputedStyle(details.querySelector("p")).color}`);
+    });
+</script>

@@ -954,19 +954,18 @@ impl RetainedState {
         use bridge::element_adjustment_fact as fact;
         let facts = self.computed_group_sets.adjustment_facts(node);
         // The host samples the element's animations over the record it installs, as it does for
-        // any element, and a record demand installs none of its own. A CSS animation needs a plan,
-        // which this drive does not decide.
+        // any element, and a record demand installs none of its own.
         let animates = facts & fact::HAS_ANIMATIONS != 0;
-        if animates
-            && (!scratch.host_applies_animation_plans || self.css_defined_animations.node_runs_a_css_animation(node))
-        {
+        if animates && !scratch.host_applies_animation_plans {
             self.counters.bump(Counter::EngineComputedRecordBailWinnerElement);
             return Err(Unanswered::Refused);
         }
         // A record it already holds is replaced by a full drive. A composition laid over it is
-        // the element's own effects, sampled again over the new base.
+        // the element's own effects, sampled again over the new base, or ended effects, which the
+        // new base drops.
         let old_record = self.computed_group_sets.assigned_style_record(node);
-        if old_record.is_some_and(|old| !animates && self.record_holds_an_animation_overlay(old)) {
+        let composes_animations = old_record.is_some_and(|old| self.record_holds_an_animation_overlay(old));
+        if composes_animations && !scratch.host_applies_animation_plans {
             self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return Err(Unanswered::Refused);
         }
@@ -1143,7 +1142,7 @@ impl RetainedState {
             self.table_counter_style_environment_identity(computed::ComputedStyleTarget::new(node, u8::MAX), &table);
         // The composition stays pinned for the host's step, which reads it as the before-change
         // style, until the host installs the new base or the derivation is reverted.
-        let detached_composition = animates
+        let detached_composition = composes_animations
             .then(|| self.computed_group_sets.detach_composition(node))
             .flatten();
         let replaced = self.computed_group_sets.replaced_columns(node);
@@ -1178,22 +1177,23 @@ impl RetainedState {
             .bind_cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX), (generation, state));
         let old_record = old_record.unwrap_or(computed::FinalStyleRecordID::NONE);
         let owes_a_transition_step = owes_a_transition_step && old_record != record;
-        if owes_a_transition_step || detached_composition.is_some() {
-            self.engine_computed_records_pending
-                .entry(node)
-                .or_default()
-                .push(PendingEngineComputedRecord {
-                    node,
-                    pseudo_kind: u8::MAX,
-                    old_style_record: old_record,
-                    new_style_record: record,
-                    replaced: Some(replaced),
-                    cascade_state: None,
-                    longhand_evaluations: 0,
-                    owes_a_transition_step,
-                    detached_composition,
-                });
-        }
+        let cascade_state = (generation, state);
+        self.computed_group_sets
+            .set_pending_cascade_state(computed::ComputedStyleTarget::new(node, u8::MAX), cascade_state);
+        self.engine_computed_records_pending
+            .entry(node)
+            .or_default()
+            .push(PendingEngineComputedRecord {
+                node,
+                pseudo_kind: u8::MAX,
+                old_style_record: old_record,
+                new_style_record: record,
+                replaced: Some(replaced),
+                cascade_state: Some(cascade_state),
+                longhand_evaluations: 0,
+                owes_a_transition_step,
+                detached_composition,
+            });
         Ok((old_record, record))
     }
 

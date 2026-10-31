@@ -3616,7 +3616,10 @@ impl RetainedState {
     ) -> bool {
         // Identity equality is NOT a proof: a stale retained answer compares equal to itself. Nor
         // is an added losing rule harmless to a record that rolled back below its winners.
-        if previous_input == current_input || self.record_rolls_back_substitution(node) {
+        if previous_input == current_input
+            || self.record_rolls_back_substitution(node)
+            || self.backed_host_pseudo_element(node).is_some()
+        {
             return false;
         }
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
@@ -3809,7 +3812,7 @@ impl RetainedState {
     /// stops the reaction.
     pub(super) fn exact_cascade_output_is_unchanged(&self, effects: &AnswerEffects, node: StyleNodeID) -> bool {
         // A record that rolled back below its winners holds declarations they do not name.
-        if self.record_rolls_back_substitution(node) {
+        if self.record_rolls_back_substitution(node) || self.backed_host_pseudo_element(node).is_some() {
             return false;
         }
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);

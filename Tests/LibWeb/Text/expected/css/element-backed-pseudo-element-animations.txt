@@ -1,0 +1,13 @@
+::placeholder: rgb(0, 64, 128)
+::details-content: rgb(0, 64, 128)
+::details-content child: rgb(0, 64, 128)
+::details-content after animating a custom property: rgb(0, 64, 128), child rgb(0, 64, 128)
+::placeholder after host restyle: rgb(0, 64, 128), rgb(1, 2, 3)
+late rule, before: none, rgb(128, 128, 128)
+late rule, after: recolor, rgb(0, 64, 128)
+document.getAnimations(): control
+getAnimations({ subtree: true }): 0, 0
+events: animationstart on control
+::placeholder with a value: none, rgb(128, 128, 128)
+::placeholder without a value: block, rgb(0, 64, 128)
+::placeholder after animation-name: none: none, rgb(128, 128, 128)
