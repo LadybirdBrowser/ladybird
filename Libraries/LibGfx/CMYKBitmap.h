@@ -32,10 +32,6 @@ public:
     [[nodiscard]] CMYK* scanline(int y);
     [[nodiscard]] CMYK const* scanline(int y) const;
 
-    [[nodiscard]] CMYK* begin();
-    [[nodiscard]] CMYK* end();
-    [[nodiscard]] size_t data_size() const { return m_data.size(); }
-
     ErrorOr<NonnullRefPtr<Bitmap>> to_low_quality_rgb() const;
 
 private:
@@ -61,16 +57,6 @@ inline CMYK const* CMYKBitmap::scanline(int y) const
 {
     VERIFY(y >= 0 && y < m_size.height());
     return reinterpret_cast<CMYK const*>(m_data.data() + y * m_size.width() * sizeof(CMYK));
-}
-
-inline CMYK* CMYKBitmap::begin()
-{
-    return reinterpret_cast<CMYK*>(m_data.data());
-}
-
-inline CMYK* CMYKBitmap::end()
-{
-    return reinterpret_cast<CMYK*>(m_data.data() + data_size());
 }
 
 }
