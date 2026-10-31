@@ -5,6 +5,7 @@
  */
 
 use crate::font::FontHandle;
+use hashbrown::hash_map::EntryRef;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -272,7 +273,7 @@ struct ShapesForText {
     shapes: Vec<ShapeForParams>,
 }
 
-type FastMap<K, V> = std::collections::HashMap<K, V, foldhash::fast::RandomState>;
+type FastMap<K, V> = hashbrown::HashMap<K, V, foldhash::fast::RandomState>;
 
 struct FontShapeCache {
     last_used_tick: u64,
@@ -308,22 +309,19 @@ impl FontShapeCache {
                 .get_or_insert_with(|| Box::new(shape_uncached()));
         }
 
-        if !self.shapes_by_text.contains_key(text) {
-            if self.shapes_by_text.len() >= MAX_SHAPE_CACHE_TEXTS_PER_FONT {
-                self.evict_least_recently_used_texts();
-            }
-            self.shapes_by_text.insert(
+        if self.shapes_by_text.len() > MAX_SHAPE_CACHE_TEXTS_PER_FONT {
+            self.evict_least_recently_used_texts();
+        }
+        let entry = match self.shapes_by_text.entry_ref(text) {
+            EntryRef::Occupied(entry) => entry.into_mut(),
+            EntryRef::Vacant(entry) => entry.insert_with_key(
                 Box::from(text),
                 ShapesForText {
                     last_used_tick: tick,
                     shapes: Vec::new(),
                 },
-            );
-        }
-        let entry = self
-            .shapes_by_text
-            .get_mut(text)
-            .expect("the entry was inserted just above");
+            ),
+        };
         entry.last_used_tick = tick;
         let shapes = &mut entry.shapes;
         let index = shapes
@@ -363,7 +361,7 @@ impl ShapingCache {
         shape_uncached: impl FnOnce() -> CachedShape,
     ) -> &CachedShape {
         self.tick += 1;
-        if !self.caches_by_font_id.contains_key(&font_id) && self.caches_by_font_id.len() >= MAX_SHAPE_CACHE_FONTS {
+        if self.caches_by_font_id.len() > MAX_SHAPE_CACHE_FONTS {
             self.evict_least_recently_used_font();
         }
         let font_cache = self.caches_by_font_id.entry(font_id).or_default();
@@ -630,9 +628,11 @@ mod shaping_cache_tests {
         cache.shape_for(one_font_over_capacity, &text, params_with_letter_spacing(0.0), || {
             shape_with_glyph_count(1)
         });
+        cache.shape_for(0, &text, params_with_letter_spacing(0.0), || unreachable!());
         assert_eq!(cache.caches_by_font_id.len(), MAX_SHAPE_CACHE_FONTS);
         assert!(cache.caches_by_font_id.contains_key(&0));
         assert!(!cache.caches_by_font_id.contains_key(&1));
+        assert!(cache.caches_by_font_id.contains_key(&one_font_over_capacity));
     }
 
     #[test]
@@ -654,6 +654,7 @@ mod shaping_cache_tests {
         cache.shape_for(1, &overflowing_text, params_with_letter_spacing(0.0), || {
             shape_with_glyph_count(1)
         });
+        cache.shape_for(1, &texts[0], params_with_letter_spacing(0.0), || unreachable!());
         let font_cache = &cache.caches_by_font_id[&1];
         assert_eq!(font_cache.shapes_by_text.len(), MAX_SHAPE_CACHE_TEXTS_PER_FONT / 2);
         assert!(font_cache.shapes_by_text.contains_key(texts[0].as_slice()));
@@ -666,7 +667,6 @@ mod shaping_cache_tests {
         assert!(font_cache.shapes_by_text.contains_key(overflowing_text.as_slice()));
         assert_eq!(cache.caches_by_font_id[&2].shapes_by_text.len(), 1);
 
-        cache.shape_for(1, &texts[0], params_with_letter_spacing(0.0), || unreachable!());
         cache.shape_for(1, &overflowing_text, params_with_letter_spacing(0.0), || unreachable!());
     }
 }

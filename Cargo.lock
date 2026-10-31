@@ -742,6 +742,7 @@ dependencies = [
  "ak",
  "cbindgen",
  "foldhash 0.2.0",
+ "hashbrown 0.17.1",
  "ladybird_allocator",
  "rustc-demangle",
  "yuv",
