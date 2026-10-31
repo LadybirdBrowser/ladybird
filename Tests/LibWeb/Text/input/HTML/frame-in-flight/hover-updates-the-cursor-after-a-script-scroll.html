@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #scroller { width: 100px; height: 100px; overflow: hidden; }
+    #scroller div { height: 100px; }
+    #help { cursor: help; }
+</style>
+<div id="scroller"><div id="plain"></div><div id="help"></div></div>
+<script>
+    // Script scrolls a box under the pointer at rest, which keeps the frame's hit-test items: the frame places them at
+    // other scroll offsets. The hover follows once the frame landed, and shows the cursor of what the scroll put under
+    // the pointer. The output is printed at the end, so that no text of it lies under the pointer meanwhile.
+    asyncTest(async done => {
+        await whileLaneHovers(async frameTime => {
+            internals.mouseMove(50, 50);
+            let time = frameTime;
+            const lines = [];
+            const step = async change => {
+                change();
+                time += 16;
+                internals.injectRenderingOpportunity(time);
+                await untilLaneSettled();
+                await nextTask();
+            };
+            lines.push(`at rest: ${internals.currentCursor()}`);
+            await step(() => scroller.scrollTop = 100);
+            lines.push(`the help row scrolled under the pointer: ${internals.currentCursor()}`);
+            await step(() => scroller.scrollTop = 0);
+            lines.push(`the plain row scrolled back under the pointer: ${internals.currentCursor()}`);
+            println(lines.join("\n"));
+        });
+        done();
+    });
+</script>

@@ -51,6 +51,9 @@ public:
     void republish_visual_animations(Layout::BegunRead const& read, DOM::Document&);
     bool visual_context_tree_needs_compositor_update() const { return m_visual_context_tree_needs_compositor_update; }
     void did_update_visual_context_tree_in_compositor() { m_visual_context_tree_needs_compositor_update = false; }
+    // Whether the scroll offsets changed since a frame last took the change.
+    bool take_scroll_state_change() { return exchange(m_scroll_state_changed, false); }
+    void did_change_scroll_state() { m_scroll_state_changed = true; }
     bool has_visual_context_tree(Layout::BegunRead const& read) const;
     u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
     u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
@@ -100,6 +103,7 @@ private:
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
+    bool m_scroll_state_changed { false };
 };
 
 }

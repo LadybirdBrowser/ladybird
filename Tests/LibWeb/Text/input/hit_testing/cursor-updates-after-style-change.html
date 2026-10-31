@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #target {
+        cursor: pointer;
+        height: 100px;
+        width: 100px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    function nextRenderingUpdate() {
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }
+
+    // The style changes a rendering update after the move settled, as a player hiding its controls does.
+    asyncTest(async done => {
+        internals.mouseMove(50, 50);
+        await nextRenderingUpdate();
+        println(`initial cursor: ${internals.currentCursor()}`);
+
+        target.style.cursor = "none";
+        await nextRenderingUpdate();
+        internals.synchronizeCompositor();
+        // The hover follows the frame between two tasks.
+        await new Promise(resolve => setTimeout(resolve, 0));
+        println(`cursor after style change: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

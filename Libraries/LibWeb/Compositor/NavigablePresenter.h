@@ -59,6 +59,8 @@ struct SealedPresentation {
     Optional<Compositing::AccumulatedVisualContextTree> visual_context_tree;
     // Whether the document's tree changed since the compositor took one.
     bool sends_visual_context_tree { false };
+    // Whether the document's scroll offsets changed since the frame before.
+    bool scroll_state_changed { false };
     // The scroll state, which seeds the offsets of the boxes new to the compositor.
     Compositing::ScrollStateSnapshot scroll_state_snapshot;
     // The scrolls the navigable asked for since the frame before, which the compositor applies once it has the frame's

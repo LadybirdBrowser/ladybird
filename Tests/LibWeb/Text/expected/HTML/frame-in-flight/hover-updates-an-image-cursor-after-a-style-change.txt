@@ -1,0 +1,2 @@
+cursor over the target: Hand
+cursor once the frame with the style landed: Image

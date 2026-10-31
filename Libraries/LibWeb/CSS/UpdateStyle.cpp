@@ -163,6 +163,8 @@ static void apply_element_style_invalidation_after_style_change(Layout::BegunRea
 
 static void apply_document_style_invalidation_after_style_change(DOM::Document& document, RequiredInvalidationAfterStyleChange const& invalidation)
 {
+    if (invalidation.cursor_changed)
+        document.set_cursor_may_be_stale();
     if (!invalidation.needs_repaint())
         return;
     if (invalidation.invalidates_hit_test_display_list())

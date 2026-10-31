@@ -1,0 +1,3 @@
+cursor over the target: Hand
+cursor once the frame with the style landed: Hidden
+cursor once the frame with the next style landed: Help

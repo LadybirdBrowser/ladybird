@@ -93,6 +93,7 @@ struct RequiredInvalidationAfterStyleChange {
     // space text among them may gain or lose its box.
     bool white_space_collapse_changed : 1 { false };
     bool affects_hit_testing : 1 { false };
+    bool cursor_changed : 1 { false };
     // A non-inherited property changed without any other invalidation, which happens when a running
     // animation covers the property. Descendants that explicitly inherit non-inherited properties
     // still observe the change.
@@ -116,6 +117,7 @@ struct RequiredInvalidationAfterStyleChange {
         repaint_highlights |= other.repaint_highlights;
         white_space_collapse_changed |= other.white_space_collapse_changed;
         affects_hit_testing |= other.affects_hit_testing;
+        cursor_changed |= other.cursor_changed;
         non_inherited_property_inheritance_sources_changed |= other.non_inherited_property_inheritance_sources_changed;
     }
 

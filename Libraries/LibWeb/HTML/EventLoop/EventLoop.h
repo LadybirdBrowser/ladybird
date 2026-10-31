@@ -29,6 +29,13 @@ enum class FfiFlightBlocker : uint8_t;
 
 namespace Web::HTML {
 
+// Where the event loop follows the pointer at rest: between two tasks, or as a rendering update begins, which brings
+// the style and layout up to date itself.
+enum class HoverUpdatePoint : u8 {
+    BetweenTasks,
+    RenderingUpdateBegins,
+};
+
 // What the render clock's lanes do with a document's running animations.
 enum class ClockAnimations : u8 {
     // Leaves them alone: the event loop is idle, and its rendering updates run them.
@@ -190,6 +197,9 @@ public:
     void ensure_frame_completion_registered();
     // Whether a frame flies beside the event loop, which has not taken it in yet.
     bool has_frame_in_flight() const;
+    // Notes that the hover of `navigable` may be stale, which the event loop updates between two tasks, or as the next
+    // rendering update begins.
+    void note_hover_may_be_stale(LocalNavigable&);
     // Whether a rendering update has let its frame fly and has not run its steps from its style and layout on yet.
     bool has_rendering_update_in_flight() const { return m_rendering_update_in_flight; }
     // Whether the layout of the rendering update in flight runs, or ran, beside the event loop.
@@ -241,6 +251,7 @@ private:
     void note_script_ran_beside_rendering_update_in_flight();
     // Goes on with the rendering update in flight where it has landed, and presents the recordings that have landed.
     void take_finished_frames_in();
+    void update_hovers_that_may_be_stale(HoverUpdatePoint);
     bool let_layout_of_rendering_update_fly();
     void note_clock_lanes(ClockAnimations);
 
@@ -298,6 +309,8 @@ private:
 
     // The navigables whose committed frame flies beside the event loop, which has not taken it in yet.
     Vector<GC::Ref<LocalNavigable>> m_navigables_with_frames_in_flight;
+    // The navigables whose hover may be stale: what is under their pointer at rest may have moved, or changed its cursor.
+    Vector<GC::Root<LocalNavigable>> m_navigables_with_hover_that_may_be_stale;
     // The navigables whose active document a rendering update left a plan for the lane of its frame, which the event
     // loop tells whether it runs a task.
     Vector<GC::Ref<LocalNavigable>> m_navigables_with_clock_lanes;

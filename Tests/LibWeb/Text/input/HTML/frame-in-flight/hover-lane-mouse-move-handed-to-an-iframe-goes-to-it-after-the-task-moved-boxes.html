@@ -12,7 +12,8 @@
     // Beside a task that moves an element over a same-process iframe, the lane of the document hands a move over the
     // iframe, as the screen shows it, to the iframe's lane, which hovers it. The rendering update after the task
     // handles the mouse event of that move, which goes to the iframe's element under the pointer, as the screen showed
-    // it, not to the element the task moved there.
+    // it, not to the element the task moved there. The pointer then rests on the element the task moved under it,
+    // which the update hovers.
     asyncTest(async done => {
         const iframe = document.querySelector("iframe");
         await srcdocLoaded(iframe);
@@ -26,9 +27,12 @@
             internals.injectHoverPointer(80, 50, frameTime + 16, id);
             iframe.contentWindow.internals.injectClockTick(frameTime + 32);
         }, [document, iframe.contentDocument]);
-        await twoFrames();
+        // The hover follows the frame that moved the element under the pointer, between two tasks once it landed.
+        await twoFramesLanded();
+        await nextTask();
         println(`mousemove targets: ${targets.join(", ")}`);
         println(`#inner matches :hover: ${inner.matches(":hover")}`);
+        println(`#cover matches :hover: ${cover.matches(":hover")}`);
         done();
     });
 </script>

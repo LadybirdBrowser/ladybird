@@ -1,0 +1,2 @@
+initial cursor: Hand
+cursor after style change: Hidden

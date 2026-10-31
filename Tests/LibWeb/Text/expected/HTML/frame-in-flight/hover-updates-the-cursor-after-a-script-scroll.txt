@@ -1,0 +1,3 @@
+at rest: Arrow
+the help row scrolled under the pointer: Help
+the plain row scrolled back under the pointer: Arrow

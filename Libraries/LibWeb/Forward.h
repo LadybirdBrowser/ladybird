@@ -670,6 +670,7 @@ class DOMRectReadOnly;
 namespace Web::HTML {
 
 enum class CheckIfUnloadingIsCanceledResult;
+enum class HoverUpdatePoint : u8;
 
 class AnimationFrameCallbackDriver;
 class AudioTrack;

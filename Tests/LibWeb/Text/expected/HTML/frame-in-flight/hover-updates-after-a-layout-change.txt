@@ -1,0 +1,3 @@
+beside the target: hovered=false cursor=Arrow events=none
+the target laid out under the pointer: hovered=true cursor=Hand events=mouseout html, mouseover target
+the target laid out away again: hovered=false cursor=Arrow events=mouseout target, mouseover html

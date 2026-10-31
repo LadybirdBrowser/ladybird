@@ -86,6 +86,7 @@
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -5253,6 +5254,11 @@ void LocalNavigable::note_scroll_sequence_moved(Web::AsyncScrollNodeStableID sta
     }
 }
 
+bool LocalNavigable::has_user_scroll_gesture() const
+{
+    return any_of(m_scroll_sequences, [](auto const& sequence) { return sequence.user_gesture.has_value(); });
+}
+
 LocalNavigable::UserScrollGesture* LocalNavigable::user_scroll_gesture_for(Web::AsyncScrollNodeStableID stable_node_id)
 {
     auto* sequence = scroll_sequence_for(stable_node_id);
@@ -5971,11 +5977,13 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositing::AsyncScroll
         }
     }
 
-    if (adopted_any_scroll_offset)
-        schedule_hover_update_after_async_scroll();
-
-    for (auto const& applied_scroll_request : async_scroll_updates.applied_scroll_requests)
+    bool moved_a_box_by_request = false;
+    for (auto const& applied_scroll_request : async_scroll_updates.applied_scroll_requests) {
+        moved_a_box_by_request |= applied_scroll_request.moved_the_box;
         finish_instant_scrolls_answered_by(applied_scroll_request);
+    }
+    if (adopted_any_scroll_offset || moved_a_box_by_request)
+        schedule_hover_update_after_async_scroll();
 
     for (auto operation_id : async_scroll_updates.completed_operation_ids)
         resolve_async_scroll_operation(operation_id);
@@ -6042,7 +6050,7 @@ void LocalNavigable::update_hover_after_async_scroll_stops()
 {
     if (has_been_destroyed())
         return;
-    event_handler().update_hover_after_scroll();
+    event_handler().update_hover_at_last_known_mouse_position();
 }
 
 void LocalNavigable::cancel_hover_update_after_async_scroll()
@@ -7058,6 +7066,7 @@ Compositor::SealedPresentation LocalNavigable::seal_presentation(DOM::Document& 
         .paint_config = paint_config,
         .visual_context_tree = move(visual_context_tree),
         .sends_visual_context_tree = sends_visual_context_tree,
+        .scroll_state_changed = paint_state.take_scroll_state_change(),
         .scroll_state_snapshot = move(scroll_state_snapshot),
         .scroll_requests = take_unsent_scroll_requests(),
         .keyboard_scroll_state = move(keyboard_scroll_state),
@@ -7077,6 +7086,8 @@ void LocalNavigable::unseal_presentation(DOM::Document& document, Compositor::Se
 {
     if (sealed.sends_visual_context_tree && document.has_paint_state())
         document.paint_state().did_update_visual_context_values();
+    if (sealed.scroll_state_changed && document.has_paint_state())
+        document.paint_state().did_change_scroll_state();
     give_back_unsent_scroll_requests(move(sealed.scroll_requests));
 }
 
@@ -7120,20 +7131,38 @@ void LocalNavigable::finish_recording_in_flight(RecordingInFlight& in_flight, La
     // A frame the render owner found no box to record of presents nothing.
     if (landing == Layout::RustFFI::FfiRecordingLanding::NothingRecorded) {
         unseal_presentation(document, *sealed);
+        if (!has_been_destroyed() && active_document().ptr() == document.ptr())
+            event_handler().note_frame_landed(Web::EventHandler::FramePlacement::Unchanged);
         return;
     }
-    if (landing == Layout::RustFFI::FfiRecordingLanding::PresentedUnrecorded)
-        return;
-
     Layout::ForcedReadScope read { *document };
     // What the recording made goes to a document this navigable still presents, which still has the boxes it recorded.
     if (has_been_destroyed() || !has_compositor_context() || active_document().ptr() != document.ptr() || !document->has_committed_viewport_box())
         return;
-    // What the recording made stands as the compositor's frame. One that landed after the host wrote the document's rows
-    // leaves no hit-test list, as the boxes it names may be gone.
-    auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
-    Painting::take_recording_trace_if_pending(read, *document);
-    document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, [&] { return sealed->published->referenced_resources; });
+    // A frame presented without a recording keeps the hit-test list.
+    auto hit_test_list_adoption = Painting::HitTestListAdoption::Kept;
+    if (landing != Layout::RustFFI::FfiRecordingLanding::PresentedUnrecorded) {
+        // What the recording made stands as the compositor's frame. One that landed after the host wrote the document's
+        // rows leaves no hit-test list, as the boxes it names may be gone.
+        auto const hit_test_list_stands = landing == Layout::RustFFI::FfiRecordingLanding::LandedBehindRows ? Painting::HitTestListStands::No : Painting::HitTestListStands::Yes;
+        Painting::take_recording_trace_if_pending(read, *document);
+        hit_test_list_adoption = document->adopt_published_recording(Painting::hit_test_list_read(read, hit_test_list_stands), *in_flight.recording, sealed->published->display_list, [&] { return sealed->published->referenced_resources; });
+    }
+    // A frame that kept its hit-test items, and sent no visual context tree, placed them as the frame before it did,
+    // unless it scrolled them. The hover waits for a scroll of the user's to stop instead (see
+    // schedule_hover_update_after_async_scroll).
+    auto const frame_placement = [&] {
+        if (hit_test_list_adoption == Painting::HitTestListAdoption::TookNew)
+            return Web::EventHandler::FramePlacement::Changed;
+        if (hit_test_list_adoption != Painting::HitTestListAdoption::Kept)
+            return Web::EventHandler::FramePlacement::Unchanged;
+        if (sealed->sends_visual_context_tree)
+            return Web::EventHandler::FramePlacement::Changed;
+        if (sealed->scroll_state_changed && !has_user_scroll_gesture())
+            return Web::EventHandler::FramePlacement::Changed;
+        return Web::EventHandler::FramePlacement::Unchanged;
+    }();
+    event_handler().note_frame_landed(frame_placement);
 }
 
 void LocalNavigable::record_rendering_invalidation()

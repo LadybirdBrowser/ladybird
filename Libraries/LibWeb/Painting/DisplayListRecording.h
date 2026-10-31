@@ -23,6 +23,13 @@ enum class HitTestListStands {
     Yes,
 };
 
+// What a document did with the hit-test list a recording made as it took the recording in.
+enum class HitTestListAdoption : u8 {
+    Dropped,
+    Kept,
+    TookNew,
+};
+
 // The read a recording's hit-test list is made in, `read`, where the list stands, and none otherwise.
 inline Optional<Layout::BegunRead const&> hit_test_list_read(Layout::BegunRead const& read, HitTestListStands stands)
 {
