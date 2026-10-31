@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px serif; }
+    p { margin: 0 0 8px; }
+    .balanced { text-wrap: balance; }
+    .columns { columns: 3; column-gap: 12px; }
+</style>
+<div id="container">
+    <p class="balanced">A balanced paragraph spreads its words over its lines evenly, so its last line is about as long as the others are.</p>
+    <p class="wrapped">A balanced paragraph spreads its words over its lines evenly, so its last line is about as long as the others are.</p>
+    <div class="columns"><p class="in-columns">The text of this paragraph flows through three columns, and each relayout at another width moves the column breaks to other words of it. Then an edit gives the paragraph other text, which the columns have to break anew at every width.</p></div>
+</div>
+<script>
+    const widths = [240, 320, 410];
+
+    function geometry(root) {
+        const origin = root.getBoundingClientRect();
+        const relative = rect => `${rect.left - origin.left},${rect.top - origin.top},${rect.width},${rect.height}`;
+        const parts = Array.from(root.querySelectorAll("*"), element => relative(element.getBoundingClientRect()));
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        while (walker.nextNode()) {
+            range.selectNodeContents(walker.currentNode);
+            parts.push(Array.from(range.getClientRects(), relative).join(";"));
+        }
+        return parts.join(" ");
+    }
+
+    function layOutAt(width) {
+        container.style.width = `${width}px`;
+        return geometry(container);
+    }
+
+    function matchesFreshLayoutAt(width) {
+        const relaidOut = layOutAt(width);
+        const fresh = container.cloneNode(true);
+        fresh.removeAttribute("id");
+        document.body.appendChild(fresh);
+        const freshGeometry = geometry(fresh);
+        fresh.remove();
+        return relaidOut === freshGeometry;
+    }
+
+    function lineRects(paragraph) {
+        const range = document.createRange();
+        range.selectNodeContents(paragraph.firstChild);
+        return Array.from(range.getClientRects());
+    }
+
+    test(() => {
+        const part = selector => container.querySelector(selector);
+        for (const width of widths)
+            layOutAt(width);
+        println(`before any change: ${widths.map(matchesFreshLayoutAt).join(" ")}`);
+        const balancesLinesAt = width => {
+            layOutAt(width);
+            const balanced = lineRects(part(".balanced"));
+            const wrapped = lineRects(part(".wrapped"));
+            return balanced.length === wrapped.length && balanced.at(-1).width > wrapped.at(-1).width;
+        };
+        println(`balances its lines: ${[...widths, ...widths].map(balancesLinesAt).join(" ")}`);
+        const columnCountAt = width => {
+            layOutAt(width);
+            return new Set(lineRects(part(".in-columns")).map(rect => rect.left)).size;
+        };
+        println(`fills three columns: ${widths.map(columnCountAt).join(" ")}`);
+
+        const before = layOutAt(widths[0]);
+        part(".in-columns").firstChild.data = "Other text for the paragraph in columns, shorter than the text it replaces but still long enough to fill all of the three columns at every width.";
+        const moved = layOutAt(widths[0]) !== before;
+        const matches = [...widths.slice(1), widths[0]].map(matchesFreshLayoutAt);
+        println(`text edit in columns: moved ${moved}, matches a fresh layout: ${matches.join(" ")}`);
+        println(`fills three columns after the edit: ${widths.map(columnCountAt).join(" ")}`);
+    });
+</script>

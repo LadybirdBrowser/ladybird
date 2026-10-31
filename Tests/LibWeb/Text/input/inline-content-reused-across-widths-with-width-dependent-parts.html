@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px serif; }
+    #container { display: flow-root; }
+    p { margin: 0 0 8px; }
+    .padded { padding: 0 5%; margin: 0 3%; border: 1px solid; }
+    .percentage-width { display: inline-block; width: 20%; height: 10px; }
+    .tabs { white-space: pre-wrap; tab-size: 4; }
+    .tabs .atomic { display: inline-block; width: 12%; height: 10px; }
+    .bordered { border: 3px solid; padding: 0 4px; position: relative; }
+    .float { float: left; width: 15%; height: 20px; }
+    .abspos { position: absolute; left: 10%; top: 0; width: 25%; height: 6px; }
+    .vertical { writing-mode: vertical-rl; text-orientation: upright; white-space: pre-wrap; height: 50%; }
+    .vertical span { padding-top: 10%; }
+</style>
+<div id="container">
+    <p>Words around <span class="padded">a span with percentage padding and margin</span> that wraps.</p>
+    <p>An inline-block <span class="percentage-width"></span> whose width is a percentage of the line.</p>
+    <p class="tabs">a<span class="atomic"></span>	b	c	d	end of the tabbed line</p>
+    <p>Before <span class="bordered">a bordered span with <span class="float"></span>a float and <span class="abspos"></span>an abspos inside it</span> after.</p>
+    <div class="vertical">up<span>right</span>	tab	and more upright text</div>
+</div>
+<script>
+    const widths = [240, 320, 410];
+
+    function geometry(root) {
+        const origin = root.getBoundingClientRect();
+        const relative = rect => `${rect.left - origin.left},${rect.top - origin.top},${rect.width},${rect.height}`;
+        const parts = Array.from(root.querySelectorAll("*"), element => relative(element.getBoundingClientRect()));
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const range = document.createRange();
+        while (walker.nextNode()) {
+            range.selectNodeContents(walker.currentNode);
+            parts.push(Array.from(range.getClientRects(), relative).join(";"));
+        }
+        return parts.join(" ");
+    }
+
+    function layOutAt(width) {
+        container.style.width = `${width}px`;
+        container.style.height = `${width / 2}px`;
+        return geometry(container);
+    }
+
+    function matchesFreshLayoutAt(width) {
+        const relaidOut = layOutAt(width);
+        const fresh = container.cloneNode(true);
+        fresh.removeAttribute("id");
+        document.body.appendChild(fresh);
+        const freshGeometry = geometry(fresh);
+        fresh.remove();
+        return relaidOut === freshGeometry;
+    }
+
+    test(() => {
+        const part = selector => container.querySelector(selector);
+        const changes = [
+            ["percentage padding", () => (part(".padded").style.paddingLeft = "8%")],
+            ["text after tabs", () => (part(".tabs").lastChild.data = "	b		c	the line goes on with other text")],
+            ["float width", () => (part(".float").style.width = "25%")],
+            ["vertical text", () => (part(".vertical").lastChild.data = "	tab	and		other upright text")],
+        ];
+
+        for (const width of widths)
+            layOutAt(width);
+        println(`before any change: ${widths.map(matchesFreshLayoutAt).join(" ")}`);
+        for (const [name, change] of changes) {
+            const before = layOutAt(widths[0]);
+            change();
+            const moved = layOutAt(widths[0]) !== before;
+            const matches = [...widths.slice(1), widths[0]].map(matchesFreshLayoutAt);
+            println(`${name}: moved ${moved}, matches a fresh layout: ${matches.join(" ")}`);
+        }
+    });
+</script>

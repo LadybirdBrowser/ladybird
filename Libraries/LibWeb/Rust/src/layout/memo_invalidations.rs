@@ -16,12 +16,14 @@ use super::fc_run_cache::FcRunCacheStore;
 use super::in_flow_block_cache::InFlowBlockCacheStore;
 use super::layout_node_arena::IntrinsicSizeCaches;
 use super::node_data::NodeSlotId;
+use super::prepared_inline_content::PreparedInlineContentMemos;
 use super::rendered_text::TextMemos;
 
 #[derive(Clone, Copy, Default)]
 struct SlotNotes {
     noted: bool,
     text_memos_dropped: bool,
+    prepared_inline_content_dropped: bool,
     run_cache_entries_dropped: bool,
     in_flow_block_entries_dropped: bool,
     intrinsic_sizes_dropped: bool,
@@ -64,6 +66,7 @@ impl MemoInvalidations {
         self.note_run_cache_entries_dropped(slot);
         let notes = self.notes_of(slot);
         notes.text_memos_dropped = true;
+        notes.prepared_inline_content_dropped = true;
         notes.in_flow_block_entries_dropped = true;
         notes.intrinsic_sizes_dropped = true;
     }
@@ -79,11 +82,12 @@ impl MemoInvalidations {
         self.notes_of(slot).text_memos_dropped = true;
     }
 
-    /// The fragment cache epoch of `node` moved on: its run cache entries need the sweep, and its in-flow block entry,
-    /// valid for one epoch only, is dropped.
+    /// The fragment cache epoch of `node` moved on: its run cache entries need the sweep, and its in-flow block entry
+    /// and prepared inline content, valid for one epoch only, are dropped.
     pub(crate) fn note_fragment_cache_epoch_bumped(&mut self, node: NodeSlotId) {
         let notes = self.notes_of(node.slot_index());
         notes.in_flow_block_entries_dropped = true;
+        notes.prepared_inline_content_dropped = true;
         if !notes.run_cache_entries_dropped {
             notes.fragment_cache_epoch_bumped = true;
             notes.generation = node.generation();
@@ -105,6 +109,7 @@ impl MemoInvalidations {
         run_cache: &FcRunCacheStore,
         in_flow_block_cache: &InFlowBlockCacheStore,
         text_memos: &TextMemos,
+        prepared_inline_content: &PreparedInlineContentMemos,
         intrinsic_size_caches: &IntrinsicSizeCaches,
     ) {
         for slot in self.noted_slots {
@@ -125,6 +130,9 @@ impl MemoInvalidations {
             }
             if notes.text_memos_dropped {
                 text_memos.forget(slot);
+            }
+            if notes.prepared_inline_content_dropped {
+                prepared_inline_content.forget(slot);
             }
             if notes.intrinsic_sizes_dropped {
                 intrinsic_size_caches.drop_entries_of_slot(slot);

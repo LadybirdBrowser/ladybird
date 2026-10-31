@@ -38,7 +38,8 @@ pub(crate) struct LayoutPass<'arena> {
     /// passes after them, or inside a run whose result is discarded, that run's own.
     intrinsic_size_caches: &'arena super::layout_node_arena::IntrinsicSizeCaches,
     /// Whether this pass view is inside a run whose result is discarded, which reads no memoized layout from before it
-    /// and keeps none: the run cache, the in-flow block cache, inline item stashes and intrinsic sizes.
+    /// and keeps none: the run cache, the in-flow block cache, inline item stashes, prepared inline content and
+    /// intrinsic sizes.
     reads_no_memoized_layout: bool,
     /// The innermost of the position options the boxes this pass view lays out are laid out with.
     position_option_styles: Option<&'arena PositionOptionStyle<'arena>>,
@@ -130,6 +131,10 @@ impl<'arena> LayoutPass<'arena> {
             reads_no_memoized_layout: true,
             ..pass
         })
+    }
+
+    pub(crate) fn lays_out_with_position_option(&self) -> bool {
+        self.position_option_styles.is_some()
     }
 
     /// Runs `run` with this pass as it lays out `node` with `style`, the style of one of its position options, which
@@ -252,6 +257,12 @@ impl<'arena> LayoutPass<'arena> {
         self.scratch
             .text_memos()
             .text_chunks(node, self.text_content(node).rendered(), key, compute)
+    }
+
+    pub(crate) fn prepared_inline_content_memos(
+        &self,
+    ) -> &'arena super::prepared_inline_content::PreparedInlineContentMemos {
+        self.scratch.prepared_inline_content_memos()
     }
 
     pub(crate) fn take_inline_content_preparation_buffers(

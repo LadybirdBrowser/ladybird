@@ -648,6 +648,52 @@ mod tests {
     }
 
     #[test]
+    fn kept_prepared_inline_content_goes_with_an_epoch_bump_or_a_freed_slot_and_survives_a_fork() {
+        use crate::layout::LayoutPass;
+        use crate::layout::fc_run_cache::run_root_validity;
+        use crate::layout::prepared_inline_content::PreparedInlineContent;
+        use crate::layout::run_state::LayoutScratch;
+        use std::sync::Arc;
+
+        let mut arena = LayoutNodeArena::new();
+        let scratch = LayoutScratch::default();
+        let block = arena.allocate_for_test().slot;
+        scratch.apply_memo_invalidations(&mut arena);
+        let keep = |arena: &LayoutNodeArena, scratch: &LayoutScratch| {
+            let validity = run_root_validity(&LayoutPass::for_test(arena, scratch), block);
+            let prepared = Arc::new(PreparedInlineContent {
+                validity,
+                items: Box::default(),
+                box_events: Box::default(),
+                fonts: Box::default(),
+                tab_stops: Box::default(),
+            });
+            scratch.prepared_inline_content_memos().keep(block, prepared.clone());
+            (validity, Arc::downgrade(&prepared))
+        };
+        let kept = |scratch: &LayoutScratch, validity| scratch.prepared_inline_content_memos().kept(block, validity);
+
+        let (validity, prepared) = keep(&arena, &scratch);
+        arena.clear_committed_fragment_link(block);
+        scratch.apply_memo_invalidations(&mut arena);
+        assert!(kept(&scratch, validity).is_some_and(|kept| Arc::ptr_eq(&kept, &prepared.upgrade().unwrap())));
+
+        let fork = scratch.fork();
+        arena.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(block);
+        scratch.apply_memo_invalidations(&mut arena);
+        assert!(kept(&scratch, validity).is_none());
+        assert!(kept(&fork, validity).is_some_and(|kept| Arc::ptr_eq(&kept, &prepared.upgrade().unwrap())));
+        drop(fork);
+        assert!(prepared.upgrade().is_none());
+
+        let (validity, prepared) = keep(&arena, &scratch);
+        assert!(kept(&scratch, validity).is_some());
+        let _ = arena.free_subtree(block);
+        scratch.apply_memo_invalidations(&mut arena);
+        assert!(prepared.upgrade().is_none());
+    }
+
+    #[test]
     fn identity_mapping_clamps_offsets_to_the_dom_slice() {
         let text = content("hello", 3, 5, Vec::new());
         for boundary in [Start, End] {

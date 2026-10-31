@@ -27,6 +27,7 @@ pub(crate) struct LayoutScratch {
     /// The chunks and grapheme segmenters of the text rows the passes laid out.
     text_memos: super::rendered_text::TextMemos,
     inline_content_preparation_buffers: Cell<super::prepared_inline_content::InlineContentPreparationBuffers>,
+    prepared_inline_content_memos: super::prepared_inline_content::PreparedInlineContentMemos,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -103,6 +104,7 @@ impl Default for LayoutScratch {
             layout_trace: Default::default(),
             text_memos: Default::default(),
             inline_content_preparation_buffers: Default::default(),
+            prepared_inline_content_memos: Default::default(),
         }
     }
 }
@@ -115,6 +117,7 @@ impl LayoutScratch {
             fc_run_cache_store: self.fc_run_cache_store.clone(),
             in_flow_block_cache_store: self.in_flow_block_cache_store.clone(),
             text_memos: self.text_memos.fork(),
+            prepared_inline_content_memos: self.prepared_inline_content_memos.fork(),
             ..Self::default()
         }
     }
@@ -131,6 +134,10 @@ impl LayoutScratch {
         &self.text_memos
     }
 
+    pub(super) fn prepared_inline_content_memos(&self) -> &super::prepared_inline_content::PreparedInlineContentMemos {
+        &self.prepared_inline_content_memos
+    }
+
     pub(super) fn inline_content_preparation_buffers(
         &self,
     ) -> &Cell<super::prepared_inline_content::InlineContentPreparationBuffers> {
@@ -143,6 +150,7 @@ impl LayoutScratch {
             &self.fc_run_cache_store,
             &self.in_flow_block_cache_store,
             &self.text_memos,
+            &self.prepared_inline_content_memos,
             &self.intrinsic_size_caches,
         );
     }
