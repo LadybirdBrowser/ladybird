@@ -1297,6 +1297,9 @@ void Page::did_request_color_picker(GC::Weak<HTML::HTMLInputElement> target, Col
         m_pending_non_blocking_dialog_target = move(target);
 
         m_client->page_did_request_color_picker(current_color);
+    } else if (target && target.ptr() != m_pending_non_blocking_dialog_target.ptr()) {
+        // NB: Another dialog is showing, so no picker opens for this input.
+        target->set_is_open(false);
     }
 }
 
