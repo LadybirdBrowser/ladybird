@@ -5,9 +5,8 @@
     test(() => {
         const input = document.getElementById("time");
         input.focus();
-        // Each keystroke leaves an invalid partial time until the last; the raw text must persist across them
-        // for the final value to parse as "12:30".
-        for (const ch of "12:30") {
+        // Each keystroke fills in a field of the time; the value stays empty until the day period is chosen too.
+        for (const ch of "12:30p") {
             internals.sendText(input, ch);
             println(`after '${ch}': value="${input.value}"`);
         }

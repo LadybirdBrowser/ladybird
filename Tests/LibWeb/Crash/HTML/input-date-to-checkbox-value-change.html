@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<input id="checkbox" type="date" value="2024-01-01">
+<input id="hidden" type="date" value="2024-01-01">
+<script>
+    for (const [input, type] of [[checkbox, "checkbox"], [hidden, "hidden"]]) {
+        input.offsetWidth;
+        input.type = type;
+        input.setAttribute("value", "x");
+        input.offsetWidth;
+    }
+</script>

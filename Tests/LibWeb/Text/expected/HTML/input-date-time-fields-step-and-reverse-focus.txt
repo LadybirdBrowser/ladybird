@@ -1,0 +1,4 @@
+focused after Shift+Tab: date
+date with the year typed first: value="2026-10-31"
+time with step 1: value="01:30:05"
+time with step 60: value="01:30:05"
