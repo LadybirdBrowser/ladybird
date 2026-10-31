@@ -1,0 +1,7 @@
+idle: rgb(239, 239, 239)
+label hovered: rgb(239, 239, 239)
+hovered: rgb(191, 191, 191)
+pressed: color(srgb 0.702941 0.702941 0.702941)
+dragged outside: rgb(239, 239, 239)
+released outside: rgb(239, 239, 239)
+disabled: rgba(239, 239, 239, 0.5)
