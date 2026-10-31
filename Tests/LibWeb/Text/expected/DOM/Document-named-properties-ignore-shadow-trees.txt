@@ -1,0 +1,8 @@
+document.shadowform: undefined
+document.shadowimg: undefined
+document.shadowobject: undefined
+window.shadowimg: undefined
+document.shadowform after moving: [object HTMLFormElement]
+document.shadowimg after moving: [object HTMLImageElement]
+document.shadowobject after moving: [object HTMLObjectElement]
+window.shadowimg after moving: [object HTMLImageElement]

@@ -9570,10 +9570,13 @@ static bool is_named_element_by_id(DOM::Element const& element)
 //     Document, or a named property by name of Window. Window looks up every other element by id in the element by id
 //     map. Keeping any other element out of the list keeps the tree order insertions below cheap, which matters for
 //     documents with thousands of elements with an id, such as SVG icon sprites.
+//     Only elements in a document tree with the document as their root contribute, so an element in a shadow tree is
+//     kept out as well.
 static bool should_be_in_potentially_named_elements(DOM::Element const& element)
 {
-    return (element.name().has_value() && is_potentially_named_element(element))
-        || (element.id().has_value() && is_potentially_named_element_by_id(element));
+    return ((element.name().has_value() && is_potentially_named_element(element))
+               || (element.id().has_value() && is_potentially_named_element_by_id(element)))
+        && element.root().is_document();
 }
 
 static void insert_in_tree_order(Vector<GC::Ref<DOM::Element>>& elements, DOM::Element& element)
@@ -9695,7 +9698,7 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_with_id_was_added_or_removed({});
 
-    if (is_potentially_named_element_by_id(*element)) {
+    if (is_potentially_named_element_by_id(*element) && element->root().is_document()) {
         insert_in_tree_order(m_potentially_named_elements, element);
         if (is_named_element_by_id(*element))
             did_add_supported_property_name();
@@ -9735,7 +9738,7 @@ void Document::element_name_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> e
 
 void Document::element_with_name_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
-    if (is_potentially_named_element(element)) {
+    if (is_potentially_named_element(element) && element->root().is_document()) {
         insert_in_tree_order(m_potentially_named_elements, element);
         did_add_supported_property_name();
     }
