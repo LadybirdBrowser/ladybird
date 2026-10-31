@@ -1,1 +1,1 @@
-Worker in sandboxed iframe: failed to load
+Worker in sandboxed iframe: ran
