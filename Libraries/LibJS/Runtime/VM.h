@@ -451,6 +451,10 @@ public:
     // The frames of the execution context stack from the running one down, with where in its source code each one is.
     [[nodiscard]] Vector<StackTraceElement> stack_trace() const;
 
+    // Where the last throw statement threw the given value, if it was the last value one threw. Only one report may take
+    // the location of a throw.
+    [[nodiscard]] Optional<SourceRange> take_throw_site_of(Value);
+
 private:
     friend class InterpreterStack;
     friend struct HostHookThunks;

@@ -627,10 +627,11 @@ impl Vm {
             if let Some(handler) = executable.exception_handlers_for_offset(program_counter) {
                 context.register(register::EXCEPTION).set(exception);
                 context.program_counter.set(handler.handler_offset);
-                if handler.catches_exception
-                    && let Some(debugger) = self.debugger()
-                {
-                    debugger.did_finish_exception_propagation(exception);
+                if handler.catches_exception {
+                    self.forget_throw_site_of(exception);
+                    if let Some(debugger) = self.debugger() {
+                        debugger.did_finish_exception_propagation(exception);
+                    }
                 }
                 return HandleExceptionResponse::ContinueInThisExecutable;
             }
