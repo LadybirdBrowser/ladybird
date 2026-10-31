@@ -1,0 +1,15 @@
+Harness status: OK
+
+Found 10 tests
+
+10 Pass
+Pass	Throw DOMException-TypeError in toplevel: classic: listener
+Pass	Throw DOMException-TypeError in toplevel: classic: handler
+Pass	Throw DOMException-TypeError in setTimeout-function: classic: listener
+Pass	Throw DOMException-TypeError in setTimeout-function: classic: handler
+Pass	Throw DOMException-TypeError in setTimeout-string: classic: listener
+Pass	Throw DOMException-TypeError in setTimeout-string: classic: handler
+Pass	Throw DOMException-TypeError in onmessage: classic: listener
+Pass	Throw DOMException-TypeError in onmessage: classic: handler
+Pass	Throw DOMException-TypeError in onerror: classic: listener
+Pass	Throw DOMException-TypeError in onerror: classic: handler
