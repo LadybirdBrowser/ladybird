@@ -28,6 +28,9 @@ static constexpr size_t maximum_worker_count_per_top_level_site = 64;
 
 static constexpr auto worker_exit_grace_period = AK::Duration::from_seconds(5);
 
+// https://html.spec.whatwg.org/multipage/workers.html#extended-lifetime-shared-worker-timeout
+static constexpr auto extended_lifetime_shared_worker_timeout = AK::Duration::from_seconds(30);
+
 WorkerProcessManager& WorkerProcessManager::the()
 {
     static auto& manager = *new WorkerProcessManager;
@@ -149,6 +152,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
                     //         owner_set() is appended inside connect_shared_worker_impl (which also
                     //         handles steps 11.5.5-11.5.7).
                     agent.owners.append(owner);
+                    agent.extended_lifetime_timer = nullptr;
                     agent.client->async_connect_shared_worker(move(request.outside_port), request.outside_settings);
                     return agent.id;
                 }
@@ -290,6 +294,7 @@ Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(Owner owner, O
         .worker_type = request.type,
         .credentials = request.credentials,
         .extended_lifetime = request.extended_lifetime,
+        .extended_lifetime_timer = {},
         .worker_is_secure_context = request.caller_is_secure_context,
         .is_private = is_private,
         .top_level_origin = top_level_origin,
@@ -686,11 +691,30 @@ void WorkerProcessManager::remove_agent(Web::HTML::WorkerAgentId agent_id, Agent
 
     // A worker still reachable from an owner is actively needed, and closing it here would be the
     // wrapper-lifetime bug this ownership model exists to prevent.
-    if (cause == AgentRemovalCause::OwnerSetEmptied)
+    if (cause == AgentRemovalCause::OwnerSetEmptied) {
         VERIFY(maybe_agent->value.owners.is_empty());
+
+        // https://html.spec.whatwg.org/multipage/workers.html#in-extended-lifetime-worker
+        // A shared worker with an extended lifetime stays protected for the extended lifetime shared worker timeout
+        // after its owner set empties, and a new owner may connect to it meanwhile.
+        auto& agent = maybe_agent->value;
+        if (agent.extended_lifetime) {
+            if (!agent.extended_lifetime_timer) {
+                agent.extended_lifetime_timer = Core::Timer::create_single_shot(extended_lifetime_shared_worker_timeout, [this, agent_id] {
+                    remove_agent(agent_id, AgentRemovalCause::ExtendedLifetimeEnded);
+                });
+                agent.extended_lifetime_timer->start();
+            }
+            return;
+        }
+    }
 
     auto agent = move(maybe_agent->value);
     m_agents.remove(agent_id);
+
+    // NB: The extended lifetime timer may be what is removing the agent, so it outlives its own handler.
+    if (agent.extended_lifetime_timer)
+        Core::deferred_invoke([timer = move(agent.extended_lifetime_timer)] { });
 
     if (agent.shared_worker_key.has_value())
         m_shared_workers.remove(*agent.shared_worker_key);

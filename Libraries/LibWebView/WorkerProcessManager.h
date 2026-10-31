@@ -123,6 +123,7 @@ private:
 
     enum class AgentRemovalCause {
         OwnerSetEmptied,
+        ExtendedLifetimeEnded,
         AgentTerminated,
     };
     void remove_agent(Web::HTML::WorkerAgentId, AgentRemovalCause);
@@ -135,6 +136,7 @@ private:
         Web::HTML::WorkerType worker_type { Web::HTML::WorkerType::Classic };
         Web::HTML::RequestCredentials credentials { Web::HTML::RequestCredentials::SameOrigin };
         bool extended_lifetime { false };
+        RefPtr<Core::Timer> extended_lifetime_timer;
         Optional<bool> worker_is_secure_context;
         bool closing { false };
         IsPrivate is_private { IsPrivate::No };
