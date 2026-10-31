@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<div class="filterbox">
+</div>
+<div class="colorbox">
+  <div class="invert"></div>
+</div>
+
+<style>
+div {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 100px;
+    top: 100px;
+}
+.colorbox {
+    background: green;
+    overflow: clip;
+}
+.filterbox {
+    top: 140px;
+    background: black;
+    transform: rotate(30deg);
+    border-radius: 10px;
+}
+.invert {
+    top: 40px;
+    left: 0;
+    background: rgb(255, 127, 255);
+    transform: rotate(30deg);
+    border-radius: 10px;
+}
+</style>

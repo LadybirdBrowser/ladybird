@@ -734,6 +734,7 @@ NonnullRefPtr<Compositing::DisplayList> display_list_of_published_recording(Disp
     auto display_list = Compositing::DisplayList::share_rust_command_storage(recording.visual_context_tree, presented.display_list);
     if (recording.surface_clear_color.has_value())
         display_list->set_surface_clear_color(*recording.surface_clear_color);
+    display_list->set_root_group_color(presented.root_group_color);
     stamp_async_scrolling_metadata(*display_list);
     return display_list;
 }

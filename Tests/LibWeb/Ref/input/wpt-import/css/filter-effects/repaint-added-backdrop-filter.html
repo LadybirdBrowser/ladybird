@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>backdrop-filter: Correctly repaint added backdrop-filter</title>
+<link rel="author" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/reference/repaint-added-backdrop-filter-ref.html">
+<script src="../../common/reftest-wait.js"></script>
+
+<p>Expected: A black box.</p>
+
+<div id="filter"></div>
+
+<style>
+  #filter {
+    width: 100px;
+    height: 100px;
+    backdrop-filter: none;
+    will-change: opacity;
+  }
+</style>
+
+<script>
+  function doTest() {
+    requestAnimationFrame(function() {
+      requestAnimationFrame(function() {
+        document.getElementById('filter').style.backdropFilter = 'invert(1)';
+        takeScreenshot();
+      });
+    });
+  }
+  window.addEventListener('load', doTest, false);
+</script>

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: fixed position should not cause a backdrop root.</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-non-isolation-ref.html">
+
+<div>
+  <p>Expected: Two green boxes overlapped by a yellow box. The overlapped region<br>
+  of BOTH green boxes should be inverted (pink).</p>
+</div>
+<div class="box outside">
+  <div class="box stacking-context">
+    <div class="box filter">
+    </div>
+  </div>
+</div>
+
+<style>
+.box {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  background: green;
+}
+.outside {
+  top: 110px;
+  left: 10px;
+}
+.stacking-context {
+  position: fixed;
+  top: 110px;
+  left: 130px;
+}
+.filter {
+  width: 160px;
+  height: 160px;
+  top: 30px;
+  left: -90px;
+  backdrop-filter: invert(1);
+  background: #ff08;
+}
+</style>
+

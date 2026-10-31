@@ -1560,6 +1560,10 @@ sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer co
     ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
     return raster_cache().backdrop_image_filter(active_visual_context_tree().structural_epoch(), layer, limited_to_region, [&] {
         auto image_filter = image_filter_from_bytes(filter_bytes);
+        if (layer.backdrop_base_color.alpha() != 0) {
+            auto base = SkImageFilters::Shader(SkShaders::Color(to_skia_color(layer.backdrop_base_color)));
+            image_filter = SkImageFilters::Compose(move(image_filter), SkImageFilters::Blend(SkBlendMode::kSrcOver, move(base), nullptr));
+        }
         if (limited_to_region) {
             auto region = to_skia_rect(layer.backdrop_region);
             image_filter = SkImageFilters::Crop(region, SkTileMode::kDecal, move(image_filter));

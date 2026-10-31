@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name=fuzzy content="maxDifference=0-200; totalPixels=0-2000">
+<title>Backdrop filter clipping radius with zoom</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-clip-radius-zoom-ref.html">
+
+<!--You should see two completely filled black rectangles with rounded corners.-->
+
+<div id='rect1'></div>
+<div id='rect2'></div>
+
+<style>
+body {
+  zoom: 5;
+}
+div {
+  width: 100px;
+  height: 20px;
+  backdrop-filter: invert(1);
+  border: 2px dashed green;
+}
+#rect1 {
+  border-radius: 20px / 5px;
+}
+#rect2 {
+  position: relative;
+  top:5px;
+  border-radius: 4px;
+}
+</style>

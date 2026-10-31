@@ -45,6 +45,7 @@ struct DisplayListRasterCache::LayerImageFilterCache {
         ByteBuffer filter_bytes;
         Gfx::IntRect region;
         Gfx::CornerRadii corner_radii;
+        Gfx::Color base_color;
         bool limited_to_region { false };
         sk_sp<SkImageFilter> image_filter;
     };
@@ -211,10 +212,11 @@ sk_sp<SkImageFilter> DisplayListRasterCache::backdrop_image_filter(u64 tree_stru
         && cached->filter_bytes.bytes() == filter_bytes
         && cached->region == layer.backdrop_region
         && cached->corner_radii == layer.backdrop_corner_radii
+        && cached->base_color == layer.backdrop_base_color
         && cached->limited_to_region == limited_to_region)
         return cached->image_filter;
     auto image_filter = create();
-    entries.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, layer.backdrop_corner_radii, limited_to_region, image_filter });
+    entries.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, layer.backdrop_corner_radii, layer.backdrop_base_color, limited_to_region, image_filter });
     return image_filter;
 }
 

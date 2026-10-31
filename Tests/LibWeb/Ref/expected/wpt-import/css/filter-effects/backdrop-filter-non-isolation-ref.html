@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Isolation</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+
+
+<div>
+  <p>Expected: Two green boxes overlapped by a yellow box. The overlapped region<br>
+  of BOTH green boxes should be inverted (pink).</p>
+</div>
+<div class="box green"></div>
+<div class="box green" style="left: 130px;"></div>
+<div class="box yellow" style="width:160px;height:160px;top:140px;left:40px;"></div>
+<div class="box orange" style="width:70px;height:70px;top:140px;left:40px;"></div>
+<div class="box orange" style="width:70px;height:70px;top:140px;left:130px;"></div>
+
+<style>
+.box {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top:110px;
+  left:10px;
+}
+.green { background: green; }
+.yellow { background: #880; }
+.orange { background: #ffc377; }
+
+</style>
+

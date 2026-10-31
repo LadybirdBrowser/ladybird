@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Correctly apply backdrop-filter with will-change opacity</title>
+<link rel="author" href="mailto:pdr@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/reference/backdrop-filter-plus-will-change-opacity-ref.html">
+
+<p>Expected: A black box.</p>
+
+<div id="filter"></div>
+
+<style>
+  #filter {
+    width: 100px;
+    height: 100px;
+    backdrop-filter: invert(1);
+    will-change: opacity;
+  }
+</style>

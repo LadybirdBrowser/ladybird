@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Only filter objects painted before</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+
+
+<p>Expected: A green box with an overlapping purple box.<br>
+The overlapping portion of the boxes should be bright magenta.<br>
+
+<div class="container">
+  <div class="orangebox"></div>
+  <div class="bluebox blur-bd"></div>
+  <div class="invert"></div>
+</div>
+
+
+<style>
+div {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+}
+.container {
+  width:200px;
+  height:200px;
+  top: 50px;
+  position:absolute;
+}
+.blur-bd {
+  backdrop-filter: blur(10px);
+}
+.orangebox {
+  left: 10px;
+  top: 50px;
+  background: green;
+}
+.bluebox {
+  left: 60px;
+  top: 110px;
+  background: #00ff0055;
+}
+.invert {
+  left: 60px;
+  top: 110px;
+  background: transparent;
+  backdrop-filter: invert(1);
+}
+</style>
