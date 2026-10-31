@@ -1,0 +1,1 @@
+Worker in sandboxed iframe: failed to load

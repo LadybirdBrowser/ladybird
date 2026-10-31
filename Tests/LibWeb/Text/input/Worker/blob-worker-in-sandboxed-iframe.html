@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        window.addEventListener("message", event => {
+            println(`Worker in sandboxed iframe: ${event.data}`);
+            done();
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts";
+        iframe.srcdoc = `<script>
+            const blob = new Blob(["postMessage('ran');"], { type: "text/javascript" });
+            const url = URL.createObjectURL(blob);
+            const worker = new Worker(url);
+            worker.onmessage = event => parent.postMessage(event.data, "*");
+            worker.onerror = () => parent.postMessage("failed to load", "*");
+        <\/script>`;
+        document.body.appendChild(iframe);
+    });
+</script>
