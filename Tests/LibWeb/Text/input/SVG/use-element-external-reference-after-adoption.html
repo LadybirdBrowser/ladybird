@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg><use id="direct" href="../../data/svg-symbol-with-nested-use.svg#icon"/></svg>
+<template id="template"><svg><use id="from-template" href="../../data/svg-symbol-with-nested-use.svg#icon"/></svg></template>
+<div id="target"></div>
+<script>
+    asyncTest(done => {
+        window.onload = () => {
+            document.getElementById("target").replaceWith(document.getElementById("template").content.cloneNode(true));
+            const direct = document.getElementById("direct").getBBox();
+            const fromTemplate = document.getElementById("from-template").getBBox();
+            println(`rendered: ${fromTemplate.width > 0 && fromTemplate.height > 0}`);
+            println(`same box as a use inserted directly: ${fromTemplate.width === direct.width && fromTemplate.height === direct.height}`);
+            done();
+        };
+    });
+</script>

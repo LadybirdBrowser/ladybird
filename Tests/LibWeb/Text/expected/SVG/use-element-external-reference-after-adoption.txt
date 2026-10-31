@@ -1,0 +1,2 @@
+rendered: true
+same box as a use inserted directly: true

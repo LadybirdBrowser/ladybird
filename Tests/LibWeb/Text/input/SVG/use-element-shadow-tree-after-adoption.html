@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg width="0" height="0"><defs><rect id="leaf" width="10" height="20"/><g id="icon"><use href="#leaf"/></g></defs></svg>
+<template id="template"><svg><use id="from-template" href="#icon"/></svg></template>
+<div id="target"></div>
+<script>
+    test(() => {
+        document.getElementById("target").replaceWith(document.getElementById("template").content.cloneNode(true));
+        const fromTemplate = document.getElementById("from-template").getBBox();
+        println(`use from template content: ${fromTemplate.width}x${fromTemplate.height}`);
+
+        const other = document.implementation.createHTMLDocument();
+        other.body.innerHTML = `<svg><use id="from-other-document" href="#icon"/></svg>`;
+        const svg = other.body.firstElementChild;
+        document.body.appendChild(svg);
+        const fromOtherDocument = document.getElementById("from-other-document").getBBox();
+        println(`use from another document: ${fromOtherDocument.width}x${fromOtherDocument.height}`);
+
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        other.body.innerHTML = `<svg><use href="#icon"/></svg>`;
+        shadowRoot.appendChild(other.body.firstElementChild);
+        const inShadowTree = shadowRoot.querySelector("use").getBBox();
+        println(`use from another document, in a shadow tree: ${inShadowTree.width}x${inShadowTree.height}`);
+    });
+</script>

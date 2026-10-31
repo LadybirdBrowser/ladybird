@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<svg><use href="../../Text/data/svg-symbol-with-nested-use.svg#icon"/></svg>
+<template id="template"><svg><use href="../../Text/data/svg-symbol-with-nested-use.svg#icon"/></svg></template>
+<div id="target"></div>
+<script>
+    window.onload = () => {
+        // The external document is loaded by now, so the adopted use element's request has already finished.
+        document.getElementById("target").replaceWith(document.getElementById("template").content.cloneNode(true));
+        document.documentElement.classList.remove("test-wait");
+    };
+</script>
+</html>

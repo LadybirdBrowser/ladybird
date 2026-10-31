@@ -1,0 +1,2 @@
+before the move: 10x20
+after the move: 30x40 (the other document's own use: 30x40)

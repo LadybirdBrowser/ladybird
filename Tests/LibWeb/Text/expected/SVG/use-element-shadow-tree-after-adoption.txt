@@ -1,0 +1,3 @@
+use from template content: 10x20
+use from another document: 10x20
+use from another document, in a shadow tree: 10x20
