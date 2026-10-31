@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CSS Lists: outside marker position for content flowing into a later multicol column</title>
+<link rel="help" href="https://drafts.csswg.org/css-lists-3/#list-style-position-property">
+<link rel="author" title="Yulun Wu" href="mailto:yulun_wu@apple.com">
+<link rel="match" href="../../../../expected/wpt-import/css/css-lists/outside-marker-in-multicol-relpos-content-ref.html">
+<meta name="assert" content="An outside list marker for content that flows into a later column of a multi-column list item must paint adjacent to that column; relative positioning of the item content must not shift it.">
+<style>
+.container {
+    margin-left: 20px;
+}
+.list {
+    display: list-item;
+    columns: 2;
+    column-fill: auto;
+    height: 100px;
+    padding-inline-start: 20px;
+    width: 100px;
+}
+
+.list::marker {
+    color: magenta;
+}
+
+.columnFiller {
+    height: 100px;
+    width: 20px;
+    background: green;
+}
+
+.itemContent {
+    position: relative;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <div class="list">
+        <div class="columnFiller"></div>
+        <div class="itemContent">item</div>
+    </div>
+</div>
+</body>
+</html>

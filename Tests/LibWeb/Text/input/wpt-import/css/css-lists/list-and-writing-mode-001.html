@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test list with root writing-mode as its first child</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<!-- https://bugs.chromium.org/p/chromium/issues/detail?id=767408 -->
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<ul>
+  <li id="target">
+    <div style="writing-mode: vertical-lr; height: 45px;">a b c</div>
+  </li>
+</ul>
+
+<script>
+test(function() {
+  var height = document.getElementById("target").offsetHeight;
+  assert_equals(height, 45, "the height of li should be 45px, and no extra line generated")
+}, "list and writing-mode");
+</script>
+

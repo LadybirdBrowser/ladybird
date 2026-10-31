@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test inside and outside switch</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel=match href="../../../../expected/wpt-import/css/css-lists/li-with-overflow-hidden-change-list-style-position-001-ref.html">
+<!-- https://bugs.chromium.org/p/chromium/issues/detail?id=344941 -->
+
+<p>The test passes if the first li is inside and the second one is outside.</p>
+
+<ul>
+  <li id="outSide" style="list-style-position: outside;">
+    <div style="overflow:hidden;">
+      outside to inside
+    </div>
+  </li>
+</ul>
+
+<ul>
+  <li id="inSide" style="list-style-position: inside;">
+    <div style="overflow:hidden;">
+      inside to outside
+    </div>
+  </li>
+</ul>
+<script>
+  document.body.offsetHeight;
+
+  var outside_li=document.getElementById("outSide");
+  outside_li.style.listStylePosition = "inside";
+  document.body.offsetHeight;
+
+  var inside_li=document.getElementById("inSide");
+  inside_li.style.listStylePosition = "outside";
+  document.body.offsetHeight;
+
+</script>

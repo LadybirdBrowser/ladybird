@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Lists Reference - check that the line height is the same between different forms of ::markers</title>
+<link rel="author" title="Mats Palmgren" href="mailto:mats@mozilla.com">
+<style>
+  div {
+    display: grid;
+    grid-template-columns: 100px 100px auto;
+    align-items: start;
+    background: red;
+  }
+  li {
+    line-height: 100%;
+    counter-set: list-item 1;
+  }
+  ol {
+    margin: 0;
+    padding: 0;
+    padding-left: 40px;
+    background: green;
+  }
+  ::marker {
+    content: "1. ";
+  }
+</style>
+
+<div>
+  <ol>
+    <li>foo</li>
+    <li>bar</li>
+    <li>baz</li>
+  </ol>
+  <ol>
+    <li>foo</li>
+    <li>bar</li>
+    <li>baz</li>
+  </ol>
+  <ol>
+    <li>foo</li>
+    <li>bar</li>
+    <li>baz</li>
+  </ol>
+</div>

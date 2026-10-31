@@ -263,6 +263,9 @@ pub(crate) struct ChildrenSummary {
     /// Whether the children laid out include the outside marker of the container, which the container places after
     /// them.
     pub(crate) includes_list_item_marker: bool,
+    /// The block size of the line box that the outside marker of the container creates, where the children laid out
+    /// hold no line box for it.
+    pub(crate) outside_marker_line_box_block_size: Option<CssPixels>,
     /// Whether margins do not collapse through one of the children laid out, which keeps them from collapsing through
     /// the container.
     pub(crate) has_child_whose_margins_do_not_collapse_through: bool,
@@ -542,6 +545,42 @@ enum BreakMode {
     NoBreaks,
 }
 
+/// The extents of an outside marker around its first baseline.
+// https://drafts.csswg.org/css-lists-3/#list-style-position-outside
+// The size or contents of the marker box may affect the height of the principal block box and/or the height of its
+// first line box, and in some cases may cause the creation of a new line box; this interaction is also not defined.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct OutsideMarkerLine {
+    pub(crate) ascent: CssPixels,
+    pub(crate) descent: CssPixels,
+}
+
+impl OutsideMarkerLine {
+    fn enclosing(self, other: Self) -> Self {
+        Self {
+            ascent: self.ascent.max(other.ascent),
+            descent: self.descent.max(other.descent),
+        }
+    }
+}
+
+/// An outside marker laid out before the contents of its list item, which is placed once they are laid out.
+struct LaidOutOutsideMarker {
+    marker: Node,
+    laid_out_box: run_state::LaidOutChildBox,
+    fragment_arrival: Option<fragment_tree::RunRootFragment>,
+}
+
+impl LaidOutOutsideMarker {
+    fn line(&self) -> Option<OutsideMarkerLine> {
+        let baseline = self.laid_out_box.baselines.first?;
+        Some(OutsideMarkerLine {
+            ascent: baseline,
+            descent: self.laid_out_box.cells.content_block_size() - baseline,
+        })
+    }
+}
+
 // https://www.w3.org/TR/css-display/#block-formatting-context
 pub(crate) struct BlockFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
@@ -552,6 +591,11 @@ pub(crate) struct BlockFormattingContext<'pass> {
     pub(super) previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     block_offset_of_current_block_container: Cell<Option<CssPixels>>,
     margin_state: RefCell<BlockMarginState>,
+    /// The outside markers of the list items whose first line box is yet to be laid out.
+    outside_marker_line: Cell<Option<OutsideMarkerLine>>,
+    /// The block size of the line box that the outside marker of the root creates, where its contents hold no line
+    /// box for it.
+    outside_marker_line_box_block_size_of_root: Cell<Option<CssPixels>>,
     floats: RefCell<Vec<FloatingBox>>,
     bands: RefCell<SmallVec<[FloatBand; 4]>>,
     lowest_left_margin_edge: Cell<CssPixels>,
@@ -680,6 +724,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             previous_line_data,
             block_offset_of_current_block_container: Cell::new(None),
             margin_state: RefCell::new(BlockMarginState::default()),
+            outside_marker_line: Cell::new(None),
+            outside_marker_line_box_block_size_of_root: Cell::new(None),
             floats: RefCell::new(Vec::new()),
             bands: RefCell::new(smallvec![FloatBand::default()]),
             lowest_left_margin_edge: Cell::new(CssPixels::default()),
@@ -2153,6 +2199,81 @@ impl<'pass> BlockFormattingContext<'pass> {
         inline_space_used_before_list_item_elements_formatted: inline_formatting_context::SpaceUsedByFloats,
         list_item_first_baseline: Option<CssPixels>,
     ) -> Option<CssPixels> {
+        let marker = self.layout_outside_marker(run, list_item)?;
+        Some(self.place_outside_marker(
+            marker,
+            list_item,
+            inline_space_used_before_list_item_elements_formatted,
+            list_item_first_baseline,
+        ))
+    }
+
+    /// Lays out the outside marker of `list_item` before the contents of the list item, and makes the marker
+    /// contribute to the first line box laid out in them. Returns the marker, and the marker line that was pending
+    /// before it, which `finish_contents_of_list_item` restores once the contents are laid out.
+    fn layout_outside_marker_before_contents(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        list_item: BlockContainer,
+    ) -> (Option<LaidOutOutsideMarker>, Option<OutsideMarkerLine>) {
+        let previous = self.outside_marker_line.get();
+        let marker = self.layout_outside_marker(run, list_item);
+        if let Some(line) = marker.as_ref().and_then(LaidOutOutsideMarker::line) {
+            self.outside_marker_line
+                .set(Some(previous.map_or(line, |previous| previous.enclosing(line))));
+        }
+        (marker, previous)
+    }
+
+    /// Ends the contribution of the outside marker of `list_item` to the first line box of its `contents`. Contents
+    /// without a line box leave the marker line of an enclosing list item pending.
+    fn finish_contents_of_list_item(
+        &self,
+        list_item: Node,
+        (marker, previous): &(Option<LaidOutOutsideMarker>, Option<OutsideMarkerLine>),
+        contents: &mut ChildrenSummary,
+    ) {
+        if self.outside_marker_line.get().is_some() {
+            self.outside_marker_line.set(*previous);
+        }
+        if contents.baselines.first.is_none()
+            && let Some(marker_line) = marker.as_ref().and_then(LaidOutOutsideMarker::line)
+        {
+            let (_, block_size) = self.line_box_created_by_outside_marker(list_item, marker_line);
+            contents.outside_marker_line_box_block_size = Some(block_size);
+        }
+    }
+
+    // https://drafts.csswg.org/css-lists-3/#list-style-position-outside
+    // The size or contents of the marker box may affect the height of the principal block box and/or the height of
+    // its first line box, and in some cases may cause the creation of a new line box; this interaction is also not
+    // defined.
+    /// The baseline and block size of the line box that the outside marker of `list_item` creates, where the list item
+    /// holds no line box for it. Like any line box, it starts with the strut of the list item.
+    fn line_box_created_by_outside_marker(
+        &self,
+        list_item: Node,
+        marker_line: OutsideMarkerLine,
+    ) -> (CssPixels, CssPixels) {
+        let style = self.style(list_item);
+        let strut_ascent = line_builder::LineBuilder::baseline_for_style(style, style.line_height());
+        let baseline = strut_ascent.max(marker_line.ascent);
+        (
+            baseline,
+            baseline + (style.line_height() - strut_ascent).max(marker_line.descent),
+        )
+    }
+
+    /// The extents of the outside markers that the next line box laid out in this formatting context contributes to.
+    pub(crate) fn pending_outside_marker_line(&self) -> Option<OutsideMarkerLine> {
+        self.outside_marker_line.get()
+    }
+
+    fn layout_outside_marker(
+        &self,
+        run: &FormattingContextRun<'pass>,
+        list_item: BlockContainer,
+    ) -> Option<LaidOutOutsideMarker> {
         let marker = self.facts(list_item.node).list_item_marker();
         if marker.is_invalid() {
             return None;
@@ -2168,7 +2289,6 @@ impl<'pass> BlockFormattingContext<'pass> {
             return None;
         }
         let mut marker_cells = self.keep_marker_for_its_run(list_item, marker);
-        let marker_style = self.style(marker);
         let marker_constraints = ContainingBlockConstraints {
             percentage_basis_inline_size: Some(list_item.cells.content_inline_size),
             ..ContainingBlockConstraints::default()
@@ -2205,7 +2325,29 @@ impl<'pass> BlockFormattingContext<'pass> {
             list_item.percentage_block_insets_have_definite_basis,
         );
         marker_outcome.report_percentage_block_size_dependency_of(run, marker);
+        Some(LaidOutOutsideMarker {
+            marker,
+            laid_out_box: marker_box,
+            fragment_arrival,
+        })
+    }
 
+    /// Places the outside `marker` of `list_item`, and returns the block end of the marker's border box in the list
+    /// item.
+    fn place_outside_marker(
+        &self,
+        marker: LaidOutOutsideMarker,
+        list_item: BlockContainer,
+        inline_space_used_before_list_item_elements_formatted: inline_formatting_context::SpaceUsedByFloats,
+        list_item_first_baseline: Option<CssPixels>,
+    ) -> CssPixels {
+        let marker_line = marker.line();
+        let LaidOutOutsideMarker {
+            marker,
+            laid_out_box: marker_box,
+            fragment_arrival,
+        } = marker;
+        let marker_style = self.style(marker);
         let marker_metrics = marker_box.cells;
         let marker_block_size = marker_metrics.content_block_size();
         let marker_inline_size = marker_metrics.content_inline_size();
@@ -2219,6 +2361,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             && let Some(marker_first_baseline) = marker_box.baselines.first
         {
             list_item_first_baseline - marker_first_baseline
+        } else if let Some(marker_line) = marker_line {
+            let (baseline, _) = self.line_box_created_by_outside_marker(list_item.node, marker_line);
+            baseline - marker_line.ascent
         } else {
             round_css_pixels(Self::marker_centered_block_offset(
                 marker_style.line_height(),
@@ -2237,11 +2382,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             None,
             fragment_arrival,
         );
-        Some(
-            marker_block_offset
-                + marker_block_size
-                + marker_metrics.border_box_bottom(marker_metrics.uses_collapsing_borders_model()),
-        )
+        marker_block_offset
+            + marker_block_size
+            + marker_metrics.border_box_bottom(marker_metrics.uses_collapsing_borders_model())
     }
 
     /// Lays out the contents of `node`, a child with a formatting context of its own, and returns its result where a
@@ -2340,6 +2483,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                 content_offset,
             },
         );
+        if baselines_in_containing_block.first.is_some() {
+            self.outside_marker_line.set(None);
+        }
         Some(BlockLevelBoxOutcome {
             content_offset,
             is_placed: laid_out.content_offset.is_some(),
@@ -2746,6 +2892,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let mut baselines_of_contents_laid_out_in_this_flow = None;
         let mut summary_of_children_laid_out_in_this_flow = None;
+        let mut outside_marker_laid_out_before_contents = None;
         let mut fragment_arrival_of_child_with_own_formatting_context = None;
         // NB: A child its own run laid out is placed as that run handed it back, and any other with its cells here.
         let mut child_handed_back_by_its_run = None;
@@ -2848,7 +2995,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.incoming_container_token.replace(continuation.clone());
             let node_as_block_container =
                 BlockContainer::laid_out_in(&self.run.callbacks, node, self.metrics_of(sized_child), block_container);
-            let children_summary = if facts.children_are_inline() {
+            if is_list_item_box && continuation.is_none() {
+                outside_marker_laid_out_before_contents =
+                    Some(self.layout_outside_marker_before_contents(run, node_as_block_container));
+            }
+            let mut children_summary = if facts.children_are_inline() {
                 self.layout_inline_children(
                     run,
                     node_as_block_container,
@@ -2865,6 +3016,9 @@ impl<'pass> BlockFormattingContext<'pass> {
                     space_available_for_children,
                 )
             };
+            if let Some(outside_marker) = &outside_marker_laid_out_before_contents {
+                self.finish_contents_of_list_item(node, outside_marker, &mut children_summary);
+            }
             baselines_of_contents_laid_out_in_this_flow = Some(children_summary.baselines);
             summary_of_children_laid_out_in_this_flow = Some(children_summary);
             if is_in_flow_candidate {
@@ -3017,16 +3171,23 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.break_mode.set(break_mode_outside);
 
         // Now that our children are formatted we place the ListItemBox with the left space we remembered.
-        if is_list_item_box && !has_independent_formatting_context && continuation.is_none() {
+        if let Some((outside_marker, _)) = outside_marker_laid_out_before_contents {
             let list_item_first_baseline = baselines_of_contents_laid_out_in_this_flow
                 .expect("a list item in this flow had its contents laid out")
                 .first;
-            let marker_border_box_block_end = self.layout_list_item_marker(
-                run,
-                BlockContainer::laid_out_in(&self.run.callbacks, node, self.metrics_of(sized_child), block_container),
-                inline_space_used_before_children_formatted,
-                list_item_first_baseline,
-            );
+            let marker_border_box_block_end = outside_marker.map(|outside_marker| {
+                self.place_outside_marker(
+                    outside_marker,
+                    BlockContainer::laid_out_in(
+                        &self.run.callbacks,
+                        node,
+                        self.metrics_of(sized_child),
+                        block_container,
+                    ),
+                    inline_space_used_before_children_formatted,
+                    list_item_first_baseline,
+                )
+            });
             if let Some(summary) = summary_of_children_laid_out_in_this_flow.as_mut()
                 && let Some(marker_border_box_block_end) = marker_border_box_block_end
             {
@@ -3222,6 +3383,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             block_container_inline_size,
             self.style(block_container).direction() == direction::RTL,
             self.margin_state.borrow().clone(),
+            self.outside_marker_line.get(),
         );
         let validity = fc_run_cache::run_root_validity(callbacks, node);
         // NB: The committed subtree is reused only while it is the one the stored layout produced.
@@ -3273,6 +3435,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.cells_laid_out_here(sized_child).set(entry.cells);
         let flow_position = self.flow_position();
         *self.margin_state.borrow_mut() = entry.outgoing_margins.clone();
+        self.outside_marker_line.set(entry.outgoing_outside_marker_line);
         formatting_context::propagate_percentage_block_size_dependency_to_containing_block(
             self.run.state,
             &self.run.callbacks,
@@ -3348,6 +3511,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             flow_position_advance: self.flow_position() - flow_position,
             outgoing_margins: self.margin_state.borrow().clone(),
+            outgoing_outside_marker_line: self.outside_marker_line.get(),
             margin_box_bottom_from_flow_position: content_offset.y
                 + used.content_block_size()
                 + used.margin_box_bottom(used.uses_collapsing_borders_model())
@@ -4595,6 +4759,10 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.record_derived_baselines_of_root_box(baselines);
             return;
         }
+        // NB: A fieldset places no outside marker.
+        let outside_marker_laid_out_before_contents =
+            (root_facts.is_list_item_box() && self.run.fragmentainer.is_none() && !root_facts.is_fieldset_box())
+                .then(|| self.layout_outside_marker_before_contents(run, self.root_block_container()));
         let mut children_summary = if root_facts.is_table_wrapper() {
             self.layout_table_wrapper_children(run, root_input, available_space)
         } else if root_facts.children_are_inline() {
@@ -4616,6 +4784,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         };
         if let Some(lines) = children_summary.lines.take() {
             *self.root_lines.borrow_mut() = used_values::LineDataState::Building(Box::new(lines));
+        }
+        if let Some(outside_marker) = &outside_marker_laid_out_before_contents {
+            self.finish_contents_of_list_item(self.run.box_, outside_marker, &mut children_summary);
+            self.outside_marker_line_box_block_size_of_root
+                .set(children_summary.outside_marker_line_box_block_size);
         }
         let baselines = children_summary.baselines;
         self.record_derived_baselines_of_root_box(baselines);
@@ -4641,9 +4814,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
 
-        if root_facts.is_list_item_box() && self.run.fragmentainer.is_none() {
-            self.layout_list_item_marker(
-                run,
+        if let Some((Some(outside_marker), _)) = outside_marker_laid_out_before_contents {
+            self.place_outside_marker(
+                outside_marker,
                 self.root_block_container(),
                 input.sizing.outer_float_intrusion_before_list_item_children,
                 self.derived_baselines_of_root_box().first,
@@ -4666,6 +4839,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         offset_from_relatively_positioned_inline_ancestors: FfiCssPixelPoint,
     ) -> bool {
         let line_index = line_builder.line_index_for_block_level_box();
+        // NB: The outside marker line goes to the first line box in the contents of its list item. A line before this
+        // block holding content is past that; otherwise the block's own contents may hold it.
+        let line_box_precedes_block = line_builder.has_line_box_before(line_index);
+        if line_box_precedes_block {
+            self.outside_marker_line.set(None);
+        }
         let current_block_offset = line_builder.current_block_offset();
         let saved = self
             .block_offset_of_current_block_container
@@ -4697,6 +4876,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             .get()
             .unwrap_or_else(|| line_builder.current_block_offset());
         self.block_offset_of_current_block_container.set(saved);
+        if !line_box_precedes_block {
+            line_builder.set_outside_marker_line(self.outside_marker_line.get());
+        }
         let outcome = outcome.expect("the flow holds a block-level box that interrupts its lines");
         assert!(
             outcome.is_placed,
@@ -5119,7 +5301,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.run.callbacks,
             self,
         );
-        context.run()
+        let summary = context.run();
+        if summary.baselines.first.is_some() {
+            self.outside_marker_line.set(None);
+        }
+        summary
     }
 
     fn compute_automatic_block_size_for_block_level_element(
@@ -5143,6 +5329,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             self.run.callbacks,
             node,
             automatic_content_block_size,
+        )
+        .max(
+            children
+                .and_then(|children| children.outside_marker_line_box_block_size)
+                .unwrap_or_default(),
         )
     }
 
@@ -5318,7 +5509,11 @@ impl<'pass> BlockFormattingContext<'pass> {
         if self.run.fragmentainer.is_some() {
             return block_size;
         }
-        floor_list_item_automatic_block_size_by_marker_line_height(self.run.callbacks, self.run.box_, block_size)
+        floor_list_item_automatic_block_size_by_marker_line_height(self.run.callbacks, self.run.box_, block_size).max(
+            self.outside_marker_line_box_block_size_of_root
+                .get()
+                .unwrap_or_default(),
+        )
     }
 
     fn line_clamp_subtree_contains_line(&self, node: Node) -> bool {

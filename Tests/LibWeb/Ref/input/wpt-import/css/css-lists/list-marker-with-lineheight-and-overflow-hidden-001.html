@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test list with overflow:hidden and line-height firstchild</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel=match href="../../../../expected/wpt-import/css/css-lists/list-marker-with-lineheight-and-overflow-hidden-001-ref.html">
+<!-- https://bugs.chromium.org/p/chromium/issues/detail?id=344941 -->
+
+<p>This test passes if there is a marker for each li and followed by "text" in the same line.</p>
+
+<ul>
+  <li>
+    <div style="overflow:hidden; line-height:100px;">
+      <span>text</span>
+    </div>
+  </li>
+</ul>
+
+<ul>
+  <li style="list-style-image: url(resources/white.gif);">
+    <div style="overflow:hidden; line-height:100px;">text</div>
+  </li>
+</ul>

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: Add inline child after marker</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel=match href="../../../../expected/wpt-import/css/css-lists/add-inline-child-after-marker-001-ref.html">
+<!-- https://bugs.chromium.org/p/chromium/issues/detail?id=344941 -->
+
+<p>The test passes if you see the list marker followed by the text "inline" and "axxx" in a line below.</p>
+
+<ul>
+  <li id="liTarget">
+    <div id="divTarget" style="overflow:hidden;">
+      <span>a</span>xxx
+    </div>
+  </li>
+</ul>
+<script>
+  document.body.offsetHeight;
+  var new_span=document.createElement("span");
+  var text_node=document.createTextNode("inline");
+  new_span.appendChild(text_node);
+
+  var div_target=document.getElementById("divTarget");
+  var li_target=document.getElementById("liTarget");
+  li_target.insertBefore(new_span,div_target);
+</script>

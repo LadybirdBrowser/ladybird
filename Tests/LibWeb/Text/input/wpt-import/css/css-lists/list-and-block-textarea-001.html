@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test list with textarea as its first child</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<!-- https://bugs.chromium.org/p/chromium/issues/detail?id=767408 -->
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<style>
+
+ul, textarea {
+  font-size: 16px;
+}
+</style>
+
+<div id="log"></div>
+
+<ul>
+  <li id="target1">
+    <textarea id="target2" rows="3" cols="20" style="display:block; height:45px">
+      hello
+    </textarea>
+  </li>
+</ul>
+
+<script>
+test(function() {
+  var height1 = document.getElementById("target1").offsetHeight;
+  var height2 = document.getElementById("target2").offsetHeight;
+  assert_equals(height1, height2, "List marker and textarea should be in the same line, no line-break between them.")
+}, "list and block textarea");
+
+</script>

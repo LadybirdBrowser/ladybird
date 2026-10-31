@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: list with height</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel=match href="../../../../expected/wpt-import/css/css-lists/li-with-height-001-ref.html">
+<meta name="assert" content="This is to check the behavior of adding an element at the begining of li" />
+
+<p>The test passes if "second" is in the following line of "first".</p>
+
+<ul>
+  <li id="li_target" style="height:200px; border:1px solid black; width:200px">
+    <div id="div_target" style="overflow:hidden;">second</div>
+  </li>
+</ul>
+
+<script>
+  document.body.clientHeight;
+
+  var text_node = document.createTextNode("first");
+  var li_target = document.getElementById("li_target");
+  var div_target = document.getElementById("div_target");
+  li_target.insertBefore(text_node,div_target);
+</script>

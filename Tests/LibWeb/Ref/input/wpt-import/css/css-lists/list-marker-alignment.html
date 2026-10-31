@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="help" href="https://crbug.com/1051181">
+<link rel="match" href="../../../../expected/wpt-import/css/css-lists/list-marker-alignment-ref.html">
+<meta name="assert" content="This test checks the list marker aligns to the first baseline.">
+<style>::marker { font-family:inherit; }</style>
+<div style="display:inline-block;">
+  <ul>
+    <li>
+      <p>
+        xx<br>xx
+      </p>
+    </li>
+  </ul>
+</div>

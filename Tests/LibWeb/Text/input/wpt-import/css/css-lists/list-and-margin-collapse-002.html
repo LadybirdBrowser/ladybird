@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Lists: test the margin collapse of marker</title>
+<link rel=help href="https://www.w3.org/TR/CSS22/generate.html#lists">
+<link rel="help" href="http://crbug.com/969741">
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<div id="log"></div>
+
+<div id="target_with_marker" style="overflow:hidden; width:100px;">
+  <div style="margin-bottom:100px;"></div>
+  <div style="display:list-item; margin-left:100px; height:0px;"></div>
+  <div style="margin-top:100px;"></div>
+</div>
+
+<div id="target_without_marker" style="overflow:hidden; width:100px;">
+  <div style="margin-bottom:100px;"></div>
+  <div style="display:list-item; margin-left:100px; list-style:none;"></div>
+  <div style="margin-top:100px;"></div>
+</div>
+
+<script>
+test(function() {
+  var height_with_marker = document.getElementById("target_with_marker").clientHeight;
+  assert_equals(height_with_marker, 200, "Should not allow margin-collapsing through if list is with marker.");
+  var height_without_marker = document.getElementById("target_without_marker").clientHeight;
+  assert_equals(height_without_marker, 100, "Should allow margin-collapsing through if list is without marker.");
+}, "list and margin collapse");
+</script>

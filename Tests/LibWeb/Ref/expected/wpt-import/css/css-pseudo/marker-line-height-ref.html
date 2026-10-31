@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Reftest Reference</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<style>
+::marker { font-family: inherit; }
+ol {
+  float: left;
+  width: 50px;
+  list-style-position: inside;
+  line-height: 3;
+}
+li:first-child {
+  list-style-type: disc;
+}
+div {
+  line-height: 1;
+}
+</style>
+<ol>
+  <li></li>
+  <li></li>
+  <li></li>
+  <li></li>
+</ol>
+<ol>
+  <li></li>
+  <li></li>
+  <li></li>
+  <li></li>
+</ol>
+<ol>
+  <li><div>x</div></li>
+  <li><div>x</div></li>
+  <li><div>x</div></li>
+  <li><div>x</div></li>
+</ol>
+<ol>
+  <li><div>x</div></li>
+  <li><div>x</div></li>
+  <li><div>x</div></li>
+  <li><div>x</div></li>
+</ol>

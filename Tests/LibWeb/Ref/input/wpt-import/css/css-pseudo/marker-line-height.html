@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>::marker supports 'line-height'</title>
+<link rel="author" title="Oriol Brufau" href="mailto:obrufau@igalia.com" />
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#marker-pseudo">
+<link rel="help" href="https://drafts.csswg.org/css-inline/#propdef-line-height">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/marker-line-height-ref.html">
+<meta name="assert" content="Checks that ::marker supports 'line-height', both explicitly set or inherited from an ancestor">
+<style>
+::marker { font-family: inherit; }
+ol {
+  float: left;
+  width: 50px;
+  list-style-position: inside;
+}
+ol, ol div {
+  line-height: 1;
+  font-size: 1rem;
+}
+.line-height.explicit ::marker,
+.line-height.inherit {
+  line-height: 3;
+}
+.line-height.inherit li {
+  font-size: 0; /* Remove the strut, which would defeat the test */
+}
+.line-height.inherit ::marker {
+  font-size: 1rem; /* Restore the font-size */
+}
+.marker-disc {
+  list-style-type: disc;
+}
+.marker-decimal {
+  list-style-type: decimal;
+}
+.marker-string {
+  list-style-type: "3. ";
+}
+.marker-content::marker {
+  content: "4. ";
+}
+</style>
+<ol class="line-height explicit">
+  <li class="marker-disc"></li>
+  <li class="marker-decimal"></li>
+  <li class="marker-string"></li>
+  <li class="marker-content"></li>
+</ol>
+<ol class="line-height inherit">
+  <li class="marker-disc"></li>
+  <li class="marker-decimal"></li>
+  <li class="marker-string"></li>
+  <li class="marker-content"></li>
+</ol>
+<ol class="line-height explicit">
+  <li class="marker-disc"><div>x</div></li>
+  <li class="marker-decimal"><div>x</div></li>
+  <li class="marker-string"><div>x</div></li>
+  <li class="marker-content"><div>x</div></li>
+</ol>
+<ol class="line-height inherit">
+  <li class="marker-disc"><div>x</div></li>
+  <li class="marker-decimal"><div>x</div></li>
+  <li class="marker-string"><div>x</div></li>
+  <li class="marker-content"><div>x</div></li>
+</ol>

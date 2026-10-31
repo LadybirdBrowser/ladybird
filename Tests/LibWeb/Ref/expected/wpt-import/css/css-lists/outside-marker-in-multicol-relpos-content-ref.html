@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.list {
+    display: list-item;
+    columns: 2;
+    column-fill: auto;
+    height: 100px;
+    padding-inline-start: 20px;
+    width: 100px;
+    margin-left: 20px;
+}
+
+.list::marker {
+    color: magenta;
+}
+
+.columnFiller {
+    height: 100px;
+    width: 20px;
+    background: green;
+}
+</style>
+</head>
+<body>
+<div class="list">
+    <div class="columnFiller"></div>
+    <div class="itemContent">item</div>
+</div>
+</body>
+</html>

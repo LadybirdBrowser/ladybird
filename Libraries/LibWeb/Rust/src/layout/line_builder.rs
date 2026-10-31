@@ -72,6 +72,8 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     only_finds_line_breaks: bool,
     current_block_offset: CssPixels,
     max_block_size_on_current_line: CssPixels,
+    /// The outside markers that the first line box this builder lays out contributes to.
+    outside_marker_line: Option<block_formatting_context::OutsideMarkerLine>,
     unbreakable_run_inline_size_interrupted_by_float: CssPixels,
     text_indentation: inline_formatting_context::TextIndentation,
     direction: u8,
@@ -138,6 +140,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             only_finds_line_breaks: false,
             current_block_offset: CssPixels::default(),
             max_block_size_on_current_line: CssPixels::default(),
+            outside_marker_line: context.parent.pending_outside_marker_line(),
             unbreakable_run_inline_size_interrupted_by_float: CssPixels::default(),
             text_indentation: inline_formatting_context::TextIndentation::of(style, containing_inline_size),
             direction: style.direction(),
@@ -879,7 +882,31 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 line_box_baseline = adjusted_baseline;
             }
         }
+        if let Some(marker_line) = self.outside_marker_line(line_index)
+            && marker_line.ascent > line_box_baseline
+        {
+            should_align_strut_to_line_box_baseline = true;
+            line_box_baseline = marker_line.ascent;
+        }
         (line_box_baseline, should_align_strut_to_line_box_baseline)
+    }
+
+    /// The outside markers whose list items have the line at `line_index` as their first line box.
+    fn outside_marker_line(&self, line_index: usize) -> Option<block_formatting_context::OutsideMarkerLine> {
+        let line = self.line(line_index);
+        if line.is_empty() || line.has_block_level_box || self.has_line_box_before(line_index) {
+            return None;
+        }
+        self.outside_marker_line
+    }
+
+    /// Whether a line before the line at `line_index` holds content.
+    pub(crate) fn has_line_box_before(&self, line_index: usize) -> bool {
+        (0..line_index).any(|index| !self.line(index).is_empty())
+    }
+
+    pub(crate) fn set_outside_marker_line(&mut self, marker_line: Option<block_formatting_context::OutsideMarkerLine>) {
+        self.outside_marker_line = marker_line;
     }
 
     // https://drafts.csswg.org/css2/#line-height
@@ -1074,6 +1101,10 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         };
         let mut earliest = strut_start;
         let mut latest = strut_end;
+        if let Some(marker_line) = self.outside_marker_line(line_index) {
+            earliest = earliest.min(self.current_block_offset + line_box_baseline - marker_line.ascent);
+            latest = latest.max(self.current_block_offset + line_box_baseline + marker_line.descent);
+        }
         let mut aligned_subtrees: Vec<LineRelativeAlignedSubtree> = Vec::new();
         let mut first_unshifted_text_baseline: Option<CssPixels> = None;
         let current_block_offset = self.current_block_offset;
