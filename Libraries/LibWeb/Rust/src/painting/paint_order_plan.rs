@@ -156,7 +156,7 @@ impl PaintOrderInputs {
             link.map_or((false, false), |link| {
                 (
                     link.fragment.collapsed_table_borders.is_some(),
-                    link.fragment.hidden_by_collapsed_columns,
+                    link.hidden_by_collapsed_columns,
                 )
             })
         });

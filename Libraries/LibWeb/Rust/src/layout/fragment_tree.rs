@@ -13,10 +13,6 @@ pub(crate) struct Fragment {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
     pub(crate) content_inline_size: CssPixels,
     pub(crate) content_block_size: CssPixels,
-    pub(crate) margin_left: CssPixels,
-    pub(crate) margin_right: CssPixels,
-    pub(crate) margin_top: CssPixels,
-    pub(crate) margin_bottom: CssPixels,
     pub(crate) border_left: CssPixels,
     pub(crate) border_right: CssPixels,
     pub(crate) border_top: CssPixels,
@@ -27,9 +23,6 @@ pub(crate) struct Fragment {
     pub(crate) padding_bottom: CssPixels,
     pub(crate) uses_collapsing_borders_model: bool,
     pub(crate) is_collapsed_borders_table_box: bool,
-    pub(crate) table_column_index: u32,
-    pub(crate) table_column_span: u32,
-    pub(crate) hidden_by_collapsed_columns: bool,
     pub(crate) collapsed_table_borders: Option<std::sync::Arc<table_formatting_context::OwnedCollapsedTableBorders>>,
     pub(crate) line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
     pub(crate) grid_layout_data: Option<std::sync::Arc<grid_formatting_context::GridLayoutData>>,
@@ -42,7 +35,6 @@ pub(crate) struct Fragment {
     pub(crate) computed_svg_path: Option<std::sync::Arc<libgfx_rust::path::Path>>,
     pub(crate) svg_text_character_cells: Option<std::sync::Arc<Vec<svg_formatting_context::FfiSvgTextCharacterCell>>>,
     pub(crate) has_line_clamp_point: bool,
-    pub(crate) is_invisible_for_line_clamp: bool,
     pub(crate) clamped_content_is_scrollable_overflow: bool,
     pub(crate) continues_from_previous_fragment: bool,
     pub(crate) continues_in_next_fragment: bool,
@@ -57,6 +49,16 @@ pub(crate) struct FragmentLink {
     pub(crate) inset_right: CssPixels,
     pub(crate) inset_top: CssPixels,
     pub(crate) inset_bottom: CssPixels,
+    /// The used margins, which the placement of the box decides, so that a change to them alone keeps the fragment.
+    pub(crate) margin_left: CssPixels,
+    pub(crate) margin_right: CssPixels,
+    pub(crate) margin_top: CssPixels,
+    pub(crate) margin_bottom: CssPixels,
+    /// What the parent decided about how the box shows, as `run_state::FragmentFactsDecidedByParent` describes it.
+    pub(crate) table_column_index: u32,
+    pub(crate) table_column_span: u32,
+    pub(crate) hidden_by_collapsed_columns: bool,
+    pub(crate) is_invisible_for_line_clamp: bool,
     pub(crate) containing_line_box_index: Option<usize>,
     /// Shared, as few links place an absolutely positioned box, the inputs are larger than the rest of the link, and
     /// layout run cache entries keep copies of links.
@@ -109,9 +111,6 @@ impl Fragment {
     /// SVG or line clamp state.
     pub(crate) fn is_plain_box(&self) -> bool {
         !self.is_collapsed_borders_table_box
-            && self.table_column_index == 0
-            && self.table_column_span == 0
-            && !self.hidden_by_collapsed_columns
             && self.collapsed_table_borders.is_none()
             && self.grid_layout_data.is_none()
             && self.flex_layout_data.is_none()
@@ -122,7 +121,6 @@ impl Fragment {
             && self.computed_svg_path.is_none()
             && self.svg_text_character_cells.is_none()
             && !self.has_line_clamp_point
-            && !self.is_invisible_for_line_clamp
             && !self.clamped_content_is_scrollable_overflow
             && !self.continues_from_previous_fragment
             && !self.continues_in_next_fragment
@@ -143,10 +141,6 @@ impl Fragment {
         self.node == previous.node
             && self.content_inline_size == previous.content_inline_size
             && self.content_block_size == previous.content_block_size
-            && self.margin_left == previous.margin_left
-            && self.margin_right == previous.margin_right
-            && self.margin_top == previous.margin_top
-            && self.margin_bottom == previous.margin_bottom
             && self.border_left == previous.border_left
             && self.border_right == previous.border_right
             && self.border_top == previous.border_top
@@ -157,9 +151,6 @@ impl Fragment {
             && self.padding_bottom == previous.padding_bottom
             && self.uses_collapsing_borders_model == previous.uses_collapsing_borders_model
             && self.is_collapsed_borders_table_box == previous.is_collapsed_borders_table_box
-            && self.table_column_index == previous.table_column_index
-            && self.table_column_span == previous.table_column_span
-            && self.hidden_by_collapsed_columns == previous.hidden_by_collapsed_columns
             && payloads.matches(
                 self.collapsed_table_borders.as_ref(),
                 previous.collapsed_table_borders.as_ref(),
@@ -176,7 +167,6 @@ impl Fragment {
                 previous.svg_text_character_cells.as_ref(),
             )
             && self.has_line_clamp_point == previous.has_line_clamp_point
-            && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
             && self.clamped_content_is_scrollable_overflow == previous.clamped_content_is_scrollable_overflow
             && self.continues_from_previous_fragment == previous.continues_from_previous_fragment
             && self.continues_in_next_fragment == previous.continues_in_next_fragment
@@ -211,10 +201,6 @@ impl FragmentLink {
                 node,
                 content_inline_size: CssPixels::default(),
                 content_block_size: CssPixels::default(),
-                margin_left: CssPixels::default(),
-                margin_right: CssPixels::default(),
-                margin_top: CssPixels::default(),
-                margin_bottom: CssPixels::default(),
                 border_left: CssPixels::default(),
                 border_right: CssPixels::default(),
                 border_top: CssPixels::default(),
@@ -225,9 +211,6 @@ impl FragmentLink {
                 padding_bottom: CssPixels::default(),
                 uses_collapsing_borders_model: false,
                 is_collapsed_borders_table_box: false,
-                table_column_index: 0,
-                table_column_span: 0,
-                hidden_by_collapsed_columns: false,
                 collapsed_table_borders: None,
                 line_data: None,
                 grid_layout_data: None,
@@ -239,7 +222,6 @@ impl FragmentLink {
                 computed_svg_path: None,
                 svg_text_character_cells: None,
                 has_line_clamp_point: false,
-                is_invisible_for_line_clamp: false,
                 clamped_content_is_scrollable_overflow: false,
                 continues_from_previous_fragment: false,
                 continues_in_next_fragment: false,
@@ -250,6 +232,14 @@ impl FragmentLink {
             inset_right: CssPixels::default(),
             inset_top: CssPixels::default(),
             inset_bottom: CssPixels::default(),
+            margin_left: CssPixels::default(),
+            margin_right: CssPixels::default(),
+            margin_top: CssPixels::default(),
+            margin_bottom: CssPixels::default(),
+            table_column_index: 0,
+            table_column_span: 0,
+            hidden_by_collapsed_columns: false,
+            is_invisible_for_line_clamp: false,
             containing_line_box_index: None,
             abspos_layout_inputs: None,
             default_scroll_shift: None,
@@ -262,6 +252,19 @@ impl FragmentLink {
         std::sync::Arc::ptr_eq(&self.fragment, &previous.fragment) && self.has_same_placement(previous)
     }
 
+    /// Whether the link shows its fragment with the same margins and the same facts its parent decided about the box,
+    /// which change what painting shows of the box while the fragment stays the same.
+    pub(crate) fn shows_box_as(&self, previous: &FragmentLink) -> bool {
+        self.margin_left == previous.margin_left
+            && self.margin_right == previous.margin_right
+            && self.margin_top == previous.margin_top
+            && self.margin_bottom == previous.margin_bottom
+            && self.table_column_index == previous.table_column_index
+            && self.table_column_span == previous.table_column_span
+            && self.hidden_by_collapsed_columns == previous.hidden_by_collapsed_columns
+            && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
+    }
+
     pub(crate) fn has_same_placement(&self, previous: &FragmentLink) -> bool {
         self.fragment.node == previous.fragment.node
             && self.committed_offset == previous.committed_offset
@@ -269,6 +272,7 @@ impl FragmentLink {
             && self.inset_right == previous.inset_right
             && self.inset_top == previous.inset_top
             && self.inset_bottom == previous.inset_bottom
+            && self.shows_box_as(previous)
             && self.containing_line_box_index == previous.containing_line_box_index
             && self.abspos_layout_inputs == previous.abspos_layout_inputs
             && self.default_scroll_shift == previous.default_scroll_shift
@@ -498,8 +502,8 @@ impl FragmentPayloads {
     }
 }
 
-/// What the fragment of a placed box shows of the box's own layout: its sizes and box sides in the frame of the run that
-/// places it, and its lines.
+/// What the placement of a box shows of the box's own layout, in the frame of the run that places it: the fragment shows
+/// its sizes, borders, paddings and lines, and the link shows its margins.
 #[derive(Clone)]
 pub(crate) struct FragmentGeometry {
     pub(crate) cells: used_values::RootInputCells,
@@ -512,10 +516,6 @@ impl FragmentGeometry {
         same_allocation(self.line_data.as_ref(), fragment.line_data.as_ref())
             && fragment.content_inline_size == cells.content_inline_size
             && fragment.content_block_size == cells.content_block_size
-            && fragment.margin_left == cells.margin_left
-            && fragment.margin_right == cells.margin_right
-            && fragment.margin_top == cells.margin_top
-            && fragment.margin_bottom == cells.margin_bottom
             && fragment.border_left == cells.border_left
             && fragment.border_right == cells.border_right
             && fragment.border_top == cells.border_top
@@ -526,28 +526,6 @@ impl FragmentGeometry {
             && fragment.padding_bottom == cells.padding_bottom
             && fragment.uses_collapsing_borders_model == cells.uses_collapsing_borders_model
     }
-}
-
-/// The committed fragment `fragment` of `node`, or a fragment of the box's `geometry` around the committed children
-/// where the box is now hidden or shown for line clamping unlike the committed fragment.
-pub(crate) fn committed_fragment_showing_box(
-    callbacks: &LayoutPass<'_>,
-    node: crate::layout::node_data::NodeSlotId,
-    geometry: impl FnOnce() -> FragmentGeometry,
-    fragment_facts: run_state::FragmentFactsDecidedByParent,
-    fragment: std::sync::Arc<Fragment>,
-) -> std::sync::Arc<Fragment> {
-    if fragment_facts.is_invisible_for_line_clamp == fragment.is_invisible_for_line_clamp {
-        return fragment;
-    }
-    snapshot_fragment(
-        callbacks,
-        node,
-        fragment.children.clone(),
-        geometry(),
-        fragment_facts,
-        Some(Box::new(FragmentPayloads::of_fragment(&fragment))),
-    )
 }
 
 fn snapshot_fragment(
@@ -578,10 +556,6 @@ fn snapshot_fragment(
         node,
         content_inline_size: cells.content_inline_size,
         content_block_size: cells.content_block_size,
-        margin_left: cells.margin_left,
-        margin_right: cells.margin_right,
-        margin_top: cells.margin_top,
-        margin_bottom: cells.margin_bottom,
         border_left: cells.border_left,
         border_right: cells.border_right,
         border_top: cells.border_top,
@@ -592,9 +566,6 @@ fn snapshot_fragment(
         padding_bottom: cells.padding_bottom,
         uses_collapsing_borders_model: cells.uses_collapsing_borders_model,
         is_collapsed_borders_table_box: cells.is_collapsed_borders_table_box,
-        table_column_index: fragment_facts.table_column_index,
-        table_column_span: fragment_facts.table_column_span,
-        hidden_by_collapsed_columns: fragment_facts.hidden_by_collapsed_columns,
         collapsed_table_borders,
         line_data,
         grid_layout_data,
@@ -606,7 +577,6 @@ fn snapshot_fragment(
         computed_svg_path,
         svg_text_character_cells,
         has_line_clamp_point,
-        is_invisible_for_line_clamp: fragment_facts.is_invisible_for_line_clamp,
         clamped_content_is_scrollable_overflow,
         continues_from_previous_fragment: fragment_facts.continues_from_previous_fragment,
         continues_in_next_fragment: fragment_facts.continues_in_next_fragment,
@@ -643,6 +613,14 @@ pub(crate) struct PlacementData {
     pub(crate) inset_right: CssPixels,
     pub(crate) inset_top: CssPixels,
     pub(crate) inset_bottom: CssPixels,
+    pub(crate) margin_left: CssPixels,
+    pub(crate) margin_right: CssPixels,
+    pub(crate) margin_top: CssPixels,
+    pub(crate) margin_bottom: CssPixels,
+    pub(crate) table_column_index: u32,
+    pub(crate) table_column_span: u32,
+    pub(crate) hidden_by_collapsed_columns: bool,
+    pub(crate) is_invisible_for_line_clamp: bool,
     pub(crate) containing_line_box_index: Option<usize>,
     pub(crate) abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
@@ -653,6 +631,7 @@ pub(crate) struct PlacementData {
 impl PlacementData {
     fn of_box(
         facts: &run_state::FactsDecidedByParent,
+        cells: &used_values::RootInputCells,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -665,6 +644,14 @@ impl PlacementData {
             inset_right: facts.used_insets.right,
             inset_top: facts.used_insets.top,
             inset_bottom: facts.used_insets.bottom,
+            margin_left: cells.margin_left,
+            margin_right: cells.margin_right,
+            margin_top: cells.margin_top,
+            margin_bottom: cells.margin_bottom,
+            table_column_index: facts.fragment_facts.table_column_index,
+            table_column_span: facts.fragment_facts.table_column_span,
+            hidden_by_collapsed_columns: facts.fragment_facts.hidden_by_collapsed_columns,
+            is_invisible_for_line_clamp: facts.fragment_facts.is_invisible_for_line_clamp,
             containing_line_box_index,
             abspos_layout_inputs,
             default_scroll_shift: facts.default_scroll_shift,
@@ -683,6 +670,7 @@ impl PlacementData {
     ) -> Self {
         Self::of_box(
             &unplaced_child.facts_decided_by_parent,
+            &unplaced_child.geometry.cells,
             None,
             None,
             FfiCssPixelPoint::default(),
@@ -699,6 +687,14 @@ fn link_fragment(fragment: std::sync::Arc<Fragment>, placement: PlacementData) -
         inset_right: placement.inset_right,
         inset_top: placement.inset_top,
         inset_bottom: placement.inset_bottom,
+        margin_left: placement.margin_left,
+        margin_right: placement.margin_right,
+        margin_top: placement.margin_top,
+        margin_bottom: placement.margin_bottom,
+        table_column_index: placement.table_column_index,
+        table_column_span: placement.table_column_span,
+        hidden_by_collapsed_columns: placement.hidden_by_collapsed_columns,
+        is_invisible_for_line_clamp: placement.is_invisible_for_line_clamp,
         containing_line_box_index: placement.containing_line_box_index,
         abspos_layout_inputs: placement.abspos_layout_inputs.map(std::sync::Arc::new),
         default_scroll_shift: placement.default_scroll_shift,
@@ -1517,17 +1513,16 @@ impl RunFragmentBuilder {
             .remove(&slot)
             .unwrap_or_else(|| PendingFragment::new(node));
         let content_size = (geometry.cells.content_inline_size, geometry.cells.content_block_size);
-        let fragment = snapshot_fragment(callbacks, node, children, geometry, facts.fragment_facts, payloads);
-        let link = link_fragment(
-            fragment.clone(),
-            PlacementData::of_box(
-                &facts,
-                abspos_layout_inputs,
-                containing_line_box_index,
-                committed_offset,
-                callbacks.frame,
-            ),
+        let link_placement = PlacementData::of_box(
+            &facts,
+            &geometry.cells,
+            abspos_layout_inputs,
+            containing_line_box_index,
+            committed_offset,
+            callbacks.frame,
         );
+        let fragment = snapshot_fragment(callbacks, node, children, geometry, facts.fragment_facts, payloads);
+        let link = link_fragment(fragment.clone(), link_placement);
         self.attach(&mut inner, link, containing_block);
         let exports_payloads = !pending_abspos_from_placed_box.is_empty()
             || !anchor_candidates_from_placed_box.is_empty()
@@ -1597,8 +1592,8 @@ impl RunFragmentBuilder {
         }
     }
 
-    /// Places the committed fragment of a box as it is. Where the box's subtree is reused as it is, commit stops at the
-    /// box, so its committed descendants stay as they are.
+    /// Places the committed fragment of a box as it is, with the margins in `cells_of_placed_box`. Where the box's
+    /// subtree is reused as it is, commit stops at the box, so its committed descendants stay as they are.
     #[expect(clippy::too_many_arguments)]
     pub(crate) fn attach_committed_fragment(
         &self,
@@ -1607,6 +1602,7 @@ impl RunFragmentBuilder {
         reuses_subtree: bool,
         containing_block: Option<crate::layout::node_data::NodeSlotId>,
         facts: run_state::FactsDecidedByParent,
+        cells_of_placed_box: &used_values::RootInputCells,
         abspos_layout_inputs: Option<abspos_inputs::AbsposLayoutInputs>,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
@@ -1626,6 +1622,7 @@ impl RunFragmentBuilder {
             fragment,
             PlacementData::of_box(
                 &facts,
+                cells_of_placed_box,
                 abspos_layout_inputs,
                 containing_line_box_index,
                 committed_offset,

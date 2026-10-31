@@ -201,24 +201,25 @@ impl RootInputCells {
         self.resolve_vertical_box_model(style, basis);
     }
 
-    /// The sizes and box sides `fragment` shows, with both sizes definite.
-    pub(crate) fn of_committed_fragment(fragment: &fragment_tree::Fragment) -> Self {
+    /// The sizes and box sides `link` and its fragment show, with both sizes definite.
+    pub(crate) fn of_committed_fragment_link(link: &fragment_tree::FragmentLink) -> Self {
         let mut cells = Self {
             has_definite_block_size: true,
             ..Self::default()
         };
-        cells.take_box_metrics_of_fragment(fragment);
+        cells.take_box_metrics_of_committed_link(link);
         cells
     }
 
-    /// Takes the sizes and box sides `fragment` shows.
-    pub(crate) fn take_box_metrics_of_fragment(&mut self, fragment: &fragment_tree::Fragment) {
+    /// Takes the sizes and box sides `link` and its fragment show.
+    pub(crate) fn take_box_metrics_of_committed_link(&mut self, link: &fragment_tree::FragmentLink) {
+        let fragment = &link.fragment;
         self.set_content_inline_size(fragment.content_inline_size);
         self.set_content_block_size(fragment.content_block_size);
-        self.margin_left = fragment.margin_left;
-        self.margin_right = fragment.margin_right;
-        self.margin_top = fragment.margin_top;
-        self.margin_bottom = fragment.margin_bottom;
+        self.margin_left = link.margin_left;
+        self.margin_right = link.margin_right;
+        self.margin_top = link.margin_top;
+        self.margin_bottom = link.margin_bottom;
         self.border_left = fragment.border_left;
         self.border_right = fragment.border_right;
         self.border_top = fragment.border_top;
@@ -669,10 +670,9 @@ pub(crate) struct CommittedBox {
 
 pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node: Node) -> Option<CommittedBox> {
     let link = callbacks.committed_fragment_link(node)?;
-    let fragment = &link.fragment;
 
     Some(CommittedBox {
-        cells: RootInputCells::of_committed_fragment(fragment),
+        cells: RootInputCells::of_committed_fragment_link(&link),
         facts_decided_by_parent: super::run_state::FactsDecidedByParent {
             placement: Some(super::run_state::BoxPlacement {
                 content_offset_in_containing_block: link.committed_offset,
@@ -686,9 +686,9 @@ pub(crate) fn committed_box_from_fragment_link(callbacks: &LayoutPass<'_>, node:
             },
             default_scroll_shift: None,
             fragment_facts: super::run_state::FragmentFactsDecidedByParent {
-                table_column_index: fragment.table_column_index,
-                table_column_span: fragment.table_column_span,
-                hidden_by_collapsed_columns: fragment.hidden_by_collapsed_columns,
+                table_column_index: link.table_column_index,
+                table_column_span: link.table_column_span,
+                hidden_by_collapsed_columns: link.hidden_by_collapsed_columns,
                 ..super::run_state::FragmentFactsDecidedByParent::default()
             },
         },

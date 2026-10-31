@@ -594,12 +594,12 @@ impl CommittedFragmentLinkSlot {
 }
 
 impl PaintableRowStore {
-    pub(crate) fn with_current_committed_fragment<R>(
+    pub(crate) fn with_current_committed_fragment_link<R>(
         &self,
         layout_slot_index: u32,
         layout_slot_generation: u8,
         geometry_epoch: u32,
-        read: impl FnOnce(&std::sync::Arc<fragment_tree::Fragment>) -> R,
+        read: impl FnOnce(&fragment_tree::FragmentLink) -> R,
     ) -> Option<R> {
         let slots = &self.committed_fragment_links;
         let slot = slots.get(layout_slot_index as usize)?;
@@ -609,7 +609,7 @@ impl PaintableRowStore {
         {
             return None;
         }
-        Some(read(&slot.link.as_ref()?.fragment))
+        Some(read(slot.link.as_ref()?))
     }
 
     /// Whether the slot holds `link` already, placed the same way, with geometry current for `geometry_epoch`.
@@ -620,16 +620,13 @@ impl PaintableRowStore {
         geometry_epoch: u32,
         link: &fragment_tree::FragmentLink,
     ) -> bool {
-        let slots = &self.committed_fragment_links;
-        slots.get(layout_slot_index as usize).is_some_and(|slot| {
-            slot.layout_slot_generation == layout_slot_generation
-                && slot.geometry_is_current
-                && slot.geometry_epoch == geometry_epoch
-                && slot
-                    .link
-                    .as_ref()
-                    .is_some_and(|committed| link.places_same_fragment_identically_to(committed))
-        })
+        self.with_current_committed_fragment_link(
+            layout_slot_index,
+            layout_slot_generation,
+            geometry_epoch,
+            |committed| link.places_same_fragment_identically_to(committed),
+        )
+        .unwrap_or(false)
     }
 
     pub(crate) fn invalidate_committed_geometry(&mut self, layout_slot_index: u32) {

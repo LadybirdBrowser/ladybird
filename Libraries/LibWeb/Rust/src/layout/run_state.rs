@@ -190,7 +190,8 @@ pub(crate) struct BoxPlacement {
     pub(crate) containing_block: Node,
 }
 
-/// What a box's fragment shows of the layout of its parent, which decides it.
+/// What the placement of a box shows of the layout of its parent, which decides it: the link that places the box's
+/// fragment shows the table and line clamp facts, and the fragment shows whether fragmentation broke the box.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FragmentFactsDecidedByParent {
     /// For table cells and table-column(-group) boxes: the first grid column the box occupies and the number of grid

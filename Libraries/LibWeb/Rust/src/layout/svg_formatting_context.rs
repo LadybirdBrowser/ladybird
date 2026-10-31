@@ -2244,17 +2244,14 @@ impl<'pass> SvgFormattingContext<'pass> {
         }
         self.run.fragments.as_ref()?;
         // A committed fragment stops being current when something marks its box for layout.
-        let fragment = self
+        let link = self
             .run
             .callbacks
             .arena()
-            .with_current_committed_fragment(shape, |fragment| fragment.clone())?;
+            .with_current_committed_fragment_link(shape, |link| link.clone())?;
+        let fragment = link.fragment.clone();
         fragment.computed_svg_path.as_ref()?;
-        let committed_offset = crate::painting::paint_read::GeometryRead::with_committed_fragment_link(
-            self.run.callbacks.arena(),
-            shape,
-            |link| link.map(|link| link.committed_offset),
-        )?;
+        let committed_offset = link.committed_offset;
         // The transforms and the stroke's percentage basis are what the shape's facts take from outside its own
         // geometry.
         let committed = fragment.svg.as_deref().copied().unwrap_or_default();
@@ -2266,7 +2263,7 @@ impl<'pass> SvgFormattingContext<'pass> {
             return None;
         }
         cells.update_cells(|cells| {
-            cells.take_box_metrics_of_fragment(&fragment);
+            cells.take_box_metrics_of_committed_link(&link);
             cells.has_definite_block_size = true;
         });
         self.place_laid_out_child(
