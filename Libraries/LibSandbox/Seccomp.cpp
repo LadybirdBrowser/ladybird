@@ -1552,9 +1552,38 @@ void set_connect_broker_fd(int fd)
 
 void SeccompPolicy::allow_pulseaudio_client_file_operations()
 {
-    // libpulse re-creates its runtime directory before it looks for a socket there; Landlock decides where that succeeds.
+    // libpulse re-creates its runtime directory before it looks for a socket there, and removes a directory it made
+    // again when it can't use it; Landlock decides where that succeeds.
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mkdir);
     SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, mkdirat);
+    SECCOMP_APPEND_ALLOW_SYSCALL_IF_DEFINED(*this, rmdir);
+#ifdef __NR_unlinkat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_unlinkat, 0, 4));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, AT_REMOVEDIR, 0, 1));
+    append(SECCOMP_ALLOW);
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+
+    // With no cookie yet, libpulse opens one for writing, to create it. Refuse that the way Landlock refuses a write
+    // there, rather than killing the process: libpulse then opens the cookie read-only, and goes on without one if
+    // there's none to read. A read-only open falls through to whatever else the policy allows.
+#ifdef __NR_open
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_open, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(1));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~read_only_open_flags));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 1, 0));
+    append(SECCOMP_ERRNO(EACCES));
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
+#ifdef __NR_openat
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_openat, 0, 5));
+    append(SECCOMP_LOAD_ARGUMENT(2));
+    append(BPF_STMT(BPF_ALU | BPF_AND | BPF_K, ~read_only_open_flags));
+    append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, 0, 1, 0));
+    append(SECCOMP_ERRNO(EACCES));
+    append(SECCOMP_LOAD_SYSCALL_NR);
+#endif
 
     // It also holds a record lock on its cookie while reading it.
     append(BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, __NR_fcntl, 0, 5));
