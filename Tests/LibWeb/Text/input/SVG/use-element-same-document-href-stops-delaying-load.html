@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<svg width="0" height="0"><symbol id="local"><rect id="local-rect" width="10" height="10"/></symbol></svg>
+<script>
+    const server = httpTestServer();
+    const spriteURL = server.echoURL("/use-element-same-document-href-stalled-sprite.svg");
+    const unblockToken = `use-element-same-document-href-stalled-sprite-${crypto.randomUUID()}`;
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${server.baseURL}/echo`, false);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(JSON.stringify({
+        method: "GET",
+        path: new URL(spriteURL).pathname,
+        status: 200,
+        headers: { "Content-Type": "image/svg+xml", "Cache-Control": "no-store" },
+        body: `<svg xmlns="http://www.w3.org/2000/svg"><symbol id="remote"><circle id="remote-circle" r="5"/></symbol></svg>`,
+        wait_for_unblock: unblockToken,
+    }));
+
+    document.write(`<svg width="10" height="10"><use id="use" href="${spriteURL}#remote"/></svg>`);
+    document.getElementById("use").setAttribute("href", "#local");
+
+    asyncTest(done => {
+        window.addEventListener("load", async () => {
+            const instance = internals.getShadowRoot(document.getElementById("use")).firstElementChild;
+            println(`Load event fired, use: ${instance?.firstElementChild?.id ?? "nothing"}`);
+            await fetch(`${server.baseURL}/unblock/${unblockToken}`);
+            done();
+        });
+    });
+</script>

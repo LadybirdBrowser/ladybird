@@ -1,0 +1,3 @@
+Requests for the sprite: 1
+useChanging: second-circle
+useStable: first-rect
