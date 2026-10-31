@@ -1,0 +1,38 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  clips:
+    [c0 in s1] clip=[1,181 196x18] radii=(3,3,3,3) (TextInputBox<INPUT>)
+      [c1 in s1] clip=[3,182 192x16] (BlockContainer<DIV>)
+    [c2 in s1] clip=[3,213 196x18] (TextInputBox<INPUT>)
+      [c3 in s1] clip=[5,214 192x16] (BlockContainer<DIV>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 58x20] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[0,0 58x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/e0 rect=[5,2 48x16] translation=[5,14.796875] color=rgb(0, 0, 0)
+FillRectWithRoundedCorners@s1/e0 rect=[0,30 152x24] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[0,30 152x24] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/e0 rect=[4,34 144x16] translation=[4,46.796875] color=rgb(0, 128, 0)
+FillRectWithRoundedCorners@s1/e0 rect=[0,60 144x20] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[0,60 144x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/e0 rect=[5,62 134x16] translation=[5,74.796875] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[0,90 99x20] color=rgb(0, 255, 0)
+FillRoundedRectRing@s1/e0 rect=[0,90 99x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/e0 rect=[5,92 90x16] translation=[5,104.796875] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[0,120 64x20] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[0,120 64x20] widths=[1,1,1,1] color=rgb(255, 0, 0)
+DrawGlyphRun@s1/e0 rect=[5,122 54x16] translation=[5,134.79688] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[0,150 153x20] color=rgb(239, 239, 239)
+FillRoundedRectRing@s1/e0 rect=[0,150 153x20] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/e0 rect=[5,152 143x16] translation=[5,164.79688] color=rgb(0, 0, 0)
+FillRectWithRoundedCorners@s1/e0 rect=[0,180 198x20] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,180 198x20] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/c1/e0 rect=[3,182 38x16] translation=[3,194.79688] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[0,210 202x24] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,210 202x24] widths=[3,3,3,3] color=rgb(118, 118, 118)
+DrawGlyphRun@s1/c3/e0 rect=[5,214 71x16] translation=[5,226.79688] color=rgb(0, 0, 0)
+

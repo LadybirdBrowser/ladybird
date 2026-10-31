@@ -615,6 +615,10 @@ pub(crate) const HIGHLIGHT_COLORS_AUTHORED: u8 = 1 << 5;
 /// computed value is the originating element's color, but painting draws the layer below instead.
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-text
 pub(crate) const HIGHLIGHT_COLOR_IS_CURRENT_COLOR: u8 = 1 << 6;
+/// The dependency-flag bit of a record with a cascaded value from the author origin for any property that disables
+/// native appearance for widgets.
+/// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
+pub(crate) const NATIVE_APPEARANCE_DISABLED: u8 = 1 << 7;
 
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -825,6 +829,14 @@ impl ComputedLonghandTable {
 
     pub(crate) fn dependency_flags(&self) -> u8 {
         self.metadata.dependency_flags
+    }
+
+    pub(crate) fn set_native_appearance_disabled(&mut self, disabled: bool) {
+        if disabled {
+            self.metadata.dependency_flags |= NATIVE_APPEARANCE_DISABLED;
+        } else {
+            self.metadata.dependency_flags &= !NATIVE_APPEARANCE_DISABLED;
+        }
     }
 
     pub(crate) fn publication_dependency_flags(&self) -> u8 {

@@ -220,6 +220,18 @@ impl CascadePriority {
         }
     }
 
+    /// The origin of the declaration this priority was built for.
+    #[must_use]
+    pub fn cascade_origin(&self) -> CascadeOrigin {
+        match self.origin_importance {
+            0 | 8 => CascadeOrigin::UserAgent,
+            1 | 7 => CascadeOrigin::User,
+            2 | 6 => CascadeOrigin::AuthorPresentationalHint,
+            3 | 5 => CascadeOrigin::Author,
+            rank => unreachable!("origin-importance rank {rank} names no origin"),
+        }
+    }
+
     /// Where among an element's encapsulation contexts an author declaration's priority places it:
     /// the `context_depth` it was built from. `None` for the other origins.
     #[must_use]

@@ -339,6 +339,8 @@ pub struct MiscResetValues {
     pub column_fill: u8,
     pub appearance: u8,
     pub computed_appearance: u8,
+    /// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
+    pub native_appearance_disabled: bool,
     pub outline_style: u8,
     pub object_fit: u8,
     pub column_height: ComputedSize,

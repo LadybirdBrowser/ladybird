@@ -290,6 +290,7 @@ public:
 
     virtual bool is_mutable() const override;
     virtual bool uses_button_layout() const override;
+    virtual bool is_devolvable_widget() const override;
     bool is_allowed_to_be_readonly() const;
 
 private:

@@ -805,6 +805,7 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     column_fill,
     appearance,
     computed_appearance,
+    native_appearance_disabled,
     outline_style,
     object_fit,
     column_height,
@@ -2519,6 +2520,11 @@ impl StyleGroupMasks {
         // NB: The box group holds the used containment flags implied by hidden content visibility.
         masks[index(crate::css::property_metadata::property_id::CONTENT_VISIBILITY)] |=
             1 << crate::css::table_group_builder::group_index::BOX;
+        // NB: The misc reset group holds whether an author declaration disables native appearance, which these
+        //     properties' winners decide.
+        for &property in crate::css::style_compute::PROPERTIES_DISABLING_NATIVE_APPEARANCE {
+            masks[index(property)] |= 1 << crate::css::table_group_builder::group_index::MISC_RESET;
+        }
         Self { masks, output_masks }
     }
 
@@ -3760,6 +3766,7 @@ impl MiscResetValues {
             column_fill: crate::css::css_enums::column_fill::BALANCE,
             appearance: 0,
             computed_appearance: 7,
+            native_appearance_disabled: false,
             outline_style: 1,
             object_fit: 0,
             column_height: ComputedSize::keyword(ComputedSizeKind::Auto),

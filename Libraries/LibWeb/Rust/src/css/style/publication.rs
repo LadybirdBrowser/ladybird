@@ -3631,6 +3631,7 @@ impl RetainedState {
                                 value: unset_value(),
                                 source: declared_winner.source,
                             },
+                            None,
                         ),
                         Some(winner_store::RevertedDeclaration {
                             position: (declared_winner.priority, index),
@@ -3910,7 +3911,12 @@ impl RetainedState {
             declarations.push((
                 winner.priority,
                 index,
-                WinnerDeclaration::new(winner.property, winner.important, value),
+                WinnerDeclaration::new(
+                    winner.property,
+                    winner.important,
+                    value,
+                    Some(winner.priority.cascade_origin()),
+                ),
                 revert,
             ));
         }

@@ -4,17 +4,17 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[1,1 81x20] (TextAreaBox<TEXTAREA>#ta)
+    [c0 in s1] clip=[1,1 81x20] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>#ta)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,0 83x22] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,0 83x22] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[3,3 9x15]]
 FillRect@s1/c0/e0 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[12,3 19x15]]
-FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] widths=[2,2,2,2] color=rgb(61, 174, 233)
+FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
 DrawLine@s1/e0 from=[78,19] to=[80,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[77,19] to=[80,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[75,19] to=[80,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
@@ -30,13 +30,13 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[1,1 81x20] (TextAreaBox<TEXTAREA>#ta)
+    [c0 in s1] clip=[1,1 81x20] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>#ta)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,0 83x22] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,0 83x22] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[3,3 9x15]]
 FillRect@s1/c0/e0 rect=[12,3 19x16] color=rgba(16, 16, 16, 0.667)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[12,3 19x15]]
@@ -55,17 +55,17 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[1,1 81x20] (TextAreaBox<TEXTAREA>#ta)
+    [c0 in s1] clip=[1,1 81x20] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>#ta)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,0 83x22] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,0 83x22] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[3,3 9x15]]
 FillRect@s1/c0/e0 rect=[12,3 19x16] color=rgba(101, 2, 0, 0.8)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0) inline_clips=[clip=[12,3 19x15]]
-FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] widths=[2,2,2,2] color=rgb(61, 174, 233)
+FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
 DrawLine@s1/e0 from=[78,19] to=[80,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[77,19] to=[80,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[75,19] to=[80,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
@@ -81,16 +81,16 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[1,1 81x20] (TextAreaBox<TEXTAREA>#ta)
+    [c0 in s1] clip=[1,1 81x20] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>#ta)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,0 83x22] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,0 83x22] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
 PaintCaret@s1/c0/e0 rect=[22,3 1x16] color=rgb(0, 0, 0) should_blink=false
-FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] widths=[2,2,2,2] color=rgb(61, 174, 233)
+FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
 DrawLine@s1/e0 from=[78,19] to=[80,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[77,19] to=[80,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[75,19] to=[80,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
@@ -105,13 +105,13 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[1,1 81x20] (TextAreaBox<TEXTAREA>#ta)
+    [c0 in s1] clip=[1,1 81x20] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>#ta)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,0 83x22] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,0 83x22] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
 DrawLine@s1/e0 from=[78,19] to=[80,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[77,19] to=[80,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
@@ -127,16 +127,16 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
   clips:
-    [c0 in s1] clip=[1,1 81x20] (TextAreaBox<TEXTAREA>#ta)
+    [c0 in s1] clip=[1,1 81x20] radii=(3,3,3,3) (TextAreaBox<TEXTAREA>#ta)
   effects:
     [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
-FillRoundedRectRing@s1/e0 rect=[0,0 83x22] widths=[1,1,1,1] color=rgb(118, 118, 118)
+FillRectWithRoundedCorners@s1/e0 rect=[0,0 83x22] color=rgb(255, 255, 255)
+FillRoundedRectRing@s1/e0 rect=[0,0 83x22] corner_radii=[4x4,4x4,4x4,4x4] widths=[1,1,1,1] color=rgb(118, 118, 118)
 DrawGlyphRun@s1/c0/e0 rect=[3,3 28x16] translation=[3,15.796875] color=rgb(0, 0, 0)
 PaintCaret@s1/c0/e0 rect=[22,3 1x16] color=rgb(0, 0, 0) should_blink=false
-FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] widths=[2,2,2,2] color=rgb(61, 174, 233)
+FillRoundedRectRing@s1/e0 rect=[-2,-2 87x26] corner_radii=[6x6,6x6,6x6,6x6] widths=[2,2,2,2] color=rgb(61, 174, 233)
 DrawLine@s1/e0 from=[78,19] to=[80,17] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[77,19] to=[80,16] color=rgba(0, 0, 0, 0.392) thickness=1 style=Solid
 DrawLine@s1/e0 from=[75,19] to=[80,14] color=rgba(255, 255, 255, 0.392) thickness=1 style=Solid
