@@ -1,0 +1,23 @@
+Ladybird now decides if focus that a script moves matches :focus-visible
+from how the user last moved focus, and a keydown without Ctrl, Alt, or
+Super held cancels a click’s effect. Blink does the same: Its Document::
+SetFocusedElement() records no LastFocusType() for focus by script, and
+SelectorChecker::MatchesFocusVisiblePseudoClass() doesn’t match after a
+mouse focus unless HadKeyboardEvent(), which KeyboardEventManager::
+KeyEvent() sets on a keydown without Ctrl, Alt, or Meta held. WebKit’s
+Document::setFocusedElement() leaves m_latestFocusTrigger alone for
+focus from bindings, Element::focus() makes that focus invisible if
+wasLastFocusByClick(), and EventHandler::internalKeyEvent() resets the
+trigger on a keyboard interaction. And Gecko’s ShouldMatchFocusVisible()
+matches focus with an unknown cause only if the last known focus method
+was by key or there was none (UnknownFocusMethodShouldShowOutline()).
+
+Keyboard use also updates the focused element’s :focus-visible at once,
+as Blink’s Node::UpdateHadKeyboardEvent() does by calling the element’s
+FocusVisibleStateChanged() and WebKit’s EventHandler::internalKeyEvent()
+does by calling the element’s setHasFocusVisible(). And focus()’s
+focusVisible option overrides every heuristic, as it does in all three
+engines: Blink’s MatchesFocusVisiblePseudoClass() checks focus options
+first, WebKit’s Element::focus() turns the option into a Visible or a
+ForceInvisible focus visibility, and Gecko’s ShouldMatchFocusVisible()
+checks FLAG_SHOWRING and FLAG_NOSHOWRING before any other heuristic.
