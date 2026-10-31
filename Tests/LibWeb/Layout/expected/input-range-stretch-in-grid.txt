@@ -16,4 +16,4 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)
-  SC for BlockContainer<DIV> [127.8125,10 16x16] (z-index: 1), has_transform
+  SC for BlockContainer<DIV> [127.8125,10 16x16] (z-index: auto), has_transform
