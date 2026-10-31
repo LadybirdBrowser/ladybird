@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const a = new RTCPeerConnection();
+    const b = new RTCPeerConnection();
+    a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
+    b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const destination = context.createMediaStreamDestination();
+    oscillator.connect(destination);
+    oscillator.start();
+    const track = new Promise(resolve => b.ontrack = event => resolve(event.track));
+    try {
+        a.addTrack(destination.stream.getAudioTracks()[0], destination.stream);
+        await a.setLocalDescription(await a.createOffer());
+        await b.setRemoteDescription(a.localDescription);
+        await b.setLocalDescription(await b.createAnswer());
+        await a.setRemoteDescription(b.localDescription);
+        println(`remote track kind: ${(await track).kind}`);
+        // The sender encodes 20ms Opus frames; wait until some of them have made it across.
+        let received = 0;
+        for (let attempt = 0; attempt < 100 && received === 0; ++attempt) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const stats = await b.getStats();
+            for (const entry of stats.values()) {
+                if (entry.type === "inbound-rtp" && entry.kind === "audio")
+                    received = entry.packetsReceived ?? 0;
+            }
+        }
+        println(`audio packets received: ${received > 0}`);
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        oscillator.stop();
+        a.close(); b.close(); context.close(); done();
+    }
+});
+</script>

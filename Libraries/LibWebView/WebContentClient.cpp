@@ -1101,6 +1101,27 @@ Messages::WebContentClient::RequestAudioServerConnectionResponse WebContentClien
     return handle.release_value();
 }
 
+Messages::WebContentClient::RequestWebrtcClientConnectionResponse WebContentClient::request_webrtc_client_connection()
+{
+    // A renderer asks again whenever its helper dies, so a helper that keeps crashing, or a renderer that keeps asking,
+    // would otherwise have us spawn processes in a loop.
+    static constexpr size_t MAX_WEBRTC_CLIENT_LAUNCHES_PER_MINUTE = 5;
+    auto now = MonotonicTime::now_coarse();
+    m_webrtc_client_launch_times.remove_all_matching([&](auto launch_time) { return now - launch_time >= AK::Duration::from_seconds(60); });
+    if (m_webrtc_client_launch_times.size() >= MAX_WEBRTC_CLIENT_LAUNCHES_PER_MINUTE) {
+        warnln("Not launching another WebRTCClient for WebContent {}: it had {} in the last minute", child_id(), m_webrtc_client_launch_times.size());
+        return OptionalNone {};
+    }
+    m_webrtc_client_launch_times.append(now);
+
+    auto handle = launch_webrtc_client_process(*this);
+    if (handle.is_error()) {
+        warnln("Unable to launch a WebRTCClient: {}", handle.error());
+        return OptionalNone {};
+    }
+    return handle.release_value();
+}
+
 Optional<u64> WebContentClient::exclusive_performance_owner() const
 {
     Optional<u64> owner;

@@ -40,7 +40,7 @@ static Utf16FlyString const& VIDEO_INPUT_KIND = *new Utf16FlyString("videoinput"
 
 using ConstrainDOMString = Variant<Utf16String, Vector<Utf16String>, ConstrainDOMStringParameters>;
 
-static Optional<Vector<Utf16String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value);
+static Optional<DeviceIdConstraint> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value);
 
 GC_DEFINE_ALLOCATOR(MediaDevices);
 
@@ -181,6 +181,18 @@ bool MediaDevices::device_enumeration_can_proceed()
 
     // 2. Return the result of is in view with mediaDevices.
     return is_in_view();
+}
+
+// https://w3c.github.io/mediacapture-main/#dfn-has-system-focus
+void MediaDevices::system_focus_changed()
+{
+    // 11.7 While hasSystemFocus is false, the User Agent MUST wait to proceed to the next step until a task queued to set
+    //      hasSystemFocus to the result of the has system focus algorithm, would set hasSystemFocus to true.
+    HTML::queue_global_task(HTML::Task::Source::UserInteraction, HTML::relevant_global_object(*m_window),
+        GC::create_function(heap(), [media_devices = GC::Ref(*this)] {
+            media_devices->process_pending_enumerate_devices_requests();
+            media_devices->process_pending_get_user_media_requests();
+        }));
 }
 
 bool MediaDevices::get_user_media_can_proceed() const
@@ -385,7 +397,7 @@ GC::RootVector<GC::Ref<MediaDeviceInfo>> MediaDevices::create_list_of_device_inf
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-getusermedia
-void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<Vector<Utf16String>> requested_device_ids)
+void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, Optional<DeviceIdConstraint> device_id_constraint)
 {
     GC::Ref<MediaDevices> media_devices = *this;
 
@@ -394,7 +406,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
     if (!HTML::Window::in_test_mode())
         audio_input_devices = Audio::AudioDevices::the().input_devices();
 
-    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, requested_device_ids = move(requested_device_ids), audio_input_devices = move(audio_input_devices)] mutable {
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(GC::Heap::the(), [promise = GC::Root(promise), media_devices, device_id_constraint = move(device_id_constraint), audio_input_devices = move(audio_input_devices)] mutable {
         auto& realm = WebIDL::promise_realm(*promise);
         HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -430,18 +442,13 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         // 11.3.3 Remove any constrainable property inside of CS that are not defined for MediaStreamTrack objects of type kind.
         // 11.3.4 If CS contains a member that is a required constraint and whose name is not in the list of allowed required constraints for device selection, then reject p with a TypeError, and abort these steps.
         // 11.3.5 Run the SelectSettings algorithm on each candidate in candidateSet with CS as the constraint set.
-        if (requested_device_ids.has_value() && !requested_device_ids->is_empty()) {
-            Vector<Audio::AudioDeviceInfo> filtered_candidates;
-            for (auto const& device : candidate_set) {
-                auto device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view());
-                for (auto const& requested_id : *requested_device_ids) {
-                    if (device_id == requested_id) {
-                        filtered_candidates.append(device);
-                        break;
-                    }
-                }
-            }
-            candidate_set = move(filtered_candidates);
+        // AD-HOC: Until the tab may capture, this process only learns that devices exist, not their ids, so a required
+        //         device can only be looked for once the permission is granted.
+        auto device_ids_are_known = any_of(candidate_set, [](auto const& device) { return !device.dom_device_id.is_empty(); });
+        if (device_id_constraint.has_value() && device_id_constraint->is_required && device_ids_are_known) {
+            candidate_set.remove_all_matching([&](auto const& device) {
+                return !device_id_constraint->device_ids.contains_slow(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+            });
 
             if (candidate_set.is_empty()) {
                 // FIXME: 11.14.3 Reject p with a new OverconstrainedError created by calling OverconstrainedError(constraint, message).
@@ -468,7 +475,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
         // 11.5 For each media type kind in requestedMediaTypes, run the following sub steps, preferably at the same time.
         // 11.5.1 Request permission to use a PermissionDescriptor with its name member set to the permission name associated with kind.
         auto& settings_object = HTML::relevant_settings_object(*media_devices->m_window);
-        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), [promise, media_devices, requested_device_ids, stream](PermissionsAPI::PermissionState microphone_permission_result) {
+        PermissionsAPI::request_permission_with_user_prompt(microphone_permission, settings_object, GC::create_function(GC::Heap::the(), [promise, media_devices, device_id_constraint, stream](PermissionsAPI::PermissionState microphone_permission_result) {
             auto& realm = WebIDL::promise_realm(*promise);
             HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -487,7 +494,7 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
 
             // AD-HOC: The input devices' names and ids reach this process only once the Browser has told its AudioServer
             // of the grant, so finalSet is gathered again from a list fetched after it.
-            media_devices->run_with_fresh_audio_device_list(GC::create_function(GC::Heap::the(), [promise, media_devices, requested_device_ids, stream] {
+            media_devices->run_with_fresh_audio_device_list(GC::create_function(GC::Heap::the(), [promise, media_devices, device_id_constraint, stream] {
                 auto& realm = WebIDL::promise_realm(*promise);
                 HTML::TemporaryExecutionContext execution_context { realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes };
 
@@ -499,12 +506,19 @@ void MediaDevices::queue_get_user_media_task(GC::Ref<WebIDL::Promise> promise, O
                     return;
                 }
 
-                Vector<Audio::AudioDeviceInfo> final_set;
-                for (auto const& device : Audio::AudioDevices::the().input_devices()) {
-                    auto device_id = Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view());
-                    if (requested_device_ids.has_value() && !requested_device_ids->is_empty() && !requested_device_ids->contains_slow(device_id))
-                        continue;
-                    final_set.append(device);
+                auto final_set = Audio::AudioDevices::the().input_devices();
+                if (device_id_constraint.has_value()) {
+                    auto matching_devices = final_set;
+                    matching_devices.remove_all_matching([&](auto const& device) {
+                        return !device_id_constraint->device_ids.contains_slow(Utf16String::from_utf8_with_replacement_character(device.dom_device_id.view()));
+                    });
+                    if (!matching_devices.is_empty()) {
+                        final_set = move(matching_devices);
+                    } else if (device_id_constraint->is_required) {
+                        // FIXME: Reject with an OverconstrainedError for the deviceId constraint.
+                        WebIDL::reject_promise(*promise, WebIDL::NotFoundError::create("Requested audio input device not found"_utf16));
+                        return;
+                    }
                 }
 
                 // 11.8 Set the device information exposure on mediaDevices with requestedMediaTypes and true.
@@ -606,7 +620,7 @@ void MediaDevices::process_pending_get_user_media_requests()
 
     GC::ConservativeVector pending_requests { move(m_pending_get_user_media_requests) };
     for (auto& request : pending_requests)
-        queue_get_user_media_task(request.promise, move(request.requested_device_ids));
+        queue_get_user_media_task(request.promise, move(request.device_id_constraint));
 }
 
 // https://w3c.github.io/mediacapture-main/#dfn-device-change-notification-steps
@@ -668,7 +682,7 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
 {
     bool audio_requested = false;
     bool video_requested = false;
-    Optional<Vector<Utf16String>> requested_device_ids;
+    Optional<DeviceIdConstraint> device_id_constraint;
 
     // 1. Let constraints be the method's first argument.
     if (!constraints.has_value()) {
@@ -685,7 +699,7 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     } else {
         audio_requested = true;
         auto const& audio_constraints = audio_value.get<MediaTrackConstraints>();
-        requested_device_ids = extract_device_id_constraint(audio_constraints.device_id);
+        device_id_constraint = extract_device_id_constraint(audio_constraints.device_id);
     }
 
     auto const& video_value = constraints_value.video;
@@ -735,16 +749,16 @@ void MediaDevices::get_user_media(Optional<MediaStreamConstraints> const& constr
     // AD-HOC: Keep the request queued until isInView and hasSystemFocus allow the deferred task
     // to continue without spinning in the event loop.
     if (!get_user_media_can_proceed()) {
-        m_pending_get_user_media_requests.append({ .promise = promise, .requested_device_ids = move(requested_device_ids) });
+        m_pending_get_user_media_requests.append({ .promise = promise, .device_id_constraint = move(device_id_constraint) });
         return;
     }
 
     if (!HTML::Window::in_test_mode() && !Audio::AudioDevices::the().has_device_list()) {
-        m_pending_get_user_media_requests.append({ .promise = promise, .requested_device_ids = move(requested_device_ids) });
+        m_pending_get_user_media_requests.append({ .promise = promise, .device_id_constraint = move(device_id_constraint) });
         return;
     }
 
-    queue_get_user_media_task(promise, move(requested_device_ids));
+    queue_get_user_media_task(promise, move(device_id_constraint));
 }
 
 // https://w3c.github.io/mediacapture-main/#dom-mediadevices-ondevicechange
@@ -926,12 +940,21 @@ static Optional<Vector<Utf16String>> extract_dom_string_constraint_values(Constr
     return dom_string_values_from_variant(Variant<Utf16String, Vector<Utf16String>> { constraint.get<Vector<Utf16String>>() });
 }
 
-static Optional<Vector<Utf16String>> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value)
+static Optional<DeviceIdConstraint> extract_device_id_constraint(Optional<ConstrainDOMString> const& device_id_value)
 {
     if (!device_id_value.has_value())
         return {};
 
-    return extract_dom_string_constraint_values(*device_id_value);
+    // https://w3c.github.io/mediacapture-main/#dfn-required-constraints
+    // A bare value is an ideal one, so only exact makes the device a requirement.
+    auto is_required = device_id_value->has<ConstrainDOMStringParameters>() && device_id_value->get<ConstrainDOMStringParameters>().exact.has_value();
+    auto device_ids = extract_dom_string_constraint_values(*device_id_value).value_or({});
+
+    // NB: Device ids are never empty, so an exact constraint without any other id is one that no device satisfies, such
+    //     as the empty ids that enumerateDevices() exposes before the page may capture.
+    if (device_ids.is_empty() && !is_required)
+        return {};
+    return DeviceIdConstraint { .device_ids = move(device_ids), .is_required = is_required };
 }
 
 }

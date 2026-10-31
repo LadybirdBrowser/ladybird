@@ -1,0 +1,11 @@
+// https://w3c.github.io/webrtc-encoded-transform/#sframeencrypterstream
+
+// FIXME: spec is `SFrameEncrypterStream includes GenericTransformStream;` — that mixin
+// expects the implementation to actually back a TransformStream, which we don't here.
+[Exposed=(Window,DedicatedWorker)]
+interface SFrameEncrypterStream : EventTarget {
+    [FIXME] constructor(SFrameTransformOptions options);
+    [FIXME] readonly attribute ReadableStream readable;
+    [FIXME] readonly attribute WritableStream writable;
+};
+SFrameEncrypterStream includes SFrameEncrypterManager;

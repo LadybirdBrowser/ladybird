@@ -39,12 +39,15 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(avutil_version)                       \
     F(avcodec_find_decoder)                 \
     F(avcodec_find_decoder_by_name)         \
+    F(avcodec_find_encoder)                 \
     F(avcodec_descriptor_get_by_name)       \
     F(avcodec_alloc_context3)               \
     F(avcodec_free_context)                 \
     F(avcodec_open2)                        \
     F(avcodec_send_packet)                  \
     F(avcodec_receive_frame)                \
+    F(avcodec_send_frame)                   \
+    F(avcodec_receive_packet)               \
     F(avcodec_flush_buffers)                \
     F(avcodec_get_hw_config)                \
     F(avcodec_get_hw_frames_parameters)     \
@@ -54,6 +57,7 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(avcodec_parameters_to_context)        \
     F(av_packet_alloc)                      \
     F(av_packet_free)                       \
+    F(av_packet_unref)                      \
     F(av_new_packet)                        \
     F(av_packet_free_side_data)             \
     F(av_packet_new_side_data)              \
@@ -62,6 +66,7 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(av_frame_unref)                       \
     F(av_frame_ref)                         \
     F(av_frame_move_ref)                    \
+    F(av_frame_get_buffer)                  \
     F(av_buffer_ref)                        \
     F(av_buffer_unref)                      \
     F(av_hwdevice_ctx_alloc)                \
@@ -74,14 +79,16 @@ static_assert(sizeof(void*) != 8 || (sizeof(AVChannelLayout) == 24 && offsetof(A
     F(av_opt_get_int)                       \
     F(av_opt_get_chlayout)                  \
     F(av_channel_layout_custom_init)        \
+    F(av_channel_layout_copy)               \
     F(av_channel_layout_channel_from_index) \
     F(av_channel_layout_uninit)             \
     F(av_sample_fmt_is_planar)              \
-    F(av_get_planar_sample_fmt)
+    F(av_get_planar_sample_fmt)             \
+    F(av_rescale_q)
 
 namespace Media::FFmpeg {
 
-// Every libavcodec and libavutil entry point the decoders call, so they can run against a copy loaded at runtime.
+// Every libavcodec and libavutil entry point the decoders and encoders call, so they can run against a copy loaded at runtime.
 struct MEDIACODECS_API FFmpegFunctions {
     AK_ALLOC_WITH_KMALLOC;
 

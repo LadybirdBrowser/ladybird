@@ -37,6 +37,7 @@ bool web_rust_readable_stream_is_locked(void* stream);
 bool web_rust_readable_stream_is_disturbed(void* stream);
 bool web_rust_readable_stream_close_requested(void* stream);
 bool web_rust_readable_stream_is_readable_byte_stream(void* stream);
+bool web_rust_readable_stream_desired_size(void* stream, double* desired_size);
 JSCompletion web_rust_readable_stream_enqueue(JSVM*, void* stream, JSValue chunk);
 JSCompletion web_rust_readable_stream_enqueue_native_bytes(JSVM*, void* stream, ReadonlyBytes);
 bool web_rust_readable_stream_current_byob_request_view_byte_length(JSVM*, void* stream, u64* byte_length);
@@ -144,6 +145,14 @@ bool ReadableStream::is_disturbed() const
 bool ReadableStream::close_requested() const
 {
     return web_rust_readable_stream_close_requested(const_cast<ReadableStream*>(this));
+}
+
+Optional<double> ReadableStream::desired_size() const
+{
+    double desired_size = 0;
+    if (!web_rust_readable_stream_desired_size(const_cast<ReadableStream*>(this), &desired_size))
+        return {};
+    return desired_size;
 }
 
 WebIDL::ExceptionOr<void> ReadableStream::enqueue(JS::Value chunk)

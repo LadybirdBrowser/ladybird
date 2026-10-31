@@ -224,4 +224,14 @@ WebIDL::CallbackType* DedicatedWorkerGlobalScope::onmessageerror()
     return event_handler_attribute(EventNames::messageerror);
 }
 
+WebIDL::CallbackType* DedicatedWorkerGlobalScope::onrtctransform()
+{
+    return event_handler_attribute(EventNames::rtctransform);
+}
+
+void DedicatedWorkerGlobalScope::set_onrtctransform(WebIDL::CallbackType* callback)
+{
+    set_event_handler_attribute(EventNames::rtctransform, callback);
+}
+
 }

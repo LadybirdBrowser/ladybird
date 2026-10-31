@@ -1,0 +1,11 @@
+// https://w3c.github.io/webrtc-pc/#rtcdtmftonechangeevent
+
+[Exposed=Window]
+interface RTCDTMFToneChangeEvent : Event {
+    [FIXME] constructor(DOMString type, optional RTCDTMFToneChangeEventInit eventInitDict = {});
+    [FIXME] readonly attribute DOMString tone;
+};
+
+dictionary RTCDTMFToneChangeEventInit : EventInit {
+    DOMString tone = "";
+};

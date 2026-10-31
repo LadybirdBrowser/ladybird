@@ -49,6 +49,9 @@ public:
     WebIDL::CallbackType* onmessageerror();
     void set_onmessageerror(WebIDL::CallbackType* callback);
 
+    WebIDL::CallbackType* onrtctransform();
+    void set_onrtctransform(WebIDL::CallbackType* callback);
+
     virtual void finalize() override;
 
 private:

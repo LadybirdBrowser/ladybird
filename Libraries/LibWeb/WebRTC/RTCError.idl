@@ -1,0 +1,29 @@
+// https://w3c.github.io/webrtc-pc/#rtcerror-interface
+
+[Exposed=Window]
+interface RTCError : DOMException {
+    [FIXME] constructor(RTCErrorInit init, optional DOMString message = "");
+    [FIXME] readonly attribute RTCErrorDetailType errorDetail;
+    [FIXME] readonly attribute long? sdpLineNumber;
+    [FIXME] readonly attribute long? sctpCauseCode;
+    [FIXME] readonly attribute unsigned long? receivedAlert;
+    [FIXME] readonly attribute unsigned long? sentAlert;
+};
+
+dictionary RTCErrorInit {
+    required RTCErrorDetailType errorDetail;
+    long sdpLineNumber;
+    long sctpCauseCode;
+    unsigned long receivedAlert;
+    unsigned long sentAlert;
+};
+
+enum RTCErrorDetailType {
+    "data-channel-failure",
+    "dtls-failure",
+    "fingerprint-failure",
+    "sctp-failure",
+    "sdp-syntax-error",
+    "hardware-encoder-not-available",
+    "hardware-encoder-error"
+};

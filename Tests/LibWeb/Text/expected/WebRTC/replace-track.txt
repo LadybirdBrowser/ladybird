@@ -1,0 +1,6 @@
+SSRC available immediately: true
+replacement selected: true
+sender identity retained: true
+detached: true
+replace after stop: InvalidStateError
+replace after close: InvalidStateError

@@ -37,3 +37,11 @@ class VideoPresentationServerConnection;
 class VideoSink;
 
 }
+
+namespace Media::FFmpeg {
+
+class FFmpegAudioConverter;
+class FFmpegAudioDecoder;
+class FFmpegAudioEncoder;
+
+}

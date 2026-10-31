@@ -535,6 +535,55 @@ void WorkerProcessManager::notify_worker_content_security_policy_violation(Owner
         });
 }
 
+WorkerProcessManager::WorkerAgent* WorkerProcessManager::agent_owned_by(WebContentClient& client, Web::HTML::WorkerAgentId agent_id)
+{
+    auto agent = m_agents.find(agent_id);
+    if (agent == m_agents.end())
+        return nullptr;
+    for (auto const& owner : agent->value.owners) {
+        auto const* web_content_owner = owner.client.get_pointer<WebContentOwner>();
+        if (web_content_owner && web_content_owner->client.ptr() == &client)
+            return &agent->value;
+    }
+    return nullptr;
+}
+
+void WorkerProcessManager::rtc_transform_init(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id, Web::HTML::SerializedTransferRecord options_record)
+{
+    if (auto* agent = agent_owned_by(client, agent_id))
+        agent->client->async_rtc_transform_init(transform_id, move(options_record));
+}
+
+void WorkerProcessManager::rtc_transform_teardown(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id)
+{
+    if (auto* agent = agent_owned_by(client, agent_id))
+        agent->client->async_rtc_transform_teardown(transform_id);
+}
+
+void WorkerProcessManager::rtc_transform_encoded_audio_frame(WebContentClient& client, Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+{
+    if (auto* agent = agent_owned_by(client, agent_id))
+        agent->client->async_rtc_transform_encoded_audio_frame(transform_id, payload.bytes(), ssrc, payload_type, rtp_timestamp, sequence_number);
+}
+
+void WorkerProcessManager::worker_did_write_rtc_transform_encoded_audio_frame(Web::HTML::WorkerAgentId agent_id, u64 transform_id, ByteBuffer payload, u32 ssrc, u8 payload_type, u32 rtp_timestamp, u16 sequence_number)
+{
+    auto agent = m_agents.find(agent_id);
+    if (agent == m_agents.end())
+        return;
+
+    for (auto const& owner : agent->value.owners) {
+        owner.client.visit(
+            [&](WebContentOwner const& web_content_owner) {
+                if (web_content_owner.client)
+                    web_content_owner.client->async_did_worker_rtc_transform_encoded_audio_frame_written(owner.token, transform_id, payload, ssrc, payload_type, rtp_timestamp, sequence_number);
+            },
+            [&](WebWorkerOwner const&) {
+                // FIXME: Route transform frames back to nested-worker owners once the WebWorkerServer endpoint carries this message.
+            });
+    }
+}
+
 void WorkerProcessManager::notify_worker_close(Owner const& owner)
 {
     owner.client.visit(

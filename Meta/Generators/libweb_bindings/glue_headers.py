@@ -19,6 +19,7 @@ def bindings_glue_header_for_interface(interface: Interface, wrapper_interface_n
         "IndexedDB": "LibWeb/IndexedDB/BindingsGlue.h",
         "TrustedTypes": "LibWeb/TrustedTypes/BindingsGlue.h",
         "WebAudio": "LibWeb/WebAudio/BindingsGlue.h",
+        "WebRTC": "LibWeb/WebRTC/BindingsGlue.h",
     }
     if module in module_headers:
         return module_headers[module]

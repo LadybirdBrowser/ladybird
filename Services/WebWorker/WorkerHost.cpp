@@ -45,6 +45,13 @@ WorkerHost::WorkerHost(URL::URL url, Web::HTML::WorkerType type, String name)
 
 WorkerHost::~WorkerHost() = default;
 
+void WorkerHost::notify_script_ran()
+{
+    m_script_has_run = true;
+    if (auto callback = move(m_on_script_ready))
+        callback();
+}
+
 // https://html.spec.whatwg.org/multipage/workers.html#relevant-owner-to-add
 static Web::HTML::WorkerGlobalScope::Owner relevant_owner_to_add(Web::HTML::SerializedEnvironmentSettingsObject const& outside_settings)
 {
@@ -287,6 +294,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
             (void)classic_script->run();
         else
             (void)as<Web::HTML::ModuleScript>(*script).run();
+        protected_this->notify_script_ran();
 
         as<WebWorker::PageHost>(page->client()).did_finish_loading_worker_script(Web::HTML::is_secure_context(*inside_settings));
 

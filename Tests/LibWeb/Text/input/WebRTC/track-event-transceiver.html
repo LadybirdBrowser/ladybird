@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Like Discord: the page sends from its first audio transceiver and receives on a later recvonly one, so an incoming
+// track has to land on the transceiver the backend actually received it on rather than the first audio one.
+asyncTest(async done => {
+    const a = new RTCPeerConnection();
+    const b = new RTCPeerConnection();
+    a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
+    b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const sentByA = context.createMediaStreamDestination();
+    const sentByB = context.createMediaStreamDestination();
+    oscillator.connect(sentByA);
+    oscillator.connect(sentByB);
+    oscillator.start();
+    const event = new Promise(resolve => a.ontrack = resolve);
+    try {
+        const sending = a.addTransceiver(sentByA.stream.getAudioTracks()[0], { direction: "sendonly" });
+        const receiving = a.addTransceiver("audio", { direction: "recvonly" });
+        b.addTransceiver("audio", { direction: "recvonly" });
+        b.addTransceiver(sentByB.stream.getAudioTracks()[0], { direction: "sendonly", streams: [sentByB.stream] });
+        await b.setLocalDescription(await b.createOffer());
+        await a.setRemoteDescription(b.localDescription);
+        await a.setLocalDescription(await a.createAnswer());
+        await b.setRemoteDescription(a.localDescription);
+        const { transceiver } = await event;
+        println(`track on sending transceiver: ${transceiver === sending}`);
+        println(`track on receiving transceiver: ${transceiver === receiving}`);
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        oscillator.stop();
+        a.close(); b.close(); context.close(); done();
+    }
+});
+</script>
