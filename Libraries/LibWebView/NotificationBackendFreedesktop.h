@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/ByteString.h>
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <AK/NonnullRefPtr.h>
@@ -37,10 +38,13 @@ public:
 private:
     bool connect();
     void request_capabilities();
-    void did_receive_capabilities(DBusMessage* reply);
+    void did_receive_capabilities(u64 daemon_generation, DBusMessage* reply);
     void send_notify(PlatformNotification const&);
     void send_close_notification(u32 daemon_id);
-    void did_receive_notify_reply(u64 id, DBusMessage* reply);
+    void remember_daemon_from(DBusMessage* reply);
+    bool signal_is_from_the_daemon(DBusMessage*) const;
+    void daemon_owner_changed(char const* new_owner);
+    void did_receive_notify_reply(u64 id, u64 daemon_generation, DBusMessage* reply);
     void did_receive_signal(DBusMessage*);
     void dispatch();
 
@@ -53,9 +57,13 @@ private:
 
     DBusConnection* m_connection { nullptr };
 
-    // The daemon names notifications by its own ids, handed out in the Notify reply.
+    // The daemon names notifications by its own ids, handed out in the Notify reply. They mean something only to the
+    // daemon that handed them out, which its replies name; a daemon that replaces it numbers from one again.
     HashMap<u64, u32> m_daemon_id_for;
     HashMap<u32, u64> m_id_for_daemon_id;
+    ByteString m_daemon_unique_name;
+    // Bumped whenever the name changes hands, so a reply from a daemon that has since gone away is told apart.
+    u64 m_daemon_generation { 0 };
 
     Optional<FreedesktopCapabilities> m_capabilities;
     bool m_capabilities_requested { false };
