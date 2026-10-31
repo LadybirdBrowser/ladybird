@@ -4,6 +4,12 @@ const typedArray = new Uint8Array(new ArrayBuffer(length, { maxByteLength: lengt
 typedArray[length - 2] = 11;
 typedArray[length - 1] = 22;
 
+test("copying into a fixed-length view", () => {
+    [Uint8Array, Float64Array].forEach(T => {
+        expect(() => new T(typedArray)).toThrowWithMessage(RangeError, "Invalid typed array length");
+    });
+});
+
 test("lastIndexOf", () => {
     expect(typedArray.lastIndexOf(22)).toBe(length - 1);
     expect(typedArray.lastIndexOf(11, -2)).toBe(length - 2);
