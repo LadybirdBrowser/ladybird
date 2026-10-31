@@ -35,7 +35,9 @@
         println(`Initial font face status: ${fontFace.status}`);
 
         iframe.style.width = "500px";
-        await animationFrame();
+        // The parent's layout resizes the iframe, and the iframe's style update then evaluates its @media rules again.
+        iframe.offsetWidth;
+        iframe.contentWindow.getComputedStyle(iframe.contentDocument.body).fontFamily;
         println(`Final media query matches: ${iframe.contentWindow.matchMedia("(max-width: 400px)").matches}`);
         println(`Font face remains connected: ${iframe.contentDocument.fonts.has(fontFace)}`);
         println("PASS: Media query changed while a CSS font was loading");
