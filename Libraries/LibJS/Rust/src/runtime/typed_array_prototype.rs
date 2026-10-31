@@ -835,41 +835,19 @@ impl TypedArrayPrototype {
             }
 
             // h. Let elementSize be TypedArrayElementSize(O).
-            let element_size = typed_array.element_size() as usize;
+            let element_size = typed_array.element_size();
 
             // i. Let byteOffset be O.[[ByteOffset]].
-            let byte_offset = typed_array.byte_offset() as usize;
-
-            // FIXME: Not exactly sure what we should do when overflow occurs. Just return as if succeeded for now.
+            let byte_offset = typed_array.byte_offset();
 
             // j. Let toByteIndex be (targetIndex × elementSize) + byteOffset.
-            let Some(mut to_byte_index) = (target_index as usize)
-                .checked_mul(element_size)
-                .and_then(|index| index.checked_add(byte_offset))
-            else {
-                eprintln!("TypedArrayPrototype::copy_within: to_byte_index overflowed, returning as if succeeded.");
-                return Ok(Value::from_object(typed_array));
-            };
+            let mut to_byte_index = target_index as usize * element_size + byte_offset;
 
             // k. Let fromByteIndex be (startIndex × elementSize) + byteOffset.
-            let Some(mut from_byte_index) = (start_index as usize)
-                .checked_mul(element_size)
-                .and_then(|index| index.checked_add(byte_offset))
-            else {
-                eprintln!("TypedArrayPrototype::copy_within: from_byte_index overflowed, returning as if succeeded.");
-                return Ok(Value::from_object(typed_array));
-            };
+            let mut from_byte_index = start_index as usize * element_size + byte_offset;
 
             // l. Let countBytes be count × elementSize.
-            let Some(mut count_bytes) = (count as usize).checked_mul(element_size) else {
-                eprintln!("TypedArrayPrototype::copy_within: count_bytes overflowed, returning as if succeeded.");
-                return Ok(Value::from_object(typed_array));
-            };
-
-            let Some(from_plus_count) = from_byte_index.checked_add(count_bytes) else {
-                eprintln!("TypedArrayPrototype::copy_within: from_plus_count overflowed, returning as if succeeded.");
-                return Ok(Value::from_object(typed_array));
-            };
+            let mut count_bytes = count as usize * element_size;
 
             if !buffer.is_shared_array_buffer() {
                 buffer.move_data(to_byte_index, from_byte_index, count_bytes);
@@ -879,20 +857,15 @@ impl TypedArrayPrototype {
             let direction: isize;
 
             // m. If fromByteIndex < toByteIndex and toByteIndex < fromByteIndex + countBytes, then
-            if from_byte_index < to_byte_index && to_byte_index < from_plus_count {
+            if from_byte_index < to_byte_index && to_byte_index < from_byte_index + count_bytes {
                 // i. Let direction be -1.
                 direction = -1;
 
                 // ii. Set fromByteIndex to fromByteIndex + countBytes - 1.
-                from_byte_index = from_plus_count - 1;
-
-                let Some(to_plus_count) = to_byte_index.checked_add(count_bytes) else {
-                    eprintln!("TypedArrayPrototype::copy_within: to_plus_count overflowed, returning as if succeeded.");
-                    return Ok(Value::from_object(typed_array));
-                };
+                from_byte_index = from_byte_index + count_bytes - 1;
 
                 // iii. Set toByteIndex to toByteIndex + countBytes - 1.
-                to_byte_index = to_plus_count - 1;
+                to_byte_index = to_byte_index + count_bytes - 1;
             }
             // n. Else,
             else {
@@ -2068,25 +2041,13 @@ impl TypedArrayPrototype {
                 let source_byte_offset = typed_array.byte_offset();
 
                 // vi. Let srcByteIndex be (k × elementSize) + srcByteOffset.
-                let Some(mut source_byte_index) = k
-                    .checked_mul(element_size)
-                    .and_then(|index| index.checked_add(source_byte_offset))
-                else {
-                    eprintln!("TypedArrayPrototype::slice: source_byte_index overflowed, returning as if succeeded.");
-                    return Ok(Value::from_object(array));
-                };
+                let mut source_byte_index = k * element_size + source_byte_offset;
 
                 // vii. Let targetByteIndex be A.[[ByteOffset]].
                 let mut target_byte_index = array.byte_offset();
 
                 // viii. Let limit be targetByteIndex + (count × elementSize).
-                let Some(limit) = count
-                    .checked_mul(element_size)
-                    .and_then(|limit| limit.checked_add(target_byte_index))
-                else {
-                    eprintln!("TypedArrayPrototype::slice: limit overflowed, returning as if succeeded.");
-                    return Ok(Value::from_object(array));
-                };
+                let limit = target_byte_index + count * element_size;
 
                 // OPTIMIZATION: If the buffers are not detached and not shared, we can do a single bulk copy.
                 if !target_buffer.is_detached()
@@ -2315,13 +2276,7 @@ impl TypedArrayPrototype {
         let source_byte_offset = typed_array.byte_offset();
 
         // 14. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-        let Some(begin_byte_offset) = begin_index
-            .checked_mul(element_size)
-            .and_then(|offset| offset.checked_add(source_byte_offset))
-        else {
-            eprintln!("TypedArrayPrototype::begin_byte_offset: limit overflowed, returning as if succeeded.");
-            return Ok(Value::from_object(typed_array));
-        };
+        let begin_byte_offset = source_byte_offset + begin_index * element_size;
 
         // NB: The arguments live on the stack, where the collector sees them.
         let arguments: [Value; 3];
