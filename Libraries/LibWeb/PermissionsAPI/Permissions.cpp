@@ -129,7 +129,7 @@ void request_permission_with_user_prompt(PermissionDescriptor const& descriptor,
 }
 
 // https://w3c.github.io/permissions/#dfn-permission-state
-PermissionState permission_state(PermissionDescriptor descriptor, Optional<HTML::EnvironmentSettingsObject&> settings)
+PermissionState permission_state(PermissionDescriptor const& descriptor, Optional<HTML::EnvironmentSettingsObject&> settings)
 {
     // 1. If settings wasn't passed, set it to the current settings object.
     auto& settings_object = settings.has_value() ? settings.value() : HTML::current_settings_object();
