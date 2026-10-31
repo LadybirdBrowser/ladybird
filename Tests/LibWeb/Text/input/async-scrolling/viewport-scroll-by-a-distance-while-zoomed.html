@@ -28,11 +28,17 @@
         await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
         await animationFrame();
         await animationFrame();
-        internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");
+        const panned = internals.wheelThroughUIProcess(50, 50, 0, 100, true, "ongoing");
         busyWait(200);
         window.scrollBy(0, 30);
-        for (let frame = 0; frame < 4; frame++)
-            await animationFrame();
+        // Once the UI process has handed the wheel to the compositor, and a rendering update has committed the frame
+        // that carries the page's scroll, synchronizing with the compositor and waiting for a frame brings the pan to
+        // this thread.
+        await panned;
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+        await animationFrame();
         println(`visual viewport offset: ${vv.offsetTop}`);
         println(`layout viewport offset: ${window.scrollY}`);
         await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
