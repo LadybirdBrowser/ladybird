@@ -322,7 +322,7 @@ private:
     QPointF m_last_click_position;
     int m_click_count { 0 };
 
-    SelectDropdown* m_select_dropdown { nullptr };
+    QPointer<SelectDropdown> m_select_dropdown;
 
     PageOverlay* m_crash_overlay { nullptr };
     CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };

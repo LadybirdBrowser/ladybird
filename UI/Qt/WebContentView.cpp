@@ -417,6 +417,10 @@ WebContentView::WebContentView(QWidget* window, Optional<WebView::CanonicalTrave
     };
 
     on_request_select_dropdown = [this](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
+        // NB: The view has a native window of its own, which Qt refuses as the transient parent of a popup. The
+        //     dropdown opens from the top-level window instead, which can change when the tab moves to another one.
+        if (m_select_dropdown->parentWidget() != this->window())
+            m_select_dropdown->setParent(this->window(), m_select_dropdown->windowFlags());
         m_select_dropdown->open(map_point_to_global_position(content_position), minimum_width, items);
     };
 }
@@ -436,6 +440,9 @@ WebContentView::~WebContentView()
     release_all_retired_backing_stores();
 #    endif
 #endif
+
+    // NB: The dropdown can belong to the top-level window, which outlives the view.
+    delete m_select_dropdown;
 
 #if !defined(Q_OS_WIN)
     QAccessible::removeActivationObserver(this);
@@ -461,6 +468,10 @@ void WebContentView::prepare_for_window_move()
 
 void WebContentView::finish_window_move()
 {
+    // NB: The dropdown moves to the new top-level window too, because the old one can close and delete it.
+    if (m_select_dropdown->parentWidget() != window())
+        m_select_dropdown->setParent(window(), m_select_dropdown->windowFlags());
+
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     create();
 #    if defined(Q_OS_MACOS)
