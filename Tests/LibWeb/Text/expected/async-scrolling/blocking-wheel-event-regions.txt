@@ -42,8 +42,8 @@ CompositorScrollNode@s1/e0 scroll_node_index=s2 parent_scroll_node_index=s0 scro
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 100x100]
 CompositorBlockingWheelEventRegion@s2/c0/e0 rect=[0,0 100x100]
 CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,100 1000x1000]
-CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[191,2 7x36] track_rect=[191,0 9x200] expanded_gutter_rect=[185,0 15x200] expanded_thumb_rect=[187,2 11x36] scroll_size=0.17819444444444443 expanded_scroll_size=0.17819444444444443 min_scroll_offset=0 max_scroll_offset=900 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
+CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[191,2 7x36] track_rect=[191,0 9x200] expanded_gutter_rect=[185,0 15x200] expanded_thumb_rect=[187,2 11x36] scroll_size=0.17819444444444443 expanded_scroll_size=0.17819444444444443 min_scroll_offset=0 max_scroll_offset=900 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=true is_painted_by_compositor=false
 PaintScrollBar@s1/e0
-CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[2,191 36x7] track_rect=[0,191 185x9] expanded_gutter_rect=[0,185 185x15] expanded_thumb_rect=[2,187 36x11] scroll_size=0.181015625 expanded_scroll_size=0.181015625 min_scroll_offset=0 max_scroll_offset=800 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false display_list_paints_enlarged_scrollbar=false
+CompositorScrollbar@s1/e0 scroll_node_index=s2 gutter_rect=[0,0 0x0] thumb_rect=[2,191 36x7] track_rect=[0,191 185x9] expanded_gutter_rect=[0,185 185x15] expanded_thumb_rect=[2,187 36x11] scroll_size=0.181015625 expanded_scroll_size=0.181015625 min_scroll_offset=0 max_scroll_offset=800 thumb_color=rgba(0, 0, 0, 0.5) track_color=rgba(0, 0, 0, 0.098) vertical=false is_painted_by_compositor=false
 PaintScrollBar@s1/e0
 

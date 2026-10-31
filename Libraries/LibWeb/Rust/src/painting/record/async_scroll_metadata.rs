@@ -344,7 +344,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         direction: ScrollDirection,
         (thumb_color, track_color): (Color, Color),
         is_painted_by_compositor: bool,
-        display_list_paints_enlarged_scrollbar: bool,
     ) -> Option<CompositorScrollbar> {
         let chrome_geometry = ChromeGeometry::for_recording(self.source, self.inputs);
         let scrollbar = chrome_geometry.compute_scrollbar_data(paintable, direction, false)?;
@@ -379,7 +378,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             track_color,
             vertical,
             is_painted_by_compositor,
-            display_list_paints_enlarged_scrollbar,
         })
     }
 
@@ -402,7 +400,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 .blend(self.inputs.uncaptured.background_color),
         );
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
-            if let Some(scrollbar) = self.compositor_scrollbar_for(paintable, direction, colors, true, false) {
+            if let Some(scrollbar) = self.compositor_scrollbar_for(paintable, direction, colors, true) {
                 self.recorder.compositor_scrollbar(scrollbar);
             }
         }
@@ -416,7 +414,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         paintable: NodeSlotId,
         direction: ScrollDirection,
         colors: (Color, Color),
-        display_list_paints_enlarged_scrollbar: bool,
     ) {
         if self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             || self.kind_of_compositor_scroll_node_recorded_for(paintable).is_none()
@@ -433,13 +430,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if !could_be_scrolled_along_direction {
             return;
         }
-        if let Some(scrollbar) = self.compositor_scrollbar_for(
-            paintable,
-            direction,
-            colors,
-            false,
-            display_list_paints_enlarged_scrollbar,
-        ) {
+        if let Some(scrollbar) = self.compositor_scrollbar_for(paintable, direction, colors, false) {
             self.recorder.compositor_scrollbar(scrollbar);
         }
     }

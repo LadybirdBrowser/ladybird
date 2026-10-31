@@ -421,7 +421,9 @@ public:
     };
     void note_user_scroll_gesture_of(Web::AsyncScrollNodeStableID, Optional<CSSPixelPoint> scroll_offset_at_gesture_start, UserScrollMovedBox, SnapPositionSelection = SnapPositionSelection::AtGestureEnd);
     void note_user_scroll_input_intent(Compositing::SnapSelectionStrategy::Type);
-    RefPtr<Painting::Scrollbar> scrollbar_dragged_by_compositor(Layout::BegunRead const& read, Web::ScrollbarDraggedByCompositor const&);
+    // The element whose scrollbar the compositor drags, or the element generating the pseudo-element whose scrollbar
+    // it drags, as long as the box the compositor scrolls is still there.
+    DOM::Element* element_whose_scrollbar_is_dragged_by_compositor(Layout::BegunRead const& read, Web::ScrollbarDraggedByCompositor const&);
     // Returns false if the scroller is not in this navigable's active document.
     bool set_overlay_scrollbar_hidden(Web::AsyncScrollNodeStableID, bool vertical, bool hidden);
     void note_user_scroll_gesture_phase(Web::ScrollGesturePhase);

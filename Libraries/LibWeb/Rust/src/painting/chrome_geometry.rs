@@ -233,14 +233,6 @@ pub(crate) fn maximum_scroll_offset(arena: &impl PaintRead, slot: NodeSlotId) ->
     scroll_offset_bounds(arena, slot).map_or(CssPixelPoint::default(), |(_, maximum)| maximum)
 }
 
-pub(crate) fn scrollbar_is_enlarged(arena: &impl PaintRead, slot: NodeSlotId, direction: ScrollDirection) -> bool {
-    let flag = match direction {
-        ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarEnlarged,
-        ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarEnlarged,
-    };
-    arena.paintable_data(slot).has_flag(flag)
-}
-
 pub(crate) fn scrollbar_is_hidden(arena: &impl PaintRead, slot: NodeSlotId, direction: ScrollDirection) -> bool {
     let flag = match direction {
         ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarHidden,

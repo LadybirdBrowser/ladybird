@@ -646,8 +646,8 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write_field(output, "track_color", command.track_color);
             write!(
                 output,
-                " vertical={} is_painted_by_compositor={} display_list_paints_enlarged_scrollbar={}",
-                command.vertical, command.is_painted_by_compositor, command.display_list_paints_enlarged_scrollbar
+                " vertical={} is_painted_by_compositor={}",
+                command.vertical, command.is_painted_by_compositor
             )
             .unwrap();
         }

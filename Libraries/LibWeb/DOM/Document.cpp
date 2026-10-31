@@ -11485,7 +11485,7 @@ Optional<Painting::HitTestResult> Document::hit_test(Layout::BegunRead const& re
     //    the transforms that apply to the descendants of the viewport, return the associated element and terminate
     //    these steps.
     auto result = query->list().hit_test(read, position, *query);
-    if (result.has_value() && (result->chrome_widget || result->dom_node()))
+    if (result.has_value() && (result->chrome_widget || result->is_scrollbar || result->dom_node()))
         return result;
 
     // 3. If the document has a root element, return the root element and terminate these steps.

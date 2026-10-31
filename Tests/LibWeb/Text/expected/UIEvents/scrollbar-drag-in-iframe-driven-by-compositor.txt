@@ -1,5 +1,5 @@
 #1 compositor: handed-to-nested-context
-#1 compositor: not-over-a-scrollbar
+#1 compositor: hovering-scrollbar-painted-by-display-list scroller=#scroller
 #1 compositor: forwarded-to-page
 #1 web-content: finished-handled
 #2 compositor: handed-to-nested-context

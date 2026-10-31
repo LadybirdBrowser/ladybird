@@ -383,7 +383,8 @@ private:
     void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
     ContextUpdateResult handle_mouse_event_at(Web::MouseEvent const&, Gfx::FloatPoint position);
     Optional<Compositing::NestedContextHit> nested_context_taking_mouse_event_at(Web::MouseEvent::Type, Gfx::FloatPoint position);
-    Optional<PendingFrame> frame_repainting_scrollbars_painted_by_compositor() const;
+    Optional<PendingFrame> frame_repainting_scrollbars() const;
+    Optional<size_t> scrollbar_under_pointer(Gfx::FloatPoint position);
     Optional<PendingFrame> apply_scrollbar_drag(ScrollbarController::Drag const&);
     Optional<PendingFrame> start_scrollbar_press_scroll(Compositing::AsyncScrollNode const&, Gfx::FloatPoint old_scroll_offset, Gfx::FloatPoint destination, bool is_absolute_scroll);
     Optional<PendingFrame> page_captured_scrollbar();
@@ -393,7 +394,7 @@ private:
     void rebuild_wheel_hit_test_targets();
     ContextPresenter::FrameContent frame_content(Compositing::ScrollStateSnapshot const& presented_scroll_state_snapshot, CompositedContextResolver const*) const;
     Gfx::IntRect damage_rect_of_blinking_carets();
-    Gfx::IntRect update_scrollbar_visibility();
+    void update_scrollbar_visibility();
     void report_scrollbar_visibility_changes();
 
     CompositorStateWebContentClient& m_web_content_client;

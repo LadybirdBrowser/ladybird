@@ -71,9 +71,8 @@ public:
 
     // Shows each scrollbar whose scroller scrolled since the last call, keeps a shown scrollbar that is hovered or
     // dragged shown, and starts the wait before a scrollbar that is no longer hovered or dragged fades out. A hovered or
-    // dragged scrollbar that is shown grows to its expanded geometry, and keeps it until it has faded out. Returns the rect in the viewport of the scrollbars the
-    // display list paints that scrolled while they are presented in another geometry than the display list gives them.
-    Gfx::IntRect update_visibility(Compositing::AccumulatedVisualContextTree const*, Compositing::ScrollStateSnapshot const&, MonotonicTime now);
+    // dragged scrollbar that is shown grows to its expanded geometry, and keeps it until it has faded out.
+    void update_visibility(Compositing::ScrollStateSnapshot const&, MonotonicTime now);
     // When the next scrollbar starts to fade out.
     Optional<MonotonicTime> next_fade_out_time() const;
     // The scrollbars that faded out or were shown again since the last call. The main thread hit tests the scrollbars
@@ -98,7 +97,8 @@ public:
     Optional<Web::ScrollbarDraggedByCompositor> captured_scrollbar_painted_by_display_list(Web::CompositorContextId) const;
 
     Optional<size_t> hit_test_scrollbar_painted_by_compositor(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
-    // A scrollbar the display list paints takes the pointer only where the main thread would give it to it.
+    // A scrollbar the display list paints takes the pointer where it is presented, unless something that takes pointer
+    // input is painted over it there.
     Optional<size_t> hit_test_scrollbar_painted_by_display_list(Compositing::AsyncScrollTree const&, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint position) const;
     // Whether the scrollbar is shown, rather than hidden until its scroller next scrolls.
     bool is_shown(size_t scrollbar_index) const { return opacity(scrollbar_index) > 0; }
@@ -124,7 +124,6 @@ private:
     };
 
     bool is_expanded(size_t scrollbar_index) const;
-    bool is_held_shown(size_t scrollbar_index) const;
     float opacity(size_t scrollbar_index) const;
     float expansion(size_t scrollbar_index) const;
     PresentedScrollbar presented_scrollbar(size_t scrollbar_index, Compositing::ScrollStateSnapshot const&, Color thumb_color, Color track_color) const;

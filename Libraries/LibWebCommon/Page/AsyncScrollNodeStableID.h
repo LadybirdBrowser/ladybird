@@ -48,7 +48,6 @@ struct ScrollbarDraggedByCompositor {
     // the process that owns that context can tell which node the scroller's id names.
     CompositorContextId context_id;
     AsyncScrollNodeStableID scroller_stable_node_id;
-    bool vertical { false };
 
     bool operator==(ScrollbarDraggedByCompositor const&) const = default;
 };

@@ -148,10 +148,9 @@ struct AsyncScrollbar {
     Color thumb_color;
     Color track_color;
     bool vertical { false };
-    // The compositor paints the viewport's scrollbars itself and owns their hover expansion. The display list paints
-    // every other scrollbar, in whichever of the two geometries the main thread currently gives it.
+    // The compositor paints the viewport's scrollbars itself. The display list paints every other scrollbar thin, which
+    // the compositor presents growing as it is hovered, as it does its own.
     bool is_painted_by_compositor { false };
-    bool display_list_paints_enlarged_scrollbar { false };
 };
 
 // A scroll node that is a snap container, with the geometry snap positions are selected from.
