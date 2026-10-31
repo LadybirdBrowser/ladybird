@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="help" href="https://drafts.csswg.org/css-align/#distribution-block">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+body {
+  margin: 0;
+}
+</style>
+
+<div id="target" style="height: 200px;">
+  <div style="align-content: center; height: 100%;">
+    <div style="height: 60px;" id="content"></div>
+  </div>
+</div>
+
+<script>
+// Blink has an optimization that it skips child layout if only the container
+// height is changed. This test ensures the opmiziation is not used for
+// a non-normal align-content value.
+test(() => {
+  document.body.offsetTop;
+  assert_equals(content.offsetTop, (200 - 60) / 2);
+  target.style.height = '100px';
+  assert_equals(content.offsetTop, (100 - 60) / 2);
+}, 'Updating a container height should align the content again');
+</script>
