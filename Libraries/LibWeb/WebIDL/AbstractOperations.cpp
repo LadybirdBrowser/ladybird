@@ -19,7 +19,6 @@
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Export.h>
-#include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/ExceptionReporter.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
@@ -196,20 +195,13 @@ JS::Completion call_user_object_operation(CallbackType& callback, Utf16FlyString
     auto& object = callback.callback;
 
     // 4. Let realm be O’s associated realm.
-    auto& realm = object->shape().realm();
+    auto& realm = callback.associated_realm();
 
     // 5. Let relevant settings be realm’s settings object.
     auto& relevant_settings = HTML::principal_realm_settings_object(realm);
 
     // 6. Let stored settings be value’s callback context.
     auto& stored_settings = callback.callback_context;
-
-    // AD-HOC: Reject a cross-origin callback object before entering its realm; otherwise the operation lookup below
-    //         throws in that protected realm, exposing it to the caller. See https://github.com/whatwg/webidl/issues/1640.
-    if (HTML::is_cross_origin_platform_object(object)) {
-        auto& caller_realm = *object->vm().current_realm();
-        return throw_completion(caller_realm, WebIDL::SecurityError::create(caller_realm, "Cannot invoke a callback on a cross-origin object"_utf16));
-    }
 
     // AD-HOC: See is_settings_object_of_inactive_window().
     if (refuse_from_inactive_window == RefuseCallbackFromInactiveWindow::Yes && is_settings_object_of_inactive_window(relevant_settings))
