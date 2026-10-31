@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    .outer { display: grid; grid-template-columns: 1fr 1fr; width: 1400px; }
+    .inner { display: grid; grid-template-columns: repeat(6, 1fr); }
+    canvas { display: block; width: 1274px; max-width: 100%; height: auto; grid-column: 1 / 7; }
+    .min-content-track { display: grid; grid-template-columns: min-content 1fr; width: 400px; }
+    .with-margins { width: 200px; height: 50px; margin-inline: 50px; grid-column: auto; }
+    .border-box { box-sizing: border-box; width: 200px; height: 50px; padding: 10px; max-width: calc(100px + 50%); grid-column: auto; }
+</style>
+<div class="outer">
+    <div><div class="inner"><canvas width="1274" height="728"></canvas></div></div>
+    <div>right</div>
+</div>
+<div class="min-content-track">
+    <canvas class="with-margins" width="200" height="50"></canvas>
+    <div>right</div>
+</div>
+<div class="min-content-track">
+    <canvas class="border-box" width="200" height="50"></canvas>
+    <div>right</div>
+</div>

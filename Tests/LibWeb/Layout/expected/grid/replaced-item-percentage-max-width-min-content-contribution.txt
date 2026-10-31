@@ -1,0 +1,50 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 1408x600]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 516.015625 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 500.015625 0+0+8] children: not-inline
+      Box <div.outer> at [8,8] [0+0+0 1400 0+0+-616] [0+0+0 400.015625 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [8,8] [0+0+0 700 0+0+0] [0+0+0 400.015625 0+0+0] [BFC] children: not-inline
+          Box <div.inner> at [8,8] [0+0+0 700 0+0+0] [0+0+0 400.015625 0+0+0] [GFC] children: not-inline
+            CanvasBox <canvas> at [8,8] [0+0+0 700.03125 0+0+0] [0+0+0 400.015625 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [708,8] [0+0+0 700 0+0+0] [0+0+0 400.015625 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [708,8 37.109375x16] baseline: 12.796875
+              "right"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,408.015625] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.min-content-track> at [8,408.015625] [0+0+0 400 0+0+384] [0+0+0 50 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        CanvasBox <canvas.with-margins> at [58,408.015625] [50+0+0 100 0+0+50] [0+0+0 50 0+0+0] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [108,408.015625] [0+0+0 300 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [108,408.015625 37.109375x16] baseline: 12.796875
+              "right"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,458.015625] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+      Box <div.min-content-track> at [8,458.015625] [0+0+0 400 0+0+384] [0+0+0 50 0+0+0] [GFC] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        CanvasBox <canvas.border-box> at [18,468.015625] [0+0+10 130 10+0+0] [0+0+10 30 10+0+0] children: not-inline
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+        BlockContainer <div> at [108,458.015625] [0+0+0 300 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
+          frag 0 from TextNode start: 0, length: 5, rect: [108,458.015625 37.109375x16] baseline: 12.796875
+              "right"
+          TextNode <#text> (not painted)
+        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
+          TextNode <#text> (not painted)
+      BlockContainer <(anonymous)> at [8,508.015625] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x516.015625] (z-index: auto)

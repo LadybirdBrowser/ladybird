@@ -2732,6 +2732,34 @@ impl<'pass> GridFormattingContext<'pass> {
         let max = self.maximum_size(item, axis);
         let maximum = if max.is_length_percentage() && !max.contains_percentage() {
             max.to_px(CssPixels::default())
+        } else if axis.is_column()
+            && max.is_length_percentage()
+            && formatting_context::cyclic_percentage_intrinsic_contribution(
+                self.facts(item.box_).is_replaced_box(),
+                true,
+                AvailableSize::MinContent,
+                formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
+            ) == formatting_context::CyclicPercentageIntrinsicContribution::ResolveAsZero
+        {
+            // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
+            // If the box is replaced, a cyclic percentage in the value of any max size property or preferred size
+            // property ('width'/'max-width'/'height'/'max-height'), is resolved against zero when calculating the
+            // min-content contribution in the corresponding axis.
+            // NB: Only in the inline axis: A replaced box's percentage block size behaves as auto, so that it takes
+            //     its height from its aspect ratio rather than collapsing its row. And the zero-based maximum caps
+            //     only the box's own size, so the contribution keeps the item's margins, borders and padding.
+            let mut available_space = self.item_available_space(item);
+            available_space.inline_size = AvailableSize::definite(CssPixels::default());
+            let mut constraints = self.track_sizing_constraints();
+            constraints.percentage_basis_inline_size = Some(CssPixels::default());
+            let inner_maximum = self.sizing().calculate_inner_size_for_property(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                axis.sizing_axis(),
+                SizingProperty::MaxWidth,
+                available_space,
+                constraints,
+            );
+            self.add_outer_size(item, axis, inner_maximum)
         } else {
             CssPixels::from_raw(i32::MAX)
         };
