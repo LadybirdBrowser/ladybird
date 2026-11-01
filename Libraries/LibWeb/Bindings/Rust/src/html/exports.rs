@@ -10,22 +10,22 @@
 //! the function says. Libraries/LibWeb/HTML/BroadcastChannel.cpp hands the BroadcastChannel objects the messages that
 //! other processes post.
 
-use core::ffi::c_void;
+use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
-use std::rc::Rc;
 
 use ak::Utf16String;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Value, Vm};
 use liburl_rust::FfiOrigin;
 
-use super::broadcast_channel::{BroadcastChannel, BroadcastChannelMessage, SerializedMessage};
+use super::broadcast_channel::{BROADCAST_CHANNEL_MESSAGE_CLASS, BroadcastChannel, BroadcastChannelMessage};
 use super::image_bitmap::ImageBitmap;
 use super::image_data::ImageData;
 use super::message_port::MessagePort;
 use crate::bindings::CallContext;
 use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::storage_api::storage_key::StorageKey;
 
 /// The implementation of the object whose cell C++ lends, for as long as C++ keeps the cell alive.
@@ -343,33 +343,50 @@ pub unsafe extern "C" fn web_rust_message_port_disentangle_ports_of_realm(vm: *m
 }
 
 /// Steps 6 to 9 of BroadcastChannel's postMessage(), for a message that another process posted, whose channel name
-/// and serialized message C++ hands over.
+/// C++ hands over.
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, the origins lent, `channel_name` an owned AK::Utf16String, and `serialized_message` a
-/// BroadcastChannelSerializedMessage that LibWeb hands over.
+/// `vm` must be the live VM, the origins and the bytes lent, `channel_name` an owned AK::Utf16String, and
+/// `shared_memory` and `shared_memory_sizes` arrays of `shared_memory_count` descriptors that are open for the call and
+/// their sizes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
     vm: *mut c_void,
     storage_key_origin: *const FfiOrigin,
     channel_name: usize,
     source_origin: *const FfiOrigin,
-    serialized_message: *mut c_void,
+    serialized_message: ak::Span<'_, u8>,
+    shared_memory: *const c_int,
+    shared_memory_sizes: *const usize,
+    shared_memory_count: usize,
 ) {
-    // SAFETY: The caller passes the live VM, lends the origins, and hands over the name and the message.
-    let (vm, message) = unsafe {
+    // SAFETY: The caller passes the live VM, lends the origins and the descriptors, and hands over the name.
+    let (vm, storage_key, channel_name, source_origin, shared_memory, shared_memory_sizes) = unsafe {
         (
             &*vm.cast::<Vm>(),
-            BroadcastChannelMessage {
-                storage_key: StorageKey {
-                    origin: (*storage_key_origin).to_origin(),
-                },
-                channel_name: Utf16String::from_raw_owned(channel_name),
-                source_origin: (*source_origin).to_origin(),
-                serialized: SerializedMessage::from_raw(serialized_message),
+            StorageKey {
+                origin: (*storage_key_origin).to_origin(),
             },
+            Utf16String::from_raw_owned(channel_name),
+            (*source_origin).to_origin(),
+            ak::slice_from_raw_parts(shared_memory, shared_memory_count),
+            ak::slice_from_raw_parts(shared_memory_sizes, shared_memory_count),
         )
     };
-    BroadcastChannel::deliver_message_locally(vm, &Rc::new(message), None);
+    let message = BROADCAST_CHANNEL_MESSAGE_CLASS.allocate(vm, |defer_gc| BroadcastChannelMessage {
+        storage_key,
+        channel_name,
+        source_origin,
+        // SAFETY: The caller keeps the descriptors open for the call.
+        serialized: unsafe {
+            MessageRecord::received(
+                defer_gc,
+                serialized_message.as_slice(),
+                shared_memory,
+                shared_memory_sizes,
+            )
+        },
+    });
+    BroadcastChannel::deliver_message_locally(vm, message, None);
 }

@@ -9,13 +9,11 @@
 //! BroadcastChannel, https://html.spec.whatwg.org/multipage/web-messaging.html#broadcasting-to-other-browsing-contexts
 
 use core::cell::{Cell, RefCell};
-use core::ffi::c_void;
+use core::ffi::{c_int, c_void};
 use core::ptr::NonNull;
-use std::collections::VecDeque;
-use std::rc::Rc;
 
 use ak::Utf16String;
-use libjs_rust::api::{EmbedderCell, Gc, GcWeak, MarkedVec, Realm, Trace, Value, Vm};
+use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcWeak, MarkedVec, Realm, Trace, Value, Vm};
 use liburl_rust::FfiOrigin;
 use liburl_rust::origin::Origin;
 
@@ -26,17 +24,11 @@ use crate::bindings::global_object::{
 use crate::bindings::interface::{Ref, Wrappable, Wrapped, allocate};
 use crate::bindings::promise::{TaskSource, queue_a_global_task};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::html::structured_serialize::cpp::{IPCSerializationRecord, ReceivedIPCSerializationRecord, SharedBuffers};
-use crate::html::structured_serialize::{
-    structured_deserialize_with_shared_buffers, structured_serialize_with_shared_buffers,
-};
+use crate::html::structured_serialize::message_record::MessageRecord;
+use crate::html::structured_serialize::{structured_deserialize_message, structured_serialize_for_message};
 use crate::storage_api::storage_key::{StorageKey, obtain_a_storage_key_for_non_storage_purposes};
 
 unsafe extern "C" {
-    fn web_html_broadcast_channel_create_serialized_message() -> *mut c_void;
-    fn web_html_broadcast_channel_destroy_serialized_message(message: *mut c_void);
-    fn web_html_broadcast_channel_serialized_message_record(message: *mut c_void) -> *mut c_void;
-    fn web_html_broadcast_channel_serialized_message_shared_buffers(message: *mut c_void) -> *mut c_void;
     fn web_html_broadcast_channel_relevant_settings_object_origin(
         realm: *mut c_void,
         ctx: *mut c_void,
@@ -50,68 +42,35 @@ unsafe extern "C" {
     fn web_html_broadcast_channel_post_message_to_other_processes(
         realm: *mut c_void,
         channel_name: usize,
-        message: *const c_void,
+        serialized_message: ak::Span<'_, u8>,
+        shared_memory: *const c_int,
+        shared_memory_sizes: *const usize,
+        shared_memory_count: usize,
     );
-}
-
-/// The serialized message and the shared memory of its SharedArrayBuffers, which LibWeb's C++ code keeps as a
-/// BroadcastChannelSerializedMessage that this owns.
-pub(crate) struct SerializedMessage(NonNull<c_void>);
-
-impl SerializedMessage {
-    fn new() -> Self {
-        // SAFETY: LibWeb returns a new message, which this owns.
-        Self(NonNull::new(unsafe { web_html_broadcast_channel_create_serialized_message() }).expect("LibWeb allocates"))
-    }
-
-    /// # Safety
-    ///
-    /// `message` must be a message that LibWeb hands over.
-    pub(crate) unsafe fn from_raw(message: *mut c_void) -> Self {
-        Self(NonNull::new(message).expect("LibWeb hands over a message"))
-    }
-
-    fn record(&self) -> IPCSerializationRecord {
-        // SAFETY: This owns the message, which lends its record for as long as it lives.
-        unsafe {
-            IPCSerializationRecord::from_raw(web_html_broadcast_channel_serialized_message_record(self.0.as_ptr()))
-        }
-    }
-
-    fn received_record(&self) -> ReceivedIPCSerializationRecord<'_> {
-        // SAFETY: This owns the message, which lends its record for as long as it lives.
-        unsafe {
-            ReceivedIPCSerializationRecord::from_raw(web_html_broadcast_channel_serialized_message_record(
-                self.0.as_ptr(),
-            ))
-        }
-    }
-
-    fn shared_buffers(&self) -> SharedBuffers {
-        // SAFETY: This owns the message, which lends its list for as long as it lives.
-        unsafe {
-            SharedBuffers::from_raw(web_html_broadcast_channel_serialized_message_shared_buffers(
-                self.0.as_ptr(),
-            ))
-        }
-    }
-}
-
-impl Drop for SerializedMessage {
-    fn drop(&mut self) {
-        // SAFETY: This owns the message.
-        unsafe { web_html_broadcast_channel_destroy_serialized_message(self.0.as_ptr()) };
-    }
 }
 
 /// A message that a BroadcastChannel posted, in this agent or in another process: what the tasks that steps 6 to 9 of
 /// postMessage() queue read.
+#[derive(Trace)]
+#[gc(crate = libjs_rust)]
 pub(crate) struct BroadcastChannelMessage {
+    #[gc(untraced)]
     pub(crate) storage_key: StorageKey,
+    #[gc(untraced)]
     pub(crate) channel_name: Utf16String,
+    #[gc(untraced)]
     pub(crate) source_origin: Origin,
-    pub(crate) serialized: SerializedMessage,
+    pub(crate) serialized: MessageRecord,
 }
+
+pub(crate) static BROADCAST_CHANNEL_MESSAGE_CLASS: EmbedderClass<BroadcastChannelMessage> =
+    EmbedderClass::new("BroadcastChannelMessage");
+
+impl EmbedderValue for BroadcastChannelMessage {
+    const CLASS: &'static EmbedderClass<Self> = &BROADCAST_CHANNEL_MESSAGE_CLASS;
+}
+
+pub(crate) type BroadcastChannelMessageRef = Gc<EmbedderCell<BroadcastChannelMessage>>;
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#broadcastchannel
 #[derive(Trace)]
@@ -129,10 +88,6 @@ pub(crate) struct BroadcastChannel {
     origin: Origin,
     #[gc(untraced)]
     storage_key: StorageKey,
-
-    // The messages whose tasks have not run yet. Each task takes the message at the front.
-    #[gc(untraced)]
-    queued_messages: RefCell<VecDeque<Rc<BroadcastChannelMessage>>>,
 }
 
 impl Wrappable for BroadcastChannel {
@@ -218,7 +173,6 @@ impl BroadcastChannel {
             closed_flag: Cell::new(false),
             origin: relevant_settings_object_origin(realm),
             storage_key: obtain_a_storage_key_for_non_storage_purposes(realm),
-            queued_messages: RefCell::new(VecDeque::new()),
         });
         channel.event_target.set_owner(channel);
         channel.event_target.set_event_listener_list_changed_steps::<Self>();
@@ -288,8 +242,7 @@ impl BroadcastChannel {
         // AD-HOC: This message reaches agents in other processes through the browser process — so a shared-memory-backed
         //         SharedArrayBuffer travels beside the record, by file descriptor, and every receiver references the same
         //         [[ArrayBufferData]] rather than a copy.
-        let serialized = SerializedMessage::new();
-        structured_serialize_with_shared_buffers(cx, message, serialized.record(), serialized.shared_buffers())?;
+        let serialized = structured_serialize_for_message(cx.vm(), cx.realm(), message)?;
 
         // 4. Let sourceOrigin be this's relevant settings object's origin.
         let source_origin = this.origin.clone();
@@ -297,22 +250,27 @@ impl BroadcastChannel {
         // 5. Let sourceStorageKey be the result of running obtain a storage key for non-storage purposes with this's relevant settings object.
         let source_storage_key = this.storage_key.clone();
 
-        let message = Rc::new(BroadcastChannelMessage {
+        let message = BROADCAST_CHANNEL_MESSAGE_CLASS.allocate(cx.vm(), |defer_gc| BroadcastChannelMessage {
             storage_key: source_storage_key,
             channel_name: this.channel_name.clone(),
             source_origin,
-            serialized,
+            serialized: serialized.finish_message_record(defer_gc),
         });
 
         // Steps 6-9.
-        Self::deliver_message_locally(cx.vm(), &message, Some(*this));
+        Self::deliver_message_locally(cx.vm(), message, Some(*this));
 
-        // SAFETY: The realm is live, and the name and the message are lent for the call.
+        let (shared_memory, shared_memory_sizes) = message.serialized.duplicate_shared_memory();
+        // SAFETY: The realm is live, the name and the bytes are lent for the call, and the call takes over the
+        //         duplicated descriptors.
         unsafe {
             web_html_broadcast_channel_post_message_to_other_processes(
                 this.realm.as_ptr().cast(),
                 message.channel_name.raw_identity(),
-                message.serialized.0.as_ptr(),
+                ak::Span::new(&message.serialized.bytes),
+                shared_memory.as_ptr(),
+                shared_memory_sizes.as_ptr(),
+                shared_memory.len(),
             );
         }
 
@@ -320,7 +278,7 @@ impl BroadcastChannel {
     }
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-postmessage
-    pub(crate) fn deliver_message_locally(vm: &Vm, message: &Rc<BroadcastChannelMessage>, source: Option<Ref<Self>>) {
+    pub(crate) fn deliver_message_locally(vm: &Vm, message: BroadcastChannelMessageRef, source: Option<Ref<Self>>) {
         // 6. Let destinations be a list of BroadcastChannel objects that match the following criteria:
         //    * They are eligible for messaging.
         //    * The result of running obtain a storage key for non-storage purposes with their relevant settings object equals sourceStorageKey.
@@ -345,18 +303,12 @@ impl BroadcastChannel {
 
         // 9. For each destination in destinations, queue a global task on the DOM manipulation task source given destination's relevant global object to perform the following steps:
         for destination in destinations.values().iter() {
-            destination.queued_messages.borrow_mut().push_back(Rc::clone(message));
             queue_a_global_task(
                 vm,
                 destination.realm,
                 TaskSource::DOMManipulation,
-                *destination,
-                |vm, destination| {
-                    let Some(message) = destination.queued_messages.borrow_mut().pop_front() else {
-                        return;
-                    };
-                    Self::message_task_steps(destination, vm, &message);
-                },
+                (*destination, message),
+                |vm, (destination, message)| Self::message_task_steps(destination, vm, &message),
             );
         }
     }
@@ -372,11 +324,7 @@ impl BroadcastChannel {
         let cx = CallContext::new(vm, target_realm);
 
         // 3. Let data be StructuredDeserialize(serialized, targetRealm).
-        let data = structured_deserialize_with_shared_buffers(
-            &cx,
-            message.serialized.received_record(),
-            message.serialized.shared_buffers(),
-        );
+        let data = structured_deserialize_message(&cx, &message.serialized);
         let Ok(data) = data else {
             //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
             //    origin initialized to sourceOrigin, and then abort these steps.

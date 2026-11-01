@@ -15,6 +15,7 @@
 pub(crate) mod cpp;
 pub(crate) mod exports;
 pub(crate) mod memory;
+pub(crate) mod message_record;
 pub(crate) mod reader;
 pub(crate) mod writer;
 
@@ -34,9 +35,8 @@ use crate::bindings::structured_data::{SerializationReader, SerializationWriter}
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto_key;
 use crate::html::structured_serialize::cpp::{
-    IPCSerializationRecord, OwnedSerializedTransferRecord, ReceivedIPCSerializationRecord, SerializableSteps,
-    SerializedTransferRecord, SharedBuffers, TransferDataDecoder, TransferDataHolder,
-    create_transferred_platform_object, current_settings_object_agent_cluster,
+    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, TransferDataDecoder,
+    TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
     deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
     is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
@@ -44,6 +44,7 @@ use crate::html::structured_serialize::cpp::{
     transferable_set_detached,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
+use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::webidl::dom_exception::{self, DOMExceptionFields};
@@ -349,9 +350,7 @@ fn serialize_array_buffer(
             //         descriptor survive structured clone, whose main record is bytes-only, so an agent in another
             //         process references the same [[ArrayBufferData]]. Without a side list (e.g., serialization for
             //         storage) or a shared backing (e.g., a zero-length buffer), fall back to copying the bytes.
-            let shared_buffer_index = data_holder
-                .shared_buffers()
-                .and_then(|shared_buffers| shared_buffers.append_shared_memory_of(array_buffer));
+            let shared_buffer_index = data_holder.append_shared_memory_of(array_buffer);
             data_holder.encode_bool(shared_buffer_index.is_some());
             if let Some(index) = shared_buffer_index {
                 data_holder.encode_u32(index);
@@ -1140,7 +1139,7 @@ impl Deserializer<'_, '_, '_> {
                     let shared_object_id = self.serialized.decode_u64()?;
                     value = self
                         .serialized
-                        .array_buffer_from_shared_memory(index, shared_object_id)?;
+                        .array_buffer_from_shared_memory(vm, index, shared_object_id)?;
                     break 'shared_array_buffer;
                 }
 
@@ -1806,41 +1805,34 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
-// AD-HOC: For a record that reaches agents in other processes, whose shared-memory-backed SharedArrayBuffers are handed
-//         over beside it, in shared_buffers.
-pub(crate) fn structured_serialize_with_shared_buffers(
-    cx: &CallContext,
+// AD-HOC: For a message that reaches agents in other processes, whose shared-memory-backed SharedArrayBuffers are handed
+//         over beside it. The caller finishes the writer into a MessageRecord.
+pub(crate) fn structured_serialize_for_message(
+    vm: &Vm,
+    realm: Gc<Realm>,
     value: Value,
-    record: IPCSerializationRecord,
-    shared_buffers: SharedBuffers,
-) -> WebIdlResult<()> {
-    let vm = cx.vm();
+) -> WebIdlResult<StructuredSerializeWriter<'_>> {
     let memory = SerializationMemory::new(vm);
-    let serialized = StructuredSerializeWriter::new_with_shared_buffers(vm, shared_buffers);
+    let serialized = StructuredSerializeWriter::new_for_message(vm);
 
     // 1. Return ? StructuredSerializeInternal(value, false).
     structured_serialize_internal(
         vm,
-        Some(cx.realm()),
+        Some(realm),
         &serialized,
         value,
         false,
         &memory,
         AllowSharedArrayBuffers::CrossOriginIsolatedOnly,
     )?;
-    serialized.finish_ipc_record(record);
-    Ok(())
+    Ok(serialized)
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-// NB: In the realm of the call, for a record whose SharedArrayBuffers are shared through the list.
-pub(crate) fn structured_deserialize_with_shared_buffers(
-    cx: &CallContext,
-    serialized: ReceivedIPCSerializationRecord<'_>,
-    shared_buffers: SharedBuffers,
-) -> WebIdlResult<Value> {
+// NB: In the realm of the call.
+pub(crate) fn structured_deserialize_message(cx: &CallContext, serialized: &MessageRecord) -> WebIdlResult<Value> {
     let target_realm = cx.realm();
-    let serialized = StructuredSerializeReader::new_ipc(target_realm, serialized, Some(shared_buffers));
+    let serialized = StructuredSerializeReader::new_message(target_realm, serialized);
     let memory = DeserializationMemory::new(cx.vm());
     with_temporary_execution_context(target_realm, || {
         structured_deserialize_internal(cx, &serialized, &memory, false)
