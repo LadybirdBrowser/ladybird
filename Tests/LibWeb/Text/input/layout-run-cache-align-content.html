@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #flex {
+        display: flex;
+    }
+    #tallSibling {
+        height: 100px;
+    }
+    #lines {
+        display: inline-block;
+        width: 40px;
+        height: 100px;
+        font-size: 0;
+    }
+    .aligned {
+        align-content: end;
+    }
+    .block {
+        height: 20px;
+    }
+    .item {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+    }
+</style>
+<div id="flex"><div id="tallSibling"></div><div id="flexItem" class="aligned"><div class="block"></div></div></div>
+<div id="lines" class="aligned"></div>
+<script>
+    const offsetInParent = element => element.offsetTop - element.parentElement.offsetTop;
+
+    test(() => {
+        println(`stretched flex item: ${offsetInParent(flexItem.firstElementChild)}`);
+
+        for (let i = 0; i < 12; ++i) {
+            const item = document.createElement("span");
+            item.className = "item";
+            lines.appendChild(item);
+        }
+        document.body.offsetHeight;
+        const inserted = document.createElement("span");
+        inserted.className = "item";
+        lines.insertBefore(inserted, lines.children[10]);
+        println(`first line after insertion: ${offsetInParent(lines.firstElementChild)}`);
+        println(`last line after insertion: ${offsetInParent(lines.lastElementChild)}`);
+    });
+</script>

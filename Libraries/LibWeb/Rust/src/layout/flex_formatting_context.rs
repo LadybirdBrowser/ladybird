@@ -2926,7 +2926,9 @@ impl<'pass> FlexFormattingContext<'pass> {
                 place_backwards = true;
                 iterate_backwards = !reverse_cross_axis;
             }
-            align_content::FLEX_START => {
+            // AD-HOC: Baseline values align the lines as flex-start rather than with their fallback alignment, matching
+            //         other engines.
+            align_content::FLEX_START | align_content::BASELINE => {
                 if reverse_cross_axis {
                     start = container_cross_size;
                     place_backwards = true;

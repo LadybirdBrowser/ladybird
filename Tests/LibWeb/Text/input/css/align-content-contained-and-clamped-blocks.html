@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #contained {
+        contain: size;
+        width: 100px;
+        height: 100px;
+        align-content: end;
+    }
+    #contained > div {
+        height: 20px;
+    }
+    #clamped {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        width: 200px;
+        height: 100px;
+        font: 20px/20px monospace;
+        overflow: hidden;
+        align-content: center;
+    }
+</style>
+<div id="contained"><div></div></div>
+<div id="clamped"></div>
+<script>
+    test(() => {
+        println(`contained child: ${contained.firstElementChild.offsetTop - contained.offsetTop}`);
+
+        clamped.innerHTML = Array(10).fill("<span>X</span>").join("<br>");
+        println(`clamped lines overflow: ${clamped.scrollHeight > clamped.clientHeight}`);
+    });
+</script>

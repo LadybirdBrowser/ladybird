@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .flex {
+        display: flex;
+        flex-wrap: wrap;
+        width: 100px;
+        height: 100px;
+    }
+    .flex > div {
+        width: 60px;
+        height: 20px;
+    }
+    .grid {
+        display: grid;
+        height: 100px;
+        grid-template-rows: auto auto;
+    }
+    .grid > div {
+        height: 20px;
+    }
+    .baseline {
+        align-content: baseline;
+    }
+</style>
+<div id="flex" class="flex baseline"><div></div><div></div></div>
+<div id="flexWrapReverse" class="flex baseline" style="flex-wrap: wrap-reverse"><div></div><div></div></div>
+<div id="grid" class="grid baseline"><div></div><div></div></div>
+<script>
+    test(() => {
+        for (const container of document.querySelectorAll(".baseline")) {
+            const tops = [...container.children].map(child => child.offsetTop - container.offsetTop);
+            println(`${container.id}: ${tops.join(", ")}`);
+        }
+    });
+</script>

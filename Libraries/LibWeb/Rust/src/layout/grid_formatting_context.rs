@@ -117,7 +117,9 @@ pub(crate) fn inline_content_alignment(value: u8) -> Alignment {
 pub(crate) fn block_content_alignment(value: u8) -> Alignment {
     match value {
         align_content::NORMAL => Alignment::Normal,
-        align_content::START | align_content::FLEX_START => Alignment::Start,
+        // AD-HOC: Last baseline values align as start rather than with their fallback alignment, matching other
+        //         engines.
+        align_content::START | align_content::FLEX_START | align_content::BASELINE => Alignment::Start,
         align_content::END | align_content::FLEX_END => Alignment::End,
         align_content::CENTER => Alignment::Center,
         align_content::SPACE_BETWEEN => Alignment::SpaceBetween,

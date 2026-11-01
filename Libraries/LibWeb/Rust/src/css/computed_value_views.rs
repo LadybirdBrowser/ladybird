@@ -572,6 +572,7 @@ scalar_accessors! {
         align_self: u8 => align_self,
         align_items_is_last_baseline: bool => align_items_is_last_baseline,
         align_self_is_last_baseline: bool => align_self_is_last_baseline,
+        align_content_is_last_baseline: bool => align_content_is_last_baseline,
         align_content: u8 => align_content,
         justify_content: u8 => justify_content,
         justify_items: u8 => justify_items,
@@ -580,6 +581,7 @@ scalar_accessors! {
         justify_items_overflow: u8 => justify_items_overflow,
         align_self_overflow: u8 => align_self_overflow,
         justify_self_overflow: u8 => justify_self_overflow,
+        align_content_overflow: u8 => align_content_overflow,
         flex_basis_is_content: bool => flex_basis.is_content,
     }
 }
@@ -1107,6 +1109,15 @@ impl<'a> ComputedValuesView<'a> {
         }
 
         if self.establishes_multi_column_container() {
+            return true;
+        }
+
+        // https://drafts.csswg.org/css-align-3/#distribution-block
+        // All values other than normal force the block container to establish an independent formatting context.
+        if self.align_content() != crate::css::css_enums::align_content::NORMAL
+            && display.is_flow_inside()
+            && !display.is_inline_outside()
+        {
             return true;
         }
 

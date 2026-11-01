@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    fieldset {
+        width: 200px;
+        height: 200px;
+        padding: 0;
+        border: 0;
+        margin: 0;
+        align-content: end;
+    }
+    fieldset > div {
+        height: 20px;
+    }
+</style>
+<fieldset><div></div></fieldset>
+<script>
+    test(() => {
+        const fieldset = document.querySelector("fieldset");
+        println(`child: ${fieldset.firstElementChild.offsetTop - fieldset.offsetTop}`);
+    });
+</script>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Box Alignment: align-content moves a float with the content it starts</title>
+<link rel="help" href="https://drafts.csswg.org/css-align-3/#distribution-block">
+<meta name="assert" content="align-content on a block container moves the container's content, floats included, so a float at the start of the content stays level with the block that follows it.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+
+<style>
+  html, body { margin: 0; padding: 0; }
+
+  /* 50px of container for 20px of content leaves 30px to distribute. The float is shorter than the block, so
+     it never decides the content's height. */
+  /* relative so that the offsets below are measured from the container */
+  .box { width: 100px; height: 50px; margin-bottom: 10px; position: relative; }
+  .float { float: right; width: 10px; height: 10px; background: orange; }
+  .block { height: 20px; background: green; }
+</style>
+
+<div class="box" style="align-content: start" title="start">
+  <div class="float" data-offset-y="0"></div>
+  <div class="block" data-offset-y="0"></div>
+</div>
+<div class="box" style="align-content: center" title="center">
+  <div class="float" data-offset-y="15"></div>
+  <div class="block" data-offset-y="15"></div>
+</div>
+<div class="box" style="align-content: end" title="end">
+  <div class="float" data-offset-y="30"></div>
+  <div class="block" data-offset-y="30"></div>
+</div>
+<div class="box" style="align-content: space-around" title="space-around">
+  <div class="float" data-offset-y="15"></div>
+  <div class="block" data-offset-y="15"></div>
+</div>
+
+<script>
+checkLayout(".box");
+</script>
