@@ -320,7 +320,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
     add_properties(qaction, action);
 }
 
-static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu)
+static void add_items_to_menu(QMenu& qmenu, WebView::Menu& menu)
 {
     menu.add_observer(MenuObserver::create(menu, qmenu));
     add_properties(qmenu, menu);
@@ -328,15 +328,15 @@ static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu
     for (auto& menu_item : menu.items()) {
         menu_item.visit(
             [&](NonnullRefPtr<WebView::Action>& action) {
-                auto* qaction = create_application_action(parent, action, IncludeActionIcon::No);
+                auto* qaction = create_application_action(qmenu, action, IncludeActionIcon::No);
                 qmenu.addAction(qaction);
             },
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
                 auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &qmenu);
-                add_items_to_menu(*qsubmenu, parent, submenu);
+                add_items_to_menu(*qsubmenu, submenu);
 
                 if (submenu->render_group_icon())
-                    qsubmenu->setIcon(create_chrome_icon(ChromeIcon::Folder, parent.palette()));
+                    qsubmenu->setIcon(create_chrome_icon(ChromeIcon::Folder, qmenu.palette()));
 
                 add_properties(*qsubmenu, *submenu);
                 qmenu.addMenu(qsubmenu);
@@ -390,14 +390,14 @@ void populate_session_history_traversal_menu(QMenu& menu, WebContentView& view, 
 QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu)
 {
     auto* application_menu = new QMenu(qstring_from_ak_string(menu.title()), &parent);
-    add_items_to_menu(*application_menu, parent, menu);
+    add_items_to_menu(*application_menu, menu);
     return application_menu;
 }
 
-void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source)
+void repopulate_application_menu(QMenu& menu, WebView::Menu& source)
 {
     menu.clear();
-    add_items_to_menu(menu, parent, source);
+    add_items_to_menu(menu, source);
 }
 
 static void insert_dynamic_history_action(QMenu& menu, QAction* before, QAction& action)
