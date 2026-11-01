@@ -340,7 +340,6 @@ fn command_struct_size(command_type: DisplayListCommandType) -> usize {
         T::PaintScrollBar => size_of::<PaintScrollBar>(),
         T::CompositorSnapContainer => size_of::<CompositorSnapContainer>(),
         T::CompositorSnapArea => size_of::<CompositorSnapArea>(),
-        T::CompositorScrollChainingBarrier => size_of::<CompositorScrollChainingBarrier>(),
         T::CompositorNestedContextWheelRegion => size_of::<CompositorNestedContextWheelRegion>(),
         T::Canvas2DFillPath => size_of::<Canvas2DFillPath>(),
         T::Canvas2DStrokePath => size_of::<Canvas2DStrokePath>(),
@@ -532,10 +531,6 @@ fn validate_command_fields(
             p.bool_at(offset_of!(CompositorSnapContainer, snaps_x))?;
             p.bool_at(offset_of!(CompositorSnapContainer, snaps_y))?;
             p.bool_at(offset_of!(CompositorSnapContainer, horizontal_writing_mode))?;
-        }
-        T::CompositorScrollChainingBarrier => {
-            p.bool_at(offset_of!(CompositorScrollChainingBarrier, keeps_horizontal_scrolls))?;
-            p.bool_at(offset_of!(CompositorScrollChainingBarrier, keeps_vertical_scrolls))?;
         }
         T::CompositorSnapArea => {
             p.u8_below(offset_of!(CompositorSnapArea, align_x), SNAP_ALIGN_COUNT)?;

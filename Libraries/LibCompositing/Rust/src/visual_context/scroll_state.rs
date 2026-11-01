@@ -40,7 +40,7 @@ pub struct ScrollState {
     // Each slot's own scroll offset. A frame a document published shares them, so a write copies
     // them only while such a frame still holds them.
     own_offsets: Arc<Vec<CssPixelPoint>>,
-    // Whether any box but the viewport could take a wheel event. A registry reset keeps it, so
+    // Whether any box but the viewport could take or keep a wheel event. A registry reset keeps it, so
     // the rebuild that follows sees a change only when the document's scrollers changed.
     pub has_non_viewport_wheel_scroll_target_candidate: bool,
 }

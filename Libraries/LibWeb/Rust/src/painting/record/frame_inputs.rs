@@ -21,7 +21,7 @@ pub(crate) struct FrameInputs {
     pub(crate) should_show_line_box_borders: bool,
     pub(crate) should_paint_overlay: bool,
     pub(crate) uncaptured: UncapturedContentInputs,
-    // Whether any box but the viewport could take a wheel event decides if the scroll metadata
+    // Whether any box but the viewport could take or keep a wheel event decides if the scroll metadata
     // inside subtree captures carries per-box wheel hit-test targets.
     pub(crate) has_non_viewport_wheel_scroll_target_candidate: bool,
 }

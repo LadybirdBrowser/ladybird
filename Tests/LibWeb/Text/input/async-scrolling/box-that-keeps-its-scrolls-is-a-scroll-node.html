@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        padding: 200px 0 0 200px;
+        width: 3000px;
+        height: 3000px;
+    }
+    #box {
+        width: 200px;
+        height: 200px;
+        overflow: auto;
+    }
+    #scroller {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #scroller > div {
+        height: 300px;
+    }
+</style>
+<div id="box"><div id="scroller"><div></div></div></div>
+<script>
+    function recordedScrollNodeCount() {
+        internals.recordDisplayListForTesting();
+        return internals.recordedAsyncScrollingState().scrollNodeCount;
+    }
+
+    function recordedWheelTarget(x, y, deltaX, deltaY) {
+        internals.recordDisplayListForTesting();
+        return wheelTargetToString(internals.recordedDisplayListWheelTargetAt(x, y, deltaX, deltaY));
+    }
+
+    promiseTest(async () => {
+        // The box is at the top left of the window with the scroller in its top left quarter.
+        window.scrollTo(200, 200);
+        const besideTheScroller = [130, 130];
+        const overTheScroller = [30, 30];
+
+        // A box with nothing to scroll gets a scroll node of its own once it keeps its scrolls.
+        const scrollNodesWithAuto = recordedScrollNodeCount();
+        box.style.overscrollBehavior = "contain";
+        println(`scroll nodes once the box keeps its scrolls: ${recordedScrollNodeCount() - scrollNodesWithAuto} more`);
+        box.style.overflow = "clip";
+        println(`scroll nodes once the box is not a scroll container: ${recordedScrollNodeCount() - scrollNodesWithAuto} more`);
+        box.style.overflow = "auto";
+
+        // The scroll node keeps the scrolls along the axes the box keeps, and passes the others on.
+        box.style.overscrollBehavior = "auto none";
+        println(`up beside the scroller: ${recordedWheelTarget(...besideTheScroller, 0, -50)}`);
+        println(`left beside the scroller: ${recordedWheelTarget(...besideTheScroller, -50, 0)}`);
+        println(`up at the top of the scroller: ${recordedWheelTarget(...overTheScroller, 0, -50)}`);
+        println(`down over the scroller: ${recordedWheelTarget(...overTheScroller, 0, 50)}`);
+
+        // A box a wheel cannot scroll keeps its scrolls the same way.
+        box.style.overflow = "hidden";
+        box.style.overscrollBehavior = "contain";
+        println(`overflow hidden, up beside the scroller: ${recordedWheelTarget(...besideTheScroller, 0, -50)}`);
+        box.style.overflow = "auto";
+
+        // The compositor scrolls a gesture the box keeps by nothing, and the page stays where it was.
+        box.style.overscrollBehavior = "contain";
+        await waitForCondition(() => internals.compositorWheelTargetAt(...besideTheScroller, 0, -50).decision === "no-scroll-target");
+        internals.beginInputTrace();
+        await internals.wheelThroughUIProcess(...besideTheScroller, 0, -50, true, "ongoing");
+        await internals.wheelThroughUIProcess(...besideTheScroller, 0, 0, true, "ended");
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
+        println(`page at ${window.scrollX},${window.scrollY}`);
+    });
+</script>

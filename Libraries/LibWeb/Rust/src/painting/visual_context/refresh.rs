@@ -180,9 +180,9 @@ pub(crate) fn compute_sticky_data(
         return data;
     }
 
-    // NB: Only scroll containers with scrollable overflow get a scroll node. When the nearest scroll container has
-    //     none, it sits inside the scroller of the scroll node, and its scrollport never moves. The box sticks to
-    //     that scrollport instead.
+    // NB: Only scroll containers with scrollable overflow, or that keep their scrolls, get a scroll node. When the
+    //     nearest scroll container has none, it sits inside the scroller of the scroll node, and its scrollport never
+    //     moves. The box sticks to that scrollport instead.
     if let Some(scroll_container) = nearest_scroll_container_along_containing_blocks(layout_arena, paintable)
         && scroll_container != scroller
         && is_containing_block_descendant_of(layout_arena, scroll_container, scroller)

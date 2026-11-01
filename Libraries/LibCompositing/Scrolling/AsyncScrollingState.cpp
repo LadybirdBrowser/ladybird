@@ -125,17 +125,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
             });
             break;
         }
-        case Compositing::DisplayListCommandType::CompositorScrollChainingBarrier: {
-            auto command = Compositing::read_display_list_object<Compositing::CompositorScrollChainingBarrier>(payload);
-            async_scrolling_state.scroll_chaining_barriers.append({
-                .context = context,
-                .rect = command.rect,
-                .scroll_node_index_above_barrier = command.scroll_node_index_above_barrier,
-                .keeps_horizontal_scrolls = command.keeps_horizontal_scrolls,
-                .keeps_vertical_scrolls = command.keeps_vertical_scrolls,
-            });
-            break;
-        }
         case Compositing::DisplayListCommandType::CompositorScrollbar: {
             auto command = Compositing::read_display_list_object<Compositing::CompositorScrollbar>(payload);
             async_scrolling_state.scrollbars.append({

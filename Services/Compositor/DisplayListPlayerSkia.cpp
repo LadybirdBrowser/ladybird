@@ -1450,10 +1450,6 @@ void DisplayListPlayerSkia::play_command(CompositorSnapArea const&)
 {
 }
 
-void DisplayListPlayerSkia::play_command(CompositorScrollChainingBarrier const&)
-{
-}
-
 void DisplayListPlayerSkia::play_command(CompositorNestedContextWheelRegion const&)
 {
 }

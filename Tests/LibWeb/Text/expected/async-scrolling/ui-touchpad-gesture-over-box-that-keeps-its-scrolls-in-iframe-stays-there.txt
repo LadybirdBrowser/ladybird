@@ -1,0 +1,8 @@
+#1 compositor: handed-to-nested-context
+#1 compositor: scroll-kept-by-overscroll-behavior scroller=#box
+#1 compositor: forwarded-to-page
+#2 compositor: continued-latch scroller=#box
+#2 compositor: forwarded-to-page
+#3 compositor: gesture-end-with-nothing-to-snap
+#3 compositor: forwarded-to-page
+window.scrollY: 0

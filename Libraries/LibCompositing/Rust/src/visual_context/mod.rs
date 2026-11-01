@@ -165,8 +165,9 @@ pub struct StickyData {
     pub scrollport_size: FloatSize,
     pub containing_block_region: FloatRect,
     pub needs_parent_offset_adjustment: bool,
-    // The nearest scroll container of the box when it has no scrollable overflow, and so no scroll node. Its
-    // scrollport never moves, and the geometry above is relative to it rather than to the scroller.
+    // The nearest scroll container of the box when it has no scroll node, because it has no scrollable overflow and
+    // passes its scrolls on. Its scrollport never moves, and the geometry above is relative to it rather than to the
+    // scroller.
     pub non_scrolling_scroll_container: NodeSlotId,
     pub inset_top: Option<f32>,
     pub inset_right: Option<f32>,

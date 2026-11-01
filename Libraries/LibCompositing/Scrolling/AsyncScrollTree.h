@@ -117,11 +117,6 @@ struct CachedBlockingWheelEventTarget {
     Optional<Gfx::FloatRect> viewport_rect;
 };
 
-struct CachedScrollChainingBarrier {
-    ScrollChainingBarrier barrier;
-    Optional<Gfx::FloatRect> viewport_rect;
-};
-
 enum class ScrollChaining : u8 {
     ToScrollableAncestors,
     None,
@@ -185,7 +180,7 @@ private:
     static bool can_scroll_node_by_delta(AsyncScrollNode const&, Compositing::ScrollStateSnapshot const&, Gfx::FloatPoint);
     static bool can_scroll_node_from_offset_by_delta(AsyncScrollNode const&, Gfx::FloatPoint scroll_offset, Gfx::FloatPoint delta);
 
-    WheelHitTestResult hit_test_result_for_scroll_node(Compositing::SpatialNodeIndex, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, ReadonlySpan<Compositing::SpatialNodeIndex> scroll_nodes_behind_scroll_chaining_barriers) const;
+    WheelHitTestResult hit_test_result_for_scroll_node(Compositing::SpatialNodeIndex, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const;
     AsyncScrollNode const* scroll_node_for_stable_id(Web::AsyncScrollNodeStableID) const;
     bool main_thread_wheel_event_region_contains(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     struct NestedContextWheelRegionHit {
@@ -208,8 +203,6 @@ private:
     Vector<CachedMainThreadWheelEventTarget> m_cached_main_thread_wheel_event_targets;
     Vector<CachedNestedContextWheelRegion> m_cached_nested_context_wheel_regions;
     Vector<CachedBlockingWheelEventTarget> m_cached_blocking_wheel_event_targets;
-    Vector<ScrollChainingBarrier> m_scroll_chaining_barriers;
-    Vector<CachedScrollChainingBarrier> m_cached_scroll_chaining_barriers;
     Optional<u64> m_visual_context_tree_structural_epoch;
     Compositing::ScrollStateSnapshot m_scroll_state_snapshot;
     bool m_has_blocking_wheel_event_region_covering_viewport { false };

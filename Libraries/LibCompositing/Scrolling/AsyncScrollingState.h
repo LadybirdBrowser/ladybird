@@ -61,7 +61,7 @@ struct AsyncScrollOffset {
     }
 };
 
-// One scrollable area from the paint snapshot.
+// One scrollable area from the paint snapshot, or a scroll container with nothing to scroll that keeps its scrolls.
 struct AsyncScrollNode {
     Compositing::SpatialNodeIndex scroll_node_index;
     Web::AsyncScrollNodeStableID stable_node_id;
@@ -111,16 +111,6 @@ struct NestedContextWheelRegion {
     u32 paint_order_index { 0 };
 };
 
-// A scroll container without a scroll node of its own that keeps the scrolls along an axis to itself. A wheel inside
-// its rect is not passed on along that axis to the scroll node above it.
-struct ScrollChainingBarrier {
-    Compositing::ContextRef context;
-    Gfx::FloatRect rect;
-    Compositing::SpatialNodeIndex scroll_node_index_above_barrier;
-    bool keeps_horizontal_scrolls { false };
-    bool keeps_vertical_scrolls { false };
-};
-
 struct AsyncScrollbar {
     Optional<Web::AsyncScrollNodeStableID> scroller_stable_node_id;
     Compositing::SpatialNodeIndex scroll_node_index;
@@ -158,7 +148,6 @@ struct AsyncScrollingState {
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
     Vector<NestedContextWheelRegion> nested_context_wheel_regions;
-    Vector<ScrollChainingBarrier> scroll_chaining_barriers;
     Vector<AsyncScrollbar> scrollbars;
 
     // Non-passive wheel listeners can cancel scrolling, so async scrolling must treat them as hard barriers.

@@ -549,7 +549,9 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         }
     }
 
-    if paintable_geometry::has_scrollable_overflow(layout_arena, slot) {
+    if paintable_geometry::has_scrollable_overflow(layout_arena, slot)
+        || crate::painting::chrome_geometry::keeps_scrolls_along_some_axis(layout_arena, slot)
+    {
         let parent_index = if creates_sticky_scroll_node {
             sticky_scroll_node_index
         } else {

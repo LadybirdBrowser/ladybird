@@ -185,6 +185,13 @@ pub(crate) fn scroll_boundary_behavior(arena: &impl PaintRead, slot: NodeSlotId)
     }
 }
 
+// A scroll container that keeps the scrolls along some axis to itself gets a scroll node even when it has nothing to
+// scroll, so that the compositor stops passing a scroll on at it.
+pub(crate) fn keeps_scrolls_along_some_axis(arena: &impl PaintRead, slot: NodeSlotId) -> bool {
+    let chains_to_ancestors = scroll_boundary_behavior(arena, slot).chains_to_ancestors;
+    !chains_to_ancestors.horizontal || !chains_to_ancestors.vertical
+}
+
 // NB: The viewport's own overflow is the one the layout pass propagated to it, as applied to the viewport.
 pub(crate) fn wheel_scrollable_axes(arena: &impl PaintRead, slot: NodeSlotId) -> PhysicalAxes {
     let Some(style) = arena.node_style_if_live(slot) else {
@@ -400,6 +407,12 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
             return None;
         }
         if arena.paintable_data(slot).own_scroll_node_index == VISUAL_VIEWPORT_NODE_INDEX {
+            return None;
+        }
+        // NB: A box that keeps its scrolls has a scroll node even when it has nothing to scroll.
+        if arena.node_kind_if_live(slot) != Some(NodeKind::Viewport)
+            && !paintable_geometry::has_scrollable_overflow(arena, slot)
+        {
             return None;
         }
         let overflow_length = primary_size(paintable_geometry::scrollable_overflow_rect(arena, slot)?, direction);
