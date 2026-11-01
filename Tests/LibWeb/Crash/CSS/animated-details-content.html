@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    details::details-content { animation: fade 0.3s; }
+</style>
+<details open><summary>summary</summary><p>content</p></details>
+<script>
+    setTimeout(() => {
+        document.body.offsetWidth;
+        document.documentElement.classList.remove("test-wait");
+    }, 600);
+</script>
+</html>
