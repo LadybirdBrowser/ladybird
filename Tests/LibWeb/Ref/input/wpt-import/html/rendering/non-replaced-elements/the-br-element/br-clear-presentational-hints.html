@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>The clear attribute applies the clear CSS property.</title>
+<link rel="author" title="Psychpsyo" href="mailto:psychpsyo@gmail.com">
+<link rel="help" href="https://html.spec.whatwg.org/multipage/rendering.html#phrasing-content-3">
+<link rel=match href="../../../../../../expected/wpt-import/html/rendering/non-replaced-elements/the-br-element/br-clear-presentational-hints-ref.html">
+<style>
+  body {
+    line-height: 0;
+  }
+  .test > div {
+    width: 25px;
+    height: 50px;
+    background: green;
+  }
+</style>
+<div style="max-width: 100px; display: flex; height: 100px; background: red;">
+  <div class="test">
+    <div style="float:right"></div>
+    <br clear="all">
+    <div></div>
+  </div>
+  <div class="test">
+    <div style="float:right"></div>
+    <br clear="both">
+    <div></div>
+  </div>
+  <div class="test">
+    <div style="float:right"></div>
+    <br clear="right">
+    <div></div>
+  </div>
+  <div class="test">
+    <div style="float:left"></div>
+    <br clear="left">
+    <div></div>
+  </div>
+</div>

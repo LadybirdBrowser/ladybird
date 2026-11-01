@@ -1375,14 +1375,20 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
     }
 
     pub(crate) fn did_introduce_clearance(&mut self, clearance: CssPixels) {
-        if clearance <= self.current_block_offset {
-            return;
+        // NB: The line the clearing break ends reaches down to the clearance, so that its block container does even
+        //     when no line follows. That's the last line before the current one that holds anything: Moving past a
+        //     float that left no room beside the break can leave empty lines between them. The line grows rather
+        //     than moves, so it keeps its start and its baseline.
+        let current = self.line_count() - 1;
+        if let Some(ended) = (0..current).rev().find(|&index| !self.line(index).is_empty()) {
+            let mut line = self.line_mut(ended);
+            let block_end = line.block_end;
+            if clearance > block_end {
+                line.block_length += clearance - block_end;
+                line.block_end = clearance;
+            }
         }
-        if self.line_count() > 1 {
-            let previous = self.line_count() - 2;
-            self.line_mut(previous).block_end = clearance;
-        }
-        self.current_block_offset = clearance;
+        self.current_block_offset = self.current_block_offset.max(clearance);
     }
 
     pub(crate) fn set_trailing_whitespace_on_previous_line(&mut self) {
