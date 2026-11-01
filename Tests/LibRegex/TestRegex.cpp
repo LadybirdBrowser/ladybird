@@ -830,3 +830,65 @@ TEST_CASE(restored_long_fork_chain_coverage)
 
     EXPECT_EQ(regex.test(utf16_subject, 0), regex::MatchResult::Match);
 }
+
+TEST_CASE(optimizer_preserves_ordered_alternatives_and_capture_boundaries)
+{
+    auto regex = compile_regex("(abc|ab|abd)(c?)"sv);
+    EXPECT_EQ(regex.exec(u"abc"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(regex, u"abc"sv, 1, "abc"sv);
+    expect_capture_eq(regex, u"abc"sv, 2, ""sv);
+
+    auto shorter_first = compile_regex("(ab|abc|abd)(c?)"sv);
+    EXPECT_EQ(shorter_first.exec(u"abc"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(shorter_first, u"abc"sv, 1, "ab"sv);
+    expect_capture_eq(shorter_first, u"abc"sv, 2, "c"sv);
+
+    auto distinct_captures = compile_regex("(?:(ab)|(ac))+(b)?"sv);
+    EXPECT_EQ(distinct_captures.exec(u"abacb"sv, 0), regex::MatchResult::Match);
+    expect_capture_unmatched(distinct_captures, 1);
+    expect_capture_eq(distinct_captures, u"abacb"sv, 2, "ac"sv);
+    expect_capture_eq(distinct_captures, u"abacb"sv, 3, "b"sv);
+}
+
+TEST_CASE(optimizer_seeks_through_captures_without_crossing_line_boundaries)
+{
+    auto regex = compile_regex("^(.*)(a)bc$"sv);
+    EXPECT_EQ(regex.exec(u"a--a--abc"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(regex, u"a--a--abc"sv, 1, "a--a--"sv);
+    expect_capture_eq(regex, u"a--a--abc"sv, 2, "a"sv);
+    EXPECT_EQ(regex.exec(u"a\nabc"sv, 0), regex::MatchResult::NoMatch);
+
+    auto backward = compile_regex("(?<=(a)(.*))b"sv);
+    EXPECT_EQ(backward.exec(u"a--a--b"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(backward, u"a--a--b"sv, 1, "a"sv);
+    expect_capture_eq(backward, u"a--a--b"sv, 2, "--a--"sv);
+}
+
+TEST_CASE(optimizer_keeps_overlapping_case_folds_and_modifiers_backtrackable)
+{
+    regex::ECMAScriptCompileFlags flags;
+    flags.unicode = true;
+    flags.ignore_case = true;
+    auto regex = compile_regex("(k*)k(x)"sv, flags);
+    EXPECT_EQ(regex.exec(u"k\u212Ax"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(regex, u"k\u212Ax"sv, 1, "k"sv);
+
+    auto long_s = compile_regex("(s*)s(x)"sv, flags);
+    EXPECT_EQ(long_s.exec(u"s\u017Fx"sv, 0), regex::MatchResult::Match);
+    expect_capture_eq(long_s, u"s\u017Fx"sv, 1, "s"sv);
+
+    EXPECT(matches("(?i:a*)(?-i:A)b"sv, "aAb"sv));
+    EXPECT(matches("(?-i:a*)(?i:A)b"sv, "aab"sv));
+    EXPECT(matches("([a-cb-da-b]*)([^a-c])a"sv, "abdda"sv));
+}
+
+TEST_CASE(optimizer_minimum_length_and_start_ranges_preserve_nullable_paths)
+{
+    EXPECT(!matches("(?:abc){1000000000}"sv, "abc"sv));
+    EXPECT(matches("(abc)?\\1a"sv, "a"sv));
+    EXPECT(matches("(?=abc)a"sv, "abc"sv));
+    EXPECT(matches("(?<=abc)"sv, "abc"sv));
+    EXPECT(matches("(?:abc|a)b"sv, "ab"sv));
+    EXPECT(matches("(?:[a-b]c|[c-d]a|[x-z]b)"sv, "-----yb"sv));
+    EXPECT(matches("(?:[a-b]c|[c-d]a|)"sv, "-----"sv));
+}
