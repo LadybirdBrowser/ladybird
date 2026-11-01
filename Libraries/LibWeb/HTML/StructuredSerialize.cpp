@@ -82,9 +82,9 @@ WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm& realm, AK
 
 // The algorithms of structured serialization, which Libraries/LibWeb/Bindings/Rust/src/html/structured_serialize runs.
 extern "C" {
-JSCompletion web_rust_structured_serialize(JSVM*, JSValue, u8 allow_shared_array_buffers, Vector<Core::AnonymousBuffer>* shared_buffers, IPCSerializationRecord*);
+JSCompletion web_rust_structured_serialize(JSVM*, JSValue, u8 allow_shared_array_buffers, IPCSerializationRecord*);
 JSCompletion web_rust_structured_serialize_for_storage(JSVM*, JSValue, StorageSerializationRecord*);
-JSCompletion web_rust_structured_deserialize(JSVM*, void* target_realm, IPCSerializationRecord const*, Vector<Core::AnonymousBuffer> const* shared_buffers);
+JSCompletion web_rust_structured_deserialize(JSVM*, void* target_realm, IPCSerializationRecord const*);
 JSCompletion web_rust_structured_deserialize_for_storage(JSVM*, void* target_realm, ReadonlyBytes);
 JSCompletion web_rust_structured_serialize_with_transfer(JSVM*, void* realm, JSValue, JSObject* const* transfer_list, size_t count, SerializedTransferRecord** out_record);
 JSCompletion web_rust_structured_deserialize_with_transfer(JSVM*, void* target_realm, SerializedTransferRecord*, Vector<GC::Root<JS::Object>>* transferred_values);
@@ -132,21 +132,7 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
 {
     // 1. Return ? StructuredSerializeInternal(value, false).
     IPCSerializationRecord serialized;
-    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), to_underlying(allow_shared_array_buffers), nullptr, &serialized)));
-    return serialized;
-}
-
-// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
-// AD-HOC: For a record that reaches agents in other processes. The record itself is bytes-only, so a shared-memory-
-//         backed SharedArrayBuffer is handed over beside it, in shared_buffers, by file descriptor — and every
-//         receiver references the same [[ArrayBufferData]], rather than rebuilding the buffer from a byte copy.
-WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, Vector<Core::AnonymousBuffer>& shared_buffers)
-{
-    // 1. Return ? StructuredSerializeInternal(value, false).
-    IPCSerializationRecord serialized;
-    Vector<Core::AnonymousBuffer> serialized_shared_buffers;
-    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), to_underlying(AllowSharedArrayBuffers::CrossOriginIsolatedOnly), &serialized_shared_buffers, &serialized)));
-    shared_buffers = move(serialized_shared_buffers);
+    TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_serialize(JS::HostABI::vm_to_abi(vm), JS::HostABI::value_to_abi(value), to_underlying(allow_shared_array_buffers), &serialized)));
     return serialized;
 }
 
@@ -168,10 +154,10 @@ StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Vector<Core::AnonymousBuffer> const* shared_buffers)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm)
 {
     TemporaryExecutionContext execution_context { target_realm };
-    return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize(JS::HostABI::vm_to_abi(vm), &target_realm, &serialized, shared_buffers)));
+    return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize(JS::HostABI::vm_to_abi(vm), &target_realm, &serialized)));
 }
 
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, StorageSerializationRecord const& serialized, JS::Realm& target_realm)

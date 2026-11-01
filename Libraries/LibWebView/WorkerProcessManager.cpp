@@ -441,8 +441,6 @@ void WorkerProcessManager::post_broadcast_channel_message(Web::HTML::PostedBroad
         .source_origin = source_settings.origin(),
         .serialized_message = move(posted_message.serialized_message),
         .shared_buffers = move(posted_message.shared_buffers),
-        .source_process_id = source_process_id,
-        .source_channel_id = posted_message.source_channel_id,
     };
 
     WebContentClient::for_each_client([&](auto& client) {

@@ -5,306 +5,113 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/NeverDestroyed.h>
-#include <AK/QuickSort.h>
-#include <LibCore/System.h>
-#include <LibGC/Heap.h>
+#include <AK/Function.h>
+#include <LibCore/AnonymousBuffer.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Realm.h>
+#include <LibURL/RustIntegration.h>
+#include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
-#include <LibWeb/HTML/EventNames.h>
-#include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
-#include <LibWeb/HTML/StructuredSerialize.h>
-#include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWebCommon/HTML/BroadcastChannelMessage.h>
+
+// What the Rust implementation of BroadcastChannel asks of LibWeb's C++ code, declared on the Rust side in
+// Libraries/LibWeb/Bindings/Rust/src/html/broadcast_channel.rs.
 
 namespace Web::HTML {
 
-class BroadcastChannelRepository {
-public:
-    void register_channel(GC::Ref<BroadcastChannel>);
-    void unregister_channel(GC::Ref<BroadcastChannel>);
-    auto const& registered_channels_for_key(StorageAPI::StorageKey) const;
-    [[nodiscard]] u64 next_channel_id() { return ++m_next_channel_id; }
-
-private:
-    HashMap<StorageAPI::StorageKey, Vector<GC::Weak<BroadcastChannel>>> m_channels;
-    u64 m_next_channel_id { 0 };
+// The serialized message of a BroadcastChannel message, which the Rust implementation owns.
+struct BroadcastChannelSerializedMessage {
+    IPCSerializationRecord serialized_message;
+    Vector<Core::AnonymousBuffer> shared_buffers;
 };
 
-void BroadcastChannelRepository::register_channel(GC::Ref<BroadcastChannel> channel)
-{
-    auto storage_key = channel->m_storage_key;
-    channel->m_channel_id = next_channel_id();
-    m_channels.ensure(storage_key).append(channel);
+extern "C" {
+
+BroadcastChannelSerializedMessage* web_html_broadcast_channel_create_serialized_message();
+void web_html_broadcast_channel_destroy_serialized_message(BroadcastChannelSerializedMessage*);
+IPCSerializationRecord* web_html_broadcast_channel_serialized_message_record(BroadcastChannelSerializedMessage*);
+Vector<Core::AnonymousBuffer>* web_html_broadcast_channel_serialized_message_shared_buffers(BroadcastChannelSerializedMessage*);
+void web_html_broadcast_channel_relevant_settings_object_origin(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
+void web_html_broadcast_channel_set_strongly_referenced(void* realm, DOM::EventTarget*, bool strongly_referenced);
+void web_html_broadcast_channel_post_message_to_other_processes(void* realm, FlatPtr channel_name, BroadcastChannelSerializedMessage const*);
+
+// Defined on the Rust side.
+void web_rust_broadcast_channel_deliver_message_locally(JSVM*, URL::FFI::FfiOrigin const* storage_key_origin, FlatPtr channel_name, URL::FFI::FfiOrigin const* source_origin, BroadcastChannelSerializedMessage*);
 }
 
-void BroadcastChannelRepository::unregister_channel(GC::Ref<BroadcastChannel> channel)
+static JS::Object& global_object_of(void* realm)
 {
-    auto storage_key = channel->m_storage_key;
-    auto maybe_channels = m_channels.get(storage_key);
-    if (!maybe_channels.has_value())
-        return;
-
-    auto& relevant_channels = maybe_channels.value();
-    // When called from the channel's finalizer, the GC may already have cleared our weak pointer to it.
-    relevant_channels.remove_all_matching([&](auto const& c) { return !c || c == channel; });
-    if (relevant_channels.is_empty())
-        m_channels.remove(storage_key);
+    return static_cast<JS::Realm*>(realm)->global_object();
 }
 
-auto const& BroadcastChannelRepository::registered_channels_for_key(StorageAPI::StorageKey key) const
+BroadcastChannelSerializedMessage* web_html_broadcast_channel_create_serialized_message()
 {
-    static NeverDestroyed<Vector<GC::Weak<BroadcastChannel>>> empty_channels;
-
-    auto maybe_channels = m_channels.get(key);
-    if (!maybe_channels.has_value())
-        return *empty_channels;
-
-    return maybe_channels.value();
+    return new BroadcastChannelSerializedMessage;
 }
 
-static BroadcastChannelRepository& broadcast_channel_repository()
+void web_html_broadcast_channel_destroy_serialized_message(BroadcastChannelSerializedMessage* message)
 {
-    static NeverDestroyed<BroadcastChannelRepository> repository;
-    return *repository;
+    delete message;
 }
 
-GC_DEFINE_ALLOCATOR(BroadcastChannel);
-
-GC::Ref<BroadcastChannel> BroadcastChannel::create(GC::Ref<DOM::EventTarget> relevant_global_object, Utf16FlyString const& name, URL::Origin origin, StorageAPI::StorageKey storage_key)
+IPCSerializationRecord* web_html_broadcast_channel_serialized_message_record(BroadcastChannelSerializedMessage* message)
 {
-    auto channel = GC::Heap::the().allocate<BroadcastChannel>(relevant_global_object, name, move(origin), move(storage_key));
-    broadcast_channel_repository().register_channel(channel);
-    return channel;
+    return &message->serialized_message;
 }
 
-GC::Ref<BroadcastChannel> BroadcastChannel::create_for_constructor(JS::Object& relevant_global_object, Utf16String const& name)
+Vector<Core::AnonymousBuffer>* web_html_broadcast_channel_serialized_message_shared_buffers(BroadcastChannelSerializedMessage* message)
 {
-    auto& global_scope = relevant_window_or_worker_global_scope(relevant_global_object);
-    auto& settings = relevant_settings_object(global_scope);
-    return create(global_scope.this_impl(), Utf16FlyString::from_utf16(name.utf16_view()), settings.origin(), StorageAPI::obtain_a_storage_key_for_non_storage_purposes(settings));
+    return &message->shared_buffers;
 }
 
-BroadcastChannel::BroadcastChannel(GC::Ref<DOM::EventTarget> relevant_global_object, Utf16FlyString const& name,
-    URL::Origin origin, StorageAPI::StorageKey storage_key)
-    : DOM::EventTarget()
-    , m_channel_name(name)
-    , m_origin(move(origin))
-    , m_storage_key(move(storage_key))
-    , m_global_object(relevant_global_object)
+void web_html_broadcast_channel_relevant_settings_object_origin(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
 {
+    URL::RustIntegration::lend_origin_to_ffi(relevant_settings_object(global_object_of(realm)).origin(), [&](URL::FFI::FfiOrigin const& origin) {
+        on_origin(ctx, &origin);
+    });
 }
 
-void BroadcastChannel::finalize()
+void web_html_broadcast_channel_set_strongly_referenced(void* realm, DOM::EventTarget* event_target, bool strongly_referenced)
 {
-    Base::finalize();
-    broadcast_channel_repository().unregister_channel(*this);
-}
-
-void BroadcastChannel::visit_edges(Cell::Visitor& visitor)
-{
-    Base::visit_edges(visitor);
-    visitor.visit(m_global_object);
-}
-
-JS::Object& BroadcastChannel::relevant_global_object() const
-{
-    return HTML::relevant_global_object(HTML::relevant_window_or_worker_global_scope(*m_global_object));
-}
-
-void BroadcastChannel::event_listener_list_changed()
-{
-    update_strong_reference_from_relevant_global_object();
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#broadcasting-to-other-browsing-contexts
-void BroadcastChannel::update_strong_reference_from_relevant_global_object()
-{
-    // While a BroadcastChannel object whose closed flag is false has an event listener registered for message or
-    // messageerror events, there must be a strong reference from the BroadcastChannel object's relevant global object
-    // to the BroadcastChannel object itself.
-    // NB: Gecko/WebKit/Blink also keep an open channel alive while it has listeners, but count only message ones: Gecko
-    // KeepAliveIfHasListenersFor(nsGkAtoms::onmessage), WebKit m_hasRelevantEventListener, Blink HasPendingActivity().
-    // A messageerror listener counts here too, as the spec requires.
-    auto& global_scope = relevant_window_or_worker_global_scope(*m_global_object);
-    if (!m_closed_flag && (has_event_listener(EventNames::message) || has_event_listener(EventNames::messageerror)))
-        global_scope.add_strong_reference_to_broadcast_channel({}, *this);
+    auto& global_scope = relevant_window_or_worker_global_scope(global_object_of(realm));
+    if (strongly_referenced)
+        global_scope.add_strong_reference_to_broadcast_channel(*event_target);
     else
-        global_scope.remove_strong_reference_to_broadcast_channel({}, *this);
+        global_scope.remove_strong_reference_to_broadcast_channel(*event_target);
 }
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#eligible-for-messaging
-bool BroadcastChannel::is_eligible_for_messaging() const
+void web_html_broadcast_channel_post_message_to_other_processes(void* realm, FlatPtr channel_name, BroadcastChannelSerializedMessage const* message)
 {
-    // A BroadcastChannel object is said to be eligible for messaging when its relevant global object is either:
-    auto const& global = relevant_global_object();
-
-    // * a Window object whose associated Document is fully active, or
-    if (auto* window = window_from_global_object(global))
-        return window->associated_document().is_fully_active();
-
-    // * a WorkerGlobalScope object whose closing flag is false and is not suspendable.
-    // FIXME: Suspendable worker
-    if (auto* worker_global_scope = Bindings::worker_global_scope_from_global_object(global)) {
-        return !worker_global_scope->is_closing();
-    }
-
-    return false;
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-postmessage
-WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Realm& realm, JS::Value message)
-{
-    // 1. If this is not eligible for messaging, then return.
-    if (!is_eligible_for_messaging())
-        return {};
-
-    // 2. If this's closed flag is true, then throw an "InvalidStateError" DOMException.
-    if (m_closed_flag)
-        return WebIDL::InvalidStateError::create("BroadcastChannel.postMessage() on a closed channel"_utf16);
-
-    // 3. Let serialized be StructuredSerialize(message). Rethrow any exceptions.
-    // AD-HOC: This message reaches agents in other processes through the browser process — so a shared-memory-backed
-    //         SharedArrayBuffer travels beside the record, by file descriptor, and every receiver references the same
-    //         [[ArrayBufferData]] rather than a copy.
-    Vector<Core::AnonymousBuffer> shared_buffers;
-    auto serialized = TRY(structured_serialize(realm.vm(), message, shared_buffers));
-
-    // 4. Let sourceOrigin be this's relevant settings object's origin.
-    auto source_origin = m_origin;
-
-    // 5. Let sourceStorageKey be the result of running obtain a storage key for non-storage purposes with this's relevant settings object.
-    auto source_storage_key = m_storage_key;
-
-    BroadcastChannelMessage message_to_send {
-        .storage_key = source_storage_key,
-        .channel_name = name(),
-        .source_origin = source_origin,
-        .serialized_message = serialized,
-        .shared_buffers = move(shared_buffers),
-        .source_process_id = Core::System::getpid(),
-        .source_channel_id = m_channel_id,
-    };
-
-    // Steps 6-9.
-    deliver_message_locally(message_to_send);
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto name = Utf16String::from_raw(channel_name);
 
     // NB: The UI process forwards the message to the other processes hosting an environment with its storage key, and
     //     each delivers it to its own BroadcastChannel objects.
     PostedBroadcastChannelMessage posted_message {
-        .environment_id = principal_realm_settings_object(realm).id,
-        .channel_name = move(message_to_send.channel_name),
-        .serialized_message = move(message_to_send.serialized_message),
-        .shared_buffers = move(message_to_send.shared_buffers),
-        .source_channel_id = message_to_send.source_channel_id,
+        .environment_id = principal_realm_settings_object(js_realm).id,
+        .channel_name = Utf16FlyString::from_utf16(name.utf16_view()),
+        .serialized_message = message->serialized_message,
+        .shared_buffers = message->shared_buffers,
     };
-    Bindings::principal_host_defined_page(realm).client().page_did_post_broadcast_channel_message(posted_message);
-
-    return {};
+    Bindings::principal_host_defined_page(js_realm).client().page_did_post_broadcast_channel_message(posted_message);
 }
 
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-postmessage
-void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& message)
+void deliver_broadcast_channel_message_locally(BroadcastChannelMessage message)
 {
-    // 6. Let destinations be a list of BroadcastChannel objects that match the following criteria:
-    GC::RootVector<GC::Ref<BroadcastChannel>> destinations;
-
-    // * The result of running obtain a storage key for non-storage purposes with their relevant settings object equals sourceStorageKey.
-    auto same_origin_broadcast_channels = broadcast_channel_repository().registered_channels_for_key(message.storage_key);
-    for (auto const& channel : same_origin_broadcast_channels) {
-        // * They are eligible for messaging.
-        if (!channel->is_eligible_for_messaging())
-            continue;
-
-        // * Their channel name is this's channel name.
-        if (channel->name() != message.channel_name)
-            continue;
-
-        destinations.append(*channel);
-    }
-
-    // 7. Remove source from destinations.
-    destinations.remove_all_matching([&](auto destination) {
-        return message.source_process_id == Core::System::getpid() && destination->m_channel_id == message.source_channel_id;
+    auto* serialized_message = new BroadcastChannelSerializedMessage {
+        .serialized_message = move(message.serialized_message),
+        .shared_buffers = move(message.shared_buffers),
+    };
+    auto channel_name = Utf16String::from_utf16(message.channel_name.view());
+    URL::RustIntegration::lend_origin_to_ffi(message.storage_key.origin, [&](URL::FFI::FfiOrigin const& storage_key_origin) {
+        URL::RustIntegration::lend_origin_to_ffi(message.source_origin, [&](URL::FFI::FfiOrigin const& source_origin) {
+            web_rust_broadcast_channel_deliver_message_locally(JS::HostABI::vm_to_abi(Bindings::main_thread_vm()), &storage_key_origin, move(channel_name).into_raw(), &source_origin, serialized_message);
+        });
     });
-
-    // FIXME: 8. Sort destinations such that all BroadcastChannel objects whose relevant agents are the same are sorted in creation order, oldest first.
-    //    (This does not define a complete ordering. Within this constraint, user agents may sort the list in any implementation-defined manner.)
-
-    // 9. For each destination in destinations, queue a global task on the DOM manipulation task source given destination's relevant global object to perform the following steps:
-    for (auto destination : destinations) {
-        auto& target_global = destination->relevant_global_object();
-        HTML::queue_global_task(HTML::Task::Source::DOMManipulation, target_global, GC::create_function(GC::Heap::the(), [destination, message] {
-            // 1. If destination's closed flag is true, then abort these steps.
-            if (destination->m_closed_flag)
-                return;
-
-            // 2. Let targetRealm be destination's relevant realm.
-            auto& target_realm = HTML::relevant_realm(destination->relevant_global_object());
-            auto& vm = target_realm.vm();
-
-            // 3. Let data be StructuredDeserialize(serialized, targetRealm).
-            //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
-            //    origin initialized to sourceOrigin, and then abort these steps.
-            auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm, &message.shared_buffers);
-            if (data_or_error.is_exception()) {
-                MessageEventInit event_init;
-                auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::messageerror, event_init, message.source_origin);
-                event->set_is_trusted(true);
-                destination->dispatch_event(event);
-                return;
-            }
-
-            // 4. Fire an event named message at destination, using MessageEvent, with the data attribute initialized to data and
-            //    its origin initialized to sourceOrigin.
-            MessageEventInit event_init;
-            event_init.data = data_or_error.release_value();
-            auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::message, event_init, message.source_origin);
-            event->set_is_trusted(true);
-            destination->dispatch_event(event);
-        }));
-    }
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#dom-broadcastchannel-close
-void BroadcastChannel::close()
-{
-    // The close() method steps are to set this's closed flag to true.
-    m_closed_flag = true;
-
-    update_strong_reference_from_relevant_global_object();
-    broadcast_channel_repository().unregister_channel(*this);
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessage
-void BroadcastChannel::set_onmessage(GC::Ptr<WebIDL::CallbackType> event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::message, event_handler);
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessage
-GC::Ptr<WebIDL::CallbackType> BroadcastChannel::onmessage()
-{
-    return event_handler_attribute(HTML::EventNames::message);
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessageerror
-void BroadcastChannel::set_onmessageerror(GC::Ptr<WebIDL::CallbackType> event_handler)
-{
-    set_event_handler_attribute(HTML::EventNames::messageerror, event_handler);
-}
-
-// https://html.spec.whatwg.org/multipage/web-messaging.html#handler-broadcastchannel-onmessageerror
-GC::Ptr<WebIDL::CallbackType> BroadcastChannel::onmessageerror()
-{
-    return event_handler_attribute(HTML::EventNames::messageerror);
 }
 
 }

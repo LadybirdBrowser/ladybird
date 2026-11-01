@@ -89,11 +89,10 @@ IPCSerializationRecord create_ipc_serialization_record(ReadonlyBytes data, Vecto
 
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, AllowSharedArrayBuffers);
-WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, Vector<Core::AnonymousBuffer>& shared_buffers);
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WEB_API StorageSerializationRecord structured_serialize_undefined_or_null_for_storage(JS::Value);
 
-WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&);
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&);
 
 WEB_API WebIDL::Exception data_clone_error_from_serialization_error(JS::Realm&, AK::Error const&);

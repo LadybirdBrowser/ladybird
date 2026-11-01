@@ -28,8 +28,6 @@ struct WEBCOMMON_API BroadcastChannelMessage {
     //         — referenced by index from the record, whose bytes can't carry one. So the browser process's fan-out
     //         hands every receiving process the same memory. See SerializedTransferRecord.
     Vector<Core::AnonymousBuffer> shared_buffers;
-    pid_t source_process_id { -1 };
-    u64 source_channel_id { 0 };
 };
 
 struct WEBCOMMON_API PostedBroadcastChannelMessage {
@@ -37,7 +35,6 @@ struct WEBCOMMON_API PostedBroadcastChannelMessage {
     Utf16FlyString channel_name;
     IPCSerializationRecord serialized_message;
     Vector<Core::AnonymousBuffer> shared_buffers;
-    u64 source_channel_id { 0 };
 };
 
 }

@@ -3718,7 +3718,7 @@ void ConnectionFromClient::cookies_changed(Web::PageId page_id, Vector<HTTP::Coo
 
 void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
 {
-    Web::HTML::BroadcastChannel::deliver_message_locally(message);
+    Web::HTML::deliver_broadcast_channel_message_locally(move(message));
 }
 
 void ConnectionFromClient::did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token)

@@ -19,8 +19,6 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::BroadcastChannelMessage const&
     TRY(encoder.encode(message.source_origin));
     TRY(encoder.encode(message.serialized_message));
     TRY(encoder.encode(message.shared_buffers));
-    TRY(encoder.encode(message.source_process_id));
-    TRY(encoder.encode(message.source_channel_id));
     return {};
 }
 
@@ -32,8 +30,6 @@ ErrorOr<Web::HTML::BroadcastChannelMessage> decode(Decoder& decoder)
     auto source_origin = TRY(decoder.decode<URL::Origin>());
     auto serialized_message = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto shared_buffers = TRY(decoder.decode<Vector<Core::AnonymousBuffer>>());
-    auto source_process_id = TRY(decoder.decode<i32>());
-    auto source_channel_id = TRY(decoder.decode<u64>());
 
     return Web::HTML::BroadcastChannelMessage {
         .storage_key = move(storage_key),
@@ -41,8 +37,6 @@ ErrorOr<Web::HTML::BroadcastChannelMessage> decode(Decoder& decoder)
         .source_origin = move(source_origin),
         .serialized_message = move(serialized_message),
         .shared_buffers = move(shared_buffers),
-        .source_process_id = source_process_id,
-        .source_channel_id = source_channel_id,
     };
 }
 
@@ -53,7 +47,6 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::PostedBroadcastChannelMessage 
     TRY(encoder.encode(message.channel_name));
     TRY(encoder.encode(message.serialized_message));
     TRY(encoder.encode(message.shared_buffers));
-    TRY(encoder.encode(message.source_channel_id));
     return {};
 }
 
@@ -64,14 +57,12 @@ ErrorOr<Web::HTML::PostedBroadcastChannelMessage> decode(Decoder& decoder)
     auto channel_name = TRY(decoder.decode<Utf16FlyString>());
     auto serialized_message = TRY(decoder.decode<Web::HTML::IPCSerializationRecord>());
     auto shared_buffers = TRY(decoder.decode<Vector<Core::AnonymousBuffer>>());
-    auto source_channel_id = TRY(decoder.decode<u64>());
 
     return Web::HTML::PostedBroadcastChannelMessage {
         .environment_id = move(environment_id),
         .channel_name = move(channel_name),
         .serialized_message = move(serialized_message),
         .shared_buffers = move(shared_buffers),
-        .source_channel_id = source_channel_id,
     };
 }
 
