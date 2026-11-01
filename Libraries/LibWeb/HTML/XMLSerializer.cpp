@@ -211,9 +211,8 @@ WebIDL::ExceptionOr<Utf16String> serialize_node_to_xml_string_impl(GC::Ref<DOM::
 
     // NOTE: CDATASection comes before Text since CDATASection is a subclass of Text.
     if (is<DOM::CDATASection>(*root)) {
-        // Note: Serialization of CDATASection nodes is not mentioned in the specification, but treating CDATASection nodes as
-        // text leads to incorrect serialization.
-        // Spec bug: https://github.com/w3c/DOM-Parsing/issues/38
+        // -> CDATASection
+        //    Run the algorithm for XML serializing a CDATASection node given node and require well-formed.
         return serialize_cdata_section(static_cast<DOM::CDATASection const&>(*root), require_well_formed);
     }
 
@@ -957,17 +956,20 @@ static WebIDL::ExceptionOr<Utf16String> serialize_processing_instruction(DOM::Pr
     return markup.to_string();
 }
 
-// FIXME: This is ad-hoc
+// https://w3c.github.io/DOM-Parsing/#xml-serializing-a-cdatasection-node
 static WebIDL::ExceptionOr<Utf16String> serialize_cdata_section(DOM::CDATASection const& cdata_section, RequireWellFormed require_well_formed)
 {
+    // AD-HOC: Data containing "]]>" would end the section early, so it isn't well-formed.
     if (require_well_formed == RequireWellFormed::Yes && cdata_section.data().contains("]]>"sv))
         return WebIDL::InvalidStateError::create("CDATA section data contains a CDATA section end delimiter"_utf16);
 
+    // 1. Let markup be the concatenation of "<![CDATA[", node's data, and "]]>".
     Utf16StringBuilder markup;
     markup.append_ascii("<![CDATA["sv);
     markup.append(cdata_section.data().utf16_view());
     markup.append_ascii("]]>"sv);
 
+    // 2. Return markup.
     return markup.to_string();
 }
 
