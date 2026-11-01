@@ -25,22 +25,17 @@ static void show_scrollbars_by_scrolling_away_and_back(Compositor::ScrollbarCont
 static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientation orientation, Gfx::FloatPoint position, Optional<Gfx::IntRect> expanded_thumb_rect = {})
 {
     auto vertical = orientation == Gfx::Orientation::Vertical;
-    auto document_id = Web::UniqueNodeID { 1 };
     auto scroll_node_index = Compositing::SpatialNodeIndex { 1 };
-    auto scroll_node_id = Compositing::AsyncScrollNodeID {
-        .document_id = document_id,
-        .scroll_node_index = scroll_node_index,
-    };
 
     Compositing::AsyncScrollingState scrolling_state;
     scrolling_state.scroll_nodes.append({
-        .node_id = scroll_node_id,
+        .scroll_node_index = scroll_node_index,
         .stable_node_id = {
             .node_id = Web::UniqueNodeID { 2 },
             .kind = Web::AsyncScrollNodeKind::Viewport,
             .pseudo_element_type = 0,
         },
-        .parent_node_id = {},
+        .parent_scroll_node_index = {},
         .scrollport_rect = { 0, 0, 100, 100 },
         .min_scroll_offset = { 0, 0 },
         .max_scroll_offset = { 100, 100 },
@@ -55,7 +50,6 @@ static Compositor::ScrollbarController::Drag begin_scrollbar_drag(Gfx::Orientati
 
     Vector<Compositing::AsyncScrollbar> scrollbars;
     scrollbars.append({
-        .scroll_node_id = scroll_node_id,
         .scroller_stable_node_id = {},
         .scroll_node_index = scroll_node_index,
         .context = {},
@@ -121,10 +115,6 @@ TEST_CASE(starting_scrollbar_drag_uses_expanded_thumb_geometry)
 static Compositing::AsyncScrollbar scrollbar_painted_by_display_list()
 {
     return {
-        .scroll_node_id = {
-            .document_id = Web::UniqueNodeID { 1 },
-            .scroll_node_index = Compositing::SpatialNodeIndex { 1 },
-        },
         .scroller_stable_node_id = Web::AsyncScrollNodeStableID {
             .node_id = Web::UniqueNodeID { 2 },
             .kind = Web::AsyncScrollNodeKind::Element,

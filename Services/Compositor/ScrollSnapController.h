@@ -57,7 +57,7 @@ public:
     using StepDecision = Variant<StepConsumed, SnapScrollStart>;
 
     struct GestureEndSnap {
-        Compositing::AsyncScrollNodeID node_id;
+        Compositing::SpatialNodeIndex scroll_node_index;
         SnapScrollStart snap_scroll;
     };
 
@@ -76,14 +76,14 @@ public:
 
     // https://drafts.csswg.org/css-scroll-snap-1/#scroll-types
     // A discrete wheel step is a relative scroll with only an intended direction.
-    Optional<StepDecision> decide_discrete_step(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID, Web::CSSPixelPoint delta, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now);
+    Optional<StepDecision> decide_discrete_step(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::SpatialNodeIndex, Web::CSSPixelPoint delta, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now);
     // The momentum of a flick is a relative scroll with an intended direction and, once its decay tells where it is
     // headed, an intended end position.
-    Optional<StepDecision> decide_momentum_delta(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID, Web::CSSPixelPoint delta);
+    Optional<StepDecision> decide_momentum_delta(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::SpatialNodeIndex, Web::CSSPixelPoint delta);
     // A scroll key is a command of its own rather than a step of a gesture: while a scroll is in flight it travels on
     // from the offset the steps before it asked for, otherwise from the scrolling box itself. An arrow key has only
     // an intended direction; a paging key has an intended end position as well.
-    Optional<StepDecision> decide_key_step(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID, Web::CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now);
+    Optional<StepDecision> decide_key_step(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::SpatialNodeIndex, Web::CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now);
     // The end of a gesture snaps each scrolling box it panned to the snap position nearest where it was released,
     // and ends the gesture.
     Vector<GestureEndSnap> decide_gesture_end(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&);
@@ -135,7 +135,7 @@ private:
         Compositing::AsyncSnapContainer const* snap_container;
         Web::CSSPixelPoint current_scroll_offset;
     };
-    static Optional<SnapTarget> snap_target_for(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::AsyncScrollNodeID);
+    static Optional<SnapTarget> snap_target_for(Compositing::AsyncScrollTree const&, Compositing::ScrollStateSnapshot const&, Compositing::SpatialNodeIndex);
 
     NodeState& node_state(Web::AsyncScrollNodeStableID);
     Compositing::SnapAxisCandidates const& candidates_for(Web::AsyncScrollNodeStableID, Compositing::AsyncSnapContainer const&);

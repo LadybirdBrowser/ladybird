@@ -30,14 +30,6 @@ namespace Compositing {
 
 using AsyncScrollOperationID = u64;
 
-// Stable identifier for a scroll node in a document; the node index alone is not unique across nested documents.
-struct AsyncScrollNodeID {
-    Web::UniqueNodeID document_id;
-    Compositing::SpatialNodeIndex scroll_node_index;
-
-    bool operator==(AsyncScrollNodeID const&) const = default;
-};
-
 COMPOSITING_API Web::AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind);
 
 struct AsyncScrollOffset {
@@ -71,9 +63,9 @@ struct AsyncScrollOffset {
 
 // One scrollable area from the paint snapshot.
 struct AsyncScrollNode {
-    AsyncScrollNodeID node_id;
+    Compositing::SpatialNodeIndex scroll_node_index;
     Web::AsyncScrollNodeStableID stable_node_id;
-    Optional<AsyncScrollNodeID> parent_node_id;
+    Optional<Compositing::SpatialNodeIndex> parent_scroll_node_index;
     Gfx::IntRect scrollport_rect;
     Gfx::FloatPoint min_scroll_offset;
     Gfx::FloatPoint max_scroll_offset;
@@ -98,7 +90,7 @@ struct WheelHitTestTarget {
     Compositing::ContextRef context;
     Gfx::FloatRect rect;
     Gfx::CornerRadii corner_radii;
-    Optional<AsyncScrollNodeID> target_node_id;
+    Optional<Compositing::SpatialNodeIndex> target_scroll_node_index;
     // Position among the wheel hit test targets and scrollbars of the display list, which are recorded in paint order.
     u32 paint_order_index { 0 };
 };
@@ -124,13 +116,12 @@ struct NestedContextWheelRegion {
 struct ScrollChainingBarrier {
     Compositing::ContextRef context;
     Gfx::FloatRect rect;
-    AsyncScrollNodeID scroll_node_id_above_barrier;
+    Compositing::SpatialNodeIndex scroll_node_index_above_barrier;
     bool keeps_horizontal_scrolls { false };
     bool keeps_vertical_scrolls { false };
 };
 
 struct AsyncScrollbar {
-    AsyncScrollNodeID scroll_node_id;
     Optional<Web::AsyncScrollNodeStableID> scroller_stable_node_id;
     Compositing::SpatialNodeIndex scroll_node_index;
     // The rects of a scrollbar the display list paints are in the space of this context.
@@ -155,7 +146,7 @@ struct AsyncScrollbar {
 
 // A scroll node that is a snap container, with the geometry snap positions are selected from.
 struct AsyncSnapContainer {
-    AsyncScrollNodeID node_id;
+    Compositing::SpatialNodeIndex scroll_node_index;
     SnapContainerGeometry geometry;
     Vector<SnapAreaGeometry> areas;
 };

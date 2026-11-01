@@ -14,7 +14,7 @@ void ScrollSnapController::did_install_scrolling_state(Compositing::AsyncScrollT
 {
     m_candidates.clear();
     m_nodes.remove_all_matching([&](auto const& stable_node_id, auto const&) {
-        return !scroll_tree.scroll_node_id_for_stable_id(stable_node_id).has_value();
+        return !scroll_tree.scroll_node_index_for_stable_id(stable_node_id).has_value();
     });
 }
 
@@ -148,11 +148,11 @@ Compositing::SnapAxisCandidates const& ScrollSnapController::candidates_for(Web:
     });
 }
 
-Optional<ScrollSnapController::SnapTarget> ScrollSnapController::snap_target_for(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id)
+Optional<ScrollSnapController::SnapTarget> ScrollSnapController::snap_target_for(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::SpatialNodeIndex scroll_node_index)
 {
-    auto const* node = scroll_tree.scroll_node_for_id(node_id);
-    auto const* snap_container = scroll_tree.snap_container_for_node(node_id);
-    auto current_scroll_offset = scroll_tree.css_scroll_offset_for_node(node_id, scroll_state_snapshot);
+    auto const* node = scroll_tree.scroll_node_for_index(scroll_node_index);
+    auto const* snap_container = scroll_tree.snap_container_for_node(scroll_node_index);
+    auto current_scroll_offset = scroll_tree.css_scroll_offset_for_node(scroll_node_index, scroll_state_snapshot);
     if (!node || !snap_container || !current_scroll_offset.has_value())
         return {};
     return SnapTarget { .stable_node_id = node->stable_node_id, .snap_container = snap_container, .current_scroll_offset = *current_scroll_offset };
@@ -172,9 +172,9 @@ static bool selected_snap_position_along_travel(Compositing::SnapDestination con
     return (selection.snapped_x && displacement.x() != 0) || (selection.snapped_y && displacement.y() != 0);
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::SpatialNodeIndex scroll_node_index, Web::CSSPixelPoint delta, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
 {
-    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
+    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, scroll_node_index);
     if (!target.has_value())
         return {};
     auto const& geometry = target->snap_container->geometry;
@@ -231,9 +231,9 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discre
     } };
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_step(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::SpatialNodeIndex scroll_node_index, Web::CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type strategy_type, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
 {
-    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
+    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, scroll_node_index);
     if (!target.has_value())
         return {};
     auto const& geometry = target->snap_container->geometry;
@@ -295,7 +295,7 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_st
     } };
 }
 
-Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_momentum_delta(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::AsyncScrollNodeID node_id, Web::CSSPixelPoint momentum_delta)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_momentum_delta(Compositing::AsyncScrollTree const& scroll_tree, Compositing::ScrollStateSnapshot const& scroll_state_snapshot, Compositing::SpatialNodeIndex scroll_node_index, Web::CSSPixelPoint momentum_delta)
 {
     if (m_momentum_snap_position_selection == MomentumSnapPositionSelection::ScrollingToSelectedPosition)
         return StepDecision { StepConsumed {} };
@@ -306,7 +306,7 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_moment
     if (!remaining_displacement.has_value())
         return {};
 
-    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
+    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, scroll_node_index);
     if (!target.has_value()) {
         m_momentum_snap_position_selection = MomentumSnapPositionSelection::NoPositionSelected;
         return {};
@@ -355,10 +355,10 @@ Vector<ScrollSnapController::GestureEndSnap> ScrollSnapController::decide_gestur
         if (state.snap_scroll.has_value())
             continue;
 
-        auto node_id = scroll_tree.scroll_node_id_for_stable_id(stable_node_id);
-        if (!node_id.has_value())
+        auto scroll_node_index = scroll_tree.scroll_node_index_for_stable_id(stable_node_id);
+        if (!scroll_node_index.has_value())
             continue;
-        auto target = snap_target_for(scroll_tree, scroll_state_snapshot, *node_id);
+        auto target = snap_target_for(scroll_tree, scroll_state_snapshot, *scroll_node_index);
         if (!target.has_value())
             continue;
         auto const& geometry = target->snap_container->geometry;
@@ -381,7 +381,7 @@ Vector<ScrollSnapController::GestureEndSnap> ScrollSnapController::decide_gestur
             continue;
 
         snaps.append({
-            .node_id = *node_id,
+            .scroll_node_index = *scroll_node_index,
             .snap_scroll = {
                 .stable_node_id = stable_node_id,
                 .initial_scroll_offset = current_scroll_offset,

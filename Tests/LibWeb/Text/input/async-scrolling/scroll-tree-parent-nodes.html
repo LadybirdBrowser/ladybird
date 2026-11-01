@@ -38,10 +38,10 @@
         await animationFrame();
         await animationFrame();
         const state = internals.compositorScrollState();
-        const scrollNodeIDs = new Set(state.scrollNodes.map(node => `${node.documentID}:${node.scrollNodeIndex}`));
+        const scrollNodeIndices = new Set(state.scrollNodes.map(node => node.scrollNodeIndex));
         const viewportNode = state.scrollNodes.find(node => node.isViewport);
         const childNodes = state.scrollNodes.filter(node => !node.isViewport);
-        const danglingParentNodes = state.scrollNodes.filter(node => node.parentScrollNodeIndex !== 0 && !scrollNodeIDs.has(`${node.parentDocumentID}:${node.parentScrollNodeIndex}`));
+        const danglingParentNodes = state.scrollNodes.filter(node => node.parentScrollNodeIndex !== 0 && !scrollNodeIndices.has(node.parentScrollNodeIndex));
 
         const output = [
             `scroll nodes: ${state.scrollNodes.length}`,

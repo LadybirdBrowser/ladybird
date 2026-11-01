@@ -92,18 +92,14 @@ static AccumulatedVisualContextTree make_tree_with_four_spatial_nodes()
 
 static Compositing::AsyncScrollNode make_scroll_node(SpatialNodeIndex scroll_node_index)
 {
-    Compositing::AsyncScrollNodeID node_id {
-        .document_id = Web::UniqueNodeID { 1 },
-        .scroll_node_index = scroll_node_index,
-    };
     return {
-        .node_id = node_id,
+        .scroll_node_index = scroll_node_index,
         .stable_node_id = {
             .node_id = Web::UniqueNodeID { 1 },
             .kind = Web::AsyncScrollNodeKind::Element,
             .pseudo_element_type = 0,
         },
-        .parent_node_id = {},
+        .parent_scroll_node_index = {},
         .scrollport_rect = Gfx::IntRect { 0, 0, 100, 100 },
         .min_scroll_offset = Gfx::FloatPoint { 0, 0 },
         .max_scroll_offset = Gfx::FloatPoint { 100, 100 },
@@ -129,7 +125,7 @@ TEST_CASE(async_scroll_tree_ignores_out_of_range_scroll_node_index)
     ScrollStateSnapshot snapshot;
     snapshot.set_node_count(tree.spatial_node_count());
     (void)scroll_tree.apply_scroll_delta(
-        Compositing::AsyncScrollNodeID { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = out_of_range_index },
+        out_of_range_index,
         Gfx::FloatPoint { 10, 10 },
         tree,
         snapshot,

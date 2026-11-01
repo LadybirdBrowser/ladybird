@@ -43,7 +43,7 @@ public:
     };
 
     struct ScrollOffset {
-        Compositing::AsyncScrollNodeID scroll_node_id;
+        Compositing::SpatialNodeIndex scroll_node_index;
         Gfx::FloatPoint scroll_offset;
     };
 
