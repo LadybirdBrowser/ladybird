@@ -1,0 +1,16 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const serializer = new XMLSerializer();
+        for (const [publicId, systemId] of [
+            ["", "s"],
+            ["p", "s"],
+            ["p'", "s'"],
+            ['p"', 's"'],
+        ]) {
+            const doctype = document.implementation.createDocumentType("html", publicId, systemId);
+            println(serializer.serializeToString(doctype));
+        }
+    });
+</script>

@@ -1,0 +1,4 @@
+<!DOCTYPE html SYSTEM "s">
+<!DOCTYPE html PUBLIC "p" "s">
+<!DOCTYPE html PUBLIC "p'" "s'">
+<!DOCTYPE html PUBLIC 'p"' 's"'>
