@@ -223,6 +223,16 @@ impl FloatRect {
     pub fn is_empty(self) -> bool {
         self.width <= 0.0 || self.height <= 0.0
     }
+    pub fn intersected(self, other: Self) -> Self {
+        let left = self.x.max(other.x);
+        let right = self.right().min(other.right());
+        let top = self.y.max(other.y);
+        let bottom = self.bottom().min(other.bottom());
+        if left > right || top > bottom {
+            return Self::default();
+        }
+        Self::new(left, top, right - left, bottom - top)
+    }
     pub fn united(self, other: Self) -> Self {
         if self.is_empty() {
             return other;

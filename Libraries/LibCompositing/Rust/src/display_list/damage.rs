@@ -792,24 +792,12 @@ fn filter_output_clip_bounds(
                 )
                 .inflated(1.0, 1.0);
             if bounds.x.is_finite() && bounds.y.is_finite() && bounds.width.is_finite() && bounds.height.is_finite() {
-                output_bounds =
-                    Some(output_bounds.map_or(bounds, |output_bounds| intersect_like_gfx_rect(output_bounds, bounds)));
+                output_bounds = Some(output_bounds.map_or(bounds, |output_bounds| output_bounds.intersected(bounds)));
             }
         }
         clip = node.parent;
     }
     output_bounds
-}
-
-fn intersect_like_gfx_rect(rect: FloatRect, other: FloatRect) -> FloatRect {
-    let left = rect.x.max(other.x);
-    let right = rect.right().min(other.right());
-    let top = rect.y.max(other.y);
-    let bottom = rect.bottom().min(other.bottom());
-    if left > right || top > bottom {
-        return FloatRect::default();
-    }
-    FloatRect::new(left, top, right - left, bottom - top)
 }
 
 fn intersect_like_gfx_int_rect(rect: IntRect, other: IntRect) -> IntRect {
@@ -903,20 +891,17 @@ impl DamageAccumulator {
             return;
         }
         if let Some(output_clip_bounds) = output_clip_bounds {
-            transformed_rect = intersect_like_gfx_rect(transformed_rect, output_clip_bounds);
+            transformed_rect = transformed_rect.intersected(output_clip_bounds);
         }
         // Eye-plane clamping in the projection can produce coordinates beyond integer range, and converting
         // such a float to int is undefined.
         const DAMAGE_COORDINATE_LIMIT: f32 = 16777216.0;
-        transformed_rect = intersect_like_gfx_rect(
-            transformed_rect,
-            FloatRect::new(
-                -DAMAGE_COORDINATE_LIMIT,
-                -DAMAGE_COORDINATE_LIMIT,
-                2.0 * DAMAGE_COORDINATE_LIMIT,
-                2.0 * DAMAGE_COORDINATE_LIMIT,
-            ),
-        );
+        transformed_rect = transformed_rect.intersected(FloatRect::new(
+            -DAMAGE_COORDINATE_LIMIT,
+            -DAMAGE_COORDINATE_LIMIT,
+            2.0 * DAMAGE_COORDINATE_LIMIT,
+            2.0 * DAMAGE_COORDINATE_LIMIT,
+        ));
         if transformed_rect.is_empty() {
             return;
         }
@@ -992,7 +977,7 @@ impl DamageAccumulator {
                     }
                     let damage_in_effect_space = to_root_matrix.extract_2d_affine().inverse()?.map_rect(damage);
                     let reached = crate::filter_bytes::changed_output_bounds(&backdrop.filter, damage_in_effect_space)?;
-                    Some(!intersect_like_gfx_rect(reached, region).is_empty())
+                    Some(!reached.intersected(region).is_empty())
                 })()
                 .unwrap_or(true);
                 if !reads_damage {
