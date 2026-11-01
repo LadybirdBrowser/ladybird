@@ -1,5 +1,5 @@
-caret before toggle: null
+caret before toggle: [object Text] @0
 caret with contenteditable: [object HTMLDivElement] @0
-caret after removal: null
+caret after removal: [object Text] @0
 caret with designMode: [object HTMLDivElement] @0
-caret after designMode off: null
+caret after designMode off: [object Text] @0

@@ -999,9 +999,18 @@ impl HitTestList {
                             caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
                         });
                 }
-                return self
-                    .item_is_inline_adjacent_to_line(hit.index, line_index)
-                    .then_some(caret);
+                if self.item_is_inline_adjacent_to_line(hit.index, line_index) {
+                    return Some(caret);
+                }
+                // A selection doesn't follow the point into an overlay or side content. But a plain caret query over an
+                // element whose content has no line near the point (an empty line, e.g.) puts the caret at the start of
+                // that element, rather than on a line outside it.
+                if mode != CaretPositionMode::Normal {
+                    return None;
+                }
+                return self.caret_at_hit_container(arena, hit.index).map(|caret| {
+                    caret.with_debug_rect_in_viewport(tree, callbacks, self.items[hit.index].context.spatial)
+                });
             }
         }
         Some(caret)
