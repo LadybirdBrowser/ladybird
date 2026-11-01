@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::css::css_pixels::CssPixelRect;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::layout::{formatting_context, fragment_tree, node_facts, used_values};
@@ -310,9 +310,9 @@ impl<'a> PaintableCommit<'a> {
             && (enclosing_line_root_changes.inline_content_changed
                 || (enclosing_line_root_changes.fragment_changed
                     && has_descendant_dependent_paint(self.arena(), node)));
-        // Fragmented inline offsets are finalized from the line root's pieces after this
-        // commit. Comparing that final offset with the fragment's temporary one would dirty
-        // identical inlines on every relayout; their line content and box properties suffice.
+        // A fragmented inline's geometry is read from its line root's pieces. Comparing it with
+        // the fragment's temporary offset would dirty identical inlines on every relayout; their
+        // line content and box properties suffice.
         let paint_offset_unchanged = offset_unchanged || painted_geometry_lives_in_enclosing_line_root;
         // record_lines_hit_test_items() emits an EmptyEditable target only without paint
         // children. An out-of-flow child can change that eligibility without changing the
@@ -557,123 +557,25 @@ impl<'a> PaintableCommit<'a> {
         }
     }
 
-    pub(crate) fn assign_inline_box_geometry(&mut self, slot: NodeSlotId) {
+    /// Notes that the inline boxes whose pieces the line root `slot` committed anew have geometry its new inline
+    /// content gives them.
+    pub(crate) fn note_inline_boxes_of_line_root_recommitted(&mut self, slot: NodeSlotId) {
+        let inline_boxes: Vec<NodeSlotId> = self
+            .arena()
+            .committed_side_data(slot)
+            .inline_content
+            .as_ref()
+            .map(|content| content.inline_boxes.boxes().map(|(node, _)| node).collect())
+            .unwrap_or_default();
         let arena = self.arena_mut();
         let mut paintable_rows = arena.paintable_rows_mut();
-        let mut piece_indices_by_node: Vec<(NodeSlotId, Vec<u32>)> = Vec::new();
-        for (piece_index, piece) in paintable_rows
-            .committed_side_data(slot)
-            .inline_box_pieces()
-            .iter()
-            .enumerate()
-        {
-            if piece.node.is_invalid() {
-                continue;
-            }
-            match piece_indices_by_node.iter_mut().find(|(node, _)| *node == piece.node) {
-                Some((_, indices)) => indices.push(piece_index as u32),
-                None => piece_indices_by_node.push((piece.node, vec![piece_index as u32])),
-            }
-        }
-        let root_positions = (crate::painting::paintable_geometry::fragment_count(&paintable_rows, slot) > 1)
-            .then(|| crate::painting::paintable_geometry::LineRootPositions::new(&paintable_rows, slot));
-        for (piece_node, piece_indices) in piece_indices_by_node {
-            if !paintable_rows.paintable_row_is_populated(piece_node)
-                || !node_painting::is_fragmented_inline(&paintable_rows, piece_node)
+        for inline_box in inline_boxes {
+            if paintable_rows.paintable_row_is_populated(inline_box)
+                && node_painting::is_fragmented_inline(&paintable_rows, inline_box)
             {
-                continue;
-            }
-            let origin = root_positions.as_ref().map(|positions| {
-                positions.of_fragment(paintable_rows.committed_side_data(piece_node).containing_block_fragment)
-            });
-            let padding_widths = crate::painting::paintable_geometry::committed_padding(&paintable_rows, piece_node);
-            let border_widths = crate::painting::paintable_geometry::committed_border(&paintable_rows, piece_node);
-            let mut content_union: Option<CssPixelRect> = None;
-            let mut padding_union: Option<CssPixelRect> = None;
-            let mut border_union: Option<CssPixelRect> = None;
-            let unite = |target: &mut Option<CssPixelRect>, rect: CssPixelRect| {
-                let Some(current) = target else {
-                    *target = Some(rect);
-                    return;
-                };
-                if rect.is_empty() {
-                    return;
-                }
-                if current.is_empty() {
-                    *current = rect;
-                } else {
-                    current.unite(rect);
-                }
-            };
-            for piece_index in &piece_indices {
-                let (piece, root_fragment_offset) = {
-                    let side = paintable_rows.committed_side_data(slot);
-                    let piece = side.inline_box_pieces()[*piece_index as usize];
-                    let offset = root_positions.as_ref().zip(origin).map_or_else(
-                        CssPixelPoint::default,
-                        |(positions, origin)| {
-                            let location = positions.of_line(side.lines(), piece.line_index as usize);
-                            CssPixelPoint {
-                                x: location.x - origin.x,
-                                y: location.y - origin.y,
-                            }
-                        },
-                    );
-                    (piece, offset)
-                };
-                let border_rect = CssPixelRect::from(piece.border_box_rect).translated_by(root_fragment_offset);
-                if piece.is_geometry_only_placeholder {
-                    let content_rect = border_rect;
-                    let padding_rect = content_rect.inflated(
-                        padding_widths.top,
-                        padding_widths.right,
-                        padding_widths.bottom,
-                        padding_widths.left,
-                    );
-                    let border_rect = padding_rect.inflated(
-                        border_widths.top,
-                        border_widths.right,
-                        border_widths.bottom,
-                        border_widths.left,
-                    );
-                    unite(&mut content_union, content_rect);
-                    unite(&mut padding_union, padding_rect);
-                    unite(&mut border_union, border_rect);
-                    continue;
-                }
-                let padding_rect = piece.shrunken_by_present_edges(border_rect, border_widths);
-                let content_rect = piece.shrunken_by_present_edges(padding_rect, padding_widths);
-                unite(&mut content_union, content_rect);
-                unite(&mut padding_union, padding_rect);
-                unite(&mut border_union, border_rect);
-            }
-            let Some(content_union) = content_union else {
-                continue;
-            };
-            let padding_union = padding_union.expect("padding union set alongside content union");
-            let border_union = border_union.expect("border union set alongside content union");
-            let inline_geometry_changed = {
-                let mut data = paintable_rows.paintable_data_mut(piece_node);
-                let new_offset = content_union.location().into();
-                let new_content_size = content_union.size().into();
-                let new_padding_box_union = padding_union.translated(-content_union.x, -content_union.y).into();
-                let new_border_box_union = border_union.translated(-content_union.x, -content_union.y).into();
-                let inline_geometry_changed = data.offset != new_offset
-                    || data.content_size != new_content_size
-                    || data.local_padding_box_union != new_padding_box_union
-                    || data.local_border_box_union != new_border_box_union;
-                data.offset = new_offset;
-                data.content_size = new_content_size;
-                data.local_padding_box_union = new_padding_box_union;
-                data.local_border_box_union = new_border_box_union;
-                inline_geometry_changed
-            };
-            if inline_geometry_changed {
                 paintable_rows
-                    .note_visual_context_box_dirty(piece_node, VisualContextBoxDirtyKind::InlineGeometryChanged);
+                    .note_visual_context_box_dirty(inline_box, VisualContextBoxDirtyKind::InlineGeometryChanged);
             }
-            // This box has at most one piece per line, so its piece indices are ordered by line.
-            paintable_rows.committed_side_data_mut(piece_node).piece_indices = Some(piece_indices.into());
         }
     }
 }

@@ -70,23 +70,15 @@ mod tests {
 
         let side_data = CommittedSideData {
             inline_content: Some(Arc::new(InlineContent::default())),
-            piece_indices: Some(Arc::from([1, 2])),
             ..Default::default()
         };
         assert!(side_data == side_data.clone());
 
         let equal_records = CommittedSideData {
             inline_content: Some(Arc::new(InlineContent::default())),
-            piece_indices: Some(Arc::from([1, 2])),
             ..Default::default()
         };
         assert!(side_data == equal_records);
-
-        let other_pieces = CommittedSideData {
-            piece_indices: Some(Arc::from([1])),
-            ..side_data.clone()
-        };
-        assert!(side_data != other_pieces);
 
         let without_content = CommittedSideData {
             inline_content: None,
@@ -99,6 +91,31 @@ mod tests {
             ..side_data.clone()
         };
         assert!(side_data != measured);
+    }
+
+    /// Places the single piece of the inline box `node` on a line of a new line root, at the padding box `rect`.
+    fn give_inline_box_a_piece(
+        arena: &mut LayoutNodeArena,
+        node: NodeSlotId,
+        rect: crate::css::css_pixels::CssPixelRect,
+    ) {
+        use crate::layout::inline_content::{InlineBoxPieceRecord, InlineContent};
+        use crate::layout::node_data::NodeKind;
+
+        let root = arena.allocate_for_test().slot;
+        arena.write_shape(root).set_kind(NodeKind::BlockContainer);
+        arena.populate_paintable_row(root);
+        arena.paintable_rows_mut().paintable_data_mut(node).containing_block = root;
+        let mut content = InlineContent {
+            inline_box_pieces: vec![InlineBoxPieceRecord {
+                node,
+                border_box_rect: rect.into(),
+                ..InlineBoxPieceRecord::default()
+            }],
+            ..InlineContent::default()
+        };
+        content.index_inline_boxes();
+        arena.committed_side_data_mut(root).inline_content = Some(Arc::new(content));
     }
 
     #[test]
@@ -118,10 +135,7 @@ mod tests {
             CssPixels::from_integer(100),
             CssPixels::from_integer(80),
         );
-        arena
-            .paintable_rows_mut()
-            .paintable_data_mut(node)
-            .local_padding_box_union = rect.into();
+        give_inline_box_a_piece(&mut arena, node, rect);
 
         arena.measure_scrollable_overflow();
         let rows = arena.paintable_rows();
@@ -147,10 +161,7 @@ mod tests {
             CssPixels::from_integer(100),
             CssPixels::from_integer(80),
         );
-        arena
-            .paintable_rows_mut()
-            .paintable_data_mut(node)
-            .local_padding_box_union = rect.into();
+        give_inline_box_a_piece(&mut arena, node, rect);
         arena.measure_scrollable_overflow();
         assert_eq!(
             paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
@@ -183,10 +194,7 @@ mod tests {
             CssPixels::from_integer(100),
             CssPixels::from_integer(80),
         );
-        arena
-            .paintable_rows_mut()
-            .paintable_data_mut(node)
-            .local_padding_box_union = rect.into();
+        give_inline_box_a_piece(&mut arena, node, rect);
         {
             let mut committed = arena.committed_side_data_mut(node);
             committed.overflow_relative_to_padding_box = FfiOverflowData {
@@ -536,8 +544,6 @@ where
             let mut data = self.paintable_data_mut(id);
             data.offset = used_values::FfiCssPixelPoint::default();
             data.content_size = used_values::FfiCssPixelSize::default();
-            data.local_padding_box_union = used_values::FfiCssPixelRect::default();
-            data.local_border_box_union = used_values::FfiCssPixelRect::default();
         }
         // The row's damage is deliberately kept; the commit diff pushes what actually changed.
         let filter = {
@@ -1248,6 +1254,7 @@ impl LayoutNodeArena {
                 piece.node = new_node;
             }
         }
+        content.index_inline_boxes();
     }
 
     pub(crate) fn push_propagated_text_decoration_damage(&mut self, root: NodeSlotId) {
@@ -1292,16 +1299,15 @@ impl LayoutNodeArena {
 pub(crate) fn with_inline_pieces(
     arena: &impl GeometryRead,
     inline_paintable: NodeSlotId,
-    mut callback: impl FnMut(&InlineBoxPieceRecord, &PaintableData) -> bool,
+    mut callback: impl FnMut(&InlineBoxPieceRecord) -> bool,
 ) {
     let Some(root) = arena.inline_pieces_root(inline_paintable) else {
         return;
     };
-    let data = arena.paintable_data(inline_paintable);
     let root_side = arena.committed_side_data(root);
-    for piece_index in arena.committed_side_data(inline_paintable).piece_indices() {
+    for piece_index in root_side.inline_box_piece_indices(inline_paintable) {
         let piece = &root_side.inline_box_pieces()[*piece_index as usize];
-        if !callback(piece, data) {
+        if !callback(piece) {
             return;
         }
     }

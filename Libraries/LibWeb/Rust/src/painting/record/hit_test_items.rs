@@ -375,8 +375,8 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     fn inline_has_content(&self, paintable: NodeSlotId) -> bool {
         let has_content_pieces = self.inline_root(paintable).is_some_and(|root| {
             self.source
-                .committed_side_data(paintable)
-                .piece_indices()
+                .committed_side_data(root)
+                .inline_box_piece_indices(paintable)
                 .iter()
                 .any(|piece_index| !self.piece_of(root, *piece_index).is_geometry_only_placeholder)
         });
@@ -390,8 +390,8 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let root_positions = self.line_root_positions(root);
         let layout_arena = self.source;
         let context = self.data(paintable).accumulated_visual_context;
-        for piece_index in layout_arena.committed_side_data(paintable).piece_indices() {
-            let side = layout_arena.committed_side_data(root);
+        let side = layout_arena.committed_side_data(root);
+        for piece_index in side.inline_box_piece_indices(paintable) {
             let piece = &side.inline_box_pieces()[*piece_index as usize];
             if piece.is_geometry_only_placeholder {
                 continue;

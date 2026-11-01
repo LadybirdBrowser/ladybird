@@ -208,7 +208,7 @@ fn commit_subtree(
         enclosing_line_root_changes,
     );
 
-    let mut has_pending_inline_box_geometry = false;
+    let mut has_recommitted_inline_box_pieces = false;
     let mut line_root_changes_for_children = enclosing_line_root_changes;
     if let Some(link) = entry
         && prepared.has_paintable_row
@@ -254,7 +254,7 @@ fn commit_subtree(
                 .flatten();
             if let Some(line_data) = merged_line_data.as_ref().or(fragment.line_data.as_ref()) {
                 let change = paintables.set_line_data(node, line_data, previous_fragmented_content);
-                has_pending_inline_box_geometry = change.has_pieces;
+                has_recommitted_inline_box_pieces = change.has_pieces;
                 line_root_changes_for_children.fragment_changed |= change.content_changed;
                 line_root_changes_for_children.inline_content_changed |= change.content_changed;
                 line_root_changes_for_children.inline_item_order_changed |= change.item_order_changed;
@@ -289,11 +289,9 @@ fn commit_subtree(
         child = next;
     }
 
-    if has_pending_inline_box_geometry {
-        // Inline box geometry unites this block's piece rects with the box
-        // models of its descendant inline paintables, which exist only now
-        // that the whole subtree has committed.
-        paintables.assign_inline_box_geometry(node);
+    if has_recommitted_inline_box_pieces {
+        // NB: The rows of this block's inline boxes exist only now that its whole subtree has committed.
+        paintables.note_inline_boxes_of_line_root_recommitted(node);
     }
 }
 

@@ -49,8 +49,6 @@ pub struct PaintableData {
 
     pub offset: used_values::FfiCssPixelPoint,
     pub content_size: used_values::FfiCssPixelSize,
-    pub local_padding_box_union: used_values::FfiCssPixelRect,
-    pub local_border_box_union: used_values::FfiCssPixelRect,
 
     pub establishes_stacking_context: bool,
 
@@ -71,8 +69,6 @@ impl Default for PaintableData {
             flags: 0,
             offset: used_values::FfiCssPixelPoint::default(),
             content_size: used_values::FfiCssPixelSize::default(),
-            local_padding_box_union: used_values::FfiCssPixelRect::default(),
-            local_border_box_union: used_values::FfiCssPixelRect::default(),
             establishes_stacking_context: false,
             enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),
@@ -206,14 +202,12 @@ pub(crate) struct CommittedBoxFragment {
     pub(crate) containing_block_fragment: u32,
 }
 
-/// What a row committed beside its geometry that painting reads with it: its inline content, the
-/// pieces an inline box has in its line root's content, its measured scrollable overflow, and what
-/// paint preparation adds for the recording. Shared records are held by `Arc`, so copying a row
+/// What a row committed beside its geometry that painting reads with it: its inline content, its
+/// measured scrollable overflow, and what paint preparation adds for the recording. Shared records are held by `Arc`, so copying a row
 /// copies reference counts.
 #[derive(Clone, Default)]
 pub(crate) struct CommittedSideData {
     pub(crate) inline_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
-    pub(crate) piece_indices: Option<std::sync::Arc<[u32]>>,
     pub(crate) overflow_valid_across_recommits: bool,
     pub(crate) overflow_relative_to_padding_box: FfiOverflowData,
     /// The bounds of the SVG filter the box references, as the visual context update resolved
@@ -237,7 +231,6 @@ impl PartialEq for CommittedSideData {
             && self.overflow_relative_to_padding_box == other.overflow_relative_to_padding_box
             && self.svg_filter_bounds == other.svg_filter_bounds
             && self.order_inputs == other.order_inputs
-            && same_payload(self.piece_indices.as_ref(), other.piece_indices.as_ref(), |a, b| a == b)
             && same_payload(
                 self.fragment_ownership.as_ref(),
                 other.fragment_ownership.as_ref(),
@@ -264,16 +257,10 @@ impl CommittedSideData {
 
     pub(crate) fn clear_committed_records(&mut self) {
         self.inline_content = None;
-        self.piece_indices = None;
     }
 
     pub(crate) fn box_fragments(&self) -> &[CommittedBoxFragment] {
         self.box_fragments.as_deref().map_or(&[], Vec::as_slice)
-    }
-
-    /// The indices of an inline box's pieces in its line root's inline content.
-    pub(crate) fn piece_indices(&self) -> &[u32] {
-        self.piece_indices.as_deref().unwrap_or_default()
     }
 
     pub(crate) fn lines(&self) -> &[crate::layout::inline_content::LineRecord] {
@@ -296,5 +283,11 @@ impl CommittedSideData {
         self.inline_content
             .as_ref()
             .map_or(&[], |content| &content.inline_box_pieces)
+    }
+    /// For a line root, the indices of the pieces of the inline box `node` among its inline box pieces, in line order.
+    pub(crate) fn inline_box_piece_indices(&self, node: NodeSlotId) -> &[u32] {
+        self.inline_content
+            .as_ref()
+            .map_or(&[], |content| content.inline_boxes.piece_indices_of(node))
     }
 }

@@ -27,6 +27,76 @@ pub struct InlineContent {
     pub elided_content_rects: Vec<(u32, used_values::FfiCssPixelRect)>,
     /// The writing mode whose frame the lines were laid out in.
     pub writing_mode: u8,
+    /// The pieces of each inline box, by box.
+    pub inline_boxes: InlineBoxIndex,
+}
+
+/// The indices of each inline box's pieces in its line root's content, in line order, which painting and geometry
+/// queries look up by box.
+#[derive(Clone, Default, PartialEq)]
+pub struct InlineBoxIndex {
+    /// Sorted by box.
+    boxes: Vec<InlineBoxPieces>,
+    piece_indices: Vec<u32>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+struct InlineBoxPieces {
+    node: NodeSlotId,
+    first: u32,
+    count: u32,
+}
+
+fn inline_box_order(node: NodeSlotId) -> (u32, u8) {
+    (node.slot_index(), node.generation())
+}
+
+impl InlineBoxIndex {
+    fn of(pieces: &[InlineBoxPieceRecord]) -> Self {
+        let mut pieces_by_box: Vec<(NodeSlotId, u32)> = pieces
+            .iter()
+            .enumerate()
+            .filter(|(_, piece)| !piece.node.is_invalid())
+            .map(|(index, piece)| (piece.node, index as u32))
+            .collect();
+        pieces_by_box.sort_unstable_by_key(|&(node, index)| (inline_box_order(node), index));
+        let mut index = Self {
+            boxes: Vec::new(),
+            piece_indices: Vec::with_capacity(pieces_by_box.len()),
+        };
+        for (node, piece_index) in pieces_by_box {
+            match index.boxes.last_mut() {
+                Some(pieces) if pieces.node == node => pieces.count += 1,
+                _ => index.boxes.push(InlineBoxPieces {
+                    node,
+                    first: index.piece_indices.len() as u32,
+                    count: 1,
+                }),
+            }
+            index.piece_indices.push(piece_index);
+        }
+        index
+    }
+
+    /// The indices of the pieces of `node`, in line order.
+    pub(crate) fn piece_indices_of(&self, node: NodeSlotId) -> &[u32] {
+        self.boxes
+            .binary_search_by_key(&inline_box_order(node), |pieces| inline_box_order(pieces.node))
+            .map_or(&[], |position| {
+                let pieces = self.boxes[position];
+                &self.piece_indices[pieces.first as usize..(pieces.first + pieces.count) as usize]
+            })
+    }
+
+    /// Each inline box with pieces, with the indices of its pieces in line order.
+    pub(crate) fn boxes(&self) -> impl Iterator<Item = (NodeSlotId, &[u32])> {
+        self.boxes.iter().map(|pieces| {
+            (
+                pieces.node,
+                &self.piece_indices[pieces.first as usize..(pieces.first + pieces.count) as usize],
+            )
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -205,6 +275,7 @@ impl InlineContent {
         let mut content = Self {
             lines,
             fragments,
+            inline_boxes: InlineBoxIndex::of(&pieces),
             inline_box_pieces: pieces,
             items: Vec::new(),
             lines_after_clamp_point_rect: data.lines_after_clamp_point_rect,
@@ -275,7 +346,13 @@ impl InlineContent {
             combined.append_translated(content, interleaves, *box_fragment, *offset);
         }
         combined.drop_repeated_placeholder_pieces();
+        combined.index_inline_boxes();
         std::sync::Arc::new(combined)
+    }
+
+    /// Indexes the pieces of each inline box again, after they were renumbered or given to other boxes.
+    pub(crate) fn index_inline_boxes(&mut self) {
+        self.inline_boxes = InlineBoxIndex::of(&self.inline_box_pieces);
     }
 
     fn drop_repeated_placeholder_pieces(&mut self) {
@@ -548,5 +625,41 @@ impl FragmentRecord {
 
     pub(crate) fn physical_vertical_extent(&self) -> CssPixels {
         super::geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn piece_of(node: NodeSlotId, line_index: u32) -> InlineBoxPieceRecord {
+        InlineBoxPieceRecord {
+            node,
+            line_index,
+            ..InlineBoxPieceRecord::default()
+        }
+    }
+
+    #[test]
+    fn the_inline_box_index_lists_each_box_with_its_pieces_in_line_order() {
+        let outer = NodeSlotId::new(7, 1);
+        let inner = NodeSlotId::new(3, 2);
+        let pieces = [
+            piece_of(outer, 0),
+            piece_of(inner, 0),
+            piece_of(NodeSlotId::INVALID, 0),
+            piece_of(outer, 1),
+            piece_of(inner, 1),
+            piece_of(outer, 2),
+        ];
+        let index = InlineBoxIndex::of(&pieces);
+        assert_eq!(index.piece_indices_of(outer), &[0, 3, 5]);
+        assert_eq!(index.piece_indices_of(inner), &[1, 4]);
+        assert!(index.piece_indices_of(NodeSlotId::new(3, 1)).is_empty());
+        assert!(index.piece_indices_of(NodeSlotId::INVALID).is_empty());
+        assert_eq!(
+            index.boxes().map(|(node, _)| node).collect::<Vec<_>>(),
+            vec![inner, outer]
+        );
     }
 }
