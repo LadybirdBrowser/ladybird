@@ -1,0 +1,26 @@
+right float, margin-right 30px: left=350 top=0 width=100
+right float, margin-right 80px: left=320 top=0 width=100
+left float, margin-right 30px: left=370 top=0 width=100
+left float, margin-left 80px: left=370 top=0 width=100
+floats on both sides: left=350 top=0 width=100
+right float, negative margin-right: left=350 top=0 width=100
+right float, auto margins: left=175 top=0 width=100
+right float, auto width: left=0 top=0 width=450
+right float, margin-right past the left edge: left=-50 top=0 width=100
+right float, thick top border: left=350 top=0 width=100
+left float, margin-right reaching into it: left=-50 top=30 width=100
+ltr, left float, margin-left past the right edge: left=450 top=0 width=100
+right float, too wide to fit beside it: left=20 top=30 width=480
+right float, thick top border, auto margins: left=175 top=0 width=100
+right float, thick top border, auto width: left=0 top=0 width=450
+ltr, left float, thick top border: left=50 top=0 width=100
+ltr, left float, thick top border, auto width: left=50 top=0 width=450
+ltr, left float, thick top border, auto margins: left=225 top=0 width=100
+ltr, thick top border, auto height, float at its content edge: left=0 top=140 width=100
+ltr, thick top border, zero height, float at its content edge: left=100 top=0 width=100
+ltr, lifted above a float, thick top border, auto height: left=0 top=10 width=100
+ltr, floated stretch canvas below an earlier float: left=0 top=40 width=500
+left float, legacy center alignment: left=175 top=0 width=100
+no floats: left=370 top=0 width=100
+ltr, left float, margin-left 30px: left=50 top=0 width=100
+ltr, right float, margin-left 30px: left=30 top=0 width=100
