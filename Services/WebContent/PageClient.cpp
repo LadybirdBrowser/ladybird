@@ -1156,6 +1156,10 @@ void PageClient::schedule_accessibility_tree_update()
         m_accessibility_update_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(200), [this] {
             if (m_is_closed)
                 return;
+            // The tab's document can move to another process before the timer fires, which leaves this page's
+            // traversable remote, with no document of its own to report.
+            if (!page().has_local_traversable())
+                return;
             if (auto doc = page().local_traversable()->active_document()) {
                 doc->update_layout(Web::DOM::UpdateLayoutReason::InspectAccessibilityTree);
                 client().async_did_get_accessibility_tree(m_id, doc->build_accessibility_node_data());
