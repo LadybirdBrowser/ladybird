@@ -1,0 +1,8 @@
+absolute: inset=8px 340px 72px 10px margin=0px 0px 0px 0px
+absolute-percentages: inset=10px 330px 70px 20px margin=0px 0px 0px 0px
+absolute-bottom-right: inset=76px 6px 4px 344px margin=0px 0px 0px 0px
+relative: inset=8px -10px -8px 10px margin=0px 0px 0px 0px
+static: inset=8px auto auto auto margin=0px 0px 0px 0px
+margins: inset=auto auto auto auto margin=7px 11px 13px 17px
+auto-margins: inset=auto auto auto auto margin=0px 175px 0px 175px
+inline-table: inset=3px 0px -3px 0px margin=0px 0px 0px 5px

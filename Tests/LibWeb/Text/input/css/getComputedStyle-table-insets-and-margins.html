@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .cb { position: relative; width: 400px; height: 100px; }
+    .table { display: table; width: 50px; height: 20px; }
+    .cell { display: table-cell; }
+</style>
+<!-- A table's position, insets and margins apply to its table wrapper box, so getComputedStyle() resolves them there. -->
+<div class="cb"><div id="absolute" class="table" style="position: absolute; top: 8px; left: 10px"><div class="cell"></div></div></div>
+<div class="cb"><div id="absolute-percentages" class="table" style="position: absolute; top: 10%; left: 5%"><div class="cell"></div></div></div>
+<div class="cb"><div id="absolute-bottom-right" class="table" style="position: absolute; bottom: 4px; right: 6px"><div class="cell"></div></div></div>
+<div class="cb"><div id="relative" class="table" style="position: relative; top: 8px; left: 10px"><div class="cell"></div></div></div>
+<div class="cb"><div id="static" class="table" style="top: 8px"><div class="cell"></div></div></div>
+<div class="cb"><div id="margins" class="table" style="margin: 7px 11px 13px 17px"><div class="cell"></div></div></div>
+<div class="cb"><div id="auto-margins" class="table" style="margin: 0 auto"><div class="cell"></div></div></div>
+<div class="cb"><div id="inline-table" class="table" style="display: inline-table; position: relative; top: 3px; margin-left: 5px"><div class="cell"></div></div></div>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".table")) {
+            const style = getComputedStyle(element);
+            println(`${element.id}: inset=${style.top} ${style.right} ${style.bottom} ${style.left} margin=${style.marginTop} ${style.marginRight} ${style.marginBottom} ${style.marginLeft}`);
+        }
+    });
+</script>

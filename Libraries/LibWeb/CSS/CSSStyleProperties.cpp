@@ -1190,24 +1190,39 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return nullptr;
     }
 
-    auto used_value_for_property = [&layout_node](Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> Optional<CSSPixels> {
-        auto display = layout_node.display();
-        if (!display.is_none() && !display.is_contents() && Painting::has_committed_box(layout_node))
-            return used_value_getter(layout_node);
+    // https://drafts.csswg.org/css-tables-3/#table-wrapper-box
+    // The computed values of properties position, float, margin-*, top, right, bottom, and left on the table are used
+    // on the table-wrapper box and not the table grid box;
+    // NB: So a table's insets and margins, computed and used, are read from its table wrapper.
+    auto const& principal_layout_node = [&]() -> Layout::NodeWithStyle const& {
+        if (layout_node.display().is_table_inside()) {
+            if (auto const* parent = layout_node.parent(); parent && parent->is_table_wrapper())
+                return *parent;
+        }
+        return layout_node;
+    }();
+
+    auto used_value_for_box = [](Layout::NodeWithStyle const& box_layout_node, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> Optional<CSSPixels> {
+        auto display = box_layout_node.display();
+        if (!display.is_none() && !display.is_contents() && Painting::has_committed_box(box_layout_node))
+            return used_value_getter(box_layout_node);
         return {};
+    };
+    auto used_value_for_property = [&layout_node, &used_value_for_box](Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> Optional<CSSPixels> {
+        return used_value_for_box(layout_node, move(used_value_getter));
     };
 
     // https://drafts.csswg.org/cssom/#resolved-value-special-case-property-like-height
     // If the property applies to the element or pseudo-element and the resolved value of the display property is not
     // none or contents, then the resolved value is the used value. Otherwise the resolved value is the computed value.
-    auto resolved_value_for_margin = [&layout_node, &used_value_for_property](LengthPercentageOrAuto const& margin, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
+    auto resolved_value_for_margin = [&principal_layout_node, &used_value_for_box](LengthPercentageOrAuto const& margin, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
         auto computed_value = [&] { return style_value_for_length_percentage_or_auto(margin); };
-        auto maybe_used_value = used_value_for_property(move(used_value_getter));
+        auto maybe_used_value = used_value_for_box(principal_layout_node, move(used_value_getter));
         if (!maybe_used_value.has_value())
             return computed_value();
-        auto const* containing_block = layout_node.containing_block();
+        auto const* containing_block = principal_layout_node.containing_block();
         // NB: Positioned boxes can have position-try overrides, and grid/flex items can use a specialized basis.
-        if (!layout_node.display().is_block_outside() || layout_node.is_absolutely_positioned()
+        if (!principal_layout_node.display().is_block_outside() || principal_layout_node.is_absolutely_positioned()
             || (containing_block && (containing_block->display().is_grid_inside() || containing_block->display().is_flex_inside())))
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
         auto resolved_length = [](double pixels) -> NonnullRefPtr<StyleValue const> {
@@ -1249,11 +1264,11 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         Horizontal,
         Vertical,
     };
-    auto resolved_value_for_inset = [&layout_node](LengthPercentageOrAuto const& side, LengthPercentageOrAuto const& opposite_side, InsetAxis axis, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
+    auto resolved_value_for_inset = [&principal_layout_node](LengthPercentageOrAuto const& side, LengthPercentageOrAuto const& opposite_side, InsetAxis axis, Function<CSSPixels(Layout::Node const&)>&& used_value_getter) -> NonnullRefPtr<StyleValue const> {
         auto computed_value = [&] { return style_value_for_length_percentage_or_auto(side); };
 
-        auto display = layout_node.display();
-        if (!layout_node.is_positioned() || display.is_none() || display.is_contents() || !Painting::has_committed_box(layout_node))
+        auto display = principal_layout_node.display();
+        if (!principal_layout_node.is_positioned() || display.is_none() || display.is_contents() || !Painting::has_committed_box(principal_layout_node))
             return computed_value();
 
         // NB: The used value of a fixed length is the length itself. Taking it from the computed value keeps
@@ -1276,13 +1291,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
 
         // https://drafts.csswg.org/css-position/#insets
         // For sticky positioned boxes, the inset is instead relative to the relevant scrollport's size.
-        if (layout_node.is_sticky_position()) {
+        if (principal_layout_node.is_sticky_position()) {
             // NB: Sticky positioning leaves an auto inset unconstrained, so its used value stays auto.
             if (side.is_auto())
                 return computed_value();
             // NB: This uses the same scrollport size as the sticky constraints: the content box of the nearest
             //     scroll container, or of the viewport.
-            Layout::Box const* scroll_container = layout_node.containing_block();
+            Layout::Box const* scroll_container = principal_layout_node.containing_block();
             while (scroll_container && !scroll_container->is_scroll_container())
                 scroll_container = scroll_container->containing_block();
             if (!scroll_container || !Painting::has_committed_box(*scroll_container))
@@ -1294,14 +1309,14 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         // If neither is auto, the position is over-constrained;
         // NB: The resolved value is then the computed value, absolutized against the containing block.
         // INTEROP: Percentages are absolutized rather than serialized as-is, to match other browsers.
-        if (layout_node.position() == Positioning::Relative && !side.is_auto() && !opposite_side.is_auto()) {
-            auto const* containing_block = layout_node.containing_block();
+        if (principal_layout_node.position() == Positioning::Relative && !side.is_auto() && !opposite_side.is_auto()) {
+            auto const* containing_block = principal_layout_node.containing_block();
             if (!containing_block || !Painting::has_committed_box(*containing_block))
                 return computed_value();
             return absolutized_against(size_in_axis(Painting::content_size(*containing_block)));
         }
 
-        return LengthStyleValue::create(Length::make_px(used_value_getter(layout_node)));
+        return LengthStyleValue::create(Length::make_px(used_value_getter(principal_layout_node)));
     };
 
     auto get_computed_value = [&element, pseudo_element](PropertyID property_id) -> NonnullRefPtr<StyleValue const> {
@@ -1433,13 +1448,13 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         return get_computed_value(property_id);
     }
     case PropertyID::MarginBottom:
-        return resolved_value_for_margin(layout_node.margin().bottom(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; });
+        return resolved_value_for_margin(principal_layout_node.margin().bottom(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.bottom; });
     case PropertyID::MarginLeft:
-        return resolved_value_for_margin(layout_node.margin().left(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.left; });
+        return resolved_value_for_margin(principal_layout_node.margin().left(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.left; });
     case PropertyID::MarginRight:
-        return resolved_value_for_margin(layout_node.margin().right(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.right; });
+        return resolved_value_for_margin(principal_layout_node.margin().right(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.right; });
     case PropertyID::MarginTop:
-        return resolved_value_for_margin(layout_node.margin().top(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.top; });
+        return resolved_value_for_margin(principal_layout_node.margin().top(), [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).margin.top; });
     case PropertyID::PaddingBottom:
         if (auto maybe_used_value = used_value_for_property([](auto const& box_layout_node) { return Painting::box_model(box_layout_node).padding.bottom; }); maybe_used_value.has_value())
             return LengthStyleValue::create(Length::make_px(maybe_used_value.release_value()));
@@ -1490,19 +1505,19 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
         //    none or contents, and the property is not over-constrained, then the resolved value is the used value.
         //    Otherwise the resolved value is the computed value.
     case PropertyID::Bottom: {
-        auto inset = layout_node.inset();
+        auto inset = principal_layout_node.inset();
         return resolved_value_for_inset(inset.bottom(), inset.top(), InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.bottom; });
     }
     case PropertyID::Left: {
-        auto inset = layout_node.inset();
+        auto inset = principal_layout_node.inset();
         return resolved_value_for_inset(inset.left(), inset.right(), InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.left; });
     }
     case PropertyID::Right: {
-        auto inset = layout_node.inset();
+        auto inset = principal_layout_node.inset();
         return resolved_value_for_inset(inset.right(), inset.left(), InsetAxis::Horizontal, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.right; });
     }
     case PropertyID::Top: {
-        auto inset = layout_node.inset();
+        auto inset = principal_layout_node.inset();
         return resolved_value_for_inset(inset.top(), inset.bottom(), InsetAxis::Vertical, [](auto const& box_layout_node) { return Painting::box_model(box_layout_node).inset.top; });
     }
 
