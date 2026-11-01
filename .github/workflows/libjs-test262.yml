@@ -17,6 +17,11 @@ jobs:
   run_and_update_results:
     runs-on: 'blacksmith-16vcpu-ubuntu-2404'
     if: github.repository == 'LadybirdBrowser/ladybird'
+    # Master runs check out libjs-data when they start and force-push it with their results appended, so they must not
+    # overlap, or the run that pushes second drops the other's entry. Pull request runs never push, so they don't wait.
+    concurrency:
+      group: ${{ github.ref == 'refs/heads/master' && 'libjs-test262-master' || format('libjs-test262-{0}', github.run_id) }}
+      cancel-in-progress: false
     container:
       image: ghcr.io/ladybirdbrowser/ladybird-ci:2026.10.29
 
