@@ -104,9 +104,9 @@ impl GridFormattingContext<'_> {
         match value.style_value() {
             // normal: Resolves to a used value of 1em in grid lanes layout and a used value of 0 in all other layout
             //         modes.
-            None => Some(self.style(self.run.box_).font_size()),
+            None => Some(self.container_style.font_size()),
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL => {
-                Some(self.style(self.run.box_).font_size())
+                Some(self.container_style.font_size())
             }
             // infinite: Specifies an infinite tie threshold.
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::INFINITE => None,
@@ -279,7 +279,7 @@ impl GridFormattingContext<'_> {
                 }
                 continue;
             }
-            let is_scroll_container = self.facts(item.box_).is_scroll_container();
+            let is_scroll_container = self.item_facts(item).is_scroll_container();
             let group_index = match groups
                 .iter()
                 .position(|group| group.span == span && group.is_scroll_container == is_scroll_container)
@@ -355,7 +355,7 @@ impl GridFormattingContext<'_> {
             .iter()
             .map(|track| track.is_collapsed)
             .collect::<Vec<_>>();
-        let dense = self.style(self.run.box_).grid_auto_flow_dense();
+        let dense = self.container_style.grid_auto_flow_dense();
         let mut skipped_spaces = vec![Vec::<SkippedSpace>::new(); track_count];
 
         // For each of the tracks in the grid axis, keep a running position initialized to zero. Maintain also a
@@ -569,7 +569,7 @@ impl GridFormattingContext<'_> {
         {
             return start;
         }
-        match self.item_physical_alignment_for_node(item.box_, axis) {
+        match self.item_physical_alignment(item, axis) {
             // https://drafts.csswg.org/css-grid-3/#grid-lanes-baseline-alignment
             // Baseline alignment is not supported in the stacking axis. The baseline alignment values of the
             // self-alignment properties on grid items are treated as their fallback alignment in this axis.
@@ -609,10 +609,10 @@ impl GridFormattingContext<'_> {
                 }
             }
         }
-        let container_writing_mode = self.style(self.run.box_).writing_mode();
+        let container_writing_mode = self.container_style.writing_mode();
         let baselines = items_by_track.into_iter().flatten().filter_map(|(_, item)| {
             // NB: An item in another writing mode has no baseline in the grid's inline axis.
-            let source = if self.style(item.box_).writing_mode() != container_writing_mode {
+            let source = if self.item_style(item).writing_mode() != container_writing_mode {
                 formatting_context::ChildBaselineSource::Synthesized
             } else {
                 formatting_context::ChildBaselineSource::OwnOrSynthesized
