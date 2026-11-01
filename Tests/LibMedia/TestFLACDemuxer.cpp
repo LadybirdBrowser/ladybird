@@ -390,8 +390,12 @@ TEST_CASE(demuxer_seeks_into_unbuffered_data_with_few_requests)
     // Serve the way a server does once asked: each request starts delivery at its offset, delivery goes on from
     // there a slice at a time, and a stopped request ends it.
     Vector<u64> requested_offsets;
+    // Where each request's delivery had got to when the next request took over.
+    Vector<size_t> delivery_ends;
     Optional<size_t> serving_position;
     stream->set_data_request_callback([&](Optional<u64> offset) {
+        if (offset.has_value() && serving_position.has_value())
+            delivery_ends.append(*serving_position);
         serving_position = offset.map([](u64 value) { return static_cast<size_t>(value); });
         if (offset.has_value())
             requested_offsets.append(*offset);
@@ -437,8 +441,14 @@ TEST_CASE(demuxer_seeks_into_unbuffered_data_with_few_requests)
         MUST(seeker_thread->join());
 
     EXPECT_EQ(landed_timestamp, time_of_sample(4 * SEEKPOINTS_BLOCK_SIZE, SEEKPOINTS_SAMPLE_RATE));
-    // One probe overshoots into the noise, and one step back by the noise's byte rate lands at the head.
-    EXPECT(requested_offsets.size() <= 2);
+    // One probe overshoots into the noise, and one step back by the noise's byte rate lands at the head. If the seek is
+    // slow enough that the head's delivery reaches the bytes the first probe's delivery left buffered, the stream then
+    // skips to their end, so a third request may only be that skip.
+    EXPECT(requested_offsets.size() <= 3);
+    if (requested_offsets.size() == 3) {
+        EXPECT(requested_offsets[1] < requested_offsets[0]);
+        EXPECT(!delivery_ends.is_empty() && requested_offsets[2] == delivery_ends.first());
+    }
 }
 
 // A header that nothing follows within a frame's reach was not a header, so the stream ends rather than delivering
