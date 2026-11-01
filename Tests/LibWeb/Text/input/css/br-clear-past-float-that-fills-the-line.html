@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 16px/16px serif;
+    }
+    .container {
+        width: 300px;
+    }
+    .float {
+        float: left;
+        height: 50px;
+        margin-bottom: 8px;
+    }
+    fieldset {
+        width: 300px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+    }
+    legend {
+        float: left;
+        width: 100%;
+        height: 20px;
+        margin-top: 4px;
+        padding: 0;
+    }
+    legend + * {
+        clear: left;
+    }
+    .check {
+        padding-left: 24px;
+    }
+    .check input {
+        float: left;
+        width: 16px;
+        height: 16px;
+        margin: 0 0 0 -24px;
+    }
+</style>
+<div class="container" id="narrow"><div class="float" style="width: 100px"></div><br style="clear: left"></div>
+<div class="container" id="full"><div class="float" style="width: 100%"></div><br style="clear: left"></div>
+<fieldset id="fieldset">
+    <legend>Privacy</legend>
+    <br>
+    <div class="check"><input type="checkbox" id="checkbox"><label for="checkbox">I agree</label></div>
+</fieldset>
+<script>
+    test(() => {
+        // A clearing break moves what follows below the float's margin box, however much of the line the float fills.
+        for (const id of ["narrow", "full"])
+            println(`${id}: height ${document.getElementById(id).getBoundingClientRect().height}`);
+
+        const legend = document.querySelector("legend").getBoundingClientRect();
+        const checkbox = document.getElementById("checkbox").getBoundingClientRect();
+        println(`checkbox below legend: ${checkbox.top >= legend.bottom}`);
+        println(`checkbox at the start of its line: ${checkbox.left === document.getElementById("fieldset").getBoundingClientRect().left}`);
+    });
+</script>
