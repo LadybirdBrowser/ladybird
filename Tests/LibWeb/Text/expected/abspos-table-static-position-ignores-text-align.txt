@@ -1,0 +1,8 @@
+table, center: left=0 top=0
+table, right: left=0 top=0
+table, center, rtl: left=350 top=0
+table, center, after text: left=0 top=16
+block, center, after text: left=0 top=16
+block, center: left=0 top=0
+inline-table, center: left=200 top=0
+inline-block, center: left=200 top=0

@@ -308,6 +308,9 @@ impl LayoutStyle {
                 display_inside::FLOW_ROOT,
                 false,
             );
+            // NB: The wrapper is the box that gets positioned, so it keeps the display the table was given, which
+            //     decides where an absolutely positioned table's static position is.
+            target.display_before_box_type_transformation = box_values.display_before_box_type_transformation;
             target.position = box_values.position;
             target.float_ = box_values.float_;
             target.clear = box_values.clear;

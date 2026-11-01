@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { width: 400px; height: 20px; }
+    .abs { position: absolute; width: 50px; height: 10px; }
+</style>
+<!-- An absolutely positioned table is block-level, so its static position is at the start of its containing block,
+     whatever the text-align; an inline-table is inline-level, and moves with the line. -->
+<div class="container" style="text-align: center" data-case="table, center"> <div class="abs" style="display: table"></div></div>
+<div class="container" style="text-align: right" data-case="table, right"> <div class="abs" style="display: table"></div></div>
+<div class="container" style="text-align: center; direction: rtl" data-case="table, center, rtl"> <div class="abs" style="display: table"></div></div>
+<div class="container" style="text-align: center" data-case="table, center, after text"> x <div class="abs" style="display: table"></div></div>
+<div class="container" style="text-align: center" data-case="block, center, after text"> x <div class="abs" style="display: block"></div></div>
+<div class="container" style="text-align: center" data-case="block, center"> <div class="abs" style="display: block"></div></div>
+<div class="container" style="text-align: center" data-case="inline-table, center"> <div class="abs" style="display: inline-table"></div></div>
+<div class="container" style="text-align: center" data-case="inline-block, center"> <span class="abs" style="display: inline-block"></span></div>
+<script>
+    test(() => {
+        for (const container of document.querySelectorAll(".container")) {
+            const rect = container.querySelector(".abs").getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            println(`${container.dataset.case}: left=${rect.left - containerRect.left} top=${rect.top - containerRect.top}`);
+        }
+    });
+</script>
