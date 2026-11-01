@@ -77,8 +77,8 @@ pub(crate) fn prepare_for_clock_tick(
     arena: &mut LayoutNodeArena,
     viewport: NodeSlotId,
 ) -> Result<Option<ClockTickVisualContexts>, VisualContextsNeedHost> {
-    // Recording reads overflow, and measuring it notes a flip in scrollability for the check below.
-    arena.measure_scrollable_overflow();
+    // Recording reads overflow, and settling it notes a flip in scrollability for the check below.
+    arena.settle_scrollable_overflow();
     if arena.svg_paint_resources().needs_sync()
         || arena.paint_state().root_background_source
             != Some(crate::layout::viewport_propagation::root_background_source(arena))
@@ -281,16 +281,16 @@ impl PendingPreparation {
     }
 }
 
-/// Whether preparing `arena` for rendering would change anything: its root background source moved, or scrollable
-/// overflow is left to settle or to measure, or a measurement changed what the preparation answers.
+/// Whether preparing `arena` for rendering would change anything: its root background source moved, scrollable
+/// overflow is left to settle, a stored scroll offset may have to be clamped, or an overflow change since the last
+/// preparation changed what it answers.
 pub(crate) fn rendering_preparation_pending(arena: &LayoutNodeArena) -> Option<PendingPreparation> {
     let root_background_source = crate::layout::viewport_propagation::root_background_source(arena);
     let overflow = &arena.scrollable_overflow;
     let pending = arena.paint_state().root_background_source != Some(root_background_source)
-        || overflow.full_layout_commit
-        || overflow.measurement_awaits_preparation()
-        || arena.scrollable_overflow_recalculation_is_scheduled()
-        || !arena.scrollable_overflow_is_measured();
+        || overflow.change_awaits_preparation()
+        || !overflow.scroll_offset_clamp_candidates.is_empty()
+        || !arena.scrollable_overflow_is_settled();
     pending.then_some(PendingPreparation { root_background_source })
 }
 
@@ -314,7 +314,7 @@ pub(crate) fn prepare_for_rendering(
     sticky_inputs: Option<&FfiVisualContextTreeInputs>,
 ) -> RenderingPreparation {
     let background_source_changed = arena.update_root_background_source(root_background_source);
-    // This measures all overflow left unmeasured, including the root's: the root background covers
+    // This settles all overflow left to recalculate, including the root's: the root background covers
     // the viewport united with it, so a flip in its scrollability is seen here rather than while
     // recording holds the paint state.
     let clamped_scroll_offsets = crate::painting::scrollable_overflow::update_scrollable_overflow(arena);
@@ -350,7 +350,7 @@ pub(crate) fn refresh_scroll_state(
     arena: &mut LayoutNodeArena,
     device_pixels_per_css_pixel: f64,
 ) -> Option<Vec<FloatPoint>> {
-    arena.measure_scrollable_overflow();
+    arena.settle_scrollable_overflow();
     arena.with_visual_context_state_lent(|arena, state| {
         if !state.needs_to_refresh_scroll_state {
             return None;
@@ -392,7 +392,7 @@ pub(crate) fn update_accumulated_visual_contexts(
     viewport: NodeSlotId,
     inputs: FfiVisualContextTreeInputs,
 ) -> FfiVisualContextUpdateOutcome {
-    arena.measure_scrollable_overflow();
+    arena.settle_scrollable_overflow();
     if !arena.paintable_row_is_populated(viewport) {
         return FfiVisualContextUpdateOutcome::default();
     }

@@ -162,7 +162,7 @@ pub extern "C" fn render_state_paintable_scrollable_overflow(
 ) {
     // The host reads the overflow from the rows it holds, where they were measured and still read as the arena.
     let known = host.read_known_rows(|rows, source| {
-        rows.overflow_is_measured()
+        rows.overflow_is_settled()
             .then(|| FfiOptionalOverflowData::of(source, slot))
     });
     if let Some(Some(overflow)) = known {
@@ -171,7 +171,7 @@ pub extern "C" fn render_state_paintable_scrollable_overflow(
     }
     *out = {
         read_arena(host, node_read(), slot, |arena, slot| {
-            arena.measure_scrollable_overflow();
+            arena.settle_scrollable_overflow();
             FfiOptionalOverflowData::of(&arena.paintable_rows(), slot)
         })
     };
@@ -190,9 +190,13 @@ impl FfiOptionalOverflowData {
         let Some(rect) = crate::painting::paintable_geometry::scrollable_overflow_rect(rows, slot) else {
             return Self::default();
         };
-        let mut value = rows.committed_side_data(slot).overflow_relative_to_padding_box;
-        value.rect = rect.into();
-        Self { has_value: true, value }
+        Self {
+            has_value: true,
+            value: crate::painting::paintable_data::FfiOverflowData {
+                rect: rect.into(),
+                has_scrollable_overflow: crate::painting::paintable_geometry::has_scrollable_overflow(rows, slot),
+            },
+        }
     }
 }
 
@@ -1409,137 +1413,4 @@ pub extern "C" fn render_state_note_svg_paint_resources_changed(host: &DocumentH
         queue(host, PaintChange::SvgPaintResourcesChanged);
     }
     enrolled
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::css::css_pixels::CssPixelRect;
-    use crate::layout::LayoutNodeArena;
-    use crate::layout::node_data::NodeKind;
-    use crate::painting::host::RootBackgroundSource;
-    use crate::painting::paintable_data::FfiOverflowData;
-    use crate::painting::record::damage::PaintDamage;
-    use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
-    use crate::painting::visual_context::{TransformData, TransformDataRole, VisualContextTree};
-
-    #[test]
-    fn publishing_measured_rows_can_remeasure_viewport_overflow_and_invalidate_painting() {
-        {
-            let mut arena = LayoutNodeArena::new();
-            let viewport = arena.allocate_for_test().slot;
-            arena.write_shape(viewport).set_kind(NodeKind::Viewport);
-            arena.populate_paintable_row(viewport);
-            arena.scrollable_overflow.viewport = Some(viewport);
-            let root = arena.allocate_for_test().slot;
-            arena.populate_paintable_row(root);
-            {
-                let state = arena.paint_state_mut();
-                state.root_background_source = Some(RootBackgroundSource {
-                    root_layout_node: root,
-                    ..Default::default()
-                });
-                state.visual_context.tree = Some(std::sync::Arc::new(VisualContextTree::create(TransformData {
-                    matrix: libgfx_rust::FloatMatrix4x4::identity(),
-                    origin: Default::default(),
-                    sorting_context_root_index: None,
-                    flattens_inherited_transform: false,
-                    role: TransformDataRole::CssTransform,
-                    synthetic_plane: false,
-                    establishes_sorting_context: false,
-                })));
-                state.visual_context.dirty_boxes.clear();
-            }
-            // Leave stale overflow for the hit-test geometry query to remeasure. Losing
-            // scrollability must invalidate both the root background and visual context.
-            arena.committed_side_data_mut(viewport).overflow_relative_to_padding_box = FfiOverflowData {
-                rect: CssPixelRect::new(
-                    CssPixels::from_integer(0),
-                    CssPixels::from_integer(0),
-                    CssPixels::from_integer(100),
-                    CssPixels::from_integer(2000),
-                )
-                .into(),
-                has_scrollable_overflow: true,
-            };
-            arena.paintable_side_data_mut(viewport).overflow_measured_this_commit = true;
-            arena.note_publishing_paint_recording_started();
-            arena.clear_paint_damage_consumed_by_published_recording();
-
-            // Hit testing reads rows published with every row's overflow measured.
-            let rows = arena.publish_row_snapshot(true);
-            let absolute_rects = std::cell::RefCell::default();
-            let source = crate::painting::paint_read::PaintSource::over_rows(&rows.paintable, &absolute_rects);
-            let rect = crate::painting::paintable_geometry::scrollable_overflow_rect(&source, viewport);
-            assert_eq!(rect, Some(CssPixelRect::default()));
-            assert!(arena.scrollable_overflow.geometry_changed);
-            assert!(arena.scrollable_overflow.scrollability_changed);
-            assert!(arena.paint_damage_of_row(root).contains(PaintDamage::DRAW_BACKGROUND));
-            assert!(
-                arena
-                    .paint_damage_of_row(viewport)
-                    .contains(PaintDamage::SCROLL_METADATA)
-            );
-            assert!(
-                arena.paint_state().visual_context.dirty_boxes.boxes[&viewport]
-                    .contains(VisualContextBoxDirtyKind::ScrollableOverflowFlipped)
-            );
-        }
-    }
-
-    #[test]
-    fn preparing_for_rendering_measures_root_overflow_before_recording_reads_it() {
-        let mut arena = LayoutNodeArena::new();
-        let viewport = arena.allocate_for_test().slot;
-        arena.write_shape(viewport).set_kind(NodeKind::Viewport);
-        arena.populate_paintable_row(viewport);
-        arena.scrollable_overflow.viewport = Some(viewport);
-        let root = arena.allocate_for_test().slot;
-        arena.write_shape(root).set_kind(NodeKind::BlockContainer);
-        arena.populate_paintable_row(root);
-        // A structural change invalidated the root's overflow, measured earlier in this commit,
-        // without queueing a recalculation, so nothing but a query measures it again. Measuring
-        // it drops its scrollable overflow.
-        arena.committed_side_data_mut(root).overflow_relative_to_padding_box = FfiOverflowData {
-            rect: CssPixelRect::new(
-                CssPixels::from_integer(0),
-                CssPixels::from_integer(0),
-                CssPixels::from_integer(100),
-                CssPixels::from_integer(2000),
-            )
-            .into(),
-            has_scrollable_overflow: true,
-        };
-        arena.paintable_side_data_mut(root).overflow_measured_this_commit = true;
-        arena.paint_state_mut().visual_context.dirty_boxes.clear();
-
-        let outcome = crate::painting::paint_passes::prepare_for_rendering(
-            &mut arena,
-            RootBackgroundSource {
-                root_layout_node: root,
-                ..Default::default()
-            },
-            Some(&crate::painting::host::FfiVisualContextTreeInputs {
-                device_pixels_per_css_pixel: 1.0,
-                visual_viewport_offset_x: 0.0,
-                visual_viewport_offset_y: 0.0,
-                visual_viewport_scale: 1.0,
-            }),
-        )
-        .outcome;
-        assert!(outcome.requires_visual_context_update);
-        assert!(
-            arena.paint_state().visual_context.dirty_boxes.boxes[&root]
-                .contains(VisualContextBoxDirtyKind::ScrollableOverflowFlipped)
-        );
-
-        // Recording reads the root's overflow while it holds the paint state.
-        let _paint_state = arena.paint_state();
-        let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
-            &arena.paintable_rows(),
-            root,
-            CssPixelRect::default(),
-        );
-        assert_eq!(canvas_rect, CssPixelRect::default());
-    }
 }

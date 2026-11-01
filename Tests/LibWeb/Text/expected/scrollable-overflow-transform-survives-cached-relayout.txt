@@ -1,0 +1,4 @@
+initial: 100
+transformed: 250
+after a relayout that reuses the child: 250
+untransformed: 100

@@ -85,12 +85,6 @@ mod tests {
             ..side_data.clone()
         };
         assert!(side_data != without_content);
-
-        let measured = CommittedSideData {
-            overflow_valid_across_recommits: true,
-            ..side_data.clone()
-        };
-        assert!(side_data != measured);
     }
 
     /// Places the single piece of the inline box `node` on a line of a new line root, at the padding box `rect`.
@@ -119,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn overflow_queries_do_not_measure_ordinary_inline_fragments() {
+    fn an_inline_box_shows_scrollable_overflow_once_it_stores_a_scroll_offset() {
         use crate::css::css_pixels::{CssPixelRect, CssPixels};
         use crate::layout::node_data::NodeKind;
         use crate::painting::paintable_geometry;
@@ -128,7 +122,6 @@ mod tests {
         let node = arena.allocate_for_test().slot;
         arena.write_shape(node).set_kind(NodeKind::InlineNode);
         arena.populate_paintable_row(node);
-        arena.scrollable_overflow.viewport = Some(node);
         let rect = CssPixelRect::new(
             CssPixels::from_integer(0),
             CssPixels::from_integer(0),
@@ -136,107 +129,15 @@ mod tests {
             CssPixels::from_integer(80),
         );
         give_inline_box_a_piece(&mut arena, node, rect);
-
-        arena.measure_scrollable_overflow();
-        let rows = arena.paintable_rows();
-        assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), None);
-        assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
-        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit);
-    }
-
-    #[test]
-    fn inline_that_starts_storing_a_scroll_offset_is_measured_before_recording() {
-        use crate::css::css_pixels::{CssPixelRect, CssPixels};
-        use crate::layout::node_data::NodeKind;
-        use crate::painting::paintable_geometry;
-
-        let mut arena = LayoutNodeArena::new();
-        let node = arena.allocate_for_test().slot;
-        arena.write_shape(node).set_kind(NodeKind::InlineNode);
-        arena.populate_paintable_row(node);
-        arena.scrollable_overflow.viewport = Some(node);
-        let rect = CssPixelRect::new(
-            CssPixels::from_integer(0),
-            CssPixels::from_integer(0),
-            CssPixels::from_integer(100),
-            CssPixels::from_integer(80),
-        );
-        give_inline_box_a_piece(&mut arena, node, rect);
-        arena.measure_scrollable_overflow();
         assert_eq!(
             paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
             None
         );
 
         arena.set_node_flag(node, NodeFlag::HasScrollOffset, true);
-        arena.measure_scrollable_overflow();
-        assert_eq!(
-            paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
-            Some(rect)
-        );
-    }
-
-    #[test]
-    fn overflow_is_measured_before_recording_while_geometry_is_borrowed() {
-        use crate::css::css_pixels::{CssPixelRect, CssPixels};
-        use crate::layout::node_data::NodeKind;
-        use crate::painting::paintable_geometry;
-
-        let mut arena = LayoutNodeArena::new();
-        let node = arena.allocate_for_test().slot;
-        arena.write_shape(node).set_kind(NodeKind::InlineNode);
-        arena.set_node_flag(node, NodeFlag::HasScrollOffset, true);
-        arena.populate_paintable_row(node);
-        arena.scrollable_overflow.viewport = Some(node);
-        let rect = CssPixelRect::new(
-            CssPixels::from_integer(0),
-            CssPixels::from_integer(0),
-            CssPixels::from_integer(100),
-            CssPixels::from_integer(80),
-        );
-        give_inline_box_a_piece(&mut arena, node, rect);
-        {
-            let mut committed = arena.committed_side_data_mut(node);
-            committed.overflow_relative_to_padding_box = FfiOverflowData {
-                rect: CssPixelRect::new(rect.x, rect.y, CssPixels::from_integer(500), rect.height).into(),
-                has_scrollable_overflow: true,
-            };
-            committed.overflow_valid_across_recommits = true;
-        }
-        arena.paintable_side_data_mut(node).overflow_measured_this_commit = true;
-
-        let previous_geometry = *arena.paintable_rows().paintable_data(node);
-        arena.paintable_rows_mut().clear_cached_overflow_data(node);
-        // Reading overflow never measures it.
-        assert_eq!(
-            paintable_geometry::scrollable_overflow_rect(&arena.paintable_rows(), node),
-            None
-        );
-        assert!(!arena.scrollable_overflow.geometry_changed);
-        arena.measure_scrollable_overflow();
         let rows = arena.paintable_rows();
         assert_eq!(paintable_geometry::scrollable_overflow_rect(&rows, node), Some(rect));
         assert!(!paintable_geometry::has_scrollable_overflow(&rows, node));
-        assert_eq!(*rows.paintable_data(node), previous_geometry);
-        assert!(arena.scrollable_overflow.geometry_changed);
-        assert!(arena.scrollable_overflow.scrollability_changed);
-    }
-
-    #[test]
-    fn overflow_cache_invalidation_leaves_the_geometry_alone() {
-        let mut arena = LayoutNodeArena::new();
-        let node = arena.allocate_for_test().slot;
-        arena.populate_paintable_row(node);
-        arena.committed_side_data_mut(node).overflow_valid_across_recommits = true;
-        arena.paintable_side_data_mut(node).overflow_measured_this_commit = true;
-        arena.paintable_rows_mut().begin_paintable_row_recommit(node);
-        assert!(arena.committed_side_data(node).overflow_valid_across_recommits);
-
-        let previous_geometry = *arena.paintable_rows().paintable_data(node);
-        arena.paintable_rows_mut().clear_cached_overflow_data(node);
-        assert_eq!(*arena.paintable_rows().paintable_data(node), previous_geometry);
-        assert!(!arena.committed_side_data(node).overflow_valid_across_recommits);
-        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit);
     }
 }
 
@@ -369,12 +270,6 @@ pub(crate) struct PaintableRows<Arena> {
     absolute_rects: RefCell<crate::painting::record::recorder_state::AbsoluteRectMemo>,
 }
 
-impl<Arena> PaintableRows<Arena> {
-    pub(crate) fn into_absolute_rect_memo(self) -> crate::painting::record::recorder_state::AbsoluteRectMemo {
-        self.absolute_rects.into_inner()
-    }
-}
-
 pub(crate) type PaintableRowsRef<'a> = PaintableRows<&'a LayoutNodeArena>;
 pub(crate) type PaintableRowsMut<'a> = PaintableRows<&'a mut LayoutNodeArena>;
 
@@ -486,15 +381,6 @@ impl<Arena> PaintableRows<Arena>
 where
     Arena: DerefMut<Target = LayoutNodeArena>,
 {
-    pub(crate) fn clear_cached_overflow_data(&mut self, id: NodeSlotId) {
-        if !self.paintable_row_is_populated(id) {
-            return;
-        }
-        if std::mem::take(&mut self.arena.committed_side_data_mut(id).overflow_valid_across_recommits) {
-            self.arena.note_row_overflow_unmeasured(id);
-        }
-    }
-
     /// A text-decoration change on a box repaints the text of every line root and inline
     /// below it that inherits the decoration.
     pub(crate) fn push_propagated_text_decoration_damage(&mut self, root: NodeSlotId) {
@@ -544,10 +430,10 @@ where
     pub(crate) fn begin_paintable_row_recommit(&mut self, id: NodeSlotId) {
         // The row's damage is deliberately kept; the commit diff pushes what actually changed.
         let filter = self.arena.committed_side_data_mut(id).fragment_ownership.take();
-        let side = self.arena.paintable_side_data_mut(id);
-        side.overflow_measured_this_commit = false;
         if filter.is_some() {
-            side.fragment_ownership_before_recommit = filter;
+            self.arena
+                .paintable_side_data_mut(id)
+                .fragment_ownership_before_recommit = filter;
         }
     }
 }
@@ -684,6 +570,19 @@ impl PaintableRowStore {
         slot.geometry_is_current = geometry_epoch.is_some();
     }
 
+    pub(crate) fn replace_committed_fragment_link_keeping_its_geometry_epoch(
+        &mut self,
+        layout_slot_index: u32,
+        layout_slot_generation: u8,
+        link: fragment_tree::FragmentLink,
+    ) {
+        if let Some(mut slot) = RowMut::new(&mut self.committed_fragment_links, layout_slot_index as usize)
+            && slot.layout_slot_generation == layout_slot_generation
+        {
+            slot.link = Some(link);
+        }
+    }
+
     pub(crate) fn take_committed_fragment_link(
         &mut self,
         layout_slot_index: u32,
@@ -729,71 +628,6 @@ impl LayoutNodeArena {
             arena: self,
             absolute_rects: RefCell::default(),
         }
-    }
-
-    pub(crate) fn paintable_rows_with_absolute_rect_memo(
-        &self,
-        memo: crate::painting::record::recorder_state::AbsoluteRectMemo,
-    ) -> PaintableRowsRef<'_> {
-        PaintableRows {
-            arena: self,
-            absolute_rects: RefCell::new(memo),
-        }
-    }
-
-    pub(crate) fn schedule_scrollable_overflow_recalculation(&mut self, node: NodeSlotId) {
-        // SAFETY: The caller supplies a live slot; data() generation-checks every slot the
-        // containing-block walk visits.
-        let node_kind = self.data(node).kind.get();
-        if crate::layout::node_facts::kind_is_box(node_kind) {
-            let mut containing_box = node;
-            loop {
-                if self.paintable_row_is_populated(containing_box) {
-                    self.paintable_rows_mut().clear_cached_overflow_data(containing_box);
-                }
-                // SAFETY: As above.
-                let Some(next) = self.node_containing_block_if_live(containing_box) else {
-                    break;
-                };
-                containing_box = next;
-            }
-        }
-
-        if self.needs_full_scrollable_overflow_recalculation {
-            return;
-        }
-
-        // NB: Cap the queue in case it's never consumed (e.g. forced style updates in a document
-        //     that never updates layout).
-        const MAX_PENDING_SCROLLABLE_OVERFLOW_RECALCULATIONS: usize = 1024;
-        let row_is_populated = self.paintable_rows().paintable_row_is_populated(node);
-        let boxes = &mut self.boxes_needing_scrollable_overflow_recalculation;
-        if boxes.len() >= MAX_PENDING_SCROLLABLE_OVERFLOW_RECALCULATIONS {
-            boxes.clear();
-            self.needs_full_scrollable_overflow_recalculation = true;
-            return;
-        }
-
-        if row_is_populated {
-            boxes.push(node);
-        }
-    }
-
-    pub(crate) fn set_needs_full_scrollable_overflow_recalculation(&mut self) {
-        self.needs_full_scrollable_overflow_recalculation = true;
-    }
-
-    /// Whether a scrollable overflow recalculation is scheduled, which the next rendering preparation settles.
-    pub(crate) fn scrollable_overflow_recalculation_is_scheduled(&self) -> bool {
-        self.needs_full_scrollable_overflow_recalculation
-            || !self.boxes_needing_scrollable_overflow_recalculation.is_empty()
-    }
-
-    pub(crate) fn take_scrollable_overflow_recalculation_state(&mut self) -> (Vec<NodeSlotId>, bool) {
-        (
-            std::mem::take(&mut self.boxes_needing_scrollable_overflow_recalculation),
-            std::mem::replace(&mut self.needs_full_scrollable_overflow_recalculation, false),
-        )
     }
 
     /// The layout tree's shape and paint facts, the paintable rows and the columns read beside them
@@ -870,7 +704,6 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn populate_paintable_row(&mut self, layout_node: NodeSlotId) {
-        self.note_overflow_contained_box_added(layout_node);
         let overflow_style = self
             .node_style_if_live(layout_node)
             .map(crate::painting::scrollable_overflow::OverflowStyle::new);
@@ -903,7 +736,6 @@ impl LayoutNodeArena {
         store.visual_context_records.set(index, None);
         set_visual_context_node_handles(&mut store.visual_context_node_handles, index, None);
         drop_table(&mut store.stacking_context_entries, index);
-        self.scrollable_overflow.rows_to_measure.push(layout_node);
         self.notify_committed_box_changed(layout_node);
     }
 

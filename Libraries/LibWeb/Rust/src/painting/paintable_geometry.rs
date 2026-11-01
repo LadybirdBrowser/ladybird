@@ -717,25 +717,50 @@ pub(crate) fn first_fragment_border_box_rect(arena: &impl GeometryRead, slot: No
     )
 }
 
-/// The overflow the pass measured. Reading it never measures it.
+/// The scrollable overflow of the box in `slot`, united over its fragments, where its committed fragments hold one. An
+/// inline box has none until it stores a scroll offset, which its padding box then bounds.
 pub(crate) fn scrollable_overflow_rect(arena: &impl GeometryRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     if !arena.paintable_row_is_populated(slot) {
         return None;
     }
-    let cache = arena.committed_side_data(slot);
-    if !cache.overflow_valid_across_recommits {
-        return None;
+    if !arena
+        .node_kind_if_live(slot)
+        .is_some_and(crate::layout::node_facts::kind_is_box)
+    {
+        let stores_scroll_offset =
+            arena.node_flags_if_live(slot) & crate::layout::node_data::NodeFlag::HasScrollOffset as u32 != 0;
+        return stores_scroll_offset.then(|| first_fragment_padding_box_rect(arena, slot));
     }
-    Some(
-        CssPixelRect::from(cache.overflow_relative_to_padding_box.rect)
-            .translated_by(first_fragment_padding_box_rect(arena, slot).location()),
-    )
+    let first = arena.with_committed_fragment_link(slot, |link| {
+        link.map(|link| link.fragment.scrollable_overflow.rect_relative_to_padding_box)
+    })?;
+    let mut rect = first.translated_by(first_fragment_padding_box_rect(arena, slot).location());
+    for (index, fragment) in arena.committed_side_data(slot).box_fragments().iter().enumerate() {
+        rect.unite(
+            fragment
+                .link
+                .fragment
+                .scrollable_overflow
+                .rect_relative_to_padding_box
+                .translated_by(absolute_fragment_padding_box_rect(arena, slot, index + 1).location()),
+        );
+    }
+    Some(rect)
 }
 
 pub(crate) fn has_scrollable_overflow(arena: &impl GeometryRead, slot: NodeSlotId) -> bool {
-    if !arena.paintable_row_is_populated(slot) {
+    if !arena.paintable_row_is_populated(slot)
+        || !arena
+            .node_kind_if_live(slot)
+            .is_some_and(crate::layout::node_facts::kind_is_box)
+    {
         return false;
     }
-    let cache = arena.committed_side_data(slot);
-    cache.overflow_valid_across_recommits && cache.overflow_relative_to_padding_box.has_scrollable_overflow
+    arena.with_committed_fragment_link(slot, |link| {
+        link.is_some_and(|link| link.fragment.scrollable_overflow.has_scrollable_overflow)
+    }) || arena
+        .committed_side_data(slot)
+        .box_fragments()
+        .iter()
+        .any(|fragment| fragment.link.fragment.scrollable_overflow.has_scrollable_overflow)
 }

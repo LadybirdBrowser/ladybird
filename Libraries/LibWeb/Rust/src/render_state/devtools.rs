@@ -83,7 +83,7 @@ pub extern "C" fn render_state_pre_order_label_violation_count(host: &DocumentHo
     })
 }
 
-/// How many times paint preparation recalculated scrollable overflow, counting from zero again where `reset`.
+/// How many times scrollable overflow was recalculated outside layout, counting from zero again where `reset`.
 #[unsafe(no_mangle)]
 pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &DocumentHost, reset: bool) -> u64 {
     read_arena(host, |arena| {
@@ -93,16 +93,6 @@ pub extern "C" fn render_state_scrollable_overflow_recalculation_count(host: &Do
         } else {
             *recalculations
         }
-    })
-}
-
-/// How many times paint preparation rebuilt the index of boxes whose containing block is not their parent, counting
-/// from zero again where `reset`.
-#[unsafe(no_mangle)]
-pub extern "C" fn render_state_overflow_contained_box_index_refill_count(host: &DocumentHost, reset: bool) -> u64 {
-    read_arena(host, |arena| {
-        let refills = &mut arena.scrollable_overflow.contained_box_index_refills;
-        if reset { std::mem::take(refills) } else { *refills }
     })
 }
 

@@ -350,7 +350,6 @@ impl LayoutNodeArena {
         let mut cursor = Some(subtree_root);
         while let Some(node) = cursor {
             if self.paintable_row_is_populated(node) {
-                self.note_overflow_contained_box_added(node);
                 self.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ReattachedInLayoutTree);
                 self.push_paint_damage(node, crate::painting::record::damage::PaintDamage::ORDER);
             }

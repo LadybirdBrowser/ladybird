@@ -38,7 +38,7 @@ pub(crate) struct RowSnapshot {
     /// How far the arena's rows had been written when they were published.
     version: RowsVersion,
     /// Whether every row's scrollable overflow was measured when the rows were published.
-    overflow_is_measured: bool,
+    overflow_is_settled: bool,
     /// The text rows that waited for their text to be rendered again when the rows were published, by slot index:
     /// every other text row carries the text it renders.
     text_awaiting_render: Box<[NodeSlotId]>,
@@ -85,8 +85,8 @@ impl RowSnapshot {
 
     /// Whether every row's scrollable overflow was measured when the rows were published, which a read of overflow
     /// needs.
-    pub(crate) fn overflow_is_measured(&self) -> bool {
-        self.overflow_is_measured
+    pub(crate) fn overflow_is_settled(&self) -> bool {
+        self.overflow_is_settled
     }
 
     /// The row in slot `id`, if the slot held it when the rows were published.
@@ -247,11 +247,11 @@ impl RowIdentities {
 }
 
 impl LayoutNodeArena {
-    /// The rows as they are now, for the host to read, once every row's scrollable overflow is measured where
-    /// `measure_overflow` says so.
-    pub(crate) fn publish_row_snapshot(&mut self, measure_overflow: bool) -> RowSnapshot {
-        if measure_overflow {
-            self.measure_scrollable_overflow();
+    /// The rows as they are now, for the host to read, once every row's scrollable overflow is settled where
+    /// `settle_overflow` says so.
+    pub(crate) fn publish_row_snapshot(&mut self, settle_overflow: bool) -> RowSnapshot {
+        if settle_overflow {
+            self.settle_scrollable_overflow();
         }
         let paintable = self.publish_rows();
         let bound = self.bound_rows_mut().publish();
@@ -261,7 +261,7 @@ impl LayoutNodeArena {
             image_maps: self.image_map_areas().snapshot(),
             visual_context_tree: self.paint_state().visual_context.tree.clone(),
             version: self.rows_version(),
-            overflow_is_measured: self.scrollable_overflow_is_measured(),
+            overflow_is_settled: self.scrollable_overflow_is_settled(),
             text_awaiting_render: self.text_rows_awaiting_sync(),
         }
     }

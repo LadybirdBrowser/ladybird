@@ -189,7 +189,6 @@ pub struct PaintableSideData {
     // Invalidation also runs while paint geometry is borrowed. Keep this
     // mutable cache state out of the plain-data row shared with C++.
     pub(crate) overflow_style: Option<crate::painting::scrollable_overflow::OverflowStyle>,
-    pub(crate) overflow_measured_this_commit: bool,
     // The filter a recommit cleared, kept so the next assignment can tell whether the box
     // paints a different selection of fragments than before.
     pub(crate) fragment_ownership_before_recommit:
@@ -202,14 +201,12 @@ pub(crate) struct CommittedBoxFragment {
     pub(crate) containing_block_fragment: u32,
 }
 
-/// What a row committed beside its geometry that painting reads with it: its inline content, its
-/// measured scrollable overflow, and what paint preparation adds for the recording. Shared records are held by `Arc`, so copying a row
+/// What a row committed beside its geometry that painting reads with it: its inline content and what paint
+/// preparation adds for the recording. Shared records are held by `Arc`, so copying a row
 /// copies reference counts.
 #[derive(Clone, Default)]
 pub(crate) struct CommittedSideData {
     pub(crate) inline_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
-    pub(crate) overflow_valid_across_recommits: bool,
-    pub(crate) overflow_relative_to_padding_box: FfiOverflowData,
     /// The bounds of the SVG filter the box references, as the visual context update resolved
     /// them.
     pub(crate) svg_filter_bounds: Option<used_values::FfiCssPixelRect>,
@@ -227,9 +224,7 @@ pub(crate) struct CommittedSideData {
 impl PartialEq for CommittedSideData {
     fn eq(&self, other: &Self) -> bool {
         use crate::cow_column::same_payload;
-        self.overflow_valid_across_recommits == other.overflow_valid_across_recommits
-            && self.overflow_relative_to_padding_box == other.overflow_relative_to_padding_box
-            && self.svg_filter_bounds == other.svg_filter_bounds
+        self.svg_filter_bounds == other.svg_filter_bounds
             && self.order_inputs == other.order_inputs
             && same_payload(
                 self.fragment_ownership.as_ref(),
@@ -261,16 +256,6 @@ impl CommittedSideData {
 
     pub(crate) fn lines(&self) -> &[crate::layout::inline_content::LineRecord] {
         self.inline_content.as_ref().map_or(&[], |content| &content.lines)
-    }
-    pub(crate) fn elided_content_rects(&self) -> &[(u32, used_values::FfiCssPixelRect)] {
-        self.inline_content
-            .as_ref()
-            .map_or(&[], |content| &content.elided_content_rects)
-    }
-    pub(crate) fn lines_after_clamp_point_rect(&self) -> Option<used_values::FfiCssPixelRect> {
-        self.inline_content
-            .as_ref()
-            .and_then(|content| content.lines_after_clamp_point_rect.as_deref().copied())
     }
     pub(crate) fn fragments(&self) -> &[FragmentRecord] {
         self.inline_content.as_ref().map_or(&[], |content| &content.fragments)

@@ -93,21 +93,16 @@ fn has_descendant_dependent_paint(arena: &LayoutNodeArena, node: NodeSlotId) -> 
 
 pub(crate) struct PaintableCommit<'a> {
     arena: &'a mut LayoutNodeArena,
-    is_full_layout: bool,
     committed_navigable_container_viewports: Vec<NodeSlotId>,
     row_reset_notifications: Vec<crate::painting::paintable_rows::PaintableRowReset>,
-    overflow_invalidated_boxes: crate::fast_hash::FastSet<NodeSlotId>,
 }
 
 impl<'a> PaintableCommit<'a> {
-    pub(crate) fn new(arena: &'a mut LayoutNodeArena, root: NodeSlotId) -> Self {
-        let is_full_layout = arena.data(root).kind.get() == NodeKind::Viewport;
+    pub(crate) fn new(arena: &'a mut LayoutNodeArena) -> Self {
         Self {
             arena,
-            is_full_layout,
             committed_navigable_container_viewports: Vec::new(),
             row_reset_notifications: Vec::new(),
-            overflow_invalidated_boxes: Default::default(),
         }
     }
 
@@ -266,9 +261,11 @@ impl<'a> PaintableCommit<'a> {
         let mut inline_item_order_unchanged = false;
         let mut child_sequence_unchanged = false;
         let mut link_shows_box_the_same = true;
+        let mut old_scrollable_overflow = crate::layout::fragment_overflow::FragmentScrollableOverflow::default();
         let (old_identity, old_content_size) = self.arena().with_committed_fragment_link(node, |old_link| {
             old_link.map_or((0, used_values::FfiCssPixelSize::default()), |old_link| {
                 let previous = &old_link.fragment;
+                old_scrollable_overflow = previous.scrollable_overflow;
                 if previous.identity == fragment.identity {
                     own_paint_unchanged = true;
                     child_placements_unchanged = true;
@@ -300,9 +297,6 @@ impl<'a> PaintableCommit<'a> {
             })
         });
         if old_content_size != new_content_size {
-            if self.arena().data(node).kind.get() == NodeKind::Viewport {
-                self.arena_mut().set_needs_full_scrollable_overflow_recalculation();
-            }
             content_size_change = Some((old_content_size, new_content_size));
         }
         let committed_fragment_identity_changed = old_identity != fragment.identity;
@@ -363,14 +357,15 @@ impl<'a> PaintableCommit<'a> {
             self.arena_mut()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::RecommittedInPlace);
         }
-        if !fragment_content_unchanged || !self.arena().committed_side_data(node).overflow_valid_across_recommits {
-            self.schedule_scrollable_overflow_recalculation(node);
-        } else if !offset_unchanged {
-            // NB: Moving an unchanged subtree preserves its overflow relative to its padding
-            //     box. Only its contribution to containing blocks needs to be measured again.
-            let containing_block = self.committed_containing_block(node, Some(link));
-            self.schedule_scrollable_overflow_recalculation(containing_block);
+        if old_scrollable_overflow != fragment.scrollable_overflow {
+            self.arena_mut().note_scrollable_overflow_change(
+                node,
+                old_scrollable_overflow.has_scrollable_overflow,
+                fragment.scrollable_overflow.has_scrollable_overflow,
+                false,
+            );
         }
+        self.arena_mut().note_scroll_offset_may_leave_range(node);
         {
             let arena = self.arena_mut();
             let mut paintable_rows = arena.paintable_rows_mut();
@@ -446,6 +441,29 @@ impl<'a> PaintableCommit<'a> {
         if identical {
             return;
         }
+        let (later_overflow_changed, later_fragments_had_scrollable_overflow) = {
+            let committed = self.arena().committed_side_data(slot).box_fragments();
+            (
+                committed.len() != later_fragments.len()
+                    || committed.iter().zip(later_fragments).any(|(committed, fragment)| {
+                        committed.link.fragment.scrollable_overflow != fragment.link.fragment.scrollable_overflow
+                    }),
+                committed
+                    .iter()
+                    .any(|committed| committed.link.fragment.scrollable_overflow.has_scrollable_overflow),
+            )
+        };
+        if later_overflow_changed {
+            let later_fragments_have_scrollable_overflow = later_fragments
+                .iter()
+                .any(|fragment| fragment.link.fragment.scrollable_overflow.has_scrollable_overflow);
+            self.arena_mut().note_scrollable_overflow_change(
+                slot,
+                later_fragments_had_scrollable_overflow,
+                later_fragments_have_scrollable_overflow,
+                false,
+            );
+        }
         {
             let mut side = self.arena_mut().committed_side_data_mut(slot);
             side.containing_block_fragment = containing_block_fragment;
@@ -474,7 +492,6 @@ impl<'a> PaintableCommit<'a> {
                 VisualContextBoxDirtyKind::RecommittedInPlace
             },
         );
-        self.schedule_scrollable_overflow_recalculation(slot);
     }
 
     pub(crate) fn set_line_data(
@@ -520,26 +537,6 @@ impl<'a> PaintableCommit<'a> {
     pub(crate) fn clear_line_data(&mut self, slot: NodeSlotId) {
         if self.arena().committed_side_data(slot).inline_content.is_some() {
             self.arena_mut().committed_side_data_mut(slot).inline_content = None;
-        }
-    }
-
-    pub(crate) fn schedule_scrollable_overflow_recalculation(&mut self, mut node: NodeSlotId) {
-        // NB: Commit visits changed boxes before their descendants. Invalidate each containing
-        //     block once, including blocks outside the committed layout subtree.
-        while !node.is_invalid() && self.arena().slot_is_live(node) {
-            if !self.overflow_invalidated_boxes.insert(node) {
-                break;
-            }
-            let is_full_layout = self.is_full_layout;
-            let arena = self.arena_mut();
-            if arena.paintable_row_is_populated(node) {
-                arena.paintable_rows_mut().clear_cached_overflow_data(node);
-                // Commit queues are consumed immediately and are bounded by the committed tree.
-                if is_full_layout && !arena.needs_full_scrollable_overflow_recalculation {
-                    arena.boxes_needing_scrollable_overflow_recalculation.push(node);
-                }
-            }
-            node = arena.containing_block_by_walking_ancestors(node);
         }
     }
 

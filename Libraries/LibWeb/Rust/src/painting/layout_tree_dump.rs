@@ -145,7 +145,7 @@ pub unsafe extern "C" fn render_state_dump_layout_tree(
             node_read(),
             (root, initial_indent, interactive),
             |arena, (root, initial_indent, interactive)| {
-                arena.measure_scrollable_overflow();
+                arena.settle_scrollable_overflow();
                 let mut plan = DumpPlan::default();
                 plan_layout_node(
                     &mut plan,

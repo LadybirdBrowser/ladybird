@@ -236,7 +236,6 @@ impl LayoutNodeArena {
 
     pub(crate) fn record_partial_relayout_escape(&mut self) {
         self.pending_updates_escape_partial_relayout = true;
-        self.set_needs_full_scrollable_overflow_recalculation();
     }
 
     pub(crate) fn clear_partial_relayout_escape(&mut self) {
@@ -294,9 +293,6 @@ impl LayoutNodeArena {
     ) -> Option<Vec<PlannedBoundary>> {
         let pending_updates_escaped = std::mem::replace(&mut self.pending_updates_escape_partial_relayout, false)
             || layout_tree_update_escaped_rebuild_roots;
-        if pending_updates_escaped {
-            self.set_needs_full_scrollable_overflow_recalculation();
-        }
         if self.node_needs_layout_update(root) || pending_updates_escaped {
             return None;
         }
@@ -673,7 +669,7 @@ impl LayoutNodeArena {
             return;
         }
         self.note_contained_child_list_change(parent);
-        self.schedule_scrollable_overflow_recalculation(parent);
+        self.request_fragment_overflow_recalculation(parent);
     }
 
     /// What a box that is not laid out again still owes a child list change that stays inside its

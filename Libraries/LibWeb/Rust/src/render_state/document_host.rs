@@ -1059,9 +1059,9 @@ impl DocumentHost {
     /// change what the preparation answers, and so writes the render state.
     pub(crate) fn ask<R>(&self, wait: impl RenderWait, read: impl FnOnce(&mut RenderState) -> R) -> R {
         let (answer, measured_for_preparation) = self.run(wait, false, |state| {
-            let awaited = state.arena_mut().scrollable_overflow.measurement_awaits_preparation();
+            let awaited = state.arena_mut().scrollable_overflow.change_awaits_preparation();
             let answer = read(state);
-            let awaits = state.arena_mut().scrollable_overflow.measurement_awaits_preparation();
+            let awaits = state.arena_mut().scrollable_overflow.change_awaits_preparation();
             (answer, !awaited && awaits)
         });
         if measured_for_preparation {
@@ -1150,14 +1150,14 @@ impl DocumentHost {
     }
 
     /// Answers `read` from the rows as of every write the host made, through the paint side's reads, spending `wait`
-    /// where the rows have to be published again, with every row's overflow measured where `measure_overflow`.
+    /// where the rows have to be published again, with every row's overflow settled where `settle_overflow`.
     pub(crate) fn read_rows<R>(
         &self,
         wait: impl RenderWait,
-        measure_overflow: bool,
+        settle_overflow: bool,
         read: impl FnOnce(&PaintSource<'_>) -> R,
     ) -> R {
-        let rows = self.rows_as_of_writes(wait, measure_overflow);
+        let rows = self.rows_as_of_writes(wait, settle_overflow);
         read(&PaintSource::over_rows(&rows.paintable, &self.absolute_rects))
     }
 
@@ -1198,19 +1198,19 @@ impl DocumentHost {
     /// The rows as of every write the host made: the ones the host has where it knows they still read as the arena,
     /// and otherwise those the render state answers, spending `wait`, which are the ones the host has where they still
     /// read as the arena once the owner has applied the host's writes.
-    fn rows_as_of_writes(&self, wait: impl RenderWait, measure_overflow: bool) -> Rc<RowSnapshot> {
+    fn rows_as_of_writes(&self, wait: impl RenderWait, settle_overflow: bool) -> Rc<RowSnapshot> {
         let held = self
             .rows
             .borrow()
             .clone()
-            .filter(|rows| !measure_overflow || rows.overflow_is_measured());
+            .filter(|rows| !settle_overflow || rows.overflow_is_settled());
         if let Some(rows) = held.as_ref().filter(|rows| self.knows_rows_read_as_arena(rows)) {
             return Rc::clone(rows);
         }
         let held_version = held.as_ref().map(|rows| rows.version());
         let published = self.ask(wait, |state| {
             let arena = state.arena_mut();
-            (held_version != Some(arena.rows_version())).then(|| arena.publish_row_snapshot(measure_overflow))
+            (held_version != Some(arena.rows_version())).then(|| arena.publish_row_snapshot(settle_overflow))
         });
         match published {
             Some(rows) => {

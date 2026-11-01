@@ -1,7 +1,0 @@
-text edit: refills=0 scrollHeight=300
-plain block inserted: refills=0 scrollHeight=300
-plain block removed: refills=0 scrollHeight=300
-nested absolutely positioned box inserted: refills=1 scrollHeight=500
-nested absolutely positioned box removed: refills=1 scrollHeight=300
-inline-block moved out of its inline parent: refills=1 scrollHeight=300
-inline-block moved back into an inline parent: refills=1 scrollHeight=300

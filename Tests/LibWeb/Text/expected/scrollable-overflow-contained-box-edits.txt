@@ -1,0 +1,7 @@
+text edit: scrollHeight=300
+plain block inserted: scrollHeight=300
+plain block removed: scrollHeight=300
+nested absolutely positioned box inserted: scrollHeight=500
+nested absolutely positioned box removed: scrollHeight=300
+inline-block moved out of its inline parent: scrollHeight=300
+inline-block moved back into an inline parent: scrollHeight=300

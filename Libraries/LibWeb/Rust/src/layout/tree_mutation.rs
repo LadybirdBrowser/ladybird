@@ -350,7 +350,7 @@ mod tests {
     use super::UnplacedLayoutNode;
     use crate::layout::LayoutNodeArena;
     use crate::layout::layout_node_arena::NodeAllocation;
-    use crate::layout::node_data::{NodeKind, NodeSlotId};
+    use crate::layout::node_data::NodeSlotId;
 
     struct Links {
         parent: NodeSlotId,
@@ -518,32 +518,6 @@ mod tests {
         assert_eq!(fragment_cache_epoch(&arena, parent.slot), parent_epoch + 1);
         assert_eq!(fragment_cache_epoch(&arena, sibling.slot), sibling_epoch);
         assert_eq!(fragment_cache_epoch(&arena, child.slot), 0);
-
-        free(&mut arena, grandparent);
-    }
-
-    #[test]
-    fn a_structural_change_clears_the_overflow_validity_of_box_ancestors_only() {
-        let mut arena = LayoutNodeArena::new();
-        let grandparent = arena.allocate_for_test();
-        let parent = arena.allocate_for_test();
-        let child = arena.allocate_for_test();
-        arena.write_shape(grandparent.slot).set_kind(NodeKind::BlockContainer);
-        arena.write_shape(parent.slot).set_kind(NodeKind::InlineNode);
-        arena.attach_child(grandparent.slot, owned(parent.slot), NodeSlotId::INVALID);
-        for node in [grandparent.slot, parent.slot] {
-            arena.populate_paintable_row(node);
-            arena.committed_side_data_mut(node).overflow_valid_across_recommits = true;
-        }
-
-        arena.attach_child(parent.slot, owned(child.slot), NodeSlotId::INVALID);
-
-        assert!(
-            !arena
-                .committed_side_data(grandparent.slot)
-                .overflow_valid_across_recommits
-        );
-        assert!(arena.committed_side_data(parent.slot).overflow_valid_across_recommits);
 
         free(&mut arena, grandparent);
     }

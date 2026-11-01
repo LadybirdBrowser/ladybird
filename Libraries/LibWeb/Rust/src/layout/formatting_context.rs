@@ -3493,13 +3493,14 @@ impl LayoutStageJob {
         arena.reset_layout_update_flags_in_subtree(root);
         arena.leave_active_layout_pass();
         match kind {
-            LayoutStageKind::Root { .. } => arena.did_commit_full_layout(root),
+            // NB: The full pass covered every subtree the last build rebuilt.
+            LayoutStageKind::Root { .. } => arena.clear_pending_rebuilt_subtree_roots(),
             LayoutStageKind::Boundary { .. } => {
-                // Commit reset the subtree's rows, and its new size may affect ancestor scrollable
-                // overflow. Partial relayout roots are SVG viewports or abspos boxes, never SVG
-                // content boxes that would require a new layout instead of an overflow update.
+                // The root's new size may affect the scrollable overflow of the boxes it is placed in. Partial relayout
+                // roots are SVG viewports or abspos boxes, never SVG content boxes that would require a new layout
+                // instead of an overflow update.
                 debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
-                arena.schedule_scrollable_overflow_recalculation(root);
+                arena.request_fragment_overflow_recalculation_of_containing_block(root);
             }
         }
         notifications

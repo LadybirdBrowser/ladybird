@@ -1131,7 +1131,7 @@ mod tests {
     }
 
     #[test]
-    fn a_read_that_first_measures_a_scrollability_flip_leaves_the_paint_preparation_stale() {
+    fn a_read_that_first_settles_a_scrollability_flip_leaves_the_paint_preparation_stale() {
         use crate::layout::node_data::NodeKind;
         use document_host::{
             document_host_note_paint_preparation_is_current, document_host_paint_preparation_is_current,
@@ -1142,18 +1142,19 @@ mod tests {
             let viewport = arena.allocate_for_test().slot;
             arena.write_shape(viewport).set_kind(NodeKind::Viewport);
             arena.populate_paintable_row(viewport);
-            arena.scrollable_overflow.viewport = Some(viewport);
-            // The viewport had scrollable overflow before it was laid out again, and a read measures it first since.
-            arena
-                .committed_side_data_mut(viewport)
-                .overflow_relative_to_padding_box
-                .has_scrollable_overflow = true;
-            arena.note_row_overflow_unmeasured(viewport);
+            // The viewport's fragment holds scrollable overflow it no longer has, and a read settles it first since.
+            let mut link = crate::layout::fragment_tree::FragmentLink::for_test(viewport);
+            let fragment = std::sync::Arc::get_mut(&mut link.fragment).unwrap();
+            fragment.content_inline_size = crate::css::css_pixels::CssPixels::from_integer(100);
+            fragment.content_block_size = crate::css::css_pixels::CssPixels::from_integer(100);
+            fragment.scrollable_overflow.has_scrollable_overflow = true;
+            arena.set_committed_fragment_link(viewport, link, None);
+            arena.request_fragment_overflow_recalculation(viewport);
             viewport
         });
         let measure = || {
             host.ask(ScriptForcedRead::for_test(), |state| {
-                state.arena_mut().measure_scrollable_overflow();
+                state.arena_mut().settle_scrollable_overflow();
             });
         };
 
@@ -1162,7 +1163,7 @@ mod tests {
         assert!(!document_host_paint_preparation_is_current(host));
         assert!(host.with_arena_for_test(|arena| arena.scrollable_overflow.scrollability_changed));
 
-        // A read that measures nothing leaves the preparation as it is.
+        // A read that settles nothing leaves the preparation as it is.
         document_host_note_paint_preparation_is_current(host);
         measure();
         assert!(document_host_paint_preparation_is_current(host));

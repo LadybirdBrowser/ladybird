@@ -495,7 +495,7 @@ pub(crate) struct FrozenFrame {
 /// viewport has no box to paint.
 pub(crate) fn freeze_recording_frame(arena: &mut LayoutNodeArena, inputs: FrameInputs) -> Option<FrozenFrame> {
     // Recording reads overflow, and reading overflow never measures it.
-    arena.measure_scrollable_overflow();
+    arena.settle_scrollable_overflow();
     if !arena.paintable_row_is_populated(inputs.viewport) || arena.stacking_context_entries(inputs.viewport).is_none() {
         return None;
     }

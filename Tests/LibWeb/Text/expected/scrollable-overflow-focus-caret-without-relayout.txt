@@ -1,0 +1,2 @@
+focusing reserves a pixel for the caret: true
+blurring releases it: true

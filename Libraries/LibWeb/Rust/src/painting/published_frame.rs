@@ -337,7 +337,6 @@ mod tests {
                 let mut link = fragment_tree::FragmentLink::for_test(node);
                 link.inset_top = CssPixels::from_integer(index as i64);
                 arena.set_committed_fragment_link(node, link, None);
-                arena.committed_side_data_mut(node).overflow_valid_across_recommits = true;
             }
         }
 
