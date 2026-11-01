@@ -873,6 +873,20 @@ static WebIDL::ExceptionOr<Utf16String> serialize_document_fragment(DOM::Documen
     return markup.to_string();
 }
 
+// https://w3c.github.io/DOM-Parsing/#dfn-serialization-of-the-id
+static Utf16String serialization_of_the_id(Utf16View id)
+{
+    // 1. If id contains """ (U+0022 QUOTATION MARK), let q be "'" (U+0027 APOSTROPHE), and let q be """ (U+0022 QUOTATION MARK) otherwise.
+    auto q = id.contains(u'"') ? '\'' : '"';
+
+    // 2. Return the concatenation of q, id, and q.
+    Utf16StringBuilder result;
+    result.append_ascii(q);
+    result.append(id);
+    result.append_ascii(q);
+    return result.to_string();
+}
+
 // https://w3c.github.io/DOM-Parsing/#xml-serializing-a-documenttype-node
 static WebIDL::ExceptionOr<Utf16String> serialize_document_type(DOM::DocumentType const& document_type, RequireWellFormed require_well_formed)
 {
@@ -902,14 +916,10 @@ static WebIDL::ExceptionOr<Utf16String> serialize_document_type(DOM::DocumentTyp
         // 1. " " (U+0020 SPACE);
         // 2. The string "PUBLIC";
         // 3. " " (U+0020 SPACE);
-        // 4. """ (U+0022 QUOTATION MARK);
-        markup.append_ascii(" PUBLIC \""sv);
+        markup.append_ascii(" PUBLIC "sv);
 
-        // 5. The value of the node's publicId attribute;
-        markup.append(document_type.public_id().utf16_view());
-
-        // 6. """ (U+0022 QUOTATION MARK).
-        markup.append_ascii('"');
+        // 4. the serialization of the ID node's public ID.
+        markup.append(serialization_of_the_id(document_type.public_id().utf16_view()));
     }
 
     // 8. If the node's systemId is not the empty string and the node's publicId is set to the empty string, then append the following, in the order listed, to markup:
@@ -922,14 +932,10 @@ static WebIDL::ExceptionOr<Utf16String> serialize_document_type(DOM::DocumentTyp
     // 9. If the node's systemId is not the empty string then append the following, in the order listed, to markup:
     if (!document_type.system_id().is_empty()) {
         // 1. " " (U+0020 SPACE);
-        // 2. """ (U+0022 QUOTATION MARK);
-        markup.append_ascii(" \""sv);
+        markup.append_ascii(' ');
 
-        // 3. The value of the node's systemId attribute;
-        markup.append(document_type.system_id().utf16_view());
-
-        // 4. """ (U+0022 QUOTATION MARK).
-        markup.append_ascii('"');
+        // 2. the serialization of the ID node's system ID.
+        markup.append(serialization_of_the_id(document_type.system_id().utf16_view()));
     }
 
     // 10. Append ">" (U+003E GREATER-THAN SIGN) to markup.
