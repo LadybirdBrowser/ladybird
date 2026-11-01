@@ -13,7 +13,7 @@ use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::css::style_value::{BasicShapeData, OwnedBasicShapeData, RetainedStyleValueData, StyleValueData};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
-use crate::painting::{paintable_geometry, style_queries};
+use crate::painting::style_queries;
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, rotation_matrix, translation_matrix};
 
 use super::basic_shapes::{basic_shape_kind, position_resolved};
@@ -47,21 +47,6 @@ fn position_value_at(point: (f64, f64), rect: CssPixelRect) -> StyleValueData {
     StyleValueData::Position {
         edge_x: edge(point.0 - rect.x.to_double()),
         edge_y: edge(point.1 - rect.y.to_double()),
-    }
-}
-
-// https://drafts.csswg.org/motion-1/#offset-path-property
-// In CSS contexts, the boxes being referenced are from the element that establishes the containing block for this
-// element.
-// FIXME: In SVG contexts, all values behave as view-box.
-fn containing_block_reference_box(arena: &impl PaintRead, node: NodeSlotId, coord_box: u16) -> CssPixelRect {
-    let Some(containing_block) = arena.node_containing_block_if_live(node) else {
-        return CssPixelRect::default();
-    };
-    match coord_box {
-        keyword::CONTENT_BOX | keyword::FILL_BOX => paintable_geometry::absolute_rect(arena, containing_block),
-        keyword::PADDING_BOX => paintable_geometry::absolute_padding_box_rect(arena, containing_block),
-        _ => paintable_geometry::absolute_border_box_rect(arena, containing_block),
     }
 }
 
@@ -168,6 +153,7 @@ pub(crate) fn compute_offset_transform(
     style: ComputedValuesView<'_>,
     arena: &impl PaintRead,
     node: NodeSlotId,
+    geometry: &impl super::node_values::TransformGeometry,
     reference_box: CssPixelRect,
     origin: (f64, f64),
 ) -> Option<FloatMatrix4x4> {
@@ -189,8 +175,12 @@ pub(crate) fn compute_offset_transform(
         path => (Some(path), keyword::BORDER_BOX),
     };
 
-    let border_box = paintable_geometry::absolute_border_box_rect(arena, node);
-    let containing_box = containing_block_reference_box(arena, node, coord_box);
+    // https://drafts.csswg.org/motion-1/#offset-path-property
+    // In CSS contexts, the boxes being referenced are from the element that establishes the containing block for this
+    // element.
+    // FIXME: In SVG contexts, all values behave as view-box.
+    let border_box = geometry.border_box();
+    let containing_box = geometry.containing_block_box(coord_box);
 
     // https://drafts.csswg.org/motion-1/#offset-position-property
     let offset_position = style_queries::handle_value(&transform_values.offset_position);

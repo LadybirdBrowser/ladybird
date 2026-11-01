@@ -69,12 +69,17 @@ pub(crate) fn physical_overflow_directions(
     layout_arena: &LayoutNodeArena,
     node: NodeSlotId,
 ) -> PhysicalOverflowDirections {
+    layout_arena.node_style_if_live(node).map_or_else(
+        PhysicalOverflowDirections::default,
+        physical_overflow_directions_of_style,
+    )
+}
+
+pub(crate) fn physical_overflow_directions_of_style(
+    style: crate::css::computed_value_views::ComputedValuesView<'_>,
+) -> PhysicalOverflowDirections {
     // A scrolling box of a viewport or element has two overflow directions, which are the block-end and inline-end
     // directions for that viewport or element.
-    let Some(style) = layout_arena.node_style_if_live(node) else {
-        return PhysicalOverflowDirections::default();
-    };
-
     let mut inline_axis = AxisDirection {
         is_horizontal: style.writing_mode() == writing_mode::HORIZONTAL_TB,
         is_reverse: style.inline_axis_is_reverse(),
