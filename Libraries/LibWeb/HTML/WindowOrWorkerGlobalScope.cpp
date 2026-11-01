@@ -36,7 +36,6 @@
 #include <LibWeb/EventTiming/PerformanceEventTiming.h>
 #include <LibWeb/Fetch/BindingsGlue.h>
 #include <LibWeb/Fetch/FetchMethod.h>
-#include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/Canvas/PredefinedColorSpace.h>
 #include <LibWeb/HTML/CanvasRenderingContext2D.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -1445,12 +1444,12 @@ void WindowOrWorkerGlobalScopeMixin::forcibly_close_all_event_sources()
         event_source->forcibly_close();
 }
 
-void WindowOrWorkerGlobalScopeMixin::add_strong_reference_to_broadcast_channel(Badge<BroadcastChannel>, GC::Ref<BroadcastChannel> channel)
+void WindowOrWorkerGlobalScopeMixin::add_strong_reference_to_broadcast_channel(GC::Ref<DOM::EventTarget> channel)
 {
     m_strongly_referenced_broadcast_channels.set(channel);
 }
 
-void WindowOrWorkerGlobalScopeMixin::remove_strong_reference_to_broadcast_channel(Badge<BroadcastChannel>, GC::Ref<BroadcastChannel> channel)
+void WindowOrWorkerGlobalScopeMixin::remove_strong_reference_to_broadcast_channel(GC::Ref<DOM::EventTarget> channel)
 {
     m_strongly_referenced_broadcast_channels.remove(channel);
 }

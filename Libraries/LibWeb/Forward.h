@@ -641,7 +641,6 @@ class AudioTrackList;
 class AutoplaySettings;
 class BarProp;
 class BeforeUnloadEvent;
-class BroadcastChannel;
 class BrowsingContext;
 class Canvas2DContextBase;
 class CanvasHost;

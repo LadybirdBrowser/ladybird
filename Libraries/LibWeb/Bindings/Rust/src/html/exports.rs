@@ -7,20 +7,26 @@
 //! The C ABI through which LibWeb's C++ creates and reads the ImageData, ImageBitmap and MessagePort objects that it
 //! handles, which Libraries/LibWeb/HTML/ImageData.cpp, Libraries/LibWeb/HTML/ImageBitmap.cpp and
 //! Libraries/LibWeb/HTML/MessagePort.cpp declare. A cell is the cell of an object of the interface that the name of
-//! the function says.
+//! the function says. Libraries/LibWeb/HTML/BroadcastChannel.cpp hands the BroadcastChannel objects the messages that
+//! other processes post.
 
 use core::ffi::c_void;
 use core::ptr::NonNull;
+use std::rc::Rc;
 
+use ak::Utf16String;
 use libgfx_rust::image_frame::ImageFrameHandle;
 use libjs_rust::api::{Gc, MarkedVec, Object, RawNativeFunctionResult, Value, Vm};
+use liburl_rust::FfiOrigin;
 
+use super::broadcast_channel::{BroadcastChannel, BroadcastChannelMessage, SerializedMessage};
 use super::image_bitmap::ImageBitmap;
 use super::image_data::ImageData;
 use super::message_port::MessagePort;
 use crate::bindings::CallContext;
 use crate::bindings::event_target::CppEventTarget;
 use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::storage_api::storage_key::StorageKey;
 
 /// The implementation of the object whose cell C++ lends, for as long as C++ keeps the cell alive.
 ///
@@ -334,4 +340,36 @@ pub unsafe extern "C" fn web_rust_message_port_disentangle_ports_of_realm(vm: *m
     // SAFETY: The caller passes the live VM and a live realm.
     let (vm, realm) = unsafe { realm_arguments(vm, realm) };
     MessagePort::disentangle_ports_of_realm(vm, realm);
+}
+
+/// Steps 6 to 9 of BroadcastChannel's postMessage(), for a message that another process posted, whose channel name
+/// and serialized message C++ hands over.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, the origins lent, `channel_name` an owned AK::Utf16String, and `serialized_message` a
+/// BroadcastChannelSerializedMessage that LibWeb hands over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_broadcast_channel_deliver_message_locally(
+    vm: *mut c_void,
+    storage_key_origin: *const FfiOrigin,
+    channel_name: usize,
+    source_origin: *const FfiOrigin,
+    serialized_message: *mut c_void,
+) {
+    // SAFETY: The caller passes the live VM, lends the origins, and hands over the name and the message.
+    let (vm, message) = unsafe {
+        (
+            &*vm.cast::<Vm>(),
+            BroadcastChannelMessage {
+                storage_key: StorageKey {
+                    origin: (*storage_key_origin).to_origin(),
+                },
+                channel_name: Utf16String::from_raw_owned(channel_name),
+                source_origin: (*source_origin).to_origin(),
+                serialized: SerializedMessage::from_raw(serialized_message),
+            },
+        )
+    };
+    BroadcastChannel::deliver_message_locally(vm, &Rc::new(message), None);
 }

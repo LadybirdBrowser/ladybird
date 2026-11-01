@@ -19,6 +19,11 @@ unsafe extern "C" {
         ctx: *mut c_void,
         on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
     ) -> bool;
+    fn web_storage_api_obtain_a_storage_key_for_non_storage_purposes(
+        realm: *mut c_void,
+        ctx: *mut c_void,
+        on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
+    );
 }
 
 // https://storage.spec.whatwg.org/#storage-keys
@@ -49,4 +54,20 @@ pub(crate) fn obtain_a_storage_key(realm: Gc<Realm>) -> Option<StorageKey> {
     // SAFETY: The realm is live, and the origin outlives the call.
     unsafe { web_storage_api_obtain_a_storage_key(realm.as_ptr().cast(), (&raw mut origin).cast(), on_origin) };
     origin.map(|origin| StorageKey { origin })
+}
+
+/// https://storage.spec.whatwg.org/#obtain-a-storage-key-for-non-storage-purposes
+pub(crate) fn obtain_a_storage_key_for_non_storage_purposes(realm: Gc<Realm>) -> StorageKey {
+    let mut origin: Option<Origin> = None;
+    // SAFETY: The realm is live, and the origin outlives the call.
+    unsafe {
+        web_storage_api_obtain_a_storage_key_for_non_storage_purposes(
+            realm.as_ptr().cast(),
+            (&raw mut origin).cast(),
+            on_origin,
+        );
+    }
+    StorageKey {
+        origin: origin.expect("LibWeb lends the origin of the storage key"),
+    }
 }

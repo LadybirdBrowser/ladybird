@@ -16,8 +16,8 @@ use libwebcommon_rust::html::serialization_records::SerializationType;
 use crate::bindings::interface::realm_arguments;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    IPCSerializationRecord, ReceivedIPCSerializationRecord, SerializedTransferRecord, SharedBuffers,
-    StorageSerializationRecord, TransferDataDecoder, TransferredValues,
+    IPCSerializationRecord, ReceivedIPCSerializationRecord, SerializedTransferRecord, StorageSerializationRecord,
+    TransferDataDecoder, TransferredValues,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
@@ -62,30 +62,23 @@ fn structured_serialize_in_current_realm<'vm>(
     })
 }
 
-/// StructuredSerialize, which runs in the current realm, and sets the record. The record shares the cross-process
-/// shared memory of SharedArrayBuffers through the list, if there is one.
+/// StructuredSerialize, which runs in the current realm, and sets the record.
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a list that C++ lends or null, and a record that C++ lends. The value must be live.
+/// The pointers must be the VM and a record that C++ lends. The value must be live.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_serialize(
     vm: *mut c_void,
     value: u64,
     allow_shared_array_buffers: u8,
-    shared_buffers: *mut c_void,
     record: *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM.
     let vm = unsafe { &*vm.cast::<Vm>() };
-    // SAFETY: The caller passes a live value, and lends the list and the record.
+    // SAFETY: The caller passes a live value, and lends the record.
     let (value, record) = unsafe { (Value::from_raw(value), IPCSerializationRecord::from_raw(record)) };
-    let serialized = if shared_buffers.is_null() {
-        StructuredSerializeWriter::new(vm, SerializationType::Ipc)
-    } else {
-        // SAFETY: The caller lends the list.
-        StructuredSerializeWriter::new_with_shared_buffers(vm, unsafe { SharedBuffers::from_raw(shared_buffers) })
-    };
+    let serialized = StructuredSerializeWriter::new(vm, SerializationType::Ipc);
     if let Err(result) = structured_serialize_in_current_realm(
         vm,
         &serialized,
@@ -128,30 +121,23 @@ pub unsafe extern "C" fn web_rust_structured_serialize_for_storage(
     RawNativeFunctionResult::from_completion(Ok(Value::UNDEFINED))
 }
 
-/// StructuredDeserialize of the IPC record in the realm. The record shares the cross-process shared memory of
-/// SharedArrayBuffers through the list, if there is one.
+/// StructuredDeserialize of the IPC record in the realm.
 ///
 /// # Safety
 ///
-/// The pointers must be the VM, a live realm, a record that C++ lends, and a list that C++ lends or null.
+/// The pointers must be the VM, a live realm, and a record that C++ lends.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_structured_deserialize(
     vm: *mut c_void,
     target_realm: *mut c_void,
     record: *const c_void,
-    shared_buffers: *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the VM and a live realm.
     let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
     let cx = CallContext::new(vm, target_realm);
-    // SAFETY: The caller lends the record, and the list if there is one.
-    let (record, shared_buffers) = unsafe {
-        (
-            ReceivedIPCSerializationRecord::from_raw(record),
-            (!shared_buffers.is_null()).then(|| SharedBuffers::from_raw(shared_buffers)),
-        )
-    };
-    let serialized = StructuredSerializeReader::new_ipc(target_realm, record, shared_buffers);
+    // SAFETY: The caller lends the record.
+    let record = unsafe { ReceivedIPCSerializationRecord::from_raw(record) };
+    let serialized = StructuredSerializeReader::new_ipc(target_realm, record, None);
     let memory = DeserializationMemory::new(vm);
     completion(&cx, structured_deserialize_internal(&cx, &serialized, &memory, false))
 }

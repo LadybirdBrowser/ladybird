@@ -87,8 +87,8 @@ public:
     void unregister_event_source(Badge<EventSource>, GC::Ref<EventSource>);
     void forcibly_close_all_event_sources();
 
-    void add_strong_reference_to_broadcast_channel(Badge<BroadcastChannel>, GC::Ref<BroadcastChannel>);
-    void remove_strong_reference_to_broadcast_channel(Badge<BroadcastChannel>, GC::Ref<BroadcastChannel>);
+    void add_strong_reference_to_broadcast_channel(GC::Ref<DOM::EventTarget>);
+    void remove_strong_reference_to_broadcast_channel(GC::Ref<DOM::EventTarget>);
 
     void close_all_idb_connections();
 
@@ -205,7 +205,7 @@ private:
     // https://html.spec.whatwg.org/multipage/web-messaging.html#broadcasting-to-other-browsing-contexts
     // The open BroadcastChannel objects with a message or messageerror listener, which this global keeps alive. They're
     // held here rather than rooted — so a channel that's never closed can't keep its global alive.
-    HashTable<GC::Ref<BroadcastChannel>> m_strongly_referenced_broadcast_channels;
+    HashTable<GC::Ref<DOM::EventTarget>> m_strongly_referenced_broadcast_channels;
     Vector<GC::Weak<PermissionsAPI::PermissionStatus>> m_permission_statuses;
 
     GC::Ptr<HighResolutionTime::Performance> m_performance;

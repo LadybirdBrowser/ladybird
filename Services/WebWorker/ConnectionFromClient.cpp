@@ -224,7 +224,7 @@ void ConnectionFromClient::did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken
 
 void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
 {
-    Web::HTML::BroadcastChannel::deliver_message_locally(message);
+    Web::HTML::deliver_broadcast_channel_message_locally(move(message));
 }
 
 }

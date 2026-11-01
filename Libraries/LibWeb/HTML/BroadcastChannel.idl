@@ -1,5 +1,5 @@
 // https://html.spec.whatwg.org/multipage/web-messaging.html#broadcastchannel
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface BroadcastChannel : EventTarget {
     constructor(DOMString name);
 
