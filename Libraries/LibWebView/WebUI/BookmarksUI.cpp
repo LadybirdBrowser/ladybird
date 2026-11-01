@@ -86,18 +86,26 @@ void BookmarksUI::export_bookmarks(JsonValue const& data)
     if (!data.is_string())
         return;
 
-    Application::the().path_for_downloaded_file(ByteString { "bookmarks.html" })->when_resolved([bookmarks = data.as_string()](auto const& destination) {
-        auto file = Core::File::open(destination.string(), Core::File::OpenMode::Write);
-        if (file.is_error()) {
-            Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", file.error())));
-            return;
-        }
+    auto download_path = Application::the().path_for_downloaded_file(ByteString { "bookmarks.html" });
+    download_path
+        ->when_resolved([bookmarks = data.as_string()](auto const& destination) {
+            auto file = Core::File::open(destination.string(), Core::File::OpenMode::Write);
+            if (file.is_error()) {
+                Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", file.error())));
+                return;
+            }
 
-        if (auto result = file.value()->write_until_depleted(bookmarks.bytes()); result.is_error()) {
-            Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", result.error())));
-            return;
-        }
-    });
+            if (auto result = file.value()->write_until_depleted(bookmarks.bytes()); result.is_error()) {
+                Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", result.error())));
+                return;
+            }
+        })
+        .when_rejected([](auto const& error) {
+            if (error.is_errno() && error.code() == ECANCELED)
+                return;
+
+            Application::the().display_error_dialog(MUST(String::formatted("Unable to export bookmarks: {}", error)));
+        });
 }
 
 void BookmarksUI::show_context_menu(JsonValue const& data)
