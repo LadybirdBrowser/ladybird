@@ -286,7 +286,6 @@ pub fn generate() -> LayoutHeader {
     let mut w = HeaderWriter::new();
 
     w.section("Cell header, at the start of every cell");
-    offset!(w, "CELL_CLASS", CellHeader, class);
     offset!(w, "CELL_MARK", CellHeader, mark);
     offset!(w, "CELL_STATE", CellHeader, state);
     offset!(w, "CELL_KIND", CellHeader, kind);
@@ -294,7 +293,8 @@ pub fn generate() -> LayoutHeader {
         w.define(&format!("CELL_KIND_{}", cell_kind_name(kind)), kind as u8);
     }
 
-    w.section("Class, which the first word of a cell points to: its id and the class it extends");
+    w.section("Class, which the block of a cell holds: its id and the class it extends");
+    w.define("BLOCK_CLASS_TAIL_TAG", BLOCK_CLASS_TAIL_TAG);
     offset!(w, "CLASS_ID", ClassLayout, id);
     offset!(w, "CLASS_PARENT", ClassLayout, parent);
 

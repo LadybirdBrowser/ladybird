@@ -75,7 +75,8 @@ pub fn runtime_class_of_host_class(vm: &Vm, table: &'static JSHostClass) -> &'st
 }
 
 /// The runtime class of `table`, which must be of `kind`, and the allocator its objects come from: the class's own,
-/// or with JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT, that of its nearest ancestor that has one of its own.
+/// or with JS_HOST_CLASS_SHARES_ALLOCATOR_WITH_PARENT, the one that the classes sharing the allocator of its nearest
+/// ancestor without the flag share.
 pub fn runtime_class_and_allocator_of_host_class(
     vm: &Vm,
     table: &'static JSHostClass,
@@ -97,9 +98,13 @@ pub fn runtime_class_and_allocator_of_host_class(
     }
 
     let class = runtime_class_of_host_class(vm, table);
-    let allocator = vm
-        .heap()
-        .runtime_class_allocator(runtime_class_of_host_class(vm, table.allocating_class()));
+    let allocating_class = table.allocating_class();
+    let allocator = if core::ptr::eq(allocating_class, table) {
+        vm.heap().runtime_class_allocator(class)
+    } else {
+        vm.heap()
+            .shared_runtime_class_allocator(runtime_class_of_host_class(vm, allocating_class), class)
+    };
     vm.host_classes()
         .borrow_mut()
         .get_mut(&table.identity())

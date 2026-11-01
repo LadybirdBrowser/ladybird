@@ -73,6 +73,7 @@ use crate::asm::GprSet;
 use crate::asm::Label;
 use crate::asm::MachineFrame;
 use crate::asm::PortableMacroAssembler;
+use crate::asm::Scale;
 use crate::asm::disassembler;
 use crate::bytecode::DecodedInstruction;
 use crate::bytecode::EXCEPTION_REGISTER;
@@ -1873,7 +1874,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.bind(walk);
         // Only objects with the ordinary [[GetPrototypeOf]] have the
         // prototype of their shape.
-        self.masm.load64(scratch, &Address::new(object, 0));
+        self.emit_load_class(scratch, object);
         self.masm
             .load64(scratch, &Address::new(scratch, layout.class_object_methods as i32));
         self.masm.branch64_memory_imm(
@@ -2110,6 +2111,24 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.add64_imm(dst, dst, self.runtime.heap_region_base as i64);
     }
 
+    /// `dst = the class of the cell at cell`, which the cell's block holds,
+    /// or the cell keeps after itself if its block is one of an allocator
+    /// that classes share.
+    fn emit_load_class(&mut self, dst: Gpr, cell: Gpr) {
+        assert_ne!(dst, cell, "the cell is read after its block");
+        let layout = self.runtime.layout;
+        let done = self.masm.new_label();
+        self.masm.and64_imm(dst, cell, layout.cell_block_mask);
+        self.masm
+            .load64(dst, &Address::new(dst, layout.block_class_offset as i32));
+        self.masm
+            .branch_test64(Condition::Zero, dst, layout.block_class_tail_tag, done);
+        let cell_size = layout.class_cell_size as i32 - layout.block_class_tail_tag as i32;
+        self.masm.load32(dst, &Address::new(dst, cell_size));
+        self.masm.load64(dst, &Address::indexed(cell, dst, Scale::One, 0));
+        self.masm.bind(done);
+    }
+
     /// `dst = heap_region_base + (dst << 3)`, the cell pointer the
     /// compressed cell pointer in `dst` (zero-extended, not null) names,
     /// which is in the heap region whatever its 32 bits are.
@@ -2331,8 +2350,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             BranchCondition::Float64(_) => unreachable!("float64 comparisons branch above"),
             BranchCondition::ArrayIterator => self.emit_branch_on_array_iterator(input, target, invert),
             BranchCondition::GeneratorObject => {
-                // NB: Cells start with the pointer to their class.
-                self.masm.load64(scratch, &Address::new(input, 0));
+                self.emit_load_class(scratch, input);
                 let class = self.runtime.layout.generator_object_class as i64;
                 self.masm.branch64_imm(when(Condition::Equal), scratch, class, target);
             }

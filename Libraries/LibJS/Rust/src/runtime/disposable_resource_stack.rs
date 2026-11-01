@@ -77,7 +77,7 @@ impl DisposableResourceStack {
     /// The stack a register holds, which must be one.
     pub fn from_value(value: Value) -> Gc<DisposableResourceStack> {
         assert!(value.is_cell());
-        // SAFETY: The value holds a cell, and every cell starts with its class, which is checked below.
+        // SAFETY: The value holds a cell, whose block holds its class, which is checked below.
         let stack = unsafe { value.cell::<DisposableResourceStack>() };
         assert!(
             class_of(stack).is_subclass_of(Self::CLASS),

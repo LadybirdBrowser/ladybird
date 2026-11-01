@@ -11,7 +11,7 @@ use core::ptr::NonNull;
 use std::collections::HashMap;
 
 use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
-use super::class::{CellTypeInfo, Class, GcCell};
+use super::class::{BLOCK_CLASS_OFFSET, BLOCK_CLASS_TAIL_TAG, BLOCK_SIZE, CellTypeInfo, Class, GcCell};
 use super::class_id::{CLASS_COUNT, ClassId};
 use super::defer_gc::DeferGc;
 use super::weak::WEAK_IMPL_POINTER_OFFSET;
@@ -28,12 +28,21 @@ pub struct Heap {
     /// The allocators of the classes that have no id of their own, the classes derived at run time and the classes
     /// of an embedder's cells, by the address of their class.
     runtime_class_allocators: RefCell<HashMap<usize, HeapAllocator, foldhash::fast::RandomState>>,
+    /// The allocators that the classes extending a class share, by the address of that class.
+    shared_class_allocators: RefCell<HashMap<usize, SharedClassAllocator, foldhash::fast::RandomState>>,
     /// The size classes of each class, by class id, out of line, as few classes have any.
     size_class_tables: Box<[OnceCell<SizeClassTable>; CLASS_COUNT]>,
     inline_allocation_info: InlineAllocationInfo,
     /// LibGC's count of deferrals, and whether a collection waits for it to reach zero.
     deferrals: NonNull<usize>,
     collect_when_deferrals_end: NonNull<bool>,
+}
+
+/// An allocator that classes extending a class share, whose cells each keep their class in the word after them (see
+/// `class_at`), with the type info of those larger cells, which has to outlive the allocator.
+struct SharedClassAllocator {
+    allocator: HeapAllocator,
+    _type_info: Box<CellTypeInfo>,
 }
 
 /// The size classes of a class, with the type infos their blocks dispatch through, which have to outlive the
@@ -80,6 +89,8 @@ impl HeapAllocator {
 pub struct RuntimeClassAllocator {
     class: &'static Class,
     allocator: HeapAllocator,
+    /// Whether the allocator is shared with other classes, so that each cell keeps its class in the word after it.
+    class_in_tail: bool,
 }
 
 impl RuntimeClassAllocator {
@@ -169,6 +180,7 @@ impl Heap {
             raw,
             allocators: [const { Cell::new(None) }; CLASS_COUNT],
             runtime_class_allocators: RefCell::default(),
+            shared_class_allocators: RefCell::default(),
             size_class_tables: Box::new([const { OnceCell::new() }; CLASS_COUNT]),
             inline_allocation_info: InlineAllocationInfo {
                 allocated_bytes_since_last_gc: counter(layout.heap_allocated_bytes_since_last_gc_offset),
@@ -249,13 +261,32 @@ impl Heap {
         let build = |defer_gc: &DeferGc<'_>| {
             let cell = build(defer_gc);
             // SAFETY: Every cell starts with its header.
-            debug_assert!(
-                unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(allocator.class)
-            );
+            debug_assert!(unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).kind } == allocator.class.kind());
             cell
         };
-        // SAFETY: The allocator's cells have the size of a T, checked above, and T's alignment, as its class extends T's.
-        unsafe { self.allocate_with(allocator.allocator, size_of::<T>(), AllocationKind::Cell, build, |_| {}) }
+        if !allocator.class_in_tail {
+            // SAFETY: The allocator's cells have the size of a T, checked above, and T's alignment, as its class extends
+            //         T's.
+            return unsafe {
+                self.allocate_with(allocator.allocator, size_of::<T>(), AllocationKind::Cell, build, |_| {})
+            };
+        }
+        let class = allocator.class;
+        let initialize_tail = |tail: *mut u8| {
+            // SAFETY: A cell of a shared allocator has room for its class right after the T, 8-byte aligned.
+            unsafe { tail.cast::<&'static Class>().write(class) };
+        };
+        // SAFETY: The cells of a shared allocator have the size of a T and a word, and T's alignment, as its class
+        //         extends T's.
+        unsafe {
+            self.allocate_with(
+                allocator.allocator,
+                size_of::<T>() + size_of::<&'static Class>(),
+                AllocationKind::Cell,
+                build,
+                initialize_tail,
+            )
+        }
     }
 
     /// allocate() into a cell of `size_class`, whose class is the class of the cell or one that it extends, filling the
@@ -307,7 +338,7 @@ impl Heap {
             let cell = build(defer_gc);
             // SAFETY: Every cell starts with its header.
             debug_assert!(
-                unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).class }.is_subclass_of(size_class.class)
+                unsafe { (*core::ptr::from_ref(&cell).cast::<CellHeader>()).kind } == size_class.class.kind()
             );
             cell
         };
@@ -414,7 +445,7 @@ impl Heap {
         let header = storage.cast::<CellHeader>();
         // SAFETY: Every cell starts with its header.
         unsafe {
-            debug_assert!((*header.as_ptr()).class.is_subclass_of(T::CLASS));
+            debug_assert!((*header.as_ptr()).class().is_subclass_of(T::CLASS));
             (*header.as_ptr()).mark.set(must_mark);
             Gc::from_non_null(storage)
         }
@@ -478,22 +509,26 @@ impl Heap {
         }
     }
 
-    /// Creates an allocator of cells of `class` with `type_info`, whose blocks hold the class (see `class_of`).
+    /// Creates an allocator of cells of `class` with `type_info`, whose blocks hold the class (see `class_of`), tagged
+    /// if each cell keeps a class of its own in the word after it.
     ///
     /// # Safety
     ///
     /// The type info must outlive the allocator.
-    unsafe fn create_allocator(&self, type_info: *const CellTypeInfo, class: &'static Class) -> HeapAllocator {
+    unsafe fn create_allocator(
+        &self,
+        type_info: *const CellTypeInfo,
+        class: &'static Class,
+        class_in_tail: bool,
+    ) -> HeapAllocator {
         let name = class.name;
+        let mut foreign_type = core::ptr::from_ref(class).cast::<u8>();
+        if class_in_tail {
+            foreign_type = foreign_type.wrapping_add(BLOCK_CLASS_TAIL_TAG);
+        }
         // SAFETY: The caller keeps the type info alive for as long as the allocator, and the class lives forever.
-        let raw = unsafe {
-            capi::gc_allocator_create(
-                type_info,
-                name.as_ptr().cast(),
-                name.len(),
-                core::ptr::from_ref(class).cast(),
-            )
-        };
+        let raw =
+            unsafe { capi::gc_allocator_create(type_info, name.as_ptr().cast(), name.len(), foreign_type.cast()) };
         let raw = NonNull::new(raw).expect("LibGC creates the allocator");
         // SAFETY: The heap and the allocator are live.
         let local_free_list = unsafe { capi::gc_heap_allocator_local_free_list(self.raw.as_ptr(), raw.as_ptr()) };
@@ -510,6 +545,47 @@ impl Heap {
         RuntimeClassAllocator {
             class,
             allocator: self.allocator_kept_by_class_address(class),
+            class_in_tail: false,
+        }
+    }
+
+    /// The allocator of `class`, a class derived at run time that shares the allocator of `allocating_class`, a class it
+    /// extends, with the other classes that do: each cell keeps its class in the word after it (see `class_at`).
+    pub fn shared_runtime_class_allocator(
+        &self,
+        allocating_class: &'static Class,
+        class: &'static Class,
+    ) -> RuntimeClassAllocator {
+        assert!(
+            class.is_derived_at_run_time()
+                && class.is_subclass_of(allocating_class)
+                && class.type_info.cell_size == allocating_class.type_info.cell_size
+                && allocating_class.type_info.alignment as usize <= size_of::<&'static Class>(),
+            "{} cannot share the allocator of {}",
+            class.name,
+            allocating_class.name
+        );
+        let allocator = self
+            .shared_class_allocators
+            .borrow_mut()
+            .entry(core::ptr::from_ref(allocating_class) as usize)
+            .or_insert_with(|| {
+                let type_info = Box::new(CellTypeInfo {
+                    cell_size: allocating_class.type_info.cell_size + size_of::<&'static Class>() as u32,
+                    ..allocating_class.type_info
+                });
+                // SAFETY: The box keeps the type info alive for as long as the allocator.
+                let allocator = unsafe { self.create_allocator(&raw const *type_info, allocating_class, true) };
+                SharedClassAllocator {
+                    allocator,
+                    _type_info: type_info,
+                }
+            })
+            .allocator;
+        RuntimeClassAllocator {
+            class,
+            allocator,
+            class_in_tail: true,
         }
     }
 
@@ -524,6 +600,7 @@ impl Heap {
         RuntimeClassAllocator {
             class,
             allocator: self.allocator_kept_by_class_address(class),
+            class_in_tail: false,
         }
     }
 
@@ -533,7 +610,7 @@ impl Heap {
             .borrow_mut()
             .entry(core::ptr::from_ref(class) as usize)
             // SAFETY: The class and its name live as long as the process, so they outlive the allocator.
-            .or_insert_with(|| unsafe { self.create_allocator(&raw const class.type_info, class) })
+            .or_insert_with(|| unsafe { self.create_allocator(&raw const class.type_info, class, false) })
     }
 
     /// The size classes of `class`, whose cells have `cell_sizes` bytes, in that order, which the first call for the
@@ -584,7 +661,7 @@ impl Heap {
                 class,
                 cell_size: type_info.cell_size,
                 // SAFETY: The heap destroys the allocator before the type info, and the class name is static.
-                allocator: unsafe { self.create_allocator(type_info, class) },
+                allocator: unsafe { self.create_allocator(type_info, class, false) },
             })
             .collect();
         SizeClassTable {
@@ -605,7 +682,7 @@ impl Heap {
             class.name
         );
         // SAFETY: The class and its name are static, so they outlive the allocator.
-        let allocator = unsafe { self.create_allocator(&raw const class.type_info, class) };
+        let allocator = unsafe { self.create_allocator(&raw const class.type_info, class, false) };
         slot.set(Some(allocator));
         allocator
     }
@@ -687,6 +764,9 @@ impl Drop for Heap {
             for allocator in self.runtime_class_allocators.get_mut().values() {
                 capi::gc_allocator_destroy(allocator.raw.as_ptr());
             }
+            for shared in self.shared_class_allocators.get_mut().values() {
+                capi::gc_allocator_destroy(shared.allocator.raw.as_ptr());
+            }
             for table in self.size_class_tables.iter().filter_map(OnceCell::get) {
                 for size_class in &table.allocators {
                     capi::gc_allocator_destroy(size_class.allocator.raw.as_ptr());
@@ -720,6 +800,12 @@ fn check_layout() -> GCLayout {
         "cell kind offset",
         layout.cell_kind_offset.into(),
         offset_of!(CellHeader, kind) as u64,
+    );
+    expect("block size", layout.block_size.into(), BLOCK_SIZE as u64);
+    expect(
+        "block foreign type offset",
+        layout.block_foreign_type_offset.into(),
+        BLOCK_CLASS_OFFSET as u64,
     );
     expect(
         "cell type info size",

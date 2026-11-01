@@ -31,8 +31,8 @@ pub struct CellTypeInfo {
     pub class_name: Option<unsafe extern "C" fn(cell: *const c_void, length: *mut usize) -> *const c_char>,
 }
 
-/// The class of a cell, stored in the first word of every cell. It starts with the type info LibGC dispatches
-/// through, so the class of a cell and the type info of the block it lives in are the same address.
+/// The class of a cell, which the block the cell lives in holds (see `class_of`). It starts with the type info LibGC
+/// dispatches through.
 #[repr(C)]
 pub struct Class {
     pub type_info: CellTypeInfo,
@@ -246,8 +246,8 @@ unsafe extern "C" fn destroy<T>(cell: *mut c_void) {
 }
 
 unsafe extern "C" fn class_name(cell: *const c_void, length: *mut usize) -> *const c_char {
-    // SAFETY: Every Rust cell starts with its class.
-    let class = unsafe { cell.cast::<&'static Class>().read() };
+    // SAFETY: LibGC passes a cell of a Rust allocator.
+    let class = unsafe { class_at(cell.cast()) };
     // SAFETY: LibGC passes somewhere to store the length.
     unsafe { length.write(class.name.len()) };
     class.name.as_ptr().cast()
@@ -278,19 +278,64 @@ unsafe impl<T: GcCell> Extends<CellHeader> for T {}
 // SAFETY: A header starts with itself.
 unsafe impl Extends<CellHeader> for CellHeader {}
 
+/// A cell's block starts at the cell's address rounded down to a multiple of BLOCK_SIZE, and holds the class of its
+/// cells at BLOCK_CLASS_OFFSET: the foreign type of the allocator that created the block (see Heap::create_allocator).
+/// The block of an allocator that classes share holds the class they extend with BLOCK_CLASS_TAIL_TAG added, and each of
+/// its cells keeps its own class in the word after the cell_size bytes of that class.
+pub const BLOCK_SIZE: usize = 16 * 1024;
+pub const BLOCK_CLASS_OFFSET: usize = 2 * size_of::<usize>();
+pub use crate::layout::cell::BLOCK_CLASS_TAIL_TAG;
+
+/// The class that the block `address` is in holds, without its tag, or null for a block of C++ cells.
+///
+/// # Safety
+///
+/// `address` must be in a live cell.
+pub unsafe fn block_class_pointer_at(address: *const u8) -> *const Class {
+    debug_assert!(is_in_heap_region(address.addr()), "only cells in the heap have a class");
+    let block = address.wrapping_sub(address.addr() & (BLOCK_SIZE - 1));
+    // SAFETY: The caller passes an address in a live cell, whose block is live as well.
+    let class = unsafe { block.add(BLOCK_CLASS_OFFSET).cast::<*const u8>().read() };
+    class.wrapping_sub(class.addr() & BLOCK_CLASS_TAIL_TAG).cast()
+}
+
+/// The class of the cell at `cell`.
+///
+/// # Safety
+///
+/// `cell` must be the address of a live cell of a Rust allocator.
+pub unsafe fn class_at(cell: *const u8) -> &'static Class {
+    debug_assert!(is_in_heap_region(cell.addr()), "only cells in the heap have a class");
+    let block = cell.wrapping_sub(cell.addr() & (BLOCK_SIZE - 1));
+    // SAFETY: The caller passes a live cell of a Rust allocator, whose block holds a class.
+    let class = unsafe { block.add(BLOCK_CLASS_OFFSET).cast::<*const u8>().read() };
+    if class.addr() & BLOCK_CLASS_TAIL_TAG == 0 {
+        // SAFETY: The allocator created the block with the class of its cells, which lives forever.
+        return unsafe { &*class.cast::<Class>() };
+    }
+    // SAFETY: The class that classes share an allocator of lives forever, and each cell of the allocator keeps its own
+    //         class right after the bytes of that class.
+    unsafe {
+        let shared = &*class.wrapping_sub(BLOCK_CLASS_TAIL_TAG).cast::<Class>();
+        cell.add(shared.type_info.cell_size as usize)
+            .cast::<&'static Class>()
+            .read()
+    }
+}
+
 /// The class a cell was allocated with, which may be a subclass of its static type.
 pub fn class_of<T>(cell: crate::layout::cell::Gc<T>) -> &'static Class {
-    // SAFETY: Every cell starts with its class.
-    unsafe { cell.as_ptr().cast::<&'static Class>().read() }
+    // SAFETY: The cell is live.
+    unsafe { class_at(cell.as_ptr().cast()) }
 }
 
 /// The cell as a `Derived`, if it was allocated as one or as a subclass of it.
 ///
-/// NB: A cell carries the class it is constructed with from the start, and is only ever constructed as part of a
-///     value of that class, so its class tells what the memory around it is.
+/// NB: A cell is only ever allocated by the allocator of its class, so the class its block holds tells what the memory
+///     around it is.
 pub fn downcast_ref<Base: GcCell, Derived: GcCell + Extends<Base>>(cell: &Base) -> Option<&Derived> {
-    // SAFETY: Every cell starts with its class.
-    let class = unsafe { core::ptr::from_ref(cell).cast::<&'static Class>().read() };
+    // SAFETY: The cell is live.
+    let class = unsafe { class_at(core::ptr::from_ref(cell).cast()) };
     class
         .is_class_of::<Derived>()
         // SAFETY: The cell is a Derived or a subclass of it, which starts with a Derived.
@@ -353,13 +398,20 @@ impl<T> crate::layout::cell::Gc<T> {
 }
 
 impl CellHeader {
+    /// The header of a cell of `class`, which must also be the class of the allocator the cell comes from.
     pub fn for_class(class: &'static Class) -> Self {
         Self {
-            class,
+            unused: [0; 8],
             mark: false.into(),
             state: CellState::Live.into(),
             kind: class.kind(),
         }
+    }
+
+    /// The class of the cell, which its block holds.
+    pub fn class(&self) -> &'static Class {
+        // SAFETY: A header starts a live cell.
+        unsafe { class_at(core::ptr::from_ref(self).cast()) }
     }
 }
 

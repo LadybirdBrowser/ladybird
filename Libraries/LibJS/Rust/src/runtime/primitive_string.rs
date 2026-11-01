@@ -644,7 +644,7 @@ impl PrimitiveString {
     }
 
     fn header_class(&self) -> &'static Class {
-        self.header.class
+        self.header.class()
     }
 
     pub fn deferred_kind(&self) -> DeferredKind {

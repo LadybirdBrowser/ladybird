@@ -108,7 +108,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             &Address::new(environment, layout.environment_declarative as i32),
         );
         self.masm.branch_test32(Condition::Zero, scratch, 0xFF, fail);
-        self.masm.load64(scratch, &Address::new(environment, 0));
+        self.emit_load_class(scratch, environment);
         self.masm.move_imm64(shape, layout.module_environment_class);
         self.masm.branch64(Condition::Equal, scratch, shape, fail);
 

@@ -110,8 +110,8 @@ public:
     Utf16FlyString const& message() const { return m_message; }
     u16 code() const { return get_legacy_code_for_name(m_name); }
 
-    JS::ErrorDataCell& error_data() { return *m_error_data; }
-    JS::ErrorDataCell const& error_data() const { return *m_error_data; }
+    JS::ErrorData& error_data() { return m_error_data->error_data(); }
+    JS::ErrorData const& error_data() const { return m_error_data->error_data(); }
 
 protected:
     DOMException(FlyString name, Utf16String const& message);
