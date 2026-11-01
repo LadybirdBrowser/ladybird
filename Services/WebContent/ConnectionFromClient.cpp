@@ -892,6 +892,14 @@ void ConnectionFromClient::mouse_event_in_hosted_root(Web::PageId page_id, Web::
     enqueue_mouse_event(page_id, navigable_id, move(event));
 }
 
+// The compositor numbers every wheel step, so only the gesture of the steps decides whether they may become one.
+static bool wheel_steps_are_of_one_gesture(Optional<Web::WheelGestureMark> const& first, Optional<Web::WheelGestureMark> const& second)
+{
+    if (!first.has_value() || !second.has_value())
+        return first.has_value() == second.has_value();
+    return first->gesture_id == second->gesture_id && first->lasts_until_fingers_lift == second->lasts_until_fingers_lift;
+}
+
 void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> navigable_id, Web::MouseEvent event)
 {
     auto page = m_page_host->page(page_id);
@@ -923,7 +931,7 @@ void ConnectionFromClient::enqueue_mouse_event(Web::PageId page_id, Optional<Web
                 && (mouse_event->async_scroll_performed_default_action != event.async_scroll_performed_default_action
                     || mouse_event->wheel_delta_precision != event.wheel_delta_precision
                     || mouse_event->scroll_gesture_phase != event.scroll_gesture_phase
-                    || mouse_event->wheel_gesture_mark != event.wheel_gesture_mark))
+                    || !wheel_steps_are_of_one_gesture(mouse_event->wheel_gesture_mark, event.wheel_gesture_mark)))
                 return nullptr;
             return mouse_event;
         }

@@ -150,8 +150,7 @@ struct WheelGestureMark {
     // Whether the gesture goes on for as long as its fingers rest on the touchpad, which the platform reports the lift
     // of, rather than until its events pause.
     bool lasts_until_fingers_lift { false };
-
-    bool operator==(WheelGestureMark const&) const = default;
+    u64 step_number { 0 };
 };
 
 struct WEBCOMMON_API MouseEvent {

@@ -227,7 +227,7 @@ public:
     // Routes the event like one from the UI, also in a context that is nested in another one.
     ContextUpdateResult scroll_for_wheel_event_from_main_thread(Web::MouseEvent const&, bool is_first_wheel_event_with_delta, WheelEventListenerGate const&, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
     Optional<u64> wheel_gesture_id() const { return m_wheel_gesture_routing.gesture_id(); }
-    bool wheel_step_was_overtaken_by_ui(Web::ScrollGesturePhase phase, u64 input_event_id) const { return m_wheel_gesture_routing.step_was_overtaken_by_ui(phase, input_event_id); }
+    bool wheel_step_was_overtaken(Web::ScrollGesturePhase phase, u64 step_number) const { return m_wheel_gesture_routing.step_was_overtaken(phase, step_number); }
     Optional<Web::CompositorContextId> wheel_event_listener_context() const { return m_wheel_gesture_routing.wheel_event_listener_context(); }
     void set_wheel_event_listener_context(Web::CompositorContextId context_id) { m_wheel_gesture_routing.set_wheel_event_listener_context(context_id); }
     WheelEventListenerGate wheel_event_listener_gate(Optional<u64> gesture_id) const;
@@ -268,7 +268,7 @@ public:
     Optional<ContextUpdateResult> scroll_for_latched_wheel_step_the_page_let_through(WheelStep const&, MonotonicTime now);
     // A step of a gesture that this context has moved past scrolls once along its route, latching and stretching
     // nothing.
-    ContextUpdateResult scroll_for_wheel_step_overtaken_by_ui(WheelStep const&, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, MonotonicTime now);
+    ContextUpdateResult scroll_for_overtaken_wheel_step(WheelStep const&, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, MonotonicTime now);
     Optional<Web::UniqueNodeID> document_id() const { return m_async_scroll_tree.document_id(); }
     Optional<PendingFrame> apply_scroll_requests(ReadonlySpan<Compositing::ScrollRequest>);
     void cancel_smooth_scroll(Web::AsyncScrollNodeStableID);

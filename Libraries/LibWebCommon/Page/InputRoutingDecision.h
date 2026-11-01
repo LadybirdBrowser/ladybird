@@ -19,7 +19,7 @@ namespace Web {
     X(BlockingWheelEventListeners, "blocking-wheel-event-listeners")                               \
     X(NoScrollNode, "no-scroll-node")                                                              \
     X(StaleWheelEventListeners, "stale-wheel-event-listeners")                                     \
-    X(StepOvertakenByUI, "step-overtaken-by-ui")                                                   \
+    X(StepOvertaken, "step-overtaken")                                                             \
     X(GestureEndWithNothingToSnap, "gesture-end-with-nothing-to-snap")                             \
     X(SnappedAtGestureEnd, "snapped-at-gesture-end")                                               \
     X(HitTestTargetsOfAnotherVisualContextTree, "hit-test-targets-of-another-visual-context-tree") \

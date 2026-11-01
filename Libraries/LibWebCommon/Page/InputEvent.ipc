@@ -39,6 +39,7 @@ enum Web::ScrollGesturePhase : u8 {
 struct Web::WheelGestureMark {
     u64 gesture_id;
     bool lasts_until_fingers_lift;
+    u64 step_number;
 }
 
 [ExistingCpp]

@@ -1441,6 +1441,7 @@ ContextState::NotedWheelEvent ContextState::note_wheel_event(Web::MouseEvent con
         .wheel_gesture_mark = {
             .gesture_id = m_wheel_gesture_routing.gesture_id().value(),
             .lasts_until_fingers_lift = m_wheel_gesture_routing.gesture_lasts_until_fingers_lift(),
+            .step_number = noted.step_number,
         },
         .is_first_wheel_event_with_delta = noted.is_first_wheel_event_with_delta,
     };
@@ -1601,16 +1602,16 @@ Optional<ContextState::ContextUpdateResult> ContextState::scroll_for_latched_whe
     return scroll_for_wheel_step_in_this_context(step, latch.scroll_node_index, Compositing::NestedContextRegions::Ignore, WheelStepAdmission::LetThroughByThePage, {}, now);
 }
 
-ContextState::ContextUpdateResult ContextState::scroll_for_wheel_step_overtaken_by_ui(WheelStep const& step, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, MonotonicTime now)
+ContextState::ContextUpdateResult ContextState::scroll_for_overtaken_wheel_step(WheelStep const& step, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, MonotonicTime now)
 {
     if (!m_has_async_scrolling_state)
         return ContextUpdateResult::declined(Web::InputRoutingDecision::NoAsyncScrollingState);
     auto delta = step.delta_in_css_pixels.scaled(static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
     if (delta.is_zero())
-        return ContextUpdateResult::declined(Web::InputRoutingDecision::StepOvertakenByUI);
+        return ContextUpdateResult::declined(Web::InputRoutingDecision::StepOvertaken);
     auto scroll_target = route_first_wheel_step(step.position, delta, step.wheel_delta_precision, Compositing::WheelStepDispatch::DispatchedAndNotCanceled, Compositing::NestedContextRegions::Ignore, scroll_chain);
     if (!scroll_target.scroll_node_index.has_value())
-        return ContextUpdateResult::declined(Web::InputRoutingDecision::StepOvertakenByUI);
+        return ContextUpdateResult::declined(Web::InputRoutingDecision::StepOvertaken);
 
     m_scroll_snap_controller.note_gesture_phase(step.scroll_gesture_phase);
     auto node_scroll = scroll_node_by_wheel_delta(*scroll_target.scroll_node_index, delta, step.wheel_delta_precision, step.scroll_gesture_phase, step.operation_tracking, m_async_scrolling_viewport_rect, now, Compositing::ScrollChaining::ToScrollableAncestors);
@@ -1619,7 +1620,7 @@ ContextState::ContextUpdateResult ContextState::scroll_for_wheel_step_overtaken_
         .accepted = true,
         .frame_to_present = outcome.viewport_rect_to_present.map([](auto const& rect) { return PendingFrame::repainting_changes(rect); }),
         .should_request_rendering_update = outcome.viewport_rect_to_present.has_value(),
-        .routing_decision = Web::InputRoutingDecision::StepOvertakenByUI,
+        .routing_decision = Web::InputRoutingDecision::StepOvertaken,
         .tracked_scroll_operation = tracked_scroll_operation(step.operation_tracking, outcome.operation_id),
     };
 }

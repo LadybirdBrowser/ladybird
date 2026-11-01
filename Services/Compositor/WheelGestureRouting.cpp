@@ -17,6 +17,14 @@ static u64 allocate_wheel_gesture_id()
     return ++last_wheel_gesture_id;
 }
 
+// Every wheel step a context notes gets the next number, whether the UI sent it or the main thread made it, so the
+// numbers order all of them as the compositor first saw them.
+static u64 allocate_wheel_step_number()
+{
+    static u64 last_wheel_step_number = 0;
+    return ++last_wheel_step_number;
+}
+
 static float position_slop_in_device_pixels(Compositing::AsyncScrollTree const& async_scroll_tree)
 {
     return Compositing::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(async_scroll_tree.device_pixels_per_css_pixel());
@@ -46,14 +54,13 @@ bool WheelGestureRouting::admits_async_pinch() const
 WheelGestureRouting::NotedWheelEvent WheelGestureRouting::note_wheel_event(Web::MouseEvent const& event, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
 {
     auto phase = event.scroll_gesture_phase;
-    if (event.id != 0) {
-        if (phase == Web::ScrollGesturePhase::Ongoing)
-            m_newest_wheel_event_ids_from_ui.ongoing = event.id;
-        else if (phase == Web::ScrollGesturePhase::Momentum)
-            m_newest_wheel_event_ids_from_ui.momentum = event.id;
-        else if (phase == Web::ScrollGesturePhase::Ended)
-            m_newest_wheel_event_ids_from_ui.ended = event.id;
-    }
+    auto step_number = allocate_wheel_step_number();
+    if (phase == Web::ScrollGesturePhase::Ongoing)
+        m_newest_step_numbers.ongoing = step_number;
+    else if (phase == Web::ScrollGesturePhase::Momentum)
+        m_newest_step_numbers.momentum = step_number;
+    else if (phase == Web::ScrollGesturePhase::Ended)
+        m_newest_step_numbers.ended = step_number;
 
     bool starts_gesture = !m_gesture.has_value() || !m_gesture->identity.is_continued_by(position, phase, event.modifiers, now, position_slop_in_device_pixels(async_scroll_tree), m_touchpad_gesture_end);
     if (starts_gesture) {
@@ -69,7 +76,7 @@ WheelGestureRouting::NotedWheelEvent WheelGestureRouting::note_wheel_event(Web::
     bool is_first_wheel_event_with_delta = !m_gesture_had_wheel_event_with_delta && (event.wheel_delta_x != 0 || event.wheel_delta_y != 0);
     if (is_first_wheel_event_with_delta)
         m_gesture_had_wheel_event_with_delta = true;
-    return { .starts_gesture = starts_gesture, .is_first_wheel_event_with_delta = is_first_wheel_event_with_delta };
+    return { .starts_gesture = starts_gesture, .is_first_wheel_event_with_delta = is_first_wheel_event_with_delta, .step_number = step_number };
 }
 
 Optional<u64> WheelGestureRouting::gesture_id() const
@@ -119,21 +126,23 @@ void WheelGestureRouting::forget_gesture()
     m_latch.clear();
 }
 
-bool WheelGestureRouting::step_was_overtaken_by_ui(Web::ScrollGesturePhase phase, u64 input_event_id) const
+// Whether this context noted a later wheel step that this step cannot come before in one gesture, which makes it a step
+// of a gesture this context has already ended or moved past.
+bool WheelGestureRouting::step_was_overtaken(Web::ScrollGesturePhase phase, u64 step_number) const
 {
-    auto const& newest = m_newest_wheel_event_ids_from_ui;
+    auto const& newest = m_newest_step_numbers;
     switch (phase) {
     case Web::ScrollGesturePhase::None:
         return false;
     case Web::ScrollGesturePhase::Ongoing:
         // The fingers lifted after this step.
-        return newest.momentum > input_event_id || newest.ended > input_event_id;
+        return newest.momentum > step_number || newest.ended > step_number;
     case Web::ScrollGesturePhase::Momentum:
         // The momentum ended, or the fingers touched down again, after this step.
-        return newest.ended > input_event_id || newest.ongoing > input_event_id;
+        return newest.ended > step_number || newest.ongoing > step_number;
     case Web::ScrollGesturePhase::Ended:
         // Another gesture started after this end.
-        return newest.ongoing > input_event_id;
+        return newest.ongoing > step_number;
     }
     VERIFY_NOT_REACHED();
 }
