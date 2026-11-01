@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    body {
+        margin: 0;
+    }
+    #spacer {
+        height: 1000px;
+    }
+    #columns {
+        columns: 2;
+        column-gap: 0;
+        width: 400px;
+        height: 200px;
+    }
+    #fragmented {
+        height: 400px;
+        background: green;
+    }
+    #tail {
+        height: 1000px;
+    }
+</style>
+<div id="spacer"></div>
+<div id="columns"><div id="fragmented"></div></div>
+<div id="tail"></div>
+<script>
+    window.scrollTo(0, 1000);
+</script>

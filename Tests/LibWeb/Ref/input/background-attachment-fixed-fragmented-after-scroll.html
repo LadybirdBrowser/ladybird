@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-attachment-fixed-fragmented-after-scroll-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    #spacer {
+        height: 1000px;
+    }
+    #columns {
+        columns: 2;
+        column-gap: 0;
+        width: 400px;
+        height: 200px;
+    }
+    #fragmented {
+        height: 400px;
+        background: linear-gradient(green, green) fixed;
+    }
+    #tail {
+        height: 1000px;
+    }
+</style>
+<div id="spacer"></div>
+<div id="columns"><div id="fragmented"></div></div>
+<div id="tail"></div>
+<script>
+    window.scrollTo(0, 1000);
+</script>

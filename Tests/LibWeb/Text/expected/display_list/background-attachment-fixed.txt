@@ -6,5 +6,5 @@ AccumulatedVisualContext Tree:
 
 DisplayList:
 CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,613] is_viewport=true
-PaintLinearGradient@s0/e0 rect=[0,0 800x600]
+PaintLinearGradient@s0/e0 rect=[0,0 800x600] inline_clips=[clip=[0,0 800x1213] in s1]
 
