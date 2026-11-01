@@ -14,14 +14,9 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/ImageBitmap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
-#include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/RustSerialization.h>
-#include <LibWeb/Bindings/TransformStream.h>
-#include <LibWeb/Bindings/WritableStream.h>
 #include <LibWeb/HTML/ImageBitmap.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
@@ -74,13 +69,6 @@ bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
 u8 web_structured_serialize_serializable_steps(u16 interface_name);
 JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, void* serialized);
 
-bool web_structured_serialize_is_transferable(JSObject*);
-bool web_structured_serialize_transferable_is_detached(JSObject*);
-void web_structured_serialize_transferable_set_detached(JSObject*);
-u8 web_structured_serialize_transferable_primary_interface(JSObject*);
-JSCompletion web_structured_serialize_transfer_steps(void* realm, JSObject*, TransferDataEncoder*, ImageBitmapSharedPixels*);
-bool web_structured_serialize_is_transferable_interface_exposed(u8 type, void* realm);
-JSCompletion web_structured_serialize_create_transferred_platform_object(u8 type, void* realm, TransferDataDecoder*);
 ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(Vector<Core::AnonymousBuffer>*, JSObject* const* transfer_list, size_t count);
 void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixels*);
 
@@ -316,68 +304,6 @@ JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 inter
 {
     auto& js_realm = realm_from_abi(realm);
     auto object = Bindings::deserialize_rust_platform_object(static_cast<Bindings::InterfaceName>(interface_name), js_realm, serialized);
-    if (object.is_exception())
-        return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { object.release_error() });
-    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { object.release_value() });
-}
-
-bool web_structured_serialize_is_transferable(JSObject* object)
-{
-    return Bindings::transferable_from_object(*JS::HostABI::object_from_abi(object)).has_value();
-}
-
-bool web_structured_serialize_transferable_is_detached(JSObject* object)
-{
-    return Bindings::transferable_from_object(*JS::HostABI::object_from_abi(object))->is_detached();
-}
-
-void web_structured_serialize_transferable_set_detached(JSObject* object)
-{
-    Bindings::transferable_from_object(*JS::HostABI::object_from_abi(object))->set_detached();
-}
-
-u8 web_structured_serialize_transferable_primary_interface(JSObject* object)
-{
-    return to_underlying(Bindings::transferable_from_object(*JS::HostABI::object_from_abi(object))->primary_interface);
-}
-
-JSCompletion web_structured_serialize_transfer_steps(void* realm, JSObject* object, TransferDataEncoder* data_holder, ImageBitmapSharedPixels* image_bitmap_pixels)
-{
-    auto& js_realm = realm_from_abi(realm);
-    auto transferable = Bindings::transferable_from_object(*JS::HostABI::object_from_abi(object));
-    return void_completion_to_abi(js_realm, transferable->transfer_steps(js_realm, *data_holder, image_bitmap_pixels));
-}
-
-bool web_structured_serialize_is_transferable_interface_exposed(u8 type, void* realm)
-{
-    auto& js_realm = realm_from_abi(realm);
-    auto name = static_cast<TransferType>(type);
-    switch (name) {
-    case TransferType::MessagePort:
-        return is_exposed(Bindings::InterfaceName::MessagePort, js_realm);
-    case TransferType::ReadableStream:
-        return is_exposed(Bindings::InterfaceName::ReadableStream, js_realm);
-    case TransferType::WritableStream:
-        return is_exposed(Bindings::InterfaceName::WritableStream, js_realm);
-    case TransferType::TransformStream:
-        return is_exposed(Bindings::InterfaceName::TransformStream, js_realm);
-    case TransferType::ImageBitmap:
-        return is_exposed(Bindings::InterfaceName::ImageBitmap, js_realm);
-    case TransferType::OffscreenCanvas:
-        return is_exposed(Bindings::InterfaceName::OffscreenCanvas, js_realm);
-    case TransferType::Unknown:
-        dbgln("Unknown interface type for transfer: {}", to_underlying(name));
-        break;
-    default:
-        break;
-    }
-    return false;
-}
-
-JSCompletion web_structured_serialize_create_transferred_platform_object(u8 type, void* realm, TransferDataDecoder* decoder)
-{
-    auto& js_realm = realm_from_abi(realm);
-    auto object = Bindings::create_transferred_platform_object(static_cast<TransferType>(type), js_realm, *decoder);
     if (object.is_exception())
         return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { object.release_error() });
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { object.release_value() });

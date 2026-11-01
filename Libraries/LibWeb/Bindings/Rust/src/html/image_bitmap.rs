@@ -48,8 +48,14 @@ unsafe extern "C" {
         pixels: &FramePixels,
         out_frame: &mut *mut c_void,
     ) -> RawNativeFunctionResult;
-    fn web_image_bitmap_transfer_bitmap(data_holder: *mut c_void, frame: *const c_void) -> RawNativeFunctionResult;
+    fn web_image_bitmap_transfer_bitmap(
+        realm: *mut c_void,
+        data_holder: *mut c_void,
+        image_bitmap_pixels: *mut c_void,
+        frame: *const c_void,
+    ) -> RawNativeFunctionResult;
     fn web_image_bitmap_receive_bitmap(
+        realm: *mut c_void,
         data_holder: *mut c_void,
         out_frame: &mut *mut c_void,
     ) -> RawNativeFunctionResult;
@@ -415,8 +421,17 @@ impl Transferable for ImageBitmap {
 
         // 2. Set dataHolder.[[BitmapData]] to value's bitmap data.
         // NB: The pixels go to the shared memory of the transfer if there is room for them there, and inline otherwise.
-        // SAFETY: The data holder is lent for the steps, and the frame lives while the bitmap data is set.
-        unsafe { web_image_bitmap_transfer_bitmap(data_holder.as_raw(), this.raw_frame()) }.into_completion()?;
+        // SAFETY: The realm is live, the data holder and the pixels are lent for the steps, and the frame lives while
+        //         the bitmap data is set.
+        unsafe {
+            web_image_bitmap_transfer_bitmap(
+                data_holder.realm().as_ptr().cast(),
+                data_holder.as_raw(),
+                data_holder.image_bitmap_pixels_as_raw(),
+                this.raw_frame(),
+            )
+        }
+        .into_completion()?;
 
         // 3. Unset value's bitmap data.
         this.bitmap.replace(None);
@@ -428,8 +443,11 @@ impl Transferable for ImageBitmap {
     fn transfer_receiving_steps(cx: &mut CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Ref<Self>> {
         // 1. Set value's bitmap data to dataHolder.[[BitmapData]].
         let mut frame = core::ptr::null_mut();
-        // SAFETY: The data holder is lent for the steps.
-        unsafe { web_image_bitmap_receive_bitmap(data_holder.as_raw(), &mut frame) }.into_completion()?;
+        // SAFETY: The realm is live, and the data holder is lent for the steps.
+        unsafe {
+            web_image_bitmap_receive_bitmap(data_holder.realm().as_ptr().cast(), data_holder.as_raw(), &mut frame)
+        }
+        .into_completion()?;
         // SAFETY: C++ hands over the frame it decoded, or null.
         Ok(allocate(cx.vm(), |_| {
             Self::new(unsafe { BitmapData::from_handed_over_frame(frame) })

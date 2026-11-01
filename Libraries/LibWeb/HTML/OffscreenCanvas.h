@@ -8,7 +8,6 @@
 
 #include <LibGfx/Forward.h>
 #include <LibJS/Forward.h>
-#include <LibWeb/Bindings/Transferable.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
@@ -26,7 +25,6 @@ using OffscreenRenderingContext = Variant<GC::Ref<OffscreenCanvasRenderingContex
 
 // https://html.spec.whatwg.org/multipage/canvas.html#offscreencanvas
 class OffscreenCanvas : public DOM::EventTarget
-    , public Web::Bindings::Transferable
     , public CanvasHost {
     WEB_WRAPPABLE(OffscreenCanvas, DOM::EventTarget);
     GC_DECLARE_ALLOCATOR(OffscreenCanvas);
@@ -43,10 +41,10 @@ public:
 
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override { return m_global_object; }
 
-    // ^Web::Bindings::Transferable
-    virtual WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&) override;
-    virtual WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&) override;
-    virtual HTML::TransferType primary_interface() const override;
+    WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&);
+    WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&);
+
+    bool is_detached() const { return m_detached; }
 
     WebIDL::UnsignedLongLong width() const { return m_width; }
     WebIDL::UnsignedLongLong height() const { return m_height; }
@@ -102,6 +100,8 @@ private:
 
     Optional<Compositor::PlaceholderCanvasLink> m_placeholder_link;
     bool m_placeholder_commit_is_pending { false };
+
+    bool m_detached { false };
 };
 
 }

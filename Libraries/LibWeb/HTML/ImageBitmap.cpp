@@ -306,8 +306,8 @@ struct FramePixels {
 size_t web_image_bitmap_frame_size_in_bytes(Gfx::DecodedImageFrame const*);
 void web_image_bitmap_frame_pixels(Gfx::DecodedImageFrame const*, FramePixels*);
 JSCompletion web_image_bitmap_create_frame(void* realm, FramePixels const*, Gfx::DecodedImageFrame** out_frame);
-JSCompletion web_image_bitmap_transfer_bitmap(Bindings::RustTransferDataWriter*, Gfx::DecodedImageFrame const*);
-JSCompletion web_image_bitmap_receive_bitmap(Bindings::RustTransferDataReader*, Gfx::DecodedImageFrame** out_frame);
+JSCompletion web_image_bitmap_transfer_bitmap(void* realm, HTML::TransferDataEncoder*, ImageBitmapSharedPixels*, Gfx::DecodedImageFrame const*);
+JSCompletion web_image_bitmap_receive_bitmap(void* realm, HTML::TransferDataDecoder*, Gfx::DecodedImageFrame** out_frame);
 
 size_t web_image_bitmap_frame_size_in_bytes(Gfx::DecodedImageFrame const* frame)
 {
@@ -386,21 +386,23 @@ JSCompletion web_image_bitmap_create_frame(void* realm, FramePixels const* pixel
     return Bindings::completion_to_abi(js_realm, JS::js_undefined());
 }
 
-JSCompletion web_image_bitmap_transfer_bitmap(Bindings::RustTransferDataWriter* writer, Gfx::DecodedImageFrame const* frame)
+JSCompletion web_image_bitmap_transfer_bitmap(void* realm, HTML::TransferDataEncoder* data_holder, ImageBitmapSharedPixels* image_bitmap_pixels, Gfx::DecodedImageFrame const* frame)
 {
-    auto result = transfer_bitmap(writer->data_holder, writer->image_bitmap_pixels, frame);
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto result = transfer_bitmap(*data_holder, image_bitmap_pixels, frame);
     if (result.is_exception())
-        return Bindings::completion_to_abi(writer->realm, result.release_error());
-    return Bindings::completion_to_abi(writer->realm, JS::js_undefined());
+        return Bindings::completion_to_abi(js_realm, result.release_error());
+    return Bindings::completion_to_abi(js_realm, JS::js_undefined());
 }
 
-JSCompletion web_image_bitmap_receive_bitmap(Bindings::RustTransferDataReader* reader, Gfx::DecodedImageFrame** out_frame)
+JSCompletion web_image_bitmap_receive_bitmap(void* realm, HTML::TransferDataDecoder* data_holder, Gfx::DecodedImageFrame** out_frame)
 {
-    auto frame = receive_bitmap(reader->realm, reader->data_holder);
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto frame = receive_bitmap(js_realm, *data_holder);
     if (frame.is_exception())
-        return Bindings::completion_to_abi(reader->realm, frame.release_error());
+        return Bindings::completion_to_abi(js_realm, frame.release_error());
     *out_frame = frame_to_hand_over(frame.release_value());
-    return Bindings::completion_to_abi(reader->realm, JS::js_undefined());
+    return Bindings::completion_to_abi(js_realm, JS::js_undefined());
 }
 }
 
