@@ -1849,7 +1849,7 @@ pub(crate) fn sequence_inline_size(
     let mut size = CssPixels::default();
     for (index, item) in items.iter().enumerate() {
         match item.type_ {
-            ItemType::ForcedBreak => return Some(CssPixels::default()),
+            ItemType::ForcedBreak => return Some(size),
             ItemType::BlockLevelBox => break,
             _ => {}
         }
