@@ -7,7 +7,7 @@
 //! How records and runs are laid out on a display list tape. Only this crate reads these; C++ sees the command
 //! structs and opaque tapes, so these types stay out of the generated headers.
 
-use super::commands::{ClipMode, ContextRef, DisplayListCommandType, DisplayListDataSpan};
+use super::commands::{ClipMode, ContextRef, DisplayListCommandType, DisplayListDataSpan, SpatialNodeIndex};
 use crate::ffi_bytes_fields;
 use crate::ffi_enum_bytes;
 use libgfx_rust::*;
@@ -54,6 +54,11 @@ pub struct DisplayListInlineClip {
     pub path_winding_rule: WindingRule,
     pub kind: InlineClipKind,
     pub mode: ClipMode,
+    // Whether the clip is in `space` rather than in the space of the command it applies to. A command drawn in a
+    // space above a scroll node can be clipped to a box that moves with the scroll offset this way.
+    pub has_own_space: bool,
+    pub space: SpatialNodeIndex,
+    pub padding: u32,
 }
 ffi_bytes_fields!(DisplayListInlineClip {
     clip_rect_or_path_device_bounds,
@@ -61,10 +66,12 @@ ffi_bytes_fields!(DisplayListInlineClip {
     path_data,
     path_winding_rule,
     kind,
-    mode
+    mode,
+    has_own_space,
+    space
 });
 pub const INLINE_CLIP_ENTRY_SIZE: usize = std::mem::size_of::<DisplayListInlineClip>();
-const _: () = assert!(INLINE_CLIP_ENTRY_SIZE == 64);
+const _: () = assert!(INLINE_CLIP_ENTRY_SIZE == 72);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
