@@ -34,6 +34,7 @@ public:
     Optional<StringView> class_name() const { return m_class_name; }
     CellTypeInfo const& type_info() const { return m_type_info; }
     size_t cell_size() const { return m_type_info.cell_size; }
+    void const* foreign_type() const { return m_foreign_type; }
 
     CellAllocator& for_heap(Heap&);
 
@@ -46,15 +47,17 @@ public:
     }
 
 protected:
-    CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name)
+    CellAllocatorDescriptorBase(CellTypeInfo const& type_info, StringView class_name, void const* foreign_type = nullptr)
         : m_type_info(type_info)
         , m_class_name(class_name)
+        , m_foreign_type(foreign_type)
     {
     }
 
 private:
     CellTypeInfo const& m_type_info;
     Optional<StringView> m_class_name;
+    void const* m_foreign_type { nullptr };
 
     Heap* m_last_heap { nullptr };
     CellAllocator* m_last_allocator { nullptr };
@@ -73,6 +76,7 @@ public:
     Optional<StringView> class_name() const { return m_descriptor.class_name(); }
     size_t cell_size() const { return m_descriptor.cell_size(); }
     CellTypeInfo const& type_info() const { return m_descriptor.type_info(); }
+    void const* foreign_type() const { return m_descriptor.foreign_type(); }
 
     // Cells come from the free cells that the allocator took from one of its
     // blocks (the local block) at once, so allocating is usually just popping

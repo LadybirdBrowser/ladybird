@@ -51,6 +51,8 @@ pub struct GcLayout {
     pub heap_allocated_bytes_since_last_gc_offset: u32,
     pub heap_gc_bytes_threshold_offset: u32,
     pub heap_total_allocated_bytes_offset: u32,
+    pub block_size: u32,
+    pub block_foreign_type_offset: u32,
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
 }
@@ -71,8 +73,12 @@ pub struct PrimitiveStorageLayout {
 pub struct GcInterface {
     pub heap: *mut c_void,
     pub gc_get_layout: unsafe extern "C" fn(layout: *mut GcLayout),
-    pub gc_allocator_create:
-        unsafe extern "C" fn(type_info: *const CellTypeInfo, name: *const c_char, name_length: usize) -> *mut c_void,
+    pub gc_allocator_create: unsafe extern "C" fn(
+        type_info: *const CellTypeInfo,
+        name: *const c_char,
+        name_length: usize,
+        foreign_type: *const c_void,
+    ) -> *mut c_void,
     pub gc_heap_allocate_cell:
         unsafe extern "C" fn(heap: *mut c_void, allocator: *mut c_void, must_mark: *mut bool) -> *mut c_void,
     pub gc_heap_defer_gc: unsafe extern "C" fn(heap: *mut c_void),
@@ -270,7 +276,7 @@ impl Allocators {
     fn new(interface: &GcInterface) -> Self {
         let create = |cell_type: CellType| {
             let (info, name) = type_info(cell_type);
-            unsafe { (interface.gc_allocator_create)(info, name.as_ptr().cast(), name.len()) }
+            unsafe { (interface.gc_allocator_create)(info, name.as_ptr().cast(), name.len(), core::ptr::null()) }
         };
         Self {
             objects: (0..OBJECT_DATA_SIZE_CLASSES.len())

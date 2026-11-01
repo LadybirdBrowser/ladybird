@@ -66,7 +66,12 @@ pub(crate) const PAGE_SIZE: u64 = 65536;
 unsafe extern "C" {
     // The functions of Libraries/LibGC/CAPI.h that the engine uses, with the types of its GcInterface.
     fn gc_get_layout(layout: *mut GcLayout);
-    fn gc_allocator_create(type_info: *const CellTypeInfo, name: *const c_char, name_length: usize) -> *mut c_void;
+    fn gc_allocator_create(
+        type_info: *const CellTypeInfo,
+        name: *const c_char,
+        name_length: usize,
+        foreign_type: *const c_void,
+    ) -> *mut c_void;
     fn gc_heap_allocate_cell(heap: *mut c_void, allocator: *mut c_void, must_mark: *mut bool) -> *mut c_void;
     fn gc_heap_defer_gc(heap: *mut c_void);
     fn gc_heap_undefer_gc(heap: *mut c_void);

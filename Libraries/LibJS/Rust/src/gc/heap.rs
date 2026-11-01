@@ -478,14 +478,22 @@ impl Heap {
         }
     }
 
-    /// Creates an allocator of cells with `type_info`.
+    /// Creates an allocator of cells of `class` with `type_info`, whose blocks hold the class (see `class_of`).
     ///
     /// # Safety
     ///
-    /// The type info and the name must outlive the allocator.
-    unsafe fn create_allocator(&self, type_info: *const CellTypeInfo, name: &str) -> HeapAllocator {
-        // SAFETY: The caller keeps the type info and the name alive for as long as the allocator.
-        let raw = unsafe { capi::gc_allocator_create(type_info, name.as_ptr().cast(), name.len()) };
+    /// The type info must outlive the allocator.
+    unsafe fn create_allocator(&self, type_info: *const CellTypeInfo, class: &'static Class) -> HeapAllocator {
+        let name = class.name;
+        // SAFETY: The caller keeps the type info alive for as long as the allocator, and the class lives forever.
+        let raw = unsafe {
+            capi::gc_allocator_create(
+                type_info,
+                name.as_ptr().cast(),
+                name.len(),
+                core::ptr::from_ref(class).cast(),
+            )
+        };
         let raw = NonNull::new(raw).expect("LibGC creates the allocator");
         // SAFETY: The heap and the allocator are live.
         let local_free_list = unsafe { capi::gc_heap_allocator_local_free_list(self.raw.as_ptr(), raw.as_ptr()) };
@@ -525,7 +533,7 @@ impl Heap {
             .borrow_mut()
             .entry(core::ptr::from_ref(class) as usize)
             // SAFETY: The class and its name live as long as the process, so they outlive the allocator.
-            .or_insert_with(|| unsafe { self.create_allocator(&raw const class.type_info, class.name) })
+            .or_insert_with(|| unsafe { self.create_allocator(&raw const class.type_info, class) })
     }
 
     /// The size classes of `class`, whose cells have `cell_sizes` bytes, in that order, which the first call for the
@@ -576,7 +584,7 @@ impl Heap {
                 class,
                 cell_size: type_info.cell_size,
                 // SAFETY: The heap destroys the allocator before the type info, and the class name is static.
-                allocator: unsafe { self.create_allocator(type_info, class.name) },
+                allocator: unsafe { self.create_allocator(type_info, class) },
             })
             .collect();
         SizeClassTable {
@@ -597,7 +605,7 @@ impl Heap {
             class.name
         );
         // SAFETY: The class and its name are static, so they outlive the allocator.
-        let allocator = unsafe { self.create_allocator(&raw const class.type_info, class.name) };
+        let allocator = unsafe { self.create_allocator(&raw const class.type_info, class) };
         slot.set(Some(allocator));
         allocator
     }

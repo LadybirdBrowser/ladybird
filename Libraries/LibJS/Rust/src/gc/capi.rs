@@ -65,6 +65,8 @@ pub struct GCLayout {
     pub heap_allocated_bytes_since_last_gc_offset: u32,
     pub heap_gc_bytes_threshold_offset: u32,
     pub heap_total_allocated_bytes_offset: u32,
+    pub block_size: u32,
+    pub block_foreign_type_offset: u32,
     pub heap_region_offset_mask: u64,
     pub primitive_storage_cage_offset_mask: u64,
 }
@@ -119,6 +121,7 @@ unsafe extern "C" {
         type_info: *const CellTypeInfo,
         name: *const c_char,
         name_length: usize,
+        foreign_type: *const c_void,
     ) -> *mut GCAllocator;
     pub fn gc_allocator_destroy(allocator: *mut GCAllocator);
     pub fn gc_heap_allocate_cell(heap: *mut GCHeap, allocator: *mut GCAllocator, must_mark: *mut bool) -> *mut c_void;

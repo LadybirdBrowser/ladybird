@@ -27,15 +27,23 @@ public:
     Heap& heap() { return m_heap; }
     CellTypeInfo const& type_info() const { return *m_type_info; }
 
+    // What the foreign implementation that created the block's allocator says the type of its cells is.
+    void const* foreign_type() const { return m_foreign_type; }
+
 protected:
-    HeapBlockBase(Heap& heap, CellTypeInfo const& type_info)
+    HeapBlockBase(Heap& heap, CellTypeInfo const& type_info, void const* foreign_type)
         : m_heap(heap)
         , m_type_info(&type_info)
+        , m_foreign_type(foreign_type)
     {
     }
 
     Heap& m_heap;
     CellTypeInfo const* m_type_info { nullptr };
+    void const* m_foreign_type { nullptr };
+
+private:
+    friend struct CAPI;
 };
 
 }
