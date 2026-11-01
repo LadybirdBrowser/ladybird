@@ -612,7 +612,7 @@ ErrorOr<void, ParseError> Parser::parse_with_listener(Listener& listener)
     bool resolve_html_entities = static_cast<bool>(m_options.resolve_named_html_entity);
     auto sax_handler = create_sax_handler(m_options.preserve_comments, resolve_html_entities);
 
-    int options = XML_PARSE_NONET | XML_PARSE_NOWARNING;
+    int options = XML_PARSE_NONET | XML_PARSE_NOWARNING | XML_PARSE_NOENT | XML_PARSE_NO_XXE;
     if (!m_options.preserve_cdata)
         options |= XML_PARSE_NOCDATA;
 
@@ -655,7 +655,7 @@ ErrorOr<Document, ParseError> Parser::parse()
     bool resolve_html_entities = static_cast<bool>(m_options.resolve_named_html_entity);
     auto sax_handler = create_sax_handler(m_options.preserve_comments, resolve_html_entities);
 
-    int options = XML_PARSE_NONET | XML_PARSE_NOWARNING;
+    int options = XML_PARSE_NONET | XML_PARSE_NOWARNING | XML_PARSE_NOENT | XML_PARSE_NO_XXE;
     if (!m_options.preserve_cdata)
         options |= XML_PARSE_NOCDATA;
 
