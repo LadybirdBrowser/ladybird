@@ -1,0 +1,134 @@
+
+// https://w3c.github.io/webrtc-pc/#interface-definition
+
+[Exposed=Window]
+interface RTCPeerConnection : EventTarget {
+    constructor(optional RTCConfiguration configuration = {});
+
+    Promise<RTCSessionDescriptionInit> createOffer(optional RTCOfferOptions options = {});
+    Promise<RTCSessionDescriptionInit> createAnswer(optional RTCAnswerOptions options = {});
+
+    Promise<undefined> setLocalDescription(optional RTCLocalSessionDescriptionInit description = {});
+    readonly attribute RTCSessionDescription? localDescription;
+    readonly attribute RTCSessionDescription? currentLocalDescription;
+    readonly attribute RTCSessionDescription? pendingLocalDescription;
+
+    Promise<undefined> setRemoteDescription(RTCSessionDescriptionInit description);
+    readonly attribute RTCSessionDescription? remoteDescription;
+    readonly attribute RTCSessionDescription? currentRemoteDescription;
+    readonly attribute RTCSessionDescription? pendingRemoteDescription;
+
+    Promise<undefined> addIceCandidate(optional RTCIceCandidateInit candidate = {});
+
+    readonly attribute RTCSignalingState signalingState;
+    readonly attribute RTCIceGatheringState iceGatheringState;
+    readonly attribute RTCIceConnectionState iceConnectionState;
+    readonly attribute RTCPeerConnectionState connectionState;
+    [FIXME] readonly attribute boolean? canTrickleIceCandidates;
+
+    undefined restartIce();
+    RTCConfiguration getConfiguration();
+    [FIXME] undefined setConfiguration(optional RTCConfiguration configuration = {});
+    undefined close();
+
+    attribute EventHandler onnegotiationneeded;
+    attribute EventHandler onicecandidate;
+    attribute EventHandler onicecandidateerror;
+    attribute EventHandler onsignalingstatechange;
+    attribute EventHandler oniceconnectionstatechange;
+    attribute EventHandler onicegatheringstatechange;
+    attribute EventHandler onconnectionstatechange;
+
+    // Legacy callback overloads — every site uses promises now, leave stubbed.
+    [FIXME] Promise<undefined> createOffer(RTCSessionDescriptionCallback successCallback,
+            RTCPeerConnectionErrorCallback failureCallback,
+            optional RTCOfferOptions options = {});
+    [FIXME] Promise<undefined> setLocalDescription(RTCLocalSessionDescriptionInit description,
+            VoidFunction successCallback,
+            RTCPeerConnectionErrorCallback failureCallback);
+    [FIXME] Promise<undefined> createAnswer(RTCSessionDescriptionCallback successCallback,
+            RTCPeerConnectionErrorCallback failureCallback);
+    [FIXME] Promise<undefined> setRemoteDescription(RTCSessionDescriptionInit description,
+            VoidFunction successCallback,
+            RTCPeerConnectionErrorCallback failureCallback);
+    [FIXME] Promise<undefined> addIceCandidate(RTCIceCandidateInit candidate,
+            VoidFunction successCallback,
+            RTCPeerConnectionErrorCallback failureCallback);
+
+    [FIXME] static Promise<RTCCertificate> generateCertificate(AlgorithmIdentifier keygenAlgorithm);
+
+    sequence<RTCRtpSender> getSenders();
+    sequence<RTCRtpReceiver> getReceivers();
+    sequence<RTCRtpTransceiver> getTransceivers();
+    // FIXME: spec is `MediaStream... streams`. The IDL codegen mishandles typed
+    //        variadics after a required arg, and a plain `sequence<MediaStream>` would
+    //        force WebIDL to iterate a single MediaStream argument (which isn't iterable),
+    //        breaking the common `pc.addTrack(track, stream)` call shape that real libs
+    //        (talky.io, janus, ...) use. Two overloads cover both call shapes.
+    RTCRtpSender addTrack(MediaStreamTrack track, MediaStream stream);
+    RTCRtpSender addTrack(MediaStreamTrack track, optional sequence<MediaStream> streams = []);
+    undefined removeTrack(RTCRtpSender sender);
+    RTCRtpTransceiver addTransceiver((MediaStreamTrack or DOMString) trackOrKind,
+            optional RTCRtpTransceiverInit init = {});
+    attribute EventHandler ontrack;
+
+    readonly attribute RTCSctpTransport? sctp;
+    RTCDataChannel createDataChannel(USVString label,
+            optional RTCDataChannelInit dataChannelDict = {});
+    attribute EventHandler ondatachannel;
+
+    Promise<RTCStatsReport> getStats(optional MediaStreamTrack? selector = null);
+};
+
+dictionary RTCConfiguration {
+    sequence<RTCIceServer> iceServers = [];
+    RTCIceTransportPolicy iceTransportPolicy = "all";
+    RTCBundlePolicy bundlePolicy = "balanced";
+    RTCRtcpMuxPolicy rtcpMuxPolicy = "require";
+    // FIXME: spec has `sequence<RTCCertificate>` here. Held as `sequence<object>`
+    //        until RTCCertificate gen + serialization lands.
+    sequence<object> certificates = [];
+    [EnforceRange] octet iceCandidatePoolSize = 0;
+};
+
+dictionary RTCIceServer {
+    required (DOMString or sequence<DOMString>) urls;
+    DOMString username;
+    DOMString credential;
+};
+
+enum RTCIceTransportPolicy { "relay", "all" };
+enum RTCBundlePolicy { "balanced", "max-compat", "max-bundle" };
+enum RTCRtcpMuxPolicy { "require" };
+
+dictionary RTCOfferAnswerOptions {};
+
+dictionary RTCOfferOptions : RTCOfferAnswerOptions {
+    boolean iceRestart = false;
+    boolean offerToReceiveAudio;
+    boolean offerToReceiveVideo;
+};
+
+dictionary RTCAnswerOptions : RTCOfferAnswerOptions {};
+
+enum RTCSignalingState {
+    "stable",
+    "have-local-offer",
+    "have-remote-offer",
+    "have-local-pranswer",
+    "have-remote-pranswer",
+    "closed"
+};
+
+enum RTCIceGatheringState { "new", "gathering", "complete" };
+
+enum RTCPeerConnectionState {
+    "closed", "failed", "disconnected", "new", "connecting", "connected"
+};
+
+enum RTCIceConnectionState {
+    "closed", "failed", "disconnected", "new", "checking", "completed", "connected"
+};
+
+callback RTCPeerConnectionErrorCallback = undefined (DOMException error);
+callback RTCSessionDescriptionCallback = undefined (RTCSessionDescriptionInit description);

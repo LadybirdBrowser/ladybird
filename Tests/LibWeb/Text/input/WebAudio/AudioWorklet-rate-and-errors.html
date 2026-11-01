@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+asyncTest(async done => {
+    const context = new AudioContext({ sampleRate: 44100 });
+    const url = URL.createObjectURL(new Blob([`
+        class RateProcessor extends AudioWorkletProcessor {
+            constructor() { super(); this.port.postMessage(sampleRate); }
+            process() { throw new Error("processor failure"); }
+        }
+        registerProcessor("rate", RateProcessor);
+        class ConstructorFailure extends AudioWorkletProcessor {
+            constructor() { super(); throw new Error("constructor failure"); }
+        }
+        registerProcessor("constructor-failure", ConstructorFailure);
+    `], { type: "text/javascript" }));
+    try {
+        await context.audioWorklet.addModule(url);
+        try { new AudioWorkletNode(context, "missing"); }
+        catch (error) { println(`unknown processor: ${error.name}`); }
+        const failed = new AudioWorkletNode(context, "constructor-failure");
+        await new Promise(resolve => failed.onprocessorerror = resolve);
+        println("constructor error reported");
+        const node = new AudioWorkletNode(context, "rate");
+        // A running context may process the node before it is connected, so listen before anything else happens.
+        const failure = new Promise(resolve => node.onprocessorerror = resolve);
+        const rate = await new Promise(resolve => node.port.onmessage = event => resolve(event.data));
+        println(`processor sample rate: ${rate}`);
+        node.connect(context.destination);
+        await context.resume();
+        await failure;
+        println("process error reported");
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        URL.revokeObjectURL(url);
+        await context.close();
+        done();
+    }
+});
+</script>

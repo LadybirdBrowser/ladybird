@@ -1,0 +1,39 @@
+#include <LibIPC/TransportHandle.h>
+
+endpoint WebRTCClientServer
+{
+    init_transport(int peer_pid) => (int peer_pid)
+
+    create_peer_connection(u64 pc_id, String configuration) => (String error)
+    close_peer_connection(u64 pc_id) =|
+
+    get_stats(u64 pc_id, u64 request_id) =|
+    get_sender_ssrc(u64 sender_id) => (u32 ssrc)
+
+    create_offer(u64 pc_id, u64 request_id, bool ice_restart) =|
+    create_answer(u64 pc_id, u64 request_id) =|
+
+    set_local_description(u64 pc_id, u64 request_id, String sdp_type, String sdp) =|
+    set_remote_description(u64 pc_id, u64 request_id, String sdp_type, String sdp) =|
+
+    add_ice_candidate(u64 pc_id, u64 request_id, String candidate, Optional<String> sdp_mid, Optional<u32> sdp_mline_index, Optional<String> ufrag) =|
+
+    add_transceiver(u64 pc_id, u64 transceiver_id, String kind, String direction) =|
+    set_transceiver_direction(u64 pc_id, u64 transceiver_id, String direction) =|
+    stop_transceiver(u64 pc_id, u64 transceiver_id) =|
+
+    add_audio_track(u64 pc_id, u64 sender_id) =|
+    remove_track(u64 pc_id, u64 sender_id) =|
+
+    // Sends encoded (possibly E2E-encrypted via DAVE/SFrame) Opus bytes verbatim, bypassing the Rust encoder.
+    // webrtc-rs advances the RTP timestamp by duration_micros, typically 20000 for a 20 ms frame.
+    audio_track_encoded_frame(u64 sender_id, u32 duration_micros, ByteBuffer payload) =|
+
+    add_data_channel(u64 pc_id, u64 channel_id, String label, bool ordered, Optional<u16> max_packet_life_time, Optional<u16> max_retransmits, String protocol, bool negotiated, Optional<u16> id) =|
+    data_channel_send_text(u64 channel_id, String data) =|
+    data_channel_send_binary(u64 channel_id, ByteBuffer data) =|
+    data_channel_close(u64 channel_id) =|
+
+    // Answers resolve_host with the addresses the browser's resolver found, if any.
+    resolved_host(u64 request_id, Vector<String> addresses) =|
+}

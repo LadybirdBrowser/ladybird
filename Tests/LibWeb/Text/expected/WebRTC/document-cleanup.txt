@@ -1,0 +1,2 @@
+connection after document cleanup: closed
+ended events during document cleanup: 0

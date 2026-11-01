@@ -1,0 +1,19 @@
+// https://w3c.github.io/webrtc-pc/#rtcpeerconnectioniceerrorevent
+
+[Exposed=Window]
+interface RTCPeerConnectionIceErrorEvent : Event {
+    [FIXME] constructor(DOMString type, RTCPeerConnectionIceErrorEventInit eventInitDict);
+    [FIXME] readonly attribute DOMString? address;
+    [FIXME] readonly attribute unsigned short? port;
+    [FIXME] readonly attribute DOMString url;
+    [FIXME] readonly attribute unsigned short errorCode;
+    [FIXME] readonly attribute USVString errorText;
+};
+
+dictionary RTCPeerConnectionIceErrorEventInit : EventInit {
+    DOMString? address;
+    unsigned short? port;
+    DOMString url;
+    required unsigned short errorCode;
+    USVString errorText;
+};

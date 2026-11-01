@@ -12,14 +12,16 @@
 
 pub mod attachment;
 mod receive_queue;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 mod shared_memory;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 mod socket;
 #[cfg(target_vendor = "apple")]
 pub mod transport;
-#[cfg(not(target_vendor = "apple"))]
+#[cfg(all(unix, not(target_vendor = "apple")))]
 pub mod transport_socket;
+#[cfg(windows)]
+pub mod transport_windows;
 pub mod wire;
 
 /// The most attachments a message may carry, as `IPC::MAX_MESSAGE_FD_COUNT`.
@@ -41,12 +43,12 @@ pub mod mach;
 pub use attachment::Attachment;
 pub use wire::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, EndpointMessage};
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
     #[cfg(target_vendor = "apple")]
     use transport::TransportMachPort as Transport;
-    #[cfg(not(target_vendor = "apple"))]
+    #[cfg(all(unix, not(target_vendor = "apple")))]
     use transport_socket::TransportSocket as Transport;
 
     #[test]
@@ -67,12 +69,12 @@ mod tests {
     #[test]
     fn refusing_too_many_attachments_keeps_the_connection_open() {
         // NB: On sockets, every attachment holds a descriptor until the message is sent.
-        #[cfg(not(target_vendor = "apple"))]
+        #[cfg(all(unix, not(target_vendor = "apple")))]
         socket::raise_descriptor_limit();
         let (a, handle) = Transport::create_paired().unwrap();
         #[cfg(target_vendor = "apple")]
         let b = Transport::from_handle(handle).unwrap();
-        #[cfg(not(target_vendor = "apple"))]
+        #[cfg(all(unix, not(target_vendor = "apple")))]
         let b = Transport::new(handle).unwrap();
         let (mut reader, writer) = std::io::pipe().unwrap();
         let attachments = (0..=MAX_MESSAGE_ATTACHMENT_COUNT)

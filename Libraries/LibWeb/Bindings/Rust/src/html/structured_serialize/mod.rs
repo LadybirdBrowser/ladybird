@@ -38,9 +38,9 @@ use crate::html::structured_serialize::cpp::{
     TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
     deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
-    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name, serializable_payload_version,
-    serializable_steps, serialization_steps, transfer_steps, transferable_is_detached, transferable_primary_interface,
-    transferable_set_detached,
+    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name,
+    serializable_interface_storage_identifier, serializable_payload_version, serializable_steps, serialization_steps,
+    transfer_steps, transferable_is_detached, transferable_primary_interface, transferable_set_detached,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
@@ -747,7 +747,7 @@ impl<'memory> Serializer<'_, '_, 'memory> {
 
                 // 2. Let typeString be the identifier of the primary interface of value.
                 // 3. Set serialized to { [[Type]]: typeString }.
-                encode_serializable_object_header(serialized, interface_name);
+                encode_serializable_object_header(serialized, interface_name)?;
 
                 // FIXME: 4. If value's primary interface is decorated with [SameAgentCluster], then set sameAgentCluster to true.
 
@@ -861,6 +861,13 @@ impl<'memory> Serializer<'_, '_, 'memory> {
                         quota_exceeded_error::serialization_steps(&QuotaExceededErrorFields::of(object), serialized);
                     }
                     SerializableSteps::CryptoKey => crypto_key::serialization_steps(object, serialized),
+                    SerializableSteps::RTCEncodedAudioFrame => {
+                        crate::webrtc::rtc_encoded_audio_frame::serialization_steps(
+                            object,
+                            &mut SerializationWriter::new(self),
+                            self.for_storage,
+                        )?;
+                    }
                     SerializableSteps::Rust => {
                         let realm = self.realm.unwrap_or_else(|| object.shape().realm());
                         serialization_steps(
@@ -915,12 +922,21 @@ impl<'memory> Serializer<'_, '_, 'memory> {
     }
 }
 
-pub(crate) fn encode_serializable_object_header(serialized: &StructuredSerializeWriter, interface_name: u16) {
+pub(crate) fn encode_serializable_object_header(
+    serialized: &StructuredSerializeWriter,
+    interface_name: u16,
+) -> WebIdlResult<()> {
+    if serialized.serialization_type() == SerializationType::Storage
+        && serializable_interface_storage_identifier(interface_name).is_none()
+    {
+        return Err(data_clone_error("This interface cannot be serialized for storage"));
+    }
     serialized.encode_u8(ValueTag::SerializableObject as u8);
     serialized.encode_interface_name(interface_name);
     if serialized.serialization_type() == SerializationType::Storage {
         serialized.encode_u64(serializable_payload_version());
     }
+    Ok(())
 }
 
 pub(crate) fn decode_serializable_object_header(
@@ -1427,7 +1443,7 @@ impl Deserializer<'_, '_, '_> {
                 // 3. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
                 // 4. Set deep to true.
                 // NB: The deserialization steps of an interface implemented in Rust, and those that run here for
-                //     DOMException, QuotaExceededError and CryptoKey, create the new instance from what they read, so
+                //     C++ objects, create the new instance from what they read, so
                 //     they run here, at the position in memory that the instance has, rather than in step 25.4.
                 let memory_index = self.memory.size();
                 self.memory.append(Value::UNDEFINED);
@@ -1442,6 +1458,12 @@ impl Deserializer<'_, '_, '_> {
                     }
                     SerializableSteps::CryptoKey => {
                         Value::from_object(crypto_key::deserialization_steps(realm, self.serialized)?)
+                    }
+                    SerializableSteps::RTCEncodedAudioFrame => {
+                        Value::from_object(crate::webrtc::rtc_encoded_audio_frame::deserialization_steps(
+                            realm,
+                            &mut SerializationReader::new(self),
+                        )?)
                     }
                     SerializableSteps::Rust => {
                         deserialize_rust_platform_object(interface_name, realm, &mut SerializationReader::new(self))?

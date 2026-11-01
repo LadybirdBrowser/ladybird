@@ -148,6 +148,42 @@ class MediaStreamTrack;
 
 }
 
+namespace Web::WebRTC {
+
+class KeyFrameRequestEvent;
+class RTCCertificate;
+class RTCDataChannel;
+class RTCDataChannelEvent;
+class RTCDTMFSender;
+class RTCDTMFToneChangeEvent;
+class RTCDtlsTransport;
+class RTCEncodedAudioFrame;
+class RTCEncodedVideoFrame;
+class RTCError;
+class RTCErrorEvent;
+class RTCIceCandidate;
+class RTCIceTransport;
+class RTCPeerConnection;
+class RTCPeerConnectionIceErrorEvent;
+class RTCPeerConnectionIceEvent;
+class RTCRtpReceiver;
+class RTCRtpScriptTransform;
+class RTCRtpScriptTransformer;
+class RTCRtpSender;
+class RTCRtpTransceiver;
+class RTCSctpTransport;
+class RTCSessionDescription;
+class RTCSFrameReceiverTransform;
+class RTCSFrameSenderTransform;
+class RTCStatsReport;
+class RTCTrackEvent;
+class RTCTransformEvent;
+class SFrameDecrypterStream;
+class SFrameEncrypterStream;
+class SFrameTransformErrorEvent;
+
+}
+
 namespace Web::Clipboard {
 
 class Clipboard;
@@ -762,6 +798,7 @@ class LocalNavigable;
 class LocalTraversableNavigable;
 class Location;
 class MediaError;
+class MediaStreamPlayback;
 class MessageEvent;
 class MessagePort;
 class MimeType;

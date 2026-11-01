@@ -1,0 +1,38 @@
+endpoint WebRTCClientClient
+{
+    on_stats(u64 pc_id, u64 request_id, String reports, String error) =|
+    on_signaling_state(u64 pc_id, String state) =|
+    on_connection_state(u64 pc_id, String state) =|
+    on_ice_gathering_state(u64 pc_id, String state) =|
+    on_ice_connection_state(u64 pc_id, String state) =|
+
+    on_ice_candidate(u64 pc_id, Optional<String> candidate, Optional<String> sdp_mid, Optional<u32> sdp_mline_index) =|
+    on_ice_candidate_error(u64 pc_id, Optional<String> address, Optional<u16> port, String url, u16 error_code, String error_text) =|
+    on_negotiation_needed(u64 pc_id) =|
+
+    on_track(u64 pc_id, u64 receiver_id, u64 transceiver_id, String kind, Vector<String> stream_ids) =|
+    on_track_ended(u64 pc_id, u64 receiver_id) =|
+
+    on_encoded_audio_frame(u64 pc_id, u64 receiver_id, u32 ssrc, u32 rtp_timestamp, u16 sequence_number, u8 payload_type, ByteBuffer payload) =|
+
+    on_audio_track_added(u64 pc_id, u64 sender_id, u32 ssrc) =|
+
+    on_create_offer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message) =|
+    on_create_answer_result(u64 pc_id, u64 request_id, bool ok, String sdp_type, String sdp, String error_kind, String error_message) =|
+    on_set_local_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) =|
+    on_set_remote_description_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) =|
+    on_add_ice_candidate_result(u64 pc_id, u64 request_id, bool ok, String error_kind, String error_message) =|
+
+    on_data_channel(u64 pc_id, u64 channel_id, String label, bool ordered, Optional<u16> max_packet_life_time, Optional<u16> max_retransmits, String protocol, bool negotiated, Optional<u16> id) =|
+    on_data_channel_open(u64 channel_id) =|
+    on_data_channel_message_text(u64 channel_id, String data) =|
+    on_data_channel_message_binary(u64 channel_id, ByteBuffer data) =|
+    on_data_channel_closing(u64 channel_id) =|
+    on_data_channel_closed(u64 channel_id) =|
+    on_data_channel_error(u64 channel_id, String error) =|
+    on_data_channel_buffered_amount_low(u64 channel_id) =|
+
+    // The helper has no resolver of its own, so that STUN and TURN servers are looked up like everything else the
+    // browser connects to.
+    resolve_host(u64 request_id, String host) =|
+}

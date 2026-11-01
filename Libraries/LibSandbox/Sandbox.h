@@ -47,6 +47,8 @@ struct SeatbeltPath {
 enum class NetworkAccess {
     Denied,
     Allowed,
+    // Only UDP datagrams, sent to any host and received on sockets the helper binds itself, as ICE and mDNS need.
+    Datagrams,
 };
 
 // System services that a helper may use, in addition to its own Browser endpoint.

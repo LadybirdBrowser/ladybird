@@ -62,6 +62,8 @@ public:
     void release_request_transfer_lease(Badge<Request>, Request&, RequestTransferLeaseKey);
     void release_request_transfer_lease(RequestTransferLeaseKey);
     void ensure_connection(URL::URL const&, RequestServer::CacheLevel);
+    // Calls back with no addresses when the lookup fails or a proxy is configured.
+    void resolve_host(ByteString const& host, Function<void(Vector<ByteString>)> on_resolved);
     int request_server_client_id() const { return m_request_server_client_id; }
 
     RefPtr<WebSocket> websocket_connect(URL::URL const&, Optional<HTTP::NetworkIsolationKey> const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
@@ -83,6 +85,7 @@ private:
     virtual void request_finished(u64 request_id, u64, RequestTimingInfo, Optional<NetworkError>) override;
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>, CacheState, ByteString http_version) override;
     virtual void request_transferred(u64 request_id) override;
+    virtual void host_resolved(u64 lookup_id, Vector<ByteString> addresses) override;
 
     virtual void websocket_connected(u64 websocket_id) override;
     virtual void websocket_received(u64 websocket_id, bool, ByteBuffer) override;
@@ -98,6 +101,9 @@ private:
 
     HashMap<u64, NonnullRefPtr<WebSocket>> m_websockets;
     u64 m_next_websocket_id { 0 };
+
+    HashMap<u64, Function<void(Vector<ByteString>)>> m_host_lookups;
+    u64 m_next_host_lookup_id { 0 };
 };
 
 }

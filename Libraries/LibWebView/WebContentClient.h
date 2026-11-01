@@ -15,6 +15,7 @@
 #include <AK/SourceLocation.h>
 #include <AK/String.h>
 #include <AK/StringView.h>
+#include <AK/Time.h>
 #include <AK/WeakPtr.h>
 #include <LibAudio/Audibility.h>
 #include <LibAudio/PlaybackGroupId.h>
@@ -226,6 +227,7 @@ private:
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection(Optional<Utf16String> top_level_site) override;
     virtual Messages::WebContentClient::RequestMediaServerConnectionResponse request_media_server_connection() override;
     virtual Messages::WebContentClient::RequestAudioServerConnectionResponse request_audio_server_connection() override;
+    virtual Messages::WebContentClient::RequestWebrtcClientConnectionResponse request_webrtc_client_connection() override;
     virtual void request_video_presentation_channel() override;
     virtual void gamepad_play_effect(Web::Gamepad::GamepadHandle handle, Web::Gamepad::GamepadEffect effect) override;
     virtual void gamepad_stop_effects(Web::Gamepad::GamepadHandle handle) override;
@@ -286,6 +288,9 @@ private:
     HashTable<Audio::PlaybackGroupId> m_muted_audio_playback_groups;
     AudioServerAudibility m_audio_server_audibility { [this](Audio::PlaybackGroupId group, Audio::Audibility audibility) { did_change_audio_playback_audibility(group, audibility); } };
     RefPtr<Core::Timer> m_detached_page_close_timer;
+
+    // When this process last got a WebRTCClient, so that it can't make us spawn them in a loop.
+    Vector<MonotonicTime> m_webrtc_client_launch_times;
 
     static HashTable<WebContentClient*>& clients();
 };

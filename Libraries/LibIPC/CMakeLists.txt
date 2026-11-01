@@ -28,6 +28,7 @@ else()
         Attachment.cpp
         HandleBroker.cpp
         HandleBrokerServer.cpp
+        RustTransportWindows.cpp
         TransportWindows.cpp)
 endif()
 

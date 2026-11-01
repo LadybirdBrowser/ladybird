@@ -1,0 +1,19 @@
+
+// https://w3c.github.io/webrtc-stats/#dom-rtcstatsreport
+//
+// NOTE: The source IDL referenced `RTCStatsType` without defining it. The
+// real spec defines a long enum (codec, candidate-pair, transport, etc.).
+// Treating it as DOMString until the stats taxonomy is wired up.
+
+[Exposed=Window]
+interface RTCStatsReport {
+    readonly maplike<DOMString, object>;
+};
+
+dictionary RTCStats {
+    required DOMHighResTimeStamp timestamp;
+    required RTCStatsType type;
+    required DOMString id;
+};
+
+typedef DOMString RTCStatsType;

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+// Frames a receiver's script transform writes back have to reach the rest of the pipeline. Discord decrypts every
+// incoming frame this way, so a write that never completes means remote audio never plays.
+asyncTest(async done => {
+    // Use numeric host candidates so this loopback test does not depend on mDNS multicast.
+    await internals.setPermission("microphone", "granted");
+    const a = new RTCPeerConnection();
+    const b = new RTCPeerConnection();
+    a.onicecandidate = event => event.candidate && b.addIceCandidate(event.candidate).catch(() => {});
+    b.onicecandidate = event => event.candidate && a.addIceCandidate(event.candidate).catch(() => {});
+    const context = new AudioContext();
+    const oscillator = context.createOscillator();
+    const destination = context.createMediaStreamDestination();
+    oscillator.connect(destination);
+    oscillator.start();
+    const workerSource = `
+        onrtctransform = async event => {
+            const reader = event.transformer.readable.getReader();
+            const writer = event.transformer.writable.getWriter();
+            for (let written = 1; ; ++written) {
+                const { value, done } = await reader.read();
+                if (done)
+                    return;
+                await writer.write(value);
+                if (written === 5)
+                    postMessage({ written });
+            }
+        };
+    `;
+    const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+    const written = new Promise(resolve => worker.onmessage = event => resolve(event.data.written));
+    b.ontrack = event => event.receiver.transform = new RTCRtpScriptTransform(worker);
+    try {
+        a.addTrack(destination.stream.getAudioTracks()[0], destination.stream);
+        await a.setLocalDescription(await a.createOffer());
+        await b.setRemoteDescription(a.localDescription);
+        await b.setLocalDescription(await b.createAnswer());
+        await a.setRemoteDescription(b.localDescription);
+        const result = await Promise.race([written, new Promise(resolve => setTimeout(() => resolve(0), 5000))]);
+        println(`frames written back: ${result}`);
+    } catch (error) {
+        println(`FAIL: ${error.name}: ${error.message}`);
+    } finally {
+        oscillator.stop();
+        worker.terminate();
+        a.close(); b.close(); context.close(); done();
+    }
+});
+</script>

@@ -27,6 +27,7 @@ unsafe extern "C" {
         count: usize,
     );
     fn web_structured_serialize_set_storage_record(record: *mut c_void, data: ak::Span<'_, u8>);
+    fn web_structured_serialize_is_ipc_interface(interface_name: u16) -> bool;
     fn web_structured_serialize_interface_storage_identifier(
         interface_name: u16,
         identifier: &mut ak::Span<'static, u8>,
@@ -247,6 +248,12 @@ impl StorageSerializationRecord {
         // SAFETY: The record is lent, and the call borrows the bytes.
         unsafe { web_structured_serialize_set_storage_record(self.0.as_ptr(), ak::Span::new(data)) };
     }
+}
+
+/// Whether IPC records can contain this interface, including interfaces that cannot be stored.
+pub(crate) fn is_ipc_interface(interface_name: u16) -> bool {
+    // SAFETY: The call takes an interface identifier by value.
+    unsafe { web_structured_serialize_is_ipc_interface(interface_name) }
 }
 
 /// The identifier of the serializable interface that a storage record holds, from LibWeb's registry of them, if the
@@ -473,6 +480,8 @@ pub(crate) enum SerializableSteps {
     QuotaExceededError,
     /// The steps of CryptoKey, which run in crate::crypto::crypto_key.
     CryptoKey,
+    /// The steps of RTCEncodedAudioFrame, which run in crate::webrtc::rtc_encoded_audio_frame.
+    RTCEncodedAudioFrame,
 }
 
 pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
@@ -482,6 +491,7 @@ pub(crate) fn serializable_steps(interface_name: u16) -> SerializableSteps {
         1 => SerializableSteps::DOMException,
         2 => SerializableSteps::QuotaExceededError,
         3 => SerializableSteps::CryptoKey,
+        4 => SerializableSteps::RTCEncodedAudioFrame,
         steps => unreachable!("LibWeb names no serializable steps {steps}"),
     }
 }

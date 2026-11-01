@@ -1,0 +1,29 @@
+
+// https://w3c.github.io/webrtc-pc/#rtcrtptransceiver-interface
+
+[Exposed=Window]
+interface RTCRtpTransceiver {
+    [FIXME] readonly attribute DOMString? mid;
+    [SameObject] readonly attribute RTCRtpSender sender;
+    [SameObject] readonly attribute RTCRtpReceiver receiver;
+    attribute RTCRtpTransceiverDirection direction;
+    readonly attribute RTCRtpTransceiverDirection? currentDirection;
+    [ImplementedAs=stop_method] undefined stop();
+    [FIXME] undefined setCodecPreferences(sequence<RTCRtpCodec> codecs);
+};
+
+dictionary RTCRtpTransceiverInit {
+    RTCRtpTransceiverDirection direction = "sendrecv";
+    sequence<MediaStream> streams = [];
+    // FIXME: spec is `sequence<RTCRtpEncodingParameters>`. Held as `sequence<object>`
+    //        until full encoding-parameters wiring lands.
+    sequence<object> sendEncodings = [];
+};
+
+enum RTCRtpTransceiverDirection {
+    "sendrecv",
+    "sendonly",
+    "recvonly",
+    "inactive",
+    "stopped"
+};
