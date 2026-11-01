@@ -25,6 +25,7 @@ pub(crate) mod cpp_cell;
 pub(crate) mod event_target;
 #[cfg(web_idl_bindings)]
 pub(crate) mod generated;
+pub(crate) mod global_object;
 pub(crate) mod interface;
 pub(crate) mod iterable;
 pub(crate) mod promise;
