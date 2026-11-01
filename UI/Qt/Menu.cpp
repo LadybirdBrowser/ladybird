@@ -116,7 +116,7 @@ private:
                 }
             }
         });
-        QObject::connect(m_action->parent(), &QObject::destroyed, [this, weak_action = action.make_weak_ptr()]() {
+        QObject::connect(&qaction, &QObject::destroyed, [this, weak_action = action.make_weak_ptr()]() {
             if (auto action = weak_action.strong_ref())
                 action->remove_observer(*this);
         });
@@ -322,9 +322,6 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
 
 static void add_items_to_menu(QMenu& qmenu, WebView::Menu& menu)
 {
-    menu.add_observer(MenuObserver::create(menu, qmenu));
-    add_properties(qmenu, menu);
-
     for (auto& menu_item : menu.items()) {
         menu_item.visit(
             [&](NonnullRefPtr<WebView::Action>& action) {
@@ -332,13 +329,11 @@ static void add_items_to_menu(QMenu& qmenu, WebView::Menu& menu)
                 qmenu.addAction(qaction);
             },
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
-                auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &qmenu);
-                add_items_to_menu(*qsubmenu, submenu);
+                auto* qsubmenu = create_application_menu(qmenu, submenu);
 
                 if (submenu->render_group_icon())
                     qsubmenu->setIcon(create_chrome_icon(ChromeIcon::Folder, qmenu.palette()));
 
-                add_properties(*qsubmenu, *submenu);
                 qmenu.addMenu(qsubmenu);
             },
             [&](WebView::Separator) {
@@ -390,12 +385,19 @@ void populate_session_history_traversal_menu(QMenu& menu, WebContentView& view, 
 QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu)
 {
     auto* application_menu = new QMenu(qstring_from_ak_string(menu.title()), &parent);
+    menu.add_observer(MenuObserver::create(menu, *application_menu));
+    add_properties(*application_menu, menu);
     add_items_to_menu(*application_menu, menu);
     return application_menu;
 }
 
 void repopulate_application_menu(QMenu& menu, WebView::Menu& source)
 {
+    // NB: A submenu's action belongs to the submenu, so clearing the menu only removes it.
+    for (auto* action : menu.actions()) {
+        if (auto* submenu = action->menu())
+            submenu->deleteLater();
+    }
     menu.clear();
     add_items_to_menu(menu, source);
 }
