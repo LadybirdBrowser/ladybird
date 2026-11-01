@@ -11,6 +11,12 @@
 
 namespace Compositor {
 
+static u64 allocate_wheel_gesture_id()
+{
+    static u64 last_wheel_gesture_id = 0;
+    return ++last_wheel_gesture_id;
+}
+
 static float position_slop_in_device_pixels(Compositing::AsyncScrollTree const& async_scroll_tree)
 {
     return Compositing::wheel_gesture_position_slop_in_css_pixels * static_cast<float>(async_scroll_tree.device_pixels_per_css_pixel());
@@ -58,19 +64,29 @@ bool WheelGestureRouting::note_wheel_event(u64 input_event_id, Web::ScrollGestur
             m_newest_wheel_event_ids_from_ui.ended = input_event_id;
     }
 
-    bool starts_gesture = !m_gesture.has_value() || !m_gesture->is_continued_by(position, phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree), m_touchpad_gesture_end);
+    bool starts_gesture = !m_gesture.has_value() || !m_gesture->identity.is_continued_by(position, phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree), m_touchpad_gesture_end);
     if (starts_gesture) {
-        m_gesture = Compositing::WheelGestureIdentity::started_by(position, phase, modifiers, now);
+        m_gesture = Gesture {
+            .id = allocate_wheel_gesture_id(),
+            .identity = Compositing::WheelGestureIdentity::started_by(position, phase, modifiers, now),
+        };
         m_gesture_had_wheel_event_with_delta = false;
         m_latch.clear();
     } else {
-        m_gesture->advance_to(phase, now);
+        m_gesture->identity.advance_to(phase, now);
     }
     if (!m_gesture_had_wheel_event_with_delta && !wheel_delta.is_zero()) {
         m_gesture_had_wheel_event_with_delta = true;
         m_id_of_first_wheel_event_with_delta = input_event_id;
     }
     return starts_gesture;
+}
+
+Optional<u64> WheelGestureRouting::gesture_id() const
+{
+    if (!m_gesture.has_value())
+        return {};
+    return m_gesture->id;
 }
 
 void WheelGestureRouting::forget_gesture()
@@ -100,10 +116,14 @@ bool WheelGestureRouting::step_was_overtaken_by_ui(Web::ScrollGesturePhase phase
     VERIFY_NOT_REACHED();
 }
 
-WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Web::ScrollGesturePhase scroll_gesture_phase)
+WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositing::AsyncScrollTree const& async_scroll_tree, Compositing::AccumulatedVisualContextTree const& current_visual_context_tree, Web::ScrollGesturePhase scroll_gesture_phase, Optional<u64> gesture_id)
 {
     if (!m_latch.has_value())
         return {};
+    if (m_latch->gesture_id != gesture_id) {
+        m_latch.clear();
+        return {};
+    }
     if (m_latch->nested_context_id.has_value() || !m_latch->stable_node_id.has_value()) {
         m_latch->last_scroll_gesture_phase = scroll_gesture_phase;
         return { .nested_context_id = m_latch->nested_context_id, .keeps_steps = !m_latch->nested_context_id.has_value() };
@@ -129,7 +149,7 @@ Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::latched_scroller() c
 
 bool WheelGestureRouting::gesture_lasts_until_fingers_lift() const
 {
-    return m_touchpad_gesture_end == Compositing::TouchpadGestureEnd::WhenFingersLift && m_gesture.has_value() && m_gesture->is_held_by_fingers();
+    return m_touchpad_gesture_end == Compositing::TouchpadGestureEnd::WhenFingersLift && m_gesture.has_value() && m_gesture->identity.is_held_by_fingers();
 }
 
 Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::scroller_held_by_fingers() const
@@ -137,32 +157,35 @@ Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::scroller_held_by_fin
     if (m_touchpad_gesture_end != Compositing::TouchpadGestureEnd::WhenFingersLift || !m_latch.has_value())
         return {};
     // The gesture here has every event; a context nested in another has only the steps handed to it, on its latch.
-    bool held_by_fingers = m_gesture.has_value() ? m_gesture->is_held_by_fingers() : m_latch->last_scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing;
+    bool held_by_fingers = m_gesture.has_value() ? m_gesture->identity.is_held_by_fingers() : m_latch->last_scroll_gesture_phase == Web::ScrollGesturePhase::Ongoing;
     if (!held_by_fingers)
         return {};
     return m_latch->stable_node_id;
 }
 
-void WheelGestureRouting::latch(Web::AsyncScrollNodeStableID stable_node_id, Web::ScrollGesturePhase scroll_gesture_phase)
+void WheelGestureRouting::latch(Web::AsyncScrollNodeStableID stable_node_id, Web::ScrollGesturePhase scroll_gesture_phase, Optional<u64> gesture_id)
 {
     m_latch = Latch {
+        .gesture_id = gesture_id,
         .stable_node_id = stable_node_id,
         .last_scroll_gesture_phase = scroll_gesture_phase,
     };
 }
 
-void WheelGestureRouting::latch_to_nested_context(Web::CompositorContextId nested_context_id, Optional<Web::AsyncScrollNodeStableID> scroller, Web::ScrollGesturePhase scroll_gesture_phase)
+void WheelGestureRouting::latch_to_nested_context(Web::CompositorContextId nested_context_id, Optional<Web::AsyncScrollNodeStableID> scroller, Web::ScrollGesturePhase scroll_gesture_phase, Optional<u64> gesture_id)
 {
     m_latch = Latch {
+        .gesture_id = gesture_id,
         .stable_node_id = scroller,
         .last_scroll_gesture_phase = scroll_gesture_phase,
         .nested_context_id = nested_context_id,
     };
 }
 
-void WheelGestureRouting::latch_keeping_steps(Web::ScrollGesturePhase scroll_gesture_phase)
+void WheelGestureRouting::latch_keeping_steps(Web::ScrollGesturePhase scroll_gesture_phase, Optional<u64> gesture_id)
 {
     m_latch = Latch {
+        .gesture_id = gesture_id,
         .stable_node_id = {},
         .last_scroll_gesture_phase = scroll_gesture_phase,
     };

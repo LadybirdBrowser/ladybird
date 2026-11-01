@@ -33,10 +33,11 @@ public:
 private:
     struct ActiveFling {
         Compositing::ScrollFling fling;
-        // The fling steps use the position and modifiers of the gesture end event.
+        // The fling steps use the position, modifiers and gesture of the gesture end event.
         Web::DevicePixelPoint position;
         Web::DevicePixelPoint screen_position;
         Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
+        Optional<Web::WheelGestureMark> wheel_gesture_mark;
         bool ends_on_next_step { false };
     };
 

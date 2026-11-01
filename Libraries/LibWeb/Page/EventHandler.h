@@ -362,7 +362,11 @@ private:
     // without hit testing, and the scrolling box absorbs the gesture at its edge. The compositor latches by the same
     // rules, so the two agree on the scroller of an event.
     struct WheelScrollLatch {
+        // Tells whether an event the compositor did not pass on continues the gesture.
         Compositing::WheelGestureIdentity gesture;
+        // The gesture the compositor named for the event that started the latch, which only events it names the same
+        // gesture for continue.
+        Optional<u64> wheel_gesture_id;
         GC::Weak<DOM::Node> wheel_event_target;
         // The default action walks the boxes of this pseudo-element rather than the target's own.
         Optional<CSS::PseudoElement> wheel_event_target_pseudo_element {};

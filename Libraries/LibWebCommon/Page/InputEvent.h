@@ -145,8 +145,8 @@ private:
 // What the compositor found of a wheel event's gesture as it passed the event on, which WebContent follows rather
 // than deciding again.
 struct WheelGestureMark {
-    // Whether the event continues the gesture before it, rather than starting one.
-    bool continues_gesture { false };
+    // The gesture the event is in. The events of one gesture carry the same id, and no other gesture has it.
+    u64 gesture_id { 0 };
     // Whether the gesture goes on for as long as its fingers rest on the touchpad, which the platform reports the lift
     // of, rather than until its events pause.
     bool lasts_until_fingers_lift { false };
