@@ -353,8 +353,8 @@ pub unsafe extern "C" fn js_debugger_did_finish_exception_propagation(vm: *mut J
 }
 
 /// Debugger::add_breakpoint(filename, line, column): a breakpoint in every source code with that filename, at the
-/// first position at or after the line, and the column if there is one. Adding a breakpoint that exists returns its
-/// id. Only on the VM's thread.
+/// first position at or after the line, or at the exact line and column if a column is given. Adding a breakpoint
+/// that exists returns its id. Only on the VM's thread.
 ///
 /// # Safety
 ///
@@ -469,4 +469,20 @@ pub unsafe extern "C" fn js_debugger_bindings_for_frame(
         // SAFETY: The embedder's sink receives its context and a binding that outlives the call.
         unsafe { append(sink.context, &raw const binding_for_c) };
     }
+}
+
+/// Debugger::this_value_for_frame(): the frame's receiver, including when its function never reads `this`.
+///
+/// # Safety
+///
+/// `vm` must be a live VM with debugging enabled, and `execution_context` a live context of it while paused.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_debugger_this_value_for_frame(
+    vm: *mut JSVM,
+    execution_context: *const JSExecutionContext,
+) -> JSValue {
+    // SAFETY: The caller passes a live VM and execution context.
+    let (vm, debugger) = unsafe { debugger_of(vm) };
+    let execution_context = unsafe { &*execution_context.cast::<ExecutionContext>() };
+    debugger.this_value_for_frame(vm, execution_context).0
 }

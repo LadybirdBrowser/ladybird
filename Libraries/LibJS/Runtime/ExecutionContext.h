@@ -199,6 +199,7 @@ struct JS_API ExecutionContext {
     bool caller_is_construct { false };
     bool frame_initialized { false };
 
+    // Bound by OrdinaryCallBindThis, or the uncoerced thisArg when the function never uses `this`.
     Optional<Value> this_value;
 
     // The bytecode the context runs, a cell of the runtime that only the runtime looks into.
