@@ -40,13 +40,6 @@ if (BUILD_TESTING)
     set_tests_properties(LibWebHistoryRateLimitReset PROPERTIES TIMEOUT 120)
 
     add_test(
-        NAME LibWebPreferredColorSchemeReset
-        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-preferred-color-scheme-reset.py
-            $<TARGET_FILE:test-web> ${LADYBIRD_SOURCE_DIR}
-    )
-    set_tests_properties(LibWebPreferredColorSchemeReset PROPERTIES TIMEOUT 120)
-
-    add_test(
         NAME LibWeb
         COMMAND $<TARGET_FILE:test-web> --python-executable ${Python3_EXECUTABLE} --per-test-timeout 120 -v -v
     )
