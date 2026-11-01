@@ -338,6 +338,16 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.line_count() == 0 || self.line(self.line_count() - 1).is_empty()
     }
 
+    pub(crate) fn can_break_before_next_item(&mut self) -> bool {
+        !self.current_line_is_empty() || self.floats_intrude_at_current_line_start()
+    }
+
+    fn floats_intrude_at_current_line_start(&self) -> bool {
+        let line_height = self.containing_style().line_height();
+        self.context()
+            .any_floats_intrude_in_block_range(self.current_block_offset, self.current_block_offset + line_height)
+    }
+
     /// The inline size the current line breaks at. Balancing breaks lines before they fill the available inline size,
     /// but they still align within it.
     fn inline_size_to_break_current_line_at(&self) -> AvailableSize {
@@ -705,11 +715,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
 
     fn should_break(&mut self, next_item_inline_size: CssPixels) -> bool {
         let inline_size_to_break_at = if self.current_line_is_empty() {
-            let line_height = self.containing_style().line_height();
-            if !self
-                .context()
-                .any_floats_intrude_in_block_range(self.current_block_offset, self.current_block_offset + line_height)
-            {
+            if !self.floats_intrude_at_current_line_start() {
                 return false;
             }
             // NB: Balancing moves breaks between the content of lines, not lines past floats.

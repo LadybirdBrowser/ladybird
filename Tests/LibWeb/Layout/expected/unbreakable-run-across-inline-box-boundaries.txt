@@ -1,6 +1,6 @@
-Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
-  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 288 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 270 0+0+8] children: not-inline
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 800x1298]
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1298 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 1280 0+0+8] children: not-inline
       BlockContainer <div> at [8,8] [0+0+0 100 0+0+684] [0+0+0 30 0+0+10] children: inline
         frag 0 from TextNode start: 0, length: 4, rect: [8,8 40x10] baseline: 8
             "aaaa"
@@ -45,6 +45,392 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
         BreakNode <br> (not painted)
         TextNode <#text> (not painted)
+      BlockContainer <div> at [8,288] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,288 80x10] baseline: 8
+            "aaaa bb-"
+        frag 1 from TextNode start: 0, length: 2, rect: [28,298 20x10] baseline: 8
+            "dd"
+        TextNode <#text> (not painted)
+        InlineNode <b> at [8,298] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,298 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,318] [0+0+0 100 0+0+684] [0+0+0 30 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,318 80x10] baseline: 8
+            "aaaa bb-"
+        frag 1 from TextNode start: 0, length: 2, rect: [28,328 20x10] baseline: 8
+            "dd"
+        frag 2 from TextNode start: 0, length: 1, rect: [8,338 10x10] baseline: 8
+            "e"
+        TextNode <#text> (not painted)
+        InlineNode <b> at [8,328] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,328 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        BreakNode <br> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,358] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,358 80x10] baseline: 8
+            "aaaa bb-"
+        frag 1 from TextNode start: 0, length: 2, rect: [28,368 20x10] baseline: 8
+            "dd"
+        TextNode <#text> (not painted)
+        InlineNode <b> at [8,368] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,368 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,388] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [28,388 20x10] baseline: 8
+            "bb"
+        InlineNode <span> at [8,388] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,388 20x10] baseline: 8
+              "aa"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <span> at [8,388] [0+0+0 100 0+0+0] [0+0+0 20 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [48,388 60x10] baseline: 8
+              "cccccc"
+          frag 0 from TextNode start: 6, length: 4, rect: [8,398 40x10] baseline: 8
+              "cccc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,418] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 10, rect: [8,418 100x10] baseline: 8
+            "aaaa bb-cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [88,418] [-20+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [88,418 20x10] baseline: 8
+              "dd"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,438] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,438 80x10] baseline: 8
+            "aaaa bb-"
+        frag 1 from TextNode start: 8, length: 1, rect: [8,448 10x10] baseline: 8
+            "c"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [28,448] [10+0+0 10 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [28,448 10x10] baseline: 8
+              "d"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,468] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,468 30x10] baseline: 8
+            "aaa"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [28,478] [20+0+0 50 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 5, rect: [28,478 50x10] baseline: 8
+              "bbbbb"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,498] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,498 80x10] baseline: 8
+            "aaaa bb-"
+        frag 1 from TextNode start: 0, length: 2, rect: [88,498 20x10] baseline: 8
+            "dd"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [68,498] [-20+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [68,498 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,518] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,518 80x10] baseline: 8
+            "aaaa bb-"
+        frag 1 from TextNode start: 0, length: 2, rect: [88,518 20x10] baseline: 8
+            "dd"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [88,518] [0+0+0 20 0+0+-20] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [88,518 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,538] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,538 80x10] baseline: 8
+            "aaaa bb-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [18,548] [10+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [18,548 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,568] [0+0+0 100 0+0+684] [0+0+0 50 0+0+10] [BFC] children: not-inline
+        BlockContainer <span> at [8,568] floating [0+0+0 50 0+0+0] [0+0+0 30 0+0+0] [BFC] children: not-inline
+        BlockContainer <div> at [8,568] [0+0+0 100 0+0+0] [0+0+0 40 0+0+10] children: inline
+          frag 0 from TextNode start: 0, length: 3, rect: [8,598 30x10] baseline: 8
+              "aaa"
+          TextNode <#text> (not painted)
+          InlineNode <b> at [38,598] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+            frag 0 from TextNode start: 0, length: 4, rect: [38,598 40x10] baseline: 8
+                "aaaa"
+            TextNode <#text> (not painted)
+      BlockContainer <div> at [8,628] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [8,628 40x10] baseline: 8
+            "aaaa"
+        frag 1 from TextNode start: 5, length: 2, rect: [8,638 20x10] baseline: 8
+            "cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [28,638] [0+0+0 40 0+0+-10] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [28,638 40x10] baseline: 8
+              "dddd"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,658] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,658 80x10] baseline: 8
+            "aaaa bb-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [8,668] [0+0+0 30 0+0+-10] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [8,668 30x10] baseline: 8
+              "ccc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,688] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [8,688 40x10] baseline: 8
+            "aaaa"
+        frag 1 from TextNode start: 5, length: 2, rect: [8,698 20x10] baseline: 8
+            "cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [28,698] [0+0+0 30 0+0+10] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [28,698 30x10] baseline: 8
+              "ddd"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,718] [0+0+0 40 0+0+744] [0+0+0 20 0+0+10] children: inline
+        InlineNode <span> at [8,718] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [8,718 40x10] baseline: 8
+              "dddd"
+          TextNode <#text> (not painted)
+        InlineNode <span> at [8,728] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [8,728 40x10] baseline: 8
+              "bbbb"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,748] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [68,748 40x10] baseline: 8
+            "aaaa"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [48,758] [-20+0+0 60 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [48,758 60x10] baseline: 8
+              "bbbbcc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,778] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [68,778 40x10] baseline: 8
+            "aaaa"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [48,788] [-20+0+0 60 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [48,788 30x10] baseline: 8
+              "bbb"
+          TextNode <#text> (not painted)
+          InlineNode <b> at [78,788] [0+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [78,788 30x10] baseline: 8
+                "ccc"
+            TextNode <#text> (not painted)
+      BlockContainer <div> at [8,808] [0+0+0 90 0+0+694] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,808 60x10] baseline: 8
+            "aa-bb-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [68,808] [0+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [68,808 30x10] baseline: 8
+              "ccc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,828] [0+0+0 90 0+0+694] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,828 60x10] baseline: 8
+            "aa-bb-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [68,828] [0+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [68,828 30x10] baseline: 8
+              "ccc"
+          TextNode <#text> (not painted)
+          InlineNode <b> at [8,828] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+            TextNode <#text> (not painted)
+      BlockContainer <div> at [8,848] [0+0+0 90 0+0+694] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 9, rect: [8,848 90x10] baseline: 8
+            "aa-bb-ccc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [8,848] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,868] [0+0+0 70 0+0+714] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [8,868 40x10] baseline: 8
+            "aaa "
+        TextNode <#text> (not painted)
+        InlineNode <span> at [48,868] [0+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [48,868 30x10] baseline: 8
+              "ccc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,888] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,888 60x10] baseline: 8
+            "aa-bb-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [68,888] [0+0+0 30 0+0+10] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [68,888 30x10] baseline: 8
+              "ccc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,908] [0+0+0 70 0+0+714] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,908 30x10] baseline: 8
+            "aaa"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [8,918] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [8,918 40x10] baseline: 8
+              "ccc "
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,938] [0+0+0 60 0+0+724] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,938 30x10] baseline: 8
+            "aa-"
+        frag 1 from TextNode start: 0, length: 2, rect: [48,938 20x10] baseline: 8
+            "cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [18,938] [-20+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [18,938 30x10] baseline: 8
+              "bbb"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,958] [0+0+0 60 0+0+724] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,958 30x10] baseline: 8
+            "aa-"
+        frag 1 from TextNode start: 0, length: 2, rect: [48,958 20x10] baseline: 8
+            "cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [18,958] [-20+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [18,958 30x10] baseline: 8
+              "bbb"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,978] [0+0+0 60 0+0+724] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 3, rect: [8,978 30x10] baseline: 8
+            "aa-"
+        frag 1 from TextNode start: 0, length: 2, rect: [48,978 20x10] baseline: 8
+            "cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [18,978] [-20+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [38,978 10x10] baseline: 8
+              "b"
+          InlineNode <b> at [18,978] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+            frag 0 from TextNode start: 0, length: 2, rect: [18,978 20x10] baseline: 8
+                "bb"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,998] [0+0+0 60 0+0+724] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [8,998 20x10] baseline: 8
+            "aa"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [18,998] [-10+0+0 30 0+0+20] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [18,998 30x10] baseline: 8
+              " bb"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1018] [0+0+0 90 0+0+694] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [8,1018 20x10] baseline: 8
+            "aa"
+        frag 1 from TextNode start: 0, length: 2, rect: [48,1018 20x10] baseline: 8
+            "cc"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [28,1018] [0+0+0 30 0+0+-10] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [28,1018 30x10] baseline: 8
+              "bb "
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <span> at [78,1018] [10+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [78,1018 20x10] baseline: 8
+              "dd"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1038] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 6, rect: [8,1038 60x10] baseline: 8
+            "aa-bb-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [68,1038] [0+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [68,1038 30x10] baseline: 8
+              "cc "
+          TextNode <#text> (not painted)
+        InlineNode <span> at [98,1038] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [98,1038 10x10] baseline: 8
+              "d"
+          InlineNode <b> at [8,1038] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1058] [0+0+0 100 0+0+684] [0+0+0 10 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 8, rect: [8,1058 80x10] baseline: 8
+            "aa-bb-cc"
+        frag 1 from TextNode start: 0, length: 1, rect: [98,1058 10x10] baseline: 8
+            "d"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [88,1058] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 1, rect: [88,1058 10x10] baseline: 8
+              " "
+          TextNode <#text> (not painted)
+        InlineNode <span> at [8,1058] [0+0+0 0 0+0+0] [0+0+0 10 0+0+0]
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1078] [0+0+0 40 0+0+744] [0+0+0 30 0+0+10] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,1088 10x10] baseline: 8
+            "e"
+        BlockContainer <span> at [8,1078] floating [0+0+0 30 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+        InlineNode <span> at [8,1088] [0+0+0 40 0+0+0] [0+0+0 20 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [18,1088 30x10] baseline: 8
+              "dab"
+          frag 0 from TextNode start: 3, length: 4, rect: [8,1098 40x10] baseline: 8
+              "ccbb"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1118] [0+0+0 100 0+0+684] [0+0+0 30 0+0+10] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [58,1118 20x10] baseline: 8
+            "cc"
+        BlockContainer <span> at [8,1118] floating [0+0+0 50 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+        InlineNode <span> at [8,1118] [0+0+0 100 0+0+0] [0+0+0 30 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [78,1118 30x10] baseline: 8
+              "bbb"
+          frag 0 from TextNode start: 3, length: 5, rect: [58,1128 50x10] baseline: 8
+              "bbbbb"
+          frag 0 from TextNode start: 8, length: 4, rect: [8,1138 40x10] baseline: 8
+              "bbbb"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1158] [0+0+0 60 0+0+724] [0+0+0 10 0+0+10] children: inline
+        InlineNode <span> at [8,1158] [0+0+0 60 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 3, rect: [8,1158 30x10] baseline: 8
+              "aa-"
+          frag 1 from TextNode start: 0, length: 2, rect: [48,1158 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+          InlineNode <span> at [18,1158] [-20+0+0 30 0+0+0] [0+0+0 10 0+0+0]
+            frag 0 from TextNode start: 0, length: 3, rect: [18,1158 30x10] baseline: 8
+                "bbb"
+            TextNode <#text> (not painted)
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1178] [0+0+0 60 0+0+724] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 4, rect: [8,1178 40x10] baseline: 8
+            "aaa-"
+        TextNode <#text> (not painted)
+        InlineNode <span> at [-12,1188] [-20+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+          InlineNode <b> at [-12,1188] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+            frag 0 from TextNode start: 0, length: 4, rect: [-12,1188 40x10] baseline: 8
+                "bbbb"
+            TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1208] [0+0+0 100 0+0+684] [0+0+0 20 0+0+10] [BFC] children: inline
+        frag 0 from TextNode start: 0, length: 2, rect: [100.6875,1208 7.3125x10] baseline: 8
+            "שש"
+        frag 1 from TextNode start: 0, length: 20, rect: [34.875,1218 73.125x10] baseline: 8
+            "שששששששששששששששששששש"
+        TextNode <#text> (not painted)
+        BlockContainer <span> at [8,1208] floating [0+0+0 50 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
+        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1238] [0+0+0 60 0+0+724] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,1248 10x10] baseline: 8
+            "b"
+        InlineNode <span> at [8,1238] [0+0+0 40 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 4, rect: [8,1238 40x10] baseline: 8
+              "aaaa"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <i> at [18,1248] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [18,1248 20x10] baseline: 8
+              "cc"
+          TextNode <#text> (not painted)
+      BlockContainer <div> at [8,1268] [0+0+0 60 0+0+724] [0+0+0 20 0+0+10] children: inline
+        frag 0 from TextNode start: 0, length: 1, rect: [8,1278 10x10] baseline: 8
+            "b"
+        InlineNode <span> at [8,1268] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 2, rect: [8,1268 20x10] baseline: 8
+              "aa"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+        InlineNode <i> at [18,1278] [0+0+0 80 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 8, rect: [18,1278 80x10] baseline: 8
+              "cccccccc"
+          TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
- SC for BlockContainer<HTML> [0,0 800x288] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x1298] (z-index: auto)
