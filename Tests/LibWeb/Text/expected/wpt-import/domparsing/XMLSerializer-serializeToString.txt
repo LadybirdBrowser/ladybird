@@ -22,7 +22,7 @@ Pass	Attribute value escapes: quot
 Pass	Attribute value escapes: apos
 Pass	[TENTATIVE] check XMLSerializer.serializeToString escapes attribute values for roundtripping
 Pass	Check if attribute serialization takes into account of following xmlns:* attributes
-Fail	Check if attribute serialization takes into account of the same prefix declared in an ancestor element
+Pass	Check if attribute serialization takes into account of the same prefix declared in an ancestor element
 Pass	Check if start tag serialization drops element prefix if the namespace is same as inherited default namespace.
 Pass	Check if start tag serialization finds an appropriate prefix.
 Pass	Check if end tag serialization matches start tag when an appropriate prefix is found.
@@ -31,7 +31,7 @@ Pass	Check if start tag serialization applied the original prefix even if it is 
 Pass	Check if start tag serialization does NOT apply the default namespace if its namespace is declared in an ancestor.
 Pass	Check if end tag serialization matches start tag for elements in the XML namespace.
 Pass	Check if generated prefixes match to "ns${index}".
-Pass	Check if "ns1" is generated even if the element already has xmlns:ns1.
+Fail	Check if "ns1" is generated even if the element already has xmlns:ns1.
 Pass	Check if no special handling for XLink namespace unlike HTML serializer.
 Pass	Check if document fragment serializes.
 Pass	Check children were included for void elements

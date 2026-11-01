@@ -1,0 +1,3 @@
+<p:root xmlns:p="urn:a" xmlns:ns1="urn:b" ns1:attr="v"/>
+<root xmlns:ns1="urn:a" ns1:a="1" xmlns:ns2="urn:b" ns2:b="2"/>
+<parent xmlns:p="urn:a" p:x="1"><child xmlns:ns1="urn:b" ns1:y="2" p:c="3"/></parent>
