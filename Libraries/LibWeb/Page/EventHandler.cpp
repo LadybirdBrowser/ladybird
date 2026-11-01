@@ -944,6 +944,15 @@ static Layout::Node* scroll_containing_block_chain_smoothly(HTML::LocalNavigable
     return nullptr;
 }
 
+static GC::Ptr<HTML::LocalNavigable> local_navigable_with_compositor_context(Page& page, Web::CompositorContextId context_id)
+{
+    for (auto& navigable : HTML::all_local_navigables()) {
+        if (&navigable->page() == &page && navigable->has_compositor_context() && navigable->compositor_context().id() == context_id)
+            return navigable;
+    }
+    return {};
+}
+
 void EventHandler::record_input_routing(InputRoutingDecision decision, Optional<AsyncScrollNodeStableID> scroller, GC::Ptr<DOM::Node const> target, InputTraceStage stage)
 {
     auto& input_trace = m_navigable->page().input_trace();
@@ -971,28 +980,77 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (!document->is_fully_active())
         return EventResult::Dropped;
 
-    auto now = MonotonicTime::now();
-    auto gesture_position = visual_viewport_position.to_type<float>();
     bool wheel_event_has_delta = wheel_delta_x != 0 || wheel_delta_y != 0;
-    // The compositor names the gesture of an event it passed on, which this navigable follows so that the two route the
-    // event alike.
-    auto wheel_gesture_id = wheel_gesture_mark.map([](auto const& mark) { return mark.gesture_id; });
-    bool continues_latched_gesture = false;
-    if (m_wheel_scroll_latch.has_value()) {
-        if (wheel_gesture_id.has_value())
-            continues_latched_gesture = m_wheel_scroll_latch->wheel_gesture_id == wheel_gesture_id;
+    auto can_attempt_async_scroll = m_navigable->has_compositor_context();
+    auto operation_tracking = async_scroll_operation
+        ? Compositing::AsyncScrollOperationTracking::Yes
+        : Compositing::AsyncScrollOperationTracking::No;
+
+    // NB: Layout reads can remove scrolling boxes before their updated tree reaches the compositor.
+    //     Only fall back when the presented display list refers to an older tree structure.
+    auto compositor_display_list_is_outdated = [&] {
+        auto local_root = m_navigable->local_root();
+        if (!local_root->needs_to_record_display_list() && !local_root->has_recording_in_flight())
+            return false;
+        auto display_list = local_root->presenter().compositor_display_list();
+        auto root_document = local_root->active_document();
+        if (!display_list || !root_document || !root_document->has_paint_state())
+            return false;
+        Layout::ForcedReadScope root_read { *root_document };
+        root_document->update_paint_and_hit_testing_properties_if_needed();
+        return display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch_without_update(root_read);
+    };
+
+    // An event that no compositor has seen, such as one a test makes, goes there first, as the UI's events do. The
+    // compositor names the gesture of the event, and scrolls by it before the page sees it unless this thread keeps
+    // the scrolling.
+    bool asked_compositor_first = false;
+    if (!wheel_gesture_mark.has_value() && can_attempt_async_scroll) {
+        Optional<InputRoutingDecision> reason_to_scroll_on_this_thread;
+        if (document->visual_viewport()->scale() != 1.0)
+            reason_to_scroll_on_this_thread = InputRoutingDecision::AsyncScrollNotAttemptedVisualViewportScaled;
+        else if (compositor_display_list_is_outdated())
+            reason_to_scroll_on_this_thread = InputRoutingDecision::AsyncScrollNotAttemptedDisplayListOutdated;
+        auto scrolling = reason_to_scroll_on_this_thread.has_value() ? Compositing::WheelEventScrolling::ByMainThread : Compositing::WheelEventScrolling::ByCompositor;
+
+        Web::MouseEvent event {
+            .type = Web::MouseEvent::Type::MouseWheel,
+            .position = m_navigable->page().css_to_device_point(visual_viewport_position),
+            .screen_position = m_navigable->page().css_to_device_point(screen_position),
+            .button = static_cast<UIEvents::MouseButton>(button),
+            .buttons = static_cast<UIEvents::MouseButton>(buttons),
+            .modifiers = static_cast<UIEvents::KeyModifier>(modifiers),
+            .wheel_delta_x = wheel_delta_x,
+            .wheel_delta_y = wheel_delta_y,
+            .wheel_tick_120ths_x = wheel_tick_120ths_x,
+            .wheel_tick_120ths_y = wheel_tick_120ths_y,
+            .wheel_delta_precision = wheel_delta_precision,
+            .scroll_gesture_phase = scroll_gesture_phase,
+            .id = handling_input_event_id(),
+        };
+        auto answer = m_navigable->compositor_context().take_wheel_event_from_main_thread(event, operation_tracking, scrolling);
+        if (reason_to_scroll_on_this_thread.has_value())
+            record_input_routing(*reason_to_scroll_on_this_thread);
         else
-            continues_latched_gesture = m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels, Compositing::TouchpadGestureEnd::AfterIdleDelay);
+            record_input_routing(answer.routing_decision.value_or(InputRoutingDecision::NoAnswerFromCompositor), answer.routed_scroller, {}, InputTraceStage::CompositorForMainThread);
+        wheel_gesture_mark = answer.wheel_gesture_mark;
+        async_scroll_performed_default_action = answer.performed_default_action;
+        if (async_scroll_operation && answer.operation_id.has_value() && answer.operation_context_id.has_value()) {
+            if (auto navigable = local_navigable_with_compositor_context(m_navigable->page(), *answer.operation_context_id))
+                *async_scroll_operation = AsyncScrollOperation { navigable, *answer.operation_id };
+        }
+        asked_compositor_first = true;
     }
-    if (continues_latched_gesture)
-        m_wheel_scroll_latch->gesture.advance_to(scroll_gesture_phase, now);
-    else
+
+    // The compositor names the gesture of each event, which this navigable follows so that the two route the event
+    // alike.
+    auto wheel_gesture_id = wheel_gesture_mark.map([](auto const& mark) { return mark.gesture_id; });
+    bool continues_latched_gesture = m_wheel_scroll_latch.has_value() && wheel_gesture_id.has_value() && m_wheel_scroll_latch->wheel_gesture_id == wheel_gesture_id;
+    if (!continues_latched_gesture)
         m_wheel_scroll_latch.clear();
 
     bool gesture_lasts_until_fingers_lift = wheel_gesture_mark.has_value() && wheel_gesture_mark->lasts_until_fingers_lift;
     ScopeGuard measure_next_pause_from_end_of_handling = [this, gesture_lasts_until_fingers_lift] {
-        if (m_wheel_scroll_latch.has_value())
-            m_wheel_scroll_latch->gesture.did_handle_event(MonotonicTime::now());
         m_navigable->did_handle_wheel_event(gesture_lasts_until_fingers_lift);
     };
 
@@ -1001,35 +1059,20 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
 
     auto visual_viewport = document->visual_viewport();
-    auto can_attempt_async_scroll = m_navigable->has_compositor_context();
 
     // Hands the wheel input to the compositor, which scrolls from the offsets it holds now; the operation it starts
     // for the input is the one a caller follows.
     auto enqueue_async_scroll = [&](Gfx::FloatPoint delta_in_device_pixels, Compositing::WheelStepDispatch wheel_step_dispatch) {
-        // NB: Layout reads can remove scrolling boxes before their updated tree reaches the compositor.
-        //     Only fall back when the presented display list refers to an older tree structure.
-        auto local_root = m_navigable->local_root();
-        if (local_root->needs_to_record_display_list() || local_root->has_recording_in_flight()) {
-            auto display_list = local_root->presenter().compositor_display_list();
-            auto root_document = local_root->active_document();
-            if (display_list && root_document && root_document->has_paint_state()) {
-                Layout::ForcedReadScope root_read { *root_document };
-                root_document->update_paint_and_hit_testing_properties_if_needed();
-                if (display_list->compatible_visual_context_tree_structural_epoch() != root_document->paint_state().visual_context_tree_structural_epoch_without_update(root_read)) {
-                    record_input_routing(InputRoutingDecision::AsyncScrollNotAttemptedDisplayListOutdated);
-                    return false;
-                }
-            }
+        if (compositor_display_list_is_outdated()) {
+            record_input_routing(InputRoutingDecision::AsyncScrollNotAttemptedDisplayListOutdated);
+            return false;
         }
 
         auto viewport_rect = m_navigable->page().css_to_device_rect(m_navigable->viewport_rect()).to_type<int>();
         auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
         auto async_scroll_position = Gfx::FloatPoint { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) };
-        auto operation_tracking = async_scroll_operation
-            ? Compositing::AsyncScrollOperationTracking::Yes
-            : Compositing::AsyncScrollOperationTracking::No;
         auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
-            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, wheel_gesture_id, handling_input_event_id());
+            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, operation_tracking, wheel_step_dispatch, wheel_gesture_id, handling_input_event_id());
         record_input_routing(enqueue_result.routing_decision.value_or(InputRoutingDecision::NoAnswerFromCompositor), enqueue_result.routed_scroller, {}, InputTraceStage::CompositorForMainThread);
         if (enqueue_result.operation_id.has_value() && async_scroll_operation)
             *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
@@ -1042,7 +1085,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
 
     // The end of a gesture is reported to the compositor before the gesture settles here, so that a snap scroll
     // the compositor starts for it is the scroll the settlement finds in flight rather than one of its own.
-    if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll
+    if (scroll_gesture_phase == Web::ScrollGesturePhase::Ended && !async_scroll_performed_default_action && can_attempt_async_scroll && !asked_compositor_first
         && visual_viewport->scale() == 1.0 && enqueue_async_scroll({}, Compositing::WheelStepDispatch::NotYetDispatched)) {
         async_scroll_performed_default_action = true;
         m_navigable->adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::FromCompositor);
@@ -1080,7 +1123,6 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
         if (!wheel_event_has_delta || !target.dom_node())
             return;
         m_wheel_scroll_latch = WheelScrollLatch {
-            .gesture = Compositing::WheelGestureIdentity::started_by(gesture_position, scroll_gesture_phase, modifiers, now),
             .wheel_gesture_id = wheel_gesture_id,
             .wheel_event_target = target.dom_node(),
             .wheel_event_target_pseudo_element = target_layout_node ? target_layout_node->generated_for_pseudo_element() : Optional<CSS::PseudoElement> {},
@@ -1119,6 +1161,8 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     if (can_attempt_async_scroll && async_scroll_performed_default_action) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: default action already performed");
         record_input_routing(InputRoutingDecision::DefaultActionPerformedByCompositor);
+    } else if (asked_compositor_first) {
+        dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: the compositor was asked first");
     } else if (can_attempt_async_scroll && visual_viewport->scale() != 1.0) {
         dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Not attempting wheel async scroll: visual viewport is scaled");
         record_input_routing(InputRoutingDecision::AsyncScrollNotAttemptedVisualViewportScaled);

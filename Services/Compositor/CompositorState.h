@@ -130,7 +130,9 @@ public:
     void handle_and_dispatch_key_event(Web::CompositorContextId, Web::KeyEvent, bool allow_keyboard_scroll);
     void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent);
     void handle_and_dispatch_pinch_event(Web::CompositorContextId, Web::PinchEvent);
-    Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, Optional<u64> wheel_gesture_id, u64 input_event_id);
+    // Routes a wheel event the UI did not send here, such as one a test makes, as the UI's wheel events are routed.
+    Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventScrolling);
+    Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, Optional<u64> wheel_gesture_id, u64 input_event_id);
     void apply_scroll_requests(Web::CompositorContextId, ReadonlySpan<Compositing::ScrollRequest>);
     void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
@@ -241,15 +243,16 @@ private:
     enum class WheelStepOrigin : u8 {
         UI,
         Fling,
+        MainThread,
     };
     // A fling step is scrolled at the frame time the fling synthesized it for.
-    ContextState::ContextUpdateResult scroll_for_wheel_step(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, WheelStepOrigin, Optional<MonotonicTime> fling_step_time = {});
+    ContextState::ContextUpdateResult scroll_for_wheel_step(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, WheelStepOrigin, bool is_first_wheel_event_with_delta, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
     struct WheelStepHandedToNestedContext {
         // What is left for the context the step was handed from to present and report.
         ContextState::ContextUpdateResult result;
         bool nested_context_presents_frame { false };
     };
-    WheelStepHandedToNestedContext hand_wheel_step_to_nested_context(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, ContextState::NestedContextWheelStep const&, MonotonicTime now);
+    WheelStepHandedToNestedContext hand_wheel_step_to_nested_context(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, ContextState::NestedContextWheelStep const&, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
     struct NestedContextTakingWheelStep {
         Web::CompositorContextId context_id;
         // Null when the step cannot be handed to the context.

@@ -15,7 +15,6 @@
 #include <AK/RefCounted.h>
 #include <AK/RefPtr.h>
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
-#include <LibCompositing/Scrolling/WheelGestureIdentity.h>
 #include <LibCompositing/Types.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
@@ -362,8 +361,6 @@ private:
     // without hit testing, and the scrolling box absorbs the gesture at its edge. The compositor latches by the same
     // rules, so the two agree on the scroller of an event.
     struct WheelScrollLatch {
-        // Tells whether an event the compositor did not pass on continues the gesture.
-        Compositing::WheelGestureIdentity gesture;
         // The gesture the compositor named for the event that started the latch, which only events it names the same
         // gesture for continue.
         Optional<u64> wheel_gesture_id;

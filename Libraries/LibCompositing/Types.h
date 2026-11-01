@@ -18,6 +18,7 @@
 #include <LibCompositing/Scrolling/AsyncScrollingState.h>
 #include <LibIPC/Forward.h>
 #include <LibWebCommon/Page/CompositorContextId.h>
+#include <LibWebCommon/Page/InputEvent.h>
 #include <LibWebCommon/Page/InputRoutingDecision.h>
 #include <LibWebCommon/Page/PageId.h>
 #include <LibWebCommon/PixelUnits.h>
@@ -109,9 +110,29 @@ struct AsyncScrollEnqueueResult {
     Optional<Web::AsyncScrollNodeStableID> routed_scroller {};
 };
 
+// What the compositor did with a wheel event that WebContent's main thread passed on to it, as the compositor does with
+// the UI's wheel events before the main thread gets them.
+struct WheelEventAnswer {
+    bool performed_default_action { false };
+    Optional<Web::WheelGestureMark> wheel_gesture_mark {};
+    // The operation the event started, whose end the scroll updates of the context report.
+    Optional<AsyncScrollOperationID> operation_id {};
+    Optional<Web::CompositorContextId> operation_context_id {};
+    // Why the compositor took or turned away the event, and the scroller it routed the event to.
+    Optional<Web::InputRoutingDecision> routing_decision {};
+    Optional<Web::AsyncScrollNodeStableID> routed_scroller {};
+};
+
 enum class AsyncScrollOperationTracking {
     No,
     Yes,
+};
+
+// Who scrolls by a wheel event that WebContent's main thread passes on to the compositor, which names the gesture of
+// the event either way.
+enum class WheelEventScrolling : u8 {
+    ByCompositor,
+    ByMainThread,
 };
 
 // Blocking wheel event listeners hold a wheel step back from the compositor until the page has dispatched it. A step
@@ -303,5 +324,10 @@ template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::AsyncScrollEnqueueResult const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::AsyncScrollEnqueueResult> decode(Decoder&);
+
+template<>
+COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::WheelEventAnswer const&);
+template<>
+COMPOSITING_API ErrorOr<Compositing::WheelEventAnswer> decode(Decoder&);
 
 }

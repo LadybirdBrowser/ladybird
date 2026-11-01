@@ -77,7 +77,8 @@ private:
     virtual Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse webgl_read_buffer_sub_data(Compositing::CanvasId canvas_id, u32 target, i64 offset, i64 size, Core::AnonymousBuffer data) override;
     virtual void invalidate_wheel_event_listener_state(Web::CompositorContextId, u64 generation) override;
     virtual void invalidate_keyboard_scroll_state(Web::CompositorContextId, u64 generation) override;
-    virtual Messages::CompositorWebContentServer::AsyncScrollByResponse async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, u32 modifiers, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, Optional<u64> wheel_gesture_id, u64 input_event_id) override;
+    virtual Messages::CompositorWebContentServer::TakeWheelEventFromMainThreadResponse take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventScrolling) override;
+    virtual Messages::CompositorWebContentServer::AsyncScrollByResponse async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, Optional<u64> wheel_gesture_id, u64 input_event_id) override;
     virtual void apply_scroll_requests(Web::CompositorContextId, Vector<Compositing::ScrollRequest>) override;
     virtual Messages::CompositorWebContentServer::ScrollStateForTestingResponse scroll_state_for_testing(Web::CompositorContextId, Web::AsyncScrollNodeStableID) override;
     virtual void synchronize_for_testing() override { }

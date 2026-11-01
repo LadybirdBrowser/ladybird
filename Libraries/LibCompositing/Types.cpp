@@ -288,4 +288,29 @@ ErrorOr<Compositing::AsyncScrollEnqueueResult> decode(Decoder& decoder)
     };
 }
 
+template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::WheelEventAnswer const& answer)
+{
+    TRY(encoder.encode(answer.performed_default_action));
+    TRY(encoder.encode(answer.wheel_gesture_mark));
+    TRY(encoder.encode(answer.operation_id));
+    TRY(encoder.encode(answer.operation_context_id));
+    TRY(encoder.encode(answer.routing_decision));
+    TRY(encoder.encode(answer.routed_scroller));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::WheelEventAnswer> decode(Decoder& decoder)
+{
+    return Compositing::WheelEventAnswer {
+        .performed_default_action = TRY(decoder.decode<bool>()),
+        .wheel_gesture_mark = TRY(decoder.decode<Optional<Web::WheelGestureMark>>()),
+        .operation_id = TRY(decoder.decode<Optional<Compositing::AsyncScrollOperationID>>()),
+        .operation_context_id = TRY(decoder.decode<Optional<Web::CompositorContextId>>()),
+        .routing_decision = TRY(decoder.decode<Optional<Web::InputRoutingDecision>>()),
+        .routed_scroller = TRY(decoder.decode<Optional<Web::AsyncScrollNodeStableID>>()),
+    };
+}
+
 }
