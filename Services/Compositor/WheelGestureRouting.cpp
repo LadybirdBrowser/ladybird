@@ -48,38 +48,33 @@ bool WheelGestureRouting::only_blocking_wheel_event_listeners_hold_steps_back() 
     return first_is_one_of(m_admission, Compositing::WheelRoutingAdmission::BlockingWheelEventListeners, Compositing::WheelRoutingAdmission::StaleWheelEventListeners);
 }
 
-bool WheelGestureRouting::note_wheel_event_from_ui(Web::MouseEvent const& event, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
+WheelGestureRouting::NotedWheelEvent WheelGestureRouting::note_wheel_event(Web::MouseEvent const& event, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
 {
-    return note_wheel_event(event.id, event.scroll_gesture_phase, event.modifiers, { event.wheel_delta_x, event.wheel_delta_y }, position, async_scroll_tree, now);
-}
-
-bool WheelGestureRouting::note_wheel_event(u64 input_event_id, Web::ScrollGesturePhase phase, u32 modifiers, Gfx::FloatPoint wheel_delta, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)
-{
-    if (input_event_id != 0) {
+    auto phase = event.scroll_gesture_phase;
+    if (event.id != 0) {
         if (phase == Web::ScrollGesturePhase::Ongoing)
-            m_newest_wheel_event_ids_from_ui.ongoing = input_event_id;
+            m_newest_wheel_event_ids_from_ui.ongoing = event.id;
         else if (phase == Web::ScrollGesturePhase::Momentum)
-            m_newest_wheel_event_ids_from_ui.momentum = input_event_id;
+            m_newest_wheel_event_ids_from_ui.momentum = event.id;
         else if (phase == Web::ScrollGesturePhase::Ended)
-            m_newest_wheel_event_ids_from_ui.ended = input_event_id;
+            m_newest_wheel_event_ids_from_ui.ended = event.id;
     }
 
-    bool starts_gesture = !m_gesture.has_value() || !m_gesture->identity.is_continued_by(position, phase, modifiers, now, position_slop_in_device_pixels(async_scroll_tree), m_touchpad_gesture_end);
+    bool starts_gesture = !m_gesture.has_value() || !m_gesture->identity.is_continued_by(position, phase, event.modifiers, now, position_slop_in_device_pixels(async_scroll_tree), m_touchpad_gesture_end);
     if (starts_gesture) {
         m_gesture = Gesture {
             .id = allocate_wheel_gesture_id(),
-            .identity = Compositing::WheelGestureIdentity::started_by(position, phase, modifiers, now),
+            .identity = Compositing::WheelGestureIdentity::started_by(position, phase, event.modifiers, now),
         };
         m_gesture_had_wheel_event_with_delta = false;
         m_latch.clear();
     } else {
         m_gesture->identity.advance_to(phase, now);
     }
-    if (!m_gesture_had_wheel_event_with_delta && !wheel_delta.is_zero()) {
+    bool is_first_wheel_event_with_delta = !m_gesture_had_wheel_event_with_delta && (event.wheel_delta_x != 0 || event.wheel_delta_y != 0);
+    if (is_first_wheel_event_with_delta)
         m_gesture_had_wheel_event_with_delta = true;
-        m_id_of_first_wheel_event_with_delta = input_event_id;
-    }
-    return starts_gesture;
+    return { .starts_gesture = starts_gesture, .is_first_wheel_event_with_delta = is_first_wheel_event_with_delta };
 }
 
 Optional<u64> WheelGestureRouting::gesture_id() const
@@ -93,7 +88,6 @@ void WheelGestureRouting::forget_gesture()
 {
     m_gesture.clear();
     m_gesture_had_wheel_event_with_delta = false;
-    m_id_of_first_wheel_event_with_delta = 0;
     m_latch.clear();
 }
 

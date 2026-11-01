@@ -12,10 +12,10 @@
     }
     #a {
         top: 0;
-        height: 100px;
+        height: 200px;
     }
     #b {
-        top: 100px;
+        top: 200px;
         height: 300px;
     }
 </style>
@@ -29,8 +29,8 @@
         await animationFrame();
         await animationFrame();
 
-        // The compositor scrolls the page, and #b slides under the cursor after the first step; the gesture's wheel
-        // events keep going to #a, its end included.
+        // The compositor scrolls the page by each step before the page sees it, and #b slides under the cursor with the
+        // second step; the gesture's wheel events keep going to #a, its end included.
         await internals.wheel(50, 50, 0, 100, true, "ongoing");
         await internals.wheel(50, 50, 0, 100, true, "ongoing");
         await internals.wheel(50, 50, 0, 0, true, "ended");

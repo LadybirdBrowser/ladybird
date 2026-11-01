@@ -17,6 +17,8 @@ class AsyncScrollUpdateOutbox {
 public:
     Compositing::AsyncScrollOperationID allocate_operation_id() { return ++m_last_allocated_operation_id; }
     void complete_operation(Compositing::AsyncScrollOperationID operation_id) { m_completed_operation_ids.append(operation_id); }
+    // Whether the operation ended since the updates were last taken.
+    bool has_completed_operation(Compositing::AsyncScrollOperationID operation_id) const { return m_completed_operation_ids.contains_slow(operation_id); }
     void note_operation_taken_over_by_user_input(Compositing::AsyncScrollOperationID operation_id) { m_operation_ids_taken_over_by_user_input.append(operation_id); }
     void record_scroll_offsets(ReadonlySpan<Compositing::AsyncScrollOffset>);
     void record_started_user_scroll(Compositing::StartedUserScroll started_user_scroll) { m_started_user_scrolls.append(move(started_user_scroll)); }

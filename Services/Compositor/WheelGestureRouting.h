@@ -32,16 +32,19 @@ public:
     bool admits_async_pinch() const;
     bool only_blocking_wheel_event_listeners_hold_steps_back() const;
 
-    // Returns whether the event starts another gesture than the one before it, which lets go of the latch. Every wheel
-    // event is noted as this context first sees it: from the UI, or from the main thread for one the UI did not send.
-    bool note_wheel_event_from_ui(Web::MouseEvent const&, Gfx::FloatPoint position, Compositing::AsyncScrollTree const&, MonotonicTime now);
-    bool note_wheel_event(u64 input_event_id, Web::ScrollGesturePhase, u32 modifiers, Gfx::FloatPoint wheel_delta, Gfx::FloatPoint position, Compositing::AsyncScrollTree const&, MonotonicTime now);
+    struct NotedWheelEvent {
+        // The event starts another gesture than the one before it, which lets go of the latch.
+        bool starts_gesture { false };
+        // The event is the first step of its gesture that moves anything. A touchpad gesture can start with a step that
+        // has no delta.
+        bool is_first_wheel_event_with_delta { false };
+    };
+    // Every wheel event is noted as this context first sees it: from the UI, or from the main thread for one the UI did
+    // not send.
+    NotedWheelEvent note_wheel_event(Web::MouseEvent const&, Gfx::FloatPoint position, Compositing::AsyncScrollTree const&, MonotonicTime now);
     // The id of the gesture of the wheel events this context notes. No gesture of any context in the process has the
     // same id, so a context nested in another one can tell the gestures of the containing context from its own.
     Optional<u64> gesture_id() const;
-    // Whether the wheel event is the first step of the gesture from the UI that moves anything. A touchpad gesture can
-    // start with a step that has no delta.
-    bool is_first_wheel_event_with_delta(u64 input_event_id) const { return input_event_id != 0 && input_event_id == m_id_of_first_wheel_event_with_delta; }
     // Whether the UI sent a later wheel event that this step cannot come before in one gesture, which makes it a step
     // of a gesture this context has already ended or moved past.
     bool step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
@@ -114,7 +117,6 @@ private:
     // thread makes. It says which gesture a step is in, whether this context or the main thread scrolls the step.
     Optional<Gesture> m_gesture;
     NewestWheelEventIdsFromUI m_newest_wheel_event_ids_from_ui;
-    u64 m_id_of_first_wheel_event_with_delta { 0 };
     bool m_gesture_had_wheel_event_with_delta { false };
     Optional<Latch> m_latch;
     Compositing::TouchpadGestureEnd m_touchpad_gesture_end { Compositing::TouchpadGestureEnd::AfterIdleDelay };
