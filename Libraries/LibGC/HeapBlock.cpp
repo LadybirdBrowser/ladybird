@@ -28,7 +28,7 @@ NonnullOwnPtr<HeapBlock> HeapBlock::create(Heap& heap, CellAllocator& cell_alloc
 }
 
 HeapBlock::HeapBlock(Heap& heap, CellAllocator& cell_allocator)
-    : HeapBlockBase(heap, cell_allocator.type_info())
+    : HeapBlockBase(heap, cell_allocator.type_info(), cell_allocator.foreign_type())
     , m_cell_allocator(cell_allocator)
     , m_cell_size(cell_allocator.cell_size())
     , m_cell_count((BLOCK_SIZE - sizeof(HeapBlock)) / m_cell_size)
