@@ -16,7 +16,7 @@ use crate::display_list::ffi_bytes::FfiBytes;
 use crate::display_list::nested_records::span_bytes;
 use crate::visual_context::queries::TreeCullingScratch;
 use crate::visual_context::{
-    ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, device_offset_for_index,
+    ClipNodeData, ContextRef, EffectNodeData, SpatialData, SpatialNode, VisualContextTree, device_offset_for_index,
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
 use libgfx_rust::path::Path;
@@ -284,6 +284,27 @@ fn int_rect_enclosing(rect: FloatRect) -> Option<IntRect> {
         .then(|| enclosing_int_rect(rect))
 }
 
+// The cull state of the element that establishes the 3D rendering context rooted at root: the cull state of the
+// plane the context is flattened into.
+fn backface_culled_outside_sorting_context(
+    spatial_nodes: &[SpatialNode],
+    backface_culled: &[bool],
+    root: SpatialNodeIndex,
+) -> bool {
+    let mut index = root.0 as usize;
+    loop {
+        if let SpatialData::Transform(transform) = &spatial_nodes[index].data
+            && transform.establishes_sorting_context
+        {
+            return backface_culled[index];
+        }
+        if index == 0 {
+            return false;
+        }
+        index = spatial_nodes[index].parent.0 as usize;
+    }
+}
+
 fn fill_replay_palette_in_dependency_order(
     tree: &VisualContextTree,
     spatial_dependency_order: &[u32],
@@ -343,8 +364,16 @@ fn fill_replay_palette_in_dependency_order(
                     transform.matrix_including_origin(),
                     transform.flattens_inherited_transform,
                 );
-                if transform.sorting_context_root_index.is_some() || transform.establishes_sorting_context {
-                    palette.backface_culled[i] = false;
+                // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
+                // A participant in a 3D rendering context is its own plane, so the hidden backfaces of other planes in
+                // the context don't cull it. But a context is part of the content flattened into the plane its
+                // establishing element sits in, so whatever culls that plane culls the whole context: A participant
+                // starts from the cull state of the element that establishes its context. The spec doesn't yet say if a
+                // hidden backface culls the 3D rendering contexts nested in it:
+                // https://github.com/w3c/csswg-drafts/issues/918
+                if let Some(root) = transform.sorting_context_root_index {
+                    palette.backface_culled[i] =
+                        backface_culled_outside_sorting_context(spatial_nodes, &palette.backface_culled, root);
                 }
             }
             SpatialData::Perspective(perspective) => {

@@ -68,6 +68,9 @@ struct SpatialChainWalk {
     needs_accumulated_matrices: bool,
     has_3d_transform: bool,
     culled: bool,
+    // The cull state of the plane the current 3D rendering context is flattened into. A root path runs through at
+    // most one context at a time, since a nested context only starts below an element that flattens.
+    culled_outside_sorting_context: bool,
     accumulated_matrices: Vec<FloatMatrix4x4>,
     point: FloatPoint,
     applied_steps: usize,
@@ -174,6 +177,7 @@ impl VisualContextTree {
             needs_accumulated_matrices,
             has_3d_transform,
             culled: false,
+            culled_outside_sorting_context: false,
             accumulated_matrices,
             point: screen_point,
             applied_steps: 0,
@@ -205,10 +209,17 @@ impl VisualContextTree {
             }
         }
 
-        if let SpatialData::Transform(transform) = &node.data
-            && (transform.sorting_context_root_index.is_some() || transform.establishes_sorting_context)
-        {
-            walk.culled = false;
+        // https://drafts.csswg.org/css-transforms-2/#3d-rendering-contexts
+        // A participant in a 3D rendering context is its own plane, culled only by its own hidden backface or by
+        // whatever culls the plane its context is flattened into. The spec doesn't yet say if a hidden backface culls
+        // the 3D rendering contexts nested in it:
+        // https://github.com/w3c/csswg-drafts/issues/918
+        if let SpatialData::Transform(transform) = &node.data {
+            if transform.establishes_sorting_context {
+                walk.culled_outside_sorting_context = walk.culled;
+            } else if transform.sorting_context_root_index.is_some() {
+                walk.culled = walk.culled_outside_sorting_context;
+            }
         }
 
         if walk.has_3d_transform && !matches!(node.data, SpatialData::BackfaceVisibility(_)) {
