@@ -46,6 +46,7 @@
 #include <LibWebCommon/Forward.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/HTML/ColorPickerUpdateState.h>
+#include <LibWebCommon/HTML/CrossProcessId.h>
 #include <LibWebCommon/HTML/FileFilter.h>
 #include <LibWebCommon/HTML/HistoryOperation.h>
 #include <LibWebCommon/HTML/MuteState.h>
@@ -358,6 +359,8 @@ public:
     void find_in_page_end();
 
     void get_source();
+    bool can_view_source() const;
+    void did_start_showing_page_source();
 
     bool can_report_website_issue() const;
     void report_website_issue();
@@ -824,6 +827,7 @@ protected:
 
     void initialize_context_menus();
     void update_report_website_issue_action();
+    void update_view_source_action();
     void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation, Function<void()> on_handler_unavailable = {});
     void handle_external_url_from_user_input(URL::URL const&, Function<void()> on_handler_unavailable = {});
     void complete_external_url_request();
@@ -1049,6 +1053,12 @@ protected:
     };
     Optional<WebDriverNavigationObservation> m_webdriver_navigation_observation;
     Optional<NavigationToRetry> m_last_stopped_navigation;
+
+    // A view that shows the source of a page offers no source of its own to view: Each view of the source of a source
+    // page would wrap the one before in another layer of markup, without end. The source is the document of one
+    // document state, which a fragment navigation keeps and history traversal brings back.
+    bool m_page_source_pending { false };
+    Optional<Web::HTML::CrossProcessId> m_page_source_document_state;
 
     size_t m_crash_count = 0;
     RefPtr<Core::Timer> m_repeated_crash_timer;

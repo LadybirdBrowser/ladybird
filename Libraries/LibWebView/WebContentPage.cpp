@@ -2818,8 +2818,10 @@ void WebContentPage::did_request_media_context_menu(Web::HTML::CrossProcessId lo
 
 void WebContentPage::did_get_highlighted_source(String html)
 {
-    if (auto new_tab = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); new_tab.has_value())
+    if (auto new_tab = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); new_tab.has_value()) {
+        new_tab->did_start_showing_page_source();
         new_tab->load_html(html);
+    }
 }
 
 void WebContentPage::did_get_debugger_environments(u64 request_id, Optional<String> error, Vector<DebuggerEnvironment> environments)
