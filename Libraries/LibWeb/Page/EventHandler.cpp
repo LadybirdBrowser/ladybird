@@ -3507,8 +3507,15 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
     auto editing_host_before_focus = editable_hit_node_before_focus ? associated_descendant_editing_host(read, *editable_hit_node_before_focus) : nullptr;
 
     auto focus_candidate = editing_host_before_focus;
-    if (!focus_candidate)
+    if (!focus_candidate) {
+        // The hit test above may have taken in a frame that was in flight, and a frame that renders SVG images flies
+        // again, which leaves layout stale. The hit test below records again if its list isn't current, and recording
+        // reads layout, so bring layout up to date first.
+        document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+        if (!has_committed_root_box())
+            return {};
         focus_candidate = focus_candidate_for_position(read, visual_viewport_position);
+    }
     if (focus_candidate)
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
     else if (auto focused_area = document.focused_area())
