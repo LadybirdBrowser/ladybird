@@ -2353,7 +2353,13 @@ void WebContentView::show_context_menu(WebView::Menu& menu, Gfx::IntPoint widget
     if (m_context_menu)
         m_context_menu->deleteLater();
     m_context_menu = create_application_menu(*this, menu);
-    execute_context_menu(*m_context_menu, map_point_to_global_position(widget_position));
+    auto global_position = map_point_to_global_position(widget_position);
+
+    // NB: Showing a menu runs a nested event loop, which may destroy the view. So it runs with nothing of the view's on the
+    //     stack.
+    QTimer::singleShot(0, m_context_menu, [context_menu = m_context_menu.data(), global_position] {
+        execute_context_menu(*context_menu, global_position);
+    });
 }
 
 #if defined(LADYBIRD_QT_USE_IOSURFACE_LAYER) || defined(LADYBIRD_HAS_WAYLAND_GPU_QUERY)
