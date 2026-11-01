@@ -3515,7 +3515,10 @@ bool HTMLMediaElement::should_be_kept_alive() const
     // element is in a state where no further audio could ever be played by that element may the element be garbage
     // collected.
     // NB: Playback stops while the node document is not fully active, and resumes only if something reaches the element.
-    if (!document().is_fully_active())
+    //     Document observers learn that the document stopped being fully active while it unloads, when it is still its
+    //     navigable's active document, and pause the element then. Nothing reconsiders the element after the unload, so
+    //     it must stop keeping itself alive as soon as the observers are told.
+    if (!document().is_fully_active() || !document().observers_consider_fully_active())
         return false;
 
     // NB: The load may still fire events, and reach the readyState at which the element starts playing.
