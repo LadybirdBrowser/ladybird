@@ -7223,6 +7223,8 @@ void Document::make_active()
             if (auto title = document->title(); !title.is_empty())
                 document->page().client().page_did_change_title(title);
         }));
+    } else if (current_navigable) {
+        page().client().page_did_change_active_document_in_child_navigable(*this);
     }
 
     // 4. Set window's relevant settings object's execution ready flag.
