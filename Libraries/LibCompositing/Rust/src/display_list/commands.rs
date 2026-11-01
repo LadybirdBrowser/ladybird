@@ -53,7 +53,6 @@ pub enum DisplayListCommandType {
     PaintScrollBar,
     CompositorSnapContainer,
     CompositorSnapArea,
-    CompositorScrollChainingBarrier,
     CompositorNestedContextWheelRegion,
     Canvas2DFillPath,
     Canvas2DStrokePath,
@@ -95,7 +94,6 @@ impl DisplayListCommandType {
                 | Self::CompositorBlockingWheelEventRegion
                 | Self::CompositorSnapContainer
                 | Self::CompositorSnapArea
-                | Self::CompositorScrollChainingBarrier
                 | Self::CompositorNestedContextWheelRegion
         )
     }
@@ -163,7 +161,6 @@ impl DisplayListCommandType {
             Self::PaintScrollBar => "PaintScrollBar",
             Self::CompositorSnapContainer => "CompositorSnapContainer",
             Self::CompositorSnapArea => "CompositorSnapArea",
-            Self::CompositorScrollChainingBarrier => "CompositorScrollChainingBarrier",
             Self::CompositorNestedContextWheelRegion => "CompositorNestedContextWheelRegion",
             Self::Canvas2DFillPath => "Canvas2DFillPath",
             Self::Canvas2DStrokePath => "Canvas2DStrokePath",
@@ -1624,27 +1621,6 @@ ffi_bytes_fields!(CompositorWheelHitTestTargetWithCornerRadii {
 
 impl DisplayListCommand for CompositorWheelHitTestTargetWithCornerRadii {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorWheelHitTestTargetWithCornerRadii;
-}
-
-/// A scroll container that has no scroll node, because a wheel can scroll nothing in it, and that keeps the scrolls
-/// along an axis to itself all the same: a wheel inside `rect` is not passed on to the scroll node above it.
-#[derive(Clone, Copy, Debug, PartialEq)]
-#[repr(C)]
-pub struct CompositorScrollChainingBarrier {
-    pub scroll_node_index_above_barrier: SpatialNodeIndex,
-    pub rect: FloatRect,
-    pub keeps_horizontal_scrolls: bool,
-    pub keeps_vertical_scrolls: bool,
-}
-ffi_bytes_fields!(CompositorScrollChainingBarrier {
-    scroll_node_index_above_barrier,
-    rect,
-    keeps_horizontal_scrolls,
-    keeps_vertical_scrolls
-});
-
-impl DisplayListCommand for CompositorScrollChainingBarrier {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorScrollChainingBarrier;
 }
 
 /// Where a nested context is painted: its content box, clipped to the rounded padding edge. The compositor can hand a

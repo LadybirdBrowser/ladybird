@@ -136,7 +136,6 @@ fn note_referenced_ids(command_type: DisplayListCommandType, payload: &[u8], ids
         | T::PaintScrollBar
         | T::CompositorSnapContainer
         | T::CompositorSnapArea
-        | T::CompositorScrollChainingBarrier
         | T::CompositorNestedContextWheelRegion
         // The display list of a page holds none of the commands of the canvas 2D stream.
         | T::Canvas2DFillPath
@@ -290,7 +289,6 @@ fn command_blend(
         | T::PaintScrollBar
         | T::CompositorSnapContainer
         | T::CompositorSnapArea
-        | T::CompositorScrollChainingBarrier
         | T::CompositorNestedContextWheelRegion
         // The display list of a page holds none of the commands of the canvas 2D stream.
         | T::Canvas2DFillPath

@@ -1,0 +1,2 @@
+overscroll-behavior: auto, sticky tops: 150,60
+overscroll-behavior: contain, sticky tops: 150,60

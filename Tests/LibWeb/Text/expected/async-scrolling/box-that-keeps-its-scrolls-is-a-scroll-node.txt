@@ -1,0 +1,12 @@
+scroll nodes once the box keeps its scrolls: 1 more
+scroll nodes once the box is not a scroll container: 0 more
+up beside the scroller: no-scroll-target
+left beside the scroller: latched scroller=viewport
+up at the top of the scroller: no-scroll-target
+down over the scroller: latched scroller=#scroller
+overflow hidden, up beside the scroller: no-scroll-target
+#1 compositor: no-scroll-target
+#1 compositor: forwarded-to-page
+#2 compositor: gesture-end-with-nothing-to-snap
+#2 compositor: forwarded-to-page
+page at 200,200

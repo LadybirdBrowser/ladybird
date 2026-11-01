@@ -600,6 +600,22 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     {
         result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
     }
+    // A scroll container that keeps its scrolls has a scroll node of its own, so a box that starts or stops keeping
+    // them has its visual context nodes built again.
+    if matches!(
+        property,
+        property_id::OVERSCROLL_BEHAVIOR_X | property_id::OVERSCROLL_BEHAVIOR_Y
+    ) {
+        use crate::css::css_enums::overscroll_behavior::{AUTO, CHAIN};
+        let chains = |value: u8| value == AUTO || value == CHAIN;
+        let old_values = old.misc_reset();
+        let new_values = new.misc_reset();
+        if chains(old_values.overscroll_behavior_x) != chains(new_values.overscroll_behavior_x)
+            || chains(old_values.overscroll_behavior_y) != chains(new_values.overscroll_behavior_y)
+        {
+            result.ensure_visual_context(VISUAL_CONTEXT_REBUILD);
+        }
+    }
     let will_change_covers_property =
         will_change_covers_property(property, old) && will_change_covers_property(property, new);
     if property_metadata::property_affects_stacking_context(property)

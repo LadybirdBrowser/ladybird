@@ -278,6 +278,7 @@ pub(crate) fn register_scroll_like_node(
             let box_values = style.box_values();
             if matches!(box_values.overflow_x, overflow::AUTO | overflow::SCROLL)
                 || matches!(box_values.overflow_y, overflow::AUTO | overflow::SCROLL)
+                || crate::painting::chrome_geometry::keeps_scrolls_along_some_axis(layout_arena, owner_paintable)
             {
                 scroll_state.has_non_viewport_wheel_scroll_target_candidate = true;
             }
@@ -681,7 +682,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsWrite>(
         // publishes them again for this one.
         tree.clear_visual_animations();
     }
-    // Whether any box but the viewport could take a wheel event decides if scroll metadata
+    // Whether any box but the viewport could take or keep a wheel event decides if scroll metadata
     // everywhere carries per-box wheel targets.
     if state.scroll_state.has_non_viewport_wheel_scroll_target_candidate
         != scroll_state.has_non_viewport_wheel_scroll_target_candidate

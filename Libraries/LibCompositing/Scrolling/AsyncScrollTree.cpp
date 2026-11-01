@@ -21,7 +21,6 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_main_thread_wheel_event_regions = move(state.main_thread_wheel_event_regions);
     m_nested_context_wheel_regions = move(state.nested_context_wheel_regions);
     m_blocking_wheel_event_regions = move(state.blocking_wheel_event_regions);
-    m_scroll_chaining_barriers = move(state.scroll_chaining_barriers);
     m_has_blocking_wheel_event_region_covering_viewport = state.has_blocking_wheel_event_region_covering_viewport;
     m_viewport_keeps_horizontal_scrolls = state.viewport_keeps_horizontal_scrolls;
     m_viewport_keeps_vertical_scrolls = state.viewport_keeps_vertical_scrolls;
@@ -29,7 +28,6 @@ void AsyncScrollTree::set_state(AsyncScrollingState&& state)
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_nested_context_wheel_regions.clear();
     m_cached_blocking_wheel_event_targets.clear();
-    m_cached_scroll_chaining_barriers.clear();
     m_visual_context_tree_structural_epoch.clear();
 }
 
@@ -72,7 +70,7 @@ static bool node_chains_scroll_to_ancestors(AsyncScrollNode const& node, Gfx::Fl
     return delta_is_mainly_vertical(delta) ? node.chains_scroll_to_ancestors_vertically : node.chains_scroll_to_ancestors_horizontally;
 }
 
-WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(Compositing::SpatialNodeIndex scroll_node_index, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, ReadonlySpan<Compositing::SpatialNodeIndex> scroll_nodes_behind_scroll_chaining_barriers) const
+WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(Compositing::SpatialNodeIndex scroll_node_index, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for) const
 {
     auto can_take_step = [&](AsyncScrollNode const& node) {
         Optional<Gfx::FloatPoint> in_flight_destination;
@@ -82,12 +80,12 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(Compositing:
     };
 
     for (auto const* node = scroll_node_for_index(scroll_node_index); node;) {
-        // Only the main thread sees the box that keeps the scroll from this scroller, so it finds out whether the wheel
-        // is under that box.
-        if (scroll_nodes_behind_scroll_chaining_barriers.contains_slow(node->scroll_node_index))
-            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
         if (can_take_step(*node))
             return { .outcome = WheelHitTestOutcome::FoundScrollTarget, .scroll_node_index = node->scroll_node_index, .innermost_scroll_node_index = scroll_node_index };
+        // https://drafts.csswg.org/css-overscroll-1/#scroll-chaining-and-boundary-default-actions
+        // If a scroll container has no potential to scroll, because it does not overflow in the direction of the
+        // scroll, the element is always considered to be at the scroll boundary.
+        // NB: A scroll container that keeps its scrolls has a scroll node even when it has nothing to scroll.
         if (!node_chains_scroll_to_ancestors(*node, delta))
             return { .outcome = WheelHitTestOutcome::NoScrollTarget, .innermost_scroll_node_index = scroll_node_index, .scroll_node_index_keeping_the_scroll = node->scroll_node_index };
         if (!node->parent_scroll_node_index.has_value())
@@ -284,7 +282,6 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Compositing::Display
     m_cached_main_thread_wheel_event_targets.clear();
     m_cached_nested_context_wheel_regions.clear();
     m_cached_blocking_wheel_event_targets.clear();
-    m_cached_scroll_chaining_barriers.clear();
     m_visual_context_tree_structural_epoch.clear();
     m_scroll_state_snapshot = scroll_state_snapshot;
     if (!display_list || !visual_context_tree)
@@ -345,14 +342,6 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Compositing::Display
             .context = region.context,
             .rect = region.rect,
             .viewport_rect = context_is_valid(region.context) ? viewport_rect_for_context(region.context, region.rect) : Optional<Gfx::FloatRect> {},
-        });
-    }
-
-    for (auto const& barrier : m_scroll_chaining_barriers) {
-        // Keep invalid barriers so hit testing fails closed when their extent cannot be determined.
-        m_cached_scroll_chaining_barriers.append({
-            .barrier = barrier,
-            .viewport_rect = context_is_valid(barrier.context) ? viewport_rect_for_context(barrier.context, barrier.rect) : Optional<Gfx::FloatRect> {},
         });
     }
 }
@@ -529,24 +518,6 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
     if (blocking_wheel_event_listeners_hold_the_step_back && blocks_wheel_event_at_position(visual_context_tree, position))
         return { .outcome = WheelHitTestOutcome::BlockedByWheelEventRegion };
 
-    // https://drafts.csswg.org/css-overscroll-1/#scroll-chaining-and-boundary-default-actions
-    // If a scroll container has no potential to scroll, because it does not overflow in the direction of the scroll,
-    // the element is always considered to be at the scroll boundary.
-    Vector<Compositing::SpatialNodeIndex, 2> scroll_nodes_behind_scroll_chaining_barriers;
-    for (auto const& cached_barrier : m_cached_scroll_chaining_barriers) {
-        auto const& barrier = cached_barrier.barrier;
-        bool keeps_the_scroll = delta_is_mainly_vertical(delta) ? barrier.keeps_vertical_scrolls : barrier.keeps_horizontal_scrolls;
-        if (!keeps_the_scroll)
-            continue;
-        if (!context_is_valid(barrier.context))
-            return { .outcome = WheelHitTestOutcome::BlockedByMainThreadRegion };
-        if (cached_barrier.viewport_rect.has_value() && !cached_barrier.viewport_rect->contains(position))
-            continue;
-        auto position_in_context = visual_context_tree.transform_point_for_hit_test(barrier.context, position, m_scroll_state_snapshot);
-        if (position_in_context.has_value() && barrier.rect.contains(*position_in_context))
-            scroll_nodes_behind_scroll_chaining_barriers.append(barrier.scroll_node_index_above_barrier);
-    }
-
     for (auto const& target : m_cached_wheel_hit_test_targets.in_reverse()) {
         if (target.viewport_rect.has_value() && !target.viewport_rect->contains(position))
             continue;
@@ -557,7 +528,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
             continue;
         if (!target.target_scroll_node_index.has_value())
             return { .outcome = WheelHitTestOutcome::NoScrollTarget };
-        return hit_test_result_for_scroll_node(*target.target_scroll_node_index, delta, in_flight_destination_for, scroll_nodes_behind_scroll_chaining_barriers);
+        return hit_test_result_for_scroll_node(*target.target_scroll_node_index, delta, in_flight_destination_for);
     }
 
     auto index_of_viewport_scroll_node = viewport_scroll_node_index();
@@ -566,7 +537,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Compositing::
     auto const* viewport_node = scroll_node_for_index(*index_of_viewport_scroll_node);
     if (!viewport_node || !viewport_node->scrollport_rect.to_type<float>().contains(position))
         return { .outcome = WheelHitTestOutcome::NoScrollTarget };
-    return hit_test_result_for_scroll_node(*index_of_viewport_scroll_node, delta, in_flight_destination_for, scroll_nodes_behind_scroll_chaining_barriers);
+    return hit_test_result_for_scroll_node(*index_of_viewport_scroll_node, delta, in_flight_destination_for);
 }
 
 FirstWheelStepRoute AsyncScrollTree::route_first_wheel_step(WheelRoutingAdmission admission, Compositing::AccumulatedVisualContextTree const& visual_context_tree, Gfx::FloatPoint position, Gfx::FloatPoint delta, NestedContextRegions nested_context_regions) const

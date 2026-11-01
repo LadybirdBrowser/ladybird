@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #outer-sticky {
+        position: sticky;
+        top: 10px;
+        margin-top: 100px;
+    }
+    #box {
+        height: 200px;
+        overflow: auto;
+    }
+    .sticky {
+        position: sticky;
+        top: 50px;
+        height: 20px;
+    }
+    .spacer {
+        height: 100px;
+    }
+</style>
+<div id="outer-sticky">
+    <div id="box">
+        <div id="sticky" class="sticky"></div>
+        <div class="spacer"></div>
+    </div>
+</div>
+<script>
+    promiseTest(async () => {
+        // The box has nothing to scroll. Once it keeps its scrolls it has a scroll node of its own, which the sticky
+        // box inside it sticks to exactly as it stuck to the box's scrollport before.
+        const stickyTops = async () => {
+            const tops = [];
+            for (const pageOffset of [0, 300]) {
+                window.scrollTo(0, pageOffset);
+                await animationFrame();
+                tops.push(sticky.getBoundingClientRect().top);
+            }
+            return tops.join(",");
+        };
+        const topsWithAuto = await stickyTops();
+        box.style.overscrollBehavior = "contain";
+        const topsWithContain = await stickyTops();
+        println(`overscroll-behavior: auto, sticky tops: ${topsWithAuto}`);
+        println(`overscroll-behavior: contain, sticky tops: ${topsWithContain}`);
+    });
+</script>

@@ -1768,8 +1768,8 @@ EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() co
         target = scroll_target->layout_node(read);
     if (!target)
         return snapshot;
-    // The compositor only knows the scrollers that a wheel can scroll. If any other box keeps the scrolls of keys to
-    // itself, the keys are scrolled by here, where every box in the chain is seen.
+    // The compositor starts a key scroll at the first box a wheel can scroll. If a box around the target keeps the
+    // scrolls of keys to itself, the keys are scrolled by here, where every box in the chain is seen.
     for (auto delta : { Gfx::FloatPoint { 1, 0 }, Gfx::FloatPoint { 0, 1 } }) {
         auto const* box_ending_scroll_chain = Painting::box_ending_scroll_chain(*target, delta.x(), delta.y());
         if (!box_ending_scroll_chain || box_ending_scroll_chain->is_viewport())
