@@ -1,0 +1,4 @@
+narrow: height 58
+full: height 58
+checkbox below legend: true
+checkbox at the start of its line: true
