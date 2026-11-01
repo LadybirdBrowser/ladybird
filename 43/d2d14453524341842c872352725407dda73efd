@@ -1,0 +1,10 @@
+Ladybird sends a console.table() message in the shape that Gecko’s
+DevTools server gives it in getConsoleTableMessageItems(): The first
+argument’s grip gets the table’s rows in an ownProperties field, with
+each row’s cells in the ownProperties field of its own grip, and a null
+preview. Gecko reads those rows from the table data itself, with
+enumProperties() or enumEntries(). Ladybird builds them from the rows
+and columns that its console made of that data instead, as the Console
+spec’s table() steps describe. V8 (ConsoleAPIType::kTable) and WebKit
+(MessageType::Table) report the call’s arguments, and generate a table
+preview from them for their own clients.
