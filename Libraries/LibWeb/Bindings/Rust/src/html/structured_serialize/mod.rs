@@ -30,23 +30,29 @@ use libjs_rust::api::{
 };
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
-use crate::bindings::interface::with_temporary_execution_context;
-use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
+use crate::bindings::interface::{Interface, Ref, implementation_if_wrapper, with_temporary_execution_context, wrap};
+use crate::bindings::structured_data::{
+    SerializationReader, SerializationWriter, TransferDataReader, TransferDataWriter, Transferable,
+};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
 use crate::crypto::crypto_key;
+use crate::html::image_bitmap::ImageBitmap;
+use crate::html::message_port::MessagePort;
+use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
     OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, TransferDataDecoder,
-    TransferDataHolder, create_transferred_platform_object, current_settings_object_agent_cluster,
+    TransferDataHolder, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
-    deserialize_rust_platform_object, is_exposed, is_platform_object, is_transferable,
-    is_transferable_interface_exposed, realm_agent_cluster, serializable_interface_name,
+    deserialize_rust_platform_object, is_exposed, is_platform_object, realm_agent_cluster, serializable_interface_name,
     serializable_interface_storage_identifier, serializable_payload_version, serializable_steps, serialization_steps,
-    transfer_steps, transferable_is_detached, transferable_primary_interface, transferable_set_detached,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
+use crate::streams::readable_stream::ReadableStream;
+use crate::streams::transform_stream::TransformStream;
+use crate::streams::writable_stream::WritableStream;
 use crate::webidl::dom_exception::{self, DOMExceptionFields};
 use crate::webidl::quota_exceeded_error::{self, QuotaExceededErrorFields};
 
@@ -117,12 +123,135 @@ impl ValueTag {
     }
 }
 
-/// HTML::TransferType, the types of the data holders of a transfer.
+/// The types of the data holders of a transfer, which only IPC carries.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 enum TransferType {
+    MessagePort = 1,
     ArrayBuffer = 2,
     ResizableArrayBuffer = 3,
+    ReadableStream = 4,
+    WritableStream = 5,
+    TransformStream = 6,
+    ImageBitmap = 7,
+    OffscreenCanvas = 8,
+}
+
+impl TransferType {
+    fn from_u8(value: u8) -> Option<Self> {
+        Some(match value {
+            1 => Self::MessagePort,
+            2 => Self::ArrayBuffer,
+            3 => Self::ResizableArrayBuffer,
+            4 => Self::ReadableStream,
+            5 => Self::WritableStream,
+            6 => Self::TransformStream,
+            7 => Self::ImageBitmap,
+            8 => Self::OffscreenCanvas,
+            _ => return None,
+        })
+    }
+}
+
+/// A platform object that is a transferable object, which has a [[Detached]] internal slot.
+#[derive(Clone, Copy)]
+enum TransferablePlatformObject {
+    MessagePort(Ref<MessagePort>),
+    ReadableStream(Ref<ReadableStream>),
+    WritableStream(Ref<WritableStream>),
+    TransformStream(Ref<TransformStream>),
+    ImageBitmap(Ref<ImageBitmap>),
+    OffscreenCanvas(Gc<Object>),
+}
+
+impl TransferablePlatformObject {
+    fn from_object(object: Gc<Object>) -> Option<Self> {
+        if let Some(port) = implementation_if_wrapper(object) {
+            return Some(Self::MessagePort(port));
+        }
+        if let Some(stream) = implementation_if_wrapper(object) {
+            return Some(Self::ReadableStream(stream));
+        }
+        if let Some(stream) = implementation_if_wrapper(object) {
+            return Some(Self::WritableStream(stream));
+        }
+        if let Some(stream) = implementation_if_wrapper(object) {
+            return Some(Self::TransformStream(stream));
+        }
+        if let Some(image_bitmap) = implementation_if_wrapper(object) {
+            return Some(Self::ImageBitmap(image_bitmap));
+        }
+        offscreen_canvas::is_offscreen_canvas(object).then_some(Self::OffscreenCanvas(object))
+    }
+
+    /// The identifier of the primary interface of the object.
+    fn primary_interface(self) -> TransferType {
+        match self {
+            Self::MessagePort(_) => TransferType::MessagePort,
+            Self::ReadableStream(_) => TransferType::ReadableStream,
+            Self::WritableStream(_) => TransferType::WritableStream,
+            Self::TransformStream(_) => TransferType::TransformStream,
+            Self::ImageBitmap(_) => TransferType::ImageBitmap,
+            Self::OffscreenCanvas(_) => TransferType::OffscreenCanvas,
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/structured-data.html#detached
+    fn is_detached(self) -> bool {
+        match self {
+            Self::MessagePort(port) => port.detached().get(),
+            Self::ReadableStream(stream) => stream.detached().get(),
+            Self::WritableStream(stream) => stream.detached().get(),
+            Self::TransformStream(stream) => stream.detached().get(),
+            Self::ImageBitmap(image_bitmap) => image_bitmap.detached().get(),
+            Self::OffscreenCanvas(object) => offscreen_canvas::is_detached(object),
+        }
+    }
+
+    fn set_detached(self) {
+        match self {
+            Self::MessagePort(port) => port.detached().set(true),
+            Self::ReadableStream(stream) => stream.detached().set(true),
+            Self::WritableStream(stream) => stream.detached().set(true),
+            Self::TransformStream(stream) => stream.detached().set(true),
+            Self::ImageBitmap(image_bitmap) => image_bitmap.detached().set(true),
+            // NB: The [[Detached]] internal slot of an OffscreenCanvas is its detached context mode, which its transfer
+            //     steps set.
+            Self::OffscreenCanvas(_) => {}
+        }
+    }
+
+    // https://html.spec.whatwg.org/multipage/structured-data.html#transfer-steps
+    fn transfer_steps(self, cx: &mut CallContext, data_holder: &mut TransferDataWriter) -> WebIdlResult<()> {
+        match self {
+            Self::MessagePort(port) => MessagePort::transfer_steps(&port, cx, data_holder),
+            Self::ReadableStream(stream) => ReadableStream::transfer_steps(&stream, cx, data_holder),
+            Self::WritableStream(stream) => WritableStream::transfer_steps(&stream, cx, data_holder),
+            Self::TransformStream(stream) => TransformStream::transfer_steps(&stream, cx, data_holder),
+            Self::ImageBitmap(image_bitmap) => ImageBitmap::transfer_steps(&image_bitmap, cx, data_holder),
+            Self::OffscreenCanvas(object) => offscreen_canvas::transfer_steps(object, data_holder),
+        }
+    }
+}
+
+/// Web::Bindings::InterfaceName of the interface that the type of a data holder identifies, if it identifies one.
+fn transferable_interface_name(transfer_type: TransferType) -> Option<u16> {
+    Some(match transfer_type {
+        TransferType::MessagePort => MessagePort::INTERFACE_NAME,
+        TransferType::ReadableStream => ReadableStream::INTERFACE_NAME,
+        TransferType::WritableStream => WritableStream::INTERFACE_NAME,
+        TransferType::TransformStream => TransformStream::INTERFACE_NAME,
+        TransferType::ImageBitmap => ImageBitmap::INTERFACE_NAME,
+        TransferType::OffscreenCanvas => offscreen_canvas::interface_name(),
+        TransferType::ArrayBuffer | TransferType::ResizableArrayBuffer => return None,
+    })
+}
+
+/// The wrapper of a new object of `T` in the realm of the data holder, after the transfer-receiving steps of `T`.
+fn receive_transferred<T: Transferable>(cx: &CallContext, data_holder: &mut TransferDataReader) -> WebIdlResult<Value> {
+    let mut cx = CallContext::new(cx.vm(), data_holder.realm());
+    let object = T::transfer_receiving_steps(&mut cx, data_holder)?;
+    Ok(Value::from_object(wrap(&cx, object)))
 }
 
 /// Error, followed by the native errors of LibJS, in the order of JS_ENUMERATE_NATIVE_ERRORS, which IPC records hold.
@@ -741,7 +870,8 @@ impl<'memory> Serializer<'_, '_, 'memory> {
             else if let Some(interface_name) = serializable_interface_name(object) {
                 // 1. If value has a [[Detached]] internal slot whose value is true, then throw a "DataCloneError" DOMException.
                 // NB: The platform objects that have a [[Detached]] internal slot are the transferable objects.
-                if is_transferable(object) && transferable_is_detached(object) {
+                if TransferablePlatformObject::from_object(object).is_some_and(TransferablePlatformObject::is_detached)
+                {
                     return Err(data_clone_error("Cannot serialize a detached platform object"));
                 }
 
@@ -1571,7 +1701,7 @@ pub(crate) fn structured_serialize_with_transfer(
 
         // 1. If transferable has neither an [[ArrayBufferData]] internal slot nor a [[Detached]] internal slot, then throw a "DataCloneError" DOMException.
         // NB: The platform objects that have a [[Detached]] internal slot are the transferable objects.
-        if as_array_buffer.is_none() && !is_transferable(*transferable) {
+        if as_array_buffer.is_none() && TransferablePlatformObject::from_object(*transferable).is_none() {
             return Err(data_clone_error("Cannot transfer type"));
         }
 
@@ -1620,6 +1750,7 @@ pub(crate) fn structured_serialize_with_transfer(
     for transferable in transfer_list {
         let array_buffer = transferable.downcast::<ArrayBuffer>();
         let is_detached = array_buffer.is_some_and(|array_buffer| array_buffer.is_detached());
+        let platform_object = TransferablePlatformObject::from_object(*transferable);
 
         // 1. If transferable has an [[ArrayBufferData]] internal slot and IsDetachedBuffer(transferable) is true, then throw a "DataCloneError" DOMException.
         if is_detached {
@@ -1627,7 +1758,7 @@ pub(crate) fn structured_serialize_with_transfer(
         }
 
         // 2. If transferable has a [[Detached]] internal slot and transferable.[[Detached]] is true, then throw a "DataCloneError" DOMException.
-        if is_transferable(*transferable) && transferable_is_detached(*transferable) {
+        if platform_object.is_some_and(TransferablePlatformObject::is_detached) {
             return Err(data_clone_error("Value already transferred"));
         }
 
@@ -1668,22 +1799,24 @@ pub(crate) fn structured_serialize_with_transfer(
         // 5. Otherwise:
         else {
             // 1. Assert: transferable is a platform object that is a transferable object.
-            assert!(is_transferable(*transferable));
+            let platform_object = platform_object.expect("transferable is a transferable object");
             assert!(is_platform_object(*transferable));
 
             // 2. Let interfaceName be the identifier of the primary interface of transferable.
-            let interface_name = transferable_primary_interface(*transferable);
+            let interface_name = platform_object.primary_interface();
 
             // 3. Set dataHolder.[[Type]] to interfaceName.
-            data_holder.encode_u8(interface_name);
+            data_holder.encode_u8(interface_name as u8);
 
             // FIXME: 4. If transferable's primary interface is decorated with [SameAgentCluster], then restrict dataHolder to the same agent cluster.
 
             // 5. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
-            transfer_steps(cx, *transferable, &data_holder, &image_bitmap_pixels)?;
+            let mut steps_cx = CallContext::new(vm, cx.realm());
+            let mut writer = TransferDataWriter::new(&data_holder, cx.realm(), &image_bitmap_pixels);
+            platform_object.transfer_steps(&mut steps_cx, &mut writer)?;
 
             // 6. Set transferable.[[Detached]] to true.
-            transferable_set_detached(*transferable);
+            platform_object.set_detached();
         }
 
         // 6. Append dataHolder to transferDataHolders.
@@ -1773,7 +1906,9 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
 ) -> WebIdlResult<Value> {
     let target_realm = cx.realm();
 
-    let transfer_type = decoder.decode_u8(target_realm)?;
+    let Some(transfer_type) = TransferType::from_u8(decoder.decode_u8(target_realm)?) else {
+        return Err(data_clone_error("Unknown type transferred"));
+    };
 
     // 1. Let value be an uninitialized value.
     #[allow(clippy::needless_late_init, reason = "the steps let value be uninitialized first")]
@@ -1786,7 +1921,7 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     //       this step is unlikely to throw an exception, as no new memory needs to be allocated: the memory occupied by
     //       [[ArrayBufferData]] is instead just getting transferred into the new ArrayBuffer. This could be true, for example,
     //       when both the source and target realms are in the same process.
-    if transfer_type == TransferType::ArrayBuffer as u8 {
+    if transfer_type == TransferType::ArrayBuffer {
         let buffer = decoder.decode_byte_buffer(target_realm)?;
         value = Value::from_object(buffer.into_array_buffer(target_realm, ArrayBufferShared::No));
     }
@@ -1795,7 +1930,7 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     //     [[ArrayBufferByteLength]] internal slot value is transferDataHolder.[[ArrayBufferByteLength]], and whose
     //     [[ArrayBufferMaxByteLength]] internal slot value is transferDataHolder.[[ArrayBufferMaxByteLength]].
     // NOTE: For the same reason as the previous step, this step is also unlikely to throw an exception.
-    else if transfer_type == TransferType::ResizableArrayBuffer as u8 {
+    else if transfer_type == TransferType::ResizableArrayBuffer {
         let buffer = decoder.decode_byte_buffer(target_realm)?;
         let max_byte_length = decoder.decode_size(target_realm)?;
 
@@ -1814,13 +1949,25 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
         // 1. Let interfaceName be transferDataHolder.[[Type]].
         // NB: Step 3 of StructuredDeserializeWithTransfer checks that every transferred interface is exposed before any
         //     transfer-receiving steps run. The check runs here, per data holder, instead.
-        if !is_transferable_interface_exposed(transfer_type, target_realm) {
+        let interface_name = transferable_interface_name(transfer_type).expect("the type names an interface");
+        if !is_exposed(interface_name, target_realm) {
             return Err(data_clone_error("Unknown type transferred"));
         }
 
         // 2. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
         // 3. Perform the appropriate transfer-receiving steps for the interface identified by interfaceName given transferDataHolder and value.
-        value = create_transferred_platform_object(transfer_type, target_realm, decoder)?;
+        let mut data_holder = TransferDataReader::new(decoder, target_realm);
+        value = match transfer_type {
+            TransferType::MessagePort => receive_transferred::<MessagePort>(cx, &mut data_holder)?,
+            TransferType::ReadableStream => receive_transferred::<ReadableStream>(cx, &mut data_holder)?,
+            TransferType::WritableStream => receive_transferred::<WritableStream>(cx, &mut data_holder)?,
+            TransferType::TransformStream => receive_transferred::<TransformStream>(cx, &mut data_holder)?,
+            TransferType::ImageBitmap => receive_transferred::<ImageBitmap>(cx, &mut data_holder)?,
+            TransferType::OffscreenCanvas => offscreen_canvas::create_from_transfer(&mut data_holder)?,
+            TransferType::ArrayBuffer | TransferType::ResizableArrayBuffer => {
+                unreachable!("the type names an interface")
+            }
+        };
     }
 
     Ok(value)

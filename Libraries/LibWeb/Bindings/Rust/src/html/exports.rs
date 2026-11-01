@@ -28,8 +28,10 @@ use crate::bindings::CallContext;
 use crate::bindings::conversions::UsvString;
 use crate::bindings::environment_settings_object::relevant_settings_object;
 use crate::bindings::event_target::CppEventTarget;
-use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments};
+use crate::bindings::interface::{Interface, Ref, cell_from_abi, cell_into_abi, realm_arguments, wrap};
+use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, Transferable};
 use crate::dom::event::EventInit;
+use crate::html::structured_serialize::cpp::TransferDataDecoder;
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::storage_api::storage_area_mirror::StorageEndpointType;
 use crate::storage_api::storage_bottle::{obtain_a_local_storage_bottle_map, obtain_a_session_storage_bottle_map};
@@ -337,6 +339,58 @@ pub unsafe extern "C" fn web_rust_message_port_pending_outgoing_message_count(po
 pub unsafe extern "C" fn web_rust_message_port_fail_next_transfer_for_testing(port: *mut c_void) {
     // SAFETY: The caller passes a live cell of a MessagePort.
     unsafe { cell_from_abi::<MessagePort>(port) }.fail_next_transfer_for_testing();
+}
+
+/// The transfer steps of the MessagePort, which C++ runs outside StructuredSerializeWithTransfer, writing to a data
+/// holder that it lends, which holds no type.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, `port` a live cell of a MessagePort, and `data_holder` an
+/// HTML::TransferDataEncoder that C++ lends for the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    port: *mut c_void,
+    data_holder: *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the live VM, a live realm and a live cell of a MessagePort.
+    let ((vm, realm), port) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<MessagePort>(port)) };
+    let mut cx = CallContext::new(vm, realm);
+    // SAFETY: The caller lends the data holder for the call.
+    let mut data_holder = unsafe { TransferDataWriter::from_lent(data_holder, realm) };
+    let result = MessagePort::transfer_steps(&port, &mut cx, &mut data_holder);
+    RawNativeFunctionResult::from_completion(
+        result
+            .map(|()| Value::UNDEFINED)
+            .map_err(|exception| exception.throw(&cx)),
+    )
+}
+
+/// The transfer-receiving steps of a MessagePort that C++ runs outside StructuredDeserializeWithTransfer, which return
+/// the wrapper of the new MessagePort.
+///
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, and `data_holder` an HTML::TransferDataDecoder that C++ lends for
+/// the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_rust_message_port_transfer_receiving_steps(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    data_holder: *mut c_void,
+) -> RawNativeFunctionResult {
+    // SAFETY: The caller passes the live VM and a live realm, and lends the data holder for the call.
+    let ((vm, realm), decoder) = unsafe { (realm_arguments(vm, realm), TransferDataDecoder::from_raw(data_holder)) };
+    let mut cx = CallContext::new(vm, realm);
+    let mut data_holder = TransferDataReader::new(decoder, realm);
+    let result = MessagePort::transfer_receiving_steps(&mut cx, &mut data_holder);
+    RawNativeFunctionResult::from_completion(
+        result
+            .map(|port| Value::from_object(wrap(&cx, port)))
+            .map_err(|exception| exception.throw(&cx)),
+    )
 }
 
 /// # Safety

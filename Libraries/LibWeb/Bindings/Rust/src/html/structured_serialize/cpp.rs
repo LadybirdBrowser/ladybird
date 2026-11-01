@@ -87,22 +87,6 @@ unsafe extern "C" {
         serialized: *mut c_void,
     ) -> RawNativeFunctionResult;
 
-    fn web_structured_serialize_is_transferable(object: *mut c_void) -> bool;
-    fn web_structured_serialize_transferable_is_detached(object: *mut c_void) -> bool;
-    fn web_structured_serialize_transferable_set_detached(object: *mut c_void);
-    fn web_structured_serialize_transferable_primary_interface(object: *mut c_void) -> u8;
-    fn web_structured_serialize_transfer_steps(
-        realm: *mut c_void,
-        object: *mut c_void,
-        data_holder: *mut c_void,
-        image_bitmap_pixels: *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_is_transferable_interface_exposed(transfer_type: u8, realm: *mut c_void) -> bool;
-    fn web_structured_serialize_create_transferred_platform_object(
-        transfer_type: u8,
-        realm: *mut c_void,
-        decoder: *mut c_void,
-    ) -> RawNativeFunctionResult;
     fn web_structured_serialize_gather_image_bitmap_pixels(
         shared_buffers: *mut c_void,
         transfer_list: *const *mut c_void,
@@ -505,74 +489,15 @@ pub(crate) fn deserialize_rust_platform_object(
     })
 }
 
-/// Whether the object is a platform object that is a transferable object, which has a [[Detached]] internal slot.
-pub(crate) fn is_transferable(object: Gc<Object>) -> bool {
-    // SAFETY: The object is live.
-    unsafe { web_structured_serialize_is_transferable(object_into_abi(object)) }
-}
-
-/// The [[Detached]] internal slot of the transferable platform object.
-pub(crate) fn transferable_is_detached(object: Gc<Object>) -> bool {
-    // SAFETY: The object is live.
-    unsafe { web_structured_serialize_transferable_is_detached(object_into_abi(object)) }
-}
-
-pub(crate) fn transferable_set_detached(object: Gc<Object>) {
-    // SAFETY: The object is live.
-    unsafe { web_structured_serialize_transferable_set_detached(object_into_abi(object)) };
-}
-
-/// The identifier of the primary interface of the transferable platform object, an HTML::TransferType.
-pub(crate) fn transferable_primary_interface(object: Gc<Object>) -> u8 {
-    // SAFETY: The object is live.
-    unsafe { web_structured_serialize_transferable_primary_interface(object_into_abi(object)) }
-}
-
-/// The transfer steps of the interface of the transferable platform object, given it and the data holder.
-pub(crate) fn transfer_steps(
-    cx: &CallContext,
-    object: Gc<Object>,
-    data_holder: &TransferDataHolder,
-    image_bitmap_pixels: &ImageBitmapSharedPixels,
-) -> WebIdlResult<()> {
-    // SAFETY: The realm and the object are live, and the data holder and the pixels are live while borrowed.
-    completion(unsafe {
-        web_structured_serialize_transfer_steps(
-            cx.realm().as_ptr().cast(),
-            object_into_abi(object),
-            data_holder.0.as_ptr(),
-            image_bitmap_pixels.0.map_or(core::ptr::null_mut(), NonNull::as_ptr),
-        )
-    })?;
-    Ok(())
-}
-
-/// Whether the interface that the HTML::TransferType identifies is exposed in the realm.
-pub(crate) fn is_transferable_interface_exposed(transfer_type: u8, realm: Gc<Realm>) -> bool {
-    // SAFETY: The realm is live.
-    unsafe { web_structured_serialize_is_transferable_interface_exposed(transfer_type, realm.as_ptr().cast()) }
-}
-
-/// A new instance of the interface that the HTML::TransferType identifies, created in the realm, after the
-/// transfer-receiving steps of the interface given the data holder.
-pub(crate) fn create_transferred_platform_object(
-    transfer_type: u8,
-    realm: Gc<Realm>,
-    decoder: TransferDataDecoder,
-) -> WebIdlResult<Value> {
-    // SAFETY: The realm is live, and the decoder is lent.
-    completion(unsafe {
-        web_structured_serialize_create_transferred_platform_object(
-            transfer_type,
-            realm.as_ptr().cast(),
-            decoder.0.as_ptr(),
-        )
-    })
-}
-
 /// HTML::ImageBitmapSharedPixels that this owns: the shared memory that a transfer gathers the pixels of its
 /// ImageBitmaps in, if it has some.
 pub(crate) struct ImageBitmapSharedPixels(Option<NonNull<c_void>>);
+
+impl ImageBitmapSharedPixels {
+    pub(crate) fn as_raw(&self) -> Option<NonNull<c_void>> {
+        self.0
+    }
+}
 
 impl Drop for ImageBitmapSharedPixels {
     fn drop(&mut self) {
@@ -592,6 +517,10 @@ impl TransferDataHolder {
         Self(
             NonNull::new(unsafe { web_structured_serialize_transfer_data_holder_create() }).expect("LibWeb creates it"),
         )
+    }
+
+    pub(crate) fn as_raw(&self) -> NonNull<c_void> {
+        self.0
     }
 
     pub(crate) fn encode_u8(&self, value: u8) {
@@ -757,6 +686,10 @@ impl TransferDataDecoder {
     /// `decoder` must be a decoder that C++ lends while this is used.
     pub(crate) unsafe fn from_raw(decoder: *mut c_void) -> Self {
         Self(NonNull::new(decoder).expect("C++ lends a decoder"))
+    }
+
+    pub(crate) fn as_raw(self) -> *mut c_void {
+        self.0.as_ptr()
     }
 
     pub(crate) fn decode_u8(self, realm: Gc<Realm>) -> WebIdlResult<u8> {

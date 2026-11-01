@@ -129,16 +129,9 @@ WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_inte
 
 }
 
-namespace Web::HTML {
-
-struct ImageBitmapSharedPixels;
-
-}
-
 namespace Web::Bindings {
 
 class RustInterfaceCell;
-class Transferable;
 
 // A platform object that is a serializable object: an implementation object of an interface implemented in C++, whose
 // steps run in Rust over its fields, or the cell of an object of an interface implemented in Rust, whose steps the Rust
@@ -152,24 +145,8 @@ struct SerializablePlatformObject {
     WebIDL::ExceptionOr<void> serialization_steps(void* serialized, bool for_storage) const;
 };
 
-// A platform object that is a transferable object, of an interface implemented in C++ or in Rust.
-struct TransferablePlatformObject {
-    Transferable* transferable { nullptr };
-    GC::Ptr<RustInterfaceCell> rust_object { nullptr };
-    HTML::TransferType primary_interface { HTML::TransferType::Unknown };
-
-    // https://html.spec.whatwg.org/multipage/structured-data.html#detached
-    bool is_detached() const;
-    void set_detached() const;
-
-    // The pixels of a transferred ImageBitmap go to the shared memory of the transfer, if there is room for them.
-    WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&, HTML::ImageBitmapSharedPixels*) const;
-};
-
-WEB_API Optional<TransferablePlatformObject> transferable_from_object(JS::Object&);
 WEB_API Optional<SerializablePlatformObject> serializable_from_object(JS::Object&);
 WEB_API bool is_platform_object(JS::Object const&);
-WEB_API WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> create_transferred_platform_object(HTML::TransferType, JS::Realm&, HTML::TransferDataDecoder&);
 
 // The deserialization steps of an interface implemented in Rust create its object from what they read, rather than
 // fill in an object that was created before them. The record that they read is the Rust SerializationReader that the

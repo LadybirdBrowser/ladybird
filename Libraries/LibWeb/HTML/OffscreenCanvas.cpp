@@ -8,9 +8,11 @@
 #include <AK/TypeCasts.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
+#include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/CanvasRenderingContext2DSettings.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
+#include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -96,7 +98,9 @@ WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(JS::Realm& realm, HTML
         return WebIDL::InvalidStateError::create("Cannot transfer an OffscreenCanvas that has a rendering context"_utf16);
 
     // 2. Set value's context mode to detached.
-    // NB: The [[Detached]] internal slot is set once these steps return, and it also stands for this context mode.
+    // NB: This context mode is the [[Detached]] internal slot, which StructuredSerializeWithTransfer sets again once
+    //     these steps return.
+    m_detached = true;
 
     // 3. Let width and height be the dimensions of value's bitmap.
     auto width = m_width;
@@ -147,11 +151,6 @@ WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_receiving_steps(JS::Realm& r
     }
 
     return {};
-}
-
-HTML::TransferType OffscreenCanvas::primary_interface() const
-{
-    return TransferType::OffscreenCanvas;
 }
 
 void OffscreenCanvas::replace_bitmap()
@@ -510,4 +509,48 @@ JS::ThrowCompletionOr<HTML::OffscreenRenderingContext> get_context(JS::Realm& re
     return Empty {};
 }
 
+}
+
+// What the transfer steps in Libraries/LibWeb/Bindings/Rust/src/html/structured_serialize ask of OffscreenCanvas,
+// declared on the Rust side in Libraries/LibWeb/Bindings/Rust/src/html/offscreen_canvas.rs.
+extern "C" {
+
+u16 web_offscreen_canvas_interface_name();
+bool web_offscreen_canvas_is_detached(JSObject*);
+JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject*, Web::HTML::TransferDataEncoder*);
+JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, Web::HTML::TransferDataDecoder*);
+
+u16 web_offscreen_canvas_interface_name()
+{
+    return to_underlying(Web::Bindings::InterfaceName::OffscreenCanvas);
+}
+
+bool web_offscreen_canvas_is_detached(JSObject* object)
+{
+    return Web::Bindings::impl_from<Web::HTML::OffscreenCanvas>(JS::HostABI::object_from_abi(object))->is_detached();
+}
+
+JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject* object, Web::HTML::TransferDataEncoder* data_holder)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto* offscreen_canvas = Web::Bindings::impl_from<Web::HTML::OffscreenCanvas>(JS::HostABI::object_from_abi(object));
+    auto result = offscreen_canvas->transfer_steps(js_realm, *data_holder);
+    if (result.is_exception())
+        return Web::Bindings::completion_to_abi(js_realm, result.release_error());
+    return Web::Bindings::completion_to_abi(js_realm, JS::js_undefined());
+}
+
+// A new OffscreenCanvas in the realm, after its transfer-receiving steps, as the value of the completion.
+JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, Web::HTML::TransferDataDecoder* data_holder)
+{
+    auto& js_realm = *static_cast<JS::Realm*>(realm);
+    auto* global_scope = Web::HTML::window_or_worker_global_scope_from_global_object(js_realm.global_object());
+    VERIFY(global_scope);
+    auto offscreen_canvas = Web::HTML::OffscreenCanvas::create(global_scope->this_impl(), 0, 0);
+    auto result = offscreen_canvas->transfer_receiving_steps(js_realm, *data_holder);
+    if (result.is_exception())
+        return Web::Bindings::completion_to_abi(js_realm, result.release_error());
+    auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(js_realm), js_realm, offscreen_canvas);
+    return Web::Bindings::completion_to_abi(js_realm, JS::Value { wrapper });
+}
 }

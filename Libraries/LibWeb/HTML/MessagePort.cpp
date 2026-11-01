@@ -29,10 +29,8 @@ void web_rust_message_port_discard_pending_messages(void* port);
 size_t web_rust_message_port_pending_outgoing_message_count(void* port);
 void web_rust_message_port_fail_next_transfer_for_testing(void* port);
 void web_rust_message_port_disentangle_ports_of_realm(JSVM*, void* realm);
-
-// The entry points of the generated bindings of the interface.
-JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, Bindings::RustTransferDataWriter*);
-JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, Bindings::RustTransferDataReader*);
+JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, TransferDataEncoder*);
+JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, TransferDataDecoder*);
 }
 
 static JSVM* vm_abi()
@@ -47,8 +45,7 @@ GC::Ref<MessagePort> MessagePort::create(JS::Realm& realm)
 
 GC::Ref<MessagePort> MessagePort::create_from_transfer(JS::Realm& realm, TransferDataDecoder& data_holder)
 {
-    Bindings::RustTransferDataReader reader { .realm = realm, .data_holder = data_holder };
-    auto wrapper = MUST(JS::HostABI::completion_from_abi<JS::Value>(web_rust_message_port_transfer_receiving_steps(vm_abi(), &realm, &reader)));
+    auto wrapper = MUST(JS::HostABI::completion_from_abi<JS::Value>(web_rust_message_port_transfer_receiving_steps(vm_abi(), &realm, &data_holder)));
     return *Bindings::impl_from<MessagePort>(&wrapper.as_object());
 }
 
@@ -99,8 +96,7 @@ void MessagePort::discard_pending_messages()
 
 WebIDL::ExceptionOr<void> MessagePort::transfer_steps(JS::Realm& realm, TransferDataEncoder& data_holder)
 {
-    Bindings::RustTransferDataWriter writer { .realm = realm, .data_holder = data_holder };
-    TRY(JS::HostABI::completion_from_abi<void>(web_rust_message_port_transfer_steps(vm_abi(), &realm, this, &writer)));
+    TRY(JS::HostABI::completion_from_abi<void>(web_rust_message_port_transfer_steps(vm_abi(), &realm, this, &data_holder)));
     return {};
 }
 

@@ -8,13 +8,13 @@
 //! https://html.spec.whatwg.org/multipage/structured-data.html#serializable-objects and
 //! https://html.spec.whatwg.org/multipage/structured-data.html#transferable-objects
 //!
-//! The algorithms of crate::html::structured_serialize run the steps of such an interface through LibWeb's C++, which
-//! dispatches to the entry points that the generated bindings of the interface define, which call the functions here.
-//! The serialization and deserialization steps write and read the record of the algorithm, which it passes through C++
-//! to them. The transfer steps and the transfer-receiving steps read and write what C++ lends them; the structs that it
-//! lends are in Libraries/LibWeb/Bindings/RustSerialization.h. Unlike an object of an interface implemented in C++,
-//! which is created before its deserialization steps fill it in, an object of an interface implemented in Rust is what
-//! its deserialization steps and its transfer-receiving steps return.
+//! The algorithms of crate::html::structured_serialize run the serialization steps of such an interface through
+//! LibWeb's C++, which dispatches to the entry points that the generated bindings of the interface define, which call
+//! the functions here. Those steps write and read the record of the algorithm, which it passes through C++ to them.
+//! The algorithms run the transfer steps and the transfer-receiving steps themselves, which write and read the C++
+//! data holders of the transfer. Unlike an object of an interface implemented in C++, which is created before its
+//! deserialization steps fill it in, an object of an interface implemented in Rust is what its deserialization steps
+//! and its transfer-receiving steps return.
 
 use core::cell::Cell;
 use core::ffi::c_void;
@@ -22,14 +22,15 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libjs_rust::api::{RawNativeFunctionResult, ThrowCompletionOr, Value};
+use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, ThrowCompletionOr, Value};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
 use crate::bindings::interface::{ConstructedObject, Interface, Ref, cell_from_abi, realm_arguments, wrap};
 use crate::bindings::transport::TransportHandle;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
-    OwnedSerializedTransferRecord, TransferDataDecoder, data_clone_error_from_serialization_error,
+    ImageBitmapSharedPixels, OwnedSerializedTransferRecord, TransferDataDecoder, TransferDataHolder,
+    data_clone_error_from_serialization_error,
 };
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
@@ -45,18 +46,20 @@ unsafe extern "C" {
     fn web_bindings_transfer_data_extend(data_holder: *mut c_void, record: *mut c_void);
     fn web_bindings_transfer_data_decode_bool(
         data_holder: *mut c_void,
+        realm: *mut c_void,
         out_value: &mut bool,
     ) -> RawNativeFunctionResult;
     fn web_bindings_transfer_data_decode_records(
         data_holder: *mut c_void,
+        realm: *mut c_void,
         records: *mut c_void,
         append: unsafe extern "C" fn(*mut c_void, *mut c_void),
     ) -> RawNativeFunctionResult;
     fn web_bindings_transfer_data_decode_transport_handle(
         data_holder: *mut c_void,
+        realm: *mut c_void,
         out_handle: &mut *mut c_void,
     ) -> RawNativeFunctionResult;
-    fn web_bindings_transfer_data_decoder(data_holder: *mut c_void) -> *mut c_void;
 }
 
 /// The record of a structured serialization, which the serialization steps of an object write to, and the serialization
@@ -241,14 +244,51 @@ pub(crate) trait Serializable: Interface {
     ) -> WebIdlResult<impl ConstructedObject<Self> + use<Self>>;
 }
 
-/// The data holder of a transferred object, which its transfer steps write to: a Web::Bindings::RustTransferDataWriter
-/// that C++ lends for the steps.
+/// The data holder of a transferred object, which its transfer steps write to: an HTML::TransferDataEncoder, in the
+/// realm of the transfer, which creates what the steps throw.
 pub(crate) struct TransferDataWriter<'a> {
     raw: NonNull<c_void>,
+    realm: Gc<Realm>,
+    /// AD-HOC: The shared memory that the transfer gathers the pixels of its ImageBitmaps in, if it has some.
+    image_bitmap_pixels: Option<NonNull<c_void>>,
     _lent: PhantomData<&'a mut c_void>,
 }
 
-impl TransferDataWriter<'_> {
+impl<'a> TransferDataWriter<'a> {
+    pub(crate) fn new(
+        data_holder: &'a TransferDataHolder,
+        realm: Gc<Realm>,
+        image_bitmap_pixels: &'a ImageBitmapSharedPixels,
+    ) -> Self {
+        Self {
+            raw: data_holder.as_raw(),
+            realm,
+            image_bitmap_pixels: image_bitmap_pixels.as_raw(),
+            _lent: PhantomData,
+        }
+    }
+
+    /// # Safety
+    ///
+    /// `data_holder` must be an HTML::TransferDataEncoder that C++ lends for `'a`.
+    pub(crate) unsafe fn from_lent(data_holder: *mut c_void, realm: Gc<Realm>) -> Self {
+        Self {
+            raw: NonNull::new(data_holder).expect("C++ lends a data holder"),
+            realm,
+            image_bitmap_pixels: None,
+            _lent: PhantomData,
+        }
+    }
+
+    pub(crate) fn realm(&self) -> Gc<Realm> {
+        self.realm
+    }
+
+    /// The shared pixels as the C ABI of ImageBitmap's C++ code takes them, or null.
+    pub(crate) fn image_bitmap_pixels_as_raw(&self) -> *mut c_void {
+        self.image_bitmap_pixels.map_or(core::ptr::null_mut(), NonNull::as_ptr)
+    }
+
     /// The data holder as the C ABI of an interface's C++ class takes it, which encodes what the steps write.
     pub(crate) fn as_raw(&mut self) -> *mut c_void {
         self.raw.as_ptr()
@@ -282,24 +322,38 @@ impl TransferDataWriter<'_> {
     }
 }
 
-/// The data holder of a received object, which its transfer-receiving steps read from: a
-/// Web::Bindings::RustTransferDataReader that C++ lends for the steps. What it reads that the data holder does not hold
+/// The data holder of a received object, which its transfer-receiving steps read from: an HTML::TransferDataDecoder
+/// that C++ lends, in the realm that the object is created in. What the steps read that the data holder does not hold
 /// throws a "DataCloneError" DOMException.
 pub(crate) struct TransferDataReader<'a> {
-    raw: NonNull<c_void>,
+    decoder: TransferDataDecoder,
+    realm: Gc<Realm>,
     _lent: PhantomData<&'a mut c_void>,
 }
 
 impl TransferDataReader<'_> {
+    pub(crate) fn new(decoder: TransferDataDecoder, realm: Gc<Realm>) -> Self {
+        Self {
+            decoder,
+            realm,
+            _lent: PhantomData,
+        }
+    }
+
+    pub(crate) fn realm(&self) -> Gc<Realm> {
+        self.realm
+    }
+
     /// The data holder as the C ABI of an interface's C++ class takes it, which decodes what the steps read.
     pub(crate) fn as_raw(&mut self) -> *mut c_void {
-        self.raw.as_ptr()
+        self.decoder.as_raw()
     }
 
     pub(crate) fn read_bool(&mut self) -> WebIdlResult<bool> {
         let mut value = false;
-        // SAFETY: The data holder is lent for the steps.
-        unsafe { web_bindings_transfer_data_decode_bool(self.raw.as_ptr(), &mut value) }.into_completion()?;
+        // SAFETY: The data holder is lent for the steps, and the realm is live.
+        unsafe { web_bindings_transfer_data_decode_bool(self.as_raw(), self.realm.as_ptr().cast(), &mut value) }
+            .into_completion()?;
         Ok(value)
     }
 
@@ -313,18 +367,27 @@ impl TransferDataReader<'_> {
             }
         }
         let mut records = Vec::new();
-        // SAFETY: The data holder and the records are lent for the steps.
-        unsafe { web_bindings_transfer_data_decode_records(self.raw.as_ptr(), (&raw mut records).cast(), append) }
-            .into_completion()?;
+        // SAFETY: The data holder and the records are lent for the steps, and the realm is live.
+        unsafe {
+            web_bindings_transfer_data_decode_records(
+                self.as_raw(),
+                self.realm.as_ptr().cast(),
+                (&raw mut records).cast(),
+                append,
+            )
+        }
+        .into_completion()?;
         Ok(records)
     }
 
     /// Reads what TransferDataWriter::write_transport_handle() writes.
     pub(crate) fn read_transport_handle(&mut self) -> WebIdlResult<TransportHandle> {
         let mut handle = core::ptr::null_mut();
-        // SAFETY: The data holder is lent for the steps.
-        unsafe { web_bindings_transfer_data_decode_transport_handle(self.raw.as_ptr(), &mut handle) }
-            .into_completion()?;
+        // SAFETY: The data holder is lent for the steps, and the realm is live.
+        unsafe {
+            web_bindings_transfer_data_decode_transport_handle(self.as_raw(), self.realm.as_ptr().cast(), &mut handle)
+        }
+        .into_completion()?;
         // SAFETY: LibWeb hands over the handle it read.
         Ok(unsafe { TransportHandle::from_raw(handle) })
     }
@@ -332,9 +395,7 @@ impl TransferDataReader<'_> {
     /// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]] for what
     /// TransferDataWriter::write_transferred_value() wrote: the transferred value, created in the realm.
     pub(crate) fn read_transferred_value(&mut self, cx: &CallContext) -> WebIdlResult<Value> {
-        // SAFETY: The data holder is lent for the steps, and LibWeb returns its decoder.
-        let decoder = unsafe { TransferDataDecoder::from_raw(web_bindings_transfer_data_decoder(self.raw.as_ptr())) };
-        structured_deserialize_with_transfer_internal(cx, decoder)
+        structured_deserialize_with_transfer_internal(cx, self.decoder)
     }
 }
 
@@ -401,70 +462,5 @@ pub(crate) unsafe fn deserialization_steps<T: Serializable>(
     // SAFETY: The caller passes the reader that the deserialization lends for the steps.
     let serialized = unsafe { &mut *serialized.cast::<SerializationReader<'_, '_>>() };
     let result = T::deserialization_steps(&mut cx, serialized);
-    completion(&cx, result.map(|implementation| wrap_new_object(&cx, implementation)))
-}
-
-/// The entry point that reads the [[Detached]] internal slot of an object of `T`.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of an object of `T`.
-pub(crate) unsafe fn is_detached<T: Transferable>(cell: *mut c_void) -> bool {
-    // SAFETY: The caller passes a live cell of an object of T.
-    let object = unsafe { cell_from_abi::<T>(cell) };
-    object.detached().get()
-}
-
-/// The entry point that sets the [[Detached]] internal slot of an object of `T` to true.
-///
-/// # Safety
-///
-/// `cell` must be the live cell of an object of `T`.
-pub(crate) unsafe fn set_detached<T: Transferable>(cell: *mut c_void) {
-    // SAFETY: The caller passes a live cell of an object of T.
-    let object = unsafe { cell_from_abi::<T>(cell) };
-    object.detached().set(true);
-}
-
-/// The entry point of the transfer steps of `T`.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, the live cell of an object of `T`, and a data holder that C++ lends.
-pub(crate) unsafe fn transfer_steps<T: Transferable>(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    cell: *mut c_void,
-    data_holder: *mut c_void,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM, a live realm and a live cell of an object of T.
-    let ((vm, realm), object) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<T>(cell)) };
-    let mut cx = CallContext::new(vm, realm);
-    let mut data_holder = TransferDataWriter {
-        raw: NonNull::new(data_holder).expect("C++ lends a data holder"),
-        _lent: PhantomData,
-    };
-    let result = T::transfer_steps(&object, &mut cx, &mut data_holder);
-    completion(&cx, result.map(|()| Value::UNDEFINED))
-}
-
-/// The entry point of the transfer-receiving steps of `T`, which returns the wrapper of the new object.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, and a data holder that C++ lends.
-pub(crate) unsafe fn transfer_receiving_steps<T: Transferable>(
-    vm: *mut c_void,
-    realm: *mut c_void,
-    data_holder: *mut c_void,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
-    let mut cx = CallContext::new(vm, realm);
-    let mut data_holder = TransferDataReader {
-        raw: NonNull::new(data_holder).expect("C++ lends a data holder"),
-        _lent: PhantomData,
-    };
-    let result = T::transfer_receiving_steps(&mut cx, &mut data_holder);
     completion(&cx, result.map(|implementation| wrap_new_object(&cx, implementation)))
 }

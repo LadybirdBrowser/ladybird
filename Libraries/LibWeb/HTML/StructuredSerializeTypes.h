@@ -16,18 +16,6 @@
 
 namespace Web::HTML {
 
-enum class TransferType : u8 {
-    Unknown = 0,
-    MessagePort = 1,
-    ArrayBuffer = 2,
-    ResizableArrayBuffer = 3,
-    ReadableStream = 4,
-    WritableStream = 5,
-    TransformStream = 6,
-    ImageBitmap = 7,
-    OffscreenCanvas = 8,
-};
-
 // The per-interface payload version encoded after every SerializableObject's interface name in
 // storage records. The decoder requires an exact match, so a bump orphans stored records of every
 // type unless migration support is added alongside it.
