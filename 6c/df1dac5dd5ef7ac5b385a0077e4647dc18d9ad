@@ -1,0 +1,10 @@
+For a replaced grid item’s min-content contribution in the inline
+axis, Ladybird now resolves a percentage max-width against zero.
+Blink, WebKit and Gecko all do the same, also only in the inline
+axis. Blink’s ComputeMinAndMaxContentContributionForReplaced() takes
+just the min size as the min-content contribution when LogicalWidth()
+or LogicalMaxWidth() has a percentage. WebKit’s RenderReplaced::
+computeIntrinsicLogicalWidthContributions() sets the min-content
+contribution to zero in that case. And Gecko’s AddIntrinsicSizeOffset()
+in nsLayoutUtils.cpp applies the compressible min-content rule only in
+the inline axis, for web compatibility.
