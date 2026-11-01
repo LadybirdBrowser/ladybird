@@ -88,7 +88,6 @@ JSCompletion web_rust_structured_deserialize(JSVM*, void* target_realm, IPCSeria
 JSCompletion web_rust_structured_deserialize_for_storage(JSVM*, void* target_realm, ReadonlyBytes);
 JSCompletion web_rust_structured_serialize_with_transfer(JSVM*, void* realm, JSValue, JSObject* const* transfer_list, size_t count, SerializedTransferRecord** out_record);
 JSCompletion web_rust_structured_deserialize_with_transfer(JSVM*, void* target_realm, SerializedTransferRecord*, Vector<GC::Root<JS::Object>>* transferred_values);
-JSCompletion web_rust_structured_deserialize_with_transfer_internal(JSVM*, void* target_realm, TransferDataDecoder*);
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializewithtransfer
@@ -112,13 +111,6 @@ WebIDL::ExceptionOr<DeserializedTransferRecord> structured_deserialize_with_tran
     Vector<GC::Root<JS::Object>> transferred_values;
     auto deserialized = TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize_with_transfer(JS::HostABI::vm_to_abi(target_realm.vm()), &target_realm, &serialize_with_transfer_result, &transferred_values)));
     return DeserializedTransferRecord { .deserialized = deserialized, .transferred_values = move(transferred_values) };
-}
-
-// AD-HOC: This non-standard overload is meant to extract just one transferrable value from a serialized transfer record.
-//         It's primarily useful for an object's transfer receiving steps to deserialize a nested value.
-WebIDL::ExceptionOr<JS::Value> structured_deserialize_with_transfer_internal(TransferDataDecoder& decoder, JS::Realm& target_realm)
-{
-    return TRY(JS::HostABI::completion_from_abi<JS::Value>(web_rust_structured_deserialize_with_transfer_internal(JS::HostABI::vm_to_abi(target_realm.vm()), &target_realm, &decoder)));
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
@@ -173,17 +165,6 @@ TransferDataDecoder::TransferDataDecoder(TransferDataEncoder&& data_holder)
 {
     for (auto& attachment : m_buffer.take_attachments())
         m_attachments.enqueue(move(attachment));
-}
-
-WebIDL::ExceptionOr<ByteBuffer> TransferDataDecoder::decode_buffer()
-{
-    auto buffer = m_decoder.decode<ByteBuffer>();
-
-    if (buffer.is_error()) {
-        VERIFY(buffer.error().code() == ENOMEM);
-        return WebIDL::DataCloneError::create("Unable to allocate memory for transferred buffer"_utf16);
-    }
-    return buffer.release_value();
 }
 
 }

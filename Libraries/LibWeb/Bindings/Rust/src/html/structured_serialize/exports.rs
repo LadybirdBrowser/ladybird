@@ -17,14 +17,14 @@ use crate::bindings::interface::realm_arguments;
 use crate::bindings::{CallContext, WebIdlResult};
 use crate::html::structured_serialize::cpp::{
     IPCSerializationRecord, ReceivedIPCSerializationRecord, SerializedTransferRecord, StorageSerializationRecord,
-    TransferDataDecoder, TransferredValues,
+    TransferredValues,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::html::structured_serialize::{
     AllowSharedArrayBuffers, structured_deserialize_internal, structured_deserialize_with_transfer,
-    structured_deserialize_with_transfer_internal, structured_serialize_internal, structured_serialize_with_transfer,
+    structured_serialize_internal, structured_serialize_with_transfer,
 };
 
 /// The completion of an algorithm, as the entry points return it to C++.
@@ -233,24 +233,4 @@ pub unsafe extern "C" fn web_rust_structured_deserialize_with_transfer(
             deserialize_record.deserialized
         }),
     )
-}
-
-/// The value that one data holder of a transfer holds, in the realm.
-///
-/// # Safety
-///
-/// The pointers must be the VM, a live realm, and a decoder that C++ lends.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn web_rust_structured_deserialize_with_transfer_internal(
-    vm: *mut c_void,
-    target_realm: *mut c_void,
-    decoder: *mut c_void,
-) -> RawNativeFunctionResult {
-    // SAFETY: The caller passes the VM and a live realm.
-    let (vm, target_realm) = unsafe { realm_arguments(vm, target_realm) };
-    let cx = CallContext::new(vm, target_realm);
-    // SAFETY: The caller lends the decoder.
-    let decoder = unsafe { TransferDataDecoder::from_raw(decoder) };
-    let result = structured_deserialize_with_transfer_internal(&cx, decoder);
-    completion(&cx, result)
 }

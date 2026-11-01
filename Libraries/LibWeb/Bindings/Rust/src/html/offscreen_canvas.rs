@@ -25,7 +25,7 @@ unsafe extern "C" {
     ) -> RawNativeFunctionResult;
     fn web_offscreen_canvas_create_from_transfer(
         realm: *mut c_void,
-        data_holder: *mut c_void,
+        fields: &TransferredFields,
     ) -> RawNativeFunctionResult;
 }
 
@@ -83,9 +83,19 @@ pub(crate) fn transfer_steps(object: Gc<Object>, data_holder: &mut TransferDataW
 
 /// https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface:transfer-receiving-steps
 pub(crate) fn create_from_transfer(data_holder: &mut TransferDataReader) -> WebIdlResult<Value> {
-    // SAFETY: The realm is live, and the data holder is lent for the steps.
+    let mut fields = TransferredFields {
+        width: data_holder.read()?,
+        height: data_holder.read()?,
+        has_placeholder_canvas: data_holder.read_bool()?,
+        ..TransferredFields::default()
+    };
+    if fields.has_placeholder_canvas {
+        fields.placeholder_canvas_id = data_holder.read()?;
+        fields.placeholder_secret = data_holder.read()?;
+    }
+    // SAFETY: The realm is live, and the call borrows the fields.
     Ok(
-        unsafe { web_offscreen_canvas_create_from_transfer(data_holder.realm().as_ptr().cast(), data_holder.as_raw()) }
+        unsafe { web_offscreen_canvas_create_from_transfer(data_holder.realm().as_ptr().cast(), &fields) }
             .into_completion()?,
     )
 }

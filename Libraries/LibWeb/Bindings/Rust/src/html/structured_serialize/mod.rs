@@ -41,11 +41,10 @@ use crate::html::image_bitmap::ImageBitmap;
 use crate::html::message_port::MessagePort;
 use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
-    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, TransferDataDecoder,
-    current_settings_object_agent_cluster, current_settings_object_cross_origin_isolated_capability,
-    data_clone_error_from_serialization_error, deserialize_rust_platform_object, is_exposed, is_platform_object,
-    realm_agent_cluster, serializable_interface_name, serializable_interface_storage_identifier,
-    serializable_payload_version, serializable_steps, serialization_steps,
+    OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, current_settings_object_agent_cluster,
+    current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
+    deserialize_rust_platform_object, is_exposed, is_platform_object, realm_agent_cluster, serializable_interface_name,
+    serializable_interface_storage_identifier, serializable_payload_version, serializable_steps, serialization_steps,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::message_record::MessageRecord;
@@ -1864,12 +1863,15 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
 
     // 5. For each transferDataHolder of serializeWithTransferResult.[[TransferDataHolders]]:
     for index in 0..serialize_with_transfer_result.data_holder_count() {
+        // NB: The transfer writes no empty data holder.
         let Some(decoder) = serialize_with_transfer_result.take_data_holder(index) else {
-            continue;
+            return Err(data_clone_error("Empty transfer data holder"));
         };
+        // SAFETY: The decoder lives for the loop body.
+        let mut data_holder = unsafe { TransferDataReader::new(decoder.decoder(), target_realm) };
 
         // 1. Let value be an uninitialized value.
-        let value = structured_deserialize_with_transfer_internal(cx, decoder.decoder())?;
+        let value = structured_deserialize_with_transfer_internal(cx, &mut data_holder)?;
 
         // 5. Set memory[transferDataHolder] to value.
         memory.append(value);
@@ -1904,11 +1906,12 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
 //         It's primarily useful for an object's transfer receiving steps to deserialize a nested value.
 pub(crate) fn structured_deserialize_with_transfer_internal(
     cx: &CallContext,
-    decoder: TransferDataDecoder,
+    data_holder: &mut TransferDataReader,
 ) -> WebIdlResult<Value> {
+    let vm = cx.vm();
     let target_realm = cx.realm();
 
-    let Some(transfer_type) = TransferType::from_u8(decoder.decode_u8(target_realm)?) else {
+    let Some(transfer_type) = TransferType::from_u8(data_holder.read()?) else {
         return Err(data_clone_error("Unknown type transferred"));
     };
 
@@ -1924,8 +1927,8 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     //       [[ArrayBufferData]] is instead just getting transferred into the new ArrayBuffer. This could be true, for example,
     //       when both the source and target realms are in the same process.
     if transfer_type == TransferType::ArrayBuffer {
-        let buffer = decoder.decode_byte_buffer(target_realm)?;
-        value = Value::from_object(buffer.into_array_buffer(target_realm, ArrayBufferShared::No));
+        let bytes = data_holder.read_bytes()?;
+        value = Value::from_object(array_buffer_from_bytes(vm, target_realm, bytes, ArrayBufferShared::No)?);
     }
     // 3. Otherwise, if transferDataHolder.[[Type]] is "ResizableArrayBuffer", then set value to a new ArrayBuffer object
     //     in targetRealm whose [[ArrayBufferData]] internal slot value is transferDataHolder.[[ArrayBufferData]], whose
@@ -1933,15 +1936,15 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
     //     [[ArrayBufferMaxByteLength]] internal slot value is transferDataHolder.[[ArrayBufferMaxByteLength]].
     // NOTE: For the same reason as the previous step, this step is also unlikely to throw an exception.
     else if transfer_type == TransferType::ResizableArrayBuffer {
-        let buffer = decoder.decode_byte_buffer(target_realm)?;
-        let max_byte_length = decoder.decode_size(target_realm)?;
+        let bytes = data_holder.read_bytes()?;
+        let max_byte_length = data_holder.read::<usize>()?;
 
         // NB: Creating a resizable buffer throws a RangeError if its byte length is greater than its max byte length.
-        if max_byte_length < buffer.len() {
+        if max_byte_length < bytes.len() {
             return Err(data_clone_error("ArrayBuffer byte length exceeds its max byte length"));
         }
 
-        let data = buffer.into_array_buffer(target_realm, ArrayBufferShared::No);
+        let data = array_buffer_from_bytes(vm, target_realm, bytes, ArrayBufferShared::No)?;
         data.set_max_byte_length(max_byte_length);
 
         value = Value::from_object(data);
@@ -1958,14 +1961,13 @@ pub(crate) fn structured_deserialize_with_transfer_internal(
 
         // 2. Set value to a new instance of the interface identified by interfaceName, created in targetRealm.
         // 3. Perform the appropriate transfer-receiving steps for the interface identified by interfaceName given transferDataHolder and value.
-        let mut data_holder = TransferDataReader::new(decoder, target_realm);
         value = match transfer_type {
-            TransferType::MessagePort => receive_transferred::<MessagePort>(cx, &mut data_holder)?,
-            TransferType::ReadableStream => receive_transferred::<ReadableStream>(cx, &mut data_holder)?,
-            TransferType::WritableStream => receive_transferred::<WritableStream>(cx, &mut data_holder)?,
-            TransferType::TransformStream => receive_transferred::<TransformStream>(cx, &mut data_holder)?,
-            TransferType::ImageBitmap => receive_transferred::<ImageBitmap>(cx, &mut data_holder)?,
-            TransferType::OffscreenCanvas => offscreen_canvas::create_from_transfer(&mut data_holder)?,
+            TransferType::MessagePort => receive_transferred::<MessagePort>(cx, data_holder)?,
+            TransferType::ReadableStream => receive_transferred::<ReadableStream>(cx, data_holder)?,
+            TransferType::WritableStream => receive_transferred::<WritableStream>(cx, data_holder)?,
+            TransferType::TransformStream => receive_transferred::<TransformStream>(cx, data_holder)?,
+            TransferType::ImageBitmap => receive_transferred::<ImageBitmap>(cx, data_holder)?,
+            TransferType::OffscreenCanvas => offscreen_canvas::create_from_transfer(data_holder)?,
             TransferType::ArrayBuffer | TransferType::ResizableArrayBuffer => {
                 unreachable!("the type names an interface")
             }

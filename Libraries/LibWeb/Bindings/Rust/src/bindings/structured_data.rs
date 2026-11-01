@@ -18,11 +18,10 @@
 
 use core::cell::Cell;
 use core::ffi::c_void;
-use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
-use libipc_rust::Encode;
+use libipc_rust::{Decode, DecodeError, Decoder, Encode};
 use libjs_rust::api::{Gc, RawNativeFunctionResult, Realm, ThrowCompletionOr, Value};
 use libwebcommon_rust::html::serialization_records::SerializationType;
 
@@ -45,20 +44,17 @@ unsafe extern "C" {
     fn web_bindings_transfer_data_encode_records(data_holder: *mut c_void, records: *const *mut c_void, count: usize);
     fn web_bindings_transfer_data_encode_transport_handle(data_holder: *mut c_void, handle: *mut c_void);
     fn web_bindings_transfer_data_extend(data_holder: *mut c_void, record: *mut c_void);
-    fn web_bindings_transfer_data_decode_bool(
-        data_holder: *mut c_void,
-        realm: *mut c_void,
-        out_value: &mut bool,
-    ) -> RawNativeFunctionResult;
     fn web_bindings_transfer_data_decode_records(
         data_holder: *mut c_void,
         realm: *mut c_void,
+        offset: &mut usize,
         records: *mut c_void,
         append: unsafe extern "C" fn(*mut c_void, *mut c_void),
     ) -> RawNativeFunctionResult;
     fn web_bindings_transfer_data_decode_transport_handle(
         data_holder: *mut c_void,
         realm: *mut c_void,
+        offset: &mut usize,
         out_handle: &mut *mut c_void,
     ) -> RawNativeFunctionResult;
 }
@@ -317,21 +313,28 @@ impl<'a> TransferDataWriter<'a> {
     }
 }
 
-/// The data holder of a received object, which its transfer-receiving steps read from: an HTML::TransferDataDecoder
-/// that C++ lends, in the realm that the object is created in. What the steps read that the data holder does not hold
+/// The data holder of a received object, which its transfer-receiving steps read from, in the realm that the object is
+/// created in. Rust reads its bytes, which an HTML::TransferDataDecoder that C++ lends holds, and C++ decodes the values
+/// that have attachments at the offset that Rust has read to. What the steps read that the data holder does not hold
 /// throws a "DataCloneError" DOMException.
 pub(crate) struct TransferDataReader<'a> {
     decoder: TransferDataDecoder,
+    bytes: &'a [u8],
+    offset: usize,
     realm: Gc<Realm>,
-    _lent: PhantomData<&'a mut c_void>,
 }
 
-impl TransferDataReader<'_> {
-    pub(crate) fn new(decoder: TransferDataDecoder, realm: Gc<Realm>) -> Self {
+impl<'a> TransferDataReader<'a> {
+    /// # Safety
+    ///
+    /// `decoder` must be lent for `'a`.
+    pub(crate) unsafe fn new(decoder: TransferDataDecoder, realm: Gc<Realm>) -> Self {
         Self {
             decoder,
+            // SAFETY: The caller lends the decoder for 'a.
+            bytes: unsafe { decoder.bytes() },
+            offset: 0,
             realm,
-            _lent: PhantomData,
         }
     }
 
@@ -339,17 +342,33 @@ impl TransferDataReader<'_> {
         self.realm
     }
 
-    /// The data holder as the C ABI of an interface's C++ class takes it, which decodes what the steps read.
-    pub(crate) fn as_raw(&mut self) -> *mut c_void {
+    /// The data holder as the C ABI of an interface's C++ class takes it.
+    pub(crate) fn as_raw(&self) -> *mut c_void {
         self.decoder.as_raw()
     }
 
-    pub(crate) fn read_bool(&mut self) -> WebIdlResult<bool> {
-        let mut value = false;
-        // SAFETY: The data holder is lent for the steps, and the realm is live.
-        unsafe { web_bindings_transfer_data_decode_bool(self.as_raw(), self.realm.as_ptr().cast(), &mut value) }
-            .into_completion()?;
+    fn decoded<T>(&mut self, read: impl FnOnce(&mut Decoder<'a>) -> Result<T, DecodeError>) -> WebIdlResult<T> {
+        let mut decoder = Decoder::new(&self.bytes[self.offset..], []);
+        let value = read(&mut decoder)
+            .map_err(|_| data_clone_error_from_serialization_error(self.realm, "Unable to decode transfer data"))?;
+        self.offset = self.bytes.len() - decoder.remaining_bytes();
         Ok(value)
+    }
+
+    pub(crate) fn read<T: Decode>(&mut self) -> WebIdlResult<T> {
+        self.decoded(Decoder::decode)
+    }
+
+    /// Reads bytes, which go as their count and then the bytes, as IPC encodes a ByteBuffer.
+    pub(crate) fn read_bytes(&mut self) -> WebIdlResult<&'a [u8]> {
+        self.decoded(|decoder| {
+            let size = decoder.decode_size()?;
+            decoder.read_bytes(size)
+        })
+    }
+
+    pub(crate) fn read_bool(&mut self) -> WebIdlResult<bool> {
+        self.read()
     }
 
     /// Reads what TransferDataWriter::write_records() writes.
@@ -367,6 +386,7 @@ impl TransferDataReader<'_> {
             web_bindings_transfer_data_decode_records(
                 self.as_raw(),
                 self.realm.as_ptr().cast(),
+                &mut self.offset,
                 (&raw mut records).cast(),
                 append,
             )
@@ -380,7 +400,12 @@ impl TransferDataReader<'_> {
         let mut handle = core::ptr::null_mut();
         // SAFETY: The data holder is lent for the steps, and the realm is live.
         unsafe {
-            web_bindings_transfer_data_decode_transport_handle(self.as_raw(), self.realm.as_ptr().cast(), &mut handle)
+            web_bindings_transfer_data_decode_transport_handle(
+                self.as_raw(),
+                self.realm.as_ptr().cast(),
+                &mut self.offset,
+                &mut handle,
+            )
         }
         .into_completion()?;
         // SAFETY: LibWeb hands over the handle it read.
@@ -390,7 +415,7 @@ impl TransferDataReader<'_> {
     /// ! StructuredDeserializeWithTransfer(dataHolder, the current Realm).[[Deserialized]] for what
     /// TransferDataWriter::write_transferred_value() wrote: the transferred value, created in the realm.
     pub(crate) fn read_transferred_value(&mut self, cx: &CallContext) -> WebIdlResult<Value> {
-        structured_deserialize_with_transfer_internal(cx, self.decoder)
+        structured_deserialize_with_transfer_internal(cx, self)
     }
 }
 
