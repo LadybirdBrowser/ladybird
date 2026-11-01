@@ -613,7 +613,7 @@ address field → page. F6 moves between the chrome and the page.
 | Reopen closed tab | ⇧⌘T | Ctrl+Shift+T |
 | New window | ⌘N | Ctrl+N |
 | New private window | ⇧⌘N | Ctrl+Shift+N |
-| Next / previous tab | ⌃Tab / ⌃⇧Tab | Ctrl+Tab / Ctrl+Shift+Tab |
+| Next / previous tab | ⌃Tab, ⌥⌘→ / ⌃⇧Tab, ⌥⌘← | Ctrl+Tab / Ctrl+Shift+Tab |
 | Go to tab 1–8 / last tab | ⌘1–8 / ⌘9 | Ctrl+1–8 / Ctrl+9 |
 | Search all tabs | ⇧⌘A | Ctrl+Shift+A |
 | Focus address field | ⌘L | Ctrl+L, Alt+D |

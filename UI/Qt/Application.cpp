@@ -347,6 +347,7 @@ public:
 #if defined(AK_OS_MACOS)
             QKeySequence(Qt::META | Qt::Key_Tab),
             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketRight),
+            QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Right),
 #endif
         });
         QObject::connect(m_open_next_tab_action, &QAction::triggered, this, []() {
@@ -361,6 +362,7 @@ public:
 #if defined(AK_OS_MACOS)
             QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_Tab),
             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketLeft),
+            QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Left),
 #endif
         });
         QObject::connect(m_open_previous_tab_action, &QAction::triggered, this, []() {
