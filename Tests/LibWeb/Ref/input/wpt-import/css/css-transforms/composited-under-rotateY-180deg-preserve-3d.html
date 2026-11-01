@@ -1,0 +1,9 @@
+<!DOCTYPE html>
+<title>CSS Test (Transforms): composited under backface-visibility:hidden, rotateY(180deg) and preserve-3d</title>
+<link rel="help" href="http://www.w3.org/TR/css-transforms-2">
+<meta name="assert" content="This tests that a composited element with default
+  backface-visibility is visible under backface-visibility:hidden, rotateY(180deg) and preserve-3d.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-transforms/composited-under-rotateY-180deg-ref.html">
+<div style="transform: rotateY(180deg); width: 100px; backface-visibility: hidden; transform-style: preserve-3d">
+  <div style="width: 100px; height: 100px; background: green; will-change: transform"></div>
+</div>

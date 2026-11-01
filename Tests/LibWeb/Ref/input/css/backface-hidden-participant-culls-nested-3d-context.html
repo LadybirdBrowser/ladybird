@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/backface-hidden-participant-culls-nested-3d-context-ref.html" />
+<style>
+    body {
+        margin: 0;
+    }
+    .scene {
+        position: absolute;
+        top: 50px;
+        left: 50px;
+        width: 200px;
+        height: 200px;
+        perspective: 1000px;
+    }
+    .card {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        transform-style: preserve-3d;
+    }
+    .front {
+        width: 200px;
+        height: 200px;
+        background: green;
+        backface-visibility: hidden;
+    }
+    .back {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 200px;
+        height: 200px;
+        transform: rotateY(180deg);
+        backface-visibility: hidden;
+    }
+    .button {
+        width: 100px;
+        height: 100px;
+        background: red;
+        transform-style: preserve-3d;
+    }
+</style>
+<div class="scene">
+    <div class="card">
+        <div class="front" id="front"></div>
+        <div class="back"><div class="button" id="button"></div></div>
+    </div>
+</div>
