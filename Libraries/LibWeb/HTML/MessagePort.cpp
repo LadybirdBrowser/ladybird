@@ -31,7 +31,6 @@ void web_rust_message_port_fail_next_transfer_for_testing(void* port);
 void web_rust_message_port_disentangle_ports_of_realm(JSVM*, void* realm);
 
 // The entry points of the generated bindings of the interface.
-bool web_rust_message_port_is_detached(void* port);
 JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, Bindings::RustTransferDataWriter*);
 JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, Bindings::RustTransferDataReader*);
 }
@@ -103,11 +102,6 @@ WebIDL::ExceptionOr<void> MessagePort::transfer_steps(JS::Realm& realm, Transfer
     Bindings::RustTransferDataWriter writer { .realm = realm, .data_holder = data_holder };
     TRY(JS::HostABI::completion_from_abi<void>(web_rust_message_port_transfer_steps(vm_abi(), &realm, this, &writer)));
     return {};
-}
-
-bool MessagePort::is_detached() const
-{
-    return web_rust_message_port_is_detached(const_cast<MessagePort*>(this));
 }
 
 size_t MessagePort::pending_outgoing_message_count() const
