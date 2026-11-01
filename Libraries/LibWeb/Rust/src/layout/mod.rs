@@ -19,6 +19,7 @@ pub(crate) mod counters;
 pub(crate) mod fc_run_cache;
 pub(crate) mod flex_formatting_context;
 pub mod formatting_context;
+pub(crate) mod fragment_overflow;
 pub(crate) mod fragment_tree;
 pub(crate) mod fragmentation;
 pub(crate) mod generated_content;
