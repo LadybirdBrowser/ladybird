@@ -35,9 +35,9 @@ enum CompactTraceback {
 };
 
 // The [[ErrorData]] of an Error or of an ErrorDataCell: the call stack it was created on. The runtime keeps it inside
-// the cell that has it, so a reference to an ErrorData is to the runtime's error data, or for the ErrorData that an
-// ErrorDataCell derives from, to the cell itself, which the runtime takes in its place. An Error converts to the
-// ErrorData inside it.
+// the cell that has it, so a reference to an ErrorData is to the runtime's error data, or for the ErrorData of an
+// ErrorDataCell, to the cell itself, which the runtime takes in its place. An Error converts to the ErrorData inside
+// it.
 class JS_API ErrorData {
     AK_MAKE_NONCOPYABLE(ErrorData);
     AK_MAKE_NONMOVABLE(ErrorData);
@@ -54,11 +54,14 @@ protected:
 };
 
 // The error data of a host object that is not an Error, such as a DOMException, kept in a cell of its own.
-class JS_API ErrorDataCell final
-    : public EngineCell
-    , public ErrorData {
+// NB: ErrorDataCell can't derive from ErrorData, as the MSVC ABI places an empty second base after the first one, so
+//     the ErrorData would not be at the address of the cell.
+class JS_API ErrorDataCell final : public EngineCell {
 public:
     static GC::Ref<ErrorDataCell> capture(VM&);
+
+    ErrorData& error_data() { return *reinterpret_cast<ErrorData*>(this); }
+    ErrorData const& error_data() const { return *reinterpret_cast<ErrorData const*>(this); }
 };
 
 static_assert(GC::IsForeignCellHandle<ErrorDataCell>);

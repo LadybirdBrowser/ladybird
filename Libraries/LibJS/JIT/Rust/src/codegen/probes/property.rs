@@ -235,20 +235,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let scratch = self.pinned.scratch;
         let layout = self.runtime.layout;
         let offsets = self.runtime.offsets;
-        // NB: Plain objects start with the virtual table pointer of their
-        //     class, like the template of new plain objects.
-        let Some(&plain_object_vtable) = self.runtime.object_allocation.template.first() else {
+        if layout.object_class == 0 {
             self.masm.jump(miss);
             return;
-        };
+        }
         let cacheable = self.masm.new_label();
-        self.masm.move_imm64(scratch, plain_object_vtable);
-        self.masm
-            .branch64_memory(Condition::Equal, &Address::new(object, 0), scratch, cacheable);
-        for class in [layout.string_object_class, layout.string_prototype_class] {
+        self.emit_load_class(shape, object);
+        for class in [
+            layout.object_class,
+            layout.string_object_class,
+            layout.string_prototype_class,
+        ] {
             self.masm.move_imm64(scratch, class);
-            self.masm
-                .branch64_memory(Condition::Equal, &Address::new(object, 0), scratch, cacheable);
+            self.masm.branch64(Condition::Equal, shape, scratch, cacheable);
         }
         let flags =
             self.runtime.dynamic_calls.object_flag_is_ecmascript_function | layout.object_flag_has_magical_length;
@@ -261,8 +260,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         if layout.default_is_cacheable_for_property_absence == 0 || layout.class_object_methods == 0 {
             self.masm.jump(miss);
         } else {
-            // NB: Objects start with their class.
-            self.masm.load64(shape, &Address::new(object, 0));
             self.masm
                 .load64(shape, &Address::new(shape, layout.class_object_methods as i32));
             self.masm

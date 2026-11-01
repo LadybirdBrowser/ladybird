@@ -27,7 +27,7 @@ use crate::bytecode::executable::{
     MAX_NUMBER_OF_SHAPES_TO_REMEMBER, MEGAMORPHIC_DATA_TAG, MEGAMORPHIC_HASH_MULTIPLIER, MEGAMORPHIC_INDEX_BITS,
     MEGAMORPHIC_PRIMARY_ENTRIES_OFFSET, MEGAMORPHIC_SECONDARY_ENTRIES_OFFSET,
 };
-use crate::gc::class::{Class, GcCell};
+use crate::gc::class::{BLOCK_CLASS_OFFSET, BLOCK_CLASS_TAIL_TAG, BLOCK_SIZE, Class, GcCell};
 use crate::gc::defer_gc::DeferGc;
 use crate::interpreter::runtime_functions::runtime_function_addresses;
 use crate::interpreter::vm::{
@@ -182,6 +182,7 @@ fn runtime_layout() -> RuntimeLayout {
         indexed_storage_kind_holey: IndexedStorageKind::Holey as u8,
         object_flag_is_extensible: object_flag::IS_EXTENSIBLE,
         object_flag_has_magical_length: object_flag::HAS_MAGICAL_LENGTH_PROPERTY,
+        object_class: core::ptr::from_ref(Object::CLASS) as u64,
         string_object_class: core::ptr::from_ref(StringObject::CLASS) as u64,
         string_prototype_class: core::ptr::from_ref(StringPrototype::CLASS) as u64,
         object_flag_may_interfere: object_flag::MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS,
@@ -344,6 +345,10 @@ fn runtime_layout() -> RuntimeLayout {
         property_lookup_cache_entry_type_add_own_property: PropertyLookupCacheEntryType::AddOwnProperty as u32,
         property_lookup_cache_entry_type_get_own_property: PropertyLookupCacheEntryType::GetOwnProperty as u32,
         property_lookup_cache_entry_type_change_own_property: PropertyLookupCacheEntryType::ChangeOwnProperty as u32,
+        cell_block_mask: !(BLOCK_SIZE as u64 - 1),
+        block_class_offset: offset(BLOCK_CLASS_OFFSET),
+        block_class_tail_tag: BLOCK_CLASS_TAIL_TAG as u64,
+        class_cell_size: offset(offset_of!(Class, type_info.cell_size)),
         class_object_methods: offset(offset_of!(Class, object_methods)),
         object_methods_get_prototype_of: offset(offset_of!(ObjectMethods, internal_get_prototype_of)),
         object_methods_is_cacheable_for_property_absence: offset(offset_of!(

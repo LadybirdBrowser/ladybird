@@ -139,9 +139,9 @@ extern "C" fn marker_record(vm: *mut u64, pc: u32, instruction: *const u8, outpu
 
 static NO_PROPERTY_CACHES: [u64; 16] = [0; 16];
 
-/// Word 0 of fake plain objects, like the virtual table pointer of real
-/// ones.
-const PLAIN_OBJECT_VTABLE: u64 = 0x7000;
+/// The class of fake plain objects, in their word 0 (see
+/// `cell_block_mask`).
+const PLAIN_OBJECT_CLASS: u64 = 0x7000;
 
 /// Word 0 of fake String objects and of the fake `%String.prototype%`, like
 /// the classes of real ones.
@@ -292,7 +292,7 @@ fn marker_runtime() -> RuntimeInfo {
     runtime.object_allocation.inline_storage_offset = 64;
     runtime.object_allocation.inline_capacity_offset = 40;
     runtime.offsets.shape_dictionary_generation = 84;
-    runtime.object_allocation.template = vec![PLAIN_OBJECT_VTABLE];
+    runtime.object_allocation.template = vec![PLAIN_OBJECT_CLASS];
     runtime.dynamic_calls.object_flag_is_ecmascript_function = FLAG_IS_ECMASCRIPT_FUNCTION;
     for opcode in [O::Increment, O::Decrement, O::PostfixIncrement, O::PostfixDecrement] {
         set(opcode, marker_record as *const () as u64);
@@ -1190,6 +1190,7 @@ fn fake_object_layout() -> RuntimeLayout {
         indexed_storage_kind_holey: HOLEY,
         object_flag_is_extensible: FLAG_IS_EXTENSIBLE,
         object_flag_has_magical_length: FLAG_HAS_MAGICAL_LENGTH,
+        object_class: PLAIN_OBJECT_CLASS,
         string_object_class: STRING_OBJECT_CLASS,
         string_prototype_class: STRING_PROTOTYPE_CLASS,
         object_flag_may_interfere: FLAG_MAY_INTERFERE,
@@ -1314,6 +1315,12 @@ fn fake_object_layout() -> RuntimeLayout {
         property_lookup_cache_entry_type_add_own_property: 1,
         property_lookup_cache_entry_type_get_own_property: 3,
         property_lookup_cache_entry_type_change_own_property: 2,
+        // NB: Fake cells keep their class in their first word: the mask
+        //     keeps every bit, so the block of a fake cell is the cell.
+        cell_block_mask: u64::MAX,
+        block_class_offset: 0,
+        block_class_tail_tag: 1,
+        class_cell_size: 0,
         class_object_methods: 8,
         object_methods_get_prototype_of: 0,
         object_methods_is_cacheable_for_property_absence: 0,
@@ -4161,7 +4168,7 @@ fn get_by_value_through_megamorphic_property_caches() {
 fn get_by_id_of_missing_properties_through_property_caches() {
     let mut fake = FakeCachedObject::new(&[value::int32(10)]);
     fake.set_entry(6, 0, false);
-    fake.object[0] = PLAIN_OBJECT_VTABLE;
+    fake.object[0] = PLAIN_OBJECT_CLASS;
     assert_eq!(fake.get(fake.value()), value::UNDEFINED);
     // Objects of other classes may have properties their shapes do not
     // describe: the probe, then the slow path. ECMAScript functions, arrays
@@ -4178,7 +4185,7 @@ fn get_by_id_of_missing_properties_through_property_caches() {
         assert_eq!(fake.get(fake.value()), value::UNDEFINED);
     }
     // Shapes with a prototype need a valid prototype chain.
-    fake.object[0] = PLAIN_OBJECT_VTABLE;
+    fake.object[0] = PLAIN_OBJECT_CLASS;
     fake.shape[0] = 0x8000;
     assert_eq!(fake.get(fake.value()), MARKER);
     let mut validity = vec![1u64];
@@ -4300,7 +4307,7 @@ fn get_by_id_of_strings_through_megamorphic_property_caches() {
 fn keyed_accesses_of_missing_and_added_properties_through_property_caches() {
     const ENTRY_WORDS: usize = 8;
     let mut fake = FakeCachedObject::new(&[value::int32(10), value::int32(11), value::EMPTY]);
-    fake.object[0] = PLAIN_OBJECT_VTABLE;
+    fake.object[0] = PLAIN_OBJECT_CLASS;
     fake.object[1] = u64::from(FLAG_IS_EXTENSIBLE);
     let shape = fake.shape.as_ptr() as u64;
     let key = u64::from(STRING_TAG) << 48 | 0x5000;
@@ -4355,7 +4362,7 @@ fn keyed_accesses_of_missing_and_added_properties_through_property_caches() {
     assert_eq!(get(&fake, other_key), MARKER);
     fake.object[0] = 0;
     assert_eq!(get(&fake, key), MARKER);
-    fake.object[0] = PLAIN_OBJECT_VTABLE;
+    fake.object[0] = PLAIN_OBJECT_CLASS;
 
     // Changes of existing properties.
     set_entry(&mut data, 2, 1, 0, shape);

@@ -239,6 +239,9 @@ pub struct ErrorDataCell {
 
 define_cell!(ErrorDataCell, Other, external_memory_size: external_memory_size);
 
+/// Where an error data cell keeps its error data.
+pub const ERROR_DATA_CELL_ERROR_DATA_OFFSET: usize = core::mem::offset_of!(ErrorDataCell, error_data);
+
 impl ExternalMemorySize for ErrorDataCell {
     fn external_memory_size(&self) -> usize {
         self.error_data.external_memory_size()
@@ -248,9 +251,18 @@ impl ExternalMemorySize for ErrorDataCell {
 impl ErrorDataCell {
     /// ErrorDataCell::capture(vm): error data with the call stack of the running execution context.
     pub fn capture(vm: &Vm) -> Gc<ErrorDataCell> {
+        Self::create(vm, ErrorData::new(vm))
+    }
+
+    /// Error data for an exception whose source location came from another agent.
+    pub fn from_source_range(vm: &Vm, source_range: SourceRange) -> Gc<ErrorDataCell> {
+        Self::create(vm, ErrorData::from_source_range(source_range))
+    }
+
+    fn create(vm: &Vm, error_data: ErrorData) -> Gc<ErrorDataCell> {
         let cell = vm.heap().allocate(|_| Self {
             header: CellHeader::for_class(Self::CLASS),
-            error_data: ErrorData::new(vm),
+            error_data,
         });
         vm.heap()
             .did_allocate_external_memory(cell.error_data.traceback_storage_size());

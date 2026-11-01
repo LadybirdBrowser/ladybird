@@ -28,7 +28,7 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 
-use crate::gc::class::Extends;
+use crate::gc::class::{Extends, GcCell, block_class_pointer_at};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::host_class::{
@@ -40,7 +40,7 @@ use crate::layout::value::Value;
 use crate::runtime::big_int::BigInt;
 use crate::runtime::completion::{Throw, ThrowCompletionOr};
 use crate::runtime::error::ErrorKind;
-use crate::runtime::error_data::{ErrorData, ErrorDataCell};
+use crate::runtime::error_data::{ERROR_DATA_CELL_ERROR_DATA_OFFSET, ErrorData, ErrorDataCell};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise_capability::PromiseCapability;
 use crate::runtime::property_key::PropertyKey;
@@ -116,15 +116,34 @@ impl CellAbi for JSPromiseCapability {
     type Cell = PromiseCapability;
 }
 
+/// The error data of an error data cell goes to the embedder as the cell (see error_data_from_abi).
 pub fn error_data_into_abi(error_data: &ErrorData) -> *const JSErrorData {
-    core::ptr::from_ref(error_data).cast()
+    let address = core::ptr::from_ref(error_data).cast::<u8>();
+    // SAFETY: Error data lives in a cell.
+    if core::ptr::eq(unsafe { block_class_pointer_at(address) }, ErrorDataCell::CLASS) {
+        return address.wrapping_sub(ERROR_DATA_CELL_ERROR_DATA_OFFSET).cast();
+    }
+    address.cast()
 }
 
+/// The error data that the embedder passes as a JSErrorData: the error data of an Error, or an error data cell, whose
+/// address the C++ ErrorDataCell gives as the address of its ErrorData. Error data in an error data cell reaches the
+/// embedder as the cell (see error_data_into_abi), so an address in a block of error data cells is the address of a
+/// cell.
+///
 /// # Safety
 ///
-/// `error_data` must point to the error data of a cell that stays alive for `'cell`.
+/// `error_data` must be the error data or the error data cell of a cell that stays alive for `'cell`.
 pub unsafe fn error_data_from_abi<'cell>(error_data: *const JSErrorData) -> &'cell ErrorData {
     assert!(!error_data.is_null(), "the embedder passes error data");
+    // SAFETY: Error data lives in a cell.
+    if core::ptr::eq(
+        unsafe { block_class_pointer_at(error_data.cast()) },
+        ErrorDataCell::CLASS,
+    ) {
+        // SAFETY: The pointer is the address of a live error data cell.
+        return unsafe { &*error_data.cast::<ErrorDataCell>() }.error_data();
+    }
     // SAFETY: The caller guarantees that the pointer is to error data, which lives as long as its cell.
     unsafe { &*error_data.cast::<ErrorData>() }
 }

@@ -542,20 +542,19 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             self.masm.move_imm64(output, value::TRUE);
             self.masm.jump(done);
             self.masm.bind(absent);
-            // NB: Plain objects, which start with the virtual table pointer
-            //     of their class like the template of new plain objects, have
-            //     the own string-keyed properties of their shapes. Their
-            //     prototypes may have it, which `in` leaves to the runtime.
-            match self.runtime.object_allocation.template.first() {
-                Some(&plain_object_vtable) if own => {
-                    self.emit_unbox_cell(entry, object);
-                    self.masm.move_imm64(scratch, plain_object_vtable);
-                    self.masm
-                        .branch64_memory(Condition::NotEqual, &Address::new(entry, 0), scratch, probe);
-                    self.masm.move_imm64(output, value::FALSE);
-                    self.masm.jump(done);
-                }
-                _ => self.masm.jump(probe),
+            // NB: Plain objects have the own string-keyed properties of their
+            //     shapes. Their prototypes may have it, which `in` leaves to
+            //     the runtime.
+            let object_class = layout.object_class;
+            if own && object_class != 0 {
+                self.emit_unbox_cell(entry, object);
+                self.emit_load_class(scratch, entry);
+                self.masm
+                    .branch64_imm(Condition::NotEqual, scratch, object_class as i64, probe);
+                self.masm.move_imm64(output, value::FALSE);
+                self.masm.jump(done);
+            } else {
+                self.masm.jump(probe);
             }
         }
         self.bind_probe_failure(output, value::EMPTY, failure, done);

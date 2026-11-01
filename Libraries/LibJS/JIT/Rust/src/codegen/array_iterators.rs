@@ -42,8 +42,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let layout = self.runtime.layout;
         let other = self.masm.new_label();
         let fail = if invert { target } else { other };
-        // NB: Cells start with the pointer to their class.
-        self.masm.load64(scratch, &Address::new(object, 0));
+        self.emit_load_class(scratch, object);
         self.masm
             .branch64_imm(Condition::NotEqual, scratch, layout.array_iterator_class as i64, fail);
         self.masm

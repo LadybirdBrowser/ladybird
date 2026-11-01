@@ -1552,7 +1552,7 @@ JsonObject current_stack_trace(JS::VM& vm)
 {
     // The current stack trace is the result of construct a stack trace given a list of stack frames representing the
     // callstack of the running execution context.
-    return construct_a_stack_trace(JS::ErrorDataCell::capture(vm)->traceback());
+    return construct_a_stack_trace(JS::ErrorDataCell::capture(vm)->error_data().traceback());
 }
 
 // https://w3c.github.io/webdriver-bidi/#get-exception-details

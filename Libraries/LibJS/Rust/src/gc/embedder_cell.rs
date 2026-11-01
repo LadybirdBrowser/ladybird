@@ -158,7 +158,7 @@ impl<T: EmbedderValue> EmbedderClass<T> {
     /// # Safety
     ///
     /// `cell` must be a live cell that an embedder class allocated, such as the host data of a host object the
-    /// embedder created with such a cell, whose first word is therefore its class.
+    /// embedder created with such a cell, whose block therefore holds its class.
     pub unsafe fn downcast(&'static self, cell: NonNull<c_void>) -> Option<Gc<EmbedderCell<T>>> {
         // SAFETY: The caller passes a live cell of an embedder class.
         let cell = unsafe { Gc::<EmbedderCell<T>>::from_non_null(cell.cast()) };

@@ -240,7 +240,7 @@ impl Module {
     }
 
     pub fn class(&self) -> &'static Class {
-        self.header.class
+        self.header.class()
     }
 
     pub(crate) fn methods(&self) -> &'static ModuleMethods {

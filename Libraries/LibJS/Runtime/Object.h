@@ -241,12 +241,19 @@ protected:
 
 private:
     static_assert(JS_LAYOUT_OBJECT_SHAPE_SIZE == sizeof(u32));
-    static_assert(JS_LAYOUT_CELL_CLASS_SIZE == sizeof(void*));
     static_assert(JS_LAYOUT_CLASS_ID_SIZE == sizeof(u16));
     static_assert(JS_LAYOUT_CLASS_PARENT_SIZE == sizeof(void*));
 
-    // The runtime's class of the object, which the first word of every cell points to.
-    u8 const* engine_class() const { return engine_field<u8 const*>(JS_LAYOUT_CELL_CLASS_OFFSET); }
+    // The runtime's class of the object, which the object's block holds, unless the block's class is tagged as one that
+    // classes share an allocator of: then the object keeps its class in its last word.
+    u8 const* engine_class() const
+    {
+        auto const* block = GC::HeapBlockBase::from_cell(GC::as_cell(this));
+        auto const* engine_class = static_cast<u8 const*>(block->foreign_type());
+        if (!(bit_cast<FlatPtr>(engine_class) & JS_LAYOUT_BLOCK_CLASS_TAIL_TAG))
+            return engine_class;
+        return engine_field<u8 const*>(block->type_info().cell_size - sizeof(void*));
+    }
 
     static u16 engine_class_id_of(u8 const* engine_class)
     {

@@ -774,7 +774,7 @@ impl Object {
     }
 
     pub fn class(&self) -> &'static Class {
-        self.header.class
+        self.header.class()
     }
 
     fn methods(&self) -> &'static ObjectMethods {

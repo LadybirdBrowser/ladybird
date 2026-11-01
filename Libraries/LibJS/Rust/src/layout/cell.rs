@@ -7,8 +7,6 @@
 use core::cell::Cell;
 use core::ptr::NonNull;
 
-use crate::layout_forward::Class;
-
 /// A pointer to a garbage-collected cell. Cells are kept alive by being reachable from the heap's roots or from the
 /// stack, which the collector scans conservatively, so a `Gc` needs no rooting while it lives in a local.
 #[repr(transparent)]
@@ -81,15 +79,19 @@ pub enum CellState {
 }
 
 /// The bytes LibGC shares with every cell. The first word is the vtable pointer of a C++ cell, which LibGC never
-/// reads; Rust cells keep their class there. The header is packed so that a cell's own fields can use the bytes that
-/// follow it, the same way C++ cells reuse the base class's tail padding.
+/// reads; the block of a Rust cell holds its class instead (see `class_of`). The header is packed so that a cell's own
+/// fields can use the bytes that follow it, the same way C++ cells reuse the base class's tail padding.
 #[repr(C, packed)]
 pub struct CellHeader {
-    pub class: &'static Class,
+    pub unused: [u8; 8],
     pub mark: Cell<bool>,
     pub state: Cell<CellState>,
     pub kind: CellKind,
 }
 
 const _: () = assert!(size_of::<CellHeader>() == 11);
+
+/// Added to the class that the block of an allocator holds when the classes that extend it share the allocator, whose
+/// cells each keep their own class in the word after the cell_size bytes of that class.
+pub const BLOCK_CLASS_TAIL_TAG: usize = 1;
 const _: () = assert!(align_of::<CellHeader>() == 1);

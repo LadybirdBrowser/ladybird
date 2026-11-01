@@ -135,7 +135,7 @@ impl Environment {
     }
 
     pub fn class(&self) -> &'static Class {
-        self.header.class
+        self.header.class()
     }
 
     fn methods(&self) -> &'static EnvironmentMethods {
@@ -282,7 +282,7 @@ impl Value {
     /// The environment the value holds, which must be one.
     pub fn as_environment(self) -> Gc<Environment> {
         assert!(self.is_cell());
-        // SAFETY: The value holds a cell, and every cell starts with its class, which is checked below.
+        // SAFETY: The value holds a cell, whose block holds its class, which is checked below.
         let environment = unsafe { self.cell::<Environment>() };
         assert!(
             class_of(environment).is_subclass_of(Environment::CLASS),

@@ -1663,8 +1663,9 @@ pub struct RuntimeLayout {
     pub object_flag_is_extensible: u16,
     /// `Object::Flag::HasMagicalLengthProperty`, which only arrays have.
     pub object_flag_has_magical_length: u16,
-    /// The classes (pointers) of `StringObject`s and of `%String.prototype%`,
-    /// which start their cells.
+    /// The classes (pointers) of plain objects, of `StringObject`s and of
+    /// `%String.prototype%`.
+    pub object_class: u64,
     pub string_object_class: u64,
     pub string_prototype_class: u64,
     /// `Object::Flag::MayInterfereWithIndexedPropertyAccess`.
@@ -1914,8 +1915,17 @@ pub struct RuntimeLayout {
     pub property_lookup_cache_entry_type_get_own_property: u32,
     /// `PropertyLookupCache::Entry::Type::ChangeOwnProperty`.
     pub property_lookup_cache_entry_type_change_own_property: u32,
-    /// `Class::object_methods`, of the class every cell starts with, or 0 if
-    /// JIT code does not walk prototype chains.
+    /// The mask that rounds the address of a cell down to its block, and
+    /// where the block holds the class of its cells. A block of an allocator
+    /// that classes share holds that class with `block_class_tail_tag` set,
+    /// and each cell keeps its own class right after the
+    /// `Class::type_info.cell_size` bytes of that class.
+    pub cell_block_mask: u64,
+    pub block_class_offset: u32,
+    pub block_class_tail_tag: u64,
+    pub class_cell_size: u32,
+    /// `Class::object_methods`, or 0 if JIT code does not walk prototype
+    /// chains.
     pub class_object_methods: u32,
     /// `ObjectMethods::internal_get_prototype_of`, which is null for objects
     /// whose prototype is the prototype of their shape.
