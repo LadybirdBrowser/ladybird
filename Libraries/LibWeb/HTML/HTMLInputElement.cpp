@@ -806,7 +806,7 @@ WebIDL::ExceptionOr<void> HTMLInputElement::set_value(Utf16View value)
             relevant_value_was_changed();
 
             if (selection_or_range_applies())
-                set_the_selection_range(m_value.length_in_code_units(), m_value.length_in_code_units());
+                set_the_selection_range(m_value.length_in_code_units(), m_value.length_in_code_units(), SelectionDirection::None, SelectionSource::ValueChange);
 
             update_shadow_tree();
         } else if (!m_date_time_fields.is_empty()) {

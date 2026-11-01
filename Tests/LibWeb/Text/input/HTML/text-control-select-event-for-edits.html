@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<textarea id="textarea"></textarea>
+<input id="input">
+<input id="barrier" value="x" style="display: none">
+<script>
+    // Editing a text control or setting its value moves the cursor, but fires no select event. The selection APIs still
+    // fire one whenever they change the selection.
+    asyncTest(async done => {
+        const barrier = document.getElementById("barrier");
+        let barrierEnd = 1;
+        // A select event queued on the same task source after the ones before it, so they've all fired once it fires.
+        async function flushSelectEvents() {
+            await new Promise(resolve => {
+                barrier.addEventListener("select", resolve, { once: true });
+                barrier.setSelectionRange(0, barrierEnd);
+                barrierEnd = 1 - barrierEnd;
+            });
+        }
+
+        for (const id of ["textarea", "input"]) {
+            const element = document.getElementById(id);
+            let count = 0;
+            element.addEventListener("select", () => ++count);
+
+            async function report(what, action) {
+                await flushSelectEvents();
+                count = 0;
+                action();
+                await flushSelectEvents();
+                println(`${id}: ${what}: select events=${count}`);
+            }
+
+            await report("setRangeText() into the empty control", () => element.setRangeText("a", 0, 0, "end"));
+
+            element.focus();
+            await report("100 insertions", () => {
+                for (let i = 0; i < 100; ++i)
+                    document.execCommand("insertText", false, "a");
+            });
+            await report("10 deletions", () => {
+                for (let i = 0; i < 10; ++i)
+                    document.execCommand("delete");
+            });
+            println(`${id}: length after the edits: ${element.value.length}`);
+
+            await report("undoing the 10 deletions and the 100 insertions", () => {
+                document.execCommand("undo");
+                document.execCommand("undo");
+            });
+            println(`${id}: length after undoing: ${element.value.length}`);
+
+            element.value = "start end";
+            element.setSelectionRange(6, 6);
+            await report("10 insertions in the middle", () => {
+                for (let i = 0; i < 10; ++i)
+                    document.execCommand("insertText", false, "m");
+            });
+            println(`${id}: value after the insertions in the middle: ${element.value}`);
+
+            // Typing after a script's replacement starts a new undo step, even with the cursor where it was.
+            element.value = "abcd";
+            element.setSelectionRange(1, 1);
+            document.execCommand("insertText", false, "X");
+            element.setRangeText("Y", 1, 2, "end");
+            document.execCommand("insertText", false, "Z");
+            document.execCommand("undo");
+            println(`${id}: undoing typing after setRangeText(): ${element.value}`);
+
+            element.setSelectionRange(1, 1);
+            await report("value setter moving the cursor to the end", () => element.value = "a longer value than the cursor offset");
+
+            await report("setSelectionRange() moving the cursor", () => element.setSelectionRange(2, 2));
+            await report("select()", () => element.select());
+            await report("setRangeText()", () => element.setRangeText("X", 0, 1, "end"));
+
+            element.value = "abcd";
+            element.setSelectionRange(0, 4);
+            await report("setRangeText() shrinking the value under the selection", () => element.setRangeText("", 3, 4, "preserve"));
+            println(`${id}: selection after that: ${element.selectionStart}-${element.selectionEnd}`);
+        }
+        done();
+    });
+</script>

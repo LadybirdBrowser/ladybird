@@ -1082,7 +1082,7 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text_bindi
 }
 
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setrangetext
-WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode)
+WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode selection_mode, SelectionSource selection_source)
 {
     // 2. Set this element's dirty value flag to true.
     set_dirty_value_flag(true);
@@ -1128,7 +1128,22 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
     builder.append(the_relevant_value.substring_view(start));
 
     the_relevant_value = builder.to_string();
+
+    // NB: A cursor reveal that an earlier execCommand() edit left pending is for the cursor that edit placed, so reveal
+    //     it while that cursor is still within the value, as setting the selection range does.
+    if (m_cursor_reveal_after_edit == CursorRevealAfterEdit::Immediately)
+        reveal_cursor_if_pending();
+
+    // NB: Setting the relevant value clamps the selection to the new length, and the selection the last step sets
+    //     would then seem unchanged, firing no select or selectionchange event. That step starts from the selection
+    //     as it was, so keep it.
+    auto selection_start_before = m_selection_start;
+    auto selection_end_before = m_selection_end;
+    auto selection_direction_before = m_selection_direction;
     TRY(set_relevant_value(the_relevant_value));
+    m_selection_start = selection_start_before;
+    m_selection_end = selection_end_before;
+    m_selection_direction = selection_direction_before;
 
     // 11. Let new length be the length of the value of the first argument.
     auto new_length = replacement.length_in_code_units();
@@ -1188,7 +1203,14 @@ WebIDL::ExceptionOr<void> FormAssociatedTextControlElement::set_range_text(Utf16
     }
 
     // 14. Set the selection range with selection start and selection end.
-    set_the_selection_range(selection_start, selection_end);
+    set_the_selection_range(selection_start, selection_end, SelectionDirection::None, selection_source);
+
+    // NB: A script's replacement ends typing coalescence in the editing history even when the selection ends up where
+    //     it was, so the next typed text doesn't join the undo step of the text typed before it.
+    if (selection_source == SelectionSource::DOM) {
+        if (auto history = text_control_to_html_element().document().editing_history_if_exists())
+            history->selection_changed();
+    }
 
     return {};
 }
@@ -1264,9 +1286,10 @@ void FormAssociatedTextControlElement::set_the_selection_range(Optional<WebIDL::
     if (was_modified) {
         auto& html_element = text_control_to_html_element();
 
-        // AD-HOC: We don't fire the event if the user moves the cursor without selecting any text.
-        //         This is not in the spec but matches how other browsers behave.
-        if (source == SelectionSource::DOM || m_selection_start != m_selection_end) {
+        // AD-HOC: We don't fire the event if the user moves the cursor without selecting any text, or if the cursor
+        //         moves because the value changed (an edit, or the value setter). This is not in the spec but matches
+        //         how other browsers behave.
+        if (source == SelectionSource::DOM || (source == SelectionSource::UI && m_selection_start != m_selection_end)) {
             html_element.queue_an_element_task(Task::Source::UserInteraction, [&html_element] {
                 auto select_event = DOM::Event::create(
                     EventNames::select,
@@ -1320,7 +1343,7 @@ void FormAssociatedTextControlElement::handle_insert(Utf16FlyString const& input
 
     {
         Editing::EditingHistory::ProxyMutationScope proxy_scope { html_element };
-        MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End));
+        MUST(set_range_text(data_for_insertion, selection_start, selection_end, Bindings::SelectionMode::End, SelectionSource::ValueChange));
     }
 
     if (auto step = history->undo_step_being_recorded(); step) {
@@ -1420,7 +1443,7 @@ void FormAssociatedTextControlElement::handle_delete(Utf16FlyString const& input
 
     {
         Editing::EditingHistory::ProxyMutationScope proxy_scope { html_element };
-        MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End));
+        MUST(set_range_text({}, selection_start, selection_end, Bindings::SelectionMode::End, SelectionSource::ValueChange));
     }
 
     if (auto step = history->undo_step_being_recorded(); step && !removed_data.is_empty()) {
