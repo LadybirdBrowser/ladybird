@@ -1296,12 +1296,6 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
 
     recreate_toolbar_icons();
 
-    m_page_context_menu = create_context_menu(*this, view(), view().page_context_menu());
-    m_link_context_menu = create_context_menu(*this, view(), view().link_context_menu());
-    m_selected_text_link_context_menu = create_context_menu(*this, view(), view().selected_text_link_context_menu());
-    m_image_context_menu = create_context_menu(*this, view(), view().image_context_menu());
-    m_media_context_menu = create_context_menu(*this, view(), view().media_context_menu());
-
     auto* navigation_button_cluster = new QWidget(m_toolbar);
     navigation_button_cluster->setProperty(WINDOW_DRAG_REGION_PROPERTY, true);
     auto* navigation_button_layout = new QHBoxLayout(navigation_button_cluster);
