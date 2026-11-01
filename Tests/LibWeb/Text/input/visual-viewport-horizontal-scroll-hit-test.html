@@ -36,8 +36,8 @@
             let hit = internals.hitTest(200, 150);
             results.push(`before scroll: ${hit.node.id}`);
 
-            // Scroll right by 400 to pan the visual viewport to the right half
-            internals.wheel(200, 150, 400, 0);
+            // Scroll right by 800 screen pixels, which pan the visual viewport at zoom 2 by 400 to the right half
+            internals.wheel(200, 150, 800, 0);
             await scrollOffsetStopsChanging(() => vv.offsetLeft);
 
             // Do not call println() here — DOM mutation triggers layout which

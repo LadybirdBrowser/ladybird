@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = "<body style='margin: 0; height: 1000px'></body>";
+        document.body.prepend(frame);
+        await frameLoaded;
+
+        const cancelable = [];
+        frame.contentWindow.addEventListener("wheel", event => cancelable.push(event.cancelable), { passive: false });
+        // The compositor holds the first step of a gesture back for the frame's page from when it knows of the listener,
+        // even while no frame shows the listener yet.
+        await waitForCondition(() => {
+            const route = internals.compositorWheelTargetAt(100, 75, 0, 30);
+            return route.document === frame.contentDocument
+                && ["blocking-wheel-event-listeners", "stale-wheel-event-listeners"].includes(route.decision);
+        });
+
+        // The frame's page sees the first step of a gesture before anything scrolls, and lets it through, so the
+        // compositor scrolls the frame by the later steps without asking again.
+        await scrollSettled(frame.contentDocument, async () => {
+            for (let step = 0; step < 3; ++step)
+                await internals.wheelThroughUIProcess(100, 75, 0, 30, true, "ongoing");
+            await internals.wheelThroughUIProcess(100, 75, 0, 0, true, "ended");
+        });
+        println(`cancelable touchpad steps: ${cancelable.splice(0).join(",")}`);
+        println(`frame scrollY after the touchpad gesture: ${frame.contentWindow.scrollY}`);
+
+        // Mouse wheel ticks 50 CSS pixels away are another gesture, which the frame's page sees the first tick of.
+        await scrollSettled(frame.contentDocument, async () => {
+            for (let tick = 0; tick < 3; ++tick)
+                await internals.wheelThroughUIProcess(150, 75, 0, 40);
+        });
+        println(`cancelable ticks: ${cancelable.splice(0).join(",")}`);
+        println(`frame scrollY after the ticks: ${frame.contentWindow.scrollY}`);
+        println(`window.scrollY: ${window.scrollY}`);
+    });
+</script>

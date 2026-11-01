@@ -258,6 +258,10 @@ public:
     void adopt_started_user_scroll(DOM::Document&, Compositing::StartedUserScroll const&);
     void process_main_thread_smooth_scrolls();
     void wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID, GC::Ref<WebIDL::Promise>);
+    // The input that started the operation is still being handled, and whoever handed it in waits for the operation
+    // once it is. An operation that ends before then is remembered until the wait begins.
+    void expect_wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID);
+    void forget_expected_wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID);
     void wait_for_wheel_scrolls(Vector<GC::Ref<WebIDL::Promise>>&);
     void clamp_viewport_scroll_offset();
 
@@ -430,9 +434,8 @@ public:
     void note_user_scroll_gesture_phase(Web::ScrollGesturePhase);
     // A gesture that lasts until its fingers lift is held until their lift arrives, not until its events pause.
     void did_handle_wheel_event(bool gesture_lasts_until_fingers_lift);
-    void note_wheel_user_scroll_gesture_scrolls(Web::AsyncScrollNodeStableID);
     void extend_user_scroll_gesture_of(Web::AsyncScrollNodeStableID);
-    void extend_wheel_user_scroll_gesture(Optional<Web::AsyncScrollNodeStableID> box_latched_on_this_thread);
+    void extend_wheel_user_scroll_gesture();
     void snap_user_scroll_gestures_that_awaited_layout();
     void end_scroll_sequences_that_completed_since_the_last_frame();
     // The boxes that user input scrolls on this thread while the returned change is alive are held by the hold.
@@ -707,6 +710,8 @@ private:
         Compositing::ScrollAnimationKind animation_kind { Compositing::ScrollAnimationKind::SmoothScroll };
     };
     Vector<PendingAsyncScrollOperation> m_pending_async_scroll_operations;
+    // The operations whose wait is expected to begin, and whether each has ended already.
+    HashMap<Compositing::AsyncScrollOperationID, bool> m_async_scroll_operations_with_expected_wait;
     // A script's instant scroll, which ends once the compositor answers its request with where the box went.
     struct InstantScrollAwaitingAnswer {
         Web::AsyncScrollNodeStableID stable_node_id;

@@ -182,7 +182,8 @@ COMPOSITING_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrolling
 // The admission of a scrolling state recorded before the newest change to the page's blocking wheel event listeners is
 // stale, as the state may not have the regions that change made.
 COMPOSITING_API WheelRoutingAdmission wheel_routing_admission_for(AsyncScrollingState const&, u64 newest_wheel_event_listener_state_generation);
-// Why a wheel step that the admission does not let the compositor scroll is left to the main thread.
+// Why a wheel step that the admission does not let the compositor scroll before the page dispatches it is left to the
+// page.
 COMPOSITING_API Web::InputRoutingDecision input_routing_decision_for_wheel_step_not_admitted_by(WheelRoutingAdmission);
 
 }

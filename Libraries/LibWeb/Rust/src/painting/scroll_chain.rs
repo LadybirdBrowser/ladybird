@@ -11,30 +11,6 @@ use crate::painting::paintable_geometry::{absolute_padding_box_rect, has_scrolla
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::{caret, chrome_geometry, scroll_snap};
 
-fn accepted_wheel_delta(arena: &impl PaintableRowsRead, node: NodeSlotId, delta: CssPixelPoint) -> CssPixelPoint {
-    let axes = chrome_geometry::wheel_scrollable_axes(arena, node);
-    let zero = CssPixels::from_raw(0);
-    CssPixelPoint::new(
-        if axes.horizontal { delta.x } else { zero },
-        if axes.vertical { delta.y } else { zero },
-    )
-}
-
-fn clamp_scroll_offset(arena: &impl PaintableRowsRead, node: NodeSlotId, offset: CssPixelPoint) -> CssPixelPoint {
-    let Some((minimum_offset, maximum_offset)) = chrome_geometry::scroll_offset_bounds(arena, node) else {
-        return offset;
-    };
-    CssPixelPoint::new(
-        offset.x.clamp(minimum_offset.x, maximum_offset.x),
-        offset.y.clamp(minimum_offset.y, maximum_offset.y),
-    )
-}
-
-fn scrolling_box_moved_by(arena: &impl PaintableRowsRead, node: NodeSlotId, delta: CssPixelPoint) -> bool {
-    let current_offset = arena.row_scroll_offset(node);
-    clamp_scroll_offset(arena, node, current_offset.translated(delta.x, delta.y)) != current_offset
-}
-
 /// The nearest box, `start` included, that keeps a scroll step by the delta to itself: neither it nor a box inside it
 /// passes the step on to a scroller around it. A step belongs to one scroller, and a touchpad rarely moves along one
 /// axis exactly, so it is the main axis of the step that decides.
@@ -59,70 +35,6 @@ pub(crate) fn box_ending_scroll_chain(
         node = arena.containing_block_by_walking_ancestors(node);
     }
     NodeSlotId::INVALID
-}
-
-pub(crate) fn scrolling_box_for_scroll_step(
-    arena: &impl PaintableRowsRead,
-    target: NodeSlotId,
-    viewport: NodeSlotId,
-    delta: CssPixelPoint,
-) -> NodeSlotId {
-    let scroll_step_moves = |node: NodeSlotId| {
-        let accepted_delta = accepted_wheel_delta(arena, node, delta);
-        accepted_delta != CssPixelPoint::default() && scrolling_box_moved_by(arena, node, accepted_delta)
-    };
-    let box_ending_scroll_chain = box_ending_scroll_chain(arena, target, delta.x.to_double(), delta.y.to_double());
-
-    let mut node = target;
-    while let Some(data) = arena.node_data_if_live(node) {
-        if data.kind.get() == NodeKind::Viewport {
-            break;
-        }
-        if scroll_step_moves(node) {
-            return node;
-        }
-        if node == box_ending_scroll_chain {
-            return NodeSlotId::INVALID;
-        }
-        node = arena.containing_block_by_walking_ancestors(node);
-    }
-
-    if arena.slot_is_live(viewport) && scroll_step_moves(viewport) {
-        return viewport;
-    }
-    NodeSlotId::INVALID
-}
-
-pub(crate) fn for_each_wheel_scrollable_box_in_containing_block_chain(
-    arena: &impl PaintableRowsRead,
-    start: NodeSlotId,
-    wheel_delta_x: f64,
-    wheel_delta_y: f64,
-    mut push_scrollable_box: impl FnMut(NodeSlotId, f64, f64),
-) {
-    let box_ending_scroll_chain = box_ending_scroll_chain(arena, start, wheel_delta_x, wheel_delta_y);
-    let mut node = start;
-    while let Some(data) = arena.node_data_if_live(node) {
-        if data.kind.get() != NodeKind::Viewport {
-            let axes = chrome_geometry::wheel_scrollable_axes(arena, node);
-            let accepted_delta_x = if axes.horizontal { wheel_delta_x } else { 0.0 };
-            let accepted_delta_y = if axes.vertical { wheel_delta_y } else { 0.0 };
-            if accepted_delta_x != 0.0 || accepted_delta_y != 0.0 {
-                push_scrollable_box(node, accepted_delta_x, accepted_delta_y);
-                let accepted_delta = CssPixelPoint::new(
-                    CssPixels::nearest_value_for(accepted_delta_x),
-                    CssPixels::nearest_value_for(accepted_delta_y),
-                );
-                if scrolling_box_moved_by(arena, node, accepted_delta) {
-                    return;
-                }
-            }
-        }
-        if node == box_ending_scroll_chain {
-            return;
-        }
-        node = arena.containing_block_by_walking_ancestors(node);
-    }
 }
 
 pub(crate) fn first_wheel_scrollable_box_in_containing_block_chain(

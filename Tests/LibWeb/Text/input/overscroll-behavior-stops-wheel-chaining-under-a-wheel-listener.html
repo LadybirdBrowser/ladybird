@@ -18,7 +18,7 @@
 </style>
 <div id="scroller"><div></div></div>
 <script>
-    // A wheel listener that may cancel the scroll keeps the scrolling of this page on the main thread.
+    // A wheel listener that may cancel the scroll makes the compositor wait for the page before it scrolls a gesture.
     window.addEventListener("wheel", () => { }, { passive: false });
 
     async function touchpadGesture(deltaX, deltaY) {

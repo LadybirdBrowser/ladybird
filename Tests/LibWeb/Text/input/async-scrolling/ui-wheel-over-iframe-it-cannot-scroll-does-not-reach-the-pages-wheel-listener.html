@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 2000px;
+    }
+
+    iframe {
+        display: block;
+        width: 200px;
+        height: 150px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = "<body></body>";
+        document.body.prepend(frame);
+        await frameLoaded;
+
+        let wheelEventsHere = 0;
+        window.addEventListener("wheel", () => ++wheelEventsHere, { passive: false });
+        let wheelEventsInFrame = 0;
+        frame.contentWindow.addEventListener("wheel", () => ++wheelEventsInFrame, { passive: true });
+        await waitForCondition(() => frame.contentWindow.internals.compositorScrollState().document === frame.contentDocument
+            && internals.compositorWheelTargetAt(100, 300, 0, 50).decision === "blocking-wheel-event-listeners");
+
+        // The frame has nothing to scroll and passes the step on to this document. This document's listener never sees
+        // the wheel events over the frame, so it does not hold the step back, and the compositor scrolls the page.
+        internals.beginInputTrace();
+        await scrollSettled(document, () => internals.wheelThroughUIProcess(100, 75, 0, 50));
+        printInputTrace(internals.takeInputTrace(), { stages: ["compositor"] });
+        println(`window.scrollY: ${window.scrollY}`);
+        println(`wheel events in the frame: ${wheelEventsInFrame}`);
+        println(`wheel events here: ${wheelEventsHere}`);
+    });
+</script>

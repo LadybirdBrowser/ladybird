@@ -1,0 +1,4 @@
+cancelable ticks: true,false,false
+window.scrollY after the ticks: 120
+cancelable steps: true,false,false
+window.scrollY after the steps: 240

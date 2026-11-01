@@ -36,12 +36,13 @@
 
             println(`pageTop changed by: ${scrolled}`);
 
-            // The scroll amount should be approximately equal to the requested delta
+            // The delta is in screen pixels, which pan the zoomed visual viewport by the delta divided by the scale.
             // Allow small tolerance for floating point
-            if (Math.abs(scrolled - scrollDelta) < 1) {
+            const expectedScroll = scrollDelta / vv.scale;
+            if (Math.abs(scrolled - expectedScroll) < 1) {
                 println("PASS");
             } else {
-                println(`FAIL: Expected scroll of ${scrollDelta}, got ${scrolled}`);
+                println(`FAIL: Expected scroll of ${expectedScroll}, got ${scrolled}`);
             }
             done();
         });

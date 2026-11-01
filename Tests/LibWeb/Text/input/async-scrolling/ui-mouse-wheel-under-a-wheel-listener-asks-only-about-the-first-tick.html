@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const cancelable = [];
+        window.addEventListener("wheel", event => cancelable.push(event.cancelable), { passive: false });
+        await waitForCondition(() => internals.compositorWheelTargetAt(100, 100, 0, 40).decision === "blocking-wheel-event-listeners");
+
+        // Mouse wheel ticks in quick succession at one spot are one gesture. The page sees its first tick before
+        // anything scrolls, and lets it through, so the compositor scrolls the later ticks without asking again.
+        await scrollSettled(document, async () => {
+            for (let tick = 0; tick < 3; ++tick)
+                await internals.wheelThroughUIProcess(100, 100, 0, 40);
+        });
+        println(`cancelable ticks: ${cancelable.splice(0).join(",")}`);
+        println(`window.scrollY after the ticks: ${window.scrollY}`);
+
+        // A burst of precise steps without phases, 50 CSS pixels away, is another gesture.
+        await scrollSettled(document, async () => {
+            for (let step = 0; step < 3; ++step)
+                await internals.wheelThroughUIProcess(150, 100, 0, 40, true);
+        });
+        println(`cancelable steps: ${cancelable.splice(0).join(",")}`);
+        println(`window.scrollY after the steps: ${window.scrollY}`);
+    });
+</script>

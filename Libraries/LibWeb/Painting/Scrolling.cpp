@@ -236,32 +236,6 @@ ScrollHandled set_scroll_offset_from_user_input(Layout::Node& node, CSSPixelPoin
     return scroll_handled;
 }
 
-Layout::Node* wheel_scroll_along_containing_block_chain(Layout::Node& node, double wheel_delta_x, double wheel_delta_y, ScrollKind scroll_kind)
-{
-    auto const& read = node.held_read();
-    struct WheelScrollableBox {
-        Compositing::RustFFI::NodeSlotId slot;
-        double accepted_delta_x;
-        double accepted_delta_y;
-    };
-    Vector<WheelScrollableBox, 4> wheel_scrollable_boxes;
-    Layout::RustFFI::render_state_for_each_wheel_scrollable_box_in_containing_block_chain(
-        node.document_host(), committed_row_slot(node), wheel_delta_x, wheel_delta_y, &wheel_scrollable_boxes, [](void* context, Compositing::RustFFI::NodeSlotId slot, double accepted_delta_x, double accepted_delta_y) {
-            static_cast<Vector<WheelScrollableBox, 4>*>(context)->append({ slot, accepted_delta_x, accepted_delta_y });
-        });
-    for (auto const& wheel_scrollable_box : wheel_scrollable_boxes) {
-        auto* scrollable_box = node.node_arena().node_if_live(read, wheel_scrollable_box.slot);
-        if (scrollable_box && scroll_by(*scrollable_box, wheel_scrollable_box.accepted_delta_x, wheel_scrollable_box.accepted_delta_y, scroll_kind) == ScrollHandled::Yes)
-            return scrollable_box;
-    }
-    return nullptr;
-}
-
-Layout::Node* scrolling_box_for_scroll_step_in_containing_block_chain(Layout::BegunRead const& read, Layout::Node& target, CSSPixelPoint delta)
-{
-    return target.node_arena().node_if_live(read, Layout::RustFFI::render_state_scrolling_box_for_scroll_step(target.document_host(), committed_row_slot(target), viewport_row_slot(read, target.document()), delta));
-}
-
 Layout::Node* first_wheel_scrollable_box_in_containing_block_chain(Layout::Node const& node)
 {
     auto const& read = node.held_read();

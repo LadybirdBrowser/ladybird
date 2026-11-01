@@ -128,11 +128,28 @@ enum class AsyncScrollOperationTracking {
     Yes,
 };
 
-// Who scrolls by a wheel event that WebContent's main thread passes on to the compositor, which names the gesture of
-// the event either way.
-enum class WheelEventScrolling : u8 {
-    ByCompositor,
-    ByMainThread,
+// When the compositor routes a wheel event that WebContent's main thread passes on to it, which it names the gesture of
+// either way: before the page dispatches the event, as it routes the UI's wheel events, or only once the page lets the
+// event through with the scrollers around its target. The main thread asks for the latter while the compositor's
+// display list misses changes to the scrollers.
+enum class WheelEventRouting : u8 {
+    BeforeDispatch,
+    AfterDispatch,
+};
+
+// A step of a wheel gesture that WebContent's page dispatched and did not cancel, which the compositor scrolls by.
+struct WheelStepLetThrough {
+    Web::UniqueNodeID document_id;
+    u64 input_event_id { 0 };
+    Web::WheelGestureMark wheel_gesture_mark;
+    // In the device pixels of the viewport of the context the step is let through in.
+    Gfx::FloatPoint position;
+    // In CSS pixels, with the axes already swapped for Shift.
+    Gfx::FloatPoint delta_in_css_pixels;
+    Web::WheelDeltaPrecision wheel_delta_precision { Web::WheelDeltaPrecision::Discrete };
+    Web::ScrollGesturePhase scroll_gesture_phase { Web::ScrollGesturePhase::None };
+    // The scroll containers around the target of the step, innermost first, ending at the viewport.
+    Vector<Web::AsyncScrollNodeStableID> scroll_chain;
 };
 
 // Blocking wheel event listeners hold a wheel step back from the compositor until the page has dispatched it. A step
@@ -321,13 +338,13 @@ template<>
 COMPOSITING_API ErrorOr<Compositing::ScrollRequest> decode(Decoder&);
 
 template<>
-COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::AsyncScrollEnqueueResult const&);
-template<>
-COMPOSITING_API ErrorOr<Compositing::AsyncScrollEnqueueResult> decode(Decoder&);
-
-template<>
 COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::WheelEventAnswer const&);
 template<>
 COMPOSITING_API ErrorOr<Compositing::WheelEventAnswer> decode(Decoder&);
+
+template<>
+COMPOSITING_API ErrorOr<void> encode(Encoder&, Compositing::WheelStepLetThrough const&);
+template<>
+COMPOSITING_API ErrorOr<Compositing::WheelStepLetThrough> decode(Decoder&);
 
 }

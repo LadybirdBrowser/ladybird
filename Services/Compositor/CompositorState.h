@@ -131,8 +131,12 @@ public:
     void handle_and_dispatch_mouse_event(Web::CompositorContextId, Web::MouseEvent);
     void handle_and_dispatch_pinch_event(Web::CompositorContextId, Web::PinchEvent);
     // Routes a wheel event the UI did not send here, such as one a test makes, as the UI's wheel events are routed.
-    Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventScrolling);
-    Compositing::AsyncScrollEnqueueResult async_scroll_by(Web::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Compositing::WheelStepDispatch, Optional<u64> wheel_gesture_id, u64 input_event_id);
+    Compositing::WheelEventAnswer take_wheel_event_from_main_thread(Web::CompositorContextId, Web::MouseEvent const&, Compositing::AsyncScrollOperationTracking, Compositing::WheelEventRouting);
+    // Scrolls by a step that the page of the context dispatched and did not cancel. The context that routes the
+    // gesture is the nearest one, from that context out to the presenting one, that noted the gesture, and the steps the
+    // compositor still has to route of the gesture no longer wait for the page.
+    Compositing::WheelEventAnswer scroll_for_wheel_event_the_page_let_through(Web::CompositorContextId, Compositing::WheelStepLetThrough const&, Compositing::AsyncScrollOperationTracking, CompositorStateWebContentClient const& page_client);
+    void forget_wheel_gesture_the_page_canceled(Web::CompositorContextId, u64 gesture_id);
     void apply_scroll_requests(Web::CompositorContextId, ReadonlySpan<Compositing::ScrollRequest>);
     void viewport_size_updated(Web::CompositorContextId, Gfx::IntSize, double device_pixel_ratio, Compositing::WindowResizingInProgress);
     void request_rendering_opportunity(Web::CompositorContextId, double maximum_frames_per_second);
@@ -247,12 +251,16 @@ private:
     };
     // A fling step is scrolled at the frame time the fling synthesized it for.
     ContextState::ContextUpdateResult scroll_for_wheel_step(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, WheelStepOrigin, bool is_first_wheel_event_with_delta, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
-    struct WheelStepHandedToNestedContext {
-        // What is left for the context the step was handed from to present and report.
+    // How a wheel step went in a context that presented and published what the step changed itself.
+    struct AppliedWheelStep {
+        // What is left for the context that routes the step to present and report.
         ContextState::ContextUpdateResult result;
-        bool nested_context_presents_frame { false };
+        bool presents_frame { false };
     };
-    WheelStepHandedToNestedContext hand_wheel_step_to_nested_context(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, ContextState::NestedContextWheelStep const&, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
+    // A process only knows the ids of its own nodes, and only follows the operations of its own contexts.
+    AppliedWheelStep apply_wheel_step_result(Web::CompositorContextId, ContextState&, ContextState::ContextUpdateResult const&, CompositorStateWebContentClient const& reporting_client);
+    static Compositing::WheelEventAnswer wheel_event_answer_for(AppliedWheelStep const&, Optional<Web::WheelGestureMark>);
+    AppliedWheelStep hand_wheel_step_to_nested_context(Web::CompositorContextId, ContextState&, Web::MouseEvent const&, ContextState::NestedContextWheelStep const&, ContextState::WheelEventListenerGate const&, Compositing::AsyncScrollOperationTracking, MonotonicTime now);
     struct NestedContextTakingWheelStep {
         Web::CompositorContextId context_id;
         // Null when the step cannot be handed to the context.
@@ -260,9 +268,22 @@ private:
         Gfx::FloatPoint position {};
         ContextState::FirstWheelStepRoute route;
     };
-    // The context that takes the first step of a gesture over the content of a context nested in the context
-    // `context_id`, among that context and the contexts nested in it. Empty when each of them passes the step on.
-    Optional<NestedContextTakingWheelStep> nested_context_taking_first_wheel_step(Web::CompositorContextId, Compositing::NestedContextHit, Gfx::FloatPoint delta_in_css_pixels, Web::WheelDeltaPrecision);
+    struct FirstWheelStepInNestedContexts {
+        // The innermost context that the step went into, whose page sees the step.
+        Web::CompositorContextId innermost_context_id;
+        // The context that takes the step, which is empty when each of them passes the step on.
+        Optional<NestedContextTakingWheelStep> taking_context {};
+    };
+    // Where the first step of a gesture over the content of a context nested in the context `context_id` goes, among
+    // that context and the contexts nested in it.
+    FirstWheelStepInNestedContexts first_wheel_step_in_nested_contexts(Web::CompositorContextId, Compositing::NestedContextHit, Gfx::FloatPoint delta_in_css_pixels, Web::WheelDeltaPrecision);
+    // Routes the first step of a gesture that the page of the listener context let through: in that context, from the
+    // scrollers the page found around the target, and on to the contexts around it for what a context passes on, up to
+    // the routing context, which latches the gesture. A page of another process than a context's scrolls it only by
+    // what the UI left to the page in the gesture.
+    AppliedWheelStep route_wheel_step_the_page_let_through(Web::CompositorContextId routing_context_id, ContextState& routing_context, Web::CompositorContextId listener_context_id, ContextState& listener_context, ContextState::WheelStep, ReadonlySpan<Web::AsyncScrollNodeStableID> scroll_chain, CompositorStateWebContentClient const* page_client, MonotonicTime now);
+    // The nearest context, from the given one out to the presenting one, that noted the gesture.
+    Optional<Web::CompositorContextId> routing_context_of_wheel_gesture(Web::CompositorContextId, u64 gesture_id);
     // The scrollbars of a context nested in the presenting context `context_id` take the pointer over that context's
     // content, and a drag of one of them takes the pointer wherever it goes until the drag ends.
     ContextState::ContextUpdateResult handle_mouse_event_in_nested_contexts(Web::CompositorContextId, ContextState&, Web::MouseEvent const&);

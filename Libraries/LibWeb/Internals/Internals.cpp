@@ -953,6 +953,11 @@ void Internals::click_and_hold(double x, double y, WebIDL::UnsignedShort click_c
 void Internals::wheel(GC::Ref<WebIDL::Promise> promise, double x, double y, double delta_x, double delta_y, bool precise, Bindings::ScrollGesturePhase phase, Bindings::WheelTicks const& ticks)
 {
     auto& page = this->page();
+    // The compositor scrolls by the event from the frames it has. Like a user's, the event comes once the page has
+    // presented what changed in it.
+    for (auto& navigable : page.local_traversable()->hosted_inclusive_descendant_navigables())
+        navigable->paint_next_frame_if_needed(DOM::UpdateLayoutReason::EventHandlerHandleMouseWheel);
+    let_compositor_take_in_every_rendered_frame(window());
 
     auto wheel_delta_precision = wheel_delta_precision_from(precise);
     auto scroll_gesture_phase = scroll_gesture_phase_from(phase);

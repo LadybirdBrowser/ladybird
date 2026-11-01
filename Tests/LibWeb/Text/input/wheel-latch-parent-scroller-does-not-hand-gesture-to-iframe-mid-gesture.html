@@ -25,7 +25,7 @@
 
         let wheelEventsInIframe = 0;
         iframe.contentWindow.addEventListener("wheel", () => ++wheelEventsInIframe, { passive: false });
-        // A blocking wheel event listener keeps the scrolling of these gestures on the main thread.
+        // A blocking wheel event listener makes the compositor wait for the page before it scrolls these gestures.
         window.addEventListener("wheel", () => {}, { passive: false });
         await animationFrame();
         await animationFrame();
