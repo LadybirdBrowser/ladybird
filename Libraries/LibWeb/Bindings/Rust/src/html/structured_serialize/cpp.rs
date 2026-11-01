@@ -44,10 +44,7 @@ unsafe extern "C" {
     fn web_structured_serialize_ipc_record_data(record: *const c_void, data: &mut ak::Span<'static, u8>);
     fn web_structured_serialize_ipc_record_shared_array_buffer(
         record: *const c_void,
-        realm: *mut c_void,
         side_table_index: u32,
-        byte_length: usize,
-        preserve_growability: bool,
     ) -> *mut c_void;
     fn web_structured_serialize_shared_buffers_shared_array_buffer(
         shared_buffers: *mut c_void,
@@ -293,25 +290,20 @@ impl<'a> ReceivedIPCSerializationRecord<'a> {
         data.as_slice()
     }
 
-    /// A new SharedArrayBuffer in the realm that shares the storage of the buffer at the index of the record's
-    /// same-process side table, if there is such a buffer, and its storage can be shared.
-    pub(crate) fn shared_array_buffer(
-        self,
-        realm: Gc<Realm>,
-        side_table_index: u32,
-        byte_length: usize,
-        preserve_growability: bool,
-    ) -> Option<Gc<Object>> {
-        // SAFETY: The record is lent, and the realm is live. LibWeb returns a live object or null.
-        unsafe {
+    /// The SharedArrayBuffer at the index of the record's same-process side table, if there is one.
+    pub(crate) fn shared_array_buffer(self, side_table_index: u32) -> Option<Gc<ArrayBuffer>> {
+        // SAFETY: The record is lent. LibWeb returns a live object or null.
+        let object = unsafe {
             object_from_abi(web_structured_serialize_ipc_record_shared_array_buffer(
                 self.raw.as_ptr(),
-                realm.as_ptr().cast(),
                 side_table_index,
-                byte_length,
-                preserve_growability,
             ))
-        }
+        }?;
+        Some(
+            object
+                .downcast::<ArrayBuffer>()
+                .expect("the side table holds ArrayBuffers"),
+        )
     }
 }
 
