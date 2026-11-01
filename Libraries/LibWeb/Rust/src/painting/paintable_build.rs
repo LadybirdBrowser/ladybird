@@ -27,7 +27,6 @@ pub(crate) struct ReplacedCommittedFragmentLink {
 
 #[derive(Clone, Copy, Default)]
 pub(crate) struct LineDataChange {
-    pub(crate) has_pieces: bool,
     pub(crate) content_changed: bool,
     pub(crate) item_order_changed: bool,
 }
@@ -37,6 +36,20 @@ pub(crate) struct LineRootChanges {
     pub(crate) fragment_changed: bool,
     pub(crate) inline_content_changed: bool,
     pub(crate) inline_item_order_changed: bool,
+}
+
+impl LineRootChanges {
+    pub(crate) fn all() -> Self {
+        Self {
+            fragment_changed: true,
+            inline_content_changed: true,
+            inline_item_order_changed: true,
+        }
+    }
+
+    pub(crate) fn any(self) -> bool {
+        self.fragment_changed || self.inline_content_changed || self.inline_item_order_changed
+    }
 }
 
 fn same_inline_content(left: &fragment_tree::Fragment, right: &fragment_tree::Fragment) -> bool {
@@ -114,6 +127,19 @@ impl<'a> PaintableCommit<'a> {
         self.arena_mut().clear_absolute_rect_memo();
     }
 
+    /// Clears the committed link and row of a box the commit left without them.
+    pub(crate) fn clear_node(&mut self, node: formatting_context::Node) {
+        self.arena_mut().clear_committed_fragment_link(node);
+        if self.arena().paintable_rows().paintable_row_is_populated(node) {
+            let reset = self
+                .arena()
+                .prepare_paintable_row_cleared_reset(node)
+                .expect("live row for node could not be cleared");
+            self.row_reset_notifications.push(reset);
+            self.arena_mut().paintable_row_cleared(reset);
+        }
+    }
+
     pub(crate) fn prepare_node(
         &mut self,
         node: formatting_context::Node,
@@ -134,17 +160,7 @@ impl<'a> PaintableCommit<'a> {
         let row_existed_before_this_commit = self.arena().paintable_rows().paintable_row_is_populated(node);
         let previous_offset = row_existed_before_this_commit.then(|| self.arena().live_paintable_data(node).offset);
         if !wants_paintable {
-            self.arena_mut().clear_committed_fragment_link(node);
-            if row_existed_before_this_commit {
-                let reset = {
-                    let arena = self.arena();
-                    arena
-                        .prepare_paintable_row_cleared_reset(node)
-                        .expect("live row for node could not be cleared")
-                };
-                self.row_reset_notifications.push(reset);
-                self.arena_mut().paintable_row_cleared(reset);
-            }
+            self.clear_node(node);
             return PreparedPaintable {
                 has_paintable_row: false,
                 row_existed_before_this_commit: false,
@@ -495,7 +511,6 @@ impl<'a> PaintableCommit<'a> {
             self.arena_mut().note_line_root_needs_fragment_ownership(slot);
         }
         LineDataChange {
-            has_pieces,
             content_changed,
             item_order_changed,
         }
