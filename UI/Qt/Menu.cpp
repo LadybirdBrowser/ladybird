@@ -128,9 +128,9 @@ private:
 
 class MenuObserver final : public WebView::Menu::Observer {
 public:
-    static NonnullOwnPtr<MenuObserver> create(QMenu& qmenu)
+    static NonnullOwnPtr<MenuObserver> create(WebView::Menu& menu, QMenu& qmenu)
     {
-        return adopt_own(*new MenuObserver(qmenu));
+        return adopt_own(*new MenuObserver(menu, qmenu));
     }
 
     virtual void on_visible_state_changed(WebView::Menu& menu) override
@@ -140,9 +140,13 @@ public:
     }
 
 private:
-    explicit MenuObserver(QMenu& qmenu)
+    MenuObserver(WebView::Menu& menu, QMenu& qmenu)
         : m_menu(&qmenu)
     {
+        QObject::connect(&qmenu, &QObject::destroyed, [this, weak_menu = menu.make_weak_ptr()]() {
+            if (auto menu = weak_menu.strong_ref())
+                menu->remove_observer(*this);
+        });
     }
 
     QPointer<QMenu> m_menu;
@@ -318,7 +322,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
 
 static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu)
 {
-    menu.add_observer(MenuObserver::create(qmenu));
+    menu.add_observer(MenuObserver::create(menu, qmenu));
     add_properties(qmenu, menu);
 
     for (auto& menu_item : menu.items()) {
