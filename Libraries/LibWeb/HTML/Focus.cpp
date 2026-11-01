@@ -89,6 +89,16 @@ static GC::Ptr<Navigable> focus_root(DOM::Document& document)
     return navigable->top_level_traversable();
 }
 
+// The currently focused area of root, or without system focus, the area the tab's focused navigable shows: where focus
+// would be with system focus. Starting at the focused navigable means a focused area another process took focus from
+// doesn't count as focused.
+static GC::Ptr<DOM::Node> currently_or_otherwise_focused_area(Navigable& root)
+{
+    if (root.page().client().has_focus())
+        return root.currently_focused_area();
+    return root.focused_area_shown_by_focused_navigable_regardless_of_system_focus();
+}
+
 static GC::Ptr<Navigable> navigable_of_focused_area(DOM::Node& focused_area)
 {
     if (auto* container = as_if<NavigableContainer>(focused_area)) {
@@ -598,8 +608,10 @@ static GC::Ptr<DOM::Node> get_focusable_area(DOM::Node& focus_target, FocusTrigg
             return nullptr;
 
         // 1. Let focusedElement be the currently focused area of a top-level traversable's DOM anchor.
+        // AD-HOC: Without system focus, that's null; take the area it would be with system focus instead, so the
+        //         shadow host keeps the delegate that has focus (see the focusing steps' step 5).
         if (auto root = focus_root(element->document())) {
-            if (auto focused_element = root->currently_focused_area()) {
+            if (auto focused_element = currently_or_otherwise_focused_area(*root)) {
                 // 2. If focus target is a shadow-including inclusive ancestor of focusedElement, then
                 //    return focusedElement.
                 if (element->is_shadow_including_inclusive_ancestor_of(*focused_element))
@@ -667,7 +679,11 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
     auto root = focus_root(new_focus_target->document());
     if (!root)
         return;
-    if (new_focus_target.ptr() == root->currently_focused_area().ptr()) {
+    // AD-HOC: Without system focus, the currently focused area of the top-level traversable is null, so the spec's
+    //         check never matches. Focusing the area that keeps focus then fires the focus events again, and a page
+    //         whose focus handler focuses its own target again recurses until the stack runs out. Compare against the
+    //         area that would be focused with system focus.
+    if (new_focus_target.ptr() == currently_or_otherwise_focused_area(*root).ptr()) {
         // NB: focus()'s focusVisible option still applies to the element that already has focus, e.g. the delegate a
         //     shadow host resolved to.
         if (focus_visible.has_value())
