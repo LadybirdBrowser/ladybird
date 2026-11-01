@@ -824,7 +824,7 @@ protected:
     NonnullRefPtr<Menu> create_selected_text_link_context_menu(bool is_editable, String const& selected_text, URL::URL const&, Optional<DictionaryLookup> const&, Gfx::IntPoint content_position);
     void add_open_in_new_tab_action(Menu&, StringView text, URL::URL const&, Optional<Web::HTML::PreparedNavigationDescriptor> const&);
     void add_open_url_actions(Menu&, URL::URL const&, Optional<Web::HTML::PreparedNavigationDescriptor> const&);
-    static void add_text_edit_actions(Menu&, bool is_editable, bool has_selected_text);
+    void add_text_edit_actions(Menu&, bool is_editable, bool has_selected_text);
     void add_look_up_action(Menu&, Optional<DictionaryLookup> const&, Gfx::IntPoint content_position);
     void update_report_website_issue_action();
     void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation, Function<void()> on_handler_unavailable = {});
