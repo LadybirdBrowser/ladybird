@@ -1040,6 +1040,13 @@ impl HostStyle {
     }
 }
 
+#[derive(Clone, Copy, Default)]
+struct CommittedLinkHolder {
+    generation: u8,
+    holder: Option<NodeSlotId>,
+    met_at_commit: u32,
+}
+
 #[derive(Clone)]
 pub(crate) struct LayoutNodeArena {
     chunks: Vec<Box<Chunk>>,
@@ -1102,6 +1109,10 @@ pub(crate) struct LayoutNodeArena {
     full_layout_count: u64,
     /// How many layouts were committed, full and partial.
     layout_commit_count: u64,
+    /// Per slot, which fragment held the box's committed link when a commit last met it.
+    committed_link_holders: Vec<CommittedLinkHolder>,
+    /// The boxes whose committed links a full commit met at the top of its pass, which no fragment holds.
+    pass_level_committed_links: Vec<NodeSlotId>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: Vec<u64>,
     pre_order_relabel_count: u64,
@@ -1226,6 +1237,8 @@ impl LayoutNodeArena {
             partial_layout_count: (0),
             full_layout_count: (0),
             layout_commit_count: 0,
+            committed_link_holders: Vec::new(),
+            pass_level_committed_links: Vec::new(),
             layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: 0,
@@ -1278,6 +1291,37 @@ impl LayoutNodeArena {
             counter_styles: Default::default(),
             style_node_tables: StyleNodeTables::default(),
         }
+    }
+
+    /// Notes that the commit numbered `commit` met the committed link of `id` in the fragment of `holder`, or at the top
+    /// of its pass where `holder` is invalid.
+    pub(crate) fn note_committed_link_holder(&mut self, id: NodeSlotId, holder: NodeSlotId, commit: u32) {
+        let index = id.slot_index() as usize;
+        if self.committed_link_holders.len() <= index {
+            self.committed_link_holders
+                .resize(index + 1, CommittedLinkHolder::default());
+        }
+        self.committed_link_holders[index] = CommittedLinkHolder {
+            generation: id.generation(),
+            holder: Some(holder),
+            met_at_commit: commit,
+        };
+    }
+
+    /// The fragment that held the committed link of `id` when a commit last met it, and that commit's number.
+    pub(crate) fn committed_link_holder(&self, id: NodeSlotId) -> Option<(NodeSlotId, u32)> {
+        self.committed_link_holders
+            .get(id.slot_index() as usize)
+            .filter(|holder| holder.generation == id.generation())
+            .and_then(|holder| holder.holder.map(|node| (node, holder.met_at_commit)))
+    }
+
+    pub(crate) fn take_pass_level_committed_links(&mut self) -> Vec<NodeSlotId> {
+        std::mem::take(&mut self.pass_level_committed_links)
+    }
+
+    pub(crate) fn set_pass_level_committed_links(&mut self, links: Vec<NodeSlotId>) {
+        self.pass_level_committed_links = links;
     }
 
     pub(crate) fn layout_commit_count(&self) -> u64 {
@@ -4518,9 +4562,11 @@ impl LayoutNodeArena {
         }
         self.write_shape(id).set_flags(updated);
         // A box that becomes a flex or grid item can lay out to the fragment it committed before, but orders its
-        // painting differently, so its committed geometry no longer lets its commit be skipped.
+        // painting differently, so its committed geometry no longer lets its commit be skipped, nor that of the boxes
+        // whose committed fragments hold it.
         if matches!(flag, NodeFlag::IsFlexItem | NodeFlag::IsGridItem) && updated != previous {
             self.paintable_rows.invalidate_committed_geometry(id.slot_index());
+            self.invalidate_committed_geometry_of_ancestors(id);
         }
         // Retaining compositor-animated content decides whether a non-invertible transform
         // still records its stacking context.
@@ -5233,9 +5279,7 @@ impl LayoutNodeArena {
         let mut ancestor = self.data(id).parent.get();
         while !ancestor.is_invalid()
             && self.slot_is_live(ancestor)
-            && self
-                .with_current_committed_fragment_link(ancestor, |_| ())
-                .is_some()
+            && self.with_current_committed_fragment_link(ancestor, |_| ()).is_some()
         {
             self.paintable_rows.invalidate_committed_geometry(ancestor.slot_index());
             ancestor = self.data(ancestor).parent.get();
