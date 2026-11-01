@@ -398,23 +398,13 @@ public:
         PerScroll,
     };
 
-    // How long the offset a gesture's input deltas have reached goes on being the offset its next step travels from.
-    // A wheel gesture stays latched between its steps, so its deltas keep accumulating until it settles, and crossing a
-    // snap position costs the distance between them however slowly the steps arrive. Keys are separate commands rather
-    // than one gesture, so each press travels from the scrolling box itself.
-    enum class SnapStepAccumulation {
-        UntilScrollFinishes,
-        UntilGestureSettles,
-    };
-
     bool scroll_scrolling_box_by_delta(Layout::Node&, CSSPixelPoint delta, Painting::ScrollKind, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     bool continued_scroll_step_moves(Layout::Node&, CSSPixelPoint delta, Compositing::ScrollAnimationKind);
     bool scroll_viewport_by_delta(CSSPixelPoint delta, Bindings::ScrollBehavior, Painting::ScrollKind, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {}, Painting::ScrollKind = Painting::ScrollKind::Absolute, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll);
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
-    bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositing::ScrollAnimationKind = Compositing::ScrollAnimationKind::SmoothScroll, Painting::ScrollKind = Painting::ScrollKind::Relative);
+    bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type, Painting::ScrollKind = Painting::ScrollKind::Relative);
     bool perform_a_scroll_step_for_key_input(Layout::Node&, CSSPixelPoint delta, Compositing::SnapSelectionStrategy::Type);
-    bool perform_a_snapped_momentum_scroll(Layout::Node&, CSSPixelPoint momentum_delta);
     Layout::Node* layout_node_for_async_scroll_node_stable_id(Web::AsyncScrollNodeStableID);
     void re_snap_scroll_containers_after_layout_change(Layout::BegunRead const& read);
     void abort_in_flight_smooth_scrolls(Web::AsyncScrollNodeStableID);
@@ -588,7 +578,6 @@ private:
     void abandon_snapping_of_user_scroll_gesture(Web::AsyncScrollNodeStableID);
     void note_user_scroll_gesture_input_ended(Web::AsyncScrollNodeStableID);
     void release_wheel_user_scroll_gesture_hold();
-    void reset_momentum_fling_state();
     void cancel_scroll_sequences();
     void schedule_hover_update_after_async_scroll();
     void update_hover_after_async_scroll_stops();
@@ -690,15 +679,6 @@ private:
     bool m_scroll_sequences_may_have_completed { false };
     Compositing::SnapSelectionStrategy::Type m_user_scroll_input_intent { Compositing::SnapSelectionStrategy::Type::EndPosition };
     bool m_user_scroll_gesture_travels_under_momentum { false };
-    // Momentum that selects no snap position is scrolled by for the rest of the gesture rather than being asked again
-    // for each delta it produces.
-    enum class MomentumSnapPositionSelection : u8 {
-        NotSelectedYet,
-        ScrollingToSelectedPosition,
-        NoPositionSelected,
-    };
-    MomentumSnapPositionSelection m_momentum_snap_position_selection { MomentumSnapPositionSelection::NotSelectedYet };
-    Compositing::MomentumFlingEstimator m_momentum_fling_estimator;
     bool m_is_re_snapping_scroll_containers { false };
 
     struct PendingAsyncScrollOperation {
