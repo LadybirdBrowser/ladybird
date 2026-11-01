@@ -11,7 +11,6 @@ use core::ffi::c_void;
 
 pub use crate::gc::class::Class;
 pub use crate::gc::foreign::ForeignCellSlot;
-pub use crate::runtime::object::PrivateElements;
 pub use crate::runtime::private_environment::PrivateEnvironmentStorage;
 pub use crate::runtime::realm::RealmStorage;
 pub use crate::runtime::shape::ShapeStorage;

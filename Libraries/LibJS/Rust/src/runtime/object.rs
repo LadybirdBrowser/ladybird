@@ -6,7 +6,6 @@
 
 use core::cell::Cell;
 use core::ops::ControlFlow;
-use core::ptr::NonNull;
 use std::collections::HashSet;
 
 use ak::{Utf16FlyString, Utf16String};
@@ -51,7 +50,7 @@ use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFun
 use crate::runtime::object_prototype::ObjectPrototype;
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::private_environment::PrivateName;
-use crate::runtime::property_attributes::{DEFAULT_ATTRIBUTES, PropertyAttributes};
+use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, PropertyAttributes};
 use crate::runtime::property_descriptor::{PropertyDescriptor, to_property_descriptor};
 use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::realm::Realm;
@@ -69,39 +68,14 @@ pub enum PrivateElementKind {
     Accessor,
 }
 
+/// A PrivateElement record, as class definitions collect them. Objects keep theirs as properties (see
+/// `private_element_find`).
 #[derive(Clone, Debug, Trace)]
 pub struct PrivateElement {
     pub key: PrivateName,
     #[gc(untraced)]
     pub kind: PrivateElementKind,
     pub value: Value,
-}
-
-/// [[PrivateElements]], allocated when the first one is added and freed when the object is finalized.
-#[repr(transparent)]
-#[derive(Default)]
-pub struct PrivateElements(Cell<Option<NonNull<GcRefCell<Vec<PrivateElement>>>>>);
-
-impl PrivateElements {
-    fn get(&self) -> Option<&GcRefCell<Vec<PrivateElement>>> {
-        // SAFETY: The elements are owned by the object and live until it is destroyed.
-        self.0.get().map(|elements| unsafe { elements.as_ref() })
-    }
-
-    fn ensure(&self) -> &GcRefCell<Vec<PrivateElement>> {
-        if self.0.get().is_none() {
-            self.0
-                .set(Some(NonNull::from(Box::leak(Box::new(GcRefCell::new(Vec::new()))))));
-        }
-        self.get().expect("the private elements were just allocated")
-    }
-
-    fn free(&self) {
-        if let Some(elements) = self.0.take() {
-            // SAFETY: The elements were leaked from a Box by ensure() and nothing refers to them any more.
-            drop(unsafe { Box::from_raw(elements.as_ptr()) });
-        }
-    }
 }
 
 // Non-standard: This is information optionally returned by object property access functions.
@@ -327,20 +301,15 @@ define_cell!(
     external_memory_size: external_memory_size
 );
 
-// Object::external_memory_size(): the heap-allocated named and indexed property storage and the private elements.
+// Object::external_memory_size(): the heap-allocated named and indexed property storage.
 impl ExternalMemorySize for Object {
     fn external_memory_size(&self) -> usize {
-        let mut size = self.named_storage_external_memory_size();
-        size += self.indexed_storage_external_memory_size();
-        if let Some(private_elements) = self.private_elements.get() {
-            size += private_elements.borrow().capacity() * size_of::<PrivateElement>();
-        }
-        size
+        self.named_storage_external_memory_size() + self.indexed_storage_external_memory_size()
     }
 }
 
-// SAFETY: Visits the shape, the named properties the shape describes, the indexed properties and the private
-// elements, which are all the cells an object reaches.
+// SAFETY: Visits the shape, the named properties the shape describes and the indexed properties, which are all the
+// cells an object reaches.
 unsafe impl Trace for Object {
     fn trace(&self, visitor: &mut Visitor) {
         self.shape.trace(visitor);
@@ -379,10 +348,6 @@ unsafe impl Trace for Object {
         {
             visitor.visit(storage);
         }
-
-        if let Some(private_elements) = self.private_elements.get() {
-            private_elements.trace(visitor);
-        }
     }
 }
 
@@ -400,11 +365,10 @@ impl Drop for Object {
 }
 
 impl Object {
-    /// Whether the object has no malloc storage, dictionary elements or private elements, which the object frees.
+    /// Whether the object has no malloc storage or dictionary elements, which the object frees.
     pub(crate) fn owns_nothing_outside_the_heap(&self) -> bool {
         self.flags.get() & (object_flag::HAS_MALLOC_NAMED_STORAGE | object_flag::HAS_MALLOC_INDEXED_STORAGE) == 0
             && self.indexed_storage_kind() != IndexedStorageKind::Dictionary
-            && self.private_elements.get().is_none()
     }
 
     #[cold]
@@ -424,7 +388,6 @@ impl Object {
             }
             _ => {}
         }
-        self.private_elements.free();
     }
 }
 
@@ -618,7 +581,6 @@ impl Object {
             inline_named_capacity: Cell::new(INLINE_NAMED_STORAGE_CAPACITY as u8),
             named_properties: Cell::new(core::ptr::null_mut()),
             indexed_elements: Cell::new(core::ptr::null_mut()),
-            private_elements: PrivateElements::default(),
             inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; INLINE_NAMED_STORAGE_CAPACITY],
         };
         if may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes {
@@ -1226,6 +1188,10 @@ impl Object {
         let mut properties = Vec::with_capacity(shape.property_count() as usize);
         let mut has_accessors = false;
         shape.for_each_property_in_insertion_order(|property_key, metadata| {
+            // NB: Private elements are not properties, and integrity levels leave them as they are.
+            if property_key.is_private() {
+                return ControlFlow::Continue(());
+            }
             if self.get_direct(metadata.offset).is_accessor() {
                 has_accessors = true;
                 return ControlFlow::Break(());
@@ -1692,28 +1658,14 @@ impl Object {
     }
 
     // 7.3.27 PrivateElementFind ( O, P ), https://tc39.es/ecma262/#sec-privateelementfind
-    /// The index of the element in [[PrivateElements]], which stays valid until another element is added.
-    pub fn private_element_find(&self, name: &PrivateName) -> Option<usize> {
-        let private_elements = self.private_elements.get()?;
-
+    /// The private element as the property the object stores under the symbol of P, which no other code sees: a field
+    /// is a writable data property, a method a read-only data property and an accessor an accessor property, none of
+    /// them enumerable.
+    pub fn private_element_find(&self, name: &PrivateName) -> Option<ValueAndAttributes> {
         // 1. If O.[[PrivateElements]] contains a PrivateElement pe such that pe.[[Key]] is P, then
         //    a. Return pe.
         // 2. Return empty.
-        private_elements
-            .borrow()
-            .iter()
-            .position(|element| element.key == *name)
-    }
-
-    /// The [[Kind]] and [[Value]] of the private element at `index`, without copying its key.
-    fn private_element_kind_and_value_at(&self, index: usize) -> (PrivateElementKind, Value) {
-        let private_elements = self
-            .private_elements
-            .get()
-            .expect("the object has private elements")
-            .borrow();
-        let element = &private_elements[index];
-        (element.kind, element.value)
+        self.storage_get_symbol(&name.property_key())
     }
 
     // 7.3.28 PrivateFieldAdd ( O, P, value ), https://tc39.es/ecma262/#sec-privatefieldadd
@@ -1734,11 +1686,11 @@ impl Object {
         }
 
         // 4. Append PrivateElement { [[Key]]: P, [[Kind]]: field, [[Value]]: value } to O.[[PrivateElements]].
-        self.private_elements.ensure().borrow_mut(vm).push(PrivateElement {
-            key: name.clone(),
-            kind: PrivateElementKind::Field,
-            value,
-        });
+        self.storage_add(
+            vm,
+            &name.property_key(),
+            ValueAndAttributes::new(value, PropertyAttributes::new(Attribute::WRITABLE)),
+        );
 
         // 5. Return unused.
         Ok(())
@@ -1748,6 +1700,7 @@ impl Object {
     pub fn private_method_or_accessor_add(&self, vm: &Vm, element: PrivateElement) -> ThrowCompletionOr<()> {
         // 1. Assert: method.[[Kind]] is either method or accessor.
         assert!(element.kind == PrivateElementKind::Method || element.kind == PrivateElementKind::Accessor);
+        assert!((element.kind == PrivateElementKind::Accessor) == element.value.is_accessor());
 
         // 2. If the host is a web browser, then
         //    a. Perform ? HostEnsureCanAddPrivateElement(O).
@@ -1765,7 +1718,11 @@ impl Object {
         }
 
         // 5. Append method to O.[[PrivateElements]].
-        self.private_elements.ensure().borrow_mut(vm).push(element);
+        self.storage_add(
+            vm,
+            &element.key.property_key(),
+            ValueAndAttributes::new(element.value, PropertyAttributes::default()),
+        );
 
         // 6. Return unused.
         Ok(())
@@ -1784,19 +1741,17 @@ impl Object {
                 &[&name.description],
             );
         };
-        let (kind, value) = self.private_element_kind_and_value_at(entry);
 
         // 3. If entry.[[Kind]] is either field or method, then
-        if kind != PrivateElementKind::Accessor {
+        if !entry.value.is_accessor() {
             // a. Return entry.[[Value]].
-            return Ok(value);
+            return Ok(entry.value);
         }
 
         // Assert: entry.[[Kind]] is accessor.
-        assert!(value.is_accessor());
 
         // 6. Let getter be entry.[[Get]].
-        let getter = value.as_accessor().getter();
+        let getter = entry.value.as_accessor().getter();
 
         // 5. If entry.[[Get]] is undefined, throw a TypeError exception.
         let Some(getter) = getter else {
@@ -1814,30 +1769,26 @@ impl Object {
     // 7.3.32 PrivateSet ( O, P, value ), https://tc39.es/ecma262/#sec-privateset
     pub fn private_set(&self, vm: &Vm, name: &PrivateName, value: Value) -> ThrowCompletionOr<()> {
         // 1. Let entry be PrivateElementFind(O, P).
-        let entry_index = self.private_element_find(name);
+        let entry = self.private_element_find(name);
 
         // 2. If entry is empty, throw a TypeError exception.
-        let Some(entry_index) = entry_index else {
+        let Some(entry) = entry else {
             return vm.throw_completion(
                 ErrorKind::TypeError,
                 ErrorType::PrivateFieldDoesNotExistOnObject,
                 &[&name.description],
             );
         };
-        let (kind, accessor) = self.private_element_kind_and_value_at(entry_index);
 
         // 3. If entry.[[Kind]] is field, then
-        if kind == PrivateElementKind::Field {
+        if entry.attributes.is_writable() {
             // a. Set entry.[[Value]] to value.
-            self.private_elements
-                .get()
-                .expect("the object has private elements")
-                .borrow_mut(vm)[entry_index]
-                .value = value;
+            let offset = entry.property_offset.expect("a private element is a named property");
+            self.replace_direct(vm, offset, value);
             return Ok(());
         }
         // 4. Else if entry.[[Kind]] is method, then
-        else if kind == PrivateElementKind::Method {
+        else if !entry.value.is_accessor() {
             // a. Throw a TypeError exception.
             return vm.throw_completion(
                 ErrorKind::TypeError,
@@ -1849,12 +1800,9 @@ impl Object {
         // 5. Else,
 
         // a. Assert: entry.[[Kind]] is accessor.
-        assert!(kind == PrivateElementKind::Accessor);
-
-        assert!(accessor.is_accessor());
 
         // c. Let setter be entry.[[Set]].
-        let setter = accessor.as_accessor().setter();
+        let setter = entry.value.as_accessor().setter();
 
         // b. If entry.[[Set]] is undefined, throw a TypeError exception.
         let Some(setter) = setter else {
