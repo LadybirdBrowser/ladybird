@@ -612,6 +612,17 @@ pub fn inline_clips_of<'a>(
         .map(|entry| read_command::<DisplayListInlineClip>(entry))
 }
 
+/// Whether one of the inline clips of a record applies in a space of its own, read without decoding the clips.
+pub fn has_inline_clip_in_its_own_space(header: &DisplayListCommandHeader, payload: &[u8]) -> bool {
+    let count = usize::from(header.inline_clip_count);
+    let entries = &payload[payload.len() - count * INLINE_CLIP_ENTRY_SIZE..];
+    entries
+        .as_chunks::<INLINE_CLIP_ENTRY_SIZE>()
+        .0
+        .iter()
+        .any(|entry| entry[std::mem::offset_of!(DisplayListInlineClip, has_own_space)] != 0)
+}
+
 pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
     assert!(bytes.len() >= HEADER_SIZE);
     let cursor = HeaderReader { bytes };
