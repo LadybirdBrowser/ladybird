@@ -31,7 +31,7 @@ pub struct FunctionObject {
     pub ecmascript_shared_data: NullableMember<SharedFunctionInstanceData>,
 }
 
-const _: () = assert!(size_of::<FunctionObject>() == 72);
+const _: () = assert!(size_of::<FunctionObject>() == 64);
 
 #[repr(C)]
 pub struct NativeFunction {
@@ -45,14 +45,14 @@ pub struct NativeFunction {
     pub raw_native_function_index: Cell<u32>,
 }
 
-const _: () = assert!(size_of::<NativeFunction>() == 96);
+const _: () = assert!(size_of::<NativeFunction>() == 88);
 
 #[repr(C)]
 pub struct RawNativeFunction {
     pub base: NativeFunction,
 }
 
-const _: () = assert!(size_of::<RawNativeFunction>() == 96);
+const _: () = assert!(size_of::<RawNativeFunction>() == 88);
 
 /// A raw native getter that reads a wrapped value straight out of a platform object, at offsets the embedder provides:
 /// word offsets of pointer-sized fields, and the byte offset of the implementation value, which is a compressed cell

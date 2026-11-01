@@ -16,14 +16,14 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::embedding::abi_types::JSRealm;
-use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, define_cell};
+use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, class_at, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, RuntimeClassAllocator, SizeClassAllocator};
 use crate::gc::root::MarkedVec;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
-use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::cell::{CellKind, CellState, Gc};
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, SharedFunctionInstanceData};
 use crate::layout::host_class::JSValue;
@@ -609,12 +609,14 @@ impl Object {
     ) -> Object {
         assert!(class.is_subclass_of(Self::CLASS));
         let object = Object {
-            header: CellHeader::for_class(class),
-            flags: Cell::new(object_flag::IS_EXTENSIBLE),
-            indexed_storage_kind: Cell::new(IndexedStorageKind::None),
-            inline_named_capacity: Cell::new(INLINE_NAMED_STORAGE_CAPACITY as u8),
-            indexed_array_like_size: Cell::new(0),
             shape: Member::new(shape),
+            indexed_array_like_size: Cell::new(0),
+            mark: Cell::new(false),
+            state: Cell::new(CellState::Live),
+            kind: CellKind::Object,
+            indexed_storage_kind: Cell::new(IndexedStorageKind::None),
+            flags: Cell::new(object_flag::IS_EXTENSIBLE),
+            inline_named_capacity: Cell::new(INLINE_NAMED_STORAGE_CAPACITY as u8),
             named_properties: Cell::new(core::ptr::null_mut()),
             indexed_elements: Cell::new(core::ptr::null_mut()),
             private_elements: PrivateElements::default(),
@@ -774,7 +776,8 @@ impl Object {
     }
 
     pub fn class(&self) -> &'static Class {
-        self.header.class()
+        // SAFETY: Objects live in the heap.
+        unsafe { class_at(core::ptr::from_ref(self).cast()) }
     }
 
     fn methods(&self) -> &'static ObjectMethods {

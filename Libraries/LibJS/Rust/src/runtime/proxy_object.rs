@@ -85,7 +85,7 @@ pub struct ProxyObject {
     is_revoked: Cell<bool>,
 }
 
-const _: () = assert!(size_of::<ProxyObject>() == 88);
+const _: () = assert!(size_of::<ProxyObject>() == 80);
 
 /// The internal methods of a Proxy exotic object. Every proxy has [[Call]] and [[Construct]]: IsCallable and
 /// IsConstructor only reach them for a proxy whose target has them, since the proxy keeps the IsFunction flag only if

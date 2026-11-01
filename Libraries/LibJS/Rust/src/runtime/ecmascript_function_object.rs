@@ -76,7 +76,7 @@ pub struct EcmascriptFunctionObjectStorage {
 }
 
 // NB: Every ECMAScript function has these bytes, so keep what only some functions need in the rare data.
-const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 112);
+const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 104);
 
 // SAFETY: Visits the cells of the rare data, if there is any.
 unsafe impl Trace for EcmascriptFunctionObjectStorage {
