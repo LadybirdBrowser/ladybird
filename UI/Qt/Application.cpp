@@ -1419,20 +1419,26 @@ void Application::open_navigation_in_new_window(Web::HTML::PreparedNavigationDes
     new_window({ move(url) }, configuration_for_new_window(), BrowserWindow::IsPopupWindow::No, is_private, nullptr, {}, ShowWindow::Yes, move(navigation));
 }
 
-Optional<ByteString> Application::ask_user_for_download_path(ByteString const& file) const
+NonnullRefPtr<Core::Promise<ByteString>> Application::ask_user_for_download_path(ByteString const& file) const
 {
-    auto default_path = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    auto* dialog = new QFileDialog(nullptr, "Select save location", QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setAcceptMode(QFileDialog::AcceptSave);
+    dialog->selectFile(qstring_from_ak_string(file.view()));
 
-    if (default_path.isNull() || default_path.isEmpty())
-        default_path = qstring_from_ak_string(file.view());
-    else
-        default_path = QDir { default_path }.filePath(qstring_from_ak_string(file.view()));
+    auto promise = Core::Promise<ByteString>::construct();
 
-    auto path = QFileDialog::getSaveFileName(nullptr, "Select save location", default_path);
-    if (path.isNull())
-        return {};
+    QObject::connect(dialog, &QDialog::finished, [promise, dialog = QPointer { dialog }](auto result) {
+        if (result != QDialog::Accepted || !dialog || dialog->selectedFiles().isEmpty()) {
+            promise->reject(Error::from_errno(ECANCELED));
+            return;
+        }
 
-    return ak_byte_string_from_qstring(path);
+        promise->resolve(ak_byte_string_from_qstring(dialog->selectedFiles().first()));
+    });
+
+    dialog->open();
+    return promise;
 }
 
 void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const

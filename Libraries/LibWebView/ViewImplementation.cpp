@@ -4533,73 +4533,50 @@ void ViewImplementation::update_bookmark_action()
     m_toggle_bookmark_action->set_engaged(is_bookmarked);
 }
 
-static ErrorOr<LexicalPath> write_screenshot(Gfx::Bitmap const* bitmap)
+static ErrorOr<void> write_screenshot_to_path(ReadonlyBytes encoded, LexicalPath const& path)
 {
-    if (!bitmap)
-        return Error::from_string_literal("Failed to take a screenshot");
-
-    auto path = TRY([] -> ErrorOr<LexicalPath> {
-        if (auto const& screenshot_path = Application::browser_options().screenshot_path; screenshot_path.has_value())
-            return LexicalPath { *screenshot_path };
-
-        auto file = AK::UnixDateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
-        return Application::the().path_for_downloaded_file(file);
-    }());
-
-    auto encoded = TRY(Gfx::PNGWriter::encode(*bitmap));
-
     auto dump_file = TRY(Core::File::open(path.string(), Core::File::OpenMode::Write));
     TRY(dump_file->write_until_depleted(encoded));
 
-    return path;
+    return {};
 }
 
-NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(ScreenshotType type)
+static NonnullRefPtr<Core::Promise<LexicalPath>> write_screenshot(Gfx::Bitmap const* bitmap)
 {
+    if (!bitmap)
+        return Core::Promise<LexicalPath>::rejected(Error::from_string_literal("Failed to take a screenshot"));
+
+    // NB: The bitmap may be gone, or show something else, by the time a path is chosen.
+    auto encoded = Gfx::PNGWriter::encode(*bitmap);
+    if (encoded.is_error())
+        return Core::Promise<LexicalPath>::rejected(encoded.release_error());
+
+    auto destination = [] {
+        if (auto const& screenshot_path = Application::browser_options().screenshot_path; screenshot_path.has_value())
+            return Core::Promise<LexicalPath>::resolved(LexicalPath { *screenshot_path });
+
+        auto file = AK::UnixDateTime::now().to_byte_string("screenshot-%Y-%m-%d-%H-%M-%S.png"sv);
+        return Application::the().path_for_downloaded_file(file);
+    }();
+
     auto promise = Core::Promise<LexicalPath>::construct();
-
-    if (m_pending_screenshot) {
-        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
-        // to allow spamming screenshot requests for some reason.
-        promise->reject(Error::from_string_literal("A screenshot request is already in progress"));
-        return promise;
-    }
-
-    switch (type) {
-    case ScreenshotType::Visible: {
-        RefPtr<Gfx::Bitmap> visible_bitmap;
-        if (m_has_usable_bitmap) {
-            VERIFY(m_front_bitmap.shared_image_buffer);
-            visible_bitmap = m_front_bitmap.shared_image_buffer->bitmap_if_present();
-        } else if (m_backup_shared_image_buffer) {
-            visible_bitmap = m_backup_shared_image_buffer->bitmap_if_present();
-        }
-        if (visible_bitmap) {
-            if (auto result = write_screenshot(visible_bitmap.ptr()); result.is_error())
+    destination
+        ->when_resolved([promise, encoded = encoded.release_value()](auto const& path) {
+            if (auto result = write_screenshot_to_path(encoded, path); result.is_error())
                 promise->reject(result.release_error());
             else
-                promise->resolve(result.release_value());
-        } else {
-            // GPU-shared backing stores have no CPU-visible pixels, so ask WebContent to paint a screenshot for us.
-            m_pending_screenshot = promise;
-            page().async_take_document_screenshot();
-        }
-        break;
-    }
-
-    case ScreenshotType::Full:
-        m_pending_screenshot = promise;
-        page().async_take_document_screenshot();
-        break;
-    }
-
+                promise->resolve(path);
+        })
+        .when_rejected([promise](auto& error) {
+            promise->reject(move(error));
+        });
     return promise;
 }
 
-void ViewImplementation::take_and_save_screenshot(ScreenshotType type)
+static void report_saved_screenshot(Core::Promise<LexicalPath>& screenshot)
 {
-    take_screenshot(type)
-        ->when_resolved([](auto const& path) {
+    screenshot
+        .when_resolved([](auto const& path) {
             Application::the().display_download_confirmation_dialog("Screenshot"sv, path);
         })
         .when_rejected([](auto const& error) {
@@ -4611,13 +4588,49 @@ void ViewImplementation::take_and_save_screenshot(ScreenshotType type)
         });
 }
 
+NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_screenshot(ScreenshotType type)
+{
+    if (m_pending_screenshot) {
+        // For simplicity, only allow taking one screenshot at a time for now. Revisit if we need
+        // to allow spamming screenshot requests for some reason.
+        return Core::Promise<LexicalPath>::rejected(Error::from_string_literal("A screenshot request is already in progress"));
+    }
+
+    switch (type) {
+    case ScreenshotType::Visible: {
+        RefPtr<Gfx::Bitmap> visible_bitmap;
+        if (m_has_usable_bitmap) {
+            VERIFY(m_front_bitmap.shared_image_buffer);
+            visible_bitmap = m_front_bitmap.shared_image_buffer->bitmap_if_present();
+        } else if (m_backup_shared_image_buffer) {
+            visible_bitmap = m_backup_shared_image_buffer->bitmap_if_present();
+        }
+        if (visible_bitmap)
+            return write_screenshot(visible_bitmap.ptr());
+
+        // GPU-shared backing stores have no CPU-visible pixels, so ask WebContent to paint a screenshot for us.
+        break;
+    }
+
+    case ScreenshotType::Full:
+        break;
+    }
+
+    auto promise = Core::Promise<LexicalPath>::construct();
+    m_pending_screenshot = promise;
+    page().async_take_document_screenshot();
+    return promise;
+}
+
+void ViewImplementation::take_and_save_screenshot(ScreenshotType type)
+{
+    report_saved_screenshot(*take_screenshot(type));
+}
+
 // A screenshot the UI took itself, such as of the part of the page the user selected.
 void ViewImplementation::save_screenshot(Gfx::Bitmap const& bitmap)
 {
-    if (auto result = write_screenshot(&bitmap); result.is_error())
-        Application::the().display_error_dialog(MUST(String::formatted("{}", result.error())));
-    else
-        Application::the().display_download_confirmation_dialog("Screenshot"sv, result.value());
+    report_saved_screenshot(*write_screenshot(&bitmap));
 }
 
 NonnullRefPtr<Core::Promise<LexicalPath>> ViewImplementation::take_dom_node_screenshot(Web::UniqueNodeID node_id)
@@ -4645,10 +4658,13 @@ void ViewImplementation::did_receive_screenshot(Badge<WebContentPage>, Gfx::Shar
         return;
     }
 
-    if (auto result = write_screenshot(screenshot.bitmap()); result.is_error())
-        m_pending_screenshot->reject(result.release_error());
-    else
-        m_pending_screenshot->resolve(result.release_value());
+    write_screenshot(screenshot.bitmap())
+        ->when_resolved([pending_screenshot = m_pending_screenshot](auto const& path) {
+            pending_screenshot->resolve(path);
+        })
+        .when_rejected([pending_screenshot = m_pending_screenshot](auto& error) {
+            pending_screenshot->reject(move(error));
+        });
 
     m_pending_screenshot = nullptr;
 }
@@ -5463,17 +5479,20 @@ void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path
     // URLs with an opaque path, such as data: URLs, do not contain a usable filename, so the default filename is
     // used instead.
     auto suggested_filename = m_context_menu_url.has_an_opaque_path() ? ByteString {} : m_context_menu_url.basename();
-    auto download_path = prompt_for_path == PromptForPath::Yes
-        ? Application::the().path_for_downloaded_file(suggested_filename)
-        : Application::the().default_path_for_downloaded_file(suggested_filename);
-    if (download_path.is_error())
-        return;
 
-    // NB: A file at a path the user chose was there when the user chose to replace it, as saving asks before replacing.
-    auto may_replace_destination = prompt_for_path == PromptForPath::Yes && FileSystem::exists(download_path.value().string())
-        ? FileDownloader::MayReplaceDestination::Yes
-        : FileDownloader::MayReplaceDestination::No;
-    Application::the().file_downloader().download_file(is_private(), m_context_menu_url, download_path.release_value(), may_replace_destination);
+    if (prompt_for_path == PromptForPath::No) {
+        if (auto download_path = Application::the().default_path_for_downloaded_file(suggested_filename); !download_path.is_error())
+            Application::the().file_downloader().download_file(is_private(), m_context_menu_url, download_path.release_value(), FileDownloader::MayReplaceDestination::No);
+        return;
+    }
+
+    Application::the().path_for_downloaded_file(suggested_filename)->when_resolved([is_private = is_private(), url = m_context_menu_url](auto const& download_path) {
+        // NB: A file at a path the user chose was there when the user chose to replace it, as saving asks before replacing.
+        auto may_replace_destination = FileSystem::exists(download_path.string())
+            ? FileDownloader::MayReplaceDestination::Yes
+            : FileDownloader::MayReplaceDestination::No;
+        Application::the().file_downloader().download_file(is_private, url, download_path, may_replace_destination);
+    });
 }
 
 void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor navigation, Optional<Gfx::ShareableBitmap> bitmap)

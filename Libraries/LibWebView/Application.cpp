@@ -2423,16 +2423,23 @@ ErrorOr<LexicalPath> Application::default_path_for_downloaded_file(ByteString co
     return unique_download_path(downloads_directory, Web::sanitize_suggested_download_filename(file));
 }
 
-ErrorOr<LexicalPath> Application::path_for_downloaded_file(ByteString const& file) const
+NonnullRefPtr<Core::Promise<LexicalPath>> Application::path_for_downloaded_file(ByteString const& file) const
 {
-    if (browser_options().headless_mode.has_value())
-        return default_path_for_downloaded_file(file);
+    if (browser_options().headless_mode.has_value()) {
+        auto download_path = default_path_for_downloaded_file(file);
+        if (download_path.is_error())
+            return Core::Promise<LexicalPath>::rejected(download_path.release_error());
+        return Core::Promise<LexicalPath>::resolved(download_path.release_value());
+    }
 
-    auto download_path = ask_user_for_download_path(Web::sanitize_suggested_download_filename(file));
-    if (!download_path.has_value())
-        return Error::from_errno(ECANCELED);
+    return ask_user_for_download_path(Web::sanitize_suggested_download_filename(file))->map<LexicalPath>([](auto& download_path) {
+        return LexicalPath { download_path };
+    });
+}
 
-    return LexicalPath { download_path.release_value() };
+NonnullRefPtr<Core::Promise<ByteString>> Application::ask_user_for_download_path(ByteString const&) const
+{
+    return Core::Promise<ByteString>::rejected(Error::from_errno(ECANCELED));
 }
 
 void Application::display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const

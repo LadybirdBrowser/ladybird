@@ -161,7 +161,7 @@ private:
 
     virtual void resolve_external_url_handler(URL::URL const&, WebView::ExternalURLHandlerCallback) const override;
 
-    virtual Optional<ByteString> ask_user_for_download_path(ByteString const& file) const override;
+    virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const override;
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const override;
     virtual void display_error_dialog(StringView error_message) const override;
     virtual void open_download(WebView::FileDownloader::Download const&) const override;
