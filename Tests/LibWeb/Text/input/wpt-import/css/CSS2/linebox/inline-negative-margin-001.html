@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<title>CSS Test: Check inline negative margin should not cause the line to wrap</title>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/check-layout-th.js"></script>
+<link rel="help" href="https://crbug.com/979894">
+<link rel="help" href="https://crbug.com/1011816">
+<link rel="help" href="https://crbug.com/1040461">
+<link rel="help" href="https://drafts.csswg.org/css2/visudet.html#inline-width">
+<link rel="author" title="Koji Ishii" href="mailto:kojii@chromium.org">
+<link rel="stylesheet" type="text/css" href="../../../fonts/ahem.css" />
+<style>
+#container {
+  font-family: Ahem;
+  font-size: 10px;
+  line-height: 1;
+  margin-left: 10ch;
+}
+inline-block {
+  display: inline-block;
+}
+.w1 { width: 1ch; }
+.w2 { width: 2ch; }
+.w3 { width: 3ch; }
+.w4 { width: 4ch; }
+.w5 { width: 5ch; }
+span {
+  color: orange;
+}
+img {
+  height: .6em;
+  background: orange;
+}
+</style>
+<body>
+  <section id="container">
+    <div><inline-block data-expected-height=10>123 <span style="margin-left: -8ch">1234 </span></inline-block></div>
+    <div><inline-block data-expected-height=10>123 <span style="margin-left: -8ch">123 </span></inline-block></div>
+    <div class="w4" data-expected-height=10>123 <span style="margin-left: -4ch">1234 </span></div>
+    <div class="w4" data-expected-height=10>123 <span style="margin-left: -4ch">123 </span></div>
+    <div class="w4" data-expected-height=10><img class="w4"><span style="margin-left: -4ch">123</span></div>
+    <div class="w4" data-expected-height=10><img class="w5"><span style="margin-left: -5ch">123</span></div>
+    <div class="w4" data-expected-height=20><img class="w5"><span style="margin-left: -3ch">123</span></div>
+    <div class="w4" data-expected-height=10><img class="w4"><img class="w1" style="margin-left: -1ch"></div>
+    <div class="w4" data-expected-height=20><img class="w4"><img class="w2" style="margin-left: -1ch"></div>
+    <div class="w4" data-expected-height=10><img class="w5"><img class="w1" style="margin-left: -2ch"></div>
+    <div class="w4" data-expected-height=20><img class="w5"><img class="w2" style="margin-left: -2ch"></div>
+
+    <div class="w4" data-expected-height=20><img class="w3"><img class="w2"><img class="w1" style="margin-left: -2ch"></div>
+    <div class="w4" data-expected-height=20><img class="w2"> <img class="w2"><img class="w1" style="margin-left: -2ch"></div>
+  </section>
+<script>document.fonts.ready.then(() => checkLayout('[data-expected-height]'));</script>
+</body>

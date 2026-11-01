@@ -1677,19 +1677,15 @@ impl<'context> InlineFormattingContext<'context> {
                     TextItemWrapOpportunity::None
                 };
             }
-            let next_inline_size =
-                inline_level_iterator::sequence_inline_size(self, remaining_items, false).unwrap_or_default();
-            return if next_inline_size > CssPixels::default() {
-                TextItemWrapOpportunity::BeforeWhitespaceSequence(item.border_box_inline_size() + next_inline_size)
-            } else {
-                TextItemWrapOpportunity::None
-            };
+            return inline_level_iterator::whitespace_and_sequence_inline_size(self, item, remaining_items).map_or(
+                TextItemWrapOpportunity::None,
+                TextItemWrapOpportunity::BeforeWhitespaceSequence,
+            );
         }
-        if item.can_break_before
-            || (can_break_after_previous_overflow_item && !self.overflow_break_applies_to_style(style))
-            || line_ends_in_whitespace
-        {
+        if item.can_break_before || line_ends_in_whitespace {
             TextItemWrapOpportunity::BeforeText
+        } else if can_break_after_previous_overflow_item && !self.overflow_break_applies_to_style(style) {
+            TextItemWrapOpportunity::AfterOverflowBreakableText
         } else {
             TextItemWrapOpportunity::None
         }
@@ -2026,8 +2022,10 @@ impl<'context> InlineFormattingContext<'context> {
         let mut leading_margin = CssPixels::default();
         let mut leading_border = CssPixels::default();
         let mut leading_padding = CssPixels::default();
+        let mut leading_right_to_left_end_margin = CssPixels::default();
         let mut absolute_boxes = Vec::new();
         let mut previous_text_item_allows_overflow_break_after = false;
+        let mut whitespace_measured_next_run = false;
         let mut state_at_clamp_point = None;
         let mut items_after_clamp_point = Vec::new();
         let mut stopped_at_line_limit = false;
@@ -2071,6 +2069,7 @@ impl<'context> InlineFormattingContext<'context> {
             }
             let can_break_after_previous_overflow_item =
                 std::mem::take(&mut previous_text_item_allows_overflow_break_after);
+            let run_fits_after_previous_whitespace = std::mem::take(&mut whitespace_measured_next_run);
             let line_starts_with_whitespace = self
                 .line_data()
                 .line_boxes
@@ -2087,15 +2086,18 @@ impl<'context> InlineFormattingContext<'context> {
                 leading_margin += item.margin_start;
                 leading_border += item.border_start;
                 leading_padding += item.padding_start;
+                leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
                 continue;
             }
 
             item.margin_start += leading_margin;
             item.border_start += leading_border;
             item.padding_start += leading_padding;
+            item.entered_right_to_left_end_margin += leading_right_to_left_end_margin;
             leading_margin = CssPixels::default();
             leading_border = CssPixels::default();
             leading_padding = CssPixels::default();
+            leading_right_to_left_end_margin = CssPixels::default();
 
             match item.type_ {
                 inline_level_iterator::ItemType::InlineEdge => {
@@ -2109,9 +2111,7 @@ impl<'context> InlineFormattingContext<'context> {
                         item_index: item_index + 1,
                         offset_in_node: 0,
                     });
-                    let continuation = iterator
-                        .next_inline_run_size(self)
-                        .map(|_| iterator.next_unbreakable_run_inline_size(self));
+                    let continuation = iterator.next_unbreakable_run_inline_size(self);
                     line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
@@ -2152,6 +2152,7 @@ impl<'context> InlineFormattingContext<'context> {
                     leading_margin += item.margin_start;
                     leading_border += item.border_start;
                     leading_padding += item.padding_start;
+                    leading_right_to_left_end_margin += item.entered_right_to_left_end_margin;
                     line_builder.finish_current_line_before_block_level_box();
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
@@ -2197,7 +2198,7 @@ impl<'context> InlineFormattingContext<'context> {
                     line_builder.commit_pending_margin_before_float();
                     self.clear_floating_boxes(item.node);
                     line_builder.set_unbreakable_run_inline_size_interrupted_by_float(
-                        iterator.next_unbreakable_run_inline_size(self),
+                        iterator.next_unbreakable_run_inline_size(self).unwrap_or_default(),
                     );
                     if line_builder.only_finds_line_breaks() {
                         let cells = self
@@ -2242,7 +2243,6 @@ impl<'context> InlineFormattingContext<'context> {
                     let style = self.style(self.parent_node(item.node));
                     if style.text_wrap_mode() == text_wrap_mode::WRAP {
                         let is_whitespace = item.is_collapsible_whitespace || item.is_ascii_whitespace(self);
-                        let item_inline_size = item.border_box_inline_size();
                         let line_ends_in_whitespace = self
                             .line_data()
                             .line_boxes
@@ -2276,12 +2276,26 @@ impl<'context> InlineFormattingContext<'context> {
                                     }
                                     continue;
                                 }
+                                whitespace_measured_next_run = true;
                             }
-                            TextItemWrapOpportunity::BeforeText => {
-                                if overflow_break_allowed {
-                                    line_builder.break_if_needed_before_overflow_breakable_item(item_inline_size);
+                            TextItemWrapOpportunity::BeforeText
+                            | TextItemWrapOpportunity::AfterOverflowBreakableText => {
+                                let measure_rest_of_run = !is_whitespace
+                                    && !run_fits_after_previous_whitespace
+                                    && line_builder.can_break_before_next_item();
+                                let unbreakable_run_inline_size = if measure_rest_of_run {
+                                    let stop_at_overflow_breakable_text = opportunity
+                                        == TextItemWrapOpportunity::AfterOverflowBreakableText
+                                        || line_builder.current_line_is_empty();
+                                    iterator.unbreakable_run_inline_size(self, &item, stop_at_overflow_breakable_text)
                                 } else {
-                                    line_builder.break_if_needed(item_inline_size);
+                                    inline_level_iterator::inline_extent([&item])
+                                };
+                                if overflow_break_allowed {
+                                    line_builder
+                                        .break_if_needed_before_overflow_breakable_item(unbreakable_run_inline_size);
+                                } else {
+                                    line_builder.break_if_needed(unbreakable_run_inline_size);
                                 }
                                 line_builder.note_soft_wrap_opportunity();
                             }
@@ -3526,6 +3540,7 @@ enum TextItemWrapOpportunity {
     None,
     BeforeWhitespaceSequence(CssPixels),
     BeforeText,
+    AfterOverflowBreakableText,
 }
 
 pub(crate) fn line_physical_horizontal_extent(line: &line_box::LineBoxData) -> CssPixels {
