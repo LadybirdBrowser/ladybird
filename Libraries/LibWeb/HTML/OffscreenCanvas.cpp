@@ -123,25 +123,19 @@ WebIDL::ExceptionOr<OffscreenCanvas::TransferredFields> OffscreenCanvas::transfe
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface:transfer-receiving-steps
-WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_receiving_steps(JS::Realm& realm, HTML::TransferDataDecoder& data_holder)
+void OffscreenCanvas::transfer_receiving_steps(TransferredFields const& data_holder)
 {
     // 1. Initialize value's bitmap to a rectangular array of transparent black pixels with width given by
     //    dataHolder.[[Width]] and height given by dataHolder.[[Height]].
-    m_width = TRY(decode_or_throw_data_clone_error<WebIDL::UnsignedLongLong>(realm, data_holder));
-    m_height = TRY(decode_or_throw_data_clone_error<WebIDL::UnsignedLongLong>(realm, data_holder));
+    m_width = data_holder.width;
+    m_height = data_holder.height;
 
     // FIXME: 2. Set value's inherited language to dataHolder.[[Language]] and its inherited direction to
     //           dataHolder.[[Direction]].
 
     // 3. If dataHolder.[[PlaceholderCanvas]] is not null, set value's placeholder canvas element to
     //    dataHolder.[[PlaceholderCanvas]] (while maintaining the weak reference semantics).
-    if (TRY(decode_or_throw_data_clone_error<bool>(realm, data_holder))) {
-        auto canvas_id = TRY(decode_or_throw_data_clone_error<u64>(realm, data_holder));
-        auto secret = TRY(decode_or_throw_data_clone_error<u64>(realm, data_holder));
-        m_placeholder_link = Compositor::PlaceholderCanvasLink { Compositing::CanvasId { canvas_id }, secret };
-    }
-
-    return {};
+    m_placeholder_link = data_holder.placeholder_link;
 }
 
 void OffscreenCanvas::replace_bitmap()
@@ -518,7 +512,7 @@ struct OffscreenCanvasTransferredFields {
 };
 
 JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject*, OffscreenCanvasTransferredFields*);
-JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, Web::HTML::TransferDataDecoder*);
+JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, OffscreenCanvasTransferredFields const*);
 
 u16 web_offscreen_canvas_interface_name()
 {
@@ -548,16 +542,18 @@ JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject* object, 
     return Web::Bindings::completion_to_abi(js_realm, JS::js_undefined());
 }
 
-// A new OffscreenCanvas in the realm, after its transfer-receiving steps, as the value of the completion.
-JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, Web::HTML::TransferDataDecoder* data_holder)
+// A new OffscreenCanvas in the realm, after its transfer-receiving steps given the fields of the data holder, as the
+// value of the completion.
+JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, OffscreenCanvasTransferredFields const* fields)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto* global_scope = Web::HTML::window_or_worker_global_scope_from_global_object(js_realm.global_object());
     VERIFY(global_scope);
     auto offscreen_canvas = Web::HTML::OffscreenCanvas::create(global_scope->this_impl(), 0, 0);
-    auto result = offscreen_canvas->transfer_receiving_steps(js_realm, *data_holder);
-    if (result.is_exception())
-        return Web::Bindings::completion_to_abi(js_realm, result.release_error());
+    Optional<Web::Compositor::PlaceholderCanvasLink> placeholder_link;
+    if (fields->has_placeholder_canvas)
+        placeholder_link = Web::Compositor::PlaceholderCanvasLink { Compositing::CanvasId { fields->placeholder_canvas_id }, fields->placeholder_secret };
+    offscreen_canvas->transfer_receiving_steps({ .width = fields->width, .height = fields->height, .placeholder_link = placeholder_link });
     auto wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(js_realm), js_realm, offscreen_canvas);
     return Web::Bindings::completion_to_abi(js_realm, JS::Value { wrapper });
 }

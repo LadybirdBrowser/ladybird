@@ -48,7 +48,7 @@ public:
     };
 
     WebIDL::ExceptionOr<TransferredFields> transfer_steps();
-    WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&);
+    void transfer_receiving_steps(TransferredFields const&);
 
     bool is_detached() const { return m_detached; }
 

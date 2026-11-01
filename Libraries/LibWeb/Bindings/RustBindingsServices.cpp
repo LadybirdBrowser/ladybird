@@ -84,18 +84,6 @@ JSCompletion completion_to_abi(JS::Realm& realm, WebIDL::ExceptionOr<JS::Value> 
     return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { result.release_value() });
 }
 
-// A value of the type that the data holder of a received object holds next, which its transfer-receiving steps read.
-template<typename T>
-static JSCompletion decode_transfer_data(HTML::TransferDataDecoder* data_holder, void* realm, T* out_value)
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto value = HTML::decode_or_throw_data_clone_error<T>(js_realm, *data_holder);
-    if (value.is_exception())
-        return completion_to_abi(js_realm, value.exception());
-    *out_value = value.release_value();
-    return completion_to_abi(js_realm, JS::js_undefined());
-}
-
 extern "C" {
 
 void* web_bindings_wrapper_world(void* realm, bool* is_main_world);
@@ -135,9 +123,8 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
 void web_bindings_transfer_data_encode_records(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord const* const*, size_t count);
 void web_bindings_transfer_data_encode_transport_handle(HTML::TransferDataEncoder*, IPC::TransportHandle const*);
 void web_bindings_transfer_data_extend(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord*);
-JSCompletion web_bindings_transfer_data_decode_bool(HTML::TransferDataDecoder*, void* realm, bool* out_value);
-JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder*, void* realm, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
-JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder*, void* realm, IPC::TransportHandle** out_handle);
+JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder*, void* realm, size_t* offset, void* records, void (*append)(void*, HTML::SerializedTransferRecord*));
+JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder*, void* realm, size_t* offset, IPC::TransportHandle** out_handle);
 void web_bindings_transport_handle_destroy(IPC::TransportHandle*);
 IPC::Transport* web_bindings_transport_handle_create_transport(IPC::TransportHandle*);
 IPC::Transport* web_bindings_message_port_transport_create_paired(IPC::TransportHandle** out_remote_handle);
@@ -334,30 +321,25 @@ void web_bindings_transfer_data_extend(HTML::TransferDataEncoder* data_holder, H
     data_holder->extend(move(record->transfer_data_holders));
 }
 
-JSCompletion web_bindings_transfer_data_decode_bool(HTML::TransferDataDecoder* data_holder, void* realm, bool* out_value)
-{
-    return decode_transfer_data(data_holder, realm, out_value);
-}
-
 // Reads what web_bindings_transfer_data_encode_records() writes, and hands each record over.
-JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder* data_holder, void* realm, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
+JSCompletion web_bindings_transfer_data_decode_records(HTML::TransferDataDecoder* data_holder, void* realm, size_t* offset, void* records, void (*append)(void*, HTML::SerializedTransferRecord*))
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto decoded = HTML::decode_or_throw_data_clone_error<Vector<HTML::SerializedTransferRecord>>(js_realm, *data_holder);
-    if (decoded.is_exception())
-        return completion_to_abi(js_realm, decoded.exception());
+    auto decoded = data_holder->decode_at<Vector<HTML::SerializedTransferRecord>>(*offset);
+    if (decoded.is_error())
+        return completion_to_abi(js_realm, HTML::data_clone_error_from_serialization_error(js_realm, decoded.release_error()));
     for (auto& record : decoded.value())
         append(records, new HTML::SerializedTransferRecord(move(record)));
     return completion_to_abi(js_realm, JS::js_undefined());
 }
 
 // Reads a transport handle, and hands it over.
-JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder* data_holder, void* realm, IPC::TransportHandle** out_handle)
+JSCompletion web_bindings_transfer_data_decode_transport_handle(HTML::TransferDataDecoder* data_holder, void* realm, size_t* offset, IPC::TransportHandle** out_handle)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto handle = HTML::decode_or_throw_data_clone_error<IPC::TransportHandle>(js_realm, *data_holder);
-    if (handle.is_exception())
-        return completion_to_abi(js_realm, handle.exception());
+    auto handle = data_holder->decode_at<IPC::TransportHandle>(*offset);
+    if (handle.is_error())
+        return completion_to_abi(js_realm, HTML::data_clone_error_from_serialization_error(js_realm, handle.release_error()));
     *out_handle = new IPC::TransportHandle(handle.release_value());
     return completion_to_abi(js_realm, JS::js_undefined());
 }

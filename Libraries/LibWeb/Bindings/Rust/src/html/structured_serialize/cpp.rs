@@ -14,7 +14,7 @@ use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{ArrayBuffer, ArrayBufferShared, Gc, Object, RawNativeFunctionResult, Realm, Value};
+use libjs_rust::api::{ArrayBuffer, Gc, Object, RawNativeFunctionResult, Realm, Value};
 
 use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
@@ -54,13 +54,6 @@ unsafe extern "C" {
         index: u32,
         shared_object_id: u64,
     ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_byte_buffer_size(buffer: *mut c_void) -> usize;
-    fn web_structured_serialize_array_buffer_from_byte_buffer(
-        realm: *mut c_void,
-        buffer: *mut c_void,
-        shared: bool,
-    ) -> *mut c_void;
-    fn web_structured_serialize_byte_buffer_destroy(buffer: *mut c_void);
     fn web_structured_serialize_data_clone_error_from_serialization_error(
         realm: *mut c_void,
         message: ak::Span<'_, u8>,
@@ -113,21 +106,7 @@ unsafe extern "C" {
     fn web_structured_serialize_transfer_record_serialized(record: *mut c_void) -> *const c_void;
     fn web_structured_serialize_transfer_record_clear_shared_buffers(record: *mut c_void);
     fn web_structured_serialize_transferred_values_append(transferred_values: *mut c_void, value: *mut c_void);
-    fn web_structured_serialize_transfer_data_decoder_decode_u8(
-        decoder: *mut c_void,
-        realm: *mut c_void,
-        value: &mut u8,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_transfer_data_decoder_decode_byte_buffer(
-        decoder: *mut c_void,
-        realm: *mut c_void,
-        buffer: &mut *mut c_void,
-    ) -> RawNativeFunctionResult;
-    fn web_structured_serialize_transfer_data_decoder_decode_size(
-        decoder: *mut c_void,
-        realm: *mut c_void,
-        value: &mut usize,
-    ) -> RawNativeFunctionResult;
+    fn web_structured_serialize_transfer_data_decoder_bytes(decoder: *const c_void, bytes: &mut ak::Span<'static, u8>);
     fn web_structured_serialize_transfer_data_decoder_destroy(decoder: *mut c_void);
 }
 
@@ -145,41 +124,6 @@ unsafe fn object_from_abi(object: *mut c_void) -> Option<Gc<Object>> {
 
 fn completion(result: RawNativeFunctionResult) -> WebIdlResult<Value> {
     Ok(result.into_completion()?)
-}
-
-/// The bytes of a data holder, which C++ decoded into a buffer that this owns until an ArrayBuffer takes it over.
-pub(crate) struct DecodedBytes(NonNull<c_void>);
-
-impl DecodedBytes {
-    pub(crate) fn len(&self) -> usize {
-        // SAFETY: This owns the buffer.
-        unsafe { web_structured_serialize_byte_buffer_size(self.0.as_ptr()) }
-    }
-
-    /// A new ArrayBuffer in the realm, which takes over the bytes.
-    pub(crate) fn into_array_buffer(self, realm: Gc<Realm>, is_shared: ArrayBufferShared) -> Gc<ArrayBuffer> {
-        let buffer = ManuallyDrop::new(self);
-        // SAFETY: The realm is live, and the call takes over the buffer, which LibWeb returns an ArrayBuffer over.
-        let object = unsafe {
-            web_structured_serialize_array_buffer_from_byte_buffer(
-                realm.as_ptr().cast(),
-                buffer.0.as_ptr(),
-                matches!(is_shared, ArrayBufferShared::Yes),
-            )
-        };
-        let object = NonNull::new(object.cast::<Object>()).expect("LibWeb returns an ArrayBuffer");
-        // SAFETY: LibWeb returns a live ArrayBuffer.
-        unsafe { Gc::from_non_null(object) }
-            .downcast::<ArrayBuffer>()
-            .expect("LibWeb returns an ArrayBuffer")
-    }
-}
-
-impl Drop for DecodedBytes {
-    fn drop(&mut self) {
-        // SAFETY: This owns the buffer.
-        unsafe { web_structured_serialize_byte_buffer_destroy(self.0.as_ptr()) };
-    }
 }
 
 /// The values of an array of objects, as the C ABI takes them.
@@ -692,39 +636,16 @@ impl TransferDataDecoder {
         self.0.as_ptr()
     }
 
-    pub(crate) fn decode_u8(self, realm: Gc<Realm>) -> WebIdlResult<u8> {
-        let mut value = 0;
-        // SAFETY: The decoder is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_transfer_data_decoder_decode_u8(self.0.as_ptr(), realm.as_ptr().cast(), &mut value)
-        })?;
-        Ok(value)
-    }
-
-    pub(crate) fn decode_byte_buffer(self, realm: Gc<Realm>) -> WebIdlResult<DecodedBytes> {
-        let mut buffer = core::ptr::null_mut();
-        // SAFETY: The decoder is lent, the realm is live, and the buffer outlives the call.
-        completion(unsafe {
-            web_structured_serialize_transfer_data_decoder_decode_byte_buffer(
-                self.0.as_ptr(),
-                realm.as_ptr().cast(),
-                &mut buffer,
-            )
-        })?;
-        Ok(DecodedBytes(NonNull::new(buffer).expect("LibWeb decodes a buffer")))
-    }
-
-    pub(crate) fn decode_size(self, realm: Gc<Realm>) -> WebIdlResult<usize> {
-        let mut value = 0;
-        // SAFETY: The decoder is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_transfer_data_decoder_decode_size(
-                self.0.as_ptr(),
-                realm.as_ptr().cast(),
-                &mut value,
-            )
-        })?;
-        Ok(value)
+    /// The bytes of the data holder, which it lends for as long as it is lent.
+    ///
+    /// # Safety
+    ///
+    /// The decoder must be lent for `'a`.
+    pub(crate) unsafe fn bytes<'a>(self) -> &'a [u8] {
+        let mut bytes = ak::Span::default();
+        // SAFETY: The decoder is lent for 'a, and its bytes with it.
+        unsafe { web_structured_serialize_transfer_data_decoder_bytes(self.0.as_ptr(), &mut bytes) };
+        bytes.as_slice()
     }
 }
 

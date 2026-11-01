@@ -386,7 +386,8 @@ pub unsafe extern "C" fn web_rust_message_port_transfer_receiving_steps(
     // SAFETY: The caller passes the live VM and a live realm, and lends the data holder for the call.
     let ((vm, realm), decoder) = unsafe { (realm_arguments(vm, realm), TransferDataDecoder::from_raw(data_holder)) };
     let mut cx = CallContext::new(vm, realm);
-    let mut data_holder = TransferDataReader::new(decoder, realm);
+    // SAFETY: The caller lends the data holder for the call.
+    let mut data_holder = unsafe { TransferDataReader::new(decoder, realm) };
     let result = MessagePort::transfer_receiving_steps(&mut cx, &mut data_holder);
     RawNativeFunctionResult::from_completion(
         result
