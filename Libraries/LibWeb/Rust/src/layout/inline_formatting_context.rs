@@ -2103,7 +2103,9 @@ impl<'context> InlineFormattingContext<'context> {
                         item_index: item_index + 1,
                         offset_in_node: 0,
                     });
-                    let continuation = iterator.next_inline_run_size(self);
+                    let continuation = iterator
+                        .next_inline_run_size(self)
+                        .map(|_| iterator.next_unbreakable_run_inline_size(self));
                     line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
