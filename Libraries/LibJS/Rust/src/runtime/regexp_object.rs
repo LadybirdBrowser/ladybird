@@ -148,7 +148,7 @@ pub struct RegExpObject {
     cached_regex: RefCell<Option<Rc<EcmaScriptRegex>>>,
 }
 
-const _: () = assert!(size_of::<RegExpObject>() == 112);
+const _: () = assert!(size_of::<RegExpObject>() == 104);
 
 static REGEXP_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: RegExpObject::initialize,

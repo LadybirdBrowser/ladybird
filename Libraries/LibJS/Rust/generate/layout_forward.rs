@@ -18,9 +18,6 @@ pub struct ObjectEnvironment;
 pub struct Intrinsics;
 
 #[repr(transparent)]
-pub struct PrivateElements(usize);
-
-#[repr(transparent)]
 pub struct FlyStringSlot(usize);
 
 #[repr(transparent)]

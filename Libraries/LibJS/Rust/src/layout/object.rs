@@ -10,7 +10,7 @@ use super::cell::{CellHeader, CellKind, CellState};
 use super::member::Member;
 use super::shape::Shape;
 use super::value::Value;
-use crate::layout_forward::{PrivateElements, TypedArrayBaseStorage};
+use crate::layout_forward::TypedArrayBaseStorage;
 
 pub mod object_flag {
     pub const IS_EXTENSIBLE: u16 = 1 << 0;
@@ -65,7 +65,6 @@ pub struct Object {
     /// Points at `inline_named_storage` until the object needs more room.
     pub named_properties: Cell<*mut Value>,
     pub indexed_elements: Cell<*mut Value>,
-    pub private_elements: PrivateElements,
     pub inline_named_storage: [Cell<Value>; INLINE_NAMED_STORAGE_CAPACITY],
 }
 
@@ -76,7 +75,7 @@ const _: () = {
     assert!(offset_of!(Object, kind) == offset_of!(CellHeader, kind));
 };
 
-const _: () = assert!(size_of::<Object>() == 56);
+const _: () = assert!(size_of::<Object>() == 48);
 const _: () = assert!(
     core::mem::offset_of!(Object, inline_named_storage) + INLINE_NAMED_STORAGE_CAPACITY * size_of::<Value>()
         == size_of::<Object>()
