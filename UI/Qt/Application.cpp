@@ -467,7 +467,7 @@ public:
     void rebuild_bookmarks_menu()
     {
         if (m_bookmarks_menu)
-            repopulate_application_menu(*m_bookmarks_menu, *m_application_widget, WebView::Application::the().bookmarks_menu());
+            repopulate_application_menu(*m_bookmarks_menu, WebView::Application::the().bookmarks_menu());
     }
 
 private:

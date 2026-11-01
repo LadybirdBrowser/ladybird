@@ -514,9 +514,9 @@ bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
         QMenu context_menu(menu);
 
         if (m_selected_bookmark_menu_item_type == "bookmark")
-            repopulate_application_menu(context_menu, context_menu, m_tab->view().bookmark_context_menu());
+            repopulate_application_menu(context_menu, m_tab->view().bookmark_context_menu());
         else if (m_selected_bookmark_menu_item_type == "folder")
-            repopulate_application_menu(context_menu, context_menu, m_tab->view().bookmark_folder_context_menu());
+            repopulate_application_menu(context_menu, m_tab->view().bookmark_folder_context_menu());
 
         if (!context_menu.isEmpty() && context_menu.exec(event->globalPosition().toPoint()))
             menu->close();

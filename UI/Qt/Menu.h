@@ -24,7 +24,7 @@ enum class IncludeActionIcon : u8 {
 };
 
 QMenu* create_application_menu(QWidget& parent, WebView::Menu&);
-void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source);
+void repopulate_application_menu(QMenu& menu, WebView::Menu& source);
 void update_history_menu(QMenu& menu, WebContentView*);
 void populate_session_history_traversal_menu(QMenu& menu, WebContentView&, int direction);
 
