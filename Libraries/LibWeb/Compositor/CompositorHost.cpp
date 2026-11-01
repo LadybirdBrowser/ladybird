@@ -61,15 +61,19 @@ void CompositorContextHandle::invalidate_wheel_event_listener_state(u64 generati
     m_host.invalidate_wheel_event_listener_state(m_context_id, generation);
 }
 
-Compositing::WheelEventAnswer CompositorContextHandle::take_wheel_event_from_main_thread(Web::MouseEvent const& event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventScrolling scrolling)
+Compositing::WheelEventAnswer CompositorContextHandle::take_wheel_event_from_main_thread(Web::MouseEvent const& event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing)
 {
-    return m_host.take_wheel_event_from_main_thread(m_context_id, event, operation_tracking, scrolling);
+    return m_host.take_wheel_event_from_main_thread(m_context_id, event, operation_tracking, routing);
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorContextHandle::async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelStepDispatch wheel_step_dispatch, Optional<u64> wheel_gesture_id, u64 input_event_id)
+Compositing::WheelEventAnswer CompositorContextHandle::wheel_event_let_through(Compositing::WheelStepLetThrough const& step, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
-    return m_host.async_scroll_by(m_context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, operation_tracking, wheel_step_dispatch, wheel_gesture_id, input_event_id);
+    return m_host.wheel_event_let_through(m_context_id, step, operation_tracking);
+}
+
+void CompositorContextHandle::wheel_event_canceled(u64 wheel_gesture_id)
+{
+    m_host.wheel_event_canceled(m_context_id, wheel_gesture_id);
 }
 
 String CompositorContextHandle::scroll_state_for_testing(Web::AsyncScrollNodeStableID stretched_scroller)
@@ -467,19 +471,24 @@ void CompositorHost::invalidate_wheel_event_listener_state(Web::CompositorContex
         connection->invalidate_wheel_event_listener_state(context_id, generation);
 }
 
-Compositing::WheelEventAnswer CompositorHost::take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent const& event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventScrolling scrolling)
+Compositing::WheelEventAnswer CompositorHost::take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent const& event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing)
 {
     if (auto* connection = compositor_connection())
-        return connection->take_wheel_event_from_main_thread(context_id, event, operation_tracking, scrolling);
+        return connection->take_wheel_event_from_main_thread(context_id, event, operation_tracking, routing);
     return {};
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorHost::async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position,
-    Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelStepDispatch wheel_step_dispatch, Optional<u64> wheel_gesture_id, u64 input_event_id)
+Compositing::WheelEventAnswer CompositorHost::wheel_event_let_through(Web::CompositorContextId context_id, Compositing::WheelStepLetThrough const& step, Compositing::AsyncScrollOperationTracking operation_tracking)
 {
     if (auto* connection = compositor_connection())
-        return connection->async_scroll_by(context_id, expected_document_id, position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, operation_tracking, wheel_step_dispatch, wheel_gesture_id, input_event_id);
+        return connection->wheel_event_let_through(context_id, step, operation_tracking);
     return {};
+}
+
+void CompositorHost::wheel_event_canceled(Web::CompositorContextId context_id, u64 wheel_gesture_id)
+{
+    if (auto* connection = compositor_connection())
+        connection->wheel_event_canceled(context_id, wheel_gesture_id);
 }
 
 String CompositorHost::scroll_state_for_testing(Web::CompositorContextId context_id, Web::AsyncScrollNodeStableID stretched_scroller)

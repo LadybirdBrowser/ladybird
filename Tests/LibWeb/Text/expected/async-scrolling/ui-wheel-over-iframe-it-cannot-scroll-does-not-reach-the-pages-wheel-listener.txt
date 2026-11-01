@@ -1,0 +1,6 @@
+#1 compositor: nested-context-passed-step-on
+#1 compositor: latched scroller=viewport
+#1 compositor: forwarded-to-page
+window.scrollY: 50
+wheel events in the frame: 1
+wheel events here: 0

@@ -21,7 +21,7 @@
     promiseTest(async () => {
         const scroller = document.getElementById("scroller");
 
-        // A blocking wheel event listener keeps the scrolling of this gesture on the main thread.
+        // A blocking wheel event listener makes the compositor wait for the page before it scrolls this gesture.
         scroller.addEventListener("wheel", () => {});
 
         await animationFrame();

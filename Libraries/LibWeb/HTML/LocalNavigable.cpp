@@ -4900,8 +4900,23 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositing::AsyncScrollOpe
         return;
     }
 
+    if (auto ended = m_async_scroll_operations_with_expected_wait.take(operation_id); ended.has_value() && *ended) {
+        queue_async_scroll_operation_promise_resolution(promise);
+        return;
+    }
+
     // The compositor may have reported the scroll it started for this operation already, which registered it here.
     ensure_pending_async_scroll_operation(operation_id).promises.append(promise);
+}
+
+void LocalNavigable::expect_wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id)
+{
+    m_async_scroll_operations_with_expected_wait.set(operation_id, false);
+}
+
+void LocalNavigable::forget_expected_wait_for_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id)
+{
+    m_async_scroll_operations_with_expected_wait.remove(operation_id);
 }
 
 void LocalNavigable::wait_for_wheel_scrolls(Vector<GC::Ref<WebIDL::Promise>>& promises)
@@ -4927,6 +4942,9 @@ void LocalNavigable::wait_for_wheel_scrolls(Vector<GC::Ref<WebIDL::Promise>>& pr
 
 void LocalNavigable::resolve_async_scroll_operation(Compositing::AsyncScrollOperationID operation_id)
 {
+    if (m_async_scroll_operations_with_expected_wait.contains(operation_id))
+        m_async_scroll_operations_with_expected_wait.set(operation_id, true);
+
     // Notifying a scroll's completion can start the next scroll of the same scrolling box, so the finished scroll
     // leaves the list of scrolls in progress before it is reported.
     Optional<FinishedScroll> finished;
@@ -5244,22 +5262,14 @@ void LocalNavigable::extend_user_scroll_gesture_of(Web::AsyncScrollNodeStableID 
     schedule_end_of_user_scroll_gesture_input();
 }
 
-void LocalNavigable::extend_wheel_user_scroll_gesture(Optional<Web::AsyncScrollNodeStableID> box_latched_on_this_thread)
+void LocalNavigable::extend_wheel_user_scroll_gesture()
 {
-    if (box_latched_on_this_thread.has_value())
-        extend_user_scroll_gesture_of(box_latched_on_this_thread.value());
     if (m_compositor_wheel_latched_scroller.has_value())
         extend_user_scroll_gesture_of(m_compositor_wheel_latched_scroller.value());
     if (m_wheel_user_scroll_gesture_hold) {
         for (auto box : m_wheel_user_scroll_gesture_hold->held_boxes())
             extend_user_scroll_gesture_of(box);
     }
-}
-
-void LocalNavigable::note_wheel_user_scroll_gesture_scrolls(Web::AsyncScrollNodeStableID stable_node_id)
-{
-    if (m_wheel_user_scroll_gesture_hold)
-        m_wheel_user_scroll_gesture_hold->hold(stable_node_id);
 }
 
 TemporaryChange<UserScrollGestureHold*> LocalNavigable::hold_boxes_user_input_scrolls_with(UserScrollGestureHold& hold)

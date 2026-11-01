@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #outer {
+        width: 300px;
+        height: 300px;
+        overflow: scroll;
+    }
+
+    #nested {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+
+    .content {
+        height: 1000px;
+    }
+</style>
+<div id="outer"><div class="content"><div id="nested"><div class="content"></div></div></div></div>
+<script>
+    promiseTest(async () => {
+        const cancelable = [];
+        nested.addEventListener("wheel", event => cancelable.push(event.cancelable), { passive: false });
+        await waitForCondition(() => internals.compositorWheelTargetAt(95, 50, 0, 40).decision === "blocked-by-wheel-event-region");
+
+        // The page sees the first step over #nested before anything scrolls, and lets it through to #nested. The next
+        // step of the gesture, 8 CSS pixels away over #outer, still scrolls #nested, and the page does not see it
+        // first.
+        await internals.wheelThroughUIProcess(95, 50, 0, 40, true);
+        await internals.wheelThroughUIProcess(103, 50, 0, 40, true);
+        println(`cancelable steps: ${cancelable.join(",")}`);
+        println(`nested.scrollTop: ${nested.scrollTop}`);
+        println(`outer.scrollTop: ${outer.scrollTop}`);
+    });
+</script>

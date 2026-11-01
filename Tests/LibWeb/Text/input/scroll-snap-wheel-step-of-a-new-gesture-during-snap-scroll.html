@@ -45,8 +45,9 @@
         const reversalScroller = document.getElementById("reversal-scroller");
         const handoffScroller = document.getElementById("handoff-scroller");
 
-        // A blocking wheel event listener keeps the scrolling on the main thread. Each step is taken 30px away from the
-        // one before it, so it starts a new gesture while the snap scroll of the previous one is still in flight.
+        // A blocking wheel event listener makes the compositor wait for the page before it scrolls. Each step is taken
+        // 30px away from the one before it, so it starts a new gesture while the snap scroll of the previous one is
+        // still in flight.
         window.addEventListener("wheel", () => {}, { passive: false });
         await waitForCondition(() => internals.compositorWheelTargetAt(50, 50, 0, 10).decision === "blocking-wheel-event-listeners");
 
@@ -60,12 +61,14 @@
         await wheelStepsWhileMovingThePointer(50, 50, [200, -40], []);
         println(`Reversal in a nested scroller: ${reversalScroller.scrollTop}, window: ${window.scrollY}`);
 
+        await wheelStepsWhileMovingThePointer(50, 250, [500, 100], [handoffScroller, document]);
+        println(`Handoff to the root scroller: ${handoffScroller.scrollTop}, window: ${window.scrollY}`);
+
+        // The compositor snaps the root scroller by the scroll snap type the frames show it, which they keep showing
+        // once the root element no longer has it. This case comes last for that reason.
+        await scrollSettled(document, () => window.scrollTo(0, 0));
         document.documentElement.style.scrollSnapType = "y mandatory";
         await wheelStepsWhileMovingThePointer(300, 50, [200, -40], []);
         println(`Reversal on the root scroller: ${window.scrollY}`);
-        document.documentElement.style.scrollSnapType = "";
-
-        await wheelStepsWhileMovingThePointer(50, 250, [500, 100], [handoffScroller, document]);
-        println(`Handoff to the root scroller: ${handoffScroller.scrollTop}, window: ${window.scrollY}`);
     });
 </script>

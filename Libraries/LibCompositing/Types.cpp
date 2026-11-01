@@ -268,27 +268,6 @@ ErrorOr<Compositing::ScrollRequest> decode(Decoder& decoder)
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Compositing::AsyncScrollEnqueueResult const& result)
-{
-    TRY(encoder.encode(result.accepted));
-    TRY(encoder.encode(result.operation_id));
-    TRY(encoder.encode(result.routing_decision));
-    TRY(encoder.encode(result.routed_scroller));
-    return {};
-}
-
-template<>
-ErrorOr<Compositing::AsyncScrollEnqueueResult> decode(Decoder& decoder)
-{
-    return Compositing::AsyncScrollEnqueueResult {
-        .accepted = TRY(decoder.decode<bool>()),
-        .operation_id = TRY(decoder.decode<Optional<Compositing::AsyncScrollOperationID>>()),
-        .routing_decision = TRY(decoder.decode<Optional<Web::InputRoutingDecision>>()),
-        .routed_scroller = TRY(decoder.decode<Optional<Web::AsyncScrollNodeStableID>>()),
-    };
-}
-
-template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::WheelEventAnswer const& answer)
 {
     TRY(encoder.encode(answer.performed_default_action));
@@ -310,6 +289,35 @@ ErrorOr<Compositing::WheelEventAnswer> decode(Decoder& decoder)
         .operation_context_id = TRY(decoder.decode<Optional<Web::CompositorContextId>>()),
         .routing_decision = TRY(decoder.decode<Optional<Web::InputRoutingDecision>>()),
         .routed_scroller = TRY(decoder.decode<Optional<Web::AsyncScrollNodeStableID>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Compositing::WheelStepLetThrough const& step)
+{
+    TRY(encoder.encode(step.document_id));
+    TRY(encoder.encode(step.input_event_id));
+    TRY(encoder.encode(step.wheel_gesture_mark));
+    TRY(encoder.encode(step.position));
+    TRY(encoder.encode(step.delta_in_css_pixels));
+    TRY(encoder.encode(step.wheel_delta_precision));
+    TRY(encoder.encode(step.scroll_gesture_phase));
+    TRY(encoder.encode(step.scroll_chain));
+    return {};
+}
+
+template<>
+ErrorOr<Compositing::WheelStepLetThrough> decode(Decoder& decoder)
+{
+    return Compositing::WheelStepLetThrough {
+        .document_id = TRY(decoder.decode<Web::UniqueNodeID>()),
+        .input_event_id = TRY(decoder.decode<u64>()),
+        .wheel_gesture_mark = TRY(decoder.decode<Web::WheelGestureMark>()),
+        .position = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .delta_in_css_pixels = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .wheel_delta_precision = TRY(decoder.decode<Web::WheelDeltaPrecision>()),
+        .scroll_gesture_phase = TRY(decoder.decode<Web::ScrollGesturePhase>()),
+        .scroll_chain = TRY(decoder.decode<Vector<Web::AsyncScrollNodeStableID>>()),
     };
 }
 

@@ -24,7 +24,7 @@
 <script>
     promiseTest(async () => {
         const targets = [];
-        // Blocking wheel event listeners keep the scrolling of these gestures on the main thread.
+        // Blocking wheel event listeners make the compositor wait for the page before it scrolls these gestures.
         for (const element of [a, b])
             element.addEventListener("wheel", event => targets.push(event.currentTarget.id), { passive: false });
         await animationFrame();

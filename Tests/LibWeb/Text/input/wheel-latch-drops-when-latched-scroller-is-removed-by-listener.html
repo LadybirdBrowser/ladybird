@@ -31,9 +31,14 @@
         await internals.wheel(50, 50, 0, 100);
         println(`scroller.scrollTop after the first tick: ${scroller.scrollTop}`);
 
-        // The listener removes the scroller the gesture is latched to, so the tick is routed afresh.
+        // The page let the gesture through, so the compositor scrolls the latched scroller by this tick before the
+        // listener removes the scroller.
         await internals.wheel(50, 50, 0, 100);
         println(`scroller removed: ${!scroller.isConnected}`);
         println(`window.scrollY after the second tick: ${window.scrollY}`);
+
+        // The scroller the gesture is latched to is gone, so the tick is routed afresh, to the page.
+        await internals.wheel(50, 50, 0, 100);
+        println(`window.scrollY after the third tick: ${window.scrollY}`);
     });
 </script>

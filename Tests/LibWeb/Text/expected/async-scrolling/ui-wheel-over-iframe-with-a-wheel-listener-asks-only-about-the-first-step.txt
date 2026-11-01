@@ -1,0 +1,5 @@
+cancelable touchpad steps: true,false,false,false
+frame scrollY after the touchpad gesture: 90
+cancelable ticks: true,false,false
+frame scrollY after the ticks: 210
+window.scrollY: 0

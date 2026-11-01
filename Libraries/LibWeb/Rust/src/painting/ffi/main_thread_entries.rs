@@ -158,66 +158,6 @@ pub extern "C" fn render_state_scroll_target_for_text_position(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn render_state_scrolling_box_for_scroll_step(
-    host: &crate::render_state::DocumentHost,
-    target: NodeSlotId,
-    viewport: NodeSlotId,
-    delta: FfiCssPixelPoint,
-) -> NodeSlotId {
-    read_arena(
-        host,
-        super::node_read(),
-        (target, viewport, delta),
-        |arena, (target, viewport, delta)| {
-            arena.settle_scrollable_overflow();
-            crate::painting::scroll_chain::scrolling_box_for_scroll_step(
-                &arena.paintable_rows(),
-                target,
-                viewport,
-                delta.into(),
-            )
-        },
-    )
-}
-
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread. The host callback receives the slots of live rows.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containing_block_chain(
-    host: &crate::render_state::DocumentHost,
-    start: NodeSlotId,
-    wheel_delta_x: f64,
-    wheel_delta_y: f64,
-    context: *mut c_void,
-    push_scrollable_box: unsafe extern "C" fn(*mut c_void, NodeSlotId, f64, f64),
-) {
-    let boxes = {
-        read_arena(
-            host,
-            super::node_read(),
-            (start, wheel_delta_x, wheel_delta_y),
-            |arena, (start, wheel_delta_x, wheel_delta_y)| {
-                arena.settle_scrollable_overflow();
-                let mut boxes = Vec::new();
-                crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
-                    &arena.paintable_rows(),
-                    start,
-                    wheel_delta_x,
-                    wheel_delta_y,
-                    |node, accepted_delta_x, accepted_delta_y| boxes.push((node, accepted_delta_x, accepted_delta_y)),
-                );
-                boxes
-            },
-        )
-    };
-    for (node, accepted_delta_x, accepted_delta_y) in boxes {
-        // SAFETY: The C++ callback appends the slot and deltas to a caller-owned collection.
-        unsafe { push_scrollable_box(context, node, accepted_delta_x, accepted_delta_y) };
-    }
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn render_state_box_ending_scroll_chain(
     host: &crate::render_state::DocumentHost,
     start: NodeSlotId,

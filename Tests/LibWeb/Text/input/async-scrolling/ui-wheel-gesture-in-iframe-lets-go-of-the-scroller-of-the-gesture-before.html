@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    iframe {
+        display: block;
+        width: 400px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        frame.srcdoc = `<style>body { margin: 0; display: flex } .scroller { width: 150px; height: 150px; overflow: scroll } .content { height: 1000px }</style>
+            <div id="a" class="scroller"><div class="content"></div></div><div id="b" class="scroller"><div class="content"></div></div>`;
+        document.body.prepend(frame);
+        await frameLoaded;
+        const a = frame.contentDocument.getElementById("a");
+        const b = frame.contentDocument.getElementById("b");
+        b.addEventListener("wheel", () => { }, { passive: false });
+        const routedInTheFrame = (route, decision) => route.document === frame.contentDocument && route.decision === decision;
+        await waitForCondition(() => routedInTheFrame(internals.compositorWheelTargetAt(225, 75, 0, 30), "blocked-by-wheel-event-region")
+            && routedInTheFrame(internals.compositorWheelTargetAt(75, 75, 0, 40), "latched"));
+
+        // The compositor latches the gesture over #a to it.
+        await scrollSettled(a, () => internals.wheelThroughUIProcess(75, 75, 0, 40, true));
+        println(`a.scrollTop after the first gesture: ${a.scrollTop}`);
+
+        // A step 150 CSS pixels away is another gesture, which the page sees first. The latch of the gesture before it
+        // is no longer the gesture's, so the step scrolls #b.
+        await scrollSettled(b, () => internals.wheelThroughUIProcess(225, 75, 0, 30, true));
+        println(`a.scrollTop after the second gesture: ${a.scrollTop}`);
+        println(`b.scrollTop after the second gesture: ${b.scrollTop}`);
+    });
+</script>

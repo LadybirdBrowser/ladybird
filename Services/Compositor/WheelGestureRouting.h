@@ -30,7 +30,6 @@ public:
     Compositing::WheelRoutingAdmission admission() const { return m_admission; }
     bool admits_async_wheel() const { return m_admission == Compositing::WheelRoutingAdmission::Accepted; }
     bool admits_async_pinch() const;
-    bool only_blocking_wheel_event_listeners_hold_steps_back() const;
 
     struct NotedWheelEvent {
         // The event starts another gesture than the one before it, which lets go of the latch.
@@ -45,11 +44,21 @@ public:
     // The id of the gesture of the wheel events this context notes. No gesture of any context in the process has the
     // same id, so a context nested in another one can tell the gestures of the containing context from its own.
     Optional<u64> gesture_id() const;
+    // The context whose page dispatches the wheel events of the gesture: the innermost one under the pointer as the
+    // gesture started, which may be nested in this one. Empty for this context.
+    Optional<Web::CompositorContextId> wheel_event_listener_context() const;
+    void set_wheel_event_listener_context(Web::CompositorContextId);
+    // The UI's input of the gesture that this context left to the page. It bounds what the page of another process may
+    // scroll here, and in the contexts nested here, for the gesture.
+    void note_delta_left_to_the_page(Gfx::FloatPoint delta_in_css_pixels);
+    bool take_delta_left_to_the_page(Gfx::FloatPoint delta_in_css_pixels);
     // Whether the UI sent a later wheel event that this step cannot come before in one gesture, which makes it a step
     // of a gesture this context has already ended or moved past.
     bool step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
 
     bool has_latch() const { return m_latch.has_value(); }
+    bool has_latch_for_gesture(Optional<u64> gesture_id) const { return m_latch.has_value() && m_latch->gesture_id == gesture_id; }
+    Optional<Web::CompositorContextId> nested_context_of_latch() const;
     Optional<Web::AsyncScrollNodeStableID> latched_scroller() const;
     void set_touchpad_gesture_end(Compositing::TouchpadGestureEnd touchpad_gesture_end) { m_touchpad_gesture_end = touchpad_gesture_end; }
     // Whether the fingers of the gesture are on the touchpad, where the gesture lasts until they lift.
@@ -71,10 +80,17 @@ public:
     void latch_to_nested_context(Web::CompositorContextId, Optional<Web::AsyncScrollNodeStableID> scroller, Web::ScrollGesturePhase, Optional<u64> gesture_id);
     void latch_keeping_steps(Web::ScrollGesturePhase, Optional<u64> gesture_id);
     void clear_latch() { m_latch.clear(); }
+    void clear_latch_of_gesture(u64 gesture_id);
     void forget_gesture();
     void relatch_to(Web::AsyncScrollNodeStableID);
-    void note_page_let_latched_gesture_through();
-    bool page_let_latched_touchpad_gesture_through(Web::WheelDeltaPrecision, Web::ScrollGesturePhase) const;
+    // This context's page dispatched a step of the gesture and did not cancel it, or canceled one.
+    void note_page_let_gesture_through(u64 gesture_id);
+    void forget_page_let_gesture_through(u64 gesture_id);
+    // Whether the page let the gesture through, and its wheel event listeners are as they were then.
+    bool page_let_gesture_through(Optional<u64> gesture_id) const;
+    // Why this context's wheel event listeners hold the steps of a latched gesture back for the page, if they do. Once
+    // the page let the gesture through, they only do so after they change.
+    Optional<Web::InputRoutingDecision> reason_to_hold_latched_steps_back(Optional<u64> gesture_id) const;
     bool momentum_of_latched_gesture_can_spring_scroller_back() const;
     void set_momentum_of_latched_gesture_has_sprung_scroller_back(bool);
 
@@ -94,10 +110,6 @@ private:
         // The momentum of the gesture has gone into a rebound of the scroller. Momentum outlasts that rebound, and the
         // rest of it must not start another one.
         bool momentum_has_sprung_the_scroller_back { false };
-        // Set once the page dispatched a step of a touchpad gesture that blocking wheel event listeners held back, and
-        // did not cancel it. The rest of the gesture is scrolled here first, without asking the page again, for as long
-        // as no blocking listener has been added or removed since.
-        Optional<u64> wheel_event_listener_state_generation_the_page_let_the_gesture_through_at {};
     };
 
     struct NewestWheelEventIdsFromUI {
@@ -112,13 +124,24 @@ private:
     struct Gesture {
         u64 id;
         Compositing::WheelGestureIdentity identity;
+        Optional<Web::CompositorContextId> wheel_event_listener_context {};
+        // Summed per axis, whatever the direction.
+        Gfx::FloatPoint delta_left_to_the_page {};
     };
     // The gesture of the wheel events this context sees first: the UI's, or ones the UI never sent that the main
-    // thread makes. It says which gesture a step is in, whether this context or the main thread scrolls the step.
+    // thread makes. It says which gesture a step is in, whether the page lets the step through before or after this
+    // context scrolls by it.
     Optional<Gesture> m_gesture;
     NewestWheelEventIdsFromUI m_newest_wheel_event_ids_from_ui;
     bool m_gesture_had_wheel_event_with_delta { false };
     Optional<Latch> m_latch;
+    // The gesture whose step this context's page dispatched and did not cancel, and the state of the page's wheel event
+    // listeners then. The later steps of the gesture do not wait for the page for as long as the listeners stay so.
+    struct GestureThePageLetThrough {
+        u64 gesture_id { 0 };
+        u64 wheel_event_listener_state_generation { 0 };
+    };
+    Optional<GestureThePageLetThrough> m_gesture_the_page_let_through;
     Compositing::TouchpadGestureEnd m_touchpad_gesture_end { Compositing::TouchpadGestureEnd::AfterIdleDelay };
 };
 

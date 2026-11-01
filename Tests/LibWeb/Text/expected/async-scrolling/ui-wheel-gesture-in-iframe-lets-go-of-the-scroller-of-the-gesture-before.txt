@@ -1,0 +1,3 @@
+a.scrollTop after the first gesture: 40
+a.scrollTop after the second gesture: 40
+b.scrollTop after the second gesture: 30

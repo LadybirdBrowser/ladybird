@@ -485,32 +485,44 @@ void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compos
     m_compositor_state->invalidate_wheel_event_listener_state(context_id, generation);
 }
 
+// Wheel deltas are scrolled by as floats.
+static bool is_valid_wheel_delta(double delta)
+{
+    return isfinite(delta) && fabs(delta) <= NumericLimits<float>::max();
+}
+
 static bool is_valid_wheel_event(Web::MouseEvent const& event)
 {
-    // Wheel deltas are scrolled by as floats.
-    auto is_valid_wheel_delta = [](double delta) {
-        return isfinite(delta) && fabs(delta) <= NumericLimits<float>::max();
-    };
     return event.type == Web::MouseEvent::Type::MouseWheel
         && is_valid_wheel_delta(event.wheel_delta_x)
         && is_valid_wheel_delta(event.wheel_delta_y);
 }
 
-Messages::CompositorWebContentServer::TakeWheelEventFromMainThreadResponse ConnectionFromWebContent::take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventScrolling scrolling)
+static bool is_valid_wheel_step_let_through(Compositing::WheelStepLetThrough const& step)
+{
+    return isfinite(step.position.x()) && isfinite(step.position.y())
+        && isfinite(step.delta_in_css_pixels.x()) && isfinite(step.delta_in_css_pixels.y());
+}
+
+Messages::CompositorWebContentServer::TakeWheelEventFromMainThreadResponse ConnectionFromWebContent::take_wheel_event_from_main_thread(Web::CompositorContextId context_id, Web::MouseEvent event, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelEventRouting routing)
 {
     if (!context_is_owned_by_this_connection(context_id) || !is_valid_wheel_event(event))
         return Compositing::WheelEventAnswer {};
-    return m_compositor_state->take_wheel_event_from_main_thread(context_id, event, operation_tracking, scrolling);
+    return m_compositor_state->take_wheel_event_from_main_thread(context_id, event, operation_tracking, routing);
 }
 
-Messages::CompositorWebContentServer::AsyncScrollByResponse ConnectionFromWebContent::async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelStepDispatch wheel_step_dispatch, Optional<u64> wheel_gesture_id, u64 input_event_id)
+Messages::CompositorWebContentServer::WheelEventLetThroughResponse ConnectionFromWebContent::wheel_event_let_through(Web::CompositorContextId context_id, Compositing::WheelStepLetThrough step, Compositing::AsyncScrollOperationTracking operation_tracking)
+{
+    if (!context_is_owned_by_this_connection(context_id) || !is_valid_wheel_step_let_through(step))
+        return Compositing::WheelEventAnswer {};
+    return m_compositor_state->scroll_for_wheel_event_the_page_let_through(context_id, step, operation_tracking, *this);
+}
+
+void ConnectionFromWebContent::wheel_event_canceled(Web::CompositorContextId context_id, u64 wheel_gesture_id)
 {
     if (!context_is_owned_by_this_connection(context_id))
-        return Compositing::AsyncScrollEnqueueResult {};
-    auto result = m_compositor_state->async_scroll_by(context_id, document_id, position, delta, viewport_rect, wheel_delta_precision, scroll_gesture_phase, operation_tracking, wheel_step_dispatch, wheel_gesture_id, input_event_id);
-    if (result.accepted)
-        async_request_rendering_update();
-    return result;
+        return;
+    m_compositor_state->forget_wheel_gesture_the_page_canceled(context_id, wheel_gesture_id);
 }
 
 static bool is_valid_scroll_request(Compositing::ScrollRequest const& scroll_request)

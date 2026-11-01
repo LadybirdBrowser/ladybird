@@ -19,7 +19,7 @@
         iframe.srcdoc = `<style>body { margin: 0; height: 600px; } html { scrollbar-width: none; }</style>`;
         document.body.prepend(iframe);
         await iframeLoaded;
-        // A blocking wheel event listener keeps the scrolling of these gestures on the main thread.
+        // A blocking wheel event listener makes the compositor wait for the page before it scrolls these gestures.
         iframe.contentWindow.addEventListener("wheel", () => {}, { passive: false });
         await animationFrame();
         await animationFrame();

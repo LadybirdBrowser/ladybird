@@ -17,23 +17,26 @@
 <div id="scroller"><div></div></div>
 <script>
     promiseTest(async () => {
-        let wheelEvents = 0;
+        const cancelable = [];
         scroller.addEventListener("wheel", event => {
-            if (++wheelEvents == 2)
+            cancelable.push(event.cancelable);
+            if (cancelable.length == 1)
                 event.preventDefault();
         }, { passive: false });
         await animationFrame();
         await animationFrame();
 
         await internals.wheel(50, 50, 0, 100);
-        println(`scroller.scrollTop after the first tick: ${scroller.scrollTop}`);
+        println(`scroller.scrollTop after the cancelled tick: ${scroller.scrollTop}`);
 
+        // The cancelled event ended the gesture the scroller was latched for, so the page sees this tick first again,
+        // and it is routed afresh.
         await internals.wheel(50, 50, 0, 100);
-        println(`window.scrollY after the cancelled tick: ${window.scrollY}`);
+        println(`scroller.scrollTop after the tick following the cancelled one: ${scroller.scrollTop}`);
 
-        // The cancelled event ended the gesture the scroller was latched for, so this tick is routed afresh, and
-        // the scroller at its extent leaves it to the page.
+        // The page let the gesture through, so this tick does not wait for it, and the scroller at its extent keeps it.
         await internals.wheel(50, 50, 0, 100);
-        println(`window.scrollY after the tick following the cancelled one: ${window.scrollY}`);
+        println(`window.scrollY after the last tick: ${window.scrollY}`);
+        println(`cancelable: ${cancelable.join(",")}`);
     });
 </script>

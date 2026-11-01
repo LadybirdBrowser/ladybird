@@ -1,3 +1,4 @@
 scroller.scrollTop after the first tick: 100
 scroller removed: true
-window.scrollY after the second tick: 100
+window.scrollY after the second tick: 0
+window.scrollY after the third tick: 100
