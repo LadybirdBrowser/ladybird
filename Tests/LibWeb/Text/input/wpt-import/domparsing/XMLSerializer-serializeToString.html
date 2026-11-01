@@ -152,6 +152,28 @@ test(function() {
                 '<r xmlns:xx="uri" xmlns:ns1="uri2" ns1:name="value"/>');
 }, 'Check if the prefix of an attribute is replaced with a generated one in a case where the prefix is already mapped to a different namespace URI.');
 
+// https://w3c.github.io/DOM-Parsing/#dfn-serializing-an-attribute-value
+test(function() {
+  var root = parse('<root attr="&lt;"/>');
+  assert_equals(serialize(root), '<root attr="&lt;"/>');
+}, 'Attribute value escapes: lt');
+
+test(function() {
+  var root = parse('<root attr=">"/>');
+  assert_equals(serialize(root), '<root attr="&gt;"/>');
+}, 'Attribute value escapes: gt');
+
+test(function() {
+  var root = parse('<root attr=\'"\'/>');
+  assert_equals(serialize(root), '<root attr="&quot;"/>');
+}, 'Attribute value escapes: quot');
+
+test(function() {
+  var root = parse('<root attr="\'"/>');
+  assert_equals(serialize(root), '<root attr="\'"/>');
+}, 'Attribute value escapes: apos');
+
+// This does not match the specification; see <https://github.com/w3c/DOM-Parsing/issues/59>.
 test(function() {
   var root = parse('<root />');
   root.setAttribute('attr', '\t');
@@ -163,7 +185,7 @@ test(function() {
   root.setAttribute('attr', '\r');
   assert_in_array(serialize(root), [
     '<root attr="&#xD;"/>', '<root attr="&#13;"/>']);
-}, 'check XMLSerializer.serializeToString escapes attribute values for roundtripping');
+}, '[TENTATIVE] check XMLSerializer.serializeToString escapes attribute values for roundtripping');
 
 test(function() {
   const root = (new Document()).createElement('root');
@@ -191,6 +213,15 @@ test(function() {
 }, 'Check if start tag serialization finds an appropriate prefix.');
 
 test(function() {
+  const root = parse('<root xmlns:p1="u1"><child xmlns:p2="u1"/></root>');
+  const child2 = root.ownerDocument.createElementNS('u1', 'child2');
+  const grandchild = root.ownerDocument.createElementNS('u1', 'grandchild');
+  child2.appendChild(grandchild);
+  root.firstChild.appendChild(child2);
+  assert_equals(serialize(root), '<root xmlns:p1="u1"><child xmlns:p2="u1"><p2:child2><p2:grandchild/></p2:child2></child></root>');
+}, 'Check if end tag serialization matches start tag when an appropriate prefix is found.');
+
+test(function() {
   const root = (new Document()).createElementNS('uri1', 'p:root');
   root.setAttributeNS(XMLNS_URI, 'xmlns:p', 'uri2');
   assert_equals(serialize(root), '<ns1:root xmlns:ns1="uri1" xmlns:p="uri2"/>');
@@ -209,6 +240,16 @@ test(function() {
   assert_equals(serialize(parse('<root xmlns:x="uri1"><table xmlns="uri1"></table></root>')),
       '<root xmlns:x="uri1"><x:table xmlns="uri1"/></root>');
 }, 'Check if start tag serialization does NOT apply the default namespace if its namespace is declared in an ancestor.');
+
+test(function() {
+  const xmlNS = 'http://www.w3.org/XML/1998/namespace';
+  const root = parse('<root/>');
+  const child = root.ownerDocument.createElementNS(xmlNS, 'foo');
+  const grandchild = root.ownerDocument.createElementNS(xmlNS, 'bar');
+  child.appendChild(grandchild);
+  root.appendChild(child);
+  assert_equals(serialize(root), '<root><xml:foo><xml:bar/></xml:foo></root>');
+}, 'Check if end tag serialization matches start tag for elements in the XML namespace.');
 
 test(function() {
   const root = parse('<root><child1/><child2/></root>');

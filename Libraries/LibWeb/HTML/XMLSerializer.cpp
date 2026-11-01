@@ -318,21 +318,45 @@ static WebIDL::ExceptionOr<Utf16String> serialize_an_attribute_value(Optional<Ut
     return serialize_an_attribute_value(attribute_value->view(), require_well_formed);
 }
 
+// https://w3c.github.io/DOM-Parsing/#dfn-serializing-an-attribute-value
 static WebIDL::ExceptionOr<Utf16String> serialize_an_attribute_value(Utf16View attribute_value, [[maybe_unused]] RequireWellFormed require_well_formed)
 {
-    // FIXME: If the require well-formed flag is set, reject characters that are not matched by the XML Char production.
+    // FIXME: 1. If require well-formed is true, and attribute value contains characters that are not matched by the XML Char production, then throw an exception.
+    //           The serialization of attribute value would not be well-formed.
+
+    // 3. Otherwise, return attribute value, first replacing any occurrences of the following:
     Utf16StringBuilder final_attribute_value;
     for (auto code_point : attribute_value) {
-        if (code_point == '&')
+        // - "&" with "&amp;"
+        if (code_point == '&') {
             final_attribute_value.append_ascii("&amp;"sv);
-        else if (code_point == '"')
+        }
+        // - """ with "&quot;"
+        else if (code_point == '"') {
             final_attribute_value.append_ascii("&quot;"sv);
-        else if (code_point == '<')
+        }
+        // - "<" with "&lt;"
+        else if (code_point == '<') {
             final_attribute_value.append_ascii("&lt;"sv);
-        else if (code_point == '>')
+        }
+        // AD-HOC: The spec's list leaves out ">", though its note says it is replaced, and all engines replace it.
+        else if (code_point == '>') {
             final_attribute_value.append_ascii("&gt;"sv);
-        else
+        }
+        // - U+0009 CHARACTER TABULATION with "&#9;"
+        else if (code_point == '\t') {
+            final_attribute_value.append_ascii("&#9;"sv);
+        }
+        // - U+000A LINE FEED (LF) with "&#xA;"
+        else if (code_point == '\n') {
+            final_attribute_value.append_ascii("&#xA;"sv);
+        }
+        // - U+000D CARRIAGE RETURN (CR) with "&#xD;"
+        else if (code_point == '\r') {
+            final_attribute_value.append_ascii("&#xD;"sv);
+        } else {
             final_attribute_value.append_code_point(code_point);
+        }
     }
 
     return final_attribute_value.to_string();
