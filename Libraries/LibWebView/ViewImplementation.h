@@ -666,8 +666,7 @@ public:
     void did_request_link_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<u64> text_fragment_generation_id);
     void did_generate_text_fragment_url(u64 request_id, Optional<URL::URL>);
     void did_request_image_context_menu(Badge<WebContentPage>, Gfx::IntPoint content_position, Web::HTML::PreparedNavigationDescriptor, Optional<Gfx::ShareableBitmap> bitmap);
-    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu menu, Optional<Web::HTML::PreparedNavigationDescriptor>);
-    void send_to_media_context_menu_page(Function<void(WebContentPage&)> const&);
+    void did_request_media_context_menu(Badge<WebContentPage>, WebContentPage& requesting_page, Gfx::IntPoint content_position, Web::MediaContextMenu, Optional<Web::HTML::PreparedNavigationDescriptor>);
 
     void did_request_color_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Color current_color);
     void did_request_date_picker(Badge<WebContentPage>, WebContentPage& requesting_page, Utf16String input_type, Utf16String value, Utf16String minimum, Utf16String maximum);
@@ -820,14 +819,19 @@ protected:
     void update_bookmark_action();
 
     void initialize_context_menus();
+    void open_context_menu(NonnullRefPtr<Menu>, Gfx::IntPoint content_position);
+    NonnullRefPtr<Menu> create_page_context_menu(bool is_editable, Optional<String> const& selected_text, Optional<DictionaryLookup> const&, Gfx::IntPoint content_position);
+    NonnullRefPtr<Menu> create_selected_text_link_context_menu(bool is_editable, String const& selected_text, URL::URL const&, Optional<DictionaryLookup> const&, Gfx::IntPoint content_position);
+    void add_open_in_new_tab_action(Menu&, StringView text, URL::URL const&, Optional<Web::HTML::PreparedNavigationDescriptor> const&);
+    void add_open_url_actions(Menu&, URL::URL const&, Optional<Web::HTML::PreparedNavigationDescriptor> const&);
+    static void add_text_edit_actions(Menu&, bool is_editable, bool has_selected_text);
+    void add_look_up_action(Menu&, Optional<DictionaryLookup> const&, Gfx::IntPoint content_position);
     void update_report_website_issue_action();
     void handle_external_url(URL::URL, URL::Origin, bool has_transient_activation, Function<void()> on_handler_unavailable = {});
     void handle_external_url_from_user_input(URL::URL const&, Function<void()> on_handler_unavailable = {});
     void complete_external_url_request();
     void process_next_external_url_request();
-    void update_look_up_selected_text_action(Optional<DictionaryLookup> const& lookup, Gfx::IntPoint content_position);
     void request_text_fragment_url(Optional<u64> generation_id);
-    void set_context_menu_url_actions_enabled(bool);
     void request_context_menu_dictionary_lookup(Function<void(Optional<DictionaryLookup> const&)> on_complete);
     NonnullRefPtr<Core::Promise<bool>> select_word_for_dictionary_lookup(Gfx::IntPoint widget_position);
     void reject_pending_selection_requests();
@@ -835,7 +839,7 @@ protected:
         No,
         Yes,
     };
-    void download_context_menu_url(PromptForPath);
+    void download_url(URL::URL const&, PromptForPath);
 
     struct SharedBitmap {
         i32 id { -1 };
@@ -883,11 +887,8 @@ protected:
     bool m_frame_rate_capped { false };
     bool m_scales_frames_to_fit { false };
 
-    RefPtr<Menu> m_page_context_menu;
-    RefPtr<Menu> m_link_context_menu;
-    RefPtr<Menu> m_selected_text_link_context_menu;
-    RefPtr<Menu> m_image_context_menu;
-    RefPtr<Menu> m_media_context_menu;
+    // NB: The UI holds a shown menu's actions weakly, so the view keeps the last menu until it shows another.
+    RefPtr<Menu> m_context_menu;
     u64 m_context_menu_request_id { 0 };
 
     SpellChecker::DocumentTag spell_document_tag();
@@ -904,13 +905,7 @@ protected:
 
     RefPtr<Action> m_reset_zoom_action;
 
-    RefPtr<Action> m_look_up_selected_text_action;
-    Optional<DictionaryLookup> m_look_up;
-    Gfx::IntPoint m_look_up_position;
-
-    RefPtr<Action> m_search_selected_text_action;
     RefPtr<Action> m_copy_link_to_highlight_action;
-    Optional<String> m_search_text;
     Optional<URL::URL> m_text_fragment_url;
     u64 m_next_text_fragment_url_request_id { 1 };
     Optional<u64> m_pending_text_fragment_url_request_id;
@@ -921,41 +916,11 @@ protected:
     HashMap<u64, NonnullRefPtr<Core::Promise<bool>>> m_pending_select_word_for_dictionary_lookup_requests;
     HashMap<u64, NonnullRefPtr<Core::Promise<ByteString>>> m_pending_cut_selected_text_requests;
 
-    RefPtr<Action> m_take_screenshot_action;
-
     void prepare_inspect_element_action(Gfx::IntPoint content_position);
     RefPtr<Action> m_inspect_element_action;
     Optional<u64> m_inspect_element_hit_test_request_id;
     Optional<Web::UniqueNodeID> m_inspect_element_node_id;
     bool m_inspect_element_activated_before_hit_test { false };
-
-    RefPtr<Action> m_open_in_new_tab_action;
-    RefPtr<Action> m_open_in_new_window_action;
-    RefPtr<Action> m_open_in_new_private_window_action;
-    RefPtr<Action> m_download_linked_file_action;
-    RefPtr<Action> m_download_linked_file_as_action;
-    RefPtr<Action> m_copy_url_action;
-    URL::URL m_context_menu_url;
-    Optional<Web::HTML::PreparedNavigationDescriptor> m_context_menu_navigation;
-
-    RefPtr<Action> m_open_image_action;
-    RefPtr<Action> m_save_image_action;
-    RefPtr<Action> m_copy_image_action;
-    Optional<Gfx::ShareableBitmap> m_image_context_menu_bitmap;
-
-    RefPtr<Action> m_open_audio_action;
-    RefPtr<Action> m_open_video_action;
-    RefPtr<Action> m_media_play_action;
-    RefPtr<Action> m_media_pause_action;
-    RefPtr<Action> m_media_mute_action;
-    RefPtr<Action> m_media_unmute_action;
-    RefPtr<Action> m_media_show_controls_action;
-    RefPtr<Action> m_media_hide_controls_action;
-    RefPtr<Action> m_media_loop_action;
-    RefPtr<Action> m_media_enter_fullscreen_action;
-    RefPtr<Action> m_media_exit_fullscreen_action;
-    RefPtr<Action> m_media_enter_picture_in_picture_action;
-    RefPtr<Action> m_media_exit_picture_in_picture_action;
 
     struct PendingInputEvent {
         Web::InputEvent event;
@@ -1137,18 +1102,13 @@ protected:
     RefPtr<WebContentPage> m_date_picker_page;
     RefPtr<WebContentPage> m_file_picker_page;
     RefPtr<WebContentPage> m_select_dropdown_page;
-    RefPtr<WebContentPage> m_media_context_menu_page;
 
     static constexpr size_t MAX_SPELLING_GUESSES = 5;
-    void update_spelling_menu_actions(Optional<Utf16String> misspelled_word);
-    void ignore_context_menu_misspelling();
-    void learn_context_menu_misspelling();
-    String describe_spelling_menu_for_testing() const;
+    void update_context_menu_misspelling(Optional<Utf16String> misspelled_word);
+    void add_spelling_actions(Menu&);
+    void ignore_misspelling(Utf16String const&);
+    void learn_misspelling(Utf16String const&);
 
-    Vector<NonnullRefPtr<Action>> m_spelling_guess_actions;
-    RefPtr<Action> m_no_spelling_guesses_action;
-    RefPtr<Action> m_ignore_spelling_action;
-    RefPtr<Action> m_learn_spelling_action;
     Optional<Utf16String> m_context_menu_misspelled_word;
     Vector<Utf16String> m_spelling_guesses;
     RefPtr<WebContentPage> m_spelling_context_menu_page;
