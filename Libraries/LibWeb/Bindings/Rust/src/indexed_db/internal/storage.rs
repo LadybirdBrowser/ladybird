@@ -14,30 +14,13 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{EmbedderCell, EmbedderClass, EmbedderValue, Gc, GcRefCell, Trace, Vm};
-use liburl_rust::origin::Origin;
 
 use crate::indexed_db::internal::database::DatabaseRef;
 use crate::indexed_db::internal::request_list::RequestList;
+use crate::storage_api::storage_key::StorageKey;
 
 unsafe extern "C" {
     fn gc_root_create(cell: *mut c_void) -> *mut c_void;
-}
-
-// https://storage.spec.whatwg.org/#storage-keys
-#[derive(Clone)]
-pub(crate) struct StorageKey {
-    // A storage key is a tuple consisting of an origin (an origin). [HTML]
-    // NOTE: This is expected to change; see Client-Side Storage Partitioning https://privacycg.github.io/storage-partitioning/.
-    pub(crate) origin: Origin,
-}
-
-impl PartialEq for StorageKey {
-    fn eq(&self, other: &Self) -> bool {
-        // To determine whether a storage key A equals storage key B, run these steps:
-        // 1. If A’s origin is not same origin with B’s origin, then return false.
-        // 2. Return true.
-        self.origin.is_same_origin(&other.origin)
-    }
 }
 
 // https://w3c.github.io/IndexedDB/#connection-queues

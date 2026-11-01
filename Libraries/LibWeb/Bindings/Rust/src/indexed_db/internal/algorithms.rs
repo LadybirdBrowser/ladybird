@@ -47,7 +47,8 @@ use crate::indexed_db::internal::function::{
 use crate::indexed_db::internal::index::{Index, IndexRef};
 use crate::indexed_db::internal::key::{Key, KeyType, code_unit_order};
 use crate::indexed_db::internal::object_store::{ObjectStore, ObjectStoreRef};
-use crate::indexed_db::internal::storage::{ConnectionQueueRef, StorageKey, storage};
+use crate::indexed_db::internal::storage::{ConnectionQueueRef, storage};
+use crate::storage_api::storage_key::StorageKey;
 
 /// A key path, https://w3c.github.io/IndexedDB/#key-path-construct: a string or a list of strings.
 #[derive(Clone)]

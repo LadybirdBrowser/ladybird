@@ -1,0 +1,52 @@
+/*
+ * Copyright (c) 2024, Andrew Kaster <andrew@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! Storage keys, https://storage.spec.whatwg.org/#storage-keys
+
+use core::ffi::c_void;
+
+use libjs_rust::api::{Gc, Realm};
+use liburl_rust::FfiOrigin;
+use liburl_rust::origin::Origin;
+
+unsafe extern "C" {
+    fn web_storage_api_obtain_a_storage_key(
+        realm: *mut c_void,
+        ctx: *mut c_void,
+        on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
+    ) -> bool;
+}
+
+// https://storage.spec.whatwg.org/#storage-keys
+#[derive(Clone)]
+pub(crate) struct StorageKey {
+    // A storage key is a tuple consisting of an origin (an origin). [HTML]
+    // NOTE: This is expected to change; see Client-Side Storage Partitioning https://privacycg.github.io/storage-partitioning/.
+    pub(crate) origin: Origin,
+}
+
+impl PartialEq for StorageKey {
+    fn eq(&self, other: &Self) -> bool {
+        // To determine whether a storage key A equals storage key B, run these steps:
+        // 1. If A’s origin is not same origin with B’s origin, then return false.
+        // 2. Return true.
+        self.origin.is_same_origin(&other.origin)
+    }
+}
+
+unsafe extern "C" fn on_origin(ctx: *mut c_void, ffi_origin: *const FfiOrigin) {
+    // SAFETY: ctx is the origin of the caller, and LibWeb lends the origin for the call.
+    unsafe { *ctx.cast::<Option<Origin>>() = Some((*ffi_origin).to_origin()) };
+}
+
+/// https://storage.spec.whatwg.org/#obtain-a-storage-key
+pub(crate) fn obtain_a_storage_key(realm: Gc<Realm>) -> Option<StorageKey> {
+    let mut origin: Option<Origin> = None;
+    // SAFETY: The realm is live, and the origin outlives the call.
+    unsafe { web_storage_api_obtain_a_storage_key(realm.as_ptr().cast(), (&raw mut origin).cast(), on_origin) };
+    origin.map(|origin| StorageKey { origin })
+}
