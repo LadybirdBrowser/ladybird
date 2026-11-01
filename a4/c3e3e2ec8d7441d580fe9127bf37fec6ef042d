@@ -1,0 +1,10 @@
+Ladybird keeps a table’s original display on its table wrapper, the box
+that gets positioned, so an absolutely positioned table that was block-
+level gets its static position at the start of its containing block,
+whatever the text-align, and Blink, WebKit and Gecko all place it there.
+Gecko’s wrapper frame inherits the table’s display, and ReflowInput::
+CalculateHypotheticalPosition() checks IsOriginalDisplayInlineOutside()
+on it. Blink records IsOriginalDisplayInlineType() before adjusting the
+display, and its InlineLayoutAlgorithm::PlaceOutOfFlowObjects() reads
+that. And WebKit’s InlineDisplayContentBuilder classifies the box with
+style().originalDisplay().isInlineType().
