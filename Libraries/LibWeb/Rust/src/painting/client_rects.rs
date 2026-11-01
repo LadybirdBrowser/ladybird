@@ -68,7 +68,7 @@ fn for_each_inline_piece_border_box_rect(
     };
     let root_positions = paintable_geometry::LineRootPositions::new(arena, root);
     let root_side = arena.committed_side_data(root);
-    with_inline_pieces(arena, inline_paintable, |piece, _| {
+    with_inline_pieces(arena, inline_paintable, |piece| {
         if piece.is_geometry_only_placeholder {
             return true;
         }

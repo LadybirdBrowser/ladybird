@@ -1058,8 +1058,8 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
             && node_painting::has_lines(recorder.source, root)
         {
             let layout_arena = recorder.source;
-            for piece_index in layout_arena.committed_side_data(paintable).piece_indices() {
-                let side = layout_arena.committed_side_data(root);
+            let side = layout_arena.committed_side_data(root);
+            for piece_index in side.inline_box_piece_indices(paintable) {
                 let piece = &side.inline_box_pieces()[*piece_index as usize];
                 for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {
                     append_fragment(recorder, root, fragment_index as usize);

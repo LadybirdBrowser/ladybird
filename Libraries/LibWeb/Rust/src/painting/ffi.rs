@@ -827,7 +827,7 @@ pub extern "C" fn render_state_inline_paintable_has_content_pieces(
 ) -> bool {
     read_arena(host, node_read(), inline_paintable, |arena, inline_paintable| {
         let mut has_content = false;
-        with_inline_pieces(&arena.paintable_rows(), inline_paintable, |piece, _| {
+        with_inline_pieces(&arena.paintable_rows(), inline_paintable, |piece| {
             if !piece.is_geometry_only_placeholder {
                 has_content = true;
                 return false;
@@ -864,7 +864,7 @@ pub extern "C" fn render_state_inline_paintable_first_piece_position(
             };
             let border_widths = crate::painting::paintable_geometry::committed_border(arena, inline_paintable);
             let padding_widths = crate::painting::paintable_geometry::committed_padding(arena, inline_paintable);
-            with_inline_pieces(&paintable_rows, inline_paintable, |piece, _data| {
+            with_inline_pieces(&paintable_rows, inline_paintable, |piece| {
                 let border_rect = CssPixelRect::from(piece.border_box_rect);
                 let rect = if piece.is_geometry_only_placeholder {
                     border_rect

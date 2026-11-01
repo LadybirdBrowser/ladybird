@@ -179,7 +179,7 @@ pub(crate) fn dump_inline_piece_fragments(
         return;
     };
     let root_side = layout_arena.committed_side_data(root);
-    for piece_index in layout_arena.committed_side_data(inline_paintable).piece_indices() {
+    for piece_index in root_side.inline_box_piece_indices(inline_paintable) {
         let piece = &root_side.inline_box_pieces()[*piece_index as usize];
         let mut fragment_index_within_piece = 0usize;
         for fragment_index in piece.first_fragment_index..piece.first_fragment_index + piece.fragment_count {

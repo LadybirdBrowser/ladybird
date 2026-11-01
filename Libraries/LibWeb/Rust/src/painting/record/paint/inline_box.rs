@@ -23,13 +23,7 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
     if matches!(phase, PaintPhase::Background | PaintPhase::Border) && !recorder.is_recording_svg_resource_content() {
         return;
     }
-    let arena = recorder.source;
-    paint_pieces(
-        recorder,
-        paintable,
-        phase,
-        arena.committed_side_data(paintable).piece_indices(),
-    );
+    paint_pieces(recorder, paintable, phase, None);
 }
 
 pub(crate) fn paint_piece<O: Observer>(recorder: &mut PaintRecorder<'_, O>, root: NodeSlotId, index: u32) {
@@ -44,7 +38,7 @@ pub(crate) fn paint_piece<O: Observer>(recorder: &mut PaintRecorder<'_, O>, root
         }
         let context = recorder.context_for_phase(paintable, phase);
         recorder.recorder.set_accumulated_visual_context(context);
-        paint_pieces(recorder, paintable, phase, &[index]);
+        paint_pieces(recorder, paintable, phase, Some(&[index]));
     }
     recorder.recorder.set_accumulated_visual_context(Default::default());
 }
@@ -53,7 +47,7 @@ fn paint_pieces<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     phase: PaintPhase,
-    piece_indices: &[u32],
+    only_piece_indices: Option<&[u32]>,
 ) {
     let root = {
         let block = recorder.data(paintable).containing_block;
@@ -72,6 +66,7 @@ fn paint_pieces<O: Observer>(
         root_positions.of_line(side.lines(), piece.line_index as usize)
     };
     let root_pieces = &side.inline_box_pieces();
+    let piece_indices = only_piece_indices.unwrap_or_else(|| side.inline_box_piece_indices(paintable));
     let facts = recorder.base_paint_facts(paintable);
 
     if phase == PaintPhase::Background && facts.is_visible {
