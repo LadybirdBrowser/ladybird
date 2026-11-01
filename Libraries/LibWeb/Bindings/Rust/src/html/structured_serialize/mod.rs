@@ -1148,7 +1148,7 @@ impl Deserializer<'_, '_, '_> {
 
                 if let Some(array_buffer) =
                     self.serialized
-                        .array_buffer_sharing_side_table_entry(side_table_index, bytes.len(), false)
+                        .array_buffer_sharing_side_table_entry(vm, side_table_index, bytes.len(), false)
                 {
                     value = Value::from_object(array_buffer);
                     break 'shared_array_buffer;
@@ -1179,12 +1179,9 @@ impl Deserializer<'_, '_, '_> {
 
                 if let Some(array_buffer) =
                     self.serialized
-                        .array_buffer_sharing_side_table_entry(side_table_index, bytes.len(), true)
+                        .array_buffer_sharing_side_table_entry(vm, side_table_index, bytes.len(), true)
                 {
-                    let data = array_buffer
-                        .downcast::<ArrayBuffer>()
-                        .expect("the side table holds ArrayBuffers");
-                    data.set_max_byte_length(max_byte_length);
+                    array_buffer.set_max_byte_length(max_byte_length);
                     value = Value::from_object(array_buffer);
                     break 'growable_shared_array_buffer;
                 }

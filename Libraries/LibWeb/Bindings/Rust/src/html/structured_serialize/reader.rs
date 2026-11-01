@@ -13,8 +13,14 @@
 //! beside them. What the deserialization reads that the record does not hold throws a "DataCloneError" DOMException in
 //! the realm that it creates its values in.
 
+use core::ffi::c_void;
+use core::ptr::NonNull;
+
 use ak::Utf16String;
-use libjs_rust::api::{BigInt, Gc, Object, Realm, Value, Vm};
+use libjs_rust::api::{
+    ArrayBuffer, ArrayBufferShared, BigInt, DataBlock, DataBlockStorage, ExternalPrimitiveStorage, ForeignCellSlot,
+    GC_PRIMITIVE_STORAGE_NULL_HANDLE, Gc, Realm, SharedBackingStore, Value, Vm,
+};
 use libwebcommon_rust::html::serialization_records::{DecodeError, DecodedString, RecordDecoder, SerializationType};
 
 use crate::bindings::WebIdlResult;
@@ -184,13 +190,73 @@ impl<'a> StructuredSerializeReader<'a> {
         shared_buffers.shared_array_buffer(self.realm, index, shared_object_id)
     }
 
+    /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-process side
+    /// table, if there is such a buffer, and its storage can be shared.
     pub(crate) fn array_buffer_sharing_side_table_entry(
         &self,
+        vm: &Vm,
         side_table_index: u32,
         byte_length: usize,
         preserve_growability: bool,
-    ) -> Option<Gc<Object>> {
-        self.ipc_record?
-            .shared_array_buffer(self.realm, side_table_index, byte_length, preserve_growability)
+    ) -> Option<Gc<ArrayBuffer>> {
+        let source_buffer = self.ipc_record?.shared_array_buffer(side_table_index)?;
+        array_buffer_sharing_storage_with(vm, self.realm, source_buffer, byte_length, preserve_growability)
     }
+}
+
+fn foreign_cell_slot(cell: NonNull<c_void>) -> ForeignCellSlot {
+    let slot = ForeignCellSlot::empty();
+    // SAFETY: The cell is a live cell of the heap, which the slot then keeps alive.
+    unsafe { slot.set(Some(cell)) };
+    slot
+}
+
+// Returns None when the source storage cannot be aliased, allowing the caller to copy it.
+fn array_buffer_sharing_storage_with(
+    vm: &Vm,
+    realm: Gc<Realm>,
+    source_buffer: Gc<ArrayBuffer>,
+    byte_length: usize,
+    preserve_growability: bool,
+) -> Option<Gc<ArrayBuffer>> {
+    assert!(source_buffer.is_shared_array_buffer());
+    let fixed_byte_length = (!preserve_growability).then_some(byte_length);
+    let data_block = source_buffer.with_data_block(|source_block| match &source_block.byte_buffer {
+        // Flatten alias chains to the actual owner. Keep this buffer's byte length because the owner's
+        // storage may be larger (for example, a fixed-length view of growable WebAssembly.Memory).
+        DataBlockStorage::External(external) => Some(DataBlock::external(
+            ExternalPrimitiveStorage::new(
+                foreign_cell_slot(external.owner()),
+                external.handle(),
+                fixed_byte_length,
+            ),
+            ArrayBufferShared::Yes,
+        )),
+
+        // AD-HOC: A fixed-length shared block backed by cross-process shared memory is aliased by referencing the same
+        //         shared object — so the clone shares its bytes, and can itself be shared with an agent in another
+        //         process.
+        DataBlockStorage::Shared(store) => {
+            SharedBackingStore::adopt(store.shared_memory(), store.size(), store.object_id())
+                .ok()
+                .map(DataBlock::shared_memory)
+        }
+
+        DataBlockStorage::Owned(owned) => {
+            // Zero-length buffers have no backing storage to share.
+            if owned.handle() == GC_PRIMITIVE_STORAGE_NULL_HANDLE {
+                return None;
+            }
+            // SAFETY: The source buffer is a live cell.
+            let owner = unsafe { NonNull::new_unchecked(source_buffer.as_ptr().cast()) };
+            Some(DataBlock::external(
+                ExternalPrimitiveStorage::new(foreign_cell_slot(owner), owned.handle(), fixed_byte_length),
+                ArrayBufferShared::Yes,
+            ))
+        }
+
+        // A detached block has no storage to share.
+        DataBlockStorage::Empty => None,
+    })?;
+    Some(ArrayBuffer::create_from_data_block(vm, realm, data_block))
 }
