@@ -345,7 +345,7 @@ struct LocalNameSetEntry {
 };
 
 // https://w3c.github.io/DOM-Parsing/#dfn-xml-serialization-of-the-attributes
-static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Element const& element, NamespacePrefixMap& namespace_prefix_map, u64& prefix_index, LocalPrefixesMap const& local_prefixes_map, bool ignore_namespace_definition_attribute, RequireWellFormed require_well_formed)
+static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Element const& element, NamespacePrefixMap& namespace_prefix_map, u64& prefix_index, LocalPrefixesMap& local_prefixes_map, bool ignore_namespace_definition_attribute, RequireWellFormed require_well_formed)
 {
     // 1. Let result be the empty string.
     Utf16StringBuilder result;
@@ -432,12 +432,28 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
                     candidate_prefix = "xmlns"_utf16_fly_string;
             }
 
-            // 3. Otherwise, the attribute namespace in not the XMLNS namespace. Run these steps:
-            else {
-                // 1. Let candidate prefix be the result of generating a prefix providing map, attribute namespace, and prefix index as input.
-                candidate_prefix = generate_a_prefix(namespace_prefix_map, attribute_namespace_for_map, prefix_index);
+            // 3. Otherwise (attribute namespace is not the XMLNS namespace), if candidate prefix is null:
+            else if (!candidate_prefix.has_value()) {
+                // 1. If prefix is not null and local prefixes map does not contain prefix, set candidate prefix to prefix.
+                if (attribute->prefix().has_value() && !local_prefixes_map.contains(*attribute->prefix())) {
+                    candidate_prefix = attribute->prefix();
+                }
 
-                // 2. Append the following to result, in the order listed:
+                // 2. Otherwise, set candidate prefix to the result of generating a prefix given map, attribute namespace, and prefix index.
+                else {
+                    candidate_prefix = generate_a_prefix(namespace_prefix_map, attribute_namespace_for_map, prefix_index);
+                }
+
+                // 3. Add candidate prefix to map given attribute namespace.
+                add_prefix_to_namespace_prefix_map(namespace_prefix_map, candidate_prefix, attribute_namespace_for_map);
+
+                // 4. Let map value be the empty string if attribute namespace is null, and attribute namespace otherwise.
+                auto map_value = attribute_namespace_for_map.value_or(Utf16FlyString {});
+
+                // 5. Set local prefixes map[candidate prefix] to map value.
+                local_prefixes_map.set(*candidate_prefix, move(map_value));
+
+                // 6. Append the following to result, in the order listed:
                 // 1. " " (U+0020 SPACE);
                 // 2. The string "xmlns:";
                 result.append_ascii(" xmlns:"sv);
