@@ -1,0 +1,12 @@
+While a DevTools client is attached, Ladybird sends the objects that a
+page logs as grips, and keeps those of the latest 500 to 1000 messages,
+dropping older ones 500 messages at a time. Gecko’s ConsoleAPIStorage
+keeps the last 1000 messages of each window (STORAGE_MAX_EVENTS), and
+the grips of all their arguments come from the DevTools server’s
+prepareConsoleMessageForRemote(). And V8’s V8ConsoleMessageStorage keeps
+at most 1000 messages and 10 MiB of them (maxConsoleMessageCount and
+maxConsoleMessageV8Size), wrapping their arguments in the “console”
+object group. WebKit’s InspectorConsoleAgent keeps 100 messages
+(maximumConsoleMessages), and drops the oldest 10 messages at a time
+(expireConsoleMessagesStep). Unlike all three, Ladybird keeps no
+messages while no client is attached, since its UI process drops them.
