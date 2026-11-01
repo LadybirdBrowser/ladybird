@@ -153,6 +153,7 @@ impl Heap {
     /// `context` must stay valid for as long as the heap exists, including while it is being destroyed.
     pub unsafe fn new(gather_roots: GCGatherRootsCallback, context: *mut c_void, become_process_default: bool) -> Self {
         let layout = check_layout();
+        crate::layout_forward::initialize_heap_region_base();
         // SAFETY: The caller keeps the context alive for the heap's lifetime.
         let raw = unsafe { capi::gc_heap_create(gather_roots, context, become_process_default) };
         let raw = NonNull::new(raw).expect("LibGC creates the heap");

@@ -76,12 +76,12 @@ pub use crate::runtime::shared_function_instance_data::SharedFunctionInstanceDat
 
 pub use crate::runtime::typed_array::TypedArrayBaseStorage;
 
-/// A copy of LibGC's js_heap_region_base, which LibGC fills in through its registration (see
-/// js_heap_region_base_copy()) before any cell exists, and never changes after that.
+/// A copy of LibGC's js_heap_region_base, which initialize_heap_region_base() fills in before this copy of the runtime
+/// creates its first heap, so before any cell that it could decode exists, and which never changes after that.
 struct HeapRegionBaseCopy(core::cell::UnsafeCell<usize>);
 
-// SAFETY: LibGC writes the copy once, before any cell exists, and every read of it is of a cell that some thread has
-//         made since, which it had to synchronize with to get at.
+// SAFETY: The copy is written once, before any cell that this runtime decodes exists, and every read of it is of a cell
+//         that some thread has made since, which it had to synchronize with to get at.
 unsafe impl Sync for HeapRegionBaseCopy {}
 
 // OPTIMIZATION: A copy of the base in this library, which a decode reads with one PC-relative load instead of a load of
@@ -89,18 +89,27 @@ unsafe impl Sync for HeapRegionBaseCopy {}
 //               of loops, where an atomic one would have to stay in them.
 static HEAP_REGION_BASE: HeapRegionBaseCopy = HeapRegionBaseCopy(core::cell::UnsafeCell::new(0));
 
-/// The base of the heap region, which compressed cell pointers and cell values are offsets from. Zero until LibGC
-/// reserves the region, which happens before any cell exists.
+/// The base of the heap region, which compressed cell pointers and cell values are offsets from. Zero until the runtime
+/// creates its first heap.
 #[inline(always)]
 pub fn heap_region_base() -> usize {
     // SAFETY: Nothing writes the copy after the first cell exists, see HeapRegionBaseCopy.
     unsafe { *HEAP_REGION_BASE.0.get() }
 }
 
-/// The copy of the heap region base, which LibJS registers with LibGC at static initialization.
-#[unsafe(no_mangle)]
-pub extern "C" fn js_heap_region_base_copy() -> *mut usize {
-    HEAP_REGION_BASE.0.get()
+/// Fills in the copy of the heap region base, which reserves the region if LibGC has not yet. Every heap that the runtime
+/// reaches cells of is one that it creates, and it calls this before creating one.
+///
+/// NB: This is not left to a static initializer elsewhere, which a static link drops along with the rest of its object
+///     when nothing references that object.
+pub fn initialize_heap_region_base() {
+    static INITIALIZE: std::sync::Once = std::sync::Once::new();
+    INITIALIZE.call_once(|| {
+        let base = crate::gc::capi::gc_heap_region_base();
+        // SAFETY: No cell that this runtime could decode exists yet, so nothing reads the copy, and the Once keeps any
+        //         other thread that creates a heap waiting until the copy is written.
+        unsafe { *HEAP_REGION_BASE.0.get() = base };
+    });
 }
 
 const _: () =
