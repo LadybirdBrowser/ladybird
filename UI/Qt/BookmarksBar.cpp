@@ -6,7 +6,6 @@
 
 #include <AK/HashMap.h>
 #include <AK/HashTable.h>
-#include <AK/ScopeGuard.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
 #include <UI/Qt/BookmarksBar.h>
@@ -385,16 +384,16 @@ void BookmarksBar::show_context_menu(QPoint position, Optional<WebView::Bookmark
         m_selected_bookmark_menu_parent_folder_id = parent_folder_id.copy();
 
         if (item->is_bookmark())
-            execute_context_menu(bookmark_context_menu(), position);
+            execute_context_menu_later(m_context_menu, *this, m_tab->view().bookmark_context_menu(), position);
         else if (item->is_folder())
-            execute_context_menu(bookmark_folder_context_menu(), position);
+            execute_context_menu_later(m_context_menu, *this, m_tab->view().bookmark_folder_context_menu(), position);
     } else {
         // NB: Empty space in a folder that about:bookmarks shows adds to that folder, and elsewhere to the bar.
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = target_folder_id.copy();
         m_selected_bookmark_menu_parent_folder_id = {};
 
-        execute_context_menu(bookmarks_bar_context_menu(), position);
+        execute_context_menu_later(m_context_menu, *this, m_tab->view().bookmarks_bar_context_menu(), position);
     }
 }
 
@@ -471,55 +470,58 @@ bool BookmarksBar::handle_middle_mouse_click(QMouseEvent* event, QObject* item)
 
 bool BookmarksBar::handle_right_mouse_click(QMouseEvent* event, QObject* item)
 {
-    // FIXME: The exec() calls below should use execute_context_menu() instead to use native context menus on macOS.
+    // FIXME: The menus below should use execute_context_menu_later() instead to use native context menus on macOS.
     //        However, more work is needed to ensure that opened bookmark folders do not disappear when the native menu
     //        is shown.
+    auto position = event->globalPosition().toPoint();
+    auto context_menu_for_selected_item = [&]() -> WebView::Menu* {
+        if (m_selected_bookmark_menu_item_type == "bookmark")
+            return &m_tab->view().bookmark_context_menu();
+        if (m_selected_bookmark_menu_item_type == "folder")
+            return &m_tab->view().bookmark_folder_context_menu();
+        return nullptr;
+    };
 
     if (is<BookmarksBar>(item)) {
         m_selected_bookmark_menu_item_id = {};
         m_selected_bookmark_menu_target_folder_id = {};
         m_selected_bookmark_menu_parent_folder_id = {};
 
-        bookmarks_bar_context_menu().exec(event->globalPosition().toPoint());
+        replace_context_menu(m_context_menu, *this, m_tab->view().bookmarks_bar_context_menu()).popup(position);
     } else if (auto* button = as_if<QToolButton>(item)) {
-        auto* action = button->defaultAction();
-        extract_item_properties(action);
+        extract_item_properties(button->defaultAction());
+        auto* menu = context_menu_for_selected_item();
+        if (!menu)
+            return true;
 
-        auto set_button_context_menu_property = [button = QPointer { button }](bool open) {
-            if (button) {
-                button->setProperty(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY, open);
-                button->update();
-            }
-        };
-
-        ScopeGuard guard { [&]() { set_button_context_menu_property(false); } };
-        set_button_context_menu_property(true);
-
-        if (m_selected_bookmark_menu_item_type == "bookmark")
-            bookmark_context_menu().exec(event->globalPosition().toPoint());
-        else if (m_selected_bookmark_menu_item_type == "folder")
-            bookmark_folder_context_menu().exec(event->globalPosition().toPoint());
-    } else if (auto* menu = as_if<QMenu>(item)) {
-        if (auto* action = menu->actionAt(event->pos())) {
+        auto& context_menu = replace_context_menu(m_context_menu, *this, *menu);
+        button->setProperty(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY, true);
+        button->update();
+        QObject::connect(&context_menu, &QMenu::aboutToHide, button, [button] {
+            button->setProperty(BOOKMARK_CONTEXT_MENU_OPEN_PROPERTY, false);
+            button->update();
+        });
+        context_menu.popup(position);
+    } else if (auto* dropdown = as_if<QMenu>(item)) {
+        if (auto* action = dropdown->actionAt(event->pos())) {
             QObject* submenu = action->menu();
             extract_item_properties(submenu ?: action);
         }
 
         if (m_selected_bookmark_menu_item_type.isEmpty())
-            extract_item_properties(menu);
+            extract_item_properties(dropdown);
 
-        // FIXME: We create a temporary context menu parented to the dropdown. Otherwise, Qt complains that the context
-        //        menu's parent does not match the current topmost popup. It would be nice if we could figure out a way
-        //        to avoid this duplicated menu.
-        QMenu context_menu(menu);
+        auto* menu = context_menu_for_selected_item();
+        if (!menu)
+            return true;
 
-        if (m_selected_bookmark_menu_item_type == "bookmark")
-            repopulate_application_menu(context_menu, m_tab->view().bookmark_context_menu());
-        else if (m_selected_bookmark_menu_item_type == "folder")
-            repopulate_application_menu(context_menu, m_tab->view().bookmark_folder_context_menu());
-
-        if (!context_menu.isEmpty() && context_menu.exec(event->globalPosition().toPoint()))
-            menu->close();
+        // NB: The context menu is parented to the dropdown. Otherwise, Qt complains that the context menu's parent does
+        //     not match the current topmost popup.
+        auto& context_menu = replace_context_menu(m_context_menu, *dropdown, *menu);
+        QObject::connect(&context_menu, &QMenu::triggered, dropdown, [dropdown] {
+            dropdown->close();
+        });
+        context_menu.popup(position);
     }
 
     return true;
@@ -537,27 +539,6 @@ void BookmarksBar::extract_item_properties(QObject* item)
     m_selected_bookmark_menu_parent_folder_id = {};
     if (auto value = ak_string_from_qstring(item->property("parent_folder_id").toString()); !value.is_empty())
         m_selected_bookmark_menu_parent_folder_id = AK::move(value);
-}
-
-QMenu& BookmarksBar::bookmarks_bar_context_menu()
-{
-    if (!m_bookmarks_bar_context_menu)
-        m_bookmarks_bar_context_menu = create_application_menu(*this, m_tab->view().bookmarks_bar_context_menu());
-    return *m_bookmarks_bar_context_menu;
-}
-
-QMenu& BookmarksBar::bookmark_context_menu()
-{
-    if (!m_bookmark_context_menu)
-        m_bookmark_context_menu = create_application_menu(*this, m_tab->view().bookmark_context_menu());
-    return *m_bookmark_context_menu;
-}
-
-QMenu& BookmarksBar::bookmark_folder_context_menu()
-{
-    if (!m_bookmark_folder_context_menu)
-        m_bookmark_folder_context_menu = create_application_menu(*this, m_tab->view().bookmark_folder_context_menu());
-    return *m_bookmark_folder_context_menu;
 }
 
 }

@@ -9,6 +9,8 @@
 #include <AK/Platform.h>
 #include <LibWebView/Menu.h>
 
+#include <QPointer>
+
 class QAction;
 class QMenu;
 class QPoint;
@@ -35,5 +37,7 @@ void enable_menu_icons(QMenu&);
 #endif
 
 void execute_context_menu(QMenu&, QPoint const& global_position);
+QMenu& replace_context_menu(QPointer<QMenu>& shown_menu, QWidget& parent, WebView::Menu&);
+void execute_context_menu_later(QPointer<QMenu>& shown_menu, QWidget& parent, WebView::Menu&, QPoint const& global_position);
 
 }
