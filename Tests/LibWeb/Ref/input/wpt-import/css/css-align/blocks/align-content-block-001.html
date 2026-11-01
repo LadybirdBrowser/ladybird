@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<title>CSS Box Alignment: non-normal align-content establishes block formatting context root on blocks</title>
+<link rel="help" href="https://www.w3.org/TR/css-align-3/#align-block">
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-align/blocks/align-content-block-001-ref.html">
+
+<style>
+  html, body { margin: 0; font-size: 10px; line-height: 1; color: transparent; }
+  /* show bounds of test box without interfering with margin-collapsing */
+    .test { background: black; padding-right: 2px; margin: 0.5em; }
+  /* ensure float cannot penetrate */
+    .outer-float { float: left; height: 600px; /* reftest limit = 600px */
+                   margin: 0 1em; background: gray; }
+  /* ensure float is contained */
+    .float { float: left; background: orange; height: 2em }
+  /* ensure margin is contained */
+    .in-flow { margin-top: 1em; background: orange }
+</style>
+
+<div class="outer-float">FLT</div>
+<div class="test" style="align-content: start">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: center">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: end">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: baseline">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: flex-start">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: flex-end">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: unsafe start">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: unsafe center">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: unsafe end">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: safe start">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: safe center">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: safe end">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: space-between">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: space-around">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="align-content: start; align-content: normal">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
