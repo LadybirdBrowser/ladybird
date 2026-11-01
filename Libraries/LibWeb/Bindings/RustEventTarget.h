@@ -21,15 +21,18 @@ class RustEventTarget final : public DOM::EventTarget {
 public:
     // https://dom.spec.whatwg.org/#get-the-parent
     using GetTheParent = RustEventTarget* (*)(RustInterfaceCell * owner);
+    using EventListenerListChanged = void (*)(RustInterfaceCell* owner);
 
     static GC::Ref<RustEventTarget> create();
 
     void set_owner(InterfaceName, RustInterfaceCell&, GetTheParent);
+    void set_event_listener_list_changed_steps(EventListenerListChanged steps) { m_event_listener_list_changed = steps; }
 
 private:
     RustEventTarget() = default;
 
     virtual EventTarget* get_parent(DOM::Event const&) override;
+    virtual void event_listener_list_changed() override;
     virtual bool is_owned_by_rust_interface_object() const override { return true; }
     virtual GC::Ref<JS::HostObject> create_wrapper(JS::Realm&) override;
     virtual void visit_edges(Visitor&) override;
@@ -37,6 +40,7 @@ private:
     InterfaceName m_owner_interface_name { InterfaceName::Unknown };
     GC::Ptr<RustInterfaceCell> m_owner;
     GetTheParent m_get_the_parent { nullptr };
+    EventListenerListChanged m_event_listener_list_changed { nullptr };
 };
 
 // The Event that an object of an interface implemented in Rust owns, whose wrappers are the object's.
