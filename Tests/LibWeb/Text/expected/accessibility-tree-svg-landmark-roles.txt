@@ -1,0 +1,11 @@
+document
+  generic
+    generic
+      generic
+        generic
+      region "Named region"
+        generic
+      generic
+        generic
+      generic
+    generic

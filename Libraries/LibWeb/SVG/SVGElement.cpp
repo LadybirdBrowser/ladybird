@@ -384,7 +384,10 @@ void SVGElement::publish_presentation_attribute_style()
 bool SVGElement::should_include_in_accessibility_tree() const
 {
     bool has_title_or_desc = false;
-    auto role = role_from_role_attribute_value();
+    // Whether the element has a role token decides inclusion, so the name-dependent landmark check doesn't apply
+    // here. It computes the accessible name, and computing that asks for this element's default role, which depends
+    // on this check — so applying it here would recurse until the stack overflows.
+    auto role = role_from_role_value(this->role(), RoleSource::DefaultSemantics);
     for_each_child_of_type<SVGElement>([&has_title_or_desc](auto& child) {
         if ((is<SVGTitleElement>(child) || is<SVGDescElement>(child)) && !child.text_content()->utf16_view().trim_ascii_whitespace().is_empty()) {
             has_title_or_desc = true;
