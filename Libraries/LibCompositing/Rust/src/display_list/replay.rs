@@ -44,17 +44,26 @@ pub trait ReplayPainter {
     // `payload`; the command's spans point into `payload`.
     fn play_command(&mut self, command_type: DisplayListCommandType, command: &[u8], payload: &[u8]);
 
-    fn execute_run(&mut self, _run_index: usize, records: &[u8], scroll_offsets: &[FloatPoint]) {
-        replay_records(records, scroll_offsets, self);
+    fn execute_run(
+        &mut self,
+        _run_index: usize,
+        records: &[u8],
+        scroll_offsets: &[FloatPoint],
+        clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
+    ) {
+        replay_records(records, scroll_offsets, clip_space_matrix, self);
     }
 }
 
 /// Plays one stream of records: the records of a run, or the records nested in a command. Compositor
 /// metadata is skipped, a command whose bounds are empty or clipped away is culled, and each command plays
 /// inside its inline clips and transform. A scroll bar's thumb moves by the offset of its scroll node.
+/// `clip_space_matrix` gives the to-root matrix of the space an inline clip of its own space is applied in;
+/// a clip whose space it does not know applies in the space of its command.
 pub fn replay_records<Painter: ReplayPainter + ?Sized>(
     records: &[u8],
     scroll_offsets: &[FloatPoint],
+    clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
     painter: &mut Painter,
 ) {
     for_each_command(records, |header, _, payload| {
@@ -64,7 +73,14 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
         if header.bounding_rect.is_empty() || painter.would_be_fully_clipped_by_painter(header.bounding_rect) {
             return;
         }
+        // The matrix of the command's space, while an inline clip in a space of its own has the canvas in another.
+        let mut command_space_matrix = None;
         for clip in inline_clips_of(header, payload) {
+            let own_space_matrix = clip.has_own_space.then(|| clip_space_matrix(clip.space)).flatten();
+            if let Some(matrix) = &own_space_matrix {
+                command_space_matrix.get_or_insert_with(|| painter.canvas_matrix());
+                painter.set_matrix(matrix);
+            }
             match clip.kind {
                 InlineClipKind::Path => {
                     painter.push_clip_path_bytes(span_bytes(payload, clip.path_data), clip.path_winding_rule);
@@ -74,6 +90,11 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
                     corner_radii: clip.corner_radii,
                     mode: clip.mode,
                 }),
+            }
+            if own_space_matrix.is_some()
+                && let Some(matrix) = &command_space_matrix
+            {
+                painter.set_matrix(matrix);
             }
         }
         let inline_transform = inline_transform_of(header, payload);
@@ -101,6 +122,10 @@ pub fn replay_records<Painter: ReplayPainter + ?Sized>(
         }
         for _ in 0..header.inline_clip_count {
             painter.pop();
+        }
+        // Popping a clip pushed in another space restores the matrix it was pushed with.
+        if let Some(matrix) = &command_space_matrix {
+            painter.set_matrix(matrix);
         }
     });
 }
@@ -708,7 +733,13 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
             return;
         }
         let records = &self.tape[run.offset as usize..(run.offset + run.size) as usize];
-        self.painter.execute_run(run_index, records, self.scroll_offsets);
+        let palette = &self.palette;
+        let clip_space_matrix = |space: SpatialNodeIndex| {
+            let draw_space = palette.draw_spaces.get(space.0 as usize)?;
+            palette.to_root_matrices.get(draw_space.0 as usize).copied()
+        };
+        self.painter
+            .execute_run(run_index, records, self.scroll_offsets, &clip_space_matrix);
     }
 
     fn execute(&mut self) {
@@ -1015,7 +1046,13 @@ mod tests {
 
         fn play_command(&mut self, _command_type: DisplayListCommandType, _command: &[u8], _payload: &[u8]) {}
 
-        fn execute_run(&mut self, run_index: usize, _records: &[u8], _scroll_offsets: &[FloatPoint]) {
+        fn execute_run(
+            &mut self,
+            run_index: usize,
+            _records: &[u8],
+            _scroll_offsets: &[FloatPoint],
+            _clip_space_matrix: &dyn Fn(SpatialNodeIndex) -> Option<FloatMatrix4x4>,
+        ) {
             self.events.push(PainterEvent::Run(run_index));
         }
     }
@@ -1114,6 +1151,79 @@ mod tests {
             Color::TRANSPARENT,
             &[],
             painter,
+        );
+    }
+
+    #[test]
+    fn an_inline_clip_in_a_space_of_its_own_is_pushed_under_the_matrix_of_that_space() {
+        let clip_space = SpatialNodeIndex(7);
+        let clip_rect = FloatRect::new(1.0, 2.0, 3.0, 4.0);
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        builder.append_with_inline_clips(
+            &crate::display_list::commands::FillRect {
+                rect: IntRect::new(0, 0, 10, 10),
+                color: Color::default(),
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            },
+            &[],
+            ContextRef::default(),
+            &[
+                crate::display_list::builder::PendingInlineClip::intersecting_float_rect(clip_rect),
+                crate::display_list::builder::PendingInlineClip::intersecting_float_rect(clip_rect)
+                    .in_space(clip_space),
+            ],
+        );
+        let clip_space_matrix = translation_matrix(0.0, -50.0, 0.0);
+        let mut painter = RecordingPainter::new();
+        let command_space_matrix = painter.base_matrix;
+        replay_records(
+            builder.bytes(),
+            &[],
+            &|space| (space == clip_space).then_some(clip_space_matrix),
+            &mut painter,
+        );
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::PushClip(clip_rect),
+                PainterEvent::SetMatrix(clip_space_matrix),
+                PainterEvent::PushClip(clip_rect),
+                PainterEvent::SetMatrix(command_space_matrix),
+                PainterEvent::Pop,
+                PainterEvent::Pop,
+                PainterEvent::SetMatrix(command_space_matrix),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_inline_clip_in_an_unknown_space_is_pushed_in_the_space_of_its_command() {
+        let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+        builder.append_with_inline_clips(
+            &crate::display_list::commands::FillRect {
+                rect: IntRect::new(0, 0, 10, 10),
+                color: Color::default(),
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            },
+            &[],
+            ContextRef::default(),
+            &[
+                crate::display_list::builder::PendingInlineClip::intersecting_float_rect(FloatRect::new(
+                    1.0, 2.0, 3.0, 4.0,
+                ))
+                .in_space(SpatialNodeIndex(u32::MAX - 1)),
+            ],
+        );
+        let mut painter = RecordingPainter::new();
+        replay_records(builder.bytes(), &[], &|_| None, &mut painter);
+        assert_eq!(
+            painter.events,
+            vec![
+                PainterEvent::PushClip(FloatRect::new(1.0, 2.0, 3.0, 4.0)),
+                PainterEvent::Pop
+            ]
         );
     }
 

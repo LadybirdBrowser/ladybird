@@ -8,7 +8,7 @@ use super::effect_clip_plan::EffectClipPlan;
 use super::effect_geometry::{Extent, SpaceMatrices, changed_extent_through_filters, nearest_spreading_effects};
 use super::summary::{DisplayListSummary, LiveContent};
 use crate::display_list::builder::{
-    HEADER_SIZE, for_each_command, inline_transform_entry_offset, read_command, read_header,
+    HEADER_SIZE, for_each_command, inline_clips_of, inline_transform_entry_offset, read_command, read_header,
 };
 use crate::display_list::commands::{
     CanvasId, ClipMode, ClipNodeIndex, CompositorScrollbar, ContextRef, DeclareMaskContent, DisplayListCommandHeader,
@@ -224,6 +224,8 @@ fn inline_clip_lists_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_
             && same_entry_field(offset_of!(DisplayListInlineClip, path_winding_rule), 4)
             && same_entry_field(offset_of!(DisplayListInlineClip, kind), 1)
             && same_entry_field(offset_of!(DisplayListInlineClip, mode), 1)
+            && same_entry_field(offset_of!(DisplayListInlineClip, has_own_space), 1)
+            && same_entry_field(offset_of!(DisplayListInlineClip, space), 4)
             && first.span_bytes_at(a_entry + offset_of!(DisplayListInlineClip, path_data))
                 == second.span_bytes_at(b_entry + offset_of!(DisplayListInlineClip, path_data))
     })
@@ -1043,6 +1045,24 @@ impl DamageAccumulator {
         self.add_moved_command_damage(chains, old_command, new_command);
     }
 
+    // A command that draws in a different space than one of its inline clips shows another part of
+    // itself whenever one of the two spaces scrolls, though neither the command nor its context changed.
+    fn add_inline_clip_scroll_damage(
+        &mut self,
+        chains: &TreeChainComparison<'_>,
+        old_command: &CommandReference<'_>,
+        new_command: &CommandReference<'_>,
+    ) {
+        let has_inline_clip_in_its_own_space = |command: &CommandReference<'_>| {
+            inline_clips_of(&command.header, command.payload).any(|clip| clip.has_own_space)
+        };
+        if !has_inline_clip_in_its_own_space(old_command) && !has_inline_clip_in_its_own_space(new_command) {
+            return;
+        }
+        self.add_old_command_damage(chains, old_command);
+        self.add_new_command_damage(chains, new_command);
+    }
+
     fn add_scrollbar_scroll_damage(
         &mut self,
         chains: &TreeChainComparison<'_>,
@@ -1106,6 +1126,7 @@ impl DamageAccumulator {
             }
             if scroll_offsets_differ {
                 self.add_scrollbar_scroll_damage(chains, &old_command, &new_command);
+                self.add_inline_clip_scroll_damage(chains, &old_command, &new_command);
             }
         });
     }
@@ -1141,6 +1162,7 @@ impl DamageAccumulator {
                 damage.add_visual_context_damage(chains, old_command, new_command);
                 if scroll_offsets_differ {
                     damage.add_scrollbar_scroll_damage(chains, old_command, new_command);
+                    damage.add_inline_clip_scroll_damage(chains, old_command, new_command);
                 }
             };
 
@@ -1783,6 +1805,9 @@ mod tests {
             path_winding_rule: WindingRule::Nonzero,
             kind: InlineClipKind::Rect,
             mode: ClipMode::Intersect,
+            has_own_space: false,
+            space: SpatialNodeIndex::default(),
+            padding: 0,
         }
     }
 
@@ -2223,6 +2248,50 @@ mod tests {
                 IntRect::new(0, 0, 100, 100),
             ),
             Some(IntRect::new(9, 9, 82, 14))
+        );
+    }
+
+    #[test]
+    fn changed_scroll_offset_damages_a_draw_with_an_inline_clip_in_another_space() {
+        let tree = identity_tree();
+        let rect = IntRect::new(10, 10, 20, 20);
+        let draw_with_clip = |clip: DisplayListInlineClip| {
+            let mut display_list = TestDisplayList::default();
+            append_record(
+                &mut display_list,
+                &FillRect {
+                    rect,
+                    color: RED,
+                    compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                    background_color_animation_effect: EffectNodeIndex::NONE,
+                },
+                &[],
+                Some(rect),
+                ContextRef::default(),
+                &[clip],
+            );
+            display_list
+        };
+        let damage_after_scroll = |display_list: &TestDisplayList| {
+            damage_with_scroll_offsets(
+                display_list,
+                &tree,
+                &[FloatPoint::default(), FloatPoint::default()],
+                display_list,
+                &tree,
+                &[FloatPoint::default(), FloatPoint { x: 0.0, y: -40.0 }],
+                IntRect::new(0, 0, 100, 100),
+            )
+        };
+
+        assert!(damage_after_scroll(&draw_with_clip(rect_inline_clip(rect))).is_none_or(|damage| damage.is_empty()));
+        assert_eq!(
+            damage_after_scroll(&draw_with_clip(DisplayListInlineClip {
+                has_own_space: true,
+                space: SpatialNodeIndex(1),
+                ..rect_inline_clip(rect)
+            })),
+            Some(IntRect::new(9, 9, 22, 22))
         );
     }
 

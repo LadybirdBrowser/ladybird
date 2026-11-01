@@ -605,6 +605,7 @@ fn validate_inline_clip(payload: Payload, offset: usize) -> Result<(), Validatio
     payload.enum_at::<ClipMode>(offset + offset_of!(DisplayListInlineClip, mode))?;
     payload.enum_at::<WindingRule>(offset + offset_of!(DisplayListInlineClip, path_winding_rule))?;
     payload.span_at(offset + offset_of!(DisplayListInlineClip, path_data))?;
+    payload.bool_at(offset + offset_of!(DisplayListInlineClip, has_own_space))?;
     Ok(())
 }
 

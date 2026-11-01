@@ -196,7 +196,9 @@ pub unsafe extern "C" fn display_list_replay_records(
     };
     // SAFETY: The caller guarantees `callbacks` is live for the call.
     let mut painter = unsafe { *callbacks };
-    crate::display_list::replay::replay_records(records, scroll_offsets, &mut painter);
+    // NB: Nested records share the context of the command they are nested in, and none of their inline clips has a
+    //     space of its own.
+    crate::display_list::replay::replay_records(records, scroll_offsets, &|_| None, &mut painter);
 }
 
 /// # Safety

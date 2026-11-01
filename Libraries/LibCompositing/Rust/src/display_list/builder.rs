@@ -23,6 +23,7 @@ pub struct PendingInlineClip {
     path_winding_rule: WindingRule,
     serialized_path_bytes: Option<Rc<Vec<u8>>>,
     narrows_clip_rect_to_the_command_bounding_rect: bool,
+    space: Option<SpatialNodeIndex>,
 }
 
 impl PendingInlineClip {
@@ -42,6 +43,7 @@ impl PendingInlineClip {
             path_winding_rule: WindingRule::Nonzero,
             serialized_path_bytes: None,
             narrows_clip_rect_to_the_command_bounding_rect: false,
+            space: None,
         }
     }
 
@@ -76,7 +78,27 @@ impl PendingInlineClip {
         }
     }
 
+    /// Whether this clip alone keeps what it clips within `rect`, in the space of the command it is recorded on.
+    pub fn lies_within(&self, rect: FloatRect) -> bool {
+        self.space.is_none()
+            && self.mode == ClipMode::Intersect
+            && rect.contains_rect(self.clip_rect_or_path_device_bounds)
+    }
+
+    /// The same clip, applied in `space` rather than in the space of the command it ends up on, unless it already has
+    /// a space of its own. A clip in a space of its own does not bound the command, as the two spaces can move apart.
+    pub fn in_space(&self, space: SpatialNodeIndex) -> Self {
+        Self {
+            narrows_clip_rect_to_the_command_bounding_rect: false,
+            space: Some(self.space.unwrap_or(space)),
+            ..self.clone()
+        }
+    }
+
     fn header_bounding_rect_restriction(&self) -> Option<IntRect> {
+        if self.space.is_some() {
+            return None;
+        }
         match self.mode {
             ClipMode::Intersect => Some(enclosing_int_rect(self.clip_rect_or_path_device_bounds)),
             ClipMode::Difference => None,
@@ -418,6 +440,9 @@ impl DisplayListBuilder {
                 path_winding_rule: clip.path_winding_rule,
                 kind: clip.kind,
                 mode: clip.mode,
+                has_own_space: clip.space.is_some(),
+                space: clip.space.unwrap_or_default(),
+                padding: 0,
             };
             let entry_start = payload_start + entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
             entry.write_ffi_bytes(&mut self.bytes[entry_start..entry_start + INLINE_CLIP_ENTRY_SIZE]);
@@ -771,6 +796,9 @@ mod tests {
                     } else {
                         ClipMode::Difference
                     },
+                    has_own_space: reader.u8_at(std::mem::offset_of!(DisplayListInlineClip, has_own_space)) != 0,
+                    space: SpatialNodeIndex(reader.u32_at(std::mem::offset_of!(DisplayListInlineClip, space))),
+                    padding: 0,
                 }
             })
             .collect()
