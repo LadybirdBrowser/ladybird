@@ -316,7 +316,7 @@ public:
     virtual bool should_capture_web_content_output() const { return false; }
 
     virtual ErrorOr<LexicalPath> default_path_for_downloaded_file(ByteString const& file) const;
-    ErrorOr<LexicalPath> path_for_downloaded_file(ByteString const& file) const;
+    NonnullRefPtr<Core::Promise<LexicalPath>> path_for_downloaded_file(ByteString const& file) const;
 
     virtual void display_download_confirmation_dialog(StringView download_name, LexicalPath const& path) const;
     virtual void display_error_dialog(StringView error_message) const;
@@ -445,7 +445,7 @@ protected:
     virtual bool should_use_os_geolocation() const { return true; }
     virtual SiteIsolationMode default_site_isolation_mode() const { return SiteIsolationMode::IFrame; }
 
-    virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] ByteString const& file) const { return {}; }
+    virtual NonnullRefPtr<Core::Promise<ByteString>> ask_user_for_download_path(ByteString const& file) const;
 
     virtual void display_crash_report_notification([[maybe_unused]] ByteString const& report_name) { }
 
