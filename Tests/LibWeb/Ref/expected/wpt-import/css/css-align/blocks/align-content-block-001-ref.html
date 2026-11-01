@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<title>CSS Box Alignment: non-normal align-content establishes block formatting context root on blocks</title>
+<link rel="author" title="Elika J. Etemad" href="http://fantasai.inkedblade.net/contact">
+
+<style>
+  html, body { margin: 0; font-size: 10px; line-height: 1; color: transparent; }
+  /* show bounds of test box without interfering with margin-collapsing */
+    .test { background: black; padding-right: 2px; margin: 0.5em; }
+  /* ensure float cannot penetrate */
+    .outer-float { float: left; height: 600px; /* reftest limit = 600px */
+                   margin: 0 1em; background: gray; }
+  /* ensure float is contained */
+    .float { float: left; background: orange; height: 2em }
+  /* ensure margin is contained */
+    .in-flow { margin-top: 1em; background: orange }
+
+  /* reference code */
+    .test { overflow: hidden; display: flow-root; }
+</style>
+
+<div class="outer-float">FLT</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>
+<div class="test" style="overflow: visible; display: block">
+  <div class="in-flow"><div class="float">FLT</div>BLOCK</div>
+</div>

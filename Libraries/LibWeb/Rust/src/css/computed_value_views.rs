@@ -1110,6 +1110,15 @@ impl<'a> ComputedValuesView<'a> {
             return true;
         }
 
+        // https://drafts.csswg.org/css-align-3/#distribution-block
+        // All values other than normal force the block container to establish an independent formatting context.
+        if self.align_content() != crate::css::css_enums::align_content::NORMAL
+            && display.is_flow_inside()
+            && !display.is_inline_outside()
+        {
+            return true;
+        }
+
         false
     }
 

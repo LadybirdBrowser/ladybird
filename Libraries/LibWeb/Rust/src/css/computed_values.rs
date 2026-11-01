@@ -3002,7 +3002,7 @@ impl AlignmentValues {
             flex_grow: 0.0,
             flex_shrink: 1.0,
             order: 0,
-            align_content: align_content::STRETCH,
+            align_content: align_content::NORMAL,
             align_items: align_items::STRETCH,
             align_self: align_self::AUTO,
             align_items_is_last_baseline: false,
@@ -3845,32 +3845,26 @@ impl FontValues {
     }
 }
 
-// Layout only needs the position keyword, which is the last one in a list such as `safe center`. Last baseline
-// alignment, and baseline alignment of content, are not implemented. They resolve to `unsupported`, the initial value
-// of the property, which is what layout used when it could not parse them.
-fn alignment_position_keyword(data: &RetainedStyleValueData, is_content: bool, unsupported: u16) -> Option<u16> {
+// Layout only needs the position keyword, which is the last one in a list such as `safe center`.
+fn alignment_position_keyword(data: &RetainedStyleValueData, is_content: bool) -> Option<u16> {
     use crate::css::css_enums::keyword as k;
     use crate::css::style_value::StyleValueData;
 
     match data.optional_data()? {
-        StyleValueData::Keyword { keyword: k::BASELINE } if is_content => Some(unsupported),
         StyleValueData::Keyword { keyword } => Some(*keyword),
         StyleValueData::ValueList { values, .. } => match values.as_slice() {
             [first, _]
-                if matches!(
-                    first.optional_data(),
-                    Some(StyleValueData::Keyword { keyword: k::LAST })
-                ) =>
+                if !is_content
+                    && matches!(
+                        first.optional_data(),
+                        Some(StyleValueData::Keyword { keyword: k::LAST })
+                    ) =>
             {
                 // https://drafts.csswg.org/css-align-3/#baseline-values
                 // The fallback alignment for last baseline is safe self-end (for self-alignment) or safe end (for
                 // content-distribution).
                 // FIXME: Participate in last-baseline alignment instead of always using the fallback alignment.
-                if is_content {
-                    Some(unsupported)
-                } else {
-                    Some(k::SELF_END)
-                }
+                Some(k::SELF_END)
             }
             values => match values.last()?.optional_data()? {
                 StyleValueData::Keyword { keyword } => Some(*keyword),
@@ -3931,7 +3925,7 @@ pub(crate) fn rust_build_alignment_group(
     row_gap: &RetainedStyleValueData,
     parent: Option<GroupPayloadRef<'_>>,
 ) -> *const c_void {
-    use crate::css::css_enums::{self, keyword as k};
+    use crate::css::css_enums;
     use crate::css::style_value::StyleValueData;
 
     let build_or_reuse_group_payload = || {
@@ -3941,10 +3935,9 @@ pub(crate) fn rust_build_alignment_group(
                 _ => None,
             }
         };
-        let alignment_code =
-            |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>, is_content: bool, unsupported: u16| {
-                map(alignment_position_keyword(data, is_content, unsupported)?)
-            };
+        let alignment_code = |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>, is_content: bool| {
+            map(alignment_position_keyword(data, is_content)?)
+        };
         let built = AlignmentValues {
             webkit_box_orient: keyword_code(webkit_box_orient, crate::css::css_enums::keyword_to_webkit_box_orient)?,
             flex_direction: keyword_code(flex_direction, crate::css::css_enums::keyword_to_flex_direction)?,
@@ -3953,14 +3946,14 @@ pub(crate) fn rust_build_alignment_group(
             flex_grow,
             flex_shrink,
             order,
-            align_content: alignment_code(align_content, css_enums::keyword_to_align_content, true, k::NORMAL)?,
-            align_items: alignment_code(align_items, css_enums::keyword_to_align_items, false, k::NORMAL)?,
-            align_self: alignment_code(align_self, css_enums::keyword_to_align_self, false, k::AUTO)?,
+            align_content: alignment_code(align_content, css_enums::keyword_to_align_content, true)?,
+            align_items: alignment_code(align_items, css_enums::keyword_to_align_items, false)?,
+            align_self: alignment_code(align_self, css_enums::keyword_to_align_self, false)?,
             align_items_is_last_baseline: alignment_is_last_baseline(align_items),
             align_self_is_last_baseline: alignment_is_last_baseline(align_self),
-            justify_content: alignment_code(justify_content, css_enums::keyword_to_justify_content, true, k::NORMAL)?,
-            justify_items: alignment_code(justify_items, css_enums::keyword_to_justify_items, false, k::LEGACY)?,
-            justify_self: alignment_code(justify_self, css_enums::keyword_to_justify_self, false, k::AUTO)?,
+            justify_content: alignment_code(justify_content, css_enums::keyword_to_justify_content, true)?,
+            justify_items: alignment_code(justify_items, css_enums::keyword_to_justify_items, false)?,
+            justify_self: alignment_code(justify_self, css_enums::keyword_to_justify_self, false)?,
             align_items_overflow: alignment_overflow(align_items),
             justify_items_overflow: alignment_overflow(justify_items),
             align_self_overflow: alignment_overflow(align_self),
