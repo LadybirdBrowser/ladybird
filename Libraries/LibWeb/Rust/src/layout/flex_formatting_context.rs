@@ -201,13 +201,84 @@ struct ItemRunsOfferedToBlockSizeMeasurements {
     space_for_items: AvailableSpace,
 }
 
+#[derive(Clone, Copy)]
+struct FlexContainerConstants<'pass> {
+    style: StyleValues<'pass>,
+    is_row_layout: bool,
+    inline_axis_is_horizontal: bool,
+    main_axis_is_horizontal: bool,
+    is_legacy_webkit_box: bool,
+    used_flex_wrap: u8,
+    is_direction_reverse: bool,
+    cross_axis_is_reverse: bool,
+    main_axis_writing_mode_start_is_reverse: bool,
+    main_gap: &'pass ComputedGap,
+    cross_gap: &'pass ComputedGap,
+}
+
+impl<'pass> FlexContainerConstants<'pass> {
+    // https://www.w3.org/TR/css-flexbox-1/#flex-direction-property
+    fn of(run: &FormattingContextRun<'pass>) -> Self {
+        let style = StyleValues::for_node(&run.callbacks, run.box_);
+        let flex_direction = style.effective_flex_direction();
+        let is_row_layout = matches!(flex_direction, flex_direction::ROW | flex_direction::ROW_REVERSE);
+        let inline_axis_is_horizontal =
+            !geometry::Frame::of(style.writing_mode()).is_orthogonal_to(run.callbacks.frame);
+        let main_axis_is_horizontal = inline_axis_is_horizontal == is_row_layout;
+        let is_legacy_webkit_box = style.display().inside == display_inside::_WEBKIT_BOX;
+        // AD-HOC: A legacy webkit box is always single-line; `flex-wrap` does not apply, matching other engines.
+        let used_flex_wrap = if is_legacy_webkit_box {
+            flex_wrap::NOWRAP
+        } else {
+            style.flex_wrap()
+        };
+        let main_axis_is_parallel_to_inline_axis = main_axis_is_horizontal == inline_axis_is_horizontal;
+        let mut cross_axis_is_reverse = if main_axis_is_parallel_to_inline_axis {
+            style.block_axis_is_reverse()
+        } else {
+            style.inline_axis_is_reverse()
+        };
+        if used_flex_wrap == flex_wrap::WRAP_REVERSE {
+            cross_axis_is_reverse = !cross_axis_is_reverse;
+        }
+        // Whether the start side of the writing mode, in the main axis, is the frame's right or bottom side.
+        let main_axis_writing_mode_start_is_reverse = if is_row_layout {
+            style.inline_axis_is_reverse()
+        } else {
+            style.block_axis_is_reverse()
+        };
+        let flex_direction_is_reverse = matches!(
+            flex_direction,
+            flex_direction::COLUMN_REVERSE | flex_direction::ROW_REVERSE
+        );
+        let (main_gap, cross_gap) = if is_row_layout {
+            (style.column_gap(), style.row_gap())
+        } else {
+            (style.row_gap(), style.column_gap())
+        };
+        Self {
+            style,
+            is_row_layout,
+            inline_axis_is_horizontal,
+            main_axis_is_horizontal,
+            is_legacy_webkit_box,
+            used_flex_wrap,
+            is_direction_reverse: main_axis_writing_mode_start_is_reverse != flex_direction_is_reverse,
+            cross_axis_is_reverse,
+            main_axis_writing_mode_start_is_reverse,
+            main_gap,
+            cross_gap,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(super) struct FlexFormattingContext<'pass> {
     run: FormattingContextRun<'pass>,
     flex_lines: Vec<FlexLine>,
     flex_items: Vec<FlexItem<'pass>>,
     derived_baselines_of_root_box: DerivedBaselines,
-    flex_direction: u8,
+    container: FlexContainerConstants<'pass>,
     available_space_for_items: Option<AxisAgnosticAvailableSpace>,
     available_space: Option<AvailableSpace>,
     layout_input: Option<LayoutInput>,
@@ -250,13 +321,12 @@ impl formatting_context::ChildRunShapes for FlexFormattingContext<'_> {
 
 impl<'pass> FlexFormattingContext<'pass> {
     pub(super) fn new(run: &FormattingContextRun<'pass>, container_cells: used_values::RootInputCells) -> Self {
-        let flex_direction = StyleValues::for_node(&run.callbacks, run.box_).effective_flex_direction();
         Self {
             run: run.clone(),
             flex_lines: Vec::new(),
             flex_items: Vec::new(),
             derived_baselines_of_root_box: DerivedBaselines::default(),
-            flex_direction,
+            container: FlexContainerConstants::of(run),
             available_space_for_items: None,
             available_space: None,
             layout_input: None,
@@ -306,19 +376,15 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn is_row_layout(&self) -> bool {
-        matches!(self.flex_direction, flex_direction::ROW | flex_direction::ROW_REVERSE)
+        self.container.is_row_layout
     }
 
     fn is_legacy_webkit_box(&self) -> bool {
-        self.style(self.run.box_).display().inside == display_inside::_WEBKIT_BOX
+        self.container.is_legacy_webkit_box
     }
 
     fn used_flex_wrap(&self) -> u8 {
-        // AD-HOC: A legacy webkit box is always single-line; `flex-wrap` does not apply, matching other engines.
-        if self.is_legacy_webkit_box() {
-            return flex_wrap::NOWRAP;
-        }
-        self.style(self.run.box_).flex_wrap()
+        self.container.used_flex_wrap
     }
 
     fn flex_shrink_factor(&self, node: Node) -> f64 {
@@ -336,7 +402,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn main_axis_is_horizontal(&self) -> bool {
-        self.inline_axis_is_horizontal(self.run.box_) == self.is_row_layout()
+        self.container.main_axis_is_horizontal
     }
 
     fn cross_axis_is_horizontal(&self) -> bool {
@@ -368,40 +434,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.main_axis_is_horizontal() == self.inline_axis_is_horizontal(node)
     }
 
-    fn inline_axis_is_reverse(&self, node: Node) -> bool {
-        self.style(node).inline_axis_is_reverse()
-    }
-
-    fn block_axis_is_reverse(&self, node: Node) -> bool {
-        self.style(node).block_axis_is_reverse()
-    }
-
     fn cross_axis_is_reverse(&self) -> bool {
-        let mut reverse = if self.main_axis_is_parallel_to_inline_axis(self.run.box_) {
-            self.block_axis_is_reverse(self.run.box_)
-        } else {
-            self.inline_axis_is_reverse(self.run.box_)
-        };
-        if self.used_flex_wrap() == flex_wrap::WRAP_REVERSE {
-            reverse = !reverse;
-        }
-        reverse
-    }
-
-    // Whether the start side of the writing mode, in the main axis, is the frame's right or bottom side.
-    fn main_axis_writing_mode_start_is_reverse(&self) -> bool {
-        if self.is_row_layout() {
-            self.inline_axis_is_reverse(self.run.box_)
-        } else {
-            self.block_axis_is_reverse(self.run.box_)
-        }
+        self.container.cross_axis_is_reverse
     }
 
     // Whether the given start, end, left or right value of justify-content packs the flex items against the main
     // axis side that is the frame's right or bottom side.
     // https://drafts.csswg.org/css-align-3/#positional-values
     fn justify_content_position_is_reverse(&self, justify: u8) -> bool {
-        let start_is_reverse = self.main_axis_writing_mode_start_is_reverse();
+        let start_is_reverse = self.container.main_axis_writing_mode_start_is_reverse;
         match justify {
             justify_content::START => start_is_reverse,
             justify_content::END => !start_is_reverse,
@@ -437,18 +478,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn is_direction_reverse(&self) -> bool {
-        let mut reverse = if self.is_row_layout() {
-            self.inline_axis_is_reverse(self.run.box_)
-        } else {
-            self.block_axis_is_reverse(self.run.box_)
-        };
-        if matches!(
-            self.flex_direction,
-            flex_direction::COLUMN_REVERSE | flex_direction::ROW_REVERSE
-        ) {
-            reverse = !reverse;
-        }
-        reverse
+        self.container.is_direction_reverse
     }
 
     // Both sizes are content sizes; the ratio applies to the border box under box-sizing: border-box.
@@ -1518,23 +1548,15 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn main_gap(&self) -> CssPixels {
-        let style = self.style(self.run.box_);
-        let gap = if self.is_row_layout() {
-            style.column_gap()
-        } else {
-            style.row_gap()
-        };
-        gap.to_px(self.inner_main_size_used(&self.container_cells))
+        self.container
+            .main_gap
+            .to_px(self.inner_main_size_used(&self.container_cells))
     }
 
     fn cross_gap(&self) -> CssPixels {
-        let style = self.style(self.run.box_);
-        let gap = if self.is_row_layout() {
-            style.row_gap()
-        } else {
-            style.column_gap()
-        };
-        gap.to_px(self.inner_cross_size_used(&self.container_cells))
+        self.container
+            .cross_gap
+            .to_px(self.inner_cross_size_used(&self.container_cells))
     }
 
     // https://www.w3.org/TR/css-flexbox-1/#algo-line-break
@@ -1578,6 +1600,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         } else {
             self.available_space_for_items.unwrap().main
         };
+        let main_gap = self.main_gap();
         let mut line = FlexLine::default();
         let mut line_main_size = CssPixels::default();
         for index in 0..self.flex_items.len() {
@@ -1593,7 +1616,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             line.items.push(index);
             line_main_size += outer;
             // CSS-FLEXBOX-2: Account for gap between flex items.
-            line_main_size += self.main_gap();
+            line_main_size += main_gap;
         }
         if reverse {
             line.items.reverse();
@@ -1909,10 +1932,9 @@ impl<'pass> FlexFormattingContext<'pass> {
         // 1. If the flex container has a definite main size, then the post-flexing main sizes of its flex items are treated as definite.
         // 2. If a flex item’s flex basis is definite, then its post-flexing main size is also definite.
         // AD-HOC: 3. If a flex item’s main size was resolved from its intrinsic aspect ratio, then its post-flexing main size is also definite.
-        let item_is_orthogonal = self.inline_axis_is_horizontal(self.flex_items[index].box_)
-            != self.inline_axis_is_horizontal(self.run.box_);
-        let container_has_vertical_inline_main_axis =
-            self.is_row_layout() && !self.inline_axis_is_horizontal(self.run.box_);
+        let item_is_orthogonal =
+            self.inline_axis_is_horizontal(self.flex_items[index].box_) != self.container.inline_axis_is_horizontal;
+        let container_has_vertical_inline_main_axis = self.is_row_layout() && !self.container.inline_axis_is_horizontal;
         // INTEROP: The block size of a non-replaced item with an aspect ratio follows from its inline size, so other
         //          engines treat its post-flexing main size as definite when the main axis is its block axis.
         let node = self.flex_items[index].box_;
@@ -1992,7 +2014,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn alignment_for_item(&self, node: Node) -> u8 {
         match self.style(node).align_self() {
-            align_self::AUTO => self.style(self.run.box_).align_items(),
+            align_self::AUTO => self.container.style.align_items(),
             align_self::END => align_items::END,
             align_self::NORMAL => align_items::NORMAL,
             align_self::SELF_START => align_items::SELF_START,
@@ -2265,7 +2287,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             && self.computed_cross_min_size(self.run.box_).0.is_auto())
             // align-content is stretch,
             || !matches!(
-                self.style(self.run.box_).align_content(),
+                self.container.style.align_content(),
                 align_content::STRETCH | align_content::NORMAL
             )
         {
@@ -2521,7 +2543,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             let mut space_distribution = SpaceDistribution::default();
             let mut initial_offset = CssPixels::default();
             let number_of_items = item_count;
-            let justify = self.style(self.run.box_).justify_content();
+            let justify = self.container.style.justify_content();
             if auto_margins == 0 && number_of_items > 0 {
                 match justify {
                     justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
@@ -2795,7 +2817,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let mut space_distribution = SpaceDistribution::default();
         let mut place_backwards = false;
         let mut iterate_backwards = false;
-        match self.style(self.run.box_).align_content() {
+        match self.container.style.align_content() {
             align_content::START => {
                 iterate_backwards = reverse_cross_axis;
             }
@@ -3067,7 +3089,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let space = self.available_space_for_items.unwrap().space;
         !self.run.should_collect_devtools_layout_data
             && !space.inline_size.is_intrinsic_sizing_constraint()
-            && self.inline_axis_is_horizontal(self.run.box_)
+            && self.container.inline_axis_is_horizontal
     }
 
     fn offer_item_runs_to_block_size_measurements(&mut self, measured_at: ItemBlockSizeMeasuredAt) {
@@ -3205,7 +3227,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
         let style = self.style(node);
         let is_last_baseline = if style.align_self() == align_self::AUTO {
-            self.style(self.run.box_).align_items_is_last_baseline()
+            self.container.style.align_items_is_last_baseline()
         } else {
             style.align_self_is_last_baseline()
         };
@@ -3234,7 +3256,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // assuming both the child and the flex container were fixed-size boxes of their used size.
         // (For this purpose, auto margins are treated as zero.
 
-        let justify = self.style(self.run.box_).justify_content();
+        let justify = self.container.style.justify_content();
         let main_alignment = match justify {
             justify_content::START | justify_content::END | justify_content::LEFT | justify_content::RIGHT => {
                 if self.justify_content_position_is_reverse(justify) {
@@ -3379,7 +3401,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 items,
             });
         }
-        let style = self.style(self.run.box_);
+        let style = self.container.style;
         let data = formatting_context::FlexLayoutData {
             align_content: style.align_content(),
             align_items: style.align_items(),
@@ -3603,13 +3625,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn automatic_block_size_from_line_cross_sizes(&self) -> CssPixels {
         // https://drafts.csswg.org/css-align-3/#gap-percent
         // In Flex Layout: Cyclic percentage sizes resolve against zero in all cases.
-        let style = self.style(self.run.box_);
-        let gap = if self.is_row_layout() {
-            style.row_gap()
-        } else {
-            style.column_gap()
-        };
-        let cross_gap_resolved_against_zero = gap.to_px(CssPixels::default());
+        let cross_gap_resolved_against_zero = self.container.cross_gap.to_px(CssPixels::default());
         let mut line_cross_size_sum = self
             .flex_lines
             .iter()
