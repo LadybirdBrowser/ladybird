@@ -1654,16 +1654,16 @@ void Application::update_reopen_recently_closed_actions() const
 
 void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id, Optional<String const&> parent_folder_id)
 {
-    if (auto* active_tab = this->active_tab()) {
+    if (auto* active_tab = this->active_tab(); active_tab && m_active_window) {
         auto position = active_tab->view().mapToGlobal(QPoint { content_position.x(), content_position.y() });
-        active_tab->bookmarks_bar().show_context_menu(position, item, target_folder_id, parent_folder_id);
+        m_active_window->bookmarks_bar().show_context_menu(position, item, target_folder_id, parent_folder_id);
     }
 }
 
 Optional<Application::BookmarkID> Application::bookmark_item_id_for_context_menu() const
 {
-    if (auto* active_tab = this->active_tab()) {
-        auto const& bookmarks_bar = active_tab->bookmarks_bar();
+    if (m_active_window) {
+        auto const& bookmarks_bar = m_active_window->bookmarks_bar();
 
         return Application::BookmarkID {
             .id = bookmarks_bar.selected_bookmark_menu_item_id(),

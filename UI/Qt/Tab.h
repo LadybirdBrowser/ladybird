@@ -21,7 +21,6 @@
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/TabPerformanceStats.h>
-#include <UI/Qt/BookmarksBar.h>
 #include <UI/Qt/FindInPageWidget.h>
 #include <UI/Qt/LocationEdit.h>
 #include <UI/Qt/PermissionPromptPopover.h>
@@ -132,10 +131,6 @@ public:
     void find_previous();
     void find_next();
 
-    BookmarksBar& bookmarks_bar() { return *m_bookmarks_bar; }
-    bool has_bookmarks_bar_in_page() const;
-    void update_bookmarks_bar_visibility();
-
     void request_close();
     void request_window_close_preflight(Function<void(bool)> on_complete);
     void cancel_window_close_preflight();
@@ -224,20 +219,6 @@ private:
     void update_tab_icon();
     int tab_index();
     void set_screen_wake_lock_state(Web::ScreenWakeLockState);
-
-    bool can_expand_bookmarks_bar_on_hover() const;
-    bool cursor_is_over_bookmarks_bar_hover_region() const;
-    void update_bookmarks_bar_hover();
-    void set_bookmarks_bar_hover_expanded(bool);
-    void update_bookmarks_bar_geometry();
-
-    BookmarksBar* m_bookmarks_bar { nullptr };
-    QWidget* m_bookmarks_bar_container { nullptr };
-    QTimer* m_bookmarks_bar_hover_expand_timer { nullptr };
-    QTimer* m_bookmarks_bar_hover_collapse_timer { nullptr };
-    QVariantAnimation* m_bookmarks_bar_hover_expand_animation { nullptr };
-    bool m_bookmarks_bar_hover_expanded { false };
-    qreal m_bookmarks_bar_hover_expand_progress { 0.0 };
 
     QPointer<MessagePopover> m_private_session_popover;
     QPointer<SiteSettingsPopover> m_site_settings_popover;

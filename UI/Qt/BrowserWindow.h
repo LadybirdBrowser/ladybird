@@ -161,6 +161,7 @@ public:
     Tab* tab_at(int index) const { return m_tabs_container->tab(index); }
     TabWidget& tab_widget() const { return *m_tabs_container; }
     WindowToolbar& toolbar() const { return m_tabs_container->toolbar(); }
+    BookmarksBar& bookmarks_bar() const { return m_tabs_container->bookmarks_bar(); }
     // Closes a tab that isn't worth reopening, such as an empty tab that other tabs took the place of.
     void close_tab_without_keeping_it(int index);
 

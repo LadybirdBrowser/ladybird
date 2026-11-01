@@ -637,9 +637,7 @@ void BrowserWindow::update_tabs_display()
 
 void BrowserWindow::rebuild_bookmarks_menu()
 {
-    for_each_tab([](Tab& tab) {
-        tab.bookmarks_bar().rebuild();
-    });
+    m_tabs_container->bookmarks_bar().rebuild();
 }
 
 void BrowserWindow::on_devtools_enabled()
@@ -1536,9 +1534,7 @@ void BrowserWindow::enter_fullscreen()
     m_restore_to_maximized = isMaximized();
     showFullScreen();
 
-    for_each_tab([](Tab& tab) {
-        tab.update_bookmarks_bar_visibility();
-    });
+    m_tabs_container->update_bookmarks_bar_visibility();
 }
 
 void BrowserWindow::exit_fullscreen()
@@ -1553,9 +1549,7 @@ void BrowserWindow::exit_fullscreen()
     else
         showNormal();
 
-    for_each_tab([](Tab& tab) {
-        tab.update_bookmarks_bar_visibility();
-    });
+    m_tabs_container->update_bookmarks_bar_visibility();
 
     // A crash report that came in while the toolbar was hidden can be offered now, even on a tab other than the one
     // that was current back then.
@@ -1900,8 +1894,8 @@ void BrowserWindow::appearance_changed()
     SystemAppearance::the().apply_interface_theme(WebView::Application::settings().appearance().interface_theme);
     update_menu_bar_visibility();
 
+    m_tabs_container->update_bookmarks_bar_visibility();
     for_each_tab([](Tab& tab) {
-        tab.update_bookmarks_bar_visibility();
         tab.view().update_palette();
     });
 }
