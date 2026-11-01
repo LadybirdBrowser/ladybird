@@ -1,0 +1,12 @@
+Ladybird sends the text that its console formatted for a count, a
+timeLog(), and a timeEnd(), as a log message. V8 does the same in its
+V8Console::Count() and V8Console::TimeEnd(), which report “label: count”
+and “label: duration ms” as the message text. And WebKit’s
+InspectorConsoleAgent::count() logs “label: count”, with a countReset()
+of a label that has no count as a warning. Gecko instead sends counter
+and timer fields, which its DevTools client formats itself in
+formatMessageParametersAndText(). That client shows a failed assertion
+at the error level, prefixing its message with “Assertion failed: ” —
+so, since Ladybird’s console already prefixed it, Ladybird sends it as
+an error. And V8, WebKit, and Gecko all report a group’s start and end
+as messages of their own, as Ladybird now does.
