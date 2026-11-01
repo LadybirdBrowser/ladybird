@@ -12,11 +12,6 @@
 
 namespace Compositing {
 
-static AsyncScrollNodeID scroll_node_id_for(Web::UniqueNodeID document_id, Compositing::SpatialNodeIndex scroll_node_index)
-{
-    return { .document_id = document_id, .scroll_node_index = scroll_node_index };
-}
-
 Web::AsyncScrollNodeKind async_scroll_node_kind_for(Compositing::CompositorScrollNodeKind kind)
 {
     switch (kind) {
@@ -57,14 +52,14 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
 
     display_list.for_each_compositor_metadata([&](Compositing::ContextRef context, Compositing::DisplayListCommandType command_type, ReadonlyBytes payload) {
         auto append_wheel_hit_test_target = [&](auto const& command, Gfx::CornerRadii corner_radii) {
-            Optional<AsyncScrollNodeID> target_node_id;
+            Optional<Compositing::SpatialNodeIndex> target_scroll_node_index;
             if (command.target_scroll_node_index.value())
-                target_node_id = scroll_node_id_for(command.document_id, command.target_scroll_node_index);
+                target_scroll_node_index = command.target_scroll_node_index;
             async_scrolling_state.wheel_hit_test_targets.append({
                 .context = context,
                 .rect = command.rect,
                 .corner_radii = corner_radii,
-                .target_node_id = target_node_id,
+                .target_scroll_node_index = target_scroll_node_index,
                 .paint_order_index = next_paint_order_index++,
             });
         };
@@ -81,13 +76,13 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
         }
         case Compositing::DisplayListCommandType::CompositorScrollNode: {
             auto command = Compositing::read_display_list_object<Compositing::CompositorScrollNode>(payload);
-            Optional<AsyncScrollNodeID> parent_node_id;
+            Optional<Compositing::SpatialNodeIndex> parent_scroll_node_index;
             if (command.parent_scroll_node_index.value())
-                parent_node_id = scroll_node_id_for(command.document_id, command.parent_scroll_node_index);
+                parent_scroll_node_index = command.parent_scroll_node_index;
             async_scrolling_state.scroll_nodes.append({
-                .node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
+                .scroll_node_index = command.scroll_node_index,
                 .stable_node_id = stable_scroll_node_id_for(command.scrollable_node_id, command.scroll_node_kind, command.pseudo_element_type),
-                .parent_node_id = parent_node_id,
+                .parent_scroll_node_index = parent_scroll_node_index,
                 .scrollport_rect = command.scrollport_rect,
                 .min_scroll_offset = command.min_scroll_offset,
                 .max_scroll_offset = command.max_scroll_offset,
@@ -135,7 +130,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
             async_scrolling_state.scroll_chaining_barriers.append({
                 .context = context,
                 .rect = command.rect,
-                .scroll_node_id_above_barrier = scroll_node_id_for(command.document_id, command.scroll_node_index_above_barrier),
+                .scroll_node_index_above_barrier = command.scroll_node_index_above_barrier,
                 .keeps_horizontal_scrolls = command.keeps_horizontal_scrolls,
                 .keeps_vertical_scrolls = command.keeps_vertical_scrolls,
             });
@@ -144,7 +139,6 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
         case Compositing::DisplayListCommandType::CompositorScrollbar: {
             auto command = Compositing::read_display_list_object<Compositing::CompositorScrollbar>(payload);
             async_scrolling_state.scrollbars.append({
-                .scroll_node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
                 .scroller_stable_node_id = {},
                 .scroll_node_index = command.scroll_node_index,
                 .context = context,
@@ -168,7 +162,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
         case Compositing::DisplayListCommandType::CompositorSnapContainer: {
             auto command = Compositing::read_display_list_object<Compositing::CompositorSnapContainer>(payload);
             async_scrolling_state.snap_containers.append({
-                .node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
+                .scroll_node_index = command.scroll_node_index,
                 .geometry = {
                     .snapport = command.snapport,
                     .min_scroll_offset = command.min_scroll_offset,
@@ -185,7 +179,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
             auto command = Compositing::read_display_list_object<Compositing::CompositorSnapArea>(payload);
             auto& snap_containers = async_scrolling_state.snap_containers;
             // A snap container's areas are recorded right after it.
-            if (snap_containers.is_empty() || snap_containers.last().node_id != scroll_node_id_for(command.document_id, command.scroll_node_index)) {
+            if (snap_containers.is_empty() || snap_containers.last().scroll_node_index != command.scroll_node_index) {
                 dbgln("Ignoring a snap area recorded without its snap container");
                 break;
             }
@@ -205,7 +199,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Compositing::Display
 
     for (auto& scrollbar : async_scrolling_state.scrollbars) {
         for (auto const& scroll_node : async_scrolling_state.scroll_nodes) {
-            if (scroll_node.node_id == scrollbar.scroll_node_id) {
+            if (scroll_node.scroll_node_index == scrollbar.scroll_node_index) {
                 scrollbar.scroller_stable_node_id = scroll_node.stable_node_id;
                 break;
             }
@@ -266,10 +260,8 @@ JsonObject async_scrolling_state_to_json(AsyncScrollingState const& state)
     JsonArray scroll_nodes;
     for (auto const& scroll_node : state.scroll_nodes) {
         JsonObject node;
-        node.set("documentID"sv, scroll_node.node_id.document_id.value());
-        node.set("scrollNodeIndex"sv, scroll_node.node_id.scroll_node_index.value());
-        node.set("parentDocumentID"sv, scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->document_id.value() : 0);
-        node.set("parentScrollNodeIndex"sv, scroll_node.parent_node_id.has_value() ? scroll_node.parent_node_id->scroll_node_index.value() : 0);
+        node.set("scrollNodeIndex"sv, scroll_node.scroll_node_index.value());
+        node.set("parentScrollNodeIndex"sv, scroll_node.parent_scroll_node_index.has_value() ? scroll_node.parent_scroll_node_index->value() : 0);
         node.set("isViewport"sv, scroll_node.is_viewport);
         scroll_nodes.must_append(move(node));
     }
@@ -277,8 +269,7 @@ JsonObject async_scrolling_state_to_json(AsyncScrollingState const& state)
     JsonArray snap_containers;
     for (auto const& snap_container : state.snap_containers) {
         JsonObject container;
-        container.set("documentID"sv, snap_container.node_id.document_id.value());
-        container.set("scrollNodeIndex"sv, snap_container.node_id.scroll_node_index.value());
+        container.set("scrollNodeIndex"sv, snap_container.scroll_node_index.value());
         container.set("snapport"sv, rect_to_json(snap_container.geometry.snapport));
         container.set("minScrollOffset"sv, point_to_json(snap_container.geometry.min_scroll_offset));
         container.set("maxScrollOffset"sv, point_to_json(snap_container.geometry.max_scroll_offset));

@@ -12,16 +12,16 @@
 #include <LibCompositing/Scrolling/ScrollState.h>
 #include <LibTest/TestCase.h>
 
-static Compositing::AsyncScrollNodeID const viewport_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = Compositing::SpatialNodeIndex { 1 } };
+static Compositing::SpatialNodeIndex const viewport_scroll_node_index { 1 };
 static Web::UniqueNodeID const viewport_document_node_id { 2 };
 
 static Compositing::AsyncScrollingState make_scrolling_state_with_viewport_scroll_node(float max_scroll_offset_y)
 {
     Compositing::AsyncScrollingState state;
     state.scroll_nodes.append({
-        .node_id = viewport_node_id,
+        .scroll_node_index = viewport_scroll_node_index,
         .stable_node_id = { .node_id = viewport_document_node_id, .kind = Web::AsyncScrollNodeKind::Viewport, .pseudo_element_type = 0 },
-        .parent_node_id = {},
+        .parent_scroll_node_index = {},
         .scrollport_rect = { 0, 0, 800, 600 },
         .min_scroll_offset = { 0, 0 },
         .max_scroll_offset = { 0, max_scroll_offset_y },
@@ -106,7 +106,7 @@ TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_conte
     EXPECT(scroll_tree.blocks_wheel_event_at_position(visual_context_tree, { 200, 200 }));
     auto result = scroll_tree.hit_test_scroll_node_for_wheel(visual_context_tree, { 200, 200 }, { 0, 10 });
     EXPECT_EQ(result.outcome, Compositing::WheelHitTestOutcome::BlockedByWheelEventRegion);
-    EXPECT(!result.node_id.has_value());
+    EXPECT(!result.scroll_node_index.has_value());
 }
 
 TEST_CASE(first_wheel_step_route_puts_main_thread_region_before_blocking_region_and_viewport_blocker_before_both)
@@ -176,7 +176,7 @@ TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
     auto scroll_tree = make_scroll_tree_with_viewport_scroll_node(2000);
     Compositing::ScrollStateSnapshot snapshot;
 
-    auto scroll_offset = scroll_tree.apply_scroll_delta(viewport_node_id, { 0, 300 }, visual_context_tree, snapshot, Compositing::ScrollChaining::ToScrollableAncestors);
+    auto scroll_offset = scroll_tree.apply_scroll_delta(viewport_scroll_node_index, { 0, 300 }, visual_context_tree, snapshot, Compositing::ScrollChaining::ToScrollableAncestors);
     EXPECT(scroll_offset.has_value());
     EXPECT_EQ(snapshot.device_offset_for_index(viewport_scroll_node), (Gfx::FloatPoint { 0, -300 }));
     // The scrollport top passed the header by 200px, so the header follows it by that much.
@@ -185,27 +185,27 @@ TEST_CASE(async_scrolling_resolves_sticky_offsets_from_the_visual_context_tree)
     EXPECT_EQ(snapshot.device_offset_for_index(bar_node), (Gfx::FloatPoint { 0, 10 }));
 
     // Past the end of the containing block, the header pins to the block's bottom edge and the bar to the header's.
-    EXPECT(scroll_tree.set_scroll_offset(viewport_node_id, { 0, 1960 }, visual_context_tree, snapshot).has_value());
+    EXPECT(scroll_tree.set_scroll_offset(viewport_scroll_node_index, { 0, 1960 }, visual_context_tree, snapshot).has_value());
     EXPECT_EQ(snapshot.device_offset_for_index(header_node), (Gfx::FloatPoint { 0, 1850 }));
     EXPECT_EQ(snapshot.device_offset_for_index(bar_node), (Gfx::FloatPoint { 0, 20 }));
 
     // Scrolled back above the header, nothing sticks.
-    EXPECT(scroll_tree.set_scroll_offset(viewport_node_id, { 0, 50 }, visual_context_tree, snapshot).has_value());
+    EXPECT(scroll_tree.set_scroll_offset(viewport_scroll_node_index, { 0, 50 }, visual_context_tree, snapshot).has_value());
     EXPECT_EQ(snapshot.device_offset_for_index(header_node), (Gfx::FloatPoint { 0, 0 }));
     EXPECT_EQ(snapshot.device_offset_for_index(bar_node), (Gfx::FloatPoint { 0, 0 }));
 }
 
 TEST_CASE(a_key_is_not_passed_on_from_a_scroller_that_keeps_its_scrolls)
 {
-    Compositing::AsyncScrollNodeID const nested_node_id { .document_id = Web::UniqueNodeID { 1 }, .scroll_node_index = Compositing::SpatialNodeIndex { 2 } };
+    Compositing::SpatialNodeIndex const nested_scroll_node_index { 2 };
     Web::AsyncScrollNodeStableID const nested_stable_node_id { .node_id = Web::UniqueNodeID { 3 }, .kind = Web::AsyncScrollNodeKind::Element, .pseudo_element_type = 0 };
 
     auto scroll_tree_with_nested_scroller = [&](bool nested_scroller_chains_vertically) {
         auto state = make_scrolling_state_with_viewport_scroll_node(2000);
         state.scroll_nodes.append({
-            .node_id = nested_node_id,
+            .scroll_node_index = nested_scroll_node_index,
             .stable_node_id = nested_stable_node_id,
-            .parent_node_id = viewport_node_id,
+            .parent_scroll_node_index = viewport_scroll_node_index,
             .scrollport_rect = { 0, 0, 100, 100 },
             .min_scroll_offset = { 0, 0 },
             .max_scroll_offset = { 0, 200 },
@@ -222,14 +222,14 @@ TEST_CASE(a_key_is_not_passed_on_from_a_scroller_that_keeps_its_scrolls)
 
     // The viewport is scrolled down and the nested scroller is at its top, so only the viewport can scroll up.
     Compositing::ScrollStateSnapshot snapshot;
-    snapshot.set_device_offset_for_index(viewport_node_id.scroll_node_index, { 0, -300 });
+    snapshot.set_device_offset_for_index(viewport_scroll_node_index, { 0, -300 });
 
     auto target_of_key_that_is_passed_on = scroll_tree_with_nested_scroller(true).scroll_node_for_keyboard_scroll(nested_stable_node_id, { 0, -100 }, snapshot);
-    EXPECT(target_of_key_that_is_passed_on.has_value() && *target_of_key_that_is_passed_on == viewport_node_id);
+    EXPECT(target_of_key_that_is_passed_on.has_value() && *target_of_key_that_is_passed_on == viewport_scroll_node_index);
 
     auto target_of_key_that_is_kept = scroll_tree_with_nested_scroller(false).scroll_node_for_keyboard_scroll(nested_stable_node_id, { 0, -100 }, snapshot);
     EXPECT(!target_of_key_that_is_kept.has_value());
 
     auto target_of_key_the_scroller_can_scroll_by = scroll_tree_with_nested_scroller(false).scroll_node_for_keyboard_scroll(nested_stable_node_id, { 0, 100 }, snapshot);
-    EXPECT(target_of_key_the_scroller_can_scroll_by.has_value() && *target_of_key_the_scroller_can_scroll_by == nested_node_id);
+    EXPECT(target_of_key_the_scroller_can_scroll_by.has_value() && *target_of_key_the_scroller_can_scroll_by == nested_scroll_node_index);
 }

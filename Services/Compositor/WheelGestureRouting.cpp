@@ -108,8 +108,8 @@ WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositin
         m_latch->last_scroll_gesture_phase = scroll_gesture_phase;
         return { .nested_context_id = m_latch->nested_context_id, .keeps_steps = !m_latch->nested_context_id.has_value() };
     }
-    auto node_id = async_scroll_tree.scroll_node_id_for_stable_id(*m_latch->stable_node_id);
-    if (!node_id.has_value()) {
+    auto scroll_node_index = async_scroll_tree.scroll_node_index_for_stable_id(*m_latch->stable_node_id);
+    if (!scroll_node_index.has_value()) {
         m_latch.clear();
         return {};
     }
@@ -117,7 +117,7 @@ WheelGestureRouting::ResolvedLatch WheelGestureRouting::resolve_latch(Compositin
     if (!async_scroll_tree.has_wheel_hit_test_targets_for(current_visual_context_tree))
         return {};
     m_latch->last_scroll_gesture_phase = scroll_gesture_phase;
-    return { .node_id = node_id };
+    return { .scroll_node_index = scroll_node_index };
 }
 
 Optional<Web::AsyncScrollNodeStableID> WheelGestureRouting::latched_scroller() const

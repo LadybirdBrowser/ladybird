@@ -54,7 +54,7 @@ public:
     // gesture to a scroller of its own, or nothing that scrolls, when this context keeps the steps from the document
     // around it.
     struct ResolvedLatch {
-        Optional<Compositing::AsyncScrollNodeID> node_id {};
+        Optional<Compositing::SpatialNodeIndex> scroll_node_index {};
         Optional<Web::CompositorContextId> nested_context_id {};
         bool keeps_steps { false };
     };

@@ -137,8 +137,8 @@ void ElasticOverscrollController::forget()
 void ElasticOverscrollController::did_install_scrolling_state(Compositing::AsyncScrollTree const& async_scroll_tree)
 {
     m_active_overscrolls.remove_all_matching([&](auto const& active) {
-        auto node_id = async_scroll_tree.scroll_node_id_for_stable_id(active.stable_node_id);
-        auto const* node = node_id.has_value() ? async_scroll_tree.scroll_node_for_id(*node_id) : nullptr;
+        auto scroll_node_index = async_scroll_tree.scroll_node_index_for_stable_id(active.stable_node_id);
+        auto const* node = scroll_node_index.has_value() ? async_scroll_tree.scroll_node_for_index(*scroll_node_index) : nullptr;
         if (!node)
             return true;
         // A scroller that has been told not to stretch along an axis since it was pulled lets go at once.
@@ -174,15 +174,14 @@ Optional<Compositing::ScrollStateSnapshot> ElasticOverscrollController::stretche
         auto stretch = active.overscroll.stretch();
         if (stretch.is_zero())
             continue;
-        auto node_id = async_scroll_tree.scroll_node_id_for_stable_id(active.stable_node_id);
-        if (!node_id.has_value())
+        auto scroll_node_index = async_scroll_tree.scroll_node_index_for_stable_id(active.stable_node_id);
+        if (!scroll_node_index.has_value())
             continue;
         if (!stretched_scroll_state_snapshot.has_value())
             stretched_scroll_state_snapshot = scroll_state_snapshot;
         // Only the scroller's own entry moves. The sticky boxes in it keep the shifts resolved for the scroll offset
         // it really has, so they move with its content.
-        auto index = node_id->scroll_node_index;
-        stretched_scroll_state_snapshot->set_device_offset_for_index(index, stretched_scroll_state_snapshot->device_offset_for_index(index) - stretch);
+        stretched_scroll_state_snapshot->set_device_offset_for_index(*scroll_node_index, stretched_scroll_state_snapshot->device_offset_for_index(*scroll_node_index) - stretch);
     }
     return stretched_scroll_state_snapshot;
 }

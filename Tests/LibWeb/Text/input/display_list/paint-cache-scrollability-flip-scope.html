@@ -16,7 +16,7 @@
 <script>
 function nestedElementScrollers() {
     const nodes = internals.recordedAsyncScrollingState().scrollNodes.filter(node => !node.isViewport);
-    return nodes.filter(node => nodes.some(parent => parent.documentID === node.parentDocumentID && parent.scrollNodeIndex === node.parentScrollNodeIndex)).length;
+    return nodes.filter(node => nodes.some(parent => parent.scrollNodeIndex === node.parentScrollNodeIndex)).length;
 }
 displayListTest({
     setup: () => {
