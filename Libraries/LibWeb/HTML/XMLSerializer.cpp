@@ -400,7 +400,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
                 if (attribute_value_namespace == namespace_uri_as_utf16(Namespace::XML))
                     continue;
 
-                // - the attr's prefix is null and the ignore namespace definition attribute flag is true (the Element's default namespace attribute should be skipped);
+                // - the attr's prefix is null and the ignore namespace definition attribute flag is true (the Element's default namespace attribute is to be skipped);
                 if (!attribute->prefix().has_value() && ignore_namespace_definition_attribute)
                     continue;
 
@@ -531,7 +531,7 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element(DOM::Element const& el
     // NOTE: This is only used here.
     // To copy a namespace prefix map map means to copy the map's keys into a new empty namespace prefix map,
     // and to copy each of the values in the namespace prefix list associated with each keys' value into a new list
-    // which should be associated with the respective key in the new map.
+    // which is associated with the respective key in the new map.
     map.update(namespace_prefix_map);
 
     // 7. Let local prefixes map be an empty map. The map has unique Node prefix strings as its keys, with corresponding namespaceURI Node values
