@@ -1976,14 +1976,15 @@ pub(super) fn run_formatting_context(
     ) {
         Ok(attempt) => attempt,
         Err(hit) => {
-            let action = if !builds_fragments {
-                "READ RESULT"
-            } else if hit.reuses_committed_subtree {
-                "REUSE SUBTREE"
-            } else {
-                "REPLAY FRAGMENTS"
-            };
-            let _trace = callbacks.layout_trace().run(box_, fc_type, || action);
+            let _trace = callbacks.layout_trace().run(box_, fc_type, || {
+                if !builds_fragments {
+                    "READ RESULT"
+                } else if hit.entry.holds_committed_fragments(callbacks.arena(), box_) {
+                    "REUSE SUBTREE"
+                } else {
+                    "REPLAY FRAGMENTS"
+                }
+            });
             let outputs = if builds_fragments {
                 hit.entry.outputs_to_replay()
             } else {
