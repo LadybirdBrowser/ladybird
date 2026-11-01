@@ -450,43 +450,17 @@ impl InlineContent {
     /// The content as painting sees it: laid out in the frame of `writing_mode` within a line root whose content box
     /// has the physical size `content_size`, mapped onto the physical plane.
     pub(crate) fn in_physical_plane(&self, writing_mode: u8, content_size: used_values::FfiCssPixelSize) -> Self {
-        use crate::css::css_pixels::CssPixelRect;
-        let frame = super::geometry::Frame::of(writing_mode);
+        let plane = PhysicalPlane::new(self, writing_mode, content_size);
+        let frame = plane.frame;
         let mut content = self.clone();
         if frame.is_physical() {
             return content;
         }
-        let to_physical = |rect: used_values::FfiCssPixelRect| -> used_values::FfiCssPixelRect {
-            frame.rect_to_physical(CssPixelRect::from(rect), content_size).into()
-        };
-        let delta_to_physical = |delta: used_values::FfiCssPixelPoint| -> used_values::FfiCssPixelPoint {
-            let origin = frame.rect_to_physical(CssPixelRect::default(), content_size);
-            let moved = frame.rect_to_physical(
-                CssPixelRect::new(delta.x, delta.y, CssPixels::default(), CssPixels::default()),
-                content_size,
-            );
-            used_values::FfiCssPixelPoint {
-                x: moved.x - origin.x,
-                y: moved.y - origin.y,
-            }
-        };
-        // NB: Glyphs that run along a vertical line are turned a quarter turn clockwise, so their line-over side
-        //     faces the physical right side. That is the block-start side of the frame of vertical-rl, but the
-        //     block-end side of the frame of vertical-lr, where each line is laid out mirrored in the block axis.
-        //     https://drafts.csswg.org/css-writing-modes-4/#line-orientation
-        // FIXME: Turn the glyphs of sideways-lr a quarter turn counterclockwise instead, so that they face its
-        //        line-over side on the left and run upwards like its inline axis.
-        let lines_are_mirrored = writing_mode == crate::css::css_enums::writing_mode::VERTICAL_LR;
-        let mirror_in_line = |line_index: u32, block_offset: CssPixels, block_length: CssPixels| -> CssPixels {
-            if !lines_are_mirrored {
-                return block_offset;
-            }
-            let Some(line) = self.lines.get(line_index as usize) else {
-                return block_offset;
-            };
-            let line_block_start = line.block_end - line.block_length;
-            line_block_start + line.block_end - block_offset - block_length
-        };
+        let to_physical =
+            |rect: used_values::FfiCssPixelRect| -> used_values::FfiCssPixelRect { plane.rect(rect).into() };
+        let delta_to_physical = |delta| plane.delta(delta);
+        let mirror_in_line =
+            |line_index, block_offset, block_length| plane.block_offset_in_line(line_index, block_offset, block_length);
         for line in &mut content.lines {
             line.rect = to_physical(line.rect);
             line.writing_mode = writing_mode;
@@ -499,15 +473,7 @@ impl InlineContent {
         }
         for fragment in &mut content.fragments {
             let block_offset = mirror_in_line(fragment.line_index, fragment.block_offset, fragment.block_length);
-            let rect = frame.rect_to_physical(
-                CssPixelRect::new(
-                    fragment.inline_offset,
-                    block_offset,
-                    fragment.inline_length,
-                    fragment.block_length,
-                ),
-                content_size,
-            );
+            let rect = plane.unmoved_fragment_rect(fragment, block_offset);
             fragment.relpos_delta = delta_to_physical(fragment.relpos_delta);
             if fragment.glyph_run.as_ref().is_some_and(|run| run.is_upright) {
                 // NB: Upright glyphs are painted unturned, stacked downwards one em apart and centered within the
@@ -625,6 +591,120 @@ impl FragmentRecord {
 
     pub(crate) fn physical_vertical_extent(&self) -> CssPixels {
         super::geometry::to_physical(self.writing_mode, self.inline_length, self.block_length).1
+    }
+}
+
+pub(crate) struct PhysicalPlane<'content> {
+    content: &'content InlineContent,
+    frame: super::geometry::Frame,
+    lines_are_mirrored: bool,
+    content_size: used_values::FfiCssPixelSize,
+}
+
+impl<'content> PhysicalPlane<'content> {
+    pub(crate) fn new(
+        content: &'content InlineContent,
+        writing_mode: u8,
+        content_size: used_values::FfiCssPixelSize,
+    ) -> Self {
+        Self {
+            content,
+            frame: super::geometry::Frame::of(writing_mode),
+            lines_are_mirrored: writing_mode == crate::css::css_enums::writing_mode::VERTICAL_LR,
+            content_size,
+        }
+    }
+
+    pub(crate) fn of(content: &'content InlineContent, content_size: used_values::FfiCssPixelSize) -> Self {
+        Self::new(content, content.writing_mode, content_size)
+    }
+
+    pub(crate) fn rect(&self, rect: used_values::FfiCssPixelRect) -> crate::css::css_pixels::CssPixelRect {
+        self.frame.rect_to_physical(rect.into(), self.content_size)
+    }
+
+    pub(crate) fn delta(&self, delta: used_values::FfiCssPixelPoint) -> used_values::FfiCssPixelPoint {
+        use crate::css::css_pixels::CssPixelRect;
+        let origin = self.frame.rect_to_physical(CssPixelRect::default(), self.content_size);
+        let moved = self.frame.rect_to_physical(
+            CssPixelRect::new(delta.x, delta.y, CssPixels::default(), CssPixels::default()),
+            self.content_size,
+        );
+        used_values::FfiCssPixelPoint {
+            x: moved.x - origin.x,
+            y: moved.y - origin.y,
+        }
+    }
+
+    pub(crate) fn block_offset_in_line(
+        &self,
+        line_index: u32,
+        block_offset: CssPixels,
+        block_length: CssPixels,
+    ) -> CssPixels {
+        // NB: Glyphs that run along a vertical line are turned a quarter turn clockwise, so their line-over side
+        //     faces the physical right side. That is the block-start side of the frame of vertical-rl, but the
+        //     block-end side of the frame of vertical-lr, where each line is laid out mirrored in the block axis.
+        //     https://drafts.csswg.org/css-writing-modes-4/#line-orientation
+        // FIXME: Turn the glyphs of sideways-lr a quarter turn counterclockwise instead, so that they face its
+        //        line-over side on the left and run upwards like its inline axis.
+        if !self.lines_are_mirrored {
+            return block_offset;
+        }
+        let Some(line) = self.content.lines.get(line_index as usize) else {
+            return block_offset;
+        };
+        let line_block_start = line.block_end - line.block_length;
+        line_block_start + line.block_end - block_offset - block_length
+    }
+
+    fn unmoved_fragment_rect(
+        &self,
+        fragment: &FragmentRecord,
+        block_offset: CssPixels,
+    ) -> crate::css::css_pixels::CssPixelRect {
+        self.frame.rect_to_physical(
+            crate::css::css_pixels::CssPixelRect::new(
+                fragment.inline_offset,
+                block_offset,
+                fragment.inline_length,
+                fragment.block_length,
+            ),
+            self.content_size,
+        )
+    }
+
+    pub(crate) fn fragment_rect(&self, fragment: &FragmentRecord) -> crate::css::css_pixels::CssPixelRect {
+        if self.frame.is_physical() {
+            let (x, y) = fragment.offset();
+            let (width, height) = fragment.size();
+            return crate::css::css_pixels::CssPixelRect::new(
+                x + fragment.relpos_delta.x,
+                y + fragment.relpos_delta.y,
+                width,
+                height,
+            );
+        }
+        let block_offset = self.block_offset_in_line(fragment.line_index, fragment.block_offset, fragment.block_length);
+        let delta = self.delta(fragment.relpos_delta);
+        self.unmoved_fragment_rect(fragment, block_offset)
+            .translated(delta.x, delta.y)
+    }
+
+    pub(crate) fn piece_present_edges(&self, piece: &InlineBoxPieceRecord) -> u8 {
+        if self.frame.is_physical() {
+            return piece.present_edges;
+        }
+        [Side::Top, Side::Right, Side::Bottom, Side::Left]
+            .into_iter()
+            .filter(|side| piece.present_edges & (1 << *side as u8) != 0)
+            .fold(0, |edges, side| edges | (1 << self.frame.physical_side(side) as u8))
+    }
+
+    pub(crate) fn piece_border_box_rect(&self, piece: &InlineBoxPieceRecord) -> crate::css::css_pixels::CssPixelRect {
+        let mut rect = piece.border_box_rect;
+        rect.y = self.block_offset_in_line(piece.line_index, rect.y, rect.height);
+        self.rect(rect)
     }
 }
 

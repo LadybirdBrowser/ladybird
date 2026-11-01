@@ -318,6 +318,12 @@ fn compare_links(expected: &fragment_tree::FragmentLink, fresh: &fragment_tree::
     if expected.line_data.as_deref() != fresh.line_data.as_deref() {
         return Err(format!("{node:?} has line data unlike the fresh layout"));
     }
+    if expected.scrollable_overflow != fresh.scrollable_overflow {
+        return Err(format!(
+            "{node:?} has scrollable overflow {:?} where the fresh layout has {:?}",
+            expected.scrollable_overflow, fresh.scrollable_overflow
+        ));
+    }
     compare_children(node, &expected.children, &fresh.children)
 }
 
