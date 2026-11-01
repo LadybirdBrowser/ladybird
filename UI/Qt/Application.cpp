@@ -1859,6 +1859,7 @@ QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_
         view_menu->addSeparator();
     }
     view_menu->addMenu(create_application_menu(*view_menu, application.color_scheme_menu()));
+    view_menu->addAction(create_application_action(*view_menu, application.force_dark_action(), IncludeActionIcon::No));
     view_menu->addMenu(create_application_menu(*view_menu, application.contrast_menu()));
     view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
 

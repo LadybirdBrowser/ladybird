@@ -122,6 +122,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
         Application::the().appearance_changed({});
     }
 
+    virtual void content_settings_changed() override
+    {
+        Application::the().update_force_dark_action();
+    }
+
     virtual void tab_settings_changed() override
     {
         Application::the().tab_settings_changed({});
@@ -2720,6 +2725,13 @@ void Application::initialize_actions()
         };
     };
 
+    m_force_dark_action = Action::create_checkable("Force Dark Mode"sv, ActionID::ForceDark, [this] {
+        if (auto view = active_web_view(); view.has_value())
+            view->set_force_dark_enabled(!view->force_dark_enabled());
+        update_force_dark_action();
+    });
+    update_force_dark_action();
+
     m_color_scheme_menu = Menu::create_group("Color Scheme"sv);
     m_color_scheme_menu->add_action(Action::create_checkable("Auto"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::System)));
     m_color_scheme_menu->add_action(Action::create_checkable("Dark"sv, ActionID::PreferredColorScheme, set_website_color_scheme(ThemePreference::Dark)));
@@ -3234,6 +3246,7 @@ void Application::update_actions_for_active_web_view()
     update_bookmark_action_for_current_web_view();
     update_editing_history_actions();
     update_report_website_issue_action();
+    update_force_dark_action();
 }
 
 void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
@@ -3687,6 +3700,15 @@ void Application::inspect_indexed_database_objects(DevTools::TabDescription cons
     }
 
     view->inspect_indexed_database_objects(host, move(names), move(options), move(on_complete));
+}
+
+void Application::update_force_dark_action()
+{
+    if (!m_force_dark_action)
+        return;
+    auto view = active_web_view();
+    m_force_dark_action->set_enabled(view.has_value() && view->can_set_force_dark());
+    m_force_dark_action->set_checked(view.has_value() ? view->force_dark_enabled() : settings().content_settings().enable_force_dark);
 }
 
 void Application::update_report_website_issue_action()

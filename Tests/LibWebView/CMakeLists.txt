@@ -171,6 +171,7 @@ set(TEST_SOURCES
     TestDownloadStore.cpp
     TestExternalURLHandler.cpp
     TestFaviconStore.cpp
+    TestForceDarkSettings.cpp
     TestHelperProcessEnvironment.cpp
     TestHistoryStore.cpp
     TestHSTSStore.cpp

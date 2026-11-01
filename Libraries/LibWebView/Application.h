@@ -385,6 +385,9 @@ public:
     Action& zoom_out_action() { return *m_zoom_out_action; }
     Action& reset_zoom_action() { return *m_reset_zoom_action; }
 
+    Action& force_dark_action() { return *m_force_dark_action; }
+    void update_force_dark_action();
+
     Menu& color_scheme_menu() { return *m_color_scheme_menu; }
     Menu& contrast_menu() { return *m_contrast_menu; }
     Menu& motion_menu() { return *m_motion_menu; }
@@ -718,6 +721,7 @@ private:
     RefPtr<Action> m_zoom_out_action;
     RefPtr<Action> m_reset_zoom_action;
 
+    RefPtr<Action> m_force_dark_action;
     RefPtr<Menu> m_color_scheme_menu;
     Web::CSS::PreferredColorScheme m_color_scheme { Web::CSS::PreferredColorScheme::Auto };
 

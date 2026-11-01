@@ -3210,6 +3210,12 @@ void ConnectionFromClient::set_content_blockers(Core::AnonymousBuffer patterns_b
         m_page_host->invalidate_user_style();
 }
 
+void ConnectionFromClient::set_force_dark_settings(Web::PageId page_id, bool enabled, HashMap<String, bool> per_host)
+{
+    if (auto page = this->page(page_id); page.has_value() && page->page().has_local_traversable())
+        page->page().local_traversable()->set_force_dark_settings(enabled, move(per_host));
+}
+
 void ConnectionFromClient::set_autoplay_settings(Web::PageId, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist)
 {
     Web::HTML::AutoplaySettings::the().set_policy(policy, allowlist);
