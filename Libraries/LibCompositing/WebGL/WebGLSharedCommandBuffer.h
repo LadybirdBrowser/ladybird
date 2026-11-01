@@ -23,12 +23,6 @@ public:
 
     WebGLSharedCommandBuffer() = default;
 
-    static ErrorOr<WebGLSharedCommandBuffer> create(size_t data_region_capacity = default_data_region_capacity)
-    {
-        auto buffer = TRY(Core::AnonymousBuffer::create_with_size(data_region_offset + data_region_capacity));
-        return WebGLSharedCommandBuffer { move(buffer) };
-    }
-
     static Optional<WebGLSharedCommandBuffer> adopt_received_buffer(Core::AnonymousBuffer buffer)
     {
         if (!buffer.is_valid() || buffer.size() <= data_region_offset)
@@ -37,21 +31,10 @@ public:
     }
 
     bool is_valid() const { return m_buffer.is_valid(); }
-    Core::AnonymousBuffer const& buffer() const { return m_buffer; }
-
-    u64 executed_flush_sequence_number() const
-    {
-        return reinterpret_cast<Atomic<u64> const*>(m_buffer.data<u8>())->load(AK::MemoryOrder::memory_order_acquire);
-    }
 
     void store_executed_flush_sequence_number(u64 flush_sequence_number)
     {
         reinterpret_cast<Atomic<u64>*>(m_buffer.data<u8>())->store(flush_sequence_number, AK::MemoryOrder::memory_order_release);
-    }
-
-    Bytes data_region()
-    {
-        return { m_buffer.data<u8>() + data_region_offset, m_buffer.size() - data_region_offset };
     }
 
     ReadonlyBytes data_region() const

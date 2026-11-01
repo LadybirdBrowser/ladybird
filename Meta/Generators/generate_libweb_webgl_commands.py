@@ -42,8 +42,6 @@ enum class {enum_name} : u16 {{
 }};
 
 inline constexpr u16 {count_name} = {len(names)};
-
-COMPOSITING_API StringView to_string({enum_name});
 """)
 
 
@@ -72,22 +70,6 @@ def write_static_asserts(out: TextIO, macro: str, assert_body: str) -> None:
 """)
 
 
-def write_to_string_implementation(out: TextIO, macro: str, enum_name: str) -> None:
-    out.write(f"""
-StringView to_string({enum_name} type)
-{{
-    switch (type) {{
-#define __ENUMERATE(name) \\
-    case {enum_name}::name: \\
-        return #name##sv;
-        {macro}(__ENUMERATE)
-#undef __ENUMERATE
-    }}
-    VERIFY_NOT_REACHED();
-}}
-""")
-
-
 def write_header_file(out: TextIO, functions: list) -> None:
     commands = command_stream_entries(functions)
     sync_calls = sync_call_entries(functions)
@@ -97,7 +79,6 @@ def write_header_file(out: TextIO, functions: list) -> None:
 #include <AK/Assertions.h>
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
-#include <AK/StringView.h>
 #include <AK/Types.h>
 #include <LibCompositing/Export.h>
 #include <LibCompositing/WebGL/GLFunctions.h>
@@ -116,7 +97,6 @@ namespace Compositing::WebGL {
     for f in commands:
         name = command_name(f)
         out.write(f"\nstruct {name} {{\n")
-        out.write(f"    static constexpr auto command_type = WebGLCommandType::{name};\n")
         for cpp_type, field_name in command_wire_fields(f):
             out.write(f"    {cpp_type} {field_name} {{}};\n")
         out.write("};\n")
@@ -136,7 +116,6 @@ namespace Compositing::WebGL {
     for f in sync_calls:
         name = command_name(f)
         out.write(f"\nstruct {name} {{\n")
-        out.write(f"    static constexpr auto call_type = WebGLSyncCallType::{name};\n")
         out.write("    struct Request {\n")
         for cpp_type, field_name in sync_request_wire_fields(f):
             out.write(f"        {cpp_type} {field_name} {{}};\n")
@@ -213,8 +192,6 @@ def write_implementation_file(out: TextIO, functions: list) -> None:
 
 namespace Compositing::WebGL {
 """)
-    write_to_string_implementation(out, "ENUMERATE_WEBGL_COMMANDS", "WebGLCommandType")
-    write_to_string_implementation(out, "ENUMERATE_WEBGL_SYNC_CALLS", "WebGLSyncCallType")
     write_wire_struct_layout_assertions(out, functions)
     write_wire_struct_layouts(out, functions)
     out.write("""

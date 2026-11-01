@@ -33,7 +33,6 @@ using Compositing::WebGL::PixelUnpackState;
 using Compositing::WebGL::ReadPixelsResult;
 using Compositing::WebGL::required_2d_texture_data_size;
 using Compositing::WebGL::texture_export_format;
-using Compositing::WebGL::to_string;
 using Compositing::WebGL::WebGLCommandHeader;
 using Compositing::WebGL::WebGLCommandList;
 using Compositing::WebGL::WebGLCommandType;
