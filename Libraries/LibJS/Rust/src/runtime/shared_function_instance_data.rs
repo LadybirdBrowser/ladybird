@@ -30,7 +30,6 @@ use crate::layout::function_object::CallEnvironmentTemplate;
 pub use crate::layout::function_object::{SharedFunctionInstanceData, asm_call_metadata};
 use crate::layout::member::NullableMember;
 use crate::runtime::environment_shape::{EnvironmentShape, EnvironmentShapeCache};
-use crate::runtime::private_environment::PrivateName;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::shape::Shape;
 use crate::source_code::SourceCode;
@@ -56,11 +55,12 @@ pub enum ConstructorKind {
     Derived,
 }
 
-/// [[ClassFieldInitializerName]]: Variant<PropertyKey, PrivateName, Empty>.
+/// [[ClassFieldInitializerName]]: Variant<PropertyKey, PrivateName, Empty>. Only whether there is a name matters, so a
+/// Private Name is kept as its description.
 #[derive(Clone, Debug, Default, Trace)]
 pub enum ClassFieldInitializerName {
     PropertyKey(PropertyKey),
-    PrivateName(#[gc(untraced)] PrivateName),
+    PrivateName(#[gc(untraced)] Utf16FlyString),
     #[default]
     Empty,
 }
@@ -143,7 +143,7 @@ pub struct SharedFunctionInstanceDataStorage {
 }
 
 // NB: Every function has these bytes.
-const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 272);
+const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 264);
 
 /// The most properties that constructions make room for ahead (the largest inline capacity of plain objects).
 const MAX_CONSTRUCT_RESERVE: u32 = 16;
@@ -664,7 +664,7 @@ impl SharedFunctionInstanceData {
     pub fn set_class_field_initializer_name_from_utf16(&self, name: &[u16], is_private: bool) {
         let name = Utf16FlyString::from_utf16(name);
         self.set_class_field_initializer_name(if is_private {
-            ClassFieldInitializerName::PrivateName(PrivateName::new(0, name))
+            ClassFieldInitializerName::PrivateName(name)
         } else {
             ClassFieldInitializerName::PropertyKey(PropertyKey::from(name))
         });

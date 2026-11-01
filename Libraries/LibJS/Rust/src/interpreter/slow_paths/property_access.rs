@@ -825,7 +825,7 @@ pub fn has_private_id(
 
 pub fn add_private_name(vm: &Vm, pc: u32, instruction: &op::AddPrivateName) -> SlowPathControl {
     let name = vm.current_executable().get_identifier(instruction.name).clone();
-    running_private_environment(vm).add_private_name(name);
+    running_private_environment(vm).add_private_name(vm, name);
     SlowPathControl::continue_at(pc + op::AddPrivateName::LENGTH)
 }
 

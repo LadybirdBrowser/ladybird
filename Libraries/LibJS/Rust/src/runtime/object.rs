@@ -71,7 +71,6 @@ pub enum PrivateElementKind {
 
 #[derive(Clone, Debug, Trace)]
 pub struct PrivateElement {
-    #[gc(untraced)]
     pub key: PrivateName,
     #[gc(untraced)]
     pub kind: PrivateElementKind,

@@ -16,7 +16,7 @@ use crate::runtime::property_key::PropertyKey;
 #[derive(Clone, Debug, PartialEq, Eq, Trace)]
 pub enum ClassElementName {
     PropertyKey(PropertyKey),
-    PrivateName(#[gc(untraced)] PrivateName),
+    PrivateName(PrivateName),
 }
 
 /// [[Initializer]]: Variant<GC::Ref<ECMAScriptFunctionObject>, Value, Empty>.

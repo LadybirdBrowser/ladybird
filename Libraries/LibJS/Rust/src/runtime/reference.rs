@@ -48,7 +48,7 @@ pub struct Reference {
     strict: Strict,
 }
 
-// SAFETY: Visits the base, the property key and the this value, as Reference::visit_edges does.
+// SAFETY: Visits the base, the name and the this value, as Reference::visit_edges does.
 unsafe impl Trace for Reference {
     fn trace(&self, visitor: &mut Visitor) {
         match self.base_type {
@@ -58,8 +58,7 @@ unsafe impl Trace for Reference {
         }
         match &self.name {
             ReferencedName::PropertyKey(key) => key.trace(visitor),
-            // No GC pointers.
-            ReferencedName::PrivateName(_) => {}
+            ReferencedName::PrivateName(name) => name.trace(visitor),
         }
         self.this_value.trace(visitor);
     }
