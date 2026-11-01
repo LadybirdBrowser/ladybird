@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<!-- An absolutely positioned table is as tall as its rows and its specified height make it: never clamped to its
+     containing block, and not stretched by its insets. -->
+<style>
+    .cb { position: relative; width: 400px; }
+    .t { top: 8px; left: 10px; width: 200px; table-layout: fixed; }
+    .cell { display: table-cell; background: #ccc; }
+</style>
+<div class="cb" style="height: 1px"><div id="a" class="t" style="position: absolute; display: table; height: 24px"><div class="cell">cell</div></div></div>
+<div class="cb"><div id="b" class="t" style="position: absolute; display: table; height: 24px"><div class="cell">cell</div></div></div>
+<div class="cb" style="height: 1px"><div id="c" class="t" style="position: absolute; display: table"><div class="cell">cell</div></div></div>
+<div class="cb" style="height: 1px"><div id="d" class="t" style="position: absolute; display: block; height: 24px"><div class="cell">cell</div></div></div>
+<div class="cb" style="height: 1px; margin-bottom: 40px"><div id="e" class="t" style="position: relative; display: table; height: 24px"><div class="cell">cell</div></div></div>
+<div class="cb" style="height: 100px"><div id="f" class="t" style="position: absolute; display: table; top: 0; bottom: 0"><div class="cell">cell</div></div></div>
+<div class="cb" style="height: 100px"><div id="g" class="t" style="position: absolute; display: table; height: 200px"><div class="cell">cell</div></div></div>
+<div class="cb" style="height: 100px; margin-bottom: 120px"><div id="h" class="t" style="position: absolute; display: table; top: 0; bottom: 0; height: 5px"><div class="cell">cell</div></div></div>
+<script>
+    test(() => {
+        for (const id of ["a", "b", "c", "d", "e", "f", "g", "h"]) {
+            const el = document.getElementById(id);
+            const r = el.getBoundingClientRect();
+            println(`${id}: offsetHeight=${el.offsetHeight} rect.height=${r.height}`);
+        }
+    });
+</script>
