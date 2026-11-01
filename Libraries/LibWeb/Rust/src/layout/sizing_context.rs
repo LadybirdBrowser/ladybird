@@ -423,16 +423,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         content_inline_size: CssPixels,
     ) -> CssPixels {
         let node = sized.node;
-        let style = self.style(node);
-        let metrics = sized.metrics();
-        formatting_context::content_block_size_from_aspect_ratio_values(
-            content_inline_size,
+        Self::content_size_transferred_through_aspect_ratio(
+            self.style(node),
+            sized.metrics(),
             self.facts(node).preferred_aspect_ratio().unwrap(),
-            style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
-            style.border_left_width() + metrics.padding_left(),
-            style.border_right_width() + metrics.padding_right(),
-            style.border_top_width() + metrics.padding_top(),
-            style.border_bottom_width() + metrics.padding_bottom(),
+            content_inline_size,
+            SizingAxis::Block,
         )
     }
 
@@ -442,17 +438,47 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         content_block_size: CssPixels,
     ) -> CssPixels {
         let node = sized.node;
-        let style = self.style(node);
-        let metrics = sized.metrics();
-        formatting_context::content_inline_size_from_aspect_ratio_values(
-            content_block_size,
+        Self::content_size_transferred_through_aspect_ratio(
+            self.style(node),
+            sized.metrics(),
             self.facts(node).preferred_aspect_ratio().unwrap(),
-            style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX,
-            style.border_left_width() + metrics.padding_left(),
-            style.border_right_width() + metrics.padding_right(),
-            style.border_top_width() + metrics.padding_top(),
-            style.border_bottom_width() + metrics.padding_bottom(),
+            content_block_size,
+            SizingAxis::Inline,
         )
+    }
+
+    pub(crate) fn content_size_transferred_through_aspect_ratio(
+        style: StyleValues<'_>,
+        metrics: &dyn BoxMetricCells,
+        aspect_ratio: formatting_context::PixelFraction,
+        size_in_ratio_determining_axis: CssPixels,
+        ratio_dependent_axis: SizingAxis,
+    ) -> CssPixels {
+        let ratio_applies_to_border_box = style.box_sizing_for_aspect_ratio() == box_sizing::BORDER_BOX;
+        let left = style.border_left_width() + metrics.padding_left();
+        let right = style.border_right_width() + metrics.padding_right();
+        let top = style.border_top_width() + metrics.padding_top();
+        let bottom = style.border_bottom_width() + metrics.padding_bottom();
+        match ratio_dependent_axis {
+            SizingAxis::Inline => formatting_context::content_inline_size_from_aspect_ratio_values(
+                size_in_ratio_determining_axis,
+                aspect_ratio,
+                ratio_applies_to_border_box,
+                left,
+                right,
+                top,
+                bottom,
+            ),
+            SizingAxis::Block => formatting_context::content_block_size_from_aspect_ratio_values(
+                size_in_ratio_determining_axis,
+                aspect_ratio,
+                ratio_applies_to_border_box,
+                left,
+                right,
+                top,
+                bottom,
+            ),
+        }
     }
 
     fn auto_content_size(&self, node: Node) -> formatting_context::ReplacedIntrinsicSize {
@@ -1726,7 +1752,20 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         available: AvailableSize,
         constraints: ContainingBlockConstraints,
     ) -> bool {
-        let size = self.style(node).max_width();
+        Self::max_inline_size_value_is_treated_as_none(
+            self.style(node).max_width(),
+            || self.facts(node).is_replaced_box(),
+            available,
+            constraints,
+        )
+    }
+
+    pub(crate) fn max_inline_size_value_is_treated_as_none(
+        size: &ComputedSize,
+        is_replaced_box: impl FnOnce() -> bool,
+        available: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> bool {
         // NB: A keyword limit is no limit under the same intrinsic constraint, unless calc-size() changes its size.
         let keyword_limit_is_cyclic = size.calc_size().is_none();
         if size.is_none()
@@ -1737,7 +1776,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // https://drafts.csswg.org/css-sizing-3/#cyclic-percentage-contribution
         if size.contains_percentage() {
             match formatting_context::cyclic_percentage_intrinsic_contribution(
-                self.facts(node).is_replaced_box(),
+                is_replaced_box(),
                 true,
                 available,
                 formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
@@ -1770,7 +1809,14 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         // If the height of the containing block is not specified explicitly (i.e., it depends on content height),
         // and this element is not absolutely positioned, the percentage value is treated as '0' (for 'min-height')
         // or 'none' (for 'max-height').
-        let size = self.style(node).max_height();
+        Self::max_block_size_value_is_treated_as_none(self.style(node).max_height(), available, constraints)
+    }
+
+    pub(crate) fn max_block_size_value_is_treated_as_none(
+        size: &ComputedSize,
+        available: AvailableSize,
+        constraints: ContainingBlockConstraints,
+    ) -> bool {
         if size.is_none() {
             return true;
         }
@@ -4310,7 +4356,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             SizingProperty::MinHeight => style.min_height(),
             SizingProperty::MaxWidth => style.max_width(),
             SizingProperty::MaxHeight => style.max_height(),
-            SizingProperty::FlexBasis => style.flex_basis(),
         };
         match axis {
             SizingAxis::Inline => {

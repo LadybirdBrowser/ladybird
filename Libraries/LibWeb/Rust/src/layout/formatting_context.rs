@@ -1124,7 +1124,6 @@ pub(crate) enum SizingProperty {
     MinHeight,
     MaxWidth,
     MaxHeight,
-    FlexBasis,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
