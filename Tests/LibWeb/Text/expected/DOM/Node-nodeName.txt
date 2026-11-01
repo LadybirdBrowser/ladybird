@@ -7,3 +7,5 @@ Comment nodeName: #comment
 Document nodeName: #document
 DocumentType nodeName: html
 DocumentFragment nodeName: #document-fragment
+Open ShadowRoot nodeName: #document-fragment
+Closed ShadowRoot nodeName: #document-fragment

@@ -149,7 +149,6 @@ private:
     ShadowRoot(Document&, Element& host, ShadowRootMode);
 
     // ^Node
-    virtual Utf16FlyString node_name() const override { return "#shadow-root"_utf16_fly_string; }
     virtual bool is_shadow_root() const final { return true; }
     virtual void adopted_from(Document&) override;
 

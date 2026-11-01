@@ -24,5 +24,10 @@
 
         const documentFragment = document.createDocumentFragment();
         println(`DocumentFragment nodeName: ${documentFragment.nodeName}`);
+
+        const openShadowRoot = document.createElement("div").attachShadow({ mode: "open" });
+        println(`Open ShadowRoot nodeName: ${openShadowRoot.nodeName}`);
+        const closedShadowRoot = document.createElement("div").attachShadow({ mode: "closed" });
+        println(`Closed ShadowRoot nodeName: ${closedShadowRoot.nodeName}`);
     });
 </script>
