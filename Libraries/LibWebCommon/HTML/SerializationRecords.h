@@ -134,6 +134,13 @@ public:
         return m_encoder.encode_size(size);
     }
 
+    // Bytes that are already in the encoding, which the Rust data holders write.
+    ErrorOr<void> append(ReadonlyBytes bytes)
+    {
+        VERIFY(!m_buffer_has_been_taken);
+        return m_encoder.append(bytes.data(), bytes.size());
+    }
+
     void extend(Vector<TransferDataEncoder>);
 
     IPC::MessageBuffer const& buffer() const;

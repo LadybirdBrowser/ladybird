@@ -17,6 +17,7 @@ pub(crate) mod exports;
 pub(crate) mod memory;
 pub(crate) mod message_record;
 pub(crate) mod reader;
+pub(crate) mod transfer_data_holder;
 pub(crate) mod writer;
 
 use ak::Utf16String;
@@ -41,14 +42,15 @@ use crate::html::message_port::MessagePort;
 use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
     OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, TransferDataDecoder,
-    TransferDataHolder, current_settings_object_agent_cluster,
-    current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
-    deserialize_rust_platform_object, is_exposed, is_platform_object, realm_agent_cluster, serializable_interface_name,
-    serializable_interface_storage_identifier, serializable_payload_version, serializable_steps, serialization_steps,
+    current_settings_object_agent_cluster, current_settings_object_cross_origin_isolated_capability,
+    data_clone_error_from_serialization_error, deserialize_rust_platform_object, is_exposed, is_platform_object,
+    realm_agent_cluster, serializable_interface_name, serializable_interface_storage_identifier,
+    serializable_payload_version, serializable_steps, serialization_steps,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::message_record::MessageRecord;
 use crate::html::structured_serialize::reader::StructuredSerializeReader;
+use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 use crate::html::structured_serialize::writer::StructuredSerializeWriter;
 use crate::streams::readable_stream::ReadableStream;
 use crate::streams::transform_stream::TransformStream;
@@ -1773,23 +1775,23 @@ pub(crate) fn structured_serialize_with_transfer(
 
             if !array_buffer.is_fixed_length() {
                 // 1. Set dataHolder.[[Type]] to "ResizableArrayBuffer".
-                data_holder.encode_u8(TransferType::ResizableArrayBuffer as u8);
+                data_holder.encode(&(TransferType::ResizableArrayBuffer as u8));
 
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
-                data_holder.encode_bytes(&buffer_data);
+                data_holder.encode(buffer_data.as_slice());
 
                 // 4. Set dataHolder.[[ArrayBufferMaxByteLength]] to transferable.[[ArrayBufferMaxByteLength]].
-                data_holder.encode_size(array_buffer.max_byte_length());
+                data_holder.encode(&array_buffer.max_byte_length());
             }
             // 2. Otherwise:
             else {
                 // 1. Set dataHolder.[[Type]] to "ArrayBuffer".
-                data_holder.encode_u8(TransferType::ArrayBuffer as u8);
+                data_holder.encode(&(TransferType::ArrayBuffer as u8));
 
                 // 2. Set dataHolder.[[ArrayBufferData]] to transferable.[[ArrayBufferData]].
                 // 3. Set dataHolder.[[ArrayBufferByteLength]] to transferable.[[ArrayBufferByteLength]].
-                data_holder.encode_bytes(&buffer_data);
+                data_holder.encode(buffer_data.as_slice());
             }
 
             // 3. Perform ? DetachArrayBuffer(transferable).
@@ -1806,13 +1808,13 @@ pub(crate) fn structured_serialize_with_transfer(
             let interface_name = platform_object.primary_interface();
 
             // 3. Set dataHolder.[[Type]] to interfaceName.
-            data_holder.encode_u8(interface_name as u8);
+            data_holder.encode(&(interface_name as u8));
 
             // FIXME: 4. If transferable's primary interface is decorated with [SameAgentCluster], then restrict dataHolder to the same agent cluster.
 
             // 5. Perform the appropriate transfer steps for the interface identified by interfaceName, given transferable and dataHolder.
             let mut steps_cx = CallContext::new(vm, cx.realm());
-            let mut writer = TransferDataWriter::new(&data_holder, cx.realm(), &image_bitmap_pixels);
+            let mut writer = TransferDataWriter::new(&data_holder, cx.realm(), Some(&image_bitmap_pixels));
             platform_object.transfer_steps(&mut steps_cx, &mut writer)?;
 
             // 6. Set transferable.[[Detached]] to true.

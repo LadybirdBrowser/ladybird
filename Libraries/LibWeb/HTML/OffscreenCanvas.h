@@ -41,7 +41,13 @@ public:
 
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override { return m_global_object; }
 
-    WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, HTML::TransferDataEncoder&);
+    struct TransferredFields {
+        WebIDL::UnsignedLongLong width { 0 };
+        WebIDL::UnsignedLongLong height { 0 };
+        Optional<Compositor::PlaceholderCanvasLink> placeholder_link;
+    };
+
+    WebIDL::ExceptionOr<TransferredFields> transfer_steps();
     WebIDL::ExceptionOr<void> transfer_receiving_steps(JS::Realm&, HTML::TransferDataDecoder&);
 
     bool is_detached() const { return m_detached; }

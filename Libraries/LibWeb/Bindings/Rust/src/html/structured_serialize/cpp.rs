@@ -18,6 +18,7 @@ use libjs_rust::api::{ArrayBuffer, ArrayBufferShared, Gc, Object, RawNativeFunct
 
 use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 
 unsafe extern "C" {
     fn web_structured_serialize_set_ipc_record(
@@ -95,9 +96,7 @@ unsafe extern "C" {
     fn web_structured_serialize_image_bitmap_pixels_destroy(image_bitmap_pixels: *mut c_void);
 
     fn web_structured_serialize_transfer_data_holder_create() -> *mut c_void;
-    fn web_structured_serialize_transfer_data_holder_encode_u8(data_holder: *mut c_void, value: u8);
-    fn web_structured_serialize_transfer_data_holder_encode_bytes(data_holder: *mut c_void, bytes: ak::Span<'_, u8>);
-    fn web_structured_serialize_transfer_data_holder_encode_size(data_holder: *mut c_void, value: usize);
+    fn web_structured_serialize_transfer_data_holder_append(data_holder: *mut c_void, bytes: ak::Span<'_, u8>);
     fn web_structured_serialize_transfer_data_holder_destroy(data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_create() -> *mut c_void;
     fn web_structured_serialize_transfer_record_destroy(record: *mut c_void);
@@ -508,40 +507,37 @@ impl Drop for ImageBitmapSharedPixels {
     }
 }
 
-/// A data holder of a transfer that this owns: an HTML::TransferDataEncoder.
-pub(crate) struct TransferDataHolder(NonNull<c_void>);
+/// The C++ carrier of a data holder that this owns: an HTML::TransferDataEncoder, which the record of a transfer and
+/// IPC carry, and which C++ encodes the values that have attachments into.
+pub(crate) struct TransferDataCarrier(NonNull<c_void>);
 
-impl TransferDataHolder {
+impl TransferDataCarrier {
     pub(crate) fn new() -> Self {
-        // SAFETY: LibWeb returns a new data holder, which this owns.
+        // SAFETY: LibWeb returns a new carrier, which this owns.
         Self(
             NonNull::new(unsafe { web_structured_serialize_transfer_data_holder_create() }).expect("LibWeb creates it"),
         )
     }
 
-    pub(crate) fn as_raw(&self) -> NonNull<c_void> {
-        self.0
+    pub(crate) fn as_raw(&self) -> *mut c_void {
+        self.0.as_ptr()
     }
 
-    pub(crate) fn encode_u8(&self, value: u8) {
-        // SAFETY: This owns the data holder.
-        unsafe { web_structured_serialize_transfer_data_holder_encode_u8(self.0.as_ptr(), value) };
+    /// Appends bytes that are already in IPC's encoding.
+    pub(crate) fn append(&self, bytes: &[u8]) {
+        // SAFETY: This owns the carrier, and the call borrows the bytes.
+        unsafe { web_structured_serialize_transfer_data_holder_append(self.0.as_ptr(), ak::Span::new(bytes)) };
     }
 
-    pub(crate) fn encode_bytes(&self, bytes: &[u8]) {
-        // SAFETY: This owns the data holder, and the call borrows the bytes.
-        unsafe { web_structured_serialize_transfer_data_holder_encode_bytes(self.0.as_ptr(), ak::Span::new(bytes)) };
-    }
-
-    pub(crate) fn encode_size(&self, value: usize) {
-        // SAFETY: This owns the data holder.
-        unsafe { web_structured_serialize_transfer_data_holder_encode_size(self.0.as_ptr(), value) };
+    /// Hands the carrier over to LibWeb's C++ code, which owns it from then on.
+    pub(crate) fn into_raw(self) -> *mut c_void {
+        ManuallyDrop::new(self).0.as_ptr()
     }
 }
 
-impl Drop for TransferDataHolder {
+impl Drop for TransferDataCarrier {
     fn drop(&mut self) {
-        // SAFETY: This owns the data holder.
+        // SAFETY: This owns the carrier.
         unsafe { web_structured_serialize_transfer_data_holder_destroy(self.0.as_ptr()) };
     }
 }
@@ -585,9 +581,13 @@ impl SerializedTransferRecord {
 
     /// Appends the data holder to the record's [[TransferDataHolders]].
     pub(crate) fn append_data_holder(self, data_holder: TransferDataHolder) {
-        let data_holder = core::mem::ManuallyDrop::new(data_holder);
-        // SAFETY: The record is lent, and LibWeb takes the data holder.
-        unsafe { web_structured_serialize_transfer_record_append_data_holder(self.0.as_ptr(), data_holder.0.as_ptr()) };
+        // SAFETY: The record is lent, and LibWeb takes the carrier.
+        unsafe {
+            web_structured_serialize_transfer_record_append_data_holder(
+                self.0.as_ptr(),
+                data_holder.into_carrier().into_raw(),
+            );
+        }
     }
 
     pub(crate) fn data_holder_count(self) -> usize {

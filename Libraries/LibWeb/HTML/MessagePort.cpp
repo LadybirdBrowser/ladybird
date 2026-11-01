@@ -29,7 +29,7 @@ void web_rust_message_port_discard_pending_messages(void* port);
 size_t web_rust_message_port_pending_outgoing_message_count(void* port);
 void web_rust_message_port_fail_next_transfer_for_testing(void* port);
 void web_rust_message_port_disentangle_ports_of_realm(JSVM*, void* realm);
-JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, TransferDataEncoder*);
+JSCompletion web_rust_message_port_transfer_steps(JSVM*, void* realm, void* port, TransferDataEncoder** out_data_holder);
 JSCompletion web_rust_message_port_transfer_receiving_steps(JSVM*, void* realm, TransferDataDecoder*);
 }
 
@@ -94,10 +94,13 @@ void MessagePort::discard_pending_messages()
     web_rust_message_port_discard_pending_messages(this);
 }
 
-WebIDL::ExceptionOr<void> MessagePort::transfer_steps(JS::Realm& realm, TransferDataEncoder& data_holder)
+WebIDL::ExceptionOr<TransferDataEncoder> MessagePort::transfer_steps(JS::Realm& realm)
 {
+    TransferDataEncoder* data_holder = nullptr;
     TRY(JS::HostABI::completion_from_abi<void>(web_rust_message_port_transfer_steps(vm_abi(), &realm, this, &data_holder)));
-    return {};
+    auto result = move(*data_holder);
+    delete data_holder;
+    return result;
 }
 
 size_t MessagePort::pending_outgoing_message_count() const

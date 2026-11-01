@@ -132,7 +132,6 @@ void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_e
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
 bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
-void web_bindings_transfer_data_encode_bool(HTML::TransferDataEncoder*, bool);
 void web_bindings_transfer_data_encode_records(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord const* const*, size_t count);
 void web_bindings_transfer_data_encode_transport_handle(HTML::TransferDataEncoder*, IPC::TransportHandle const*);
 void web_bindings_transfer_data_extend(HTML::TransferDataEncoder*, HTML::SerializedTransferRecord*);
@@ -315,11 +314,6 @@ bool web_bindings_extract_an_origin(JSObject* object, void* ctx, void (*on_origi
         on_origin(ctx, &ffi_origin);
     });
     return true;
-}
-
-void web_bindings_transfer_data_encode_bool(HTML::TransferDataEncoder* data_holder, bool value)
-{
-    MUST(data_holder->encode(value));
 }
 
 // Writes the records as a Vector of them is encoded, which web_bindings_transfer_data_decode_records() and C++ read.

@@ -83,8 +83,7 @@ void WorkerAgentParent::start()
     m_message_port = MessagePort::create(realm);
     m_message_port->entangle_with(*m_outside_port);
 
-    TransferDataEncoder data_holder;
-    MUST(m_message_port->transfer_steps(realm, data_holder));
+    auto data_holder = MUST(m_message_port->transfer_steps(realm));
 
     // FIXME: Specification says this supposed to happen in step 11 of onComplete handler defined in https://html.spec.whatwg.org/multipage/workers.html#run-a-worker
     //        but that would require introducing a new IPC message type to communicate this from WebWorker to WebContent process,

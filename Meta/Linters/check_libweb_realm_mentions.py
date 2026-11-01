@@ -61,7 +61,7 @@ ALLOWED_REALM_MENTIONS = {
     "FileAPI": (2, 9, "Blob glue still creates streams and buffers in selected realms"),
     "HTML": (
         64,
-        185,
+        182,
         "HTML algorithms still contain structured serialization, including posted-message preparation, canvas, navigation transfer/reconstruction, worker/worklet, and event realm use, and cross-origin Window/Location property functions are created in the current realm; RemoteWindow mirrors Window's postMessage; "
         "the C++ glue of the Rust structured serialization creates platform objects and SharedArrayBuffers in a given realm; "
         "the C++ glue of the Rust Storage and StorageEvent creates them in a given realm",

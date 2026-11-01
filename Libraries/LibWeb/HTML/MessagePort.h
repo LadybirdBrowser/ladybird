@@ -49,7 +49,7 @@ public:
     void discard_pending_messages();
 
     // https://html.spec.whatwg.org/multipage/web-messaging.html#message-ports:transfer-steps
-    WebIDL::ExceptionOr<void> transfer_steps(JS::Realm&, TransferDataEncoder&);
+    WebIDL::ExceptionOr<TransferDataEncoder> transfer_steps(JS::Realm&);
 
     size_t pending_outgoing_message_count() const;
     void fail_next_transfer_for_testing();
