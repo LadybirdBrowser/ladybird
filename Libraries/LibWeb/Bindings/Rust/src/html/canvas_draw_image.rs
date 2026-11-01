@@ -11,7 +11,7 @@ use core::ptr::NonNull;
 use ak::Utf16String;
 use libcompositing_rust::display_list::commands::CanvasId;
 use libgfx_rust::image_frame::ImageFrameHandle;
-use libgfx_rust::{FloatRect, ScalingMode};
+use libgfx_rust::{AffineTransform, FloatRect, IntSize, ScalingMode};
 
 use super::image_bitmap::ImageBitmap;
 use crate::bindings::conversions::CppInterface;
@@ -114,6 +114,51 @@ impl CanvasImageSource {
                 kind.frame(source)
             }
         }
+    }
+
+    /// The frame to paint the source rectangle of the image from, and that rectangle in the frame's pixels. A vector
+    /// image is rasterized at the size it is painted at, so that it stays sharp when it is scaled up.
+    fn frame_for_painting(
+        self,
+        source_rect: FloatRect,
+        destination_rect: FloatRect,
+        transform: AffineTransform,
+        canvas_size: IntSize,
+    ) -> Option<(ImageFrameHandle, FloatRect)> {
+        let (Self::HTMLImageElement(source) | Self::SVGImageElement(source)) = self else {
+            return self.frame().map(|frame| (frame, source_rect));
+        };
+        let kind = self.cpp_source().expect("an image element is implemented in C++").1;
+        let (natural_width, natural_height) = kind.size(source);
+        let scale_x = destination_rect.width / source_rect.width * transform.x_scale();
+        let scale_y = destination_rect.height / source_rect.height * transform.y_scale();
+        if natural_width <= 0 || natural_height <= 0 || (scale_x <= 1.0 && scale_y <= 1.0) {
+            return kind.frame(source).map(|frame| (frame, source_rect));
+        }
+
+        // The image is rasterized at one scale in both directions, as the vector image would be fitted into a raster of
+        // another aspect ratio rather than stretched. The raster is capped at the canvas's size, so that painting a
+        // small part of an image enlarged can't allocate a raster much larger than the canvas.
+        let scale = scale_x
+            .max(scale_y)
+            .min(canvas_size.width.max(natural_width) as f32 / natural_width as f32)
+            .min(canvas_size.height.max(natural_height) as f32 / natural_height as f32);
+        let raster_width = (natural_width as f32 * scale).ceil() as i32;
+        let raster_height = (natural_height as f32 * scale).ceil() as i32;
+        let (frame, rasterized) = kind.frame_rasterized_at(source, raster_width, raster_height)?;
+        if !rasterized {
+            return Some((frame, source_rect));
+        }
+
+        let frame_scale_x = frame.width() as f32 / natural_width as f32;
+        let frame_scale_y = frame.height() as f32 / natural_height as f32;
+        let frame_source_rect = FloatRect::new(
+            source_rect.x * frame_scale_x,
+            source_rect.y * frame_scale_y,
+            source_rect.width * frame_scale_x,
+            source_rect.height * frame_scale_y,
+        );
+        Some((frame, frame_source_rect))
     }
 }
 
@@ -265,7 +310,10 @@ impl ContextState {
             return Ok(());
         }
 
-        let Some(frame) = image.frame() else {
+        let transform = self.drawing_state().transform;
+        let Some((frame, source_rect)) =
+            image.frame_for_painting(source_rect, destination_rect, transform, self.size())
+        else {
             return Ok(());
         };
 

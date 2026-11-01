@@ -57,6 +57,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGAnimatedLength.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWebCommon/Bindings/PredefinedColorSpace.h>
 
@@ -175,7 +176,7 @@ u8 web_canvas_2d_check_usability_of_image(void* source_wrapper, CanvasImageSourc
 void web_canvas_2d_image_source_size(void* source_wrapper, CanvasImageSourceKind, i32* out_width, i32* out_height);
 bool web_canvas_2d_image_is_not_origin_clean(void* source_wrapper, CanvasImageSourceKind);
 bool web_canvas_2d_image_source_canvas_id(void* source_wrapper, CanvasImageSourceKind, u64* out_canvas_id, bool* out_source_is_2d);
-Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind);
+Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind, i32 raster_width, i32 raster_height, bool* out_rasterized);
 bool web_canvas_2d_capture_video_frame(void* source_wrapper, CapturedVideoFrame* out_frame);
 void* web_canvas_2d_video_transport(void* source_wrapper);
 void web_canvas_2d_video_frame_hold_unref(Compositing::VideoFrameHold*);
@@ -812,12 +813,23 @@ bool web_canvas_2d_image_source_canvas_id(void* source_wrapper, CanvasImageSourc
     return true;
 }
 
-Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind kind)
+// The frame of an image or a canvas. A vector image is rasterized at the raster size instead of its natural size, if
+// that size is not empty and the raster can be made, and out_rasterized says whether it was.
+Gfx::DecodedImageFrame* web_canvas_2d_image_source_frame(void* source_wrapper, CanvasImageSourceKind kind, i32 raster_width, i32 raster_height, bool* out_rasterized)
 {
-    auto frame = image_source_from(source_wrapper, kind).visit([](OneOf<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>> auto const& element) -> Optional<Gfx::DecodedImageFrame> {
+    *out_rasterized = false;
+    auto frame = image_source_from(source_wrapper, kind).visit([&](OneOf<GC::Ref<HTMLImageElement>, GC::Ref<SVG::SVGImageElement>> auto const& element) -> Optional<Gfx::DecodedImageFrame> {
             auto image_data = element->decoded_image_data();
             if (!image_data)
                 return {};
+
+            Gfx::IntSize raster_size { raster_width, raster_height };
+            if (!raster_size.is_empty() && is<SVG::SVGDecodedImageData>(*image_data)) {
+                if (auto raster_frame = image_data->default_frame(raster_size); raster_frame.has_value()) {
+                    *out_rasterized = true;
+                    return raster_frame;
+                }
+            }
 
             Gfx::IntSize size;
             auto intrinsic_width = element->intrinsic_width();

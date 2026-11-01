@@ -1,0 +1,50 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // A 10x10 SVG whose black square has its edges on half pixels.
+        const svg =
+            '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect x="2.5" y="2.5" width="5" height="5"/><rect width="2.5" height="2.5" fill="red"/></svg>';
+        const img = new Image();
+        img.src = "data:image/svg+xml," + encodeURIComponent(svg);
+        await img.decode();
+
+        function draw(label, drawFunction) {
+            const canvas = document.createElement("canvas");
+            canvas.width = canvas.height = 80;
+            const ctx = canvas.getContext("2d");
+            drawFunction(ctx);
+            const data = ctx.getImageData(0, 0, 80, 80).data;
+            let partial = 0;
+            let black = 0;
+            let red = 0;
+            for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i + 3];
+                if (alpha > 5 && alpha < 250) ++partial;
+                else if (alpha >= 250 && data[i] < 5) ++black;
+                else if (alpha >= 250 && data[i] > 250) ++red;
+            }
+            println(`${label}: partially covered ${partial}, black ${black}, red ${red}`);
+        }
+
+        // Scaled up 8x, each edge lands on a pixel boundary, so nothing is partially covered.
+        draw("transform", ctx => {
+            ctx.setTransform(8, 0, 0, 8, 0, 0);
+            ctx.drawImage(img, 0, 0);
+        });
+        draw("destination size and transform", ctx => {
+            ctx.scale(2, 2);
+            ctx.drawImage(img, 0, 0, 40, 40);
+        });
+        draw("source rectangle", ctx => ctx.drawImage(img, 2.5, 2.5, 5, 5, 0, 0, 80, 80));
+        draw("source rectangle in the corner", ctx => ctx.drawImage(img, 0, 0, 2.5, 2.5, 0, 0, 80, 80));
+        draw("rotated", ctx => {
+            ctx.translate(40, 40);
+            ctx.rotate(Math.PI / 2);
+            ctx.scale(8, 8);
+            ctx.drawImage(img, -5, -5);
+        });
+        // Stretched rather than fitted into the destination.
+        draw("non-uniform destination", ctx => ctx.drawImage(img, 0, 0, 80, 40));
+    });
+</script>

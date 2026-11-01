@@ -1,0 +1,6 @@
+transform: partially covered 0, black 1600, red 400
+destination size and transform: partially covered 0, black 1600, red 400
+source rectangle: partially covered 0, black 6400, red 0
+source rectangle in the corner: partially covered 0, black 0, red 6400
+rotated: partially covered 0, black 1600, red 400
+non-uniform destination: partially covered 0, black 800, red 200
