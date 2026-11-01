@@ -1,0 +1,3 @@
+initial: block, opacity 1
+with a value: none
+without a value: block, opacity 0
