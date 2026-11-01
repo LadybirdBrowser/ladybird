@@ -1986,6 +1986,10 @@ public:
             return true;
         if (hint == SH_Menu_SubMenuUniDirectionFailCount)
             return 1;
+        // NB: Qt flashes a chosen menu item by running a nested event loop, in which the tab that owns the menu can be
+        //     closed and destroy the menu while Qt is still using it.
+        if (hint == SH_Menu_FlashTriggeredItem)
+            return false;
         return QProxyStyle::styleHint(hint, option, widget, return_data);
     }
 };
