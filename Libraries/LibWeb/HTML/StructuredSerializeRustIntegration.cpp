@@ -46,11 +46,9 @@ void web_structured_serialize_set_storage_record(StorageSerializationRecord*, Re
 bool web_structured_serialize_interface_storage_identifier(u16 interface_name, ReadonlyBytes* identifier);
 bool web_structured_serialize_is_ipc_interface(u16 interface_name);
 bool web_structured_serialize_interface_name_from_storage_identifier(ReadonlyBytes identifier, u16* interface_name);
-bool web_structured_serialize_shared_buffers_append_shared_memory(Vector<Core::AnonymousBuffer>*, JSObject* array_buffer, u32* index);
 
 void web_structured_serialize_ipc_record_data(IPCSerializationRecord const*, ReadonlyBytes* data);
 JSObject* web_structured_serialize_ipc_record_shared_array_buffer(IPCSerializationRecord const*, u32 side_table_index);
-JSCompletion web_structured_serialize_shared_buffers_shared_array_buffer(Vector<Core::AnonymousBuffer> const*, void* realm, u32 index, u64 shared_object_id);
 JSCompletion web_structured_serialize_data_clone_error_from_serialization_error(void* realm, ReadonlyBytes message);
 
 u64 web_structured_serialize_serializable_payload_version();
@@ -66,7 +64,7 @@ bool web_structured_serialize_is_exposed(u16 interface_name, void* realm);
 u8 web_structured_serialize_serializable_steps(u16 interface_name);
 JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 interface_name, void* realm, void* serialized);
 
-ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(Vector<Core::AnonymousBuffer>*, JSObject* const* transfer_list, size_t count);
+ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(JSObject* const* transfer_list, size_t count, u32 buffer_index, int* shared_memory, size_t* size);
 void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixels*);
 
 TransferDataEncoder* web_structured_serialize_transfer_data_holder_create();
@@ -74,8 +72,9 @@ void web_structured_serialize_transfer_data_holder_append(TransferDataEncoder*, 
 void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder*);
 SerializedTransferRecord* web_structured_serialize_transfer_record_create();
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
-void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t count);
-Vector<Core::AnonymousBuffer>* web_structured_serialize_transfer_record_shared_buffers(SerializedTransferRecord*);
+void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord*, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t shared_array_buffer_count, int const* shared_memory, size_t const* shared_memory_sizes, size_t shared_memory_count);
+size_t web_structured_serialize_transfer_record_shared_memory_count(SerializedTransferRecord*);
+void web_structured_serialize_transfer_record_shared_memory(SerializedTransferRecord*, size_t index, int* shared_memory, size_t* size);
 void web_structured_serialize_transfer_record_append_data_holder(SerializedTransferRecord*, TransferDataEncoder*);
 size_t web_structured_serialize_transfer_record_data_holder_count(SerializedTransferRecord*);
 TransferDataDecoder* web_structured_serialize_transfer_record_take_data_holder(SerializedTransferRecord*, size_t index);
@@ -153,31 +152,9 @@ bool web_structured_serialize_interface_name_from_storage_identifier(ReadonlyByt
     return false;
 }
 
-// AD-HOC: A SharedArrayBuffer backed by cross-process shared memory shares it through the side list of a record on the
-//         messaging path, which hands it over by file descriptor.
-bool web_structured_serialize_shared_buffers_append_shared_memory(Vector<Core::AnonymousBuffer>* shared_buffers, JSObject* array_buffer, u32* index)
-{
-    auto shared_buffer = array_buffer_from_abi(array_buffer).shared_buffer();
-    if (!shared_buffer.has_value())
-        return false;
-    *index = static_cast<u32>(shared_buffers->size());
-    shared_buffers->append(shared_buffer.release_value());
-    return true;
-}
-
 void web_structured_serialize_ipc_record_data(IPCSerializationRecord const* record, ReadonlyBytes* data)
 {
     *data = record->data.span();
-}
-
-// AD-HOC: When the backing was transferred as cross-process shared memory, map it from the side list by index — so
-//         both agents reference the same bytes.
-JSCompletion web_structured_serialize_shared_buffers_shared_array_buffer(Vector<Core::AnonymousBuffer> const* shared_buffers, void* realm, u32 index, u64 shared_object_id)
-{
-    auto& js_realm = realm_from_abi(realm);
-    if (index >= shared_buffers->size())
-        return Bindings::completion_to_abi(js_realm, WebIDL::ExceptionOr<JS::Value> { data_clone_error_from_serialization_error(js_realm, AK::Error::from_string_literal("SharedArrayBuffer side-list index out of range")) });
-    return JS::HostABI::completion_to_abi(JS::ThrowCompletionOr<JS::Value> { JS::ArrayBuffer::create(js_realm, shared_buffers->at(index), shared_object_id) });
 }
 
 JSObject* web_structured_serialize_ipc_record_shared_array_buffer(IPCSerializationRecord const* record, u32 side_table_index)
@@ -277,7 +254,7 @@ JSCompletion web_structured_serialize_deserialize_rust_platform_object(u16 inter
 
 // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
 //         is not enough memory for it, the pixels travel inline.
-ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(Vector<Core::AnonymousBuffer>* shared_buffers, JSObject* const* transfer_list, size_t count)
+ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(JSObject* const* transfer_list, size_t count, u32 buffer_index, int* shared_memory, size_t* size)
 {
     Checked<size_t> image_bitmap_pixels_size = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -289,8 +266,9 @@ ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(Vec
     auto buffer = Core::AnonymousBuffer::create_with_size(image_bitmap_pixels_size.value());
     if (buffer.is_error())
         return nullptr;
-    auto* image_bitmap_pixels = new ImageBitmapSharedPixels { .buffer = buffer.release_value(), .buffer_index = static_cast<u32>(shared_buffers->size()) };
-    shared_buffers->append(image_bitmap_pixels->buffer);
+    auto* image_bitmap_pixels = new ImageBitmapSharedPixels { .buffer = buffer.release_value(), .buffer_index = buffer_index };
+    *shared_memory = image_bitmap_pixels->buffer.fd();
+    *size = image_bitmap_pixels->buffer.size();
     return image_bitmap_pixels;
 }
 
@@ -324,14 +302,24 @@ void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord* 
     delete record;
 }
 
-void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord* record, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t count)
+// The record's [[Serialized]], with the shared memory of the transfer, whose descriptors it takes over.
+void web_structured_serialize_transfer_record_set_serialized(SerializedTransferRecord* record, ReadonlyBytes data, JSObject* const* shared_array_buffers, size_t shared_array_buffer_count, int const* shared_memory, size_t const* shared_memory_sizes, size_t shared_memory_count)
 {
-    record->serialized = create_ipc_serialization_record(data, shared_array_buffers_from_abi(shared_array_buffers, count));
+    record->serialized = create_ipc_serialization_record(data, shared_array_buffers_from_abi(shared_array_buffers, shared_array_buffer_count));
+    record->shared_buffers.ensure_capacity(shared_memory_count);
+    for (size_t i = 0; i < shared_memory_count; ++i)
+        record->shared_buffers.unchecked_append(MUST(Core::AnonymousBuffer::create_from_anon_fd(shared_memory[i], shared_memory_sizes[i])));
 }
 
-Vector<Core::AnonymousBuffer>* web_structured_serialize_transfer_record_shared_buffers(SerializedTransferRecord* record)
+size_t web_structured_serialize_transfer_record_shared_memory_count(SerializedTransferRecord* record)
 {
-    return &record->shared_buffers;
+    return record->shared_buffers.size();
+}
+
+void web_structured_serialize_transfer_record_shared_memory(SerializedTransferRecord* record, size_t index, int* shared_memory, size_t* size)
+{
+    *shared_memory = record->shared_buffers[index].fd();
+    *size = record->shared_buffers[index].size();
 }
 
 void web_structured_serialize_transfer_record_append_data_holder(SerializedTransferRecord* record, TransferDataEncoder* data_holder)

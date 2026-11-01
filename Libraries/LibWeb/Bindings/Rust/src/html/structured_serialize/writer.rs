@@ -20,17 +20,9 @@ use libjs_rust::api::{ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, Marked
 use libwebcommon_rust::html::serialization_records::{RecordEncoder, SerializationType};
 
 use crate::html::structured_serialize::cpp::{
-    IPCSerializationRecord, SerializedTransferRecord, SharedBuffers, StorageSerializationRecord,
-    serializable_interface_storage_identifier,
+    IPCSerializationRecord, StorageSerializationRecord, serializable_interface_storage_identifier,
 };
 use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
-
-/// Where a record that reaches agents in other processes hands the shared memory of its SharedArrayBuffers over.
-enum CrossProcessSharedMemory {
-    None,
-    Lent(SharedBuffers),
-    Owned(RefCell<Vec<SharedMemory>>),
-}
 
 /// The record of a structured serialization, which the serialization writes its values to.
 pub(crate) struct StructuredSerializeWriter<'vm> {
@@ -38,7 +30,8 @@ pub(crate) struct StructuredSerializeWriter<'vm> {
     /// The SharedArrayBuffers that an IPC record shares with a deserialization in the same process, by their index in
     /// this same-process side table.
     shared_array_buffers: MarkedVec<'vm, Gc<ArrayBuffer>>,
-    shared_memory: CrossProcessSharedMemory,
+    /// The shared memory that a MessageRecord, which may reach agents in other processes, hands over beside its bytes.
+    shared_memory: Option<RefCell<Vec<SharedMemory>>>,
 }
 
 impl<'vm> StructuredSerializeWriter<'vm> {
@@ -46,22 +39,14 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         Self {
             encoder: RefCell::new(RecordEncoder::new(serialization_type)),
             shared_array_buffers: MarkedVec::new(vm),
-            shared_memory: CrossProcessSharedMemory::None,
-        }
-    }
-
-    /// The writer of an IPC record whose SharedArrayBuffers share their cross-process shared memory through the list.
-    pub(crate) fn new_with_shared_buffers(vm: &'vm Vm, shared_buffers: SharedBuffers) -> Self {
-        Self {
-            shared_memory: CrossProcessSharedMemory::Lent(shared_buffers),
-            ..Self::new(vm, SerializationType::Ipc)
+            shared_memory: None,
         }
     }
 
     /// The writer of a MessageRecord.
     pub(crate) fn new_for_message(vm: &'vm Vm) -> Self {
         Self {
-            shared_memory: CrossProcessSharedMemory::Owned(RefCell::new(Vec::new())),
+            shared_memory: Some(RefCell::new(Vec::new())),
             ..Self::new(vm, SerializationType::Ipc)
         }
     }
@@ -158,27 +143,40 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         index
     }
 
+    /// Hands the shared memory over beside the record, and returns its index there.
+    pub(crate) fn append_shared_memory(&self, shared_memory: SharedMemory) -> u32 {
+        let mut list = self
+            .shared_memory
+            .as_ref()
+            .expect("the record hands shared memory over")
+            .borrow_mut();
+        let index = u32::try_from(list.len()).expect("a record shares fewer than 2^32 buffers");
+        list.push(shared_memory);
+        index
+    }
+
+    /// The index that the next shared memory handed over beside the record gets.
+    pub(crate) fn next_shared_memory_index(&self) -> u32 {
+        let list = self
+            .shared_memory
+            .as_ref()
+            .expect("the record hands shared memory over")
+            .borrow();
+        u32::try_from(list.len()).expect("a record shares fewer than 2^32 buffers")
+    }
+
     /// Hands the cross-process shared memory of the SharedArrayBuffer over beside the record, and returns its index
     /// there, if the buffer is backed by some, and the record reaches agents in other processes.
     pub(crate) fn append_shared_memory_of(&self, array_buffer: Gc<ArrayBuffer>) -> Option<u32> {
-        let shared_memory = match &self.shared_memory {
-            CrossProcessSharedMemory::None => return None,
-            CrossProcessSharedMemory::Lent(shared_buffers) => {
-                return shared_buffers.append_shared_memory_of(array_buffer);
-            }
-            CrossProcessSharedMemory::Owned(shared_memory) => shared_memory,
-        };
-        let descriptor = array_buffer.with_data_block(|data_block| match &data_block.byte_buffer {
+        self.shared_memory.as_ref()?;
+        let shared_memory = array_buffer.with_data_block(|data_block| match &data_block.byte_buffer {
             DataBlockStorage::Shared(store) => Some(SharedMemory {
                 descriptor: store.shared_memory().try_clone_to_owned().ok()?,
                 size: store.size(),
             }),
             _ => None,
         })?;
-        let mut shared_memory = shared_memory.borrow_mut();
-        let index = u32::try_from(shared_memory.len()).expect("a record shares fewer than 2^32 buffers");
-        shared_memory.push(descriptor);
-        Some(index)
+        Some(self.append_shared_memory(shared_memory))
     }
 
     /// Sets the IPC record that C++ lends to what the writer wrote.
@@ -191,9 +189,7 @@ impl<'vm> StructuredSerializeWriter<'vm> {
     /// allocates under the deferral.
     pub(crate) fn finish_message_record(self, _: &DeferGc<'_>) -> MessageRecord {
         assert_eq!(self.serialization_type(), SerializationType::Ipc);
-        let CrossProcessSharedMemory::Owned(shared_memory) = self.shared_memory else {
-            unreachable!("the writer is a message's");
-        };
+        let shared_memory = self.shared_memory.expect("the writer is a message's");
         MessageRecord {
             bytes: self.encoder.into_inner().into_bytes(),
             shared_array_buffers: self.shared_array_buffers.values().to_vec(),
@@ -219,11 +215,5 @@ impl<'vm> StructuredSerializeWriter<'vm> {
             "a storage record shares no SharedArrayBuffer"
         );
         record.set(self.encoder.borrow().bytes());
-    }
-
-    /// Sets the [[Serialized]] of the record of a transfer to what the writer wrote.
-    pub(crate) fn finish_transfer_record(self, record: SerializedTransferRecord) {
-        assert_eq!(self.serialization_type(), SerializationType::Ipc);
-        record.set_serialized(self.encoder.borrow().bytes(), &self.shared_array_buffers.values());
     }
 }

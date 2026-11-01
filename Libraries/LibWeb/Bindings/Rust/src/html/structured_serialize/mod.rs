@@ -23,8 +23,8 @@ pub(crate) mod writer;
 use ak::Utf16String;
 use libjs_rust::api::{
     Array, ArrayBuffer, ArrayBufferOrder, ArrayBufferShared, BigIntObject, BooleanObject, ByteLength, DataView, Date,
-    ErrorKind, ErrorType as JsErrorType, Gc, Map, MarkedVec, Must, NumberObject, Object, PrimitiveString, PropertyKey,
-    PropertyKind, Realm, RegExpObject, Set, StringObject, TypedArrayBase, TypedArrayKind, Value, Vm,
+    DeferGc, ErrorKind, ErrorType as JsErrorType, Gc, Map, MarkedVec, Must, NumberObject, Object, PrimitiveString,
+    PropertyKey, PropertyKind, Realm, RegExpObject, Set, StringObject, TypedArrayBase, TypedArrayKind, Value, Vm,
     create_byte_data_block, detach_array_buffer, is_typed_array_out_of_bounds, is_view_out_of_bounds,
     length_of_array_like, make_data_view_with_buffer_witness_record, make_typed_array_with_buffer_witness_record,
     regexp_create,
@@ -43,8 +43,9 @@ use crate::html::offscreen_canvas;
 use crate::html::structured_serialize::cpp::{
     OwnedSerializedTransferRecord, SerializableSteps, SerializedTransferRecord, current_settings_object_agent_cluster,
     current_settings_object_cross_origin_isolated_capability, data_clone_error_from_serialization_error,
-    deserialize_rust_platform_object, is_exposed, is_platform_object, realm_agent_cluster, serializable_interface_name,
-    serializable_interface_storage_identifier, serializable_payload_version, serializable_steps, serialization_steps,
+    deserialize_rust_platform_object, gather_image_bitmap_pixels, is_exposed, is_platform_object, realm_agent_cluster,
+    serializable_interface_name, serializable_interface_storage_identifier, serializable_payload_version,
+    serializable_steps, serialization_steps,
 };
 use crate::html::structured_serialize::memory::{DeserializationMemory, SerializationMemory};
 use crate::html::structured_serialize::message_record::MessageRecord;
@@ -1722,14 +1723,12 @@ pub(crate) fn structured_serialize_with_transfer(
         memory.set(transferable_value, memory.size());
     }
 
-    // NB: The record of the result holds the shared memory that serialized and the data holders share through.
     let result = OwnedSerializedTransferRecord::new();
-    let shared_buffers = result.record().shared_buffers();
 
     // 3. Let serialized be ? StructuredSerializeInternal(value, false, memory).
-    // NB: The record may cross a process boundary, so it is an IPC record, with the memory of its SharedArrayBuffers
-    //     shared on the side.
-    let serialized = StructuredSerializeWriter::new_with_shared_buffers(vm, shared_buffers);
+    // NB: The record may cross a process boundary, so it is a message record, with the memory of its SharedArrayBuffers
+    //     shared on the side. The data holders share the pixels of ImageBitmaps through the same list.
+    let serialized = StructuredSerializeWriter::new_for_message(vm);
     structured_serialize_internal(
         vm,
         Some(cx.realm()),
@@ -1742,7 +1741,11 @@ pub(crate) fn structured_serialize_with_transfer(
 
     // AD-HOC: Gather the pixels of the transferred ImageBitmaps in one buffer of shared memory. Without it, as when there
     //         is not enough memory for it, the pixels travel inline.
-    let image_bitmap_pixels = shared_buffers.gather_image_bitmap_pixels(transfer_list);
+    let (image_bitmap_pixels, pixels_shared_memory) =
+        gather_image_bitmap_pixels(transfer_list, serialized.next_shared_memory_index());
+    if let Some(shared_memory) = pixels_shared_memory {
+        serialized.append_shared_memory(shared_memory);
+    }
 
     // 4. Let transferDataHolders be a new empty List.
     // NB: The record of the result holds the list.
@@ -1825,7 +1828,11 @@ pub(crate) fn structured_serialize_with_transfer(
     }
 
     // 6. Let result be { [[Serialized]]: serialized, [[TransferDataHolders]]: transferDataHolders, [[InterfaceNames]]: an empty ordered set, [[AgentCluster]]: null }.
-    serialized.finish_transfer_record(result.record());
+    DeferGc::scope(vm, |defer_gc| {
+        result
+            .record()
+            .set_serialized(defer_gc, serialized.finish_message_record(defer_gc));
+    });
 
     // FIXME: 7. For each object → record of memory:
     //     1. If object is a platform object, then append record.[[Type]] to result.[[InterfaceNames]].
@@ -1881,11 +1888,12 @@ pub(crate) fn structured_deserialize_with_transfer<'vm>(
     }
 
     // 6. Let deserialized be ? StructuredDeserialize(serializeWithTransferResult.[[Serialized]], targetRealm, memory).
+    let shared_memory = serialize_with_transfer_result.shared_memory();
     let serialized = StructuredSerializeReader::new_ipc(
         target_realm,
         // SAFETY: The caller lends the record for the deserialization.
         unsafe { serialize_with_transfer_result.serialized() },
-        Some(serialize_with_transfer_result.shared_buffers()),
+        &shared_memory,
     );
     let deserialized = with_temporary_execution_context(target_realm, || {
         structured_deserialize_internal(cx, &serialized, &memory, false)
