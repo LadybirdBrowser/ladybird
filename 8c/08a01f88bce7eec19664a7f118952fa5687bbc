@@ -1,0 +1,11 @@
+Ladybird keeps the latest 1000 messages that each document’s console
+output, up to a total of about 10 MiB, and sends them to a DevTools
+client once it starts watching console messages. Gecko’s DevTools server
+sends such a client what ConsoleAPIStorage kept: the last 1000 messages
+of each window (STORAGE_MAX_EVENTS). V8’s V8ConsoleMessageStorage keeps
+at most 1000 messages and 10 MiB of them (maxConsoleMessageCount and
+maxConsoleMessageV8Size). And WebKit’s InspectorConsoleAgent keeps 100
+messages (maximumConsoleMessages), which its enable() sends to the
+frontend. Unlike all three, which keep the logged values themselves,
+Ladybird keeps a message’s arguments as text, so a page without DevTools
+keeps no logged objects alive.
