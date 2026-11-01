@@ -1,0 +1,6 @@
+Ladybird gives a ShadowRoot the nodeName of any DocumentFragment,
+“#document-fragment”, as the DOM spec’s nodeName steps require. All
+three engines do the same: Blink’s and WebKit’s ShadowRoot inherit
+DocumentFragment::nodeName(), which returns “#document-fragment”, and
+Gecko’s DocumentFragment, ShadowRoot included, asserts that its node
+info carries nsGkAtoms::documentFragmentNodeName.
