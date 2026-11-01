@@ -93,8 +93,13 @@ unsafe extern "C" {
         out_canvas_id: *mut u64,
         out_source_is_2d: *mut bool,
     ) -> bool;
-    fn web_canvas_2d_image_source_frame(source_wrapper: *mut c_void, source_kind: CanvasImageSourceKind)
-    -> *mut c_void;
+    fn web_canvas_2d_image_source_frame(
+        source_wrapper: *mut c_void,
+        source_kind: CanvasImageSourceKind,
+        raster_width: i32,
+        raster_height: i32,
+        out_rasterized: *mut bool,
+    ) -> *mut c_void;
     fn web_canvas_2d_capture_video_frame(source_wrapper: *mut c_void, out_frame: *mut CapturedVideoFrameAbi) -> bool;
     fn web_canvas_2d_video_transport(source_wrapper: *mut c_void) -> *mut c_void;
     fn web_canvas_2d_video_frame_hold_unref(hold: *mut c_void);
@@ -464,9 +469,29 @@ impl CanvasImageSourceKind {
     /// The frame of an image or a canvas, if it has one. This can read a canvas back, which flushes the commands of
     /// every canvas.
     pub(crate) fn frame(self, source: CppInterface) -> Option<ImageFrameHandle> {
-        let frame = unsafe { web_canvas_2d_image_source_frame(source.wrapper().as_ptr().cast(), self) };
+        self.frame_rasterized_at(source, 0, 0).map(|(frame, _)| frame)
+    }
+
+    /// The frame of an image or a canvas, as frame() returns it, except that a vector image is rasterized at the
+    /// given size if it is not empty. Also returns whether it was.
+    pub(crate) fn frame_rasterized_at(
+        self,
+        source: CppInterface,
+        raster_width: i32,
+        raster_height: i32,
+    ) -> Option<(ImageFrameHandle, bool)> {
+        let mut rasterized = false;
+        let frame = unsafe {
+            web_canvas_2d_image_source_frame(
+                source.wrapper().as_ptr().cast(),
+                self,
+                raster_width,
+                raster_height,
+                &raw mut rasterized,
+            )
+        };
         // SAFETY: LibWeb hands over a frame that it allocated with new, or null.
-        (!frame.is_null()).then(|| unsafe { ImageFrameHandle::adopt(frame) })
+        (!frame.is_null()).then(|| (unsafe { ImageFrameHandle::adopt(frame) }, rasterized))
     }
 }
 
