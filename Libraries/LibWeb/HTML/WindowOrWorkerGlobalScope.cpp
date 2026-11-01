@@ -78,6 +78,7 @@
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 #include <LibWeb/ResourceTiming/PerformanceResourceTiming.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/ServiceWorker/CacheStorage.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
@@ -459,6 +460,80 @@ static ErrorOr<Gfx::DecodedImageFrame> crop_to_the_source_rectangle_with_formatt
     return Gfx::DecodedImageFrame { *output, move(output_color_space) };
 }
 
+struct VectorImageRaster {
+    Gfx::DecodedImageFrame frame;
+    Gfx::IntRect source_rectangle;
+    ImageBitmapOptions options;
+};
+
+// A vector image that is resized up is rasterized at the scale it is resized to, rather than scaled up from its natural
+// size, so that it stays sharp. Returns that raster, with the source rectangle in its pixels and the output size as
+// resize options, for cropping to the source rectangle with formatting.
+static Optional<VectorImageRaster> rasterize_vector_image_for_resize(Layout::ImageProvider const& image, Gfx::IntSize natural_size, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions const& options)
+{
+    auto image_data = image.decoded_image_data();
+    if (!image_data || !is<SVG::SVGDecodedImageData>(*image_data))
+        return {};
+    if (!options.resize_width.has_value() && !options.resize_height.has_value())
+        return {};
+
+    auto source_rectangle = Gfx::IntRect { {}, natural_size };
+    if (sx.has_value() && sy.has_value() && sw.has_value() && sh.has_value()) {
+        if (*sw < 0 || *sh < 0)
+            return {};
+        source_rectangle = { *sx, *sy, *sw, *sh };
+    }
+    if (source_rectangle.is_empty())
+        return {};
+
+    auto output_width = options.resize_width.has_value()
+        ? static_cast<i64>(*options.resize_width)
+        : ceil_div(static_cast<i64>(source_rectangle.width()) * *options.resize_height, static_cast<i64>(source_rectangle.height()));
+    auto output_height = options.resize_height.has_value()
+        ? static_cast<i64>(*options.resize_height)
+        : ceil_div(static_cast<i64>(source_rectangle.height()) * *options.resize_width, static_cast<i64>(source_rectangle.width()));
+    if (output_width <= source_rectangle.width() && output_height <= source_rectangle.height())
+        return {};
+
+    // Every size and coordinate below must fit in an int.
+    auto fits_in_int = [](double value) { return value >= NumericLimits<int>::min() && value <= NumericLimits<int>::max(); };
+    if (!fits_in_int(static_cast<double>(output_width)) || !fits_in_int(static_cast<double>(output_height)))
+        return {};
+
+    // The image is rasterized at one scale in both directions, as the vector image would be fitted into a raster of
+    // another aspect ratio rather than stretched. Cropping then scales the rest of the way to the output size.
+    auto scale = max(static_cast<double>(output_width) / source_rectangle.width(), static_cast<double>(output_height) / source_rectangle.height());
+    auto raster_width = ceil(natural_size.width() * scale);
+    auto raster_height = ceil(natural_size.height() * scale);
+    auto raster_source_x = round(source_rectangle.x() * scale);
+    auto raster_source_y = round(source_rectangle.y() * scale);
+    auto raster_source_width = round(source_rectangle.width() * scale);
+    auto raster_source_height = round(source_rectangle.height() * scale);
+    if (!fits_in_int(raster_width) || !fits_in_int(raster_height) || !fits_in_int(raster_source_x) || !fits_in_int(raster_source_y) || !fits_in_int(raster_source_width) || !fits_in_int(raster_source_height))
+        return {};
+    // A small source rectangle resized up would need a raster far larger than the output.
+    if (raster_width * raster_height > 4.0 * static_cast<double>(output_width) * static_cast<double>(output_height))
+        return {};
+
+    auto frame = image.default_image_frame(Gfx::IntSize { static_cast<int>(raster_width), static_cast<int>(raster_height) });
+    if (!frame.has_value())
+        return {};
+
+    auto raster_options = options;
+    raster_options.resize_width = static_cast<WebIDL::UnsignedLong>(output_width);
+    raster_options.resize_height = static_cast<WebIDL::UnsignedLong>(output_height);
+    return VectorImageRaster {
+        .frame = frame.release_value(),
+        .source_rectangle = {
+            static_cast<int>(raster_source_x),
+            static_cast<int>(raster_source_y),
+            static_cast<int>(raster_source_width),
+            static_cast<int>(raster_source_height),
+        },
+        .options = raster_options,
+    };
+}
+
 void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, GC::Ref<WebIDL::Promise> p, ImageBitmapSource& image, Optional<WebIDL::Long> sx, Optional<WebIDL::Long> sy, Optional<WebIDL::Long> sw, Optional<WebIDL::Long> sh, ImageBitmapOptions options) const
 {
     // 1. If either sw or sh is given and is 0, then return a promise rejected with a RangeError.
@@ -732,7 +807,17 @@ void WindowOrWorkerGlobalScopeMixin::create_image_bitmap_impl(JS::Realm& realm, 
                     //    the animation.
                     Optional<Gfx::DecodedImageFrame> decoded_frame;
                     if (has_natural_dimensions) {
-                        decoded_frame = image_element->default_image_frame(Gfx::IntSize { *image_element->intrinsic_width(), *image_element->intrinsic_height() });
+                        Gfx::IntSize natural_size { *image_element->intrinsic_width(), *image_element->intrinsic_height() };
+                        if (auto raster = rasterize_vector_image_for_resize(*image_element, natural_size, sx, sy, sw, sh, options); raster.has_value()) {
+                            decoded_frame = move(raster->frame);
+                            sx = raster->source_rectangle.x();
+                            sy = raster->source_rectangle.y();
+                            sw = raster->source_rectangle.width();
+                            sh = raster->source_rectangle.height();
+                            options = raster->options;
+                        } else {
+                            decoded_frame = image_element->default_image_frame(natural_size);
+                        }
                     } else {
                         decoded_frame = image_element->default_image_frame(Gfx::IntSize { *options.resize_width, *options.resize_height });
                     }
