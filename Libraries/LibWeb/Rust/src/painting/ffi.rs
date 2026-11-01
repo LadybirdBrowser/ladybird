@@ -50,6 +50,11 @@ pub(crate) fn paintable_cleared_from_node(
     arena: &mut LayoutNodeArena,
     layout_node: NodeSlotId,
 ) {
+    // NB: A box can stay in the tree after it gives up its committed box, until its parent's rebuild frees it, and a
+    //     layout before that keeps the fragments of its ancestors that hold it.
+    if arena.slot_is_live(layout_node) {
+        arena.invalidate_committed_geometry_of_ancestors(layout_node);
+    }
     arena.clear_committed_fragment_link(layout_node);
     if let Some(reset) = arena.prepare_paintable_row_cleared_reset(layout_node) {
         host_calls.paintable_row_reset(reset);

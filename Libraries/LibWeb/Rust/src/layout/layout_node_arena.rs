@@ -1102,7 +1102,6 @@ pub(crate) struct LayoutNodeArena {
     full_layout_count: u64,
     /// How many layouts were committed, full and partial.
     layout_commit_count: u64,
-    committed_subtree_tokens: Vec<u32>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: Vec<u64>,
     pre_order_relabel_count: u64,
@@ -1227,7 +1226,6 @@ impl LayoutNodeArena {
             partial_layout_count: (0),
             full_layout_count: (0),
             layout_commit_count: 0,
-            committed_subtree_tokens: Vec::new(),
             layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: 0,
@@ -1303,7 +1301,7 @@ impl LayoutNodeArena {
         std::mem::take(&mut self.memo_invalidations)
     }
 
-    /// Drops the entries of `store` whose slot or epoch no longer matches, marks the entry whose fragments each box
+    /// Drops the entries of `store` whose slot or epoch no longer matches, keeps the entry whose fragments each box
     /// committed and ages the others. Checks only boxes whose entries were invalidated, stored or used since the
     /// previous sweep, or can still age out. Stale entries survive until commit so inline layout can reuse their
     /// undamaged line prefixes.
@@ -1319,40 +1317,9 @@ impl LayoutNodeArena {
                 let id = NodeSlotId::new(slot, metadata.generation);
                 self.data(id).fragment_cache_epoch == validity.fragment_cache_epoch
             },
-            |box_, entry| {
-                entry
-                    .describes_committed_subtree(self, box_)
-                    .then(|| self.committed_subtree_token(box_))
-            },
+            |box_, entry| entry.holds_committed_fragments(self, box_),
             self.layout_commit_count(),
         );
-    }
-
-    /// Moves on whenever a commit lays the subtree of `id` out anew or clears it, which tells a layout run cache
-    /// entry that found its fragments committed whether they still are.
-    pub(crate) fn committed_subtree_token(&self, id: NodeSlotId) -> u32 {
-        self.committed_subtree_tokens
-            .get(id.slot_index() as usize)
-            .copied()
-            .unwrap_or_default()
-    }
-
-    pub(crate) fn note_subtree_committed_anew(&mut self, id: NodeSlotId) {
-        let tokens = &mut self.committed_subtree_tokens;
-        let index = id.slot_index() as usize;
-        if tokens.len() <= index {
-            tokens.resize(index + 1, 0);
-        }
-        tokens[index] = tokens[index].wrapping_add(1);
-    }
-
-    /// Notes that the subtrees of `id` and its ancestors were committed anew.
-    pub(crate) fn note_subtrees_of_self_and_ancestors_committed_anew(&mut self, id: NodeSlotId) {
-        let mut node = id;
-        while !node.is_invalid() && self.slot_is_live(node) {
-            self.note_subtree_committed_anew(node);
-            node = self.data(node).parent.get();
-        }
     }
 
     /// Checks that the calling thread may reach the arena: the StyleLayout thread, which the arena's render state lives
@@ -5260,11 +5227,25 @@ impl LayoutNodeArena {
         link
     }
 
+    /// Makes the committed geometry of the ancestors of `id` stale up to the first that is stale already, so that the
+    /// next commit walks down to `id` rather than keeping a committed subtree that holds it.
+    pub(crate) fn invalidate_committed_geometry_of_ancestors(&mut self, id: NodeSlotId) {
+        let mut ancestor = self.data(id).parent.get();
+        while !ancestor.is_invalid()
+            && self.slot_is_live(ancestor)
+            && self
+                .with_current_committed_fragment_link(ancestor, |_| ())
+                .is_some()
+        {
+            self.paintable_rows.invalidate_committed_geometry(ancestor.slot_index());
+            ancestor = self.data(ancestor).parent.get();
+        }
+    }
+
     pub(crate) fn clear_committed_fragment_link(&mut self, id: NodeSlotId) {
         // Cached runs may reuse the committed paintable subtree without replaying its fragments.
         // Once that subtree is cleared, a later layout must rebuild it instead.
         self.memo_invalidations.note_run_cache_entries_dropped(id.slot_index());
-        self.note_subtrees_of_self_and_ancestors_committed_anew(id);
         drop(self.take_committed_fragment_link(id));
     }
 
