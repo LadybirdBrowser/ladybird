@@ -871,7 +871,6 @@ void Document::reset_style_invalidation_counters(Layout::BegunRead const& read) 
     (void)CSS::StyleEngineFFI::style_engine_size_query_container_scan_visits(style_computer().style_engine().host(), &read, true);
     if (m_layout_node_arena) {
         Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(m_layout_node_arena->host(), true);
-        Layout::RustFFI::render_state_overflow_contained_box_index_refill_count(m_layout_node_arena->host(), true);
     }
     CSS::reset_longhand_wrappers_minted();
 }

@@ -1676,7 +1676,6 @@ impl TreeBuildJob {
                     &state.additional_table_fixup_roots,
                 );
             } else {
-                host.arena_mut().set_needs_full_scrollable_overflow_recalculation();
                 fixup_tables(host, document_layout_node);
             }
 

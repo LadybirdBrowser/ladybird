@@ -3381,7 +3381,6 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("styleCascadeMicroseconds"_utf16_fly_string, JS::Value(counters.style_cascade_microseconds), JS::default_attributes);
     object->define_direct_property("styleValuesMicroseconds"_utf16_fly_string, JS::Value(counters.style_values_microseconds), JS::default_attributes);
     object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(document.layout_node_arena().host(), false)), JS::default_attributes);
-    object->define_direct_property("overflowContainedBoxIndexRefills"_utf16_fly_string, JS::Value(Layout::RustFFI::render_state_overflow_contained_box_index_refill_count(document.layout_node_arena().host(), false)), JS::default_attributes);
     return object;
 }
 

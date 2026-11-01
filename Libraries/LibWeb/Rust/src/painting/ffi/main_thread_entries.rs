@@ -139,7 +139,7 @@ pub extern "C" fn render_state_scroll_target_for_text_position(
             super::node_read(),
             (text, offset, affinity_is_downstream, scroll_block_axis),
             |arena, (text, offset, affinity_is_downstream, scroll_block_axis)| {
-                arena.measure_scrollable_overflow();
+                arena.settle_scrollable_overflow();
                 crate::painting::scroll_chain::scroll_target_for_text_position(
                     &arena.paintable_rows(),
                     text,
@@ -169,7 +169,7 @@ pub extern "C" fn render_state_scrolling_box_for_scroll_step(
         super::node_read(),
         (target, viewport, delta),
         |arena, (target, viewport, delta)| {
-            arena.measure_scrollable_overflow();
+            arena.settle_scrollable_overflow();
             crate::painting::scroll_chain::scrolling_box_for_scroll_step(
                 &arena.paintable_rows(),
                 target,
@@ -198,7 +198,7 @@ pub unsafe extern "C" fn render_state_for_each_wheel_scrollable_box_in_containin
             super::node_read(),
             (start, wheel_delta_x, wheel_delta_y),
             |arena, (start, wheel_delta_x, wheel_delta_y)| {
-                arena.measure_scrollable_overflow();
+                arena.settle_scrollable_overflow();
                 let mut boxes = Vec::new();
                 crate::painting::scroll_chain::for_each_wheel_scrollable_box_in_containing_block_chain(
                     &arena.paintable_rows(),
@@ -240,7 +240,7 @@ pub extern "C" fn render_state_first_wheel_scrollable_box_in_containing_block_ch
     start: NodeSlotId,
 ) -> NodeSlotId {
     read_arena(host, node_read(), start, |arena, start| {
-        arena.measure_scrollable_overflow();
+        arena.settle_scrollable_overflow();
         crate::painting::scroll_chain::first_wheel_scrollable_box_in_containing_block_chain(
             &arena.paintable_rows(),
             start,

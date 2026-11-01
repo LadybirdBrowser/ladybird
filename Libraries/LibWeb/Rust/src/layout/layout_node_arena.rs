@@ -1113,6 +1113,7 @@ pub(crate) struct LayoutNodeArena {
     committed_link_holders: Vec<CommittedLinkHolder>,
     /// The boxes whose committed links a full commit met at the top of its pass, which no fragment holds.
     pass_level_committed_links: Vec<NodeSlotId>,
+    pub(crate) links_held_apart_from_their_containing_blocks: crate::fast_hash::FastSet<NodeSlotId>,
     layout_tree_build_stats: FfiLayoutTreeBuildStats,
     pre_order_labels: Vec<u64>,
     pre_order_relabel_count: u64,
@@ -1167,8 +1168,6 @@ pub(crate) struct LayoutNodeArena {
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
     /// layout pass re-derives every fact boundary qualification depends on, so it clears the bit.
     pub(crate) pending_updates_escape_partial_relayout: bool,
-    pub(crate) boxes_needing_scrollable_overflow_recalculation: Vec<NodeSlotId>,
-    pub(crate) needs_full_scrollable_overflow_recalculation: bool,
     text_nodes_enrolled_for_content_sync: HashSet<NodeSlotId>,
     /// The scroll containers a running tree build gave a style, which may be where scroll
     /// snapping happens once the build is over.
@@ -1239,6 +1238,7 @@ impl LayoutNodeArena {
             layout_commit_count: 0,
             committed_link_holders: Vec::new(),
             pass_level_committed_links: Vec::new(),
+            links_held_apart_from_their_containing_blocks: Default::default(),
             layout_tree_build_stats: (FfiLayoutTreeBuildStats::default()),
             pre_order_labels: Vec::new(),
             pre_order_relabel_count: 0,
@@ -1273,8 +1273,6 @@ impl LayoutNodeArena {
             inline_boxes_lifted_out_of: HashMap::default(),
             out_of_flow_positioning_contained: HashMap::default(),
             pending_updates_escape_partial_relayout: false,
-            boxes_needing_scrollable_overflow_recalculation: Vec::new(),
-            needs_full_scrollable_overflow_recalculation: false,
             text_nodes_enrolled_for_content_sync: HashSet::default(),
             built_scroll_containers: Default::default(),
             image_resources_owed_to_host: Default::default(),
@@ -1515,17 +1513,12 @@ impl LayoutNodeArena {
             self.layout_root = NodeSlotId::INVALID;
             self.pending_rebuilt_subtree_roots.clear();
             self.pending_layout_tree_update_escaped_rebuild_roots = false;
-        }
-        // NB: The root was unlinked through remove_child(), which already noted what its subtree takes out of the
-        //     overflow index.
-        if self.scrollable_overflow.viewport == Some(root) {
-            self.scrollable_overflow.viewport = None;
-            self.scrollable_overflow.non_child_boxes.clear();
-            self.scrollable_overflow.full_layout_commit = false;
-            self.scrollable_overflow.geometry_changed = false;
-            self.scrollable_overflow.scrollability_changed = false;
-            self.boxes_needing_scrollable_overflow_recalculation.clear();
-            self.needs_full_scrollable_overflow_recalculation = false;
+            let overflow = &mut self.scrollable_overflow;
+            overflow.recalculation_requests.clear();
+            overflow.scroll_offset_clamp_candidates.clear();
+            overflow.geometry_changed = false;
+            overflow.scrollability_changed = false;
+            self.links_held_apart_from_their_containing_blocks.clear();
         }
         let mut rows = Vec::new();
         self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| rows.push(slot));
@@ -2170,10 +2163,23 @@ impl LayoutNodeArena {
     /// Record whether the node sits in the user agent shadow tree of the focused text control.
     pub(crate) fn set_identity_in_focused_text_control(&mut self, node: StyleNodeID, value: bool) {
         let identities = &mut self.style_node_tables.identities_in_focused_text_control;
-        if value {
-            identities.insert(node);
+        let changed = if value {
+            identities.insert(node)
         } else {
-            identities.remove(&node);
+            identities.remove(&node)
+        };
+        if !changed {
+            return;
+        }
+        let mut row = self.first_rows_by_style_node.head(node);
+        while !row.is_invalid() {
+            if let Some(line_root) = self.node_containing_block_if_live(row)
+                && self.paintable_row_is_populated(line_root)
+            {
+                self.invalidate_fragments_of_self_and_ancestors_for_change_that_sizes_no_box(line_root);
+                self.request_fragment_overflow_recalculation(line_root);
+            }
+            row = self.next_rows_with_same_style_node[row.slot_index() as usize];
         }
     }
 
@@ -3879,7 +3885,6 @@ impl LayoutNodeArena {
             return;
         }
         self.set_needs_layout_update(node, true);
-        self.scrollable_overflow.contained_boxes_dirty = true;
         if releases_contained_boxes {
             self.record_partial_relayout_escape();
         }
@@ -4572,16 +4577,6 @@ impl LayoutNodeArena {
         // still records its stacking context.
         if flag == NodeFlag::HasAnimatedOpacityOrTransform && updated != previous {
             self.push_paint_damage(id, crate::painting::record::damage::PaintDamage::ELIGIBILITY);
-        }
-        // A commit leaves an ordinary inline's overflow unmeasured, since nothing reads it. Once the
-        // inline stores a scroll offset, its overflow clamps that offset, so the pass measures it.
-        if flag == NodeFlag::HasScrollOffset
-            && value
-            && updated != previous
-            && self.paintable_row_is_populated(id)
-            && !self.paintable_side_data(id).overflow_measured_this_commit
-        {
-            self.note_row_overflow_unmeasured(id);
         }
     }
 
@@ -5762,9 +5757,6 @@ impl LayoutNodeArena {
             self.memo_invalidations.note_structural_inline_change(node);
         }
         self.bump_fragment_cache_epoch(node);
-        if super::node_facts::kind_is_box(self.data(node).kind.get()) {
-            self.paintable_rows_mut().clear_cached_overflow_data(node);
-        }
     }
 
     pub(super) fn bump_fragment_cache_epoch(&mut self, node: NodeSlotId) {
@@ -5864,7 +5856,6 @@ impl LayoutNodeArena {
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_layout_subtree_attached(child);
         self.pending_attached_subtree_roots.push(child);
-        self.note_overflow_contained_boxes_may_move_with_subtree(child);
         // NB: Resolving the deferred insertion marks the parent for layout, which resets its intrinsic sizes.
         self.invalidate_self_and_ancestors(
             parent,
@@ -5877,7 +5868,6 @@ impl LayoutNodeArena {
         if self.paintable_row_count() > 0 {
             self.push_enclosing_paint_order_damage(child);
         }
-        self.note_overflow_contained_boxes_may_move_with_subtree(child);
         self.unlink_child(parent, child);
         self.invalidate_self_and_ancestors(
             parent,

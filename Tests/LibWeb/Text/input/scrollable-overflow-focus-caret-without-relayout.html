@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+input {
+    font: 16px monospace;
+    width: 32px;
+    padding: 0;
+    border: 0;
+}
+</style>
+<input id="input" value="xxxxxx">
+<script src="include.js"></script>
+<script>
+test(() => {
+    const innerText = internals.getShadowRoot(input).querySelector("div > div");
+    const scrollToEnd = () => {
+        innerText.scrollLeft = 0;
+        innerText.scrollLeft = 10000;
+        return innerText.scrollLeft;
+    };
+    const unfocused = scrollToEnd();
+    input.focus();
+    const focused = scrollToEnd();
+    input.blur();
+    const blurred = scrollToEnd();
+    println(`focusing reserves a pixel for the caret: ${focused - unfocused === 1}`);
+    println(`blurring releases it: ${blurred === unfocused}`);
+});
+</script>

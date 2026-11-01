@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+#scroller {
+    overflow: auto;
+    width: 100px;
+    height: 100px;
+}
+#child {
+    width: 50px;
+    height: 50px;
+}
+</style>
+<div id="scroller"><div id="child"></div><div id="other">text</div></div>
+<script src="include.js"></script>
+<script>
+test(() => {
+    println(`initial: ${scroller.scrollWidth}`);
+    child.style.transform = "translateX(200px)";
+    println(`transformed: ${scroller.scrollWidth}`);
+    other.textContent = "more text";
+    println(`after a relayout that reuses the child: ${scroller.scrollWidth}`);
+    child.style.transform = "none";
+    println(`untransformed: ${scroller.scrollWidth}`);
+});
+</script>

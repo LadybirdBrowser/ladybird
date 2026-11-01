@@ -16,11 +16,8 @@
     test(() => {
         function step(name, mutate) {
             scroller.scrollHeight;
-            internals.resetStyleInvalidationCounters();
             mutate();
-            const scrollHeight = scroller.scrollHeight;
-            const refills = internals.getStyleInvalidationCounters().overflowContainedBoxIndexRefills;
-            println(`${name}: refills=${refills} scrollHeight=${scrollHeight}`);
+            println(`${name}: scrollHeight=${scroller.scrollHeight}`);
         }
 
         step("text edit", () => {

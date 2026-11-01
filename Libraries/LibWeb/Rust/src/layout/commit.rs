@@ -211,6 +211,20 @@ impl<'tree> Commit<'_, 'tree> {
         let number = self.number;
         self.arena_mut()
             .note_committed_link_holder(node, recorded_holder, number);
+        let containing_block = link.containing_block;
+        if !containing_block.is_invalid() {
+            let held_by_containing_block = recorded_holder == containing_block
+                || self
+                    .arena()
+                    .committed_link_holder(recorded_holder)
+                    .is_some_and(|(holder_of_holder, _)| holder_of_holder == containing_block);
+            self.arena_mut()
+                .note_whether_link_is_held_apart_from_its_containing_block(
+                    node,
+                    containing_block,
+                    !held_by_containing_block,
+                );
+        }
         if holder.node.is_invalid() && !keeps_its_holder && (self.is_full_commit || !was_at_pass_level) {
             self.pass_level_links.push(node);
         }
@@ -544,7 +558,6 @@ impl<'tree> Commit<'_, 'tree> {
                 if prepared.has_paintable_row {
                     self.paintables.set_box_fragments(inline_box, &[]);
                     self.paintables.clear_line_data(inline_box);
-                    self.paintables.schedule_scrollable_overflow_recalculation(inline_box);
                 }
                 self.arena_mut().gather_layout_style_snapshot_geometry(inline_box);
                 self.arena_mut().refresh_paint_order_inputs(inline_box);
@@ -711,7 +724,7 @@ pub(crate) fn commit_replacing(
     arena.note_layout_commit();
     let number = arena.layout_commit_count() as u32;
     let is_full_commit = arena.data(root).kind.get() == NodeKind::Viewport;
-    let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
+    let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena);
     paintables.begin_commit();
     Commit {
         paintables,

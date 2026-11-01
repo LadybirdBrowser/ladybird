@@ -672,6 +672,188 @@ pub(crate) fn scrollable_overflow_of<'link>(
     }
 }
 
+impl LayoutNodeArena {
+    pub(crate) fn request_fragment_overflow_recalculation(&mut self, node: NodeSlotId) {
+        if !node.is_invalid() {
+            self.scrollable_overflow.recalculation_requests.push(node);
+        }
+    }
+
+    pub(crate) fn note_whether_link_is_held_apart_from_its_containing_block(
+        &mut self,
+        node: NodeSlotId,
+        containing_block: NodeSlotId,
+        is_held_apart: bool,
+    ) {
+        if is_held_apart {
+            self.links_held_apart_from_their_containing_blocks.insert(node);
+            self.request_fragment_overflow_recalculation(containing_block);
+        } else if !self.links_held_apart_from_their_containing_blocks.is_empty() {
+            self.links_held_apart_from_their_containing_blocks.remove(&node);
+        }
+    }
+
+    pub(crate) fn request_fragment_overflow_recalculation_of_containing_block(&mut self, node: NodeSlotId) {
+        if self.slot_is_live(node) && self.paintable_row_is_populated(node) {
+            let containing_block = self.paintable_data(node).containing_block;
+            self.request_fragment_overflow_recalculation(containing_block);
+        }
+    }
+
+    fn committed_links_in_containing_block_fragment(
+        &self,
+        node: NodeSlotId,
+        containing_block_fragment: u32,
+        links: &mut Vec<FragmentLink>,
+    ) {
+        let side_data = self.committed_side_data(node);
+        if side_data.containing_block_fragment == containing_block_fragment
+            && let Some(link) = self
+                .paintable_rows
+                .committed_fragment_link_cloned(node.slot_index(), node.generation())
+        {
+            links.push(link);
+        }
+        links.extend(
+            side_data
+                .box_fragments()
+                .iter()
+                .filter(|fragment| fragment.containing_block_fragment == containing_block_fragment)
+                .map(|fragment| fragment.link.clone()),
+        );
+    }
+
+    fn recalculated_fragment_overflow(
+        &self,
+        node: NodeSlotId,
+        link: &FragmentLink,
+        fragment_index: u32,
+    ) -> FragmentScrollableOverflow {
+        let mut met = crate::fast_hash::FastSet::default();
+        let mut contained = Vec::new();
+        let holder_fragment = self
+            .committed_link_holder(node)
+            .map(|(holder, _)| holder)
+            .filter(|&holder| self.slot_is_live(holder))
+            .and_then(|holder| {
+                self.paintable_rows
+                    .committed_fragment_link_cloned(holder.slot_index(), holder.generation())
+            })
+            .map(|holder_link| holder_link.fragment)
+            .filter(|holder_fragment| holder_fragment.holds_links_of_outer_containing_blocks);
+        let links_held_beside = holder_fragment
+            .iter()
+            .flat_map(|holder_fragment| holder_fragment.children.iter())
+            .filter(|held| held.containing_block == node)
+            .map(|held| held.fragment.node);
+        let candidates = contained_links(&link.fragment)
+            .map(|contained_link| contained_link.fragment.node)
+            .chain(links_held_beside)
+            .chain(self.links_held_apart_from_their_containing_blocks.iter().copied());
+        for candidate in candidates {
+            if met.insert(candidate)
+                && self.slot_is_live(candidate)
+                && self.paintable_row_is_populated(candidate)
+                && self.paintable_data(candidate).containing_block == node
+            {
+                self.committed_links_in_containing_block_fragment(candidate, fragment_index, &mut contained);
+            }
+        }
+        scrollable_overflow_of(self, &link.fragment, link.frame, contained.iter())
+    }
+
+    fn has_scrollable_overflow_in_any_fragment(&self, node: NodeSlotId) -> bool {
+        self.with_committed_fragment_link(node, |link| {
+            link.is_some_and(|link| link.fragment.scrollable_overflow.has_scrollable_overflow)
+        }) || self
+            .committed_side_data(node)
+            .box_fragments()
+            .iter()
+            .any(|fragment| fragment.link.fragment.scrollable_overflow.has_scrollable_overflow)
+    }
+
+    fn recalculate_fragment_overflow_of(&mut self, node: NodeSlotId) -> bool {
+        if !self.node_kind_if_live(node).is_some_and(node_facts::kind_is_box) {
+            return false;
+        }
+        let Some(link) = self
+            .paintable_rows
+            .committed_fragment_link_cloned(node.slot_index(), node.generation())
+        else {
+            return false;
+        };
+        let had_scrollable_overflow = self.has_scrollable_overflow_in_any_fragment(node);
+        let mut changed = false;
+        let overflow = self.recalculated_fragment_overflow(node, &link, 0);
+        if overflow != link.fragment.scrollable_overflow {
+            let fragment = std::sync::Arc::new(link.fragment.with_scrollable_overflow(overflow));
+            self.paintable_rows
+                .replace_committed_fragment_link_keeping_its_geometry_epoch(
+                    node.slot_index(),
+                    node.generation(),
+                    FragmentLink { fragment, ..link },
+                );
+            changed = true;
+        }
+        let box_fragments = self.committed_side_data(node).box_fragments.clone();
+        if let Some(box_fragments) = box_fragments {
+            let mut recalculated = (*box_fragments).clone();
+            let mut any_changed = false;
+            for (index, box_fragment) in recalculated.iter_mut().enumerate() {
+                let overflow = self.recalculated_fragment_overflow(node, &box_fragment.link, index as u32 + 1);
+                if overflow != box_fragment.link.fragment.scrollable_overflow {
+                    box_fragment.link.fragment =
+                        std::sync::Arc::new(box_fragment.link.fragment.with_scrollable_overflow(overflow));
+                    any_changed = true;
+                }
+            }
+            if any_changed {
+                self.committed_side_data_mut(node).box_fragments = Some(std::sync::Arc::new(recalculated));
+                changed = true;
+            }
+        }
+        if changed {
+            let has_scrollable_overflow = self.has_scrollable_overflow_in_any_fragment(node);
+            self.note_scrollable_overflow_change(node, had_scrollable_overflow, has_scrollable_overflow, true);
+            self.note_scroll_offset_may_leave_range(node);
+        }
+        changed
+    }
+
+    fn tree_depth(&self, node: NodeSlotId) -> u32 {
+        std::iter::successors(Some(node), |&ancestor| self.node_parent_if_live(ancestor)).count() as u32
+    }
+
+    pub(crate) fn recalculate_requested_fragment_overflow(&mut self) {
+        if self.scrollable_overflow.recalculation_requests.is_empty() {
+            return;
+        }
+        self.scrollable_overflow.recalculations += 1;
+        let requests = std::mem::take(&mut self.scrollable_overflow.recalculation_requests);
+        let mut queued = crate::fast_hash::FastSet::default();
+        let mut queue = std::collections::BinaryHeap::new();
+        for node in requests {
+            if self.slot_is_live(node) && queued.insert(node) {
+                queue.push((self.tree_depth(node), node.index));
+            }
+        }
+        while let Some((_, index)) = queue.pop() {
+            let node = NodeSlotId { index };
+            if !self.slot_is_live(node) || !self.paintable_row_is_populated(node) {
+                continue;
+            }
+            if !self.recalculate_fragment_overflow_of(node) {
+                continue;
+            }
+            let containing_block = self.paintable_data(node).containing_block;
+            if !containing_block.is_invalid() && self.slot_is_live(containing_block) && queued.insert(containing_block)
+            {
+                queue.push((self.tree_depth(containing_block), containing_block.index));
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
