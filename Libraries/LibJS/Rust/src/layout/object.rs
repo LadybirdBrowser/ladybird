@@ -6,7 +6,7 @@
 
 use core::cell::Cell;
 
-use super::cell::CellHeader;
+use super::cell::{CellHeader, CellKind, CellState};
 use super::member::Member;
 use super::shape::Shape;
 use super::value::Value;
@@ -48,16 +48,20 @@ pub const INDEXED_ELEMENTS_HEADER_SIZE: usize = 8;
 
 pub const INLINE_NAMED_STORAGE_CAPACITY: usize = 2;
 
+/// An object starts with the shape and the array-like size in the first word of its cell header, which LibGC leaves
+/// to the cell, followed by the rest of the header.
 #[repr(C)]
 pub struct Object {
-    pub header: CellHeader,
-    pub flags: Cell<u16>,
+    pub shape: Member<Shape>,
+    pub indexed_array_like_size: Cell<u32>,
+    pub mark: Cell<bool>,
+    pub state: Cell<CellState>,
+    pub kind: CellKind,
     pub indexed_storage_kind: Cell<IndexedStorageKind>,
+    pub flags: Cell<u16>,
     /// How many named property values the inline storage holds. It ends the object, and only plain objects and
     /// mapped arguments objects have cells with room for more than INLINE_NAMED_STORAGE_CAPACITY.
     pub inline_named_capacity: Cell<u8>,
-    pub indexed_array_like_size: Cell<u32>,
-    pub shape: Member<Shape>,
     /// Points at `inline_named_storage` until the object needs more room.
     pub named_properties: Cell<*mut Value>,
     pub indexed_elements: Cell<*mut Value>,
@@ -65,8 +69,14 @@ pub struct Object {
     pub inline_named_storage: [Cell<Value>; INLINE_NAMED_STORAGE_CAPACITY],
 }
 
-// NB: The inline capacity fits in the padding in front of the array-like size, and the inline storage ends the object.
-const _: () = assert!(size_of::<Object>() == 64);
+const _: () = {
+    use core::mem::offset_of;
+    assert!(offset_of!(Object, mark) == offset_of!(CellHeader, mark));
+    assert!(offset_of!(Object, state) == offset_of!(CellHeader, state));
+    assert!(offset_of!(Object, kind) == offset_of!(CellHeader, kind));
+};
+
+const _: () = assert!(size_of::<Object>() == 56);
 const _: () = assert!(
     core::mem::offset_of!(Object, inline_named_storage) + INLINE_NAMED_STORAGE_CAPACITY * size_of::<Value>()
         == size_of::<Object>()
