@@ -1,0 +1,20 @@
+When an element with a hidden backface faces away, Ladybird culls
+everything flattened into its plane, including any 3D rendering context
+established inside it. A participant in a 3D rendering context is culled
+only by the backface of its own plane, or by whatever culls the plane
+its context is flattened into.
+
+Gecko does the same: WebRender’s PictureInstance::is_visible()
+rejects a back-facing picture outside preserve-3d along with its
+contents. Safari renders the same result: WebKit’s GraphicsLayerCA::
+updateBackfaceVisibility() makes the hidden element’s layer
+single-sided, and a nested context painted into that layer goes with it,
+unless the context gets a compositing layer of its own.
+
+Blink differs on purpose: FragmentPaintPropertyTreeBuilder::
+UpdateIndividualTransform() makes the backface visible again for any
+element that establishes a new rendering context, so Chrome keeps
+nested contexts painted under a flipped hidden backface — which its
+Preserve3DUnderBackfaceHiddenWithout3DTransforms test pins down. The
+CSSWG hasn’t settled which behavior is right:
+https://github.com/w3c/csswg-drafts/issues/918
