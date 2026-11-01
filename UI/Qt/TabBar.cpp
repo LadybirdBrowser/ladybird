@@ -3182,6 +3182,8 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
     m_page_column_layout = new QVBoxLayout(m_page_column);
     m_page_column_layout->setSpacing(0);
     m_page_column_layout->setContentsMargins(0, 0, 0, 0);
+    m_bookmarks_bar = new BookmarksBarContainer(*m_toolbar, *m_stacked_widget, m_page_column);
+    m_bookmarks_bar->bar().installEventFilter(this);
 
     m_ladybird_button = new LadybirdButton(is_private, this);
 
@@ -3327,6 +3329,7 @@ TabWidget::TabWidget(WebView::IsPrivate is_private, QWidget* parent)
         if (index >= 0 && index < m_stacked_widget->count())
             m_stacked_widget->setCurrentIndex(index);
 
+        m_bookmarks_bar->bind(as_if<Tab>(m_stacked_widget->widget(index)));
         emit current_tab_changed(index);
 
         // The all-tabs list closes as another tab is selected, such as a new tab opened in front of it. Tabs opened or
@@ -3402,12 +3405,10 @@ void TabWidget::insert_tab(int index, Tab* widget, QString const& label)
         if (auto* current = as_if<Tab>(m_stacked_widget->currentWidget()); current && current != widget && current->is_loaded())
             size_page_like(*widget, *current);
         widget->view().installEventFilter(this);
-        widget->bookmarks_bar().installEventFilter(this);
     } else {
-        // A tab that hasn't loaded gets the filters for its view and bookmarks bar once it has them.
+        // A tab that hasn't loaded gets the filter for its view once it has one.
         auto did_load = [this, widget] {
             widget->view().installEventFilter(this);
-            widget->bookmarks_bar().installEventFilter(this);
         };
         connect(widget, &Tab::loaded, this, did_load, Qt::SingleShotConnection);
     }
@@ -3440,7 +3441,6 @@ Tab* TabWidget::take_tab(int index)
     m_stacked_widget->removeWidget(widget);
     if (as<Tab>(widget)->is_loaded()) {
         as<Tab>(widget)->view().removeEventFilter(this);
-        as<Tab>(widget)->bookmarks_bar().removeEventFilter(this);
     }
     disconnect(as<Tab>(widget), &Tab::loaded, this, nullptr);
     m_toolbar->release_location_edit(*as<Tab>(widget));
@@ -4099,7 +4099,7 @@ void TabWidget::rebuild_layout()
             m_toolbar_follows_page_column = false;
             m_toolbar_placeholder->hide();
             m_main_layout->addWidget(m_toolbar);
-            m_page_column_layout->addWidget(m_stacked_widget, 1);
+            add_page_to_page_column();
         }
         m_page_column->show();
 
@@ -4462,7 +4462,25 @@ void TabWidget::rebuild_page_column()
     m_toolbar_follows_page_column = true;
     m_toolbar_placeholder->setVisible(m_tab_bar_visible);
     m_page_column_layout->addWidget(m_toolbar_placeholder);
+    add_page_to_page_column();
+}
+
+// The bookmarks bar heads the page, unless it only shows over the page while the pointer is near the toolbar.
+void TabWidget::add_page_to_page_column()
+{
+    if (!m_bookmarks_bar->shows_over_page())
+        m_page_column_layout->addWidget(m_bookmarks_bar);
     m_page_column_layout->addWidget(m_stacked_widget, 1);
+}
+
+void TabWidget::update_bookmarks_bar_visibility()
+{
+    auto index = m_page_column_layout->indexOf(m_bookmarks_bar);
+    if (m_bookmarks_bar->shows_over_page() && index != -1)
+        m_page_column_layout->removeWidget(m_bookmarks_bar);
+    else if (!m_bookmarks_bar->shows_over_page() && index == -1)
+        m_page_column_layout->insertWidget(m_page_column_layout->indexOf(m_stacked_widget), m_bookmarks_bar);
+    m_bookmarks_bar->update_geometry();
 }
 
 void TabWidget::place_toolbar_over_page_column()
@@ -4568,8 +4586,7 @@ void TabWidget::update_vertical_tabs_resize_handle()
 
 void TabWidget::update_vertical_tabs_content_separator()
 {
-    auto* current = as_if<Tab>(m_stacked_widget->currentWidget());
-    auto has_page_bookmarks_bar = current && current->has_bookmarks_bar_in_page();
+    auto has_page_bookmarks_bar = !m_bookmarks_bar->isHidden();
     auto show_content_separator = m_tab_bar_visible && m_tab_bar->tab_layout() != TabLayout::Horizontal && !has_page_bookmarks_bar;
     m_vertical_tabs_content_separator->setVisible(show_content_separator);
     if (!show_content_separator)

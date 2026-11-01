@@ -1127,7 +1127,6 @@ void WindowToolbar::show_tab(Tab& tab)
     m_navigate_forward_action.bind(tab.view().navigate_forward_action());
     m_reload_button->show_loading_at_once(tab.is_loading());
     m_performance_monitor->set_stats(tab.performance_stats());
-    set_bookmarks_bar_below(tab.has_bookmarks_bar_in_page());
 
     QObject::connect(&tab, &Tab::loading_changed, this, [this] {
         m_reload_button->set_loading(m_tab->is_loading());
