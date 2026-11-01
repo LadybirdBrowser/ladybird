@@ -26,7 +26,6 @@
             wait_for_unblock: parserToken,
         });
         const frame = document.createElement("iframe");
-        let childLoaded = false;
         let resolvePrepared, resolveLoaded, resolveReplacement;
         const prepared = new Promise(resolve => (resolvePrepared = resolve));
         const loaded = new Promise(resolve => (resolveLoaded = resolve));
@@ -35,10 +34,7 @@
             if (event.source !== frame.contentWindow || event.data.token !== token) return;
             if (event.data.kind === "prepared") resolvePrepared(event.data);
             if (event.data.kind === "replacement") resolveReplacement(event.data);
-            if (event.data.kind === "loaded") {
-                childLoaded = true;
-                resolveLoaded(event.data);
-            }
+            if (event.data.kind === "loaded") resolveLoaded(event.data);
         };
         addEventListener("message", onMessage);
         frame.srcdoc = `<!doctype html><body><script>
@@ -68,17 +64,13 @@
             println(`Initial source loaded: ${ready.currentSrc === initial && ready.width === 1}`);
             // NB: The parser gate keeps child load pending until the source updates above have finished.
             await fetch(new URL(`/unblock/${parserToken}`, parser));
-            let requested = false;
-            while (!childLoaded) {
-                if ((await fetch(server.recordedRequestHeadersURL(pending), { cache: "no-store" })).ok) {
-                    requested = true;
-                    break;
-                }
-            }
+            // The resumed fetch doesn't delay the child's load event, so the child can finish loading before the
+            // request reaches the server: Wait for the request itself.
+            while (!(await fetch(server.recordedRequestHeadersURL(pending), { cache: "no-store" })).ok) {}
             await fetch(new URL(`/unblock/${token}`, pending));
-            const result = requested ? await replacementLoaded : await loaded;
+            const result = await replacementLoaded;
             await loaded;
-            println(`Retained pending source requested: ${requested}`);
+            println("Retained pending source requested: true");
             println(`Replacement became current: ${result.currentSrc === pending && result.width === 1}`);
         } finally {
             await fetch(new URL(`/unblock/${token}`, pending));
