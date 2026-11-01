@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>XML DTD ATTLIST Default Attribute Values</title>
+<link rel="help" href="https://www.w3.org/TR/xml/#sec-attr-defaults">
+<link rel="help" href="https://www.w3.org/TR/xml/#attdecls">
+<meta name="assert" content="An XML processor MUST normalize and apply default attribute values declared in internal DTD ATTLIST declarations to elements when the attribute is omitted, across all XML attribute types (CDATA, Enumeration, NOTATION, NMTOKEN, NMTOKENS, IDREF, IDREFS, ENTITY, ENTITIES).">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+'use strict';
+
+function parse_xml(xmlString) {
+  const doc = new DOMParser().parseFromString(xmlString, 'application/xml');
+  const parserError = doc.querySelector('parsererror');
+  assert_equals(parserError, null, 'XML document must parse without parser error: ' + (parserError ? parserError.textContent : ''));
+  return doc;
+}
+
+// -----------------------------------------------------------------------------
+// 1. CDATA (StringType)
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v a CDATA "X">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  const v = doc.querySelector('v');
+  assert_true(v.hasAttribute('a'), 'Element has attribute "a"');
+  assert_equals(v.getAttribute('a'), 'X');
+}, 'ATTLIST CDATA default value is applied when attribute is omitted');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v a CDATA #FIXED "fixed_val">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('a'), 'fixed_val');
+}, 'ATTLIST CDATA with #FIXED default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v a CDATA "default_val">]><r><v a="explicit_val"/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('a'), 'explicit_val');
+}, 'Explicit attribute value overrides ATTLIST CDATA default value');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!ENTITY myent "expanded">
+    <!ATTLIST v a CDATA "&myent; &#65; &amp; &lt;">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('a'), 'expanded A & <');
+}, 'ATTLIST CDATA default value expands general and character entity references');
+
+// -----------------------------------------------------------------------------
+// 2. Enumeration (val1 | val2 | ...)
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v a (foo | bar) "foo">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  const v = doc.querySelector('v');
+  assert_true(v.hasAttribute('a'), 'Element has attribute "a"');
+  assert_equals(v.getAttribute('a'), 'foo');
+}, 'ATTLIST Enumeration (foo | bar) default value is applied when omitted');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v status (pending | in_progress | completed | failed) "pending">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('status'), 'pending');
+}, 'ATTLIST multi-choice Enumeration default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v mode (read | write | admin) #FIXED "read">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('mode'), 'read');
+}, 'ATTLIST Enumeration with #FIXED default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v a (foo | bar) "foo">]><r><v a="bar"/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('a'), 'bar');
+}, 'Explicit attribute value overrides ATTLIST Enumeration default value');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v priority (1 | 2 | 3 | high | low) "1">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('priority'), '1');
+}, 'ATTLIST Enumeration containing numeric/Nmtoken values applies default value');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v a (  yes  |  no  ) "no">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('a'), 'no');
+}, 'ATTLIST Enumeration with whitespace in parentheses applies default value');
+
+// -----------------------------------------------------------------------------
+// 3. NOTATION Enumeration NOTATION (n1 | n2 | ...)
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION png SYSTEM "image/png">
+    <!NOTATION jpg SYSTEM "image/jpeg">
+    <!ATTLIST v format NOTATION (png | jpg) "png">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  const v = doc.querySelector('v');
+  assert_true(v.hasAttribute('format'), 'Element has attribute "format"');
+  assert_equals(v.getAttribute('format'), 'png');
+}, 'ATTLIST NOTATION enumeration with declared notations applies default value');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION svg SYSTEM "image/svg+xml">
+    <!NOTATION png SYSTEM "image/png">
+    <!ATTLIST v format NOTATION (svg | png) #FIXED "svg">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('format'), 'svg');
+}, 'ATTLIST NOTATION enumeration with #FIXED default value is applied');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION vrml PUBLIC "VRML 97">
+    <!ATTLIST v format NOTATION (vrml) "vrml">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('format'), 'vrml');
+}, 'ATTLIST NOTATION single-choice enumeration with PUBLIC notation applies default value');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION png SYSTEM "image/png">
+    <!NOTATION jpg SYSTEM "image/jpeg">
+    <!ATTLIST v format NOTATION (png | jpg) "png">
+  ]><r><v format="jpg"/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('format'), 'jpg');
+}, 'Explicit attribute value overrides ATTLIST NOTATION default value');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v format NOTATION (typeA | typeB) "typeA">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('format'), 'typeA');
+}, 'ATTLIST NOTATION enumeration applies default value in non-validating processor without explicit NOTATION declarations');
+
+// -----------------------------------------------------------------------------
+// 4. NMTOKEN & NMTOKENS
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v code NMTOKEN "CODE_123">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('code'), 'CODE_123');
+}, 'ATTLIST NMTOKEN default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v code NMTOKEN #FIXED "FIXED_TOK">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('code'), 'FIXED_TOK');
+}, 'ATTLIST NMTOKEN with #FIXED default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v classes NMTOKENS "btn primary large">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('classes'), 'btn primary large');
+}, 'ATTLIST NMTOKENS list default value is applied');
+
+// -----------------------------------------------------------------------------
+// 5. IDREF & IDREFS
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v target IDREF "root_id">]><r id="root_id"><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('target'), 'root_id');
+}, 'ATTLIST IDREF default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v ref IDREF #FIXED "fixed_target">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('ref'), 'fixed_target');
+}, 'ATTLIST IDREF with #FIXED default value is applied');
+
+test(() => {
+  const xml = '<!DOCTYPE r [<!ATTLIST v targets IDREFS "id1 id2 id3">]><r><v/></r>';
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('targets'), 'id1 id2 id3');
+}, 'ATTLIST IDREFS list default value is applied');
+
+// -----------------------------------------------------------------------------
+// 6. ENTITY & ENTITIES
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION txt SYSTEM "text/plain">
+    <!ENTITY extDoc SYSTEM "doc.txt" NDATA txt>
+    <!ATTLIST v file ENTITY "extDoc">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('file'), 'extDoc');
+}, 'ATTLIST ENTITY default value is applied');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION txt SYSTEM "text/plain">
+    <!ENTITY fixedDoc SYSTEM "fix.txt" NDATA txt>
+    <!ATTLIST v file ENTITY #FIXED "fixedDoc">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('file'), 'fixedDoc');
+}, 'ATTLIST ENTITY with #FIXED default value is applied');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION txt SYSTEM "text/plain">
+    <!ENTITY doc1 SYSTEM "1.txt" NDATA txt>
+    <!ENTITY doc2 SYSTEM "2.txt" NDATA txt>
+    <!ATTLIST v files ENTITIES "doc1 doc2">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('files'), 'doc1 doc2');
+}, 'ATTLIST ENTITIES list default value is applied');
+
+// -----------------------------------------------------------------------------
+// 7. Multi-Attribute & Precedence Combinations
+// -----------------------------------------------------------------------------
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!NOTATION png SYSTEM "image/png">
+    <!ATTLIST v
+      cdata  CDATA                  "cVal"
+      choice (yes | no)             "yes"
+      tok    NMTOKEN                "tVal"
+      fmt    NOTATION (png)         "png"
+      ref    IDREF                  "rVal"
+    >
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  const v = doc.querySelector('v');
+  assert_equals(v.getAttribute('cdata'), 'cVal');
+  assert_equals(v.getAttribute('choice'), 'yes');
+  assert_equals(v.getAttribute('tok'), 'tVal');
+  assert_equals(v.getAttribute('fmt'), 'png');
+  assert_equals(v.getAttribute('ref'), 'rVal');
+}, 'Single ATTLIST declaration with mixed attribute types applies all defaults');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!ATTLIST v a (first | second) "first">
+    <!ATTLIST v a (other | third)  "other">
+  ]><r><v/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('v').getAttribute('a'), 'first');
+}, 'First attribute declaration takes precedence for duplicate attribute declarations');
+
+test(() => {
+  const xml = `<!DOCTYPE r [
+    <!ATTLIST elem1 opt  (a | b) "a">
+    <!ATTLIST elem2 code NMTOKEN "code2">
+  ]><r><elem1/><elem2/></r>`;
+  const doc = parse_xml(xml);
+  assert_equals(doc.querySelector('elem1').getAttribute('opt'), 'a');
+  assert_equals(doc.querySelector('elem2').getAttribute('code'), 'code2');
+}, 'Multiple elements with distinct default attribute types in the same DTD internal subset');
+
+</script>
