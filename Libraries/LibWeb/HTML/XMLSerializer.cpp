@@ -407,19 +407,15 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
                 // - the attr's prefix is not null and either
                 if (attribute->prefix().has_value()) {
                     // - the attr's localName is not a key contained in the local prefixes map, or
-                    auto name_in_local_prefix_map_iterator = local_prefixes_map.find(attribute->local_name());
-                    if (name_in_local_prefix_map_iterator == local_prefixes_map.end())
-                        continue;
-
                     // - the attr's localName is present in the local prefixes map but the value of the key does not match attr's value
-                    if (name_in_local_prefix_map_iterator->value != attribute_value_namespace)
+                    auto name_in_local_prefix_map_iterator = local_prefixes_map.find(attribute->local_name());
+                    auto is_not_local_prefix_definition = name_in_local_prefix_map_iterator == local_prefixes_map.end() || name_in_local_prefix_map_iterator->value != attribute_value_namespace;
+
+                    // and furthermore that the attr's localName (as the prefix to find) is found in the namespace prefix map given the namespace consisting of the attr's value
+                    // (the current namespace prefix definition was exactly defined previously--on an ancestor element not the current element whose attributes are being processed).
+                    if (is_not_local_prefix_definition && prefix_is_in_prefix_map(attribute->local_name(), namespace_prefix_map, attribute_value_namespace))
                         continue;
                 }
-
-                // and furthermore that the attr's localName (as the prefix to find) is found in the namespace prefix map given the namespace consisting of the attr's value
-                // (the current namespace prefix definition was exactly defined previously--on an ancestor element not the current element whose attributes are being processed).
-                if (prefix_is_in_prefix_map(attribute->local_name(), namespace_prefix_map, attribute_value_namespace))
-                    continue;
 
                 // 2. If the require well-formed flag is set (its value is true), and the value of attr's value attribute matches the XMLNS namespace,
                 //    then throw an exception; the serialization of this attribute would produce invalid XML because the XMLNS namespace is reserved and cannot be applied as an element's namespace via XML parsing.
