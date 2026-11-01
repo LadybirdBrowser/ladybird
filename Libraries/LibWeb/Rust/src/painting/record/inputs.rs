@@ -6,7 +6,6 @@
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::display_list::commands::UniqueNodeId;
 use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::force_dark::ForceDarkSettings;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, RootBackgroundSource};
@@ -22,7 +21,6 @@ pub(crate) struct UncapturedContentInputs {
     pub root_background_source: RootBackgroundSource,
     // Scroll commands use a scrollport at the origin. Its position is compositor state.
     pub device_viewport_size: IntSize,
-    pub document_id: UniqueNodeId,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     // The compositor hands a wheel over a nested context to it only where no box painted later covers it, which it can
     // tell only from the wheel hit test targets of every box.

@@ -1570,7 +1570,7 @@ mod tests {
     use crate::display_list::commands::{
         BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
         DrawCanvas, DrawIsolatedGroup, DrawVideoFrame, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind,
-        TextShadowLayer, UniqueNodeId,
+        TextShadowLayer,
     };
     use crate::display_list::ffi_bytes::FfiBytes;
     use crate::node_slot_id::NodeSlotId;
@@ -2416,7 +2416,6 @@ mod tests {
     fn compositor_scrollbar_bytes(is_painted_by_compositor: bool) -> TestDisplayList {
         command_bytes(
             &CompositorScrollbar {
-                document_id: UniqueNodeId(1),
                 scroll_node_index: SpatialNodeIndex(1),
                 gutter_rect: IntRect::default(),
                 thumb_rect: IntRect::new(98, 0, 2, 20),
