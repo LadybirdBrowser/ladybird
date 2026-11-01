@@ -227,6 +227,8 @@ private:
 enum class SelectionSource {
     UI,
     DOM,
+    // The selection moved because the value changed, as when an edit or the value setter moves the cursor.
+    ValueChange,
 };
 
 class WEB_API FormAssociatedTextControlElement
@@ -263,7 +265,7 @@ public:
     WebIDL::ExceptionOr<void> set_range_text_binding(Utf16View replacement);
     WebIDL::ExceptionOr<void> set_range_text_binding(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
     WebIDL::ExceptionOr<void> set_range_text(Utf16String const& replacement);
-    WebIDL::ExceptionOr<void> set_range_text(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve);
+    WebIDL::ExceptionOr<void> set_range_text(Utf16View replacement, WebIDL::UnsignedLong start, WebIDL::UnsignedLong end, Bindings::SelectionMode = Bindings::SelectionMode::Preserve, SelectionSource = SelectionSource::DOM);
 
     // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#dom-textarea/input-setselectionrange
     void set_the_selection_range(Optional<WebIDL::UnsignedLong> start, Optional<WebIDL::UnsignedLong> end, SelectionDirection direction = SelectionDirection::None, SelectionSource source = SelectionSource::DOM);

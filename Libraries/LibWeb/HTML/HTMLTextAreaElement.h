@@ -160,6 +160,7 @@ private:
     virtual CSS::ElementBoxKind box_kind() const override;
 
     void set_raw_value(Utf16String);
+    bool replace_value(Utf16View);
 
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;

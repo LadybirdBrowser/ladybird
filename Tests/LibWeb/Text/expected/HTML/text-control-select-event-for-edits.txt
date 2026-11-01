@@ -1,0 +1,30 @@
+textarea: setRangeText() into the empty control: select events=1
+textarea: 100 insertions: select events=0
+textarea: 10 deletions: select events=0
+textarea: length after the edits: 91
+textarea: undoing the 10 deletions and the 100 insertions: select events=1
+textarea: length after undoing: 1
+textarea: 10 insertions in the middle: select events=0
+textarea: value after the insertions in the middle: start mmmmmmmmmmend
+textarea: undoing typing after setRangeText(): aYbcd
+textarea: value setter moving the cursor to the end: select events=0
+textarea: setSelectionRange() moving the cursor: select events=1
+textarea: select(): select events=1
+textarea: setRangeText(): select events=1
+textarea: setRangeText() shrinking the value under the selection: select events=1
+textarea: selection after that: 0-3
+input: setRangeText() into the empty control: select events=1
+input: 100 insertions: select events=0
+input: 10 deletions: select events=0
+input: length after the edits: 91
+input: undoing the 10 deletions and the 100 insertions: select events=1
+input: length after undoing: 1
+input: 10 insertions in the middle: select events=0
+input: value after the insertions in the middle: start mmmmmmmmmmend
+input: undoing typing after setRangeText(): aYbcd
+input: value setter moving the cursor to the end: select events=0
+input: setSelectionRange() moving the cursor: select events=1
+input: select(): select events=1
+input: setRangeText(): select events=1
+input: setRangeText() shrinking the value under the selection: select events=1
+input: selection after that: 0-3

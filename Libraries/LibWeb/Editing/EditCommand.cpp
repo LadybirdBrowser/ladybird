@@ -156,7 +156,8 @@ bool ReplaceDataCommand::replay(Utf16String const& from, Utf16String const& to)
         return false;
 
     if (control) {
-        MUST(control->set_range_text(to, m_offset, m_offset + length, Bindings::SelectionMode::Preserve));
+        // NB: Replaying an edit moves the cursor because the value changed, as the edit did, so it fires no select event.
+        MUST(control->set_range_text(to, m_offset, m_offset + length, Bindings::SelectionMode::Preserve, HTML::SelectionSource::ValueChange));
         // NB: History edits also create a pending change, while its input event is dispatched once by EditingHistory.
         if (auto* textarea = dynamic_cast<HTML::HTMLTextAreaElement*>(control))
             textarea->record_user_edit(current_data);

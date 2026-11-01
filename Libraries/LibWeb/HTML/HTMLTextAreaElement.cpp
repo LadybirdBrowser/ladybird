@@ -198,31 +198,38 @@ void HTMLTextAreaElement::set_value_binding(Utf16View value)
 void HTMLTextAreaElement::set_value(Utf16View value)
 {
     // 1. Let oldAPIValue be this element's API value.
-    auto old_api_value = api_value();
-
     // 2. Set this element's raw value to the new value.
-    set_raw_value(Utf16String::from_utf16(value));
-
     // 3. Set this element's dirty value flag to true.
-    m_dirty_value = true;
+    if (!replace_value(value))
+        return;
 
     // 4. If the new API value is different from oldAPIValue, then move the text entry cursor position to the end of
     //    the text control, unselecting any selected text and resetting the selection direction to "none".
-    if (api_value() != old_api_value) {
-        // AD-HOC: Changing the value may change which validity pseudo-classes match.
-        CSS::Invalidation::invalidate_style_after_validity_change(*this);
+    // NB: A textarea without a text node still has a selection, so this also applies to it.
+    auto end_of_text_control = m_text_node ? m_text_node->length() : api_value().length_in_code_units();
+    set_the_selection_range(end_of_text_control, end_of_text_control, SelectionDirection::None, SelectionSource::ValueChange);
+}
 
-        if (m_text_node) {
-            MUST(m_text_node->replace_data(0, m_text_node->length_in_utf16_code_units(), m_raw_value));
-            update_placeholder_visibility();
-        }
+// The value setter's steps but the last: set the raw value and the dirty value flag, and update the text node. Returns
+// whether the API value changed.
+bool HTMLTextAreaElement::replace_value(Utf16View value)
+{
+    auto old_api_value = api_value();
+    set_raw_value(Utf16String::from_utf16(value));
+    m_dirty_value = true;
+    if (api_value() == old_api_value)
+        return false;
 
-        // NB: A textarea without a text node still has a selection, so this also applies to it.
-        auto end_of_text_control = m_text_node ? m_text_node->length() : api_value().length_in_code_units();
-        set_the_selection_range(end_of_text_control, end_of_text_control);
+    // AD-HOC: Changing the value may change which validity pseudo-classes match.
+    CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
-        CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
+    if (m_text_node) {
+        MUST(m_text_node->replace_data(0, m_text_node->length_in_utf16_code_units(), m_raw_value));
+        update_placeholder_visibility();
     }
+
+    CSS::Invalidation::invalidate_style_after_placeholder_shown_change(*this);
+    return true;
 }
 
 void HTMLTextAreaElement::set_raw_value(Utf16String value)
@@ -245,7 +252,9 @@ Utf16String HTMLTextAreaElement::api_value() const
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#concept-textarea/input-relevant-value
 WebIDL::ExceptionOr<void> HTMLTextAreaElement::set_relevant_value(Utf16View value)
 {
-    set_value(value);
+    // NB: Whoever sets the relevant value (setRangeText(), an edit) sets the selection afterward, so this doesn't move
+    //     the cursor to the end, as the value setter does.
+    replace_value(value);
     return {};
 }
 
