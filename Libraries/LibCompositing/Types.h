@@ -140,7 +140,6 @@ enum class WheelEventRouting : u8 {
 // A step of a wheel gesture that WebContent's page dispatched and did not cancel, which the compositor scrolls by.
 struct WheelStepLetThrough {
     Web::UniqueNodeID document_id;
-    u64 input_event_id { 0 };
     Web::WheelGestureMark wheel_gesture_mark;
     // In the device pixels of the viewport of the context the step is let through in.
     Gfx::FloatPoint position;

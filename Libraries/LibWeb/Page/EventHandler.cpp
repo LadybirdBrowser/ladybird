@@ -1032,7 +1032,6 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             .wheel_tick_120ths_y = wheel_tick_120ths_y,
             .wheel_delta_precision = wheel_delta_precision,
             .scroll_gesture_phase = scroll_gesture_phase,
-            .id = handling_input_event_id(),
         };
         auto routing = display_list_is_outdated ? Compositing::WheelEventRouting::AfterDispatch : Compositing::WheelEventRouting::BeforeDispatch;
         auto answer = m_navigable->compositor_context().take_wheel_event_from_main_thread(event, operation_tracking, routing);
@@ -1205,7 +1204,6 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto device_position = m_navigable->page().css_to_device_point(visual_viewport_position);
     Compositing::WheelStepLetThrough step {
         .document_id = document->unique_id(),
-        .input_event_id = handling_input_event_id(),
         .wheel_gesture_mark = *wheel_gesture_mark,
         .position = { static_cast<float>(device_position.x().value()), static_cast<float>(device_position.y().value()) },
         .delta_in_css_pixels = { static_cast<float>(wheel_delta_x), static_cast<float>(wheel_delta_y) },

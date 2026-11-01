@@ -37,6 +37,7 @@ public:
         // The event is the first step of its gesture that moves anything. A touchpad gesture can start with a step that
         // has no delta.
         bool is_first_wheel_event_with_delta { false };
+        u64 step_number { 0 };
     };
     // Every wheel event is noted as this context first sees it: from the UI, or from the main thread for one the UI did
     // not send.
@@ -52,9 +53,7 @@ public:
     // scroll here, and in the contexts nested here, for the gesture.
     void note_delta_left_to_the_page(Gfx::FloatPoint delta_in_css_pixels);
     bool take_delta_left_to_the_page(Gfx::FloatPoint delta_in_css_pixels);
-    // Whether the UI sent a later wheel event that this step cannot come before in one gesture, which makes it a step
-    // of a gesture this context has already ended or moved past.
-    bool step_was_overtaken_by_ui(Web::ScrollGesturePhase, u64 input_event_id) const;
+    bool step_was_overtaken(Web::ScrollGesturePhase, u64 step_number) const;
 
     bool has_latch() const { return m_latch.has_value(); }
     bool has_latch_for_gesture(Optional<u64> gesture_id) const { return m_latch.has_value() && m_latch->gesture_id == gesture_id; }
@@ -112,7 +111,7 @@ private:
         bool momentum_has_sprung_the_scroller_back { false };
     };
 
-    struct NewestWheelEventIdsFromUI {
+    struct NewestStepNumbers {
         u64 ongoing { 0 };
         u64 momentum { 0 };
         u64 ended { 0 };
@@ -132,7 +131,7 @@ private:
     // thread makes. It says which gesture a step is in, whether the page lets the step through before or after this
     // context scrolls by it.
     Optional<Gesture> m_gesture;
-    NewestWheelEventIdsFromUI m_newest_wheel_event_ids_from_ui;
+    NewestStepNumbers m_newest_step_numbers;
     bool m_gesture_had_wheel_event_with_delta { false };
     Optional<Latch> m_latch;
     // The gesture whose step this context's page dispatched and did not cancel, and the state of the page's wheel event

@@ -296,7 +296,6 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Compositing::WheelStepLetThrough const& step)
 {
     TRY(encoder.encode(step.document_id));
-    TRY(encoder.encode(step.input_event_id));
     TRY(encoder.encode(step.wheel_gesture_mark));
     TRY(encoder.encode(step.position));
     TRY(encoder.encode(step.delta_in_css_pixels));
@@ -311,7 +310,6 @@ ErrorOr<Compositing::WheelStepLetThrough> decode(Decoder& decoder)
 {
     return Compositing::WheelStepLetThrough {
         .document_id = TRY(decoder.decode<Web::UniqueNodeID>()),
-        .input_event_id = TRY(decoder.decode<u64>()),
         .wheel_gesture_mark = TRY(decoder.decode<Web::WheelGestureMark>()),
         .position = TRY(decoder.decode<Gfx::FloatPoint>()),
         .delta_in_css_pixels = TRY(decoder.decode<Gfx::FloatPoint>()),

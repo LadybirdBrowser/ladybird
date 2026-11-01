@@ -1248,8 +1248,8 @@ Compositing::WheelEventAnswer CompositorState::scroll_for_wheel_event_the_page_l
     // A step of a gesture that the contexts around the page have moved past still scrolls, as the page let it.
     auto routing_context_id = routing_context_of_wheel_gesture(listener_context_id, gesture_id);
     auto* routing_context = routing_context_id.has_value() ? context_if_present(*routing_context_id) : nullptr;
-    if (!routing_context || routing_context->wheel_step_was_overtaken_by_ui(step.scroll_gesture_phase, let_through.input_event_id)) {
-        auto result = listener_context->scroll_for_wheel_step_overtaken_by_ui(step, scroll_chain, now);
+    if (!routing_context || routing_context->wheel_step_was_overtaken(step.scroll_gesture_phase, let_through.wheel_gesture_mark.step_number)) {
+        auto result = listener_context->scroll_for_overtaken_wheel_step(step, scroll_chain, now);
         return answer(apply_wheel_step_result(listener_context_id, *listener_context, result, page_client));
     }
 
