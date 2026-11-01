@@ -94,15 +94,29 @@ static Optional<Utf16FlyString> retrieve_a_preferred_prefix_string(Optional<Utf1
     VERIFY_NOT_REACHED();
 }
 
+static bool prefix_is_bound_in_prefix_map(Optional<Utf16FlyString> const& prefix, NamespacePrefixMap const& namespace_prefix_map)
+{
+    for (auto const& entry : namespace_prefix_map) {
+        if (entry.value.contains_slow(prefix))
+            return true;
+    }
+    return false;
+}
+
 // https://w3c.github.io/DOM-Parsing/#dfn-generating-a-prefix
 static Utf16FlyString generate_a_prefix(NamespacePrefixMap& namespace_prefix_map, Optional<Utf16FlyString> const& new_namespace, u64& prefix_index)
 {
-    // 1. Let generated prefix be the concatenation of the string "ns" and the current numerical value of prefix index.
-    auto generated_prefix_string = Utf16String::formatted("ns{}", prefix_index);
-    auto generated_prefix = Utf16FlyString::from_utf16(generated_prefix_string.utf16_view());
+    Utf16FlyString generated_prefix;
+    // AD-HOC: Generate prefixes until one is not already bound in map, so that its declaration doesn't conflict with
+    //         one in scope. See https://github.com/w3c/DOM-Parsing/issues/44.
+    do {
+        // 1. Let generated prefix be the concatenation of the string "ns" and the current numerical value of prefix index.
+        auto generated_prefix_string = Utf16String::formatted("ns{}", prefix_index);
+        generated_prefix = Utf16FlyString::from_utf16(generated_prefix_string.utf16_view());
 
-    // 2. Let the value of prefix index be incremented by one.
-    ++prefix_index;
+        // 2. Let the value of prefix index be incremented by one.
+        ++prefix_index;
+    } while (prefix_is_bound_in_prefix_map(generated_prefix, namespace_prefix_map));
 
     // 3. Add to map the generated prefix given the new namespace namespace.
     add_prefix_to_namespace_prefix_map(namespace_prefix_map, generated_prefix, new_namespace);
@@ -458,7 +472,9 @@ static WebIDL::ExceptionOr<Utf16String> serialize_element_attributes(DOM::Elemen
             // 3. Otherwise (attribute namespace is not the XMLNS namespace), if candidate prefix is null:
             else if (!candidate_prefix.has_value()) {
                 // 1. If prefix is not null and local prefixes map does not contain prefix, set candidate prefix to prefix.
-                if (attribute->prefix().has_value() && !local_prefixes_map.contains(*attribute->prefix())) {
+                // AD-HOC: Nor if map binds prefix to a namespace, so that its declaration doesn't conflict with the
+                //         element's own prefix or shadow a binding that later attributes are serialized with.
+                if (attribute->prefix().has_value() && !local_prefixes_map.contains(*attribute->prefix()) && !prefix_is_bound_in_prefix_map(attribute->prefix(), namespace_prefix_map)) {
                     candidate_prefix = attribute->prefix();
                 }
 

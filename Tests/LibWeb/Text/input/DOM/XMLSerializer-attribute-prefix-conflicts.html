@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const serialize = node => new XMLSerializer().serializeToString(node);
+        const xmlDocument = () => document.implementation.createDocument(null, null);
+
+        // An attribute sharing the element's own prefix in another namespace.
+        let element = xmlDocument().createElementNS("urn:a", "p:root");
+        element.setAttributeNS("urn:b", "p:attr", "v");
+        println(serialize(element));
+
+        // A generated prefix after an attribute kept its own "ns1" prefix.
+        element = xmlDocument().createElementNS(null, "root");
+        element.setAttributeNS("urn:a", "ns1:a", "1");
+        element.setAttributeNS("urn:b", "b", "2");
+        println(serialize(element));
+
+        // A child attribute whose prefix is bound on the parent, then one in the parent's namespace.
+        const doc = xmlDocument();
+        const parent = doc.createElementNS(null, "parent");
+        parent.setAttributeNS("urn:a", "p:x", "1");
+        const child = doc.createElementNS(null, "child");
+        child.setAttributeNS("urn:b", "p:y", "2");
+        child.setAttributeNS("urn:a", "c", "3");
+        parent.appendChild(child);
+        println(serialize(parent));
+    });
+</script>
