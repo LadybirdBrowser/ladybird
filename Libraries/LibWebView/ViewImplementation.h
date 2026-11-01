@@ -653,12 +653,6 @@ public:
     Function<void()> on_crash_report_saved;
     Function<void()> on_web_content_process_change_for_cross_site_navigation;
 
-    Menu& page_context_menu() { return *m_page_context_menu; }
-    Menu& link_context_menu() { return *m_link_context_menu; }
-    Menu& selected_text_link_context_menu() { return *m_selected_text_link_context_menu; }
-    Menu& image_context_menu() { return *m_image_context_menu; }
-    Menu& media_context_menu() { return *m_media_context_menu; }
-
     Menu& bookmarks_bar_context_menu() { return *m_bookmarks_bar_context_menu; }
     Menu& bookmark_context_menu() { return *m_bookmark_context_menu; }
     Menu& bookmark_folder_context_menu() { return *m_bookmark_folder_context_menu; }
@@ -692,6 +686,8 @@ public:
     virtual Gfx::IntPoint to_widget_position(Gfx::IntPoint content_position) const = 0;
 
 protected:
+    virtual void show_context_menu(Menu&, [[maybe_unused]] Gfx::IntPoint widget_position) { }
+
     void will_apply_history_traversal_step(Web::HTML::CrossProcessId operation_id);
     void did_apply_top_level_history_traversal_step(Web::HTML::CrossProcessId operation_id);
     void did_finish_history_traversal(Web::HTML::CrossProcessId operation_id);

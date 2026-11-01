@@ -5408,17 +5408,16 @@ void ViewImplementation::did_request_page_context_menu(Badge<WebContentPage>, We
                 weak_this->m_search_selected_text_action->set_visible(false);
             }
 
-            if (selected_text_url.has_value() && weak_this->m_selected_text_link_context_menu->on_activation) {
+            if (selected_text_url.has_value()) {
                 weak_this->set_context_menu_url_actions_enabled(true);
                 weak_this->m_context_menu_url = selected_text_url.release_value();
                 weak_this->m_context_menu_navigation.clear();
                 weak_this->m_open_in_new_tab_action->set_text("Open Link in New Tab"sv);
-                weak_this->m_selected_text_link_context_menu->on_activation(weak_this->to_widget_position(content_position));
+                weak_this->show_context_menu(*weak_this->m_selected_text_link_context_menu, weak_this->to_widget_position(content_position));
                 return;
             }
 
-            if (weak_this->m_page_context_menu->on_activation)
-                weak_this->m_page_context_menu->on_activation(weak_this->to_widget_position(content_position));
+            weak_this->show_context_menu(*weak_this->m_page_context_menu, weak_this->to_widget_position(content_position));
         };
 
         if (lookup.has_value()) {
@@ -5456,8 +5455,7 @@ void ViewImplementation::did_request_link_context_menu(Badge<WebContentPage>, Gf
         break;
     }
 
-    if (m_link_context_menu->on_activation)
-        m_link_context_menu->on_activation(to_widget_position(content_position));
+    show_context_menu(*m_link_context_menu, to_widget_position(content_position));
 }
 
 void ViewImplementation::download_context_menu_url(PromptForPath prompt_for_path)
@@ -5493,8 +5491,7 @@ void ViewImplementation::did_request_image_context_menu(Badge<WebContentPage>, G
 
     m_copy_image_action->set_enabled(m_image_context_menu_bitmap.has_value());
 
-    if (m_image_context_menu->on_activation)
-        m_image_context_menu->on_activation(to_widget_position(content_position));
+    show_context_menu(*m_image_context_menu, to_widget_position(content_position));
 }
 
 void ViewImplementation::send_to_media_context_menu_page(Function<void(WebContentPage&)> const& send)
@@ -5545,8 +5542,7 @@ void ViewImplementation::did_request_media_context_menu(Badge<WebContentPage>, W
     m_media_enter_picture_in_picture_action->set_visible(menu.can_enter_picture_in_picture && !menu.is_picture_in_picture);
     m_media_exit_picture_in_picture_action->set_visible(menu.is_picture_in_picture);
 
-    if (m_media_context_menu->on_activation)
-        m_media_context_menu->on_activation(to_widget_position(content_position));
+    show_context_menu(*m_media_context_menu, to_widget_position(content_position));
 }
 
 u64 ViewImplementation::add_navigation_listener(NavigationListener listener)
