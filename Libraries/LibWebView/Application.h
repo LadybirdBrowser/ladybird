@@ -403,6 +403,7 @@ public:
 
     Menu& inspect_menu() { return *m_inspect_menu; }
     Action& view_source_action() { return *m_view_source_action; }
+    void update_view_source_action();
 
     Action& report_website_issue_action() { return *m_report_website_issue_action; }
     void update_report_website_issue_action();

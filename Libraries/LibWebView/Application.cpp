@@ -3227,6 +3227,7 @@ void Application::update_actions_for_active_web_view()
     update_bookmark_action_for_current_web_view();
     update_editing_history_actions();
     update_report_website_issue_action();
+    update_view_source_action();
 }
 
 void Application::bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>)
@@ -3686,6 +3687,12 @@ void Application::update_report_website_issue_action()
 {
     auto view = active_web_view();
     m_report_website_issue_action->set_enabled(view.has_value() && view->can_report_website_issue());
+}
+
+void Application::update_view_source_action()
+{
+    auto view = active_web_view();
+    m_view_source_action->set_enabled(!view.has_value() || view->can_view_source());
 }
 
 void Application::update_editing_history_actions()

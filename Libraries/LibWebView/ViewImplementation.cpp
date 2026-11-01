@@ -30,6 +30,7 @@
 #include <LibWebCommon/WebView/SiteIsolation.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/CanonicalSessionHistoryEntry.h>
 #include <LibWebView/CrashReportReview.h>
 #include <LibWebView/ErrorHTML.h>
 #include <LibWebView/FaviconStore.h>
@@ -38,6 +39,7 @@
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/Menu.h>
 #include <LibWebView/PermissionManager.h>
+#include <LibWebView/SessionHistory.h>
 #include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
@@ -200,8 +202,21 @@ URL::URL ViewImplementation::url() const
 
 void ViewImplementation::did_update_url()
 {
+    // The source arrives as an about:srcdoc document, after the about:blank of a new tab; any other URL means the view
+    // moved on before the source arrived.
+    if (m_page_source_pending) {
+        auto url = this->url();
+        if (url.equals(URL::about_srcdoc(), URL::ExcludeFragment::Yes)) {
+            m_page_source_document_state = traversable().session_history().current_entry().document_state->id;
+            m_page_source_pending = false;
+        } else if (url != URL::about_blank()) {
+            m_page_source_pending = false;
+        }
+    }
+
     update_bookmark_action();
     update_report_website_issue_action();
+    update_view_source_action();
     if (auto page = traversable().display_page(); page && page->routed_connection())
         page->routed_connection()->update_audio_capture_permission();
     update_displayed_url();
@@ -1841,7 +1856,25 @@ void ViewImplementation::find_in_page_end()
 
 void ViewImplementation::get_source()
 {
+    if (!can_view_source())
+        return;
     page().async_get_source();
+}
+
+bool ViewImplementation::can_view_source() const
+{
+    if (m_page_source_pending)
+        return false;
+    if (!m_page_source_document_state.has_value())
+        return true;
+    return traversable().session_history().current_entry().document_state->id != *m_page_source_document_state;
+}
+
+void ViewImplementation::did_start_showing_page_source()
+{
+    m_page_source_pending = true;
+    m_page_source_document_state.clear();
+    update_view_source_action();
 }
 
 // Only a website the page is showing can be reported, so not a browser page or a page that crashed.
@@ -1860,6 +1893,11 @@ void ViewImplementation::report_website_issue()
 void ViewImplementation::update_report_website_issue_action()
 {
     Application::the().update_report_website_issue_action();
+}
+
+void ViewImplementation::update_view_source_action()
+{
+    Application::the().update_view_source_action();
 }
 
 void ViewImplementation::inspect_dom_tree()
