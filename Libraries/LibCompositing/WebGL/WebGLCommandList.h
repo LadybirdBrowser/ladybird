@@ -36,17 +36,6 @@ public:
         return static_cast<u32>(align_up_to(previous.offset + previous.size, command_alignment));
     }
 
-    template<typename Command>
-    void append(Command const& command, ReadonlyBytes inline_data = {})
-    {
-        append_bytes(Command::command_type, { &command, sizeof(command) }, inline_data);
-    }
-
-    void append_bytes(WebGLCommandType, ReadonlyBytes payload, ReadonlyBytes inline_data);
-
-    static size_t padded_record_size(ReadonlyBytes payload, ReadonlyBytes inline_data);
-    static void write_record(Bytes destination, WebGLCommandType, ReadonlyBytes payload, ReadonlyBytes inline_data);
-
     template<typename Callback>
     static ErrorOr<void> for_each_command(ReadonlyBytes bytes, Callback&& callback)
     {
@@ -96,22 +85,6 @@ public:
         VERIFY(bytes[bytes.size() - 1] == 0);
         return bytes;
     }
-
-    static void copy_data_span(ReadonlyBytes payload, WebGLDataSpan span, Bytes destination)
-    {
-        auto resolved = resolve_data_span(payload, span);
-        VERIFY(resolved.size() <= destination.size());
-        __builtin_memcpy(destination.data(), resolved.data(), resolved.size());
-    }
-
-    ReadonlyBytes bytes() const { return m_bytes; }
-    ByteBuffer const& buffer() const { return m_bytes; }
-    void clear_with_capacity() { m_bytes.set_size(0); }
-    bool is_empty() const { return m_bytes.is_empty(); }
-    size_t size_in_bytes() const { return m_bytes.size(); }
-
-private:
-    ByteBuffer m_bytes;
 };
 
 struct WebGLSyncCallHeader {
@@ -122,12 +95,6 @@ static_assert(IsTriviallyCopyable<WebGLSyncCallHeader>);
 
 class COMPOSITING_API WebGLSyncCall {
 public:
-    template<typename Call>
-    static ByteBuffer encode_request(typename Call::Request const& request, ReadonlyBytes inline_data = {})
-    {
-        return encode_request_bytes(Call::call_type, { &request, sizeof(request) }, inline_data);
-    }
-
     template<typename Callback>
     static ErrorOr<ByteBuffer> dispatch_request(ReadonlyBytes bytes, Callback&& callback)
     {
@@ -155,17 +122,7 @@ public:
         return encode_reply_bytes({ &reply, sizeof(reply) }, inline_data, more_inline_data);
     }
 
-    template<typename Reply>
-    static Reply decode_reply(ReadonlyBytes bytes)
-    {
-        VERIFY(bytes.size() >= sizeof(Reply));
-        Reply reply;
-        __builtin_memcpy(&reply, bytes.data(), sizeof(reply));
-        return reply;
-    }
-
 private:
-    static ByteBuffer encode_request_bytes(WebGLSyncCallType, ReadonlyBytes request, ReadonlyBytes inline_data);
     static ByteBuffer encode_reply_bytes(ReadonlyBytes reply, ReadonlyBytes inline_data, ReadonlyBytes more_inline_data);
 };
 
