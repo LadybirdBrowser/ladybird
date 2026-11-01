@@ -1,0 +1,17 @@
+When a lazy image’s loading attribute becomes eager, Ladybird resumes
+its deferred fetch without delaying the load event, as step 24 of
+“update the image data” decided while the image was still lazy.
+
+Blink does the same: ImageLoader::DoUpdateFromElement() fetches an
+image it once deferred with SetLazyImageNonBlocking(), and the call to
+LoadDeferredImage() that HTMLImageElement::ParseAttribute() makes for
+an eager loading attribute doesn’t force blocking. WebKit does too,
+with no failure expectation for the WPT test of this case: Its
+ImageLoader::updateFromElement() marks a deferred image’s request with
+setIgnoreForRequestCount(true), which keeps it out of the load event.
+
+Gecko differs: nsImageLoadingContent::LoadFlags() picks LOAD_BACKGROUND,
+which bypasses the load group, only while the loading attribute is
+lazy, so the load that HTMLImageElement::StopLazyLoading() starts
+blocks onload. Gecko’s WPT metadata expects the test for this case,
+image-loading-lazy-below-viewport-dynamic.html, to fail.
