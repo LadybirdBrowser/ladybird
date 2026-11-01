@@ -30,8 +30,10 @@
 #include <LibWebView/GamepadManager.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/NotificationManager.h>
 #include <LibWebView/PermissionManager.h>
 #include <LibWebView/PictureInPictureManager.h>
+#include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/RequestServerManager.h>
 #include <LibWebView/StorageAreaRegistry.h>
 #include <LibWebView/StorageJar.h>
@@ -644,6 +646,7 @@ void WebContentPage::fail_renderer_owned_downloads()
 void WebContentPage::close()
 {
     PictureInPictureManager::the().close_window(*this);
+    NotificationManager::the().page_did_close(*this);
     m_is_open = false;
     // NB: Nothing finishes the input this page held, including a page discarded while its process hosts other pages.
     if (m_traversable) {
@@ -1624,16 +1627,21 @@ static Optional<Web::Permissions::PermissionName> permission_name_from(Utf16Stri
         return Web::Permissions::PermissionName::Geolocation;
     if (name == "microphone"_utf16)
         return Web::Permissions::PermissionName::Microphone;
+    if (name == "notifications"_utf16)
+        return Web::Permissions::PermissionName::Notifications;
     return {};
 }
 
-static Web::PermissionsPolicy::PolicyControlledFeature policy_controlled_feature_for(Web::Permissions::PermissionName name)
+// The policy-controlled feature that gates a permission, for the permissions that have one.
+static Optional<Web::PermissionsPolicy::PolicyControlledFeature> policy_controlled_feature_for(Web::Permissions::PermissionName name)
 {
     switch (name) {
     case Web::Permissions::PermissionName::Geolocation:
         return Web::PermissionsPolicy::PolicyControlledFeature::Geolocation;
     case Web::Permissions::PermissionName::Microphone:
         return Web::PermissionsPolicy::PolicyControlledFeature::Microphone;
+    case Web::Permissions::PermissionName::Notifications:
+        return {};
     }
     VERIFY_NOT_REACHED();
 }
@@ -1658,6 +1666,15 @@ void WebContentPage::for_each_navigable_with_a_hosted_active_document(Function<I
     });
 }
 
+// Notifications has no policy-controlled feature, so the frame check is ours: only a document whose origin is the
+// top-level origin, the site the user sees in the location bar, gets to ask for it or to show one.
+static bool permission_reaches_document(Web::Permissions::PermissionName name, CanonicalDocument const& document, URL::Origin const& top_level_origin)
+{
+    if (name != Web::Permissions::PermissionName::Notifications)
+        return true;
+    return document.origin().is_same_origin(top_level_origin);
+}
+
 bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web::Permissions::PermissionName name) const
 {
     auto document = hosted_document_with_id(document_id);
@@ -1666,11 +1683,18 @@ bool WebContentPage::document_may_use(Web::HTML::CrossProcessId document_id, Web
     auto top_level_origin = document->top_level_origin();
     if (!top_level_origin.has_value())
         return false;
-    if (Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), policy_controlled_feature_for(name), document->origin(), document->origin()) != Web::PermissionsPolicy::FeatureValue::Enabled)
+    if (auto feature = policy_controlled_feature_for(name); feature.has_value() && Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), *feature, document->origin(), document->origin()) != Web::PermissionsPolicy::FeatureValue::Enabled)
         return false;
-    if (top_level_origin->is_opaque())
+    if (!permission_reaches_document(name, *document, *top_level_origin))
+        return false;
+    auto& manager = *view().session().permission_manager;
+    if (top_level_origin->is_opaque()) {
+        // A file: page's grant lasts as long as the page, but the global default still binds it.
+        if (manager.global_default(name) == Web::Permissions::EffectiveState::Denied)
+            return false;
         return m_file_permission_grants.find_first_index_if([&](auto const& grant) { return grant.document_id == document_id && grant.name == name; }).has_value();
-    return view().session().permission_manager->effective_state(name, *top_level_origin) == Web::Permissions::EffectiveState::Granted;
+    }
+    return manager.effective_state(name, *top_level_origin) == Web::Permissions::EffectiveState::Granted;
 }
 
 void WebContentPage::did_request_geolocation_position(u64 request_id, Web::HTML::CrossProcessId document_id)
@@ -1732,8 +1756,14 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
         return;
     }
 
-    auto policy = Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), policy_controlled_feature_for(*permission_name), document->origin(), document->origin());
-    if (policy != Web::PermissionsPolicy::FeatureValue::Enabled) {
+    if (auto feature = policy_controlled_feature_for(*permission_name); feature.has_value()) {
+        auto policy = Web::PermissionsPolicy::check_permissions_policy(document->permissions_policy(), *feature, document->origin(), document->origin());
+        if (policy != Web::PermissionsPolicy::FeatureValue::Enabled) {
+            deny();
+            return;
+        }
+    }
+    if (!permission_reaches_document(*permission_name, *document, *top_level_origin)) {
         deny();
         return;
     }
@@ -1756,11 +1786,32 @@ void WebContentPage::did_request_permission(u64 request_id, Web::HTML::CrossProc
             async_permission_request_completed(request_id, state);
             return;
         }
+    } else if (manager.global_default(*permission_name) == Web::Permissions::EffectiveState::Denied) {
+        // The global default binds a file: page too; its own grant only matters while sites may ask.
+        deny();
+        return;
+    }
+
+    // A page asks for notifications only from a gesture, and the UI process holds it to the activation it delivered
+    // itself, consuming it as the renderer does: a renderer that skipped its own check gets no prompt.
+    if (*permission_name == Web::Permissions::PermissionName::Notifications && !consume_transient_user_activation()) {
+        deny();
+        return;
     }
 
     auto generation_when_asked = manager.decision_generation(*permission_name, *top_level_origin);
-    // When the system hasn't yet let the browser find the user's location either, the prompt says the system will ask next.
-    auto show_os_hint = *permission_name == Web::Permissions::PermissionName::Geolocation && Application::the().geolocation_authorization() == Core::GeolocationAuthorization::NotDetermined;
+    // When the system hasn't yet let the browser use the feature either, the prompt says the system will ask next.
+    auto show_os_hint = [&] {
+        switch (*permission_name) {
+        case Web::Permissions::PermissionName::Geolocation:
+            return Application::the().geolocation_authorization() == Core::GeolocationAuthorization::NotDetermined;
+        case Web::Permissions::PermissionName::Notifications:
+            return NotificationManager::the().backend().os_authorization_is_undetermined();
+        case Web::Permissions::PermissionName::Microphone:
+            return false;
+        }
+        VERIFY_NOT_REACHED();
+    }();
     PermissionPromptRequest request { *permission_name, *top_level_origin, is_file, show_os_hint };
 
     view().request_permission_prompt(move(request), [page = NonnullRefPtr(*this), request_id, document_id, permission_name = *permission_name, top_level_origin = *top_level_origin, is_file, generation_when_asked](Web::Permissions::PromptOutcome outcome) {
@@ -1851,6 +1902,62 @@ Web::Permissions::PermissionSnapshot WebContentPage::advance_permission_clock_fo
     auto& manager = *view().session().permission_manager;
     manager.age_origin_for_testing(view().url().origin(), AK::Duration::from_milliseconds(static_cast<i64>(milliseconds)));
     return manager.snapshot_for(client().permission_origins());
+}
+
+void WebContentPage::did_request_show_notification(u64 notification_id, Web::HTML::CrossProcessId document_id, Web::NotificationsAPI::NotificationData data, Optional<Gfx::ShareableBitmap> icon)
+{
+    // The UI process shows a notification only for a document it knows the user let notify, read from its own store
+    // as the notification arrives: A decision made while the page was still fetching the icon counts, and a renderer
+    // that skipped its own check gets nothing.
+    auto document = hosted_document_with_id(document_id);
+    if (!document || !document_may_use(document_id, Web::Permissions::PermissionName::Notifications)) {
+        async_notification_show_failed(notification_id);
+        return;
+    }
+
+    RefPtr<Gfx::Bitmap const> icon_bitmap;
+    if (icon.has_value() && icon->is_valid())
+        icon_bitmap = icon->bitmap();
+    NotificationManager::the().show(*this, notification_id, *document->top_level_origin(), move(data), move(icon_bitmap));
+}
+
+void WebContentPage::did_request_close_notification(u64 notification_id)
+{
+    NotificationManager::the().close(*this, notification_id);
+}
+
+void WebContentPage::did_abandon_notification(u64 notification_id)
+{
+    NotificationManager::the().abandon(*this, notification_id);
+}
+
+void WebContentPage::did_handle_notification_click(u64 notification_id, bool into_focus)
+{
+    NotificationManager::the().click_handled(*this, notification_id, into_focus);
+}
+
+void WebContentPage::did_request_click_notification_for_testing(u64 notification_id)
+{
+    auto* recording_backend = NotificationManager::the().backend().as_recording_backend();
+    if (!recording_backend)
+        return;
+    if (auto id = NotificationManager::the().id_for(*this, notification_id); id.has_value())
+        recording_backend->click(*id);
+}
+
+void WebContentPage::did_request_click_notification_by_id_for_testing(u64 browser_notification_id)
+{
+    if (auto* recording_backend = NotificationManager::the().backend().as_recording_backend())
+        recording_backend->click(browser_notification_id);
+}
+
+void WebContentPage::did_request_dismiss_notification_for_testing(u64 notification_id)
+{
+    auto* recording_backend = NotificationManager::the().backend().as_recording_backend();
+    if (!recording_backend)
+        return;
+    if (auto id = NotificationManager::the().id_for(*this, notification_id); id.has_value())
+        recording_backend->dismiss(*id);
 }
 
 void WebContentPage::did_cancel_geolocation_position_request(u64 request_id)

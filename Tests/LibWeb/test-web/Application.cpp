@@ -14,7 +14,10 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibWebCommon/Loader/DownloadFilename.h>
+#include <LibWebView/NotificationManager.h>
+#include <LibWebView/RecordingNotificationBackend.h>
 #include <LibWebView/TestSpellChecker.h>
+#include <LibWebView/WebContentPage.h>
 #include <errno.h>
 
 namespace TestWeb {
@@ -137,6 +140,23 @@ ErrorOr<LexicalPath> Application::default_path_for_downloaded_file(ByteString co
     if (!downloads_directory.has_value())
         return Error::from_errno(ECANCELED);
     return LexicalPath::join(*downloads_directory, Web::sanitize_suggested_download_filename(file));
+}
+
+NonnullOwnPtr<WebView::NotificationBackend> Application::create_notification_backend()
+{
+    return make<WebView::RecordingNotificationBackend>();
+}
+
+void Application::focus_page_from_notification(WebView::WebContentPage& page)
+{
+    if (auto* recording_backend = WebView::NotificationManager::the().backend().as_recording_backend())
+        recording_backend->record_focus(page.id());
+}
+
+void Application::open_url_in_new_tab_from_notification(URL::URL const& url, Web::PageId originating_page, WebView::CanonicalTraversable*, WebView::IsPrivate)
+{
+    if (auto* recording_backend = WebView::NotificationManager::the().backend().as_recording_backend())
+        recording_backend->record_open(url, originating_page);
 }
 
 ErrorOr<void> Application::launch_test_fixtures()

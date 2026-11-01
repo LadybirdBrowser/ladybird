@@ -3277,6 +3277,30 @@ void ConnectionFromClient::permission_request_completed(Web::PageId page_id, u64
         page->permission_request_completed(request_id, state);
 }
 
+void ConnectionFromClient::notification_shown(Web::PageId page_id, u64 notification_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().notification_shown(notification_id);
+}
+
+void ConnectionFromClient::notification_show_failed(Web::PageId page_id, u64 notification_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().notification_show_failed(notification_id);
+}
+
+void ConnectionFromClient::notification_clicked(Web::PageId page_id, u64 notification_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().notification_clicked(notification_id);
+}
+
+void ConnectionFromClient::notification_closed(Web::PageId page_id, u64 notification_id, bool by_user)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().notification_closed(notification_id, by_user);
+}
+
 void ConnectionFromClient::set_has_focus(Web::PageId page_id, bool has_focus)
 {
     if (auto page = this->page(page_id); page.has_value())

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A page that isn't a secure context reads "denied" and can't show a notification, whatever the store holds.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        println(`secure context: ${isSecureContext}`);
+        println(`permission: ${Notification.permission}`);
+        const notification = new Notification("title");
+        const timeout = setTimeout(() => { println("constructor: no event"); done(); }, 1000);
+        notification.onshow = () => { clearTimeout(timeout); println("constructor: show"); done(); };
+        notification.onerror = () => { clearTimeout(timeout); println("constructor: error"); done(); };
+    });
+</script>

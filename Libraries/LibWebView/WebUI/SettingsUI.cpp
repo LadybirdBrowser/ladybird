@@ -172,6 +172,9 @@ void SettingsUI::register_interfaces()
     register_interface("setLocationPolicy"sv, [this](auto const& data) {
         set_location_policy(data);
     });
+    register_interface("setNotificationsPolicy"sv, [this](auto const& data) {
+        set_notifications_policy(data);
+    });
 
     register_interface("estimateBrowsingDataSizes"sv, [this](auto const& data) {
         estimate_browsing_data_sizes(data);
@@ -229,7 +232,7 @@ JsonObject SettingsUI::serialize_settings() const
 
     // The sites the user allowed or blocked, for each permission.
     JsonObject site_permissions;
-    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone }) {
+    for (auto name : { Web::Permissions::PermissionName::Geolocation, Web::Permissions::PermissionName::Microphone, Web::Permissions::PermissionName::Notifications }) {
         JsonArray sites;
         for (auto const& site : Application::the().default_session().permission_manager->site_decisions(name)) {
             JsonObject entry;
@@ -604,6 +607,17 @@ void SettingsUI::set_location_policy(JsonValue const& policy)
         Application::settings().set_location_policy(LocationPolicy::Ask);
     else if (policy.as_string() == "block"sv)
         Application::settings().set_location_policy(LocationPolicy::Block);
+}
+
+void SettingsUI::set_notifications_policy(JsonValue const& policy)
+{
+    if (!policy.is_string())
+        return;
+
+    if (policy.as_string() == "ask"sv)
+        Application::settings().set_notifications_policy(NotificationsPolicy::Ask);
+    else if (policy.as_string() == "block"sv)
+        Application::settings().set_notifications_policy(NotificationsPolicy::Block);
 }
 
 void SettingsUI::estimate_browsing_data_sizes(JsonValue const& options)

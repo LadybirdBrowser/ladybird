@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="euc-kr">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+  // This file is actually ascii, because otherwise text editors would have hard time.
+
+  promise_test(async (t) => {
+    // "icon" in Korean language
+    const iconKorean = "\uc544\uc774\ucf58";
+    const n = new Notification("title", { icon: `?icon=${iconKorean}` })
+    t.add_cleanup(() => n.close());
+
+    assert_equals(new URL(n.icon).search, "?icon=%EC%95%84%EC%9D%B4%EC%BD%98", "icon encoded with utf-8");
+  })
+</script>

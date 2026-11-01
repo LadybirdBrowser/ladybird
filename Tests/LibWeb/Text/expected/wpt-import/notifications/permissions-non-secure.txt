@@ -1,0 +1,8 @@
+Harness status: OK
+
+Found 3 tests
+
+3 Pass
+Pass	Notification.requestPermission must be called from a secure context
+Pass	Notification.permission must be called from a secure context
+Pass	Notification.permission must be called from a secure worker

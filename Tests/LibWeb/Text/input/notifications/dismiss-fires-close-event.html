@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The user dismissing the notification fires close on the page.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Dismiss me");
+        notification.onshow = () => internals.dismissNotificationForTesting(notification);
+        notification.onclose = () => {
+            println("close");
+            done();
+        };
+        notification.onerror = () => { println("error"); done(); };
+    });
+</script>

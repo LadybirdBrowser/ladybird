@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // requestPermission() asks through the permission prompt while the user hasn't decided, from a click, and resolves
+    // with what the user answered: "granted", "denied", or "default" for a dismissed prompt.
+    asyncTest(async done => {
+        const requestFromClick = outcome => new Promise(resolve => {
+            internals.setNextPermissionPromptOutcome("notifications", outcome);
+            addEventListener("click", async () => resolve(await Notification.requestPermission()), { once: true });
+            internals.click(10, 10);
+        });
+        for (const outcome of ["allow", "block", "dismiss"]) {
+            await internals.setPermission("notifications", "prompt");
+            println(`${outcome}: ${await requestFromClick(outcome)} / ${Notification.permission}`);
+        }
+        done();
+    });
+</script>

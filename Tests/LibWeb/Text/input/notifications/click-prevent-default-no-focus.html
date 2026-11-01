@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A click handler that cancels the event keeps the tab from being brought into focus.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Click me");
+        notification.onshow = () => internals.clickNotificationForTesting(notification);
+        notification.onclick = event => {
+            event.preventDefault();
+            println("click");
+            setTimeout(() => {
+                const state = JSON.parse(internals.notificationsStateForTesting());
+                println(`focused: ${state.focused.length}`);
+                notification.close();
+                done();
+            }, 0);
+        };
+        notification.onerror = () => { println("error"); done(); };
+    });
+</script>

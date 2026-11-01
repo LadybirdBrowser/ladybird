@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A click on the notification fires click with transient activation, and then brings the tab into focus.
+    asyncTest(async done => {
+        await internals.setPermission("notifications", "granted");
+        const notification = new Notification("Click me");
+        notification.onshow = () => internals.clickNotificationForTesting(notification);
+        notification.onclick = () => {
+            println(`click, activation active: ${navigator.userActivation.isActive}`);
+            // The focus request follows the click's dispatch, so give the UI process a turn to receive it.
+            setTimeout(() => {
+                const state = JSON.parse(internals.notificationsStateForTesting());
+                println(`focused: ${state.focused.length}`);
+                notification.close();
+                done();
+            }, 0);
+        };
+        notification.onerror = () => { println("error"); done(); };
+    });
+</script>

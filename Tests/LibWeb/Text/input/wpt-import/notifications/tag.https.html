@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Notification.tag (two tags with same or different value)</title>
+<link rel="author" title="Intel" href="http://www.intel.com/">
+<link rel="author" title="Xin Liu" href="mailto:xinx.liu@intel.com">
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script src="../resources/testdriver.js"></script>
+<script src="../resources/testdriver-vendor.js"></script>
+<script src="resources/helpers.js"></script>
+<script>
+function promiseEvent(target, eventName, syncListener) {
+    return new Promise(resolve => {
+        target.addEventListener(eventName, ev => {
+            syncListener?.();
+            resolve(ev);
+        }, { once: true });
+    });
+}
+
+promise_setup(async () => {
+  await trySettingPermission("granted");
+});
+
+promise_test(async t => {
+    const tom1 = new Notification("New Email to tom", {
+        tag: "Tom"
+    });
+    t.add_cleanup(() => tom1.close());
+
+    let closed = false;
+    const promiseCloseEvent = promiseEvent(tom1, "close", () => closed = true);
+    await promiseEvent(tom1, "show");
+
+    const rose = new Notification("New Email to Rose", {
+        tag: "Rose"
+    });
+    t.add_cleanup(() => rose.close());
+    await promiseEvent(rose, "show");
+    assert_false(closed, "Different tag should not close the first notification");
+
+    const tom2 = new Notification("New Email to tom", {
+        tag: "Tom"
+    });
+    t.add_cleanup(() => tom2.close());
+
+    await promiseCloseEvent; // This should not timeout
+}, "Opening two notifications with the same tag should close the first one");
+
+promise_test(async t => {
+    const events = [];
+
+    const tom1 = new Notification("New Email to tom", {
+        tag: "Tom"
+    });
+    t.add_cleanup(() => tom1.close());
+    tom1.onclose = () => events.push("tomclose");
+
+    const tom2 = new Notification("New Email to tom", {
+        tag: "Tom"
+    });
+    t.add_cleanup(() => tom2.close());
+    await promiseEvent(tom2, "show", () => events.push("tomshow"));
+
+    assert_array_equals(events, ["tomclose", "tomshow"]);
+}, "Opening two notifications with the same tag should fire close event before show event");
+</script>

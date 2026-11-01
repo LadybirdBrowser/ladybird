@@ -41,6 +41,7 @@
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Loader/ContentBlocker.h>
+#include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -158,6 +159,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     for (auto const& request : m_pending_geolocation_requests)
         visitor.visit(request.value.callback);
     visitor.visit(m_pending_permission_requests);
+    visitor.visit(m_notifications_list);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
         operation.visit([&](PendingFullscreenEnter const& enter_operation) {
                 visitor.visit(enter_operation.element);
@@ -1601,6 +1603,51 @@ void Page::permission_request_completed(u64 request_id, Web::Permissions::Effect
 {
     if (auto callback = m_pending_permission_requests.take(request_id); callback.has_value())
         callback.value()->function()(state);
+}
+
+void Page::register_showing_notification(u64 notification_id, GC::Ref<NotificationsAPI::Notification> notification)
+{
+    m_notifications_list.set(notification_id, notification);
+}
+
+void Page::unregister_notification(u64 notification_id)
+{
+    m_notifications_list.remove(notification_id);
+}
+
+void Page::notification_shown(u64 notification_id)
+{
+    if (auto notification = m_notifications_list.get(notification_id); notification.has_value())
+        (*notification)->did_show();
+}
+
+void Page::notification_show_failed(u64 notification_id)
+{
+    if (auto notification = m_notifications_list.get(notification_id); notification.has_value())
+        (*notification)->did_fail_to_show();
+}
+
+void Page::notification_clicked(u64 notification_id)
+{
+    if (auto notification = m_notifications_list.get(notification_id); notification.has_value())
+        (*notification)->did_click();
+}
+
+void Page::notification_closed(u64 notification_id, bool by_user)
+{
+    if (auto notification = m_notifications_list.get(notification_id); notification.has_value())
+        (*notification)->did_close(by_user);
+}
+
+void Page::notifications_document_destroyed(DOM::Document const& document)
+{
+    GC::RootVector<GC::Ref<NotificationsAPI::Notification>> abandoned;
+    for (auto const& [id, notification] : m_notifications_list) {
+        if (notification->document() == &document)
+            abandoned.append(notification);
+    }
+    for (auto const& notification : abandoned)
+        notification->abandon();
 }
 
 u64 Page::request_geolocation_position(HTML::CrossProcessId requesting_document_id, GeolocationPositionCallback callback, GeolocationRequestType type)

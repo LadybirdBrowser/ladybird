@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Notification permissions should be denied in non-secure contexts</title>
+<script src="../resources/testharness.js"></script>
+<script src="../resources/testharnessreport.js"></script>
+<script>
+promise_test(t => {
+  return Notification.requestPermission().then(result => {
+    assert_equals(result, "denied");
+  });
+}, "Notification.requestPermission must be called from a secure context");
+
+test(t => {
+  assert_equals(Notification.permission, "denied");
+}, "Notification.permission must be called from a secure context");
+
+promise_test(async t => {
+  const worker = new Worker("resources/permission-worker.js", { type: "module" });
+  const data = await new Promise(r => worker.onmessage = ev => r(ev.data));
+  assert_equals(data.permission, "denied");
+}, "Notification.permission must be called from a secure worker");
+</script>

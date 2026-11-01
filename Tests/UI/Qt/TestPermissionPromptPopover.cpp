@@ -125,12 +125,38 @@ TEST_CASE(question_and_answers)
     PermissionPromptPopover port(nullptr, request_for("https://maps.example.com:8443/"sv, PermissionName::Microphone));
     EXPECT_EQ(child<QLabel>(port, "LadybirdPermissionPromptTitle").text(), QStringLiteral("maps.example.com:8443 wants to use your microphone"));
 
+    PermissionPromptPopover mail(nullptr, request_for("https://mail.example.com/"sv, PermissionName::Notifications));
+    EXPECT_EQ(child<QLabel>(mail, "LadybirdPermissionPromptTitle").text(), QStringLiteral("mail.example.com wants to send you notifications"));
+
     PermissionPromptPopover file(nullptr, request_for("file:///Users/someone/map.html"sv));
     EXPECT_EQ(child<QLabel>(file, "LadybirdPermissionPromptTitle").text(), QStringLiteral("This file wants to know your location"));
 
     EXPECT_EQ(child<QPushButton>(site, "LadybirdPermissionPromptAllowAlways").text(), QStringLiteral("Allow while visiting the site"));
     EXPECT_EQ(child<QPushButton>(site, "LadybirdPermissionPromptAllowOnce").text(), QStringLiteral("Allow this time"));
     EXPECT_EQ(child<QPushButton>(site, "LadybirdPermissionPromptBlock").text(), QStringLiteral("Never allow"));
+}
+
+TEST_CASE(notifications_prompt_has_two_answers)
+{
+    PermissionPromptPopover mail(nullptr, request_for("https://mail.example.com/"sv, PermissionName::Notifications));
+    EXPECT_EQ(child<QPushButton>(mail, "LadybirdPermissionPromptAllowAlways").text(), QStringLiteral("Allow"));
+    EXPECT_EQ(child<QPushButton>(mail, "LadybirdPermissionPromptBlock").text(), QStringLiteral("Never allow"));
+    EXPECT(mail.findChild<QPushButton*>(QStringLiteral("LadybirdPermissionPromptAllowOnce")) == nullptr);
+
+    Recorder recorder;
+    recorder.attach(mail);
+    child<QPushButton>(mail, "LadybirdPermissionPromptAllowAlways").click();
+    EXPECT_EQ(recorder.outcomes.size(), 1u);
+    EXPECT(recorder.outcomes[0] == PromptOutcome::AllowAlways);
+}
+
+TEST_CASE(hint_text_names_the_feature)
+{
+    PermissionPromptPopover location(nullptr, request_for("https://maps.example.com/"sv, PermissionName::Geolocation, true));
+    EXPECT_EQ(child<QLabel>(location, "LadybirdPermissionPromptHint").text(), QStringLiteral("macOS will then ask you to let Ladybird use your location."));
+
+    PermissionPromptPopover notifications(nullptr, request_for("https://mail.example.com/"sv, PermissionName::Notifications, true));
+    EXPECT_EQ(child<QLabel>(notifications, "LadybirdPermissionPromptHint").text(), QStringLiteral("macOS will then ask you to let Ladybird show notifications."));
 }
 
 TEST_CASE(hint_shows_only_when_requested)

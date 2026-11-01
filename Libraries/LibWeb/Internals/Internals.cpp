@@ -103,6 +103,7 @@
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/LoaderConfig.h>
 #include <LibWeb/Loader/ResourceLoader.h>
+#include <LibWeb/NotificationsAPI/Notification.h>
 #include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -2257,6 +2258,26 @@ GC::Ref<WebIDL::Promise> Internals::advance_permission_clock(WebIDL::UnsignedLon
 Vector<String> Internals::permission_cache_origins()
 {
     return PermissionsAPI::PermissionStore::the().cached_origins_for_testing();
+}
+
+String Internals::notifications_state_for_testing()
+{
+    return page().client().page_did_request_notifications_state_for_testing();
+}
+
+void Internals::click_notification_for_testing(NotificationsAPI::Notification& notification)
+{
+    page().client().page_did_request_click_notification_for_testing(notification.id_for_testing());
+}
+
+void Internals::click_notification_by_id_for_testing(WebIDL::UnsignedLongLong browser_notification_id)
+{
+    page().client().page_did_request_click_notification_by_id_for_testing(browser_notification_id);
+}
+
+void Internals::dismiss_notification_for_testing(NotificationsAPI::Notification& notification)
+{
+    page().client().page_did_request_dismiss_notification_for_testing(notification.id_for_testing());
 }
 
 bool Internals::html_parser_body_is_exhausted(DOM::Document& document)

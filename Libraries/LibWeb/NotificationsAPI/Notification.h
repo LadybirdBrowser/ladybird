@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibGfx/Bitmap.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
 #include <LibWeb/Bindings/Notification.h>
@@ -16,6 +17,8 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HighResolutionTime/EpochTimeStamp.h>
+#include <LibWebCommon/NotificationsAPI/NotificationData.h>
+#include <LibWebCommon/WebIDL/Types.h>
 
 namespace Web::NotificationsAPI {
 
@@ -37,6 +40,8 @@ struct NotificationOptions {
     Optional<Utf16String> image;
     Optional<Utf16String> icon;
     Optional<Utf16String> badge;
+    // FIXME: Validate and normalize the pattern (create step 15); only its presence matters until then.
+    Optional<Variant<WebIDL::UnsignedLong, Vector<WebIDL::UnsignedLong>>> vibrate;
     Optional<HighResolutionTime::EpochTimeStamp> timestamp;
     bool renotify { false };
     Optional<bool> silent;
@@ -88,6 +93,7 @@ class WEB_API Notification final : public DOM::EventTarget {
 
 public:
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Notification>> create_with_global_scope(
+        JS::Object& relevant_global_object,
         HTML::WindowOrWorkerGlobalScopeMixin&,
         String const& title,
         NotificationOptions options);
@@ -108,12 +114,38 @@ public:
         URL::URL base_url,
         HighResolutionTime::EpochTimeStamp fallback_timestamp);
 
-    static unsigned long max_actions()
-    {
-        // FIXME: Change the number of max_actions supported when actions will actually be supported
-        // It seems like Chrome is 2, Firefox is undefined, Safari is undefined
-        return 0;
-    }
+    static Bindings::NotificationPermission permission();
+    static GC::Ref<WebIDL::Promise> request_permission(GC::Ptr<WebIDL::CallbackType> deprecated_callback);
+
+    void close();
+
+    void set_onclick(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onclick();
+    void set_onshow(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onshow();
+    void set_onerror(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onerror();
+    void set_onclose(WebIDL::CallbackType*);
+    WebIDL::CallbackType* onclose();
+
+    // The id this notification is known by across the Page bridge, for tests that act on it from the UI side.
+    u64 id_for_testing() const { return m_id; }
+
+    // The document the notification was created in, if a window's.
+    DOM::Document const* document() const;
+    // The document is gone, so no event can reach this object again; the UI process keeps showing the notification.
+    void abandon();
+
+    // What the UI process reports back about the notification it shows for this object.
+    void did_show();
+    void did_fail_to_show();
+    void did_click();
+    void did_close(bool by_user);
+
+    // https://notifications.spec.whatwg.org/#maximum-number-of-actions-supported
+    // Two is what both desktop notification platforms show room for; persistent notifications, the only kind that
+    // carries actions, aren't supported yet.
+    static unsigned long max_actions() { return 2; }
 
     String const& title() const { return m_notification.title; }
     NotificationDirection direction() const { return m_notification.direction; }
@@ -136,9 +168,42 @@ public:
 private:
     Notification();
 
+    virtual void visit_edges(Cell::Visitor&) override;
+
     static Utf16String serialize_url_for_bindings(Optional<URL::URL> const&);
 
+    void run_steps_in_parallel_after_construction();
+    void show_steps();
+    void run_the_fetch_steps(GC::Ref<GC::Function<void()>> on_done);
+    void fetch_a_notification_resource(URL::URL const&, GC::Ref<GC::Function<void(RefPtr<Gfx::Bitmap const>)>> process_resource);
+    void display();
+    void close_steps();
+    void queue_task_to_fire_event(Utf16FlyString const& event_name);
+    NotificationData data() const;
+
     ConceptNotification m_notification;
+
+    // The global the constructor ran in: Where the events fire, and whose window the notification belongs to.
+    GC::Ptr<JS::Object> m_relevant_global;
+    GC::Ptr<Page> m_page;
+
+    // Where the notification is on its way to the platform. From Pending on it's in the page's list of notifications,
+    // which keeps it alive; Closed means it has left the list for good.
+    enum class State {
+        Idle,
+        Pending,
+        Showing,
+        Closing,
+        Closed,
+    };
+    State m_state { State::Idle };
+    u64 m_id { 0 };
+
+    // https://notifications.spec.whatwg.org/#icon-resource
+    RefPtr<Gfx::Bitmap const> m_icon_resource;
+    GC::Ptr<Fetch::Infrastructure::FetchController> m_icon_fetch_controller;
+    // Bounds the wait for the icon: Past it, the notification shows without one.
+    GC::Ptr<Platform::Timer> m_fetch_timeout;
 };
 
 }

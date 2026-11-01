@@ -90,6 +90,7 @@ void PermissionStore::apply_snapshot(Web::Permissions::PermissionSnapshot snapsh
         m_defaults_revision = snapshot.revision;
         m_geolocation_default = snapshot.geolocation_default;
         m_microphone_default = snapshot.microphone_default;
+        m_notifications_default = snapshot.notifications_default;
         changed = true;
     }
 
@@ -141,6 +142,8 @@ Web::Permissions::EffectiveState PermissionStore::state_for(Web::Permissions::Pe
             return m_geolocation_default;
         case Web::Permissions::PermissionName::Microphone:
             return m_microphone_default;
+        case Web::Permissions::PermissionName::Notifications:
+            return m_notifications_default;
         }
         VERIFY_NOT_REACHED();
     };

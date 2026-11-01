@@ -71,6 +71,7 @@ public:
     virtual ~PermissionManager() override;
 
     Web::Permissions::EffectiveState effective_state(Web::Permissions::PermissionName, URL::Origin const& top_level_origin) const;
+    Web::Permissions::EffectiveState global_default(Web::Permissions::PermissionName) const;
     Optional<PermissionDecision> decision(Web::Permissions::PermissionName, URL::Origin const& top_level_origin) const;
 
     // Moves with every decision made for a site, however it was made, so an answer given to a prompt can tell if
@@ -139,7 +140,6 @@ private:
 
     UnixDateTime now() const;
     bool embargo_is_live(Entry const&) const;
-    Web::Permissions::EffectiveState global_default(Web::Permissions::PermissionName) const;
     bool os_denies_geolocation() const;
     bool ordinary_session_blocks(Web::Permissions::PermissionName, URL::Origin const&) const;
 
@@ -166,6 +166,7 @@ private:
 
     Web::Permissions::EffectiveState m_geolocation_default { Web::Permissions::EffectiveState::Prompt };
     Web::Permissions::EffectiveState m_microphone_default { Web::Permissions::EffectiveState::Prompt };
+    Web::Permissions::EffectiveState m_notifications_default { Web::Permissions::EffectiveState::Prompt };
     bool m_os_denies_geolocation { false };
 
     u64 m_revision { 0 };

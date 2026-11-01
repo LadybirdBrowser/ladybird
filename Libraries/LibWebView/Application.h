@@ -156,6 +156,14 @@ public:
 
     virtual OwnPtr<PictureInPictureWindow> create_picture_in_picture_window(WebContentPage& requesting_page, CanonicalTraversable&, Gfx::IntSize video_size);
 
+    // The platform's notification support; the NotificationManager asks once, the first time a page shows one.
+    virtual NonnullOwnPtr<NotificationBackend> create_notification_backend();
+    // A click on a notification brought its page's tab into focus (the page's click handler didn't cancel it).
+    virtual void focus_page_from_notification(WebContentPage&) { }
+    // A click on a notification whose page is gone: Open the URL in a new foreground tab of that window, if it's
+    // still open, or of the active window.
+    virtual void open_url_in_new_tab_from_notification(URL::URL const&, [[maybe_unused]] Web::PageId originating_page, CanonicalTraversable*, IsPrivate) { }
+
     void appearance_changed(Badge<ApplicationSettingsObserver>);
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
     void languages_changed(Badge<ApplicationSettingsObserver>);
@@ -173,8 +181,10 @@ public:
 
     // True unless the user has turned location off, or there's no way to find it.
     bool sites_can_ask_for_location() const;
+    bool sites_can_ask_for_notifications() const;
     Core::GeolocationAuthorization geolocation_authorization();
     void location_policy_changed(Badge<ApplicationSettingsObserver>);
+    void notifications_policy_changed(Badge<ApplicationSettingsObserver>);
     void permissions_changed(Badge<ApplicationPermissionManagerObserver>, PermissionManager const&);
 
     bool content_blocking_enabled() const;

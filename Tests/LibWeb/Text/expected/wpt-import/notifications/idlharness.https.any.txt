@@ -2,9 +2,9 @@ Harness status: OK
 
 Found 67 tests
 
-49 Pass
-18 Fail
-Fail	idl_test setup
+63 Pass
+4 Fail
+Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface ServiceWorkerRegistration: original interface defined
 Pass	Partial interface ServiceWorkerRegistration: member names are unique
@@ -17,13 +17,13 @@ Pass	Notification interface object name
 Pass	Notification interface: existence and properties of interface prototype object
 Pass	Notification interface: existence and properties of interface prototype object's "constructor" property
 Pass	Notification interface: existence and properties of interface prototype object's @@unscopables property
-Fail	Notification interface: attribute permission
-Fail	Notification interface: operation requestPermission(optional NotificationPermissionCallback)
+Pass	Notification interface: attribute permission
+Pass	Notification interface: operation requestPermission(optional NotificationPermissionCallback)
 Pass	Notification interface: attribute maxActions
-Fail	Notification interface: attribute onclick
-Fail	Notification interface: attribute onshow
-Fail	Notification interface: attribute onerror
-Fail	Notification interface: attribute onclose
+Pass	Notification interface: attribute onclick
+Pass	Notification interface: attribute onshow
+Pass	Notification interface: attribute onerror
+Pass	Notification interface: attribute onclose
 Pass	Notification interface: attribute title
 Pass	Notification interface: attribute dir
 Pass	Notification interface: attribute lang
@@ -40,17 +40,17 @@ Pass	Notification interface: attribute silent
 Pass	Notification interface: attribute requireInteraction
 Pass	Notification interface: attribute data
 Pass	Notification interface: attribute actions
-Fail	Notification interface: operation close()
+Pass	Notification interface: operation close()
 Pass	Notification must be primary interface of notification
 Pass	Stringification of notification
 Pass	Notification interface: notification must inherit property "permission" with the proper type
 Pass	Notification interface: notification must inherit property "requestPermission(optional NotificationPermissionCallback)" with the proper type
-Fail	Notification interface: calling requestPermission(optional NotificationPermissionCallback) on notification with too few arguments must throw TypeError
+Pass	Notification interface: calling requestPermission(optional NotificationPermissionCallback) on notification with too few arguments must throw TypeError
 Pass	Notification interface: notification must inherit property "maxActions" with the proper type
-Fail	Notification interface: notification must inherit property "onclick" with the proper type
-Fail	Notification interface: notification must inherit property "onshow" with the proper type
-Fail	Notification interface: notification must inherit property "onerror" with the proper type
-Fail	Notification interface: notification must inherit property "onclose" with the proper type
+Pass	Notification interface: notification must inherit property "onclick" with the proper type
+Pass	Notification interface: notification must inherit property "onshow" with the proper type
+Pass	Notification interface: notification must inherit property "onerror" with the proper type
+Pass	Notification interface: notification must inherit property "onclose" with the proper type
 Pass	Notification interface: notification must inherit property "title" with the proper type
 Pass	Notification interface: notification must inherit property "dir" with the proper type
 Pass	Notification interface: notification must inherit property "lang" with the proper type
@@ -67,7 +67,7 @@ Pass	Notification interface: notification must inherit property "silent" with th
 Pass	Notification interface: notification must inherit property "requireInteraction" with the proper type
 Pass	Notification interface: notification must inherit property "data" with the proper type
 Pass	Notification interface: notification must inherit property "actions" with the proper type
-Fail	Notification interface: notification must inherit property "close()" with the proper type
+Pass	Notification interface: notification must inherit property "close()" with the proper type
 Pass	NotificationEvent interface: existence and properties of interface object
 Fail	ServiceWorkerRegistration interface: operation showNotification(DOMString, optional NotificationOptions)
 Fail	ServiceWorkerRegistration interface: operation getNotifications(optional GetNotificationOptions)
