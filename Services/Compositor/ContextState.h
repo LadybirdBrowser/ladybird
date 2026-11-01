@@ -105,8 +105,10 @@ public:
         Web::WheelDeltaPrecision wheel_delta_precision { Web::WheelDeltaPrecision::Discrete };
         Web::ScrollGesturePhase scroll_gesture_phase { Web::ScrollGesturePhase::None };
         Web::UIEvents::KeyModifier modifiers { Web::UIEvents::KeyModifier::Mod_None };
+        // The gesture of the containing context that the step is in, which the latch this context takes is for.
+        Optional<u64> gesture_id {};
 
-        static WheelStepFromContainingContext for_wheel_event(Web::MouseEvent const&);
+        static WheelStepFromContainingContext for_wheel_event(Web::MouseEvent const&, Optional<u64> gesture_id);
     };
 
     // Where the first step of a gesture that the containing context hands in goes in this context. A nested context
@@ -185,6 +187,7 @@ public:
     // Takes note of a wheel event from the UI as it arrives, ahead of anything that may turn it away or leave it to
     // the main thread.
     Web::WheelGestureMark note_wheel_event_from_ui(Web::MouseEvent const&, Optional<MonotonicTime> now_for_testing = {});
+    Optional<u64> wheel_gesture_id() const { return m_wheel_gesture_routing.gesture_id(); }
     ContextUpdateResult handle_pinch_event(Web::PinchEvent const&);
     bool admits_async_pinch() const { return m_wheel_gesture_routing.admits_async_pinch(); }
 
@@ -210,6 +213,8 @@ public:
         u32 modifiers,
         Compositing::AsyncScrollOperationTracking,
         Compositing::WheelStepDispatch,
+        // The gesture the compositor named in the mark of the UI's wheel event, if it passed the event on.
+        Optional<u64> wheel_gesture_id_of_ui_event,
         // The id the UI gave the wheel event, or 0 for a step that did not come from the UI.
         u64 input_event_id,
         Optional<MonotonicTime> now_for_testing = {});
@@ -348,13 +353,13 @@ private:
         Optional<Gfx::FloatPoint> delta_the_node_did_not_scroll_by;
     };
     NodeScrollByWheelDelta scroll_node_by_wheel_delta(Compositing::SpatialNodeIndex, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Compositing::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now, Compositing::ScrollChaining);
-    WheelGestureRouting::ResolvedLatch resolve_wheel_scroll_latch(Web::ScrollGesturePhase);
+    WheelGestureRouting::ResolvedLatch resolve_wheel_scroll_latch(Web::ScrollGesturePhase, Optional<u64> gesture_id);
     struct WheelGestureLatchAttempt {
         Web::InputRoutingDecision decision;
         Optional<Compositing::SpatialNodeIndex> latched_scroll_node_index {};
     };
     // The scroller the first step of a wheel gesture is routed to, which the gesture is latched to.
-    WheelGestureLatchAttempt hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Optional<Web::UniqueNodeID> expected_document_id, Compositing::WheelStepDispatch, Compositing::NestedContextRegions);
+    WheelGestureLatchAttempt hit_test_and_latch_wheel_gesture(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Optional<u64> gesture_id, Optional<Web::UniqueNodeID> expected_document_id, Compositing::WheelStepDispatch, Compositing::NestedContextRegions);
     ContextUpdateResult take_wheel_step_from_containing_context(Compositing::SpatialNodeIndex, Web::InputRoutingDecision, WheelStepFromContainingContext const&, Compositing::ScrollChaining, MonotonicTime now);
     Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Optional<Compositing::AsyncScrollOffset> const&);
     Optional<Compositing::AsyncScrollOperationID> snap_at_gesture_end(MonotonicTime now);

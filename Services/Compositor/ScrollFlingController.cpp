@@ -41,6 +41,7 @@ bool ScrollFlingController::start_if_flicked(Web::MouseEvent const& gesture_end_
         .position = gesture_end_event.position,
         .screen_position = gesture_end_event.screen_position,
         .modifiers = gesture_end_event.modifiers,
+        .wheel_gesture_mark = gesture_end_event.wheel_gesture_mark,
     };
     return true;
 }
@@ -107,6 +108,7 @@ Web::MouseEvent ScrollFlingController::event_of_active_fling(Gfx::FloatPoint del
         .async_scroll_performed_default_action = false,
         // The IDs of UI input events start at 1. Thus, ID 0 does not match a UI event.
         .id = 0,
+        .wheel_gesture_mark = m_active_fling->wheel_gesture_mark,
     };
 }
 

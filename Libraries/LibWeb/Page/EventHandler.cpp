@@ -974,12 +974,13 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
     auto now = MonotonicTime::now();
     auto gesture_position = visual_viewport_position.to_type<float>();
     bool wheel_event_has_delta = wheel_delta_x != 0 || wheel_delta_y != 0;
-    // The compositor tells which gesture an event it passed on belongs to, which this navigable follows so that the two
-    // route the event alike.
+    // The compositor names the gesture of an event it passed on, which this navigable follows so that the two route the
+    // event alike.
+    auto wheel_gesture_id = wheel_gesture_mark.map([](auto const& mark) { return mark.gesture_id; });
     bool continues_latched_gesture = false;
     if (m_wheel_scroll_latch.has_value()) {
-        if (wheel_gesture_mark.has_value())
-            continues_latched_gesture = wheel_gesture_mark->continues_gesture;
+        if (wheel_gesture_id.has_value())
+            continues_latched_gesture = m_wheel_scroll_latch->wheel_gesture_id == wheel_gesture_id;
         else
             continues_latched_gesture = m_wheel_scroll_latch->gesture.is_continued_by(gesture_position, scroll_gesture_phase, modifiers, now, Compositing::wheel_gesture_position_slop_in_css_pixels, Compositing::TouchpadGestureEnd::AfterIdleDelay);
     }
@@ -1028,7 +1029,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             ? Compositing::AsyncScrollOperationTracking::Yes
             : Compositing::AsyncScrollOperationTracking::No;
         auto enqueue_result = m_navigable->compositor_context().async_scroll_by(
-            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, handling_input_event_id());
+            document->unique_id(), async_scroll_position, delta_in_device_pixels, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, wheel_gesture_id, handling_input_event_id());
         record_input_routing(enqueue_result.routing_decision.value_or(InputRoutingDecision::NoAnswerFromCompositor), enqueue_result.routed_scroller, {}, InputTraceStage::CompositorForMainThread);
         if (enqueue_result.operation_id.has_value() && async_scroll_operation)
             *async_scroll_operation = AsyncScrollOperation { m_navigable, *enqueue_result.operation_id };
@@ -1080,6 +1081,7 @@ EventResult EventHandler::handle_mousewheel(CSSPixelPoint visual_viewport_positi
             return;
         m_wheel_scroll_latch = WheelScrollLatch {
             .gesture = Compositing::WheelGestureIdentity::started_by(gesture_position, scroll_gesture_phase, modifiers, now),
+            .wheel_gesture_id = wheel_gesture_id,
             .wheel_event_target = target.dom_node(),
             .wheel_event_target_pseudo_element = target_layout_node ? target_layout_node->generated_for_pseudo_element() : Optional<CSS::PseudoElement> {},
         };

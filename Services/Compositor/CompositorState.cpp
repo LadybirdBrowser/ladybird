@@ -942,7 +942,7 @@ ContextState::ContextUpdateResult CompositorState::scroll_for_wheel_step(Web::Co
 
 CompositorState::WheelStepHandedToNestedContext CompositorState::hand_wheel_step_to_nested_context(Web::CompositorContextId context_id, ContextState& context, Web::MouseEvent const& event, ContextState::NestedContextWheelStep const& nested_step, MonotonicTime now)
 {
-    auto step = ContextState::WheelStepFromContainingContext::for_wheel_event(event);
+    auto step = ContextState::WheelStepFromContainingContext::for_wheel_event(event, context.wheel_gesture_id());
     // The nested context presents and publishes what its step changed, and this context reports how the step went.
     auto apply_result_of_nested_context = [&](Web::CompositorContextId nested_context_id, ContextState& nested_context, ContextState::ContextUpdateResult const& nested_result) {
         apply_context_update_result(nested_context_id, nested_context, nested_result);
@@ -1038,8 +1038,6 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
         context.input_trace().record({ .input_event_id = event->id, .stage = Web::InputTraceStage::Compositor, .decision = *result.routing_decision, .scroller = result.routed_scroller });
     event->async_scroll_performed_default_action = apply_context_update_result(context_id, context, result);
     schedule_animation_frames_if_needed(context);
-    // The steps this context makes itself carry on the gesture of the wheel events before them.
-    event->wheel_gesture_mark = Web::WheelGestureMark { .continues_gesture = true, .lasts_until_fingers_lift = false };
     context.dispatch_mouse_event_to_web_content(*event);
 }
 
@@ -1076,12 +1074,12 @@ void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId c
     context->dispatch_pinch_event_to_web_content(event);
 }
 
-Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelStepDispatch wheel_step_dispatch, u64 input_event_id)
+Compositing::AsyncScrollEnqueueResult CompositorState::async_scroll_by(Web::CompositorContextId context_id, Web::UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase, u32 modifiers, Compositing::AsyncScrollOperationTracking operation_tracking, Compositing::WheelStepDispatch wheel_step_dispatch, Optional<u64> wheel_gesture_id, u64 input_event_id)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, input_event_id);
+    auto result = context->async_scroll_by(expected_document_id, position, delta, viewport_rect, wheel_delta_precision, scroll_gesture_phase, modifiers, operation_tracking, wheel_step_dispatch, wheel_gesture_id, input_event_id);
     if (result.frame_to_present.has_value())
         schedule_present_frame(context_id, *context, *result.frame_to_present);
     schedule_animation_frames_if_needed(*context);
