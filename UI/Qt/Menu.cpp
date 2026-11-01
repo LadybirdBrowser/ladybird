@@ -17,6 +17,7 @@
 #include <QAction>
 #include <QMenu>
 #include <QPointer>
+#include <QTimer>
 #include <QToolButton>
 #include <QWidget>
 
@@ -389,6 +390,27 @@ QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu)
     add_properties(*application_menu, menu);
     add_items_to_menu(*application_menu, menu);
     return application_menu;
+}
+
+QMenu& replace_context_menu(QPointer<QMenu>& shown_menu, QWidget& parent, WebView::Menu& menu)
+{
+    // NB: A menu is kept until another is shown in its place, as Cocoa delivers a native menu's choice through queued
+    //     events after the menu closes.
+    if (shown_menu)
+        shown_menu->deleteLater();
+    shown_menu = create_application_menu(parent, menu);
+    return *shown_menu;
+}
+
+void execute_context_menu_later(QPointer<QMenu>& shown_menu, QWidget& parent, WebView::Menu& menu, QPoint const& global_position)
+{
+    auto& context_menu = replace_context_menu(shown_menu, parent, menu);
+
+    // NB: Showing a menu runs a nested event loop, which may destroy whatever asked for the menu. So it runs with
+    //     nothing of the caller's on the stack.
+    QTimer::singleShot(0, &context_menu, [&context_menu, global_position] {
+        execute_context_menu(context_menu, global_position);
+    });
 }
 
 void repopulate_application_menu(QMenu& menu, WebView::Menu& source)
