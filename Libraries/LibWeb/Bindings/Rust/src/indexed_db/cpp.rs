@@ -11,8 +11,6 @@ use core::ptr::NonNull;
 
 use ak::Utf16String;
 use libjs_rust::api::{EmbedderCell, Gc, Object, Realm, Trace, Vm};
-use liburl_rust::FfiOrigin;
-use liburl_rust::origin::Origin;
 
 use crate::bindings::conversions::CppInterface;
 use crate::bindings::cpp_cell::CppCell;
@@ -21,17 +19,11 @@ use crate::indexed_db::internal::database::Database;
 use crate::indexed_db::internal::function::{Function, FunctionCell, call_function};
 use crate::indexed_db::internal::key::{Key, KeyValue};
 use crate::indexed_db::internal::mutation_log::{TransactionChange, TransactionChanges};
-use crate::indexed_db::internal::storage::StorageKey;
 
 unsafe extern "C" {
     fn web_indexed_db_create_dom_exception(name: ak::Span<'_, u8>, message: usize) -> *mut c_void;
     fn web_indexed_db_dom_exception_from_value(value: u64) -> *mut c_void;
     fn web_indexed_db_wrap_dom_exception(realm: *mut c_void, exception: *mut c_void) -> *mut c_void;
-    fn web_indexed_db_obtain_a_storage_key(
-        realm: *mut c_void,
-        ctx: *mut c_void,
-        on_origin: unsafe extern "C" fn(*mut c_void, *const FfiOrigin),
-    ) -> bool;
     fn web_indexed_db_create_dom_string_list(realm: *mut c_void, strings: *const usize, count: usize) -> *mut c_void;
     fn web_indexed_db_queue_a_database_task(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
     fn web_indexed_db_run_in_parallel(cell: *mut c_void, steps: unsafe extern "C" fn(*mut c_void, *mut c_void));
@@ -99,20 +91,6 @@ impl DomException {
         // SAFETY: The wrapper is a live wrapper of a DOMException.
         unsafe { CppInterface::from_wrapper(Gc::from_non_null(wrapper)) }
     }
-}
-
-/// https://storage.spec.whatwg.org/#obtain-a-storage-key, given the relevant settings object of the realm's global
-/// object.
-pub(crate) fn obtain_a_storage_key(realm: Gc<Realm>) -> Option<StorageKey> {
-    unsafe extern "C" fn on_origin(ctx: *mut c_void, ffi_origin: *const FfiOrigin) {
-        // SAFETY: ctx is the origin below, and LibWeb lends the origin for the call.
-        unsafe { *ctx.cast::<Option<Origin>>() = Some((*ffi_origin).to_origin()) };
-    }
-
-    let mut origin: Option<Origin> = None;
-    // SAFETY: The realm is live, and the origin outlives the call.
-    unsafe { web_indexed_db_obtain_a_storage_key(realm.as_ptr().cast(), (&raw mut origin).cast(), on_origin) };
-    origin.map(|origin| StorageKey { origin })
 }
 
 pub(crate) fn create_dom_string_list(cx: &CallContext, strings: &[Utf16String]) -> CppInterface {

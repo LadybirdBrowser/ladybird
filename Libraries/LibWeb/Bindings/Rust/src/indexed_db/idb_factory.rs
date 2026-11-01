@@ -16,7 +16,7 @@ use crate::bindings::event_target::CppEvent;
 use crate::bindings::interface::{Ref, Wrappable, allocate};
 use crate::bindings::promise::{WebIdlPromise, create_promise, reject_promise, resolve_promise};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
-use crate::indexed_db::cpp::{obtain_a_storage_key, run_in_parallel};
+use crate::indexed_db::cpp::run_in_parallel;
 use crate::indexed_db::idb_open_db_request::IDBOpenDBRequest;
 use crate::indexed_db::idb_request::AnyIDBRequest;
 use crate::indexed_db::internal::algorithms::{
@@ -26,6 +26,7 @@ use crate::indexed_db::internal::algorithms::{
 use crate::indexed_db::internal::database::{Database, DatabaseRef};
 use crate::indexed_db::internal::function::{NoCells, create_function, create_function_with};
 use crate::indexed_db::internal::key::Key;
+use crate::storage_api::storage_key::obtain_a_storage_key;
 
 /// The dictionary IDBDatabaseInfo of IndexedDB/IDBFactory.idl.
 pub(crate) struct IDBDatabaseInfo {

@@ -18,7 +18,8 @@ use crate::indexed_db::idb_transaction::IDBTransaction;
 use crate::indexed_db::internal::algorithms::queue_a_database_task;
 use crate::indexed_db::internal::function::Function;
 use crate::indexed_db::internal::object_store::ObjectStoreRef;
-use crate::indexed_db::internal::storage::{StorageKey, storage};
+use crate::indexed_db::internal::storage::storage;
+use crate::storage_api::storage_key::StorageKey;
 
 type WeakConnection = GcWeak<EmbedderCell<crate::bindings::interface::Wrapped<IDBDatabase>>>;
 

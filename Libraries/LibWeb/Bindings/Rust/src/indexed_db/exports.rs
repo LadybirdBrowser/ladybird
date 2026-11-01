@@ -22,7 +22,7 @@ use crate::indexed_db::internal::algorithms::{
     delete_records_from_an_object_store,
 };
 use crate::indexed_db::internal::database::Database;
-use crate::indexed_db::internal::storage::StorageKey;
+use crate::storage_api::storage_key::StorageKey;
 
 /// # Safety
 ///

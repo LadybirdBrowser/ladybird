@@ -11,7 +11,6 @@
 #include <LibGC/Weak.h>
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibURL/RustIntegration.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/Bindings/RustInterface.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -22,7 +21,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
-#include <LibWeb/StorageAPI/StorageKey.h>
 #include <LibWeb/WebIDL/DOMException.h>
 #include <LibWebCommon/IndexedDB/TransactionChanges.h>
 
@@ -38,7 +36,6 @@ void web_rust_indexed_db_check_pending_connection_wait(JSVM*, void* database);
 void* web_indexed_db_create_dom_exception(ReadonlyBytes name, FlatPtr message);
 void* web_indexed_db_dom_exception_from_value(JSValue);
 JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception);
-bool web_indexed_db_obtain_a_storage_key(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*));
 JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* strings, size_t count);
 void web_indexed_db_queue_a_database_task(void* cell, void (*steps)(JSVM*, void*));
 void web_indexed_db_run_in_parallel(void* cell, void (*steps)(JSVM*, void*));
@@ -74,18 +71,6 @@ JSObject* web_indexed_db_wrap_dom_exception(void* realm, void* exception)
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto& dom_exception = *static_cast<WebIDL::DOMException*>(exception);
     return JS::HostABI::object_to_abi(Bindings::wrap(Bindings::host_defined_wrapper_world(js_realm), js_realm, GC::Ref { dom_exception }).ptr());
-}
-
-bool web_indexed_db_obtain_a_storage_key(void* realm, void* ctx, void (*on_origin)(void*, URL::FFI::FfiOrigin const*))
-{
-    auto& js_realm = *static_cast<JS::Realm*>(realm);
-    auto storage_key = StorageAPI::obtain_a_storage_key(HTML::relevant_settings_object(js_realm.global_object()));
-    if (!storage_key.has_value())
-        return false;
-    URL::RustIntegration::lend_origin_to_ffi(storage_key->origin, [&](URL::FFI::FfiOrigin const& origin) {
-        on_origin(ctx, &origin);
-    });
-    return true;
 }
 
 JSObject* web_indexed_db_create_dom_string_list(void* realm, FlatPtr const* strings, size_t count)
