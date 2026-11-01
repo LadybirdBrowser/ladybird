@@ -484,20 +484,15 @@ static GC::Ref<Web::HTML::ImageBitmap> create_image_bitmap(NonnullRefPtr<Gfx::Bi
     return Web::HTML::ImageBitmap::create(move(bitmap));
 }
 
-// The transfer-receiving steps of an ImageBitmap, which create the ImageBitmap.
-static Web::WebIDL::ExceptionOr<GC::Ref<JS::HostObject>> receive_image_bitmap(JS::Realm& realm, Web::HTML::TransferDataDecoder& decoder)
-{
-    return Web::Bindings::create_transferred_platform_object(Web::HTML::TransferType::ImageBitmap, realm, decoder);
-}
+// The wire values of the types of the data holders.
+static constexpr u8 message_port_transfer_type = 1;
+static constexpr u8 image_bitmap_transfer_type = 7;
 
-static GC::RootVector<JS::Value> deserialize_transfer_data_holders(JS::Realm& realm, Web::HTML::SerializedTransferRecord& record)
+static GC::RootVector<JS::Value> deserialize_transferred_values(JS::Realm& realm, Web::HTML::SerializedTransferRecord& record)
 {
     GC::RootVector<JS::Value> values;
-    for (auto& holder : record.transfer_data_holders) {
-        Web::HTML::TransferDataDecoder decoder { move(holder) };
-        decoder.set_shared_buffers(record.shared_buffers);
-        values.append(MUST(Web::HTML::structured_deserialize_with_transfer_internal(decoder, realm)));
-    }
+    for (auto& value : MUST(Web::HTML::structured_deserialize_with_transfer(record, realm)).transferred_values)
+        values.append(value.ptr());
     return values;
 }
 
@@ -638,15 +633,15 @@ TEST_CASE(image_bitmaps_queued_on_a_transferred_message_port_keep_their_pixels)
     auto port_wrapper = Web::Bindings::wrap(Web::Bindings::host_defined_wrapper_world(realm), realm, port);
     Array<GC::Ref<JS::Object>, 1> port_transfer { port_wrapper };
     auto record = MUST(Web::HTML::structured_serialize_with_transfer(realm, port_wrapper, port_transfer));
-    EXPECT(port->is_detached());
+    EXPECT(Web::HTML::structured_serialize_with_transfer(realm, port_wrapper, port_transfer).is_error());
     EXPECT_EQ(record.transfer_data_holders[0].buffer().attachments().size(), 1u);
 
-    Web::HTML::TransferDataDecoder port_decoder { move(record.transfer_data_holders[0]) };
-    EXPECT_EQ(MUST(port_decoder.decode<Web::HTML::TransferType>()), Web::HTML::TransferType::MessagePort);
-    EXPECT(MUST(port_decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>()).is_empty());
-    auto queued_messages = MUST(port_decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>());
+    TransferDataHolderReader port_holder { record.transfer_data_holders[0] };
+    EXPECT_EQ(MUST(port_holder.decoder.decode<u8>()), message_port_transfer_type);
+    EXPECT(MUST(port_holder.decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>()).is_empty());
+    auto queued_messages = MUST(port_holder.decoder.decode<Vector<Web::HTML::SerializedTransferRecord>>());
     EXPECT_EQ(queued_messages.size(), 1u);
-    auto received_values = deserialize_transfer_data_holders(realm, queued_messages[0]);
+    auto received_values = deserialize_transferred_values(realm, queued_messages[0]);
     EXPECT_EQ(received_values.size(), count);
     for (auto value : received_values) {
         auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(value);
@@ -693,7 +688,7 @@ TEST_CASE(image_bitmap_transfer_inlines_pixels_without_shared_memory)
     auto& transfer_record = record.value();
     EXPECT(transfer_record.shared_buffers.is_empty());
     EXPECT(transfer_record.transfer_data_holders[0].buffer().attachments().is_empty());
-    auto received_values = deserialize_transfer_data_holders(realm, transfer_record);
+    auto received_values = deserialize_transferred_values(realm, transfer_record);
     auto& received = unwrap_wrappable<Web::HTML::ImageBitmap>(received_values[0]);
     EXPECT_EQ(received.bitmap()->get_pixel(0, 0), Gfx::Color::Green);
     received.close();
@@ -702,23 +697,22 @@ TEST_CASE(image_bitmap_transfer_inlines_pixels_without_shared_memory)
 
 TEST_CASE(image_bitmap_transfer_rejects_invalid_shared_pixels)
 {
-    auto& realm = test_realm();
+    (void)test_realm();
     Vector<Core::AnonymousBuffer> shared_buffers;
     shared_buffers.append(MUST(Core::AnonymousBuffer::create_with_size(64)));
     auto receive = [&](Vector<Core::AnonymousBuffer> const* buffers, u32 buffer_index, u64 offset, Gfx::BitmapFormat format, int width) {
-        Web::HTML::TransferDataEncoder holder;
-        MUST(holder.encode(true));
-        MUST(holder.encode(buffer_index));
-        MUST(holder.encode(offset));
-        MUST(holder.encode(width));
-        MUST(holder.encode(1));
-        MUST(holder.encode(format));
-        MUST(holder.encode(Gfx::AlphaType::Premultiplied));
-        MUST(holder.encode(static_cast<u8>(0))); // sRGB
-        Web::HTML::TransferDataDecoder decoder { move(holder) };
-        if (buffers)
-            decoder.set_shared_buffers(*buffers);
-        return receive_image_bitmap(realm, decoder);
+        IPC::MessageBuffer holder;
+        IPC::Encoder encoder { holder };
+        MUST(encoder.encode(image_bitmap_transfer_type));
+        MUST(encoder.encode(true));
+        MUST(encoder.encode(buffer_index));
+        MUST(encoder.encode(offset));
+        MUST(encoder.encode(width));
+        MUST(encoder.encode(1));
+        MUST(encoder.encode(format));
+        MUST(encoder.encode(Gfx::AlphaType::Premultiplied));
+        MUST(encoder.encode(static_cast<u8>(0))); // sRGB
+        return receive_transfer_data_holder(move(holder), buffers ? *buffers : Vector<Core::AnonymousBuffer> {});
     };
     EXPECT(!receive(&shared_buffers, 0, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
     EXPECT(receive(nullptr, 0, 0, Gfx::BitmapFormat::BGRA8888, 16).is_error());
@@ -750,12 +744,10 @@ TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
     record.shared_buffers[0].bytes().copy_to({ backing.data<u8>(), backing.size() });
     record.shared_buffers[0] = move(backing);
 #    endif
-    auto const& buffer = record.shared_buffers[0];
-    Web::HTML::TransferDataDecoder decoder { move(record.transfer_data_holders[0]) };
-    EXPECT_EQ(MUST(decoder.decode<Web::HTML::TransferType>()), Web::HTML::TransferType::ImageBitmap);
-    decoder.set_shared_buffers(record.shared_buffers);
-    auto received = MUST(receive_image_bitmap(realm, decoder));
-    auto& receiver = unwrap_wrappable<Web::HTML::ImageBitmap>(JS::Value(static_cast<JS::Object*>(received.ptr())));
+    auto buffer = record.shared_buffers[0];
+    EXPECT_EQ(record.transfer_data_holders[0].buffer().data()[0], image_bitmap_transfer_type);
+    auto received_values = deserialize_transferred_values(realm, record);
+    auto& receiver = unwrap_wrappable<Web::HTML::ImageBitmap>(received_values[0]);
 #    if defined(AK_OS_LINUX)
     auto const seals = fcntl(buffer.fd(), F_GET_SEALS);
     EXPECT(seals >= 0);
@@ -775,42 +767,42 @@ TEST_CASE(image_bitmap_transfer_protects_against_backing_truncation)
 #if defined(AK_OS_LINUX)
 TEST_CASE(image_bitmap_transfer_rejects_unsealed_backing)
 {
-    auto& realm = test_realm();
+    (void)test_realm();
     // Even a correctly sized descriptor with sealing permanently disabled must be rejected.
-    Vector<Core::AnonymousBuffer> shared_buffers;
     auto unsealable_fd = MUST(Core::System::anon_create(64, O_CLOEXEC, Core::System::AllowSealing::No));
-    shared_buffers.append(MUST(Core::AnonymousBuffer::create_from_anon_fd(unsealable_fd, 64)));
-    Web::HTML::TransferDataEncoder holder;
-    MUST(holder.encode(true));
-    MUST(holder.encode(0u));
-    MUST(holder.encode(static_cast<u64>(0)));
-    MUST(holder.encode(16));
-    MUST(holder.encode(1));
-    MUST(holder.encode(Gfx::BitmapFormat::BGRA8888));
-    MUST(holder.encode(Gfx::AlphaType::Premultiplied));
-    MUST(holder.encode(static_cast<u8>(0))); // sRGB
-    Web::HTML::TransferDataDecoder decoder { move(holder) };
-    decoder.set_shared_buffers(shared_buffers);
-    EXPECT(receive_image_bitmap(realm, decoder).is_error());
-    EXPECT_EQ(ftruncate(shared_buffers[0].fd(), 0), 0);
+    auto shared_buffer = MUST(Core::AnonymousBuffer::create_from_anon_fd(unsealable_fd, 64));
+    IPC::MessageBuffer holder;
+    IPC::Encoder encoder { holder };
+    MUST(encoder.encode(image_bitmap_transfer_type));
+    MUST(encoder.encode(true));
+    MUST(encoder.encode(0u));
+    MUST(encoder.encode(static_cast<u64>(0)));
+    MUST(encoder.encode(16));
+    MUST(encoder.encode(1));
+    MUST(encoder.encode(Gfx::BitmapFormat::BGRA8888));
+    MUST(encoder.encode(Gfx::AlphaType::Premultiplied));
+    MUST(encoder.encode(static_cast<u8>(0))); // sRGB
+    EXPECT(receive_transfer_data_holder(move(holder), { shared_buffer }).is_error());
+    EXPECT_EQ(ftruncate(shared_buffer.fd(), 0), 0);
 }
 #endif
 
 TEST_CASE(image_bitmap_transfer_rejects_invalid_inline_pixels)
 {
-    auto& realm = test_realm();
-    auto receive = [&](Gfx::BitmapFormat format, size_t pitch, ReadonlyBytes pixels) {
-        Web::HTML::TransferDataEncoder holder;
-        MUST(holder.encode(false));
-        MUST(holder.encode(true));
-        MUST(holder.encode(1));
-        MUST(holder.encode(1));
-        MUST(holder.encode(static_cast<u64>(pitch)));
-        MUST(holder.encode(format));
-        MUST(holder.encode(Gfx::AlphaType::Premultiplied));
-        MUST(holder.encode(pixels));
-        Web::HTML::TransferDataDecoder decoder { move(holder) };
-        return receive_image_bitmap(realm, decoder);
+    (void)test_realm();
+    auto receive = [](Gfx::BitmapFormat format, size_t pitch, ReadonlyBytes pixels) {
+        IPC::MessageBuffer holder;
+        IPC::Encoder encoder { holder };
+        MUST(encoder.encode(image_bitmap_transfer_type));
+        MUST(encoder.encode(false));
+        MUST(encoder.encode(true));
+        MUST(encoder.encode(1));
+        MUST(encoder.encode(1));
+        MUST(encoder.encode(static_cast<u64>(pitch)));
+        MUST(encoder.encode(format));
+        MUST(encoder.encode(Gfx::AlphaType::Premultiplied));
+        MUST(encoder.encode(pixels));
+        return receive_transfer_data_holder(move(holder));
     };
     Array<u8, 4> pixels {};
     EXPECT(!receive(Gfx::BitmapFormat::BGRA8888, 4, pixels).is_error());

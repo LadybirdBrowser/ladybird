@@ -116,6 +116,35 @@ inline JS::Realm& test_realm()
     return *realm;
 }
 
+// StructuredDeserializeWithTransfer of a record whose [[Serialized]] is undefined and whose only data holder is the
+// bytes: the transferred value, or the exception.
+inline Web::WebIDL::ExceptionOr<JS::Value> receive_transfer_data_holder(IPC::MessageBuffer data_holder, Vector<Core::AnonymousBuffer> shared_buffers = {})
+{
+    auto& realm = test_realm();
+    Web::HTML::SerializedTransferRecord record;
+    record.serialized = MUST(Web::HTML::structured_serialize(realm.vm(), JS::js_undefined()));
+    record.transfer_data_holders.append(Web::HTML::TransferDataEncoder { move(data_holder) });
+    record.shared_buffers = move(shared_buffers);
+    auto deserialized = TRY(Web::HTML::structured_deserialize_with_transfer(record, realm));
+    return JS::Value { deserialized.transferred_values[0].ptr() };
+}
+
+// Reads the bytes and the attachments of a transfer data holder, which it takes.
+struct TransferDataHolderReader {
+    explicit TransferDataHolderReader(Web::HTML::TransferDataEncoder const& data_holder)
+        : buffer(data_holder.take_buffer())
+        , stream(buffer.data().span())
+    {
+        for (auto& attachment : buffer.take_attachments())
+            attachments.enqueue(move(attachment));
+    }
+
+    IPC::MessageBuffer buffer;
+    FixedMemoryStream stream;
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+};
+
 template<typename T>
 requires(IsBaseOf<Web::Bindings::Wrappable, T> || Web::Bindings::RustInterfaceHandle<T>)
 inline T& unwrap_wrappable(JS::Value value)

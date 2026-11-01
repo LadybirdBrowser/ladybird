@@ -206,14 +206,14 @@ TEST_CASE(storage_reader_rejects_a_resizable_array_buffer_longer_than_its_max_by
 
 TEST_CASE(transfer_receiver_rejects_a_resizable_array_buffer_longer_than_its_max_byte_length)
 {
-    auto& realm = test_realm();
-    auto receive = [&](size_t byte_length, size_t max_byte_length) {
-        Web::HTML::TransferDataEncoder holder;
-        MUST(holder.encode(to_underlying(Web::HTML::TransferType::ResizableArrayBuffer)));
-        MUST(holder.encode(MUST(ByteBuffer::create_zeroed(byte_length))));
-        MUST(holder.encode(max_byte_length));
-        Web::HTML::TransferDataDecoder decoder { move(holder) };
-        return Web::HTML::structured_deserialize_with_transfer_internal(decoder, realm);
+    static constexpr u8 resizable_array_buffer_transfer_type = 3;
+    auto receive = [](size_t byte_length, size_t max_byte_length) {
+        IPC::MessageBuffer holder;
+        IPC::Encoder encoder { holder };
+        MUST(encoder.encode(resizable_array_buffer_transfer_type));
+        MUST(encoder.encode(MUST(ByteBuffer::create_zeroed(byte_length))));
+        MUST(encoder.encode(max_byte_length));
+        return receive_transfer_data_holder(move(holder));
     };
 
     EXPECT(receive(8, 4).is_error());
@@ -222,11 +222,10 @@ TEST_CASE(transfer_receiver_rejects_a_resizable_array_buffer_longer_than_its_max
 
 TEST_CASE(transfer_receiver_rejects_an_unknown_transfer_type)
 {
-    auto& realm = test_realm();
-    Web::HTML::TransferDataEncoder holder;
-    MUST(holder.encode(static_cast<u8>(0xEE)));
-    Web::HTML::TransferDataDecoder decoder { move(holder) };
-    EXPECT(Web::HTML::structured_deserialize_with_transfer_internal(decoder, realm).is_error());
+    IPC::MessageBuffer holder;
+    IPC::Encoder encoder { holder };
+    MUST(encoder.encode(static_cast<u8>(0xEE)));
+    EXPECT(receive_transfer_data_holder(move(holder)).is_error());
 }
 
 TEST_CASE(storage_reader_rejects_a_truncated_or_overlong_int32)
