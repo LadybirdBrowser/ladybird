@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/RustSerialization.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -22,6 +23,7 @@
 #include <LibWeb/HTML/StructuredSerialize.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/HTML/WorkerGlobalScope.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/CallbackType.h>
@@ -105,6 +107,11 @@ void* web_bindings_create_callback_function(JSObject* callable, bool returns_pro
 JSCompletion web_bindings_invoke_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 void* web_bindings_invoke_promise_callback_function(void* callback, bool has_this_value, JSValue this_value, ReadonlySpan<JSValue> arguments);
 bool web_bindings_realm_is_window(void* realm);
+HTML::Window* web_bindings_window_from_global_object(JSObject* global_object);
+DOM::Document* web_bindings_window_associated_document(HTML::Window*);
+bool web_bindings_document_is_fully_active(DOM::Document*);
+HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object);
+bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope*);
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*));
 bool web_bindings_object_implements_interface(JSObject* object, u16 interface_name);
 JSObject* web_bindings_create_dom_exception(void* realm, ReadonlyBytes name, FlatPtr message);
@@ -152,6 +159,31 @@ void web_bindings_set_rust_wrapper(void* realm, void* cell, JSObject* wrapper)
 bool web_bindings_realm_is_window(void* realm)
 {
     return HTML::window_from_global_object(static_cast<JS::Realm*>(realm)->global_object());
+}
+
+HTML::Window* web_bindings_window_from_global_object(JSObject* global_object)
+{
+    return HTML::window_from_global_object(*JS::HostABI::object_from_abi(global_object));
+}
+
+DOM::Document* web_bindings_window_associated_document(HTML::Window* window)
+{
+    return &window->associated_document();
+}
+
+bool web_bindings_document_is_fully_active(DOM::Document* document)
+{
+    return document->is_fully_active();
+}
+
+HTML::WorkerGlobalScope* web_bindings_worker_global_scope_from_global_object(JSObject* global_object)
+{
+    return Bindings::worker_global_scope_from_global_object(*JS::HostABI::object_from_abi(global_object));
+}
+
+bool web_bindings_worker_global_scope_is_closing(HTML::WorkerGlobalScope* worker_global_scope)
+{
+    return worker_global_scope->is_closing();
 }
 
 void web_bindings_with_temporary_execution_context(void* realm, bool callbacks_enabled, void* context, void (*steps)(void*))
