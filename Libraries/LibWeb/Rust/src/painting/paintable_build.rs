@@ -468,6 +468,7 @@ impl<'a> PaintableCommit<'a> {
         previous_fragmented_content: Option<std::sync::Arc<crate::layout::inline_content::InlineContent>>,
     ) -> LineDataChange {
         if !node_painting::has_lines(self.arena(), slot) {
+            self.clear_line_data(slot);
             return LineDataChange::default();
         }
         let writing_mode = line_data.writing_mode;
@@ -497,6 +498,13 @@ impl<'a> PaintableCommit<'a> {
             has_pieces,
             content_changed,
             item_order_changed,
+        }
+    }
+
+    /// Clears the inline content of a row whose new fragment has none.
+    pub(crate) fn clear_line_data(&mut self, slot: NodeSlotId) {
+        if self.arena().committed_side_data(slot).inline_content.is_some() {
+            self.arena_mut().committed_side_data_mut(slot).inline_content = None;
         }
     }
 
