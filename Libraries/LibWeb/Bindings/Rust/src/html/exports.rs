@@ -33,6 +33,7 @@ use crate::bindings::structured_data::{TransferDataReader, TransferDataWriter, T
 use crate::dom::event::EventInit;
 use crate::html::structured_serialize::cpp::TransferDataDecoder;
 use crate::html::structured_serialize::message_record::MessageRecord;
+use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 use crate::storage_api::storage_area_mirror::StorageEndpointType;
 use crate::storage_api::storage_bottle::{obtain_a_local_storage_bottle_map, obtain_a_session_storage_bottle_map};
 use crate::storage_api::storage_key::StorageKey;
@@ -341,26 +342,27 @@ pub unsafe extern "C" fn web_rust_message_port_fail_next_transfer_for_testing(po
     unsafe { cell_from_abi::<MessagePort>(port) }.fail_next_transfer_for_testing();
 }
 
-/// The transfer steps of the MessagePort, which C++ runs outside StructuredSerializeWithTransfer, writing to a data
-/// holder that it lends, which holds no type.
+/// The transfer steps of the MessagePort, which C++ runs outside StructuredSerializeWithTransfer, into a data holder
+/// that holds no type, whose carrier it hands over.
 ///
 /// # Safety
 ///
-/// `vm` must be the live VM, `realm` a live realm, `port` a live cell of a MessagePort, and `data_holder` an
-/// HTML::TransferDataEncoder that C++ lends for the call.
+/// `vm` must be the live VM, `realm` a live realm, and `port` a live cell of a MessagePort.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn web_rust_message_port_transfer_steps(
     vm: *mut c_void,
     realm: *mut c_void,
     port: *mut c_void,
-    data_holder: *mut c_void,
+    out_data_holder: &mut *mut c_void,
 ) -> RawNativeFunctionResult {
     // SAFETY: The caller passes the live VM, a live realm and a live cell of a MessagePort.
     let ((vm, realm), port) = unsafe { (realm_arguments(vm, realm), cell_from_abi::<MessagePort>(port)) };
     let mut cx = CallContext::new(vm, realm);
-    // SAFETY: The caller lends the data holder for the call.
-    let mut data_holder = unsafe { TransferDataWriter::from_lent(data_holder, realm) };
-    let result = MessagePort::transfer_steps(&port, &mut cx, &mut data_holder);
+    let data_holder = TransferDataHolder::new();
+    let result = MessagePort::transfer_steps(&port, &mut cx, &mut TransferDataWriter::new(&data_holder, realm, None));
+    if result.is_ok() {
+        *out_data_holder = data_holder.into_carrier().into_raw();
+    }
     RawNativeFunctionResult::from_completion(
         result
             .map(|()| Value::UNDEFINED)

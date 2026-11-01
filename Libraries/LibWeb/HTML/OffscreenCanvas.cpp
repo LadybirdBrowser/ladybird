@@ -91,7 +91,7 @@ JS::Object& OffscreenCanvas::relevant_global_object() const
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface:transfer-steps
-WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(JS::Realm& realm, HTML::TransferDataEncoder& data_holder)
+WebIDL::ExceptionOr<OffscreenCanvas::TransferredFields> OffscreenCanvas::transfer_steps()
 {
     // 1. If value's context mode is not equal to none, then throw an "InvalidStateError" DOMException.
     if (!m_context.has<Empty>())
@@ -113,22 +113,13 @@ WebIDL::ExceptionOr<void> OffscreenCanvas::transfer_steps(JS::Realm& realm, HTML
     m_height = 0;
 
     // 6. Set dataHolder.[[Width]] to width and dataHolder.[[Height]] to height.
-    TRY(encode_or_throw_data_clone_error(realm, data_holder, width));
-    TRY(encode_or_throw_data_clone_error(realm, data_holder, height));
-
     // FIXME: 7. Set dataHolder.[[Language]] to language and dataHolder.[[Direction]] to direction.
-
     // 8. Set dataHolder.[[PlaceholderCanvas]] to be a weak reference to value's placeholder canvas element, if value
     //    has one, or null if it does not.
+    // NB: The transfer in Libraries/LibWeb/Bindings/Rust/src/html/offscreen_canvas.rs writes these fields.
     auto placeholder_link = m_placeholder_link;
     m_placeholder_link.clear();
-    TRY(encode_or_throw_data_clone_error(realm, data_holder, placeholder_link.has_value()));
-    if (placeholder_link.has_value()) {
-        TRY(encode_or_throw_data_clone_error(realm, data_holder, placeholder_link->canvas_id.value()));
-        TRY(encode_or_throw_data_clone_error(realm, data_holder, placeholder_link->secret));
-    }
-
-    return {};
+    return TransferredFields { .width = width, .height = height, .placeholder_link = placeholder_link };
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#the-offscreencanvas-interface:transfer-receiving-steps
@@ -517,7 +508,16 @@ extern "C" {
 
 u16 web_offscreen_canvas_interface_name();
 bool web_offscreen_canvas_is_detached(JSObject*);
-JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject*, Web::HTML::TransferDataEncoder*);
+// The fields that the transfer steps set the data holder's fields to.
+struct OffscreenCanvasTransferredFields {
+    u64 width;
+    u64 height;
+    bool has_placeholder_canvas;
+    u64 placeholder_canvas_id;
+    u64 placeholder_secret;
+};
+
+JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject*, OffscreenCanvasTransferredFields*);
 JSCompletion web_offscreen_canvas_create_from_transfer(void* realm, Web::HTML::TransferDataDecoder*);
 
 u16 web_offscreen_canvas_interface_name()
@@ -530,13 +530,21 @@ bool web_offscreen_canvas_is_detached(JSObject* object)
     return Web::Bindings::impl_from<Web::HTML::OffscreenCanvas>(JS::HostABI::object_from_abi(object))->is_detached();
 }
 
-JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject* object, Web::HTML::TransferDataEncoder* data_holder)
+JSCompletion web_offscreen_canvas_transfer_steps(void* realm, JSObject* object, OffscreenCanvasTransferredFields* fields)
 {
     auto& js_realm = *static_cast<JS::Realm*>(realm);
     auto* offscreen_canvas = Web::Bindings::impl_from<Web::HTML::OffscreenCanvas>(JS::HostABI::object_from_abi(object));
-    auto result = offscreen_canvas->transfer_steps(js_realm, *data_holder);
+    auto result = offscreen_canvas->transfer_steps();
     if (result.is_exception())
         return Web::Bindings::completion_to_abi(js_realm, result.release_error());
+    auto transferred = result.release_value();
+    *fields = {
+        .width = transferred.width,
+        .height = transferred.height,
+        .has_placeholder_canvas = transferred.placeholder_link.has_value(),
+        .placeholder_canvas_id = transferred.placeholder_link.has_value() ? transferred.placeholder_link->canvas_id.value() : 0,
+        .placeholder_secret = transferred.placeholder_link.has_value() ? transferred.placeholder_link->secret : 0,
+    };
     return Web::Bindings::completion_to_abi(js_realm, JS::js_undefined());
 }
 

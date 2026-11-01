@@ -73,9 +73,7 @@ ImageBitmapSharedPixels* web_structured_serialize_gather_image_bitmap_pixels(Vec
 void web_structured_serialize_image_bitmap_pixels_destroy(ImageBitmapSharedPixels*);
 
 TransferDataEncoder* web_structured_serialize_transfer_data_holder_create();
-void web_structured_serialize_transfer_data_holder_encode_u8(TransferDataEncoder*, u8);
-void web_structured_serialize_transfer_data_holder_encode_bytes(TransferDataEncoder*, ReadonlyBytes);
-void web_structured_serialize_transfer_data_holder_encode_size(TransferDataEncoder*, size_t);
+void web_structured_serialize_transfer_data_holder_append(TransferDataEncoder*, ReadonlyBytes);
 void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder*);
 SerializedTransferRecord* web_structured_serialize_transfer_record_create();
 void web_structured_serialize_transfer_record_destroy(SerializedTransferRecord*);
@@ -338,19 +336,9 @@ TransferDataEncoder* web_structured_serialize_transfer_data_holder_create()
     return new TransferDataEncoder;
 }
 
-void web_structured_serialize_transfer_data_holder_encode_u8(TransferDataEncoder* data_holder, u8 value)
+void web_structured_serialize_transfer_data_holder_append(TransferDataEncoder* data_holder, ReadonlyBytes bytes)
 {
-    MUST(data_holder->encode(value));
-}
-
-void web_structured_serialize_transfer_data_holder_encode_bytes(TransferDataEncoder* data_holder, ReadonlyBytes bytes)
-{
-    MUST(data_holder->encode(bytes));
-}
-
-void web_structured_serialize_transfer_data_holder_encode_size(TransferDataEncoder* data_holder, size_t value)
-{
-    MUST(data_holder->encode(value));
+    MUST(data_holder->append(bytes));
 }
 
 void web_structured_serialize_transfer_data_holder_destroy(TransferDataEncoder* data_holder)
