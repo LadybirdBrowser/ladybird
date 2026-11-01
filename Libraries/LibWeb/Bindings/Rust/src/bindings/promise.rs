@@ -67,6 +67,7 @@ unsafe extern "C" {
 #[repr(u8)]
 pub(crate) enum TaskSource {
     Unspecified = 0,
+    DOMManipulation = 1,
     Networking = 3,
     PostedMessage = 6,
     FileReading = 13,
