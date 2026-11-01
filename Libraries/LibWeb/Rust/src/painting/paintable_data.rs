@@ -255,10 +255,6 @@ impl CommittedSideData {
         self.order_inputs.is_initialized().then_some(self.order_inputs)
     }
 
-    pub(crate) fn clear_committed_records(&mut self) {
-        self.inline_content = None;
-    }
-
     pub(crate) fn box_fragments(&self) -> &[CommittedBoxFragment] {
         self.box_fragments.as_deref().map_or(&[], Vec::as_slice)
     }

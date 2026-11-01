@@ -6,8 +6,8 @@
 
 use crate::cow_column::{CowColumn, RowMut};
 use crate::layout::LayoutNodeArena;
+use crate::layout::fragment_tree;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
-use crate::layout::{fragment_tree, used_values};
 use crate::painting::node_painting;
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 use crate::painting::paintable_data::*;
@@ -539,18 +539,11 @@ where
         data
     }
 
+    /// Starts committing a row anew. The commit writes its geometry and inline content over what it committed last, so
+    /// that a row it commits as it was copies no chunk a published generation shares.
     pub(crate) fn begin_paintable_row_recommit(&mut self, id: NodeSlotId) {
-        {
-            let mut data = self.paintable_data_mut(id);
-            data.offset = used_values::FfiCssPixelPoint::default();
-            data.content_size = used_values::FfiCssPixelSize::default();
-        }
         // The row's damage is deliberately kept; the commit diff pushes what actually changed.
-        let filter = {
-            let mut committed = self.arena.committed_side_data_mut(id);
-            committed.clear_committed_records();
-            committed.fragment_ownership.take()
-        };
+        let filter = self.arena.committed_side_data_mut(id).fragment_ownership.take();
         let side = self.arena.paintable_side_data_mut(id);
         side.overflow_measured_this_commit = false;
         if filter.is_some() {

@@ -258,11 +258,14 @@ fn commit_subtree(
                 line_root_changes_for_children.fragment_changed |= change.content_changed;
                 line_root_changes_for_children.inline_content_changed |= change.content_changed;
                 line_root_changes_for_children.inline_item_order_changed |= change.item_order_changed;
+            } else {
+                paintables.clear_line_data(node);
             }
         }
     }
     if entry.is_none() && prepared.has_paintable_row {
         paintables.set_box_fragments(node, fragments);
+        paintables.clear_line_data(node);
         paintables.schedule_scrollable_overflow_recalculation(node);
     }
 
