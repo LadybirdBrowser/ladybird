@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/background-attachment-fixed-clipped-after-scroll-ref.html">
+<style>
+    html {
+        scrollbar-width: none;
+    }
+    body {
+        margin: 0;
+    }
+    #scrolled-out {
+        height: 300px;
+        background: linear-gradient(red, red) fixed;
+    }
+    #spacer {
+        height: 700px;
+    }
+    #partially-visible {
+        width: 400px;
+        height: 200px;
+        background:
+            linear-gradient(blue, blue) 0 0 / 50px 50px no-repeat,
+            linear-gradient(green 50%, lime 50%) 0 300px / 100px 100px fixed;
+    }
+    #tail {
+        height: 1000px;
+    }
+</style>
+<div id="scrolled-out"></div>
+<div id="spacer"></div>
+<div id="partially-visible"></div>
+<div id="tail"></div>
+<script>
+    window.scrollTo(0, 850);
+</script>

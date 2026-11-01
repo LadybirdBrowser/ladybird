@@ -512,6 +512,98 @@ fn paint_image_layer<O: Observer>(
     backdrop: LayerBackdrop,
     visible_device_rect: Option<IntRect>,
 ) {
+    let paint_in_current_space = |recorder: &mut PaintRecorder<'_, O>,
+                                  css_clip_rect: CssPixelRect,
+                                  clip_rect: IntRect,
+                                  visible_device_rect: Option<IntRect>| {
+        paint_image_layer_in_current_space(
+            recorder,
+            paintable,
+            layer,
+            image_rendering,
+            css_clip_rect,
+            clip_rect,
+            compositing_and_blending_operator,
+            backdrop,
+            visible_device_rect,
+        );
+    };
+
+    if layer.attachment != css_enums::background_attachment::FIXED
+        || recorder.recorder.is_recording_inside_group()
+        || !background_has_fixed_attachment(
+            recorder.source,
+            recorder.inputs.uncaptured.root_background_source,
+            paintable,
+        )
+    {
+        paint_in_current_space(recorder, css_clip_rect, clip_rect, visible_device_rect);
+        return;
+    }
+
+    // Select an existing space above scrolling, retaining the clips and effects of the background paint.
+    // Background attachment doesn't add AVC nodes.
+    let tree = recorder.paint_state.visual_context_tree.as_ref().unwrap();
+    let mut spatial = recorder.data(paintable).accumulated_visual_context.spatial;
+    let mut index = spatial;
+    while index != VISUAL_VIEWPORT_NODE_INDEX {
+        let node = &tree.spatial_nodes[index.0 as usize];
+        if node.data.is_scroll_like() {
+            spatial = node.parent;
+        }
+        index = node.parent;
+    }
+    let previous_context = recorder.recorder.accumulated_visual_context();
+    if spatial == previous_context.spatial {
+        paint_in_current_space(recorder, css_clip_rect, clip_rect, visible_device_rect);
+        return;
+    }
+    // NB: Tiling over the viewport would record draws that the empty clip of the layer then hides.
+    if clip_rect.is_empty() || visible_device_rect.is_some_and(|rect| rect.is_empty()) {
+        return;
+    }
+
+    // NB: The layer's clips stay in the space of the box, so the compositor keeps clipping the background to the box
+    //     as it scrolls the box without a new recording. As the box can then be anywhere in the viewport, the tiles
+    //     cover all of it, and the clip and visible rects of the layer, which are in the space of the box, become clips
+    //     in that space too.
+    let viewport_rect = CssPixelRect {
+        x: CssPixels::from_raw(0),
+        y: CssPixels::from_raw(0),
+        ..recorder.inputs.css_viewport_rect
+    };
+    let viewport_device_rect = recorder.converter.rounded_device_rect(viewport_rect);
+
+    let box_space_clips: Vec<PendingInlineClip> = std::iter::once(clip_rect)
+        .chain(visible_device_rect)
+        .filter(|rect| !recorder.recorder.has_ambient_inline_clip_within(rect.to_float()))
+        .map(|rect| PendingInlineClip::intersecting_device_rect(rect).in_space(previous_context.spatial))
+        .collect();
+    let previous_inline_clips = recorder
+        .recorder
+        .move_ambient_inline_clips_to_space(previous_context.spatial);
+    recorder.recorder.push_ambient_inline_clips(&box_space_clips);
+    recorder.recorder.set_accumulated_visual_context(ContextRef {
+        spatial,
+        ..previous_context
+    });
+    paint_in_current_space(recorder, viewport_rect, viewport_device_rect, None);
+    recorder.recorder.set_accumulated_visual_context(previous_context);
+    recorder.recorder.replace_ambient_inline_clips(previous_inline_clips);
+}
+
+#[allow(clippy::too_many_arguments)]
+fn paint_image_layer_in_current_space<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    layer: &ResolvedBackgroundLayer<'_>,
+    image_rendering: u8,
+    css_clip_rect: CssPixelRect,
+    clip_rect: IntRect,
+    compositing_and_blending_operator: CompositingAndBlendingOperator,
+    backdrop: LayerBackdrop,
+    visible_device_rect: Option<IntRect>,
+) {
     let converter = recorder.converter;
     let image = layer.image.expect("an imageless layer never reaches the image paint");
     let vector_image_source = crate::painting::record::vector_images::VectorImageSource::Layer {
@@ -525,32 +617,6 @@ fn paint_image_layer<O: Observer>(
     let mut background_positioning_area = layer.background_positioning_area;
 
     match layer.attachment {
-        css_enums::background_attachment::FIXED => {
-            if !recorder.recorder.is_recording_inside_group()
-                && background_has_fixed_attachment(
-                    recorder.source,
-                    recorder.inputs.uncaptured.root_background_source,
-                    paintable,
-                )
-            {
-                // Select an existing space above scrolling, retaining the clips and effects
-                // of the background paint. Background attachment doesn't add AVC nodes.
-                let tree = recorder.paint_state.visual_context_tree.as_ref().unwrap();
-                let mut spatial = recorder.data(paintable).accumulated_visual_context.spatial;
-                let mut index = spatial;
-                while index != VISUAL_VIEWPORT_NODE_INDEX {
-                    let node = &tree.spatial_nodes[index.0 as usize];
-                    if node.data.is_scroll_like() {
-                        spatial = node.parent;
-                    }
-                    index = node.parent;
-                }
-                let context = recorder.recorder.accumulated_visual_context();
-                recorder
-                    .recorder
-                    .set_accumulated_visual_context(ContextRef { spatial, ..context });
-            }
-        }
         css_enums::background_attachment::LOCAL
             if recorder.source.node_kind_if_live(paintable) != Some(NodeKind::Viewport) =>
         {

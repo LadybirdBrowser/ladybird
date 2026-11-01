@@ -732,6 +732,10 @@ fn dump_inline_clips(output: &mut String, header: &DisplayListCommandHeader, pay
         if clip.mode == ClipMode::Difference {
             output.push_str(" mode=difference");
         }
+        if clip.has_own_space {
+            output.push_str(" in ");
+            write_spatial_node_index(output, clip.space);
+        }
     }
     output.push(']');
 }
