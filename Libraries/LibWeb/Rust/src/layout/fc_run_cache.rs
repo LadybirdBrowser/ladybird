@@ -347,17 +347,6 @@ impl FcRunCacheEntry {
         }
     }
 
-    pub(super) fn outputs_without_fragments(&self) -> formatting_context::RunOutputs {
-        formatting_context::RunOutputs {
-            result: self.outputs.result,
-            root: None,
-            root_outcome: self.outputs.root_outcome.clone(),
-            inputs_never_observed: self.outputs.inputs_never_observed,
-            host_findings: self.outputs.host_findings.clone(),
-            laid_out_abspos_contained_by_root: self.outputs.laid_out_abspos_contained_by_root,
-        }
-    }
-
     fn last_used_at_layout_commit(&self) -> u64 {
         self.last_used_at_layout_commit
             .load(std::sync::atomic::Ordering::Relaxed)
@@ -392,11 +381,6 @@ impl FcRunCacheEntry {
                     .key
                     .without_table_cell_intrinsic_block_padding()
                     .matches(&key.without_table_cell_intrinsic_block_padding(), unobserved))
-    }
-
-    /// The outputs a hit absorbs.
-    pub(super) fn outputs_to_replay(&self) -> formatting_context::RunOutputs {
-        self.outputs.clone()
     }
 }
 
@@ -568,7 +552,12 @@ impl FcRunCacheStore {
 
     /// Stores `entry` as the latest entry of `box_`, keeping the latest one beside it where `is_committed` finds the box
     /// committed its fragments.
-    fn store(&self, box_: Node, mut entry: FcRunCacheEntry, is_committed: impl Fn(&FcRunCacheEntry) -> bool) {
+    fn store(
+        &self,
+        box_: Node,
+        mut entry: FcRunCacheEntry,
+        is_committed: impl Fn(&FcRunCacheEntry) -> bool,
+    ) -> std::sync::Arc<FcRunCacheEntry> {
         let slot = box_.slot_index();
         entry.structural_epoch_bumps_when_stored = self.structural_epoch_bumps_of(box_);
         let mut slots = self.slots.borrow_mut();
@@ -602,11 +591,13 @@ impl FcRunCacheStore {
             }
             None => {}
         }
-        entries.latest = Some(shared_entry_in_allocation_of(displaced, entry));
+        let stored = shared_entry_in_allocation_of(displaced, entry);
+        entries.latest = Some(stored.clone());
         drop(earlier_entries);
         drop(slots);
         // NB: Invalidation can occur between probing a run and storing its result.
         self.enqueue_for_sweep(slot);
+        stored
     }
 
     /// Releases stale entries after their last chance to supply reusable inline line data. Keeps the entry whose
@@ -792,24 +783,26 @@ impl FcRunCacheAttempt {
         entry.outputs.root_outcome.line_data.clone()
     }
 
+    /// Stores `outputs` where the probe asked for it, and hands them back to the run's parent: as the stored entry's, so
+    /// that the parent takes in what it keeps of them without a copy, or as they are.
     pub(super) fn conclude(
         self,
         callbacks: &LayoutPass<'_>,
         box_: Node,
         key: FcRunCacheKey,
-        outputs: &formatting_context::RunOutputs,
-    ) {
+        outputs: formatting_context::RunOutputs,
+    ) -> formatting_context::RunOutputsHandle {
         let store = callbacks.fc_run_cache_store();
         let (validity, structurally_damaged_entry) = match self {
-            Self::Bypass => return,
+            Self::Bypass => return formatting_context::RunOutputsHandle::Owned(outputs),
             Self::StoreResultOnly { validity } => {
                 debug_assert!(outputs.root.is_none(), "a run that builds no fragments returned a root");
-                store.store(
+                return formatting_context::RunOutputsHandle::Stored(store.store(
                     box_,
                     FcRunCacheEntry {
                         key,
                         validity,
-                        outputs: outputs.clone(),
+                        outputs,
                         table_cell_intrinsic_block_padding_unobserved: false,
                         last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(
                             callbacks.arena().layout_commit_count(),
@@ -817,8 +810,7 @@ impl FcRunCacheAttempt {
                         structural_epoch_bumps_when_stored: 0,
                     },
                     |entry| entry.holds_committed_fragments(callbacks.arena(), box_),
-                );
-                return;
+                ));
             }
             Self::Store {
                 validity,
@@ -828,25 +820,23 @@ impl FcRunCacheAttempt {
         // Release the probed entry so that store() can replace it in place.
         drop(structurally_damaged_entry);
         if outputs.root.is_none() {
-            return;
+            return formatting_context::RunOutputsHandle::Owned(outputs);
         }
+        let table_cell_intrinsic_block_padding_unobserved =
+            key.input.sizing.table_cell_intrinsic_block_padding.is_some()
+                && outputs.root_outcome.parent_owns_root_input_cells()
+                && !run_observes_root_block_padding(callbacks, box_, &outputs);
         let entry = FcRunCacheEntry {
             key,
             validity,
-            outputs: outputs.clone(),
-            table_cell_intrinsic_block_padding_unobserved: key
-                .input
-                .sizing
-                .table_cell_intrinsic_block_padding
-                .is_some()
-                && outputs.root_outcome.parent_owns_root_input_cells()
-                && !run_observes_root_block_padding(callbacks, box_, outputs),
+            outputs,
+            table_cell_intrinsic_block_padding_unobserved,
             last_used_at_layout_commit: std::sync::atomic::AtomicU64::new(callbacks.arena().layout_commit_count()),
             structural_epoch_bumps_when_stored: 0,
         };
-        store.store(box_, entry, |entry| {
+        formatting_context::RunOutputsHandle::Stored(store.store(box_, entry, |entry| {
             entry.holds_committed_fragments(callbacks.arena(), box_)
-        });
+        }))
     }
 }
 
