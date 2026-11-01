@@ -926,6 +926,7 @@ public:
         return update_is_fully_active();
     }
     bool is_active() const;
+    bool observers_consider_fully_active() const { return m_observers_consider_document_fully_active; }
 
     // To call whenever anything that decides if a document is fully active changes: a navigable's parent, its being
     // destroyed, or its active document, or a document's navigable or unload counter.

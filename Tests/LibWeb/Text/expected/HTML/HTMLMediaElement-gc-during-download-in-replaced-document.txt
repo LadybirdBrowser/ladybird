@@ -1,0 +1,2 @@
+networkState before navigating away: 2
+replaced document collected: true
