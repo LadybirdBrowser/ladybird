@@ -82,14 +82,18 @@ GC::Ptr<DOM::Node> Navigable::currently_focused_area_shown_by_focused_navigable(
 {
     if (!page().client().has_focus())
         return nullptr;
+    return focused_area_shown_by_focused_navigable_regardless_of_system_focus();
+}
 
+GC::Ptr<DOM::Node> Navigable::focused_area_shown_by_focused_navigable_regardless_of_system_focus()
+{
     auto focused_navigable = page().focused_navigable();
     if (!focused_navigable || (focused_navigable.ptr() != this && !is_ancestor_of(*focused_navigable)))
         return nullptr;
 
     for (auto navigable = focused_navigable; navigable; navigable = navigable->parent()) {
         if (auto* local_navigable = as_if<LocalNavigable>(*navigable))
-            return local_navigable->currently_focused_area();
+            return local_navigable->focused_area_regardless_of_system_focus();
         if (navigable.ptr() == this)
             return nullptr;
         if (auto container = navigable->container())

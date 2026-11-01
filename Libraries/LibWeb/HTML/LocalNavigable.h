@@ -170,6 +170,8 @@ public:
 
     [[nodiscard]] bool is_focused() const;
     [[nodiscard]] virtual GC::Ptr<DOM::Node> currently_focused_area() override;
+    // What currently_focused_area() would be with system focus.
+    [[nodiscard]] GC::Ptr<DOM::Node> focused_area_regardless_of_system_focus();
 
     struct ChosenNavigable {
         GC::Ptr<Navigable> navigable;
