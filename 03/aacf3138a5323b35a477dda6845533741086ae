@@ -1,0 +1,13 @@
+Ladybird sizes an absolutely positioned table from its rows and its
+specified height alone, so a containing block shorter than the table
+never clamps it, and insets on both sides don’t stretch it. Blink,
+WebKit and Gecko all do the same. In Blink, OutOfFlowLayoutPart::
+TryCalculateOffset() fits a table to its content even with both insets
+set, and ComputeOofBlockDimensions() takes the block size of the laid-
+out table fragment, which TableLayoutAlgorithm::ComputeRows() grows
+past a smaller specified height. WebKit, for its part, uses RenderBox::
+computeOutOfFlowPositionedLogicalHeight() to floor the positioned
+height at the table’s own content extent. And in Gecko, nsIFrame::
+ComputeAbsolutePosAutoSize() keeps table wrappers from stretching, and
+nsTableFrame::CalcDesiredBSize() treats any specified height as just a
+minimum height for the table.
