@@ -311,6 +311,9 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     , m_tabs_container(new TabWidget(is_private, this))
     , m_is_popup_window(is_popup_window)
 {
+    // NB: The toolbar is made before the rest of the window, so it learns of the session's downloads once it is all here.
+    toolbar().update_downloads_button();
+
     auto const& browser_options = WebView::Application::browser_options();
 
     // A restored window keeps the session row the store re-adopted for it.
@@ -519,8 +522,7 @@ void BrowserWindow::initialize_ladybird_menu()
 #endif
     downloads_action->setShortcutContext(Qt::WidgetShortcut);
     QObject::connect(downloads_action, &QAction::triggered, this, [this] {
-        if (m_current_tab)
-            m_current_tab->show_downloads_popover();
+        toolbar().show_downloads_popover();
     });
     m_ladybird_menu->addSeparator();
 
@@ -1012,9 +1014,7 @@ void BrowserWindow::set_failed_download_count(size_t count)
 void BrowserWindow::acknowledge_failed_downloads()
 {
     m_acknowledged_failed_download_count = m_failed_download_count;
-    for_each_tab([](Tab& tab) {
-        tab.update_downloads_button();
-    });
+    toolbar().update_downloads_button();
 }
 
 void BrowserWindow::set_current_tab(Tab* tab)
