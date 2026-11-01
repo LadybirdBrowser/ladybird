@@ -21,7 +21,6 @@ pub struct FfiRecordingInputs {
     pub force_dark_foreground_threshold: i32,
     pub force_dark_background_threshold: i32,
     pub should_paint_overlay: bool,
-    pub document_id: i64,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
     pub has_navigable_container_with_composited_context: bool,
     pub wheel_event_listener_state_generation: u64,
@@ -87,7 +86,6 @@ impl FfiRecordingInputs {
     /// Nonempty arrays and byte buffers must be aligned, valid and immutable for this call. Fonts
     /// for enabled overlays must point to live `Gfx::Font`s.
     pub(crate) unsafe fn recording_inputs(&self) -> crate::painting::record::inputs::UnframedRecordingInputs {
-        use crate::painting::display_list::commands::UniqueNodeId;
         use crate::painting::force_dark::ForceDarkSettings;
         use crate::painting::record::inputs::{
             CaretPaint, CaretTarget, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays, InspectorHighlight,
@@ -120,7 +118,6 @@ impl FfiRecordingInputs {
                     width: self.device_viewport_rect.width,
                     height: self.device_viewport_rect.height,
                 },
-                document_id: UniqueNodeId(self.document_id),
                 has_blocking_wheel_event_region_covering_viewport: self
                     .has_blocking_wheel_event_region_covering_viewport,
                 has_navigable_container_with_composited_context: self.has_navigable_container_with_composited_context,

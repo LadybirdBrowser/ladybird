@@ -131,7 +131,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return;
         }
         let scale = self.inputs.device_pixels_per_css_pixel;
-        let document_id = self.inputs.uncaptured.document_id;
         for (border_box_rect, border_radii) in self.border_boxes_of_fragments(paintable) {
             let rect = css_rect_to_device_rect(border_box_rect, scale);
             if rect.is_empty() {
@@ -142,7 +141,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             if corner_radii.has_any_radius() {
                 self.recorder.compositor_wheel_hit_test_target_with_corner_radii(
                     CompositorWheelHitTestTargetWithCornerRadii {
-                        document_id,
                         target_scroll_node_index,
                         rect,
                         corner_radii,
@@ -152,7 +150,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             }
             self.recorder
                 .compositor_wheel_hit_test_target(CompositorWheelHitTestTarget {
-                    document_id,
                     target_scroll_node_index,
                     rect,
                 });
@@ -188,7 +185,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             }
             self.recorder
                 .compositor_scroll_chaining_barrier(CompositorScrollChainingBarrier {
-                    document_id: self.inputs.uncaptured.document_id,
                     scroll_node_index_above_barrier,
                     rect,
                     keeps_horizontal_scrolls: !chains_scroll_to_ancestors.horizontal,
@@ -284,7 +280,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let scroll_boundary_behavior =
             crate::painting::chrome_geometry::scroll_boundary_behavior(self.source, paintable);
         self.recorder.compositor_scroll_node(CompositorScrollNode {
-            document_id: self.inputs.uncaptured.document_id,
             scrollable_node_id: UniqueNodeId(node_identity),
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             parent_scroll_node_index,
@@ -310,10 +305,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
     // main thread selects from, recorded with the scroll node so that it is as current as the rest
     // of the display list.
     fn record_snap_geometry(&mut self, paintable: NodeSlotId, geometry: FfiSnapContainerGeometry) {
-        let document_id = self.inputs.uncaptured.document_id;
         let scroll_node_index = self.data(paintable).own_scroll_node_index;
         self.recorder.compositor_snap_container(CompositorSnapContainer {
-            document_id,
             scroll_node_index,
             snapport: geometry.snapport,
             min_scroll_offset: geometry.min_scroll_offset,
@@ -326,7 +319,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let recorder = &mut self.recorder;
         scroll_snap::for_each_snap_area(self.source, paintable, |_, area| {
             recorder.compositor_snap_area(CompositorSnapArea {
-                document_id,
                 scroll_node_index,
                 area_node_id: UniqueNodeId(area.node_id),
                 pseudo_element_type: area.pseudo_element_type,
@@ -355,7 +347,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let max_scroll_offset = css_point_to_device_point(maximum_scroll_offset(self.source, paintable), scale);
         let vertical = direction == ScrollDirection::Vertical;
         Some(CompositorScrollbar {
-            document_id: self.inputs.uncaptured.document_id,
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
             thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
