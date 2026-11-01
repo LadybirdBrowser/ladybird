@@ -3795,18 +3795,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     ) -> TableWrapperBlockSizes {
         let wrapper = sized.node;
         // The table wrapper block size should equal the block size of the table box it contains.
-
-        let style = self.style(wrapper);
-        let containing_block_inline_size = available_space.inline_size.to_px_or_zero();
-        let containing_block_block_size = available_space.block_size.to_px_or_zero();
-
-        // If 'margin-top', or 'margin-bottom' are computed as 'auto', their used value is '0'.
-        let margin_top = style.margin_top().to_px(containing_block_inline_size);
-        let margin_bottom = style.margin_bottom().to_px(containing_block_inline_size);
-
-        // table-wrapper can't have borders or paddings but it might have margin taken from table-root.
-        let available_block_size = containing_block_block_size - margin_top - margin_bottom;
-
         let wrapper_inner_space = sized
             .metrics()
             .available_inner_space_or_constraints_from(available_space);
@@ -3830,14 +3818,12 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             ),
         );
 
-        let table_used_block_size = wrapper_outputs
+        // NB: A table is as tall as its rows and its specified height make it, even when that's taller than the space
+        //     available to it, which it then overflows.
+        // https://drafts.csswg.org/css-tables-3/#computing-the-table-height
+        let table_box_border_box_block_size = wrapper_outputs
             .table_box_in_wrapper_border_box_block_size
             .expect("a table wrapper's measurement run lays out the table box inside it");
-        let table_box_border_box_block_size = if matches!(available_space.block_size, AvailableSize::Definite(_)) {
-            table_used_block_size.min(available_block_size)
-        } else {
-            table_used_block_size
-        };
         TableWrapperBlockSizes {
             table_box_border_box_block_size,
             wrapper_content_block_size: wrapper_outputs.automatic_content_block_size,

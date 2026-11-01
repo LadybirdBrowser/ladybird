@@ -1,0 +1,8 @@
+a: offsetHeight=24 rect.height=24
+b: offsetHeight=24 rect.height=24
+c: offsetHeight=16 rect.height=16
+d: offsetHeight=24 rect.height=24
+e: offsetHeight=24 rect.height=24
+f: offsetHeight=16 rect.height=16
+g: offsetHeight=200 rect.height=200
+h: offsetHeight=16 rect.height=16
