@@ -423,6 +423,38 @@ TEST_CASE(pulseaudio_client_policy_allows_directory_creation_and_record_locks)
     VERIFY(rmdir(existing_directory) == 0);
 }
 
+// A first run has no cookie yet: libpulse tries to create one, and removes the directory it made for it when that
+// fails. Both have to fail or succeed as plain calls, since libpulse carries on without a cookie.
+TEST_CASE(pulseaudio_client_policy_refuses_cookie_creation_and_allows_directory_removal)
+{
+    char directory[] = "/tmp/ladybird-pulse-config-XXXXXX";
+    VERIFY(mkdtemp(directory));
+    auto cookie_path = ByteString::formatted("{}/cookie", directory);
+    auto made_directory = ByteString::formatted("{}/made", directory);
+    VERIFY(mkdir(made_directory.characters(), 0700) == 0);
+
+    auto status = run_with_policy(
+        [](auto& policy) {
+            policy.allow_readonly_file_opens();
+            policy.allow_pulseaudio_client_file_operations();
+        },
+        [&] {
+            VERIFY(open(cookie_path.characters(), O_RDWR | O_CREAT | O_CLOEXEC, 0600) == -1);
+            VERIFY(errno == EACCES);
+            VERIFY(open(cookie_path.characters(), O_RDONLY | O_CLOEXEC) == -1);
+            VERIFY(errno == ENOENT);
+            VERIFY(unlinkat(AT_FDCWD, made_directory.characters(), AT_REMOVEDIR) == 0);
+            VERIFY(mkdir(made_directory.characters(), 0700) == 0);
+            VERIFY(rmdir(made_directory.characters()) == 0);
+        });
+    EXPECT(WIFEXITED(status));
+    if (WIFEXITED(status))
+        EXPECT_EQ(WEXITSTATUS(status), 0);
+
+    (void)rmdir(made_directory.characters());
+    VERIFY(rmdir(directory) == 0);
+}
+
 // A domain that no group asked for fails cleanly, so the child survives and sees the error.
 template<typename Configure>
 static void expect_socket_domain_is_refused(Configure configure, int domain)
