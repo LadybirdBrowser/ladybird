@@ -262,6 +262,7 @@ if (NOT WIN32)
         TestTabPerformanceMonitor.cpp
         TestUserActivation.cpp
         TestViewDestruction.cpp
+        TestViewSource.cpp
         TestWebCompatReport.cpp
         TestWebCompatReportPage.cpp
     )
