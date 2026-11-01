@@ -5017,17 +5017,32 @@ void ViewImplementation::add_open_url_actions(Menu& menu, URL::URL const& url, O
     }
 }
 
+static void insert_text_clipboard_entry(ByteString const& text)
+{
+    if (!text.is_empty())
+        Application::the().insert_clipboard_entry({ "text/plain"_string, text });
+}
+
 // Text can be edited only in a field, and copied only where there is some.
 void ViewImplementation::add_text_edit_actions(Menu& menu, bool is_editable, bool has_selected_text)
 {
-    auto& application = Application::the();
-    if (is_editable)
-        menu.add_action(application.cut_selection_action());
-    if (is_editable || has_selected_text)
-        menu.add_action(application.copy_selection_action());
     if (is_editable) {
-        menu.add_action(application.paste_action());
-        menu.add_action(application.select_all_action());
+        menu.add_action(Action::create("Cut"sv, ActionID::CutSelection, [this]() {
+            cut_selected_text()->when_resolved(insert_text_clipboard_entry);
+        }));
+    }
+    if (is_editable || has_selected_text) {
+        menu.add_action(Action::create("Copy"sv, ActionID::CopySelection, [this]() {
+            selected_text()->when_resolved(insert_text_clipboard_entry);
+        }));
+    }
+    if (is_editable) {
+        menu.add_action(Action::create("Paste"sv, ActionID::Paste, [this]() {
+            paste_from_clipboard();
+        }));
+        menu.add_action(Action::create("Select All"sv, ActionID::SelectAll, [this]() {
+            select_all();
+        }));
     }
 }
 
