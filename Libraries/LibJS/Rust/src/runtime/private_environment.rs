@@ -4,20 +4,24 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::RefCell;
-
 use ak::Utf16FlyString;
+use libjs_runtime_macros::Trace;
 
 use crate::gc::class::{GcCell, define_cell};
+use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 pub use crate::layout::environment::PrivateEnvironment;
 use crate::layout::member::NullableMember;
+use crate::runtime::property_key::PropertyKey;
+use crate::runtime::symbol::Symbol;
 
-#[derive(Clone, Default)]
+/// A Private Name, whose private elements are the properties an object stores under its symbol, which nothing outside
+/// the engine ever sees.
+#[derive(Clone)]
 pub struct PrivateName {
-    pub unique_id: u64,
+    pub symbol: Gc<Symbol>,
     pub description: Utf16FlyString,
 }
 
@@ -29,7 +33,7 @@ fn fly_strings_are_equal(lhs: &Utf16FlyString, rhs: &Utf16FlyString) -> bool {
 
 impl PartialEq for PrivateName {
     fn eq(&self, other: &Self) -> bool {
-        self.unique_id == other.unique_id && fly_strings_are_equal(&self.description, &other.description)
+        self.symbol == other.symbol
     }
 }
 
@@ -39,50 +43,54 @@ impl core::fmt::Debug for PrivateName {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             formatter,
-            "PrivateName({}, #{})",
-            self.unique_id,
+            "PrivateName({:p}, #{})",
+            self.symbol.as_ptr(),
             crate::utf16::Utf16View::of_fly_string(&self.description).to_utf8()
         )
     }
 }
 
 impl PrivateName {
-    pub fn new(unique_id: u64, description: Utf16FlyString) -> Self {
-        Self { unique_id, description }
+    /// The key of the name's private elements in the storage of objects.
+    pub fn property_key(&self) -> PropertyKey {
+        PropertyKey::from_symbol(self.symbol)
+    }
+}
+
+// SAFETY: The symbol is the only cell a private name holds.
+unsafe impl Trace for PrivateName {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.symbol.trace(visitor);
     }
 }
 
 /// The parts of a private environment the interpreter does not read.
+#[derive(Trace)]
 pub struct PrivateEnvironmentStorage {
     /// [[Names]]
-    private_names: RefCell<Vec<PrivateName>>,
-    unique_id: u64,
+    private_names: GcRefCell<Vec<PrivateName>>,
 }
 
-const _: () = assert!(size_of::<PrivateEnvironment>() == 56);
+const _: () = assert!(size_of::<PrivateEnvironment>() == 48);
 
 define_cell!(PrivateEnvironment, Other);
 
-// SAFETY: The outer environment is the only cell a private environment reaches; names hold no cells.
+// SAFETY: Visits the outer environment and the names.
 unsafe impl Trace for PrivateEnvironment {
     fn trace(&self, visitor: &mut Visitor) {
         self.outer.trace(visitor);
+        self.storage.trace(visitor);
     }
 }
 
 impl PrivateEnvironment {
     /// The constructor, which only NewPrivateEnvironment calls.
     pub(crate) fn create(vm: &Vm, parent: Option<Gc<PrivateEnvironment>>) -> Gc<PrivateEnvironment> {
-        // FIXME: We might want to delay getting the next unique id until required.
-        let unique_id = vm.next_private_environment_id().get();
-        assert!(unique_id != u64::MAX);
-        vm.next_private_environment_id().set(unique_id + 1);
         vm.heap().allocate(|_| PrivateEnvironment {
             header: CellHeader::for_class(Self::CLASS),
             outer: NullableMember::new(parent),
             storage: PrivateEnvironmentStorage {
-                private_names: RefCell::new(Vec::new()),
-                unique_id,
+                private_names: GcRefCell::new(Vec::new()),
             },
         })
     }
@@ -119,15 +127,16 @@ impl PrivateEnvironment {
             .is_some_and(|outer| outer.contains_private_identifier(identifier))
     }
 
-    pub fn add_private_name(&self, description: Utf16FlyString) {
+    pub fn add_private_name(&self, vm: &Vm, description: Utf16FlyString) {
         if self.find_private_name(&description).is_some() {
             return;
         }
 
+        let symbol = Symbol::create_private(vm);
         self.storage
             .private_names
-            .borrow_mut()
-            .push(PrivateName::new(self.storage.unique_id, description));
+            .borrow_mut(vm)
+            .push(PrivateName { symbol, description });
     }
 
     pub fn outer_environment(&self) -> Option<Gc<PrivateEnvironment>> {

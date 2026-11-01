@@ -337,7 +337,7 @@ pub fn construct_class(
                                     ClassFieldInitializerName::PropertyKey(key.clone())
                                 }
                                 ClassElementName::PrivateName(name) => {
-                                    ClassFieldInitializerName::PrivateName(name.clone())
+                                    ClassFieldInitializerName::PrivateName(name.description.clone())
                                 }
                             });
                         }

@@ -586,7 +586,6 @@ pub struct Vm {
     module_async_evaluation_count: Cell<u64>, // [[ModuleAsyncEvaluationCount]]
     /// The id the next PrivateEnvironment gives its names. It starts at one such that 0 can be invalid / default
     /// initialized.
-    next_private_environment_id: Cell<u64>,
     /// The properties defined with Object::define_intrinsic_accessor that have not been read yet, by the address of
     /// their object. The objects are weak: the sweep callback forgets the ones that die.
     intrinsic_accessors: RefCell<IntrinsicAccessorMap>,
@@ -734,7 +733,6 @@ impl Vm {
             loaded_modules: OnceCell::new(),
             module_execution_depth: Cell::new(0),
             module_async_evaluation_count: Cell::new(0),
-            next_private_environment_id: Cell::new(1),
             intrinsic_accessors: RefCell::new(HashMap::default()),
             debugger: RefCell::new(None),
             last_throw: RefCell::new(None),
@@ -1752,10 +1750,6 @@ impl Vm {
             .loaded_modules
             .get()
             .expect("the VM allocates its list of loaded modules")
-    }
-
-    pub fn next_private_environment_id(&self) -> &Cell<u64> {
-        &self.next_private_environment_id
     }
 
     pub fn string_to_atom_cache(&self) -> &RefCell<Box<[StringToAtomCacheEntry; STRING_TO_ATOM_CACHE_SIZE]>> {
