@@ -1,0 +1,8 @@
+For getComputedStyle(), Ladybird resolves the insets and margins of a
+table from its table wrapper, and Blink, WebKit and Gecko all report the
+same values. Gecko reads them from its separate wrapper frame, the
+element’s primary frame, in nsComputedDOMStyle::GetUsedAbsoluteOffset()
+and GetMarginFor(). Blink and WebKit have no separate wrapper object:
+Blink’s LayoutTable produces the wrapper fragment, whose insets
+ComputedStyleUtils::ValueForPositionOffset() reads, while WebKit’s
+RenderTable carries the wrapper’s positioning and used margins itself.
