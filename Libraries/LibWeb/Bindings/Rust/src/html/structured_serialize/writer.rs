@@ -11,18 +11,26 @@
 //! The record that a structured serialization writes: the bytes of the values in the format of the record
 //! (libwebcommon_rust::html::serialization_records), and the SharedArrayBuffers that the record shares beside them.
 //! C++ code and the UI process carry records without reading them, so a writer hands what it wrote over to LibWeb's
-//! C++ record when it finishes.
+//! C++ record when it finishes, or to a MessageRecord that Rust keeps.
 
 use core::cell::RefCell;
 
 use ak::{Utf16String, Utf16StringUnits};
-use libjs_rust::api::{ArrayBuffer, BigInt, Gc, MarkedVec, Vm};
+use libjs_rust::api::{ArrayBuffer, BigInt, DataBlockStorage, DeferGc, Gc, MarkedVec, Vm};
 use libwebcommon_rust::html::serialization_records::{RecordEncoder, SerializationType};
 
 use crate::html::structured_serialize::cpp::{
     IPCSerializationRecord, SerializedTransferRecord, SharedBuffers, StorageSerializationRecord,
     serializable_interface_storage_identifier,
 };
+use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
+
+/// Where a record that reaches agents in other processes hands the shared memory of its SharedArrayBuffers over.
+enum CrossProcessSharedMemory {
+    None,
+    Lent(SharedBuffers),
+    Owned(RefCell<Vec<SharedMemory>>),
+}
 
 /// The record of a structured serialization, which the serialization writes its values to.
 pub(crate) struct StructuredSerializeWriter<'vm> {
@@ -30,7 +38,7 @@ pub(crate) struct StructuredSerializeWriter<'vm> {
     /// The SharedArrayBuffers that an IPC record shares with a deserialization in the same process, by their index in
     /// this same-process side table.
     shared_array_buffers: MarkedVec<'vm, Gc<ArrayBuffer>>,
-    shared_buffers: Option<SharedBuffers>,
+    shared_memory: CrossProcessSharedMemory,
 }
 
 impl<'vm> StructuredSerializeWriter<'vm> {
@@ -38,14 +46,22 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         Self {
             encoder: RefCell::new(RecordEncoder::new(serialization_type)),
             shared_array_buffers: MarkedVec::new(vm),
-            shared_buffers: None,
+            shared_memory: CrossProcessSharedMemory::None,
         }
     }
 
     /// The writer of an IPC record whose SharedArrayBuffers share their cross-process shared memory through the list.
     pub(crate) fn new_with_shared_buffers(vm: &'vm Vm, shared_buffers: SharedBuffers) -> Self {
         Self {
-            shared_buffers: Some(shared_buffers),
+            shared_memory: CrossProcessSharedMemory::Lent(shared_buffers),
+            ..Self::new(vm, SerializationType::Ipc)
+        }
+    }
+
+    /// The writer of a MessageRecord.
+    pub(crate) fn new_for_message(vm: &'vm Vm) -> Self {
+        Self {
+            shared_memory: CrossProcessSharedMemory::Owned(RefCell::new(Vec::new())),
             ..Self::new(vm, SerializationType::Ipc)
         }
     }
@@ -142,16 +158,47 @@ impl<'vm> StructuredSerializeWriter<'vm> {
         index
     }
 
-    /// The side list that the record shares the cross-process shared memory of its SharedArrayBuffers through, if it
-    /// has one.
-    pub(crate) fn shared_buffers(&self) -> Option<SharedBuffers> {
-        self.shared_buffers
+    /// Hands the cross-process shared memory of the SharedArrayBuffer over beside the record, and returns its index
+    /// there, if the buffer is backed by some, and the record reaches agents in other processes.
+    pub(crate) fn append_shared_memory_of(&self, array_buffer: Gc<ArrayBuffer>) -> Option<u32> {
+        let shared_memory = match &self.shared_memory {
+            CrossProcessSharedMemory::None => return None,
+            CrossProcessSharedMemory::Lent(shared_buffers) => {
+                return shared_buffers.append_shared_memory_of(array_buffer);
+            }
+            CrossProcessSharedMemory::Owned(shared_memory) => shared_memory,
+        };
+        let descriptor = array_buffer.with_data_block(|data_block| match &data_block.byte_buffer {
+            DataBlockStorage::Shared(store) => Some(SharedMemory {
+                descriptor: store.shared_memory().try_clone_to_owned().ok()?,
+                size: store.size(),
+            }),
+            _ => None,
+        })?;
+        let mut shared_memory = shared_memory.borrow_mut();
+        let index = u32::try_from(shared_memory.len()).expect("a record shares fewer than 2^32 buffers");
+        shared_memory.push(descriptor);
+        Some(index)
     }
 
     /// Sets the IPC record that C++ lends to what the writer wrote.
     pub(crate) fn finish_ipc_record(self, record: IPCSerializationRecord) {
         assert_eq!(self.serialization_type(), SerializationType::Ipc);
         record.set(self.encoder.borrow().bytes(), &self.shared_array_buffers.values());
+    }
+
+    /// The MessageRecord that the writer wrote. Its SharedArrayBuffers are traced once it is in a cell, which the caller
+    /// allocates under the deferral.
+    pub(crate) fn finish_message_record(self, _: &DeferGc<'_>) -> MessageRecord {
+        assert_eq!(self.serialization_type(), SerializationType::Ipc);
+        let CrossProcessSharedMemory::Owned(shared_memory) = self.shared_memory else {
+            unreachable!("the writer is a message's");
+        };
+        MessageRecord {
+            bytes: self.encoder.into_inner().into_bytes(),
+            shared_array_buffers: self.shared_array_buffers.values().to_vec(),
+            shared_memory: shared_memory.into_inner(),
+        }
     }
 
     /// The bytes of the storage record that the writer wrote, for Rust code that keeps them, as IndexedDB does.
