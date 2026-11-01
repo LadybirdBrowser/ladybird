@@ -1,0 +1,10 @@
+Ladybird no longer builds a use element’s shadow tree while adopting
+it; it drops the stale tree, and builds the new one when the element is
+next inserted into a document tree. Blink, WebKit and Gecko all defer
+that rebuild too. Blink’s SVGUseElement::DidMoveToNewDocument() calls
+UpdateTargetReference(), which reaches ScheduleShadowTreeRecreation().
+WebKit’s SVGUseElement::invalidateShadowTree() hands the element
+to the document’s addElementWithPendingUserAgentShadowTreeUpdate().
+And Gecko’s SVGUseElement::TriggerReclone() calls the document’s
+ScheduleSVGUseElementShadowTreeUpdate(). None of them builds the tree in
+the middle of the adoption walk.
