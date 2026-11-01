@@ -104,6 +104,7 @@ public:
     // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
     virtual GC::Ptr<DOM::Node> currently_focused_area() = 0;
     GC::Ptr<DOM::Node> currently_focused_area_shown_by_focused_navigable();
+    GC::Ptr<DOM::Node> focused_area_shown_by_focused_navigable_regardless_of_system_focus();
 
     WebIDL::ExceptionOr<void> navigate(NavigateParams);
 

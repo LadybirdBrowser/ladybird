@@ -6076,7 +6076,16 @@ void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
 GC::Ptr<DOM::Node> LocalNavigable::currently_focused_area()
 {
     // 1. If traversable does not have system focus, then return null.
-    if (!is_focused())
+    if (!page().client().has_focus())
+        return nullptr;
+    return focused_area_regardless_of_system_focus();
+}
+
+// The rest of the currently focused area's steps, which don't depend on system focus.
+GC::Ptr<DOM::Node> LocalNavigable::focused_area_regardless_of_system_focus()
+{
+    // NB: Below a top-level traversable, focus is here only while this is the tab's focused navigable.
+    if (!is_top_level_traversable() && page().focused_navigable().ptr() != this)
         return nullptr;
 
     // 2. Let candidate be traversable's active document.
@@ -6094,7 +6103,7 @@ GC::Ptr<DOM::Node> LocalNavigable::currently_focused_area()
         // NB: The active document of a navigable another process hosts is there. The walk goes on from it as the tab's
         //     focused navigable shows, and the container is as far as focus is seen here otherwise.
         if (!is<LocalNavigable>(*content_navigable)) {
-            if (auto focused_area = content_navigable->currently_focused_area_shown_by_focused_navigable())
+            if (auto focused_area = content_navigable->focused_area_shown_by_focused_navigable_regardless_of_system_focus())
                 return focused_area;
             return container;
         }

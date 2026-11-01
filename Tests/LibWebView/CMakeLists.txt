@@ -235,6 +235,7 @@ if (NOT WIN32)
         TestCrashReportSubmission.cpp
         TestFavicon.cpp
         TestFileDownloader.cpp
+        TestFocusWithoutSystemFocus.cpp
         TestGamepadExposure.cpp
         TestImageDecoderIsolation.cpp
         TestInputMethodState.cpp
