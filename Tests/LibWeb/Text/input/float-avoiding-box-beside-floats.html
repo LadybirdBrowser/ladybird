@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .container { direction: rtl; display: flow-root; width: 500px; }
+    .float { width: 50px; height: 30px; }
+    .box { overflow: hidden; width: 100px; height: 10px; }
+</style>
+<!-- A box that establishes a formatting context sits beside the floats. In a right-to-left container, its right margin
+     can overlap a float on the right, as its left margin can overlap a float on the left in a left-to-right one. And
+     the floats it avoids are the ones beside its border box, so a thick top border beside a float counts too. -->
+<div class="container" data-case="right float, margin-right 30px"><div class="float" style="float: right"></div><div class="box" style="margin-left: 20px; margin-right: 30px"></div></div>
+<div class="container" data-case="right float, margin-right 80px"><div class="float" style="float: right"></div><div class="box" style="margin-left: 20px; margin-right: 80px"></div></div>
+<div class="container" data-case="left float, margin-right 30px"><div class="float" style="float: left"></div><div class="box" style="margin-left: 20px; margin-right: 30px"></div></div>
+<div class="container" data-case="left float, margin-left 80px"><div class="float" style="float: left"></div><div class="box" style="margin-left: 80px; margin-right: 30px"></div></div>
+<div class="container" data-case="floats on both sides"><div class="float" style="float: left"></div><div class="float" style="float: right"></div><div class="box" style="margin-left: 20px; margin-right: 30px"></div></div>
+<div class="container" data-case="right float, negative margin-right"><div class="float" style="float: right"></div><div class="box" style="margin-right: -20px"></div></div>
+<div class="container" data-case="right float, auto margins"><div class="float" style="float: right"></div><div class="box" style="margin: 0 auto"></div></div>
+<div class="container" data-case="right float, auto width"><div class="float" style="float: right"></div><div class="box" style="width: auto"></div></div>
+<div class="container" data-case="right float, margin-right past the left edge"><div class="float" style="float: right"></div><div class="box" style="margin-right: 450px"></div></div>
+<div class="container" data-case="right float, thick top border"><div class="float" style="float: right"></div><div class="box" style="border-top: 40px solid transparent"></div></div>
+<div class="container" data-case="left float, margin-right reaching into it"><div class="float" style="float: left"></div><div class="box" style="margin-right: 450px"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, left float, margin-left past the right edge"><div class="float" style="float: left"></div><div class="box" style="margin-left: 450px"></div></div>
+<div class="container" data-case="right float, too wide to fit beside it"><div class="float" style="float: right"></div><div class="box" style="width: 480px"></div></div>
+<div class="container" data-case="right float, thick top border, auto margins"><div class="float" style="float: right"></div><div class="box" style="border-top: 40px solid transparent; margin: 0 auto"></div></div>
+<div class="container" data-case="right float, thick top border, auto width"><div class="float" style="float: right"></div><div class="box" style="border-top: 40px solid transparent; width: auto"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, left float, thick top border"><div class="float" style="float: left"></div><div class="box" style="border-top: 40px solid transparent"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, left float, thick top border, auto width"><div class="float" style="float: left"></div><div class="box" style="border-top: 40px solid transparent; width: auto"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, left float, thick top border, auto margins"><div class="float" style="float: left"></div><div class="box" style="border-top: 40px solid transparent; margin: 0 auto"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, thick top border, auto height, float at its content edge"><div class="float" style="float: left; width: 100px; height: 40px"></div><div class="float" style="float: left; width: 450px; height: 100px"></div><div class="box" style="height: auto; border-top: 40px solid transparent"><div style="height: 50px"></div></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, thick top border, zero height, float at its content edge"><div class="float" style="float: left; width: 100px; height: 40px"></div><div class="float" style="float: left; width: 450px; height: 100px"></div><div class="box" style="height: 0; border-top: 40px solid transparent"></div></div>
+<div class="container" style="direction: ltr; height: 120px; padding-top: 110px" data-case="ltr, lifted above a float, thick top border, auto height"><div class="float" style="float: left; width: 450px; height: 30px"></div><div class="box" style="height: auto; margin-top: -100px; border-top: 40px solid transparent"><div style="height: 10px"></div></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, floated stretch canvas below an earlier float"><div class="float" style="float: left"></div><div style="padding-top: 40px"><canvas class="box" style="float: left; width: stretch; border-top: 40px solid"></canvas></div></div>
+<div class="container" align="center" data-case="left float, legacy center alignment"><div class="float" style="float: left"></div><div class="box" style="margin-right: 100px"></div></div>
+<div class="container" data-case="no floats"><div class="box" style="margin-left: 20px; margin-right: 30px"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, left float, margin-left 30px"><div class="float" style="float: left"></div><div class="box" style="margin-left: 30px"></div></div>
+<div class="container" style="direction: ltr" data-case="ltr, right float, margin-left 30px"><div class="float" style="float: right"></div><div class="box" style="margin-left: 30px; margin-right: 20px"></div></div>
+<script>
+    test(() => {
+        for (const container of document.querySelectorAll(".container")) {
+            const rect = container.querySelector(".box").getBoundingClientRect();
+            const top = rect.top - container.getBoundingClientRect().top;
+            println(`${container.dataset.case}: left=${rect.left} top=${top} width=${rect.width}`);
+        }
+    });
+</script>
