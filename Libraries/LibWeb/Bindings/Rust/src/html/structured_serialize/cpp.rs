@@ -9,15 +9,16 @@
 //! bytes over to and the deserializations read the bytes of, the registry of serializable interfaces, the platform
 //! objects, and the side tables that SharedArrayBuffers are shared through.
 
-use core::ffi::c_void;
+use core::ffi::{c_int, c_void};
 use core::marker::PhantomData;
 use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
-use libjs_rust::api::{ArrayBuffer, Gc, Object, RawNativeFunctionResult, Realm, Value};
+use libjs_rust::api::{ArrayBuffer, DeferGc, Gc, Object, RawNativeFunctionResult, Realm, Value, into_raw_descriptor};
 
 use crate::bindings::structured_data::{SerializationReader, SerializationWriter};
 use crate::bindings::{CallContext, Exception, WebIdlResult};
+use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
 use crate::html::structured_serialize::transfer_data_holder::TransferDataHolder;
 
 unsafe extern "C" {
@@ -37,23 +38,12 @@ unsafe extern "C" {
         identifier: ak::Span<'_, u8>,
         interface_name: &mut u16,
     ) -> bool;
-    fn web_structured_serialize_shared_buffers_append_shared_memory(
-        shared_buffers: *mut c_void,
-        array_buffer: *mut c_void,
-        index: &mut u32,
-    ) -> bool;
 
     fn web_structured_serialize_ipc_record_data(record: *const c_void, data: &mut ak::Span<'static, u8>);
     fn web_structured_serialize_ipc_record_shared_array_buffer(
         record: *const c_void,
         side_table_index: u32,
     ) -> *mut c_void;
-    fn web_structured_serialize_shared_buffers_shared_array_buffer(
-        shared_buffers: *mut c_void,
-        realm: *mut c_void,
-        index: u32,
-        shared_object_id: u64,
-    ) -> RawNativeFunctionResult;
     fn web_structured_serialize_data_clone_error_from_serialization_error(
         realm: *mut c_void,
         message: ak::Span<'_, u8>,
@@ -82,9 +72,11 @@ unsafe extern "C" {
     ) -> RawNativeFunctionResult;
 
     fn web_structured_serialize_gather_image_bitmap_pixels(
-        shared_buffers: *mut c_void,
         transfer_list: *const *mut c_void,
         count: usize,
+        buffer_index: u32,
+        shared_memory: &mut c_int,
+        size: &mut usize,
     ) -> *mut c_void;
     fn web_structured_serialize_image_bitmap_pixels_destroy(image_bitmap_pixels: *mut c_void);
 
@@ -97,9 +89,18 @@ unsafe extern "C" {
         record: *mut c_void,
         data: ak::Span<'_, u8>,
         shared_array_buffers: *const *mut c_void,
-        count: usize,
+        shared_array_buffer_count: usize,
+        shared_memory: *const c_int,
+        shared_memory_sizes: *const usize,
+        shared_memory_count: usize,
     );
-    fn web_structured_serialize_transfer_record_shared_buffers(record: *mut c_void) -> *mut c_void;
+    fn web_structured_serialize_transfer_record_shared_memory_count(record: *mut c_void) -> usize;
+    fn web_structured_serialize_transfer_record_shared_memory(
+        record: *mut c_void,
+        index: usize,
+        shared_memory: &mut c_int,
+        size: &mut usize,
+    );
     fn web_structured_serialize_transfer_record_append_data_holder(record: *mut c_void, data_holder: *mut c_void);
     fn web_structured_serialize_transfer_record_data_holder_count(record: *mut c_void) -> usize;
     fn web_structured_serialize_transfer_record_take_data_holder(record: *mut c_void, index: usize) -> *mut c_void;
@@ -241,64 +242,33 @@ impl<'a> ReceivedIPCSerializationRecord<'a> {
     }
 }
 
-/// The side list of the cross-process shared memory that a record on the messaging path shares its SharedArrayBuffers
-/// through: a Vector<Core::AnonymousBuffer> that C++ lends.
-#[derive(Clone, Copy)]
-pub(crate) struct SharedBuffers(NonNull<c_void>);
-
-impl SharedBuffers {
-    /// # Safety
-    ///
-    /// `shared_buffers` must be a list that C++ lends while this is used.
-    pub(crate) unsafe fn from_raw(shared_buffers: *mut c_void) -> Self {
-        Self(NonNull::new(shared_buffers).expect("C++ lends a list"))
+/// AD-HOC: Gathers the pixels of the ImageBitmaps of the transfer list in one buffer of shared memory, whose index in
+///         the shared memory of the record of the transfer is the buffer index. Without it, as when there is not enough
+///         memory for it, the pixels travel inline.
+pub(crate) fn gather_image_bitmap_pixels(
+    transfer_list: &[Gc<Object>],
+    buffer_index: u32,
+) -> (ImageBitmapSharedPixels, Option<SharedMemory>) {
+    let transfer_list = objects_into_abi(transfer_list);
+    let (mut descriptor, mut size) = (0, 0);
+    // SAFETY: The objects are live, and the call writes to the locals.
+    let pixels = ImageBitmapSharedPixels(NonNull::new(unsafe {
+        web_structured_serialize_gather_image_bitmap_pixels(
+            transfer_list.as_ptr(),
+            transfer_list.len(),
+            buffer_index,
+            &mut descriptor,
+            &mut size,
+        )
+    }));
+    if pixels.0.is_none() {
+        return (pixels, None);
     }
-
-    /// Appends the cross-process shared memory of the SharedArrayBuffer to the list, and returns its index there, if
-    /// the buffer is backed by some.
-    pub(crate) fn append_shared_memory_of(self, array_buffer: Gc<ArrayBuffer>) -> Option<u32> {
-        let mut index = 0;
-        // SAFETY: The list is lent, and the buffer is live.
-        unsafe {
-            web_structured_serialize_shared_buffers_append_shared_memory(
-                self.0.as_ptr(),
-                object_into_abi(array_buffer),
-                &mut index,
-            )
-        }
-        .then_some(index)
-    }
-
-    /// A new SharedArrayBuffer in the realm over the cross-process shared memory at the index of the list.
-    pub(crate) fn shared_array_buffer(
-        self,
-        realm: Gc<Realm>,
-        index: u32,
-        shared_object_id: u64,
-    ) -> WebIdlResult<Value> {
-        // SAFETY: The list is lent, and the realm is live.
-        completion(unsafe {
-            web_structured_serialize_shared_buffers_shared_array_buffer(
-                self.0.as_ptr(),
-                realm.as_ptr().cast(),
-                index,
-                shared_object_id,
-            )
-        })
-    }
-
-    /// Gathers the pixels of the ImageBitmaps of the transfer list in one buffer of shared memory, which the list
-    /// holds.
-    pub(crate) fn gather_image_bitmap_pixels(self, transfer_list: &[Gc<Object>]) -> ImageBitmapSharedPixels {
-        let transfer_list = objects_into_abi(transfer_list);
-        // SAFETY: The list is lent, and the objects are live.
-        ImageBitmapSharedPixels(NonNull::new(unsafe {
-            web_structured_serialize_gather_image_bitmap_pixels(
-                self.0.as_ptr(),
-                transfer_list.as_ptr(),
-                transfer_list.len(),
-            )
-        }))
+    // SAFETY: The pixels keep the descriptor open.
+    match unsafe { SharedMemory::duplicate(descriptor, size) } {
+        Some(shared_memory) => (pixels, Some(shared_memory)),
+        // NB: Without a descriptor for the record, the pixels travel inline.
+        None => (ImageBitmapSharedPixels(None), None),
     }
 }
 
@@ -502,25 +472,52 @@ impl SerializedTransferRecord {
         self.0.as_ptr()
     }
 
-    /// Sets the record's [[Serialized]] to the bytes, with the SharedArrayBuffers of its same-process side table.
-    pub(crate) fn set_serialized(self, data: &[u8], shared_array_buffers: &[Gc<ArrayBuffer>]) {
-        let shared_array_buffers = objects_into_abi(shared_array_buffers);
-        // SAFETY: The record is lent, the call borrows the bytes, and the buffers are live.
+    /// Sets the record's [[Serialized]] to the message record, with its same-process side table and the shared memory
+    /// of the transfer, which C++ takes over. Its SharedArrayBuffers are rooted once the record has them, so the
+    /// caller hands it over under the deferral that it was finished under.
+    pub(crate) fn set_serialized(self, _: &DeferGc<'_>, serialized: MessageRecord) {
+        let shared_array_buffers = objects_into_abi(&serialized.shared_array_buffers);
+        let (shared_memory, shared_memory_sizes): (Vec<c_int>, Vec<usize>) = serialized
+            .shared_memory
+            .into_iter()
+            .map(|shared_memory| (into_raw_descriptor(shared_memory.descriptor), shared_memory.size))
+            .unzip();
+        // SAFETY: The record is lent, the call borrows the bytes, the buffers are live, and it takes over the
+        //         descriptors.
         unsafe {
             web_structured_serialize_transfer_record_set_serialized(
                 self.0.as_ptr(),
-                ak::Span::new(data),
+                ak::Span::new(&serialized.bytes),
                 shared_array_buffers.as_ptr(),
                 shared_array_buffers.len(),
+                shared_memory.as_ptr(),
+                shared_memory_sizes.as_ptr(),
+                shared_memory.len(),
             );
         }
     }
 
-    /// The cross-process shared memory of the record, which its [[Serialized]] and its data holders share
-    /// SharedArrayBuffers and the pixels of ImageBitmaps through.
-    pub(crate) fn shared_buffers(self) -> SharedBuffers {
-        // SAFETY: The record is lent, and so is its list.
-        unsafe { SharedBuffers::from_raw(web_structured_serialize_transfer_record_shared_buffers(self.0.as_ptr())) }
+    /// Duplicates of the shared memory of the record, which its [[Serialized]] and its data holders share
+    /// SharedArrayBuffers and the pixels of ImageBitmaps through. A descriptor that cannot be duplicated leaves out the
+    /// shared memory from it on, which deserializing then throws for.
+    pub(crate) fn shared_memory(self) -> Vec<SharedMemory> {
+        // SAFETY: The record is lent.
+        let count = unsafe { web_structured_serialize_transfer_record_shared_memory_count(self.0.as_ptr()) };
+        (0..count)
+            .map_while(|index| {
+                let (mut descriptor, mut size) = (0, 0);
+                // SAFETY: The record is lent, and it keeps the descriptor open.
+                unsafe {
+                    web_structured_serialize_transfer_record_shared_memory(
+                        self.0.as_ptr(),
+                        index,
+                        &mut descriptor,
+                        &mut size,
+                    );
+                    SharedMemory::duplicate(descriptor, size)
+                }
+            })
+            .collect()
     }
 
     /// Appends the data holder to the record's [[TransferDataHolders]].

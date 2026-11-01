@@ -137,7 +137,7 @@ pub unsafe extern "C" fn web_rust_structured_deserialize(
     let cx = CallContext::new(vm, target_realm);
     // SAFETY: The caller lends the record.
     let record = unsafe { ReceivedIPCSerializationRecord::from_raw(record) };
-    let serialized = StructuredSerializeReader::new_ipc(target_realm, record, None);
+    let serialized = StructuredSerializeReader::new_ipc(target_realm, record, &[]);
     let memory = DeserializationMemory::new(vm);
     completion(&cx, structured_deserialize_internal(&cx, &serialized, &memory, false))
 }

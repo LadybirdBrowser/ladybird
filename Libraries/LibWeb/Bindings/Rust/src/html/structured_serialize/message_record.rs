@@ -20,6 +20,21 @@ pub(crate) struct SharedMemory {
     pub(crate) size: usize,
 }
 
+impl SharedMemory {
+    /// A duplicate of a descriptor that C++ lends, unless it cannot be duplicated.
+    ///
+    /// # Safety
+    ///
+    /// The descriptor must stay open for the call.
+    pub(crate) unsafe fn duplicate(descriptor: c_int, size: usize) -> Option<Self> {
+        // SAFETY: The caller keeps the descriptor open.
+        let descriptor = unsafe { borrowed_from_raw_descriptor(descriptor) }
+            .try_clone_to_owned()
+            .ok()?;
+        Some(Self { descriptor, size })
+    }
+}
+
 #[derive(Trace)]
 #[gc(crate = libjs_rust)]
 pub(crate) struct MessageRecord {
@@ -43,13 +58,8 @@ impl MessageRecord {
         let shared_memory = descriptors
             .iter()
             .zip(sizes)
-            .map_while(|(&descriptor, &size)| {
-                // SAFETY: The caller keeps the descriptor open.
-                let descriptor = unsafe { borrowed_from_raw_descriptor(descriptor) }
-                    .try_clone_to_owned()
-                    .ok()?;
-                Some(SharedMemory { descriptor, size })
-            })
+            // SAFETY: The caller keeps the descriptors open.
+            .map_while(|(&descriptor, &size)| unsafe { SharedMemory::duplicate(descriptor, size) })
             .collect();
         Self {
             bytes: bytes.to_vec(),

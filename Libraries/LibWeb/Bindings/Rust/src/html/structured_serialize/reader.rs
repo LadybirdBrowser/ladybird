@@ -25,16 +25,17 @@ use libwebcommon_rust::html::serialization_records::{DecodeError, DecodedString,
 
 use crate::bindings::WebIdlResult;
 use crate::html::structured_serialize::cpp::{
-    ReceivedIPCSerializationRecord, SharedBuffers, data_clone_error_from_serialization_error, is_ipc_interface,
+    ReceivedIPCSerializationRecord, data_clone_error_from_serialization_error, is_ipc_interface,
     serializable_interface_name_from_storage_identifier,
 };
-use crate::html::structured_serialize::message_record::MessageRecord;
+use crate::html::structured_serialize::message_record::{MessageRecord, SharedMemory};
 
 /// Where the record keeps the SharedArrayBuffers that it shares.
 #[derive(Clone, Copy)]
 enum SharedArrayBuffers<'a> {
     None,
-    Lent(ReceivedIPCSerializationRecord<'a>, Option<SharedBuffers>),
+    /// The side table of a record that C++ lends, and the shared memory that it was handed over with, if any.
+    Lent(ReceivedIPCSerializationRecord<'a>, &'a [SharedMemory]),
     Message(&'a MessageRecord),
 }
 
@@ -48,12 +49,12 @@ impl<'a> StructuredSerializeReader<'a> {
     pub(crate) fn new_ipc(
         realm: Gc<Realm>,
         record: ReceivedIPCSerializationRecord<'a>,
-        shared_buffers: Option<SharedBuffers>,
+        shared_memory: &'a [SharedMemory],
     ) -> Self {
         Self {
             decoder: RecordDecoder::new(SerializationType::Ipc, record.data()).expect("an IPC record has no prologue"),
             realm,
-            shared_array_buffers: SharedArrayBuffers::Lent(record, shared_buffers),
+            shared_array_buffers: SharedArrayBuffers::Lent(record, shared_memory),
         }
     }
 
@@ -200,31 +201,26 @@ impl<'a> StructuredSerializeReader<'a> {
         index: u32,
         shared_object_id: u64,
     ) -> WebIdlResult<Value> {
-        let index_out_of_range =
-            || data_clone_error_from_serialization_error(self.realm, "SharedArrayBuffer side-list index out of range");
-        match self.shared_array_buffers {
-            SharedArrayBuffers::Lent(_, Some(shared_buffers)) => {
-                shared_buffers.shared_array_buffer(self.realm, index, shared_object_id)
-            }
-            SharedArrayBuffers::Message(record) => {
-                let shared_memory = record
-                    .shared_memory
-                    .get(index as usize)
-                    .ok_or_else(index_out_of_range)?;
-                let array_buffer = ArrayBuffer::create_from_shared_memory(
-                    vm,
-                    self.realm,
-                    shared_memory.descriptor.as_shared_memory(),
-                    shared_memory.size,
-                    shared_object_id,
-                )
-                .map_err(|_| {
-                    data_clone_error_from_serialization_error(self.realm, "Unable to map SharedArrayBuffer memory")
-                })?;
-                Ok(Value::from_object(array_buffer))
-            }
-            SharedArrayBuffers::None | SharedArrayBuffers::Lent(_, None) => Err(index_out_of_range()),
-        }
+        let shared_memory = match self.shared_array_buffers {
+            SharedArrayBuffers::None => &[],
+            SharedArrayBuffers::Lent(_, shared_memory) => shared_memory,
+            SharedArrayBuffers::Message(record) => record.shared_memory.as_slice(),
+        };
+        let Some(shared_memory) = shared_memory.get(index as usize) else {
+            return Err(data_clone_error_from_serialization_error(
+                self.realm,
+                "SharedArrayBuffer side-list index out of range",
+            ));
+        };
+        let array_buffer = ArrayBuffer::create_from_shared_memory(
+            vm,
+            self.realm,
+            shared_memory.descriptor.as_shared_memory(),
+            shared_memory.size,
+            shared_object_id,
+        )
+        .map_err(|_| data_clone_error_from_serialization_error(self.realm, "Unable to map SharedArrayBuffer memory"))?;
+        Ok(Value::from_object(array_buffer))
     }
 
     /// A new SharedArrayBuffer that shares the storage of the buffer at the index of the record's same-process side
