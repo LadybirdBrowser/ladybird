@@ -3299,7 +3299,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         index: usize,
     ) -> (Option<fragment_tree::RunRootFragment>, formatting_context::PlacedChild) {
         let node = self.flex_items[index].box_;
-        let cells = self.flex_items[index].cells;
+        let mut cells = self.flex_items[index].cells;
+        // A button centers its content within its final main size even when that size can't resolve percentages.
+        if self.flex_items[index].inputs.uses_button_layout
+            && !self.main_axis_is_horizontal()
+            && !cells.has_definite_block_size
+        {
+            cells.has_definite_block_size = true;
+            cells.has_definite_block_size_only_for_button_content_alignment = true;
+        }
         let input = self.item_layout_input(index, &cells, self.available_space_for_items.unwrap().space);
         let formatting_context::ChildLayout {
             outcome,

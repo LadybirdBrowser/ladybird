@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        display: flex;
+        align-items: flex-start;
+    }
+    button {
+        min-height: 160px;
+        padding: 0;
+        border: 0;
+    }
+    .child {
+        height: 20px;
+    }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        const cases = [
+            ["automatic height", "", "", ""],
+            ["percentage child", "", "", "height: 100%"],
+            ["definite container", "height: 200px", "", "height: 100%"],
+            ["definite basis", "", "flex-basis: 160px", "height: 100%"],
+            ["flex button", "", "display: flex", ""],
+            ["overflow", "", "min-height: 0; max-height: 10px", ""],
+        ];
+        for (const direction of ["column", "column-reverse"]) {
+            for (const [name, containerStyle, buttonStyle, contentStyle] of cases) {
+                const container = document.createElement("div");
+                container.className = "container";
+                container.style.cssText = `flex-direction: ${direction}; ${containerStyle}`;
+                container.innerHTML = `<button style="${buttonStyle}"><div style="${contentStyle}"><div class="child"></div></div></button>`;
+                document.getElementById("host").appendChild(container);
+                const button = container.firstElementChild;
+                const content = button.firstElementChild;
+                const outer = button.getBoundingClientRect();
+                const inner = content.getBoundingClientRect();
+                println(`${direction}, ${name}: height=${outer.height}, content=${inner.height}, top=${inner.top - outer.top}`);
+                container.remove();
+            }
+        }
+    });
+</script>
