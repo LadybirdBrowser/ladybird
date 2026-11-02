@@ -23,7 +23,6 @@
 //! - Property keys cross as the one word of the engine's own property key, which JS::PropertyKey encodes the same way.
 
 use core::ffi::c_void;
-use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
@@ -381,15 +380,6 @@ pub unsafe fn owned_utf16_string_from_abi(string: JSOwnedUtf16String) -> Utf16St
 // A property key and its C form are the same word, so a borrowed one can be viewed as the other.
 const _: () = assert!(size_of::<JSPropertyKey>() == size_of::<PropertyKey>());
 const _: () = assert!(align_of::<JSPropertyKey>() == align_of::<PropertyKey>());
-
-/// Gives the key's reference, if it holds a string, to the embedder.
-pub fn property_key_into_abi(key: PropertyKey) -> JSPropertyKey {
-    let key = ManuallyDrop::new(key);
-    // SAFETY: A property key is one word, which the key no longer releases.
-    JSPropertyKey {
-        bits: unsafe { core::ptr::from_ref(&*key).cast::<usize>().read() },
-    }
-}
 
 /// # Safety
 ///
