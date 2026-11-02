@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 40 tests
 
-38 Pass
-2 Fail
+40 Pass
 Pass	mrow
 Pass	mrow (horizontal overflow)
 Pass	RTL mrow
@@ -37,9 +36,9 @@ Pass	mmultiscripts (horizontal overflow)
 Pass	RTL mmultiscripts
 Pass	RTL mmultiscripts (horizontal overflow)
 Pass	mtext
-Fail	mtext (horizontal overflow)
+Pass	mtext (horizontal overflow)
 Pass	RTL mtext
-Fail	RTL mtext (horizontal overflow)
+Pass	RTL mtext (horizontal overflow)
 Pass	legacy menclose
 Pass	legacy menclose (horizontal overflow)
 Pass	RTL legacy menclose

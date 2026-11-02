@@ -23,7 +23,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             SVGSVGBox <svg> at [72.359375,10] [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] viewport-transform=[0.6666667 0 0 0.6666667 0 0] [SVG] children: not-inline
               SVGGeometryBox <path> at [6,8.578125] [0+0+0 12 0+0+0] [0+0+0 7.421875 0+0+0] children: not-inline
       TextNode <#text> (not painted)
-      TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

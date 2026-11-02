@@ -54,8 +54,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
           InlineNode <(anonymous)> at [8,8] [0+0+0 0 0+0+0] [0+0+0 0 0+0+0]
             GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.b> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <span> at [8,24] [0+0+0 130.578125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [13.84375,24 9.34375x16] baseline: 12.796875
@@ -129,8 +127,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from GeneratedTextNode start: 0, length: 1, rect: [132.734375,24 5.84375x16] baseline: 12.796875
                 "”"
             GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.c> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <span> at [8,40] [0+0+0 140.234375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 1, rect: [13.484375,40 9.34375x16] baseline: 12.796875
@@ -204,8 +200,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from GeneratedTextNode start: 0, length: 1, rect: [143.421875,40 4.8125x16] baseline: 12.796875
                 ")"
             GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x64] (z-index: auto)

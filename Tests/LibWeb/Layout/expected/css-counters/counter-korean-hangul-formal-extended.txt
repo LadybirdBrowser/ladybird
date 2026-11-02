@@ -6,99 +6,71 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,8 11.6875x16] baseline: 12.796875
               "일만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,24] [0+0+0 11.6875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,24 11.6875x16] baseline: 12.796875
               "이만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,40] [0+0+0 11.6875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,40 11.6875x16] baseline: 12.796875
               "오만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,56] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,56] [0+0+0 60.59375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 10, rect: [8,56 60.59375x16] baseline: 12.796875
               "구만 구천구백구십구"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,72] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,72] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,72] [0+0+0 60.59375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 10, rect: [8,72 60.59375x16] baseline: 12.796875
               "일만 이천삼백사십오"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,88] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,88] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,88] [0+0+0 25.53125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 4, rect: [8,88 25.53125x16] baseline: 12.796875
               "일만 일"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,104] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,104] [0+0+0 31.375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,104 31.375x16] baseline: 12.796875
               "일만 일십"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,120] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,120] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,120] [0+0+0 31.375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,120 31.375x16] baseline: 12.796875
               "일만 일백"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,136] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,136] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,136] [0+0+0 31.375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,136 31.375x16] baseline: 12.796875
               "일만 일천"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,152] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,152] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,152] [0+0+0 11.6875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,152 11.6875x16] baseline: 12.796875
               "일억"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,168] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,168] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,168] [0+0+0 11.6875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,168 11.6875x16] baseline: 12.796875
               "이억"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,184] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,184] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,184] [0+0+0 11.6875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,184 11.6875x16] baseline: 12.796875
               "오억"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,200] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,200] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,200] [0+0+0 115.34375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 19, rect: [8,200 115.34375x16] baseline: 12.796875
               "구억 구천구백구십구만 구천구백구십구"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,216] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,216] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,216] [0+0+0 115.34375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 19, rect: [8,216 115.34375x16] baseline: 12.796875
               "일억 이천삼백사십오만 육천칠백팔십구"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,232] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,232] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,232] [0+0+0 25.53125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,232 19.6875x16] baseline: 12.796875
@@ -106,85 +78,61 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 1 from GeneratedTextNode start: 4, length: 1, rect: [27.6875,232 5.84375x16] baseline: 12.796875
               "일"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,248] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,248] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,248] [0+0+0 31.375 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 5, rect: [8,248 31.375x16] baseline: 12.796875
               "일억 일만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,264] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,264] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,264] [0+0+0 37.21875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,264 37.21875x16] baseline: 12.796875
               "일억 일십만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,280] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,280] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,280] [0+0+0 37.21875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,280 37.21875x16] baseline: 12.796875
               "일억 일백만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,296] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,296] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,296] [0+0+0 37.21875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,296 37.21875x16] baseline: 12.796875
               "일억 일천만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,312] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,312] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,312] [0+0+0 17.53125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,312 17.53125x16] baseline: 12.796875
               "일십억"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,328] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,328] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,328] [0+0+0 17.53125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 3, rect: [8,328 17.53125x16] baseline: 12.796875
               "일백만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,344] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,344] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,344] [0+0+0 11.6875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [8,344 11.6875x16] baseline: 12.796875
               "일천"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,360] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,360] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,360] [0+0+0 43.0625 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,360 43.0625x16] baseline: 12.796875
               "마이너스 일만"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,376] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,376] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,376] [0+0+0 43.0625 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 7, rect: [8,376 43.0625x16] baseline: 12.796875
               "마이너스 일억"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,392] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,392] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,392] [0+0+0 158.40625 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 26, rect: [8,392 158.40625x16] baseline: 12.796875
               "마이너스 이십일억 사천칠백사십팔만 삼천육백사십팔"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,408] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,408] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,408] [0+0+0 37.21875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,408 37.21875x16] baseline: 12.796875
               "마이너스 일"
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,424] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x432] (z-index: auto)

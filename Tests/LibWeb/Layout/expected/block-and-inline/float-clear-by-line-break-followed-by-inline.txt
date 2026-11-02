@@ -4,7 +4,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 0 from TextNode start: 1, length: 3, rect: [8,108 27.15625x16] baseline: 12.796875
           "foo"
       BlockContainer <div.a> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-      TextNode <#text> (not painted)
       BreakNode <br.b> (not painted)
       TextNode <#text> (not painted)
 

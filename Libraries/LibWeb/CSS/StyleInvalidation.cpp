@@ -33,6 +33,7 @@ RequiredInvalidationAfterStyleChange decode_style_invalidation(u32 packed)
     result.non_inherited_property_inheritance_sources_changed = packed & to_underlying(NonInheritedInheritanceSource);
     result.affects_hit_testing = packed & to_underlying(AffectsHitTesting);
     result.repaint_highlights = packed & to_underlying(RepaintHighlights);
+    result.white_space_collapse_changed = packed & to_underlying(WhiteSpaceCollapseChanged);
     return result;
 }
 

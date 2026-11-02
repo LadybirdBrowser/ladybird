@@ -2,8 +2,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 304 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 288 0+0+8] children: not-inline
       Box <div.grid-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 288 0+0+0] [GFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-span-one-one> at [401.46875,8] [0+0+0 390.53125 0+0+0] [0+0+0 120 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 40, rect: [401.46875,8 319.171875x16] baseline: 12.796875
               "In a sollicitudin augue. Sed ante augue,"
@@ -13,8 +11,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "Pellentesque diam libero, ultrices eget eleifend"
           frag 3 from TextNode start: 134, length: 22, rect: [401.46875,56 182.8125x16] baseline: 12.796875
               "at, consequat ut orci."
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-span-one-two> at [401.46875,128] [0+0+0 390.53125 0+0+0] [0+0+0 168 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 43, rect: [401.46875,128 359.15625x16] baseline: 12.796875
@@ -31,8 +27,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "porta, nunc metus porttitor nibh, nec"
           frag 6 from TextNode start: 260, length: 31, rect: [401.46875,224 242.921875x16] baseline: 12.796875
               "bibendum nulla lectus ut felis."
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-span-two> at [8,8] [0+0+0 393.46875 0+0+0] [0+0+0 288 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 39, rect: [8,8 337.6875x16] baseline: 12.796875
@@ -71,8 +65,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "auctor in arcu. Ut cursus magna sit amet nulla"
           frag 17 from TextNode start: 771, length: 36, rect: [8,280 294.90625x16] baseline: 12.796875
               "cursus, vitae gravida mauris dictum."
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

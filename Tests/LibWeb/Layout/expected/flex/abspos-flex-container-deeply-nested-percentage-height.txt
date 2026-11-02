@@ -5,8 +5,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <div.l2> at [0,0] [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
           BlockContainer <div.l3> at [0,0] [0+0+0 200 0+0+0] [0+0+0 30 0+0+0] children: not-inline
             BlockContainer <div.content> at [0,0] [0+0+0 50 0+0+150] [0+0+0 30 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 400x200] (z-index: auto)

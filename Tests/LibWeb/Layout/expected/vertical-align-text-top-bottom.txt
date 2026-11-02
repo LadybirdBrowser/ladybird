@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         TextNode <#text> (not painted)
         BlockContainer <span.box.text-top> at [20,10] inline-block [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
         BlockContainer <span.box.text-bottom> at [40,20] inline-block [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
-      BlockContainer <(anonymous)> at [0,40] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.line> at [0,40] [0+0+0 800 0+0+0] [0+0+0 54 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 1, rect: [0,64 20x20] baseline: 16
             "A"
@@ -23,8 +21,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           TextNode <#text> (not painted)
           BlockContainer <span.box.text-top> at [60,48] inline-block [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
           BlockContainer <span.box.text-bottom> at [80,78] inline-block [0+0+0 20 0+0+0] [0+0+0 10 0+0+0] [BFC] children: not-inline
-      BlockContainer <(anonymous)> at [0,94] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x94] (z-index: auto)

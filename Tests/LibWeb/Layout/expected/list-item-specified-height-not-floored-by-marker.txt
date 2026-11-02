@@ -2,8 +2,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 42 0+0+0] children: not-inline
       BlockContainer <ul> at [100,0] [0+0+100 700 0+0+0] [0+0+0 42 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [100,0] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         ListItemBox <li.h5> at [100,0] [0+0+0 700 0+0+0] [0+0+0 5 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 43, rect: [100,0 354.390625x16] baseline: 12.796875
               "specified height wins over the marker floor"
@@ -11,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,0 13.84375x16] baseline: 12.796875
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [100,5] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         ListItemBox <li.mh5> at [100,5] [0+0+0 700 0+0+0] [0+0+0 5 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 40, rect: [100,5 342.203125x16] baseline: 12.796875
@@ -22,15 +18,11 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [100,10] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         ListItemBox <li> at [100,10] [0+0+0 700 0+0+0] [0+0+0 16 0+0+0] children: not-inline
           ListItemMarkerBox <(anonymous)> at [86,10] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
             frag 0 from GeneratedTextNode start: 0, length: 2, rect: [86,10 13.84375x16] baseline: 12.796875
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
-        BlockContainer <(anonymous)> at [100,26] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         ListItemBox <li> at [100,26] [0+0+0 700 0+0+0] [0+0+0 16 0+0+0] children: inline
           frag 0 from TextNode start: 0, length: 21, rect: [100,26 172.828125x16] baseline: 12.796875
               "automatic height item"
@@ -39,10 +31,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "• "
             GeneratedTextNode <(anonymous)> (not painted)
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [100,42] [0+0+0 700 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,42] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x42] (z-index: auto)

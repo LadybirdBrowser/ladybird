@@ -6,22 +6,16 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "KK"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,340] [0+0+0 784 0+0+0] [0+0+0 70 0+0+0] children: inline
-        TextNode <#text> (not painted)
         BreakNode <br> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <p.max-inline-test> at [8,480] [0+0+0 100 0+0+684] [70+0+0 70 0+0+70] children: inline
         frag 0 from TextNode start: 0, length: 2, rect: [8,480 85.875x70] baseline: 55.984375
             "KK"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,620] [0+0+0 784 0+0+0] [0+0+0 70 0+0+0] children: inline
-        TextNode <#text> (not painted)
         BreakNode <br> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <p.inline-size-test> at [8,760] [0+0+0 400 0+0+384] [70+0+0 200 0+0+70] children: inline
         frag 0 from TextNode start: 0, length: 2, rect: [8,760 85.875x70] baseline: 55.984375
             "KK"
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,1030] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

@@ -81,7 +81,8 @@ layoutTest({
                 layout FULL
                   @viewport/block RUN (cache=bypass)
                     BlockContainer<HTML>/block RUN (cache=miss)
-                    BlockContainer<DIV>#boundary/block RUN (cache=miss)
+                      BlockContainer<DIV>#spacer REUSE IN-FLOW SUBTREE
+                    BlockContainer<DIV>#boundary/block REUSE SUBTREE
             `,
         },
     ],

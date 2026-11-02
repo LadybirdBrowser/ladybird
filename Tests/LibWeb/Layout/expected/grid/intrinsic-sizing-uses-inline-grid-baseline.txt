@@ -2,8 +2,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] children: not-inline
       Box <div.row> at [0,0] flex-container(row) [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [FFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.item> at [0,0] flex-item [0+0+0 164.9375 0+0+0] [0+0+0 32 0+0+0] [BFC] children: inline
           frag 0 from Box start: 0, length: 0, rect: [13,1 48.203125x30] baseline: 20.203125
           frag 1 from TextNode start: 0, length: 14, rect: [74.203125,8.5 90.734375x14] baseline: 11.203125
@@ -14,10 +12,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                   "Filters"
               TextNode <#text> (not painted)
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,32] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

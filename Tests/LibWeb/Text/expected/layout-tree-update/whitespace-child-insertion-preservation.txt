@@ -400,7 +400,7 @@ PASS: append non-whitespace text | append text | incremental tree matches full r
 PASS: rebuild under first-letter | append whitespace | rebuild
 PASS: rebuild under first-letter | append whitespace | layout tree builds=1
 PASS: rebuild under first-letter | append whitespace | incremental tree matches full rebuild
-PASS: rebuild under first-letter | append multiple whitespace nodes | rebuild
+PASS: rebuild under first-letter | append multiple whitespace nodes | preserve
 PASS: rebuild under first-letter | append multiple whitespace nodes | layout tree builds=1
 PASS: rebuild under first-letter | append multiple whitespace nodes | incremental tree matches full rebuild
 PASS: rebuild under ancestor first-letter | append whitespace | rebuild

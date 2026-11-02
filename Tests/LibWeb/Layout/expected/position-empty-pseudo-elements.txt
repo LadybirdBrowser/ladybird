@@ -6,8 +6,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       BlockContainer <div.content_with_space> at [33,100] [25+0+0 50 0+0+709] [25+0+0 50 0+0+25] children: not-inline
         BlockContainer <(anonymous)> at [33,150] [0+0+0 50 0+0+0] [0+0+50 0 0+0+0] children: inline
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,175] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x175] (z-index: auto)

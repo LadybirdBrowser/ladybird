@@ -53,6 +53,7 @@ struct StyleInvalidation {
     any_computed_value_changed: bool,
     affects_hit_testing: bool,
     repaint_highlights: bool,
+    white_space_collapse_changed: bool,
 }
 
 impl StyleInvalidation {
@@ -103,6 +104,7 @@ impl StyleInvalidation {
         self.any_computed_value_changed |= other.any_computed_value_changed;
         self.affects_hit_testing |= other.affects_hit_testing;
         self.repaint_highlights |= other.repaint_highlights;
+        self.white_space_collapse_changed |= other.white_space_collapse_changed;
     }
 
     /// Whether the damage stays in the box of its element: no layout tree, stacking context, visual context, scroll
@@ -137,6 +139,7 @@ impl StyleInvalidation {
             any_computed_value_changed: has(FfiStyleInvalidationField::AnyComputedValueChanged),
             affects_hit_testing: has(FfiStyleInvalidationField::AffectsHitTesting),
             repaint_highlights: has(FfiStyleInvalidationField::RepaintHighlights),
+            white_space_collapse_changed: has(FfiStyleInvalidationField::WhiteSpaceCollapseChanged),
         }
     }
 
@@ -156,6 +159,8 @@ impl StyleInvalidation {
             u32::from(self.any_computed_value_changed) * FfiStyleInvalidationField::AnyComputedValueChanged as u32;
         packed |= u32::from(self.affects_hit_testing) * FfiStyleInvalidationField::AffectsHitTesting as u32;
         packed |= u32::from(self.repaint_highlights) * FfiStyleInvalidationField::RepaintHighlights as u32;
+        packed |=
+            u32::from(self.white_space_collapse_changed) * FfiStyleInvalidationField::WhiteSpaceCollapseChanged as u32;
         packed
     }
 }
@@ -179,6 +184,7 @@ pub(super) fn child_reaction_facts_of_damage(damages: impl IntoIterator<Item = u
         && !damage.recompute_descendants
         && damage.inherited_groups == 0
         && !damage.repaint_highlights
+        && !damage.white_space_collapse_changed
         && !damage.affects_hit_testing
         && !damage.repaint_text_decorations
         && !damage.non_inherited_inheritance_source
@@ -557,6 +563,11 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
             | property_id::OVERFLOW_CLIP_MARGIN_LEFT
     ) {
         result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
+    }
+    if property == property_id::WHITE_SPACE_COLLAPSE {
+        let collapse = crate::css::css_enums::white_space_collapse::COLLAPSE;
+        result.white_space_collapse_changed =
+            (old.white_space_collapse() == collapse) != (new.white_space_collapse() == collapse);
     }
     if property == property_id::TEXT_DECORATION_LINE {
         result.repaint_text_decorations = true;

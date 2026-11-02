@@ -5,9 +5,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <main> at [8,8] table-box [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] [TFC] children: not-inline
           Box <(anonymous)> at [8,8] table-row [0+0+0 200 0+0+0] [0+0+0 100 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [8,8] table-cell [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at [8,8] [0+0+0 100 0+0+0] [0+0+0 0 0+0+0] children: inline
-                BlockContainer <div.floaty> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-                TextNode <#text> (not painted)
+              BlockContainer <div.floaty> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
             BlockContainer <div.cell> at [108,108] table-cell [0+0+0 100 0+0+0] [0+0+100 0 0+0+0] [BFC] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

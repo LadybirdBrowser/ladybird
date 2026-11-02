@@ -14,13 +14,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 4 from TextNode start: 245, length: 31, rect: [435.265625,40 255.859375x16] baseline: 12.796875
               "rhoncus, vestibulum vel tortor."
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.footer> at [8,56] flex-item [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 27, rect: [8,56 232.140625x16] baseline: 12.796875
             "Lorem ipsum dolor sit amet."
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> (not painted) [BFC] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

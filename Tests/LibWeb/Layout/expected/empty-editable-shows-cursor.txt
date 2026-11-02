@@ -1,10 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 72 0+0+0] [BFC] children: not-inline
-    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-      TextNode <#text> (not painted)
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 56 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
       BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 40 0+0+0] children: inline
         frag 0 from TextInputBox start: 0, length: 0, rect: [13,47 159.6875x14] baseline: 13.984375
@@ -17,7 +13,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 5 from TextNode start: 0, length: 1, rect: [529.0625,45 8x16] baseline: 12.796875
             " "
         frag 6 from TextAreaBox start: 0, length: 0, rect: [540.0625,27 159.6875x28] baseline: 34
-        TextNode <#text> (not painted)
         TextInputBox <input> at [13,47] inline-block [0+2+3 159.6875 3+2+0] [0+2+1 14 1+2+0] [BFC] children: not-inline
           Box <div> at [13,47] flex-container(row) [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [FFC] children: not-inline
             BlockContainer <div> at [13,47] flex-item [0+0+0 159.6875 0+0+0] [0+0+0 14 0+0+0] [BFC] children: inline

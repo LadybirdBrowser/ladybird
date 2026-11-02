@@ -20,8 +20,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from TextNode start: 0, length: 1, rect: [376,32 9.09375x16] baseline: 12.796875
                 "3"
             TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [10,98] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [1,1 798x106] (z-index: auto)

@@ -2,41 +2,21 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 136 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 120 0+0+8] children: not-inline
       Box <div.row> at [8,8] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <span.icon> at [8,8.796875] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <span.text> at [24,8] flex-item [0+0+0 64 0+0+0] [0+0+0 24 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [24,12 64x16] baseline: 12.796875
               "Text"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,32] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.row> at [8,32] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] [FFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <span.icon> at [8,32.796875] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <span.text> at [24,32] flex-item [0+0+0 64 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [24,36 64x16] baseline: 12.796875
               "Text"
           frag 1 from TextNode start: 5, length: 4, rect: [24,60 64x16] baseline: 12.796875
               "Text"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,80] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.row> at [8,80] flex-container(row) [0+0+0 784 0+0+0] [0+0+0 48 0+0+0] [FFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <span.icon> at [8,80.796875] flex-item [0+0+0 16 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.text> at [24,80] flex-item [0+0+0 64 0+0+0] [0+0+0 48 0+0+0] [BFC] children: not-inline
           BlockContainer <p> at [24,80] [0+0+0 64 0+0+0] [0+0+0 24 0+0+0] children: inline
             frag 0 from TextNode start: 0, length: 4, rect: [24,84 64x16] baseline: 12.796875
@@ -46,10 +26,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 0 from TextNode start: 0, length: 4, rect: [24,108 64x16] baseline: 12.796875
                 "Text"
             TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,128] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x136] (z-index: auto)

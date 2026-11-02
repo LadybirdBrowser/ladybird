@@ -1,6 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       BlockContainer <div#box> at [0,0] positioned [0+0+0 200 0+0+0] [0+0+0 30 30+0+0] [BFC] children: inline
         frag 0 from TextNode start: 0, length: 37, rect: [0,0 193.578125x10] baseline: 8
             "This paragraph is long enough that it"
@@ -9,7 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 2 from TextNode start: 76, length: 21, rect: [0,20 111.390625x10] baseline: 8
             "the narrow fixed box."
         TextNode <#text> (not painted)
-      TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)

@@ -1,48 +1,36 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 336 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 320 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <button.flex-container.single-image> at [17,11] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         ImageBox <(anonymous)> at [17,11] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [57,11] flex-item [0+0+0 106.515625 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 14, rect: [57,11 106.515625x14] baseline: 10.984375
               "Ratio-only SVG"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,56] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <button.flex-container.single-image.intrinsic-size> at [17,59] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         ImageBox <(anonymous)> at [17,59] flex-item [0+0+0 40 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [65,59] flex-item [0+0+0 124.578125 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 18, rect: [65,59 124.578125x14] baseline: 10.984375
               "Intrinsic-size SVG"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,104] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <button.flex-container.single-image.with-alt-text> at [17,107] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         ImageBox <(anonymous)> at [17,107] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [57,107] flex-item [0+0+0 54.59375 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 8, rect: [57,107 54.59375x14] baseline: 10.984375
               "Alt text"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,152] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <button.flex-container.after-only> at [17,155] flex-container(row) [0+2+7 182 7+2+584] [0+2+1 42 1+2+0] [FFC] children: not-inline
         BlockContainer <(anonymous)> at [17,155] flex-item [0+0+0 37.59375 0+0+0] [0+0+0 42 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [17,155 37.59375x14] baseline: 10.984375
               "After"
           TextNode <#text> (not painted)
         ImageBox <(anonymous)> at [62.59375,155] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at [8,200] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.flex-container> at [8,200] flex-container(row) [0+0+0 200 0+0+584] [0+0+0 48 0+0+0] [FFC] children: not-inline
         ImageBox <div.ordinary-replacement> at [8,200] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
         BlockContainer <(anonymous)> at [48,200] flex-item [0+0+0 134.75 0+0+0] [0+0+0 48 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 16, rect: [48,200 134.75x16] baseline: 12.796875
               "Ordinary element"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,248] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.flex-container> at [8,248] flex-container(row) [0+0+0 200 0+0+584] [0+0+0 48 0+0+0] [FFC] children: not-inline
         ImageBox <img.direct-image> at [8,248] flex-item [0+0+0 32 0+0+0] [0+0+0 32 0+0+0] children: not-inline
           (SVG-as-image isolated context)
@@ -53,8 +41,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 12, rect: [48,248 99.390625x16] baseline: 12.796875
               "Direct image"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,296] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.mixed-content> at [8,296] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,296] [0+0+0 102.71875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from GeneratedTextNode start: 0, length: 6, rect: [8,296 52.53125x16] baseline: 12.796875
@@ -65,16 +51,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           GeneratedTextNode <(anonymous)> (not painted)
           ImageBox <(anonymous)> at [60.53125,298] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
           GeneratedTextNode <(anonymous)> (not painted)
-      BlockContainer <(anonymous)> at [8,312] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.multiple-images> at [8,312] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
         InlineNode <(anonymous)> at [8,314] [0+0+0 20 0+0+0] [0+0+0 10 0+0+0]
           frag 0 from ImageBox start: 0, length: 0, rect: [8,314 10x10] baseline: 10
           frag 1 from ImageBox start: 0, length: 0, rect: [18,314 10x10] baseline: 10
           ImageBox <(anonymous)> at [8,314] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
           ImageBox <(anonymous)> at [18,314] [0+0+0 10 0+0+0] [0+0+0 10 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at [8,328] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x336] (z-index: auto)

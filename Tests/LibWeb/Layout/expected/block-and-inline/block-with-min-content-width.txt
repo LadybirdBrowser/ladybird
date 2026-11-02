@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 2 from TextNode start: 11, length: 7, rect: [11,43 60.90625x16] baseline: 12.796875
             "content"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [10,60] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.bar> at [11,61] [0+1+0 60.90625 0+1+717.09375] [0+1+0 64 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 4, rect: [11,61 37.734375x16] baseline: 12.796875
             "max-"
@@ -21,8 +19,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         frag 3 from TextNode start: 15, length: 7, rect: [11,109 60.90625x16] baseline: 12.796875
             "content"
         TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [10,126] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div.baz> at [11,127] [0+1+0 60.90625 0+1+717.09375] [0+1+0 64 0+1+0] children: inline
         frag 0 from TextNode start: 0, length: 4, rect: [11,127 32.859375x16] baseline: 12.796875
             "min-"
@@ -32,8 +28,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "min-"
         frag 3 from TextNode start: 15, length: 7, rect: [11,175 60.90625x16] baseline: 12.796875
             "content"
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [10,192] [0+0+0 780 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

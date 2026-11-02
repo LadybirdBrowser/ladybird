@@ -11,7 +11,7 @@
 
 use super::LayoutNodeArena;
 use super::layout_changes::LayoutWrite;
-use super::node_data::{NodeFlag, NodeSlotId};
+use super::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use super::node_facts::{self, has_flag};
 use super::quote_depth::box_subtree_moves_quote_depth;
 use super::tree_builder::node_kind_is_node_with_style;
@@ -63,6 +63,80 @@ pub(crate) struct BoxRemoval {
 }
 
 impl LayoutNodeArena {
+    /// Whether white space text may come at or after `sibling` among the children of its parent, before the next one
+    /// with an in-flow box. The children of a `display: contents` element continue the boxes before it.
+    fn whitespace_text_may_follow(&self, sibling: Option<StyleNodeID>) -> bool {
+        use crate::css::css_enums::float;
+        use crate::css::style::bridge::element_adjustment_fact::RENDERED_IN_TOP_LAYER;
+        self.with_style_store(|engine| {
+            let mut sibling = sibling;
+            while let Some(current) = sibling {
+                if current.text_index().is_some() {
+                    return engine.tree().text_is_ascii_whitespace(current);
+                }
+                let Some(facts) = engine.element_published_box_facts(current) else {
+                    return true;
+                };
+                if facts.display.is_contents() {
+                    return true;
+                }
+                let lays_out_elsewhere = facts.display.is_none()
+                    || facts.position == positioning::ABSOLUTE
+                    || facts.position == positioning::FIXED
+                    || facts.float_ != float::NONE
+                    || engine.element_adjustment_facts(current) & RENDERED_IN_TOP_LAYER != 0;
+                if !lays_out_elsewhere {
+                    return false;
+                }
+                sibling = engine.tree().next_sibling_in_dom_order(current);
+            }
+            false
+        })
+    }
+
+    /// Whether white space text right after the in-flow box `child` of `parent` renders nothing both while `child` is
+    /// there and once it leaves: `child` is block-level, and so is the in-flow box before it, or there is none in a
+    /// parent whose content starts with no line.
+    fn whitespace_after_renders_nothing_either_way(&self, parent: NodeSlotId, child: NodeSlotId) -> bool {
+        let ends_a_line = |row: NodeSlotId| {
+            let data = self.data(row);
+            let display = self.display_of(row);
+            !has_flag(data, NodeFlag::Anonymous)
+                && node_kind_is_node_with_style(data.kind.get())
+                && !display.is_internal_table()
+                && !display.is_table_caption()
+                && (data.kind.get() == NodeKind::BreakNode || !display.is_inline_outside())
+        };
+        if !ends_a_line(child) {
+            return false;
+        }
+        let mut previous = self.data(child).previous_sibling.get();
+        while !previous.is_invalid()
+            && node_kind_is_node_with_style(self.data(previous).kind.get())
+            && node_facts::node_is_out_of_flow(self.data(previous), self.node_style_if_live(previous))
+        {
+            previous = self.data(previous).previous_sibling.get();
+        }
+        if previous.is_invalid() {
+            return !matches!(
+                self.data(parent).kind.get(),
+                NodeKind::InlineNode | NodeKind::ListItemBox
+            );
+        }
+        ends_a_line(previous)
+    }
+
+    /// The anonymous wrapper whose only child is `row`, as an absolutely positioned box that is inline-level in flow
+    /// has among block-level siblings, which leaves with it.
+    fn anonymous_wrapper_holding_only(&self, row: NodeSlotId) -> Option<NodeSlotId> {
+        let parent = self.data(row).parent.get();
+        (!parent.is_invalid()
+            && has_flag(self.data(parent), NodeFlag::Anonymous)
+            && self.data(parent).first_child.get() == row
+            && self.data(parent).last_child.get() == row)
+            .then_some(parent)
+    }
+
     fn display_of(&self, row: NodeSlotId) -> FfiDisplay {
         self.node_style_if_live(row)
             .map_or_else(FfiDisplay::block, |style| style.display())
@@ -101,6 +175,13 @@ impl LayoutNodeArena {
 
         let child_style = self.node_style_if_live(child);
         if child_data.parent.get() != parent || node_facts::node_is_out_of_flow(child_data, child_style) {
+            return false;
+        }
+        // White space text after the box renders depending on the box before it, so it may gain or lose its box with
+        // the one that leaves.
+        if !self.whitespace_after_renders_nothing_either_way(parent, child)
+            && self.whitespace_text_may_follow(StyleNodeID::from_raw(facts.next_sibling.style_node))
+        {
             return false;
         }
         let parent_data = self.data(parent);
@@ -187,6 +268,10 @@ impl LayoutNodeArena {
         // The box's own style still says what it was, so its level comes from where it sits: a block container with
         // block-level children holds block-level boxes, one with inline-level children inline-level ones, of which
         // only an atomic inline leaves in place.
+        // A build that takes the box out would leave the anonymous wrapper that holds only it behind.
+        if self.anonymous_wrapper_holding_only(row).is_some() {
+            return false;
+        }
         let box_is_block_level = !has_flag(self.data(parent_row), NodeFlag::ChildrenAreInline);
         if !box_is_block_level && self.data(row).kind.get() == super::node_data::NodeKind::InlineNode {
             return false;
@@ -249,12 +334,13 @@ impl BoxRemoval {
         if parent_contains_removed_abspos_box {
             arena.note_contained_abspos_child_removal(parent_row, child_row);
         }
+        let dropped_row = arena.anonymous_wrapper_holding_only(child_row).unwrap_or(child_row);
         owed.push(
-            LayoutWrite::PrepareSubtreeForRemoval { root: child_row }
+            LayoutWrite::PrepareSubtreeForRemoval { root: dropped_row }
                 .apply(arena)
                 .host_work,
         );
-        let dropped = LayoutWrite::DropSubtree { root: child_row }.apply(arena);
+        let dropped = LayoutWrite::DropSubtree { root: dropped_row }.apply(arena);
         assert!(dropped.was_attached, "a box detached in place is its parent's child");
         owed.push(dropped.host_work);
         if arena.data(parent_row).first_child.get().is_invalid() {

@@ -2,28 +2,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 160 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [0,0] [0+0+0 800 0+0+0] [0+0+0 160 0+0+0] children: not-inline
       Box <div.outer> at [0,0] [0+0+0 800 0+0+0] [0+0+0 160 0+0+0] [GFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         Box <div.inner> at [300,0] [0+0+0 200 0+0+0] [0+0+0 160 0+0+0] [GFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.span> at [300,0] [0+0+0 95 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.top> at [405,0] [0+0+0 95 0+0+0] [0+0+0 70 0+0+0] [BFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.middle> at [405,80] [0+0+0 95 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
-          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.feed> at [300,110] [0+0+0 200 0+0+0] [0+0+0 50 0+0+0] [BFC] children: not-inline overflow: [300,110 200x300]
             BlockContainer <div> at [300,110] [0+0+0 200 0+0+0] [0+0+0 300 0+0+0] children: not-inline
-          BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-            TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,160] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x160] (z-index: auto)

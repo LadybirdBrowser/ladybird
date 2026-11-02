@@ -31,9 +31,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 7, rect: [101.015625,57 53.671875x16] baseline: 12.796875
                     "Griffin"
                 TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,78] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,78] [0+0+0 163.296875 0+0+620.703125] [0+0+0 56 0+0+0] [BFC] children: not-inline
         Box <table.table-border-black> at [8,78] table-box [0+0+0 163.296875 0+0+0] [0+0+0 56 0+0+0] [TFC] children: not-inline
           Box <tbody> at [8,78] table-row-group [0+0+0 163.296875 0+0+0] [0+0+0 56 0+0+0] children: not-inline
@@ -64,9 +61,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 7, rect: [94.015625,117 53.671875x16] baseline: 12.796875
                     "Griffin"
                 TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,134] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,134] [0+0+0 159.296875 0+0+624.703125] [0+0+0 50 0+0+0] [BFC] children: not-inline
         Box <div.table.border-black> at [8,134] table-box [0+0+0 159.296875 0+0+0] [0+0+0 50 0+0+0] [TFC] children: not-inline
           Box <div.table-row.border-black> at [8,134] table-row [0+0+0 159.296875 0+0+0] [0+0+0 17 0+0+0] children: not-inline
@@ -96,9 +90,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               frag 0 from TextNode start: 0, length: 7, rect: [91.015625,168 53.671875x16] baseline: 12.796875
                   "Griffin"
               TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,184] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       TableWrapper <(anonymous)> at [8,184] [0+0+0 168.296875 0+0+615.703125] [0+0+0 68 0+0+0] [BFC] children: not-inline
         Box <div.table.thick-border-black> at [8,184] table-box [0+0+0 168.296875 0+0+0] [0+0+0 68 0+0+0] [TFC] children: not-inline
           Box <div.table-row.thick-border-black> at [8,184] table-row [0+0+0 168.296875 0+0+0] [0+0+0 21 0+0+0] children: not-inline
@@ -128,8 +119,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               frag 0 from TextNode start: 0, length: 7, rect: [100.015625,236 53.671875x16] baseline: 12.796875
                   "Griffin"
               TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,252] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x260] (z-index: auto)
