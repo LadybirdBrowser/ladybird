@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<style>
+    iframe { width: 100px; height: 30px; border: 0; display: block; }
+    .box { width: 100px; min-height: 5px; background: rgb(200, 200, 255); margin: 2px; }
+    img { display: block; }
+</style>
+<div id="text1" class="box"><span>a</span>   </div>
+<div id="text2" class="box"><span>a</span>y</div>
+<div id="text3" class="box"><span>a</span>b  </div>
+<div id="edit" class="box" contenteditable="true">   </div>
+<div id="controls"><input type="checkbox" checked><input type="radio" disabled><canvas id="canvas" width="20" height="20"></canvas></div>
+<div id="frame-place"><iframe srcdoc="<!DOCTYPE html><body style='margin: 0; background: rgb(255, 0, 0)'>"></iframe></div>
+<div id="images"><img width="10" height="10" src="data:image/gif;base64,R0lGODlhAQABAIAAAAD/AP///ywAAAAAAQABAAACAkQBADs="></div>
+<script>
+    const context = canvas.getContext("2d");
+    context.fillStyle = "rgb(0, 200, 0)";
+    context.fillRect(0, 0, 20, 20);
+</script>
