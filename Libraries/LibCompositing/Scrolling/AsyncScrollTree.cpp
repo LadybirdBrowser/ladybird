@@ -388,6 +388,11 @@ Optional<Web::CSSPixelPoint> AsyncScrollTree::css_scroll_offset_for_node(Composi
     return scroll_offset_for_node(scroll_node_index, scroll_state_snapshot).map([&](auto device_offset) { return css_pixels_from_device_offset(device_offset); });
 }
 
+Web::CSSPixelPoint AsyncScrollTree::css_scroll_offset_for_node(AsyncScrollNode const& node, Compositing::ScrollStateSnapshot const& scroll_state_snapshot) const
+{
+    return css_pixels_from_device_offset(scroll_offset_for_node(node, scroll_state_snapshot));
+}
+
 Optional<Compositing::SpatialNodeIndex> AsyncScrollTree::viewport_scroll_node_index() const
 {
     for (auto const& node : m_scroll_nodes) {
