@@ -321,10 +321,6 @@ impl Operation {
         Self::Memory(MemoryOperation::LoadPair(width))
     }
 
-    pub(crate) const fn store_pair(width: PairWidth) -> Self {
-        Self::Memory(MemoryOperation::StorePair(width))
-    }
-
     pub(crate) const fn branch_equality(width: IntegerWidth, condition: EqualityCondition) -> Self {
         Self::Branch(BranchOperation::Equality { width, condition })
     }

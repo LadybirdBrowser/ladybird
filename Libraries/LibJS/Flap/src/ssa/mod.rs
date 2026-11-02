@@ -23,7 +23,7 @@ use crate::identity::{ExternalSymbol, InlineFunctionId};
 pub(crate) use crate::intrinsic::IntrinsicEffects as Effects;
 pub(crate) use crate::intrinsic::ModRef as MemoryEffect;
 pub(crate) use crate::intrinsic::{
-    AggregateOperation, BinaryOperation, CheckedIntegerOperation, ComparisonDomain, ComparisonRelation, FieldAccess,
+    BinaryOperation, CheckedIntegerOperation, ComparisonDomain, ComparisonRelation, FieldAccess,
     IntegerBinaryOperation, IntegerComparisonOperation, Intrinsic, LowLevelOperation, OperandOperation, OperationValue,
     ShiftOperation, ValueOperation,
 };

@@ -8,8 +8,8 @@
 
 use super::analysis::{ControlFlowGraph, DominatorTree, InstructionLayout};
 use super::{
-    AggregateOperation, BlockId, Effects, Function, InstructionId, Intrinsic, MemoryEffect, OperandOperation,
-    Operation, Terminator, ValueDefinition, ValueId,
+    BlockId, Effects, Function, InstructionId, Intrinsic, MemoryEffect, OperandOperation, Operation, Terminator,
+    ValueDefinition, ValueId,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -290,25 +290,6 @@ fn operation_memory_locations(
             identity: MemoryLocationIdentity::BytecodeField(*field),
             bytes: operation.access_width(),
         });
-        return access;
-    }
-
-    if let Operation::Intrinsic(Intrinsic::Aggregate(operation)) = operation {
-        match operation {
-            AggregateOperation::Copy16 => {
-                if !add_location(0, 16, true) {
-                    access.unknown_write = true;
-                }
-                if !add_location(1, 16, false) {
-                    access.unknown_read = true;
-                }
-            }
-            AggregateOperation::Zero16 => {
-                if !add_location(0, 16, true) {
-                    access.unknown_write = true;
-                }
-            }
-        }
         return access;
     }
 

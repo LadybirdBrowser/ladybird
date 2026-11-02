@@ -1175,7 +1175,6 @@ fn instruction_is_globally_movable(instruction: &super::Instruction) -> bool {
             // Divisions must stay behind the checks that guard them against trapping.
             Operation::Intrinsic(Intrinsic::Numeric(_))
             | Operation::Intrinsic(Intrinsic::Atomic(_))
-            | Operation::Intrinsic(Intrinsic::Aggregate(_))
             | Operation::Intrinsic(Intrinsic::Assertion(_))
             | Operation::Intrinsic(Intrinsic::Branch(_))
             | Operation::Intrinsic(Intrinsic::Bytecode(_))
