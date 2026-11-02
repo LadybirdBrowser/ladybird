@@ -1,1 +1,1 @@
-PASS: streamed appends stayed targeted
+streamed appends styled fewer than 100: true, full passes: 0

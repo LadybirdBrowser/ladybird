@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    @keyframes probe { from { opacity: 0.5; } to { opacity: 0.5; } }
+</style>
+<script src="../../include.js"></script>
+<div id="plainHost"></div>
+<div id="sheetHost"></div>
+<script>
+    test(() => {
+        // One shadow tree uses the document's sheets, the other holds one of its own.
+        const plainRoot = plainHost.attachShadow({ mode: "open" });
+        plainRoot.innerHTML = `<div id="plainReader" class="reader">x</div><div id="plainOther">x</div><div id="plainAnimated" style="animation: probe 1s paused">x</div>`;
+        const sheetRoot = sheetHost.attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(".other { width: 10px; }");
+        sheetRoot.adoptedStyleSheets = [sheet];
+        sheetRoot.innerHTML = `<div id="sheetReader" class="reader">x</div><div id="sheetOther" class="other">x</div>`;
+        const ids = ["plainReader", "plainOther", "plainAnimated", "sheetReader", "sheetOther"];
+        const element = id => plainRoot.getElementById(id) || sheetRoot.getElementById(id);
+        const report = label => {
+            const styled = internals.styleLastPass().styled;
+            println(`${label}: styled ${ids.filter(id => styled.includes(id)).join(" ") || "none"}`);
+            println(`${label}: readers ${getComputedStyle(element("plainReader")).color} ${getComputedStyle(element("sheetReader")).color}, animated opacity=${getComputedStyle(element("plainAnimated")).opacity}`);
+        };
+        internals.updateStyle();
+
+        // A user rule reaches the shadow trees' elements it matches, and its keyframes the
+        // animations naming them, while the other elements keep their styles.
+        internals.setUserStyle(".reader { color: rgb(1, 2, 3); } @keyframes probe { from { opacity: 0.25; } to { opacity: 0.25; } }");
+        internals.updateStyle();
+        report("with a user style");
+
+        internals.setUserStyle("");
+        internals.updateStyle();
+        report("after the user style");
+    });
+</script>

@@ -12,10 +12,9 @@
             const state = build(fixture);
             document.body.offsetWidth;
 
-            resetStyleCounters();
             mutate(state);
             verify(state);
-            printPassWithCounters(testName);
+            printPass(testName);
         } finally {
             style.remove();
             fixture.remove();
@@ -35,10 +34,9 @@
             const state = build(fixture, host, shadowRoot);
             document.body.offsetWidth;
 
-            resetStyleCounters();
             mutate(state);
             verify(state);
-            printPassWithCounters(testName);
+            printPass(testName);
         } finally {
             fixture.remove();
         }

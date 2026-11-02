@@ -1,0 +1,4 @@
+type=null: matches :valid true, rgb(0, 128, 0)
+type=button: matches :valid false, rgb(255, 0, 0)
+type=reset: matches :valid false, rgb(255, 0, 0)
+type=submit: matches :valid true, rgb(0, 128, 0)

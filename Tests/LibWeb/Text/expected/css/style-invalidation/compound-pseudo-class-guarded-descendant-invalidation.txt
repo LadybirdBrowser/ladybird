@@ -1,9 +1,9 @@
-PASS: compound :hover descendant invalidation ignores unrelated hover | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: compound :hover descendant invalidation applies to matching guard | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: co-invalidated pseudo-class guard updates descendant | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: partial :where() alternative guard updates sibling | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: complex :is() alternative guard updates sibling | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: tag-only :hover descendant invalidation ignores unrelated hover | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: case-sensitive SVG tag guard updates descendant | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: case-sensitive SVG attribute guard updates descendant | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: lowercase SVG attribute selector does not match camel-case attribute | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: compound :hover descendant invalidation ignores unrelated hover (styled <= 6: true)
+PASS: compound :hover descendant invalidation applies to matching guard (styled <= 2: true)
+PASS: co-invalidated pseudo-class guard updates descendant (styled <= 2: true)
+PASS: partial :where() alternative guard updates sibling (styled <= 2: true)
+PASS: complex :is() alternative guard updates sibling (styled <= 2: true)
+PASS: tag-only :hover descendant invalidation ignores unrelated hover (styled <= 3: true)
+PASS: case-sensitive SVG tag guard updates descendant (styled <= 2: true)
+PASS: case-sensitive SVG attribute guard updates descendant (styled <= 2: true)
+PASS: lowercase SVG attribute selector does not match camel-case attribute (styled <= 2: true)

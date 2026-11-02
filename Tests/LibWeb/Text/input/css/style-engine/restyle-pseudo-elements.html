@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #box::before { content: "a"; display: inline-block; width: 20px; height: 10px; }
+    #box.big::before { content: "bb"; width: 60px; height: 30px; }
+    #box.colored::before { color: rgb(255, 0, 0); }
+</style>
+<div id="box"><span id="text">x</span></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const text = document.getElementById("text");
+        const read = (label) => {
+            const style = getComputedStyle(box, "::before");
+            println(`${label}: content=${style.content} width=${style.width} color=${style.color} text.left=${text.getBoundingClientRect().left} box.height=${box.offsetHeight}`);
+        };
+        internals.updateStyle();
+        read("initial");
+        for (const [label, step] of [["big", () => box.classList.add("big")], ["colored", () => box.classList.add("colored")], ["small", () => box.classList.remove("big")], ["plain", () => box.classList.remove("colored")]]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

@@ -1,1 +1,2 @@
 [after add .leaf]
+  styled <= 4: true

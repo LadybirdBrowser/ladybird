@@ -1,0 +1,2 @@
+first: , kept: , below: , beside: , moved: 
+first: 1, kept: 1, below: 1, beside: 1, moved: 1

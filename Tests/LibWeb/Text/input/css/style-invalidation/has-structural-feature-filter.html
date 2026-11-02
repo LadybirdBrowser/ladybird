@@ -3,6 +3,11 @@
 <script src="../../include.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
+    // A mutation that cannot change what a :has() argument matches should style nothing but what it
+    // inserts, and one that can should style only that and the anchor with what its rules reach. The
+    // cases insert different numbers of elements, so the counts are printed.
+    // FIXME: Appending the <strong> of the class case styles one element more than it inserts.
+
     function settle(anchor) {
         readProbe(anchor);
         document.documentElement.classList.add("__settle__");
@@ -128,10 +133,11 @@
             settle(anchor);
 
             const existing = mutationCase.before?.({ fixture, anchor, unrelated });
-            flushPendingStyleWork();
+            internals.updateStyle();
+            resetStyleCounters();
             const cleanup = mutationCase.mutate({ fixture, anchor, unrelated, existing });
             assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
-            printPassWithCounters(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`);
+            printPassWithStyleCounters(`unrelated structural mutation skips :has walk: ${featureCase.name} / ${mutationCase.name}`);
             if (typeof cleanup === "function")
                 cleanup();
         } finally {
@@ -196,7 +202,7 @@
             resetStyleCounters();
             mutationCase.mutate({ fixture, anchor, existing, featureCase });
             assertEqual(`${featureCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), MATCH);
-            printPassWithCounters(`related structural mutation keeps :has walk: ${featureCase.name} / ${mutationCase.name}`);
+            printPassWithStyleCounters(`related structural mutation keeps :has walk: ${featureCase.name} / ${mutationCase.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -259,7 +265,7 @@
             resetStyleCounters();
             mutationCase.mutate({ fixture, anchor, existing });
             assertEqual(`${selectorCase.name} / ${mutationCase.name} after mutation`, readProbe(anchor), BASE);
-            printPassWithCounters(`concrete :has argument keeps featureless mutation filtered: ${selectorCase.name} / ${mutationCase.name}`);
+            printPassWithStyleCounters(`concrete :has argument keeps featureless mutation filtered: ${selectorCase.name} / ${mutationCase.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -483,7 +489,7 @@
             resetStyleCounters();
             caseData.mutate({ fixture, anchor, ...context });
             assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
-            printPassWithCounters(`featureless-sensitive structural mutation keeps :has walk: ${caseData.name}`);
+            printPassWithStyleCounters(`featureless-sensitive structural mutation keeps :has walk: ${caseData.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -621,7 +627,7 @@
             resetStyleCounters();
             caseData.mutate({ fixture, anchor, ...context });
             assertEqual(`${caseData.name} after mutation`, readProbe(anchor), MATCH);
-            printPassWithCounters(`unprobeable pseudo structural mutation keeps :has walk: ${caseData.name}`);
+            printPassWithStyleCounters(`unprobeable pseudo structural mutation keeps :has walk: ${caseData.name}`);
         } finally {
             if (document.activeElement instanceof HTMLElement)
                 document.activeElement.blur();
@@ -699,7 +705,7 @@
             resetStyleCounters();
             caseData.mutate({ fixture, anchor });
             assertEqual(`${caseData.name} after mutation`, readProbe(anchor), caseData.expectedAfter);
-            printPassWithCounters(`case-sensitive name structural mutation keeps :has walk: ${caseData.name}`);
+            printPassWithStyleCounters(`case-sensitive name structural mutation keeps :has walk: ${caseData.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -808,7 +814,7 @@
             resetStyleCounters();
             caseData.mutate({ fixture, anchor, ...context });
             assertEqual(`${caseData.name} after mutation`, readProbe(context.target), caseData.expectedAfter);
-            printPassWithCounters(`sibling relationship mutation keeps sibling-aware :has updates: ${caseData.name}`);
+            printPassWithStyleCounters(`sibling relationship mutation keeps sibling-aware :has updates: ${caseData.name}`);
         } finally {
             style.remove();
             fixture.remove();
@@ -816,6 +822,7 @@
     }
 
     test(() => {
+        internals.updateStyle();
         for (const featureCase of positiveFeatureSelectors) {
             for (const mutationCase of unrelatedMutations)
                 runUnrelatedStructuralCase(featureCase, mutationCase);

@@ -1,0 +1,5 @@
+auto: checkbox auto 13x13, select auto true
+none: checkbox none 13x13, select none true
+  select width back to auto: false
+auto again: checkbox auto 13x13, select auto true
+  select width back to auto: true

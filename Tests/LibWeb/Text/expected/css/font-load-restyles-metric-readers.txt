@@ -1,0 +1,6 @@
+face loaded: loaded
+elements styled: 5
+text width changed: true
+ch width changed: true
+text width matches a fresh style: true
+ch width matches a fresh style: true

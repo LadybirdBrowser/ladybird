@@ -1,0 +1,85 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .reads { width: calc(sibling-index() * 1px); height: calc(sibling-count() * 1px); }
+    .reads-before::before { content: ""; width: calc(sibling-index() * 1px); }
+    .custom { --index: sibling-index(); width: calc(var(--index) * 1px); }
+</style>
+<div id="root"></div>
+<script>
+    // Whether a parent has a child reading its place among its siblings is noted as the child's style is held: a change
+    // to the parent's children has to reach such a child wherever and however it came to hold that style.
+    test(() => {
+        const root = document.getElementById("root");
+        const make = (className = "") => {
+            const element = document.createElement("div");
+            element.className = className;
+            return element;
+        };
+        const report = (title, element) => {
+            const style = getComputedStyle(element);
+            const before = getComputedStyle(element, "::before").width;
+            println(`${title}: ${style.width} ${style.height} ${before}`);
+        };
+
+        const parent = make();
+        root.append(parent);
+        const reader = make("reads");
+        parent.append(make(), reader);
+        report("reader", reader);
+        parent.prepend(make());
+        report("sibling arrived", reader);
+        parent.firstElementChild.remove();
+        report("sibling left", reader);
+        parent.append(reader.previousElementSibling);
+        report("sibling moved", reader);
+
+        const pseudoParent = make();
+        root.append(pseudoParent);
+        const pseudoReader = make("reads-before");
+        pseudoParent.append(make(), pseudoReader);
+        report("pseudo reader", pseudoReader);
+        pseudoParent.prepend(make());
+        report("pseudo sibling arrived", pseudoReader);
+
+        const customParent = make();
+        root.append(customParent);
+        const customReader = make("custom");
+        customParent.append(make(), customReader);
+        report("custom reader", customReader);
+        customParent.prepend(make());
+        report("custom sibling arrived", customReader);
+
+        // A child moved into a parent nothing read of before.
+        const otherParent = make();
+        root.append(otherParent);
+        otherParent.append(make());
+        getComputedStyle(otherParent.firstElementChild).width;
+        otherParent.append(reader);
+        report("moved to another parent", reader);
+        otherParent.prepend(make());
+        report("sibling arrived in another parent", reader);
+
+        // A class change makes a child read it, in a parent that had no reader.
+        const lateParent = make();
+        root.append(lateParent);
+        const late = make();
+        lateParent.append(make(), late);
+        getComputedStyle(late).width;
+        lateParent.prepend(make());
+        late.className = "reads";
+        report("reads from a class change", late);
+        lateParent.prepend(make());
+        report("sibling arrived after a class change", late);
+
+        // A parent that left and came back with its children.
+        parent.remove();
+        root.append(parent);
+        report("parent came back", parent.firstElementChild);
+        const inParent = make("reads");
+        parent.append(inParent);
+        report("reader in the parent that came back", inParent);
+        parent.prepend(make());
+        report("sibling arrived in the parent that came back", inParent);
+    });
+</script>

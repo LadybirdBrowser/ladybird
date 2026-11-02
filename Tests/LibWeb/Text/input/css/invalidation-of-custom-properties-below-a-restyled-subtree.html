@@ -1,0 +1,25 @@
+<!doctype html>
+<style>
+    @layer reset { * { --r: 0; } }
+</style>
+<style>
+    .on { --x: 1; }
+    @scope (.c5 + :where(:nth-last-child(even))) to (.c4:only-child.c3 > :root:nth-last-of-type(2)) { * { --y: 1; } }
+    :nth-last-child(3n of :empty) ~ .c0 { --z: 1; }
+</style>
+<script src="../include.js"></script>
+<div id="first"><div id="kept"><div id="below"></div></div><div id="beside"><div id="moved"></div></div></div>
+<script>
+    // An element takes the custom properties its parent hands down now without computing again, where it reads none of
+    // them. Its descendants restyled for something else in the same transaction inherit what it holds now.
+    asyncTest(done => {
+        requestAnimationFrame(() => {
+            const report = () => println(["first", "kept", "below", "beside", "moved"].map(id => `${id}: ${getComputedStyle(document.getElementById(id)).getPropertyValue("--x")}`).join(", "));
+            report();
+            document.documentElement.classList.add("on");
+            first.moveBefore(moved, kept);
+            report();
+            done();
+        });
+    });
+</script>

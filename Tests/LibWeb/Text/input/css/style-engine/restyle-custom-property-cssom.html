@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<style>
+    @property --len {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 1px;
+    }
+    body { margin: 0; }
+    #root { --x: rgb(1, 2, 3); --len: 4px; }
+    #root.warm { --x: rgb(200, 100, 0); }
+    #root.wide { --len: 3em; font-size: 10px; }
+    .leaf { color: var(--x); width: var(--len); height: 5px; }
+    .leaf::before { content: "b"; color: var(--x); padding-left: var(--len); }
+    .own { --x: rgb(0, 0, 255); }
+</style>
+<div id="root">
+    <div id="middle">
+        <div id="first" class="leaf"></div>
+        <div id="second" class="leaf own"></div>
+    </div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const read = (label) => {
+            println(label);
+            for (const id of ["middle", "first", "second"]) {
+                const element = document.getElementById(id);
+                const style = getComputedStyle(element);
+                println(`  #${id}: --x=${style.getPropertyValue("--x")} --len=${style.getPropertyValue("--len")} color=${style.color} width=${style.width} box=${element.getBoundingClientRect().width}`);
+            }
+            for (const id of ["first", "second"]) {
+                const before = getComputedStyle(document.getElementById(id), "::before");
+                println(`  #${id}::before: --x=${before.getPropertyValue("--x")} --len=${before.getPropertyValue("--len")} color=${before.color} padding-left=${before.paddingLeft}`);
+            }
+        };
+        internals.updateStyle();
+        read("initial");
+        const steps = [
+            ["warm", () => root.classList.add("warm")],
+            ["wide", () => root.classList.add("wide")],
+            ["inline unregistered", () => root.style.setProperty("--x", "rgb(9, 9, 9)")],
+            ["inline registered", () => root.style.setProperty("--len", "7px")],
+            ["cool", () => { root.classList.remove("warm"); root.style.removeProperty("--x"); }],
+            ["narrow", () => { root.classList.remove("wide"); root.style.removeProperty("--len"); }],
+        ];
+        for (const [label, step] of steps) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

@@ -1,0 +1,4 @@
+width only: width=50px height=20px dynamicHeight=20px inline=50px smaller=20px calcWidth=60px plain=10px
+width only styled: width inline smaller calcWidth
+height only: width=50px height=40px dynamicHeight=40px inline=50px smaller=40px calcWidth=60px plain=10px
+height only styled: height dynamicHeight inline smaller

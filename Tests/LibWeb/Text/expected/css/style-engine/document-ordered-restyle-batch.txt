@@ -1,0 +1,3 @@
+subject color: rgb(0, 128, 0)
+subject background: rgb(0, 0, 255)
+leaf color: rgb(0, 128, 0)

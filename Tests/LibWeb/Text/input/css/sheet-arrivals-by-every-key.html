@@ -1,0 +1,62 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="rules" media="not all">
+    .by-class { color: rgb(0, 128, 0); }
+    #by-id { color: rgb(0, 128, 0); }
+    by-tag { color: rgb(0, 128, 0); }
+    BY-UPPER-TAG { color: rgb(0, 128, 0); }
+    [data-by-attribute] { color: rgb(0, 128, 0); }
+    [DATA-BY-UPPER] { color: rgb(0, 128, 0); }
+    :checked { color: rgb(0, 128, 0); }
+    :dir(rtl) { color: rgb(0, 128, 0); }
+    :state(by-state) { color: rgb(0, 128, 0); }
+    h3:heading { color: rgb(0, 128, 0); }
+    :root { background-color: rgb(0, 128, 0); }
+    ::part(by-part) { color: rgb(0, 128, 0); }
+    has-host::part(in-host) { color: rgb(0, 128, 0); }
+    .by-pseudo::before { color: rgb(0, 128, 0); }
+</style>
+<div id="root">
+    <p class="nothing"></p>
+    <div class="by-class"></div>
+    <div id="by-id"></div>
+    <by-tag></by-tag>
+    <by-upper-tag></by-upper-tag>
+    <div data-by-attribute></div>
+    <div data-by-upper></div>
+    <input type="checkbox" checked>
+    <div dir="rtl"></div>
+    <has-state></has-state>
+    <h3></h3>
+    <div class="by-pseudo"></div>
+    <has-host></has-host>
+</div>
+<script>
+    // Rules arriving and leaving with a media query reach what they match, whichever key they are bucketed by.
+    test(() => {
+        customElements.define("has-state", class extends HTMLElement {
+            constructor() {
+                super();
+                this.attachInternals().states.add("by-state");
+            }
+        });
+        const host = document.querySelector("has-host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = "<div part=by-part></div><div part=in-host></div><style>:host { outline-color: rgb(1, 1, 1); }</style>";
+        const rules = document.getElementById("rules");
+        const print = title => {
+            println(title);
+            println(`root: ${getComputedStyle(document.documentElement).backgroundColor}`);
+            for (const element of document.querySelectorAll("#root *"))
+                println(`${element.localName} ${element.className}: ${getComputedStyle(element).color}`);
+            println(`::before: ${getComputedStyle(document.querySelector(".by-pseudo"), "::before").color}`);
+            for (const element of shadow.querySelectorAll("div"))
+                println(`part ${element.getAttribute("part")}: ${getComputedStyle(element).color}`);
+        };
+        print("not all");
+        rules.media = "all";
+        print("all");
+        rules.media = "not all";
+        print("not all");
+    });
+</script>

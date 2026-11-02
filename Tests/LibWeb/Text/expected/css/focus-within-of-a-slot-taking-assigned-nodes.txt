@@ -1,0 +1,2 @@
+before: rgb(0, 128, 0) true
+after: rgb(0, 0, 0) false

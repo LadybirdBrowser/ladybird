@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container { container-type: inline-size; }
+    @container (min-width: 100px) {
+        .gated { color: rgb(0, 128, 0); }
+        .gated::before { content: "x"; color: rgb(0, 0, 255); }
+    }
+    .units { border-left: solid 10cqw; }
+</style>
+<div id="container" style="width: 200px"><div class="gated" id="gated"></div><div class="units" id="units"></div></div>
+<script>
+    // An element that becomes a size container in the same update its descendants are styled in
+    // answers their queries and container units with the box it was laid out with, before any
+    // layout runs again. getComputedStyle settles these either way; LIBWEB_STYLE_SELFCHECK
+    // checks the records the update itself leaves.
+    test(() => {
+        document.body.offsetWidth;
+        container.classList.add("container");
+        println(`gated color: ${getComputedStyle(gated).color}`);
+        println(`gated ::before color: ${getComputedStyle(gated, "::before").color}`);
+        println(`units border-left-width: ${getComputedStyle(units).borderLeftWidth}`);
+    });
+</script>

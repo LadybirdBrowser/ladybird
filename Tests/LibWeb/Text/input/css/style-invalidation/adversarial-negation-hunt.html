@@ -28,7 +28,6 @@
 
         try {
             reportCase(failures, `${name} initial`, readProbe(target), BASE);
-            resetStyleCounters();
             customElements.define(customElementName, class extends HTMLElement {});
             reportCase(failures, `${name} after definition`, readProbe(target), MATCH);
         } finally {
@@ -46,7 +45,6 @@
 
         try {
             reportCase(failures, `${name} initial`, readProbe(context.target), expectedInitial);
-            resetStyleCounters();
             mutate(context, fixture);
             reportCase(failures, `${name} after mutation`, readProbe(context.target), expectedAfter);
         } finally {

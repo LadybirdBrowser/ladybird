@@ -1,0 +1,104 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="root"></div>
+<script>
+    // A sheet with enough rules has its entries kept apart from the others, starting on a new page of them and padding
+    // the rest of its last one. Whatever arrives or leaves around such a sheet, each rule follows what it tests.
+    test(() => {
+        const root = document.getElementById("root");
+        const addSheet = text => {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.append(style);
+            return style;
+        };
+        const green = "color: rgb(0, 128, 0);";
+        const filler = name => {
+            let text = "";
+            for (let i = 0; i < 100; ++i)
+                text += `.${name}${i} { top: ${i}px; }\n`;
+            return text;
+        };
+        const target = () => {
+            const element = document.createElement("div");
+            root.append(element);
+            return element;
+        };
+        const check = (name, element, className, reached = element) => {
+            getComputedStyle(reached).color;
+            element.classList.add(className);
+            println(`${name} gains: ${getComputedStyle(reached).color}`);
+            element.classList.remove(className);
+            println(`${name} loses: ${getComputedStyle(reached).color}`);
+        };
+        getComputedStyle(root).color;
+
+        // Sheets of each size arriving in turn in one update.
+        addSheet(`.small1 { ${green} }`);
+        addSheet(`${filler("a")} .large1 { ${green} }`);
+        addSheet(`.small2 { ${green} }`);
+        addSheet(`${filler("b")} .large2 { ${green} }`);
+        addSheet(`.small3 { ${green} }`);
+        for (const name of ["small1", "large1", "small2", "large2", "small3"])
+            check(`in one update, ${name}`, target(), name);
+
+        // A rule of a large sheet changing has its entries kept with the document's.
+        const edited = addSheet(`${filler("c")} .large3 { ${green} }`);
+        getComputedStyle(root).color;
+        edited.sheet.insertRule(`.inserted { ${green} }`, 0);
+        check("edited sheet, its old rule", target(), "large3");
+        check("edited sheet, its new rule", target(), "inserted");
+        check("edited sheet, a rule before it", target(), "small3");
+
+        // A large sheet leaving as a small one and another large one arrive.
+        const leaving = addSheet(`${filler("d")} .large4 { ${green} }`);
+        const leavingTarget = target();
+        leavingTarget.classList.add("large4");
+        println(`leaving before: ${getComputedStyle(leavingTarget).color}`);
+        leaving.remove();
+        addSheet(`.small4 { ${green} }`);
+        addSheet(`${filler("e")} .large5 { ${green} }`);
+        println(`leaving after: ${getComputedStyle(leavingTarget).color}`);
+        check("after a large sheet left, small", target(), "small4");
+        check("after a large sheet left, large", target(), "large5");
+
+        // Selectors the map follows beyond one name, in a large sheet and in the sheets around one.
+        addSheet(`.pad1 { top: 0; }`);
+        addSheet(`${filler("f")}
+            .h1:has(.h2) .in-has { ${green} }
+            @scope (.s1) to (.s2:has(.s3)) { .in-scope { ${green} } }
+            @scope (:nth-child(1 of .s4)) { .in-scope-of { ${green} } }
+            @scope (.s5 + .s6) { .in-scope-next { ${green} } }
+        `);
+        addSheet(`@scope (.s7:has(.s8)) { .in-scope-small { ${green} } }`);
+
+        const has = target();
+        has.innerHTML = '<div><b></b></div><span class="in-has"></span>';
+        has.classList.add("h1");
+        check("large sheet, :has()", has.querySelector("b"), "h2", has.querySelector("span"));
+
+        const scoped = target();
+        scoped.innerHTML = '<div class="s2"><b></b><span class="in-scope"></span></div>';
+        check("large sheet, @scope root", scoped, "s1", scoped.querySelector("span"));
+        scoped.classList.add("s1");
+        check("large sheet, @scope limit with :has()", scoped.querySelector("b"), "s3", scoped.querySelector("span"));
+
+        const counted = target();
+        counted.innerHTML = '<div></div><div class="s4"><span class="in-scope-of"></span></div>';
+        check("large sheet, @scope of S", counted.firstChild, "s4", counted.querySelector("span"));
+
+        const next = target();
+        next.innerHTML = '<div></div><div class="s6"><span class="in-scope-next"></span></div>';
+        check("large sheet, @scope next sibling", next.firstChild, "s5", next.querySelector("span"));
+        const between = document.createElement("i");
+        next.firstChild.classList.add("s5");
+        println(`large sheet, @scope next sibling held: ${getComputedStyle(next.querySelector("span")).color}`);
+        next.insertBefore(between, next.lastChild);
+        println(`large sheet, @scope next sibling parted: ${getComputedStyle(next.querySelector("span")).color}`);
+
+        const scopedSmall = target();
+        scopedSmall.innerHTML = '<p><b></b></p><span class="in-scope-small"></span>';
+        scopedSmall.classList.add("s7");
+        check("small sheet, @scope with :has()", scopedSmall.querySelector("b"), "s8", scopedSmall.querySelector("span"));
+    });
+</script>

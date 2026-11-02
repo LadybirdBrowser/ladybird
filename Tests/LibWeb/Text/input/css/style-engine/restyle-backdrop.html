@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    dialog::backdrop { background-color: rgb(10, 20, 30); }
+    dialog.moved::backdrop { background-color: rgb(40, 50, 60); }
+</style>
+<dialog id="dialog">dialog</dialog>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const read = (label) => {
+            const style = getComputedStyle(dialog, "::backdrop");
+            println(`${label}: backdrop=${style.backgroundColor} open=${dialog.open}`);
+        };
+        internals.updateStyle();
+        read("closed");
+        dialog.showModal();
+        internals.updateStyle();
+        read("modal");
+        dialog.classList.add("moved");
+        internals.updateStyle();
+        read("moved");
+        dialog.close();
+        internals.updateStyle();
+        read("closed again");
+    });
+</script>

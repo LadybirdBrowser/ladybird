@@ -1,0 +1,22 @@
+attach stays selective: false
+attach color: rgb(0, 0, 128)
+attach selection: rgb(0, 0, 255)
+reorder stays selective: false
+reorder color: rgb(0, 128, 0)
+reorder selection: rgb(255, 0, 0)
+declaration stays selective: false
+selection-only change changes no element styles: true
+declaration color: rgb(0, 128, 0)
+declaration selection: rgb(128, 0, 128)
+mixed declaration stays selective: false
+mixed declaration color: rgb(0, 128, 0)
+mixed declaration selection: rgb(255, 165, 0)
+inline opacity: 0.5
+replace stays selective: false
+replace color: rgb(0, 128, 0)
+replace selection: rgb(255, 192, 203)
+detach stays selective: false
+detach color: rgb(0, 0, 128)
+detach selection: rgb(0, 0, 255)
+unqueried selection activated locally: false
+active selection: rgb(0, 0, 255)

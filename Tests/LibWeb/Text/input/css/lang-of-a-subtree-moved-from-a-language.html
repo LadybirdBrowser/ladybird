@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>:lang(en) { color: rgb(0, 128, 0); }</style>
+<div><div lang="en"><div><div id="moved"><div id="child"></div></div></div></div><div><div id="gone"><div></div></div></div></div>
+<div id="other"></div>
+<script>
+    // A subtree leaving an element with a language has no language of its own any more, at any depth.
+    asyncTest(async done => {
+        const other = document.getElementById("other");
+        const moved = document.getElementById("moved");
+        const child = document.getElementById("child");
+        const colors = () => `moved ${getComputedStyle(moved).color}, child ${getComputedStyle(child).color}`;
+        println(`under the language: ${colors()}`);
+        document.getElementById("gone").remove();
+        document.documentElement.offsetWidth;
+        println(`beside a removal: ${colors()}`);
+        await animationFrame();
+        other.prepend(moved);
+        await animationFrame();
+        await animationFrame();
+        println(`moved out: ${colors()}`);
+        done();
+    });
+</script>

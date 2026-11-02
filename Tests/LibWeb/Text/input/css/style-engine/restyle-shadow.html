@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<style>
+    x-host { display: block; }
+    x-host::part(label) { color: rgb(0, 120, 0); }
+    x-host.on::part(label) { font-weight: bold; }
+    x-outer::part(forwarded) { text-decoration-line: underline; }
+    .light { margin-left: 2px; }
+</style>
+<x-host id="later"><span class="light">light</span></x-host>
+<x-host id="card"><b class="light" slot="named">named</b><i class="light">default</i></x-host>
+<x-outer id="outer"></x-outer>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const card = document.getElementById("card");
+        const cardRoot = card.attachShadow({ mode: "open" });
+        cardRoot.innerHTML = `
+            <style>
+                :host(.x) { padding: 1px; }
+                :host(.x) .inner { color: rgb(200, 0, 0); }
+                ::slotted(.picked) { letter-spacing: 1px; }
+                slot { display: block; }
+                slot[name] { font-style: italic; }
+            </style>
+            <div class="inner" part="label"><slot name="named"></slot></div>
+            <slot></slot>`;
+        const outerRoot = document.getElementById("outer").attachShadow({ mode: "open" });
+        outerRoot.innerHTML = `
+            <style>
+                x-inner { display: block; }
+                b { padding-left: 1px; }
+                b.y { margin-top: 1px; }
+            </style>
+            <x-inner exportparts="deep: forwarded"></x-inner><b>outer</b>`;
+        outerRoot.querySelector("x-inner").attachShadow({ mode: "open" }).innerHTML = `<span part="deep">deep</span>`;
+        const adopted = new CSSStyleSheet();
+        adopted.replaceSync(".inner { word-spacing: 3px; }");
+        const layered = document.createElement("style");
+        layered.textContent = `
+            @layer first { .inner { outline-color: rgb(0, 0, 200); } }
+            @layer second { .inner { outline-color: rgb(200, 0, 0); } }`;
+        internals.updateStyle();
+        // NB: Where the style engine owns the document, the records a restart computes replace the installed ones in the
+        //     next pass, which restyles everything. The steps count from after it.
+        document.documentElement.setAttribute("data-settled", "");
+        internals.updateStyle();
+        const before = internals.styleLiveReport(false);
+        const steps = [
+            () => document.getElementById("later").attachShadow({ mode: "open" }).innerHTML =
+                `<span part="label"><slot></slot></span>`,
+            () => card.classList.add("x"),
+            () => card.querySelector("b").removeAttribute("slot"),
+            () => card.classList.add("on"),
+            () => cardRoot.querySelector(".inner").setAttribute("part", "other"),
+            () => outerRoot.querySelector("x-inner").setAttribute("exportparts", "deep: other"),
+            () => card.querySelector("i").classList.add("picked"),
+            () => card.classList.remove("on"),
+            () => cardRoot.adoptedStyleSheets = [adopted],
+            () => adopted.replaceSync(".inner { word-spacing: 5px; } :host { margin-top: 4px; }"),
+            () => cardRoot.querySelector("style").sheet.insertRule("::slotted(i) { text-indent: 2px; }"),
+            () => cardRoot.appendChild(layered),
+            () => layered.sheet.insertRule("@layer second, first;", 0),
+            () => adopted.disabled = true,
+            () => outerRoot.querySelector("b").classList.add("y"),
+        ];
+        for (const step of steps) {
+            step();
+            internals.updateStyle();
+        }
+        const report = internals.styleLiveReport(true);
+        println(`full passes: ${report.fullPasses - before.fullPasses}`);
+        println(`missing records: ${report.missingRecords}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

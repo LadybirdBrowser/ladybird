@@ -12,7 +12,8 @@
         // mutation is measured in isolation.
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, prefix, count) {
@@ -23,12 +24,14 @@
         }
     }
 
-    function verifyRecomputationsStayNarrow(label, maximum) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= maximum)
-            println(`PASS: ${label} (${recomputations} recomputations)`);
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function verifyStyledStaysBounded(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     test(() => {
@@ -40,7 +43,7 @@
         settleAndReset(documentTarget);
         documentStyleSheet.insertRule(".foo { color: rgb(255, 0, 0); }", documentStyleSheet.cssRules.length);
         getComputedStyle(documentTarget).color;
-        verifyRecomputationsStayNarrow("document insertRule stays targeted across many bystanders", 1);
+        verifyStyledStaysBounded("document insertRule stays targeted across many bystanders", 1);
 
         const shadowRoot = document.getElementById("shadow-host").attachShadow({ mode: "open" });
         shadowRoot.innerHTML = `
@@ -56,6 +59,6 @@
         getComputedStyle(shadowTarget).color;
         // Shadow-root sheets can legitimately dirty both the matching shadow
         // descendant and the host when the sheet gains selectors such as :host.
-        verifyRecomputationsStayNarrow("shadow insertRule stays targeted across many bystanders", 2);
+        verifyStyledStaysBounded("shadow insertRule stays targeted across many bystanders", 2);
     });
 </script>

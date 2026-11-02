@@ -1,15 +1,15 @@
-PASS: adopt sheet with empty outer media | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with outer media=all | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with outer media=screen (matches) | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with outer media=print (does not match) | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with outer width media that matches | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with outer width media that does not match | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with rule that matches no element | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with inner @media that matches | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with inner @media that does not match | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with non-matching outer media wrapping a matching inner @media | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with multiple inner @media rules, all matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with multiple inner @media rules, none matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with mixed matching and non-matching inner @media rules | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with nested inner @media rules | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: adopt sheet with @supports wrapping an inner @media | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: adopt sheet with empty outer media (styled <= 1: true)
+PASS: adopt sheet with outer media=all (styled <= 1: true)
+PASS: adopt sheet with outer media=screen (matches) (styled <= 1: true)
+PASS: adopt sheet with outer media=print (does not match) (styled <= 0: true)
+PASS: adopt sheet with outer width media that matches (styled <= 1: true)
+PASS: adopt sheet with outer width media that does not match (styled <= 0: true)
+PASS: adopt sheet with rule that matches no element (styled <= 0: true)
+PASS: adopt sheet with inner @media that matches (styled <= 1: true)
+PASS: adopt sheet with inner @media that does not match (styled <= 0: true)
+PASS: adopt sheet with non-matching outer media wrapping a matching inner @media (styled <= 0: true)
+PASS: adopt sheet with multiple inner @media rules, all matching (styled <= 1: true)
+PASS: adopt sheet with multiple inner @media rules, none matching (styled <= 0: true)
+PASS: adopt sheet with mixed matching and non-matching inner @media rules (styled <= 1: true)
+PASS: adopt sheet with nested inner @media rules (styled <= 1: true)
+PASS: adopt sheet with @supports wrapping an inner @media (styled <= 1: true)

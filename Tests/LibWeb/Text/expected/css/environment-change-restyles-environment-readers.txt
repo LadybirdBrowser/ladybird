@@ -1,0 +1,8 @@
+color-scheme meta: lightDark=rgb(1, 1, 1) systemColor=rgb(255, 255, 255) registered=rgb(3, 3, 3) thinBorder=1px
+color-scheme meta styled: lightDark systemColor declaresScheme registered
+device pixel ratio 2: lightDark=rgb(1, 1, 1) systemColor=rgb(255, 255, 255) registered=rgb(3, 3, 3) thinBorder=0.5px
+device pixel ratio 2 styled: thinBorder imageSet
+device pixel ratio 1: lightDark=rgb(1, 1, 1) systemColor=rgb(255, 255, 255) registered=rgb(3, 3, 3) thinBorder=1px
+device pixel ratio 1 styled: thinBorder imageSet
+preferred dark: lightDark=rgb(2, 2, 2) systemColor=rgb(18, 18, 18) registered=rgb(4, 4, 4) thinBorder=1px
+preferred dark styled: lightDark systemColor declaresScheme registered thinBorder imageSet plain plainChild

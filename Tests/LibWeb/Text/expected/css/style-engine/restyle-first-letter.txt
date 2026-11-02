@@ -1,0 +1,4 @@
+initial: color=rgb(0, 0, 0) font-size=16px width=auto box.height=20 text.left=45
+styled: color=rgb(255, 0, 0) font-size=40px width=23.25px box.height=27 text.left=59
+green: color=rgb(0, 128, 0) font-size=40px width=23.25px box.height=27 text.left=59
+unstyled: color=rgb(0, 0, 0) font-size=16px width=auto box.height=20 text.left=45

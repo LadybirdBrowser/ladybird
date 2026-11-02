@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #hidden.hidden { display: none; }
+    #reaction.before { color: red; }
+    #reaction.after { color: green; }
+</style>
+<div id="hidden" class="hidden"></div>
+<span id="query"></span>
+<script>
+    test(() => {
+        const hidden = document.getElementById("hidden");
+        const query = document.getElementById("query");
+        internals.updateStyle();
+
+        const middle = document.createElement("div");
+        const reaction = document.createElement("span");
+        reaction.id = "reaction";
+        reaction.className = "before";
+        hidden.appendChild(middle);
+        getComputedStyle(query).color;
+        // The span arrives in the hidden subtree itself, where the children of an element arriving with it would wait.
+        middle.appendChild(reaction);
+        getComputedStyle(query).color;
+        internals.updateStyle();
+
+        reaction.className = "after";
+        hidden.className = "";
+        internals.updateStyle();
+
+        println("reaction color: " + getComputedStyle(reaction).color);
+    });
+</script>

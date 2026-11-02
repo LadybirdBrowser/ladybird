@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<div id="a1"><div id="a2" class="p"><span id="a3" class="x"></span><b id="a4"></b></div><i id="a5"></i></div>
+<div id="b1"><div id="b2"><p id="b3" class="y"><em id="b4" class="x y"></em></p></div></div>
+<div id="c1" class="x"><div id="c2"></div></div>
+<div id="host"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Each element is checked by several :has() lists, which may answer from the names under it.
+        for (const selector of [
+            "div:has(.x), div:has(.y)",
+            "div:has(.x):has(.y)",
+            "div:has(span.x):has(> b), div:has(em)",
+            "div:has(.missing), div:has(#a4), div:has(> i)",
+            "div:has(.x .y), div:has(p.y)",
+            "div:has(> .p span), div:has(~ div .x)",
+            ":has(.y):not(:has(.p)), div:has(div)",
+        ]) {
+            const ids = Array.from(document.querySelectorAll(selector), element => element.id);
+            println(`${selector}: ${ids.join(" ")}`);
+        }
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `<span class="x"></span><p id="inner" class="z"></p>`;
+        document.getElementById("host").innerHTML = `<b class="light"></b>`;
+        for (const selector of [":host:has(.x) p", ":host:has(.light) p", ":host:has(.z):has(.x) p"])
+            println(`shadow ${selector}: ${Array.from(shadow.querySelectorAll(selector), element => element.id).join(" ")}`);
+    });
+</script>

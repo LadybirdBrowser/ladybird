@@ -1,0 +1,3 @@
+gains-text: matches :empty false, rgb(0, 128, 0)
+loses-text: matches :empty true, rgb(255, 0, 0)
+moves-text: matches :empty false, rgb(0, 128, 0)

@@ -73,7 +73,7 @@
         println(`initial canvas fill style: ${context.fillStyle}`);
         println(`initial nested color: ${child.getComputedStyle(nestedTarget).color}`);
 
-        child.internals.resetStyleInvalidationCounters();
+        child.internals.resetStyleCounters();
         iframe.style.width = "500px";
         document.body.offsetWidth;
         context.fillStyle = "currentColor";
@@ -83,22 +83,23 @@
         child.document.body.offsetWidth;
         child.internals.updateStyle();
 
-        const counters = child.internals.getStyleInvalidationCounters();
+        // A media query flip styles fewer than half of the elements: the ones its rules apply to.
+        const counters = child.internals.styleCounters();
         const elementCount = child.document.querySelectorAll("*").length;
         println(`resized color: ${child.getComputedStyle(target).color}`);
         println(`resized nested color: ${child.getComputedStyle(nestedTarget).color}`);
-        println(`media query recomputations bounded: ${counters.elementStyleRecomputations < elementCount / 2}`);
+        println(`media query restyle stays targeted: ${counters.styledElements < elementCount / 2}`);
 
-        child.internals.resetStyleInvalidationCounters();
+        child.internals.resetStyleCounters();
         iframe.style.width = "300px";
         document.body.offsetWidth;
         await animationFrame();
         child.document.body.offsetWidth;
         child.internals.updateStyle();
 
-        const resizedBackCounters = child.internals.getStyleInvalidationCounters();
+        const resizedBackCounters = child.internals.styleCounters();
         println(`resized back color: ${child.getComputedStyle(target).color}`);
         println(`resized back nested color: ${child.getComputedStyle(nestedTarget).color}`);
-        println(`media query recomputations bounded after resize back: ${resizedBackCounters.elementStyleRecomputations < elementCount / 2}`);
+        println(`media query restyle after resize back stays targeted: ${resizedBackCounters.styledElements < elementCount / 2}`);
     });
 </script>

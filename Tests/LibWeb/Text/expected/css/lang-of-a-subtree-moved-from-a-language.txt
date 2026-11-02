@@ -1,0 +1,3 @@
+under the language: moved rgb(0, 128, 0), child rgb(0, 128, 0)
+beside a removal: moved rgb(0, 128, 0), child rgb(0, 128, 0)
+moved out: moved rgb(0, 0, 0), child rgb(0, 0, 0)

@@ -1,1 +1,1 @@
-PASS: keyframes insertRule only recomputes animation users
+keyframes insertRule only restyles animation users, styled <= 2: true

@@ -1,0 +1,2 @@
+root font size: width: 40px
+ancestor direction: margin-right: 3px, margin-left: 0px

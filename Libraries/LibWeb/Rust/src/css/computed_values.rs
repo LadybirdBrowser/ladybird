@@ -261,7 +261,7 @@ impl_computed_payload_clone_and_eq!(SVGResetValues {
     vector_effect,
 });
 impl RetainedTextDecorationLineList {
-    fn from_vec(values: Vec<u8>) -> Self {
+    pub(crate) fn from_vec(values: Vec<u8>) -> Self {
         let slice = values.into_boxed_slice();
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut u8;

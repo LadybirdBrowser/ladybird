@@ -1,0 +1,18 @@
+:nth-child(2n of .x): b2 b4 b6 o3 (first: b2)
+:nth-child(odd of .x): b1 b3 b5 o2 (first: b1)
+:nth-child(3 of .x): b3 (first: b3)
+:nth-child(n+3 of .x): b3 b4 b5 b6 (first: b3)
+:nth-last-child(2n of .x): b1 b3 b5 o2 (first: b1)
+:nth-last-child(odd of .x): b2 b4 b6 o3 (first: b2)
+:nth-last-child(1 of .x): b6 o3 (first: b6)
+:nth-last-child(-n+2 of .x): b5 b6 o2 o3 (first: b5)
+:nth-child(2 of .y): i2 (first: i2)
+:nth-child(odd of .x, .y): b1 b3 b4 b6 o1 o3 (first: b1)
+:nth-last-child(even of .y, b): b2 i2 b5 o2 (first: b2)
+.y:nth-child(even of .x): b6 (first: b6)
+:nth-child(2n of .x):nth-last-child(2n of .x):  (first: none)
+:nth-child(1 of .x) ~ :nth-child(3 of .x): b3 (first: b3)
+#list > :nth-child(-n+3 of :not(.y)): b1 i1 b2 (first: b1)
+b4 matches :nth-child(4 of .x): true
+b4 matches :nth-last-child(3 of .x): true
+b4 closest :nth-child(1 of div): list

@@ -19,11 +19,12 @@
     test(() => {
         getComputedStyle(document.getElementById("container")).color;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        resetCounters();
 
         // Removing the .match class forces re-match on all anchors in the next pass.
         document.getElementById("target").classList.remove("match");
         internals.updateStyle();
-        printCounters("after remove .match");
+        printCounters("after remove .match", 2);
     });
 </script>

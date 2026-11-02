@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    button { color: red; }
+    button:valid { color: green; }
+</style>
+<button id="target">button</button>
+<script>
+    test(() => {
+        const button = document.getElementById("target");
+        const report = () => println(`type=${button.getAttribute("type")}: matches :valid ${button.matches(":valid")}, ${getComputedStyle(button).color}`);
+        report();
+        button.setAttribute("type", "button");
+        report();
+        button.setAttribute("type", "reset");
+        report();
+        button.setAttribute("type", "submit");
+        report();
+    });
+</script>

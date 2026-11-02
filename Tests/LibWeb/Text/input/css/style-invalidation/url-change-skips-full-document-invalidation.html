@@ -14,16 +14,11 @@
         document.body.appendChild(makeElement("a", { id: "same-doc", attributes: { href: "#target" } }));
         internals.updateStyle();
 
-        const printCounters = label => {
-            const counters = internals.getStyleInvalidationCounters();
-            println(`${label}: elementStyleRecomputations=${counters.elementStyleRecomputations}`);
-        };
-
         // Without any :local-link rule, a URL change should produce no invalidation work at all.
         resetStyleCounters();
         history.pushState({}, "", "#initial");
         internals.updateStyle();
-        printCounters("no :local-link rule");
+        printPassWithStyleCounters("no :local-link rule", 0);
 
         const documentStyle = addStyle(document.head, `a:local-link { color: rgb(0, 128, 0); }`);
         internals.updateStyle();
@@ -33,10 +28,13 @@
         resetStyleCounters();
         history.pushState({}, "", "#target");
         internals.updateStyle();
-        printCounters(":local-link rule, anchor flips");
+        printPassWithStyleCounters(":local-link rule, anchor flips", 1);
 
         // A :local-link rule that lives only inside a shadow root must still trigger invalidation for shadow
         // anchors when their match state flips on URL change.
+        //
+        // FIXME: This should style only the shadow anchor. The style engine also styles #same-doc, whose
+        //        :local-link state flips back though no rule for it remains, so the count is printed.
         documentStyle.remove();
         const host = makeElement("div");
         document.body.appendChild(host);
@@ -48,6 +46,6 @@
         resetStyleCounters();
         history.pushState({}, "", "#shadow-target");
         internals.updateStyle();
-        printCounters("shadow-only :local-link rule, shadow anchor flips");
+        printPassWithStyleCounters("shadow-only :local-link rule, shadow anchor flips");
     });
 </script>

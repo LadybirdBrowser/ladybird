@@ -1,2 +1,4 @@
 [descendant-only :has() sheet]
+  styled <= 3: true
 [sheet with sibling-sensitive :has()]
+  styled <= 3: true

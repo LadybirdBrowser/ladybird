@@ -1,0 +1,5 @@
+verdicts before: rgb(0, 128, 0), rgb(255, 0, 0)
+face loaded: loaded
+verdicts changed: 1
+probe 0 matches a fresh style: true
+probe 1 matches a fresh style: true

@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .chain:focus-within { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // An element assigned to a slot reaches the elements above the slot through it, so these stop matching `:focus-within`
+    // as the slot leaves, while the focused element stays where it is.
+    test(() => {
+        const root = document.getElementById("root");
+        const build = () => {
+            const host = root.appendChild(document.createElement("div"));
+            host.className = "chain";
+            const shadow = host.attachShadow({ mode: "open" });
+            const around = shadow.appendChild(document.createElement("div"));
+            const slot = around.appendChild(document.createElement("slot"));
+            const button = host.appendChild(document.createElement("button"));
+            button.textContent = "x";
+            button.focus();
+            return { host, around, slot };
+        };
+        for (const [name, change] of [
+            ["remove", ({ slot }) => slot.remove()],
+            ["replaceChildren", ({ around }) => around.replaceChildren()],
+            ["moveBefore", ({ slot }) => root.moveBefore(slot, null)],
+        ]) {
+            const parts = build();
+            const report = () => `${getComputedStyle(parts.host).color} ${document.documentElement.matches(":focus-within")}`;
+            println(`${name}, before: ${report()}`);
+            change(parts);
+            println(`${name}, after: ${report()}`);
+        }
+    });
+</script>

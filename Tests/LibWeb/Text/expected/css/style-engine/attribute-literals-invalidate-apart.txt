@@ -1,0 +1,18 @@
+before:
+  first: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+  second: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+after adding p:
+  first: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+  second: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+after setting a=xyz and b=zwx:
+  first: rgb(0, 128, 0) rgba(0, 0, 0, 0)
+  second: rgb(0, 0, 255) rgba(0, 0, 0, 0)
+after swapping the values:
+  first: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+  second: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+after replacing p by q:
+  first: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+  second: rgb(0, 0, 0) rgb(255, 0, 0)
+after removing a:
+  first: rgb(0, 0, 0) rgba(0, 0, 0, 0)
+  second: rgb(0, 0, 0) rgba(0, 0, 0, 0)

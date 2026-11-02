@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    :not(:empty) ~ div { margin-top: 3px; }
+</style>
+<div id="removed-parent">
+    <div id="removed"><span></span></div>
+    <div id="after-removed"></div>
+</div>
+<div id="moved-parent">
+    <div id="moved"><span></span></div>
+    <div id="after-moved"></div>
+</div>
+<div id="elsewhere"></div>
+<script>
+    // An element that leaves its parent is matched as it stood there, with the children it had then, whether it goes
+    // away or moves with them.
+    test(() => {
+        const marginTop = element => getComputedStyle(element).marginTop;
+        document.body.offsetWidth;
+        println(`after removed before: ${marginTop(document.getElementById("after-removed"))}`);
+        println(`after moved before: ${marginTop(document.getElementById("after-moved"))}`);
+        document.getElementById("removed").remove();
+        document.getElementById("elsewhere").append(document.getElementById("moved"));
+        document.body.offsetWidth;
+        println(`after removed now: ${marginTop(document.getElementById("after-removed"))}`);
+        println(`after moved now: ${marginTop(document.getElementById("after-moved"))}`);
+    });
+</script>

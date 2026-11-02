@@ -23,19 +23,16 @@
                 assertEqual(`${name} initial`, readProbe(target), MATCH);
 
                 internals.updateStyle();
-                resetStyleCounters();
                 initialNode.remove();
                 assertEqual(`${name} after removal`, readProbe(target), BASE);
             } else {
                 assertEqual(`${name} initial`, readProbe(target), BASE);
 
                 internals.updateStyle();
-                resetStyleCounters();
                 anchor.appendChild(buildMutation());
                 assertEqual(`${name} after insertion`, readProbe(target), MATCH);
             }
-            if (options.omitRecomputeCounters) printPassWithoutRecomputeCounters(name);
-            else printPassWithCounters(name);
+            printPass(name);
         } finally {
             style.remove();
             fixture.remove();
@@ -45,7 +42,7 @@
     test(() => {
         runStructuralCase("inserted class argument invalidates descendant fanout", ".needle", () => {
             return makeElement("span", { className: "needle" });
-        }, { omitRecomputeCounters: true });
+        });
 
         runStructuralCase("removed class argument invalidates descendant fanout", ".needle", () => {
             return makeElement("span", { className: "needle" });

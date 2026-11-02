@@ -11,7 +11,7 @@
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, count) {
@@ -22,9 +22,13 @@
         }
     }
 
-    function dumpCounters(label) {
-        const c = internals.getStyleInvalidationCounters();
-        println(`${label}: styleEnginePublishedReactions=${c.styleEnginePublishedReactions}`);
+    function dumpCounters(label, bound) {
+        internals.updateStyle();
+        const c = internals.styleCounters();
+        if (bound === undefined)
+            println(`${label}: styled ${c.styledElements}, full passes ${c.fullPasses}`);
+        else
+            println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}`);
     }
 
     test(() => {
@@ -41,6 +45,9 @@
         document.head.appendChild(firstChildStyle);
         getComputedStyle(firstKid).color;
 
+        // This styles the elements that are a first child, in a pass that is not full. The document
+        // element is one of them, and every element inherits the color it takes, so the count is
+        // every element's.
         dumpCounters(":first-child-only sheet add");
     });
 </script>

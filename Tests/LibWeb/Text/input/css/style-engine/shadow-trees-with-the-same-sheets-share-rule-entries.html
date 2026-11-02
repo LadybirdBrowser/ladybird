@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="container"></div>
+<script>
+    const css = ".a { color: rgb(0, 128, 0); } :host { display: block; } .b { padding-left: 10px; }";
+    const hosts = [];
+    function makeHost(extra) {
+        const host = document.createElement("div");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<style>${css}</style><span class="a">a</span><span class="b">b</span>`;
+        if (extra) {
+            const style = document.createElement("style");
+            style.textContent = extra;
+            root.appendChild(style);
+        }
+        container.appendChild(host);
+        hosts.push(host);
+        return root;
+    }
+    function step(label, change) {
+        internals.resetStyleCounters();
+        change();
+        internals.updateStyle();
+        const counters = internals.styleCounters();
+        println(`${label}: entries indexed ${counters.indexedEntries}, index builds ${counters.indexBuilds}`);
+    }
+    function report(root) {
+        const a = getComputedStyle(root.querySelector(".a")).color;
+        const b = getComputedStyle(root.querySelector(".b")).paddingLeft;
+        return `a=${a} b=${b} host=${getComputedStyle(root.host).display}`;
+    }
+
+    test(() => {
+        internals.updateStyle();
+        const roots = [];
+
+        // Shadow trees whose sheets are the same index their rules once.
+        step("twenty shadow trees with one sheet", () => {
+            for (let i = 0; i < 20; ++i)
+                roots.push(makeHost());
+        });
+        println(`first: ${report(roots[0])}`);
+        println(`last: ${report(roots[19])}`);
+
+        // One with another sheet besides indexes its own.
+        let other;
+        step("one with another sheet", () => (other = makeHost(".a { color: rgb(0, 0, 255); }")));
+        println(`other: ${report(other)}`);
+
+        // A shadow tree taking a sheet the others do not leaves them their shared entries.
+        step("one shadow tree takes another sheet", () => {
+            const style = document.createElement("style");
+            style.textContent = ".b { padding-left: 20px; }";
+            roots[0].appendChild(style);
+        });
+        println(`diverged: ${report(roots[0])}`);
+        println(`unchanged: ${report(roots[1])}`);
+
+        // And joins them again as it gives it up.
+        step("it gives the sheet up", () => roots[0].lastChild.remove());
+        println(`rejoined: ${report(roots[0])}`);
+
+        // Shadow trees adopting one constructed sheet share its entries, and a rule inserted into
+        // it is indexed once for all of them.
+        const adopted = new CSSStyleSheet();
+        adopted.replaceSync(".a { color: rgb(0, 0, 128); }");
+        const adopters = [];
+        step("ten shadow trees adopting one sheet", () => {
+            for (let i = 0; i < 10; ++i) {
+                const host = document.createElement("div");
+                const root = host.attachShadow({ mode: "open" });
+                root.adoptedStyleSheets = [adopted];
+                root.innerHTML = `<span class="a">a</span><span class="b">b</span>`;
+                container.appendChild(host);
+                adopters.push(root);
+            }
+        });
+        step("rule inserted into the adopted sheet", () => adopted.insertRule(".b { padding-left: 30px; }", 1));
+        println(`first adopter: ${report(adopters[0])}`);
+        println(`last adopter: ${report(adopters[9])}`);
+        println(`first: ${report(roots[0])}`);
+    });
+</script>

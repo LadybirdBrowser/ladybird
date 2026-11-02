@@ -1,0 +1,240 @@
+first start: iG bG i- b- u- i- b-
+first prepended: iG i- b- i- b- u- i- b-
+first first left: iG bG i- b- u- i- b-
+first appended: iG bG i- b- u- i- b- i-
+first last left: iG bG i- b- u- i- b-
+first arrived in the middle: iG bG i- b- u- u- i- b-
+first left the middle: iG bG i- b- u- i- b-
+first first moved last: iG bG u- i- b- i- b-
+first last moved first: iG bG i- b- u- i- b-
+first removed the first: iG bG u- i- b-
+first removed the last: iG bG u-
+first two gone: uG
+first class: uG
+first none: 
+first one arrived: iG
+last start: i- b- i- b- u- iG bG
+last prepended: i- i- b- i- b- u- iG bG
+last first left: i- b- i- b- u- iG bG
+last appended: i- b- i- b- u- i- b- iG
+last last left: i- b- i- b- u- iG bG
+last arrived in the middle: i- b- i- b- u- u- iG bG
+last left the middle: i- b- i- b- u- iG bG
+last first moved last: i- b- u- i- b- iG bG
+last last moved first: i- b- i- b- u- iG bG
+last removed the first: i- b- u- iG bG
+last removed the last: i- b- uG
+last two gone: uG
+last class: uG
+last none: 
+last one arrived: iG
+only start: i- b- i- b- u- i- b-
+only prepended: i- i- b- i- b- u- i- b-
+only first left: i- b- i- b- u- i- b-
+only appended: i- b- i- b- u- i- b- i-
+only last left: i- b- i- b- u- i- b-
+only arrived in the middle: i- b- i- b- u- u- i- b-
+only left the middle: i- b- i- b- u- i- b-
+only first moved last: i- b- u- i- b- i- b-
+only last moved first: i- b- i- b- u- i- b-
+only removed the first: i- b- u- i- b-
+only removed the last: i- b- u-
+only two gone: uG
+only class: uG
+only none: 
+only one arrived: iG
+first-type start: iG bG i- b- u- i- b-
+first-type prepended: iG i- b- i- b- u- i- b-
+first-type first left: iG bG i- b- u- i- b-
+first-type appended: iG bG i- b- u- i- b- i-
+first-type last left: iG bG i- b- u- i- b-
+first-type arrived in the middle: iG bG i- b- u- u- i- b-
+first-type left the middle: iG bG i- b- u- i- b-
+first-type first moved last: iG bG u- i- b- i- b-
+first-type last moved first: iG bG i- b- u- i- b-
+first-type removed the first: iG bG u- i- b-
+first-type removed the last: iG bG u-
+first-type two gone: u-
+first-type class: u-
+first-type none: 
+first-type one arrived: iG
+last-type start: i- b- i- b- u- iG bG
+last-type prepended: i- i- b- i- b- u- iG bG
+last-type first left: i- b- i- b- u- iG bG
+last-type appended: i- b- i- b- u- i- b- iG
+last-type last left: i- b- i- b- u- iG bG
+last-type arrived in the middle: i- b- i- b- u- u- iG bG
+last-type left the middle: i- b- i- b- u- iG bG
+last-type first moved last: i- b- u- i- b- iG bG
+last-type last moved first: i- b- i- b- u- iG bG
+last-type removed the first: i- b- u- iG bG
+last-type removed the last: iG bG u-
+last-type two gone: u-
+last-type class: u-
+last-type none: 
+last-type one arrived: iG
+only-type start: i- b- i- b- u- i- b-
+only-type prepended: i- i- b- i- b- u- i- b-
+only-type first left: i- b- i- b- u- i- b-
+only-type appended: i- b- i- b- u- i- b- i-
+only-type last left: i- b- i- b- u- i- b-
+only-type arrived in the middle: i- b- i- b- u- u- i- b-
+only-type left the middle: i- b- i- b- u- i- b-
+only-type first moved last: i- b- u- i- b- i- b-
+only-type last moved first: i- b- i- b- u- i- b-
+only-type removed the first: i- b- u- i- b-
+only-type removed the last: iG bG u-
+only-type two gone: u-
+only-type class: u-
+only-type none: 
+only-type one arrived: iG
+nth-one start: iG bG i- b- u- i- b-
+nth-one prepended: iG i- b- i- b- u- i- b-
+nth-one first left: iG bG i- b- u- i- b-
+nth-one appended: iG bG i- b- u- i- b- i-
+nth-one last left: iG bG i- b- u- i- b-
+nth-one arrived in the middle: iG bG i- b- u- u- i- b-
+nth-one left the middle: iG bG i- b- u- i- b-
+nth-one first moved last: iG bG u- i- b- i- b-
+nth-one last moved first: iG bG i- b- u- i- b-
+nth-one removed the first: iG bG u- i- b-
+nth-one removed the last: iG bG u-
+nth-one two gone: uG
+nth-one class: uG
+nth-one none: 
+nth-one one arrived: iG
+nth-last-one start: i- b- i- b- u- iG bG
+nth-last-one prepended: i- i- b- i- b- u- iG bG
+nth-last-one first left: i- b- i- b- u- iG bG
+nth-last-one appended: i- b- i- b- u- i- b- iG
+nth-last-one last left: i- b- i- b- u- iG bG
+nth-last-one arrived in the middle: i- b- i- b- u- u- iG bG
+nth-last-one left the middle: i- b- i- b- u- iG bG
+nth-last-one first moved last: i- b- u- i- b- iG bG
+nth-last-one last moved first: i- b- i- b- u- iG bG
+nth-last-one removed the first: i- b- u- iG bG
+nth-last-one removed the last: i- b- uG
+nth-last-one two gone: uG
+nth-last-one class: uG
+nth-last-one none: 
+nth-last-one one arrived: iG
+second start: i- b- iG bG u- i- b-
+second prepended: i- iG bG i- b- u- i- b-
+second first left: i- b- iG bG u- i- b-
+second appended: i- b- iG bG u- i- b- i-
+second last left: i- b- iG bG u- i- b-
+second arrived in the middle: i- b- iG bG u- u- i- b-
+second left the middle: i- b- iG bG u- i- b-
+second first moved last: i- b- uG i- b- i- b-
+second last moved first: i- b- iG bG u- i- b-
+second removed the first: i- b- uG i- b-
+second removed the last: i- b- uG
+second two gone: u-
+second class: u-
+second none: 
+second one arrived: i-
+second-last start: i- b- i- b- uG i- b-
+second-last prepended: i- i- b- i- b- uG i- b-
+second-last first left: i- b- i- b- uG i- b-
+second-last appended: i- b- i- b- u- iG bG i-
+second-last last left: i- b- i- b- uG i- b-
+second-last arrived in the middle: i- b- i- b- u- uG i- b-
+second-last left the middle: i- b- i- b- uG i- b-
+second-last first moved last: i- b- u- iG bG i- b-
+second-last last moved first: i- b- i- b- uG i- b-
+second-last removed the first: i- b- uG i- b-
+second-last removed the last: iG bG u-
+second-last two gone: u-
+second-last class: u-
+second-last none: 
+second-last one arrived: i-
+second-type start: i- b- iG bG u- i- b-
+second-type prepended: i- iG bG i- b- u- i- b-
+second-type first left: i- b- iG bG u- i- b-
+second-type appended: i- b- iG bG u- i- b- i-
+second-type last left: i- b- iG bG u- i- b-
+second-type arrived in the middle: i- b- iG bG u- u- i- b-
+second-type left the middle: i- b- iG bG u- i- b-
+second-type first moved last: i- b- u- iG bG i- b-
+second-type last moved first: i- b- iG bG u- i- b-
+second-type removed the first: i- b- u- iG bG
+second-type removed the last: i- b- u-
+second-type two gone: u-
+second-type class: u-
+second-type none: 
+second-type one arrived: i-
+of-s start: iG bG i- b- u- i- b-
+of-s prepended: i- iG bG i- b- u- i- b-
+of-s first left: iG bG i- b- u- i- b-
+of-s appended: iG bG i- b- u- i- b- i-
+of-s last left: iG bG i- b- u- i- b-
+of-s arrived in the middle: iG bG i- b- u- u- i- b-
+of-s left the middle: iG bG i- b- u- i- b-
+of-s first moved last: iG bG u- i- b- i- b-
+of-s last moved first: iG bG i- b- u- i- b-
+of-s removed the first: iG bG u- i- b-
+of-s removed the last: iG bG u-
+of-s two gone: u-
+of-s class: uG
+of-s none: 
+of-s one arrived: i-
+mix start: iG bG i- b- u-B i- b-
+mix prepended: iG i- b- i-B b- u- i- b-
+mix first left: iG bG i- b- u-B i- b-
+mix appended: iG bG i- b- u-B i- b- i-
+mix last left: iG bG i- b- u-B i- b-
+mix arrived in the middle: iG bG i- b- u-B u- i- b-
+mix left the middle: iG bG i- b- u-B i- b-
+mix first moved last: iG bG u- i-B b- i- b-
+mix last moved first: iG bG i- b- u-B i- b-
+mix removed the first: iG bG u- i-B b-
+mix removed the last: iG bG u-
+mix two gone: uG
+mix class: uG
+mix none: 
+mix one arrived: iG
+chain start: i- b- iG bG u- i- b-
+chain prepended: i- iG bG i- b- u- i- b-
+chain first left: i- b- iG bG u- i- b-
+chain appended: i- b- iG bG u- i- b- i-
+chain last left: i- b- iG bG u- i- b-
+chain arrived in the middle: i- b- iG bG u- u- i- b-
+chain left the middle: i- b- iG bG u- i- b-
+chain first moved last: i- b- u- i- b- i- b-
+chain last moved first: i- b- iG bG u- i- b-
+chain removed the first: i- b- u- i- b-
+chain removed the last: i- b- u-
+chain two gone: u-
+chain class: u-
+chain none: 
+chain one arrived: i-
+below start: i- bG i- b- u- i- b-
+below prepended: i- i- b- i- b- u- i- b-
+below first left: i- bG i- b- u- i- b-
+below appended: i- bG i- b- u- i- b- i-
+below last left: i- bG i- b- u- i- b-
+below arrived in the middle: i- bG i- b- u- u- i- b-
+below left the middle: i- bG i- b- u- i- b-
+below first moved last: i- bG u- i- b- i- b-
+below last moved first: i- bG i- b- u- i- b-
+below removed the first: i- bG u- i- b-
+below removed the last: i- bG u-
+below two gone: u-
+below class: u-
+below none: 
+below one arrived: i-
+later start: i- b- iG bG u- iG bG
+later prepended: i- iG bG iG bG u- iG bG
+later first left: i- b- iG bG u- iG bG
+later appended: i- b- iG bG u- iG bG iG
+later last left: i- b- iG bG u- iG bG
+later arrived in the middle: i- b- iG bG u- u- iG bG
+later left the middle: i- b- iG bG u- iG bG
+later first moved last: i- b- u- iG bG iG bG
+later last moved first: i- b- iG bG u- iG bG
+later removed the first: i- b- u- iG bG
+later removed the last: i- b- u-
+later two gone: u-
+later class: u-
+later none: 
+later one arrived: i-

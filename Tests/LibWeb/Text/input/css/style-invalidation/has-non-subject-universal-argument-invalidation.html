@@ -29,7 +29,7 @@
         }
         const stream = document.getElementById("stream");
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         for (let i = 0; i < 10; ++i) {
             const p = document.createElement("p");
@@ -38,11 +38,8 @@
             internals.updateStyle();
         }
 
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.elementStyleRecomputations < 100)
-            println("PASS: appends without list items stayed targeted");
-        else
-            println(`FAIL: appends without list items recomputed ${counters.elementStyleRecomputations} elements`);
+        const counters = internals.styleCounters();
+        println(`appends without list items styled fewer than 100: ${counters.styledElements < 100}, full passes: ${counters.fullPasses}`);
 
         // Inserting a subtree that does contain a list item must invalidate
         // the anchor and apply the rule.

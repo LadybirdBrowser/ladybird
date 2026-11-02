@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #a, #b { width: 30px; height: 30px; }
+    #b { margin-left: 100px; }
+    .anchor { anchor-name: --target; }
+    #positioned { position: absolute; position-anchor: --target; left: anchor(right); top: anchor(bottom); width: 5px; height: 5px; }
+</style>
+<div id="a" class="anchor"></div>
+<div id="b"></div>
+<div id="positioned"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const a = document.getElementById("a");
+        const b = document.getElementById("b");
+        const positioned = document.getElementById("positioned");
+        const read = (label) => {
+            const rect = positioned.getBoundingClientRect();
+            println(`${label}: ${rect.left},${rect.top}`);
+        };
+        internals.updateStyle();
+        read("on a");
+        for (const [label, step] of [
+            ["moved to b", () => { a.classList.remove("anchor"); b.classList.add("anchor"); }],
+            ["no anchor", () => b.classList.remove("anchor")],
+            ["back on a", () => a.classList.add("anchor")],
+        ]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

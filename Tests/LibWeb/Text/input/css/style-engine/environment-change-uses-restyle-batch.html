@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .container:has(.witness) .target {
+        color: rgb(1, 2, 3);
+    }
+
+    .target::before {
+        content: "before";
+        color: rgb(4, 5, 6);
+    }
+</style>
+<div class="container">
+    <div class="witness"></div>
+    <div id="target" class="target">target</div>
+</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        internals.setPreferredColorScheme("dark");
+        internals.updateStyle();
+
+        println(`element: ${getComputedStyle(target).color}`);
+        println(`before: ${getComputedStyle(target, "::before").color}`);
+        internals.setPreferredColorScheme("auto");
+    });
+</script>

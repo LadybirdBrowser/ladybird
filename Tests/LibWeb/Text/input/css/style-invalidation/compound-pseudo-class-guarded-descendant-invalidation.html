@@ -81,15 +81,8 @@
         resetStyleCounters();
     }
 
-    function assertNoSubtreeRestyle(label, maxNoopRecomputations) {
-        const counters = styleCounters();
-        if (counters.elementStyleNoopRecomputations > maxNoopRecomputations) {
-            throw new Error(
-                `${label}: expected at most ${maxNoopRecomputations} no-op recomputations, got ` +
-                counters.elementStyleNoopRecomputations
-            );
-        }
-        printPassWithCounters(label);
+    function assertNoSubtreeRestyle(label, maxStyledElements) {
+        printPassWithStyleCounters(label, maxStyledElements);
     }
 
     function assertColor(label, element, expected) {
@@ -116,7 +109,8 @@
         mutate(state);
         internals.updateStyle();
         assertColor(`${label} after mutation`, state.target, expectedAfter);
-        printPassWithCounters(label);
+        // Only the mutated guard and its target should be styled.
+        printPassWithStyleCounters(label, 2);
     }
 
     function runHoverColorInvalidationCase(label, className, build, expectedAfter = MATCH_COLOR) {
@@ -131,7 +125,8 @@
         hover(state.hoverTarget);
         internals.updateStyle();
         assertColor(`${label} after hover`, state.target, expectedAfter);
-        printPassWithCounters(label);
+        // Only the hovered element and the target should be styled.
+        printPassWithStyleCounters(label, 2);
     }
 
     function appendSvgHoverTarget(container, svgAttributes) {
@@ -168,6 +163,7 @@
     }
 
     test(() => {
+        internals.updateStyle();
         const fixture = document.getElementById("fixture");
 
         const action = makeElement("div", {
@@ -202,7 +198,7 @@
         hover(actionTarget);
         internals.updateStyle();
         assertEqual("action target after guarded hover", readProbe(actionTarget), MATCH);
-        printPassWithCounters("compound :hover descendant invalidation applies to matching guard");
+        printPassWithStyleCounters("compound :hover descendant invalidation applies to matching guard", 2);
 
         runColorInvalidationCase(
             "co-invalidated pseudo-class guard updates descendant",

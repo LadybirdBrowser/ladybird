@@ -1,24 +1,31 @@
 // Shared helpers for :has() invalidation tests.
 // Each test includes include.js first, then this file.
 
-function printCounters(label) {
-    const c = internals.getStyleInvalidationCounters();
-    println(`[${label}]`);
+// Forget what the style engine counted so far, so that the next mutation is measured alone.
+function resetCounters() {
+    internals.resetStyleCounters();
 }
 
-// Force a style pass and reset counters so a subsequent mutation can be
-// measured in isolation. Forces the rule cache and style invalidation data
-// to be built by mutating + reading style, so the per-feature has-selector
-// metadata is populated before counters are observed.
+// Print how many elements the style engine styled since the counters were last reset. With a bound, print
+// only whether the count stays within it.
+function printCounters(label, bound) {
+    const styled = internals.styleCounters().styledElements;
+    println(`[${label}]`);
+    if (bound === undefined) {
+        println(`  styled: ${styled}`);
+    } else {
+        println(`  styled <= ${bound}: ${styled <= bound}`);
+    }
+}
+
+// Have the style engine own the document, settle style and reset the counters, so that a subsequent
+// mutation can be measured in isolation.
 function settleAndReset(triggerElement) {
-    // Two passes: the first ensures the rule cache + style invalidation data
-    // is built; the second ensures any deferred work from a probe-only mutation
-    // has settled. Without this, the very first mutation in a test can look
-    // like a hit on the conservative "data not yet built" fallback.
+    internals.updateStyle();
     document.documentElement.classList.add("__settle__");
     getComputedStyle(triggerElement || document.documentElement).color;
     document.documentElement.classList.remove("__settle__");
     getComputedStyle(triggerElement || document.documentElement).color;
     internals.updateStyle();
-    internals.resetStyleInvalidationCounters();
+    resetCounters();
 }

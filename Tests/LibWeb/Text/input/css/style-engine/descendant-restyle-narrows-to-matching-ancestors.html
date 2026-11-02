@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #guard:focus [class] span { color: green }
+</style>
+<div id="guard" tabindex="0">
+    <div>
+        <span id="bare-1"></span>
+        <span id="bare-2"></span>
+    </div>
+    <div class="holder">
+        <span id="qualified"></span>
+    </div>
+</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleCounters();
+
+        // A region says where a change can reach; it does not say what the selector required on the
+        // way. Focusing the guard reaches every span under it, but only a span with a `[class]`
+        // ancestor can match, and the plan names that one alone.
+        document.getElementById("guard").focus({ preventScroll: true });
+        internals.updateStyle();
+        const pass = internals.styleLastPass();
+        println(`spans under the guard: ${document.querySelectorAll("#guard span").length}`);
+        println(`full pass: ${pass.fullPass}`);
+        println(`changed: [${pass.changed.join(", ")}]`);
+        println(`styled only what changed: ${pass.styled.join() === pass.changed.join()}`);
+    });
+</script>

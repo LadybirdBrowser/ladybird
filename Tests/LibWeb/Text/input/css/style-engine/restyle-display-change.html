@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #container { width: 200px; }
+    #box { display: block; }
+    #box.inline { display: inline; }
+    #box.none { display: none; }
+    #box.contents { display: contents; }
+    #box.before::before { content: "a"; display: inline-block; width: 30px; height: 12px; }
+    .child { display: inline-block; width: 20px; height: 10px; }
+    #after { display: block; height: 5px; }
+</style>
+<div id="container"><div id="box"><span class="child" id="first"></span><span class="child" id="second"></span></div><div id="after"></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const after = document.getElementById("after");
+        const read = (label) => {
+            const rect = box.getBoundingClientRect();
+            const firstRect = first.getBoundingClientRect();
+            const secondRect = second.getBoundingClientRect();
+            println(`${label}: display=${getComputedStyle(box).display} box=${rect.width}x${rect.height} first=${firstRect.left},${firstRect.top} second=${secondRect.left},${secondRect.top} after.top=${after.getBoundingClientRect().top} container.height=${box.parentElement.offsetHeight}`);
+        };
+        const set = (className) => () => { box.className = className; };
+        internals.updateStyle();
+        read("block");
+        for (const [label, step] of [
+            ["inline", set("inline")],
+            ["none", set("none")],
+            ["contents", set("contents")],
+            ["block", set("")],
+            ["before appears", set("before")],
+            ["inline with before", set("inline before")],
+            ["before goes", set("inline")],
+            ["block again", set("")],
+        ]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

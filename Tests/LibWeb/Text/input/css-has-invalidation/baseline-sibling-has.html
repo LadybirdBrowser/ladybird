@@ -13,12 +13,13 @@
 <script>
     test(() => {
         getComputedStyle(document.getElementById("anchor")).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        resetCounters();
 
         // Sibling combinator in :has(). Anchor has sibling-combinator flag,
         // so invalidation must also walk siblings of each visited ancestor.
         document.getElementById("target").classList.add("match");
         getComputedStyle(document.getElementById("anchor")).color;
-        printCounters("after add .match on adjacent sibling");
+        printCounters("after add .match on adjacent sibling", 2);
     });
 </script>

@@ -1,0 +1,19 @@
+BackCompat
+not all
+nothing : rgb(0, 0, 0)
+LOWER-RULE : rgb(0, 0, 0)
+ LOWER-RULE-ID: rgb(0, 0, 0)
+upper-rule : rgb(0, 0, 0)
+ upper-rule-id: rgb(0, 0, 0)
+all
+nothing : rgb(0, 0, 0)
+LOWER-RULE : rgb(0, 128, 0)
+ LOWER-RULE-ID: rgb(0, 128, 0)
+upper-rule : rgb(0, 128, 0)
+ upper-rule-id: rgb(0, 128, 0)
+not all
+nothing : rgb(0, 0, 0)
+LOWER-RULE : rgb(0, 0, 0)
+ LOWER-RULE-ID: rgb(0, 0, 0)
+upper-rule : rgb(0, 0, 0)
+ upper-rule-id: rgb(0, 0, 0)

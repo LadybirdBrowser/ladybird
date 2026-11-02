@@ -22,24 +22,29 @@
         // more widely than it is asked about, so a container no query ever named is not walked at
         // all - what the count answers for is which subtrees the resize had to look through.
         println(`dependent before: ${getComputedStyle(dependent).color}`);
+        internals.updateStyle();
 
         document.body.offsetWidth;
         resetStyleCounters();
         queried.style.height = "20px";
         document.body.offsetWidth;
-        println(`elements walked after block-size-only container relayout: ${styleCounters().sizeQueryContainerScanVisits}`);
+        printPassWithStyleCounters("a block-size-only container relayout styles only the container", 1);
 
-        flushPendingStyleWork();
+        document.body.offsetWidth;
+        resetStyleCounters();
         unqueried.style.width = "400px";
         internals.updateStyle();
         document.body.offsetWidth;
-        println(`elements walked after resizing a container no query names: ${styleCounters().sizeQueryContainerScanVisits}`);
+        internals.updateStyle();
+        printPassWithStyleCounters("resizing a container no query names styles only the container", 1);
 
-        flushPendingStyleWork();
+        document.body.offsetWidth;
+        resetStyleCounters();
         queried.style.width = "400px";
         internals.updateStyle();
         document.body.offsetWidth;
-        println(`elements walked after resizing the query container: ${styleCounters().sizeQueryContainerScanVisits}`);
+        internals.updateStyle();
+        printPassWithStyleCounters("resizing the query container styles it and its dependent", 2);
         println(`dependent after: ${getComputedStyle(dependent).color}`);
     });
 </script>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .box { color: green; }
+    .box:empty { color: red; }
+</style>
+<div class="box" id="gains-text"><b></b></div>
+<div class="box" id="loses-text"><b></b>text</div>
+<div class="box" id="moves-text"><b></b></div>
+<div id="spare">text</div>
+<script>
+    test(() => {
+        const report = element => {
+            println(`${element.id}: matches :empty ${element.matches(":empty")}, ${getComputedStyle(element).color}`);
+        };
+        const flush = element => getComputedStyle(element).color;
+
+        // The element child arrived first, so the text arriving beside it does not make the element non-empty.
+        const gainsText = document.getElementById("gains-text");
+        flush(gainsText);
+        gainsText.append("text");
+        flush(gainsText);
+        gainsText.firstElementChild.remove();
+        report(gainsText);
+
+        // Nor does the text leaving from beside it make the element empty, until the element child leaves too.
+        const losesText = document.getElementById("loses-text");
+        flush(losesText);
+        losesText.lastChild.remove();
+        flush(losesText);
+        losesText.firstElementChild.remove();
+        report(losesText);
+
+        const movesText = document.getElementById("moves-text");
+        flush(movesText);
+        movesText.moveBefore(document.getElementById("spare").firstChild, null);
+        flush(movesText);
+        movesText.firstElementChild.remove();
+        report(movesText);
+    });
+</script>

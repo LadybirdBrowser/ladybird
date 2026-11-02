@@ -1,0 +1,5 @@
+a later sibling replaced: "" then "yes", matches true
+a later sibling moved in as another leaves: "" then "yes", matches true
+an earlier sibling replaced: "" then "yes", matches true
+an earlier sibling moved in as another leaves: "" then "yes", matches true
+nested selectors: "" then "yes", matches true

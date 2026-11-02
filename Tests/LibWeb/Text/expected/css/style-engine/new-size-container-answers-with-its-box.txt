@@ -1,0 +1,3 @@
+gated color: rgb(0, 128, 0)
+gated ::before color: rgb(0, 0, 255)
+units border-left-width: 20px

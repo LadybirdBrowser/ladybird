@@ -1,0 +1,3 @@
+reaction color: rgb(0, 128, 0)
+cross-scope color: rgb(0, 128, 0)
+cross-scope background: rgb(0, 0, 255)

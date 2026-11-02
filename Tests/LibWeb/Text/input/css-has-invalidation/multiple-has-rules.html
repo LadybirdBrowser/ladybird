@@ -17,12 +17,12 @@
 
         document.getElementById("target").classList.add("red");
         internals.updateStyle();
-        printCounters("add .red (only :has(.red) flips)");
+        printCounters("add .red (only :has(.red) flips)", 2);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         document.getElementById("target").classList.add("blue");
         internals.updateStyle();
-        printCounters("add .blue (only :has(.blue) flips, .red stable)");
+        printCounters("add .blue (only :has(.blue) flips, .red stable)", 2);
     });
 </script>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="_helpers.js"></script>
 <style id="test-style">
     .anchor:has(.match) { color: red; }
 </style>
@@ -10,30 +11,26 @@
     <div>unrelated sibling</div>
 </div>
 <script>
-    function printSiblingChecks(label) {
-        let counters = internals.getStyleInvalidationCounters();
-        println(`[${label}]`);
-    }
-
     test(() => {
         let anchor = document.getElementById("anchor");
         let target = document.getElementById("target");
         let style = document.getElementById("test-style");
 
         getComputedStyle(anchor).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        resetCounters();
 
         target.classList.add("match");
         getComputedStyle(anchor).color;
-        printSiblingChecks("descendant-only :has() sheet");
+        printCounters("descendant-only :has() sheet", 3);
 
         target.classList.remove("match");
         style.textContent += "\n.unused-anchor:has(+ .unused-match) { color: blue; }";
         getComputedStyle(anchor).color;
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         target.classList.add("match");
         getComputedStyle(anchor).color;
-        printSiblingChecks("sheet with sibling-sensitive :has()");
+        printCounters("sheet with sibling-sensitive :has()", 3);
     });
 </script>

@@ -1,2 +1,4 @@
 [add unrelated class outside any :has() scope]
+  styled <= 1: true
 [add .match class outside any :has() scope]
+  styled <= 1: true

@@ -1,0 +1,5 @@
+descendants of the guard: 12
+full pass: false
+changed: [guard, deep]
+styled only what changed: true
+unguarded focus: full pass false, changed [outer], styles the item false

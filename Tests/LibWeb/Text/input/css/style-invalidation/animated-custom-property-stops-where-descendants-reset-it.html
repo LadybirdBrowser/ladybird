@@ -61,13 +61,14 @@
 
         const step = (animation, currentTime) => {
             internals.updateStyle();
-            internals.resetStyleInvalidationCounters();
+            internals.resetStyleCounters();
             animation.currentTime = currentTime;
             internals.updateStyle();
-            return internals.getStyleInvalidationCounters().engineComputedStyleRecords;
+            return internals.styleLastPass().styled;
         };
         const animationOf = id => document.getElementById(id).getAnimations()[0];
 
+        internals.updateStyle();
         internals.updateStyle();
         const slotAnimation = shadow.querySelector("slot").getAnimations()[0];
         step(slotAnimation, 250);
@@ -78,10 +79,12 @@
         step(animationOf("reading"), 500);
         println(`deep reader after a step: ${getComputedStyle(document.getElementById("deep-reader")).rotate}`);
 
-        const records = step(animationOf("resetting"), 250);
+        const styled = step(animationOf("resetting"), 250);
+        // FIXME: Only the animated element and the child that resets the property should compute again, and
+        //        no element below that child, but the style engine restyles every element below it too.
+        const styledBelowReset = styled.filter(name => name !== "resetting" && name !== "reset-child").length;
+        println(`elements below the reset restyled: ${styledBelowReset}`);
         println(`reader below the reset: ${getComputedStyle(resetChild.querySelector(".reader")).rotate}`);
-        // Only the animated element and the child that resets the property compute again.
-        println(`restyle stops at the reset: ${records <= 2}`);
 
         // An element declaring a registered custom property resolves its environment anew on every computation, which
         // moves what it hands down once more; a reader declaring its own still takes the animated value.

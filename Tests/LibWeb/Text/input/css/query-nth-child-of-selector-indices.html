@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<div id="list"><b id="b1" class="x"></b><i id="i1"></i><b id="b2" class="x"></b><b id="b3" class="x y"></b><i id="i2" class="y"></i><b id="b4" class="x"></b><i id="i3"></i><b id="b5" class="x"></b><b id="b6" class="x y"></b></div>
+<div id="other"><i id="o1" class="y"></i><b id="o2" class="x"></b><b id="o3" class="x"></b></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Each query counts the siblings its list matches for many elements, which may share the counts.
+        for (const selector of [
+            ":nth-child(2n of .x)",
+            ":nth-child(odd of .x)",
+            ":nth-child(3 of .x)",
+            ":nth-child(n+3 of .x)",
+            ":nth-last-child(2n of .x)",
+            ":nth-last-child(odd of .x)",
+            ":nth-last-child(1 of .x)",
+            ":nth-last-child(-n+2 of .x)",
+            ":nth-child(2 of .y)",
+            ":nth-child(odd of .x, .y)",
+            ":nth-last-child(even of .y, b)",
+            ".y:nth-child(even of .x)",
+            ":nth-child(2n of .x):nth-last-child(2n of .x)",
+            ":nth-child(1 of .x) ~ :nth-child(3 of .x)",
+            "#list > :nth-child(-n+3 of :not(.y))",
+        ]) {
+            const ids = Array.from(document.querySelectorAll(selector), element => element.id);
+            const first = document.querySelector(selector);
+            println(`${selector}: ${ids.join(" ")} (first: ${first ? first.id : "none"})`);
+        }
+        // A match of one element counts its own siblings.
+        const b4 = document.getElementById("b4");
+        println(`b4 matches :nth-child(4 of .x): ${b4.matches(":nth-child(4 of .x)")}`);
+        println(`b4 matches :nth-last-child(3 of .x): ${b4.matches(":nth-last-child(3 of .x)")}`);
+        println(`b4 closest :nth-child(1 of div): ${b4.closest(":nth-child(1 of div)").id}`);
+    });
+</script>

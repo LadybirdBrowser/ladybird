@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .tailwind > :not([hidden]) ~ :not([hidden]) { color: rgb(0, 128, 0); }
+    .tailwind-next > :not([hidden]) + :not([hidden]) { color: rgb(0, 128, 0); }
+    :empty + .after-empty { color: rgb(0, 128, 0); }
+    :empty ~ .later-than-empty { color: rgb(0, 128, 0); }
+    :lang(de) ~ .after-lang { color: rgb(0, 128, 0); }
+    :dir(rtl) + .after-dir { color: rgb(0, 128, 0); }
+    :heading + .after-heading { color: rgb(0, 128, 0); }
+    :is(.x, *) + .after-is { color: rgb(0, 128, 0); }
+    :is(.x, :not(.y)) ~ .after-is-not { color: rgb(0, 128, 0); }
+    :where(.x, :first-child) + .after-where { color: rgb(0, 128, 0); }
+    :not(.x) { & + .after-nesting { color: rgb(0, 128, 0); } }
+</style>
+<div id="root"></div>
+<script>
+    // A compound no one fact is carried by every element matching it is matched by an element arriving or leaving that
+    // carries none of its names: each of these rules has to reach its target as a plain element comes and goes before it.
+    test(() => {
+        const root = document.getElementById("root");
+        for (const [className, targetClass, inserted] of [
+            ["tailwind", "", "<p></p>"],
+            ["tailwind-next", "", "<p></p>"],
+            ["", "after-empty", "<i></i>"],
+            ["", "later-than-empty", "<i></i>"],
+            ["", "after-lang", '<i lang="de">x</i>'],
+            ["", "after-dir", '<i dir="rtl">x</i>'],
+            ["", "after-heading", "<h1>x</h1>"],
+            ["", "after-is", "<i>x</i>"],
+            ["", "after-is-not", "<i>x</i>"],
+            ["", "after-where", "<i>x</i>"],
+            ["", "after-nesting", "<i>x</i>"],
+        ]) {
+            const list = document.createElement("div");
+            list.className = className;
+            list.innerHTML = `<p class="${targetClass}">x</p>`;
+            root.append(list);
+            const target = list.firstElementChild;
+            const report = title => println(`${className}${targetClass} ${title}: ${getComputedStyle(target).color}`);
+            const template = document.createElement("template");
+            template.innerHTML = inserted;
+            report("alone");
+            const added = template.content.firstElementChild;
+            list.prepend(added);
+            report("arrived");
+            added.remove();
+            report("left");
+            list.prepend(added);
+            report("arrived again");
+            list.append(added);
+            report("moved after");
+            list.remove();
+            root.append(list);
+        }
+    });
+</script>

@@ -1,0 +1,4 @@
+after removed before: 3px
+after moved before: 3px
+after removed now: 0px
+after moved now: 0px

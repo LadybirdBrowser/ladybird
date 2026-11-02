@@ -1,0 +1,3 @@
+visible: visible hit=box
+hide: hidden hit=BODY
+show: visible hit=box

@@ -1,0 +1,8 @@
+:host .left ~ .right, before: rgb(0, 128, 0)
+:host .left ~ .right, after: rgb(0, 0, 0)
+:host > .left ~ .right, before: rgb(0, 128, 0)
+:host > .left ~ .right, after: rgb(0, 0, 0)
+:host > .left + .right, before: rgb(0, 128, 0)
+:host > .left + .right, after: rgb(0, 0, 0)
+:host(div) .left + .right, before: rgb(0, 128, 0)
+:host(div) .left + .right, after: rgb(0, 0, 0)

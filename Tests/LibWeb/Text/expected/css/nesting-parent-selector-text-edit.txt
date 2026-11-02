@@ -1,0 +1,12 @@
+before:
+child: rgb(0, 128, 0)
+inner: rgb(255, 165, 0)
+other: rgb(0, 0, 0)
+otherInner: rgb(0, 0, 0)
+spanB: rgb(0, 0, 0)
+after editing the parent to .b:
+child: rgb(0, 0, 0)
+inner: rgb(0, 0, 0)
+other: rgb(0, 128, 0)
+otherInner: rgb(255, 165, 0)
+spanB: rgb(255, 0, 0)

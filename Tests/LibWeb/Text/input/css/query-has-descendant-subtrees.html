@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<div id="a1"><div id="a2"><div id="a3"><p id="a4" class="leaf"></p></div></div></div>
+<div id="b1"><div id="b2" class="outer"><div id="b3"><span id="b4" class="x"></span></div></div><div id="b5"><div id="b6"></div></div></div>
+<div id="c1"><div id="c2"><div id="c3"></div></div><span id="c4" class="x"></span></div>
+<div id="d1" class="outer"><div id="d2"><div id="d3" class="outer"><span id="d4" class="inner"></span></div></div><div id="d5"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // An anchor whose subtree holds no match leaves its descendants without one for lists that look for
+        // descendants; other axes look elsewhere.
+        for (const selector of [
+            "div:has(.x)",
+            "div:has(span)",
+            "div:has(.outer .inner)",
+            "div:has(.outer > div .inner)",
+            "div:has(.missing)",
+            "div:has(> .x)",
+            "div:has(> div)",
+            "div:has(~ div .x)",
+            "div:has(+ span)",
+            "div:has(.x, > div > div)",
+            "div:has(.leaf):not(:has(.x))",
+            "div:not(:has(div))",
+        ]) {
+            const ids = Array.from(document.querySelectorAll(selector), element => element.id);
+            const first = document.querySelector(selector);
+            println(`${selector}: ${ids.join(" ")} (first: ${first ? first.id : "none"})`);
+        }
+        println(`c3 closest div:has(.x): ${document.getElementById("c3").closest("div:has(.x)").id}`);
+        println(`b6 closest div:has(.x): ${document.getElementById("b6").closest("div:has(.x)").id}`);
+    });
+</script>

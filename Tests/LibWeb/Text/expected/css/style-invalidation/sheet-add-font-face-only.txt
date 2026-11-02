@@ -1,1 +1,1 @@
-@font-face only sheet add: elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+@font-face only sheet add: styled <= 1: true

@@ -1,0 +1,3 @@
+full pass: false
+changed elements: 1100
+styled <= 1100: true

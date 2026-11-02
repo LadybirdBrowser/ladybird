@@ -6,6 +6,8 @@
 
 //! Recording the elements whose style a size query container's new box moves.
 
+use super::bridge::FfiContainerEffectKind;
+use super::container_queries::ContainerVerdict;
 use super::fast_hash::FastSet as HashSet;
 use super::{RetainedState, StyleEngine, StyleNodeID};
 
@@ -24,6 +26,9 @@ pub(super) struct SizeContainerQueryFacts {
     needing_evaluation_after_layout: HashSet<StyleNodeID>,
     /// A container's eligibility changed, so units can newly select it even when it was not queried before.
     availability_changed: HashSet<StyleNodeID>,
+    /// The size containers whose records say they answer size queries, as the records they were last published
+    /// with say.
+    available: HashSet<StyleNodeID>,
     /// Elements the dependent walks have visited, for the style invalidation counters.
     scan_visits: u64,
 }
@@ -37,8 +42,18 @@ impl SizeContainerQueryFacts {
         self.needing_evaluation_after_layout.insert(node);
     }
 
-    pub(super) fn note_availability_change(&mut self, node: StyleNodeID) {
-        self.availability_changed.insert(node);
+    /// Follows whether `node` answers size queries, noting where that changed.
+    pub(super) fn set_availability(&mut self, node: StyleNodeID, available: bool) {
+        if self.available.contains(&node) != available {
+            set_contains(&mut self.available, node, available);
+            self.availability_changed.insert(node);
+        }
+    }
+
+    /// Forgets that `node` answers size queries, without noting a change.
+    #[cfg(test)]
+    pub(super) fn forget_availability(&mut self, node: StyleNodeID) {
+        self.available.remove(&node);
     }
 
     pub(super) fn retire(&mut self, node: StyleNodeID) {
@@ -46,6 +61,7 @@ impl SizeContainerQueryFacts {
         self.dependents.remove(&node);
         self.needing_evaluation_after_layout.remove(&node);
         self.availability_changed.remove(&node);
+        self.available.remove(&node);
     }
 }
 
@@ -88,6 +104,42 @@ impl StyleEngine {
             || !self.retained.size_container_queries.availability_changed.is_empty()
     }
 
+    /// What the record the host installs for `node` read of its containers. A container the record
+    /// found without a box may have been handed the box it holds since, as an earlier record of
+    /// the same installation made it a size container (see
+    /// `LayoutNodeArena::publish_new_size_container_geometry`). The element is computed again
+    /// against that box before the update settles, as every later computation of it reads it.
+    pub(crate) fn take_container_effects_for_install(
+        &mut self,
+        node: StyleNodeID,
+    ) -> Option<std::sync::Arc<ContainerVerdict>> {
+        let verdict = self.retained.take_container_effects_for_host(node)?;
+        let read_a_box_given_since = verdict.effects.iter().any(|&(container, kind)| {
+            matches!(
+                kind,
+                FfiContainerEffectKind::NeedsEvaluationAfterLayout
+                    | FfiContainerEffectKind::UnitsNeedEvaluationAfterLayout
+            ) && self
+                .retained
+                .layout_style_snapshot(container)
+                .is_some_and(|row| row.has_committed_box)
+        });
+        if read_a_box_given_since {
+            self.record_container_query_input(node);
+        }
+        Some(verdict)
+    }
+
+    /// Take the box geometry a completed layout commit gathered, keeping each row's scroll state.
+    pub(crate) fn apply_layout_style_snapshot_commit(
+        &mut self,
+        rows: &[crate::layout::style_snapshot::CommittedGeometry],
+    ) {
+        for container in self.retained.take_layout_style_snapshot_rows(rows) {
+            self.record_size_container_query_dependents(container);
+        }
+    }
+
     /// The elements the dependent walks have visited, optionally starting the count again.
     pub fn size_query_container_scan_visits(&mut self, reset: bool) -> u64 {
         let visits = &mut self.retained.size_container_queries.scan_visits;
@@ -102,7 +154,7 @@ impl StyleEngine {
         containers.extend(availability_changed.iter().copied());
         for container in containers {
             // A container that has left the document has no dependents left to move.
-            if self.retained.tree.is_live(container) {
+            if self.retained.projection.is_live(container) {
                 self.record_size_container_query_dependents_after_input_change(
                     container,
                     availability_changed.contains(&container),
@@ -162,7 +214,7 @@ impl RetainedState {
         // The flat tree below the container is the inverse of the walk that selects a query
         // container, which is what makes it the right one for finding that container's dependents.
         let mut visits = 0;
-        let mut stack: Vec<StyleNodeID> = self.tree.flat_tree_children(container).collect();
+        let mut stack: Vec<StyleNodeID> = self.projection.flat_tree_children(container).collect();
         while let Some(node) = stack.pop() {
             // A text node holds a place among a slot's assigned nodes, but has no style of its own.
             if node.text_index().is_some() {
@@ -172,7 +224,7 @@ impl RetainedState {
             if facts.dependents.contains(&node) {
                 changed.push(node);
             }
-            stack.extend(self.tree.flat_tree_children(node));
+            stack.extend(self.projection.flat_tree_children(node));
         }
         (changed, visits)
     }

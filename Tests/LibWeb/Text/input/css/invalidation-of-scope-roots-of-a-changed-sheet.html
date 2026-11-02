@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="changed">
+    @layer reset { * { --a: 0; } }
+    @scope (.root) {
+        :only-child { --a: 1; }
+    }
+</style>
+<style>
+    @scope (.other ~ .root) {
+        .never { color: rgb(255, 0, 0); }
+    }
+</style>
+<div id="parent"><div id="child"></div></div>
+<script>
+    // The compounds of two `@scope` roots testing the same name answer each for its own selector, as the name appears.
+    asyncTest(done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const child = document.getElementById("child");
+        (async () => {
+            await frame();
+            const changed = document.getElementById("changed").sheet;
+            changed.insertRule(".elsewhere { color: rgb(0, 0, 255); }", changed.cssRules.length);
+            document.documentElement.offsetWidth;
+            println(`before: ${getComputedStyle(child).getPropertyValue("--a")}`);
+            await frame();
+            document.documentElement.offsetWidth;
+            document.getElementById("parent").classList.add("root");
+            println(`after: ${getComputedStyle(child).getPropertyValue("--a")}`);
+            done();
+        })();
+    });
+</script>

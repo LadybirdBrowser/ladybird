@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .start + .next { color: rgb(0, 128, 0); }
+    .start + .next + .after-next { color: rgb(0, 128, 0); }
+    .start + .next ~ .later { color: rgb(0, 128, 0); }
+    .start + .next .inside { color: rgb(0, 128, 0); }
+    .start + .other { color: rgb(255, 0, 0); }
+</style>
+<div id="root">
+    <div id="start"></div>
+    <div class="next"><div class="inside"></div></div>
+    <div class="after-next"></div>
+    <div></div>
+    <div class="later"></div>
+    <div class="other"></div>
+    <div class="next"><div class="inside"></div></div>
+    <div class="after-next"></div>
+</div>
+<script>
+    // A next-sibling link ends at the sibling after the one it is followed from, while what was followed through it
+    // reaches on from there, across the later siblings and into its descendants.
+    test(() => {
+        const start = document.getElementById("start");
+        const print = title => {
+            println(title);
+            for (const element of document.querySelectorAll("#root *"))
+                println(`${element.className}: ${getComputedStyle(element).color}`);
+        };
+        print("off");
+        start.className = "start";
+        print("on");
+        start.className = "";
+        print("off");
+    });
+</script>

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="_helpers.js"></script>
 <style>
     .anchor:has(+ .wrapper .match) { color: red; }
 </style>
@@ -15,19 +16,16 @@
     <div>unrelated sibling</div>
 </div>
 <script>
-    function printCounters() {
-        let counters = internals.getStyleInvalidationCounters();
-    }
-
     test(() => {
         let anchor = document.getElementById("anchor");
         let target = document.getElementById("target");
 
         getComputedStyle(anchor).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        resetCounters();
 
         target.classList.add("match");
         getComputedStyle(anchor).color;
-        printCounters();
+        printCounters("add .match", 2);
     });
 </script>

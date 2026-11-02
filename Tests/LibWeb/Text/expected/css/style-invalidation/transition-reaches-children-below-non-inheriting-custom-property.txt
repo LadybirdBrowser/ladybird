@@ -1,0 +1,3 @@
+before the transition: transitioning rgb(0, 0, 255), child rgb(0, 0, 255)
+first frame of the transition: transitioning rgb(0, 0, 255), child rgb(0, 0, 255)
+second frame of the transition: transitioning rgb(0, 0, 255), child rgb(0, 0, 255)

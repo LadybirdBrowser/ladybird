@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    .plain { appearance: none; }
+</style>
+<input id="checkbox" type="checkbox">
+<select id="select"><option>One</option><option>Two</option></select>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const checkbox = document.getElementById("checkbox");
+        const select = document.getElementById("select");
+        const read = (label) => {
+            println(`${label}: checkbox ${getComputedStyle(checkbox).appearance} ${checkbox.offsetWidth}x${checkbox.offsetHeight}, select ${getComputedStyle(select).appearance} ${select.offsetWidth > 0}`);
+        };
+        internals.updateStyle();
+        const selectAuto = select.offsetWidth;
+        read("auto");
+        for (const [label, step] of [
+            ["none", () => { checkbox.classList.add("plain"); select.classList.add("plain"); }],
+            ["auto again", () => { checkbox.classList.remove("plain"); select.classList.remove("plain"); }],
+        ]) {
+            step();
+            internals.updateStyle();
+            read(label);
+            println(`  select width back to auto: ${select.offsetWidth === selectAuto}`);
+        }
+    });
+</script>

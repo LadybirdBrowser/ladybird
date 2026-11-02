@@ -1,0 +1,62 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @scope (li:first-child) { .in-first { color: rgb(0, 128, 0); } }
+    @scope (.a + .b) { .in-next { color: rgb(0, 128, 0); } }
+    @scope (.a ~ .b) { .in-later { color: rgb(0, 128, 0); } }
+    @scope (.host) to (.limit:first-child) { .in-limit { color: rgb(0, 128, 0); } }
+    :nth-child(1 of .a + .b) > .in-of { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // Which elements a scope holds or an `of S` counts can depend on where an element stands: an element arriving or
+    // leaving beside the one a bound names moves what it reaches.
+    test(() => {
+        const root = document.getElementById("root");
+        const add = html => {
+            root.insertAdjacentHTML("beforeend", html);
+            return root.lastElementChild;
+        };
+        const color = element => getComputedStyle(element).color;
+
+        const list = add('<ul><li><a class="in-first">x</a></li></ul>');
+        const link = list.querySelector("a");
+        println(`first-child alone: ${color(link)}`);
+        const pushed = document.createElement("li");
+        list.prepend(pushed);
+        println(`first-child pushed: ${color(link)}`);
+        pushed.remove();
+        println(`first-child back: ${color(link)}`);
+
+        for (const [targetClass, between] of [["in-next", false], ["in-later", true]]) {
+            const holder = add(`<div><div class="b"><span class="${targetClass}">x</span></div></div>`);
+            const target = holder.querySelector("span");
+            println(`${targetClass} before: ${color(target)}`);
+            const before = document.createElement("i");
+            before.className = "a";
+            holder.prepend(before);
+            println(`${targetClass} sibling arrived: ${color(target)}`);
+            before.remove();
+            println(`${targetClass} sibling left: ${color(target)}`);
+        }
+
+        const limited = add('<div class="host"><div class="limit"><span class="in-limit">x</span></div></div>');
+        const inLimit = limited.querySelector("span");
+        println(`limit first: ${color(inLimit)}`);
+        const beforeLimit = document.createElement("i");
+        limited.prepend(beforeLimit);
+        println(`limit no longer first: ${color(inLimit)}`);
+        beforeLimit.remove();
+        println(`limit first again: ${color(inLimit)}`);
+
+        const ofHolder = add('<div><div class="b"><span class="in-of">x</span></div></div>');
+        const inOf = ofHolder.querySelector("span");
+        println(`of before: ${color(inOf)}`);
+        const ofBefore = document.createElement("i");
+        ofBefore.className = "a";
+        ofHolder.prepend(ofBefore);
+        println(`of sibling arrived: ${color(inOf)}`);
+        ofBefore.remove();
+        println(`of sibling left: ${color(inOf)}`);
+    });
+</script>

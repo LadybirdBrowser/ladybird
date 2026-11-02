@@ -16,14 +16,14 @@
         // .a is in the :is() branch - anchor should restyle.
         document.getElementById("target").classList.add("a");
         internals.updateStyle();
-        printCounters("add .a (matches :is() branch)");
+        printCounters("add .a (matches :is() branch)", 3);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         // Replace .a with .b - anchor still matches via the other :is() branch.
         document.getElementById("target").classList.remove("a");
         document.getElementById("target").classList.add("b");
         internals.updateStyle();
-        printCounters("swap to .b (other :is() branch)");
+        printCounters("swap to .b (other :is() branch)", 3);
     });
 </script>

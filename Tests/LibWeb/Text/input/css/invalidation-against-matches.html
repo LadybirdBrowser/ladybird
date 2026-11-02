@@ -1,0 +1,219 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="root"></div>
+<div id="host"></div>
+<iframe id="quirks-frame"></iframe>
+<script>
+    // Applies a fixed series of changes to a small tree styled by a sheet of one rule per selector, and after each change
+    // compares what every element computes to with what `matches()` says of it, which does not go through invalidation.
+    const invalidationSelectors = [
+        ".c", ".d", "#i", "#j", ".c.d", ".a .b", ".a > .b", ".a + .b", ".a ~ .b", ".a .b .c", ".a + .b .c", ".a ~ .b > .c",
+        "div.d", "section", "section .c", "[data-x]", '[data-x="1"]', ".a[data-x]", "[data-x] .b",
+        ":first-child", ":last-child", ":nth-child(2)", ":nth-last-child(2)", ":first-of-type", ":last-of-type",
+        ":only-child", ":nth-of-type(2)", ".c:first-child", ".a:last-child .b", ":first-child + .b", ":nth-child(1 of .c)",
+        ":empty", ".a:empty", ":has(> .b)", ":has(.c)", ".a:has(.b)", ":has(+ .c)", ":has(~ .d)", ".d:has(section)",
+        ":has(> :first-child.c)", ":not(.c)", ".a :not(.b)", ":is(.c, .d)", ":is(.a, section) .b", ":where(.a .b)",
+        ":checked", ".a :checked", ":checked + .b", ".upper-class", "#upper-id", "* + .b", "* > .a",
+            ":not(.c) ~ .b", ":not(.c) + .d", ":not(.a) ~ :not(.b)", ":not([data-x]) ~ .b", ":empty + .b", ":empty ~ .d",
+            ":is(.c, *) + .b", ":is(.c, :not(.d)) ~ .b", ":where(.c, :first-child) + .b", ":not(.c) .b", ":has(.a) ~ .b",
+            ":first-child ~ .d", ".c:nth-child(2) ~ .b", ".c:nth-child(2 of .b)", ".a:nth-last-child(1 of .b) .c",
+            ".a:only-child", ".d:first-of-type", "[*|data-x] .b", ".a [*|data-x]",
+    ];
+
+    const scopedRules = [
+        { root: ".a", subject: ".b" },
+        { root: ".a", limit: ".c", subject: ".b" },
+        { root: ".d", limit: ".c:first-child", subject: "div" },
+        { root: ".a:first-child", subject: ".c" },
+        { root: ".a:nth-child(2)", subject: ".c" },
+        { root: ".a + .b", subject: ".c" },
+        { root: ".a ~ .b", limit: ".d + *", subject: ".c" },
+        { root: "section", limit: ".c ~ .d", subject: ":first-child" },
+    ];
+
+    // Whether `element` is below a root of `rule`, with no limit on the way there, and matches its subject.
+    function matchesScoped(element, rule) {
+        if (!element.matches(rule.subject))
+            return false;
+        for (let node = element; node.parentElement; node = node.parentElement) {
+            if (rule.limit && node.matches(rule.limit))
+                return false;
+            if (node.parentElement.matches(rule.root))
+                return true;
+        }
+        return false;
+    }
+
+    function testInvalidationAgainstMatches(prefix, { window, root, sheetHolder, quirksSelectors = [] }) {
+        const { CSS, document } = window;
+        const selectors = invalidationSelectors.concat(quirksSelectors);
+        selectors.forEach((_, index) => {
+            CSS.registerProperty({ name: `--${prefix}${index}`, syntax: "<integer>", inherits: false, initialValue: "0" });
+            CSS.registerProperty({ name: `--${prefix}b${index}`, syntax: "<integer>", inherits: false, initialValue: "0" });
+        });
+        scopedRules.forEach((_, index) => {
+            CSS.registerProperty({ name: `--${prefix}s${index}`, syntax: "<integer>", inherits: false, initialValue: "0" });
+        });
+        // A sheet this long is kept in a segment of the process, where one much shorter is not.
+        let text = "* { display: block; } .g { width: 123px; }\n";
+        for (let index = 0; index < 80; ++index)
+            text += `.padding-${index} { --padding: 1; }\n`;
+        selectors.forEach((selector, index) => {
+            text += `${selector} { --${prefix}${index}: 1; }\n`;
+            text += `${selector}::before { --${prefix}b${index}: 1; content: ""; }\n`;
+        });
+        scopedRules.forEach(({ root, limit, subject }, index) => {
+            text += `@scope (${root}) ${limit ? `to (${limit})` : ""} { ${subject} { --${prefix}s${index}: 1; } }\n`;
+        });
+        const style = document.createElement("style");
+        style.textContent = text;
+        sheetHolder.append(style);
+
+        root.innerHTML = `
+            <div class="a"><div class="b"><span class="c"></span></div><div class="b d"></div>text</div>
+            <div class="c" id="i"></div>
+            <section class="d"><div class="a"></div><p class="b"></p><p></p></section>
+            <div data-x="1"><input type="checkbox"><div class="b"></div><div class="c"></div></div>
+            <div></div>
+            <div class="a"></div>
+            <div class="b"></div>`;
+
+        let seed = 12345;
+        const random = limit => {
+            seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+            return (seed >> 8) % limit;
+        };
+        const elements = () => [...root.querySelectorAll("*")];
+        const pick = () => {
+            const all = elements();
+            return all[random(all.length)];
+        };
+        const classes = ["a", "b", "c", "d", "g", "other", "upper-class", "UPPER-CLASS"];
+        const ids = ["i", "j", "k", "upper-id", "UPPER-ID"];
+        const changes = [
+            element => element.classList.toggle(classes[random(classes.length)]),
+            element => element.classList.toggle(classes[random(classes.length)]),
+            element => element.classList.toggle(classes[random(classes.length)]),
+            element => (element.id = random(3) ? ids[random(ids.length)] : ""),
+            element => element.toggleAttribute("data-x"),
+            element => element.setAttribute("data-x", String(random(3))),
+            element => {
+                const tag = ["div", "section", "p"][random(3)];
+                const added = document.createElement(tag);
+                added.className = classes[random(classes.length)];
+                element.append(added);
+            },
+            element => {
+                const added = document.createElement("div");
+                added.className = classes[random(classes.length)];
+                element.prepend(added);
+            },
+            element => {
+                const added = document.createElement("div");
+                added.innerHTML = '<div class="c"><div class="b"></div></div>';
+                element.before(added);
+            },
+            element => elements().length > 8 && element.remove(),
+            element => {
+                const other = pick();
+                if (!element.contains(other))
+                    other.append(element);
+            },
+            element => {
+                const other = pick();
+                if (!element.contains(other))
+                    other.before(element);
+            },
+            element => {
+                const parent = element.parentElement;
+                const next = element.nextSibling;
+                element.remove();
+                parent.insertBefore(element, next);
+            },
+            element => (element.textContent ? (element.textContent = "") : element.append("text")),
+            () => {
+                const inputs = root.querySelectorAll("input");
+                if (inputs.length)
+                    inputs[random(inputs.length)].checked ^= true;
+            },
+            element => element.append(document.createElement("input")),
+            element => (element.querySelector(":scope > input") || element).setAttribute("type", "checkbox"),
+        ];
+
+        let mismatches = 0;
+        const report = (step, element, what) => {
+            if (mismatches++ < 20)
+                println(`step ${step}: <${element.localName} class="${element.className}" id="${element.id}"> ${what}`);
+        };
+        let rulesApply = true;
+        const check = step => {
+            for (const element of elements()) {
+                const style = window.getComputedStyle(element);
+                const before = window.getComputedStyle(element, "::before");
+                scopedRules.forEach((rule, index) => {
+                    const expected = rulesApply && matchesScoped(element, rule) ? "1" : "0";
+                    if (style.getPropertyValue(`--${prefix}s${index}`) !== expected)
+                        report(step, element, `scope ${JSON.stringify(rule)}: expected ${expected}`);
+                });
+                selectors.forEach((selector, index) => {
+                    const expected = rulesApply && element.matches(selector) ? "1" : "0";
+                    if (style.getPropertyValue(`--${prefix}${index}`) !== expected)
+                        report(step, element, `${selector}: expected ${expected}`);
+                    if (before.getPropertyValue(`--${prefix}b${index}`) !== expected)
+                        report(step, element, `${selector}::before: expected ${expected}`);
+                });
+            }
+        };
+        check("start");
+        for (let step = 0; step < 150; ++step) {
+            const element = pick();
+            changes[random(changes.length)](element);
+            // Geometry read on its own, before anything else asks for style.
+            const measured = pick();
+            const width = measured.offsetWidth;
+            if ((width === 123) !== measured.matches(".g") && !measured.matches("input *"))
+                report(step, measured, `width ${width}`);
+            check(step);
+            // The whole sheet leaving and arriving again, with a change while it is gone.
+            if (step % 40 === 20) {
+                style.media = "not all";
+                rulesApply = false;
+                check(`${step} sheet gone`);
+                pick().classList.toggle("c");
+                style.media = "all";
+                rulesApply = true;
+                check(`${step} sheet back`);
+            }
+            // A rule changing, as a sheet kept in a segment leaves it for it.
+            if (step === 70) {
+                style.sheet.insertRule(".inserted { --padding: 2; }", style.sheet.cssRules.length);
+                check(`${step} rule inserted`);
+                style.sheet.deleteRule(style.sheet.cssRules.length - 1);
+                check(`${step} rule deleted`);
+            }
+        }
+        println(`${prefix}: ${mismatches} mismatches`);
+        style.remove();
+    }
+
+    test(() => {
+        testInvalidationAgainstMatches("seg", { window, root: document.getElementById("root"), sheetHolder: document.head });
+
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        const shadowRoot = document.createElement("div");
+        shadow.append(shadowRoot);
+        testInvalidationAgainstMatches("sh", { window, root: shadowRoot, sheetHolder: shadow });
+
+        // A frame with no document of its own is in quirks mode.
+        const frame = document.getElementById("quirks-frame").contentWindow;
+        println(frame.document.compatMode);
+        const quirksRoot = frame.document.createElement("div");
+        frame.document.body.append(quirksRoot);
+        testInvalidationAgainstMatches("q", {
+            window: frame,
+            root: quirksRoot,
+            sheetHolder: frame.document.head,
+            quirksSelectors: [".UPPER-class", "#UPPER-id", ".a .UPPER-CLASS"],
+        });
+    });
+</script>

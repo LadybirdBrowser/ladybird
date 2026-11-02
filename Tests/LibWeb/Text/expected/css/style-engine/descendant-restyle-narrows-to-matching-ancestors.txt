@@ -1,0 +1,4 @@
+spans under the guard: 3
+full pass: false
+changed: [guard, qualified]
+styled only what changed: true

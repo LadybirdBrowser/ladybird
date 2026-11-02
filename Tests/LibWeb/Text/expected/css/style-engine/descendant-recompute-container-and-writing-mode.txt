@@ -1,0 +1,2 @@
+ancestor container type: width: 50px
+ancestor writing mode: width: 3px, height: 7px

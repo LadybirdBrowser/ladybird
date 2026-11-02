@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container {
+        container-type: inline-size;
+        font-family: "LateFace", serif;
+    }
+
+    #measure {
+        display: inline-block;
+        font-family: serif;
+        width: 100ex;
+    }
+
+    .probe {
+        color: rgb(255, 0, 0);
+    }
+
+    @container (width > 100ex) {
+        .probe {
+            color: rgb(0, 128, 0);
+        }
+    }
+</style>
+<div class="container" id="wider"><span class="probe">probe</span></div>
+<div class="container" id="narrower"><span class="probe">probe</span></div>
+<span id="measure"></span>
+<script>
+    promiseTest(async () => {
+        const face = new FontFace("LateFace", 'url("../../../Assets/Lato-Bold.ttf")');
+        document.fonts.add(face);
+
+        // One container just wider and one just narrower than 100ex of the fallback font: once the
+        // face's x-height replaces the fallback's, the query flips for exactly one of them.
+        const fallbackWidth = document.getElementById("measure").getBoundingClientRect().width;
+        const containers = [document.getElementById("wider"), document.getElementById("narrower")];
+        containers[0].style.width = `${fallbackWidth + 0.5}px`;
+        containers[1].style.width = `${fallbackWidth - 0.5}px`;
+        const probes = containers.map(container => container.querySelector(".probe"));
+        const colorsBefore = probes.map(probe => getComputedStyle(probe).color);
+        println(`verdicts before: ${colorsBefore.join(", ")}`);
+
+        await face.load();
+        const colorsAfter = probes.map(probe => getComputedStyle(probe).color);
+        println(`face loaded: ${face.status}`);
+        println(`verdicts changed: ${colorsAfter.filter((color, index) => color !== colorsBefore[index]).length}`);
+
+        // What the probes styled before the load compute now matches what probes styled after it compute.
+        containers.forEach((container, index) => {
+            const freshProbe = container.appendChild(document.createElement("span"));
+            freshProbe.className = "probe";
+            println(`probe ${index} matches a fresh style: ${colorsAfter[index] === getComputedStyle(freshProbe).color}`);
+        });
+    });
+</script>

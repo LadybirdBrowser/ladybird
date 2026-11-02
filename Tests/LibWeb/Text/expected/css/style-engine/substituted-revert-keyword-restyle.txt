@@ -1,0 +1,5 @@
+initial: toggled=7px edited=3px ::before=5px
+ancestor class added: toggled=9px edited=3px ::before=6px
+ancestor class removed: toggled=7px edited=3px ::before=5px
+lower layer edited: toggled=7px edited=11px ::before=5px
+::before inserted: toggled=7px edited=11px ::before=5px 5px

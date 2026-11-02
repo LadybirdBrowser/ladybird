@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<div id="root"><b id="b0"></b><a id="a1" class="x"></a><b id="b2"></b><i id="i3" class="y"></i><b id="b4"></b><a id="a5"></a><b id="b6"></b></div>
+<div id="other"><b id="c0"></b><i id="c1" class="y"></i><b id="c2"></b></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Each query walks back from many siblings across the same earlier ones, which the walks may share.
+        for (const selector of [".x ~ b", ".y ~ b", ".x ~ .y ~ b", "#root > .x ~ i ~ b", "a ~ a ~ b", ".x ~ a ~ b, .y ~ b"]) {
+            const ids = Array.from(document.querySelectorAll(selector), element => element.id);
+            println(`${selector}: ${ids.join(" ")}`);
+        }
+    });
+</script>

@@ -3,6 +3,11 @@
 <script src="../../include.js"></script>
 <script src="structural-matrix.js"></script>
 <script>
+    // A mutation that cannot change what a :has() argument matches should style nothing but what it
+    // inserts, and one that can should style only that and the anchor with what its rules reach. The
+    // cases insert different numbers of elements, so the counts are printed.
+    // FIXME: Appending the <strong> of the tag argument case styles one element more than it inserts.
+
     function runMutationRootCase(name, selector, unrelatedMutation, relatedMutation) {
         const style = addStyle(document.head, `:root:has(.flag) .subgrid:has(${selector}) { ${MATCH_DECLARATION} }`);
         const fixture = makeElement("section");
@@ -21,18 +26,19 @@
         resetStyleCounters();
         unrelatedMutation({ fixture, subgrid });
         assertEqual(`${name} after unrelated mutation`, readProbe(subgrid), BASE);
-        printPassWithCounters(`actual mutation root skips unrelated :has anchor: ${name}`);
+        printPassWithStyleCounters(`actual mutation root skips unrelated :has anchor: ${name}`);
 
         resetStyleCounters();
         relatedMutation({ subgrid });
         assertEqual(`${name} after related mutation`, readProbe(subgrid), MATCH);
-        printPassWithCounters(`actual mutation root keeps related :has anchor: ${name}`);
+        printPassWithStyleCounters(`actual mutation root keeps related :has anchor: ${name}`);
 
         style.remove();
         fixture.remove();
     }
 
     test(() => {
+        internals.updateStyle();
         runMutationRootCase(
             "attribute argument",
             `[view-type="compactView"]`,
@@ -133,12 +139,12 @@
             resetStyleCounters();
             unrelated.classList.add("show");
             assertEqual("sibling combinator argument after unrelated class mutation", readProbe(subgrid), MATCH);
-            printPassWithCounters("actual mutation root skips unrelated sibling-combinator :has anchor");
+            printPassWithStyleCounters("actual mutation root skips unrelated sibling-combinator :has anchor");
 
             resetStyleCounters();
             right.remove();
             assertEqual("sibling combinator argument after sibling relationship mutation", readProbe(subgrid), BASE);
-            printPassWithCounters("actual mutation root keeps sibling-combinator :has anchor for child removal");
+            printPassWithStyleCounters("actual mutation root keeps sibling-combinator :has anchor for child removal");
 
             style.remove();
             fixture.remove();
@@ -160,12 +166,12 @@
             resetStyleCounters();
             right.classList.add("unrelated");
             assertEqual(`${name} after unrelated RHS class mutation`, readProbe(subgrid), BASE);
-            printPassWithCounters(`actual mutation root skips unrelated RHS sibling-combinator :has anchor: ${name}`);
+            printPassWithStyleCounters(`actual mutation root skips unrelated RHS sibling-combinator :has anchor: ${name}`);
 
             resetStyleCounters();
             right.classList.add("right");
             assertEqual(`${name} after matching RHS class mutation`, readProbe(subgrid), MATCH);
-            printPassWithCounters(`actual mutation root keeps RHS sibling-combinator :has anchor: ${name}`);
+            printPassWithStyleCounters(`actual mutation root keeps RHS sibling-combinator :has anchor: ${name}`);
 
             style.remove();
             fixture.remove();
@@ -217,7 +223,7 @@
             resetStyleCounters();
             subgrid.classList.add("unrelated");
             assertEqual(`${name} after unrelated mixed-rule mutation`, readProbe(target), MATCH);
-            printPassWithCounters(`mixed-rule sibling scan preserves feature-filter skip: ${name}`);
+            printPassWithStyleCounters(`mixed-rule sibling scan preserves feature-filter skip: ${name}`);
 
             style.remove();
             fixture.remove();

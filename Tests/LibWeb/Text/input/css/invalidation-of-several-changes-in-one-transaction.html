@@ -1,0 +1,83 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    :where(#root *) { color: rgb(0, 0, 0); }
+    .a + .b { color: rgb(0, 128, 0); }
+    .a ~ .later { color: rgb(0, 128, 0); }
+    .anchor:has(~ .w) { color: rgb(0, 128, 0); }
+    .anchor2:has(+ .w) { color: rgb(0, 128, 0); }
+    .anchor3:has(~ div .w) { color: rgb(0, 128, 0); }
+    .anchor4:has(.w) { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // Facts changing and elements arriving, leaving and moving in one transaction read the tree before and after it
+    // apart: what each selector answers has to come out as `matches()` says, whichever change reached it.
+    test(() => {
+        const root = document.getElementById("root");
+        const make = (html) => {
+            const holder = document.createElement("div");
+            holder.innerHTML = html;
+            root.append(holder);
+            return holder;
+        };
+        const report = (title, holder) => {
+            const all = [...holder.querySelectorAll("*")];
+            const wrong = all.filter(element => {
+                const green = getComputedStyle(element).color === "rgb(0, 128, 0)";
+                const matches = element.matches(".a + .b, .a ~ .later, .anchor:has(~ .w), .anchor2:has(+ .w), .anchor3:has(~ div .w), .anchor4:has(.w)");
+                return green !== matches;
+            });
+            println(`${title}: ${wrong.length ? wrong.map(element => element.outerHTML).join(" ") : "ok"}`);
+        };
+
+        // The previous sibling loses the class as another takes its place.
+        let holder = make('<i class="a"></i><b class="b"></b><b class="later"></b>');
+        report("start", holder);
+        holder.children[0].classList.remove("a");
+        const other = document.createElement("i");
+        other.className = "a";
+        holder.children[0].after(other);
+        report("new previous, old loses its class", holder);
+        other.classList.remove("a");
+        holder.children[0].classList.add("a");
+        other.remove();
+        report("old regains its class, new leaves", holder);
+        holder.children[0].classList.remove("a");
+        holder.prepend(holder.children[1]);
+        holder.children[0].classList.add("a");
+        report("swap with classes moving", holder);
+
+        // A witness moving among siblings, leaving and arriving in one transaction.
+        holder = make('<p class="anchor"></p><p class="anchor2"></p><p class="w"></p><div></div><p class="anchor3"></p><div><span class="w"></span></div>');
+        report("start", holder);
+        const witness = holder.children[2];
+        holder.prepend(witness);
+        report("witness moved before the anchors", holder);
+        holder.append(witness);
+        report("witness moved to the end", holder);
+        holder.children[1].after(witness);
+        report("witness next to the anchor", holder);
+        const deep = holder.querySelector("span");
+        witness.append(deep);
+        report("deep witness moved into the witness", holder);
+        holder.lastElementChild.append(deep);
+        witness.classList.remove("w");
+        report("deep witness back, witness loses its class", holder);
+        witness.classList.add("w");
+        witness.remove();
+        holder.append(witness);
+        report("class back, removed and appended", holder);
+
+        holder = make('<div class="anchor4"><p><i class="w"></i></p></div><div class="anchor4"><p></p></div>');
+        report("start", holder);
+        const inner = holder.querySelector("i");
+        holder.children[1].firstElementChild.append(inner);
+        report("witness between anchors", holder);
+        holder.children[0].append(holder.children[1].firstElementChild);
+        report("subtree with the witness between anchors", holder);
+        holder.children[0].lastElementChild.remove();
+        holder.children[1].append(inner);
+        report("subtree left as the witness arrives", holder);
+    });
+</script>

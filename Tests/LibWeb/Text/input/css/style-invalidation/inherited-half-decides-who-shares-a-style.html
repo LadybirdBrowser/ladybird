@@ -11,6 +11,8 @@
             .inheriting-kid { border-style: solid; border-color: inherit; }
         `);
 
+        internals.updateStyle();
+
         const box = makeElement("section");
         for (const parentClass of ["red", "green"]) {
             const parent = makeElement("div", { className: parentClass });
@@ -22,6 +24,7 @@
 
         resetStyleCounters();
         internals.updateStyle();
+        const reused = internals.styleCounters().reusedElements;
 
         const [redPlain, redInheriting, greenPlain, greenInheriting] = box.querySelectorAll("div div");
         const color = element => getComputedStyle(element).borderTopColor;
@@ -31,6 +34,8 @@
         assertEqual("a plain child of the red parent", color(redPlain), "rgb(0, 0, 0)");
         assertEqual("a plain child of the green parent", color(greenPlain), "rgb(0, 0, 0)");
         println(`PASS: children reading only the inherited half share a style: ${internals.styleRecordIdentity(redPlain) === internals.styleRecordIdentity(greenPlain)}`);
+        // Their parents differ, so the second takes the first one's record by its cascade, not by sharing.
+        println(`PASS: the second plain child reuses the first one's record: ${reused >= 1}`);
 
         // `border-color: inherit` reads the half of the parent's style those two parents differ in,
         // so each of these children answers for itself.

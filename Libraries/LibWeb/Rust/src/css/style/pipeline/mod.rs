@@ -226,19 +226,13 @@ impl StyleEngine {
     }
 
     /// The pool a pass on `threads` threads runs on besides the calling thread, or on the default
-    /// number for the machine for none, where its threads have started.
+    /// number for the machine for none.
     fn style_pool(&mut self, threads: u32) -> Option<std::sync::Arc<rayon::ThreadPool>> {
-        let threads = match threads {
-            0 => traversal::thread_count(),
-            threads => (threads as usize).min(traversal::MAX_THREAD_COUNT),
-        };
-        // The calling thread is one of the threads the pass runs on.
-        let workers = threads.max(1) - 1;
         // NB: An engine no render state holds, such as a test's, starts threads of its own.
         self.retained
             .style_pool
-            .get_or_insert_with(|| std::sync::Arc::new(pool::StylePool::new(pool::PoolStart::OnFirstPass)))
-            .workers(workers)
+            .get_or_insert_with(|| std::sync::Arc::new(pool::StylePool::of_engine()))
+            .for_threads(threads)
     }
 }
 

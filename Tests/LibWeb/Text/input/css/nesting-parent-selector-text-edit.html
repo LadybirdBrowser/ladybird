@@ -1,0 +1,27 @@
+<!doctype html>
+<style>
+    .a {
+        color: rgb(0, 0, 255);
+        & > span { color: rgb(0, 128, 0); }
+        @media all { span& { color: rgb(255, 0, 0); } }
+        .x { color: rgb(255, 165, 0); }
+    }
+</style>
+<div class="a" id="first"><span id="child">x</span><b class="x" id="inner">y</b></div>
+<div class="b" id="second"><span id="other">x</span><b class="x" id="otherInner">y</b></div>
+<span class="b" id="spanB">z</span>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const color = id => getComputedStyle(document.getElementById(id)).color;
+        const report = () => {
+            for (const id of ["child", "inner", "other", "otherInner", "spanB"])
+                println(`${id}: ${color(id)}`);
+        };
+        println("before:");
+        report();
+        document.styleSheets[0].cssRules[0].selectorText = ".b";
+        println("after editing the parent to .b:");
+        report();
+    });
+</script>

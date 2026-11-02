@@ -1,0 +1,2 @@
+color: rgb(255, 0, 0)
+font size: 20px

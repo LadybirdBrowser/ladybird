@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="beside-small">beside small</div>
+<div id="beside-large">beside large</div>
+<script>
+    test(() => {
+        const addSheet = text => {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.append(style);
+        };
+        const smallTarget = document.getElementById("beside-small");
+        const largeTarget = document.getElementById("beside-large");
+        getComputedStyle(smallTarget).color;
+
+        // A sheet with enough rules has its entries kept apart from the others, starting on a new page of them.
+        let largeSheet = "";
+        for (let i = 0; i < 100; ++i)
+            largeSheet += `.filler${i} { top: ${i}px; }\n`;
+        addSheet(".small { color: rgb(0, 128, 0); }");
+        addSheet(largeSheet + ".large { color: rgb(0, 128, 0); }");
+        getComputedStyle(smallTarget).color;
+
+        smallTarget.classList.add("small");
+        largeTarget.classList.add("large");
+        println(`rule of the small sheet: ${getComputedStyle(smallTarget).color}`);
+        println(`rule of the large sheet: ${getComputedStyle(largeTarget).color}`);
+    });
+</script>

@@ -1,2 +1,2 @@
 active color: rgb(1, 2, 3)
-PASS: :active state change stayed targeted
+:active state change styled fewer than 50: true, full passes: 0

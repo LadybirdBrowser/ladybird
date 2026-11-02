@@ -1,0 +1,27 @@
+<!doctype html>
+<style>
+    @layer reset { * { --own: 0; --position: 0; } }
+    :nth-last-child(odd) { --position: 1; }
+    :last-child:only-of-type { display: none; }
+    .own { --own: 1; color: rgb(0, 128, 0); }
+</style>
+<script src="../include.js"></script>
+<div id="top"><div><div><details><div><div id="target"></div></div></details></div></div><div id="leaves"></div><div></div></div>
+<script>
+    // The custom properties of the elements above one read move with their position, among them an element a details
+    // has in its shadow tree, which nothing reads. A read below all of them still answers what the element declares.
+    asyncTest(done => {
+        const readAll = () => [...document.querySelectorAll("*")].map(element => getComputedStyle(element).getPropertyValue("--own")).join("");
+        requestAnimationFrame(() => {
+            document.documentElement.offsetWidth;
+            println(readAll());
+            requestAnimationFrame(() => {
+                target.classList.add("own");
+                leaves.remove();
+                println(readAll());
+                println(`target: ${getComputedStyle(target).getPropertyValue("--own")}, ${getComputedStyle(target).color}`);
+                done();
+            });
+        });
+    });
+</script>

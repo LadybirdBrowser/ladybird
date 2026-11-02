@@ -1,0 +1,15 @@
+reader: 2px 2px auto
+sibling arrived: 3px 3px auto
+sibling left: 2px 2px auto
+sibling moved: 1px 2px auto
+pseudo reader: 784px 0px 2px
+pseudo sibling arrived: 784px 0px 3px
+custom reader: 2px 0px auto
+custom sibling arrived: 3px 0px auto
+moved to another parent: 2px 2px auto
+sibling arrived in another parent: 3px 3px auto
+reads from a class change: 3px 3px auto
+sibling arrived after a class change: 4px 4px auto
+parent came back: 784px 0px auto
+reader in the parent that came back: 2px 2px auto
+sibling arrived in the parent that came back: 3px 3px auto

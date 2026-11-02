@@ -1,3 +1,3 @@
-PASS: appends near interaction :has() stayed targeted
+appends near interaction :has() styled fewer than 100: true, full passes: 0
 focused: rgb(7, 7, 7)
 focused element removed: rgb(1, 1, 1)

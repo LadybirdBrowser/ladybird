@@ -18,12 +18,6 @@
     <span id="shared-target">m</span>
 </div>
 <script>
-    function printMetadataCounters(label) {
-        const counters = internals.getStyleInvalidationCounters();
-        println(`[${label}]`);
-        println(`  elementStyleRecomputations: ${counters.elementStyleRecomputations}`);
-    }
-
     test(() => {
         let unrelatedTarget = document.getElementById("unrelated-target");
         let singleTarget = document.getElementById("single-target");
@@ -33,18 +27,18 @@
 
         unrelatedTarget.classList.add("unrelated");
         getComputedStyle(unrelatedTarget).color;
-        printMetadataCounters("add unrelated class");
+        printCounters("add unrelated class", 1);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         singleTarget.classList.add("match-a");
         getComputedStyle(singleTarget).color;
-        printMetadataCounters("add class referenced by one :has()");
+        printCounters("add class referenced by one :has()", 1);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         sharedTarget.classList.add("shared");
         getComputedStyle(sharedTarget).color;
-        printMetadataCounters("add class referenced by two :has() rules");
+        printCounters("add class referenced by two :has() rules", 1);
     });
 </script>

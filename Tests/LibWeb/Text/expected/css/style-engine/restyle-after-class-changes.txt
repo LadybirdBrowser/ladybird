@@ -1,0 +1,74 @@
+add a
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 16px 16px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 700 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 3px 16px block
+  ::before rgb(1, 2, 3) normal
+add on
+  DIV.item on: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 16px 16px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 700 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 16px 16px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 3px 16px block
+  ::before rgb(1, 2, 3) normal
+add before
+  DIV.item on before: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 16px 16px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 700 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 16px 16px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 3px 16px block
+  ::before rgb(9, 8, 7) "x"
+insert first
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 3px 16px block
+  DIV.item on before: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 16px 16px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 3px 16px block
+  ::before rgb(1, 2, 3) normal
+fill empty
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 3px 16px block
+  DIV.item on before: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 16px 16px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 0px 16px block
+  I.: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  ::before rgb(1, 2, 3) normal
+remove before
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 3px 16px block
+  DIV.item on: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 16px 16px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 0px 16px block
+  I.: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 16px 16px inline
+  ::before rgb(1, 2, 3) normal
+inherit
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 3px 20px block
+  DIV.item on: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 400 20px 20px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 20px 20px block
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 0px 20px block
+  I.: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px inline
+  ::before rgb(1, 2, 3) normal
+hide
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 700 3px 20px block
+  DIV.item on: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px block
+  SPAN.b: rgb(1, 2, 3) rgb(0, 100, 0) 0px 0px 400 20px 20px inline
+  DIV.item hidden: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 1px 400 auto 20px none
+  SPAN.c: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 3px 400 auto 20px inline
+  DIV.item: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 0px 20px block
+  I.: rgb(1, 2, 3) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px inline
+  ::before rgb(1, 2, 3) normal
+remove a
+  DIV.item: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 0px 700 3px 20px block
+  DIV.item on: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px block
+  SPAN.b: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px inline
+  DIV.item hidden: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 1px 400 auto 20px none
+  SPAN.c: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 3px 400 auto 20px inline
+  DIV.item: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 0px 400 0px 20px block
+  I.: rgb(0, 0, 0) rgba(0, 0, 0, 0) 0px 0px 400 20px 20px inline
+  ::before rgb(0, 0, 0) normal

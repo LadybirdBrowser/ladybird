@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @namespace xlink url("http://www.w3.org/1999/xlink");
+    .a [*|href] { color: rgb(0, 128, 0); }
+    .b [xlink|href] { color: rgb(0, 128, 0); }
+    .d > [*|href] { color: rgb(0, 128, 0); }
+    [*|href] ~ .later { color: rgb(0, 128, 0); }
+    [xlink|href] + .next { color: rgb(0, 128, 0); }
+    .anchor [*|href]:has(.w) { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // An attribute in a namespace is carried under its qualified forms and not its local name, which a compound testing
+    // it in any or a named namespace cannot be rejected on.
+    test(() => {
+        const root = document.getElementById("root");
+        const XLINK = "http://www.w3.org/1999/xlink";
+        const make = () => {
+            const element = document.createElement("div");
+            element.setAttributeNS(XLINK, "xlink:href", "#x");
+            return element;
+        };
+        for (const className of ["a", "b", "d"]) {
+            const holder = document.createElement("div");
+            const target = make();
+            holder.append(target);
+            root.append(holder);
+            println(`${className} before: ${getComputedStyle(target).color}`);
+            holder.classList.add(className);
+            println(`${className} after: ${getComputedStyle(target).color}`);
+            holder.classList.remove(className);
+            println(`${className} removed: ${getComputedStyle(target).color}`);
+        }
+        for (const className of ["later", "next"]) {
+            const holder = document.createElement("div");
+            const first = document.createElement("div");
+            const target = document.createElement("div");
+            target.className = className;
+            holder.append(first, target);
+            root.append(holder);
+            println(`${className} before: ${getComputedStyle(target).color}`);
+            first.setAttributeNS(XLINK, "xlink:href", "#x");
+            println(`${className} attribute set: ${getComputedStyle(target).color}`);
+            first.removeAttributeNS(XLINK, "href");
+            println(`${className} attribute removed: ${getComputedStyle(target).color}`);
+        }
+        const holder = document.createElement("div");
+        const target = make();
+        const witness = document.createElement("b");
+        witness.className = "w";
+        target.append(witness);
+        holder.append(target);
+        root.append(holder);
+        println(`anchor before: ${getComputedStyle(target).color}`);
+        holder.classList.add("anchor");
+        println(`anchor after: ${getComputedStyle(target).color}`);
+        witness.remove();
+        println(`anchor without its witness: ${getComputedStyle(target).color}`);
+        target.append(witness);
+        println(`anchor with its witness: ${getComputedStyle(target).color}`);
+    });
+</script>

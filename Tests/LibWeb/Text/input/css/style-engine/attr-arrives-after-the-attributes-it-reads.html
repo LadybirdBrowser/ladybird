@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="sheet"></style>
+<style>
+    @keyframes hold-from-keyframes {
+        from, to { --from-keyframes: attr(data-from-keyframes-rule); --keyframes-control: b; }
+    }
+</style>
+<div id="target"
+    data-from-rule="rule value"
+    data-from-inline="inline value"
+    data-from-keyframes="keyframes value"
+    data-from-script-animation="script animation value"
+    data-from-function="function value"
+    data-from-keyframes-rule="keyframes rule value"
+    data-from-cssom="cssom value"
+    data-from-other-document="other document value"
+    data-from-style-element="style element value"
+    data-from-adopted-sheet="adopted sheet value"
+></div>
+<div id="host" data-from-shadow-style="host value"></div>
+<script>
+    // Every way an attr() reaches a document after the attributes it reads did: nothing read their
+    // text before, so the document has to hand it over as the attr() arrives.
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = document.getElementById("sheet");
+        const read = name => getComputedStyle(target).getPropertyValue(name);
+        read("display");
+
+        const addRule = rule => sheet.sheet.insertRule(rule, sheet.sheet.cssRules.length);
+
+        addRule("#target { --from-rule: attr(data-from-rule); }");
+        println(`rule: ${read("--from-rule")}`);
+
+        target.style.setProperty("--from-inline", "attr(data-from-inline)");
+        println(`inline: ${read("--from-inline")}`);
+
+        addRule("#target { --placeholder: none; }");
+        sheet.sheet.cssRules[sheet.sheet.cssRules.length - 1].style.setProperty("--from-cssom", "attr(data-from-cssom)");
+        println(`cssom: ${read("--from-cssom")}`);
+
+        addRule("@function --from-function() { result: attr(data-from-function); }");
+        addRule("#target { --called: --from-function(); }");
+        println(`function: ${read("--called")}`);
+
+        target.animate({ "--from-script-animation": ["attr(data-from-script-animation)", "attr(data-from-script-animation)"] }, { duration: 100000 }).currentTime = 1000;
+        target.animate({ "--control": ["a", "a"] }, { duration: 100000 }).currentTime = 1000;
+        println(`control: ${read("--control")}`);
+        println(`script animation: ${read("--from-script-animation")}`);
+
+        addRule("#target { animation: hold-from-keyframes 100000s paused; }");
+        println(`keyframes control: ${read("--keyframes-control")}`);
+        println(`keyframes rule: ${read("--from-keyframes")}`);
+
+        const styleElement = document.createElement("style");
+        styleElement.textContent = "#target { --from-style-element: attr(data-from-style-element); }";
+        document.head.appendChild(styleElement);
+        println(`style element: ${read("--from-style-element")}`);
+
+        const adopted = new CSSStyleSheet();
+        adopted.replaceSync("#target { --from-adopted-sheet: attr(data-from-adopted-sheet); }");
+        document.adoptedStyleSheets = [adopted];
+        println(`adopted sheet: ${read("--from-adopted-sheet")}`);
+
+        const shadowHost = document.getElementById("host");
+        const shadow = shadowHost.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>:host { --from-shadow-style: attr(data-from-shadow-style); }</style>`;
+        println(`shadow style: ${getComputedStyle(shadowHost).getPropertyValue("--from-shadow-style")}`);
+
+        const holder = document.createElement("div");
+        holder.innerHTML = `<div id="arriving" data-from-own-style="own style value" style="--from-own-style: attr(data-from-own-style)"></div>`;
+        document.body.appendChild(holder);
+        println(`own style attribute: ${getComputedStyle(document.getElementById("arriving")).getPropertyValue("--from-own-style")}`);
+
+        // An attr() in another document says nothing of this one, whose own attr() still reads the name later.
+        const frame = document.createElement("iframe");
+        document.body.appendChild(frame);
+        frame.contentDocument.body.innerHTML = `<style>body { --from-other-document: attr(data-from-other-document); }</style>`;
+        frame.contentDocument.body.setAttribute("data-from-other-document", "the frame's");
+        println(`other document: ${frame.contentWindow.getComputedStyle(frame.contentDocument.body).getPropertyValue("--from-other-document")}`);
+        println(`this document before: ${read("--from-other-document") === "" ? "empty" : "not empty"}`);
+        addRule("#target { --from-other-document: attr(data-from-other-document); }");
+        println(`this document after: ${read("--from-other-document")}`);
+        frame.remove();
+    });
+</script>

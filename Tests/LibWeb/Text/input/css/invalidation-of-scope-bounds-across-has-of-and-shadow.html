@@ -1,0 +1,107 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @scope (.card:has(.on)) { .in-has { color: rgb(0, 128, 0); } }
+    @scope (.frame) to (.stop:has(> .here)) { .in-has-limit { color: rgb(0, 128, 0); } }
+    @scope (:nth-child(1 of .x)) { .in-of { color: rgb(0, 128, 0); } }
+    @scope (:nth-child(1 of .a + .b)) { .in-of-sibling { color: rgb(0, 128, 0); } }
+    @scope (:nth-child(2 of :has(.mark))) { .in-of-has { color: rgb(0, 128, 0); } }
+    @scope (.outer) { @scope (:scope > .inner) { .in-nested { color: rgb(0, 128, 0); } } }
+    @scope (section:not(:has(.none))) to (:is(.f, .g:first-child)) { .in-not-has { color: rgb(0, 128, 0); } }
+    @scope (.sc) to (> .lm) { .in-relative-limit { color: rgb(0, 128, 0); } }
+    :nth-child(1 of :nth-child(1 of .y)) > .in-of-of { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // What a bound of `@scope` tests with `:has()` or `of S`, or across a shadow tree's boundary, moves the elements its
+    // scope holds, as an element's own selector would.
+    test(() => {
+        const root = document.getElementById("root");
+        const add = html => {
+            root.insertAdjacentHTML("beforeend", html);
+            return root.lastElementChild;
+        };
+        const color = element => getComputedStyle(element).color;
+        const step = (name, element, change) => {
+            println(`${name} before: ${color(element)}`);
+            change();
+            println(`${name} after: ${color(element)}`);
+        };
+
+        const card = add('<div class="card"><p><b id="switch"></b></p><span class="in-has">x</span></div>');
+        const hasTarget = card.querySelector(".in-has");
+        const on = card.querySelector("b");
+        step("has class on", hasTarget, () => on.classList.add("on"));
+        step("has class off", hasTarget, () => on.classList.remove("on"));
+        const arriving = document.createElement("i");
+        arriving.className = "on";
+        step("has arrival", hasTarget, () => on.append(arriving));
+        step("has departure", hasTarget, () => arriving.remove());
+
+        const frame = add('<div class="frame"><div class="stop"><span class="in-has-limit">x</span></div></div>');
+        const limitTarget = frame.querySelector("span");
+        const here = document.createElement("i");
+        step("has limit arrival", limitTarget, () => { here.className = "here"; frame.firstChild.append(here); });
+        step("has limit departure", limitTarget, () => here.remove());
+
+        const ofHolder = add('<div><div id="first"></div><div class="x"><span class="in-of">x</span></div></div>');
+        const ofTarget = ofHolder.querySelector("span");
+        step("of earlier gains", ofTarget, () => ofHolder.firstChild.classList.add("x"));
+        step("of earlier loses", ofTarget, () => ofHolder.firstChild.classList.remove("x"));
+        const ofArriving = document.createElement("i");
+        ofArriving.className = "x";
+        step("of arrival", ofTarget, () => ofHolder.prepend(ofArriving));
+        step("of departure", ofTarget, () => ofArriving.remove());
+
+        const ofSibling = add('<div><div class="a"></div><div class="b"><span class="in-of-sibling">x</span></div></div>');
+        const ofSiblingTarget = ofSibling.querySelector("span");
+        step("of sibling loses", ofSiblingTarget, () => ofSibling.firstChild.classList.remove("a"));
+        step("of sibling gains", ofSiblingTarget, () => ofSibling.firstChild.classList.add("a"));
+
+        const ofHas = add('<div><div></div><div><u></u><span class="in-of-has">x</span></div></div>');
+        const ofHasTarget = ofHas.querySelector("span");
+        const mark = ofHasTarget.previousElementSibling;
+        step("of has first", ofHasTarget, () => ofHas.firstChild.innerHTML = '<u class="mark"></u>');
+        step("of has second", ofHasTarget, () => mark.classList.add("mark"));
+        step("of has first gone", ofHasTarget, () => ofHas.firstChild.innerHTML = "");
+
+        const outer = add('<div><div class="inner"><span class="in-nested">x</span></div></div>');
+        const nestedTarget = outer.querySelector("span");
+        step("nested outer gains", nestedTarget, () => outer.classList.add("outer"));
+        step("nested inner loses", nestedTarget, () => outer.firstChild.classList.remove("inner"));
+        step("nested inner gains", nestedTarget, () => outer.firstChild.classList.add("inner"));
+        step("nested outer loses", nestedTarget, () => outer.classList.remove("outer"));
+
+        const notHas = add('<section><div class="g"><span class="in-not-has">x</span></div></section>');
+        const notHasTarget = notHas.querySelector("span");
+        const leading = document.createElement("i");
+        step("not has limit moved", notHasTarget, () => notHas.prepend(leading));
+        step("not has limit back", notHasTarget, () => leading.remove());
+
+        const ofOf = add('<div><div></div><div class="y"><span class="in-of-of">x</span></div></div>');
+        const ofOfTarget = ofOf.querySelector("span");
+        step("of of gains", ofOfTarget, () => ofOf.firstChild.classList.add("y"));
+        step("of of loses", ofOfTarget, () => ofOf.firstChild.classList.remove("y"));
+
+        const relative = add('<div class="sc"><div><span class="in-relative-limit">x</span></div></div>');
+        const relativeTarget = relative.querySelector("span");
+        step("relative limit gains", relativeTarget, () => relative.firstChild.classList.add("lm"));
+        step("relative limit loses", relativeTarget, () => relative.firstChild.classList.remove("lm"));
+
+        for (const sheet of [
+            "@scope (:host(.h) .t) { .in-scope { color: rgb(0, 128, 0); } }",
+            "@scope (:host(.h)) { .in-scope { color: rgb(0, 128, 0); } }",
+            "@scope (:is(:host(.h), .y) .t) { .in-scope { color: rgb(0, 128, 0); } }",
+            "@scope (:host(:has(.lit)) .t) { .in-scope { color: rgb(0, 128, 0); } }",
+        ]) {
+            const host = add("<div><b></b></div>");
+            const shadow = host.attachShadow({ mode: "open" });
+            shadow.innerHTML = `<style>${sheet}</style><div class="t"><span class="in-scope">x</span></div>`;
+            const target = shadow.querySelector("span");
+            const flip = sheet.includes("lit") ? host.firstChild : host;
+            const name = sheet.includes("lit") ? "lit" : "h";
+            step(`${sheet.slice(7, 30)} gains`, target, () => flip.classList.add(name));
+            step(`${sheet.slice(7, 30)} loses`, target, () => flip.classList.remove(name));
+        }
+    });
+</script>

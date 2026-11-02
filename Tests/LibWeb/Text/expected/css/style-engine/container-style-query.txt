@@ -1,0 +1,2 @@
+width: 10px, height: 7px
+after the container's custom property changes: width 784px, height 7px

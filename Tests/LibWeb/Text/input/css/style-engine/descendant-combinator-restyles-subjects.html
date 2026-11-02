@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .theme:focus .item { color: green }
+</style>
+<div id="outer" tabindex="0">
+    <div id="guard" class="theme" tabindex="0">
+        <div><div><div><span class="item" id="deep"></span></div></div></div>
+        <div><div><div><span></span></div></div></div>
+        <div><div><div><span></span></div></div></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        internals.resetStyleCounters();
+
+        // A descendant combinator reaches a whole subtree, but only the elements carrying the
+        // subject's own feature inside it can change. The pass restyles those, not the subtree: the
+        // guard has twelve descendants and exactly one of them is an .item. The guard itself is
+        // restyled because the user-agent sheet styles whatever is focused.
+        const guard = document.getElementById("guard");
+        println(`descendants of the guard: ${guard.querySelectorAll("*").length}`);
+        guard.focus({ preventScroll: true });
+        internals.updateStyle();
+        let pass = internals.styleLastPass();
+        println(`full pass: ${pass.fullPass}`);
+        println(`changed: [${pass.changed.join(", ")}]`);
+        println(`styled only what changed: ${pass.styled.join() === pass.changed.join()}`);
+
+        // The element an input happened to has to satisfy the rest of the compound that input
+        // occurs in. Focusing an element that is not a .theme reaches the elements the user-agent
+        // sheet styles by focus, and no .item at all. Blur the guard first, so the focus change
+        // takes nothing away from it.
+        guard.blur();
+        internals.updateStyle();
+        internals.resetStyleCounters();
+        document.getElementById("outer").focus({ preventScroll: true });
+        internals.updateStyle();
+        pass = internals.styleLastPass();
+        println(`unguarded focus: full pass ${pass.fullPass}, changed [${pass.changed.join(", ")}], styles the item ${pass.styled.includes("deep")}`);
+    });
+</script>

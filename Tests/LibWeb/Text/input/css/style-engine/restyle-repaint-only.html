@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #box { width: 50px; height: 50px; color: rgb(0, 0, 255); background: rgb(0, 128, 0); }
+    #box.red { color: rgb(255, 0, 0); background: rgb(255, 0, 0); }
+</style>
+<div id="box">x</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const read = (label) => {
+            const style = getComputedStyle(box);
+            const rect = box.getBoundingClientRect();
+            const hit = document.elementFromPoint(10, 10);
+            println(`${label}: color=${style.color} background=${style.backgroundColor} box=${rect.x},${rect.y} ${rect.width}x${rect.height} hit=${hit ? hit.id || hit.tagName : "null"}`);
+        };
+        internals.updateStyle();
+        read("initial");
+        for (const [label, step] of [["red", () => box.classList.add("red")], ["back", () => box.classList.remove("red")]]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

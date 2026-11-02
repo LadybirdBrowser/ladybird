@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<div id="parent" style="--declared: 10px">
+    <div id="inheritor"></div>
+    <div id="reader" style="color: var(--registered-later, rgb(1, 2, 3))"></div>
+    <div id="caller" style="width: --double(5px)"></div>
+</div>
+<script>
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function settle() {
+        internals.updateStyle();
+        internals.resetStyleCounters();
+    }
+
+    function addSheet(text) {
+        const style = document.createElement("style");
+        style.textContent = text;
+        document.head.appendChild(style);
+    }
+
+    function dumpCounters(label, bound) {
+        internals.updateStyle();
+        const c = internals.styleCounters();
+        println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}, full passes ${c.fullPasses}`);
+    }
+
+    test(() => {
+        addBystanders(document.body, 25);
+        const parent = document.getElementById("parent");
+        const inheritor = document.getElementById("inheritor");
+        const reader = document.getElementById("reader");
+        const caller = document.getElementById("caller");
+        settle();
+
+        // A registration nobody declares or reads restyles nothing but the arriving style element.
+        addSheet(`@property --unused { syntax: "<length>"; inherits: false; initial-value: 0px; }`);
+        dumpCounters("@property nobody uses", 1);
+
+        // A registration restyles the elements holding its name, whose children follow.
+        addSheet(`@property --declared { syntax: "<length>"; inherits: false; initial-value: 3px; }`);
+        dumpCounters("@property a parent declares", 6);
+        println(`parent: ${getComputedStyle(parent).getPropertyValue("--declared")}`);
+        println(`inheritor: ${getComputedStyle(inheritor).getPropertyValue("--declared")}`);
+
+        // A registration through script restyles the elements reading its name.
+        settle();
+        CSS.registerProperty({ name: "--registered-later", syntax: "<color>", inherits: false, initialValue: "rgb(0, 128, 0)" });
+        dumpCounters("CSS.registerProperty() one element reads", 2);
+        println(`reader: ${getComputedStyle(reader).color}`);
+
+        // A counter style restyles only the elements naming its scope's registry.
+        settle();
+        addSheet(`@counter-style unused-style { system: cyclic; symbols: "*"; }`);
+        dumpCounters("@counter-style nobody uses", 1);
+
+        // A custom function restyles the elements calling one.
+        settle();
+        addSheet(`@function --double(--value) { result: calc(var(--value) * 2); }`);
+        dumpCounters("@function one element calls", 2);
+        println(`caller: ${getComputedStyle(caller).width}`);
+    });
+</script>

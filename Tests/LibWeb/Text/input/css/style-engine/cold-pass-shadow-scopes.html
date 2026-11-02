@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<style>
+    .light { color: rgb(0, 0, 100); }
+    x-card { display: block; padding: 1px; color: rgb(10, 10, 10) !important; }
+    x-card::part(label) { color: rgb(0, 120, 0); }
+    x-card::part(label):hover { color: rgb(1, 1, 1); }
+    x-outer::part(forwarded) { font-weight: bold; }
+    .inner { margin: 3px; }
+    circle { fill: rgb(0, 0, 200); }
+</style>
+<x-card id="plain" class="highlighted"><span class="light" slot="title">title</span><p class="body">body</p></x-card>
+<x-card id="other"><span class="light">unslotted by name</span></x-card>
+<x-outer id="outer"></x-outer>
+<x-card id="moving"><b class="light" slot="title">moves</b><i slot="nowhere">unassigned</i><p>body</p></x-card>
+<div id="fallback"><span class="light">unassigned</span></div>
+<div id="adopting"><em>adopting</em></div>
+<input value="text">
+<svg width="10" height="10"><defs><circle id="dot" r="2"></circle></defs><use href="#dot"></use></svg>
+<script src="../../include.js"></script>
+<script>
+    function attach(host, html) {
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = html;
+        return root;
+    }
+
+    test(() => {
+        const cardTemplate = `
+            <style>
+                :host { display: block; border: 1px solid; color: rgb(200, 0, 0) !important; }
+                :host(.highlighted) { background: rgb(255, 255, 0); }
+                ::slotted(.light) { text-decoration: underline; }
+                ::slotted(p) { margin: 2px !important; }
+                .inner { padding: 4px; }
+                .light { color: rgb(1, 2, 3); }
+                header > slot { display: block; }
+            </style>
+            <header class="inner"><slot name="title"></slot></header>
+            <div class="inner" part="label">label</div>
+            <slot></slot>`;
+        attach(document.getElementById("plain"), cardTemplate);
+        attach(document.getElementById("other"), cardTemplate);
+        attach(document.getElementById("moving"), cardTemplate);
+        attach(document.getElementById("fallback"), `
+            <style>slot { display: block; color: rgb(0, 80, 0); } .fallback { font-style: italic; }</style>
+            <slot name="none"><span class="fallback">fallback <em>content</em></span></slot>`);
+
+        const outerRoot = attach(document.getElementById("outer"), `
+            <style>
+                x-inner { display: block; }
+                x-inner::part(deep) { color: rgb(0, 0, 50); }
+            </style>
+            <x-inner exportparts="deep: forwarded"></x-inner>`);
+        attach(outerRoot.querySelector("x-inner"), `
+            <style>:host { padding: 2px; } span { opacity: 0.5; }</style>
+            <span part="deep">deep</span>`);
+
+        const shared = new CSSStyleSheet();
+        shared.replaceSync(":host { outline: 1px solid; } em, span { font-style: normal; }");
+        const adoptingRoot = attach(document.getElementById("adopting"), "<span>adopted</span><slot></slot>");
+        adoptingRoot.adoptedStyleSheets = [shared];
+        outerRoot.adoptedStyleSheets = [shared];
+
+        internals.updateStyle();
+        // Re-slot an element from the named slot to the default one.
+        document.querySelector("#moving b").removeAttribute("slot");
+        internals.updateStyle();
+        const report = internals.styleColdPass();
+        println(`computed every styled element: ${report.computedElements == report.elements}`);
+
+        const live = internals.styleLiveReport(true);
+        println(`verified shadow tree elements: ${live.verifiedElements > document.querySelectorAll("*").length}`);
+        println(`missing records: ${live.missingRecords}`);
+        println(`live differences: ${live.differences}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

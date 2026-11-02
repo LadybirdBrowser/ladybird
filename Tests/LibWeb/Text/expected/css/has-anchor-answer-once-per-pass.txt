@@ -1,0 +1,3 @@
+last item: rgb(0, 128, 0)
+relational walks at least one: true
+relational walks fewer than one per ten items: true

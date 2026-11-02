@@ -1,0 +1,6 @@
+arrival among children read by a plain rule: 1
+departure among children read by a plain rule: 0
+a class nothing tests: 0
+arrival moving a root: true
+moved root: rgb(0, 0, 0)
+moved back: rgb(0, 128, 0)

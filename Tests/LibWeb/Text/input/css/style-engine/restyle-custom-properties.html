@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    #root { --accent: rgb(1, 2, 3); --gap: 2px; }
+    #root.warm { --accent: rgb(200, 100, 0); }
+    #root.wide { --gap: 9px; }
+    .item { color: var(--accent); padding-left: var(--gap); --own: var(--gap); }
+    .item span { margin-left: var(--own); }
+    .tagged::before { content: "x"; color: var(--accent); }
+    .shadowed { --accent: rgb(0, 0, 255); }
+</style>
+<div id="root">
+    <div class="item"><span>1</span></div>
+    <div class="item tagged"><span>2</span></div>
+    <div class="item"></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const items = () => root.querySelectorAll(".item");
+        const read = (label) => {
+            println(label);
+            for (const element of root.querySelectorAll("*")) {
+                const style = getComputedStyle(element);
+                println(`  ${element.tagName}.${element.className}: ${style.color} ${style.paddingLeft} ${style.marginLeft} ${style.getPropertyValue("--accent")} ${style.getPropertyValue("--own")}`);
+            }
+            const before = getComputedStyle(items()[1], "::before");
+            println(`  ::before ${before.color} ${before.getPropertyValue("--accent")}`);
+        };
+        internals.updateStyle();
+        const steps = [
+            ["warm", () => root.classList.add("warm")],
+            ["wide", () => root.classList.add("wide")],
+            ["shadowed item", () => items()[1].classList.add("shadowed")],
+            ["insert", () => root.insertBefore(Object.assign(document.createElement("div"), { className: "item" }), items()[0]).appendChild(document.createElement("span"))],
+            ["inline", () => items()[2].style.setProperty("--accent", "rgb(7, 7, 7)")],
+            ["cool", () => root.classList.remove("warm")],
+            ["unshadow", () => items()[2].classList.remove("shadowed")],
+        ];
+        for (const [label, step] of steps) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

@@ -1,0 +1,6 @@
+while off: rgb(0, 128, 0)
+moved before: rgb(0, 128, 0)
+on, before the other: rgb(0, 128, 0)
+off again: rgb(0, 128, 0)
+moved after: rgb(0, 128, 0)
+on, after the other: rgb(255, 0, 0)

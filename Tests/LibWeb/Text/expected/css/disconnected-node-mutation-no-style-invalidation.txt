@@ -1,4 +1,5 @@
-reactions after disconnected mutations: 0
+no pass after disconnected mutations: true
+nothing styled after disconnected mutations: true
 .highlight span background: rgb(255, 255, 0)
 div:has(> .flag) outline color: rgb(1, 2, 3)
 .red child color: rgb(255, 0, 0)

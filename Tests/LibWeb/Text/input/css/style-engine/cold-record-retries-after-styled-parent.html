@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .unsupported { list-style-type: fancy-style; }
+    .red { color: red; }
+    .large { font-size: 20px; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        host.innerHTML = `<div class="unsupported"><div class="red"><span class="large">text</span></div></div>`;
+        internals.updateStyle();
+        println(`color: ${getComputedStyle(host.querySelector("span")).color}`);
+        println(`font size: ${getComputedStyle(host.querySelector("span")).fontSize}`);
+    });
+</script>

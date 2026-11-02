@@ -50,16 +50,18 @@
         child.internals.updateStyle();
         println(`initial shadow host color: ${child.getComputedStyle(host).color}`);
 
-        child.internals.resetStyleInvalidationCounters();
+        // A media query flip in the shadow tree's sheet that only changes what an @property rule
+        // registers styles at most the host.
+        child.internals.resetStyleCounters();
         await resizeIframe(iframe, child, 500);
-        let counters = child.internals.getStyleInvalidationCounters();
+        let counters = child.internals.styleCounters();
         println(`resized shadow host color: ${child.getComputedStyle(host).color}`);
-        println(`resized skipped unrelated host side: ${counters.elementStyleRecomputations <= 1}`);
+        println(`resized: styled ${counters.styledElements}, full passes: ${counters.fullPasses}`);
 
-        child.internals.resetStyleInvalidationCounters();
+        child.internals.resetStyleCounters();
         await resizeIframe(iframe, child, 300);
-        counters = child.internals.getStyleInvalidationCounters();
+        counters = child.internals.styleCounters();
         println(`resized back shadow host color: ${child.getComputedStyle(host).color}`);
-        println(`resized back skipped unrelated host side: ${counters.elementStyleRecomputations <= 1}`);
+        println(`resized back: styled ${counters.styledElements}, full passes: ${counters.fullPasses}`);
     });
 </script>

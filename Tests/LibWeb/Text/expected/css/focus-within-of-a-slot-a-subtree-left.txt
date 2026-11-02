@@ -1,0 +1,6 @@
+remove, before: around rgb(0, 128, 0), slot rgb(0, 128, 0)
+remove, after: around rgb(0, 0, 0), slot rgb(0, 0, 0)
+replaceChildren, before: around rgb(0, 128, 0), slot rgb(0, 128, 0)
+replaceChildren, after: around rgb(0, 0, 0), slot rgb(0, 0, 0)
+moveBefore, before: around rgb(0, 128, 0), slot rgb(0, 128, 0)
+moveBefore, after: around rgb(0, 0, 0), slot rgb(0, 0, 0)

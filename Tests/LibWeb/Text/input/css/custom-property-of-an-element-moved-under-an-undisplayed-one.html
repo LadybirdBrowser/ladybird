@@ -1,0 +1,29 @@
+<!doctype html>
+<style>
+    @layer reset { * { --a: 0; } }
+</style>
+<style>
+    :not(.outer :not(:first-child)) { --a: 1; }
+</style>
+<style>
+    .never:nth-last-child(even of :first-child) { --b: 1; }
+</style>
+<script src="../include.js"></script>
+<div class="outer"><div></div><div id="moved"></div></div>
+<div id="undisplayed" hidden><div id="beside"></div></div>
+<script>
+    // A custom property read below an element that is not displayed is answered anew, also where the read itself ran the
+    // style update and the element holds the record it had where it stood.
+    asyncTest(done => {
+        requestAnimationFrame(() => {
+            const report = () => {
+                println([...document.querySelectorAll("div")].map(element => getComputedStyle(element).getPropertyValue("--a")).join(" "));
+            };
+            report();
+            undisplayed.moveBefore(moved, beside);
+            report();
+            println(moved.matches(":not(.outer :not(:first-child))"));
+            done();
+        });
+    });
+</script>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    .hidden { display: none; }
+    .child { height: 10px; color: rgb(1, 2, 3); }
+</style>
+<div id="outer" class="hidden"><div id="middle"><div class="child"></div><div class="child"></div></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const middle = document.getElementById("middle");
+        const read = (label) => {
+            const heights = [...outer.querySelectorAll(".child")].map(child => child.offsetHeight).join(",");
+            println(`${label}: outer ${outer.offsetHeight} children ${heights}`);
+        };
+        internals.updateStyle();
+        read("hidden");
+        for (const [label, step] of [
+            ["add children while hidden", () => { for (let i = 0; i < 2; ++i) middle.appendChild(Object.assign(document.createElement("div"), { className: "child" })); }],
+            ["reveal", () => outer.classList.remove("hidden")],
+        ]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

@@ -129,6 +129,25 @@ bool descendants_hold_a_propagating_state_source(DOM::Node& node)
     return false;
 }
 
+bool holds_a_propagating_state_source(DOM::Node& node)
+{
+    for (auto const& [pseudo_class, source] : propagating_states(node.document())) {
+        if (source && subtree_holds_propagating_state_source(node, pseudo_class, *source))
+            return true;
+    }
+    return false;
+}
+
+static void republish_propagating_state(CSS::PseudoClass pseudo_class, GC::Ptr<DOM::Node> from)
+{
+    if (!from)
+        return;
+    for_each_inclusive_ancestor_element(*from, ancestor_traversal_for_pseudo_class(pseudo_class), [&](DOM::Element& element) {
+        record_element_state_changed(element, pseudo_class, element.matches_focus_within_pseudo_class());
+        return element.rendered_in_top_layer() ? TraversalDecision::Break : TraversalDecision::Continue;
+    });
+}
+
 // A state that propagates to ancestors is a statement about the subtree below them, so moving a
 // subtree that holds one moves the state: the chain above where it was stops holding it and the
 // chain above where it landed starts, and no feature of any element in either chain moved to say
@@ -136,20 +155,36 @@ bool descendants_hold_a_propagating_state_source(DOM::Node& node)
 // than being told a transition.
 void invalidate_style_after_subtree_place_changed(DOM::Node& subtree, GC::Ptr<DOM::Node> old_parent)
 {
-    auto republish = [](CSS::PseudoClass pseudo_class, GC::Ptr<DOM::Node> from) {
-        if (!from)
-            return;
-        for_each_inclusive_ancestor_element(*from, ancestor_traversal_for_pseudo_class(pseudo_class), [&](DOM::Element& element) {
-            record_element_state_changed(element, pseudo_class, element.matches_focus_within_pseudo_class());
-            return element.rendered_in_top_layer() ? TraversalDecision::Break : TraversalDecision::Continue;
-        });
-    };
-
     for (auto const& [pseudo_class, source] : propagating_states(subtree.document())) {
         if (!source || !subtree_holds_propagating_state_source(subtree, pseudo_class, *source))
             continue;
-        republish(pseudo_class, source);
-        republish(pseudo_class, old_parent);
+        republish_propagating_state(pseudo_class, source);
+        republish_propagating_state(pseudo_class, old_parent);
+    }
+}
+
+// A slot's assigned nodes and its fallback content stand in the flat tree below it by turns, so what it is assigned moves
+// the chain of a source among either of them.
+void invalidate_style_after_slot_assignment_changed(DOM::Element& slot)
+{
+    for (auto const& [pseudo_class, source] : propagating_states(slot.document())) {
+        if (!source)
+            continue;
+        republish_propagating_state(pseudo_class, source);
+        republish_propagating_state(pseudo_class, &slot);
+    }
+}
+
+// A slot leaving takes the flat tree chain of the elements assigned to it along, though they stay where they are, so
+// that the source stands in no chain through the subtree by the time the subtree has left.
+void invalidate_style_after_subtree_holding_a_state_source_left(DOM::Node& subtree, GC::Ptr<DOM::Node> old_parent)
+{
+    for (auto const& [pseudo_class, source] : propagating_states(subtree.document())) {
+        if (!source)
+            continue;
+        republish_propagating_state(pseudo_class, source);
+        republish_propagating_state(pseudo_class, &subtree);
+        republish_propagating_state(pseudo_class, old_parent);
     }
 }
 

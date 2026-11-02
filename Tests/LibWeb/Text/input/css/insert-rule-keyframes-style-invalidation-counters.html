@@ -16,7 +16,8 @@
         // @keyframes rule is the only thing contributing to the measurement.
         getComputedStyle(triggerElement).animationName;
         getComputedStyle(triggerElement).animationName;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, count) {
@@ -34,10 +35,6 @@
         settleAndReset(target);
         sheet.insertRule("@keyframes fade { from { opacity: 0; } to { opacity: 1; } }", sheet.cssRules.length);
         getComputedStyle(target).animationName;
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= 2)
-            println(`PASS: keyframes insertRule only recomputes animation users`);
-        else
-            println(`FAIL: keyframes insertRule only recomputes animation users (${recomputations} recomputations)`);
+        println(`keyframes insertRule only restyles animation users, styled <= 2: ${internals.styleCounters().styledElements <= 2}`);
     });
 </script>

@@ -1,0 +1,6 @@
+.a:first-of-type.b: matches true, found by querySelector true
+section:first-of-type.b: matches true, found by querySelector true
+.a:last-of-type.b: matches true, found by querySelector true
+section:last-of-type.b: matches true, found by querySelector true
+.a:only-of-type.b: matches true, found by querySelector true
+#target:nth-of-type(1).b: matches true, found by querySelector true

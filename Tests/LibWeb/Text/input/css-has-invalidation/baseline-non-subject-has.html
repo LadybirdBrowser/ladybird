@@ -15,12 +15,13 @@
 <script>
     test(() => {
         getComputedStyle(document.getElementById("styled")).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        resetCounters();
 
         // Non-subject :has(): the :has() qualifies an ancestor, styling descendants.
         // Adding .match on target should invalidate the anchor path and re-style .styled.
         document.getElementById("target").classList.add("match");
         getComputedStyle(document.getElementById("styled")).color;
-        printCounters("after add .match on target");
+        printCounters("after add .match on target", 4);
     });
 </script>

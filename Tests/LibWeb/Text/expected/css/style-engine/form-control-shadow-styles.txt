@@ -1,0 +1,4 @@
+select width kept: true
+number width kept: true
+select narrower without its chevron: true
+select width back with its chevron: true

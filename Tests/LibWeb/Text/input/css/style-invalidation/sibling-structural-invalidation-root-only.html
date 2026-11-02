@@ -90,7 +90,7 @@
                 colorMatches(`${name}: shadow leaf`, fixtureParts.shadowLeaf, expectedShadowColor),
                 colorMatches(`${name}: nested shadow leaf`, fixtureParts.nestedLeaf, expectedNestedColor),
             ].every(Boolean);
-            println(`${passed ? "PASS" : "FAIL"}: ${name} | ${styleCounterSummary()}`);
+            println(`${passed ? "PASS" : "FAIL"}: ${name}`);
         } finally {
             style.remove();
             fixtureParts.fixture.remove();
@@ -98,8 +98,12 @@
     }
 
     test(() => {
+        internals.updateStyle();
+
         // Root-only structural invalidation cases: these should recompute the sibling
         // itself, then use inherited-style propagation for light DOM descendants.
+        // The style engine styles what the mutation inserts, the sibling where its color changes, and the
+        // descendants whose color changes with it, and nothing outside the fixture.
         {
             const style = addStyle(document.head, ".watcher:first-child { color: rgb(1, 2, 3); }");
             const { fixture, sibling } = setupFixture(8, "watcher");
@@ -107,7 +111,7 @@
 
             fixture.insertBefore(makeElement("div"), sibling);
             assertColor(":first-child loses on prepend", sibling, "rgb(0, 0, 0)");
-            printPassWithCounters("prepend before :first-child sibling does not recompute its descendants");
+            printPassWithStyleCounters("prepend before :first-child sibling does not recompute its descendants", 10);
 
             style.remove();
             fixture.remove();
@@ -120,7 +124,7 @@
 
             fixture.insertBefore(makeElement("div"), sibling);
             assertColor(":first-child .leaf loses on prepend", sibling.firstChild, "rgb(0, 0, 0)");
-            printPassWithCounters("prepend before :first-child sibling recomputes descendants when a descendant selector depends on it");
+            printPassWithStyleCounters("prepend before :first-child sibling recomputes descendants when a descendant selector depends on it", 9);
 
             style.remove();
             fixture.remove();
@@ -133,7 +137,7 @@
 
             fixture.appendChild(makeElement("div"));
             assertColor(":last-child loses on append", sibling, "rgb(0, 0, 0)");
-            printPassWithCounters("append after :last-child sibling does not recompute its descendants");
+            printPassWithStyleCounters("append after :last-child sibling does not recompute its descendants", 10);
 
             style.remove();
             fixture.remove();
@@ -152,7 +156,7 @@
 
             fixture.insertBefore(makeElement("div"), watcher);
             assertColor(".anchor + .watcher loses on insert between", watcher, "rgb(0, 0, 0)");
-            printPassWithCounters("breaking adjacent sibling combinator does not recompute descendants");
+            printPassWithStyleCounters("breaking adjacent sibling combinator does not recompute descendants", 10);
 
             style.remove();
             fixture.remove();
@@ -165,7 +169,7 @@
 
             fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
             assertColor("initially unmatched adjacent sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
-            printPassWithCounters("starting adjacent sibling descendant match recomputes descendants");
+            printPassWithStyleCounters("starting adjacent sibling descendant match recomputes descendants", 2);
 
             style.remove();
             fixture.remove();
@@ -178,7 +182,7 @@
 
             fixture.insertBefore(makeElement("div", { className: "anchor" }), sibling);
             assertColor("initially unmatched general sibling descendant gains on prepend", sibling.firstChild, "rgb(1, 2, 3)");
-            printPassWithCounters("starting general sibling descendant match recomputes descendants");
+            printPassWithStyleCounters("starting general sibling descendant match recomputes descendants", 2);
 
             style.remove();
             fixture.remove();
@@ -191,7 +195,7 @@
 
             fixture.insertBefore(makeElement("div"), sibling);
             assertColor(":nth-child(1) loses on prepend", sibling, "rgb(0, 0, 0)");
-            printPassWithCounters("prepend before :nth-child(1) sibling does not recompute its descendants");
+            printPassWithStyleCounters("prepend before :nth-child(1) sibling does not recompute its descendants", 10);
 
             style.remove();
             fixture.remove();

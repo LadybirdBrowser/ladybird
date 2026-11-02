@@ -14,6 +14,7 @@
         );
         const fixture = makeElement("section");
         document.body.appendChild(fixture);
+        internals.updateStyle();
 
         const moved = makeElement("div", { className: "moved" });
         for (let i = 0; i < 50; ++i)
@@ -28,7 +29,9 @@
         assertEqual("moved root became first child", getComputedStyle(moved).getPropertyValue("--root-position").trim(), "first");
         assertEqual("moved root non-inherited style changed", getComputedStyle(moved).borderTopWidth, "3px");
         assertEqual("descendant style stayed valid", getComputedStyle(moved.lastChild).color, "rgb(1, 2, 3)");
-        printPassWithCounters("same-parent move preserves unchanged descendant styles");
+        // The move styles the moved root and its 50 descendants, which inherit --root-position from
+        // it, and nothing else.
+        printPassWithStyleCounters("same-parent move preserves unchanged descendant styles", 51);
 
         style.remove();
         fixture.remove();

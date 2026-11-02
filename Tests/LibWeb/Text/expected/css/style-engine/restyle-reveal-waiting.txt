@@ -1,0 +1,3 @@
+hidden: outer 0 children 0,0
+add children while hidden: outer 0 children 0,0,0,0
+reveal: outer 40 children 10,10,10,10
