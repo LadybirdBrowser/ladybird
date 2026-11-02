@@ -352,6 +352,11 @@ public:
         AK_ALLOC_WITH_KMALLOC;
 
         Vector<RefPtr<CSS::CursorStyleValue const>> cursor_style_values;
+        // NB: The images these observers paint with, which a decode beside a frame in flight reads, as the frame may
+        //     have swept the style the node last read.
+        Vector<RefPtr<CSS::AbstractImageStyleValue const>> background_images;
+        Vector<RefPtr<CSS::AbstractImageStyleValue const>> mask_images;
+        RefPtr<CSS::AbstractImageStyleValue const> border_image_source_value;
         Vector<OwnPtr<ImageObserver>> background_layers;
         Vector<OwnPtr<ImageObserver>> mask_layers;
         Vector<OwnPtr<ImageObserver>> cursors;
@@ -359,6 +364,7 @@ public:
         OwnPtr<ImageObserver> list_style_image;
     };
 
+    ImageObserverSlots const* image_observers() const;
     ImageObserver const* background_image_observer(size_t layer_index) const;
     ImageObserver const* mask_image_observer(size_t layer_index) const;
     ImageObserver const* cursor_image_observer(size_t cursor_index) const;
@@ -548,7 +554,6 @@ private:
     void did_update_style_record();
 
     void rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue const>>);
-    ImageObserverSlots const* image_observers() const;
     void const* m_style_record { nullptr };
     // Whether the row holds a pin of its style record for C++'s readers, which only this layout node takes and drops.
     bool m_style_record_pinned_for_cxx_consumers { false };
