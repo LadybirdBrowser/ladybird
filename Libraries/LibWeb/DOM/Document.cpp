@@ -4245,6 +4245,7 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     }
 
     m_focused_area = node;
+    m_focused_container_has_explicit_focus = false;
     publish_focused_text_control_nodes(old_focused_area);
     publish_focused_text_control_nodes(node);
     set_needs_highlight_style_update(CSS::PseudoElement::Selection);
