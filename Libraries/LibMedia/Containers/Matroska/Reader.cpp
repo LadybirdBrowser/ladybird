@@ -1383,9 +1383,14 @@ Vector<BufferedRangesScan> Reader::buffered_time_ranges_by_track(NonnullRefPtr<M
             auto& iterator = cached_range.iterator;
 
             while (iterator->position() < byte_range.end) {
+                auto iterator_before_block = iterator.value();
                 auto block_or_error = iterator->next_block();
                 if (block_or_error.is_error())
                     break;
+                if (iterator->position() > byte_range.end) {
+                    iterator = move(iterator_before_block);
+                    break;
+                }
                 auto block = block_or_error.release_value();
                 if (block.timestamp().has_value()) {
                     auto block_end = block.timestamp().value() + block.duration().value_or(AK::Duration::zero());
