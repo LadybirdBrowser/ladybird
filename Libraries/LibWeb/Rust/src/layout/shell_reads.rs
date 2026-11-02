@@ -106,8 +106,10 @@ pub extern "C" fn layout_row_style_is_derived(host: &DocumentHost, id: NodeSlotI
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn layout_row_style_payloads(host: &DocumentHost, id: NodeSlotId) -> *const c_void {
-    styles(host, id, node_read()).style_payloads(id).as_ptr().cast()
+pub extern "C" fn layout_row_style(host: &DocumentHost, id: NodeSlotId) -> *const c_void {
+    styles(host, id, node_read())
+        .style(id)
+        .map_or(std::ptr::null(), |style| style.as_ptr())
 }
 
 #[unsafe(no_mangle)]

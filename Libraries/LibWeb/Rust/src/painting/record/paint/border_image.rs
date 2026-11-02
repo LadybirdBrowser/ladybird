@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::style_value::BorderImageSlicePayload;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::record::trace::Observer;
 
@@ -418,13 +419,16 @@ pub(crate) fn paint_border_image<O: Observer>(
     let slice_value = style_queries::handle_value(&border.border_image_slice)
         .expect("computed border-image-slice lost its style value");
     let (slice_values, fill) = match slice_value {
-        StyleValueData::BorderImageSlice {
-            top,
-            right,
-            bottom,
-            left,
-            fill,
-        } => ([top.data(), right.data(), bottom.data(), left.data()], *fill),
+        StyleValueData::BorderImageSlice(border_image_slice_payload) => {
+            let BorderImageSlicePayload {
+                top,
+                right,
+                bottom,
+                left,
+                fill,
+            } = &**border_image_slice_payload;
+            ([top.data(), right.data(), bottom.data(), left.data()], *fill)
+        }
         // NB: Typed OM can supply a single numeric slice directly, without the parser's four-sided wrapper.
         StyleValueData::Number { .. }
         | StyleValueData::Integer { .. }

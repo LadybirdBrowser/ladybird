@@ -102,12 +102,43 @@ impl FfiAppliedAnimationDefinition {
     }
 }
 
+/// A definition the host published as applied, holding the values it names, so that it can read them whenever the
+/// animation it describes has moved on.
+#[derive(Clone)]
+pub(crate) struct HeldAppliedAnimationDefinition {
+    definition: FfiAppliedAnimationDefinition,
+    _values: [crate::css::style_value::RetainedStyleValueData; 3],
+}
+
+impl HeldAppliedAnimationDefinition {
+    /// # Safety
+    /// The values `definition` names must be null or live style values.
+    pub(crate) unsafe fn retained(definition: FfiAppliedAnimationDefinition) -> Self {
+        use crate::css::style_value::{RetainedStyleValueData, StyleValueData, retain_style_value};
+        let hold = |value: *const std::ffi::c_void| {
+            if value.is_null() {
+                return RetainedStyleValueData::none();
+            }
+            // SAFETY: Guaranteed by the caller; the handle takes the reference this retains.
+            unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(value.cast::<StyleValueData>())) }
+        };
+        Self {
+            definition,
+            _values: [
+                hold(definition.timing_function),
+                hold(definition.range_start_calculated),
+                hold(definition.range_end_calculated),
+            ],
+        }
+    }
+}
+
 /// One of the CSS animations the host holds: its name, and the definition the last plan applied
 /// to it.
 #[derive(Clone)]
 pub(crate) struct CssDefinedAnimation {
     pub(crate) name: CssString,
-    applied_definition: FfiAppliedAnimationDefinition,
+    applied_definition: HeldAppliedAnimationDefinition,
 }
 
 /// The CSS animations the host holds in one of an element's lists, in its order.
@@ -123,6 +154,23 @@ pub(crate) struct CssDefinedAnimations {
 }
 
 impl CssDefinedAnimations {
+    /// The bytes the rows hold on the heap, with each name the first time `sizer` reaches it.
+    pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        use crate::heap_size::{map_bytes, vec_bytes};
+        let mut bytes = map_bytes(&self.rows);
+        for lists in self.rows.values() {
+            bytes += vec_bytes(lists);
+            for (_, animations) in lists {
+                bytes += size_of_val::<[CssDefinedAnimation]>(animations);
+                bytes += animations
+                    .iter()
+                    .map(|animation| animation.name.heap_size(sizer))
+                    .sum::<usize>();
+            }
+        }
+        bytes
+    }
+
     /// Replace one list from the names and applied definitions the host publishes, a definition per
     /// animation. An empty list drops it, so an element that stops animating stops costing anything.
     pub(crate) fn set(
@@ -130,7 +178,7 @@ impl CssDefinedAnimations {
         node: StyleNodeID,
         slot: AnimationSlot,
         names: Box<[CssString]>,
-        definitions: &[FfiAppliedAnimationDefinition],
+        definitions: Box<[HeldAppliedAnimationDefinition]>,
     ) {
         debug_assert_eq!(
             definitions.len(),
@@ -140,7 +188,7 @@ impl CssDefinedAnimations {
         let animations: Box<[CssDefinedAnimation]> = names
             .into_iter()
             .zip(definitions)
-            .map(|(name, &applied_definition)| CssDefinedAnimation {
+            .map(|(name, applied_definition)| CssDefinedAnimation {
                 name,
                 applied_definition,
             })
@@ -234,13 +282,14 @@ pub(crate) fn plan_changes_nothing(
             .enumerate()
             .all(|(index, (definition, animation))| {
                 usize::try_from(definition.matched_existing_index) == Ok(index)
-                    && FfiAppliedAnimationDefinition::of(definition).would_change_nothing(&animation.applied_definition)
+                    && FfiAppliedAnimationDefinition::of(definition)
+                        .would_change_nothing(&animation.applied_definition.definition)
             })
 }
 
 /// The tree scope an `animation-name` declaration was written in, where the `@keyframes` it names
 /// are looked for first.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum DeclarationScope {
     /// A declaration of the document, of another origin or of the element itself, or none at all:
     /// none of these has a scope of its own.
@@ -256,7 +305,7 @@ pub(crate) type KeyframesRow = HashMap<Box<[u16]>, usize>;
 /// them, with the host's keyframe set for each name.
 ///
 /// A scope publishes its row whenever its rule cache is built, and the host builds every scope's
-/// cache before a style transaction, so resolving an animation's keyframes is a lookup here rather
+/// cache before a style update, so resolving an animation's keyframes is a lookup here rather
 /// than building a rule cache in the middle of a style computation. A keyframe set is the host's
 /// refcounted object, borrowed: the scope keeps a reference to every set its row names until it
 /// publishes the row again or gives it up, which the engine takes in ahead of anything that
@@ -264,10 +313,6 @@ pub(crate) type KeyframesRow = HashMap<Box<[u16]>, usize>;
 #[derive(Clone, Default)]
 pub(crate) struct AnimationKeyframes {
     scopes: HashMap<TreeScopeID, KeyframesRow>,
-    /// Which scope a shadow root's pointer identity names. The cascade attributes the winning
-    /// `animation-name` declaration to a shadow root by that identity, and the scope it names is
-    /// where the declaration's `@keyframes` are looked for first.
-    scope_by_shadow_root: HashMap<usize, TreeScopeID>,
 }
 
 impl AnimationKeyframes {
@@ -288,19 +333,10 @@ impl AnimationKeyframes {
     }
 
     /// Replaces one scope's row. An empty row gives the scope's row up.
-    pub(crate) fn set(&mut self, tree_scope: TreeScopeID, shadow_root_identity: usize, row: KeyframesRow) {
+    pub(crate) fn set(&mut self, tree_scope: TreeScopeID, row: KeyframesRow) {
         if row.is_empty() {
             self.scopes.remove(&tree_scope);
-            // A scope with no row answers like one that defines nothing, so its identity stops
-            // naming it, unless another shadow root has since been allocated at that address and
-            // published under it.
-            if self.scope_by_shadow_root.get(&shadow_root_identity) == Some(&tree_scope) {
-                self.scope_by_shadow_root.remove(&shadow_root_identity);
-            }
             return;
-        }
-        if shadow_root_identity != 0 {
-            self.scope_by_shadow_root.insert(shadow_root_identity, tree_scope);
         }
         self.scopes.insert(tree_scope, row);
     }
@@ -671,7 +707,14 @@ mod tests {
             range_start_calculated: std::ptr::null(),
             range_end_calculated: std::ptr::null(),
         };
-        animations.set(node, slot, self::names(names), &vec![undescribed; names.len()]);
+        // SAFETY: The definition names no values.
+        let undescribed = unsafe { HeldAppliedAnimationDefinition::retained(undescribed) };
+        animations.set(
+            node,
+            slot,
+            self::names(names),
+            vec![undescribed; names.len()].into_boxed_slice(),
+        );
     }
 
     fn list_names(animations: &CssDefinedAnimations, node: StyleNodeID, slot: AnimationSlot) -> Vec<CssString> {
@@ -934,25 +977,20 @@ mod tests {
         assert!(animations.rows.is_empty());
     }
 
-    fn publish(keyframes: &mut AnimationKeyframes, scope: u32, identity: usize, rows: &[(&str, usize)]) {
+    fn publish(keyframes: &mut AnimationKeyframes, scope: u32, rows: &[(&str, usize)]) {
         let lengths: Vec<u32> = rows
             .iter()
             .map(|(name, _)| name.encode_utf16().count() as u32)
             .collect();
         let units: Vec<u16> = rows.iter().flat_map(|(name, _)| name.encode_utf16()).collect();
         let sets: Vec<usize> = rows.iter().map(|&(_, set)| set).collect();
-        keyframes.set(
-            TreeScopeID(scope),
-            identity,
-            AnimationKeyframes::row(&lengths, &units, &sets),
-        );
+        keyframes.set(TreeScopeID(scope), AnimationKeyframes::row(&lengths, &units, &sets));
     }
 
-    fn resolve(keyframes: &AnimationKeyframes, identity: usize, scope: u32, name: &str) -> Option<usize> {
-        let declaration_scope = keyframes
-            .scope_by_shadow_root
-            .get(&identity)
-            .map_or(DeclarationScope::Unscoped, |&scope| DeclarationScope::Shadow(scope));
+    fn resolve(keyframes: &AnimationKeyframes, declaration: Option<u32>, scope: u32, name: &str) -> Option<usize> {
+        let declaration_scope = declaration.map_or(DeclarationScope::Unscoped, |scope| {
+            DeclarationScope::Shadow(TreeScopeID(scope))
+        });
         keyframes.resolve(
             declaration_scope,
             TreeScopeID(scope),
@@ -963,31 +1001,28 @@ mod tests {
     #[test]
     fn keyframes_resolve_in_the_declaration_scope_then_the_element_scope_then_the_document() {
         let mut keyframes = AnimationKeyframes::default();
-        publish(&mut keyframes, 0, 0, &[("a", 1), ("b", 2)]);
-        publish(&mut keyframes, 1, 0x100, &[("a", 3)]);
-        publish(&mut keyframes, 2, 0x200, &[("a", 4), ("b", 5)]);
+        publish(&mut keyframes, 0, &[("a", 1), ("b", 2)]);
+        publish(&mut keyframes, 1, &[("a", 3)]);
+        publish(&mut keyframes, 2, &[("a", 4), ("b", 5)]);
 
-        assert_eq!(resolve(&keyframes, 0, 0, "a"), Some(1));
-        assert_eq!(resolve(&keyframes, 0, 1, "a"), Some(3));
-        assert_eq!(resolve(&keyframes, 0, 1, "b"), Some(2));
+        assert_eq!(resolve(&keyframes, None, 0, "a"), Some(1));
+        assert_eq!(resolve(&keyframes, None, 1, "a"), Some(3));
+        assert_eq!(resolve(&keyframes, None, 1, "b"), Some(2));
         // A `:host` rule of scope 2 styling an element of scope 1.
-        assert_eq!(resolve(&keyframes, 0x200, 1, "a"), Some(4));
-        assert_eq!(resolve(&keyframes, 0x200, 1, "c"), None);
+        assert_eq!(resolve(&keyframes, Some(2), 1, "a"), Some(4));
+        assert_eq!(resolve(&keyframes, Some(2), 1, "c"), None);
     }
 
     #[test]
-    fn a_departed_scope_gives_up_its_row_but_not_a_reused_identity() {
+    fn a_departed_scope_gives_up_its_row() {
         let mut keyframes = AnimationKeyframes::default();
-        publish(&mut keyframes, 1, 0x100, &[("a", 3)]);
-        // Another shadow root allocated at the same address publishes before the first one's row
-        // is given up.
-        publish(&mut keyframes, 2, 0x100, &[("a", 4)]);
-        publish(&mut keyframes, 1, 0x100, &[]);
+        publish(&mut keyframes, 1, &[("a", 3)]);
+        publish(&mut keyframes, 2, &[("a", 4)]);
+        publish(&mut keyframes, 1, &[]);
         assert_eq!(keyframes.scopes.len(), 1);
-        assert_eq!(resolve(&keyframes, 0x100, 0, "a"), Some(4));
+        assert_eq!(resolve(&keyframes, Some(2), 0, "a"), Some(4));
 
-        publish(&mut keyframes, 2, 0x100, &[]);
+        publish(&mut keyframes, 2, &[]);
         assert!(keyframes.scopes.is_empty());
-        assert!(keyframes.scope_by_shadow_root.is_empty());
     }
 }

@@ -38,6 +38,12 @@
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGTextContentElement.h>
 
+#ifndef NDEBUG
+#    define LIBWEB_CHECK_RENDER_STATE_INSTALLS 1
+#else
+#    define LIBWEB_CHECK_RENDER_STATE_INSTALLS 0
+#endif
+
 namespace Web::Layout {
 
 u8 Node::dom_paint_facts_of(DOM::Node const* node)
@@ -234,9 +240,9 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
 {
     m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_row_style_record(document_host(), slot) };
     VERIFY(m_style_record_identity);
-    // The layout node reads its style through the row's payloads, which the row's live record keeps.
-    m_style_payloads = RustFFI::layout_row_style_payloads(document_host(), slot);
-    VERIFY(m_style_payloads);
+    // The layout node reads its style through the row's style, which the row's live record keeps.
+    m_style_record = RustFFI::layout_row_style(document_host(), slot);
+    VERIFY(m_style_record);
     m_has_layout_derived_style = RustFFI::layout_row_style_is_derived(document_host(), slot);
 }
 
@@ -387,8 +393,16 @@ NodeWithStyle::ImageObserver const* NodeWithStyle::border_image_source_observer(
 
 namespace Web::Layout {
 
+bool style_record_installed_by_render_state(NodeWithStyle const& node, CSS::StyleRecordID style_record_identity)
+{
+    return style_record_identity.value() != 0 && RustFFI::render_state_installed_style_record(node.document_host(), Node::slot_id(&node)) == style_record_identity.value();
+}
+
 void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
 {
+    // The render side installed the record in this node's row ahead of the host, with everything below that follows
+    // from it in the layout tree: the node adopts it as its own.
+    bool const installed_by_render_state = style_record_installed_by_render_state(*this, style_record_identity);
     bool const changes_published_record = m_style_record_identity != style_record_identity || m_has_layout_derived_style;
     release_pinned_style_record();
     m_background_images.clear();
@@ -398,27 +412,30 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     m_style_record_identity = style_record_identity;
     // OPTIMIZATION: Installing the DOM record already published a followed layout node's record. Applying its
     //               rendering consequences need not enqueue the same record again.
-    if (changes_published_record)
+    if (installed_by_render_state)
+        adopt_style_record_installed_by_render_state();
+    else if (changes_published_record)
         publish_style_record_to_node_data();
     else
         did_update_style_record();
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
-    RustFFI::render_state_reinherit_anonymous_descendants(document_host(), slot_id(this), display().is_table_inside());
+    if (!installed_by_render_state)
+        RustFFI::render_state_reinherit_anonymous_descendants(document_host(), slot_id(this), display().is_table_inside());
     attach_style_resources();
     // A pseudo layout node can outlive replacement of the DOM pseudo's record until the layout
     // tree is rebuilt. Root its record across that gap, including metadata-only style changes that
     // keep the existing layout node.
     if (is_generated_for_pseudo_element())
         pin_style_record_for_cxx_consumers();
-    if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->is_viewport_propagation_source())
+    if (auto const* element = as_if<DOM::Element>(dom_node()); !installed_by_render_state && element && element->is_viewport_propagation_source())
         RustFFI::render_state_propagate_root_styles_to_viewport(document_host());
 }
 
-static bool style_record_holds_image_values(Layout::BegunRead const& read, CSS::StyleEngine const& style_engine, CSS::StyleRecordID style_record)
+static bool style_record_holds_image_values(Layout::BegunRead const& read, CSS::StyleComputer const& style_computer, CSS::StyleRecordID style_record)
 {
-    return has_flag(style_engine.style_record_dependency_flags(read, style_record), CSS::StyleRecordDependencyFlag::HoldsImageValues);
+    return has_flag(style_computer.install_style(read, style_record).dependency_flags(), CSS::StyleRecordDependencyFlag::HoldsImageValues);
 }
 
 void NodeWithStyle::attach_style_resources()
@@ -426,7 +443,7 @@ void NodeWithStyle::attach_style_resources()
     // The style engine notes at publication whether a record holds an <image> anywhere this node would load and
     // observe one. Nearly every style holds none, and that answer is one flag read; the walk below stays for the
     // styles that do.
-    auto holds_image_values = style_record_holds_image_values(held_read(), document().style_computer().style_engine(), m_style_record_identity);
+    auto holds_image_values = style_record_holds_image_values(held_read(), document().style_computer(), m_style_record_identity);
     attach_style_resources(m_style_record_identity, holds_image_values ? Painting::StyleHoldsImageValues::Yes : Painting::StyleHoldsImageValues::No);
 }
 
@@ -483,7 +500,7 @@ void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void con
 {
     release_pinned_style_record();
     m_style_record_identity = record;
-    m_style_payloads = payloads;
+    m_style_record = payloads;
     m_has_layout_derived_style = derived;
     m_background_images.clear();
     m_mask_images.clear();
@@ -562,7 +579,10 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     m_border_image_source.clear();
     m_list_style_image.clear();
     m_style_record_identity = style_record_identity;
-    publish_style_record_to_node_data();
+    if (style_record_installed_by_render_state(*this, style_record_identity))
+        adopt_style_record_installed_by_render_state();
+    else
+        publish_style_record_to_node_data();
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
 
@@ -602,12 +622,25 @@ static Node const* scroll_snap_container_of(NodeWithStyle const& node)
 
 void NodeWithStyle::publish_style_record_to_node_data()
 {
+    // A row the render side styled is never published with another record behind its back.
+    if constexpr (LIBWEB_CHECK_RENDER_STATE_INSTALLS) {
+        auto const installed = RustFFI::render_state_installed_style_record(document_host(), slot_id(this));
+        VERIFY(installed == 0 || installed == m_style_record_identity.value());
+    }
     ++document().style_invalidation_counters().layout_style_record_publications;
-    auto const view = document().style_computer().style_engine().style_record_view(held_read(), m_style_record_identity);
-    VERIFY(view.present);
-    auto const* payloads = view.payloads;
-    m_style_payloads = payloads;
-    RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), payloads);
+    auto const style = document().style_computer().install_style(held_read(), m_style_record_identity);
+    VERIFY(style);
+    m_style_record = style.groups();
+    RustFFI::render_state_set_node_style(document_host(), slot_id(this), m_style_record_identity.value(), style.groups());
+    m_has_layout_derived_style = false;
+    did_update_style_record();
+}
+
+void NodeWithStyle::adopt_style_record_installed_by_render_state()
+{
+    auto const style = document().style_computer().install_style(held_read(), m_style_record_identity);
+    VERIFY(style);
+    m_style_record = style.groups();
     m_has_layout_derived_style = false;
     did_update_style_record();
 }
@@ -617,7 +650,7 @@ void NodeWithStyle::did_update_style_record()
     if (auto const* element = as_if<DOM::Element>(dom_node()); element && (element->has_style(CSS::PseudoElement::Selection) || element->has_style(CSS::PseudoElement::SearchText) || element->has_style(CSS::PseudoElement::SearchTextCurrent) || element->has_style(CSS::PseudoElement::SpellingError)))
         Painting::push_highlight_pseudo_styles(*element);
 
-    if (style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_strictness_value() != CSS::ScrollSnapStrictness::None)
+    if (style_group<CSS::ComputedValues::MiscInteractionValues>().scroll_snap_strictness_value() != CSS::ScrollSnapStrictness::None)
         document().set_may_have_scroll_snap_areas();
 
     // NB: The root element's style can be published before the layout tree gives the document a viewport to snap

@@ -30,7 +30,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
     let chrome_geometry = ChromeGeometry::for_recording(recorder.source, recorder.inputs);
     let style = recorder.source.node_style_if_live(paintable);
     let paints_scrollbars = style.is_some_and(|style| {
-        !is_viewport && style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
+        !is_viewport && style.misc_interaction().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
     });
 
     if paints_scrollbars {

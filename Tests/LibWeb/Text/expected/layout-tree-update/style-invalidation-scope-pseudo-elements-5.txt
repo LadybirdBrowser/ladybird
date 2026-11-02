@@ -37,38 +37,38 @@ PASS: ::before change clear block flow-root on none in inline flow-root | increm
 PRESERVED: ::after change float block on none in flow-root | fixture ancestor
 PRESERVED: ::after change float block on none in flow-root | distant sibling
 PRESERVED: ::after change float block on none in flow-root | distant sibling descendant
-RECREATED: ::after change float block on none in flow-root | DOM parent
-RECREATED: ::after change float block on none in flow-root | preceding sibling
-RECREATED: ::after change float block on none in flow-root | preceding sibling descendant
+PRESERVED: ::after change float block on none in flow-root | DOM parent
+PRESERVED: ::after change float block on none in flow-root | preceding sibling
+PRESERVED: ::after change float block on none in flow-root | preceding sibling descendant
 ABSENT: ::after change float block on none in flow-root | target
 ABSENT: ::after change float block on none in flow-root | target descendant
-RECREATED: ::after change float block on none in flow-root | following sibling
-RECREATED: ::after change float block on none in flow-root | following sibling descendant
-STATS: ::after change float block on none in flow-root | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change float block on none in flow-root | following sibling
+PRESERVED: ::after change float block on none in flow-root | following sibling descendant
+STATS: ::after change float block on none in flow-root | no layout tree build
 PASS: ::after change float block on none in flow-root | incremental tree matches full rebuild
 PRESERVED: ::after change float inline-table on none in -webkit-box | fixture ancestor
 PRESERVED: ::after change float inline-table on none in -webkit-box | distant sibling
 PRESERVED: ::after change float inline-table on none in -webkit-box | distant sibling descendant
-RECREATED: ::after change float inline-table on none in -webkit-box | DOM parent
-RECREATED: ::after change float inline-table on none in -webkit-box | preceding sibling
-RECREATED: ::after change float inline-table on none in -webkit-box | preceding sibling descendant
+PRESERVED: ::after change float inline-table on none in -webkit-box | DOM parent
+PRESERVED: ::after change float inline-table on none in -webkit-box | preceding sibling
+PRESERVED: ::after change float inline-table on none in -webkit-box | preceding sibling descendant
 ABSENT: ::after change float inline-table on none in -webkit-box | target
 ABSENT: ::after change float inline-table on none in -webkit-box | target descendant
-RECREATED: ::after change float inline-table on none in -webkit-box | following sibling
-RECREATED: ::after change float inline-table on none in -webkit-box | following sibling descendant
-STATS: ::after change float inline-table on none in -webkit-box | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change float inline-table on none in -webkit-box | following sibling
+PRESERVED: ::after change float inline-table on none in -webkit-box | following sibling descendant
+STATS: ::after change float inline-table on none in -webkit-box | no layout tree build
 PASS: ::after change float inline-table on none in -webkit-box | incremental tree matches full rebuild
 PRESERVED: ::after change float block flow on none in block flow-root | fixture ancestor
 PRESERVED: ::after change float block flow on none in block flow-root | distant sibling
 PRESERVED: ::after change float block flow on none in block flow-root | distant sibling descendant
-RECREATED: ::after change float block flow on none in block flow-root | DOM parent
-RECREATED: ::after change float block flow on none in block flow-root | preceding sibling
-RECREATED: ::after change float block flow on none in block flow-root | preceding sibling descendant
+PRESERVED: ::after change float block flow on none in block flow-root | DOM parent
+PRESERVED: ::after change float block flow on none in block flow-root | preceding sibling
+PRESERVED: ::after change float block flow on none in block flow-root | preceding sibling descendant
 ABSENT: ::after change float block flow on none in block flow-root | target
 ABSENT: ::after change float block flow on none in block flow-root | target descendant
-RECREATED: ::after change float block flow on none in block flow-root | following sibling
-RECREATED: ::after change float block flow on none in block flow-root | following sibling descendant
-STATS: ::after change float block flow on none in block flow-root | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change float block flow on none in block flow-root | following sibling
+PRESERVED: ::after change float block flow on none in block flow-root | following sibling descendant
+STATS: ::after change float block flow on none in block flow-root | no layout tree build
 PASS: ::after change float block flow on none in block flow-root | incremental tree matches full rebuild
 PRESERVED: ::before remove none on contents in block | fixture ancestor
 PRESERVED: ::before remove none on contents in block | distant sibling

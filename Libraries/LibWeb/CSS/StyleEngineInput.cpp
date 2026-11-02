@@ -753,7 +753,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
     // yet, so the mark is made here, as the insertion would have made it.
     for (auto const& root : roots) {
         auto const* parent = root.node->parent();
-        if (parent && (parent->is_html_style_element() || parent->is_svg_style_element()) && !parent->has_layout_box())
+        if (parent && (parent->is_html_style_element() || parent->is_svg_style_element()) && !parent->may_have_layout_box())
             continue;
         root.node->set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::NodeInsertBefore);
     }

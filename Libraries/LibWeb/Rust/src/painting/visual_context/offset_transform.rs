@@ -10,7 +10,10 @@
 use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
 use crate::css::css_enums::keyword;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::css::style_value::{BasicShapeData, OwnedBasicShapeData, RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::{
+    BasicShapeData, OwnedBasicShapeData, RetainedStyleValueData, StyleValueBox, StyleValueData,
+};
+use crate::css::style_value::{BorderRadiusPayload, BorderRadiusRectPayload, PositionPayload, RayPayload};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::style_queries;
@@ -44,10 +47,10 @@ fn position_value_at(point: (f64, f64), rect: CssPixelRect) -> StyleValueData {
             }),
         })
     };
-    StyleValueData::Position {
+    StyleValueData::Position(StyleValueBox::new(PositionPayload {
         edge_x: edge(point.0 - rect.x.to_double()),
         edge_y: edge(point.1 - rect.y.to_double()),
-    }
+    }))
 }
 
 /// inset(0 round X), where X is the border-radius of the containing block of `node`.
@@ -72,19 +75,21 @@ fn containing_block_inset_shape(arena: &impl PaintRead, node: NodeSlotId) -> Own
             Some(value) => unsafe {
                 RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value))
             },
-            None => RetainedStyleValueData::from_owned(StyleValueData::BorderRadius {
-                is_elliptical: false,
-                horizontal_radius: zero(),
-                vertical_radius: zero(),
-            }),
+            None => RetainedStyleValueData::from_owned(StyleValueData::BorderRadius(StyleValueBox::new(
+                BorderRadiusPayload {
+                    is_elliptical: false,
+                    horizontal_radius: zero(),
+                    vertical_radius: zero(),
+                },
+            ))),
         }
     };
-    let radii = StyleValueData::BorderRadiusRect {
+    let radii = StyleValueData::BorderRadiusRect(StyleValueBox::new(BorderRadiusRectPayload {
         top_left: radius(|border| &border.border_top_left_radius),
         top_right: radius(|border| &border.border_top_right_radius),
         bottom_right: radius(|border| &border.border_bottom_right_radius),
         bottom_left: radius(|border| &border.border_bottom_left_radius),
-    };
+    }));
     OwnedBasicShapeData::new(BasicShapeData {
         kind: basic_shape_kind::INSET,
         v0: zero(),
@@ -201,12 +206,13 @@ pub(crate) fn compute_offset_transform(
     let mut is_closed_loop = false;
     let mut ray_contain_reduction = None;
     let (path_length, point_at): (f64, Box<dyn Fn(f64) -> PathPosition>) = match path {
-        Some(StyleValueData::Ray {
-            size,
-            contain,
-            angle,
-            position,
-        }) => {
+        Some(StyleValueData::Ray(ray_payload)) => {
+            let RayPayload {
+                size,
+                contain,
+                angle,
+                position,
+            } = &**ray_payload;
             // at <position>: Specifies the origin of the ray. If omitted, it uses the offset starting position of the
             // element. If the element doesn't have an offset starting position either, it behaves as at center.
             let origin = position

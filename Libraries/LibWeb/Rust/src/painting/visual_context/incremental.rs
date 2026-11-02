@@ -275,9 +275,8 @@ pub(crate) fn register_scroll_like_node(
             && let Some(style) = layout_arena.node_style_if_live(owner_paintable)
         {
             use crate::css::css_enums::overflow;
-            let box_values = style.box_values();
-            if matches!(box_values.overflow_x, overflow::AUTO | overflow::SCROLL)
-                || matches!(box_values.overflow_y, overflow::AUTO | overflow::SCROLL)
+            if matches!(style.overflow_x(), overflow::AUTO | overflow::SCROLL)
+                || matches!(style.overflow_y(), overflow::AUTO | overflow::SCROLL)
                 || crate::painting::chrome_geometry::keeps_scrolls_along_some_axis(layout_arena, owner_paintable)
             {
                 scroll_state.has_non_viewport_wheel_scroll_target_candidate = true;

@@ -1,0 +1,2 @@
+box width on screen: 150
+box width once the main thread handled the move: 150px

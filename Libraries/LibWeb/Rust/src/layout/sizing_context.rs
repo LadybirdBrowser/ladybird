@@ -227,7 +227,7 @@ impl<'cells> SizedCells<'cells> {
 pub(crate) struct SizingContext<'pass, 'container> {
     state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
-    style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
+    style_cache: Cell<Option<(Node, ComputedValuesView<'pass>)>>,
     child_run_shapes: Option<&'container dyn formatting_context::ChildRunShapes>,
 }
 
@@ -312,7 +312,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         let payloads = match self.style_cache.get() {
             Some((cached_node, payloads)) if cached_node == node => payloads,
             _ => {
-                let payloads = self.callbacks.style_payloads(node);
+                let payloads = self.callbacks.style_view(node);
                 self.style_cache.set(Some((node, payloads)));
                 payloads
             }
@@ -4382,14 +4382,11 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
 #[cfg(test)]
 mod replaced_ratio_tests {
     use super::*;
-    use crate::css::computed_values::{
-        BoxValues, GroupPayloadRef, SizingValues, clone_group_payload, release_group_payload,
-    };
+    use crate::css::style::layout_style::LayoutScratchStyle;
     use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
-    use crate::css::table_group_builder::group_index;
     use crate::layout::formatting_context::LayoutStageFacts;
     use crate::layout::layout_node_arena::LayoutNodeArena;
-    use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
+    use crate::layout::node_data::{NodeConstructionFacts, NodeKind};
     use crate::layout::run_state::LayoutScratch;
 
     fn size(
@@ -4401,15 +4398,8 @@ mod replaced_ratio_tests {
     ) -> (i32, i32) {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
-        let mut style = FfiStylePayloads {
-            groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
-        };
-        // SAFETY: Each cloned immortal default payload is private until installed in this test's arena.
-        let box_payload = unsafe { clone_group_payload(group_index::BOX, style.groups[group_index::BOX]) };
-        let sizing_payload = unsafe { clone_group_payload(group_index::SIZING, style.groups[group_index::SIZING]) };
-        // SAFETY: These clones have the corresponding payload layouts and no readers yet.
-        unsafe {
-            let box_values = &mut *box_payload.cast::<BoxValues>();
+        let style = LayoutScratchStyle::over_defaults(|style| {
+            let box_values = style.box_mut();
             box_values.display = crate::css::display::FfiDisplay::block();
             box_values.aspect_ratio.has_preferred_ratio = fallback;
             box_values.aspect_ratio.preferred_ratio_numerator = 2.0;
@@ -4419,10 +4409,8 @@ mod replaced_ratio_tests {
                 value: 40.0,
                 unit: crate::css::style_compute::px_length_unit(),
             });
-            (*sizing_payload.cast::<SizingValues>()).max_height = ComputedSize::from_data(&length);
-        }
-        style.groups[group_index::BOX] = box_payload;
-        style.groups[group_index::SIZING] = sizing_payload;
+            style.sizing_mut().max_height = ComputedSize::from_data(&length);
+        });
         let node = arena.allocate(NodeConstructionFacts {
             kind: NodeKind::ImageBox,
             is_anonymous: false,
@@ -4436,7 +4424,7 @@ mod replaced_ratio_tests {
             dom_paint_facts: 0,
             style_node: 0,
         });
-        arena.set_node_style(node, 0, StylePayloadsRef::new(&raw const style));
+        arena.set_node_style(node, 0, Some(style.style()));
         arena.set_replaced_content_facts(
             node,
             node_facts::ReplacedContentFacts {
@@ -4479,8 +4467,6 @@ mod replaced_ratio_tests {
         arena
             .free_subtree(node)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        release_group_payload(group_index::SIZING, sizing_payload);
-        release_group_payload(group_index::BOX, box_payload);
         result
     }
 

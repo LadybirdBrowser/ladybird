@@ -58,6 +58,7 @@ pub(crate) fn paint_box_shadow<O: Observer>(
     if layers.is_empty() {
         return;
     }
+    let current_color = style.current_color();
     paint_box_shadow_layers(
         recorder,
         paintable,
@@ -65,6 +66,7 @@ pub(crate) fn paint_box_shadow<O: Observer>(
         borderless_content_rect,
         border_radii,
         layers,
+        current_color,
     );
 }
 
@@ -75,6 +77,7 @@ fn paint_box_shadow_layers<O: Observer>(
     borderless_content_rect: CssPixelRect,
     border_radii: BorderRadii,
     layers: &[crate::css::computed_value_types::ComputedShadow],
+    current_color: u32,
 ) {
     let converter = recorder.converter;
     let corner_radii = border_radii.as_corners(&converter);
@@ -98,7 +101,7 @@ fn paint_box_shadow_layers<O: Observer>(
 
         if let Some(shadow_shapes) = &shadow_shapes {
             recorder.recorder.paint_path_box_shadow(
-                Color(layer.color),
+                Color(layer.color.resolve(current_color)),
                 blur_radius,
                 spread_distance as f32,
                 FloatPoint {
@@ -147,7 +150,7 @@ fn paint_box_shadow_layers<O: Observer>(
 
             recorder.recorder.paint_inner_box_shadow(
                 PaintInnerBoxShadow {
-                    color: Color(layer.color),
+                    color: Color(layer.color.resolve(current_color)),
                     blur_radius,
                     device_content_rect,
                     content_corner_radii: corner_radii,
@@ -168,7 +171,7 @@ fn paint_box_shadow_layers<O: Observer>(
 
             recorder.recorder.paint_outer_box_shadow(
                 PaintOuterBoxShadow {
-                    color: Color(layer.color),
+                    color: Color(layer.color.resolve(current_color)),
                     blur_radius,
                     device_content_rect,
                     content_corner_radii: corner_radii,

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box.wide { width: 200px; }
+    #target { height: 10px; }
+    #previous + #target { height: 20px; }
+</style>
+<div id="box"></div>
+<div id="previous"></div>
+<div id="target"></div>
+<div id="host"><span id="slotted"></span></div>
+<script>
+    // The update takes the last update's layout in behind its animation frame callbacks, with what they wrote set aside
+    // until it has. Assigning a slot publishes the rows, and the element removed after it is published as the update
+    // reads the layout's size containers: the rows of the later publication hold the earlier one's, which has to go
+    // ahead of it for the removal to stand.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        const slot = document.createElement("slot");
+        host.attachShadow({ mode: "open", slotAssignment: "manual" }).append(slot);
+        println(`height before: ${target.offsetHeight}`);
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            box.classList.add("wide");
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        const { promise, resolve } = Promise.withResolvers();
+        requestAnimationFrame(() => {
+            slot.assign(slotted);
+            previous.remove();
+            internals.releaseHeldFrame();
+            resolve();
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        await promise;
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        println(`height after: ${target.offsetHeight}`);
+        println(`computed height: ${getComputedStyle(target).height}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

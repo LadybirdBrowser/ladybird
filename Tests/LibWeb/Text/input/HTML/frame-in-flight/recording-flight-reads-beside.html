@@ -6,7 +6,7 @@
 </style>
 <div id="box" style="width: 10px; height: 10px; background: green"></div>
 <script>
-    // Reads beside a frame in flight: a read of style or layout joins the style transaction of the frame, drains its
+    // Reads beside a frame in flight: a read of style or layout joins the style update of the frame, drains its
     // reactions, and runs in step behind it. The next rendering update paints what the reads changed.
     asyncTest(async done => {
         const result = await whileRecordingInFlight(() => {

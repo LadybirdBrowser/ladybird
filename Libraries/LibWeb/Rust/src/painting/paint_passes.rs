@@ -406,10 +406,7 @@ pub(crate) fn update_accumulated_visual_contexts(
     let viewport_overflow = arena
         .paintable_rows()
         .node_style_if_live(viewport)
-        .map_or((0, 0), |style| {
-            let box_values = style.box_values();
-            (box_values.overflow_x, box_values.overflow_y)
-        });
+        .map_or((0, 0), |style| (style.overflow_x(), style.overflow_y()));
     let viewport_overflow_changed =
         std::mem::replace(&mut state.last_viewport_overflow, viewport_overflow) != viewport_overflow;
     if viewport_overflow_changed {

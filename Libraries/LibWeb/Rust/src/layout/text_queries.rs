@@ -128,8 +128,7 @@ fn collapses_whitespace(rows: &impl PaintRead, node: NodeSlotId) -> bool {
         parent
             .and_then(|parent| rows.node_style_if_live(parent))
             .expect("text parent has style")
-            .inherited_text()
-            .white_space_collapse,
+            .white_space_collapse(),
         white_space_collapse::COLLAPSE | white_space_collapse::PRESERVE_BREAKS
     )
 }

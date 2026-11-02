@@ -1,0 +1,4 @@
+target color starts the transition: rgb(0, 0, 0)
+child inherits the transition's start: rgb(0, 0, 0)
+::before inherits the transition's start: rgb(0, 0, 0)
+::before background starts its own transition: rgb(0, 0, 0)

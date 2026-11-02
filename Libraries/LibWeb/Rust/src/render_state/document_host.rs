@@ -14,7 +14,6 @@ use super::{
     ArenaChange, ArenaFacts, ChangeQueue, EngineFacts, ForcedRead, Landing, Moves, NoFrameInFlight, Owed, RenderState,
     RenderWait, RowWrite, StateFacts, on_render_side, post_to_render_side,
 };
-use crate::css::style::flight_style_rows::FlightStyleRow;
 use crate::css::style::rule_writes::{PublishedRules, RuleWrite};
 use crate::css::style::style_job::{SealedStyleInputs, StyleJobAnswer};
 use crate::css::style::tree::StyleNodeID;
@@ -22,7 +21,7 @@ use crate::css::transition::HoverTransitions;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::row_reads::{RowIdentities, RowSnapshot, RowStyles};
 use crate::layout::tree_update_marks::{LayoutTreeUpdateMarkWrite, LayoutTreeUpdateMarks};
-use crate::layout::{FlownRound, HostTables, RowsVersion, SealedRound};
+use crate::layout::{FlownRound, HostTables, RowsVersion};
 use crate::painting::paint_read::PaintSource;
 use crate::painting::record::recorder_state::AbsoluteRectMemo;
 use crate::painting::recording_slot::{RecordingAnswer, RecordingSlot};
@@ -58,6 +57,9 @@ pub struct DocumentHost {
     seed: Cell<Option<StateSeed>>,
     /// The frame that flies beside the host, until the host takes it in.
     away: RefCell<Option<InFlight<Landing>>>,
+    /// How deep the document's style tree may be once the frame in flight applied what it flies with, where the host
+    /// takes the frame back to run it itself.
+    away_tree_depth: Cell<u32>,
     /// Whether the host waits for the frame: it flies, or a layout round that flew with it is not paid yet. The host's
     /// scopes of a read and its document's layout read it where it is (see [`document_host_read_scope_view`]).
     waits_for_frame: Cell<bool>,
@@ -65,9 +67,9 @@ pub struct DocumentHost {
     recording: RefCell<RecordingSlot>,
     /// The rows the render state published last, which the host reads between its jobs.
     rows: RefCell<Option<Rc<RowSnapshot>>>,
-    /// The reactions of the style transaction the host took last, which it reads until it ends the transaction.
-    style_transaction: RefCell<Option<StyleJobAnswer>>,
-    /// The first sample of the transitions a step the host read from the style transaction starts, by element, which
+    /// The reactions of the style update the host took last, which it reads until it ends the transaction.
+    style_update: RefCell<Option<StyleJobAnswer>>,
+    /// The first sample of the transitions a step the host read from the style update starts, by element, which
     /// the sample the host takes next reads.
     fresh_transition_sample: Cell<Option<(u32, crate::css::transition::FreshTransitionSample)>>,
     /// The absolute rects the host's reads of the rows computed, kept for as long as the geometry they were computed
@@ -82,14 +84,12 @@ pub struct DocumentHost {
     begun_read: BegunRead,
     /// The writes the host queued that the render state has not applied yet, in the order the host made them.
     changes: ChangeQueue,
-    /// The style transaction that flew with the frame, from its landing until the host has drained its reactions.
+    /// The style update that flew with the frame, from its landing until the host has drained its reactions.
     flown_style: RefCell<Option<FlownStyle>>,
     /// Whether the paint and hit testing properties the document prepared last were prepared from the render state as it
     /// is: nothing was written to it since, queued, in place or by a job. Preparing them again would find nothing
     /// to do.
     paint_preparation_is_current: Cell<bool>,
-    /// The first layout round of a rendering update, sealed until the frame flies with it.
-    sealed_round: RefCell<Option<SealedRound>>,
     /// The layout round that flew with the frame, from its landing until the host's next layout update pays it.
     flown_round: RefCell<Option<FlownRound>>,
     /// Whether a job of the host runs, whose host callbacks see rows it freed and the host has not heard of yet.
@@ -97,6 +97,9 @@ pub struct DocumentHost {
     /// Whether the host streamed writes to the render state since its last job or frame, which bring back what they owe
     /// the host and the marks they made.
     streamed: Cell<bool>,
+    /// The streams of writes the host posted to the render state that it may still take back, in the order it posted
+    /// them.
+    streams: RefCell<Vec<crate::stage_thread::Reclaimable<StreamedWrites>>>,
     /// The document's layout tree update marks, which the host lends the render owner's jobs.
     marks: RefCell<HostMarks>,
     /// The rules the host published to each of its document's style sheets.
@@ -120,7 +123,7 @@ pub struct DocumentHost {
     lane_transitions: RefCell<Vec<Arc<HoverTransitions>>>,
     /// Whether the frame in flight waits for a test to release it.
     frame_held_for_testing: Cell<bool>,
-    /// The root and the sealed document computation inputs of the last style transaction the host took or let fly,
+    /// The root and the sealed document computation inputs of the last style update the host took or let fly,
     /// which the hover of a lane takes its own transactions with.
     style_inputs: RefCell<Option<(StyleNodeID, Arc<SealedStyleInputs>)>>,
     /// The element the host asked the engine's hover to move to last: the one the events of the last mouse move it
@@ -143,6 +146,12 @@ pub struct DocumentHost {
     lanes_planned: Cell<bool>,
 }
 
+/// Writes the host streamed to the render state, with what the state is made from where they are the first.
+struct StreamedWrites {
+    changes: Vec<ArenaChange>,
+    seed: Option<StateSeed>,
+}
+
 /// Pays what the writes a job applied owe the host, which only [`DocumentHost::pay`] makes.
 pub(crate) struct OwedWorkPayment {
     _private: (),
@@ -162,13 +171,13 @@ struct HostMarks {
     written_beside_flight: Vec<LayoutTreeUpdateMarkWrite>,
 }
 
-/// A style transaction that flew with the frame and has landed, or whose reactions the host drains. The style writes the
+/// A style update that flew with the frame and has landed, or whose reactions the host drains. The style writes the
 /// host queued beside it reach the render state only behind its drain.
 enum FlownStyle {
-    /// What the transaction answered, and the rows of it the frame applied to the boxes itself, by element.
-    Landed(StyleJobAnswer, Vec<FlightStyleRow>),
-    /// The host drains the transaction's reactions, with the rows the frame applied.
-    Draining(Vec<FlightStyleRow>),
+    /// What the transaction answered.
+    Landed(Box<StyleJobAnswer>),
+    /// The host drains the transaction's reactions.
+    Draining,
 }
 
 impl DocumentHost {
@@ -180,11 +189,12 @@ impl DocumentHost {
             seed: Cell::new(Some(StateSeed { shared: shared.clone() })),
             shared,
             away: RefCell::default(),
+            away_tree_depth: Cell::new(0),
             waits_for_frame: Cell::new(false),
             host_tables: HostTables::default(),
             recording: RefCell::default(),
             rows: RefCell::default(),
-            style_transaction: RefCell::default(),
+            style_update: RefCell::default(),
             fresh_transition_sample: Cell::default(),
             absolute_rects: RefCell::default(),
             compositor_animations: RefCell::default(),
@@ -192,10 +202,10 @@ impl DocumentHost {
             changes: ChangeQueue::default(),
             flown_style: RefCell::default(),
             paint_preparation_is_current: Cell::new(false),
-            sealed_round: RefCell::default(),
             flown_round: RefCell::default(),
             in_job: Cell::new(false),
             streamed: Cell::new(false),
+            streams: RefCell::default(),
             marks: RefCell::new(HostMarks {
                 here: Some(LayoutTreeUpdateMarks::default()),
                 beside_flight: LayoutTreeUpdateMarks::default(),
@@ -242,6 +252,11 @@ impl DocumentHost {
         &self.published_rules
     }
 
+    /// The style atoms of the process, which the host interns names in.
+    pub(crate) fn style_atoms(&self) -> &std::sync::Arc<crate::css::style::ProcessAtoms> {
+        &self.shared.style_atoms
+    }
+
     /// What the host learned of its document's style engine.
     pub(crate) fn engine_memo(&self) -> &crate::css::style::engine_calls::EngineMemo {
         &self.engine_memo
@@ -250,6 +265,7 @@ impl DocumentHost {
     /// Writes `change` to the document's render state, before anything that reads what it changes: the render owner
     /// applies it ahead of the host's next job. A write never reaches the render state as the host makes it.
     pub(crate) fn queue_change(&self, change: ArenaChange) {
+        crate::css::style::host_atoms::note_attr_names_read_by_change(self, &change);
         if change.stales_paint_preparation() {
             self.note_render_state_write();
         }
@@ -263,10 +279,15 @@ impl DocumentHost {
         self.stream_writes_if_due();
     }
 
-    /// Whether a write the host queues now waits behind the drain of the reactions of a style transaction that flew,
-    /// beside the writes the drain queues meanwhile.
-    pub(crate) fn holds_style_writes(&self) -> bool {
-        self.changes.holds_style.get()
+    /// Publishes what the host wrote of its elements since its last barrier, where it wrote anything: the barrier the
+    /// render state takes the host's projection rows at, behind the writes the host queued before. Each queued write the
+    /// render state applies reads the rows as of the barrier before it.
+    pub(crate) fn publish_element_writes(&self) {
+        if let Some(publication) = self.engine_memo.take_publication() {
+            self.queue_change(ArenaChange::Engine(
+                crate::css::style::engine_calls::EngineWrite::Publish(Box::new(publication)),
+            ));
+        }
     }
 
     /// How many writes the host queues before it streams them to the render state.
@@ -280,12 +301,68 @@ impl DocumentHost {
             return;
         }
         let changes = self.changes.take_for_stream();
+        self.post_stream(changes);
+    }
+
+    /// Streams `changes`, taken from the queue, to the render state, which applies them beside the host's task unless
+    /// the host takes them back first. The first writes the host streams make the render state, as a job would, so that
+    /// the writes of a document's first task are applied beside it rather than all in its first job.
+    fn post_stream(&self, changes: Vec<ArenaChange>) {
         self.streamed.set(true);
-        let document = self.document;
-        post_to_render_side(move || {
-            super::clock::note_host_write(document);
-            owner::with_state(document, None, |state| state.apply_streamed(changes));
-        });
+        let (document, seed) = (self.document, self.seed.take());
+        if cfg!(test) {
+            return post_to_render_side(move || {
+                super::clock::note_host_write(document);
+                owner::with_state(document, seed, |state| state.apply_streamed(changes));
+            });
+        }
+        let stream = crate::stage_thread::render_thread().post_reclaimable(
+            StreamedWrites { changes, seed },
+            move |mut claim| {
+                // NB: The stream claims its writes holding the slot, so a host that takes back the streams not claimed
+                //     yet orders its job after every one that was.
+                owner::hold(|| {
+                    let Some(StreamedWrites { changes, seed }) = claim.claim() else {
+                        return;
+                    };
+                    super::clock::note_host_write(document);
+                    owner::with_state(document, seed, |state| state.apply_streamed(changes));
+                });
+            },
+        );
+        let mut streams = self.streams.borrow_mut();
+        streams.retain(|stream| !stream.is_taken());
+        streams.push(stream);
+    }
+
+    /// Takes back the writes of every stream the render state has not begun to apply, in front of the writes queued
+    /// since: a job the host runs applies them itself, rather than waiting for the Render thread to wake for them.
+    fn take_back_streams(&self) {
+        // NB: The streams are taken back from the last one posted: the Render thread claims them first to last, so
+        //     once one is claimed every one before it is, and a stream it claims meanwhile still comes before those
+        //     taken back, which the job applies after it.
+        let streams = std::mem::take(&mut *self.streams.borrow_mut());
+        let mut taken_back = Vec::new();
+        for stream in streams.iter().rev() {
+            let Some(writes) = stream.reclaim() else {
+                break;
+            };
+            taken_back.push(writes);
+        }
+        let mut changes = Vec::new();
+        for StreamedWrites {
+            changes: mut streamed,
+            seed,
+        } in taken_back.into_iter().rev()
+        {
+            if let Some(seed) = seed {
+                self.seed.set(Some(seed));
+            }
+            changes.append(&mut streamed);
+        }
+        if !changes.is_empty() {
+            self.changes.take_back_streamed(changes);
+        }
     }
 
     /// Commits the rendering update's frame to the render owner, spending `read`, and goes on: the owner applies the
@@ -297,6 +374,7 @@ impl DocumentHost {
         commit: CommittedFrame,
     ) -> InFlight<RecordingAnswer> {
         self.take_frame_in(read);
+        self.publish_element_writes();
         // Writes the host may not stream beside its task the owner applies in a job first, which the frame reads as a
         // read would.
         let changes = match self.may_stream_writes() {
@@ -309,13 +387,13 @@ impl DocumentHost {
         if !changes.is_empty() {
             self.streamed.set(true);
         }
-        let document = self.document;
+        let (document, seed) = (self.document, self.seed.take());
         let ticks = Arc::clone(&self.ticks);
-        crate::stage_thread::style_layout_thread().submit_relayed(move |relay| {
+        crate::stage_thread::render_thread().submit_relayed(move |relay| {
             if !changes.is_empty() {
                 super::clock::note_host_write(document);
             }
-            owner::with_state(document, None, |state| {
+            owner::with_state(document, seed, |state| {
                 if !changes.is_empty() {
                     state.apply_streamed(changes);
                 }
@@ -324,8 +402,8 @@ impl DocumentHost {
         })
     }
 
-    /// Whether the render state may apply the writes the host queued now: a job made it, none runs, as a host callback
-    /// of one does, no frame flies or waits to be taken in, and the host reads the state as of its writes.
+    /// Whether the render state may apply the writes the host queued now: no job runs, as a host callback of one does,
+    /// no frame flies or waits to be taken in, and the host reads the state as of its writes.
     fn may_stream_writes(&self) -> bool {
         if self.in_job.get()
             || self.away.borrow().is_some()
@@ -335,10 +413,22 @@ impl DocumentHost {
         {
             return false;
         }
-        let seed = self.seed.take();
-        let made = seed.is_none();
-        self.seed.set(seed);
-        made && (cfg!(test) || !owner::is_held_here())
+        cfg!(test) || !owner::is_held_here()
+    }
+
+    /// Streams the writes the host queued to the render state now, however few, where nothing keeps them queued, making
+    /// the state where no job made it yet. The render owner applies them beside the host's task, so the host's next job
+    /// finds them applied rather than waiting on them.
+    pub(crate) fn stream_writes_now(&self) {
+        if !self.may_stream_writes() {
+            return;
+        }
+        self.publish_element_writes();
+        let changes = self.changes.take_for_stream();
+        if changes.is_empty() {
+            return;
+        }
+        self.post_stream(changes);
     }
 
     /// Notes that the document's render state is written, which leaves the paint and hit testing properties prepared
@@ -353,9 +443,10 @@ impl DocumentHost {
     }
 
     /// Takes the writes the host queued, for a frame that flies with them to the render owner. The style writes queued
-    /// beside a frame that flies with a style transaction wait for its drain.
+    /// beside a frame that flies with a style update wait for its drain.
     pub(super) fn take_queued_changes_for_flight(&self, with_style: bool) -> Vec<ArenaChange> {
         debug_assert!(!self.has_flown_style(), "one frame of a document flies at a time");
+        self.publish_element_writes();
         self.changes.take_for_flight(with_style)
     }
 
@@ -366,6 +457,7 @@ impl DocumentHost {
             work,
             deferred_inputs,
             released_animation_overlay_records,
+            released_style_nodes,
             facts,
             selector_value_text_names,
             selector_tested_attribute_names,
@@ -374,9 +466,17 @@ impl DocumentHost {
     ) {
         self.engine_memo
             .forget_released_animation_overlay_records(&released_animation_overlay_records);
+        self.engine_memo.take_back_released_style_nodes(&released_style_nodes);
         self.facts.set(Some(facts));
         *self.selector_value_text_names.borrow_mut() = selector_value_text_names;
+        let tested_attribute_names_moved = !std::sync::Arc::ptr_eq(
+            &self.selector_tested_attribute_names.borrow(),
+            &selector_tested_attribute_names,
+        );
         *self.selector_tested_attribute_names.borrow_mut() = selector_tested_attribute_names;
+        if tested_attribute_names_moved {
+            crate::css::style::host_atoms::forget_attribute_names_known_unread(self);
+        }
         *self.relational_arrival_keys.borrow_mut() = relational_arrival_keys;
         self.engine_memo
             .deferred
@@ -385,14 +485,18 @@ impl DocumentHost {
         // SAFETY: The host has its job or frame back, on its document's thread, or on the render owner in a host
         // callback of a job the host waits for, as every host callback runs.
         let main_thread = unsafe { crate::stage::from_ffi_entry(&OWED_WORK_PAYMENT, self) };
-        crate::css::style::give_up_custom_property_data_let_go_beside_the_host(&main_thread);
         for work in work {
             work.pay(&main_thread);
         }
     }
 
+    /// Notes how deep the document's style tree may be once the frame about to fly applied what it flies with.
+    pub(super) fn note_flight_tree_depth(&self, tree_depth: u32) {
+        self.away_tree_depth.set(tree_depth);
+    }
+
     /// Lets the frame fly beside the host, in the job `flight` submits to the owner with the document's name, until the
-    /// host drains the reactions of the style transaction it flies with. `flight` also answers whether a test holds it.
+    /// host drains the reactions of the style update it flies with. `flight` also answers whether a test holds it.
     pub(super) fn let_frame_fly(
         &self,
         flight: impl FnOnce(DocumentId, Option<StateSeed>, Option<LayoutTreeUpdateMarks>) -> (InFlight<Landing>, bool),
@@ -421,13 +525,13 @@ impl DocumentHost {
         std::mem::take(&mut *self.lane_transitions.borrow_mut())
     }
 
-    /// Keeps the root and the sealed inputs of a style transaction the host takes or lets fly, for the hover of a lane
+    /// Keeps the root and the sealed inputs of a style update the host takes or lets fly, for the hover of a lane
     /// to take its own with.
     pub(crate) fn keep_style_inputs(&self, root: StyleNodeID, inputs: Arc<SealedStyleInputs>) {
         *self.style_inputs.borrow_mut() = Some((root, inputs));
     }
 
-    /// The root and the sealed inputs of the last style transaction the host took or let fly.
+    /// The root and the sealed inputs of the last style update the host took or let fly.
     pub(crate) fn style_inputs(&self) -> Option<(StyleNodeID, Arc<SealedStyleInputs>)> {
         self.style_inputs.borrow().clone()
     }
@@ -506,15 +610,24 @@ impl DocumentHost {
         self.take_frame_in(read);
     }
 
-    /// Lands the frame in flight, waiting for it, spending `read`: the style transaction that flew with it waits to be
+    /// Lands the frame in flight, waiting for it, spending `read`: the style update that flew with it waits to be
     /// drained.
     fn land(&self, read: ForcedRead) {
         if let Some(flight) = self.away.take() {
+            // A frame the Render thread has not begun the host takes back and runs itself, rather than waiting for
+            // the thread to wake for it.
+            let reclaimed = flight.reclaim();
             // A frame a test holds goes on as soon as the host waits for it.
             if self.frame_held_for_testing.take() {
                 crate::painting::recording_slot::release_held_recording_for_testing();
             }
-            self.landed(flight.join(read));
+            let landing = match reclaimed {
+                Some(job) => super::on_render_side(self.away_tree_depth.get(), move || {
+                    job(&crate::stage_thread::StopWord::said())
+                }),
+                None => flight.join(read),
+            };
+            self.landed(landing);
         }
     }
 
@@ -522,7 +635,6 @@ impl DocumentHost {
         &self,
         Landing {
             style,
-            applied,
             round,
             changes,
             marks,
@@ -536,11 +648,8 @@ impl DocumentHost {
             let previous = self
                 .flown_style
                 .borrow_mut()
-                .replace(FlownStyle::Landed(style, applied));
-            debug_assert!(
-                previous.is_none(),
-                "one style transaction of a document flies at a time"
-            );
+                .replace(FlownStyle::Landed(Box::new(style)));
+            debug_assert!(previous.is_none(), "one style update of a document flies at a time");
         }
         if let Some((round, rows)) = round {
             // The layout round that flew with the frame wrote the render state the paint properties are prepared from.
@@ -554,16 +663,6 @@ impl DocumentHost {
             *self.rows.borrow_mut() = Some(Rc::new(rows));
         }
         self.note_frame_wait();
-    }
-
-    /// Seals `round`, the first layout round of a rendering update, for the frame the update lets fly next.
-    pub(crate) fn seal_round(&self, round: SealedRound) {
-        *self.sealed_round.borrow_mut() = Some(round);
-    }
-
-    /// Takes the round the host sealed, for the frame that flies with it.
-    pub(crate) fn take_sealed_round(&self) -> Option<SealedRound> {
-        self.sealed_round.borrow_mut().take()
     }
 
     /// Whether a layout round that flew waits for the host to take it in.
@@ -650,7 +749,10 @@ impl DocumentHost {
     /// queued since may have moved what `holds` says they read.
     fn facts_where(&self, holds: impl FnOnce(Moves) -> bool) -> Option<StateFacts> {
         let facts = self.facts.get()?;
-        (!self.in_job.get() && holds(self.changes.moves())).then_some(facts)
+        let mut moves = self.changes.moves();
+        // NB: What the host wrote of its elements and has yet to publish moves the engine's facts as a queued write does.
+        moves.engine_facts |= self.engine_memo.has_unpublished_writes();
+        (!self.in_job.get() && holds(moves)).then_some(facts)
     }
 
     /// The facts of the style engine, where the host knows them: it wrote nothing that may move them since its last job
@@ -713,6 +815,12 @@ impl DocumentHost {
         self.known_selector_attribute_value_text_requirements_version()?;
         let names = self.selector_value_text_names.borrow();
         Some(keys.iter().any(|key| names.contains(key)))
+    }
+
+    /// Whether the engine's selectors test `:local-link`, where the host knows: as it knows where their requirements are.
+    pub(crate) fn known_selectors_test_local_link(&self) -> Option<bool> {
+        self.facts_where(|moves| !moves.selectors)
+            .map(|facts| facts.selectors_test_local_link)
     }
 
     /// Whether the engine's selectors test an attribute that answers to any of `keys`, where the host knows: as it knows
@@ -860,35 +968,39 @@ impl DocumentHost {
         }
     }
 
-    /// Whether the host let a style transaction fly whose reactions it has not begun to drain.
+    /// Whether the host let a style update fly whose reactions it has not begun to drain.
     #[inline]
     pub(crate) fn has_flown_style(&self) -> bool {
         self.frame_flies() || matches!(*self.flown_style.borrow(), Some(FlownStyle::Landed(..)))
     }
 
-    /// Takes what the style transaction that flew answered, for the host to drain its reactions, once `read` took the
+    /// Takes what the style update that flew answered, for the host to drain its reactions, once `read` took the
     /// frame in. The writes the host queued beside the transaction wait for the drain to end.
     pub(crate) fn begin_style_drain(&self, read: impl RenderWait) -> StyleJobAnswer {
         self.take_frame_in(read);
         let mut flown = self.flown_style.borrow_mut();
-        let Some(FlownStyle::Landed(answer, applied)) = flown.take() else {
-            panic!("the host drains a style transaction that flew and has landed");
+        let Some(FlownStyle::Landed(answer)) = flown.take() else {
+            panic!("the host drains a style update that flew and has landed");
         };
-        *flown = Some(FlownStyle::Draining(applied));
+        *flown = Some(FlownStyle::Draining);
         self.changes.stop_holding_style();
-        answer
+        *answer
     }
 
-    /// Whether the frame the host drains the style transaction of applied the element `style_node` names its record
-    /// `style_record` ahead of the host, and marked the relayout the move asks for.
-    pub(crate) fn frame_marked_relayout(&self, style_node: StyleNodeID, style_record: u64) -> bool {
-        let flown = self.flown_style.borrow();
-        let Some(FlownStyle::Draining(applied)) = &*flown else {
-            return false;
-        };
-        applied
-            .binary_search_by_key(&style_node, |row| row.style_node)
-            .is_ok_and(|index| applied[index].new_style_record == style_record && applied[index].relayout)
+    /// Whether the render state installed `style_record`, the record of the element `style_node` names, in its box ahead
+    /// of the host, and marked the relayout the move asks for: the render side installed it with the style update
+    /// the host took last.
+    pub(crate) fn render_state_installed(&self, style_node: StyleNodeID, style_record: u64) -> bool {
+        self.style_update
+            .borrow()
+            .as_ref()
+            .is_some_and(|answer| answer.render_state_installed(style_node, style_record))
+    }
+
+    /// The style record the render side installed in the box `slot` with the style update the host took last,
+    /// which the host adopts without publishing it again, if it installed one.
+    pub(crate) fn render_state_installed_box_record(&self, slot: crate::layout::node_data::NodeSlotId) -> Option<u64> {
+        self.style_update.borrow().as_ref()?.render_state_installed_box(slot)
     }
 
     /// Sets the writes the host queued aside, for it to read its render state as a frame that flew left it, until
@@ -906,10 +1018,10 @@ impl DocumentHost {
         }
     }
 
-    /// Ends the drain of the style transaction that flew: the writes the host queued beside it are queued again, behind
+    /// Ends the drain of the style update that flew: the writes the host queued beside it are queued again, behind
     /// what the drain wrote.
     pub(crate) fn end_style_drain(&self) {
-        let Some(FlownStyle::Draining(_)) = self.flown_style.borrow_mut().take() else {
+        let Some(FlownStyle::Draining) = self.flown_style.borrow_mut().take() else {
             panic!("the host ends the drain it began");
         };
         self.changes
@@ -996,6 +1108,8 @@ impl DocumentHost {
             self.note_render_state_write();
         }
         self.take_frame_in(wait);
+        self.publish_element_writes();
+        self.take_back_streams();
         let job = Waited(job);
         let (answer, marks) = self.changes.drain(|changes| {
             let (document, seed, marks) = (self.document, self.seed.take(), self.lend_marks());
@@ -1034,14 +1148,14 @@ impl DocumentHost {
     }
 
     /// How deep the document's style tree may be once a job applies `changes`: as deep as its deepest element ever was,
-    /// and a level deeper for each relation row the engine staged and has not settled, and for each tree delta of
-    /// `changes`.
-    fn tree_depth_bound(&self, changes: &[ArenaChange]) -> u32 {
+    /// and a level deeper for each element whose links the engine wrote since it last released a transaction, and for
+    /// each tree delta of `changes`.
+    pub(super) fn tree_depth_bound(&self, changes: &[ArenaChange]) -> u32 {
         let queued_tree_deltas = changes
             .iter()
             .map(|change| match change {
-                ArenaChange::Engine(crate::css::style::engine_calls::EngineWrite::ApplyTransaction(input)) => {
-                    input.tree_delta_count()
+                ArenaChange::Engine(crate::css::style::engine_calls::EngineWrite::Publish(publication)) => {
+                    publication.link_rows_written()
                 }
                 _ => 0,
             })
@@ -1049,7 +1163,7 @@ impl DocumentHost {
         self.shared
             .deepest_element
             .load(Ordering::Relaxed)
-            .saturating_add(self.shared.staged_tree_rows.load(Ordering::Relaxed))
+            .saturating_add(self.shared.link_rows_written.load(Ordering::Relaxed))
             .saturating_add(u32::try_from(queued_tree_deltas).unwrap_or(u32::MAX))
     }
 
@@ -1235,39 +1349,49 @@ impl DocumentHost {
         self.rows.borrow_mut().take();
     }
 
-    /// Keeps what the style transaction the host took answered, until the host ends the transaction.
-    pub(crate) fn keep_style_transaction(&self, answer: StyleJobAnswer) -> std::cell::Ref<'_, StyleJobAnswer> {
-        // The atoms the host interned forget the ones the engine reclaimed, before the host interns a name again.
-        self.engine_memo
-            .atoms
-            .borrow_mut()
-            .forget(answer.reclaimed_style_atoms());
-        *self.style_transaction.borrow_mut() = Some(answer);
-        std::cell::Ref::map(self.style_transaction.borrow(), |answer| {
+    /// Keeps what the style update the host took answered, until the host ends the transaction.
+    pub(crate) fn keep_style_update(&self, answer: StyleJobAnswer) -> std::cell::Ref<'_, StyleJobAnswer> {
+        // The atoms the host interned forget the ones the engine reclaimed, before the host interns a name again, and
+        // so do the catalogs its projection rows are spelled with.
+        self.engine_memo.forget_reclaimed_atoms(answer.reclaimed_style_atoms());
+        let previous = self.style_update.borrow_mut().replace(answer);
+        debug_assert!(
+            previous.is_none_or(|mut previous| previous.take_pinned_records().is_empty()),
+            "the host ends a transaction the render side pinned records for"
+        );
+        std::cell::Ref::map(self.style_update.borrow(), |answer| {
             answer.as_ref().expect("the answer was kept above")
         })
     }
 
-    /// The view of `record`, one the rows of the style transaction the host took last name, and the custom-property
-    /// environment it was computed in.
-    pub(crate) fn transaction_record(
-        &self,
-        record: u64,
-    ) -> Option<(crate::css::style::bridge::FfiStyleRecordView, Option<u64>)> {
-        self.style_transaction.borrow().as_ref()?.record(record)
+    /// Takes the records the render side pinned for the host as it installed the style update the host took last,
+    /// for the host to unpin once it installed the transaction.
+    pub(crate) fn take_style_update_pinned_records(&self) -> Vec<u64> {
+        self.style_update
+            .borrow_mut()
+            .as_mut()
+            .map(crate::css::style::style_job::StyleJobAnswer::take_pinned_records)
+            .unwrap_or_default()
     }
 
-    /// What the style transaction the host took last answered of the pseudo-elements of `node`, where the host composes
-    /// its row.
-    pub(crate) fn transaction_pseudo_styles(
+    /// The style of `record`, one the rows of the style update the host took last name, and the custom-property
+    /// environment it was computed in.
+    pub(crate) fn transaction_record(&self, record: u64) -> Option<*const std::ffi::c_void> {
+        self.style_update.borrow().as_ref()?.record(record)
+    }
+
+    /// Takes what the main thread does to take the style installation of the style update the host took last.
+    pub(crate) fn take_transaction_installation(
         &self,
-        node: u32,
-    ) -> Option<crate::css::style::style_job::ComposedPseudoStyles> {
-        self.style_transaction.borrow().as_ref()?.composed_pseudo_styles(node)
+    ) -> Option<crate::css::style::pipeline::install::StyleInstallation> {
+        self.style_update
+            .borrow_mut()
+            .as_mut()
+            .map(crate::css::style::style_job::StyleJobAnswer::take_installation)
     }
 
     /// Hands `hand_over` the actions of the transition step `decision` asks of a target with the `existing` transitions,
-    /// where the style transaction the host took last decided it beside the row of the step's element, `node`, over the
+    /// where the style update the host took last decided it beside the row of the step's element, `node`, over the
     /// same inputs. Answers whether it did. The transitions such a step starts are what the host samples next, which
     /// reads the transaction's first sample of them.
     pub(crate) fn answer_decided_transition_step(
@@ -1277,7 +1401,7 @@ impl DocumentHost {
         existing: &[crate::css::transition::FfiExistingTransition],
         hand_over: impl FnOnce(&[crate::css::transition::FfiTransitionAction]),
     ) -> bool {
-        let transaction = self.style_transaction.borrow();
+        let transaction = self.style_update.borrow();
         let step = transaction
             .as_ref()
             .and_then(|answer| answer.decided_transition_step(node))
@@ -1312,10 +1436,16 @@ impl DocumentHost {
         Some(result)
     }
 
-    /// Lets go of what the style transaction the host took last answered.
-    pub(crate) fn end_style_transaction(&self) {
+    /// Lets go of what the style update the host took last answered, answering the records the render side pinned
+    /// for the host as it installed the transaction, which the host unpins.
+    #[must_use = "the records the render side pinned for the host are unpinned"]
+    pub(crate) fn end_style_update(&self) -> Vec<u64> {
         self.fresh_transition_sample.take();
-        self.style_transaction.borrow_mut().take();
+        self.style_update
+            .borrow_mut()
+            .take()
+            .map(|mut answer| answer.take_pinned_records())
+            .unwrap_or_default()
     }
 
     /// Starts an update pass of the document's compositor animations, with none published.
@@ -1352,7 +1482,7 @@ struct Waited<T>(T);
 
 // SAFETY: The host waits for the job, so what the job borrows of the host's stays live and unwritten until the render
 // owner has answered, and the host reads what the answer names of the render state's before its next job, which is
-// what may write it. The host callbacks a job makes run on the owner while the host waits, as a style transaction's do.
+// what may write it. The host callbacks a job makes run on the owner while the host waits, as a style update's do.
 unsafe impl<T> Send for Waited<T> {}
 
 impl<T> Waited<T> {
@@ -1492,8 +1622,7 @@ impl DocumentHost {
 mod tests {
     use super::*;
     use crate::css::style::boundary::StyleChange;
-    use crate::css::style::engine_calls::{EngineWrite, absorb_element_style_input, has_deferred_element_style_input};
-    use crate::css::style::transaction::STYLE_REACTION_INHERITED_STYLE;
+    use crate::css::style::input_types::STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED;
     use crate::render_state::ScriptForcedRead;
 
     const INHERITED_STYLE_GROUPS: u8 = 0b0010;
@@ -1510,40 +1639,14 @@ mod tests {
     fn record_input(host: &DocumentHost, node: StyleNodeID) {
         host.queue_change(ArenaChange::Style(StyleChange::RecordDerivedElementStyleInput {
             node: Some(node),
-            reaction: STYLE_REACTION_INHERITED_STYLE,
+            reaction: STYLE_REACTION_PSEUDO_INPUTS_MAY_HAVE_CHANGED,
             inherited_style_groups: INHERITED_STYLE_GROUPS,
         }));
     }
 
-    fn hold_style_writes(host: &DocumentHost) {
-        assert!(host.changes.is_empty());
-        host.changes.give_back(host.changes.take_for_flight(true));
-    }
-
     fn begin_drain(host: &DocumentHost) {
-        *host.flown_style.borrow_mut() = Some(FlownStyle::Draining(Vec::new()));
+        *host.flown_style.borrow_mut() = Some(FlownStyle::Draining);
         host.changes.stop_holding_style();
-    }
-
-    fn absorb_input(host: &DocumentHost, node: StyleNodeID) -> u32 {
-        absorb_element_style_input(
-            host,
-            host.read_for_test(),
-            node,
-            STYLE_REACTION_INHERITED_STYLE,
-            INHERITED_STYLE_GROUPS,
-            false,
-        )
-    }
-
-    fn host_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {
-        has_deferred_element_style_input(host, host.read_for_test(), node)
-    }
-
-    fn engine_has_deferred_input(host: &DocumentHost, node: StyleNodeID) -> bool {
-        host.ask(ScriptForcedRead::for_test(), |state| {
-            state.engine_mut().has_deferred_element_style_input(node)
-        })
     }
 
     #[test]
@@ -1560,56 +1663,6 @@ mod tests {
         );
         host.seal_clock_plan(None, 2);
         assert!(!host.lanes_wait_for_the_update());
-    }
-
-    #[test]
-    fn a_drain_beside_held_style_writes_folds_style_inputs_without_a_job() {
-        let host = DocumentHost::for_test();
-        let [parent, child, held] = style_nodes(&host);
-        hold_style_writes(&host);
-        record_input(&host, held);
-        begin_drain(&host);
-        // The parent's applied reaction defers inputs the host cannot name, until the drain's next job.
-        record_input(&host, child);
-        host.queue_change(ArenaChange::Style(StyleChange::NoteStyleReactionApplied {
-            node: Some(parent),
-            reaction: STYLE_REACTION_INHERITED_STYLE,
-            inherited_style_groups_changed: INHERITED_STYLE_GROUPS,
-            changed_non_inherited_style_groups: 0,
-            facts: 0,
-        }));
-        host.ask(ScriptForcedRead::for_test(), |_| ());
-
-        assert_eq!(
-            absorb_input(&host, child),
-            u32::from(STYLE_REACTION_INHERITED_STYLE) | (u32::from(INHERITED_STYLE_GROUPS) << 8)
-        );
-        assert!(
-            matches!(
-                host.changes.queued.borrow().last(),
-                Some(ArenaChange::Engine(EngineWrite::AbsorbElementStyleInput { .. }))
-            ),
-            "the host folds the input without a job, and queues the fold for the engine"
-        );
-        assert!(!engine_has_deferred_input(&host, child));
-        host.end_style_drain();
-    }
-
-    #[test]
-    fn a_held_style_write_defers_an_input_once_the_drain_queues_it() {
-        let host = DocumentHost::for_test();
-        let [node] = style_nodes(&host);
-        hold_style_writes(&host);
-        record_input(&host, node);
-        begin_drain(&host);
-        // No job applies the held write until the drain ends.
-        assert!(!host_has_deferred_input(&host, node));
-        assert_eq!(absorb_input(&host, node), 0);
-        assert!(!engine_has_deferred_input(&host, node));
-
-        host.end_style_drain();
-        assert!(host_has_deferred_input(&host, node));
-        assert!(engine_has_deferred_input(&host, node));
     }
 
     fn render_state_has_deferred_inputs(host: &DocumentHost, nodes: &[StyleNodeID]) -> bool {

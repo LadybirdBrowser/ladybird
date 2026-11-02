@@ -355,7 +355,7 @@ fn set_own_background_as_contrast_backdrop<O: Observer>(
     let backdrop = recorder
         .source
         .node_style_if_live(paintable)
-        .map(|style| libgfx_rust::Color(style.background().background_color));
+        .map(|style| libgfx_rust::Color(style.background_color()));
     recorder.recorder.set_contrast_backdrop(backdrop)
 }
 

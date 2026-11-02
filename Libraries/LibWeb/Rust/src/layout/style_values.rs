@@ -212,9 +212,9 @@ impl<'a> std::ops::Deref for StyleValues<'a> {
 
 impl<'a> StyleValues<'a> {
     #[inline]
-    pub(crate) fn new(payloads: &'a FfiStylePayloads) -> Self {
+    pub(crate) fn new(payloads: ComputedValuesView<'a>) -> Self {
         Self {
-            style: ComputedValuesView::new(&payloads.groups),
+            style: payloads,
             resolved_anchor_insets: None,
             anchor_resolved_values: None,
             vertical_align_override: None,
@@ -225,7 +225,7 @@ impl<'a> StyleValues<'a> {
 
     #[inline]
     pub(crate) fn for_node(callbacks: &LayoutPass<'a>, node: Node) -> Self {
-        StyleValues::new(callbacks.style_payloads(node))
+        StyleValues::new(callbacks.style_view(node))
             .for_kind(callbacks.node_data(node).kind.get())
             .in_frame(callbacks.frame)
     }
@@ -767,8 +767,8 @@ unsafe extern "C" fn resolve_unresolvable_anchor_function(context: *mut c_void, 
     // SAFETY: The context is the percentage basis resolve_calc_with_unresolvable_anchor_functions passes.
     let percentage_basis = unsafe { *context.cast::<CssPixels>() };
     // SAFETY: `shell` is the live style value the calc core's non-math-function node retains.
-    match unsafe { &*shell.cast::<StyleValueData>() } {
-        StyleValueData::Anchor { fallback_value, .. } | StyleValueData::AnchorSize { fallback_value, .. } => unsafe {
+    match unsafe { &*shell.cast::<StyleValueData>() }.anchor_name_and_fallback() {
+        Some((_, _, fallback_value)) => unsafe {
             anchor_function_fallback_node(
                 fallback_value,
                 percentage_basis,
@@ -776,7 +776,7 @@ unsafe extern "C" fn resolve_unresolvable_anchor_function(context: *mut c_void, 
                 resolve_unresolvable_anchor_function,
             )
         },
-        _ => std::ptr::null(),
+        None => std::ptr::null(),
     }
 }
 

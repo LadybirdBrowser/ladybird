@@ -1,0 +1,9 @@
+before: 10 10px
+started: CSSAnimation(grow)
+halfway: 150 150px
+renamed: CSSAnimation(shrink)
+renamed halfway: 30 30px
+removed: none
+removed: 10 10px
+shadow: CSSAnimation(grow)
+shadow halfway: 350 350px

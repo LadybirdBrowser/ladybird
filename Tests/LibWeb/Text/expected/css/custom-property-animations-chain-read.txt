@@ -1,0 +1,2 @@
+read of the element below a chain of 24: 24px
+read of its ::before: 24px

@@ -1,0 +1,7 @@
+child: rgb(25, 25, 25) 25px
+grandchild: rgb(25, 25, 25) 25px
+child after seeking: rgb(50, 50, 50) 50px
+grandchild after seeking: rgb(50, 50, 50) 50px
+inserted child: rgb(50, 50, 50) 50px
+child after cancelling: rgb(0, 0, 0) normal
+inserted child after cancelling: rgb(0, 0, 0) normal

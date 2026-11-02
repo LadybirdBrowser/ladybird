@@ -494,7 +494,7 @@ WebIDL::ExceptionOr<void> Node::set_text_content(Optional<Utf16String> const& ma
 
     // Otherwise, do nothing.
 
-    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
+    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !may_have_layout_box();
     if (is_connected() && !is_boxless_style_element)
         set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeSetTextContent);
 
@@ -1176,7 +1176,7 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Ref<Node>> nodes, GC::Ptr<Node> 
         && any_of(nodes, [](auto const& node) { return node->is_connected(); }))
         run_post_connection_steps(nodes);
 
-    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !has_layout_box();
+    auto is_boxless_style_element = (is_html_style_element() || is_svg_style_element()) && !may_have_layout_box();
     if (is_connected() && !is_boxless_style_element) {
         // NB: Called during DOM insertion, layout is not up to date. The element's installed style is read.
         auto is_display_contents = [&] {
@@ -1360,9 +1360,19 @@ void Node::run_node_iterator_pre_removing_steps()
     });
 }
 
+// NB: A node hears of a box the frame in flight built for it as the frame lands, so it may have one already. Only an
+//     element or a text node can.
+bool Node::may_have_layout_box() const
+{
+    if (has_layout_box())
+        return true;
+    auto const* arena = document().layout_node_arena_if_created();
+    return arena && arena->render_document().waits_for_frame() && (is<Element>(*this) || is<Text>(*this));
+}
+
 static bool node_contributes_to_layout_tree(Node const& node)
 {
-    if (node.has_layout_box())
+    if (node.may_have_layout_box())
         return true;
 
     auto const* element = as_if<Element>(node);
@@ -2980,7 +2990,7 @@ void Node::update_inside_blocking_wheel_event_handler_state_for_subtree()
     }
 
     // A top layer element's boxes are outside the subtree's box.
-    auto marks_subtree = has_layout_box();
+    auto marks_subtree = may_have_layout_box();
     Layout::RustFFI::FfiBoxMarks subtree_marks {};
     subtree_marks.repaint_subtree = true;
     auto top_layer_marks = subtree_marks;

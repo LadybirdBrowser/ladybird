@@ -312,7 +312,10 @@ void Animatable::cancel_css_animations_and_transitions()
 bool Animatable::has_matching_transition_property_entry(Optional<CSS::PseudoElement> pseudo_element) const
 {
     auto const& style = static_cast<DOM::Element const&>(*this).installed_style(pseudo_element);
-    return style && CSS::StyleValueFFI::rust_transition_has_matching_entries(style.view().longhand_table, has_existing_transitions(pseudo_element));
+    if (!style)
+        return false;
+    auto view = style.view();
+    return CSS::StyleEngineFFI::style_engine_view_has_matching_transition_entries(&view, has_existing_transitions(pseudo_element));
 }
 
 bool Animatable::has_existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const

@@ -8,7 +8,7 @@ ABSENT: ::before create none on none in contents | target
 ABSENT: ::before create none on none in contents | target descendant
 PRESERVED: ::before create none on none in contents | following sibling
 PRESERVED: ::before create none on none in contents | following sibling descendant
-STATS: ::before create none on none in contents | rebuilt subtree roots=0, escaped=false
+STATS: ::before create none on none in contents | no layout tree build
 PASS: ::before create none on none in contents | incremental tree matches full rebuild
 PRESERVED: ::before create inline-grid on none in table | fixture ancestor
 PRESERVED: ::before create inline-grid on none in table | distant sibling
@@ -20,7 +20,7 @@ ABSENT: ::before create inline-grid on none in table | target
 ABSENT: ::before create inline-grid on none in table | target descendant
 PRESERVED: ::before create inline-grid on none in table | following sibling
 PRESERVED: ::before create inline-grid on none in table | following sibling descendant
-STATS: ::before create inline-grid on none in table | rebuilt subtree roots=0, escaped=false
+STATS: ::before create inline-grid on none in table | no layout tree build
 PASS: ::before create inline-grid on none in table | incremental tree matches full rebuild
 PRESERVED: ::before create table-column on none in table-caption | fixture ancestor
 PRESERVED: ::before create table-column on none in table-caption | distant sibling
@@ -32,7 +32,7 @@ ABSENT: ::before create table-column on none in table-caption | target
 ABSENT: ::before create table-column on none in table-caption | target descendant
 PRESERVED: ::before create table-column on none in table-caption | following sibling
 PRESERVED: ::before create table-column on none in table-caption | following sibling descendant
-STATS: ::before create table-column on none in table-caption | rebuilt subtree roots=0, escaped=false
+STATS: ::before create table-column on none in table-caption | no layout tree build
 PASS: ::before create table-column on none in table-caption | incremental tree matches full rebuild
 PRESERVED: ::before create block flow list-item on none in inline flow list-item | fixture ancestor
 PRESERVED: ::before create block flow list-item on none in inline flow list-item | distant sibling
@@ -44,43 +44,43 @@ ABSENT: ::before create block flow list-item on none in inline flow list-item | 
 ABSENT: ::before create block flow list-item on none in inline flow list-item | target descendant
 PRESERVED: ::before create block flow list-item on none in inline flow list-item | following sibling
 PRESERVED: ::before create block flow list-item on none in inline flow list-item | following sibling descendant
-STATS: ::before create block flow list-item on none in inline flow list-item | rebuilt subtree roots=0, escaped=false
+STATS: ::before create block flow list-item on none in inline flow list-item | no layout tree build
 PASS: ::before create block flow list-item on none in inline flow list-item | incremental tree matches full rebuild
-RECREATED: ::after change position inline-flex on none in inline-grid | fixture ancestor
-RECREATED: ::after change position inline-flex on none in inline-grid | distant sibling
-RECREATED: ::after change position inline-flex on none in inline-grid | distant sibling descendant
-RECREATED: ::after change position inline-flex on none in inline-grid | DOM parent
-RECREATED: ::after change position inline-flex on none in inline-grid | preceding sibling
-RECREATED: ::after change position inline-flex on none in inline-grid | preceding sibling descendant
+PRESERVED: ::after change position inline-flex on none in inline-grid | fixture ancestor
+PRESERVED: ::after change position inline-flex on none in inline-grid | distant sibling
+PRESERVED: ::after change position inline-flex on none in inline-grid | distant sibling descendant
+PRESERVED: ::after change position inline-flex on none in inline-grid | DOM parent
+PRESERVED: ::after change position inline-flex on none in inline-grid | preceding sibling
+PRESERVED: ::after change position inline-flex on none in inline-grid | preceding sibling descendant
 ABSENT: ::after change position inline-flex on none in inline-grid | target
 ABSENT: ::after change position inline-flex on none in inline-grid | target descendant
-RECREATED: ::after change position inline-flex on none in inline-grid | following sibling
-RECREATED: ::after change position inline-flex on none in inline-grid | following sibling descendant
-STATS: ::after change position inline-flex on none in inline-grid | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change position inline-flex on none in inline-grid | following sibling
+PRESERVED: ::after change position inline-flex on none in inline-grid | following sibling descendant
+STATS: ::after change position inline-flex on none in inline-grid | no layout tree build
 PASS: ::after change position inline-flex on none in inline-grid | incremental tree matches full rebuild
-RECREATED: ::after change position table-cell on none in table-column | fixture ancestor
-RECREATED: ::after change position table-cell on none in table-column | distant sibling
-RECREATED: ::after change position table-cell on none in table-column | distant sibling descendant
-RECREATED: ::after change position table-cell on none in table-column | DOM parent
+PRESERVED: ::after change position table-cell on none in table-column | fixture ancestor
+PRESERVED: ::after change position table-cell on none in table-column | distant sibling
+PRESERVED: ::after change position table-cell on none in table-column | distant sibling descendant
+PRESERVED: ::after change position table-cell on none in table-column | DOM parent
 ABSENT: ::after change position table-cell on none in table-column | preceding sibling
 ABSENT: ::after change position table-cell on none in table-column | preceding sibling descendant
 ABSENT: ::after change position table-cell on none in table-column | target
 ABSENT: ::after change position table-cell on none in table-column | target descendant
 ABSENT: ::after change position table-cell on none in table-column | following sibling
 ABSENT: ::after change position table-cell on none in table-column | following sibling descendant
-STATS: ::after change position table-cell on none in table-column | rebuilt subtree roots=1, escaped=false
+STATS: ::after change position table-cell on none in table-column | no layout tree build
 PASS: ::after change position table-cell on none in table-column | incremental tree matches full rebuild
 PRESERVED: ::after change position block table on none in block flow list-item | fixture ancestor
 PRESERVED: ::after change position block table on none in block flow list-item | distant sibling
 PRESERVED: ::after change position block table on none in block flow list-item | distant sibling descendant
-RECREATED: ::after change position block table on none in block flow list-item | DOM parent
-RECREATED: ::after change position block table on none in block flow list-item | preceding sibling
-RECREATED: ::after change position block table on none in block flow list-item | preceding sibling descendant
+PRESERVED: ::after change position block table on none in block flow list-item | DOM parent
+PRESERVED: ::after change position block table on none in block flow list-item | preceding sibling
+PRESERVED: ::after change position block table on none in block flow list-item | preceding sibling descendant
 ABSENT: ::after change position block table on none in block flow list-item | target
 ABSENT: ::after change position block table on none in block flow list-item | target descendant
-RECREATED: ::after change position block table on none in block flow list-item | following sibling
-RECREATED: ::after change position block table on none in block flow list-item | following sibling descendant
-STATS: ::after change position block table on none in block flow list-item | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change position block table on none in block flow list-item | following sibling
+PRESERVED: ::after change position block table on none in block flow list-item | following sibling descendant
+STATS: ::after change position block table on none in block flow list-item | no layout tree build
 PASS: ::after change position block table on none in block flow list-item | incremental tree matches full rebuild
 RECREATED: ::before change float inline list-item on contents in inline-flex | fixture ancestor
 RECREATED: ::before change float inline list-item on contents in inline-flex | distant sibling

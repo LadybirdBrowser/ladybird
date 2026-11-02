@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes move { from { margin-left: 0 } to { margin-left: 100px } }
+    #box.animated { animation: move 1000s linear; }
+</style>
+<div id="box" class="animated"></div>
+<script>
+    // The animation goes away with the style its rendering update computes, and the drain of that style update rejects
+    // its finished promise between two tasks. The update holds back the tasks of the document until then, and goes no
+    // further as its layout flies, so the first of them comes right after the drain. The reaction runs in the checkpoint
+    // before it, not in the one after it.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        const [animation] = box.getAnimations();
+        let reacted = false;
+        animation.finished.catch(error => {
+            reacted = true;
+            println(`finished promise rejected: ${error.name}`);
+        });
+        await whileRecordingInFlight(
+            () => box.classList.remove("animated"),
+            state => println(`beside the layout: ${state}, the reaction ran before this task: ${reacted}`),
+            "layout"
+        );
+        done();
+    });
+</script>

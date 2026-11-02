@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -856,6 +857,8 @@ void KeyframeEffect::set_target(GC::Ptr<DOM::Element> target)
     m_target_element = target;
 
     invalidate_animation_preparation();
+    if (m_target_element)
+        CSS::record_attr_names_read_by_keyframes(*m_target_element, *this);
     invalidate_effect();
     // FIXME: We don't remove the animated style from the old target element as part of normal animated style update and
     //        it will remain "stuck" until it's style is fully invalidated for some other reason.
@@ -898,6 +901,7 @@ void KeyframeEffect::set_target(DOM::AbstractElement abstract_element, Invalidat
     } else {
         VERIFY(!associated_animation());
         m_target_element = &abstract_element.element();
+        CSS::record_attr_names_read_by_keyframes(*m_target_element, *this);
     }
     m_target_pseudo_selector = abstract_element.pseudo_element().map([](auto it) { return CSS::Selector::PseudoElementSelector { it }; });
 }
@@ -929,6 +933,8 @@ void KeyframeEffect::set_key_frame_set(RefPtr<KeyFrameSet const> key_frame_set)
         }
     }
     m_key_frame_set = move(key_frame_set);
+    if (m_target_element)
+        CSS::record_attr_names_read_by_keyframes(*m_target_element, *this);
     invalidate_animation_preparation();
     invalidate_effect();
 }
@@ -1049,6 +1055,8 @@ void KeyframeEffect::set_keyframes(Vector<BaseKeyframe> keyframes)
 
     generate_initial_and_final_frames(keyframe_set, m_target_properties);
     m_key_frame_set = keyframe_set;
+    if (m_target_element)
+        CSS::record_attr_names_read_by_keyframes(*m_target_element, *this);
 
     invalidate_animation_preparation();
     invalidate_effect();
@@ -1312,14 +1320,13 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 
 void KeyframeEffect::update_computed_properties_for_style(AnimationUpdateContext& context, DOM::AbstractElement abstract_element)
 {
-    Layout::ForcedReadScope read { abstract_element.document() };
     auto& style_computer = abstract_element.element().document().style_computer();
-    auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer, &read] {
-        auto style_record = abstract_element.style_record_identity();
-        if (!style_record)
+    auto& element_data = context.elements.ensure(abstract_element, [&abstract_element, &style_computer] {
+        auto const& style = abstract_element.installed_style();
+        if (!style)
             return AnimationUpdateContext::ElementData {};
-        auto computed_properties = style_computer.reconstruct_computed_properties_for_animation(read, style_record);
-        return AnimationUpdateContext::ElementData { style_record, move(computed_properties) };
+        auto computed_properties = style_computer.reconstruct_computed_properties_for_animation(style);
+        return AnimationUpdateContext::ElementData { style, move(computed_properties) };
     });
 
     if (!element_data.target_style)

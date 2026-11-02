@@ -3824,12 +3824,11 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
 #[cfg(test)]
 mod baseline_tests {
     use super::*;
-    use crate::css::computed_values::{BoxValues, GroupPayloadRef, clone_group_payload, release_group_payload};
     use crate::css::css_enums::keyword;
     use crate::css::display::FfiDisplay;
-    use crate::css::table_group_builder::group_index;
+    use crate::css::style::layout_style::LayoutScratchStyle;
     use crate::layout::layout_node_arena::LayoutNodeArena;
-    use crate::layout::node_data::{NodeConstructionFacts, NodeKind, StylePayloadsRef};
+    use crate::layout::node_data::{NodeConstructionFacts, NodeKind};
     use crate::layout::run_state::LayoutScratch;
 
     #[test]
@@ -3845,20 +3844,10 @@ mod baseline_tests {
     fn check_block_derivation(display: u16) {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
-        let mut child_style = FfiStylePayloads {
-            groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
-        };
-        let mut parent_style = child_style;
-        // SAFETY: The source is the immortal default box payload. The clone is private until installed below.
-        let parent_box = unsafe { clone_group_payload(group_index::BOX, parent_style.groups[group_index::BOX]) };
-        // SAFETY: The clone has the BoxValues layout and no readers yet.
-        unsafe { (*parent_box.cast::<BoxValues>()).display = FfiDisplay::block() };
-        parent_style.groups[group_index::BOX] = parent_box;
-        // SAFETY: The source is the immortal default box payload. The clone is private until installed below.
-        let child_box = unsafe { clone_group_payload(group_index::BOX, child_style.groups[group_index::BOX]) };
-        // SAFETY: The clone has the BoxValues layout and no readers yet.
-        unsafe { (*child_box.cast::<BoxValues>()).display = FfiDisplay::from_single_keyword(display).unwrap() };
-        child_style.groups[group_index::BOX] = child_box;
+        let parent_style = LayoutScratchStyle::over_defaults(|style| style.box_mut().display = FfiDisplay::block());
+        let child_style = LayoutScratchStyle::over_defaults(|style| {
+            style.box_mut().display = FfiDisplay::from_single_keyword(display).unwrap();
+        });
         let facts = NodeConstructionFacts {
             kind: NodeKind::BlockContainer,
             is_anonymous: false,
@@ -3874,8 +3863,8 @@ mod baseline_tests {
         };
         let parent = arena.allocate(facts);
         let child = arena.allocate(facts);
-        arena.set_node_style(parent, 0, StylePayloadsRef::new(&parent_style));
-        arena.set_node_style(child, 0, StylePayloadsRef::new(&child_style));
+        arena.set_node_style(parent, 0, Some(parent_style.style()));
+        arena.set_node_style(child, 0, Some(child_style.style()));
         arena.insert_child(parent, child, Node::INVALID);
         let callbacks = LayoutPass::new(
             &arena,
@@ -3910,7 +3899,5 @@ mod baseline_tests {
         arena
             .free_subtree(parent)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-        release_group_payload(group_index::BOX, child_box);
-        release_group_payload(group_index::BOX, parent_box);
     }
 }

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #box.moved { color: rgb(1, 2, 3); }
+    #kid { height: 7px; }
+    #kid.taller { height: 9px; }
+</style>
+<div id="box"></div>
+<div id="host"></div>
+<div id="other"></div>
+<script>
+    // The elements added beside the flight arrive with a publication the drain of the style update holds, and the
+    // shadow tree of the text control, which the drain builds, with one it does not hold. The arrivals have to be taken
+    // in ahead of the later publication: the child's restyle computes from a style its parent holds.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        await new Promise(resolve => {
+            requestAnimationFrame(() => {
+                internals.holdNextFrame("layout");
+                internals.setManualRenderingOpportunities(true);
+                box.classList.add("moved");
+                const input = document.createElement("input");
+                input.value = "text";
+                other.append(input);
+                setTimeout(resolve, 0);
+            });
+        });
+        println(`a frame is in flight: ${internals.frameSchedulerState() !== "idle"}`);
+        const parent = document.createElement("div");
+        const kid = document.createElement("div");
+        kid.id = "kid";
+        parent.append(kid);
+        host.append(parent);
+        println(`height before: ${kid.offsetHeight}`);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        kid.classList.add("taller");
+        println(`height after: ${kid.offsetHeight}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

@@ -1,0 +1,8 @@
+10s, in the same task: --sum 0.12, transform matrix(1, 0, 0, 1.12, 0, 0), rotate 0.12deg, the custom properties give 0.12
+10s, after two frames: --sum 0.12, transform matrix(1, 0, 0, 1.12, 0, 0), rotate 0.12deg, the custom properties give 0.12
+20s, in the same task: --sum 0.28, transform matrix(1, 0, 0, 1.28, 0, 0), rotate 0.28deg, the custom properties give 0.28
+20s, after two frames: --sum 0.28, transform matrix(1, 0, 0, 1.28, 0, 0), rotate 0.28deg, the custom properties give 0.28
+30s, in the same task: --sum 0.48, transform matrix(1, 0, 0, 1.48, 0, 0), rotate 0.48deg, the custom properties give 0.48
+30s, after two frames: --sum 0.48, transform matrix(1, 0, 0, 1.48, 0, 0), rotate 0.48deg, the custom properties give 0.48
+40s, in the same task: --sum 0.72, transform matrix(1, 0, 0, 1.72, 0, 0), rotate 0.72deg, the custom properties give 0.72
+40s, after two frames: --sum 0.72, transform matrix(1, 0, 0, 1.72, 0, 0), rotate 0.72deg, the custom properties give 0.72

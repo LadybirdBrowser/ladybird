@@ -146,7 +146,7 @@ impl LayoutNodeArena {
         node_kind_is_node_with_style(self.data(row).kind.get())
             && self
                 .node_style_if_live(row)
-                .is_some_and(|style| style.box_values().position == positioning::ABSOLUTE)
+                .is_some_and(|style| style.position() == positioning::ABSOLUTE)
     }
 
     /// Whether the box `child` of the node `child_node` can leave the box `parent` of its DOM parent `parent_node`
@@ -285,8 +285,8 @@ impl LayoutNodeArena {
             };
             FfiDetachedBoxFacts {
                 parent_is_body: engine.element_adjustment_facts(parent) & IS_HTML_BODY_ELEMENT != 0,
-                previous_sibling: sibling(engine.tree().previous_sibling_in_dom_order(node)),
-                next_sibling: sibling(engine.tree().next_sibling_in_dom_order(node)),
+                previous_sibling: sibling(engine.previous_sibling_in_dom_order(node)),
+                next_sibling: sibling(engine.next_sibling_in_dom_order(node)),
                 level: match box_is_block_level {
                     true => FfiDetachedBoxLevel::Block,
                     false => FfiDetachedBoxLevel::AtomicInline,

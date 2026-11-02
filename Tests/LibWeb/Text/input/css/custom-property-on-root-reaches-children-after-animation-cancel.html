@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html><head><script src="../include.js"></script></head><body><div id="target"></div></body>
+<script>
+    test(() => {
+        const animation = document.documentElement.animate({ opacity: [0.5, 1] }, { duration: 100000 });
+        getComputedStyle(document.documentElement).opacity;
+        // The root gains a custom property while its animation runs, and the animation ends before the next style
+        // update: its children and their descendants still inherit it.
+        const style = document.createElement("style");
+        style.textContent = ":root { --x: 1; }";
+        document.head.append(style);
+        animation.cancel();
+        document.documentElement.offsetWidth;
+        document.documentElement.offsetWidth;
+        println(`root: ${getComputedStyle(document.documentElement).getPropertyValue("--x")}`);
+        println(`body: ${getComputedStyle(document.body).getPropertyValue("--x")}`);
+        println(`target: ${getComputedStyle(target).getPropertyValue("--x")}`);
+    });
+</script>
+</html>

@@ -133,7 +133,7 @@ void EventLoop::spin_until(GC::Ref<GC::Function<bool()>> goal_condition)
     vm.save_execution_context_stack();
     vm.clear_execution_context_stack();
 
-    // AD-HOC: A rendering update whose style transaction flies finishes first, as a pause that updates the rendering
+    // AD-HOC: A rendering update whose style update flies finishes first, as a pause that updates the rendering
     //         finishes it: the tasks the nested event loop runs come after the whole of it.
     finish_rendering_update_in_flight();
 
@@ -185,7 +185,7 @@ void EventLoop::process()
 
     m_task_generation++;
 
-    // AD-HOC: A rendering update's style transaction and recording fly beside the tasks after it, and each is taken in
+    // AD-HOC: A rendering update's style update and recording fly beside the tasks after it, and each is taken in
     //         once it has finished, between two tasks.
     take_finished_frames_in();
 
@@ -573,7 +573,7 @@ enum class HeldTasks : u8 {
     All,
 };
 
-// A rendering update whose style transaction flies for its last document, with what its steps from that document's style
+// A rendering update whose style update flies for its last document, with what its steps from that document's style
 // and layout on read.
 struct EventLoop::RenderingUpdateInFlight {
     AK_ALLOC_WITH_KMALLOC;
@@ -662,6 +662,14 @@ static bool rendering_update_makes_ready(Animations::Animation const& animation)
     return animation.pending() && (animation.is_css_animation() || animation.is_css_transition()) && effect && !effect->may_run_on_the_compositor();
 }
 
+// Whether `animation` runs on the compositor, whose animations, the wake-ups they arm and the ones that leave it, a
+// rendering update publishes with its frame.
+static bool runs_on_the_compositor(Animations::Animation const& animation)
+{
+    auto const* effect = as_if<Animations::KeyframeEffect>(animation.effect().ptr());
+    return effect && effect->is_compositor_driven();
+}
+
 enum class StyleTakenIn : u8 {
     No,
     Yes,
@@ -672,11 +680,12 @@ enum class LayoutHeldForTesting : bool {
     Yes,
 };
 
-// Which tasks a rendering update whose style transaction flies for its last doc holds back until the whole of it has
+// Which tasks a rendering update whose style update flies for its last doc holds back until the whole of it has
 // run, as the steps after its style and layout deliver to script what comes before any task: the intersection
 // observations of every doc, whose roots and targets the script of any document may reach, rendered or not, the resize
 // observations the last doc's layout answers, and the animations it samples and transitions it starts, whose timing
-// script sees follow the update. Once the transaction is taken in, those are the ones its style began.
+// script sees follow the update. Once the transaction is taken in, those are the ones its style began, and the ones
+// running on the compositor, which the update's frame publishes.
 // AD-HOC: The render clock's lanes of the docs the update took in present nothing until its frame: a task beside the
 //         update would leave the pointer unhovered and the animations still for as long as it runs, where the lanes
 //         would hover or animate beside it. A test that holds the layout that flies runs the doc's tasks beside it.
@@ -702,7 +711,7 @@ static HeldTasks tasks_rendering_update_holds(Vector<GC::Root<DOM::Document>> co
         return HeldTasks::OfLastDocument;
     for (auto const& timeline : document.associated_animation_timelines()) {
         for (auto const& animation : timeline->associated_animations()) {
-            if (style_taken_in == StyleTakenIn::No || rendering_update_makes_ready(animation))
+            if (style_taken_in == StyleTakenIn::No || rendering_update_makes_ready(animation) || runs_on_the_compositor(animation))
                 return HeldTasks::OfLastDocument;
         }
     }
@@ -880,7 +889,7 @@ void EventLoop::update_the_rendering()
     ++m_rendering_scheduler_counters.updates_run;
     ++m_rendering_update_serial;
 
-    // AD-HOC: The last rendering update may have ended as its style transaction flew. Its layout runs beside this
+    // AD-HOC: The last rendering update may have ended as its style update flew. Its layout runs beside this
     //         update's steps up to step 16, which takes the rest of it in, or the rest of it runs now.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing && !m_rendering_update_in_flight->layout_flew
         && !let_layout_of_rendering_update_fly())
@@ -1009,7 +1018,7 @@ void EventLoop::update_the_rendering()
 
     // 16. For each doc of docs:
     for (size_t document_index = 0; document_index < docs.size(); ++document_index) {
-        // AD-HOC: The style transaction of the last doc of docs flies beside the event loop where nothing keeps it in
+        // AD-HOC: The style update of the last doc of docs flies beside the event loop where nothing keeps it in
         //         step, and the update ends its task here: it goes on with the doc's style and layout once the event
         //         loop takes the transaction in, between two tasks. A styled doc with no style to change lets the
         //         first round of its layout fly the same way. Every doc before it, its container's included, is laid
@@ -1416,7 +1425,7 @@ void EventLoop::resume_rendering_update_in_flight()
     }
 }
 
-// The rest of the last rendering update, which ended as its style transaction flew, runs before anything of the next
+// The rest of the last rendering update, which ended as its style update flew, runs before anything of the next
 // one's style and layout. Where its layout flew as well, its steps go on from that layout, as it left the document: what
 // the next update wrote since is that update's, which the render state takes in behind them.
 void EventLoop::finish_ended_rendering_update_in_flight()
@@ -1460,7 +1469,7 @@ u64 EventLoop::first_rendering_update_to_gather_resize_observations_of(DOM::Docu
 
 void EventLoop::finish_rendering_update_in_flight()
 {
-    // The steps after the style transaction take it in, waiting for it to land.
+    // The steps after the style update take it in, waiting for it to land.
     if (m_rendering_update_in_flight)
         resume_rendering_update_in_flight();
 }
@@ -1540,7 +1549,7 @@ bool EventLoop::rendering_update_in_flight_holds_tasks_of(DOM::Document const* d
     VERIFY_NOT_REACHED();
 }
 
-// The layout of the doc whose style transaction flew runs beside the event loop as well, once the event loop has taken
+// The layout of the doc whose style update flew runs beside the event loop as well, once the event loop has taken
 // the transaction in. Answers whether it flies.
 bool EventLoop::let_layout_of_rendering_update_fly()
 {
@@ -1557,17 +1566,22 @@ bool EventLoop::let_layout_of_rendering_update_fly()
 
 void EventLoop::take_finished_frames_in()
 {
-    // A rendering update whose style transaction, then layout, has landed goes on; the tasks before that run beside it,
+    // A rendering update whose style update, then layout, has landed goes on; the tasks before that run beside it,
     // but for those it holds back, which wait. None is in flight in a nested event loop, which finishes it as it begins,
     // and a paused event loop does not come here.
     if (m_rendering_update_in_flight && !m_rendering_update_in_flight->held_for_testing
-        && !CSS::StyleEngineFFI::style_engine_style_transaction_flies(m_rendering_update_in_flight->document().style_computer().style_engine().host())
+        && !CSS::StyleEngineFFI::style_engine_style_update_flies(m_rendering_update_in_flight->document().style_computer().style_engine().host())
         && (m_rendering_update_in_flight->layout_flew || !let_layout_of_rendering_update_fly()))
         resume_rendering_update_in_flight();
 
     // A frame that was taken in leaves the list as it is, which moves only the entries after it.
     for (size_t index = m_navigables_with_frames_in_flight.size(); index-- > 0;)
         (void)m_navigables_with_frames_in_flight[index]->take_recording_in_flight_in(LocalNavigable::TakeIn::IfFinished);
+
+    // NB: This runs between tasks, so no end of a task takes what the style drains above queued, such as the reaction
+    //     to a promise an animation resolved, and no task may follow for a long time.
+    if (!m_microtask_queue.is_empty() && vm().execution_context_stack().is_empty())
+        perform_a_microtask_checkpoint();
 }
 
 // AD-HOC: The render clock's lanes follow the frames a document presents: they hover what is under the pointer whenever
@@ -1665,6 +1679,11 @@ void perform_a_microtask_checkpoint()
 void EventLoop::perform_a_microtask_checkpoint()
 {
     if (execution_paused())
+        return;
+
+    // NB: The checkpoint at the end of the task, or of taking finished frames in between tasks, takes what is queued
+    //     meanwhile.
+    if (m_microtask_checkpoint_deferrals > 0)
         return;
 
     // 1. If the event loop's performing a microtask checkpoint is true, then return.
@@ -1928,7 +1947,7 @@ EventLoop::PauseHandle EventLoop::pause(UpdateTheRendering should_update_the_ren
     // 3. If necessary, update the rendering or user interface of any Document or navigable to reflect the current state.
     // NB: UpdateTheRendering::No skips this step, for a caller that must not run author callbacks (e.g., rAF callbacks)
     //     while it's blocked — a sync XHR send(), which may itself have been invoked from within a microtask.
-    // A rendering update whose style transaction flies finishes first, as the update whose rendering the user sees.
+    // A rendering update whose style update flies finishes first, as the update whose rendering the user sees.
     if (should_update_the_rendering == UpdateTheRendering::Yes && m_rendering_update_in_flight) {
         finish_rendering_update_in_flight();
     } else if (should_update_the_rendering == UpdateTheRendering::Yes && !m_running_rendering_task) {

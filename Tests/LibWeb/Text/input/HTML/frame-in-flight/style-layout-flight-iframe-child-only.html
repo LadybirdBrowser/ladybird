@@ -22,7 +22,6 @@
 
         const result = await whileRecordingInFlight(() => {
             observed.length = 0;
-            internals.resetStyleInvalidationCounters();
             inner.style.width = "80px";
         }, state => ({ state, observed: observed.join(", ") || "nothing" }));
         println(`state in the next task: ${result.state}`);
@@ -30,7 +29,6 @@
         await twoFrames();
         println(`child resize observed: ${observed.join(", ")}`);
         println(`child box: ${inner.offsetWidth}x${inner.offsetHeight}`);
-        println(`container styles recomputed: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
         println(`container box: ${box.offsetWidth}x${box.offsetHeight}, iframe: ${frameElement.offsetWidth}x${frameElement.offsetHeight}`);
         observer.disconnect();
         done();

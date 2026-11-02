@@ -38,7 +38,7 @@ ForcedReadScope::ForcedReadScope(DOM::Document const& document)
 }
 
 // The lowest address of the calling thread's stack, which the render state asks for before it runs a job on a host's
-// thread rather than the StyleLayout thread's larger stack.
+// thread rather than the Render thread's larger stack.
 extern "C" FlatPtr web_current_thread_stack_base();
 extern "C" FlatPtr web_current_thread_stack_base()
 {

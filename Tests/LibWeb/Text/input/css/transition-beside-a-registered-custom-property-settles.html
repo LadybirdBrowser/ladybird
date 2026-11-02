@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<!-- A custom property registered as not inheriting is held in a store made anew each time the element computes, which
+     must not read as a new style: the transition's composition would restyle the element's pseudo-element, and that the
+     element, forever. -->
+<style>
+    @property --own {
+        syntax: "*";
+        inherits: false;
+    }
+    .button {
+        --own: 1px;
+        background-color: red;
+        transition: background-color 100s;
+    }
+    .button.on {
+        background-color: blue;
+    }
+    .button::before {
+        content: "";
+    }
+</style>
+<a class="button"></a>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const button = document.querySelector(".button");
+        const settle = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        getComputedStyle(button).backgroundColor;
+        await settle();
+        button.classList.add("on");
+        document.body.offsetWidth;
+        await settle();
+        println(`The update settled with ${button.getAnimations().length} transition running`);
+        done();
+    });
+</script>

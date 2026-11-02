@@ -64,13 +64,11 @@
 
 namespace Web::Layout {
 
-static_assert(to_underlying(CSS::StyleGroupIndex::Count) == RustFFI::STYLE_GROUP_COUNT);
 static_assert(to_underlying(CSS::StyleGroupIndex::GridValues) == RustFFI::STYLE_GROUP_INDEX_GRID);
 static_assert(to_underlying(CSS::StyleGroupIndex::ContentValues) == RustFFI::STYLE_GROUP_INDEX_CONTENT);
 static_assert(to_underlying(CSS::StyleGroupIndex::AnchorValues) == RustFFI::STYLE_GROUP_INDEX_ANCHOR);
-static_assert(to_underlying(CSS::StyleGroupIndex::InheritedTableValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_TABLE);
+static_assert(to_underlying(CSS::StyleGroupIndex::InheritedListTableValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_LIST_TABLE);
 static_assert(to_underlying(CSS::StyleGroupIndex::InheritedTextValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_TEXT);
-static_assert(to_underlying(CSS::StyleGroupIndex::InheritedBoxValues) == RustFFI::STYLE_GROUP_INDEX_INHERITED_BOX);
 static_assert(to_underlying(CSS::StyleGroupIndex::FontValues) == RustFFI::STYLE_GROUP_INDEX_FONT);
 static_assert(to_underlying(CSS::StyleGroupIndex::SVGResetValues) == RustFFI::STYLE_GROUP_INDEX_SVG_RESET);
 static_assert(to_underlying(CSS::StyleGroupIndex::BorderValues) == RustFFI::STYLE_GROUP_INDEX_BORDER);
@@ -144,20 +142,17 @@ static CSS::StyleAtomID svg_style_reference_fragment_atom(DOM::Element& element,
 // The four resources `mask`, `clip-path`, `fill` and `stroke` name. Read from the record's group payloads rather than
 // through a materialized view: this runs for every SVG graphics element whose style record is replaced, and pinning a
 // record to look at four properties is most of the cost of looking at them.
-static Array<Optional<CSS::URL>, 4> svg_style_reference_urls(void const* record_payloads)
+static Array<Optional<CSS::URL>, 4> svg_style_reference_urls(void const* record_groups)
 {
-    auto const* payloads = static_cast<void const* const*>(record_payloads);
-    if (!payloads)
+    if (!record_groups)
         return {};
-    auto const* mask_payload = static_cast<CSS::ComputedValues::MaskValues const*>(payloads[CSS::ComputedValues::MaskValues::style_group_index]);
-    auto const* svg_payload = static_cast<CSS::ComputedValues::InheritedSVGValues const*>(payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index]);
-    if (!mask_payload || !svg_payload)
-        return {};
+    auto const& mask = CSS::style_record_group<CSS::ComputedValues::MaskValues>(record_groups);
+    auto const& svg = CSS::style_record_group<CSS::ComputedValues::InheritedSVGValues>(record_groups);
     return {
-        mask_payload->mask_url_value(),
-        mask_payload->clip_path_value(),
-        svg_payload->fill_url_value(),
-        svg_payload->stroke_url_value(),
+        mask.mask_url_value(),
+        mask.clip_path_value(),
+        svg.fill_url_value(),
+        svg.stroke_url_value(),
     };
 }
 
@@ -165,7 +160,7 @@ static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& elemen
 {
     if (!is<SVG::SVGGraphicsElement>(element))
         return {};
-    auto urls = svg_style_reference_urls(element.style_record_payloads());
+    auto urls = svg_style_reference_urls(element.style_record_groups());
     return {
         svg_style_reference_fragment_atom(element, urls[0]),
         svg_style_reference_fragment_atom(element, urls[1]),
@@ -176,15 +171,15 @@ static Array<CSS::StyleAtomID, 4> svg_style_reference_atoms(DOM::Element& elemen
 
 bool svg_style_references_differ(CSS::InstalledStyle const& old_style, CSS::InstalledStyle const& new_style)
 {
-    auto const* old_payloads = static_cast<void const* const*>(old_style.payloads());
-    auto const* new_payloads = static_cast<void const* const*>(new_style.payloads());
-    if (old_payloads && new_payloads
-        && old_payloads[CSS::ComputedValues::MaskValues::style_group_index] == new_payloads[CSS::ComputedValues::MaskValues::style_group_index]
-        && old_payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index] == new_payloads[CSS::ComputedValues::InheritedSVGValues::style_group_index])
+    auto const* old_groups = old_style.groups();
+    auto const* new_groups = new_style.groups();
+    if (old_groups && new_groups
+        && CSS::style_record_group_payload<CSS::ComputedValues::MaskValues::style_group_index>(old_groups) == CSS::style_record_group_payload<CSS::ComputedValues::MaskValues::style_group_index>(new_groups)
+        && CSS::style_record_group_payload<CSS::ComputedValues::InheritedSVGValues::style_group_index>(old_groups) == CSS::style_record_group_payload<CSS::ComputedValues::InheritedSVGValues::style_group_index>(new_groups))
         return false;
 
-    auto old_urls = svg_style_reference_urls(old_payloads);
-    auto new_urls = svg_style_reference_urls(new_payloads);
+    auto old_urls = svg_style_reference_urls(old_groups);
+    auto new_urls = svg_style_reference_urls(new_groups);
     for (size_t i = 0; i < old_urls.size(); ++i) {
         if (old_urls[i].has_value() != new_urls[i].has_value())
             return true;

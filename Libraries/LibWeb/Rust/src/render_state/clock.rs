@@ -6,7 +6,7 @@
 
 //! The render clock's lanes of a document's presented frames.
 //!
-//! Each frame of a document the host presents has a lane, which the render clock's ticks follow on the StyleLayout
+//! Each frame of a document the host presents has a lane, which the render clock's ticks follow on the Render
 //! thread, as the render owner, from the frame on, until the lane of the host's next frame takes its place: a tick
 //! hovers what is under the pointer, for real, as the host would as it handles the move (see [`hover`]), and samples
 //! the running animations of the plan the frame's rendering update sealed at the tick's time beside a task, shows the
@@ -304,7 +304,7 @@ impl crate::stage_thread::Flown for ClockRecorder {
 }
 
 /// The right to sample a frame of a document for the Paint thread to present. Only a tick of the render clock and the
-/// commit of a rendering update mint one, in the job the StyleLayout thread runs them in, so a job the host hands the
+/// commit of a rendering update mint one, in the job the Render thread runs them in, so a job the host hands the
 /// render owner to ask or write its render state cannot sample a frame.
 pub(crate) struct SamplingTurn(());
 
@@ -831,6 +831,10 @@ impl Lane {
     /// those styles move for the round's tree build to build again. An element whose animations `animated` samples
     /// composes over its host's style, which only the host restyles.
     fn restyle_size_query_dependents(&mut self, state: &mut RenderState, resized: &[StyleNodeID]) -> Result<(), Park> {
+        // NB: What a hover left to the host is pending on this fork, whose elements no record can be derived below.
+        if !state.engine_mut().takes_hover_transactions() {
+            return Err(Park("a hover left a restyle to the host"));
+        }
         // An element whose box shows a sample, or what it inherits of one, shows it over the record the host installed,
         // which a restyle would replace.
         let animated: SmallVec<[StyleNodeID; 8]> = self
@@ -1480,10 +1484,8 @@ impl Lane {
                 if row.is_invalid() || !arena.slot_is_live(row) {
                     return None;
                 }
-                let payloads = arena.style_payloads(row)?;
-                let color = crate::layout::ComputedValuesView::new(&payloads.groups)
-                    .inherited_text()
-                    .color;
+                let payloads = arena.style_view(row)?;
+                let color = payloads.inherited_text().color;
                 Some((element, generated_for, color))
             })
         }));
@@ -1740,7 +1742,7 @@ pub extern "C" fn document_host_clock_lane_is_coming(host: &DocumentHost) -> boo
 }
 
 /// Hands the lanes of `host`'s document a tick at `frame_time_nanoseconds`, at which the compositor had scrolled to
-/// `scroll_offset`, if not null, and waits until the StyleLayout thread has run the jobs handed to it before, the tick
+/// `scroll_offset`, if not null, and waits until the Render thread has run the jobs handed to it before, the tick
 /// among them, and the Paint thread the recording of the frame the tick presents. For a test, whose clock ticks only
 /// where it injects them.
 #[unsafe(no_mangle)]
@@ -1756,7 +1758,7 @@ pub extern "C" fn document_host_inject_clock_tick(
 }
 
 /// Waits until the Paint thread has run the jobs handed to it before, where a test holds no recording on it, then the
-/// StyleLayout thread, and the Paint thread again: the lane of a frame presented by then has come together, and the
+/// Render thread, and the Paint thread again: the lane of a frame presented by then has come together, and the
 /// frames ticks recorded were presented. For a test.
 pub(super) fn settle_lanes_for_testing() {
     let settle_paint = || {

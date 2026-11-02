@@ -701,7 +701,7 @@ impl<'tree> Commit<'_, 'tree> {
     }
 }
 
-fn content_size_change_affects_container_queries(
+pub(crate) fn content_size_change_affects_container_queries(
     style: crate::css::computed_value_views::ComputedValuesView<'_>,
     old_size: FfiCssPixelSize,
     new_size: FfiCssPixelSize,

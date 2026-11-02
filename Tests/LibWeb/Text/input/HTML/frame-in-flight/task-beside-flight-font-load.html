@@ -3,7 +3,7 @@
 <script src="frame-in-flight.js"></script>
 <span id="text" style="font: 20px monospace">beside the frame</span>
 <script>
-    // A web face that finishes loading beside a frame in flight whose style transaction selected it for an element:
+    // A web face that finishes loading beside a frame in flight whose style update selected it for an element:
     // the element holds the transaction's style once its drain installs it, and the loaded face reaches it then.
     asyncTest(async done => {
         const widthWithoutFace = text.offsetWidth;

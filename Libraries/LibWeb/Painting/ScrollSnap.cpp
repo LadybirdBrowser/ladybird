@@ -88,10 +88,17 @@ bool is_scroll_snap_container(Layout::Node const& node)
     auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
     if (!node_with_style || !node_with_style->is_scroll_container())
         return false;
-    // OPTIMIZATION: Only the viewport takes its snap type from another box's style, so any other box without one snaps
-    //               nothing.
-    if (!node.is_viewport() && node_with_style->style_group<CSS::ComputedValues::MiscResetValues>().scroll_snap_strictness_value() == CSS::ScrollSnapStrictness::None)
+    // OPTIMIZATION: Only the viewport takes its snap type from another box's style, the document element's, so any
+    //               other box without one snaps nothing, and nor does the viewport where the document element has
+    //               none. Asking the render state what the box snaps measures its overflow.
+    if (!node.is_viewport() && node_with_style->style_group<CSS::ComputedValues::MiscInteractionValues>().scroll_snap_strictness_value() == CSS::ScrollSnapStrictness::None)
         return false;
+    if (node.is_viewport()) {
+        auto const* document_element = node.document().document_element();
+        auto const* misc_interaction_values = document_element ? document_element->style_group<CSS::ComputedValues::MiscInteractionValues>() : nullptr;
+        if (!misc_interaction_values || misc_interaction_values->scroll_snap_strictness_value() == CSS::ScrollSnapStrictness::None)
+            return false;
+    }
     return !snap_axes_of_scroll_container(node).is_empty();
 }
 

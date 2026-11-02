@@ -8,7 +8,7 @@ ABSENT: ::before create run-in on none in list-item | target
 ABSENT: ::before create run-in on none in list-item | target descendant
 PRESERVED: ::before create run-in on none in list-item | following sibling
 PRESERVED: ::before create run-in on none in list-item | following sibling descendant
-STATS: ::before create run-in on none in list-item | rebuilt subtree roots=0, escaped=false
+STATS: ::before create run-in on none in list-item | no layout tree build
 PASS: ::before create run-in on none in list-item | incremental tree matches full rebuild
 PRESERVED: ::before create table-row-group on none in table-header-group | fixture ancestor
 PRESERVED: ::before create table-row-group on none in table-header-group | distant sibling
@@ -20,7 +20,7 @@ ABSENT: ::before create table-row-group on none in table-header-group | target
 ABSENT: ::before create table-row-group on none in table-header-group | target descendant
 PRESERVED: ::before create table-row-group on none in table-header-group | following sibling
 PRESERVED: ::before create table-row-group on none in table-header-group | following sibling descendant
-STATS: ::before create table-row-group on none in table-header-group | rebuilt subtree roots=0, escaped=false
+STATS: ::before create table-row-group on none in table-header-group | no layout tree build
 PASS: ::before create table-row-group on none in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::before create block flex on none in inline flex | fixture ancestor
 PRESERVED: ::before create block flex on none in inline flex | distant sibling
@@ -32,43 +32,43 @@ ABSENT: ::before create block flex on none in inline flex | target
 ABSENT: ::before create block flex on none in inline flex | target descendant
 PRESERVED: ::before create block flex on none in inline flex | following sibling
 PRESERVED: ::before create block flex on none in inline flex | following sibling descendant
-STATS: ::before create block flex on none in inline flex | rebuilt subtree roots=0, escaped=false
+STATS: ::before create block flex on none in inline flex | no layout tree build
 PASS: ::before create block flex on none in inline flex | incremental tree matches full rebuild
 PRESERVED: ::after change position flow-root on none in run-in | fixture ancestor
 PRESERVED: ::after change position flow-root on none in run-in | distant sibling
 PRESERVED: ::after change position flow-root on none in run-in | distant sibling descendant
-RECREATED: ::after change position flow-root on none in run-in | DOM parent
-RECREATED: ::after change position flow-root on none in run-in | preceding sibling
-RECREATED: ::after change position flow-root on none in run-in | preceding sibling descendant
+PRESERVED: ::after change position flow-root on none in run-in | DOM parent
+PRESERVED: ::after change position flow-root on none in run-in | preceding sibling
+PRESERVED: ::after change position flow-root on none in run-in | preceding sibling descendant
 ABSENT: ::after change position flow-root on none in run-in | target
 ABSENT: ::after change position flow-root on none in run-in | target descendant
-RECREATED: ::after change position flow-root on none in run-in | following sibling
-RECREATED: ::after change position flow-root on none in run-in | following sibling descendant
-STATS: ::after change position flow-root on none in run-in | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change position flow-root on none in run-in | following sibling
+PRESERVED: ::after change position flow-root on none in run-in | following sibling descendant
+STATS: ::after change position flow-root on none in run-in | no layout tree build
 PASS: ::after change position flow-root on none in run-in | incremental tree matches full rebuild
-RECREATED: ::after change position -webkit-box on none in table-row-group | fixture ancestor
-RECREATED: ::after change position -webkit-box on none in table-row-group | distant sibling
-RECREATED: ::after change position -webkit-box on none in table-row-group | distant sibling descendant
-RECREATED: ::after change position -webkit-box on none in table-row-group | DOM parent
-RECREATED: ::after change position -webkit-box on none in table-row-group | preceding sibling
-RECREATED: ::after change position -webkit-box on none in table-row-group | preceding sibling descendant
+PRESERVED: ::after change position -webkit-box on none in table-row-group | fixture ancestor
+PRESERVED: ::after change position -webkit-box on none in table-row-group | distant sibling
+PRESERVED: ::after change position -webkit-box on none in table-row-group | distant sibling descendant
+PRESERVED: ::after change position -webkit-box on none in table-row-group | DOM parent
+PRESERVED: ::after change position -webkit-box on none in table-row-group | preceding sibling
+PRESERVED: ::after change position -webkit-box on none in table-row-group | preceding sibling descendant
 ABSENT: ::after change position -webkit-box on none in table-row-group | target
 ABSENT: ::after change position -webkit-box on none in table-row-group | target descendant
-RECREATED: ::after change position -webkit-box on none in table-row-group | following sibling
-RECREATED: ::after change position -webkit-box on none in table-row-group | following sibling descendant
-STATS: ::after change position -webkit-box on none in table-row-group | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change position -webkit-box on none in table-row-group | following sibling
+PRESERVED: ::after change position -webkit-box on none in table-row-group | following sibling descendant
+STATS: ::after change position -webkit-box on none in table-row-group | no layout tree build
 PASS: ::after change position -webkit-box on none in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::after change position block flow-root on none in block flex | fixture ancestor
 PRESERVED: ::after change position block flow-root on none in block flex | distant sibling
 PRESERVED: ::after change position block flow-root on none in block flex | distant sibling descendant
-RECREATED: ::after change position block flow-root on none in block flex | DOM parent
-RECREATED: ::after change position block flow-root on none in block flex | preceding sibling
-RECREATED: ::after change position block flow-root on none in block flex | preceding sibling descendant
+PRESERVED: ::after change position block flow-root on none in block flex | DOM parent
+PRESERVED: ::after change position block flow-root on none in block flex | preceding sibling
+PRESERVED: ::after change position block flow-root on none in block flex | preceding sibling descendant
 ABSENT: ::after change position block flow-root on none in block flex | target
 ABSENT: ::after change position block flow-root on none in block flex | target descendant
-RECREATED: ::after change position block flow-root on none in block flex | following sibling
-RECREATED: ::after change position block flow-root on none in block flex | following sibling descendant
-STATS: ::after change position block flow-root on none in block flex | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::after change position block flow-root on none in block flex | following sibling
+PRESERVED: ::after change position block flow-root on none in block flex | following sibling descendant
+STATS: ::after change position block flow-root on none in block flex | no layout tree build
 PASS: ::after change position block flow-root on none in block flex | incremental tree matches full rebuild
 PRESERVED: ::before change float block on contents in flow-root | fixture ancestor
 PRESERVED: ::before change float block on contents in flow-root | distant sibling

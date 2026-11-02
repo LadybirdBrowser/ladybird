@@ -1,14 +1,14 @@
-RECREATED: ::before change display block on none in inline | fixture ancestor
-RECREATED: ::before change display block on none in inline | distant sibling
-RECREATED: ::before change display block on none in inline | distant sibling descendant
-RECREATED: ::before change display block on none in inline | DOM parent
-RECREATED: ::before change display block on none in inline | preceding sibling
-RECREATED: ::before change display block on none in inline | preceding sibling descendant
+PRESERVED: ::before change display block on none in inline | fixture ancestor
+PRESERVED: ::before change display block on none in inline | distant sibling
+PRESERVED: ::before change display block on none in inline | distant sibling descendant
+PRESERVED: ::before change display block on none in inline | DOM parent
+PRESERVED: ::before change display block on none in inline | preceding sibling
+PRESERVED: ::before change display block on none in inline | preceding sibling descendant
 ABSENT: ::before change display block on none in inline | target
 ABSENT: ::before change display block on none in inline | target descendant
-RECREATED: ::before change display block on none in inline | following sibling
-RECREATED: ::before change display block on none in inline | following sibling descendant
-STATS: ::before change display block on none in inline | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change display block on none in inline | following sibling
+PRESERVED: ::before change display block on none in inline | following sibling descendant
+STATS: ::before change display block on none in inline | no layout tree build
 PASS: ::before change display block on none in inline | incremental tree matches full rebuild
 PRESERVED: ::before change display inline-table on none in math | fixture ancestor
 PRESERVED: ::before change display inline-table on none in math | distant sibling
@@ -20,19 +20,19 @@ ABSENT: ::before change display inline-table on none in math | target
 ABSENT: ::before change display inline-table on none in math | target descendant
 PRESERVED: ::before change display inline-table on none in math | following sibling
 PRESERVED: ::before change display inline-table on none in math | following sibling descendant
-STATS: ::before change display inline-table on none in math | rebuilt subtree roots=0, escaped=false
+STATS: ::before change display inline-table on none in math | no layout tree build
 PASS: ::before change display inline-table on none in math | incremental tree matches full rebuild
-RECREATED: ::before change display block flow on none in inline flow | fixture ancestor
-RECREATED: ::before change display block flow on none in inline flow | distant sibling
-RECREATED: ::before change display block flow on none in inline flow | distant sibling descendant
-RECREATED: ::before change display block flow on none in inline flow | DOM parent
-RECREATED: ::before change display block flow on none in inline flow | preceding sibling
-RECREATED: ::before change display block flow on none in inline flow | preceding sibling descendant
+PRESERVED: ::before change display block flow on none in inline flow | fixture ancestor
+PRESERVED: ::before change display block flow on none in inline flow | distant sibling
+PRESERVED: ::before change display block flow on none in inline flow | distant sibling descendant
+PRESERVED: ::before change display block flow on none in inline flow | DOM parent
+PRESERVED: ::before change display block flow on none in inline flow | preceding sibling
+PRESERVED: ::before change display block flow on none in inline flow | preceding sibling descendant
 ABSENT: ::before change display block flow on none in inline flow | target
 ABSENT: ::before change display block flow on none in inline flow | target descendant
-RECREATED: ::before change display block flow on none in inline flow | following sibling
-RECREATED: ::before change display block flow on none in inline flow | following sibling descendant
-STATS: ::before change display block flow on none in inline flow | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change display block flow on none in inline flow | following sibling
+PRESERVED: ::before change display block flow on none in inline flow | following sibling descendant
+STATS: ::before change display block flow on none in inline flow | no layout tree build
 PASS: ::before change display block flow on none in inline flow | incremental tree matches full rebuild
 PRESERVED: ::after remove none on none in block | fixture ancestor
 PRESERVED: ::after remove none on none in block | distant sibling
@@ -44,7 +44,7 @@ ABSENT: ::after remove none on none in block | target
 ABSENT: ::after remove none on none in block | target descendant
 PRESERVED: ::after remove none on none in block | following sibling
 PRESERVED: ::after remove none on none in block | following sibling descendant
-STATS: ::after remove none on none in block | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove none on none in block | no layout tree build
 PASS: ::after remove none on none in block | incremental tree matches full rebuild
 PRESERVED: ::after remove inline-grid on none in inline-table | fixture ancestor
 PRESERVED: ::after remove inline-grid on none in inline-table | distant sibling
@@ -56,7 +56,7 @@ ABSENT: ::after remove inline-grid on none in inline-table | target
 ABSENT: ::after remove inline-grid on none in inline-table | target descendant
 PRESERVED: ::after remove inline-grid on none in inline-table | following sibling
 PRESERVED: ::after remove inline-grid on none in inline-table | following sibling descendant
-STATS: ::after remove inline-grid on none in inline-table | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove inline-grid on none in inline-table | no layout tree build
 PASS: ::after remove inline-grid on none in inline-table | incremental tree matches full rebuild
 PRESERVED: ::after remove table-column on none in block flow | fixture ancestor
 PRESERVED: ::after remove table-column on none in block flow | distant sibling
@@ -68,7 +68,7 @@ ABSENT: ::after remove table-column on none in block flow | target
 ABSENT: ::after remove table-column on none in block flow | target descendant
 PRESERVED: ::after remove table-column on none in block flow | following sibling
 PRESERVED: ::after remove table-column on none in block flow | following sibling descendant
-STATS: ::after remove table-column on none in block flow | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove table-column on none in block flow | no layout tree build
 PASS: ::after remove table-column on none in block flow | incremental tree matches full rebuild
 PRESERVED: ::after remove block flow list-item on none in contents | fixture ancestor
 PRESERVED: ::after remove block flow list-item on none in contents | distant sibling
@@ -80,7 +80,7 @@ ABSENT: ::after remove block flow list-item on none in contents | target
 ABSENT: ::after remove block flow list-item on none in contents | target descendant
 PRESERVED: ::after remove block flow list-item on none in contents | following sibling
 PRESERVED: ::after remove block flow list-item on none in contents | following sibling descendant
-STATS: ::after remove block flow list-item on none in contents | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove block flow list-item on none in contents | no layout tree build
 PASS: ::after remove block flow list-item on none in contents | incremental tree matches full rebuild
 RECREATED: ::before change position inline-flex on contents in inline-grid | fixture ancestor
 RECREATED: ::before change position inline-flex on contents in inline-grid | distant sibling

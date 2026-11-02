@@ -12,7 +12,7 @@
 <span id="text">flight</span>
 <script>
     // Selector queries the DOM answers alone, a first-seen id and a font face added beside a frame in flight leave the
-    // frame in flight; a sheet's conditions, which the style engine evaluates in place, drain its style transaction
+    // frame in flight; a sheet's conditions, which the style engine evaluates in place, drain its style update
     // first. The next style update sees each of them.
     asyncTest(async done => {
         const face = new FontFace("StyleFlightFace", "url(../../../../Assets/HashSans.woff)");

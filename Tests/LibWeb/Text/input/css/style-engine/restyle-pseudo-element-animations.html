@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    @keyframes fade { from { color: rgb(200, 0, 0); } to { color: rgb(0, 0, 200); } }
+    body { margin: 0; font: 16px/20px serif; }
+    #box::first-letter { --tone: rgb(1, 2, 3); }
+    #box::before { content: "x"; color: rgb(0, 0, 0); transition: color 1s linear; }
+    #box.animated::before { animation: fade 1s linear paused; }
+    #box.moved::before { color: rgb(0, 200, 0); }
+    #box::selection { --tone: rgb(4, 5, 6); }
+    #box.retoned::first-letter { --tone: rgb(7, 8, 9); }
+    #box.retoned::selection { --tone: rgb(10, 11, 12); }
+</style>
+<div id="box">hello</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const animations = () => document.getAnimations().map(animation => `${animation.constructor.name}(${animation.effect.pseudoElement})`).join(", ") || "none";
+        const read = (label) => {
+            const before = getComputedStyle(box, "::before");
+            const firstLetter = getComputedStyle(box, "::first-letter");
+            const selection = getComputedStyle(box, "::selection");
+            println(`${label}: before color=${before.color} first-letter --tone=${firstLetter.getPropertyValue("--tone")} selection --tone=${selection.getPropertyValue("--tone")} animations=${animations()}`);
+        };
+        document.getSelection().selectAllChildren(box);
+        internals.updateStyle();
+        read("initial");
+
+        box.classList.add("animated");
+        internals.updateStyle();
+        document.getAnimations()[0].currentTime = 500;
+        read("animated halfway");
+        box.classList.remove("animated");
+        internals.updateStyle();
+        read("animation removed");
+
+        box.classList.add("moved");
+        internals.updateStyle();
+        for (const animation of document.getAnimations()) {
+            animation.pause();
+            animation.currentTime = 500;
+        }
+        read("transition halfway");
+        for (const animation of document.getAnimations())
+            animation.finish();
+
+        box.classList.add("retoned");
+        internals.updateStyle();
+        read("retoned");
+    });
+</script>

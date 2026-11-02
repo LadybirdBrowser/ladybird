@@ -1,0 +1,9 @@
+before: 100 100px
+started: CSSTransition(width)
+halfway: 150 150px
+still: none
+still: 200 200px
+narrowed: none
+narrowed: 100 100px
+started again: CSSTransition(width)
+a quarter of the way: 125 125px

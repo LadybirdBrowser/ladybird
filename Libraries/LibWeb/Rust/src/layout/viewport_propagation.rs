@@ -46,9 +46,7 @@ pub(crate) struct ViewportPropagationFacts {
 
 /// The published style record the style engine holds for an element.
 fn published_style(engine: &RetainedState, node: StyleNodeID) -> Option<ComputedValuesView<'_>> {
-    engine
-        .element_published_style_payloads(node)
-        .map(ComputedValuesView::new)
+    engine.element_published_style(node)
 }
 
 fn has_any_containment(style: ComputedValuesView<'_>) -> bool {
@@ -69,7 +67,6 @@ fn document_element(arena: &LayoutNodeArena) -> Option<StyleNodeID> {
 /// The first child of the document element that is an HTML body element.
 fn first_html_body_child(engine: &RetainedState, root_element: StyleNodeID) -> Option<StyleNodeID> {
     engine
-        .tree()
         .dom_children(root_element)
         .find(|&child| engine.element_adjustment_facts(child) & element_adjustment_fact::IS_HTML_BODY_ELEMENT != 0)
 }
@@ -111,8 +108,8 @@ pub(crate) fn viewport_propagation_facts(arena: &LayoutNodeArena) -> ViewportPro
             engine.element_construction_facts(root_element) & element_construction_fact::IS_HTML_HTML_ELEMENT != 0;
         facts.root_overflow_x = root_style.overflow_x();
         facts.root_overflow_y = root_style.overflow_y();
-        facts.root_overscroll_behavior_x = root_style.misc_reset().overscroll_behavior_x;
-        facts.root_overscroll_behavior_y = root_style.misc_reset().overscroll_behavior_y;
+        facts.root_overscroll_behavior_x = root_style.misc_interaction().overscroll_behavior_x;
+        facts.root_overscroll_behavior_y = root_style.misc_interaction().overscroll_behavior_y;
         facts.root_writing_mode = root_style.writing_mode();
         facts.root_direction = root_style.direction();
         facts.root_has_containment = has_any_containment(root_style);
@@ -153,7 +150,6 @@ pub(crate) fn root_background_source(arena: &LayoutNodeArena) -> crate::painting
             element_adjustment_fact::IS_HTML_BODY_ELEMENT | element_adjustment_fact::IS_HTML_FRAMESET_ELEMENT;
         if root_is_html_html_element
             && let Some(body) = engine
-                .tree()
                 .dom_children(root_element)
                 .find(|&child| engine.element_adjustment_facts(child) & body_or_frameset != 0)
         {
@@ -183,7 +179,7 @@ pub(crate) fn root_background_source(arena: &LayoutNodeArena) -> crate::painting
         }
         source.use_body_background_properties =
             !crate::painting::style_queries::background_layers_have_image(root_style)
-                && root_style.background().background_color == 0;
+                && root_style.background_color() == 0;
     });
     source
 }
@@ -309,17 +305,17 @@ pub(crate) fn propagate_root_styles_to_viewport(
 ) {
     assert!(!viewport.is_invalid());
     let apply_overflow = |arena: &mut LayoutNodeArena, node: NodeSlotId, (x, y): (u8, u8)| {
-        arena.update_layout_style(host_calls, node, |style| style.set_overflow(x, y));
+        arena.update_layout_style(host_calls, node, |style, _| style.set_overflow(x, y));
     };
     let apply_writing_mode_and_direction =
         |arena: &mut LayoutNodeArena, node: NodeSlotId, writing_mode: u8, direction: u8| {
-            arena.update_layout_style(host_calls, node, |style| {
+            arena.update_layout_style(host_calls, node, |style, _| {
                 style.set_writing_mode_and_direction(writing_mode, direction);
             });
         };
     let apply_viewport_overscroll_behavior = |arena: &mut LayoutNodeArena, (x, y): (u8, u8)| {
         let mut changed = false;
-        arena.update_layout_style(host_calls, viewport, |style| {
+        arena.update_layout_style(host_calls, viewport, |style, _| {
             style.set_overscroll_behavior(x, y);
             changed = !style.is_unchanged();
         });

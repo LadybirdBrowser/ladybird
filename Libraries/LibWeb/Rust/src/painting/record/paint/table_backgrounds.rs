@@ -51,7 +51,7 @@ pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecor
         paintable,
         style,
         paintable,
-        libgfx_rust::Color(style.background().background_color),
+        libgfx_rust::Color(style.background_color()),
         style.background().background_color_clip,
         part_rect,
         BorderRadii::default(),

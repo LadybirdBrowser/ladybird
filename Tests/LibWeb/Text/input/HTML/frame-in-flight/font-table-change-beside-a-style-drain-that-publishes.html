@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<span id="text" style="font: 20px monospace">beside the frame</span>
+<script>
+    // A transaction that flies past a change to the @font-face table resolves the font it selects against the older
+    // table, into a cascade of its own. The text control the drain builds publishes the newer table ahead of the end of
+    // the drain, which still takes the cascade in, so that the face the element waits on reaches it once it loads.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        const widthWithoutFace = text.offsetWidth;
+        const face = new FontFace("WaitingFace", "url(../../../../Assets/HashSans.woff)");
+        document.fonts.add(face);
+        await twoFramesLanded();
+        await whileRecordingInFlight(() => {
+            text.style.fontFamily = "WaitingFace, monospace";
+            document.body.append(document.createElement("input"));
+        }, () => {
+            document.fonts.add(new FontFace("OtherFace", "url(../../../../Assets/HashSans.woff)"));
+        }, "style");
+        await twoFramesLanded();
+        await face.load();
+        await twoFramesLanded();
+        println(`the text is set in the face: ${text.offsetWidth !== widthWithoutFace}`);
+        done();
+    });
+</script>

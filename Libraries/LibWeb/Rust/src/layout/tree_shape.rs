@@ -17,7 +17,7 @@
 //! the chunk when a write changes it. A write the next publication would miss does not compile.
 
 use super::layout_node_arena::SLOTS_PER_CHUNK;
-use super::node_data::{NodeData, NodeFlag, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef};
+use super::node_data::{LayoutStyleRef, NodeData, NodeFlag, NodeKind, NodeSlotId, PaintNode};
 use crate::cow_column::{ColumnSnapshot, CowColumn};
 use crate::css::style::tree::StyleNodeID;
 use std::ops::Deref;
@@ -220,7 +220,7 @@ impl ShapeWriter<'_> {
         self.write(|data| &mut data.compositor_animation_frame_kinds, kinds);
     }
 
-    pub(crate) fn set_style(&mut self, style: StylePayloadsRef) {
+    pub(crate) fn set_style(&mut self, style: Option<LayoutStyleRef>) {
         self.write(|data| &mut data.style, style);
     }
 }
@@ -400,7 +400,7 @@ mod tests {
         writes.add_chunk(0);
         let mut shape = chunk.write_shape(0, 3, &mut writes);
         shape.set_parent(NodeSlotId::new(1, 1));
-        shape.set_style(StylePayloadsRef::new(std::ptr::NonNull::dangling().as_ptr()));
+        shape.set_style(Some(LayoutStyleRef::dangling()));
         shape.set_flags(NodeFlag::HasStyle as u32);
         shape.mark();
         assert_eq!((writes.all(), writes.identity()), (4, 0));

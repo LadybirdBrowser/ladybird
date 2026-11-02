@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="registrations"></style>
+<style>
+    #target { color: black; }
+    #target::before { content: "x"; background-color: red; }
+    @container style(--pseudo-query: 10px) {
+        #target::before { background-color: green; }
+    }
+</style>
+<div><span id="target"></span></div>
+<script>
+    promiseTest(async () => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+        const animation = target.animate([{ color: "rgb(200, 0, 0)" }, { color: "rgb(0, 0, 200)" }], { duration: 1000 });
+        animation.pause();
+        await animation.ready;
+        for (const currentTime of [250, 500, 750]) {
+            animation.currentTime = currentTime;
+            getComputedStyle(target).color;
+        }
+        const guardHitsBefore = internals.getStyleInvalidationCounters().styleUpdatePassGuardHits;
+        registrations.sheet.insertRule("@property --pseudo-query { syntax: '<length>'; inherits: false; initial-value: 10px; }");
+        internals.updateStyle();
+        const guardHits = internals.getStyleInvalidationCounters().styleUpdatePassGuardHits - guardHitsBefore;
+        println(`style update pass guard hits: ${guardHits}`);
+        println(`${getComputedStyle(target).color} ${getComputedStyle(target, "::before").color} ${getComputedStyle(target, "::before").backgroundColor}`);
+    });
+</script>

@@ -85,7 +85,7 @@ impl HostTables {
             return std::ptr::null_mut();
         };
         assert!(
-            !crate::stage_thread::style_layout_thread().is_current(),
+            !crate::stage_thread::render_thread().is_current(),
             "a layout node is made on the main thread, whose heap it is allocated from"
         );
         // SAFETY: Registration and unregistration keep the factory context live. The factory's

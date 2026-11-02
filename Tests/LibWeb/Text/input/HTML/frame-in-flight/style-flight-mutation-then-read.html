@@ -6,7 +6,7 @@
 </style>
 <div id="old">Old</div>
 <script>
-    // A read beside a style transaction in flight joins it, and drains its reactions against the tree it was sealed
+    // A read beside a style update in flight joins it, and drains its reactions against the tree it was sealed
     // with first. The body removed beside it, and the body and sheet added beside it, are the next transaction's, which
     // the read then runs in step.
     asyncTest(async done => {

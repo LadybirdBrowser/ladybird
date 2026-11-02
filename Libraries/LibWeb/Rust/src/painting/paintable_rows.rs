@@ -224,7 +224,8 @@ impl UniqueNodeIdColumn {
 #[derive(Clone, Default)]
 pub(crate) struct PaintableRowStore {
     rows: CowColumn<PaintableData, PAINTABLE_SLOTS_PER_CHUNK>,
-    side_data: Vec<PaintableSideData>,
+    /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every row's.
+    side_data: crate::cow_column::CowVec<PaintableSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     committed_side_data: CowColumn<CommittedSideData, PAINTABLE_SLOTS_PER_CHUNK>,
     pub(crate) row_paint_states: Vec<RowPaintState>,
     pub(crate) damage: DamageSet,

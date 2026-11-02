@@ -234,7 +234,7 @@ fn compute_render_spans<O: Observer>(
                 .as_slice()
                 .iter()
                 .map(|shadow| ShadowLayer {
-                    color: shadow.color,
+                    color: shadow.color.resolve(parent_style.current_color()),
                     offset_x: CssPixels::from_raw(shadow.offset_x),
                     offset_y: CssPixels::from_raw(shadow.offset_y),
                     blur_radius: CssPixels::from_raw(shadow.blur_radius),
@@ -460,7 +460,7 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     let highlight_backdrop = recorder
         .source
         .node_style_if_live(block)
-        .map(|style| Color(style.background().background_color));
+        .map(|style| Color(style.background_color()));
     for highlight in HIGHLIGHT_OVERLAY_ORDER {
         let overlays = || {
             spans.iter().flat_map(move |span| {

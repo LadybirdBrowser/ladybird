@@ -127,7 +127,7 @@ pub(crate) fn transform_subtree_is_clipped_outside(
                 ancestor = parent;
                 continue;
             };
-            if style.box_values().position == positioning::FIXED {
+            if style.position() == positioning::FIXED {
                 return false;
             }
 

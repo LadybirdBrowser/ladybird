@@ -857,13 +857,9 @@ impl LayoutNodeArena {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::css::computed_values::{
-        BoxValues, ComputedLengthPercentageOrAuto, ComputedStyleValueHandle, GroupPayloadRef, InheritedBoxValues,
-        SurroundValues, clone_group_payload, release_group_payload,
-    };
+    use crate::css::computed_values::{ComputedLengthPercentageOrAuto, ComputedStyleValueHandle};
     use crate::css::css_enums::overflow;
-    use crate::css::table_group_builder::group_index;
-    use crate::layout::node_data::{FfiStylePayloads, StylePayloadsRef};
+    use crate::css::style::layout_style::LayoutScratchStyle;
 
     #[test]
     fn overflow_percentage_margins_use_the_containing_blocks_inline_size() {
@@ -873,42 +869,24 @@ mod tests {
             (writing_mode::VERTICAL_RL, 310),
         ] {
             let mut arena = LayoutNodeArena::new();
-            let mut container_style = FfiStylePayloads {
-                groups: std::array::from_fn(|index| GroupPayloadRef::default_payload(index).as_ptr()),
-            };
-            let mut child_style = container_style;
-            // SAFETY: These are private clones of the corresponding default payloads.
-            let (box_payload, inherited, surround) = unsafe {
-                (
-                    clone_group_payload(group_index::BOX, container_style.groups[group_index::BOX]),
-                    clone_group_payload(
-                        group_index::INHERITED_BOX,
-                        container_style.groups[group_index::INHERITED_BOX],
-                    ),
-                    clone_group_payload(group_index::SURROUND, child_style.groups[group_index::SURROUND]),
-                )
-            };
-            // SAFETY: Each private clone has its group's payload layout and no readers yet.
-            unsafe {
-                (*box_payload.cast::<BoxValues>()).display = FfiDisplay::block();
-                (*box_payload.cast::<BoxValues>()).overflow_x = overflow::AUTO;
-                (*box_payload.cast::<BoxValues>()).overflow_y = overflow::AUTO;
-                (*inherited.cast::<InheritedBoxValues>()).writing_mode = mode;
-                (*surround.cast::<SurroundValues>()).margin.bottom = ComputedLengthPercentageOrAuto {
+            let container_style = LayoutScratchStyle::over_defaults(|style| {
+                let box_values = style.box_mut();
+                box_values.display = FfiDisplay::block();
+                style.set_writing_mode(mode);
+                style.set_overflow(overflow::AUTO, overflow::AUTO);
+            });
+            // SAFETY: The container's style outlives the child's.
+            let child_style = LayoutScratchStyle::over(unsafe { container_style.style().view() }, |style| {
+                style.surround_mut().margin.bottom = ComputedLengthPercentageOrAuto {
                     is_auto: false,
                     value: ComputedStyleValueHandle::percentage(50.0),
                 };
-            }
-            container_style.groups[group_index::BOX] = box_payload;
-            container_style.groups[group_index::INHERITED_BOX] = inherited;
-            child_style.groups[group_index::BOX] = box_payload;
-            child_style.groups[group_index::INHERITED_BOX] = inherited;
-            child_style.groups[group_index::SURROUND] = surround;
+            });
             let container = arena.allocate_for_test().slot;
             let child = arena.allocate_for_test().slot;
             for (node, style) in [(container, &container_style), (child, &child_style)] {
                 arena.write_shape(node).set_kind(NodeKind::BlockContainer);
-                arena.set_node_style(node, 0, StylePayloadsRef::new(style));
+                arena.set_node_style(node, 0, Some(style.style()));
             }
             arena.insert_child(container, child, NodeSlotId::INVALID);
             let mut container_link = FragmentLink::for_test(container);
@@ -936,9 +914,6 @@ mod tests {
             arena
                 .free_subtree(container)
                 .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
-            release_group_payload(group_index::BOX, box_payload);
-            release_group_payload(group_index::INHERITED_BOX, inherited);
-            release_group_payload(group_index::SURROUND, surround);
         }
     }
 }

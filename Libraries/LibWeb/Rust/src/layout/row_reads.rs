@@ -14,7 +14,7 @@ use super::RowsVersion;
 use super::host_tables::ShellFacts;
 use super::layout_node_arena::PublishedBoundRows;
 use super::node_data::{
-    CompositorAnimationFrameKind, FfiNodeLink, NodeFlag, NodeKind, NodeSlotId, PaintNode, StylePayloadsRef,
+    CompositorAnimationFrameKind, FfiNodeLink, LayoutStyleRef, NodeFlag, NodeKind, NodeSlotId, PaintNode,
 };
 use super::node_facts;
 use crate::css::style::tree::StyleNodeID;
@@ -131,7 +131,7 @@ impl RowSnapshot {
         self.live_node(id).style_record
     }
 
-    pub(crate) fn style_payloads(&self, id: NodeSlotId) -> StylePayloadsRef {
+    pub(crate) fn style(&self, id: NodeSlotId) -> Option<LayoutStyleRef> {
         self.live_node(id).style
     }
 
@@ -231,8 +231,8 @@ impl RowStyles {
         self.0.style_record(id)
     }
 
-    pub(crate) fn style_payloads(&self, id: NodeSlotId) -> StylePayloadsRef {
-        self.0.style_payloads(id)
+    pub(crate) fn style(&self, id: NodeSlotId) -> Option<LayoutStyleRef> {
+        self.0.style(id)
     }
 
     pub(crate) fn style_is_derived(&self, id: NodeSlotId) -> bool {

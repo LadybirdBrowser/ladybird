@@ -153,7 +153,7 @@ PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::Cros
 {
     setup_palette();
 
-    // A hover of the render clock asks for its cursor on the StyleLayout thread, as the main thread does on its own: both
+    // A hover of the render clock asks for its cursor on the Render thread, as the main thread does on its own: both
     // over the one connection, under the page cursor's lock.
     m_page->cursor().set_send([&client = client(), id = m_id](Gfx::Cursor const& cursor) {
         client.async_did_request_cursor_change(id, cursor);

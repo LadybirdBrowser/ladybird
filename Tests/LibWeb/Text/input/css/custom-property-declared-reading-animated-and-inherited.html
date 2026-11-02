@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --amp { syntax: "<number>"; inherits: false; initial-value: 1; }
+    @property --mix { syntax: "<number>"; inherits: true; initial-value: 0; }
+    @property --sum { syntax: "<number>"; inherits: false; initial-value: 0; }
+    @keyframes amp { from { --amp: 1 } to { --amp: 3 } }
+    @keyframes mix { from { --mix: 0 } to { --mix: 1 } }
+    #track { animation: mix 100s linear paused; }
+    #bar { --sum: calc(var(--amp) * var(--mix)); --plain: calc(var(--amp) * var(--mix)); display: inline-block; width: 10px; height: 10px; transform: scaleY(calc(1 + var(--sum))); rotate: calc(var(--plain) * 1deg); animation: amp 100s linear paused; }
+</style>
+<div id="track"><div><span id="bar"></span></div></div>
+<script>
+    // The custom properties the element declares read both --amp, which its own animation samples, and --mix, which an
+    // ancestor's animation hands it. What reads them follows both as soon as they move, and after the frames that follow.
+    asyncTest(async done => {
+        const [mix] = track.getAnimations();
+        const [amp] = bar.getAnimations();
+        const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const report = (name) => {
+            const style = getComputedStyle(bar);
+            const product = parseFloat(style.getPropertyValue("--amp")) * parseFloat(style.getPropertyValue("--mix"));
+            println(`${name}: --sum ${style.getPropertyValue("--sum")}, transform ${style.transform}, rotate ${style.rotate}, the custom properties give ${product.toFixed(2)}`);
+        };
+        await frames();
+        for (const seconds of [10, 20, 30, 40]) {
+            mix.currentTime = seconds * 1000;
+            amp.currentTime = seconds * 1000;
+            report(`${seconds}s, in the same task`);
+            await frames();
+            report(`${seconds}s, after two frames`);
+        }
+        done();
+    });
+</script>

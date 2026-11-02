@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="source"></div>
+<script>
+    // A table moved beside the layout that builds its box has not heard of the box, or of the wrapper around it. The
+    // table's old parent has to be built again for the wrapper to go with the box: a wrapper alone cannot be laid out.
+    // NB: The parser would not nest these options.
+    const target = document.createElement("option");
+    const reference = target.appendChild(document.createElement("option"));
+    document.body.prepend(target);
+
+    asyncTest(async done => {
+        const built = document.createElement("table");
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            source.append(built);
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        target.moveBefore(built, reference);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        await twoFramesLanded();
+        source.style.width = "100px";
+        println(`source: ${source.offsetWidth}x${source.offsetHeight}`);
+        done();
+    });
+</script>

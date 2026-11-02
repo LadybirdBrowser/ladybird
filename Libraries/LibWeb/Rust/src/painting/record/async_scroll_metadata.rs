@@ -347,7 +347,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let records_viewport_scrollbars = self.source.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
             && self.inputs.uncaptured.paint_viewport_scrollbars
             && self.source.node_style_if_live(paintable).is_some_and(|style| {
-                style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
+                style.misc_interaction().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
             });
         if !records_viewport_scrollbars {
             return;

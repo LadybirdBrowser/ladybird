@@ -396,14 +396,14 @@ STATS: assigned slottable display list-item -> none | rebuilt subtree roots=1, e
 PASS: assigned slottable display list-item -> none | incremental tree matches full rebuild
 PRESERVED: assigned slottable display list-item -> flex | fixture ancestor
 PRESERVED: assigned slottable display list-item -> flex | distant sibling
-RECREATED: assigned slottable display list-item -> flex | shadow host
-RECREATED: assigned slottable display list-item -> flex | shadow container
-RECREATED: assigned slottable display list-item -> flex | preceding flat-tree sibling
-RECREATED: assigned slottable display list-item -> flex | preceding sibling descendant
+PRESERVED: assigned slottable display list-item -> flex | shadow host
+PRESERVED: assigned slottable display list-item -> flex | shadow container
+PRESERVED: assigned slottable display list-item -> flex | preceding flat-tree sibling
+PRESERVED: assigned slottable display list-item -> flex | preceding sibling descendant
 RECREATED: assigned slottable display list-item -> flex | target
 RECREATED: assigned slottable display list-item -> flex | target descendant
-RECREATED: assigned slottable display list-item -> flex | following flat-tree sibling
-RECREATED: assigned slottable display list-item -> flex | following sibling descendant
+PRESERVED: assigned slottable display list-item -> flex | following flat-tree sibling
+PRESERVED: assigned slottable display list-item -> flex | following sibling descendant
 STATS: assigned slottable display list-item -> flex | rebuilt subtree roots=1, escaped=false
 PASS: assigned slottable display list-item -> flex | incremental tree matches full rebuild
 PRESERVED: direct shadow child display list-item -> -webkit-inline-box | fixture ancestor

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    #box { width: 100px; height: 10px; transition: width 1s linear; }
+    #box.wide { width: 200px; }
+    #box.still { transition: none; }
+</style>
+<div id="box"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const read = (label) => println(`${label}: ${box.offsetWidth} ${getComputedStyle(box).width}`);
+        const transitions = () => box.getAnimations().map(animation => `${animation.constructor.name}(${animation.transitionProperty})`).join(", ") || "none";
+        internals.updateStyle();
+        read("before");
+        box.classList.add("wide");
+        internals.updateStyle();
+        println(`started: ${transitions()}`);
+        const [transition] = box.getAnimations();
+        transition.pause();
+        transition.currentTime = 500;
+        read("halfway");
+        // A move to a style that declares no transitions ends the ones running.
+        box.classList.add("still");
+        internals.updateStyle();
+        println(`still: ${transitions()}`);
+        read("still");
+        box.classList.remove("wide");
+        internals.updateStyle();
+        println(`narrowed: ${transitions()}`);
+        read("narrowed");
+        // Declaring transitions again starts one on the next move.
+        box.classList.remove("still");
+        internals.updateStyle();
+        box.classList.add("wide");
+        internals.updateStyle();
+        println(`started again: ${transitions()}`);
+        box.getAnimations()[0].pause();
+        box.getAnimations()[0].currentTime = 250;
+        read("a quarter of the way");
+    });
+</script>

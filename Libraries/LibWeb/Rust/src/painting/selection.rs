@@ -270,9 +270,9 @@ fn highlight_pseudo_style_of_record(
     use crate::css::property_metadata::property_id;
     let style = engine.published_record_view(style_record)?;
     let dependency_flags = engine.published_record_dependency_flags(style_record).unwrap_or(0);
-    let longhand_table = engine.published_record_longhand_table(style_record);
+    let longhands = engine.published_record_longhands(style_record);
     let specified_as_current_color =
-        |property_id: u16| longhand_table.is_some_and(|table| table.specified_value_is_current_color(property_id));
+        |property_id: u16| longhands.is_some_and(|longhands| longhands.specified_value_is_current_color(property_id));
     // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
     // Paired default highlight colors must only be used when neither 'color' nor 'background-color' yield a
     // cascaded value from the author origin (or inherit their value from the author origin).
@@ -281,7 +281,7 @@ fn highlight_pseudo_style_of_record(
         ..Default::default()
     };
     if facts.colors_authored {
-        facts.background_color = Color(style.background().background_color);
+        facts.background_color = Color(style.background_color());
         facts.background_color_is_current_color = specified_as_current_color(property_id::BACKGROUND_COLOR);
         // https://drafts.csswg.org/css-pseudo-4/#highlight-text
         // currentColor on a highlight pseudo-element's 'color' property represents the color of the next active
@@ -307,8 +307,8 @@ fn highlight_pseudo_style_of_record(
         facts.wash_color = transform_selection_background_color(wash_color);
     }
 
-    let shadow_colors_are_current_color = longhand_table
-        .map(|table| table.text_shadow_layer_colors_are_current_color())
+    let shadow_colors_are_current_color = longhands
+        .map(|longhands| longhands.text_shadow_layer_colors_are_current_color())
         .unwrap_or_default();
     let shadows: Vec<HighlightShadowLayer> = style
         .inherited_text()
@@ -318,7 +318,7 @@ fn highlight_pseudo_style_of_record(
         .enumerate()
         .map(|(index, shadow)| HighlightShadowLayer {
             layer: ShadowLayer {
-                color: shadow.color,
+                color: shadow.color.resolve(style.current_color()),
                 offset_x: CssPixels::from_raw(shadow.offset_x),
                 offset_y: CssPixels::from_raw(shadow.offset_y),
                 blur_radius: CssPixels::from_raw(shadow.blur_radius),
@@ -336,7 +336,7 @@ fn highlight_pseudo_style_of_record(
         facts.text_decoration_lines[..count].copy_from_slice(&lines[..count]);
         facts.text_decoration_line_count = count as u32;
         facts.text_decoration_style = text_reset.text_decoration_style;
-        facts.text_decoration_color = Color(text_reset.text_decoration_color);
+        facts.text_decoration_color = Color(style.text_decoration_color());
         facts.text_decoration_color_is_current_color = specified_as_current_color(property_id::TEXT_DECORATION_COLOR);
     }
 
@@ -405,7 +405,6 @@ pub(crate) fn sync_highlight_pseudo_styles(
     };
     let text_rows: Vec<NodeSlotId> = arena.with_style_store(|engine| {
         engine
-            .tree()
             .dom_children(element)
             .filter(|child| child.text_index().is_some())
             .map(|text| arena.bound_row(text))

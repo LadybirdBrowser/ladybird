@@ -124,6 +124,7 @@ pub(crate) type SvgPaintResourceRows = HashMap<NodeSlotId, SvgPaintResourceRow>;
 #[derive(Clone, Default)]
 pub(crate) struct SvgPaintResources {
     rows: Arc<SvgPaintResourceRows>,
+    writes: u64,
     needs_sync: bool,
     /// Whether any row enrolled a resource, which the document's host reads beside a frame in flight. A row the frame
     /// enrolls asks for its resources to be resolved again itself.
@@ -172,6 +173,7 @@ pub(crate) fn published_paint_server_in(
 
 impl SvgPaintResources {
     fn rows_mut(&mut self) -> &mut SvgPaintResourceRows {
+        self.writes += 1;
         Arc::make_mut(&mut self.rows)
     }
 
@@ -180,9 +182,9 @@ impl SvgPaintResources {
         self.rows.clone()
     }
 
-    /// Where the table is, which moves when a write copies the one a publication shares.
-    pub(crate) fn address(&self) -> usize {
-        Arc::as_ptr(&self.rows).addr()
+    /// How many writes the table took.
+    pub(crate) fn writes(&self) -> u64 {
+        self.writes
     }
 
     pub(crate) fn set_enrolled_kinds(&mut self, slot: NodeSlotId, kinds: u8) {

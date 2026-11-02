@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    @keyframes hide {
+        0%,
+        100% {
+            --display: none;
+        }
+    }
+    .hiding {
+        animation: hide 1s infinite;
+        display: var(--display, block);
+    }
+</style>
+<body>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // FIXME: The animation should keep running, with the element not displayed. Its element not being displayed ends
+        //        it for now, which brings the element back and starts it again, so this tests only that the update ends.
+        const frame = () => new Promise(requestAnimationFrame);
+        const outer = document.createElement("div");
+        const inner = document.createElement("div");
+        const leaf = document.createElement("div");
+        inner.append(leaf);
+        outer.append(inner);
+        document.body.append(outer);
+        await frame();
+        outer.classList.add("hiding");
+        await frame();
+        const read = element => {
+            getComputedStyle(element, "::first-line").color;
+            return getComputedStyle(element).getPropertyValue("color");
+        };
+        println(read(leaf));
+        await frame();
+        println(read(leaf));
+        const late = document.createElement("div");
+        inner.append(late);
+        println(read(late));
+        const animation = outer.getAnimations()[0];
+        animation?.pause();
+        if (animation)
+            animation.currentTime = 500;
+        println(read(leaf));
+        animation?.cancel();
+        println(read(leaf));
+        await frame();
+        println(read(leaf));
+        done();
+    });
+</script>

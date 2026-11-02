@@ -1,0 +1,1 @@
+the text is set in the face: true

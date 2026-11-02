@@ -192,8 +192,8 @@ SearchableText SearchableText::collect(Viewport& viewport)
             return {};
 
         auto* parent = text->parent_or_shadow_host_element();
-        auto const* parent_inherited_box_values = parent ? parent->style_group<CSS::ComputedValues::InheritedBoxValues>() : nullptr;
-        if (!parent_inherited_box_values || static_cast<CSS::Visibility>(parent_inherited_box_values->visibility) != CSS::Visibility::Visible)
+        auto const* parent_inherited_values = parent ? parent->style_inherited_set_values() : nullptr;
+        if (!parent_inherited_values || CSS::visibility_from_inherited_bits(parent_inherited_values->bits) != CSS::Visibility::Visible)
             return {};
 
         // AD-HOC: Revealable hidden content does not have a layout node yet, so its hidden state
@@ -207,11 +207,11 @@ SearchableText SearchableText::collect(Viewport& viewport)
     auto append_visible_text_node = [&](DOM::Text& text, Searchability searchability) {
         auto* parent = text.parent_or_shadow_host_element();
         VERIFY(parent);
-        auto const* parent_inherited_text_values = parent->style_group<CSS::ComputedValues::InheritedTextValues>();
-        VERIFY(parent_inherited_text_values);
+        auto const* parent_inherited_values = parent->style_inherited_set_values();
+        VERIFY(parent_inherited_values);
 
         auto const append_text = [&](Utf16View text_to_append, size_t dom_start_offset, TextNode const* layout_text_node = nullptr, Vector<RenderedTextOffset> const* offset_mapping = nullptr) {
-            auto const white_space_collapse = parent_inherited_text_values->white_space_collapse_value();
+            auto const white_space_collapse = CSS::white_space_collapse_from_inherited_bits(parent_inherited_values->bits);
             auto const should_collapse = first_is_one_of(
                 white_space_collapse,
                 CSS::WhiteSpaceCollapse::Collapse,
