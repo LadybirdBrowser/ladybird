@@ -1776,15 +1776,20 @@ void EventLoop::add_stats(JsonObject& values) const
     size_t shared_image_requests = 0;
     size_t style_sheets = 0;
     size_t font_faces = 0;
+    size_t destroyed_documents = 0;
     for (auto const& document : m_documents) {
         if (!document)
             continue;
+        // NB: Unless script still holds its objects, a destroyed document that survives a collection is leaked.
+        if (document->has_been_destroyed())
+            ++destroyed_documents;
         available_images += document->list_of_available_images().size();
         shared_image_requests += document->shared_resource_requests().size();
         style_sheets += document->style_scope().style_sheets().size();
         font_faces += document->fonts()->set_size();
     }
     values.set("dom.documents"sv, m_documents.size());
+    values.set("dom.destroyed_documents"sv, destroyed_documents);
     values.set("images.available_entries"sv, available_images);
     values.set("images.shared_requests"sv, shared_image_requests);
     values.set("css.document_style_sheet_entries"sv, style_sheets);
