@@ -4005,32 +4005,13 @@ impl LayoutNodeArena {
             first_styled_child = self.data(first_styled_child).next_sibling.get();
         }
         if !first_styled_child.is_invalid()
-            && super::node_facts::has_ancestor_fact(self.data(first_styled_child), AncestorFact::ParentLaysOutInColumns)
-                != super::node_facts::node_style_view(self.data(slot))
-                    .is_some_and(|style| super::node_facts::node_lays_out_in_columns(self.data(slot), style))
+            && self.ancestor_facts_from_parent(first_styled_child) != self.data(first_styled_child).ancestor_facts
         {
             let mut child = first_styled_child;
             while !child.is_invalid() {
                 if self.derive_ancestor_facts_for_node(child) {
                     self.invalidate_fragments_of_self_and_ancestors_leaving_intrinsic_sizes_to_its_cause(child);
                 }
-                child = self.data(child).next_sibling.get();
-            }
-        }
-    }
-
-    /// Marks the flex and grid items among the nodes marked for layout and their children, ahead of the layout that
-    /// lays them out: a style change can make a box, or the children of a box, items without rebuilding them.
-    pub(crate) fn mark_flex_and_grid_items_of_nodes_marked_for_layout(&mut self) {
-        let nodes = self.nodes_with_layout_update_flags.clone();
-        for node in nodes {
-            if !self.slot_is_live(node) {
-                continue;
-            }
-            self.derive_flex_or_grid_item_flags(node);
-            let mut child = self.data(node).first_child.get();
-            while !child.is_invalid() {
-                self.derive_flex_or_grid_item_flags(child);
                 child = self.data(child).next_sibling.get();
             }
         }
@@ -4705,6 +4686,11 @@ impl LayoutNodeArena {
 
     /// Returns whether the node's ancestor facts changed.
     fn derive_ancestor_facts_for_node(&mut self, node: NodeSlotId) -> bool {
+        let facts = self.ancestor_facts_from_parent(node);
+        std::mem::replace(self.unpublished_facts_mut(node).ancestor_facts, facts) != facts
+    }
+
+    fn ancestor_facts_from_parent(&self, node: NodeSlotId) -> u8 {
         let data = self.data(node);
         let parent = data.parent.get();
         let mut facts = 0;
@@ -4744,7 +4730,7 @@ impl LayoutNodeArena {
                 }
             }
         }
-        std::mem::replace(self.unpublished_facts_mut(node).ancestor_facts, facts) != facts
+        facts
     }
 
     /// A style change reaches the anonymous boxes below the node without rebuilding them, and
@@ -4759,20 +4745,6 @@ impl LayoutNodeArena {
                 self.refresh_ancestor_facts_of_anonymous_children(child);
             }
             child = self.data(child).next_sibling.get();
-        }
-    }
-
-    /// Derives what the nodes in the inclusive subtree of `root` take from their ancestors: whether they
-    /// establish containing blocks, and their ancestor facts, which the pre-order walk finds already derived
-    /// for the parent. Out-of-flow boxes in the subtree also mark the ancestors they escape.
-    pub(crate) fn derive_facts_in_subtree(&mut self, root: NodeSlotId) {
-        let mut cursor = Some(root);
-        while let Some(node) = cursor {
-            self.derive_containing_block_establishment_flags(node);
-            self.mark_nodes_escaped_by_attached_out_of_flow_box(node);
-            self.derive_ancestor_facts_for_node(node);
-            self.derive_flex_or_grid_item_flags(node);
-            cursor = self.next_node_in_layout_subtree_in_pre_order(root, node);
         }
     }
 

@@ -283,7 +283,7 @@ impl LayoutNodeArena {
 
     /// Selects the boundary subtrees to relay out after the layout tree build. Consumes the
     /// escape bit either way: a refusal here is followed by a full layout pass in the same
-    /// update, which re-derives every fact the bit stands in for.
+    /// update.
     pub(crate) fn plan_partial_relayout(
         &mut self,
         root: NodeSlotId,

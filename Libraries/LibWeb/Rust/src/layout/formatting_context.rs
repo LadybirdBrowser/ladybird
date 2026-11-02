@@ -3519,7 +3519,7 @@ impl LayoutStageJob {
     /// committing them owes the host.
     fn run(self, state: &mut super::ArenaHandle) -> commit::CommitNotifications {
         let Self { kind, root, stage } = self;
-        prepare_layout_stage(state, kind, root);
+        prepare_layout_stage(state, kind);
         let input = LayoutStageInput {
             arena: state.arena(),
             scratch: state.layout_scratch(),
@@ -3655,27 +3655,12 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
     })
 }
 
-/// Brings the arena up to date for a stage before the stage borrows it: derives the facts its runs read, marks the
-/// flex and grid items of the nodes marked for layout, and applies the arena's memo invalidations to the stage's
-/// memos.
-fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, root: NodeSlotId) {
+/// Brings the arena up to date for a stage before the stage borrows it: a root stage covers whatever kept pending
+/// updates from a partial relayout, and the stage's memos take the arena's memo invalidations.
+fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind) {
     let (arena, scratch) = state.arena_mut_and_layout_scratch();
-    match kind {
-        LayoutStageKind::Root { .. } => {
-            // NB: Boxes take their facts as they are attached. Unclassified invalidations require deriving
-            // them for the entire tree instead.
-            if arena.pending_updates_escape_partial_relayout {
-                arena.derive_facts_in_subtree(root);
-                arena.clear_partial_relayout_escape();
-            }
-            arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
-        }
-        LayoutStageKind::Boundary { .. } => {
-            // The boundary can be wider than the rebuilt roots that led to it, and laying it out may
-            // re-enter intrinsic sizing for descendants outside those roots, including anonymous boxes
-            // the incremental tree build created; derive the facts of the whole subtree.
-            arena.derive_facts_in_subtree(root);
-        }
+    if matches!(kind, LayoutStageKind::Root { .. }) {
+        arena.clear_partial_relayout_escape();
     }
     scratch.apply_memo_invalidations(arena);
     scratch.layout_trace.take_over_from(&mut arena.layout_trace);
