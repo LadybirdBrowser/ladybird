@@ -29,6 +29,7 @@ pub struct Utf16StringSlot(usize);
 #[repr(transparent)]
 pub struct RawNativeFunctionPointer(usize);
 
+pub struct DescriptorArray;
 pub struct ShapeStorage;
 pub struct WatchpointSetStorage;
 pub struct ObjectPropertyIteratorCacheDataStorage;

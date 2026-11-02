@@ -6,31 +6,30 @@
 
 use core::cell::Cell;
 
-use super::cell::CellHeader;
+use super::cell::{CellHeader, CellHeaderTail};
 use super::member::{Member, NullableMember};
 use super::object::Object;
-use super::property_lookup_cache::ObjectPropertyIteratorCacheData;
 use super::realm::Realm;
-use crate::layout_forward::{ShapeStorage, SpecialPropertyCache, WatchpointSetStorage};
+use crate::layout_forward::{DescriptorArray, ShapeStorage, WatchpointSetStorage};
 
+/// A shape starts with the realm and the prototype in the first word of its cell header, which LibGC leaves to the
+/// cell, followed by the rest of the header.
 #[repr(C)]
 pub struct Shape {
-    pub header: CellHeader,
-    pub flags: Cell<u8>,
     pub realm: Member<Realm>,
     pub prototype: NullableMember<Object>,
-    pub prototype_chain_validity: NullableMember<WatchpointSet>,
-    pub property_iterator_cache: NullableMember<ObjectPropertyIteratorCacheData>,
-    /// The shape this one transitioned from, unless it changed the prototype. Transition caches only hold their
-    /// targets weakly, so every shape keeps its parent alive (like V8's back pointers and JSC's previous structure): as
-    /// long as any object has a shape, the whole chain that leads to it stays cached and the next object built the same
-    /// way gets the same shape, also after a garbage collection.
-    pub previous: NullableMember<Shape>,
-    /// What Get of the properties that conversions look up gives on the objects of this shape (see
-    /// `SpecialPropertyCache`).
-    pub special_property_cache: NullableMember<SpecialPropertyCache>,
+    pub header: CellHeaderTail,
+    pub flags: Cell<u8>,
     pub property_count: Cell<u32>,
+    pub prototype_chain_validity: NullableMember<WatchpointSet>,
+    /// The shape this one transitioned from, unless it changed the prototype. Transition caches only hold their
+    /// targets weakly, so every shape keeps its parent alive: as long as any object has a shape, the whole chain that
+    /// leads to it stays cached and the next object built the same way gets the same shape, also after a garbage
+    /// collection.
+    pub previous: NullableMember<Shape>,
     pub dictionary_generation: Cell<u32>,
+    /// The descriptor array, or the DictionaryPropertyTable of a dictionary shape.
+    pub property_storage: NullableMember<DescriptorArray>,
     pub storage: ShapeStorage,
 }
 

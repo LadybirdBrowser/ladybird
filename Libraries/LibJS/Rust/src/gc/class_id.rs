@@ -34,6 +34,7 @@ define_class_ids! {
     WatchpointSet,
     SpecialPropertyCache,
     DescriptorArray,
+    DictionaryPropertyTable,
     ValueStorage,
     PrivateEnvironment,
     Realm,

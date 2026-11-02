@@ -5,6 +5,7 @@
  */
 
 use core::marker::PhantomData;
+use core::mem::ManuallyDrop;
 use core::ptr::NonNull;
 
 use super::capi::{self, GCWeakImpl};
@@ -27,6 +28,7 @@ pub(super) const WEAK_IMPL_POINTER_OFFSET: usize = 16;
 pub unsafe trait SweptAfterCollection {}
 
 /// A reference to a cell that does not keep it alive.
+#[repr(transparent)]
 pub struct GcWeak<T> {
     weak_impl: NonNull<GCWeakImpl>,
     // NB: A GcWeak gives a Gc<T> out, but holds none.
@@ -48,6 +50,23 @@ impl<T> GcWeak<T> {
         let weak_impl = capi::gc_weak_impl_null();
         Self {
             weak_impl: NonNull::new(weak_impl).expect("LibGC has a null weak impl"),
+            _cell: PhantomData,
+        }
+    }
+
+    /// Gives up the reference for a pointer that from_raw() can take back, which is at least 2-aligned.
+    pub fn into_raw(self) -> *mut () {
+        ManuallyDrop::new(self).weak_impl.as_ptr().cast()
+    }
+
+    /// # Safety
+    ///
+    /// The pointer must have come from into_raw() on a weak reference of the same type, and that reference must not be
+    /// taken back any other time.
+    pub unsafe fn from_raw(raw: *mut ()) -> Self {
+        Self {
+            // SAFETY: into_raw() gives out the non-null pointer of the impl.
+            weak_impl: unsafe { NonNull::new_unchecked(raw.cast()) },
             _cell: PhantomData,
         }
     }
