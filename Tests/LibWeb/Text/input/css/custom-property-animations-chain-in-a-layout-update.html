@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        // Each value of the chain moves in the style pass after the one it reads, and a style update in the layout update
+        // runs a limited number of passes, so settling the chain takes many more rounds than the document has elements.
+        const depth = 170;
+        const style = document.createElement("style");
+        const animations = [];
+        for (let level = 1; level <= depth; ++level) {
+            CSS.registerProperty({ name: `--level${level}`, syntax: "<length>", inherits: true, initialValue: "0px" });
+            const previous = level === 1 ? "0px" : `var(--level${level - 1})`;
+            const value = `--level${level}: calc(${previous} + 1px)`;
+            style.textContent += `@keyframes level${level} { from { ${value} } to { ${value} } }\n`;
+            animations.push(`level${level} 1000s linear both`);
+        }
+        document.head.append(style);
+        target.style.animation = animations.join(", ");
+        target.style.width = `var(--level${depth})`;
+        println(`laid out at: ${target.getBoundingClientRect().width}px`);
+    });
+</script>
