@@ -965,7 +965,16 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     auto history_entry = create_session_history_entry_from_ui_process(create_session_history_entry_descriptor(move(request.history_entry), 0), reconstruction_state);
     history_entry->set_step(SessionHistoryEntry::Pending::Tag);
 
-    navigable->set_ongoing_navigation(request.navigation_id);
+    // AD-HOC: A navigation this process started after the UI process sent this request supersedes it, and the UI
+    //         process ends this one once it hears of that one. Until then the newer navigation stays parked here, and
+    //         must stay the ongoing navigation: otherwise its unload check would find itself superseded, leaving no
+    //         navigation to go on. The task below finds this navigation superseded, as it does one superseded after
+    //         this point.
+    auto ongoing_navigation = navigable->ongoing_navigation();
+    auto const* ongoing_navigation_id = ongoing_navigation.get_pointer<Utf16String>();
+    auto is_superseded_by_parked_navigation = ongoing_navigation_id && *ongoing_navigation_id != request.navigation_id && navigable->has_navigation_parked_for_population(*ongoing_navigation_id);
+    if (!is_superseded_by_parked_navigation)
+        navigable->set_ongoing_navigation(request.navigation_id);
 
     // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
     // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
@@ -979,8 +988,10 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
     auto navigation_params_or_error = create_navigation_params_from_descriptor(realm, *navigable, move(result.navigation_params));
     if (navigation_params_or_error.is_error()) {
-        navigable->set_ongoing_navigation({});
-        navigable->set_delaying_load_events(false);
+        if (!is_superseded_by_parked_navigation) {
+            navigable->set_ongoing_navigation({});
+            navigable->set_delaying_load_events(false);
+        }
         page().client().navigation_population_failed(request.navigable_id, request.navigation_id);
         return;
     }
@@ -3223,11 +3234,16 @@ void LocalNavigable::queue_navigation_and_traversal_task_for_session_history_ent
                 // Async path: bytes not yet available, wait for them
                 nav_params->response->resume_body_delivery_up_to(Fetch::Infrastructure::MAX_SNIFF_BYTES);
                 body->wait_for_sniff_bytes(GC::create_function(heap(),
-                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url](Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
+                    [output, nav_params, navigation_params, completion_steps, source_allows_downloading, source_interface_origin, url, navigation_id, is_reload_traversal](Fetch::Infrastructure::Body::SniffBytes sniff_bytes) {
                         // AD-HOC: The document may have been destroyed between when the fetch started and when the
                         //         bytes arrived. A response that failed mid-sniff must not be loaded as a document
                         //         off its partial bytes either.
-                        if (nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
+                        // AD-HOC: A navigation that a newer one superseded during the wait makes no document either:
+                        //         the document would take over the Window of an initial about:blank, whose tasks then
+                        //         wait for a document that never becomes active, among them those of the newer
+                        //         navigation.
+                        auto is_superseded = navigation_id.has_value() && nav_params->navigable->ongoing_navigation() != navigation_id && !is_reload_traversal;
+                        if (!is_superseded && nav_params->navigable->active_browsing_context() && sniff_bytes.outcome == Fetch::Infrastructure::Body::SniffOutcome::Complete) {
                             load_document_or_handle_download(nav_params, sniff_bytes.bytes, url, source_allows_downloading, source_interface_origin, *output);
                         } else {
                             stop_response_body_delivery(navigation_params);
