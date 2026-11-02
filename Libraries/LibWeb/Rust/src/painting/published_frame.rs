@@ -82,6 +82,14 @@ impl PublishedRows {
             .filter(|node| node.generation != 0 && node.generation == id.generation())
     }
 
+    /// The nodes the slots hold, with the slot of each.
+    pub(crate) fn live_nodes(&self) -> impl Iterator<Item = (NodeSlotId, &PaintNode)> {
+        (0..self.nodes.slot_capacity()).filter_map(|index| {
+            let node = self.nodes.get(index).filter(|node| node.generation != 0)?;
+            Some((NodeSlotId::new(index as u32, node.generation), node))
+        })
+    }
+
     pub(crate) fn paintable_data(&self, id: NodeSlotId) -> &PaintableData {
         assert!(!id.is_invalid(), "invalid paintable arena slot ID");
         let data = self

@@ -161,6 +161,17 @@ pub extern "C" fn layout_row_bound_shell(host: &DocumentHost, read: &BegunRead, 
     bound_shell(host, read, |identities| identities.bound_row(style_node))
 }
 
+/// Whether a row of `host`'s document may make an element contentful, as paint timing defines it: by holding text that
+/// is not all white space or replaced content, or by observing an image its style holds. It errs towards yes, as the
+/// rows do not say whether an image is available, and it makes no layout node. It follows `is_contentful()` of
+/// PaintTiming.cpp.
+#[unsafe(no_mangle)]
+pub extern "C" fn layout_rows_may_be_contentful(host: &DocumentHost, read: &BegunRead) -> bool {
+    // NB: The rows come first, as bringing them up to date may give a row its image observers.
+    let rows = rows(host, read);
+    !host.host_tables().image_observer_sets.borrow().is_empty() || rows.any_row_may_be_contentful()
+}
+
 /// The content size of the committed box of the row the element with `style_node` is bound to, or none where the
 /// element has no row or its row no committed box. It makes no layout node, so a host callback a layout round makes
 /// on the render owner may ask it.

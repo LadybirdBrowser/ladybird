@@ -175,6 +175,40 @@ impl RowSnapshot {
         self.node(id).is_some().then_some(id)
     }
 
+    /// Whether a row is of a kind that may make an element contentful without an image observer: text that is not all
+    /// white space, or a box that holds replaced content. A text row that does not carry its text yet counts.
+    pub(crate) fn any_row_may_be_contentful(&self) -> bool {
+        self.paintable.live_nodes().any(|(id, node)| match node.kind {
+            kind if node_facts::kind_is_text(kind) => self.text_row_may_be_non_empty(id),
+            NodeKind::ImageBox
+            | NodeKind::SVGImageBox
+            | NodeKind::CanvasBox
+            | NodeKind::VideoBox
+            | NodeKind::SVGSVGBox
+            | NodeKind::TextInputBox => true,
+            _ => false,
+        })
+    }
+
+    fn text_row_may_be_non_empty(&self, id: NodeSlotId) -> bool {
+        if self
+            .text_awaiting_render
+            .binary_search_by_key(&id.index, |row| row.index)
+            .is_ok()
+        {
+            return true;
+        }
+        self.paintable
+            .text(id)
+            .and_then(|text| text.rendered.as_deref())
+            .is_none_or(|rendered| {
+                rendered
+                    .text
+                    .iter()
+                    .any(|unit| !matches!(unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
+            })
+    }
+
     /// What the shell factory needs to make the layout node of the row in slot `id`, or none for a row that is gone or
     /// has no layout node.
     pub(crate) fn shell_facts(&self, id: NodeSlotId) -> Option<ShellFacts> {
