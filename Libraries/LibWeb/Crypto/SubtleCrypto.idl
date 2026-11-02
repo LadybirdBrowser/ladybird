@@ -84,4 +84,6 @@ interface SubtleCrypto {
     [NeedsCallerRealm] Promise<CryptoKey> decapsulateKey(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext, AlgorithmIdentifier sharedKeyAlgorithm, boolean extractable, sequence<KeyUsage> keyUsages);
     [NeedsCallerRealm] Promise<ArrayBuffer> decapsulateBits(AlgorithmIdentifier decapsulationAlgorithm, CryptoKey decapsulationKey, BufferSource ciphertext);
     [NeedsCallerRealm] Promise<CryptoKey> getPublicKey(CryptoKey key, sequence<KeyUsage> keyUsages);
+    [NeedsCallerRealm] static boolean supports(DOMString operation, AlgorithmIdentifier algorithm, optional [EnforceRange] unsigned long? length = null);
+    [NeedsCallerRealm] static boolean supports(DOMString operation, AlgorithmIdentifier algorithm, AlgorithmIdentifier additionalAlgorithm);
 };

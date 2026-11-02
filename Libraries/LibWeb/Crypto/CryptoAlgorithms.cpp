@@ -9852,6 +9852,13 @@ WebIDL::ExceptionOr<ByteBuffer> MLKEM::decapsulate(JS::Realm&, AlgorithmParams c
     return shared_key;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-get-shared-key-length
+WebIDL::ExceptionOr<u32> MLKEM::get_shared_key_length(AlgorithmParams const&) const
+{
+    // 1. Return 256.
+    return 256;
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-import-key
 WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm&, AlgorithmParams const& params, KeyFormat format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
 {

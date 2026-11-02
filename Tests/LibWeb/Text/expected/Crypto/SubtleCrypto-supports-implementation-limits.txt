@@ -1,0 +1,30 @@
+cSHAKE128: supports true, digest ok
+cSHAKE128 with customization: supports false, digest OperationError
+cSHAKE256 with function name: supports false, digest OperationError
+cSHAKE128 with partial byte output length: supports false, digest OperationError
+HMAC SHA-256: supports true, generateKey ok
+HMAC SHA3-256: supports false, generateKey NotSupportedError
+HMAC SHA3-256 with length: supports true, generateKey ok
+RSA-OAEP 512-bit modulus: supports true, generateKey ok
+RSA-OAEP 511-bit modulus: supports false, generateKey OperationError
+RSA-PSS 512-bit modulus: supports true, generateKey ok
+RSA-PSS 511-bit modulus: supports false, generateKey OperationError
+RSASSA-PKCS1-v1_5 512-bit modulus: supports true, generateKey ok
+RSASSA-PKCS1-v1_5 511-bit modulus: supports false, generateKey OperationError
+ECDSA SHA-256: supports true, sign ok
+ECDSA SHA3-256: supports false, sign NotSupportedError
+PBKDF2 SHA-256: supports true, deriveBits ok
+PBKDF2 SHA3-256: supports false, deriveBits NotSupportedError
+KMAC128 output length 256: supports true, sign ok
+KMAC128 output length 1: supports false, sign OperationError
+KMAC128 512-byte customization: supports true, sign ok
+KMAC128 513-byte customization: supports false, sign OperationError
+KMAC128 import length 8: supports true, importKey ok
+KMAC128 import length 1: supports false, importKey NotSupportedError
+KMAC128 import length 4104: supports false, importKey NotSupportedError
+AES-GCM 12-byte IV: supports true, encrypt ok
+AES-GCM empty IV: supports false, encrypt OperationError
+AES-OCB 12-byte IV: supports true, encrypt ok
+AES-OCB empty IV: supports false, encrypt OperationError
+Argon2id 8-byte nonce: supports true, deriveBits ok
+Argon2id 7-byte nonce: supports false, deriveBits OperationError
