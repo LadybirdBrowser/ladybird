@@ -2807,7 +2807,7 @@
     ]
   },
   "grid": {
-    "initial": "auto",
+    "initial": "none",
     "valid-identifiers": [
       "auto"
     ],
@@ -2970,7 +2970,7 @@
     ]
   },
   "grid-template": {
-    "initial": "auto",
+    "initial": "none",
     "valid-identifiers": [
       "auto"
     ],
