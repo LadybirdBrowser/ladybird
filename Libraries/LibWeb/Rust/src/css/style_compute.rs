@@ -2091,6 +2091,26 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         }
     }
 
+    fn collect_grid_entries(
+        entries: &[crate::css::style_value::RetainedGridTrackEntry],
+        sharings: &mut Vec<*const StyleValueData>,
+    ) {
+        for entry in entries {
+            match entry.kind {
+                GridTrackEntryKind::LineNames => {}
+                GridTrackEntryKind::Size => collect_optional(&entry.size_value, sharings),
+                GridTrackEntryKind::MinMax => {
+                    collect_optional(&entry.min_value, sharings);
+                    collect_optional(&entry.max_value, sharings);
+                }
+                GridTrackEntryKind::Repeat => {
+                    collect_grid_entries(entry.repeat_entries(), sharings);
+                    collect_optional(&entry.repeat_count, sharings);
+                }
+            }
+        }
+    }
+
     let collect_values = |values: &[&RetainedStyleValueData], sharings: &mut Vec<*const StyleValueData>| {
         for value in values {
             collect_optional(value, sharings);
@@ -2100,6 +2120,14 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         StyleValueData::Calculated(calculated_payload) => {
             let CalculatedPayload { rust_calculation, .. } = &**calculated_payload;
             crate::css::calc::collect_unfixed_random_sharings(rust_calculation.node(), sharings);
+        }
+        StyleValueData::GridTrackSizeList(grid_track_size_list_payload) => {
+            let GridTrackSizeListPayload { entries, .. } = &**grid_track_size_list_payload;
+            collect_grid_entries(entries.as_slice(), sharings);
+        }
+        StyleValueData::Anchor(_) | StyleValueData::AnchorSize(_) => {
+            let (_, _, fallback_value) = value.anchor_name_and_fallback().unwrap();
+            collect_optional(fallback_value, sharings);
         }
         StyleValueData::RandomValueSharing(random_value_sharing_payload) => {
             let RandomValueSharingPayload { fixed_value, .. } = &**random_value_sharing_payload;
