@@ -11,11 +11,8 @@
         // no selection makes it observable, and ::first-line and ::view-transition, which no style
         // update settles.
         const read = (element, pseudo) => {
-            const start = internals.styleEngineCounters();
             const style = getComputedStyle(element, pseudo);
-            const values = `color ${style.color}, background-color ${style.backgroundColor}`;
-            const end = internals.styleEngineCounters();
-            println(`${element.id}${pseudo}: ${values}, demands left to the host ${end.pseudoRecordDemandsLeftToHost - start.pseudoRecordDemandsLeftToHost}`);
+            println(`${element.id}${pseudo}: color ${style.color}, background-color ${style.backgroundColor}`);
         };
         internals.updateStyle();
         // The rules come after the last style update settled the elements, which leaves the

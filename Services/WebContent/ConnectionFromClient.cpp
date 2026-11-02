@@ -1186,6 +1186,7 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "clear-cache") {
         Web::Fetch::Fetching::clear_http_memory_cache();
+        Web::CSS::StyleScope::release_kept_data();
         return;
     }
 

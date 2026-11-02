@@ -1,3 +1,1 @@
-engine substitutions used: true
-memo reused substitutions: true
 replaced declarations use their own written value: true

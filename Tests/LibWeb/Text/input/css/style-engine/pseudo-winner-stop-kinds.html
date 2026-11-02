@@ -27,12 +27,9 @@
         internals.updateStyle();
         println(`initial marker: ${getComputedStyle(markerTarget, "::marker").color}`);
         println(`initial backdrop: ${getComputedStyle(backdropTarget, "::backdrop").color}`);
-        const before = internals.styleEngineCounters();
 
         markerTarget.classList.add("flip");
         internals.updateStyle();
-        const markerChanged = internals.styleEngineCounters();
-        println(`marker exact cascade stops: ${markerChanged.publishedExactCascadeStops - before.publishedExactCascadeStops}`);
 
         backdropTarget.classList.add("flip");
         internals.updateStyle();

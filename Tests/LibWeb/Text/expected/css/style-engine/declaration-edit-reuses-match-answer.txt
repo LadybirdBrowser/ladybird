@@ -1,6 +1,0 @@
-retained answer reuses: 1
-published answer consumptions: 0
-matcher calls during transaction: 0
-cold node evaluations: 0
-candidate checks: 0
-color: rgb(0, 0, 255)

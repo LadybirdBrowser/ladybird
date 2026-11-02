@@ -1,3 +1,0 @@
-initial layout record view pins unchanged: true
-style update record view pins unchanged: true
-computed style record view pins increased: true

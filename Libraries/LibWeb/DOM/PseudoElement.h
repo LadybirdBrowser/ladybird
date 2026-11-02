@@ -59,9 +59,13 @@ public:
 
     virtual CSS::InstalledStyle const& installed_style() const override { return m_installed_style; }
     void update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement, Web::Animations::KeyframeEffect&, Web::Animations::AnimationUpdateContext&) override;
-    void set_computed_style(CSS::StyleRecordID);
+    void set_computed_style(Layout::BegunRead const&, CSS::InstalledStyle);
+    // Swaps in a record a style installation installs, which the render side noted the pseudo-element holds, unless
+    // `tell_render_side` asks.
+    void swap_in_style_record(Layout::BegunRead const&, void const* record);
     void clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment = nullptr);
-    void refresh_computed_style(CSS::StyleRecordID);
+    // Installs `style`, which the engine just published for the pseudo-element, without asking the engine for it.
+    void replace_installed_style(Layout::BegunRead const&, CSS::InstalledStyle);
 
     CSSPixelPoint scroll_offset() const { return m_scroll_offset; }
     void set_scroll_offset(CSSPixelPoint);
@@ -70,8 +74,6 @@ public:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
 private:
-    void replace_style_record(CSS::StyleRecordID);
-
     CSS::PseudoElement m_type;
     GC::Ptr<Element> m_originating_element;
     // The authoritative StyleEngine record. C++ compatibility consumers borrow the record-owned

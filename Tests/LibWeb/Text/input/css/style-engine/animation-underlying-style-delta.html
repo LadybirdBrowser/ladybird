@@ -18,11 +18,8 @@
         animation.currentTime = 500000;
         internals.updateStyle();
 
-        const before = internals.styleEngineCounters();
         target.style.backgroundColor = "red";
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`base change takes partial drive: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
         println(`animation object survives: ${target.getAnimations()[0] === animation}`);
         println(`sampled color: ${getComputedStyle(target).color}`);
         println(`sampled opacity: ${getComputedStyle(target).opacity}`);

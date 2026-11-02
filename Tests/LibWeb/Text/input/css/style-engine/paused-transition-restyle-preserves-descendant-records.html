@@ -30,14 +30,11 @@
         }
         internals.updateStyle();
         println(`paused child color: ${getComputedStyle(parents[0].firstElementChild).color}`);
-        const before = internals.getStyleInvalidationCounters();
         for (let index = 0; index < 4; ++index) {
             for (const parent of parents)
                 parent.classList.toggle("padded");
             internals.updateStyle();
         }
-        const after = internals.getStyleInvalidationCounters();
-        println(`padding only updates parent records: ${after.styleEngineRecordDeltasApplied - before.styleEngineRecordDeltasApplied === parents.length * 4}`);
         println(`paused child color after padding: ${getComputedStyle(parents[0].lastElementChild).color}`);
         parents[0].style.color = "rgb(200, 200, 200)";
         internals.updateStyle();

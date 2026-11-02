@@ -10,13 +10,19 @@
 <script>
     function settleAndReset() {
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
-    function report(label) {
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function report(label, maximum) {
         internals.updateStyle();
-        const counters = internals.getStyleInvalidationCounters();
-        println(`${label}: ${counters.elementStyleRecomputations} recomputations, ${counters.engineComputedStyleRecords} engine records`);
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
+        else
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     test(() => {
@@ -26,20 +32,22 @@
         settleAndReset();
 
         target.setAttribute("style", "color: red");
-        report("setting identical style text");
+        report("setting identical style text", 0);
 
         settleAndReset();
         target.setAttribute("style", "color: green");
-        report("setting changed style text");
+        report("setting changed style text", 1);
 
         document.documentElement.style.setProperty("--vh", "9px");
         settleAndReset();
 
         document.documentElement.style.setProperty("--vh", "9px");
-        report("setting identical custom property");
+        report("setting identical custom property", 0);
 
         settleAndReset();
         document.documentElement.style.setProperty("--vh", "10px");
-        report("setting changed custom property");
+        // Only the root and the element reading --vh are styled; the others take the moved custom
+        // property without computing again.
+        report("setting changed custom property", 2);
     });
 </script>

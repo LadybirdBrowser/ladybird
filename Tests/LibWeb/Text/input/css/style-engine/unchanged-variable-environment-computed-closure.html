@@ -11,11 +11,8 @@
         const parent = document.getElementById("parent");
         const target = document.getElementById("target");
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
         target.className = "dimmed";
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 50}`);
         println(`opacity: ${getComputedStyle(target).opacity}`);
         println(`margin: ${getComputedStyle(target).marginLeft}`);
         println(`color: ${getComputedStyle(target).color}`);

@@ -4,17 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! A document's style transaction as a job its render state runs: the host hands it the transaction's root and the
+//! A document's style update as a job its render state runs: the host hands it the transaction's root and the
 //! document's computation inputs, and the job answers with the reactions the host applies, which the host keeps until
 //! it ends the transaction.
 
 use super::StyleEngine;
 use super::bridge::{
     FfiCustomFunctionEntry, FfiDocumentStyleComputationInputs, FfiHostHandle, FfiStyleSheetResourceContextEntry,
-    FfiStyleTransactionOutput, FfiStyleTransactionView, take_style_transaction,
+    FfiStyleUpdateOutput, run_style_update,
 };
-use super::engine_calls::with_engine;
-use super::identities::StyleNodeIdAllocator;
 use super::tree::StyleNodeID;
 use crate::css::custom_properties::{CustomPropertyRegistry, retain_custom_property_registry};
 use crate::css::parser::query_parser::FfiMediaFeatureValue;
@@ -22,23 +20,19 @@ use crate::css::rule::CompiledFunction;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::painting::ffi::FfiFlightBlocker;
 use crate::painting::recording_slot::FlightLicense;
-use crate::render_state::{BegunRead, DocumentHost, TaskBoundary, fly};
+use crate::render_state::{BegunRead, DocumentHost, FrameJob, TaskBoundary, fly};
 use std::sync::Arc;
 
-/// Takes the pending style transaction under `root`, with the document computation inputs the host sealed for it.
+/// Takes the pending style update under `root`, with the document computation inputs the host sealed for it.
 pub(crate) struct StyleJob {
     root: StyleNodeID,
     computation_inputs: Arc<SealedStyleInputs>,
     /// Whether the transaction flies beside the host, which leaves its atom sweep to a later transaction: the host may
     /// name an atom meanwhile that the sweep would reclaim before the host hears of it.
     flies: bool,
-    /// Where a style update applies the transaction's reactions as the job answers them, they close over the elements
-    /// they inherit through, but for those that inherit from the elements here, which arrived, moved or retired
-    /// beside the transaction the host drains: those are the next transaction's.
-    closes_beside: Option<super::HashSet<StyleNodeID>>,
 }
 
-/// A style transaction's document computation inputs, sealed on the host's thread: the job owns a copy of every buffer
+/// A style update's document computation inputs, sealed on the host's thread: the job owns a copy of every buffer
 /// the host lent with them, and a reference to each custom function and to the custom-property registry they name, so
 /// it reads nothing the host goes on writing.
 pub(crate) struct SealedStyleInputs {
@@ -200,41 +194,39 @@ unsafe fn lent_bytes<'a>(bytes: FfiHostHandle, length: usize) -> &'a [u8] {
 /// What a style job answers: the reactions of the transaction, owned, which the host keeps until it ends the
 /// transaction.
 pub(crate) struct StyleJobAnswer {
-    output: FfiStyleTransactionOutput,
+    output: FfiStyleUpdateOutput,
     records: NamedRecords,
-    /// The synthetic pseudo-elements each element whose row the host composes has rules for, as a C++ record's
-    /// pseudo-style mask, and those among them that no settle generates or changes, by element, which the host reads as
-    /// it settles the element's pseudo-elements over the composition.
-    composed_pseudo_styles: Box<[(u32, ComposedPseudoStyles)]>,
     /// The transition steps the transaction decided beside the rows that owe them, by element, which the host's steps
     /// read rather than ask.
     decided_transition_steps: Box<[crate::css::transition::DecidedTransitionStep]>,
+    /// What the main thread does to take the transaction's style installation, until it takes it.
+    installation_for_host: super::pipeline::install::StyleInstallation,
+    /// What the render side installed of the style rows in the boxes of their elements itself, which the host adopts
+    /// as it installs the rows, without publishing them again.
+    styled_rows: crate::layout::StyledRows,
+    /// The styles installed for every element and pseudo-element once the transaction installed its rows.
+    installed_styles: super::computed::InstalledStyles,
 }
 
-/// What a style transaction answers of the pseudo-elements of an element whose row the host composes.
-#[derive(Clone, Copy)]
-pub(crate) struct ComposedPseudoStyles {
-    /// The synthetic pseudo-elements with rules, as a C++ record's pseudo-style mask.
-    pub(crate) mask: u64,
-    /// The pseudo-elements in `mask` that a settle over any composition of the element leaves alone.
-    pub(crate) inert: u64,
-}
+/// A record a transaction's rows name, with the record the host holds for it.
+type NamedRecord = (u64, std::sync::Arc<super::pipeline::Record>);
 
-/// The view of each record a transaction's rows name and the custom-property environment it was computed in, by record,
-/// which the host's drain reads without asking.
+/// The record the host holds for each record a transaction's rows name, by record, which the host's drain reads without
+/// asking. Holding the records keeps them live for the host until the next transaction.
 struct NamedRecords {
-    records: Box<[(u64, super::bridge::FfiStyleRecordView, Option<u64>)]>,
+    records: Box<[NamedRecord]>,
     /// Where the last lookup found its record. The host installs a transaction's rows in tree order, the order in
     /// which their new records were minted, so the next lookup mostly finds the record at or just past it.
     cursor: std::cell::Cell<usize>,
 }
 
-// SAFETY: A view points into a published record, which never changes while it is live, and the host reads one only for
-// a record it installs from the transaction, which keeps it live, or one a row replaces, which the engine reclaims no
-// sooner than its next transaction.
-unsafe impl Send for NamedRecords {}
-
 impl StyleJobAnswer {
+    /// The styles installed for every element and pseudo-element once the transaction installed its rows: the records
+    /// the rows install, and those of every element the transaction left as it was.
+    pub(crate) fn installed_styles(&self) -> &super::computed::InstalledStyles {
+        &self.installed_styles
+    }
+
     /// The rows the transaction answered.
     pub(crate) fn rows(&self) -> &[super::bridge::FfiStyleDelta] {
         self.output.answers()
@@ -245,23 +237,105 @@ impl StyleJobAnswer {
         self.output.reclaimed_style_atoms()
     }
 
-    /// The view of `record`, one the rows name, and the custom-property environment it was computed in.
-    pub(crate) fn record(&self, record: u64) -> Option<(super::bridge::FfiStyleRecordView, Option<u64>)> {
+    /// The record the host holds for `record`, one the rows name.
+    pub(crate) fn record(&self, record: u64) -> Option<*const std::ffi::c_void> {
         let NamedRecords { records, cursor } = &self.records;
         let near = cursor.get();
         let index = (near..records.len().min(near + 4))
             .find(|&index| records[index].0 == record)
-            .or_else(|| records.binary_search_by_key(&record, |&(record, ..)| record).ok())?;
+            .or_else(|| records.binary_search_by_key(&record, |&(record, _)| record).ok())?;
         cursor.set(index);
-        let (_, view, environment) = records[index];
-        Some((view, environment))
+        Some(std::sync::Arc::as_ptr(&records[index].1).cast())
     }
 
-    /// What the transaction answered of the pseudo-elements of `node`, where the host composes its row.
-    pub(crate) fn composed_pseudo_styles(&self, node: u32) -> Option<ComposedPseudoStyles> {
-        let styles = &self.composed_pseudo_styles;
-        let index = styles.binary_search_by_key(&node, |&(node, _)| node).ok()?;
-        Some(styles[index].1)
+    /// Takes what the main thread does to take the transaction's style installation.
+    pub(crate) fn take_installation(&mut self) -> super::pipeline::install::StyleInstallation {
+        self.installation_for_host.take_for_the_host()
+    }
+
+    /// Notes, for each element whose style record the transaction installed, whether its box is one only the host
+    /// styles in `arena`, the layout arena the host installs the records into.
+    pub(crate) fn note_host_styled_boxes(&mut self, arena: &crate::layout::LayoutNodeArena) {
+        for row in &mut self.installation_for_host.effects {
+            let slot = arena.bound_row(row.node());
+            if !slot.is_invalid() && arena.box_is_styled_by_host(slot) {
+                row.effects |= super::bridge::MainEffects::HOST_BOX_FACTS;
+            }
+        }
+    }
+
+    /// How the boxes of `node`, an element whose style record the transaction installed, take it: they are built
+    /// again from the root the move names, or the host installs it where they take the composition of its animations, or
+    /// appear or go.
+    pub(crate) fn element_install(&self, node: StyleNodeID) -> crate::layout::ElementInstall {
+        use super::bridge::MainEffects;
+        use crate::layout::ElementInstall;
+        let Some(row) = self.installation_for_host.effects_of(node) else {
+            return ElementInstall::Boxes;
+        };
+        if row
+            .effects
+            .intersects(MainEffects::ANIMATED | MainEffects::DISPLAY_NONE_FLIP)
+        {
+            ElementInstall::Host
+        } else if row.effects.intersects(MainEffects::REBUILD) {
+            ElementInstall::Rebuild(row.rebuild_root)
+        } else {
+            ElementInstall::Boxes
+        }
+    }
+
+    /// Notes `styled`, what the render side installed of the transaction's style rows.
+    pub(crate) fn note_styled(&mut self, styled: crate::layout::StyledRows) {
+        debug_assert!(
+            self.styled_rows.pinned_records.is_empty() && self.styled_rows.rebuilt.is_empty(),
+            "the render side installs a transaction once"
+        );
+        use super::bridge::MainEffects;
+        for row in &mut self.installation_for_host.effects {
+            let node = row.node();
+            // The render side marked the rebuilds of these elements, which leaves the host none to mark.
+            if styled.rebuilt.binary_search(&node).is_ok() {
+                row.effects = row.effects.without(MainEffects::REBUILD);
+            }
+            // The host installs the records in the boxes of the elements the render side left to it, and of those the
+            // main thread held no style for.
+            let installed = styled
+                .elements
+                .binary_search_by_key(&node, |element| element.node)
+                .is_ok();
+            if !installed || !row.moves_from_a_record() {
+                row.effects |= MainEffects::HOST_BOX_FACTS;
+            }
+        }
+        self.styled_rows = styled;
+        self.installation_for_host.keep_effects_with_host_work();
+    }
+
+    /// Whether the render side installed `style_record`, the style record of the element `node`, in its boxes, and
+    /// those of its pseudo-elements, with the relayout and repaint the move asks for.
+    pub(crate) fn render_state_installed(&self, node: StyleNodeID, style_record: u64) -> bool {
+        let elements = &self.styled_rows.elements;
+        elements
+            .binary_search_by_key(&node, |element| element.node)
+            .is_ok_and(|index| elements[index].style_record == style_record)
+    }
+
+    /// The record the render side installed in the box `slot`, if it styled it.
+    pub(crate) fn render_state_installed_box(&self, slot: crate::layout::node_data::NodeSlotId) -> Option<u64> {
+        let boxes = &self.styled_rows.boxes;
+        let index = boxes
+            .binary_search_by_key(&slot.slot_index(), |styled| styled.slot.slot_index())
+            .ok()?;
+        (boxes[index].slot == slot).then_some(boxes[index].style_record)
+    }
+
+    /// Takes the records the render side pinned for the host as it installed the transaction's rows, which the host
+    /// unpins as it ends the transaction.
+    pub(crate) fn take_pinned_records(&mut self) -> Vec<u64> {
+        let mut pinned = std::mem::take(&mut self.styled_rows.pinned_records);
+        pinned.append(&mut self.installation_for_host.pinned_records);
+        pinned
     }
 
     /// The transition step the transaction decided beside the row of `node`, if it decided one.
@@ -275,16 +349,14 @@ impl StyleJobAnswer {
 impl StyleJob {
     /// Runs the job on `engine`, the engine of the document it was sent for.
     pub(crate) fn run(self, engine: &mut StyleEngine) -> StyleJobAnswer {
+        // What an installation the host never took, as one a flush threw away made, has the main thread do is not this
+        // transaction's.
+        for record in engine.take_installation().pinned_records {
+            engine.unpin_layout_style_record(record);
+        }
         engine.defer_atom_sweep(self.flies);
         // SAFETY: The sealed inputs name only what they own, and live until the transaction has taken them in.
-        let output = unsafe {
-            take_style_transaction(
-                engine,
-                self.root,
-                self.computation_inputs.inputs,
-                self.closes_beside.as_ref(),
-            )
-        };
+        let output = unsafe { run_style_update(engine, self.root, self.computation_inputs.inputs) };
         engine.defer_atom_sweep(false);
         // The host reads the record each row replaces as well, as it compares a box's old style with its new one. Only a
         // live base record comes along: the host asks about a replaced overlay record itself.
@@ -303,33 +375,8 @@ impl StyleJob {
         records.dedup();
         let records = records
             .into_iter()
-            .filter_map(|record| {
-                let view = super::bridge::style_record_view(engine, record);
-                view.present.then(|| {
-                    let environment = engine
-                        .computed_group_sets
-                        .style_record_custom_property_environment(record);
-                    (record, view, environment)
-                })
-            })
+            .filter_map(|record| Some((record, engine.computed_group_sets.host_record(record)?.clone())))
             .collect();
-        // The host settles the pseudo-elements of a row it composes only once it has composed the row, which asks
-        // which of them have rules, and which of those the settle leaves alone: the transaction that matched the
-        // element answers it beside the row.
-        let mut composed_pseudo_styles: Vec<_> = output
-            .answers()
-            .iter()
-            .filter(|row| row.composed_by_the_host)
-            .filter_map(|row| {
-                let node = StyleNodeID::from_raw(row.style_node)?;
-                let styles = ComposedPseudoStyles {
-                    mask: engine.published_pseudo_style_mask(node),
-                    inert: engine.inert_pseudo_kinds(node),
-                };
-                Some((row.style_node, styles))
-            })
-            .collect();
-        composed_pseudo_styles.sort_unstable_by_key(|&(node, _)| node);
         // The host's transition step for a row that owes one asks how the row's move starts the element's transitions,
         // which the transaction answers beside the row where nothing but the engine's records decides it.
         let mut decided_transition_steps: Vec<_> = output
@@ -338,14 +385,45 @@ impl StyleJob {
             .filter_map(|row| crate::css::transition::DecidedTransitionStep::of_row(&mut *engine, row))
             .collect();
         decided_transition_steps.sort_unstable_by_key(crate::css::transition::DecidedTransitionStep::node);
-        StyleJobAnswer {
+        let installation_for_host = engine.take_installation();
+        // The render side knows what it publishes: the host swaps the installation's records in without echoing them.
+        installation_for_host.note_held_by_the_host(engine);
+        let installed_styles = engine.computed_group_sets.publish_installed_styles();
+        let answer = StyleJobAnswer {
             output,
             records: NamedRecords {
                 records,
                 cursor: std::cell::Cell::new(0),
             },
-            composed_pseudo_styles: composed_pseudo_styles.into_boxed_slice(),
             decided_transition_steps: decided_transition_steps.into_boxed_slice(),
+            installation_for_host,
+            styled_rows: Default::default(),
+            installed_styles,
+        };
+        if engine.process_style.verifies_reads {
+            verify_installed_styles(answer.installed_styles(), answer.rows());
+        }
+        answer
+    }
+}
+
+/// Checks that `styles` install what `rows` do.
+fn verify_installed_styles(styles: &super::computed::InstalledStyles, rows: &[super::bridge::FfiStyleDelta]) {
+    for row in rows {
+        let Some(node) = StyleNodeID::from_raw(row.style_node) else {
+            continue;
+        };
+        let installed = match row.pseudo_kind {
+            u8::MAX => styles.element(node),
+            kind => styles.pseudo_element(node, kind),
+        };
+        let installed = installed.map_or(0, |style| style.final_style_record().raw());
+        if installed != row.new_style_record {
+            eprintln!(
+                "the installed styles hold record {installed} for node {} (pseudo-element {}), the row installs {}",
+                row.style_node, row.pseudo_kind, row.new_style_record
+            );
+            std::process::abort();
         }
     }
 }
@@ -358,28 +436,39 @@ impl StyleJob {
 /// `host` must be a live document host, on its document's thread, and the buffers `computation_inputs` names must be
 /// live for this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_take_style_transaction(
+pub unsafe extern "C" fn style_engine_run_style_update(
     host: &DocumentHost,
     read: &BegunRead,
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
-) -> FfiStyleTransactionView {
+) {
     let Some(root) = StyleNodeID::from_raw(root) else {
-        return FfiStyleTransactionView::default();
+        return;
     };
     let job = StyleJob {
         root,
         // SAFETY: Guaranteed by the caller.
         computation_inputs: Arc::new(unsafe { SealedStyleInputs::seal(computation_inputs) }),
         flies: false,
-        closes_beside: host.engine_memo().closes_taken_transaction_beside(),
     };
     host.keep_style_inputs(root, Arc::clone(&job.computation_inputs));
-    let answer = host.run(read, true, move |state| job.run(state.engine_mut()));
-    host.keep_style_transaction(answer).output.view()
+    // A style update takes the transactions its installations feed back one after another, and ends only the last.
+    // The host installed the one it took before this one, so it is done with the records the render side pinned for
+    // it to compare with, which go as the next one is taken.
+    let pinned = host.take_style_update_pinned_records();
+    let answer = host.run(read, true, move |state| {
+        let engine = state.engine_mut();
+        for record in pinned {
+            engine.unpin_layout_style_record(record);
+        }
+        let mut answer = job.run(engine);
+        state.install_styles(&mut answer);
+        answer
+    });
+    host.keep_style_update(answer);
 }
 
-/// Lets the pending style transaction under `root` fly beside the host, with the document computation inputs the host
+/// Lets the pending style update under `root` fly beside the host, with the document computation inputs the host
 /// gathered, where `blocker` is none and no transaction the host let fly before waits to be drained. The host's next
 /// style update drains its reactions first. Answers whether the transaction flies.
 ///
@@ -388,14 +477,12 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
 /// `host` must be a live document host, on its document's thread, and the buffers `computation_inputs` names must be
 /// live for this call.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
+pub unsafe extern "C" fn style_engine_let_style_update_fly(
     host: &DocumentHost,
     root: u32,
     computation_inputs: FfiDocumentStyleComputationInputs,
     blocker: FfiFlightBlocker,
 ) -> bool {
-    // The round the host sealed for the frame flies with it, or not at all.
-    let round = host.take_sealed_round();
     let (Some(root), Some(license)) = (StyleNodeID::from_raw(root), FlightLicense::for_blocker(blocker)) else {
         return false;
     };
@@ -407,79 +494,57 @@ pub unsafe extern "C" fn style_engine_let_style_transaction_fly(
         // SAFETY: Guaranteed by the caller.
         computation_inputs: Arc::new(unsafe { SealedStyleInputs::seal(computation_inputs) }),
         flies: true,
-        closes_beside: None,
     };
     host.keep_style_inputs(root, Arc::clone(&job.computation_inputs));
-    fly(host, Some(job), round, &license);
+    fly(host, FrameJob::Style(job), &license);
     true
 }
 
-/// Takes in the style transaction of `host`'s document that the host let fly, waiting for it to land, for the host to
+/// Takes in the style update of `host`'s document that the host let fly, waiting for it to land, for the host to
 /// drain its reactions against the inputs it was sealed with. What the host wrote beside the transaction reaches the
 /// render state only once style_engine_end_flown_style_drain() ends the drain: it is the next transaction's.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_take_flown_style_transaction(
-    host: &DocumentHost,
-    read: &BegunRead,
-) -> FfiStyleTransactionView {
+pub extern "C" fn style_engine_drain_flown_style_update(host: &DocumentHost, read: &BegunRead) {
     // The read takes the frame in where it still flies.
     let answer = host.begin_style_drain(read);
-    host.keep_style_transaction(answer).output.view()
+    host.keep_style_update(answer);
 }
 
-/// Ends the drain of the style transaction of `host`'s document that flew, behind which the writes the host made beside
+/// Ends the drain of the style update of `host`'s document that flew, behind which the writes the host made beside
 /// it reach the render state.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_end_flown_style_drain(host: &DocumentHost) {
-    host.engine_memo().beside_flown_transaction.borrow_mut().clear();
     host.end_style_drain();
 }
 
-/// Notes that the element `node` names arrived, moved or retired beside the style transaction of `host`'s document that
-/// flew, which knows nothing of that, until the drain of its reactions ends.
+/// Whether the render state installed the record `style_record` of the element `style_node` names in its box ahead of
+/// the host, and marked the relayout the move asks for: the host's install of the row marks none then.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_note_style_node_beside_flown_transaction(host: &DocumentHost, node: u32) {
-    if let Some(node) = StyleNodeID::from_raw(node) {
-        host.engine_memo().beside_flown_transaction.borrow_mut().insert(node);
-    }
+pub extern "C" fn style_engine_render_state_installed(host: &DocumentHost, style_node: u32, style_record: u64) -> bool {
+    StyleNodeID::from_raw(style_node).is_some_and(|style_node| host.render_state_installed(style_node, style_record))
 }
 
-/// Whether the frame whose style transaction `host`'s document drains applied the element `style_node` names its record
-/// `style_record` ahead of the host, and marked the relayout the move asks for: the host's install of the row marks none
-/// then.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_frame_marked_relayout(host: &DocumentHost, style_node: u32, style_record: u64) -> bool {
-    StyleNodeID::from_raw(style_node).is_some_and(|style_node| host.frame_marked_relayout(style_node, style_record))
-}
-
-/// Whether the style transaction of `host`'s document the host let fly still flies; one that has landed is taken in.
+/// Whether the style update of `host`'s document the host let fly still flies; one that has landed is taken in.
 /// The event loop asks between two tasks, so this never waits.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_style_transaction_flies(host: &DocumentHost) -> bool {
+pub extern "C" fn style_engine_style_update_flies(host: &DocumentHost) -> bool {
     let boundary = TaskBoundary::at_event_loop_entry(&TAKES_FINISHED_STYLE_IN);
     host.frame_still_flies(&boundary)
 }
 
-/// The entry the event loop calls between two tasks to take a document's style transaction in where it has landed.
+/// The entry the event loop calls between two tasks to take a document's style update in where it has landed.
 pub(crate) struct TakesFinishedStyleIn {
     _private: (),
 }
 
 const TAKES_FINISHED_STYLE_IN: TakesFinishedStyleIn = TakesFinishedStyleIn { _private: () };
 
-/// Ends the transaction the host took last, and has `allocator`, its document's allocator, mint the identities its end
-/// released again first.
+/// Ends the transaction the host took last. The engine releases the identities its end released once it applies the
+/// write, which the host takes back to mint again as it has that job back.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_end_style_transaction(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    allocator: &mut StyleNodeIdAllocator,
-) {
-    host.end_style_transaction();
-    let released = with_engine(read, host, |engine| engine.discard_style_transaction_outputs());
-    let memo = host.engine_memo();
-    memo.held.borrow_mut().forget(&released);
-    memo.described.borrow_mut().forget(&released);
-    memo.baselines.borrow_mut().forget(&released);
-    allocator.release(&released);
+pub extern "C" fn style_engine_end_style_update(host: &DocumentHost) {
+    let pinned = host.end_style_update();
+    host.queue_change(crate::render_state::ArenaChange::Engine(
+        super::engine_calls::EngineWrite::EndStyleUpdate { pinned: pinned.into() },
+    ));
 }

@@ -14,11 +14,8 @@
         }
 
         getComputedStyle(current).color;
-        internals.resetStyleInvalidationCounters();
-
         root.style.color = "rgb(0, 128, 0)";
 
         println(`deep child color: ${getComputedStyle(current).color}`);
-
     });
 </script>

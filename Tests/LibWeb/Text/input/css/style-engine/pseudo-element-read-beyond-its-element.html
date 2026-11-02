@@ -24,10 +24,8 @@
         ];
         for (const [name, pseudo, target] of cases) {
             const element = target();
-            const start = internals.styleEngineCounters();
             const value = getComputedStyle(element, pseudo).getPropertyValue("--own");
-            const end = internals.styleEngineCounters();
-            println(`${name} ${pseudo}: --own ${value}, demands left to the host ${end.pseudoRecordDemandsLeftToHost - start.pseudoRecordDemandsLeftToHost}`);
+            println(`${name} ${pseudo}: --own ${value}`);
         }
     });
 </script>

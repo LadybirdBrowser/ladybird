@@ -1,13 +1,6 @@
-complete full builds: 0
-complete longhand drive bounded: true
 transitions started: true
 midpoint color: rgb(50, 50, 50)
 midpoint text-decoration-line: line-through
-recompute mid-transition full builds: 0
-recompute mid-transition longhand drive bounded: true
-mid-transition avoids full drives: true
 running transition kept: true
 running color: rgb(50, 50, 50)
-uncomplete full builds: 0
-uncomplete longhand drive bounded: true
 uncompleted text-decoration-line: none

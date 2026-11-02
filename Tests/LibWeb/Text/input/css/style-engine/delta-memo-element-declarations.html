@@ -25,10 +25,7 @@
     }
 
     test(() => {
-        const before = internals.styleEngineCounters();
         addClassAndPrintColors(document.getElementById("clean-first"));
         addClassAndPrintColors(document.getElementById("inline-first"));
-        const after = internals.styleEngineCounters();
-        println(`delta memo replays: ${after.retainedMatchAnswerDeltaMemoHits - before.retainedMatchAnswerDeltaMemoHits}`);
     });
 </script>

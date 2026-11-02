@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { container-type: inline-size; width: 100px; }
+    #container.wide { width: 300px; }
+    #target { color: rgb(255, 0, 0); }
+    #target.moved { color: rgb(0, 0, 255); }
+    #target::before { content: "x"; color: rgb(255, 0, 0); }
+    #target.moved::before { color: rgb(0, 0, 255); }
+    @container (min-width: 200px) {
+        #target { transition: color 1000s steps(2, start); }
+        #target::before { transition: color 1000s steps(2, start); }
+    }
+</style>
+<div id="container"><div id="target"></div></div>
+<script>
+    test(() => {
+        // The size container only answers after layout, so the transitions are declared by a later pass of the update
+        // that moved the color, and decide against the style the update started from.
+        internals.updateStyle();
+        container.className = "wide";
+        target.className = "moved";
+        target.offsetWidth;
+        println(`element: ${getComputedStyle(target).color}`);
+        println(`::before: ${getComputedStyle(target, "::before").color}`);
+        const transitions = target.getAnimations({ subtree: true }).map(animation => `${animation.effect.pseudoElement ?? "element"} ${animation.transitionProperty}`);
+        println(`transitions: ${transitions.join(", ")}`);
+    });
+</script>

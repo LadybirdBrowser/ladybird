@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    table {
+        transform: translateX(0);
+        margin: 10px 20px;
+        padding: 5px;
+        border: 3px solid;
+        border-spacing: 2px;
+    }
+    td { padding: 0; }
+    caption { height: 30px; }
+    .inset { position: absolute; top: 1px; left: 1px; width: 10px; height: 10px; }
+    .static { position: absolute; width: 10px; height: 10px; }
+</style>
+<table id="table">
+    <caption>caption</caption>
+    <tr><td id="cell"><div class="inset" id="inset"></div><div class="static" id="static"></div><div style="width: 50px; height: 50px"></div></td></tr>
+</table>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const rect = id => document.getElementById(id).getBoundingClientRect();
+        for (const id of ["cell", "inset", "static"])
+            println(`${id}: ${rect(id).x},${rect(id).y}`);
+    });
+</script>

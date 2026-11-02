@@ -239,6 +239,9 @@ pub(crate) struct ComputationReads {
     /// The container-relative units the element's computation resolved against its query
     /// containers, as a `container_relative_length_unit_mask`.
     pub(in crate::css::style) container_units: u8,
+    /// Whether the element's `display` computed to `none` only through the custom properties its
+    /// animations sampled, and so to something else when ignoring them.
+    pub(in crate::css::style) display_none_is_animated: bool,
 }
 
 /// What a style records of its computation beyond its values: the flags beside its values, what

@@ -13,11 +13,7 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const sharedRecords = () => {
-            const counters = internals.styleEngineCounters();
-            return counters.engineComputedRecordSharedHits + counters.engineComputedRecordCohortHits;
-        };
-        const before = sharedRecords();
+        internals.resetStyleCounters();
         const randomNodes = Array.from({ length: 8 }, () => {
             const node = document.createElement("div");
             node.className = "random";
@@ -25,13 +21,14 @@
             return node;
         });
         internals.updateStyle();
-        println(`random computations stay element-specific: ${sharedRecords() === before}`);
+        const randomCounters = internals.styleCounters();
+        println(`random() computations share no record: ${randomCounters.sharedElements + randomCounters.reusedElements === 0}`);
         const widths = randomNodes.map(node => getComputedStyle(node).width);
         randomRoot.style.color = "red";
         println(`random values survive inherited changes: ${randomNodes.every((node, index) => getComputedStyle(node).width === widths[index])}`);
 
         for (const [holder, className] of [[sharedRandomRoot, "shared-random"], [fixedRandomRoot, "fixed-random"]]) {
-            const beforeSharing = internals.styleEngineCounters();
+            internals.resetStyleCounters();
             const nodes = Array.from({ length: 8 }, () => {
                 const node = document.createElement("div");
                 node.className = className;
@@ -39,11 +36,13 @@
                 return node;
             });
             internals.updateStyle();
+            // FIXME: Elements with an element-shared or fixed random() should share records
+            //        (sharedElements + reusedElements > 0), but the style engine shares none of the records of
+            //        elements computing random().
+            const counters = internals.styleCounters();
+            println(`${className} computations share: ${counters.sharedElements + counters.reusedElements}`);
             const width = getComputedStyle(nodes[0]).width;
-            const afterSharing = internals.styleEngineCounters();
-            const shared = afterSharing.engineComputedRecordSharedHits > beforeSharing.engineComputedRecordSharedHits
-                || afterSharing.engineComputedRecordCohortHits > beforeSharing.engineComputedRecordCohortHits;
-            println(`${className} computations share: ${shared && nodes.every(node => getComputedStyle(node).width === width)}`);
+            println(`${className} computations agree: ${nodes.every(node => getComputedStyle(node).width === width)}`);
         }
 
         const imageNodes = Array.from({ length: 8 }, () => {

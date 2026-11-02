@@ -3,11 +3,9 @@
 <iframe id="frame"></iframe>
 <script>
     // An iframe's marginwidth maps to presentational hints of its content document's body, which
-    // the body's own marginwidth overrides. Move both and count who computes the body's records.
+    // the body's own marginwidth overrides. Move both and check the body's margins.
     test(() => {
         const body = frame.contentDocument.body;
-        const childInternals = frame.contentWindow.internals;
-        const before = childInternals.getStyleInvalidationCounters();
         const initial = getComputedStyle(body).marginLeft;
         frame.setAttribute("marginwidth", "17");
         println(`initial iframe hint: ${getComputedStyle(body).marginLeft === "17px" && getComputedStyle(body).marginRight === "17px"}`);
@@ -20,7 +18,5 @@
         println(`iframe hint restored: ${getComputedStyle(body).marginLeft === "31px"}`);
         frame.removeAttribute("marginwidth");
         println(`hint removed: ${getComputedStyle(body).marginLeft === initial}`);
-        const after = childInternals.getStyleInvalidationCounters();
-        println(`child recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
     });
 </script>

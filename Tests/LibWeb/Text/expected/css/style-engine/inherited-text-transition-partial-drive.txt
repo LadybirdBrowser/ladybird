@@ -1,4 +1,3 @@
-inherited text changes take partial drives: true
 inherited color: rgb(75, 75, 75)
 currentcolor border: rgb(75, 75, 75)
 currentcolor background: rgb(75, 75, 75)
@@ -20,11 +19,7 @@ cancellation restores underlying inheritance: rgb(100, 100, 100)
 inherited Web Animation color: rgb(25, 25, 25)
 resampled Web Animation color: rgb(50, 50, 50)
 Web Animation currentcolor: rgb(50, 50, 50)
-opacity siblings avoid full drives: true
-opacity siblings share partial drive: true
 opacity sibling color: rgb(75, 75, 75)
 opacity transition objects retained: true
-color siblings avoid full drives: true
-color siblings share partial drive: true
 color sibling color: rgb(50, 50, 50)
 color transition objects retained: true

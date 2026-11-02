@@ -12,6 +12,7 @@
 #include <LibWeb/Animations/ViewTimeline.h>
 #include <LibWeb/CSS/CSSAnimation.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -47,8 +48,31 @@ int CSSAnimation::class_specific_composite_order(GC::Ref<Animations::Animation> 
         //    - ::after
         //    - element children
         if (owning_element() != other->owning_element()) {
-            // FIXME: Sort by tree order
-            return 0;
+            auto& element = owning_element()->element();
+            auto& other_element = other->owning_element()->element();
+            if (&element != &other_element) {
+                // NB: An element's pseudo-elements sort with it, so before its children.
+                return element.document().compare_elements_in_tree_order_for_composite_order(element, other_element);
+            }
+            auto rank = [](Optional<PseudoElement> pseudo_element) {
+                if (!pseudo_element.has_value())
+                    return 0;
+                switch (*pseudo_element) {
+                case PseudoElement::Marker:
+                    return 1;
+                case PseudoElement::Before:
+                    return 2;
+                case PseudoElement::After:
+                    return 4;
+                default:
+                    return 3;
+                }
+            };
+            auto pseudo_element = owning_element()->pseudo_element();
+            auto other_pseudo_element = other->owning_element()->pseudo_element();
+            if (auto order = rank(pseudo_element) - rank(other_pseudo_element); order != 0)
+                return order;
+            return pseudo_element_name(*pseudo_element) < pseudo_element_name(*other_pseudo_element) ? -1 : 1;
         }
 
         // 2. Otherwise, sort A and B based on their position in the computed value of the animation-name property of the
@@ -161,25 +185,25 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
     m_applied_definition_range = animation_properties.range;
     m_applied_definition = {
         .values = {
-            .duration_is_auto = animation_properties.duration.has<Utf16String>(),
             .duration = animation_properties.duration.visit(
                 [](double duration) { return duration; },
                 [](Utf16String const&) { return 0.0; }),
             .iteration_count = animation_properties.iteration_count,
+            .delay = animation_properties.delay,
+            .range_start_px = animation_properties.range.start.offset_px,
+            .range_start_percentage = animation_properties.range.start.offset_percentage,
+            .range_end_px = animation_properties.range.end.offset_px,
+            .range_end_percentage = animation_properties.range.end.offset_percentage,
+            .duration_is_auto = animation_properties.duration.has<Utf16String>(),
             .direction = to_underlying(animation_properties.direction),
             .play_state = to_underlying(animation_properties.play_state),
-            .delay = animation_properties.delay,
             .fill_mode = to_underlying(animation_properties.fill_mode),
             .composition = to_underlying(animation_properties.composition),
             .timeline_kind = to_underlying(animation_properties.timeline.kind),
             .scroll_scroller = to_underlying(animation_properties.timeline.scroller),
             .scroll_axis = to_underlying(animation_properties.timeline.axis),
             .range_start_name = to_underlying(animation_properties.range.start.name),
-            .range_start_px = animation_properties.range.start.offset_px,
-            .range_start_percentage = animation_properties.range.start.offset_percentage,
             .range_end_name = to_underlying(animation_properties.range.end.name),
-            .range_end_px = animation_properties.range.end.offset_px,
-            .range_end_percentage = animation_properties.range.end.offset_percentage,
         },
         .keyframe_set = m_applied_keyframe_set.ptr(),
         .timing_function = m_applied_timing_function_value.data(),

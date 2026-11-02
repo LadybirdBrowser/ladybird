@@ -80,29 +80,42 @@ void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::K
     effect.update_computed_properties_for_style(context, abstract_element);
 }
 
-void SyntheticPseudoElement::replace_style_record(CSS::StyleRecordID style_record_identity)
+void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& read, CSS::InstalledStyle style)
 {
     VERIFY(m_originating_element);
-    Layout::ForcedReadScope read { m_originating_element->document() };
+    auto const style_record_identity = style.record();
     if (m_installed_style.record() == style_record_identity)
         return;
     auto& style_computer = m_originating_element->document().style_computer();
-    m_installed_style = style_computer.install_style(read, style_record_identity);
+    auto held_before = exchange(m_installed_style, move(style));
     // The pseudo-element holds the record it installed before until the engine takes the new one in, so the layout node
     // reads what it moves from before the pseudo-element lets go of it.
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(m_installed_style.record());
     if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0)
-        CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), style_record_identity.value());
+        CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), style_record_identity.value(), held_before.record_pointer());
 }
 
-void SyntheticPseudoElement::set_computed_style(CSS::StyleRecordID style_record_identity)
+void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read, void const* record)
 {
-    if (!style_record_identity) {
+    VERIFY(m_originating_element);
+    CSS::InstalledStyle style { record };
+    auto const style_record = style.record();
+    VERIFY(style_record);
+    if (m_installed_style.record() == style_record)
+        return;
+    m_installed_style = move(style);
+    if (auto* layout_node = unsafe_layout_node(read))
+        layout_node->set_style_record_identity(style_record);
+}
+
+void SyntheticPseudoElement::set_computed_style(Layout::BegunRead const& read, CSS::InstalledStyle style)
+{
+    if (!style) {
         clear_computed_style();
         return;
     }
-    replace_style_record(style_record_identity);
+    replace_installed_style(read, move(style));
 }
 
 void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues const> style_to_preserve_for_detachment)
@@ -116,15 +129,9 @@ void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues con
                 layout_node->pin_style_record_for_detachment();
         }
         if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0 && !!m_installed_style.record())
-            CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(m_originating_element->document().style_computer().style_engine().host(), style_node_id, to_underlying(type()), 0);
+            CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(m_originating_element->document().style_computer().style_engine().host(), style_node_id, to_underlying(type()), 0, m_installed_style.record_pointer());
     }
     m_installed_style = {};
-}
-
-void SyntheticPseudoElement::refresh_computed_style(CSS::StyleRecordID style_record_identity)
-{
-    replace_style_record(style_record_identity);
-    VERIFY(m_installed_style.record());
 }
 
 SyntheticPseudoElementTreeNode::SyntheticPseudoElementTreeNode(CSS::PseudoElement type)

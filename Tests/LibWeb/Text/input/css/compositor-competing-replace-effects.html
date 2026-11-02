@@ -52,6 +52,7 @@
 <div id="pseudo"></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const target = document.querySelector("#target");
         const nextFrames = async (count = 3) => {
             for (let i = 0; i < count; ++i)

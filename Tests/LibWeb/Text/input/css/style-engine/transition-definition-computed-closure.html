@@ -17,11 +17,8 @@
         sheet.replaceSync("#container, #container > div { transition: none !important; }");
 
         function mutate(label, mutation) {
-            const before = internals.getStyleInvalidationCounters();
             mutation();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label} unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 1200}`);
             println(`${label} transition: ${getComputedStyle(container.firstElementChild).transitionDuration}`);
             println(`${label} color: ${getComputedStyle(container.firstElementChild).color}`);
         }

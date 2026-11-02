@@ -11,13 +11,8 @@
         // of every record cache.
         const target = document.getElementById("target");
         internals.updateStyle();
-        const start = internals.styleEngineCounters();
-        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         target.setAttribute("data-label", "two");
         internals.updateStyle();
-        const end = internals.styleEngineCounters();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         println(`before: ${getComputedStyle(target, "::before").content}`);
-        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
     });
 </script>

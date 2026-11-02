@@ -15,13 +15,8 @@
         internals.updateStyle();
 
         function mutate(label, mutation) {
-            const before = internals.getStyleInvalidationCounters();
             mutation();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label} full builds: ${after.baseStyleFullBuilds - before.baseStyleFullBuilds}`);
-            println(`${label} partial builds: ${after.baseStylePartialBuilds - before.baseStylePartialBuilds}`);
-            println(`${label} unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 800}`);
             const style = getComputedStyle(container.firstElementChild);
             println(`${label} color: ${style.color} opacity: ${style.opacity} text-decoration-line: ${style.textDecorationLine}`);
         }

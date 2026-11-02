@@ -8,13 +8,11 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
         for (const step of [1, 2]) {
-            const before = recomputations();
             // Only the host's ::placeholder rules flip: the element backing it restyles as its own row.
             field.classList.toggle("flag");
             internals.updateStyle();
-            println(`step ${step}: ${getComputedStyle(field, "::placeholder").color}, C++ recomputations ${recomputations() - before}`);
+            println(`step ${step}: ${getComputedStyle(field, "::placeholder").color}`);
         }
     });
 </script>

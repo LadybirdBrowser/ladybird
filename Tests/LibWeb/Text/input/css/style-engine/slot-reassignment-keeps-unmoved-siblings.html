@@ -23,11 +23,10 @@
         const unmoved = host.children[11];
         function moveTo(slot) {
             internals.updateStyle();
-            const before = internals.styleEngineCounters();
+            internals.resetStyleCounters();
             moved.slot = slot;
             internals.updateStyle();
-            const after = internals.styleEngineCounters();
-            println(`move to ${slot}: only moved subtree reached: ${after.reachedStyleNodes - before.reachedStyleNodes <= 2}`);
+            println(`move to ${slot}: only moved subtree reached: ${internals.styleCounters().styledElements <= 2}`);
             println(`moved color: ${getComputedStyle(moved).color}`);
             println(`child color: ${getComputedStyle(moved.firstElementChild).color}`);
             println(`unmoved color: ${getComputedStyle(unmoved).color}`);

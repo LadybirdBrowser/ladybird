@@ -10,27 +10,20 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
 
         target.className = "after";
         internals.updateStyle();
 
-        const after = internals.getStyleInvalidationCounters();
-        println(`winner closure longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
         println(`changed value: ${getComputedStyle(target).opacity}`);
         println(`unchanged value: ${getComputedStyle(target).color}`);
 
         target.className = "leaves";
         internals.updateStyle();
-        const leaves = internals.getStyleInvalidationCounters();
-        println(`independent leaf evaluations: ${leaves.computedLonghandEvaluations - after.computedLonghandEvaluations}`);
         println(`independent leaf opacity: ${getComputedStyle(target).opacity}`);
         println(`independent leaf background: ${getComputedStyle(target).backgroundColor}`);
 
         target.className = "broad";
         internals.updateStyle();
-        const broad = internals.getStyleInvalidationCounters();
-        println(`mixed leaf and logical evaluations: ${broad.computedLonghandEvaluations - leaves.computedLonghandEvaluations}`);
         println(`logical value: ${getComputedStyle(target).marginInlineStart}`);
     });
 </script>

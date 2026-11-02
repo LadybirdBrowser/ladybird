@@ -1,0 +1,4 @@
+in a template's fragment: 10 4 true
+connected in the contents' document: 10 4 true
+the document element of the contents' document: 10 4 true
+in a window whose document has no document element: 0

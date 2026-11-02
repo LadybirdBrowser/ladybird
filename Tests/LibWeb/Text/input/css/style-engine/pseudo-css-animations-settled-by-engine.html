@@ -15,8 +15,6 @@
         // engine settled, and a record settled beneath a running animation keeps it composing.
         const target = document.getElementById("target");
         internals.updateStyle();
-        const builds = () => internals.getStyleInvalidationCounters().baseStyleFullBuilds;
-        const start = builds();
         const report = label => {
             internals.updateStyle();
             const style = getComputedStyle(target, "::before");
@@ -31,6 +29,5 @@
         report("another added");
         target.className = "";
         report("removed");
-        println(`C++ style builds: ${builds() - start}`);
     });
 </script>

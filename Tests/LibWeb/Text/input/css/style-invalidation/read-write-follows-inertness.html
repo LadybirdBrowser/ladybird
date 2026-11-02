@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    span { color: blue }
+    span:read-write { color: green }
+</style>
+<div id="outer">
+    <div id="host" contenteditable>
+        <span id="subject"></span>
+    </div>
+</div>
+<script>
+    test(() => {
+        const subject = document.getElementById("subject");
+        const report = label => println(label + ": matches " + subject.matches(":read-write") + ", " + getComputedStyle(subject).color);
+        report("editable");
+
+        outer.inert = true;
+        report("under an inert ancestor");
+
+        outer.inert = false;
+        report("no longer inert");
+
+        subject.remove();
+        host.inert = true;
+        host.append(subject);
+        report("inserted under an inert parent");
+
+        subject.remove();
+        host.inert = false;
+        host.append(subject);
+        report("inserted again");
+
+        const parent = document.createElement("div");
+        parent.append(subject);
+        host.append(parent);
+        host.inert = true;
+        parent.remove();
+        host.inert = false;
+        host.append(parent);
+        report("removed while inert and inserted again");
+    });
+</script>

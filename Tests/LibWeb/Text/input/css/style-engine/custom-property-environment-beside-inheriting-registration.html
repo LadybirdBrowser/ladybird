@@ -13,15 +13,10 @@
     test(() => {
         CSS.registerProperty({ name: "--size", syntax: "<length>", inherits: true, initialValue: "0px" });
         internals.updateStyle();
-        const before = Object.assign({}, internals.styleEngineCounters());
-        internals.resetStyleInvalidationCounters();
 
         document.getElementById("unrelated").classList.add("wide");
         internals.updateStyle();
 
-        const after = internals.styleEngineCounters();
-        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
         println(`inherited value: ${getComputedStyle(document.getElementById("child")).getPropertyValue("--other")}`);
         println(`registered value: ${getComputedStyle(document.getElementById("declarer")).getPropertyValue("--size")}`);
     });

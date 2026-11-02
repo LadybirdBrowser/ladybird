@@ -1,5 +1,1 @@
-specified winner changed: true
-equal computed group canonicalized: true
-computed output stopped propagation: true
-computed group handle stayed equal: true
 computed margin: 96px

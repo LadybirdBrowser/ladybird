@@ -117,7 +117,7 @@
 namespace Web::DOM {
 
 #if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
-static_assert(sizeof(Node) == 104);
+static_assert(sizeof(Node) == 96);
 #endif
 
 static bool final_direct_list_item_does_not_renumber_existing_content(Element const& list_item)
@@ -236,7 +236,7 @@ CSS::UserSelect Node::user_select_used_value() const
         element = flat_tree_parent_element();
     }
 
-    auto const* values = element ? element->style_group<CSS::ComputedValues::MiscResetValues>() : nullptr;
+    auto const* values = element ? element->style_group<CSS::ComputedValues::MiscInteractionValues>() : nullptr;
     if (!values)
         return CSS::UserSelect::None;
 
@@ -353,13 +353,6 @@ UniqueNodeID Node::unique_id() const
 {
     if (!m_node_directory_slot)
         m_node_directory_slot = allocate_node_directory_slot(const_cast<Node&>(*this));
-    return unique_id_of_node_directory_slot(m_node_directory_slot);
-}
-
-Optional<UniqueNodeID> Node::unique_id_if_assigned() const
-{
-    if (!m_node_directory_slot)
-        return {};
     return unique_id_of_node_directory_slot(m_node_directory_slot);
 }
 
@@ -715,38 +708,6 @@ CSS::StyleScope& Node::style_scope()
         return shadow_root->style_scope();
     }
     return document().style_scope();
-}
-
-void Node::record_style_environment_change()
-{
-    document().bump_style_environment_version();
-
-    if (is_document()) {
-        // NB: An engine created later starts from the environment as it is then.
-        if (auto* style_computer = document().style_computer_if_created())
-            CSS::StyleEngineFFI::style_engine_record_environment_change(style_computer->style_engine().host());
-        return;
-    }
-
-    // A shadow root has no style of its own, so a caller naming one means the scope it heads. An
-    // element names its own environment input; StyleEngine routes any consequences of its changed
-    // facts separately.
-    // The environment version this bumped is a published document input, so what these rows need
-    // is a drive against the new one, which the engine can do for itself. What the host knows that
-    // the engine does not is only WHICH nodes to drive, and that is what the reaction carries.
-    if (is_element()) {
-        auto& element = static_cast<Element&>(*this);
-        document().style_computer().style_engine().record_derived_element_style_input_change(element.style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
-        return;
-    }
-
-    for_each_shadow_including_inclusive_descendant([](Node& descendant) {
-        auto* element = as_if<Element>(descendant);
-        if (!element)
-            return TraversalDecision::Continue;
-        element->document().style_computer().style_engine().record_derived_element_style_input_change(element->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
-        return TraversalDecision::Continue;
-    });
 }
 
 Utf16String Node::child_text_content() const
@@ -1425,77 +1386,22 @@ static void pin_bound_box_style_record_for_detachment(Node& node, Optional<CSS::
     Layout::RustFFI::render_state_pin_bound_box_style_record_for_detachment(arena->host(), Layout::Node::style_node_of(&node).value(), generated_for);
 }
 
-class RemovalStyleRecordPins {
-public:
-    // NB: A document that has no style computer yet holds no style records to pin.
-    explicit RemovalStyleRecordPins(CSS::StyleComputer const* style_computer)
-        : m_style_computer(style_computer)
-    {
-    }
+// The boxes of a removed subtree can outlive its removing steps, so each keeps its style record, as its layout node
+// reads it, until it is detached.
+static void pin_bound_box_style_records_for_detachment(Node& node)
+{
+    node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
+        pin_bound_box_style_record_for_detachment(inclusive_descendant);
 
-    ~RemovalStyleRecordPins()
-    {
-        release_dom_style_records();
-    }
+        if (auto* element = as_if<Element>(inclusive_descendant)) {
+            element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement type, SyntheticPseudoElement&) {
+                pin_bound_box_style_record_for_detachment(*element, type);
+            });
+        }
 
-    void pin_style_records_before_removal(Node& node, bool was_connected)
-    {
-        if (!was_connected)
-            return;
-        node.for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
-            pin_bound_box_style_record_for_detachment(inclusive_descendant);
-
-            if (auto* element = as_if<Element>(inclusive_descendant)) {
-                pin_dom_style_record(element->style_record_identity());
-                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement type, SyntheticPseudoElement& pseudo_element) {
-                    pin_bound_box_style_record_for_detachment(*element, type);
-                    pin_dom_style_record(pseudo_element.style_record_identity());
-                });
-            }
-
-            return TraversalDecision::Continue;
-        });
-    }
-
-    void pin_style_records_after_removal(Node& node, bool was_connected)
-    {
-        if (was_connected)
-            return;
-        // Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive removing steps and
-        // keep their detachment pins.
-        node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
-            pin_bound_box_style_record_for_detachment(inclusive_descendant);
-
-            if (auto* element = as_if<Element>(inclusive_descendant)) {
-                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement type, SyntheticPseudoElement&) {
-                    pin_bound_box_style_record_for_detachment(*element, type);
-                });
-            }
-
-            return TraversalDecision::Continue;
-        });
-    }
-
-    void release_dom_style_records()
-    {
-        for (auto style_record_identity : m_dom_style_record_pins)
-            m_style_computer->unpin_style_record(style_record_identity);
-        m_dom_style_record_pins.clear();
-    }
-
-private:
-    void pin_dom_style_record(CSS::StyleRecordID style_record_identity)
-    {
-        if (!style_record_identity)
-            return;
-        VERIFY(m_style_computer);
-        m_style_computer->pin_style_record(style_record_identity);
-        m_dom_style_record_pins.append(style_record_identity);
-    }
-
-    GC::Ptr<CSS::StyleComputer const> m_style_computer;
-    Vector<CSS::StyleRecordID, 16> m_dom_style_record_pins;
-};
+        return TraversalDecision::Continue;
+    });
+}
 
 bool Node::schedule_list_item_renumber_for_removal()
 {
@@ -1616,6 +1522,15 @@ GC::RootVector<GC::Ref<HTML::HTMLSlotElement>> Node::descendant_slots_before_rem
             shadow_root->assign_slottables_if_needed();
     }
     return descendant_slots;
+}
+
+// The chain :focus-within leaves as a subtree does starts at the slot its root is assigned to, where it is one, which
+// nothing can tell once the root has left.
+static GC::Ptr<Node> old_flat_tree_parent_for_focus_within(Node& node, Node& parent)
+{
+    if (auto const* element = as_if<Element>(node); element && element->assigned_slot_internal())
+        return element->assigned_slot_internal();
+    return parent;
 }
 
 void Node::assign_slottables_after_removal(Node& parent, Node& parent_root, ReadonlySpan<GC::Ref<HTML::HTMLSlotElement>> descendant_slots)
@@ -1772,9 +1687,11 @@ void Node::remove(bool suppress_observers)
 
     auto& parent_root = parent->root();
     auto descendant_slots = descendant_slots_before_removal(parent_root);
+    auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*this, *parent);
+    bool const holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*this);
 
-    RemovalStyleRecordPins removal_style_record_pins { document().style_computer_if_created() };
-    removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
+    if (was_tracked_by_style_engine)
+        pin_bound_box_style_records_for_detachment(*this);
     if (was_tracked_by_style_engine) {
         Layout::ForcedReadScope read { document() };
         // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
@@ -1795,11 +1712,13 @@ void Node::remove(bool suppress_observers)
     // 10. If node has an inclusive descendant that is a slot, then:
     assign_slottables_after_removal(*parent, parent_root, descendant_slots);
 
-    removal_style_record_pins.pin_style_records_after_removal(*this, was_connected);
+    if (!was_connected)
+        pin_bound_box_style_records_for_detachment(*this);
 
     // NB: A subtree holding the focused or hovered node takes :focus-within and :hover out of its old ancestor
     //     chain. Republish that chain before the removing steps clear the focused area.
-    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
+    if (holds_a_propagating_state_source)
+        CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*this, old_flat_tree_parent);
 
     // 11. Run the removing steps with node, true, and parent.
     // 12. Let isParentConnected be parent’s connected.
@@ -1807,8 +1726,6 @@ void Node::remove(bool suppress_observers)
     //     callback name "disconnectedCallback", and an empty argument list.
     // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
     run_removing_steps(*parent, parent_root, was_tracked_by_style_engine);
-
-    removal_style_record_pins.release_dom_style_records();
 
     // 15. Add transient registered observers given node and parent.
     add_transient_registered_observers(*parent);
@@ -2088,6 +2005,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     GC::Ptr<Node> const moved_from_parent = moved_element ? moved_element->parent() : nullptr;
     GC::Ptr<Element> const moved_from_previous = moved_element ? moved_element->previous_element_sibling() : nullptr;
     GC::Ptr<Element> const moved_from_next = moved_element ? moved_element->next_element_sibling() : nullptr;
+    GC::Ptr<Element> const moved_from_slot = moved_element ? moved_element->assigned_slot_internal() : nullptr;
+    bool const holds_a_propagating_state_source = CSS::Invalidation::holds_a_propagating_state_source(*this);
 
     if (old_parent->is_connected()) {
         // NOTE: If we did not contribute to the layout tree before, rebuilding it will not create a box
@@ -2175,7 +2094,7 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     CSS::record_node_moved_in_dom_order(*this, *old_parent);
     if (moved_element)
-        CSS::record_element_moved(*moved_element, moved_from_parent.ptr(), moved_from_previous.ptr(), moved_from_next.ptr());
+        CSS::record_element_moved(*moved_element, moved_from_parent.ptr(), moved_from_previous.ptr(), moved_from_next.ptr(), moved_from_slot.ptr());
     else if (is<CharacterData>(*this)) {
         auto const* text = as_if<Text>(*this);
         auto counts_for_emptiness = text && !text->data().is_empty();
@@ -2236,7 +2155,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // NB: Refresh lookup caches before moving steps can query the completed tree change.
     document().subtree_was_moved({}, *this, old_parent_root);
 
-    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, moved_from_parent);
+    if (holds_a_propagating_state_source)
+        CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*this, moved_from_slot ? GC::Ptr<Node> { moved_from_slot } : moved_from_parent);
 
     // 25. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
     for_each_shadow_including_inclusive_descendant([this, &new_parent, old_parent](Node& inclusive_descendant) {
@@ -3197,9 +3117,11 @@ void Node::remove_all_children(bool suppress_observers)
             list_owner_renumber_scheduled = child->schedule_list_item_renumber_for_removal();
 
         auto descendant_slots = child->descendant_slots_before_removal(parent_root);
+        auto old_flat_tree_parent = old_flat_tree_parent_for_focus_within(*child, *this);
+        bool const child_holds_a_propagating_state_source = a_child_holds_a_propagating_state_source && CSS::Invalidation::holds_a_propagating_state_source(*child);
 
-        RemovalStyleRecordPins removal_style_record_pins { document().style_computer_if_created() };
-        removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
+        if (was_tracked_by_style_engine)
+            pin_bound_box_style_records_for_detachment(*child);
         if (was_tracked_by_style_engine) {
             Layout::ForcedReadScope read { document() };
             child->update_layout_tree_for_removal(read, *this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
@@ -3216,11 +3138,12 @@ void Node::remove_all_children(bool suppress_observers)
         // 10. If node has an inclusive descendant that is a slot, then:
         child->assign_slottables_after_removal(*this, parent_root, descendant_slots);
 
-        removal_style_record_pins.pin_style_records_after_removal(*child, was_connected);
+        if (!was_connected)
+            pin_bound_box_style_records_for_detachment(*child);
 
         // NB: Republish the old chain before the removing steps clear the focused area.
-        if (a_child_holds_a_propagating_state_source)
-            CSS::Invalidation::invalidate_style_after_subtree_place_changed(*child, this);
+        if (child_holds_a_propagating_state_source)
+            CSS::Invalidation::invalidate_style_after_subtree_holding_a_state_source_left(*child, old_flat_tree_parent);
 
         // 11. Run the removing steps with node, true, and parent.
         // 12. Let isParentConnected be parent’s connected.
@@ -3228,8 +3151,6 @@ void Node::remove_all_children(bool suppress_observers)
         //     node, callback name "disconnectedCallback", and an empty argument list.
         // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
         child->run_removing_steps(*this, parent_root, was_tracked_by_style_engine);
-
-        removal_style_record_pins.release_dom_style_records();
 
         // 15. Add transient registered observers given node and parent.
         child->add_transient_registered_observers(*this);
@@ -4280,7 +4201,7 @@ static void add_to_attribute_name_filter_of_parent(Node& parent, Node const& chi
     auto* parent_element = as_if<Element>(parent);
     auto const* child_element = as_if<Element>(child);
     if (parent_element && child_element)
-        parent_element->add_to_subtree_attribute_name_filter(child_element->subtree_attribute_name_filter());
+        parent_element->add_to_subtree_name_filter(child_element->subtree_name_filter());
 }
 
 void Node::append_child_impl(GC::Ref<Node> node)
@@ -4335,28 +4256,6 @@ void Node::begin_child_index_generation()
     });
 }
 
-void Node::add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups)
-{
-    auto const previous_groups = m_children_explicitly_inherited_non_inherited_style_groups;
-    m_children_explicitly_inherited_non_inherited_style_groups |= style_groups;
-    if (previous_groups != m_children_explicitly_inherited_non_inherited_style_groups)
-        publish_children_explicitly_inherit_mark();
-}
-
-void Node::publish_children_explicitly_inherit_mark()
-{
-    if (m_children_explicitly_inherited_non_inherited_style_groups == 0)
-        return;
-    // An element's or a shadow root's children are the ones that read it; the engine keeps no mark for anything else.
-    CSS::StyleNodeID style_node;
-    if (auto const* element = as_if<Element>(*this))
-        style_node = element->style_node_id();
-    else if (auto const* shadow_root = as_if<ShadowRoot>(*this))
-        style_node = shadow_root->style_node_id();
-    if (style_node != 0)
-        CSS::StyleEngineFFI::style_engine_note_children_explicitly_inherit(document().style_computer().style_engine().host(), style_node, m_children_explicitly_inherited_non_inherited_style_groups);
-}
-
 void Node::change_associated_animation_count_in_subtree(i32 delta)
 {
     for (auto* node = this; node; node = node->parent_or_shadow_host())
@@ -4400,9 +4299,9 @@ void Node::build_accessibility_tree(AccessibilityTreeNode& parent)
         // absence of a layout node must not exclude it: it is included under the usual rules, and when it isn't (for
         // a presentational role, e.g.), its children get flattened into its parent below.
         auto is_display_contents = element->has_display_contents();
-        auto const* inherited_box_values = element->style_group<CSS::ComputedValues::InheritedBoxValues>();
-        auto is_visibility_hidden = inherited_box_values
-            && static_cast<CSS::Visibility>(inherited_box_values->visibility) != CSS::Visibility::Visible;
+        auto const* inherited_values = element->style_inherited_set_values();
+        auto is_visibility_hidden = inherited_values
+            && CSS::visibility_from_inherited_bits(inherited_values->bits) != CSS::Visibility::Visible;
 
         if (element->include_in_accessibility_tree()) {
             auto current_node = AccessibilityTreeNode::create(this);

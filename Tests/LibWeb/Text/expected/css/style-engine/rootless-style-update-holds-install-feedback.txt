@@ -1,2 +1,1 @@
-transaction setups without a root: 0
 child color with the root back: rgb(0, 0, 255)

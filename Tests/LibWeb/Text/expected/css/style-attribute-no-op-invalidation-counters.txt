@@ -1,4 +1,4 @@
-setting identical style text: 0 recomputations, 0 engine records
-setting changed style text: 0 recomputations, 1 engine records
-setting identical custom property: 0 recomputations, 0 engine records
-setting changed custom property: 0 recomputations, 2 engine records
+setting identical style text, styled <= 0: true
+setting changed style text, styled <= 1: true
+setting identical custom property, styled <= 0: true
+setting changed custom property, styled <= 2: true

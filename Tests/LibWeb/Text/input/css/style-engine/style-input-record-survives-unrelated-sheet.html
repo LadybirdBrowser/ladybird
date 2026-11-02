@@ -24,12 +24,8 @@
         };
 
         insertSheet("* { outline-width: 1px }");
-        internals.resetStyleInvalidationCounters();
         insertSheet("* { outline-width: 2px }");
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`input changed by parent style: ${counters.elementStyleInputChangedByParentStyle}`);
-        println(`input changed by parent custom properties: ${counters.elementStyleInputChangedByParentCustomProperties}`);
         println(`item color: ${getComputedStyle(host.firstElementChild.firstElementChild).color}`);
         println(`wrap padding: ${getComputedStyle(host.firstElementChild).paddingTop}`);
     });

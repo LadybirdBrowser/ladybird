@@ -26,20 +26,18 @@
         first.assign(...children, text);
         internals.updateStyle();
 
-        let before = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         first.style.backgroundColor = "red";
         internals.updateStyle();
-        let after = internals.styleEngineCounters();
-        println(`manual slot paint change only reaches slot: ${after.reachedStyleNodes - before.reachedStyleNodes === 1}`);
+        println(`manual slot paint change only reaches slot: ${internals.styleCounters().styledElements === 1}`);
         println(`child background: ${getComputedStyle(children[0]).backgroundColor}`);
         println(`text remains assigned: ${first.assignedNodes().includes(text)}`);
 
         internals.updateStyle();
-        before = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         second.assign(children[0]);
         internals.updateStyle();
-        after = internals.styleEngineCounters();
-        println(`manual reassignment only reaches moved subtree: ${after.reachedStyleNodes - before.reachedStyleNodes <= 2}`);
+        println(`manual reassignment only reaches moved subtree: ${internals.styleCounters().styledElements <= 2}`);
         println(`moved child assigned to second: ${children[0].assignedSlot === second}`);
         println(`remaining child stays assigned to first: ${children[1].assignedSlot === first}`);
         println(`moved child color: ${getComputedStyle(children[0]).color}`);

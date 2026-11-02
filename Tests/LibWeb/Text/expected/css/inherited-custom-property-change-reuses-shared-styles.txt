@@ -1,3 +1,5 @@
 margin after change: 2px
 every child keeps its own margin: true
-children keep their styles: true
+every child inherits the new theme: true
+styled at most 1: true
+children compute no record of their own past the first: true

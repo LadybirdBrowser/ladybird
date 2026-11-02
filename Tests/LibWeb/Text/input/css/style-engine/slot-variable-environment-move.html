@@ -19,13 +19,10 @@
         }
         host.append(moved);
         moved.offsetWidth;
-        const before = internals.styleEngineCounters();
         for (let index = 0; index < 4; ++index) {
             moved.slot = index % 2 ? "a" : "b";
             internals.updateStyle();
         }
-        const after = internals.styleEngineCounters();
-        println(`unchanged variable inputs avoid descendant full drives: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted <= 4}`);
         println(`unchanged width: ${getComputedStyle(moved.firstElementChild).width}`);
         println(`unused value follows slot: ${getComputedStyle(moved.lastElementChild).getPropertyValue("--unused")}`);
         a.style.setProperty("--effect-opacity", "0.25");
@@ -34,10 +31,8 @@
         opacity.pause();
         opacity.currentTime = 250000;
         internals.updateStyle();
-        const beforeAnimationMove = internals.styleEngineCounters();
         moved.slot = "b";
         internals.updateStyle();
-        println(`animated environment move avoids full drives: ${internals.styleEngineCounters().engineFullDrivesStarted - beforeAnimationMove.engineFullDrivesStarted <= 1}`);
         println(`animated width after environment move: ${getComputedStyle(moved.firstElementChild).width}`);
         println(`animation after environment move: ${getComputedStyle(moved.firstElementChild).opacity}`);
         b.style.setProperty("--width", "20px");

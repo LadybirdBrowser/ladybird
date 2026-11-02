@@ -30,7 +30,6 @@
             return `${style.marginLeft}/${style.marginRight}, pseudo ${pseudo.marginLeft}/${pseudo.marginRight}`;
         };
         println(`initial: ${values(target)}`);
-        const before = child.internals.styleEngineCounters();
         root.classList.add("changed");
         const added = child.document.createElement("span");
         added.className = "target";
@@ -61,9 +60,5 @@
         root.classList.add("transitioning");
         root.style.fontSize = "30px";
         println(`transitioning root: ${values(target)}`);
-        const after = child.internals.styleEngineCounters();
-        println(`root font preparation exercised: ${after.rootFontInputsPrepared > before.rootFontInputsPrepared}`);
-        println(`root font fallback exercised: ${after.rootFontInputsUnprovenFallbacks > before.rootFontInputsUnprovenFallbacks}`);
-        println(`engine computation exercised: ${after.engineComputedRecordDeltas > before.engineComputedRecordDeltas}`);
     });
 </script>

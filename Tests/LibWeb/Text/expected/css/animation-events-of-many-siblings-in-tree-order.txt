@@ -1,0 +1,4 @@
+events in tree order: true
+after moving the last element first: true
+walks of the tree are bounded: true
+walks of the tree after an attribute change: 0

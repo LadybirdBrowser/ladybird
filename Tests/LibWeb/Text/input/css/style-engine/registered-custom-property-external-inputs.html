@@ -21,13 +21,9 @@
     // computes it against each, and a change of any reaches the element.
     promiseTest(async () => {
         internals.updateStyle();
-        const before = Object.assign({}, internals.styleEngineCounters());
         for (const element of [first, second])
             element.classList.add("on");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
-        println(`environments the engine resolved: ${after.engineCustomPropertyEnvironmentsResolved - before.engineCustomPropertyEnvironmentsResolved}`);
         const describe = element => {
             const style = getComputedStyle(element);
             return `--position ${style.getPropertyValue("--position")}, --container-length ${style.getPropertyValue("--container-length")}, width ${style.width}, z-index ${style.zIndex}`;

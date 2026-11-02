@@ -9,6 +9,7 @@
 <div id="clip"><div id="transformed"><svg><circle cx="50" cy="50" r="20" /></svg></div></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const target = document.querySelector("circle");
         const nextFrame = () => new Promise(requestAnimationFrame);
         async function settle() {

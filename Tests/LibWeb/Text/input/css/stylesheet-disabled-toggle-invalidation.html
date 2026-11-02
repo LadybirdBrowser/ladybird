@@ -5,10 +5,9 @@
 <div>bystander 2</div>
 <div>bystander 3</div>
 <script>
-    function settleAndReset(triggerElement) {
+    function settle(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
     }
 
     function addBystanders(parent, count) {
@@ -29,11 +28,11 @@
 
         println(`before disable: ${getComputedStyle(target).color}`);
 
-        settleAndReset(target);
+        settle(target);
         sheet.disabled = true;
         println(`after disable: ${getComputedStyle(target).color}`);
 
-        settleAndReset(target);
+        settle(target);
         sheet.disabled = false;
         println(`after re-enable: ${getComputedStyle(target).color}`);
     });

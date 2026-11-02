@@ -9,12 +9,9 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         sheet.sheet.insertRule("@counter-style stars { system: cyclic; symbols: '*'; }");
         document.documentElement.classList.add("moved");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`root font prepared: ${after.rootFontInputsPrepared > before.rootFontInputsPrepared}`);
         println(`plain width: ${getComputedStyle(plain).width}`);
     });
 </script>

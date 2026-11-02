@@ -13,15 +13,9 @@
         // engine's, display:none as the element is.
         const target = document.getElementById("target");
         internals.updateStyle();
-        const start = internals.styleEngineCounters();
-        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         target.className = "changed";
         internals.updateStyle();
-        const end = internals.styleEngineCounters();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         const before = getComputedStyle(target, "::before");
         println(`before: ${before.content} ${before.color}`);
-        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
-        println(`parent bails: ${end.engineComputedRecordBailRecordParent - start.engineComputedRecordBailRecordParent}`);
     });
 </script>

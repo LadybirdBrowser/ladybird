@@ -26,11 +26,8 @@
             animation.currentTime = 500000;
         }
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         target.style.backgroundColor = "red";
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`base change takes partial drive: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
         println(`transition objects survive: ${target.getAnimations().every(animation => animations.includes(animation))}`);
         println(`transition color: ${getComputedStyle(target).color}`);
         println(`transition opacity: ${getComputedStyle(target).opacity}`);

@@ -648,6 +648,7 @@ impl RetainedState {
                     crate::css::computed_value_views::ComputedValuesView::of(view.base_payloads)
                         .display()
                         .is_none()
+                        && !view.longhands().display_none_is_animated()
                 })
         })
     }
@@ -706,7 +707,6 @@ impl RetainedState {
     #[must_use]
     pub fn text_collapses_white_space(&self, node: StyleNodeID) -> Option<bool> {
         let parent = self
-            .tree
             .inheritance_parent(node)
             .filter(|parent| !self.tree.is_relation_only(*parent))?;
         let view = self.published_style_record_view(self.published_element_record(parent))?;

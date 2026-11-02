@@ -14,16 +14,14 @@
 </style>
 <div id="parent"><div id="child">x</div></div>
 <script>
-    // A child inherits the custom properties its parent's animations sample. Count who computed the child's
-    // record once a rule it matches moves.
+    // A child inherits the custom properties its parent's animations sample, also once a rule it
+    // matches moves.
     asyncTest(async done => {
         await document.getAnimations()[0].ready;
         const child = document.getElementById("child");
         println(`color: ${getComputedStyle(child).color}`);
         child.className = "moved";
-        const recomputationsBefore = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         internals.updateStyle();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
         println(`background-color: ${getComputedStyle(child).backgroundColor}`);
         done();
     });

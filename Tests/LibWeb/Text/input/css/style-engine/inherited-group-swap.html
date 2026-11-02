@@ -33,7 +33,6 @@
 
         getComputedStyle(plain).fontSize;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
 
         root.style.fontSize = "20px";
         internals.updateStyle();
@@ -42,11 +41,6 @@
         println(`declared font size: ${getComputedStyle(declaresFontSize).fontSize}`);
         println(`em margin: ${getComputedStyle(emMargin).marginLeft}`);
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`C++ recomputations: ${counters.elementStyleRecomputations}`);
-        println(`engine records: ${counters.engineComputedStyleRecords}`);
-
-        internals.resetStyleInvalidationCounters();
         root.style.color = "rgb(0, 128, 0)";
         internals.updateStyle();
 
@@ -58,8 +52,5 @@
         println(`mixed background color: ${getComputedStyle(mixed).backgroundColor}`);
         println(`shadow color: ${getComputedStyle(shadow).boxShadow}`);
         println(`stop color: ${getComputedStyle(stop).stopColor}`);
-        const colorCounters = internals.getStyleInvalidationCounters();
-        println(`color C++ recomputations: ${colorCounters.elementStyleRecomputations}`);
-        println(`color engine records: ${colorCounters.engineComputedStyleRecords}`);
     });
 </script>

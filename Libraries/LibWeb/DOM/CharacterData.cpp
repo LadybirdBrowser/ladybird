@@ -63,15 +63,15 @@ static bool whitespace_text_may_follow(Node const& node)
         if (auto const* text = as_if<Text>(*sibling))
             return text->data().is_ascii_whitespace();
         auto const* element = as_if<Element>(*sibling);
-        auto const* box_values = element ? element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
-        if (!box_values)
+        if (!element || !element->has_style())
             continue;
-        auto display = box_values->display_value();
+        CSS::ComputedStyleRecordView values { element->installed_style() };
+        auto display = values->display();
         // The children of a display: contents element continue the boxes before it.
         if (display.is_contents())
             return true;
-        auto is_out_of_flow = box_values->float_value() != CSS::Float::None
-            || first_is_one_of(box_values->position_value(), CSS::Positioning::Absolute, CSS::Positioning::Fixed);
+        auto is_out_of_flow = values->float_() != CSS::Float::None
+            || first_is_one_of(values->position(), CSS::Positioning::Absolute, CSS::Positioning::Fixed);
         if (!display.is_none() && !is_out_of_flow)
             return false;
     }

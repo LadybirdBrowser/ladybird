@@ -14,13 +14,10 @@
     test(() => {
         const target = document.getElementById("target");
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
         // The class change moves a value beside the running animation. The ::before inherits the
         // color the animation samples over the element's record.
         target.classList.add("taller");
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
         println(`height: ${getComputedStyle(target).height}`);
         println(`::before color: ${getComputedStyle(target, "::before").color}`);
     });

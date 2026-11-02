@@ -9,14 +9,8 @@
     test(() => {
         const style = getComputedStyle(target);
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
         target.classList.add("marked");
         internals.updateStyle();
-        const counters = internals.getStyleInvalidationCounters();
-        println(`recomputes: ${counters.elementStyleRecomputations}`);
-        println(`full builds: ${counters.baseStyleFullBuilds}`);
-        println(`partial builds: ${counters.baseStylePartialBuilds}`);
-        println(`unrelated longhands skipped: ${counters.computedLonghandEvaluations < 100}`);
         println(`color: ${style.color}`);
         println(`background-image ${style.backgroundImage.startsWith("url(") ? "kept" : "lost"}`);
     });

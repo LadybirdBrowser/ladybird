@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -82,8 +83,11 @@ void HTMLButtonElement::form_associated_element_attribute_changed(Utf16FlyString
 {
     PopoverTargetAttributes::associated_attribute_changed(name, value, namespace_);
 
-    if (name == AttributeNames::type && !namespace_.has_value())
+    if (name == AttributeNames::type && !namespace_.has_value()) {
         m_type_state = parse_type_attribute(value);
+        // The type decides whether the button is a candidate for constraint validation.
+        CSS::Invalidation::invalidate_style_after_validity_change(*this);
+    }
 
     if (name.is_one_of(AttributeNames::type, AttributeNames::command, AttributeNames::commandfor)) {
         submit_button_state_changed();

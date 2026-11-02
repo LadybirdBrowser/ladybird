@@ -6,18 +6,17 @@ unstyled child anchor at default: true
 unstyled child content at default: true
 unstyled child transform at default: true
 unstyled child effects at default: true
-unstyled child inheritedTable at default: true
-unstyled child inheritedList at default: true
+unstyled child inheritedListTable at default: true
 unstyled child inheritedSVG at default: true
 color-styled child inheritedText at default: false
 color-styled child inheritedText shared with parent: false
 color-styled child grid still at default: true
 grid-styled child grid at default: false
-unstyled-again child inheritedList shared with parent: true
+unstyled-again child inheritedListTable shared with parent: true
 unstyled-again child inheritedText shared with parent: true
 unstyled-again child font shared with parent: true
-unstyled-again child inheritedBox shared with parent: true
 unstyled-again child inheritedUI shared with parent: true
-writing-mode parent: child inheritedBox at default: false
-writing-mode parent: child inheritedBox shared with parent: true
-visibility-overriding child inheritedBox shared with parent: false
+writing-mode parent: child writing-mode: vertical-rl
+writing-mode parent: child visibility: hidden
+visibility-overriding child visibility: visible
+visibility-overriding child writing-mode: vertical-rl

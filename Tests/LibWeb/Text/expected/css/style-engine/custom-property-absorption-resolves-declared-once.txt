@@ -1,4 +1,1 @@
-custom property elements: 0
-custom property resolutions: 0
-custom property value computations: 0
 margin: 1px

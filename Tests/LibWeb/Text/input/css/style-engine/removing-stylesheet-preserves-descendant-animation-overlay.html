@@ -39,7 +39,6 @@
         target.offsetWidth;
         const fontLoadPromise = document.fonts.load("16px SlowAhem", "X").catch(() => {});
         println(`font status before removal: ${document.fonts.status}`);
-        println(`live overlays before removal: ${internals.styleEngineCounters().liveAnimationOverlayRecords}`);
 
         await new Promise(requestAnimationFrame);
         container.remove();

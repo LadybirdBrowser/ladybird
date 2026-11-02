@@ -17,19 +17,13 @@
         color(roots[0]);
         color(roots[1]);
         const sheet = roots[0].querySelector("style").sheet;
-        let before = internals.styleEngineCounters().styleRulesCompiled;
         sheet.insertRule(".target { color: red; }", 2);
-        println(`first edit compiles private contents: ${internals.styleEngineCounters().styleRulesCompiled - before}`);
         println(`first edit: ${color(roots[0])}, ${color(roots[1])}`);
 
-        before = internals.styleEngineCounters().styleRulesCompiled;
         sheet.insertRule(".target { color: green; }", 3);
-        println(`later insertion compiles one rule: ${internals.styleEngineCounters().styleRulesCompiled - before}`);
         println(`later insertion: ${color(roots[0])}, ${color(roots[1])}`);
 
-        before = internals.styleEngineCounters().styleRulesCompiled;
         sheet.cssRules[3].style.color = "blue";
-        println(`later declaration edit compiles no rules: ${internals.styleEngineCounters().styleRulesCompiled - before}`);
         println(`later declaration edit: ${color(roots[0])}, ${color(roots[1])}`);
         roots[0].host.remove();
         println(`second sheet outlives first: ${color(roots[1])}`);

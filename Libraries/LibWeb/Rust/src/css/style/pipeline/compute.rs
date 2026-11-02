@@ -1183,6 +1183,7 @@ impl RetainedState {
                 environment_reads,
                 reads_attributes: false,
                 container_units,
+                display_none_is_animated: false,
             },
             length: crate::css::style_compute::FfiLengthResolutionContext {
                 resolved_viewport_relative_length: std::ptr::null_mut(),

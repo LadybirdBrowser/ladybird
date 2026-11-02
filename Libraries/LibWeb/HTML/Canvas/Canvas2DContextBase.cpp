@@ -418,8 +418,8 @@ static bool resolve_font(CanvasType& canvas_element, Utf16View font, CanvasFontS
         auto& document = canvas_element.document();
         Layout::ForcedReadScope read { document };
         document.update_style_for_element(DOM::AbstractElement { canvas_element }, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
-        auto style_record = canvas_element.style_record_identity();
-        if (!style_record || has_flag(document.style_computer().style_engine().style_record_dependency_flags(read, style_record), CSS::StyleRecordDependencyFlag::InDisplayNoneSubtree))
+        auto const& style = canvas_element.installed_style();
+        if (!style || has_flag(style.dependency_flags(), CSS::StyleRecordDependencyFlag::InDisplayNoneSubtree))
             document.update_style_for_element(DOM::AbstractElement { canvas_element });
 
         if (canvas_element.navigable() && canvas_element.is_connected()) {

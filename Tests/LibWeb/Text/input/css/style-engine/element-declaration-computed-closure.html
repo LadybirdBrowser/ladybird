@@ -12,11 +12,8 @@
         internals.updateStyle();
 
         function mutate(label, mutation) {
-            const before = internals.getStyleInvalidationCounters();
             mutation();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label} unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 100}`);
             const style = getComputedStyle(target);
             println(`${label}: ${style.opacity}, ${style.transform}, ${style.color}`);
         }

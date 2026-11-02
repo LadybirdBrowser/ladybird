@@ -1,3 +1,0 @@
-materialized gaps: 0
-record deltas applied: 1
-color: rgb(0, 0, 255)

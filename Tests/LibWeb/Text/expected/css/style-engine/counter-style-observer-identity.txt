@@ -1,4 +1,0 @@
-environment unchanged: true
-computed content stayed equal: true
-observer metadata changed: true
-style record changed: true

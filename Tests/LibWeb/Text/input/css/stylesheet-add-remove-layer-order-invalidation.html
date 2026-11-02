@@ -6,17 +6,20 @@
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
     // A `<style>` element arriving or leaving is itself an element whose style is computed, so the
     // narrowest a layer-only sheet can be is that one element and nothing else.
-    function verifyRestyledOnlyItself(label) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= 1)
-            println(`PASS: ${label}`);
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function verifyStyledStaysBounded(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     function verifyRestyledTheLayeredElement(label) {
@@ -38,13 +41,13 @@
         document.head.appendChild(layerOrderStyle);
 
         getComputedStyle(target).color;
-        verifyRestyledOnlyItself("layer-only stylesheet add restyles nothing but itself");
+        verifyStyledStaysBounded("layer-only stylesheet add restyles nothing but itself", 1);
 
         settleAndReset(target);
         layerOrderStyle.remove();
 
         getComputedStyle(target).color;
-        verifyRestyledOnlyItself("layer-only stylesheet remove restyles nothing but itself");
+        verifyStyledStaysBounded("layer-only stylesheet remove restyles nothing but itself", 1);
 
         // With a declaration in a layer, a reorder that actually moves the layers has to reach
         // the element it decides for - and still not the whole document. The statement sheet is

@@ -14,8 +14,7 @@
 <div id="parent"></div>
 <script>
     // Each element substitutes a revert keyword into a longhand, written or through a shorthand. Each
-    // line prints how often the style engine refused the element's record for its substitution, how
-    // many elements C++ computed instead, and what the reverted longhands computed to.
+    // line prints what the reverted longhands computed to.
     const cases = [
         ["inline", "font-size: var(--missing, revert); margin-left: var(--missing, revert-layer); background-color: var(--missing, revert-layer)"],
         ["background-color", "background-color: var(--missing, revert-layer)"],
@@ -32,14 +31,10 @@
             element.id = id;
             if (inlineStyle)
                 element.setAttribute("style", inlineStyle);
-            const before = Object.assign({}, internals.styleEngineCounters());
-            internals.resetStyleInvalidationCounters();
             parent.appendChild(element);
             internals.updateStyle();
-            const after = internals.styleEngineCounters();
-            const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
             const style = getComputedStyle(element);
-            println(`${id}: substitution refusals ${after.engineComputedRecordBailSubstitution - before.engineComputedRecordBailSubstitution}, C++ recomputations ${recomputations}, color=${style.color} font-size=${style.fontSize} margin-left=${style.marginLeft} background-color=${style.backgroundColor}`);
+            println(`${id}: color=${style.color} font-size=${style.fontSize} margin-left=${style.marginLeft} background-color=${style.backgroundColor}`);
         }
     });
 </script>

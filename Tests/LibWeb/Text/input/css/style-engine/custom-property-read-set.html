@@ -39,22 +39,18 @@
 
         host.offsetWidth;
         getComputedStyle(maybe, "::before").content;
-        internals.resetStyleInvalidationCounters();
 
         document.documentElement.style.setProperty("--changed", "rgb(128, 0, 128)");
         internals.updateStyle();
 
-        const counters = internals.getStyleInvalidationCounters();
         const unrelated = host.lastElementChild;
         println(`changed value: ${getComputedStyle(changed).color}`);
         println(`fallback value: ${getComputedStyle(fallback).color}`);
         println(`unrelated value: ${getComputedStyle(unrelated).color}`);
         println(`refreshed inherited value: ${getComputedStyle(unrelated).getPropertyValue("--changed")}`);
-        println(`recomputations: ${counters.elementStyleRecomputations}`);
 
         // Pseudo-element substitution contributes to the originating element's read set even when
         // its previous value produced no pseudo-element.
-        internals.resetStyleInvalidationCounters();
         document.documentElement.style.setProperty("--show", '"created"');
         internals.updateStyle();
         println(`changed binding creates pseudo: ${getComputedStyle(maybe, "::before").content}`);

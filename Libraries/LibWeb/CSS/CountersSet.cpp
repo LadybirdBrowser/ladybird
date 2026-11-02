@@ -20,7 +20,7 @@ bool innermost_list_item_counter_is_own_forward_counter(DOM::Element const& elem
     auto const& style = element.installed_style();
     if (!style)
         return false;
-    return Layout::RustFFI::style_resets_forward_list_item_counter(style.view().payloads, style.view().payload_count);
+    return Layout::RustFFI::style_resets_forward_list_item_counter(style.view().groups);
 }
 
 Utf16FlyString const& list_item_counter_name()

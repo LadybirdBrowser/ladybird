@@ -18,11 +18,8 @@
         style.textContent = `.attribute .item { color: attr(data-late-color type(<color>)); }`;
         document.head.appendChild(style);
         internals.updateStyle();
-        let before = internals.getStyleInvalidationCounters();
         document.getElementById("parent").classList.add("attribute");
         internals.updateStyle();
-        let after = internals.getStyleInvalidationCounters();
-        println(`engine computed the readers: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 2}`);
         println(`sheet: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
 
         first.dataset.lateColor = "red";

@@ -1,4 +1,4 @@
-assign a slottable to a named slot: [a]
+assign a slottable to a named slot: []
 rewrite the attribute to the same slot: []
 send it to a slot that does not exist: [a]
 send it back to the default slot: [a]

@@ -19,13 +19,10 @@
 <script>
     // A slotted shadow host is weighed in the tree it is slotted into before its own shadow tree, though both
     // trees are as deeply encapsulated: the slot's tree wins normal declarations, the host's own important ones.
-    // Count who computed the host's record and its :host::before.
     test(() => {
         const inner = document.getElementById("inner");
         inner.className = "a b c";
-        const recomputationsBefore = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         internals.updateStyle();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - recomputationsBefore}`);
         println(`color: ${getComputedStyle(inner).color}`);
         println(`background-color: ${getComputedStyle(inner).backgroundColor}`);
         println(`::before color: ${getComputedStyle(inner, "::before").color}`);

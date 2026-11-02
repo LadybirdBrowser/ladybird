@@ -599,8 +599,8 @@ void NavigableContainer::report_content_navigable_viewport_rect(Layout::BegunRea
     visible.intersect({ {}, content_box.size() });
     if (Core::StatsLog::the()) {
         bool displayed = !visible.is_empty() && !document().navigable()->has_inclusive_ancestor_with_visibility_hidden();
-        if (auto const* values = style_group<CSS::ComputedValues::InheritedBoxValues>())
-            displayed &= static_cast<CSS::Visibility>(values->visibility) != CSS::Visibility::Hidden;
+        if (auto const* values = style_inherited_set_values())
+            displayed &= CSS::visibility_from_inherited_bits(values->bits) != CSS::Visibility::Hidden;
         report_stats_displayed(displayed);
     }
 

@@ -24,10 +24,9 @@
         return getComputedStyle(document.getElementById(id)).getPropertyValue(property);
     }
 
-    function settleAndReset(triggerElement) {
+    function settle(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
     }
 
     promiseTest(async () => {
@@ -74,7 +73,7 @@
         await waitForImportedSheet(removeStyle);
 
         const replaceTarget = document.getElementById("replace-target");
-        settleAndReset(replaceTarget);
+        settle(replaceTarget);
         removeStyle.remove();
         getComputedStyle(replaceTarget).color;
     });

@@ -23,11 +23,8 @@
 
         // The class change moves only the longhands declaring #target's animations. The animations
         // they name start in the same style update, and the values they sample reach it.
-        const before = internals.getStyleInvalidationCounters();
         target.className = "animating";
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`C++ recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
         println(`after: ${getComputedStyle(target).width} ${getComputedStyle(target).opacity}`);
         println(`names: ${target.getAnimations().map(animation => animation.animationName).join(",")}`);
         println(`durations: ${target.getAnimations().map(animation => animation.effect.getTiming().duration).join(",")}`);

@@ -19,12 +19,8 @@
     // is empty.
     function read(element, pseudo) {
         internals.updateStyle();
-        const start = internals.styleEngineCounters();
         const color = getComputedStyle(element, pseudo).color;
-        const end = internals.styleEngineCounters();
-        const drove = end.engineFullDrivesStarted - start.engineFullDrivesStarted > 0;
-        const leftToHost = end.pseudoRecordDemandsLeftToHost - start.pseudoRecordDemandsLeftToHost;
-        println(`${element.id}${pseudo}: ${color}, engine drove it: ${drove}, left to the host: ${leftToHost}`);
+        println(`${element.id}${pseudo}: ${color}`);
     }
     test(() => {
         for (const pseudo of ["::placeholder", "::file-selector-button", "::view-transition-group(name)", "::view-transition-image-pair(name)", "::view-transition-old(name)", "::view-transition-new(name)"])

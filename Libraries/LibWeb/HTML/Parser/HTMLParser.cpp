@@ -18,6 +18,7 @@
 #include <LibGC/RootVector.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -2968,6 +2969,7 @@ extern "C" void ladybird_html_parser_set_document_quirks_mode(void* parser, Rust
     auto& document = parser_from_html_parser_ffi(parser).document();
     if (!document.parser_cannot_change_the_mode())
         document.set_quirks_mode(quirks_mode_from_html_parser_ffi(mode));
+    CSS::prepare_non_author_stylesheets(document);
 }
 
 extern "C" bool ladybird_html_parser_document_is_iframe_srcdoc_document(void* parser)

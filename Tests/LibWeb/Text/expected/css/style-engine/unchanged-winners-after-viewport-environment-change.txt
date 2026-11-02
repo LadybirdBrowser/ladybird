@@ -2,5 +2,3 @@ initial width: 30px
 resized width: 50px
 font-relative height: 20px
 fixed width: 23px
-C++ recomputations: 0
-engine answered: true

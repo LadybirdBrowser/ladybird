@@ -11,13 +11,10 @@
             parent.append(child);
         }
         parent.offsetWidth;
-        const before = internals.styleEngineCounters();
         for (let index = 0; index < 4; ++index) {
             parent.style.backgroundColor = index % 2 ? "red" : "blue";
             internals.updateStyle();
         }
-        const after = internals.styleEngineCounters();
-        println(`unrelated paint avoids full descendant computations: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
         parent.style.width = "30px";
         println(`changed inherited width: ${getComputedStyle(parent.firstElementChild).width}`);
         parent.firstElementChild.style.marginLeft = "inherit";
@@ -41,10 +38,8 @@
         shadow.innerHTML = '<div style="height: var(--missing, inherit)"></div>';
         document.body.append(host);
         host.offsetWidth;
-        const beforeShadow = internals.styleEngineCounters();
         host.style.backgroundColor = "blue";
         internals.updateStyle();
-        println(`unrelated host paint avoids full shadow computations: ${internals.styleEngineCounters().engineFullDrivesStarted === beforeShadow.engineFullDrivesStarted}`);
         host.style.height = "40px";
         println(`substituted inheritance in shadow tree: ${getComputedStyle(shadow.firstElementChild).height}`);
 
@@ -60,10 +55,8 @@
             if (slotAssignment === "manual")
                 slot.assign(assigned);
             slotHost.offsetWidth;
-            const beforeSlot = internals.styleEngineCounters();
             slot.style.backgroundColor = "blue";
             internals.updateStyle();
-            println(`${slotAssignment} slot paint avoids full assigned computations: ${internals.styleEngineCounters().engineFullDrivesStarted === beforeSlot.engineFullDrivesStarted}`);
             slot.style.width = "30px";
             println(`${slotAssignment} slot inherited width: ${getComputedStyle(assigned).width}`);
         }

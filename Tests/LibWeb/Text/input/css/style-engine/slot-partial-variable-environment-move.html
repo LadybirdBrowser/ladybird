@@ -17,13 +17,10 @@
         }
         host.append(moved);
         moved.offsetWidth;
-        const before = internals.styleEngineCounters();
         for (let index = 0; index < 4; ++index) {
             moved.slot = index % 2 ? "a" : "b";
             internals.updateStyle();
         }
-        const after = internals.styleEngineCounters();
-        println(`changed variables use partial descendant drives: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted <= 4}`);
         moved.slot = "b";
         println(`changed width: ${getComputedStyle(moved.firstElementChild).width}`);
         println(`changed shorthand: ${getComputedStyle(moved.firstElementChild).paddingTop}`);

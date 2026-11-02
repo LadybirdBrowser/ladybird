@@ -101,6 +101,7 @@ struct StyleInvalidation {
     any_computed_value_changed: bool,
     affects_hit_testing: bool,
     repaint_highlights: bool,
+    white_space_collapse_changed: bool,
 }
 
 impl StyleInvalidation {
@@ -151,6 +152,7 @@ impl StyleInvalidation {
         self.any_computed_value_changed |= other.any_computed_value_changed;
         self.affects_hit_testing |= other.affects_hit_testing;
         self.repaint_highlights |= other.repaint_highlights;
+        self.white_space_collapse_changed |= other.white_space_collapse_changed;
     }
 
     /// Whether the damage stays in the box of its element: no layout tree, stacking context, visual context, scroll
@@ -185,6 +187,7 @@ impl StyleInvalidation {
             any_computed_value_changed: has(FfiStyleInvalidationField::AnyComputedValueChanged),
             affects_hit_testing: has(FfiStyleInvalidationField::AffectsHitTesting),
             repaint_highlights: has(FfiStyleInvalidationField::RepaintHighlights),
+            white_space_collapse_changed: has(FfiStyleInvalidationField::WhiteSpaceCollapseChanged),
         }
     }
 
@@ -204,6 +207,8 @@ impl StyleInvalidation {
             u32::from(self.any_computed_value_changed) * FfiStyleInvalidationField::AnyComputedValueChanged as u32;
         packed |= u32::from(self.affects_hit_testing) * FfiStyleInvalidationField::AffectsHitTesting as u32;
         packed |= u32::from(self.repaint_highlights) * FfiStyleInvalidationField::RepaintHighlights as u32;
+        packed |=
+            u32::from(self.white_space_collapse_changed) * FfiStyleInvalidationField::WhiteSpaceCollapseChanged as u32;
         packed
     }
 }
@@ -224,7 +229,8 @@ pub(super) fn main_effects_of_damage(
     let effects = MainEffects::NONE
         .with(MainEffects::REBUILD, rebuilds)
         .with(MainEffects::SCROLL_SNAP, damage.resnap_scroll_container)
-        .with(MainEffects::HIGHLIGHTS, damage.repaint_highlights && !rebuilds);
+        .with(MainEffects::HIGHLIGHTS, damage.repaint_highlights && !rebuilds)
+        .with(MainEffects::HOST_BOX_FACTS, damage.white_space_collapse_changed);
     (effects, LayoutTreeRebuildRoot::from_raw(damage.rebuild_root))
 }
 
@@ -592,6 +598,21 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     };
     if matches!(property, property_id::CONTAINER_NAME | property_id::CONTAINER_TYPE) {
         result.recompute_descendants = true;
+    }
+    // The clip that `overflow: clip` gives a box's visual context reaches out by the box's overflow-clip-margin.
+    if matches!(
+        property,
+        property_id::OVERFLOW_CLIP_MARGIN_TOP
+            | property_id::OVERFLOW_CLIP_MARGIN_RIGHT
+            | property_id::OVERFLOW_CLIP_MARGIN_BOTTOM
+            | property_id::OVERFLOW_CLIP_MARGIN_LEFT
+    ) {
+        result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
+    }
+    if property == property_id::WHITE_SPACE_COLLAPSE {
+        let collapse = crate::css::css_enums::white_space_collapse::COLLAPSE;
+        result.white_space_collapse_changed =
+            (old.white_space_collapse() == collapse) != (new.white_space_collapse() == collapse);
     }
     if property == property_id::TEXT_DECORATION_LINE {
         result.repaint_text_decorations = true;

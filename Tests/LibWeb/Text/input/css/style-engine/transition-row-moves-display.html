@@ -10,12 +10,10 @@
         const target = document.getElementById("target");
         const measure = (label, mutation) => {
             internals.updateStyle();
-            const before = internals.getStyleInvalidationCounters();
             mutation();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
             const animations = target.getAnimations().map(animation => animation.transitionProperty).sort().join(",");
-            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}, display ${getComputedStyle(target).display}, transitions ${animations}`);
+            println(`${label}: display ${getComputedStyle(target).display}, transitions ${animations}`);
         };
         target.firstChild.remove();
         // The class change moves display beside a value a transition runs on: the display

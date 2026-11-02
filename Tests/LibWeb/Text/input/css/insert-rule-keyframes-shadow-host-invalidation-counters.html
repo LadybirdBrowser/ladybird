@@ -5,7 +5,8 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).animationName;
         getComputedStyle(triggerElement).animationName;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, count) {
@@ -33,10 +34,6 @@
 
         sheet.insertRule("@keyframes fade { from { opacity: 0.25; } to { opacity: 0.25; } }", sheet.cssRules.length);
         getComputedStyle(host).animationName;
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= 2)
-            println(`PASS: bare :host keyframes insertRule only recomputes the host`);
-        else
-            println(`FAIL: bare :host keyframes insertRule only recomputes the host (${recomputations} recomputations)`);
+        println(`bare :host keyframes insertRule only restyles the host, styled <= 2: ${internals.styleCounters().styledElements <= 2}`);
     });
 </script>

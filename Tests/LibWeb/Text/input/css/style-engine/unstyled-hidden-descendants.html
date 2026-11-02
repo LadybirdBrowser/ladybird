@@ -14,11 +14,8 @@ test(() => {
         child.className = 'child';
         host.append(child);
     }
-    const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
     document.body.append(host);
     internals.updateStyle();
-    const after = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-    println(`hidden children deferred: ${after - before < 100}`);
     const child = host.lastElementChild;
     println(`targeted hidden read: ${getComputedStyle(child).width}, ${getComputedStyle(child).color}`);
     child.style.width = '59px';

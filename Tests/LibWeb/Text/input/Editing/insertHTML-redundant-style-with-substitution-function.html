@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    #editor {
+        --three: 3px;
+    }
+    #editor .matched {
+        margin: 3px;
+    }
+</style>
+<div id="editor" contenteditable>ab</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const editor = document.getElementById("editor");
+        for (const html of [
+            `<span style="--own: 7px; margin: var(--own)">x</span>`,
+            `<span style="margin: var(--three); color: red">x</span>`,
+            `<span class="matched" style="margin: var(--three)">x</span>`,
+            `<span style="background: var(--undefined)">x</span>`,
+            `<span style="margin-inline: var(--three)">x</span>`,
+            `<span style="border: var(--three) solid">x</span>`,
+            `<span style="border: var(--undefined) solid; color: red">x</span>`,
+            `<span style="margin: var(--three); margin-left: 1px">x</span>`,
+        ]) {
+            editor.textContent = "ab";
+            getSelection().collapse(editor.firstChild, 1);
+            document.execCommand("insertHTML", false, html);
+            println(editor.innerHTML);
+        }
+    });
+</script>

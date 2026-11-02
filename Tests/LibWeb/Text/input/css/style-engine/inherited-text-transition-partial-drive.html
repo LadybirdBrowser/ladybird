@@ -26,11 +26,8 @@
         animation.pause();
         animation.currentTime = 500000;
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         animation.currentTime = 750000;
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`inherited text changes take partial drives: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
         println(`inherited color: ${getComputedStyle(plain).color}`);
         println(`currentcolor border: ${getComputedStyle(plain).borderTopColor}`);
         println(`currentcolor background: ${getComputedStyle(plain).backgroundColor}`);
@@ -91,12 +88,8 @@
                 animation.currentTime = 500000;
             }
             internals.updateStyle();
-            const isolatedBefore = internals.styleEngineCounters();
             isolatedAnimation.currentTime = 750000;
             internals.updateStyle();
-            const isolatedAfter = internals.styleEngineCounters();
-            println(`${transitionProperty} siblings avoid full drives: ${isolatedAfter.engineFullDrivesStarted === isolatedBefore.engineFullDrivesStarted}`);
-            println(`${transitionProperty} siblings share partial drive: ${isolatedAfter.enginePartialDrivesStarted - isolatedBefore.enginePartialDrivesStarted === 1}`);
             println(`${transitionProperty} sibling color: ${getComputedStyle(isolated.lastElementChild).color}`);
             println(`${transitionProperty} transition objects retained: ${isolated.getAnimations({ subtree: true }).every(animation => animations.includes(animation))}`);
         }

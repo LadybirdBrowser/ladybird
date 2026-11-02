@@ -21,16 +21,13 @@
         const settled = document.getElementById("settled");
         const partial = document.getElementById("partial");
         internals.updateStyle();
-        const sharedComputations = () => internals.getStyleInvalidationCounters().elementStyleSharedComputations;
 
         // The donor recomputes first to the style the stale element is changing to, without changing its color,
         // so the stale element takes that style from the sharing cache instead of deriving it. The transition
         // must still start from the stale element's own previous color.
         donor.className = "item done";
         stale.className = "item done";
-        const before = sharedComputations();
         internals.updateStyle();
-        println(`shared computations: ${sharedComputations() - before}`);
         println(`donor: color=${getComputedStyle(donor).color} animations=${donor.getAnimations().length}`);
         println(`stale: color=${getComputedStyle(stale).color} animations=${stale.getAnimations().length}`);
 

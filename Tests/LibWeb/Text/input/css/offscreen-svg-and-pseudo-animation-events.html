@@ -10,6 +10,7 @@
 <div id="clip"><svg><circle cx="10" cy="10" r="5" /></svg><div id="target"></div></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const events = [];
         document.addEventListener("animationiteration", event => events.push(`${event.animationName} iteration ${event.elapsedTime}`));
         document.addEventListener("animationend", event => events.push(`${event.animationName} end ${event.elapsedTime}`));

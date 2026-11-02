@@ -330,6 +330,12 @@ impl<'a> ViewLonghands<'a> {
         self.0.facts().declares_transitions()
     }
 
+    /// Whether `display` computed to `none` only through the custom properties the element's
+    /// animations sampled.
+    pub(crate) fn display_none_is_animated(self) -> bool {
+        self.0.rare().reads.display_none_is_animated
+    }
+
     /// The computed `display` with what `overlay` composes over it.
     pub(crate) fn effective_display(
         self,

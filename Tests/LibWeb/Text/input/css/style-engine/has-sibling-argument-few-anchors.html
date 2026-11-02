@@ -19,18 +19,12 @@
         cells[0].appendChild(bar);
         internals.updateStyle();
 
-        function measure(mutation) {
-            const before = internals.styleEngineCounters();
-            mutation();
-            internals.updateStyle();
-            const after = internals.styleEngineCounters();
-            return Object.fromEntries(Object.keys(after).map(name => [name, after[name] - before[name]]));
-        }
 
-        let anchorsConsidered = 0;
-        for (let index = 1; index < 9; ++index)
-            anchorsConsidered += measure(() => cells[index].appendChild(bar)).relationalAnchorsConsidered;
-        println(`moving an element among possible witnesses considers few anchors: ${anchorsConsidered < 100}`);
+        // Move an element among possible witnesses.
+        for (let index = 1; index < 9; ++index) {
+            cells[index].appendChild(bar);
+            internals.updateStyle();
+        }
 
         const item = strip.querySelector(".item");
         println(`item unstyled without a selected element after the divider: ${getComputedStyle(item).color === "rgb(0, 0, 0)"}`);

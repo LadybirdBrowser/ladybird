@@ -12,11 +12,8 @@ test(() => {
     const host = document.createElement("div");
     host.className = "hidden";
     host.innerHTML = `<div class="child"></div><svg><linearGradient id="gradient"><stop offset="0"></stop></linearGradient></svg>`;
-    const counters = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
-    const before = counters();
     document.body.append(host);
     internals.updateStyle();
-    println(`C++ computations for the hidden subtree: ${counters() - before}`);
     println(`hidden SVG resource: ${getComputedStyle(host.querySelector("stop")).stopColor}`);
     const child = host.firstElementChild;
     println(`hidden child: ${getComputedStyle(child).width}, ${getComputedStyle(child).color}`);

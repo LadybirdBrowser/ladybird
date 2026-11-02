@@ -13,11 +13,11 @@
         internals.updateStyle();
 
         function mutate(label, mutation) {
-            const before = internals.getStyleInvalidationCounters();
+            internals.resetStyleCounters();
             mutation();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label} stays selective: ${after.elementStyleRecomputations - before.elementStyleRecomputations < 8}`);
+            const counters = internals.styleCounters();
+            println(`${label} stays selective: ${counters.styledElements < 8}`);
             println(`${label} target opacity: ${getComputedStyle(target).opacity}`);
             println(`${label} other opacity: ${getComputedStyle(other).opacity}`);
         }

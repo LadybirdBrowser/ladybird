@@ -43,13 +43,5 @@
         // A reference sitting in a fallback that is never chosen creates no cycle.
         println(`fallback-cycle margin: ${getComputedStyle(fallbackCycle).marginBottom}`);
         println(`fallback-cycle --p: [${getComputedStyle(fallbackCycle).getPropertyValue("--p")}]`);
-
-        // How much walking those answers took. Declared values is the input size; computations
-        // above it are values walked into again for another value's sake.
-        const counters = internals.getStyleInvalidationCounters();
-        println(`declared values resolved: ${counters.customPropertyResolutions}`);
-        println(`value computations: ${counters.customPropertyValueComputations}`);
-        println(`computations answered from finished values: ${counters.customPropertyOverlayHits}`);
-        println(`values resolved inside a reference cycle: ${counters.customPropertyCycleParticipants}`);
     });
 </script>

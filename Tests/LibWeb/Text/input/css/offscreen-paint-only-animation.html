@@ -10,6 +10,7 @@
 </style>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const nextFrame = () => new Promise(requestAnimationFrame);
         async function settle() {
             for (let i = 0; i < 4; ++i)

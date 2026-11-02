@@ -44,10 +44,10 @@
         plan("remove the last property from a stylesheet rule", () =>
             document.styleSheets[0].cssRules[0].style.removeProperty("color"));
 
-        // Writing the same declarations again moves nothing.
+        // Writing the same declarations again moves nothing, so nothing is restyled.
         item.setAttribute("style", "color: red");
         planSetup();
         item.setAttribute("style", "color: red");
-        println(`rewrite the same inline style: [${internals.styleEngineTransactionReactions().elements.join(", ")}]`);
+        println(`rewrite the same inline style: [${planPass().styled.join(", ")}]`);
     });
 </script>

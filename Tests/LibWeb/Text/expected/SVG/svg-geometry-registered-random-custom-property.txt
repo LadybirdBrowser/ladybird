@@ -1,0 +1,2 @@
+outside the document: 10
+in a template's fragment: 10

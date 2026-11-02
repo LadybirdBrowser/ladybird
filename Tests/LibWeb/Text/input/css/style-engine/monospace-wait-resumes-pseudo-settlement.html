@@ -16,16 +16,9 @@
         const target = document.createElement("span");
         target.id = "target";
         target.style.cssText = "--width: 10cqw; width: var(--width)";
-        const start = internals.styleEngineCounters();
-        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         document.getElementById("ex").appendChild(target);
         internals.updateStyle();
-        const end = internals.styleEngineCounters();
-        const counter = name => (end[name] ?? 0) - (start[name] ?? 0);
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         println(`before: ${getComputedStyle(target, "::before").content}`);
         println(`after: ${getComputedStyle(target, "::after").fontFamily}`);
-        println(`engine pseudo records: ${counter("engineComputedPseudoRecords")}`);
-        println(`font refill rounds: ${counter("fontRefillRounds")}`);
     });
 </script>

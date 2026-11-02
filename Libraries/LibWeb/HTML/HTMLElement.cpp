@@ -639,7 +639,7 @@ static Vector<RenderedTextItem> rendered_text_collection_steps(Layout::BegunRead
     if (auto const* layout_text_node = as_if<Layout::TextNode>(layout_node)) {
         items.append(UnprocessedText {
             layout_text_node->rendered_text_for_dom(),
-            style_node.style_group<CSS::ComputedValues::InheritedTextValues>().white_space_collapse_value(),
+            CSS::white_space_collapse_from_inherited_bits(style_node.inherited_set_values().bits),
         });
         return items;
     }
@@ -860,9 +860,9 @@ GC::Ptr<DOM::Element> HTMLElement::offset_parent() const
         //    fixed, and no ancestor establishes a fixed position containing block, terminate this algorithm and return
         //    null.
         bool ancestor_is_closed_shadow_hidden = ancestor->is_closed_shadow_hidden_from(*this);
-        auto const* ancestor_box_values = ancestor->style_group<CSS::ComputedValues::BoxValues>();
-        VERIFY(ancestor_box_values);
-        bool ancestor_is_fixed_position = static_cast<CSS::Positioning>(ancestor_box_values->position) == CSS::Positioning::Fixed;
+        auto ancestor_reset_bits = ancestor->style_reset_bits();
+        VERIFY(ancestor_reset_bits.has_value());
+        bool ancestor_is_fixed_position = CSS::position_from_reset_bits(*ancestor_reset_bits) == CSS::Positioning::Fixed;
         auto const* ancestor_layout_node = ancestor->layout_node(read);
         if (ancestor_is_closed_shadow_hidden
             && ancestor_is_fixed_position
@@ -1150,6 +1150,17 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
 
 void HTMLElement::set_subtree_inertness(bool is_inert)
 {
+    // NB: An inert element behaves as if it were not editable, which :read-write and :read-only tell.
+    struct PreviousReadWriteState {
+        GC::Ptr<DOM::Element> element;
+        bool value;
+    };
+    GC::ConservativeVector<PreviousReadWriteState> previous_read_write_states;
+    for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
+        previous_read_write_states.append({ element, SelectorMatching::element_matches_state(element, CSS::PseudoClass::ReadWrite) });
+        return TraversalDecision::Continue;
+    });
+
     auto repaint_if_inertness_reaches_painted_output = [](DOM::Node& node) {
         node.publish_dom_paint_facts();
     };
@@ -1173,6 +1184,8 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
         update_inertness(*html_element);
         return TraversalDecision::Continue;
     });
+    for (auto const& state : previous_read_write_states)
+        CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
     document().page().keyboard_scroll_editability_changed(document());
 }
 

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    input { color: rgb(255, 0, 0); }
+    input:focus { color: rgb(0, 128, 0); }
+    div { background-color: rgb(255, 0, 0); }
+    div:focus-within { background-color: rgb(0, 128, 0); }
+    #target { display: none; }
+    #keeper:focus-within > #target { display: block; }
+</style>
+<div id="wrapper"><input id="first"></div>
+<input id="second">
+<div id="keeper" tabindex="0"><div id="target" tabindex="0"></div></div>
+<script>
+    test(() => {
+        const report = label => println(`${label}: first ${getComputedStyle(first).color}, wrapper ${getComputedStyle(wrapper).backgroundColor}, second ${getComputedStyle(second).color}`);
+        first.focus();
+        report("focused");
+
+        // What a blur handler reads of the style of the old area is what it matches then.
+        first.addEventListener("blur", () => {
+            println(`in blur: active ${document.activeElement.tagName}, first ${first.matches(":focus")}, wrapper ${wrapper.matches(":focus-within")}`);
+            report("in blur");
+        });
+        second.focus();
+        report("moved");
+        second.blur();
+        report("blurred");
+
+        // A blur handler reading the style must not keep the new area from passing its focusability check, which a
+        // selector keeps rendered through the state the old area leaves.
+        keeper.addEventListener("blur", () => println(`keeper in blur: ${keeper.matches(":focus-within")}, target ${getComputedStyle(target).display}`));
+        keeper.focus();
+        target.focus();
+        println(`keeper: active ${document.activeElement.id}, target ${getComputedStyle(target).display}`);
+
+        // A blur handler moving focus back ends with the old area focused.
+        first.focus();
+        const back = () => { first.removeEventListener("blur", back); first.focus(); };
+        first.addEventListener("blur", back);
+        second.focus();
+        println(`moved back: active ${document.activeElement.id}, first ${getComputedStyle(first).color}, wrapper ${getComputedStyle(wrapper).backgroundColor}`);
+    });
+</script>

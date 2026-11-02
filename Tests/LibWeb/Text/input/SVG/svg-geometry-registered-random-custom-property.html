@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<style>
+    @property --registered {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", "M0 0 L10 0");
+        path.style.cssText = "--registered: random(1px, 5px); stroke-width: var(--registered)";
+        println(`outside the document: ${path.getTotalLength()}`);
+
+        const template = document.createElement("template");
+        template.content.append(path);
+        println(`in a template's fragment: ${path.getTotalLength()}`);
+    });
+</script>

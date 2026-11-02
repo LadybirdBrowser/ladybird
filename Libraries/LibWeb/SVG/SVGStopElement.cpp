@@ -22,7 +22,7 @@ SVGStopElement::SVGStopElement(DOM::Document& document, DOM::QualifiedName quali
 Gfx::Color SVGStopElement::stop_color()
 {
     if (auto const* values = style_group<CSS::ComputedValues::SVGResetValues>())
-        return Gfx::Color::from_bgra(values->stop_color);
+        return CSS::resolve_style_color(values->stop_color, style_group<CSS::ComputedValues::InheritedTextValues>()->color_value());
     return CSS::InitialValues::stop_color();
 }
 

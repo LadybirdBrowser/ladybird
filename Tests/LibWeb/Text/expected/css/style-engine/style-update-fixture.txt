@@ -10,7 +10,6 @@ connected: insert: PASS
 connected: remove: PASS
 connected: move-out: PASS
 connected: move-back: PASS
-connected: coverage: PASS
 detached: ancestor-class-add: PASS
 detached: ancestor-class-remove: PASS
 detached: child-class-add: PASS
@@ -23,4 +22,3 @@ detached: insert: PASS
 detached: remove: PASS
 detached: move-out: PASS
 detached: move-back: PASS
-detached: coverage: PASS

@@ -14,12 +14,14 @@ use super::StyleEngine;
 use super::atoms::{AtomKey, AtomLease};
 use super::bridge::{
     FfiDemandedPseudoElement, FfiElementArrival, FfiElementDeclarationDelta, FfiLocalFeatureDelta,
-    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta, borrow,
+    FfiPseudoElementRecordDemand, FfiRecordDemand, FfiRecordDemandAnswer, FfiStateDelta, FfiTreeDelta,
+    FfiTreeRelations, borrow,
 };
 use super::font_resolution::{FontResolverHost, PublishedFontFaces};
 use super::inputs::RetainedCustomPropertyData;
 use super::instrumentation::Counter;
-use super::publication::{RecordDemand, RecordDemandAnswer, Unanswered};
+use super::pipeline::projection::ProjectionPublication;
+use super::publication::RecordDemand;
 use super::random_bases::ParkedBaseValues;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{HashMap, StyleAtomID};
@@ -42,7 +44,6 @@ pub(crate) enum EngineWrite {
         data: Option<RetainedCustomPropertyData>,
         identity: u64,
         sampled_over: Option<u64>,
-        declares: bool,
     },
     /// The custom-property environment one of an element's synthetic pseudo-elements holds, or none.
     PseudoElementCustomPropertyData {
@@ -50,17 +51,37 @@ pub(crate) enum EngineWrite {
         pseudo: u8,
         data: Option<RetainedCustomPropertyData>,
         identity: u64,
+        /// The environment its animation overlay lies over, where it holds one.
+        sampled_over: Option<u64>,
     },
-    /// The host minted these identities, which the engine makes live ahead of anything recorded about them.
+    /// The host minted these identities, which the engine's tree makes live ahead of anything recorded about them.
     MintStyleNodes(Box<[u32]>),
-    /// The tree, arrival, feature, state and declaration deltas the host staged, as one batch.
-    ApplyTransaction(Box<StagedInput>),
-    /// The parts an element exposes, each with the shadow host it is exposed to.
-    ElementParts { node: StyleNodeID, pairs: ElementParts },
+    /// The unique node ids the document names the elements of an arriving subtree by.
+    ElementUniqueNodeIds(Box<[(StyleNodeID, i64)]>),
+    /// The text nodes of an arriving subtree, with what each holds.
+    TextArrivals(Box<[TextArrival]>),
+    /// The host ended the style update it took last: the engine lets go of the records it pinned for the host's
+    /// layout, and releases the identities no reader can name any more, which the job that applies it pays the host
+    /// to mint again.
+    EndStyleUpdate { pinned: Box<[u64]> },
+    /// What the host wrote of its elements since its last barrier, published at this one.
+    Publish(Box<HostPublication>),
+    /// The hover moves to the element, or off the document for none, once what the host wrote before is in place.
+    MoveHover(Option<StyleNodeID>),
+    /// The host wrote a shadow host's root, which it did not have before where `attached`.
+    ShadowRoot { host: StyleNodeID, attached: bool },
+    /// A slot's assigned nodes moved, which can hide or show its fallback content under the hover.
+    SlotAssignedNodes,
+    /// The element moved into or out of the top layer, as its host facts the host published say.
+    TopLayerMove { node: StyleNodeID },
+    /// The element asks for another principal box, as its host facts the host published say.
+    BoxKindChange { node: StyleNodeID },
+    /// Text identities retire as their nodes disconnect.
+    RetireTexts(Box<[StyleNodeID]>),
+    /// The root of a shadow tree's scope.
+    TreeScopeRoot { tree_scope: TreeScopeID, root: StyleNodeID },
     /// The characters a text node holds.
     TextData { node: u32, data: ak::Utf16String },
-    /// The language an element resolves to, and the tag a `:lang()` range compares against.
-    ElementLanguage { node: u32, language: u32, text: Box<[u16]> },
     /// The presentational hints of one kind an element declares, expanded to the longhands they decide.
     PresentationalHints {
         node: StyleNodeID,
@@ -70,23 +91,10 @@ pub(crate) enum EngineWrite {
     /// An element's inline declaration block, or none.
     InlineStyle {
         node: StyleNodeID,
-        data: Option<Arc<crate::css::declaration_block::DeclarationBlockData>>,
+        data: Option<crate::css::declaration_block::SharedDeclarationBlock>,
     },
     /// A name the host interned, which the engine adopts as the atom the host's lease holds.
     AdoptAtom(AtomLease),
-    /// The other names the attribute name `name` answers to, and the local name an `attr()` reads it by where it is in
-    /// no namespace.
-    AttributeNameForms {
-        name: StyleAtomID,
-        forms: super::index::AttributeNameForms,
-        substitution_name: Option<Box<[u16]>>,
-    },
-    /// What a value of the attribute name `name` spells, which the engine keeps where something reads it.
-    AttributeValueText {
-        name: StyleAtomID,
-        value: StyleAtomID,
-        text: crate::css::retained_fly_string::RetainedUtf16FlyString,
-    },
     /// An element loses its style node, and keeps the random base values of the keys that name it in `slot`.
     ParkRandomBaseValues { node: StyleNodeID, slot: ParkedBaseValues },
     /// An element's new style node takes back the random base values the element kept in `slot`.
@@ -95,23 +103,13 @@ pub(crate) enum EngineWrite {
     /// store.
     NoteCustomPropertyEnvironment {
         identity: u64,
-        store: Option<super::custom_property_environments::RetainedCustomPropertyStore>,
+        store: Option<std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
         inheritable: u64,
-        inheritable_store: Option<super::custom_property_environments::RetainedCustomPropertyStore>,
-    },
-    /// The host folded the style input `node` owes into the reaction it applies to it, as it knew it would fold
-    /// (see [`DeferredInputs::absorb`]), which `absorbed` answered: the engine folds it the same.
-    AbsorbElementStyleInput {
-        node: StyleNodeID,
-        reaction: u8,
-        inherited_style_groups: u8,
-        absorbs_any: bool,
-        absorbed: u32,
+        inheritable_store: Option<std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
     },
     /// The `@keyframes` row of one style scope, named by the shadow root's pointer identity as well where it is one.
     AnimationKeyframes {
         tree_scope: TreeScopeID,
-        shadow_root_identity: usize,
         row: super::animations::KeyframesRow,
     },
     /// The `@position-try` row of one style scope.
@@ -133,55 +131,45 @@ pub(crate) enum EngineWrite {
     },
 }
 
-/// The tree, arrival, feature, state and declaration deltas the host recorded since it last submitted them, which reach
-/// the engine as one batch.
-#[derive(Default)]
-pub(crate) struct StagedInput {
-    tree: Vec<FfiTreeDelta>,
-    arrivals: Vec<FfiElementArrival>,
-    /// The custom states of every arrival, which each names by its offset and count.
-    arrival_custom_state_atoms: Vec<u32>,
-    features: Vec<FfiLocalFeatureDelta>,
-    states: Vec<FfiStateDelta>,
-    declarations: Vec<FfiElementDeclarationDelta>,
-    /// The element the hover moves to once the rest is in place, or none for a move off the document, where the input
-    /// moves it.
-    hover: Option<Option<StyleNodeID>>,
+/// What the host publishes at a barrier: its projection rows, and what its elements arrived with and declare beside
+/// them, which the render owner keeps elsewhere.
+pub(crate) struct HostPublication {
+    projection: ProjectionPublication,
+    /// The elements published standing for an element-backed pseudo-element of their shadow host, which the render
+    /// owner finds them by.
+    backing_elements: Box<[StyleNodeID]>,
+    declarations: Box<[FfiElementDeclarationDelta]>,
 }
 
-impl StagedInput {
-    /// How many tree deltas the batch holds, each of which may deepen the tree by a level.
-    pub(crate) fn tree_delta_count(&self) -> usize {
-        self.tree.len()
+impl HostPublication {
+    /// How many elements' links the publication wrote, each of which may deepen the tree by a level.
+    pub(crate) fn link_rows_written(&self) -> usize {
+        self.projection.link_rows_written()
     }
+}
 
-    fn is_empty(&self) -> bool {
-        self.tree.is_empty()
-            && self.arrivals.is_empty()
-            && self.features.is_empty()
-            && self.states.is_empty()
-            && self.declarations.is_empty()
-            && self.hover.is_none()
-    }
-
-    /// Stages the move of the hover to `target`, or off the document for none.
-    pub(crate) fn stage_hover(&mut self, target: Option<StyleNodeID>) {
-        self.hover = Some(target);
-    }
+/// What the host writes beside its projection rows until its next barrier publishes them.
+#[derive(Default)]
+pub(crate) struct UnpublishedInputs {
+    backing_elements: Vec<StyleNodeID>,
+    declarations: Vec<FfiElementDeclarationDelta>,
 }
 
 impl EngineWrite {
     /// Whether the write may move a fact the host knows of the render state. What a text, an attribute name or an
     /// attribute value spells never does: it stages no style input and touches no layout box.
     pub(crate) fn may_move_facts(&self) -> bool {
-        !matches!(
-            self,
-            Self::TextData { .. } | Self::AttributeNameForms { .. } | Self::AttributeValueText { .. }
-        )
+        !matches!(self, Self::TextData { .. } | Self::EndStyleUpdate { .. })
     }
 
     pub(crate) fn apply(self, engine: &mut StyleEngine) {
         match self {
+            Self::EndStyleUpdate { pinned } => {
+                for record in pinned {
+                    engine.unpin_layout_style_record(record);
+                }
+                engine.release_style_update_identities();
+            }
             Self::PublishFontFaces {
                 font_faces,
                 feature_values_shadow_scopes,
@@ -190,67 +178,86 @@ impl EngineWrite {
                     Some(resolver) => resolver.publish(font_faces),
                     None => engine.host.font_resolver = Some(FontResolverHost::new(font_faces)),
                 }
-                engine
-                    .retained
-                    .font_resolution
-                    .get_or_insert_default()
-                    .publish_feature_values_shadow_scopes(feature_values_shadow_scopes);
+                let font_resolution = engine.retained.font_resolution.get_or_insert_default();
+                font_resolution.forget_earlier_generations();
+                font_resolution.publish_feature_values_shadow_scopes(feature_values_shadow_scopes);
             }
             Self::ElementCustomPropertyData {
                 node,
                 data,
                 identity,
                 sampled_over,
-                declares,
-            } => engine.set_element_custom_property_data(node, data, identity, sampled_over, declares),
+            } => {
+                // The children of an element style styles inherit what its animations
+                // sample into its custom properties. Where an installation let go of its
+                // composition, what moved is told once the host settled it again.
+                let held_composition = match engine.composition_released(node) {
+                    true => None,
+                    false => engine.hold_composition(node),
+                };
+                engine.set_element_custom_property_data(node, data, identity, sampled_over);
+                if let Some(held_composition) = held_composition {
+                    engine.note_composition_moved(node, held_composition);
+                }
+            }
             Self::PseudoElementCustomPropertyData {
                 node,
                 pseudo,
                 data,
                 identity,
-            } => engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity),
+                sampled_over,
+            } => engine.set_pseudo_element_custom_property_data(node, pseudo, data, identity, sampled_over),
             Self::MintStyleNodes(nodes) => engine.mint_style_nodes(&nodes),
-            Self::ApplyTransaction(input) => {
-                engine.apply_transaction_batch(
-                    &input.tree,
-                    (&input.arrivals, &input.arrival_custom_state_atoms),
-                    &input.features,
-                    &input.states,
-                    &input.declarations,
-                    &[],
-                );
-                // The hover moves where the host asks, and its chain follows the tree where the tree moved under it.
-                let hover = input
-                    .hover
-                    .or_else(|| (!input.tree.is_empty()).then(|| engine.hover_target()));
-                if let Some(target) = hover {
-                    engine.set_hover(target);
+            Self::ElementUniqueNodeIds(ids) => {
+                for &(node, unique_node_id) in &ids {
+                    engine.set_element_unique_node_id(node, unique_node_id);
                 }
             }
-            Self::ElementParts { node, pairs } => engine.set_element_parts(node, &pairs),
+            Self::TextArrivals(texts) => {
+                for text in texts {
+                    engine.set_text_is_ascii_whitespace(text.node, text.is_ascii_whitespace);
+                    engine.set_text_is_in_user_agent_shadow_tree(text.node, text.is_in_user_agent_shadow_tree);
+                    engine.set_text_is_password_input(text.node, text.is_password_input);
+                    engine.set_text_data(text.node, text.data);
+                }
+            }
+            Self::Publish(publication) => {
+                let HostPublication {
+                    projection,
+                    backing_elements,
+                    declarations,
+                } = *publication;
+                engine.adopt_host_publication(projection, &backing_elements, &declarations);
+            }
+            Self::MoveHover(target) => engine.set_hover(target),
+            Self::ShadowRoot { host, attached } => engine.note_shadow_root(host, attached),
+            Self::RetireTexts(nodes) => engine.retire_text_style_nodes(nodes),
+            Self::TopLayerMove { node } => engine.note_top_layer_move(node),
+            Self::BoxKindChange { node } => engine.note_box_kind_change(node),
+            Self::TreeScopeRoot { tree_scope, root } => engine.set_tree_scope_root(tree_scope, root),
+            Self::SlotAssignedNodes => {
+                // Text-only assignments do not carry element tree deltas, but can hide or restore fallback content.
+                if let Some(target) = engine.hover_target() {
+                    engine.set_hover(Some(target));
+                }
+            }
             Self::TextData { node, data } => {
                 if let Some(node) = StyleNodeID::from_raw(node) {
                     engine.set_text_data(node, data);
                 }
             }
-            Self::ElementLanguage { node, language, text } => {
-                if language != 0 && !text.is_empty() {
-                    // A range is not a name, so `:lang()` compares against the tag itself. It is recorded once per
-                    // language rather than once per element.
-                    engine.set_element_language_text(StyleAtomID(language), &text);
-                }
-                if let Some(node) = StyleNodeID::from_raw(node) {
-                    engine.set_element_language(node, StyleAtomID(language));
-                }
-            }
             Self::PresentationalHints { node, kind, properties } => {
-                super::bridge::register_element_declared_properties(engine, node, kind, &properties, &[]);
+                super::bridge::register_element_declared_properties(
+                    engine,
+                    node,
+                    kind,
+                    properties
+                        .iter()
+                        .map(crate::css::declaration_block::DeclaredProperty::borrowed),
+                    Default::default(),
+                );
             }
-            Self::AnimationKeyframes {
-                tree_scope,
-                shadow_root_identity,
-                row,
-            } => engine.animation_keyframes.set(tree_scope, shadow_root_identity, row),
+            Self::AnimationKeyframes { tree_scope, row } => engine.animation_keyframes.set(tree_scope, row),
             Self::PositionTryRules { tree_scope, row } => engine.position_try_rules.set(tree_scope, row),
             Self::AnimationEffectDescriptions { node, slot, effects } => {
                 engine.animation_effect_descriptions.set(node, slot, effects);
@@ -267,32 +274,21 @@ impl EngineWrite {
                     engine,
                     node,
                     super::bridge::FfiElementDeclarationKind::InlineStyle,
-                    data.as_ref().map_or(&[], |data| data.properties.as_slice()),
-                    data.as_ref().map_or(&[], |data| data.custom_properties.as_slice()),
+                    data.as_ref()
+                        .map_or_else(Default::default, |data| data.properties())
+                        .iter(),
+                    data.as_ref()
+                        .map_or(Default::default(), |data| data.custom_properties()),
                 );
             }
             Self::AdoptAtom(lease) => {
+                debug_assert!(lease.is_of(engine.retained.atoms.process_atoms()));
                 let atom = match lease.key() {
                     AtomKey::Raw(raw) => engine.intern_atom(raw).0,
                     AtomKey::Qualified(namespace, name) => engine.intern_qualified_atom(namespace, name).0,
                 };
                 // The engine took a reference of its own, so the global atom stays the one the lease held.
                 assert_eq!(atom, lease.atom().0, "a document adopts the atom its host interned");
-            }
-            Self::AttributeNameForms {
-                name,
-                forms,
-                substitution_name,
-            } => {
-                engine.note_attribute_name_forms(name, forms);
-                if let Some(local_name) = substitution_name {
-                    engine.note_attribute_substitution_name(name, &local_name);
-                }
-            }
-            Self::AttributeValueText { name, value, text } => {
-                if engine.attribute_name_requires_value_text(name) {
-                    engine.set_attribute_value_text(value, &text.to_utf16());
-                }
             }
             Self::ParkRandomBaseValues { node, slot } => {
                 *slot.lock().expect("a parked row is never poisoned") =
@@ -311,41 +307,17 @@ impl EngineWrite {
                 super::bridge::note_custom_property_environment(
                     engine,
                     identity,
-                    store
-                        .as_ref()
-                        .map(super::custom_property_environments::RetainedCustomPropertyStore::store),
+                    store.as_ref(),
                     inheritable,
-                    inheritable_store
-                        .as_ref()
-                        .map(super::custom_property_environments::RetainedCustomPropertyStore::store),
-                );
-            }
-            Self::AbsorbElementStyleInput {
-                node,
-                reaction,
-                inherited_style_groups,
-                absorbs_any,
-                absorbed,
-            } => {
-                let engine_absorbed =
-                    engine.absorb_element_style_input(node, reaction, inherited_style_groups, absorbs_any);
-                // A fold that merges nothing into the reaction answers the same as none.
-                debug_assert!(
-                    engine_absorbed == absorbed
-                        || (absorbed == 0
-                            && engine_absorbed == u32::from(reaction) | (u32::from(inherited_style_groups) << 8)),
-                    "the engine folds a style input as the host did"
+                    inheritable_store.as_ref(),
                 );
             }
         }
     }
 }
 
-/// The parts an element exposes, each with the shadow host it is exposed to.
-type ElementParts = Box<[(StyleAtomID, StyleNodeID)]>;
-
 /// The parts the element `node` exposes, each with the shadow host it is exposed to, or none for no element.
-fn element_parts(node: u32, names: &[u32], hosts: &[u32]) -> Option<(StyleNodeID, ElementParts)> {
+fn element_parts(node: u32, names: &[u32], hosts: &[u32]) -> Option<(StyleNodeID, Vec<(StyleAtomID, StyleNodeID)>)> {
     let node = StyleNodeID::from_raw(node)?;
     let pairs = names
         .iter()
@@ -393,8 +365,7 @@ pub unsafe extern "C" fn style_engine_publish_font_faces(
 }
 
 /// Keeps the custom-property environment an element now holds, named by `identity`: for the element's animation
-/// overlay, the environment `base` its style resolved to beneath it, and whether `base` declares custom properties of its
-/// own over the one it inherits. A null `data` is none.
+/// overlay, and the environment `base` its style resolved to beneath it. A null `data` is none.
 ///
 /// # Safety
 /// `host` must be a live document host, and `data` null or a live `Web::CSS::CustomPropertyData`.
@@ -405,13 +376,15 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
     data: *const c_void,
     identity: u64,
     is_animation_overlay: bool,
-    declares: bool,
     base: u64,
 ) {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    host.engine_memo().held.borrow_mut().follow_element(node, data);
+    host.engine_memo()
+        .held
+        .borrow_mut()
+        .follow_element(node, HeldEnvironment::new(data, is_animation_overlay));
     // SAFETY: Guaranteed by the caller.
     let data = (!data.is_null()).then(|| unsafe { RetainedCustomPropertyData::retain(data) });
     let write = EngineWrite::ElementCustomPropertyData {
@@ -419,13 +392,13 @@ pub unsafe extern "C" fn style_engine_set_element_custom_property_data(
         data,
         identity,
         sampled_over: is_animation_overlay.then_some(base),
-        declares,
     };
     host.queue_change(ArenaChange::Engine(write));
 }
 
 /// Keeps the custom-property environment one of an element's synthetic pseudo-elements now holds, named by
-/// `identity`. A null `data` is none.
+/// `identity`: for the pseudo-element's animation overlay, the environment `base` its style resolved to beneath it. A
+/// null `data` is none.
 ///
 /// # Safety
 /// `host` must be a live document host, and `data` null or a live `Web::CSS::CustomPropertyData`.
@@ -436,14 +409,17 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
     pseudo: u8,
     data: *const c_void,
     identity: u64,
+    is_animation_overlay: bool,
+    base: u64,
 ) {
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
-    host.engine_memo()
-        .held
-        .borrow_mut()
-        .follow_pseudo_element(node, pseudo, data);
+    host.engine_memo().held.borrow_mut().follow_pseudo_element(
+        node,
+        pseudo,
+        HeldEnvironment::new(data, is_animation_overlay),
+    );
     // SAFETY: Guaranteed by the caller.
     let data = (!data.is_null()).then(|| unsafe { RetainedCustomPropertyData::retain(data) });
     let write = EngineWrite::PseudoElementCustomPropertyData {
@@ -451,83 +427,205 @@ pub unsafe extern "C" fn style_engine_set_pseudo_element_custom_property_data(
         pseudo,
         data,
         identity,
+        sampled_over: is_animation_overlay.then_some(base),
     };
     host.queue_change(ArenaChange::Engine(write));
 }
 
-/// Makes the identities `nodes`, which the host minted, live.
+/// Mints an identity into each slot of `nodes`, text identities where `text`, otherwise element ones, and makes them
+/// live in the engine.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, nodes: ak::Span<'_, u32>) {
-    host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes(
-        nodes.as_slice().into(),
-    )));
+pub extern "C" fn style_engine_mint_style_nodes(host: &DocumentHost, text: bool, nodes: ak::SpanMut<'_, u32>) {
+    let nodes = nodes.into_slice();
+    host.engine_memo().identities.borrow_mut().mint(text, nodes);
+    host.engine_memo()
+        .projection
+        .borrow_mut()
+        .writes()
+        .mint(nodes.iter().copied().filter_map(StyleNodeID::from_raw));
+    host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes((&*nodes).into())));
 }
 
-/// Stages the tree delta `delta` for the input the host submits next.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &FfiTreeDelta) {
-    host.engine_memo().staged_input.borrow_mut().tree.push(*delta);
+/// A text node of an arriving subtree, with what it holds.
+pub(crate) struct TextArrival {
+    node: StyleNodeID,
+    data: ak::Utf16String,
+    is_ascii_whitespace: bool,
+    is_in_user_agent_shadow_tree: bool,
+    is_password_input: bool,
 }
 
-/// Stages the arrival of an element with the custom states at `custom_states` for the input the host submits next.
+/// An element of an arriving subtree: its identity, the unique node id the document names it by, and how it stands in
+/// the tree.
+#[repr(C)]
+pub struct FfiArrivingElement {
+    pub unique_node_id: u64,
+    pub node: u32,
+    pub relations: FfiTreeRelations,
+}
+
+/// A text node of an arriving subtree: its identity, the characters it holds, as one reference to a live string, and
+/// what it is.
+#[repr(C)]
+pub struct FfiArrivingText {
+    pub data: usize,
+    pub node: u32,
+    pub is_ascii_whitespace: bool,
+    pub is_in_user_agent_shadow_tree: bool,
+    pub is_password_input: bool,
+}
+
+/// Writes the arrival of each element of an arriving subtree into the host's projection rows in one call, as a tree
+/// delta from standing in no tree, and the unique node ids the document names them by.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_stage_element_arrivals(host: &DocumentHost, elements: ak::Span<'_, FfiArrivingElement>) {
+    let elements = elements.as_slice();
+    let detached = FfiTreeRelations {
+        parent: 0,
+        previous_element_sibling: 0,
+        next_element_sibling: 0,
+        tree_scope: 0,
+        assigned_slot: 0,
+    };
+    {
+        let mut projection = host.engine_memo().projection.borrow_mut();
+        let mut writes = projection.writes();
+        for element in elements {
+            writes.record_ffi_tree_delta(&FfiTreeDelta {
+                node: element.node,
+                old_connected: false,
+                new_connected: true,
+                old_relations: detached,
+                new_relations: element.relations,
+            });
+        }
+    }
+    let ids: Box<[(StyleNodeID, i64)]> = elements
+        .iter()
+        .filter_map(|element| {
+            Some((
+                StyleNodeID::from_raw(element.node)?,
+                element.unique_node_id.cast_signed(),
+            ))
+        })
+        .collect();
+    if !ids.is_empty() {
+        host.queue_change(ArenaChange::Engine(EngineWrite::ElementUniqueNodeIds(ids)));
+    }
+}
+
+/// Writes each text node of an arriving subtree, with what it holds, in one write.
 ///
 /// # Safety
-/// `host` must be a live document host, on its document's thread, and `custom_states` must point at
-/// `custom_state_count` readable atoms.
+/// `host` must be a live document host, and the caller transfers one reference to each text's live string `data`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_stage_text_arrivals(host: &DocumentHost, texts: ak::Span<'_, FfiArrivingText>) {
+    let texts: Box<[TextArrival]> = texts
+        .as_slice()
+        .iter()
+        .filter_map(|text| {
+            // SAFETY: Guaranteed by the caller.
+            let data = unsafe { ak::Utf16String::from_raw_owned(text.data) };
+            Some(TextArrival {
+                node: StyleNodeID::from_raw(text.node)?,
+                data,
+                is_ascii_whitespace: text.is_ascii_whitespace,
+                is_in_user_agent_shadow_tree: text.is_in_user_agent_shadow_tree,
+                is_password_input: text.is_password_input,
+            })
+        })
+        .collect();
+    if !texts.is_empty() {
+        host.queue_change(ArenaChange::Engine(EngineWrite::TextArrivals(texts)));
+    }
+}
+
+/// Writes the tree delta `delta` into the host's projection rows.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_stage_tree_delta(host: &DocumentHost, delta: &FfiTreeDelta) {
+    host.engine_memo()
+        .projection
+        .borrow_mut()
+        .writes()
+        .record_ffi_tree_delta(delta);
+}
+
+/// Writes the arrival of an element, with every fact its selectors test, into its projection row in one go, and keeps
+/// what it arrives with beside its row for the host's next barrier.
+///
+/// # Safety
+/// `host` must be a live document host, on its document's thread, `custom_states` and `classes` must point at
+/// `arrival.custom_state_count` and `arrival.class_count` readable atoms, and `attributes` at
+/// `2 * arrival.attribute_count` readable atoms, a name and a value per attribute.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_stage_element_arrival(
     host: &DocumentHost,
     arrival: &FfiElementArrival,
     custom_states: *const u32,
-    custom_state_count: usize,
+    classes: *const u32,
+    attributes: *const u32,
 ) {
-    let mut staged = host.engine_memo().staged_input.borrow_mut();
-    let mut arrival = *arrival;
-    arrival.custom_state_offset =
-        u32::try_from(staged.arrival_custom_state_atoms.len()).expect("an input stages fewer than 2^32 custom states");
-    arrival.custom_state_count =
-        u32::try_from(custom_state_count).expect("an element has fewer than 2^32 custom states");
+    let Some(node) = StyleNodeID::from_raw(arrival.node) else {
+        debug_assert!(false, "an element arrival named an invalid style node");
+        return;
+    };
+    let mut atoms: smallvec::SmallVec<[u32; 32]> = smallvec::SmallVec::new();
     // SAFETY: Guaranteed by the caller.
-    staged
-        .arrival_custom_state_atoms
-        .extend_from_slice(unsafe { borrow(custom_states, custom_state_count) });
-    staged.arrivals.push(arrival);
+    unsafe {
+        atoms.extend_from_slice(borrow(custom_states, arrival.custom_state_count as usize));
+        atoms.extend_from_slice(borrow(classes, arrival.class_count as usize));
+        atoms.extend_from_slice(borrow(attributes, 2 * arrival.attribute_count as usize));
+    }
+    let memo = host.engine_memo();
+    memo.projection
+        .borrow_mut()
+        .writes()
+        .record_element_arrival(node, &super::bridge::element_arrival_facts(arrival, &atoms));
+    if arrival.associated_pseudo_kind_plus_one != 0 {
+        memo.unpublished.borrow_mut().backing_elements.push(node);
+    }
 }
 
-/// Stages the local feature delta `delta` for the input the host submits next.
+/// Writes the local feature delta `delta` into the host's projection rows.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_stage_local_feature_delta(host: &DocumentHost, delta: &FfiLocalFeatureDelta) {
-    host.engine_memo().staged_input.borrow_mut().features.push(*delta);
+    host.engine_memo()
+        .projection
+        .borrow_mut()
+        .writes()
+        .record_ffi_local_feature(delta);
 }
 
-/// Stages the state delta `delta` for the input the host submits next.
+/// Writes the state delta `delta` into the host's projection rows.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_stage_state_delta(host: &DocumentHost, delta: &FfiStateDelta) {
-    host.engine_memo().staged_input.borrow_mut().states.push(*delta);
+    host.engine_memo()
+        .projection
+        .borrow_mut()
+        .writes()
+        .record_ffi_state(delta);
 }
 
-/// Stages the element declaration delta `delta` for the input the host submits next.
+/// Keeps the element declaration delta `delta` for the host's next barrier.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_stage_element_declaration_delta(
     host: &DocumentHost,
     delta: &FfiElementDeclarationDelta,
 ) {
-    host.engine_memo().staged_input.borrow_mut().declarations.push(*delta);
+    host.engine_memo().unpublished.borrow_mut().declarations.push(*delta);
 }
 
-/// Whether the host staged deltas it has not submitted yet.
+/// Whether the host wrote anything of its elements it has not published yet.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_has_staged_input(host: &DocumentHost) -> bool {
-    !host.engine_memo().staged_input.borrow().is_empty()
+    host.engine_memo().has_unpublished_writes()
 }
 
-/// Submits the deltas the host staged as one batch, which the engine applies in order with the host's other writes.
+/// Publishes what the host wrote of its elements since its last barrier, which the engine takes in order with the
+/// host's other writes.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_submit_staged_input(host: &DocumentHost) {
-    let staged = std::mem::take(&mut *host.engine_memo().staged_input.borrow_mut());
-    if !staged.is_empty() {
-        host.queue_change(ArenaChange::Engine(EngineWrite::ApplyTransaction(Box::new(staged))));
-    }
+    host.publish_element_writes();
 }
 
 /// Records the parts the element exposes, each with the shadow host at `hosts` it is exposed to.
@@ -545,7 +643,11 @@ pub unsafe extern "C" fn style_engine_set_element_parts(
     // SAFETY: Guaranteed by the caller.
     let (names, hosts) = unsafe { (borrow(names, count), borrow(hosts, count)) };
     if let Some((node, pairs)) = element_parts(node, names, hosts) {
-        host.queue_change(ArenaChange::Engine(EngineWrite::ElementParts { node, pairs }));
+        host.engine_memo()
+            .projection
+            .borrow_mut()
+            .writes()
+            .set_element_parts(node, &pairs);
     }
 }
 
@@ -592,10 +694,7 @@ pub(crate) fn with_engine_and_arena<R>(
 /// The custom-property environment an element holds, or null.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_element_custom_property_data(host: &DocumentHost, node: u32) -> *const c_void {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return std::ptr::null();
-    };
-    host.engine_memo().held.borrow().element(node)
+    held_environment(host, node, None).data()
 }
 
 /// The custom-property environment one of an element's synthetic pseudo-elements holds, or null.
@@ -605,22 +704,34 @@ pub extern "C" fn style_engine_pseudo_element_custom_property_data(
     node: u32,
     pseudo: u8,
 ) -> *const c_void {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return std::ptr::null();
-    };
-    host.engine_memo().held.borrow().pseudo_element(node, pseudo)
+    held_environment(host, node, Some(pseudo)).data()
 }
 
-/// Which of an element's synthetic pseudo-elements hold a custom-property environment, as a bit set by kind.
+/// Whether the custom-property environment an element holds, or one of its synthetic pseudo-elements of the kind
+/// `pseudo` where it is not `u8::MAX`, is the overlay of what the holder's own animations sample.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_pseudo_elements_with_custom_property_data(host: &DocumentHost, node: u32) -> u64 {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return 0;
-    };
-    host.engine_memo().held.borrow().pseudo_element_kinds(node)
+pub extern "C" fn style_engine_custom_property_data_is_animation_overlay(
+    host: &DocumentHost,
+    node: u32,
+    pseudo: u32,
+) -> bool {
+    let pseudo = pseudo as u8;
+    held_environment(host, node, (pseudo != u8::MAX).then_some(pseudo)).is_animation_overlay()
 }
 
-/// The nodes whose style depends on the viewport, handed to `append` one by one.
+fn held_environment(host: &DocumentHost, node: u32, pseudo: Option<u8>) -> HeldEnvironment {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return HeldEnvironment::NONE;
+    };
+    let held = host.engine_memo().held.borrow();
+    match pseudo {
+        None => held.element(node),
+        Some(pseudo) => held.pseudo_element(node, pseudo),
+    }
+}
+
+/// The nodes whose style depends on the axes of the viewport `moved_axes` names, as `StyleEnvironment` bits, handed
+/// to `append` one by one.
 ///
 /// # Safety
 ///
@@ -629,13 +740,17 @@ pub extern "C" fn style_engine_pseudo_elements_with_custom_property_data(host: &
 pub unsafe extern "C" fn style_engine_viewport_dependent_nodes(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
+    moved_axes: u8,
     context: *mut c_void,
     append: unsafe extern "C" fn(*mut c_void, u32),
 ) {
+    let moved = super::input_types::StyleEnvironment::from_bits(moved_axes);
     let nodes = with_engine(read, host, |engine| {
-        engine
-            .computed_group_sets
-            .viewport_dependent_nodes(|environment| engine.custom_property_environments.reads_viewport(environment))
+        let mut nodes = engine.computed_group_sets.viewport_dependent_nodes();
+        if let Some(live) = engine.retained.live_style.as_ref() {
+            nodes.retain(|&node| StyleNodeID::from_raw(node).is_none_or(|node| live.reads_viewport_axes(node, moved)));
+        }
+        nodes
     });
     for node in nodes {
         // SAFETY: Guaranteed by the caller.
@@ -732,66 +847,13 @@ fn ask_record_demand(
     })
 }
 
-/// What a style record's values depend on.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_style_record_dependency_flags(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    style_record: u64,
-) -> u8 {
-    let memo = &host.engine_memo().dependency_flags;
-    if let Some(flags) = memo.get(style_record) {
-        return flags;
-    }
-    if let Some(view) = host
-        .engine_memo()
-        .views
-        .get(style_record)
-        .or_else(|| host.transaction_record(style_record).map(|(view, _)| view))
-    {
-        return view.dependency_flags;
-    }
-    let Some(flags) = with_engine(read, host, |engine| engine.style_record_dependency_flags(style_record)) else {
-        return 0;
-    };
-    memo.set(style_record, flags);
-    flags
-}
-
-/// The identity of the custom-property environment a style record was computed in, or 0.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_style_record_custom_property_environment(
-    host: &DocumentHost,
-    read: &crate::render_state::BegunRead,
-    style_record: u64,
-) -> u64 {
-    let memo = &host.engine_memo().record_environments;
-    if let Some(environment) = memo.get(style_record) {
-        return environment;
-    }
-    if let Some((_, Some(environment))) = host.transaction_record(style_record) {
-        memo.set(style_record, environment);
-        return environment;
-    }
-    let Some(environment) = with_engine(read, host, |engine| {
-        engine
-            .computed_group_sets
-            .style_record_custom_property_environment(style_record)
-    }) else {
-        return 0;
-    };
-    memo.set(style_record, environment);
-    environment
-}
-
 /// What the host knows of its document's style engine, which answers the host's reads without asking the render owner.
 pub(crate) struct EngineMemo {
-    /// The view of each style record the host asked about, the custom-property environment it was computed in, and
-    /// what its values depend on: a published record never changes while it is live, and no other record ever takes
-    /// its identity, as each identity carries the generation of its slot.
-    pub(crate) views: Memo<super::bridge::FfiStyleRecordView>,
-    pub(crate) record_environments: Memo<u64>,
-    pub(crate) dependency_flags: Memo<u8>,
+    /// The record of each style record identity the host asked about: a published record never changes while it is
+    /// live, and no other record ever takes its identity, as each identity carries the generation of its slot.
+    /// The records the host holds for the records it asked for or a transaction carried, by record, which the engine
+    /// holds while it holds the record.
+    pub(crate) views: Memo<*const c_void>,
     /// The custom-property environments the engine holds for elements.
     pub(crate) held: std::cell::RefCell<HeldEnvironments>,
     /// The element style inputs the engine defers.
@@ -802,11 +864,12 @@ pub(crate) struct EngineMemo {
     pub(crate) baselines: std::cell::RefCell<super::TransitionBaselines>,
     /// The atoms the host interned for the engine.
     pub(crate) atoms: std::cell::RefCell<super::host_atoms::HostAtoms>,
-    /// The deltas the host recorded since it last submitted them.
-    pub(crate) staged_input: std::cell::RefCell<StagedInput>,
-    /// The elements that arrived, moved or retired beside the style transaction that flew, which knows nothing of
-    /// them, until the drain of its reactions ends.
-    pub(crate) beside_flown_transaction: std::cell::RefCell<super::HashSet<StyleNodeID>>,
+    /// The identity space of the document's style nodes, which the host mints from.
+    identities: std::cell::RefCell<super::identities::StyleNodeIdAllocator>,
+    /// The host's writer of the projection rows of its document's elements, which nothing else writes.
+    pub(in crate::css::style) projection: std::cell::RefCell<super::pipeline::projection::ProjectionWriter>,
+    /// What the host wrote beside the rows since its last barrier.
+    unpublished: std::cell::RefCell<UnpublishedInputs>,
     /// While a batch's reactions are applied, a host's own style application may rewrite the declarations of an
     /// element in its shadow tree, after the engine computed that element's record from the ones it had. These name
     /// the elements whose declarations changed that way, while `applying_reactions` counts the batches being applied.
@@ -815,26 +878,88 @@ pub(crate) struct EngineMemo {
     /// Whether the transaction the host takes is one a style update applies, whose reactions close over the elements
     /// they inherit through as the engine computes them.
     takes_transaction_to_apply: std::cell::Cell<bool>,
-    /// The trace of the targeted style update the panic of a layout update that ran out of passes makes of the
-    /// element it kept reaching without a style, while the update is traced.
-    bound_failure_trace: std::cell::RefCell<Option<String>>,
+    /// What `LIBWEB_STYLE_SELFCHECK` asked for as the host started.
+    pub(super) style_self_check: super::pipeline::SelfCheckSettings,
 }
 
 impl EngineMemo {
+    /// Forgets the atoms the engine reclaimed, whose numbers may name other names from now on: those the host interned,
+    /// and what the catalogs its projection rows are spelled with spell of them.
+    pub(crate) fn forget_reclaimed_atoms(&self, reclaimed: &[super::atoms::ReclaimedStyleAtom]) {
+        self.atoms.borrow_mut().forget(reclaimed);
+        if !reclaimed.is_empty() {
+            let reclaimed: Vec<StyleAtomID> = reclaimed.iter().map(|reclaimed| reclaimed.atom).collect();
+            self.projection.borrow_mut().forget_atoms(&reclaimed);
+        }
+    }
+
+    /// Counts what the memo holds toward the host's own owner, but for its projection writer, whose rows count toward
+    /// the projection.
+    pub(crate) fn report_memory(&self, report: &mut super::memory_report::MemoryReport) {
+        use crate::heap_size::{set_bytes, vec_bytes};
+        let unpublished = self.unpublished.borrow();
+        let bytes = size_of::<Memo<*const c_void>>()
+            + self.held.borrow().heap_size()
+            + self.deferred.borrow().heap_size()
+            + self.described.borrow().heap_size()
+            + self.baselines.borrow().heap_size()
+            + self.atoms.borrow().heap_size()
+            + vec_bytes(&unpublished.backing_elements)
+            + vec_bytes(&unpublished.declarations)
+            + set_bytes(&self.declarations_changed_during_apply.borrow());
+        report.add(super::memory_report::MemoryOwner::HostMemo, bytes);
+    }
+
+    /// Note that `node` stands for an element-backed pseudo-element of its shadow host, which the render owner finds it
+    /// by from the next barrier on.
+    pub(crate) fn note_backing_element(&self, node: StyleNodeID) {
+        self.unpublished.borrow_mut().backing_elements.push(node);
+    }
+
+    /// Whether the host wrote anything of its elements since its last barrier.
+    pub(crate) fn has_unpublished_writes(&self) -> bool {
+        let unpublished = self.unpublished.borrow();
+        self.projection.borrow().has_unpublished_writes()
+            || !unpublished.backing_elements.is_empty()
+            || !unpublished.declarations.is_empty()
+    }
+
+    /// Takes what the host wrote of its elements since its last barrier, where it wrote anything, as published at
+    /// this one.
+    pub(crate) fn take_publication(&self) -> Option<HostPublication> {
+        if !self.has_unpublished_writes() {
+            return None;
+        }
+        let unpublished = std::mem::take(&mut *self.unpublished.borrow_mut());
+        Some(HostPublication {
+            projection: self.projection.borrow_mut().publish(),
+            backing_elements: unpublished.backing_elements.into(),
+            declarations: unpublished.declarations.into(),
+        })
+    }
+
+    /// Forgets what the host follows of the style nodes the end of a transaction released, and mints their identities
+    /// again first.
+    pub(crate) fn take_back_released_style_nodes(&self, released: &[u32]) {
+        if released.is_empty() {
+            return;
+        }
+        self.held.borrow_mut().forget(released);
+        self.described.borrow_mut().forget(released);
+        self.baselines.borrow_mut().forget(released);
+        self.identities.borrow_mut().release(released);
+    }
+
     pub(crate) fn forget_released_animation_overlay_records(&self, released: &super::ReleasedAnimationOverlayRecords) {
         if released.overflowed() {
             let is_animation_overlay = |key: u64| {
                 super::computed::FinalStyleRecordID::from_raw(key).is_some_and(|record| record.is_animation_overlay())
             };
             self.views.forget_where(is_animation_overlay);
-            self.record_environments.forget_where(is_animation_overlay);
-            self.dependency_flags.forget_where(is_animation_overlay);
             return;
         }
         for record in released.records() {
             self.views.forget(record);
-            self.record_environments.forget(record);
-            self.dependency_flags.forget(record);
         }
     }
 
@@ -855,10 +980,6 @@ impl EngineMemo {
         }
     }
 
-    pub(crate) fn declarations_changed_during_apply(&self, node: StyleNodeID) -> bool {
-        self.declarations_changed_during_apply.borrow().contains(&node)
-    }
-
     /// Marks the transactions the host takes until the answer is dropped as ones a style update applies.
     pub(crate) fn take_transactions_to_apply(&self) -> impl Drop + '_ {
         struct Taking<'a>(&'a EngineMemo);
@@ -870,50 +991,24 @@ impl EngineMemo {
         self.takes_transaction_to_apply.set(true);
         Taking(self)
     }
-
-    /// The elements a transaction the host takes now leaves to the next transaction as its reactions close over the
-    /// elements they inherit through, or none where the host does not apply its reactions.
-    pub(crate) fn closes_taken_transaction_beside(&self) -> Option<super::HashSet<StyleNodeID>> {
-        self.takes_transaction_to_apply
-            .get()
-            .then(|| self.beside_flown_transaction.borrow().clone())
-    }
-
-    /// Notes the elements whose declarations change until the answer is dropped, beside the batches being applied
-    /// already.
-    pub(crate) fn note_declaration_changes_during_apply(&self) -> impl Drop + '_ {
-        struct Noting<'a>(&'a EngineMemo);
-        impl Drop for Noting<'_> {
-            fn drop(&mut self) {
-                let applying = self.0.applying_reactions.get() - 1;
-                self.0.applying_reactions.set(applying);
-                if applying == 0 {
-                    self.0.declarations_changed_during_apply.borrow_mut().clear();
-                }
-            }
-        }
-        self.applying_reactions.set(self.applying_reactions.get() + 1);
-        Noting(self)
-    }
 }
 
 impl Default for EngineMemo {
     fn default() -> Self {
         Self {
-            views: Memo::new(super::bridge::FfiStyleRecordView::missing()),
-            record_environments: Memo::new(0),
-            dependency_flags: Memo::new(0),
+            views: Memo::new(std::ptr::null()),
             held: Default::default(),
             deferred: Default::default(),
             described: Default::default(),
             baselines: Default::default(),
             atoms: Default::default(),
-            staged_input: Default::default(),
-            beside_flown_transaction: Default::default(),
+            identities: Default::default(),
+            projection: Default::default(),
+            unpublished: Default::default(),
             declarations_changed_during_apply: Default::default(),
             applying_reactions: Default::default(),
             takes_transaction_to_apply: Default::default(),
-            bound_failure_trace: Default::default(),
+            style_self_check: super::pipeline::SelfCheckSettings::from_environment(),
         }
     }
 }
@@ -925,64 +1020,76 @@ impl Default for EngineMemo {
 /// it.
 #[derive(Default)]
 pub(crate) struct HeldEnvironments {
-    elements: HashMap<StyleNodeID, *const c_void>,
-    pseudo_elements: HashMap<StyleNodeID, Vec<(u8, *const c_void)>>,
+    elements: HashMap<StyleNodeID, HeldEnvironment>,
+    pseudo_elements: HashMap<StyleNodeID, Vec<(u8, HeldEnvironment)>>,
 }
 
-/// An environment a move left an element (`None`) or one of its synthetic pseudo-elements, by the address of the host's
-/// object for it. A moved element's entries come together, its own first.
-pub(crate) type MovedEnvironment = (StyleNodeID, Option<u8>, usize);
+/// The custom-property environment an element or one of its synthetic pseudo-elements holds, as the address of the
+/// host's object for it, null for none, with whether it is the overlay of what the holder's own animations sample.
+/// That is the address's lowest bit, which the address of an object never sets.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct HeldEnvironment(usize);
 
-impl HeldEnvironments {
-    fn element(&self, node: StyleNodeID) -> *const c_void {
-        self.elements.get(&node).copied().unwrap_or(std::ptr::null())
+impl HeldEnvironment {
+    const IS_ANIMATION_OVERLAY: usize = 1;
+    pub(crate) const NONE: Self = Self(0);
+
+    pub(crate) fn new(data: *const c_void, is_animation_overlay: bool) -> Self {
+        let address = data.expose_provenance();
+        debug_assert_eq!(
+            address & Self::IS_ANIMATION_OVERLAY,
+            0,
+            "an object's address is aligned"
+        );
+        Self(
+            address
+                | if is_animation_overlay {
+                    Self::IS_ANIMATION_OVERLAY
+                } else {
+                    0
+                },
+        )
     }
 
-    fn pseudo_element(&self, node: StyleNodeID, pseudo: u8) -> *const c_void {
+    pub(crate) fn data(self) -> *const c_void {
+        std::ptr::with_exposed_provenance(self.0 & !Self::IS_ANIMATION_OVERLAY)
+    }
+
+    pub(crate) fn is_animation_overlay(self) -> bool {
+        self.0 & Self::IS_ANIMATION_OVERLAY != 0
+    }
+}
+
+impl HeldEnvironments {
+    fn element(&self, node: StyleNodeID) -> HeldEnvironment {
+        self.elements.get(&node).copied().unwrap_or(HeldEnvironment::NONE)
+    }
+
+    fn pseudo_element(&self, node: StyleNodeID, pseudo: u8) -> HeldEnvironment {
         self.pseudo_elements
             .get(&node)
             .and_then(|environments| environments.iter().find(|&&(kind, _)| kind == pseudo))
-            .map_or(std::ptr::null(), |&(_, data)| data)
+            .map_or(HeldEnvironment::NONE, |&(_, held)| held)
     }
 
-    fn pseudo_element_kinds(&self, node: StyleNodeID) -> u64 {
-        self.pseudo_elements.get(&node).map_or(0, |environments| {
-            environments.iter().fold(0, |kinds, &(kind, _)| kinds | (1 << kind))
-        })
-    }
-
-    /// Follows `data`, null for none, which the host hands the engine for `node`.
-    fn follow_element(&mut self, node: StyleNodeID, data: *const c_void) {
-        if data.is_null() {
+    /// Follows `held`, which the host hands the engine for `node`.
+    fn follow_element(&mut self, node: StyleNodeID, held: HeldEnvironment) {
+        if held.data().is_null() {
             self.elements.remove(&node);
         } else {
-            self.elements.insert(node, data);
+            self.elements.insert(node, held);
         }
     }
 
-    /// Follows `data`, null for none, which the host hands the engine for a synthetic pseudo-element of `node`.
-    fn follow_pseudo_element(&mut self, node: StyleNodeID, pseudo: u8, data: *const c_void) {
+    /// Follows `held`, which the host hands the engine for a synthetic pseudo-element of `node`.
+    fn follow_pseudo_element(&mut self, node: StyleNodeID, pseudo: u8, held: HeldEnvironment) {
         let environments = self.pseudo_elements.entry(node).or_default();
         environments.retain(|&(kind, _)| kind != pseudo);
-        if !data.is_null() {
-            environments.push((pseudo, data));
+        if !held.data().is_null() {
+            environments.push((pseudo, held));
         }
         if environments.is_empty() {
             self.pseudo_elements.remove(&node);
-        }
-    }
-
-    /// Follows what a move left the elements it moved.
-    pub(crate) fn follow_moved(&mut self, moved: &[MovedEnvironment]) {
-        for &(node, pseudo, address) in moved {
-            let data = std::ptr::with_exposed_provenance(address);
-            match pseudo {
-                None => {
-                    self.follow_element(node, data);
-                    self.pseudo_elements.remove(&node);
-                }
-                Some(pseudo) => self.follow_pseudo_element(node, pseudo, data),
-            }
         }
     }
 
@@ -992,6 +1099,13 @@ impl HeldEnvironments {
             self.elements.remove(&node);
             self.pseudo_elements.remove(&node);
         }
+    }
+
+    fn heap_size(&self) -> usize {
+        use crate::heap_size::{map_bytes, vec_bytes};
+        map_bytes(&self.elements)
+            + map_bytes(&self.pseudo_elements)
+            + self.pseudo_elements.values().map(vec_bytes).sum::<usize>()
     }
 }
 
@@ -1013,57 +1127,21 @@ pub(crate) struct DeferredInputs {
 }
 
 impl DeferredInputs {
+    fn heap_size(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.inputs)
+    }
+
     const ALL: (u8, u8) = (u8::MAX, u8::MAX);
 
     fn search(&self, node: StyleNodeID) -> Result<usize, usize> {
         self.inputs.binary_search_by_key(&node, |&(node, ..)| node)
     }
 
-    /// Folds the input `node` owes into the reaction the host is about to apply to it, as
-    /// [`super::StyleEngine::absorb_element_style_input`] does, where the host knows the answer: `None` where an
-    /// input it cannot name may move it.
-    fn absorb(
-        &mut self,
-        node: StyleNodeID,
-        reaction: u8,
-        inherited_style_groups: u8,
-        absorbs_any: bool,
-    ) -> Option<u32> {
-        use super::transaction::STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES as RECOMPUTE_DESCENDANTS;
-        let known = self.search(node).ok();
-        let (unnamed_reaction, unnamed_groups) = self.unnamed;
-        if unnamed_reaction | unnamed_groups != 0 {
-            let certain = match known {
-                // The host knows nothing the element owes: a reaction that does not fold in every reaction an unnamed
-                // input may carry answers the same, but for a descendant recompute, which folding adds to it.
-                None if absorbs_any => {
-                    unnamed_reaction & !reaction == 0 && unnamed_groups & !inherited_style_groups == 0
-                }
-                None => unnamed_reaction & RECOMPUTE_DESCENDANTS == 0 || reaction & RECOMPUTE_DESCENDANTS != 0,
-                Some(_) => false,
-            };
-            if !certain {
-                return None;
-            }
-        }
-        let Some(index) = known else {
-            return Some(0);
-        };
-        let (_, owed_reaction, owed_groups) = self.inputs[index];
-        if !absorbs_any
-            && (owed_reaction & !reaction & !RECOMPUTE_DESCENDANTS != 0 || owed_groups & !inherited_style_groups != 0)
-        {
-            return Some(0);
-        }
-        self.inputs.remove(index);
-        Some(u32::from(reaction | owed_reaction) | (u32::from(inherited_style_groups | owed_groups) << 8))
-    }
-
     /// Follows `queued`, in the order the engine applies the writes the host queues: a write held behind the drain of a
-    /// style transaction's reactions reaches the engine after the drain's.
+    /// style update's reactions reaches the engine after the drain's.
     fn follow(&mut self, queued: crate::render_state::QueuedStyleChange<'_>) {
         use super::boundary::StyleChange;
-        use super::transaction::{STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
+        use super::input_types::{STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_STYLE};
         let (node, reaction, groups) = match *queued.change() {
             StyleChange::RecordDerivedElementStyleInput {
                 node,
@@ -1077,27 +1155,6 @@ impl DeferredInputs {
                 if let Ok(index) = self.search(node) {
                     self.inputs.remove(index);
                 }
-                return;
-            }
-            StyleChange::NoteStyleReactionApplied {
-                reaction,
-                inherited_style_groups_changed,
-                facts,
-                ..
-            } => {
-                self.add_unnamed(super::child_reactions::derivable_child_reactions(
-                    reaction,
-                    inherited_style_groups_changed,
-                    facts,
-                ));
-                return;
-            }
-            StyleChange::RecordFlatTreeDescendantStyleInputs {
-                reaction,
-                inherited_style_groups,
-                ..
-            } => {
-                self.add_unnamed((reaction, inherited_style_groups));
                 return;
             }
             StyleChange::RecordSizeContainerQueryDependents { .. }
@@ -1155,33 +1212,37 @@ impl DeferredInputs {
     }
 }
 
-/// The view of `style_record` the host has without asking: one it asked for before, or one the style transaction it
-/// drains carried. A published record never changes while it is live.
-pub(crate) fn known_style_record_view(
-    host: &DocumentHost,
-    style_record: u64,
-) -> Option<super::bridge::FfiStyleRecordView> {
+/// The record the host holds for `style_record` the host has without asking: one it asked for before, or one the style
+/// transaction it drains carried. A published record never changes while it is live.
+pub(crate) fn known_host_record(host: &DocumentHost, style_record: u64) -> Option<*const c_void> {
     let memo = &host.engine_memo().views;
-    if let Some(view) = memo.get(style_record) {
-        return Some(view);
+    if let Some(style) = memo.get(style_record) {
+        return Some(style);
     }
-    let (view, _) = host.transaction_record(style_record)?;
-    memo.set(style_record, view);
-    Some(view)
+    let style = host.transaction_record(style_record)?;
+    memo.set(style_record, style);
+    Some(style)
 }
 
 /// The before-change style the current style stabilization epoch decides the transitions of `node`'s element, or of
-/// one of its pseudo-elements, against, or 0 before a pass has recorded one. The host knows it without asking: it
-/// follows every baseline it records in the engine.
+/// one of its pseudo-elements, against, or null before a pass has recorded one: a record the host takes a reference to
+/// before it lets go of the baselines. The host knows it without asking: it follows every baseline it records in the
+/// engine.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u32, pseudo_kind: u8) -> u64 {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return 0;
-    };
-    host.engine_memo().baselines.borrow().get(node, pseudo_kind)
+pub extern "C" fn style_engine_transition_baseline(host: &DocumentHost, node: u32, pseudo_kind: u32) -> *const c_void {
+    let pseudo_kind = pseudo_kind as u8;
+    StyleNodeID::from_raw(node)
+        .and_then(|node| {
+            host.engine_memo()
+                .baselines
+                .borrow()
+                .get(node, pseudo_kind)
+                .map(std::sync::Arc::as_ptr)
+        })
+        .map_or(std::ptr::null(), |record| record.cast())
 }
 
-/// Whether the engine has a style transaction pending, which the host knows without asking where it wrote nothing
+/// Whether the engine has a style update pending, which the host knows without asking where it wrote nothing
 /// since its last job.
 /// Hands the host every custom-property environment the engine holds for an element, with the element's style node,
 /// for the host to name again what each hands down. The callbacks run outside the engine, so each may queue a write
@@ -1208,157 +1269,10 @@ pub extern "C" fn style_engine_for_each_element_custom_property_environment(
     }
 }
 
-/// What the engine knows of a node a layout update kept reaching without a style, for the panic that reports the
-/// update running out of passes.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiBoundFailureNodeFacts {
-    pub is_live: bool,
-    pub has_published_record: bool,
-    /// The display the node's published record holds: 0 for no record, 1 for none, 2 for contents, 3 for any other.
-    pub published_display: u8,
-    /// The style nodes the engine inherits the node's style from and places it under in the flat tree, or 0.
-    pub inheritance_parent: u32,
-    pub flat_tree_parent: u32,
-    pub owes_style_input: bool,
-    pub ancestor_owes_style_input: bool,
-    /// How a read-only demand of the node's record answers: 0 for a record, 1 for absent, 2 for refused, 3 for
-    /// suspended, 4 for a parent that holds no record yet.
-    pub read_demand_answer: u8,
-    /// The records the engine derived for the element that the host has not taken: how many, and the records the
-    /// last of the element's own moves between, or 0.
-    pub pending_records: u8,
-    pub pending_old_record: u64,
-    pub pending_new_record: u64,
-    /// The record the engine holds the node on and the custom-property environment it holds, or 0, and whether a
-    /// cascade state is bound to the node's record.
-    pub assigned_record: u64,
-    pub environment: u64,
-    pub has_cascade_state: bool,
-}
-
-/// Answers what the engine knows of `node` for the panic of a layout update that ran out of passes reaching it without
-/// a style. The demand it makes is read-only, so the engine is left as it was.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_bound_failure_node_facts(
-    host: &DocumentHost,
-    read: &BegunRead,
-    node: u32,
-) -> FfiBoundFailureNodeFacts {
-    with_engine(read, host, |engine| {
-        let Some(node) = StyleNodeID::from_raw(node) else {
-            return FfiBoundFailureNodeFacts {
-                is_live: false,
-                has_published_record: false,
-                published_display: 0,
-                inheritance_parent: 0,
-                flat_tree_parent: 0,
-                owes_style_input: false,
-                ancestor_owes_style_input: false,
-                read_demand_answer: 2,
-                pending_records: 0,
-                pending_old_record: 0,
-                pending_new_record: 0,
-                assigned_record: 0,
-                environment: 0,
-                has_cascade_state: false,
-            };
-        };
-        let published_display = engine.element_published_box_facts(node).map_or(0, |facts| {
-            if facts.display.is_none() {
-                1
-            } else if facts.display.is_contents() {
-                2
-            } else {
-                3
-            }
-        });
-        let inheritance_parent = engine.retained.tree.inheritance_parent(node);
-        let ancestor_owes_style_input = std::iter::successors(inheritance_parent, |&ancestor| {
-            engine.retained.tree.inheritance_parent(ancestor)
-        })
-        .any(|ancestor| engine.host.owes_element_style_input(ancestor));
-        let (pending_records, pending_old_record, pending_new_record) =
-            engine.retained.bound_failure_pending_records(node);
-        let read_demand_answer =
-            match engine.answer_record_demand(node, RecordDemand::Element(FfiRecordDemand::ElementRead)) {
-                Ok(RecordDemandAnswer::Record { .. }) => 0,
-                Ok(RecordDemandAnswer::Absent { .. }) => 1,
-                Err(Unanswered::Refused) => 2,
-                Err(Unanswered::Suspended(_)) => 3,
-                Err(Unanswered::AwaitsParent) => 4,
-            };
-        FfiBoundFailureNodeFacts {
-            is_live: engine.retained.tree.is_live(node),
-            has_published_record: engine.published_element_record(node).is_some(),
-            published_display,
-            inheritance_parent: inheritance_parent.map_or(0, StyleNodeID::raw),
-            flat_tree_parent: engine.retained.tree.flat_tree_parent(node).map_or(0, StyleNodeID::raw),
-            owes_style_input: engine.host.owes_element_style_input(node),
-            ancestor_owes_style_input,
-            read_demand_answer,
-            pending_records,
-            pending_old_record,
-            pending_new_record,
-            assigned_record: engine
-                .retained
-                .computed_group_sets
-                .assigned_style_record(node)
-                .map_or(0, |record| record.raw()),
-            environment: engine
-                .retained
-                .computed_group_sets
-                .custom_property_environment_identity(node)
-                .unwrap_or(0),
-            has_cascade_state: engine
-                .retained
-                .computed_group_sets
-                .cascade_state(super::computed::ComputedStyleTarget::new(node, u8::MAX))
-                .is_some(),
-        }
-    })
-}
-
-/// Appends what `line` says to the trace of a targeted style update of `host`'s document, where one is being
-/// traced.
-pub(crate) fn note_bound_failure_trace(host: &DocumentHost, line: impl FnOnce() -> String) {
-    if let Some(trace) = host.engine_memo().bound_failure_trace.borrow_mut().as_mut() {
-        if !trace.is_empty() {
-            trace.push(' ');
-        }
-        trace.push_str(&line());
-    }
-}
-
-/// Starts tracing the targeted style updates of `host`'s document, for the panic of a layout update that ran out of
-/// passes.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_begin_bound_failure_trace(host: &DocumentHost) {
-    *host.engine_memo().bound_failure_trace.borrow_mut() = Some(String::new());
-}
-
-/// Ends the trace and writes it to `buffer`, NUL-terminated and cut to fit, answering its length.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_end_bound_failure_trace(host: &DocumentHost, buffer: ak::SpanMut<'_, u8>) -> usize {
-    let trace = host
-        .engine_memo()
-        .bound_failure_trace
-        .borrow_mut()
-        .take()
-        .unwrap_or_default();
-    let buffer = buffer.into_slice();
-    let length = trace.len().min(buffer.len().saturating_sub(1));
-    buffer[..length].copy_from_slice(&trace.as_bytes()[..length]);
-    if let Some(terminator) = buffer.get_mut(length) {
-        *terminator = 0;
-    }
-    length
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_has_pending_transaction(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
-        Some(facts) => facts.has_pending_style_transaction,
+        Some(facts) => facts.has_pending_style_update,
         None => with_engine(read, host, |engine| engine.has_pending_transaction()),
     }
 }
@@ -1403,6 +1317,13 @@ pub extern "C" fn style_engine_relational_arrival_keys(
 
 /// Whether the engine defers any element style input, which the host knows without asking where it wrote nothing since
 /// its last job.
+/// Whether the host knows what the engine answers of itself without asking: no write it queued since the last job may
+/// have moved it.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_knows_engine_facts(host: &DocumentHost) -> bool {
+    host.known_engine_facts().is_some()
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_has_deferred_element_style_inputs(host: &DocumentHost, read: &BegunRead) -> bool {
     match host.known_engine_facts() {
@@ -1423,28 +1344,6 @@ pub(crate) fn has_deferred_element_style_input(host: &DocumentHost, read: &Begun
     with_engine(read, host, |engine| engine.has_deferred_element_style_input(style_node))
 }
 
-/// The synthetic pseudo-elements `node` has rules for, as a C++ record's pseudo-style mask, or no bits when the engine
-/// holds no answer for the node. The host knows it without asking for an element whose row it composes in the
-/// transaction it took last, which answered it beside the row.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_published_pseudo_style_mask(host: &DocumentHost, read: &BegunRead, node: u32) -> u64 {
-    host.transaction_pseudo_styles(node).map_or_else(
-        || {
-            with_engine(read, host, |engine| {
-                StyleNodeID::from_raw(node).map_or(0, |node| engine.published_pseudo_style_mask(node))
-            })
-        },
-        |styles| styles.mask,
-    )
-}
-
-/// The synthetic pseudo-elements `node` has rules for that settling its pseudo-elements over the composition of its
-/// record leaves alone, where the style transaction the host drains composes its row on the host, and none otherwise.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_inert_pseudo_kinds(host: &DocumentHost, node: u32) -> u64 {
-    host.transaction_pseudo_styles(node).map_or(0, |styles| styles.inert)
-}
-
 /// Whether a size container waits for layout to be evaluated, which the host knows without asking where it wrote
 /// nothing since its last job.
 #[unsafe(no_mangle)]
@@ -1460,45 +1359,6 @@ pub extern "C" fn style_engine_has_size_containers_needing_evaluation_after_layo
     }
 }
 
-/// Folds the style input `node` owes into the reaction the host is about to apply to it, where the reaction covers it,
-/// and answers the merged reaction in the low byte and the merged inherited style groups in the next, or zero, as
-/// [`super::StyleEngine::absorb_element_style_input`] does. The host answers where it knows the answer, and the
-/// engine folds the input the same as it applies the host's writes.
-pub(crate) fn absorb_element_style_input(
-    host: &DocumentHost,
-    read: &BegunRead,
-    style_node: StyleNodeID,
-    reaction: u8,
-    inherited_style_groups: u8,
-    absorbs_any: bool,
-) -> u32 {
-    // A job of the engine, or a frame in flight, moves what it defers beside what the host knows, and a fold held
-    // behind the drain of a style transaction's reactions reaches the engine after the drain's writes.
-    let known = (host.knows_engine_between_jobs() && !host.holds_style_writes()).then(|| {
-        host.engine_memo()
-            .deferred
-            .borrow_mut()
-            .absorb(style_node, reaction, inherited_style_groups, absorbs_any)
-    });
-    let Some(Some(absorbed)) = known else {
-        return with_engine(read, host, |engine| {
-            engine.absorb_element_style_input(style_node, reaction, inherited_style_groups, absorbs_any)
-        });
-    };
-    // The engine folds what the host did, and an input the host knows nothing of that folding merges nothing into the
-    // reaction, which only an unnamed one is.
-    if absorbed != 0 || host.engine_memo().deferred.borrow().may_owe_unnamed() {
-        host.queue_change(ArenaChange::Engine(EngineWrite::AbsorbElementStyleInput {
-            node: style_node,
-            reaction,
-            inherited_style_groups,
-            absorbs_any,
-            absorbed,
-        }));
-    }
-    absorbed
-}
-
 /// Notes that the host rewrote the declarations of `node`, which a batch of reactions being applied reads.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_note_element_declarations_changed(host: &DocumentHost, node: u32) {
@@ -1507,37 +1367,65 @@ pub extern "C" fn style_engine_note_element_declarations_changed(host: &Document
     }
 }
 
-/// A direct-mapped memo of one answer per key, which keeps the answers of the keys the host asked about last.
+type MemoSlot<T> = std::cell::Cell<(u64, T)>;
+
+/// A direct-mapped memo of one answer per key, which keeps the answers of the keys the host asked about last. It doubles
+/// with the answers it is told, up to its full size, so that a document of a few elements holds a small one.
 pub(crate) struct Memo<T: Copy> {
-    slots: [std::cell::Cell<(u64, T)>; Memo::<()>::SLOTS],
+    slots: std::cell::RefCell<Box<[MemoSlot<T>]>>,
+    answers_told: std::cell::Cell<usize>,
+    empty: T,
 }
 
 impl<T: Copy> Memo<T> {
-    const SLOTS: usize = 256;
+    const FIRST_SLOTS: usize = 8;
+    const MAX_SLOTS: usize = 256;
     /// No record has this identity: a base record's leaves the top bit clear, and an overlay's generation is below it.
     const NO_KEY: u64 = u64::MAX;
 
     fn new(empty: T) -> Self {
         Self {
-            slots: std::array::from_fn(|_| std::cell::Cell::new((Self::NO_KEY, empty))),
+            slots: std::cell::RefCell::new(Self::empty_slots(Self::FIRST_SLOTS, empty)),
+            answers_told: std::cell::Cell::new(0),
+            empty,
         }
     }
 
-    fn slot(&self, key: u64) -> &std::cell::Cell<(u64, T)> {
-        &self.slots[(key ^ (key >> 32)) as usize % Self::SLOTS]
+    fn empty_slots(count: usize, empty: T) -> Box<[MemoSlot<T>]> {
+        (0..count)
+            .map(|_| std::cell::Cell::new((Self::NO_KEY, empty)))
+            .collect()
+    }
+
+    fn slot(slots: &[MemoSlot<T>], key: u64) -> &MemoSlot<T> {
+        &slots[(key ^ (key >> 32)) as usize & (slots.len() - 1)]
     }
 
     pub(crate) fn get(&self, key: u64) -> Option<T> {
-        let (held, answer) = self.slot(key).get();
+        let (held, answer) = Self::slot(&self.slots.borrow(), key).get();
         (held == key).then_some(answer)
     }
 
     pub(crate) fn set(&self, key: u64, answer: T) {
-        self.slot(key).set((key, answer));
+        let told = self.answers_told.get() + 1;
+        self.answers_told.set(told);
+        let mut slots = self.slots.borrow_mut();
+        if told > slots.len() && slots.len() < Self::MAX_SLOTS {
+            let grown = Self::empty_slots(slots.len() * 2, self.empty);
+            for slot in slots.iter() {
+                let (held, kept) = slot.get();
+                if held != Self::NO_KEY {
+                    Self::slot(&grown, held).set((held, kept));
+                }
+            }
+            *slots = grown;
+        }
+        Self::slot(&slots, key).set((key, answer));
     }
 
     fn forget(&self, key: u64) {
-        let slot = self.slot(key);
+        let slots = self.slots.borrow();
+        let slot = Self::slot(&slots, key);
         let (held, answer) = slot.get();
         if held == key {
             slot.set((Self::NO_KEY, answer));
@@ -1545,7 +1433,7 @@ impl<T: Copy> Memo<T> {
     }
 
     fn forget_where(&self, forgets: impl Fn(u64) -> bool) {
-        for slot in &self.slots {
+        for slot in self.slots.borrow().iter() {
             let (held, answer) = slot.get();
             if held != Self::NO_KEY && forgets(held) {
                 slot.set((Self::NO_KEY, answer));
@@ -1564,6 +1452,86 @@ pub extern "C" fn style_engine_native_rule_id(
     with_engine(read, host, |engine| {
         engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
     })
+}
+
+/// The name of the style memory owner at `index`, with its length written out, or null past the last one.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_memory_owner_name(index: usize, out_name_length: &mut usize) -> *const u8 {
+    let Some(owner) = super::memory_report::MemoryOwner::ALL.get(index) else {
+        return std::ptr::null();
+    };
+    let name = owner.name();
+    *out_name_length = name.len();
+    name.as_ptr()
+}
+
+/// What the document's style engine holds on the heap, by owner, as a job on the render owner: the bytes of each owner
+/// in the order `style_engine_memory_owner_name` names them, with the elements the document holds and those of them
+/// holding a style record.
+///
+/// # Safety
+///
+/// `out_bytes` must point at room for `capacity` values.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_memory_report(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    out_bytes: *mut u64,
+    capacity: usize,
+    out_elements: &mut u64,
+    out_styled_elements: &mut u64,
+) -> usize {
+    use super::memory_report::MemoryOwner;
+    let mut report = with_engine_and_arena(read, host, |engine, arena| engine.memory_report(arena));
+    // NB: The host's rows share every chunk they were not written in since the barrier with the
+    //     published projection the engine counted.
+    host.engine_memo().projection.borrow().report_memory(&mut report);
+    host.engine_memo().report_memory(&mut report);
+    // SAFETY: Guaranteed by the caller.
+    let out = unsafe { ak::slice_from_raw_parts_mut(out_bytes, capacity) };
+    for (slot, owner) in out.iter_mut().zip(MemoryOwner::ALL) {
+        *slot = report.bytes(*owner) as u64;
+    }
+    *out_elements = report.elements as u64;
+    *out_styled_elements = report.styled_elements as u64;
+    MemoryOwner::COUNT
+}
+
+/// A record of the allocations reports have counted, for [`style_engine_memory_beyond`].
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_memory_sizer_create() -> *mut c_void {
+    Box::into_raw(Box::<crate::heap_size::HeapSizer>::default()).cast()
+}
+
+/// # Safety
+///
+/// `sizer` must come from [`style_engine_memory_sizer_create`], and is not used again.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_memory_sizer_destroy(sizer: *mut c_void) {
+    // SAFETY: Guaranteed by the caller.
+    drop(unsafe { Box::from_raw(sizer.cast::<crate::heap_size::HeapSizer>()) });
+}
+
+/// What the document's style engine holds on the heap that the reports `sizer` has been through have not counted.
+///
+/// # Safety
+///
+/// `sizer` must come from [`style_engine_memory_sizer_create`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_memory_beyond(
+    host: &DocumentHost,
+    read: &crate::render_state::BegunRead,
+    sizer: *mut c_void,
+) -> u64 {
+    use super::memory_report::{MemoryOwner, MemoryReport};
+    // SAFETY: Guaranteed by the caller.
+    let sizer = unsafe { &mut *sizer.cast::<crate::heap_size::HeapSizer>() };
+    let report = MemoryReport::past(std::mem::take(sizer));
+    let mut report = with_engine_and_arena(read, host, |engine, arena| engine.memory_report_into(report, arena));
+    host.engine_memo().projection.borrow().report_memory(&mut report);
+    host.engine_memo().report_memory(&mut report);
+    *sizer = std::mem::take(&mut report.sizer);
+    MemoryOwner::ALL.iter().map(|&owner| report.bytes(owner) as u64).sum()
 }
 
 /// The name of the engine's counter at `index`, with its length and value written out, or null past the last one.
@@ -1592,20 +1560,20 @@ pub extern "C" fn style_engine_counter(
 
 /// Decides what the transition step of `input`'s target does to its transitions, as the target's style changes from the
 /// record `before` to the record `after` it installed, and hands `on_actions` one action per property it decided over.
-/// The style transaction the host drains decided the step beside the row of an element whose step nothing but the
+/// The style update the host drains decided the step beside the row of an element whose step nothing but the
 /// engine's records decides; any other the render owner decides, reading the transform reference box of the target's
 /// element's box as it does.
 ///
 /// # Safety
 ///
-/// `host` must be a live document host, on its document's thread, and `input` must be valid. The values the actions
-/// point at live until `on_actions` returns.
+/// `host` must be a live document host, on its document's thread, `before` and `after` records the host holds, and
+/// `input` must be valid. The values the actions point at live until `on_actions` returns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_decide_transitions(
     host: &DocumentHost,
     read: &crate::render_state::BegunRead,
-    before: u64,
-    after: u64,
+    before: *const c_void,
+    after: *const c_void,
     input: &FfiTransitionInput,
     on_actions: unsafe extern "C" fn(*mut c_void, *const FfiTransitionAction, usize),
     context: *mut c_void,
@@ -1615,6 +1583,13 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
     let existing = unsafe { ak::slice_from_raw_parts(input.existing_transitions, input.existing_transition_count) };
     // SAFETY: As above.
     let hand_over = |actions: &[FfiTransitionAction]| unsafe { on_actions(context, actions.as_ptr(), actions.len()) };
+    // SAFETY: As above.
+    let (Some(before), Some(after)) = (unsafe { super::bridge::retain_host_record(before) }, unsafe {
+        super::bridge::retain_host_record(after)
+    }) else {
+        debug_assert!(false, "a transition step decides over two records");
+        return;
+    };
     let decision = TransitionDecision {
         before,
         after,
@@ -1642,11 +1617,11 @@ pub unsafe extern "C" fn style_engine_decide_transitions(
 mod hover_replay_tests {
     use super::*;
     use crate::css::style::bridge::{FfiTreeRelations, element_adjustment_fact};
+    use crate::css::style::input_types::TreeRelations;
     use crate::css::style::tests::{
         assert_staged_hover_facts, discard_transaction, staged_hover_pending_shadow_fixture,
         staged_hover_shadow_fixture,
     };
-    use crate::css::style::transaction::TreeRelations;
 
     fn encoded(row: TreeRelations) -> FfiTreeRelations {
         FfiTreeRelations {
@@ -1665,25 +1640,22 @@ mod hover_replay_tests {
         after: Option<TreeRelations>,
         hover: Option<Option<StyleNodeID>>,
     ) {
-        EngineWrite::ApplyTransaction(Box::new(StagedInput {
-            tree: vec![FfiTreeDelta {
-                node: node.raw(),
-                old_connected: true,
-                new_connected: after.is_some(),
-                old_relations: encoded(before),
-                new_relations: encoded(after.unwrap_or(before)),
-            }],
-            hover,
-            ..Default::default()
-        }))
-        .apply(engine);
+        let delta = FfiTreeDelta {
+            node: node.raw(),
+            old_connected: true,
+            new_connected: after.is_some(),
+            old_relations: encoded(before),
+            new_relations: encoded(after.unwrap_or(before)),
+        };
+        engine.apply_transaction_batch(&[delta], (&[], &[]), &[], &[], &[], &[]);
+        if let Some(target) = hover {
+            EngineWrite::MoveHover(target).apply(engine);
+        }
         discard_transaction(engine);
     }
 
     fn move_hover(engine: &mut StyleEngine, target: Option<StyleNodeID>) {
-        let mut input = StagedInput::default();
-        input.stage_hover(target);
-        EngineWrite::ApplyTransaction(Box::new(input)).apply(engine);
+        EngineWrite::MoveHover(target).apply(engine);
         discard_transaction(engine);
     }
 
@@ -1742,24 +1714,12 @@ mod hover_replay_tests {
         let row = engine.settled_tree_relations(nodes[2]);
         replay(&mut engine, nodes[2], row, Some(row), None);
         assert_staged_hover_facts(&engine, &nodes, &[4, 5, 6]);
-        crate::css::style::boundary::StyleChange::SetElementAdjustmentFacts {
-            node: Some(nodes[4]),
-            facts: 0,
-        }
-        .apply(&mut engine);
+        engine.set_element_adjustment_facts(nodes[4], 0);
         assert_staged_hover_facts(&engine, &nodes, &[]);
-        crate::css::style::boundary::StyleChange::SetElementAdjustmentFacts {
-            node: Some(nodes[4]),
-            facts: element_adjustment_fact::RENDERED_IN_TOP_LAYER,
-        }
-        .apply(&mut engine);
+        engine.set_element_adjustment_facts(nodes[4], element_adjustment_fact::RENDERED_IN_TOP_LAYER);
         assert_staged_hover_facts(&engine, &nodes, &[4, 5, 6]);
         move_hover(&mut engine, None);
-        crate::css::style::boundary::StyleChange::SetElementAdjustmentFacts {
-            node: Some(nodes[4]),
-            facts: 0,
-        }
-        .apply(&mut engine);
+        engine.set_element_adjustment_facts(nodes[4], 0);
         assert_eq!(engine.hover_target(), None);
         assert_staged_hover_facts(&engine, &nodes, &[]);
     }
@@ -1780,10 +1740,8 @@ mod hover_replay_tests {
     #[test]
     fn staged_hover_pending_document_element_arrival_accepts_the_chain() {
         let (mut engine, nodes) = staged_hover_pending_shadow_fixture();
-        assert_eq!(engine.tree.parent(nodes[2]), None);
-        let mut input = StagedInput::default();
-        input.stage_hover(Some(nodes[6]));
-        EngineWrite::ApplyTransaction(Box::new(input)).apply(&mut engine);
+        assert_eq!(engine.projection.parent(nodes[2]), None);
+        EngineWrite::MoveHover(Some(nodes[6])).apply(&mut engine);
         assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
         discard_transaction(&mut engine);
         assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
@@ -1795,18 +1753,15 @@ mod hover_replay_tests {
         move_hover(&mut engine, Some(nodes[6]));
         assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 6]);
         let before = engine.settled_tree_relations(nodes[1]);
-        EngineWrite::ApplyTransaction(Box::new(StagedInput {
-            tree: vec![FfiTreeDelta {
-                node: nodes[1].raw(),
-                old_connected: true,
-                new_connected: false,
-                old_relations: encoded(before),
-                new_relations: encoded(before),
-            }],
-            ..Default::default()
-        }))
-        .apply(&mut engine);
-        assert!(engine.host.tree_staging.current_row(nodes[1], Some(before)).is_none());
+        let delta = FfiTreeDelta {
+            node: nodes[1].raw(),
+            old_connected: true,
+            new_connected: false,
+            old_relations: encoded(before),
+            new_relations: encoded(before),
+        };
+        engine.apply_transaction_batch(&[delta], (&[], &[]), &[], &[], &[], &[]);
+        assert!(engine.retained.projection.written_relations(nodes[1]).is_none());
         assert_staged_hover_facts(&engine, &nodes, &[]);
         discard_transaction(&mut engine);
     }
@@ -1823,18 +1778,12 @@ mod hover_replay_tests {
         let mut text = [0];
         engine.allocate_text_style_nodes(&mut text);
         let text = StyleNodeID::from_raw(text[0]).unwrap();
-        crate::css::style::boundary::StyleChange::SetSlotAssignedNodes {
-            slot: Some(nodes[5]),
-            assigned: vec![text].into(),
-        }
-        .apply(&mut engine);
+        engine.set_slot_assigned_nodes(nodes[5], &[text]);
+        EngineWrite::SlotAssignedNodes.apply(&mut engine);
         assert_staged_hover_facts(&engine, &nodes, &[]);
         assert_eq!(engine.hover_target(), Some(nodes[9]));
-        crate::css::style::boundary::StyleChange::SetSlotAssignedNodes {
-            slot: Some(nodes[5]),
-            assigned: Box::new([]),
-        }
-        .apply(&mut engine);
+        engine.set_slot_assigned_nodes(nodes[5], &[]);
+        EngineWrite::SlotAssignedNodes.apply(&mut engine);
         assert_staged_hover_facts(&engine, &nodes, &[1, 2, 4, 5, 9]);
     }
 

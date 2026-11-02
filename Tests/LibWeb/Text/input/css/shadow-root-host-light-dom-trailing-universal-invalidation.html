@@ -6,15 +6,16 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
+    // Print whether the shadow-scoped rule left the light-DOM target black, and whether the style engine
+    // styled fewer than 10 elements since its counters were reset, the arriving style element and
+    // the host among them.
     function verifyHostSideWorkStayedScoped(label, actualColor) {
-        const counters = internals.getStyleInvalidationCounters();
-        if (actualColor == "rgb(0, 0, 0)" && counters.styleEnginePublishedReactions < 10)
-            println(`PASS: ${label}`);
-        else
-            println(`FAIL: ${label} (${actualColor}, ${counters.styleEnginePublishedReactions} reactions)`);
+        const styled = internals.styleCounters().styledElements;
+        println(`${label}: color unchanged ${actualColor == "rgb(0, 0, 0)"}, styled < 10: ${styled < 10}`);
     }
 
     function populateShadowBystanders(shadowRoot, prefix) {

@@ -779,6 +779,7 @@ Document::~Document() = default;
 void Document::create_style_computer()
 {
     m_style_computer = GC::Heap::the().allocate<CSS::StyleComputer>(*this);
+    CSS::StyleScope::prepare_user_agent_rules(*this);
     // NB: A quirks mode set before the style computer existed told no engine about it.
     if (in_quirks_mode())
         CSS::StyleEngineFFI::style_engine_set_fold_id_and_class_name_case(m_style_computer->style_engine().host(), true);
@@ -796,6 +797,8 @@ void Document::synchronize_dirty_style_attributes()
     //               only for the selectors and attr()s of the style engine. Where none reads the attribute, it is
     //               synchronized as the DOM reads it, which tells the engine then, and the elements left out are
     //               synchronized at the first style update that something of the engine reads it at.
+    if (m_elements_with_dirty_style_attributes.is_empty() && m_elements_with_unreported_style_attributes.is_empty())
+        return;
     auto& style_engine = style_computer().style_engine();
     if (style_engine.attribute_is_known_unread(style_engine.intern_attribute_name(HTML::AttributeNames::style, {}))) {
         for (auto& element : m_elements_with_dirty_style_attributes)
@@ -811,6 +814,14 @@ void Document::synchronize_dirty_style_attributes()
         if (element.is_connected() && &element.document() == this)
             element.synchronize_all_attributes();
     }
+}
+
+bool Document::has_unreported_style_attributes_to_report() const
+{
+    if (m_elements_with_unreported_style_attributes.is_empty())
+        return false;
+    auto& style_engine = const_cast<Document&>(*this).style_computer().style_engine();
+    return !style_engine.attribute_is_known_unread(style_engine.intern_attribute_name(HTML::AttributeNames::style, {}));
 }
 
 Layout::NodeArena& Document::layout_node_arena()
@@ -869,6 +880,8 @@ void Document::reset_style_invalidation_counters(Layout::BegunRead const& read) 
 {
     m_style_invalidation_counters = {};
     (void)CSS::StyleEngineFFI::style_engine_size_query_container_scan_visits(style_computer().style_engine().host(), &read, true);
+    (void)CSS::StyleEngineFFI::style_engine_animated_style_samples(style_computer().style_engine().host(), &read, false, true);
+    (void)CSS::StyleEngineFFI::style_engine_animated_style_samples(style_computer().style_engine().host(), &read, true, true);
     if (m_layout_node_arena) {
         Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(m_layout_node_arena->host(), true);
     }
@@ -2243,11 +2256,13 @@ void Document::begin_style_stabilization_epoch()
     if (m_style_stabilization_epoch_depth++ != 0)
         return;
 
+    HTML::main_thread_event_loop().defer_microtask_checkpoints();
     VERIFY(m_provisional_animation_event_queue.is_empty());
     VERIFY(m_animations_created_in_stabilization_epoch.is_empty());
     style_computer().begin_transition_stabilization_epoch();
     m_style_stabilization_pass_count = 0;
     m_style_stabilization_has_style_reactions = false;
+    m_animated_custom_property_changes_in_stabilization_epoch.clear();
     ++m_style_invalidation_counters.style_stabilization_epochs;
     ++m_transition_generation;
 }
@@ -2278,6 +2293,19 @@ void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
     }
 }
 
+u64 Document::note_animated_custom_properties_moved_in_stabilization_epoch(CSS::StyleNodeID style_node)
+{
+    return ++m_animated_custom_property_changes_in_stabilization_epoch.ensure(style_node);
+}
+
+bool Document::is_at_style_stabilization_bound(Layout::BegunRead const& read) const
+{
+    // NB: A style update runs at most this many passes.
+    constexpr u64 passes_of_a_style_update = 9;
+    constexpr u64 ordinary_stabilization_round_limit = 8;
+    return m_style_stabilization_pass_count + passes_of_a_style_update > ordinary_stabilization_round_limit + static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read));
+}
+
 void Document::end_style_stabilization_epoch()
 {
     VERIFY(m_style_stabilization_epoch_depth > 0);
@@ -2301,6 +2329,7 @@ void Document::end_style_stabilization_epoch()
     }
     m_provisional_animation_event_queue.clear();
     m_animations_created_in_stabilization_epoch.clear();
+    HTML::main_thread_event_loop().resume_microtask_checkpoints();
 }
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
@@ -2362,10 +2391,10 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
     if (!node.is_connected())
         return;
 
-    // NB: Whether the read finds style or layout pending is asked behind the style transaction that flew, which lands
+    // NB: Whether the read finds style or layout pending is asked behind the style update that flew, which lands
     //     for the read.
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
-    drain_flown_style_transaction(read);
+    drain_flown_style_update(read);
 
     if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate)
         flush_throttled_animation_style_update_for_node(node);
@@ -2409,13 +2438,17 @@ void Document::update_layout_if_needed_for_node(Node const& node, UpdateLayoutRe
         && !may_have_style_query_dependencies) {
         if (embedding_document_chain_is_clean()) {
             synchronize_dirty_style_attributes();
-            if (!style_computer().style_engine().pending_transaction_may_affect_layout_geometry(read)) {
+            auto& style_engine = style_computer().style_engine();
+            // NB: Asking gives the nodes waiting to arrive their identities, whose layout tree update marks can make the
+            //     layout stale that was up to date above. An element that holds a mark no build answers, as a child of a
+            //     shadow host outside the flat tree does, did not pass the mark of a new child on when the child connected.
+            auto transaction_may_affect_layout_geometry = style_engine.pending_transaction_may_affect_layout_geometry(read);
+            if (!transaction_may_affect_layout_geometry && layout_is_up_to_date()) {
                 // A later inline transition declaration still needs the pending style as its
                 // before-change style, even though this geometry read can reuse the current layout.
-                if (!style_computer().style_engine().has_pending_transaction(read)
-                    || style_computer().style_engine().defer_pending_transaction_for_geometry_read(read)) {
-                    return;
-                }
+                if (style_engine.has_pending_transaction(read))
+                    style_engine.defer_pending_transaction_for_geometry_read(read);
+                return;
             }
         }
     }
@@ -2555,7 +2588,7 @@ bool Document::layout_is_up_to_date() const
     // A frame in flight, or a round that flew and is not paid yet, brings layout the host waits for, which the host
     // knows without reading the render state. So does style that flew, which is pending until a read of the document
     // drains it: a read of a document it embeds asks here, and lays the document out to drain it.
-    if (has_flown_style_transaction() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
+    if (has_flown_style_update() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
         return false;
     // Without an arena there is no layout root either, so there is a tree to build.
     if (!m_layout_node_arena)
@@ -2570,7 +2603,7 @@ bool Document::layout_is_known_stale() const
         return false;
     if (m_reads_layout_as_it_flew)
         return false;
-    if (has_flown_style_transaction() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
+    if (has_flown_style_update() || (m_layout_node_arena && m_layout_node_arena->render_document().waits_for_frame()))
         return true;
     if (!m_layout_node_arena)
         return true;
@@ -2604,7 +2637,7 @@ void Document::set_quirks_mode(QuirksMode mode)
     for_each_shadow_root([](auto& shadow_root) {
         shadow_root.style_scope().invalidate_style_cache();
     });
-    record_style_environment_change();
+    record_style_environment_change(StyleEnvironmentChange::Everything);
 }
 
 void Document::set_needs_mathml_and_svg_user_agent_style_sheets()
@@ -2622,37 +2655,54 @@ void Document::set_needs_mathml_and_svg_user_agent_style_sheets()
     });
 }
 
-void Document::invalidate_style_for_viewport_change()
+void Document::record_style_environment_change(StyleEnvironmentChange changes)
 {
-    bool registered_initial_value_depends_on_viewport_metrics = false;
+    bump_style_environment_version();
+    // NB: An engine created later starts from the environment as it is then.
+    if (auto* style_computer = style_computer_if_created())
+        CSS::StyleEngineFFI::style_engine_record_environment_change(style_computer->style_engine().host(), to_underlying(changes));
+}
+
+void Document::invalidate_style_for_viewport_change(CSSPixelSize previous_viewport_size)
+{
+    Vector<Utf16FlyString> registrations_reading_viewport;
     auto invalidate_registered_initial_values = [&](auto& registrations) {
-        for (auto& [_, registration] : registrations) {
+        for (auto& [name, registration] : registrations) {
             if (!registration.computed_initial_value_depends_on_viewport_metrics)
                 continue;
             registration.computed_initial_value = nullptr;
             registration.computed_initial_value_depends_on_viewport_metrics = false;
-            registered_initial_value_depends_on_viewport_metrics = true;
+            registrations_reading_viewport.append(name);
         }
     };
     invalidate_registered_initial_values(m_registered_property_set);
     invalidate_registered_initial_values(m_cached_registered_properties_from_css_property_rules);
 
-    if (registered_initial_value_depends_on_viewport_metrics) {
+    Layout::ForcedReadScope read { *this };
+    auto& style_engine = style_computer().style_engine();
+
+    if (!registrations_reading_viewport.is_empty()) {
         // The custom-property registry holds the initial values just dropped, so the next style
-        // update has to publish the recomputed ones before it reads them.
+        // update has to publish the recomputed ones before it reads them. A registered initial value
+        // moving is a change to its registration, which restyles the elements declaring, holding or
+        // substituting its name.
         m_rust_custom_property_registry_synced = false;
-        // A registered initial value is shared by every element that does not specify the custom
-        // property, so its consumers cannot be identified from their computed styles.
-        record_style_environment_change();
-        return;
+        ++m_custom_property_registration_generation;
+        m_custom_property_environments_need_republishing = true;
+        for (auto const& name : registrations_reading_viewport)
+            CSS::StyleEngineFFI::style_engine_record_custom_property_registration_change(style_engine.host(), style_engine.intern_atom(name));
     }
 
     // The viewport is one of the document's published inputs, and the style engine drives a record
     // that read it again once it moves, so the readers are rows the engine settles. They are still
     // named here: what moved is in none of their winners.
-    Layout::ForcedReadScope read { *this };
-    auto& style_engine = style_computer().style_engine();
-    for (auto style_node : style_engine.viewport_dependent_style_nodes(read)) {
+    auto viewport_size = viewport_rect().size();
+    StyleEnvironmentChange moved_axes {};
+    if (viewport_size.width() != previous_viewport_size.width())
+        moved_axes |= StyleEnvironmentChange::ViewportWidth;
+    if (viewport_size.height() != previous_viewport_size.height())
+        moved_axes |= StyleEnvironmentChange::ViewportHeight;
+    for (auto style_node : style_engine.viewport_dependent_style_nodes(read, to_underlying(moved_axes))) {
         auto element = style_computer().element_for_style_node(style_node.value());
         if (!element || !element->is_connected() || &element->document() != this)
             continue;
@@ -2674,9 +2724,9 @@ void Document::invalidate_style_for_viewport_change()
 
 void Document::sample_animation_effects_needing_style_update()
 {
-    Layout::ForcedReadScope read { *this };
     if (!m_needs_animated_style_update)
         return;
+    Layout::ForcedReadScope read { *this };
 
     VERIFY(!m_is_updating_animated_style);
     m_is_updating_animated_style = true;
@@ -2808,6 +2858,13 @@ void Document::flush_throttled_animation_style_update_for_node(Node const& node)
             if (!animation->effect() || !is<Animations::KeyframeEffect>(*animation->effect()))
                 continue;
             auto& effect = static_cast<Animations::KeyframeEffect&>(*animation->effect());
+            // NB: An effect that changed since it was last sampled, such as one script seeked after an earlier read in
+            //     this task, is sampled for the read whether or not it can skip per-frame style updates now: the sample
+            //     decides that again, from a layout that may have moved since.
+            if (!m_is_updating_animated_style && m_effects_needing_animated_style_update.contains(effect)) {
+                effect.request_observation_sample();
+                continue;
+            }
             if (!effect.can_skip_per_frame_style_update())
                 continue;
             if (m_is_updating_animated_style) {
@@ -3024,7 +3081,7 @@ void Document::set_supported_color_schemes(Optional<Vector<Utf16FlyString>> supp
 
     m_supported_color_schemes = move(supported_color_schemes);
     m_supported_color_schemes_are_only = only;
-    record_style_environment_change();
+    record_style_environment_change(StyleEnvironmentChange::ColorScheme);
     set_needs_media_query_evaluation();
 }
 
@@ -8291,6 +8348,53 @@ void Document::disassociate_with_timeline(GC::Ref<Animations::AnimationTimeline>
     m_associated_animation_timelines.remove(timeline);
 }
 
+int Document::compare_elements_in_tree_order_for_composite_order(Element& first, Element& second)
+{
+    // NB: Comparisons cost less than a walk of the document until enough of them have gone by at one version of the
+    //     tree, which is more of them the more elements the last walk found.
+    static constexpr u32 minimum_compares_before_tree_positions = 256;
+    auto compares_before_tree_positions = max(minimum_compares_before_tree_positions, m_element_count_at_last_tree_positions_walk / 8);
+
+    auto compare_in_tree = [&] {
+        ++style_invalidation_counters().composite_order_document_position_compares;
+        auto position = first.compare_document_position(second);
+        if (position & Node::DOCUMENT_POSITION_FOLLOWING)
+            return -1;
+        if (position & Node::DOCUMENT_POSITION_PRECEDING)
+            return 1;
+        return 0;
+    };
+
+    if (m_element_tree_positions_dom_tree_version != dom_tree_version()) {
+        m_element_tree_positions_dom_tree_version = dom_tree_version();
+        m_element_tree_positions.clear();
+        m_tree_order_compares_at_dom_tree_version = 0;
+    }
+    if (m_element_tree_positions.is_empty()) {
+        if (++m_tree_order_compares_at_dom_tree_version <= compares_before_tree_positions)
+            return compare_in_tree();
+        u32 position = 0;
+        for_each_in_subtree_of_type<Element>([&](Element const& element) {
+            m_element_tree_positions.set(element.unique_id(), position++);
+            return TraversalDecision::Continue;
+        });
+        m_element_count_at_last_tree_positions_walk = position;
+    }
+
+    // NB: An element of another tree, as of a shadow tree, has no position here.
+    auto first_position = m_element_tree_positions.get(first.unique_id());
+    auto second_position = m_element_tree_positions.get(second.unique_id());
+    if (!first_position.has_value() || !second_position.has_value())
+        return compare_in_tree();
+    return *first_position < *second_position ? -1 : 1;
+}
+
+void Document::keep_element_tree_positions_across_attribute_change(u64 version_before)
+{
+    if (m_element_tree_positions_dom_tree_version == version_before)
+        m_element_tree_positions_dom_tree_version = dom_tree_version();
+}
+
 void Document::associate_with_animation(GC::Ref<Animations::Animation> animation)
 {
     m_associated_animations.set(animation);
@@ -8808,7 +8912,7 @@ void Document::update_compositor_animations(Layout::BegunRead const& read)
             if (ancestor->overflow_x() == CSS::Overflow::Visible || ancestor->overflow_y() == CSS::Overflow::Visible)
                 continue;
             if (ancestor->overflow_x() == CSS::Overflow::Clip || ancestor->overflow_y() == CSS::Overflow::Clip) {
-                auto const& margin = ancestor->style_group<CSS::ComputedValues::MiscResetValues>().overflow_clip_margin;
+                auto const& margin = ancestor->style_group<CSS::ComputedValues::MiscLayoutValues>().overflow_clip_margin;
                 if (margin.top.offset != 0 || margin.right.offset != 0 || margin.bottom.offset != 0 || margin.left.offset != 0)
                     continue;
             }
@@ -9380,43 +9484,45 @@ void Document::update_animations_and_send_events(double timestamp)
     m_pending_animation_event_queue.clear();
 
     // 6. Perform a stable sort of the animation events in events to dispatch as follows:
-    auto sort_events_by_composite_order = [](auto const& a, auto const& b) {
-        if (!a.animation->effect())
-            return true;
-        if (!b.animation->effect())
-            return false;
+    auto compare_events_by_composite_order = [](auto const& a, auto const& b) -> int {
+        if (!a.animation->effect() || !b.animation->effect())
+            return static_cast<int>(static_cast<bool>(a.animation->effect())) - static_cast<int>(static_cast<bool>(b.animation->effect()));
         auto& a_effect = as<Animations::KeyframeEffect>(*a.animation->effect());
         auto& b_effect = as<Animations::KeyframeEffect>(*b.animation->effect());
-        return Animations::KeyframeEffect::composite_order(a_effect, b_effect) < 0;
+        return Animations::KeyframeEffect::composite_order(a_effect, b_effect);
     };
-
-    insertion_sort(events_to_dispatch, [&](auto const& a, auto const& b) {
+    auto compare_events = [&](auto const& a, auto const& b) -> int {
         // Sort the events by their scheduled event time such that events that were scheduled to occur earlier, sort
         // before events scheduled to occur later and events whose scheduled event time is unresolved sort before events
         // with a resolved scheduled event time.
         //
         // Within events with equal scheduled event times, sort by their composite order.
-        if (b.scheduled_event_time.has_value()) {
-            if (!a.scheduled_event_time.has_value())
-                return true;
+        if (a.scheduled_event_time.has_value() != b.scheduled_event_time.has_value())
+            return a.scheduled_event_time.has_value() ? 1 : -1;
+        if (a.scheduled_event_time != b.scheduled_event_time)
+            return a.scheduled_event_time.value() < b.scheduled_event_time.value() ? -1 : 1;
+        return compare_events_by_composite_order(a, b);
+    };
 
-            auto a_time = a.scheduled_event_time.value();
-            auto b_time = b.scheduled_event_time.value();
-            if (a_time == b_time)
-                return sort_events_by_composite_order(a, b);
-
-            return a.scheduled_event_time.value() < b.scheduled_event_time.value();
-        }
-
-        if (a.scheduled_event_time.has_value())
-            return false;
-
-        return sort_events_by_composite_order(a, b);
+    // NB: The events of a frame come in the unspecified order of the document's animations, so sorting them is not
+    //     close to a no-op. Their positions in the queue keep the sort stable.
+    Vector<u32> event_order;
+    event_order.ensure_capacity(events_to_dispatch.size());
+    for (u32 index = 0; index < events_to_dispatch.size(); ++index)
+        event_order.unchecked_append(index);
+    quick_sort(event_order, [&](u32 a, u32 b) {
+        if (auto order = compare_events(events_to_dispatch[a], events_to_dispatch[b]); order != 0)
+            return order < 0;
+        return a < b;
     });
+    GC::ConservativeVector<PendingAnimationEvent> sorted_events;
+    sorted_events.ensure_capacity(events_to_dispatch.size());
+    for (auto index : event_order)
+        sorted_events.unchecked_append(events_to_dispatch[index]);
 
     // 7. Dispatch each of the events in events to dispatch at their corresponding target using the order established in
     //    the previous step.
-    for (auto const& event : events_to_dispatch)
+    for (auto const& event : sorted_events)
         event.target->dispatch_event(event.event);
 
     // AD-HOC: Nothing else re-requests a rendering update while time-driven animations are running, since
@@ -10296,21 +10402,43 @@ void Document::register_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& sha
 {
     m_shadow_roots.append(shadow_root);
     note_style_sheet_set_change();
+    // A new root settles and publishes its counter style registry in the next style update.
+    note_counter_style_scope_to_settle(shadow_root);
+}
+
+void Document::note_counter_style_scope_to_settle(ShadowRoot& shadow_root)
+{
+    m_counter_style_scopes_need_update = true;
+    if (!m_shadow_roots_with_counter_styles_to_settle.contains(shadow_root))
+        m_shadow_roots_with_counter_styles_to_settle.append(shadow_root);
+}
+
+// Settles the counter style registry of the document's style scope and of each shadow root noted since the last style
+// update, publishing each scope's registry where it, or the scope its names pass on to, changed.
+void Document::settle_counter_style_scopes(Layout::BegunRead const& read)
+{
+    (void)style_scope().counter_style_environment_identity(read);
+    while (auto* shadow_root = m_shadow_roots_with_counter_styles_to_settle.first()) {
+        m_shadow_roots_with_counter_styles_to_settle.remove(*shadow_root);
+        (void)shadow_root->style_scope().counter_style_environment_identity(read);
+    }
+    m_counter_style_scopes_need_update = false;
 }
 
 void Document::unregister_shadow_root(Badge<DOM::ShadowRoot>, DOM::ShadowRoot& shadow_root)
 {
     m_shadow_roots.remove(shadow_root);
+    m_shadow_roots_with_counter_styles_to_settle.remove(shadow_root);
     note_style_sheet_set_change();
     // The style engine names the keyframe sets of the root's `@keyframes` by pointer. The root may be leaving from a
     // garbage collection's finalizer, which must not reach into the engine, so its row is given up before the next
-    // style transaction, and the sets stay alive until then.
+    // style update, and the sets stay alive until then.
     if (auto departed = shadow_root.style_scope().take_published_animation_keyframes(); departed.has_value())
         m_departed_animation_keyframes.append(departed.release_value());
 }
 
 // Resolving an animation's `@keyframes` is a lookup in what each style scope published to the style engine, which a
-// scope does whenever its rule cache is built. So before a style transaction, the rows of the shadow roots that left
+// scope does whenever its rule cache is built. So before a style update, the rows of the shadow roots that left
 // are given up and every scope's rule cache is built. A rule cache is invalidated only with a change of the style sheet
 // set, as is a shadow root's departure, so without one since the last transaction every row is current.
 void Document::publish_animation_keyframes_for_style_update()
@@ -10321,7 +10449,7 @@ void Document::publish_animation_keyframes_for_style_update()
     m_animation_keyframes_published_generation = m_style_sheet_set_generation;
     auto* host = style_computer().style_engine().host();
     for (auto const& departed : m_departed_animation_keyframes) {
-        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, departed.tree_scope.value(), departed.shadow_root_identity, {}, {}, {});
+        CSS::StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(host, departed.tree_scope.value(), {}, {}, {});
         if (departed.has_position_try_rules)
             CSS::StyleEngineFFI::style_engine_set_tree_scope_position_try_rules(host, departed.tree_scope.value(), {}, {}, {});
     }
@@ -12105,7 +12233,7 @@ void Document::sync_custom_property_registrations_to_rust()
         .document_base_url = document_base_url.bytes().data(),
         .document_base_url_length = document_base_url.bytes().size(),
     };
-    // A style transaction may still read the registry this replaces, so the registry is made anew.
+    // A style update may still read the registry this replaces, so the registry is made anew.
     m_rust_custom_property_registry = CSS::ComputedValuesFFI::rust_custom_property_registry_update(
         m_rust_custom_property_registry, &context, registrations.data(), registrations.size());
 }

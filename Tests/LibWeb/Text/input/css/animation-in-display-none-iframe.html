@@ -3,6 +3,7 @@
 <div id="container" style="display: none"></div>
 <script>
 asyncTest(async done => {
+    internals.updateStyle();
     const frame = document.createElement("iframe");
     frame.srcdoc = `<!DOCTYPE html>
         <style>

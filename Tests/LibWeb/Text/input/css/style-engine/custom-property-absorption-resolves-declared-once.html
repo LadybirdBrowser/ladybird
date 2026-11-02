@@ -25,10 +25,6 @@
 
         internals.updateStyle();
 
-        const counters = internals.getStyleInvalidationCounters();
-        println(`custom property elements: ${counters.customPropertyElements}`);
-        println(`custom property resolutions: ${counters.customPropertyResolutions}`);
-        println(`custom property value computations: ${counters.customPropertyValueComputations}`);
         println(`margin: ${getComputedStyle(host.firstElementChild).marginLeft}`);
     });
 </script>

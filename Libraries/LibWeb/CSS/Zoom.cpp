@@ -42,13 +42,13 @@ CSSPixels unscaled(CSSPixels value, double effective_zoom)
 // https://drafts.csswg.org/css-viewport/#effective-zoom
 double effective_zoom(DOM::Element const& element)
 {
-    auto const* inherited_box_values = element.style_group<ComputedValues::InheritedBoxValues>();
-    return inherited_box_values ? inherited_box_values->effective_zoom_value() : 1;
+    auto const* inherited_values = element.style_inherited_set_values();
+    return inherited_values ? effective_zoom_of(*inherited_values) : 1;
 }
 
 double effective_zoom(Layout::NodeWithStyle const& layout_node)
 {
-    return layout_node.style_group<ComputedValues::InheritedBoxValues>().effective_zoom_value();
+    return effective_zoom_of(layout_node.inherited_set_values());
 }
 
 }

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const svgNamespace = "http://www.w3.org/2000/svg";
+
+    function shapeIn(document) {
+        const path = document.createElementNS(svgNamespace, "path");
+        path.setAttribute("d", "M0 0 L10 0");
+        return path;
+    }
+
+    function measure(name, path) {
+        println(`${name}: ${path.getTotalLength()} ${path.getPointAtLength(4).x} ${path.isPointInStroke(new DOMPoint(1, 0))}`);
+    }
+
+    test(() => {
+        // NB: This comes first, as the window's document has not been styled yet.
+        const template = document.createElement("template");
+        template.innerHTML = `<svg xmlns="${svgNamespace}"><path d="M0 0 L10 0"/></svg>`;
+        measure("in a template's fragment", template.content.querySelector("path"));
+
+        const contents = document.createElement("template").content.ownerDocument;
+        const root = contents.createElement("html");
+        const svg = contents.createElementNS(svgNamespace, "svg");
+        const nested = shapeIn(contents);
+        svg.append(nested);
+        root.append(svg);
+        contents.append(root);
+        measure("connected in the contents' document", nested);
+
+        root.remove();
+        const asRoot = shapeIn(contents);
+        contents.append(asRoot);
+        measure("the document element of the contents' document", asRoot);
+
+        // FIXME: This is a known limit, not the right answer: the shape has a path and should measure 10. An engine
+        //        computes nothing before its document has a document element.
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const frameDocument = iframe.contentDocument;
+        frameDocument.documentElement.remove();
+        const frameTemplate = frameDocument.createElement("template");
+        const framePath = shapeIn(frameTemplate.content.ownerDocument);
+        frameTemplate.content.append(framePath);
+        println(`in a window whose document has no document element: ${framePath.getTotalLength()}`);
+    });
+</script>

@@ -32,5 +32,10 @@ rename_types = "PascalCase"
 "SpanMut" = "AK::Span"
 # A style engine handle is opaque to C++.
 "StyleEngineHandle" = "const void*"
+# What an unresolved value's text holds, as bits C++ does not read.
+"UnresolvedFacts" = "uint16_t"
+# A style value C++ hands back or lends is the pointer at the value it was given.
+"OwnedStyleValue" = "const Web::CSS::StyleValueFFI::StyleValueData*"
+"StyleValueRef" = "const Web::CSS::StyleValueFFI::StyleValueData*"
 # So is a parsed syntax, which C++ holds by pointer.
 "SyntaxNode" = "void"

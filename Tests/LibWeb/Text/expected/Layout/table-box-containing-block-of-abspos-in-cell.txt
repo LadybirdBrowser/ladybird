@@ -1,0 +1,3 @@
+cell: 30,50
+inset: 24,44
+static: 30,50

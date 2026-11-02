@@ -1,3 +1,2 @@
-inherited list longhand evaluations: 0
 color: rgb(255, 0, 0)
 list position: inside

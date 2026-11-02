@@ -9,13 +9,10 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
 
         target.className = "after";
         internals.updateStyle();
 
-        const after = internals.getStyleInvalidationCounters();
-        println(`color scheme longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
         println(`background: ${getComputedStyle(target).backgroundColor}`);
         println(`inherited background: ${getComputedStyle(child).backgroundColor}`);
     });

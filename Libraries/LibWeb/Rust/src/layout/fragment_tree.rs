@@ -494,6 +494,22 @@ impl PlacedBoxes {
             _ => formatting_context::containing_block_laid_out_in(callbacks, node, run_root),
         }
     }
+
+    /// Whether the placements of the boxes from the coordinate space box `space` up lead to `run_root`.
+    fn chain_of_space_reaches(
+        &self,
+        mut space: crate::layout::node_data::NodeSlotId,
+        run_root: crate::layout::node_data::NodeSlotId,
+        callbacks: &LayoutPass<'_>,
+    ) -> bool {
+        while space != run_root {
+            if !self.is_placed(space) {
+                return false;
+            }
+            space = self.placement_containing_block(callbacks, space, run_root);
+        }
+        true
+    }
 }
 
 /// The fragment the box of `candidate` committed, where `candidate` builds identically to it. A fragment that continues
@@ -1341,17 +1357,25 @@ impl RunFragmentBuilder {
     }
 
     /// Takes the absolutely positioned boxes whose containing block is the run's root and whose positions the run
-    /// knows, in tree order. Those inside a child the run left unplaced stay for the run's parent.
+    /// knows, in tree order. Those inside a child the run left unplaced stay for the run's parent, as do those whose
+    /// positions stand in a space beyond the root, which only the placement of the root relates to the root: a table
+    /// places its cells in the space of its wrapper.
     pub(crate) fn take_abspos_contained_by_root(
         &self,
         callbacks: &LayoutPass<'_>,
     ) -> Vec<abspos_inputs::PendingAbsposChild> {
         let root = self.root_node;
-        let mut taken: Vec<abspos_inputs::PendingAbsposChild> = self
-            .inner
-            .borrow_mut()
-            .pending_abspos_at_root
-            .extract_if(.., |entry| entry.containing_block() == root)
+        let mut inner = self.inner.borrow_mut();
+        let RunFragmentBuilderInner {
+            pending_abspos_at_root,
+            placed_boxes,
+            ..
+        } = &mut *inner;
+        let mut taken: Vec<abspos_inputs::PendingAbsposChild> = pending_abspos_at_root
+            .extract_if(.., |entry| {
+                entry.containing_block() == root
+                    && placed_boxes.chain_of_space_reaches(entry.coordinate_space_box, root, callbacks)
+            })
             .collect();
         sort_in_tree_order(&mut taken, callbacks);
         taken

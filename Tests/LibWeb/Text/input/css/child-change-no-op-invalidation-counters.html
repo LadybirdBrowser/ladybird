@@ -9,12 +9,15 @@
 <script>
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
-    function report(label) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        println(`${label}: ${recomputations} recomputations`);
+    // Print whether the style engine styled at most `maximum` elements, the children that arrived, since
+    // its counters were reset.
+    function report(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        println(`${label}: styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     test(() => {
@@ -24,12 +27,12 @@
         const child = document.createElement("span");
         parent.appendChild(child);
         getComputedStyle(parent).color;
-        report("appending a child to a parent without observable child-state pseudos");
+        report("appending a child to a parent without observable child-state pseudos", 1);
 
         settleAndReset(parent);
         parent.removeChild(child);
         getComputedStyle(parent).color;
-        report("removing the only child from a parent without observable child-state pseudos");
+        report("removing the only child from a parent without observable child-state pseudos", 0);
 
         settleAndReset(parent);
         const fragment = document.createDocumentFragment();
@@ -37,6 +40,6 @@
         fragment.appendChild(document.createElement("span"));
         parent.appendChild(fragment);
         getComputedStyle(parent).color;
-        report("appending a fragment to a parent without observable child-state pseudos");
+        report("appending a fragment to a parent without observable child-state pseudos", 2);
     });
 </script>

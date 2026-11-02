@@ -1,10 +1,5 @@
 // Shared by the small correctness test and Meta/style-update-capture.py.
 function createStyleUpdateFixture(elementCount, scenario, seed, measure = false) {
-    const snapshot = () => ({
-        rust: internals.styleEngineCounters(),
-        cpp: internals.getStyleInvalidationCounters(),
-        ffi: internals.styleFfiCounters(),
-    });
     const now = () => (measure ? performance.now() * 1000 : null);
     const elapsed = start => (measure ? now() - start : null);
     const check = (node, property, expected) => {
@@ -15,15 +10,13 @@ function createStyleUpdateFixture(elementCount, scenario, seed, measure = false)
     };
     const observe = checks => checks.map(([node, property, expected]) => check(node, property, expected));
     const interval = (name, kind, mutate, checks) => {
-        const before = snapshot();
         const start = now();
         mutate();
         const mutationMicroseconds = elapsed(start);
         const observationStart = now();
         const observations = observe(checks());
         const observationMicroseconds = elapsed(observationStart);
-        const after = snapshot();
-        return { name, kind, before, after, mutationMicroseconds, observationMicroseconds, observations };
+        return { name, kind, mutationMicroseconds, observationMicroseconds, observations };
     };
     if (!Number.isInteger(elementCount) || elementCount < 100 || !["connected", "detached"].includes(scenario))
         throw new Error("Invalid fixture configuration");
@@ -173,7 +166,6 @@ function createStyleUpdateFixture(elementCount, scenario, seed, measure = false)
     let nextStep = 0;
     return {
         setup,
-        snapshot,
         step(index) {
             if (index !== nextStep++) throw new Error("Fixture mutations must run exactly once in order");
             const [name, mutate, checks] = steps[index];

@@ -158,6 +158,14 @@ void ComputedValues::borrow_style_record_groups(void const* groups)
     m_noninherited.reset_bits = style_record_reset_bits(groups);
 }
 
+bool InstalledStyle::display_is_none_ignoring_animations() const
+{
+    if (!m_record)
+        return false;
+    auto view = this->view();
+    return StyleEngineFFI::style_engine_view_display_is_none_ignoring_animations(&view);
+}
+
 bool InstalledStyle::display_is_none() const
 {
     if (!m_record)

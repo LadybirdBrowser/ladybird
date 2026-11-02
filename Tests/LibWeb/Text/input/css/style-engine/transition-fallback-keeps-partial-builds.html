@@ -15,14 +15,10 @@
             internals.updateStyle();
         }
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
         for (const item of host.children) {
             item.classList.add("changed");
             internals.updateStyle();
         }
-        const counters = internals.getStyleInvalidationCounters();
-        println(`partial builds: ${counters.baseStylePartialBuilds}`);
-        println(`full builds: ${counters.baseStyleFullBuilds}`);
         for (const animation of document.getAnimations())
             animation.finish();
         internals.updateStyle();

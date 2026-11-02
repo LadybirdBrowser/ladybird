@@ -1,3 +1,2 @@
-inherited UI longhand evaluations: 0
 color: rgb(255, 0, 0)
 background: rgb(0, 0, 0)

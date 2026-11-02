@@ -37,15 +37,12 @@
         child.internals.updateStyle();
         println(`initial winner: ${child.getComputedStyle(winner).color}`);
         println(`initial loser: ${child.getComputedStyle(loser).color}`);
-        const before = child.internals.styleEngineCounters();
 
         iframe.style.width = "300px";
         document.body.offsetWidth;
         await animationFrame();
         child.document.body.offsetWidth;
         child.internals.updateStyle();
-        const after = child.internals.styleEngineCounters();
-        println(`both matches refreshed: ${after.selectorTruthRefreshes - before.selectorTruthRefreshes === 2}`);
         println(`inactive winner: ${child.getComputedStyle(winner).color}`);
         println(`inactive loser: ${child.getComputedStyle(loser).color}`);
 

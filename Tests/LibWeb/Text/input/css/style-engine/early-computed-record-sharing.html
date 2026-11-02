@@ -13,6 +13,7 @@
 <div id="container"></div>
 <script>
     test(() => {
+        internals.updateStyle();
         const parents = [];
         for (let index = 0; index < 4; ++index) {
             const parent = document.createElement("div");
@@ -26,11 +27,10 @@
             parents.push(parent);
             container.append(parent);
         }
-        const before = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`early sharing used: ${after.engineComputedRecordSharedHits > before.engineComputedRecordSharedHits
-            || after.engineComputedRecordCohortHits > before.engineComputedRecordCohortHits}`);
+        const counters = internals.styleCounters();
+        println(`early sharing used: ${counters.sharedElements + counters.reusedElements > 0}`);
 
         function checkStyles(label, color, background) {
             let correct = true;

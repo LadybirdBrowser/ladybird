@@ -18,11 +18,8 @@
         const host = document.getElementById("host");
         host.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
         internals.updateStyle();
-        const before = Object.assign({}, internals.styleEngineCounters());
         host.getAnimations()[0].currentTime = 500000;
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
         println(`::before color: ${getComputedStyle(host, "::before").color}`);
     });
 </script>

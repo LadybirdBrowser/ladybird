@@ -17,15 +17,13 @@
             createShadowTree(".bystander { color: rgb(255, 0, 0); }", "bystander");
 
         getComputedStyle(document.body).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
 
         const target = createShadowTree("@media (min-width: 1px) { .target { color: rgb(0, 128, 0); } }", "target");
         println(`Target color: ${getComputedStyle(target).color}`);
 
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= 15)
-            println(`PASS: shadow media query update stayed scoped (${recomputations} recomputations)`);
-        else
-            println(`FAIL: shadow media query update was too broad (${recomputations} recomputations)`);
+        const styled = internals.styleCounters().styledElements;
+        println(`shadow media query update stays scoped, styled <= 15: ${styled <= 15}`);
     });
 </script>

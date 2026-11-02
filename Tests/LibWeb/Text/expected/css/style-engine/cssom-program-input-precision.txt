@@ -1,45 +1,30 @@
-repeat layers environment changed: false
-repeat layers topology changed: false
+repeat layers styled <= 0: true
 repeat layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-remove repeated layers environment changed: false
-remove repeated layers topology changed: false
+remove repeated layers styled <= 0: true
 remove repeated layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-reorder layers environment changed: false
-reorder layers topology changed: true
+reorder layers styled <= 2: true
 reorder layers colors: rgb(255, 0, 0), rgb(255, 0, 0)
-restore layers environment changed: false
-restore layers topology changed: true
+restore layers styled <= 2: true
 restore layers colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert style rule environment changed: false
-insert style rule topology changed: false
+insert style rule styled <= 2: true
 insert style rule colors: rgb(0, 128, 0), rgb(0, 128, 0)
-edit declarations environment changed: false
-edit declarations topology changed: false
+edit declarations styled <= 2: true
 edit declarations colors: rgb(128, 0, 128), rgb(128, 0, 128)
-replace declarations environment changed: false
-replace declarations topology changed: false
+replace declarations styled <= 2: true
 replace declarations colors: rgb(128, 128, 0), rgb(128, 128, 0)
-edit custom property environment changed: false
-edit custom property topology changed: false
+edit custom property styled <= 2: true
 edit custom property colors: rgb(0, 128, 0), rgb(0, 128, 0)
-delete style rule environment changed: false
-delete style rule topology changed: false
+delete style rule styled <= 2: true
 delete style rule colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert grouped rules environment changed: false
-insert grouped rules topology changed: false
+insert grouped rules styled <= 2: true
 insert grouped rules colors: rgb(255, 165, 0), rgb(255, 165, 0)
-delete grouped rules environment changed: false
-delete grouped rules topology changed: false
+delete grouped rules styled <= 2: true
 delete grouped rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert nested rules environment changed: false
-insert nested rules topology changed: false
+insert nested rules styled <= 2: true
 insert nested rules colors: rgb(165, 42, 42), rgb(165, 42, 42)
-delete nested rules environment changed: false
-delete nested rules topology changed: false
+delete nested rules styled <= 2: true
 delete nested rules colors: rgb(0, 0, 255), rgb(0, 0, 255)
-insert font feature values environment changed: false
-insert font feature values topology changed: false
+insert font feature values styled: 0, full pass: false
 insert font feature values colors: rgb(0, 0, 255), rgb(0, 0, 255)
-delete font feature values environment changed: false
-delete font feature values topology changed: false
+delete font feature values styled: 0, full pass: false
 delete font feature values colors: rgb(0, 0, 255), rgb(0, 0, 255)

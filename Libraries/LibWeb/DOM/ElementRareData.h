@@ -31,15 +31,6 @@ struct Element::RareData
     GC::Ptr<DOMTokenList> part_list;
     GC::Ptr<NamedNodeMap> attribute_map;
     mutable OwnPtr<PseudoElementData> pseudo_element_data;
-    struct CustomPropertyConsumerData {
-        AK_ALLOC_WITH_KMALLOC;
-
-        Vector<Utf16FlyString> style_query_references;
-        Vector<PseudoElementStyleQueryCustomPropertyReferences> pseudo_element_style_query_references;
-        Vector<RefPtr<CSS::CustomPropertyData const>> published_pseudo_element_data;
-        Vector<Utf16FlyString> published_references;
-    };
-    OwnPtr<CustomPropertyConsumerData> custom_property_consumer_data;
     Optional<CSS::PseudoElement> associated_shadow_host_pseudo_element;
     Vector<Utf16FlyString> parts;
 

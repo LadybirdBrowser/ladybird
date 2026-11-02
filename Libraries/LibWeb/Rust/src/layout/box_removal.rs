@@ -72,7 +72,7 @@ impl LayoutNodeArena {
             let mut sibling = sibling;
             while let Some(current) = sibling {
                 if current.text_index().is_some() {
-                    return engine.tree().text_is_ascii_whitespace(current);
+                    return engine.text_is_ascii_whitespace(current);
                 }
                 let Some(facts) = engine.element_published_box_facts(current) else {
                     return true;
@@ -88,7 +88,7 @@ impl LayoutNodeArena {
                 if !lays_out_elsewhere {
                     return false;
                 }
-                sibling = engine.tree().next_sibling_in_dom_order(current);
+                sibling = engine.next_sibling_in_dom_order(current);
             }
             false
         })

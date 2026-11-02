@@ -9,6 +9,7 @@
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/SerializationMode.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/DOM/AbstractElement.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -34,6 +35,24 @@ static bool computed_property_values_are_equivalent(CSS::PropertyID property_id,
         return true;
 
     return false;
+}
+
+// NB: A shorthand written with an arbitrary substitution function is a declaration beside the longhands pending it, and
+//     only the longhands compute. They stay or go together, as a pending longhand alone would serialize to nothing.
+static bool inline_declaration_is_redundant(CSS::StyleProperty const& property, CSS::ComputedStyleWorkingSet const& with_inline_style, CSS::ComputedStyleWorkingSet const& without_inline_style)
+{
+    auto property_id = property.property_id;
+    if (property.value->is_pending_substitution()) {
+        ValueComparingNonnullRefPtr<CSS::StyleValue const> written = property.value;
+        while (written->as_pending_substitution().original_shorthand_value()->is_pending_substitution())
+            written = written->as_pending_substitution().original_shorthand_value();
+        property_id = written->as_pending_substitution().original_shorthand();
+    }
+    if (!CSS::property_is_shorthand(property_id))
+        return computed_property_values_are_equivalent(property_id, with_inline_style, without_inline_style);
+    return all_of(CSS::expanded_longhands_for_shorthand(property_id), [&](auto longhand_id) {
+        return computed_property_values_are_equivalent(longhand_id, with_inline_style, without_inline_style);
+    });
 }
 
 void remove_redundant_styles_from_inserted_content(Layout::BegunRead const& read, InsertedContent& inserted_content)
@@ -69,16 +88,16 @@ void remove_redundant_styles_from_inserted_content(Layout::BegunRead const& read
         auto style_with_inline_declaration = style_computer.reconstruct_computed_properties(*computed_values);
         // What the element would compute to without its inline declaration, which the style engine answers privately
         // without touching the live element. An element it gives no answer for keeps its inline style.
-        auto answer = style_computer.style_engine().answer_record_demand(read, element->style_node_id(), CSS::StyleEngine::RecordDemand::ElementReadWithoutInlineStyle).record;
-        auto view = style_computer.computed_style_record_view(read, CSS::StyleRecordID { answer.style_record });
-        if (!view)
+        CSS::InstalledStyle const style { style_computer.style_engine().answer_record_demand(read, element->style_node_id(), CSS::StyleEngine::RecordDemand::ElementReadWithoutInlineStyle).record.host_record };
+        if (!style)
             continue;
+        auto view = style_computer.computed_style_record_view(style);
         auto style_without_inline_declaration = style_computer.reconstruct_computed_properties(*view);
 
         Vector<CSS::StyleProperty> retained_properties;
         retained_properties.ensure_capacity(inline_style->properties().size());
         for (auto const& property : inline_style->properties()) {
-            if (!computed_property_values_are_equivalent(property.property_id, *style_with_inline_declaration, *style_without_inline_declaration))
+            if (!inline_declaration_is_redundant(property, *style_with_inline_declaration, *style_without_inline_declaration))
                 retained_properties.append(property);
         }
 

@@ -95,4 +95,12 @@ void ElementByIdMap::for_each_element_with_id(Utf16View element_id, Node const& 
     });
 }
 
+ReadonlySpan<GC::Weak<Element>> ElementByIdMap::elements_with_id(Utf16FlyString const& element_id) const
+{
+    auto maybe_entry = m_map.get(element_id);
+    if (!maybe_entry.has_value())
+        return {};
+    return maybe_entry->elements.span();
+}
+
 }

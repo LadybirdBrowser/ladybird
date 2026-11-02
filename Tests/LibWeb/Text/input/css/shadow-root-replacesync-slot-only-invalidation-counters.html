@@ -6,15 +6,18 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
-    function verifyRecomputationsStayBounded(label, maximum) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= maximum)
-            println(`PASS: ${label}`);
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function verifyStyledStaysBounded(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     test(() => {
@@ -39,11 +42,11 @@
         settleAndReset(target);
         sheet.replaceSync("slot { color: rgb(255, 0, 0); }");
         getComputedStyle(target).color;
-        verifyRecomputationsStayBounded("slot-only replaceSync stays scoped to the current host subtree", 4);
+        verifyStyledStaysBounded("slot-only replaceSync stays scoped to the current host subtree", 4);
 
         settleAndReset(target);
         sheet.replaceSync("");
         getComputedStyle(target).color;
-        verifyRecomputationsStayBounded("slot-only replaceSync removal stays scoped to the current host subtree", 4);
+        verifyStyledStaysBounded("slot-only replaceSync removal stays scoped to the current host subtree", 4);
     });
 </script>

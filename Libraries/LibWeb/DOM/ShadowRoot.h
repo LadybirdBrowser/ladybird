@@ -186,6 +186,7 @@ private:
 
     IntrusiveListNode<ShadowRoot> m_list_node;
     IntrusiveListNode<ShadowRoot> m_slot_assignment_list_node;
+    IntrusiveListNode<ShadowRoot> m_counter_style_settle_list_node;
 
     CSS::StyleScope m_style_scope;
 
@@ -203,6 +204,7 @@ private:
 public:
     using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;
     using DocumentSlotAssignmentList = IntrusiveList<&ShadowRoot::m_slot_assignment_list_node>;
+    using DocumentCounterStyleSettleList = IntrusiveList<&ShadowRoot::m_counter_style_settle_list_node>;
 };
 
 template<>

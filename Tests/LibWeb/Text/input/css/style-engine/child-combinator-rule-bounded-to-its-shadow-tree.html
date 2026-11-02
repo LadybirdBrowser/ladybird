@@ -16,16 +16,17 @@
         function recomputationsForSheet(cssText) {
             const sheet = new CSSStyleSheet();
             sheet.replaceSync(cssText);
-            const before = internals.getStyleInvalidationCounters();
+            internals.resetStyleCounters();
             shadow.adoptedStyleSheets = [sheet];
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            const count = after.elementStyleRecomputations - before.elementStyleRecomputations;
+            const count = internals.styleCounters().styledElements;
             shadow.adoptedStyleSheets = [];
             internals.updateStyle();
             return count;
         }
 
+        // A sheet adopted by the shadow root restyles only the shadow tree elements its rules can match, so
+        // none for :focus while nothing is focused, and none of the 50 list items outside it.
         println(`li > div > :focus: ${recomputationsForSheet("li > div > :focus { color: red }")}`);
         println(`li > div > *: ${recomputationsForSheet("li > div > * { color: red }")}`);
         println(`li :focus: ${recomputationsForSheet("li :focus { color: red }")}`);

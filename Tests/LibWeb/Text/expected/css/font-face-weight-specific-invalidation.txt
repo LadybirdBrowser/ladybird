@@ -1,4 +1,3 @@
 affected weight recomputed: true
 unaffected weights skipped: true
-affected weight computed by the style engine: true
 regular face loaded: loaded

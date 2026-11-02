@@ -5,15 +5,29 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
-    function verifyRecomputationsStayBounded(label, maximum) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= maximum)
-            println(`PASS: ${label}`);
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function verifyStyledStaysBounded(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
+    }
+
+    // The same for the last pass alone. Where a style element arrives with an @import, the style engine
+    // restyles for the element and for the imported sheet in one pass or in two, depending on when
+    // the import loads, so only the pass that took the imported sheet is counted.
+    function verifyLastPassStaysBounded(label, maximum) {
+        const lastPass = internals.styleLastPass();
+        if (maximum === undefined)
+            println(`${label}, last pass styled: ${lastPass.styled.length}`);
+        else
+            println(`${label}, last pass styled <= ${maximum}: ${lastPass.styled.length <= maximum}`);
     }
 
     function verifyTargetWasRecomputed(label) {
@@ -40,13 +54,13 @@
 
         getComputedStyle(target).color;
         // A layer order change can only move declarations that sit in layers, and nothing here does.
-        verifyRecomputationsStayBounded("imported layer-only stylesheet add restyles nothing", 1);
+        verifyLastPassStaysBounded("imported layer-only stylesheet add restyles nothing", 1);
 
         settleAndReset(target);
         layerImportStyle.remove();
 
         getComputedStyle(target).color;
-        verifyRecomputationsStayBounded("imported layer-only stylesheet remove restyles nothing", 1);
+        verifyStyledStaysBounded("imported layer-only stylesheet remove restyles nothing", 1);
 
         // With a declaration in a layer, reordering the layers has to reach the element it decides
         // for - and still not the whole document.
@@ -60,7 +74,7 @@
 
         getComputedStyle(target).color;
         verifyTargetWasRecomputed("imported layer reorder reaches the layered element");
-        verifyRecomputationsStayBounded("imported layer reorder stays bounded", 8);
-
+        verifyLastPassStaysBounded("imported layer reorder stays bounded", 8);
+        println(`imported layer reorder runs no full pass: ${!internals.styleLastPass().fullPass}`);
     });
 </script>

@@ -1,0 +1,6 @@
+editable: matches true, rgb(0, 128, 0)
+under an inert ancestor: matches false, rgb(0, 0, 255)
+no longer inert: matches true, rgb(0, 128, 0)
+inserted under an inert parent: matches false, rgb(0, 0, 255)
+inserted again: matches true, rgb(0, 128, 0)
+removed while inert and inserted again: matches true, rgb(0, 128, 0)

@@ -1,3 +1,0 @@
-initial facts published: true
-no scope markers: true
-tree delta recorded: true

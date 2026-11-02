@@ -12,16 +12,10 @@
         // where the host installs the record the engine settled.
         const target = document.getElementById("target");
         internals.updateStyle();
-        const start = internals.styleEngineCounters();
-        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         target.className = "changed";
         internals.updateStyle();
-        const end = internals.styleEngineCounters();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         const transitions = target.getAnimations({ subtree: true }).map(animation => `${animation.transitionProperty} ${animation.effect.pseudoElement}`);
         println(`transitions: ${transitions.join(",")}`);
         println(`before: ${getComputedStyle(target, "::before").color}`);
-        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
-        println(`property bails: ${end.engineComputedRecordBailProperty - start.engineComputedRecordBailProperty}`);
     });
 </script>

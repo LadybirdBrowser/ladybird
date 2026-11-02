@@ -24,11 +24,9 @@
         println(`second, hidden: ${describe(second)}`);
 
         // Revealing either subtree starts the animations its records name.
-        const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         document.getElementById("never-shown").classList.remove("hidden");
         shown.classList.remove("hidden");
         internals.updateStyle();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - before}`);
         println(`first, revealed: ${describe(first)}`);
         println(`second, revealed: ${describe(second)}`);
     });

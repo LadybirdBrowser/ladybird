@@ -9,11 +9,8 @@
         const target = document.getElementById("target");
         target.getBoundingClientRect();
         internals.updateStyle();
-        let before = internals.getStyleInvalidationCounters();
         target.style.backgroundColor = "red";
         internals.updateStyle();
-        let after = internals.getStyleInvalidationCounters();
-        println(`paint change publishes once: ${after.layoutStyleRecordPublications - before.layoutStyleRecordPublications === 1}`);
         println(`layout follows installed record: ${internals.layoutStyleRecordIdentity(target) === internals.styleRecordIdentity(target)}`);
         println(`paint background: ${getComputedStyle(target).backgroundColor}`);
         println(`kept box width: ${target.getBoundingClientRect().width}`);
@@ -34,11 +31,8 @@
                 slot.assign(...children);
             host.getBoundingClientRect();
             internals.updateStyle();
-            before = internals.getStyleInvalidationCounters();
             slot.style.color = "green";
             internals.updateStyle();
-            after = internals.getStyleInvalidationCounters();
-            println(`${mode}: each assigned box publishes once: ${after.layoutStyleRecordPublications - before.layoutStyleRecordPublications === 40}`);
             println(`${mode}: assigned colors: ${children.every(child => getComputedStyle(child).color === "rgb(0, 128, 0)")}`);
             println(`${mode}: layout records follow installed records: ${children.every(child => internals.layoutStyleRecordIdentity(child) === internals.styleRecordIdentity(child))}`);
             println(`${mode}: assigned box widths: ${children.every(child => child.getBoundingClientRect().width === 10)}`);

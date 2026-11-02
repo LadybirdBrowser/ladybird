@@ -1,3 +1,1 @@
 rare subject updated: rgb(0, 128, 0)
-prefix convergence bypassed: false
-prefix convergence maintained: true
