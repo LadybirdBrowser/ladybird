@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use ak::Utf16String;
 use libjs_abi::Builtin;
 use libjs_runtime_macros::Trace;
 
@@ -106,7 +105,7 @@ impl StringConstructor {
 
         // 1. If value is not present, let s be the empty String.
         if vm.argument_count() == 0 {
-            return Ok(Value::from_string(PrimitiveString::create(vm, Utf16String::default())));
+            return Ok(Value::from_string(vm.empty_string()));
         }
 
         // 2. Else,
@@ -130,7 +129,7 @@ impl StringConstructor {
 
         // 1. If value is not present, let s be the empty String.
         let primitive_string = if vm.argument_count() == 0 {
-            PrimitiveString::create(vm, Utf16String::default())
+            vm.empty_string()
         }
         // 2. Else,
         else {
@@ -224,7 +223,7 @@ impl StringConstructor {
 
         // 5. If literalCount ≤ 0, return the empty String.
         if literal_count == 0 {
-            return Ok(Value::from_string(PrimitiveString::create(vm, Utf16String::default())));
+            return Ok(Value::from_string(vm.empty_string()));
         }
 
         // 6. Let R be the empty String.
