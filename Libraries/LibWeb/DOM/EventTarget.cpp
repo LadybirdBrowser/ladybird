@@ -885,13 +885,10 @@ void EventTarget::activate_event_handler(Utf16FlyString const& name, HTML::Event
     // 4. Let callback be the result of creating a Web IDL EventListener instance representing a reference to a function of one argument that executes the steps of the event handler processing algorithm, given eventTarget, name, and its argument.
     //    The EventListener's callback context can be arbitrary; it does not impact the steps of the event handler processing algorithm. [DOM]
 
-    // NOTE: The callback must keep `this` alive. For example:
-    //          document.body.onunload = () => { console.log("onunload called!"); }
-    //          document.body.remove();
-    //          location.reload();
-    //       The body element is no longer in the DOM and there is no variable holding onto it. However, the onunload handler is still called, meaning the callback keeps the body element alive.
+    // NB: The listener below is eventTarget's and has type name, so the event it is called with gives both. This leaves
+    //     the function no captures for the garbage collector to scan conservatively.
     auto callback_function = JS::NativeFunction::create(
-        realm, [event_target = this, name](JS::VM& vm) mutable -> JS::ThrowCompletionOr<JS::Value> {
+        realm, +[](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
             // The event dispatcher should only call this with one argument.
             VERIFY(vm.argument_count() == 1);
 
@@ -899,7 +896,7 @@ void EventTarget::activate_event_handler(Utf16FlyString const& name, HTML::Event
             auto* event = Bindings::event_from_callback_argument(vm);
             VERIFY(event);
 
-            TRY(event_target->process_event_handler_for_event(name, *event));
+            TRY(event->current_target()->process_event_handler_for_event(event->type(), *event));
             return JS::js_undefined();
         },
         0, Utf16FlyString {}, &realm);
