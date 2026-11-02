@@ -923,17 +923,12 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     EXPECT_EQ(ranges_1[0].end, AK::Duration::from_milliseconds(51));
 
     // Stage 2: extend to two thirds.
-    // The scan publishes intermediate ranges as it works through the new bytes, so wait for the range to reach the end
-    // of the second third rather than for any change.
     stream->add_chunk_at(one_third, file_data.bytes().slice(one_third, two_thirds - one_third));
-    auto stage_2_end = AK::Duration::from_milliseconds(531);
-    auto ranges_2 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) {
-        return !ranges.is_empty() && ranges[ranges.size() - 1].end >= stage_2_end;
-    });
+    auto ranges_2 = wait_for_buffered_ranges(loop, *demuxer, [&](auto const& ranges) { return ranges != ranges_1; });
     EXPECT_EQ(ranges_2.size(), 1u);
     EXPECT_EQ(ranges_2[0].start, start);
     EXPECT(ranges_2[0].end > ranges_1[0].end);
-    EXPECT_EQ(ranges_2[0].end, stage_2_end);
+    EXPECT_EQ(ranges_2[0].end, AK::Duration::from_milliseconds(531));
 
     // Stage 3: complete the file.
     stream->add_chunk_at(two_thirds, file_data.bytes().slice(two_thirds, CUES_START - two_thirds));
@@ -944,6 +939,35 @@ TEST_CASE(buffered_time_ranges_incremental_thirds)
     EXPECT_EQ(ranges_3[0].start, start);
     EXPECT(ranges_3[0].end > ranges_2[0].end);
     EXPECT_EQ(ranges_3[0].end, AK::Duration::from_microseconds(1021500));
+}
+
+TEST_CASE(buffered_time_ranges_scan_only_the_given_byte_ranges)
+{
+    auto file_data = load_test_file_data("./vp9_in_webm.webm"sv);
+    size_t one_third = file_data.size() / 3;
+    size_t two_thirds = one_third * 2;
+
+    // Bytes can arrive after a scan takes its snapshot of the stream's byte ranges.
+    NonnullRefPtr<Media::IncrementallyPopulatedStream> stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->add_chunk_at(0, file_data.bytes().slice(0, two_thirds));
+    stream->add_chunk_at(CUES_START, file_data.bytes().slice(CUES_START));
+    auto reader = MUST(Media::Matroska::Reader::from_stream(stream->create_cursor()));
+    auto scan_cursor = stream->create_cursor();
+    scan_cursor->set_is_blocking(false);
+
+    auto scan = [&](size_t end) {
+        Vector<Media::MediaStream::ByteRange> byte_ranges { { 0, end }, { CUES_START, file_data.size() } };
+        auto scans = reader.buffered_time_ranges_by_track(scan_cursor, byte_ranges);
+        return Media::DemuxerScanState::create_from_track_scans(move(scans), reader.duration().value_or(AK::Duration::zero()), false).buffered_ranges();
+    };
+
+    auto ranges_1 = scan(one_third);
+    EXPECT_EQ(ranges_1.size(), 1u);
+    EXPECT_EQ(ranges_1[0].end, AK::Duration::from_milliseconds(51));
+
+    auto ranges_2 = scan(two_thirds);
+    EXPECT_EQ(ranges_2.size(), 1u);
+    EXPECT_EQ(ranges_2[0].end, AK::Duration::from_milliseconds(531));
 }
 
 // big_buck_bunny_5s.webm cluster layout:
