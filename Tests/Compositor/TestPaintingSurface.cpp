@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <Compositor/DisplayListPlayerSkia.h>
+#include <Compositor/DisplayListRasterCache.h>
 #include <Compositor/PaintingSurface.h>
 #include <Compositor/SkiaBackendContext.h>
 #include <Compositor/SkiaUtils.h>
+#include <LibCompositing/DisplayList/VisualContextTreeTestBuilder.h>
 #include <LibGfx/Bitmap.h>
 #include <LibTest/TestCase.h>
 
@@ -14,6 +17,46 @@
 #include <core/SkCanvas.h>
 #include <core/SkPaint.h>
 #include <core/SkPath.h>
+
+TEST_CASE(zero_width_border_sides_do_not_paint_on_gpu_surface)
+{
+    // Set up the GPU renderer and pixel readback.
+    auto context = Gfx::SkiaBackendContext::create_independent_gpu_backend();
+    if (!context) {
+        warnln("No GPU backend available, skipping");
+        return;
+    }
+
+    Gfx::IntSize size { 10, 10 };
+    auto surface = Gfx::PaintingSurface::create_with_size(size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, context);
+    auto tree = Compositing::VisualContextTreeTestBuilder {}.finish();
+    Compositor::DisplayListPlayerSkia player { context };
+    Compositing::DisplayListResourceStorage storage;
+    Compositor::DisplayListRasterCache cache;
+    auto bitmap = MUST(Gfx::Bitmap::create(Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, size));
+
+    // A half-pixel offset must not make the zero-width top and left borders visible.
+    auto& canvas = surface->canvas();
+    canvas.clear(SK_ColorWHITE);
+    canvas.translate(0.5f, 0.5f);
+
+    Compositing::FillRoundedRectRing ring {
+        .rect = { 0, 0, 8, 8 },
+        .corner_radii = {},
+        .top_width = 0,
+        .right_width = 1,
+        .bottom_width = 1,
+        .left_width = 0,
+        .color = Gfx::Color::Black,
+    };
+    auto list = Compositing::VisualContextTreeTestBuilder::rounded_rect_ring_display_list(tree, {}, ring);
+    player.execute(*list, tree, storage, cache, {}, surface, nullptr, nullptr);
+    surface->read_into_bitmap(*bitmap);
+
+    EXPECT_EQ(bitmap->get_pixel(0, 4), Gfx::Color::White); // Left border.
+    EXPECT_EQ(bitmap->get_pixel(4, 0), Gfx::Color::White); // Top border.
+    EXPECT_NE(bitmap->get_pixel(8, 4), Gfx::Color::White); // Right border.
+}
 
 static int count_red_pixels(Gfx::Bitmap const& bitmap, Gfx::IntRect const& rect)
 {

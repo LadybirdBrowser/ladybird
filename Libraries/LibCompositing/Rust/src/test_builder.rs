@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex};
+use crate::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex, FillRoundedRectRing};
 use crate::ffi::test_builder_tree;
 use std::ffi::c_void;
 
@@ -58,5 +58,17 @@ pub extern "C" fn visual_context_tree_test_builder_filled_rect(
         &[],
         context,
     );
+    std::sync::Arc::into_raw(std::sync::Arc::new(builder.finish())).cast()
+}
+
+/// Records a rounded rectangle ring. Returns one owned Arc reference consumed by
+/// `display_list_storage_adopt_recorded`.
+#[unsafe(no_mangle)]
+pub extern "C" fn visual_context_tree_test_builder_rounded_rect_ring(
+    ring: FillRoundedRectRing,
+    context: ContextRef,
+) -> *const c_void {
+    let mut builder = crate::display_list::builder::DisplayListBuilder::new();
+    builder.append(&ring, &[], context);
     std::sync::Arc::into_raw(std::sync::Arc::new(builder.finish())).cast()
 }
