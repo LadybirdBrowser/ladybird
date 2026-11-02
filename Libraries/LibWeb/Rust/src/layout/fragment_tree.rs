@@ -61,7 +61,7 @@ pub(crate) struct FragmentLink {
     pub(crate) table_column_span: u32,
     pub(crate) hidden_by_collapsed_columns: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
-    pub(crate) containing_line_box_index: Option<usize>,
+    pub(crate) containing_line_box_index: Option<u32>,
     /// Shared, as few links place an absolutely positioned box, the inputs are larger than the rest of the link, and
     /// layout run cache entries keep copies of links.
     pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
@@ -731,7 +731,7 @@ pub(crate) struct PlacementData {
     pub(crate) table_column_span: u32,
     pub(crate) hidden_by_collapsed_columns: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
-    pub(crate) containing_line_box_index: Option<usize>,
+    pub(crate) containing_line_box_index: Option<u32>,
     pub(crate) abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
     pub(crate) default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     pub(crate) containing_block: crate::layout::node_data::NodeSlotId,
@@ -743,7 +743,7 @@ impl PlacementData {
         facts: &run_state::FactsDecidedByParent,
         cells: &used_values::RootInputCells,
         abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
-        containing_line_box_index: Option<usize>,
+        containing_line_box_index: Option<u32>,
         committed_offset: FfiCssPixelPoint,
         frame: geometry::Frame,
     ) -> Self {
@@ -1384,7 +1384,7 @@ impl RunFragmentBuilder {
             if link.containing_block == self.root_node
                 && let Some(line_index) = link.containing_line_box_index.as_mut()
             {
-                *line_index += root_line_index_offset;
+                *line_index += u32::try_from(root_line_index_offset).expect("a line box index fits in 32 bits");
             }
             inner.top_scope_links.push(link);
         }
@@ -1571,7 +1571,7 @@ impl RunFragmentBuilder {
         geometry: FragmentGeometry,
         facts: run_state::FactsDecidedByParent,
         abspos_layout_inputs: Option<std::sync::Arc<abspos_inputs::AbsposLayoutInputs>>,
-        containing_line_box_index: Option<usize>,
+        containing_line_box_index: Option<u32>,
         committed_offset: FfiCssPixelPoint,
         own_anchor_candidate_border_box_rect: Option<CssPixelRect>,
     ) -> PlacedFragment {

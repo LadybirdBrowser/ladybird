@@ -1378,7 +1378,8 @@ mod tests {
 
         let mut adopting_input = item_input;
         adopting_input.sizing.adopt_automatic_content_block_size = true;
-        adopting_input.sizing.content_block_size_after_inside_layout = Some(px(40));
+        adopting_input.sizing.content_block_size_after_inside_layout =
+            geometry::PackedOptionalCssPixels::from(Some(px(40)));
         let probe = key_of(adopting_input);
 
         assert!(!stored.matches(&probe, RunInputsTheStoredRunNeverObserved::default()));
@@ -1467,7 +1468,10 @@ mod tests {
         let mutators: [fn(&mut FcRunCacheKey); 4] = [
             |probe| probe.input.containing_block_constraints.percentage_basis_block_size = Some(px(10)),
             |probe| probe.input.available_space.block_size = AvailableSize::definite(px(10)),
-            |probe| probe.input.sizing.forced_min_border_box_block_size = Some(px(10)),
+            |probe| {
+                probe.input.sizing.forced_min_border_box_block_size =
+                    geometry::PackedOptionalCssPixels::from(Some(px(10)))
+            },
             |probe| {
                 probe.input.participation = ParticipationInParentFormattingContext::Float {
                     containing_block_position_in_bfc_root: FfiCssPixelPoint::default(),

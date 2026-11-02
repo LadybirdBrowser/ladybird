@@ -318,31 +318,65 @@ impl ContainingBlockConstraints {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PackedOptionalCssPixels(i32);
+
+impl PackedOptionalCssPixels {
+    const NONE_RAW_VALUE: i32 = i32::MIN;
+
+    pub(crate) fn get(self) -> Option<CssPixels> {
+        (self.0 != Self::NONE_RAW_VALUE).then(|| CssPixels::from_raw(self.0))
+    }
+
+    pub(crate) fn is_some(self) -> bool {
+        self.0 != Self::NONE_RAW_VALUE
+    }
+
+    pub(crate) fn is_none(self) -> bool {
+        self.0 == Self::NONE_RAW_VALUE
+    }
+}
+
+impl Default for PackedOptionalCssPixels {
+    fn default() -> Self {
+        Self(Self::NONE_RAW_VALUE)
+    }
+}
+
+impl From<Option<CssPixels>> for PackedOptionalCssPixels {
+    fn from(value: Option<CssPixels>) -> Self {
+        match value {
+            Some(pixels) => Self(pixels.raw_value().max(Self::NONE_RAW_VALUE + 1)),
+            None => Self::default(),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RootSizingDirectives {
-    pub(crate) forced_content_inline_size: Option<CssPixels>,
-    pub(crate) forced_content_block_size: Option<CssPixels>,
-    pub(crate) forced_min_border_box_block_size: Option<CssPixels>,
+    pub(crate) forced_content_inline_size: PackedOptionalCssPixels,
+    pub(crate) forced_content_block_size: PackedOptionalCssPixels,
+    pub(crate) forced_min_border_box_block_size: PackedOptionalCssPixels,
     // Input-only: the parent block formatting context supplies the inline size it resolved while
     // positioning an independent child, so the child's run prelude can commit it without resolving it again.
-    pub(crate) block_parent_resolved_content_inline_size: Option<CssPixels>,
+    pub(crate) block_parent_resolved_content_inline_size: PackedOptionalCssPixels,
     // Input-only: the table formatting context supplies the cell's intrinsic block padding
     // (the vertical-alignment stretch) before laying out the cell's contents.
     pub(crate) table_cell_intrinsic_block_padding: Option<(CssPixels, CssPixels)>,
     // Input-only: the wrapper's BFC tells the table formatting context where the table box's
     // content box sits in the wrapper, so rows and row groups (whose containing block is the
     // wrapper) can be placed in wrapper coordinates.
-    pub(crate) table_box_content_block_offset_in_wrapper: Option<CssPixels>,
+    pub(crate) table_box_content_block_offset_in_wrapper: PackedOptionalCssPixels,
     pub(crate) adopt_automatic_content_block_size: bool,
     pub(crate) finds_automatic_line_clamp_lines: bool,
     // Input-only: a flex item lays out its content against the block size transferred through its aspect ratio, then
     // takes this block size, which the automatic minimum size grew to fit the content.
-    pub(crate) content_block_size_after_inside_layout: Option<CssPixels>,
+    pub(crate) content_block_size_after_inside_layout: PackedOptionalCssPixels,
     pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
-    pub(crate) float_avoidance_inline_size: Option<CssPixels>,
+    pub(crate) float_avoidance_inline_size: PackedOptionalCssPixels,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    pub(crate) maximum_inline_size_resolved_by_caller: Option<CssPixels>,
+    pub(crate) maximum_inline_size_resolved_by_caller: PackedOptionalCssPixels,
     pub(crate) root_is_measured_for_its_content_block_size: bool,
     // Input-only: MathML layout lays out an embellished operator with the size its core operator should stretch to
     // cover.
@@ -389,6 +423,8 @@ pub(crate) struct LayoutInput {
     pub(crate) participation: ParticipationInParentFormattingContext,
 }
 
+const _: () = assert!(size_of::<LayoutInput>() <= 144);
+
 impl LayoutInput {
     pub(crate) fn new(
         available_space: AvailableSpace,
@@ -408,8 +444,8 @@ impl LayoutInput {
         forced_content_inline_size: CssPixels,
         forced_content_block_size: CssPixels,
     ) -> Self {
-        self.sizing.forced_content_inline_size = Some(forced_content_inline_size);
-        self.sizing.forced_content_block_size = Some(forced_content_block_size);
+        self.sizing.forced_content_inline_size = PackedOptionalCssPixels::from(Some(forced_content_inline_size));
+        self.sizing.forced_content_block_size = PackedOptionalCssPixels::from(Some(forced_content_block_size));
         self
     }
 }

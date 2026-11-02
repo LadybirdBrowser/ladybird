@@ -3238,8 +3238,9 @@ impl<'pass> FlexFormattingContext<'pass> {
             //     size is already the stretched size, so measure the captions against the wrapper's own content.
             let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
             let stretched_table_box_block_size = self.flex_items[index].cross_size.unwrap() - captions_block_size;
-            input.sizing.forced_min_border_box_block_size =
-                Some(stretched_table_box_block_size.max(sizes.table_box_border_box_block_size));
+            input.sizing.forced_min_border_box_block_size = geometry::PackedOptionalCssPixels::from(Some(
+                stretched_table_box_block_size.max(sizes.table_box_border_box_block_size),
+            ));
         }
 
         if self.flex_items[index].cross_size_was_resolved_from_aspect_ratio
@@ -3248,7 +3249,8 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .cross_size_transferred_through_aspect_ratio
                 .is_some()
         {
-            input.sizing.content_block_size_after_inside_layout = self.flex_items[index].cross_size;
+            input.sizing.content_block_size_after_inside_layout =
+                geometry::PackedOptionalCssPixels::from(self.flex_items[index].cross_size);
         }
         input
     }
