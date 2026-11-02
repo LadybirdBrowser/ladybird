@@ -92,6 +92,8 @@ recorded_request_counts_lock = threading.Lock()
 
 # Named events used by tests that need deterministic delayed responses.
 unblock_events: Dict[str, threading.Event] = {}
+stalled_tls_port = 0
+stalled_tls_connection_count = 0
 
 # Per RFC 6455: appended to Sec-WebSocket-Key before hashing to compute the Sec-WebSocket-Accept value.
 WEBSOCKET_ACCEPT_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -370,6 +372,18 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _serve_stalled_tls_config(self):
+        # Lets the test page discover a port that accepts connections and never answers a TLS handshake, and how many
+        # connections it has accepted so far.
+        body = json.dumps({"port": stalled_tls_port, "connections": stalled_tls_connection_count}).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def _serve_aia_config(self):
         # Lets the test page discover the per-scenario HTTPS ports (each an OS-assigned port).
         config = getattr(TestHTTPRequestHandler, "aia_config", None)
@@ -404,6 +418,8 @@ class TestHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_aia_artifact(request_path)
         elif request_path == "/aia-test/config":
             self._serve_aia_config()
+        elif request_path == "/stalled-tls/config":
+            self._serve_stalled_tls_config()
         else:
             self._serve_static_request()
 
@@ -1138,6 +1154,8 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
     https_ports = [https_httpd.socket.getsockname()[1]] if https_httpd else []
     httpd.wpt.configure_server([httpd.socket.getsockname()[1], alternate_httpd.socket.getsockname()[1]], https_ports)
 
+    start_stalled_tls_listener()
+
     # The first line holds the HTTP port, followed by the HTTPS port if there is one.
     print(" ".join(str(port) for port in [httpd.socket.getsockname()[1], *https_ports]))
     sys.stdout.flush()
@@ -1162,6 +1180,31 @@ def start_server(port, static_directory, ca_cert_output=None, exit_when_stdin_cl
         if https_httpd:
             https_httpd.server_close()
         httpd.server_close()
+
+
+def start_stalled_tls_listener():
+    global stalled_tls_port
+
+    listener = socket.create_server(("127.0.0.1", 0))
+    stalled_tls_port = listener.getsockname()[1]
+
+    def hold_until_closed(connection):
+        with connection:
+            try:
+                while connection.recv(4096):
+                    pass
+            except OSError:
+                pass
+
+    def accept_connections():
+        global stalled_tls_connection_count
+
+        while True:
+            connection = listener.accept()[0]
+            stalled_tls_connection_count += 1
+            threading.Thread(target=hold_until_closed, args=(connection,), daemon=True).start()
+
+    threading.Thread(target=accept_connections, daemon=True).start()
 
 
 if __name__ == "__main__":

@@ -1521,6 +1521,15 @@ void Request::handle_fetch_state()
     set_option(CURLOPT_REDIR_PROTOCOLS_STR, "http,https");
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
+#ifdef LIBCURL_WAKES_ALL_PENDING_TRANSFERS
+    // A burst of requests to a new origin would otherwise each open a connection, even if they could all multiplex over
+    // one. The TLS handshake tells curl if a connection can multiplex. A plain HTTP connection only tells curl through
+    // the response, and that response may be waiting for this very request. An unpatched curl leaves the requests
+    // waiting in the same way over TLS, so builds with a system curl go without this.
+    if (m_url.scheme() == "https"sv)
+        set_option(CURLOPT_PIPEWAIT, 1L);
+#endif
+
     if (m_alternative_service.has_value()) {
         // https://www.rfc-editor.org/rfc/rfc7838#section-2.4
         // If the connection to the alternative service does not negotiate the expected protocol (for example, ALPN
