@@ -637,10 +637,15 @@ impl RetainedState {
     /// the record stood before any animation was layered on it: the host's
     /// `has_inclusive_ancestor_with_display_none_ignoring_animations()`. A node that holds no
     /// record, a shadow root or one style has not reached yet, is passed over, as the host passes
-    /// over a node that is not an element.
+    /// over a node that is not an element. A slottable is below the slot it is assigned to.
     #[must_use]
     pub(crate) fn has_inclusive_ancestor_with_display_none_ignoring_animations(&self, node: StyleNodeID) -> bool {
-        std::iter::successors(Some(node), |&current| self.projection.parent_or_shadow_host(current)).any(|ancestor| {
+        std::iter::successors(Some(node), |&current| {
+            self.projection
+                .assigned_slot_of(current)
+                .or_else(|| self.projection.parent_or_shadow_host(current))
+        })
+        .any(|ancestor| {
             self.computed_group_sets
                 .assigned_style_record(ancestor)
                 .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))

@@ -4965,12 +4965,16 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
 {
     // NB: Only each ancestor's display matters here, so read it out of the record's box group
     //     payload instead of materializing a full style record view.
-    for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+    // NB: A slottable is below the slot it is assigned to, which is not among its ancestors in the DOM.
+    for (auto const* ancestor = this; ancestor;) {
         auto const* ancestor_element = as_if<Element>(ancestor);
-        if (!ancestor_element)
+        if (!ancestor_element) {
+            ancestor = ancestor->parent_or_shadow_host();
             continue;
+        }
         if (ancestor_element->installed_style().display_is_none())
             return true;
+        ancestor = ancestor_element->element_to_inherit_style_from({}).ptr();
     }
     return false;
 }
