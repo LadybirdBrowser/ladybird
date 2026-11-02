@@ -4235,19 +4235,18 @@ impl<'pass> FlexFormattingContext<'pass> {
     // AD-HOC: Layout the inside of all flex items after resolving their dimensions.
     fn layout_items_and_derive_baselines(&mut self, run: &FormattingContextRun<'pass>) {
         self.copy_dimensions_from_flex_items_to_boxes();
-        let laid_out_items: Vec<_> = (0..self.flex_items.len())
-            .map(|index| self.layout_inside_item(run, index))
-            .collect();
+        let mut items_awaiting_baseline_alignment = Vec::new();
+        for index in 0..self.flex_items.len() {
+            let (fragment_arrival, placed_item) = self.layout_inside_item(run, index);
+            if self.item_participates_in_baseline_alignment(index) {
+                items_awaiting_baseline_alignment.push((index, fragment_arrival, placed_item));
+                continue;
+            }
+            self.place_item(index, placed_item, fragment_arrival);
+        }
         self.resolve_baseline_aligned_items();
-        for (index, (fragment_arrival, placed_item)) in laid_out_items.into_iter().enumerate() {
-            formatting_context::place_child(
-                &self.run,
-                self.flex_items[index].box_,
-                placed_item,
-                self.item_content_offset(index),
-                None,
-                fragment_arrival,
-            );
+        for (index, fragment_arrival, placed_item) in items_awaiting_baseline_alignment {
+            self.place_item(index, placed_item, fragment_arrival);
         }
         if self.facts(self.run.box_).has_preferred_aspect_ratio() {
             self.in_flow_items_margin_box_block_extent = self.margin_box_block_extent_of_placed_in_flow_items();
@@ -4267,6 +4266,22 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .checked_sub(1)
                 .and_then(|line_index| self.baseline_of_line(line_index, formatting_context::BaselineSet::Last)),
         };
+    }
+
+    fn place_item(
+        &self,
+        index: usize,
+        placed_item: formatting_context::PlacedChild,
+        fragment_arrival: Option<fragment_tree::RunRootFragment>,
+    ) {
+        formatting_context::place_child(
+            &self.run,
+            self.flex_items[index].box_,
+            placed_item,
+            self.item_content_offset(index),
+            None,
+            fragment_arrival,
+        );
     }
 
     /// The offset of the content box of the item at `index` in the container, where it is placed.
