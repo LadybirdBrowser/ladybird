@@ -63,8 +63,6 @@ DefaultAllowlist default_allowlist(PolicyControlledFeature feature)
     case PolicyControlledFeature::CrossOriginIsolated:
     // https://w3c.github.io/encrypted-media/#permissions-policy-integration
     case PolicyControlledFeature::EncryptedMedia:
-    // https://html.spec.whatwg.org/multipage/infrastructure.html#focus-without-user-activation-feature
-    case PolicyControlledFeature::FocusWithoutUserActivation:
     // https://fullscreen.spec.whatwg.org/#permissions-policy-integration
     case PolicyControlledFeature::Fullscreen:
     // https://w3c.github.io/geolocation/#permissions-policy
@@ -74,6 +72,9 @@ DefaultAllowlist default_allowlist(PolicyControlledFeature feature)
     // https://w3c.github.io/window-management/#api-permission-policy-integration
     case PolicyControlledFeature::WindowManagement:
         return DefaultAllowlist::Self;
+    // https://html.spec.whatwg.org/multipage/infrastructure.html#focus-without-user-activation-feature
+    // AD-HOC: Allow cross-origin script focus as in Chromium and Firefox; the specification's default is "self".
+    case PolicyControlledFeature::FocusWithoutUserActivation:
     // https://w3c.github.io/gamepad/#permission-policy
     case PolicyControlledFeature::Gamepad:
     // https://w3c.github.io/picture-in-picture/#permissions-policy

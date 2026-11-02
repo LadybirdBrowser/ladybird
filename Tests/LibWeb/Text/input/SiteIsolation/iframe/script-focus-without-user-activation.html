@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<iframe id="frame"></iframe>
+<script>
+    promiseTest(async () => {
+        const url = new URL(
+            await httpTestServer().createEcho("GET", "/startup-script-focus", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><input id="field"><script>
+                addEventListener("load", () => {
+                    field.focus();
+                    parent.postMessage({
+                        focused: document.activeElement === field,
+                        hasFocus: document.hasFocus(),
+                        activated: navigator.userActivation.hasBeenActive,
+                    }, "*");
+                });
+            <\/script>`,
+            })
+        );
+        url.hostname = uniqueLocalhostHostname("startup-script-focus");
+
+        const frame = document.getElementById("frame");
+        const report = new Promise(resolve =>
+            window.addEventListener("message", event => resolve(event.data), { once: true })
+        );
+        frame.src = url;
+        const result = await report;
+        println(`focused=${result.focused}, hasFocus=${result.hasFocus}, activated=${result.activated}`);
+        println(`parent frame active=${document.activeElement === frame}`);
+    });
+</script>
