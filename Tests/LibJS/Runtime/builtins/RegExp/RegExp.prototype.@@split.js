@@ -12,6 +12,14 @@ describe("basic functionality", () => {
         expect(JSON.stringify(result)).toBe('["",""]');
     });
 
+    test("sticky patterns split like non-sticky ones", () => {
+        expect("abc".split(/b/y)).toEqual(["a", "c"]);
+        expect("bab".split(/b/y)).toEqual(["", "a", ""]);
+        expect("abab".split(/b/gy)).toEqual(["a", "a", ""]);
+        expect("abc".split(/(b)/y)).toEqual(["a", "b", "c"]);
+        expect("abc".split(/b/y, 1)).toEqual(["a"]);
+    });
+
     test("observes an inherited species constructor", () => {
         const originalSpecies = Object.getOwnPropertyDescriptor(RegExp, Symbol.species);
         try {
