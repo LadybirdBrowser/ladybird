@@ -12,6 +12,7 @@
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/AttributeNames.h>
+#include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLDetailsElement.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/TagNames.h>
@@ -314,6 +315,18 @@ SearchableText SearchableText::collect(Viewport& viewport)
             // 1. If curNode has block-level display then break.
             if (auto* element = as_if<DOM::Element>(node); element && has_block_level_display(*element))
                 break;
+
+            // AD-HOC: A line break separates the words around it as collapsible white space does, and collapses with
+            //         the white space next to it. The space it stands for covers no DOM text, at the end of the text
+            //         before it.
+            if (is<HTML::HTMLBRElement>(node) && node.has_layout_box() && !pending_space_dom_node && !segments.is_empty()) {
+                if (auto last_text = segments.last().dom_node.ptr()) {
+                    pending_space_dom_node = last_text.ptr();
+                    pending_space_dom_offset = expected_dom_offset;
+                    pending_space_dom_end_offset = expected_dom_offset;
+                    pending_space_searchability = segments.last().searchability;
+                }
+            }
 
             // 2. If curNode is search invisible:
             if (auto* element = as_if<DOM::Element>(node); element && is_search_invisible(*element)) {

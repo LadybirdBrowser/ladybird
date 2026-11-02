@@ -1,0 +1,6 @@
+'alpha beta': true
+'gamma delta': true
+'epsilon zeta': true
+'alphabeta': false
+'alpha ' ends in its text node: true
+' eta': false
