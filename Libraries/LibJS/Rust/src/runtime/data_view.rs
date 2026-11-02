@@ -75,7 +75,6 @@ impl DataView {
         self.byte_length.get()
     }
 
-    /// NB: This truncates the byte offset to a u32.
     pub fn byte_offset(&self) -> usize {
         self.byte_offset.get()
     }
