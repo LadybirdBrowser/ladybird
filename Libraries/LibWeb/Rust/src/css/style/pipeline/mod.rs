@@ -128,6 +128,10 @@ pub(super) struct Waits {
 /// what its descendants wait on, so each round can find more.
 const MAX_RESOLVE_ROUNDS: usize = 32;
 
+/// How many more rounds a computation may wait for each element it inherits through, each of which it may compute with
+/// a few fonts of its own and the random base values it draws in one round.
+const MAX_RESOLVE_ROUNDS_PER_ANCESTOR: usize = 4;
+
 impl StyleEngine {
     /// Runs `body` with the fonts of the document found by the content of their requests: a round
     /// computes the values its font requests name anew, so the fonts the round before asked for are
@@ -155,7 +159,9 @@ impl StyleEngine {
         mut attempt: impl FnMut(&mut Self) -> Result<T, Waits>,
     ) -> Option<T> {
         self.matching_fonts_by_content(|engine| {
-            for _ in 0..MAX_RESOLVE_ROUNDS {
+            let mut rounds = 0;
+            let mut max_rounds = MAX_RESOLVE_ROUNDS;
+            while rounds < max_rounds {
                 match attempt(engine) {
                     Ok(answer) => return Some(answer),
                     Err(waits) => {
@@ -166,6 +172,14 @@ impl StyleEngine {
                             engine.retained.draw_random_base_value(request);
                         }
                     }
+                }
+                rounds += 1;
+                if rounds == MAX_RESOLVE_ROUNDS {
+                    let projection = &engine.retained.projection;
+                    let ancestors = std::iter::successors(projection.inheritance_parent(node), |&parent| {
+                        projection.inheritance_parent(parent)
+                    });
+                    max_rounds += MAX_RESOLVE_ROUNDS_PER_ANCESTOR * ancestors.count();
                 }
             }
             None

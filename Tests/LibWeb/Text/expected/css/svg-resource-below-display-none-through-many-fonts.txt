@@ -1,0 +1,2 @@
+shape: 10
+font of the gradient: font-of-level-59

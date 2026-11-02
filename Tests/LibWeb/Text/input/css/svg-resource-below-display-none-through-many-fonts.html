@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<svg id="sprite" style="display: none"></svg>
+<svg width="10" height="10"><rect id="shape" width="10" height="10" fill="url(#gradient)" /></svg>
+<script>
+    asyncTest(done => {
+        // The style engine keeps the style of the gradient, below an element that is not displayed, by computing the
+        // elements it inherits through, each of which waits on a font of its own.
+        let parent = sprite;
+        for (let level = 0; level < 60; ++level) {
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            group.style.fontFamily = `font-of-level-${level}`;
+            group.style.fontSize = `${10 + level}px`;
+            parent.append(group);
+            parent = group;
+        }
+        const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+        gradient.id = "gradient";
+        parent.append(gradient);
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                println(`shape: ${shape.getBoundingClientRect().width}`);
+                println(`font of the gradient: ${getComputedStyle(gradient).fontFamily}`);
+                done();
+            });
+        });
+    });
+</script>
