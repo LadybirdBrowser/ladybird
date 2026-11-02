@@ -1,0 +1,33 @@
+When a page’s Notification is clicked, Ladybird fires a cancelable
+click event with transient activation, and brings the tab into focus
+unless the handler canceled it. Firefox does the same: NotificationChild::
+RecvNotifyClick() dispatches a cancelable click and, when it isn’t
+canceled, calls nsFocusManager::FocusWindow(). Blink’s
+Notification::OnClick() and WebKit’s Notification::dispatchClickEvent()
+fire the event under a window-focus-allowed scope and leave the focus
+to the page’s own focus() call.
+
+A shown notification outlives its page, and a click on one whose page
+is gone opens the origin in a new foreground tab. That’s Chromium’s
+rule, in NonPersistentNotificationHandler::DidDispatchClickEvent():
+when the click event can’t be delivered, it navigates a new tab to the
+origin. Firefox instead closes the notification when the page freezes
+or goes away (NotificationChild::FrozenCallback()), and WebKit drops the
+mapping in Notification::stop() while the platform keeps showing it.
+
+Every notification is attributed to the origin the browser knows the
+page by, with the scheme omitted for http(s). Chromium formats the
+origin the same way, as the macOS subtitle in
+CreateMacNotificationContext() and in the FDO body in
+NotificationPlatformBridgeLinuxImpl; Firefox shows a “via host”
+subtitle in MacOSNotificationCenter.mm and alert.js, with a “Disable
+notifications from host” action besides. Same origin and same tag
+replace the earlier notification in all three engines; Ladybird adds a
+cap of eight live notifications per origin, which none of them has as a
+fixed number (Chromium relies on the platform’s queue limits).
+
+Non-persistent notifications carry no actions in Chromium (checked in
+NonPersistentNotificationHandler::OnClick()) and in Firefox, and WebKit
+doesn’t implement actions at all; Ladybird’s constructor rejects them
+as the spec says, and maxActions reports 2, Chromium’s
+kNotificationMaxActions and Firefox’s kMaxActions.
