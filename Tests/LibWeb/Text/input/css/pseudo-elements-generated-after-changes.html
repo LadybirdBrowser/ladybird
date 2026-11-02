@@ -1,0 +1,62 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #root * { display: block; }
+    .before::before { content: ""; display: block; height: 7px; }
+    .after::after { content: ""; display: block; height: 11px; }
+    .below .before-below::before { content: ""; display: block; height: 13px; }
+    @container box (min-width: 1px) { .gated::before { content: ""; display: block; height: 17px; } }
+    .box { container: box / inline-size; }
+    li.item { list-style-position: inside; }
+    .item-style::marker { color: rgb(0, 128, 0); }
+    .no-content::before { height: 19px; display: block; }
+</style>
+<div id="root">
+    <div class="target"></div>
+    <div class="parent"><div class="child"></div></div>
+    <div class="box"><div class="in-box"></div></div>
+    <div class="no-content"></div>
+    <div id="list-item" style="display: block; list-style-position: inside">x</div>
+</div>
+<script>
+    // Whether an element generates its pseudo-elements is told by the height they give it: it has to follow the rules
+    // that style them coming and going, with the element holding no rule for any of them in between.
+    test(() => {
+        const height = selector => document.querySelector(selector).offsetHeight;
+        const target = document.querySelector(".target");
+        println(`none: ${height(".target")}`);
+        for (const [add, remove] of [["before"], ["after", "before"], ["before"], [null, "after"], [null, "before"]]) {
+            if (add) target.classList.add(add);
+            if (remove) target.classList.remove(remove);
+            println(`+${add} -${remove}: ${height(".target")}`);
+        }
+
+        const parent = document.querySelector(".parent");
+        const child = document.querySelector(".child");
+        child.classList.add("before-below");
+        println(`below without parent: ${height(".child")}`);
+        parent.classList.add("below");
+        println(`below with parent: ${height(".child")}`);
+        parent.classList.remove("below");
+        println(`below without parent again: ${height(".child")}`);
+
+        const inBox = document.querySelector(".in-box");
+        inBox.classList.add("gated");
+        println(`gated in a container: ${height(".in-box")}`);
+        document.querySelector(".box").classList.remove("box");
+        println(`gated out of a container: ${height(".in-box")}`);
+
+        println(`no content: ${height(".no-content")}`);
+
+        const item = document.getElementById("list-item");
+        const empty = item.offsetWidth;
+        println(`marker before: ${getComputedStyle(item, "::marker").color}`);
+        item.style.display = "list-item";
+        item.classList.add("item-style");
+        println(`marker of a list item: ${getComputedStyle(item, "::marker").color} ${item.offsetHeight > 0}`);
+        item.classList.remove("item-style");
+        println(`marker without its rule: ${getComputedStyle(item, "::marker").color}`);
+        item.style.display = "block";
+        println(`no longer a list item: ${item.offsetHeight > 0 && empty > 0}`);
+    });
+</script>

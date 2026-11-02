@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target.active { color: red; }
+</style>
+<div id="first" class="target" style="margin-left: 1px"></div>
+<div id="second" class="target" style="margin-left: 2px"></div>
+<script>
+    test(() => {
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        internals.updateStyle();
+
+        first.classList.add("active");
+        second.classList.add("active");
+        internals.updateStyle();
+
+        println(`first color: ${getComputedStyle(first).color}`);
+        println(`second color: ${getComputedStyle(second).color}`);
+    });
+</script>

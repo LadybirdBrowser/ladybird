@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes angle {
+        from { --angle: 0deg; }
+        to { --angle: 360deg; }
+    }
+    .item { display: block; }
+    .moved .item { margin-left: 1px; }
+    .item::after {
+        content: "";
+        display: block;
+        height: 10px;
+        background-image: linear-gradient(var(--angle, 90deg), red, blue);
+        animation: angle 1000s infinite paused;
+    }
+</style>
+<div id="list"><a class="item" id="first"></a><a class="item" id="second"></a></div>
+<script>
+    asyncTest(async done => {
+        // The two elements match the same rules, so a restyle of both could share a style, but their ::after hold what
+        // their own animations sampled, which stand at different times.
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const angle = element => getComputedStyle(element, "::after").backgroundImage.slice("linear-gradient(".length).split(",")[0];
+        const report = label => println(`${label}: ${angle(first)}, ${angle(second)}`);
+        await nextFrame();
+        await nextFrame();
+        const [firstAnimation, secondAnimation] = list.getAnimations({ subtree: true });
+        firstAnimation.currentTime = 100000;
+        secondAnimation.currentTime = 900000;
+        await nextFrame();
+        await nextFrame();
+        report("sampled");
+        list.className = "moved";
+        await nextFrame();
+        await nextFrame();
+        report("restyled");
+        done();
+    });
+</script>

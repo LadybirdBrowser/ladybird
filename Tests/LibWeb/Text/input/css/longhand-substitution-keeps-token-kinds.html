@@ -1,0 +1,18 @@
+<!doctype html>
+<style>
+    #integer { --n: 1; --alias: var(--n); z-index: var(--alias); }
+    #decimal { --n: 1.0; --alias: var(--n); z-index: var(--alias); }
+    #exponent { --n: 1e0; z-index: var(--n); }
+    #joined { --n: 1; z-index: var(--n)0; }
+</style>
+<div id="integer"></div>
+<div id="decimal"></div>
+<div id="exponent"></div>
+<div id="joined"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const id of ["integer", "decimal", "exponent", "joined"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).zIndex}`);
+    });
+</script>

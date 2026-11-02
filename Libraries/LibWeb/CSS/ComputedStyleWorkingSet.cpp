@@ -43,58 +43,26 @@ AnimatedProperties::~AnimatedProperties()
 
 static_assert(to_underlying(PseudoElement::KnownPseudoElementCount) <= sizeof(u64) * 8);
 
-ComputedStyleWorkingSet::ComputedStyleWorkingSet()
-    : m_computed_longhand_table(ComputedValuesFFI::rust_computed_longhand_table_create())
+ComputedStyleWorkingSet::ComputedStyleWorkingSet(StyleRecordRef record)
+    : m_record(move(record))
+    , m_metadata(ComputedValuesFFI::rust_style_record_metadata(m_record.get()))
 {
 }
 
-ComputedStyleWorkingSet::ComputedStyleWorkingSet(ComputedValuesFFI::ComputedLonghandTable* longhand_table)
-    : m_computed_longhand_table(longhand_table)
-{
-}
+ComputedStyleWorkingSet::~ComputedStyleWorkingSet() = default;
 
-ComputedStyleWorkingSet::~ComputedStyleWorkingSet()
+NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_over_record(StyleRecordRef record)
 {
-    ComputedValuesFFI::rust_computed_longhand_table_release(m_computed_longhand_table);
-}
-
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create()
-{
-    return adopt_ref(*new ComputedStyleWorkingSet);
-}
-
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_longhand_table(ComputedValuesFFI::ComputedLonghandTable* longhand_table)
-{
-    VERIFY(longhand_table);
-    return adopt_ref(*new ComputedStyleWorkingSet(longhand_table));
+    VERIFY(record.get());
+    return adopt_ref(*new ComputedStyleWorkingSet(move(record)));
 }
 
 NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base_values_from(ComputedValues const& style)
 {
-    auto working_set = create();
     auto const& base = style.base_values();
-    // Seed the table with the previous drive's computed values so unevaluated longhands read
-    // and publish without reverse-materialization; the funnel overwrites what this drive
-    // evaluates. A borrowed record view seeds from its interned value span. The base always
-    // carries a table: property() has no other source for an unevaluated longhand's value.
-    if (auto const* table = base.computed_longhand_table()) {
-        ComputedValuesFFI::rust_computed_longhand_table_copy_from(working_set->m_computed_longhand_table, static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table));
-    } else {
-        auto longhand_values = base.computed_longhand_values();
-        VERIFY(!longhand_values.is_empty());
-        ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(working_set->m_computed_longhand_table, longhand_values.data(), longhand_values.size());
-    }
-    // A fresh drive starts with nothing evaluated and re-records its own inheritance-dependent
-    // specified values; the flag bitmaps seed from the base style's published bitmaps, which a
-    // borrowed record view carries even though it owns no table.
-    ComputedValuesFFI::rust_computed_longhand_table_clear_seeded_state(working_set->m_computed_longhand_table);
-    auto importance = base.property_importance_bitmap();
-    auto inheritance = base.property_inheritance_bitmap();
-    ComputedValuesFFI::rust_computed_longhand_table_load_flag_bitmaps(working_set->m_computed_longhand_table, importance, inheritance);
-    for (auto const& entry : base.inheritance_dependent_specified_values())
-        ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(working_set->m_computed_longhand_table, entry.property, entry.value);
+    // The base style's record holds every longhand's value, so an unevaluated longhand reads it in place.
+    auto working_set = create_over_record(base.record());
     working_set->set_display_before_box_type_transformation(base.display_before_box_type_transformation());
-    working_set->set_has_pseudo_element_styles(base.pseudo_element_style_mask());
     if (base.depends_on_viewport_metrics())
         working_set->set_depends_on_viewport_metrics();
     if (base.font_metrics_depend_on_viewport_metrics())
@@ -104,12 +72,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_with_base
     return working_set;
 }
 
-NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(ComputedValuesFFI::ComputedLonghandTable const* table, ComputedValuesFFI::AnimatedOverlay const* overlay)
+NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_animation_update(void const* record, ComputedValuesFFI::AnimatedOverlay const* overlay)
 {
-    VERIFY(table);
-    auto* retained_table = const_cast<ComputedValuesFFI::ComputedLonghandTable*>(ComputedValuesFFI::rust_computed_longhand_table_retain(table));
-    auto working_set = create_with_longhand_table(retained_table);
-    working_set->m_computed_longhand_table_is_shared = true;
+    auto working_set = create_over_record(StyleRecordRef { record });
     if (overlay) {
         working_set->m_had_animated_post_compute_adjustment_property = ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Display))
             || ComputedValuesFFI::rust_animated_overlay_contains(overlay, to_underlying(PropertyID::Position))
@@ -122,22 +87,6 @@ NonnullRefPtr<ComputedStyleWorkingSet> ComputedStyleWorkingSet::create_for_anima
         working_set->m_animated_properties = move(animated_properties);
     }
     return working_set;
-}
-
-void ComputedStyleWorkingSet::ensure_mutable_computed_longhand_table()
-{
-    if (!m_computed_longhand_table_is_shared)
-        return;
-    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_copy_from(table, m_computed_longhand_table);
-    ComputedValuesFFI::rust_computed_longhand_table_release(m_computed_longhand_table);
-    m_computed_longhand_table = table;
-    m_computed_longhand_table_is_shared = false;
-}
-
-void ComputedStyleWorkingSet::freeze_computed_longhand_table()
-{
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(m_computed_longhand_table);
 }
 
 AnimatedProperties::AnimatedProperties()
@@ -236,16 +185,6 @@ void AnimatedProperties::set_property(PropertyID id, NonnullRefPtr<StyleValue co
     m_wrapper_cache.set(id, move(value));
 }
 
-ReadonlyBytes ComputedStyleWorkingSet::property_importance_bitmap() const
-{
-    return { ComputedValuesFFI::rust_computed_longhand_table_importance_bits(m_computed_longhand_table), (number_of_longhand_properties + 7) / 8 };
-}
-
-ReadonlyBytes ComputedStyleWorkingSet::property_inheritance_bitmap() const
-{
-    return { ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(m_computed_longhand_table), (number_of_longhand_properties + 7) / 8 };
-}
-
 RefPtr<AnimatedProperties const> ComputedStyleWorkingSet::animated_properties_snapshot() const
 {
     return m_animated_properties;
@@ -259,20 +198,6 @@ ComputedValuesFFI::AnimatedOverlay const* ComputedStyleWorkingSet::animated_over
 bool ComputedStyleWorkingSet::has_animated_property(PropertyID property_id) const
 {
     return animated_properties().has_property(property_id);
-}
-
-bool ComputedStyleWorkingSet::has_pseudo_element_style(PseudoElement pseudo_element) const
-{
-    VERIFY(to_underlying(pseudo_element) < to_underlying(PseudoElement::KnownPseudoElementCount));
-    return metadata().pseudo_element_styles & (1ull << to_underlying(pseudo_element));
-}
-
-void ComputedStyleWorkingSet::set_has_pseudo_element_styles(u64 pseudo_element_styles)
-{
-    constexpr auto known_pseudo_element_count = to_underlying(PseudoElement::KnownPseudoElementCount);
-    if constexpr (known_pseudo_element_count < sizeof(u64) * 8)
-        VERIFY((pseudo_element_styles >> known_pseudo_element_count) == 0);
-    metadata().pseudo_element_styles |= pseudo_element_styles;
 }
 
 void ComputedStyleWorkingSet::set_depends_on_viewport_metrics()
@@ -333,11 +258,6 @@ bool ComputedStyleWorkingSet::requires_animated_post_compute_adjustments() const
         || has_animated_property(PropertyID::TextAlign);
 }
 
-void ComputedStyleWorkingSet::prepare_for_animated_post_compute_adjustments(Badge<StyleComputer>)
-{
-    ensure_mutable_computed_longhand_table();
-}
-
 void ComputedStyleWorkingSet::set_animated_custom_property(Badge<StyleComputer>, Utf16FlyString name, NonnullRefPtr<StyleValue const> value)
 {
     m_animated_custom_properties.set(move(name), move(value));
@@ -374,15 +294,14 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
 
     auto& cache = m_minted_wrappers;
-    // Without an animated overlay, a cached wrapper is always the effective value: the store
-    // funnels replace or invalidate the entry on every table write, and the recorded specified
-    // values invalidate it when they change.
+    // Without an animated overlay, a cached wrapper is always the effective value: the record
+    // the values are read from never changes.
     if (!m_animated_properties) {
         if (auto it = cache.find(property_id); it != cache.end())
             return *it->value;
     }
-    auto effective = ComputedValuesFFI::rust_computed_longhand_table_effective_value(
-        m_computed_longhand_table,
+    auto effective = ComputedValuesFFI::rust_style_record_effective_value(
+        m_record.get(),
         m_animated_properties ? m_animated_properties->overlay() : nullptr,
         to_underlying(property_id),
         return_animated_value == WithAnimationsApplied::Yes);
@@ -406,8 +325,8 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
 StyleValueFFI::StyleValueData const* ComputedStyleWorkingSet::effective_property_data(PropertyID property_id, WithAnimationsApplied return_animated_value) const
 {
     VERIFY(property_id >= first_longhand_property_id && property_id <= last_longhand_property_id);
-    auto effective = ComputedValuesFFI::rust_computed_longhand_table_effective_value(
-        m_computed_longhand_table,
+    auto effective = ComputedValuesFFI::rust_style_record_effective_value(
+        m_record.get(),
         m_animated_properties ? m_animated_properties->overlay() : nullptr,
         to_underlying(property_id),
         return_animated_value == WithAnimationsApplied::Yes);

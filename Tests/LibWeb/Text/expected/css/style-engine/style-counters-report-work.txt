@@ -1,0 +1,17 @@
+keys: passes, fullPasses, styledElements, changedElements, hintedElements, hintedSubtrees, invalidationVisits, invalidationTests, coldPasses, sharedElements, reusedElements, indexBuilds, indexedEntries, compiledSelectors, userAgentIndexBuilds, matchedElements, relativeWalks
+reset zeroes every counter: true
+one pass: true
+no full pass: true
+styled <= 1: true
+changed <= styled: true
+hinted <= 1: true
+no cold pass or index build: true
+last pass full: false
+last pass styled: [target]
+last pass changed: [target]
+reset zeroes every counter again: true
+reset forgets the last pass: true
+animation sample composed: true
+stylesheet change: no full pass true, no index build true, entries true
+stylesheet change last pass targeted: true
+stylesheet change changed sibling: true

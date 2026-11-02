@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .parent { color: rgb(16, 30, 30); }
+    .on .parent { -webkit-text-fill-color: transparent; }
+    .own { color: rgb(111, 119, 134); }
+</style>
+<div id="static" class="on"><span class="parent"><b class="own"><i>x</i></b></span></div>
+<div id="dynamic"><span class="parent"><b class="own"><i>x</i></b></span></div>
+<div id="svg"><span class="parent"><svg class="own"><path d="M0 0"/></svg></span></div>
+<script>
+    test(() => {
+        const fill = element => getComputedStyle(element).webkitTextFillColor;
+        const report = id => {
+            const parent = document.querySelector(`#${id} .parent`);
+            const own = parent.firstElementChild;
+            println(`${id}: ${fill(parent)}, ${fill(own)}, ${fill(own.firstElementChild)}`);
+        };
+        report("dynamic");
+        report("svg");
+        for (const id of ["dynamic", "svg"])
+            document.getElementById(id).className = "on";
+        report("static");
+        report("dynamic");
+        report("svg");
+    });
+</script>

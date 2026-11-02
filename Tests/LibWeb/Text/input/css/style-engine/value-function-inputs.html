@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<style>
+    @property --registered-index {
+        syntax: "<integer>";
+        inherits: false;
+        initial-value: 0;
+    }
+    @function --doubled() {
+        result: calc(var(--base) * 2);
+    }
+    @property --second {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    @function --indexed() {
+        result: calc(sibling-index() * 1000px);
+    }
+    @function --scaled() {
+        result: calc(var(--base) * var(--scale, 1));
+    }
+    #attributes {
+        width: attr(data-width type(<length>), 1px);
+        --copied: attr(data-word);
+    }
+    #attributes::before {
+        content: attr(data-label);
+    }
+    #attributes::after {
+        content: "after";
+        display: block;
+        width: attr(data-width type(<length>), 2px);
+    }
+    #siblings > div {
+        width: calc(sibling-index() * 1px);
+        height: calc(sibling-count() * 1px);
+        --registered-index: sibling-index();
+        --second: 2px;
+        margin-left: --indexed();
+        max-width: if(style(--second: calc(sibling-index() * 1px)): 22px; else: 11px);
+    }
+    #siblings > div > span {
+        display: block;
+        width: calc(sibling-index() * 10px);
+    }
+    #siblings > div::before {
+        content: "x";
+        display: block;
+        width: calc(sibling-index() * 100px);
+    }
+    #conditional {
+        width: if(style(--mode: wide): 50px; else: 5px);
+    }
+    #inheriting {
+        width: inherit(--size, 3px);
+        height: calc(inherit(--size, 3px) * 2);
+    }
+    #functions {
+        width: --doubled();
+        height: --scaled();
+    }
+</style>
+<div id="attributes" data-width="10px" data-word="first" data-label="one"></div>
+<div id="siblings"><div id="first"><span></span></div><div id="second"><span></span></div><div id="third"><span></span></div></div>
+<div id="conditional-parent"><div id="conditional"></div></div>
+<div id="inheriting-parent" style="--size: 7px"><div id="inheriting"></div></div>
+<div id="functions-parent" style="--base: 4px"><div id="functions"></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const attributes = document.getElementById("attributes");
+        const siblings = document.getElementById("siblings");
+
+        function dumpAttributes(label) {
+            const style = getComputedStyle(attributes);
+            const before = getComputedStyle(attributes, "::before");
+            const after = getComputedStyle(attributes, "::after");
+            println(`${label}: width ${style.width}, --copied ${style.getPropertyValue("--copied").trim()}, ::before ${before.content}, ::after width ${after.width}`);
+        }
+
+        function dumpSiblings(label) {
+            const parts = [];
+            for (const child of siblings.children) {
+                const style = getComputedStyle(child);
+                const span = getComputedStyle(child.firstElementChild);
+                const before = getComputedStyle(child, "::before");
+                parts.push(`${child.id}(${style.width} ${style.height} ${style.getPropertyValue("--registered-index").trim()} ${style.marginLeft} ${style.maxWidth} ${span.width} ${before.width})`);
+            }
+            println(`${label}: ${parts.join(" ")}`);
+        }
+
+        function dumpWidthAndHeight(id, label) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${label}: ${style.width} ${style.height}`);
+        }
+
+        dumpAttributes("attr initial");
+        attributes.setAttribute("data-width", "20px");
+        dumpAttributes("attr width changed");
+        attributes.setAttribute("data-word", "second");
+        dumpAttributes("attr word changed");
+        attributes.setAttribute("data-label", "two");
+        dumpAttributes("attr label changed");
+        attributes.removeAttribute("data-width");
+        dumpAttributes("attr width removed");
+        attributes.setAttribute("data-width", "30px");
+        dumpAttributes("attr width added");
+
+        dumpSiblings("siblings initial");
+        const inserted = document.createElement("div");
+        inserted.id = "inserted";
+        inserted.appendChild(document.createElement("span"));
+        siblings.insertBefore(inserted, siblings.firstElementChild);
+        dumpSiblings("sibling inserted first");
+        document.getElementById("second").remove();
+        dumpSiblings("sibling removed");
+        siblings.appendChild(document.getElementById("first"));
+        dumpSiblings("sibling moved last");
+        siblings.insertBefore(document.createTextNode("text"), siblings.firstChild);
+        dumpSiblings("text node inserted");
+        const appended = document.createElement("div");
+        appended.id = "appended";
+        appended.appendChild(document.createElement("span"));
+        siblings.appendChild(appended);
+        dumpSiblings("sibling appended last");
+        appended.remove();
+        dumpSiblings("last sibling removed");
+
+        const conditionalParent = document.getElementById("conditional-parent");
+        const conditional = document.getElementById("conditional");
+        dumpWidthAndHeight("conditional", "if initial");
+        conditional.style.setProperty("--mode", "wide");
+        dumpWidthAndHeight("conditional", "if own property set");
+        conditional.style.removeProperty("--mode");
+        dumpWidthAndHeight("conditional", "if own property removed");
+        conditionalParent.style.setProperty("--mode", "wide");
+        dumpWidthAndHeight("conditional", "if inherited property set");
+        conditionalParent.style.setProperty("--mode", "narrow");
+        dumpWidthAndHeight("conditional", "if inherited property changed");
+
+        const inheritingParent = document.getElementById("inheriting-parent");
+        dumpWidthAndHeight("inheriting", "inherit initial");
+        inheritingParent.style.setProperty("--size", "9px");
+        dumpWidthAndHeight("inheriting", "inherit parent changed");
+        inheritingParent.style.removeProperty("--size");
+        dumpWidthAndHeight("inheriting", "inherit parent removed");
+        document.getElementById("inheriting").style.setProperty("--size", "100px");
+        dumpWidthAndHeight("inheriting", "inherit own property set");
+
+        const functionsParent = document.getElementById("functions-parent");
+        const functions = document.getElementById("functions");
+        dumpWidthAndHeight("functions", "function initial");
+        functionsParent.style.setProperty("--base", "6px");
+        dumpWidthAndHeight("functions", "function inherited input changed");
+        functions.style.setProperty("--scale", "3");
+        dumpWidthAndHeight("functions", "function own input set");
+        const sheet = document.styleSheets[0];
+        for (let index = 0; index < sheet.cssRules.length; ++index) {
+            if (sheet.cssRules[index].cssText.startsWith("@function --doubled")) {
+                sheet.deleteRule(index);
+                sheet.insertRule("@function --doubled() { result: calc(var(--base) * 5); }", index);
+                break;
+            }
+        }
+        dumpWidthAndHeight("functions", "function definition changed");
+    });
+</script>

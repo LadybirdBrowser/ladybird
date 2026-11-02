@@ -1,0 +1,15 @@
+inherit() in a custom property: value 3px
+inherit() in a longhand: value 3px
+if(media()): value 10px
+if(supports()): value 10px
+if(style()): value 10px
+if(style()) range: value 10px
+if(style()) registered: value 10px
+env(): value 10px
+custom function: value 10px
+custom function with @media: value 10px
+custom function with @container: value 10px
+registered <length> in em: value 30px
+random() shared: value a length
+random() per element: value a length
+mixed: value 3px

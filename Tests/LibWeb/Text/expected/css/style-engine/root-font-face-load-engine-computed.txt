@@ -1,5 +1,0 @@
-engine computed records: true
-C++ recomputations: 0
-rem child matches a fresh one: true
-rlh child matches a fresh one: true
-face loaded: loaded

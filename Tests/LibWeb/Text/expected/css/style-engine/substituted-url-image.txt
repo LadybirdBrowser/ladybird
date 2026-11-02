@@ -1,0 +1,2 @@
+local: url("image.svg")
+imported: url("support/image.svg")

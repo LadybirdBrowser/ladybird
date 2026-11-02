@@ -6,7 +6,7 @@
 
 //! What a `url()` resolves against: the document's base URL, and the resource context of the style
 //! sheet a rule came from, keyed by the native sheet's identity (an imported sheet's own, not its
-//! importer's). The host lends them at each style transaction boundary; the engine keeps a copy.
+//! importer's). The host lends them at each style update boundary; the engine keeps a copy.
 
 use super::fast_hash::FastMap as HashMap;
 
@@ -24,6 +24,8 @@ pub(crate) struct StyleSheetResourceContext {
 pub(crate) struct DocumentResourceContexts {
     pub(crate) document_base_url: Box<[u8]>,
     by_source: HashMap<u64, StyleSheetResourceContext>,
+    /// Which collection of the contexts the host last lent, which `by_source` holds.
+    version: u64,
 }
 
 impl DocumentResourceContexts {
@@ -67,6 +69,11 @@ impl DocumentResourceContexts {
 
         if *self.document_base_url != *document_base_url {
             self.document_base_url = document_base_url.into();
+        }
+        if std::mem::replace(&mut self.version, inputs.style_sheet_resource_contexts_version)
+            == inputs.style_sheet_resource_contexts_version
+        {
+            return;
         }
         let held = |entry: &FfiStyleSheetResourceContextEntry| {
             self.by_source.get(&entry.source_identity).is_some_and(|context| {
@@ -136,6 +143,7 @@ mod tests {
             document_base_url_length: document_base_url.len(),
             style_sheet_resource_contexts: FfiHostHandle::from_pointer(entries.as_ptr().cast()),
             style_sheet_resource_context_count: entries.len(),
+            style_sheet_resource_contexts_version: contexts.version + 1,
             ..Default::default()
         };
         unsafe { contexts.take_in(&mut inputs) };

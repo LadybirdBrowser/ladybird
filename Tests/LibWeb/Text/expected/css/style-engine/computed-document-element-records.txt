@@ -1,0 +1,5 @@
+load: html font-size 16px, padding 0px, margin 0px, 2rem width 32px
+html.big: html font-size 24px, padding 0px, margin 0px, 2rem width 48px
+html.big pad: html font-size 24px, padding 24px, margin 48px, 2rem width 48px
+html.pad: html font-size 16px, padding 16px, margin 32px, 2rem width 32px
+html.none: html font-size 16px, padding 0px, margin 0px, 2rem width 32px

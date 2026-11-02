@@ -1,0 +1,26 @@
+attr initial: width 10px, --copied "first", ::before "one", ::after width 10px
+attr width changed: width 20px, --copied "first", ::before "one", ::after width 20px
+attr word changed: width 20px, --copied "second", ::before "one", ::after width 20px
+attr label changed: width 20px, --copied "second", ::before "two", ::after width 20px
+attr width removed: width 1px, --copied "second", ::before "two", ::after width 2px
+attr width added: width 30px, --copied "second", ::before "two", ::after width 30px
+siblings initial: first(1px 3px 1 1000px 11px 10px 100px) second(2px 3px 2 2000px 22px 10px 200px) third(3px 3px 3 3000px 11px 10px 300px)
+sibling inserted first: inserted(1px 4px 1 1000px 11px 10px 100px) first(2px 4px 2 2000px 22px 10px 200px) second(3px 4px 3 3000px 11px 10px 300px) third(4px 4px 4 4000px 11px 10px 400px)
+sibling removed: inserted(1px 3px 1 1000px 11px 10px 100px) first(2px 3px 2 2000px 22px 10px 200px) third(3px 3px 3 3000px 11px 10px 300px)
+sibling moved last: inserted(1px 3px 1 1000px 11px 10px 100px) third(2px 3px 2 2000px 22px 10px 200px) first(3px 3px 3 3000px 11px 10px 300px)
+text node inserted: inserted(1px 3px 1 1000px 11px 10px 100px) third(2px 3px 2 2000px 22px 10px 200px) first(3px 3px 3 3000px 11px 10px 300px)
+sibling appended last: inserted(1px 4px 1 1000px 11px 10px 100px) third(2px 4px 2 2000px 22px 10px 200px) first(3px 4px 3 3000px 11px 10px 300px) appended(4px 4px 4 4000px 11px 10px 400px)
+last sibling removed: inserted(1px 3px 1 1000px 11px 10px 100px) third(2px 3px 2 2000px 22px 10px 200px) first(3px 3px 3 3000px 11px 10px 300px)
+if initial: 5px 0px
+if own property set: 50px 0px
+if own property removed: 5px 0px
+if inherited property set: 50px 0px
+if inherited property changed: 5px 0px
+inherit initial: 7px 14px
+inherit parent changed: 9px 18px
+inherit parent removed: 3px 6px
+inherit own property set: 3px 6px
+function initial: 8px 4px
+function inherited input changed: 12px 6px
+function own input set: 12px 18px
+function definition changed: 30px 18px

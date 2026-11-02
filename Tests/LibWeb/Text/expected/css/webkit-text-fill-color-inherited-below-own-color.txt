@@ -1,0 +1,5 @@
+dynamic: rgb(16, 30, 30), rgb(111, 119, 134), rgb(111, 119, 134)
+svg: rgb(16, 30, 30), rgb(111, 119, 134), rgb(111, 119, 134)
+static: rgba(0, 0, 0, 0), rgba(0, 0, 0, 0), rgba(0, 0, 0, 0)
+dynamic: rgba(0, 0, 0, 0), rgba(0, 0, 0, 0), rgba(0, 0, 0, 0)
+svg: rgba(0, 0, 0, 0), rgba(0, 0, 0, 0), rgba(0, 0, 0, 0)

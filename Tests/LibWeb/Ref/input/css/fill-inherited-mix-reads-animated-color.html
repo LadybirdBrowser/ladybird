@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/fill-inherited-mix-reads-animated-color-ref.html" />
+<style>
+    :root { fill: color-mix(in srgb, currentColor 50%, white); }
+    @keyframes paint { from, to { color: rgb(0, 200, 0); } }
+    rect { color: rgb(200, 0, 0); animation: paint 100s paused; }
+</style>
+<svg width="100" height="100"><rect width="100" height="100"></rect></svg>

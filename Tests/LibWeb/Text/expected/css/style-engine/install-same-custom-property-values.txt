@@ -1,0 +1,4 @@
+inserted: 600 children, 0 with the style of another
+inserted: 0 installed differently from a cold pass
+restyled: 600 children, 0 with the style of another
+restyled: 0 installed differently from a cold pass

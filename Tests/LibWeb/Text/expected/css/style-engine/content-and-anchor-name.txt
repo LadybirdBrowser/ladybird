@@ -1,0 +1,14 @@
+image content, first record: value an image
+counter(x, decimal), first record: value counter(x)
+named @counter-style, first record: value counter(x, thumbs)
+content flip, first record: value none
+list-style-type, first record: value thumbs
+anchor-name, first record: value --anchor
+anchor-name on ::before, first record: value --anchor
+image content, warm record: value an image
+counter(x, decimal), warm record: value counter(x)
+named @counter-style, warm record: value counter(x, thumbs)
+content flip, warm record: value none
+list-style-type, warm record: value thumbs
+anchor-name, warm record: value --anchor
+anchor-name on ::before, warm record: value --anchor

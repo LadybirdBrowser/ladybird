@@ -269,6 +269,38 @@ pub(crate) fn group_holds_current_color_for_its_reader(property: u16, data: Opti
     ) && matches!(data, Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::CURRENTCOLOR)
 }
 
+/// The groups an element's color reaches through the colors it inherits, which it holds no record of having
+/// declared: a color reading `currentcolor` that is more than plain `currentcolor` resolves against the color of the
+/// element holding it, not the parent's. The other inherited groups hold the color itself, and rebuild with it.
+pub(crate) fn groups_reading_current_color_through_inherited_values<'a>(
+    value: impl Fn(u16) -> Option<&'a StyleValueData>,
+) -> u32 {
+    let reads_current_color = |property: u16| {
+        value(property).is_some_and(|data| {
+            crate::css::style_value::value_depends_on_current_color(data)
+                && !group_holds_current_color_for_its_reader(property, Some(data))
+        })
+    };
+    let mut groups = 0;
+    if [
+        property_id::CARET_COLOR,
+        property_id::ACCENT_COLOR,
+        property_id::SCROLLBAR_COLOR,
+    ]
+    .into_iter()
+    .any(reads_current_color)
+    {
+        groups |= 1 << group_index::INHERITED_UI;
+    }
+    if [property_id::FILL, property_id::STROKE]
+        .into_iter()
+        .any(reads_current_color)
+    {
+        groups |= 1 << group_index::INHERITED_SVG;
+    }
+    groups
+}
+
 /// The computed color `data` is, as a group holds it: `currentcolor` stays for the group's reader
 /// to resolve against the element's color.
 fn style_color(data: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleColor> {

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<style>
+    #rule-target {
+    }
+</style>
+<div id="rule-target"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const properties = [
+            "background-color",
+            "background-position-x",
+            "border-top-style",
+            "border-top-width",
+            "border-right-style",
+            "border-right-width",
+            "font-size",
+            "font-variant-caps",
+            "margin-left",
+            "margin-top",
+        ];
+
+        function report(name, element, setup) {
+            setup();
+            const style = getComputedStyle(element);
+            const values = properties
+                .filter(property => style.getPropertyValue(property) !== initial.getPropertyValue(property))
+                .map(property => `${property}: ${style.getPropertyValue(property)}`);
+            println(`${name}: ${values.join("; ")}`);
+        }
+
+        const reference = document.createElement("div");
+        document.body.append(reference);
+        const initial = getComputedStyle(reference);
+
+        function inlineCase(name, variables, writes) {
+            const element = document.createElement("div");
+            element.style.cssText = variables;
+            document.body.append(element);
+            report(name, element, () => {
+                for (const write of writes) {
+                    write(element.style);
+                    getComputedStyle(element).color;
+                }
+            });
+            element.remove();
+        }
+
+        function attributeCase(name, text) {
+            const element = document.createElement("div");
+            element.setAttribute("style", text);
+            document.body.append(element);
+            report(name, element, () => {});
+            element.remove();
+        }
+
+        const ruleElement = document.getElementById("rule-target");
+        const ruleStyle = document.styleSheets[0].cssRules[0].style;
+        function ruleCase(name, writes) {
+            ruleStyle.cssText = "--x: 1px solid red; --y: 7px; --z: rgb(0, 128, 0) 5px 6px";
+            report(name, ruleElement, () => {
+                for (const write of writes) {
+                    write(ruleStyle);
+                    getComputedStyle(ruleElement).color;
+                }
+            });
+        }
+
+        // A later declaration replaces a longhand of a nested shorthand, so its siblings alone pend it.
+        attributeCase("attribute: border then border-top-width", "--x: 1px solid red; border: var(--x); border-top-width: 3px");
+        attributeCase("attribute: border then border-top", "--x: 1px solid red; border: var(--x); border-top: 3px dashed blue");
+        attributeCase("attribute: border-block then a width", "--x: 1px solid red; border-block: var(--x); border-block-start-width: 3px");
+        attributeCase("attribute: background then a position", "--x: rgb(0, 128, 0) 5px 6px; background: var(--x); background-position-x: 9px");
+        attributeCase("attribute: font then a variant", "--x: 12px serif; font: var(--x); font-variant-caps: small-caps");
+        attributeCase("attribute: border alone", "--x: 1px solid red; border: var(--x)");
+        attributeCase("attribute: an undefined variable", "border: var(--missing); border-top-width: 3px");
+        attributeCase("attribute: important", "--x: 1px solid red; border: var(--x) !important; border-top-width: 3px");
+
+        // Clearing a shorthand and writing it again gives its longhands a value equal to the one the
+        // shorthand's own declaration still holds, but not that value.
+        const inlineVariables = "--x: 1px solid red; --y: 7px; --z: rgb(0, 128, 0) 5px 6px";
+        inlineCase("inline: background cleared", inlineVariables, [
+            s => (s.background = "var(--z)"),
+            s => (s.background = ""),
+        ]);
+        inlineCase("inline: background cleared and written again", inlineVariables, [
+            s => (s.background = "var(--z)"),
+            s => (s.background = ""),
+            s => (s.background = "var(--z)"),
+        ]);
+        inlineCase("inline: background removed and written again", inlineVariables, [
+            s => (s.background = "var(--z)"),
+            s => s.removeProperty("background"),
+            s => (s.background = "var(--z)"),
+        ]);
+        inlineCase("inline: margin replaced and written again", inlineVariables, [
+            s => (s.margin = "var(--y)"),
+            s => (s.margin = "1px"),
+            s => (s.margin = "var(--y)"),
+            s => s.removeProperty("margin-top"),
+        ]);
+        inlineCase("inline: margin-left replaced and margin written again", inlineVariables, [
+            s => (s.margin = "var(--y)"),
+            s => (s.marginLeft = "1px"),
+            s => (s.margin = "var(--y)"),
+        ]);
+        inlineCase("inline: border-top-width removed", inlineVariables, [
+            s => (s.border = "var(--x)"),
+            s => s.removeProperty("border-top-width"),
+        ]);
+        inlineCase("inline: border-width removed", inlineVariables, [
+            s => (s.border = "var(--x)"),
+            s => s.removeProperty("border-width"),
+        ]);
+        inlineCase("inline: border-width replaced", inlineVariables, [
+            s => (s.border = "var(--x)"),
+            s => (s.borderWidth = "var(--y)"),
+        ]);
+
+        ruleCase("rule: background cleared and written again", [
+            s => (s.background = "var(--z)"),
+            s => (s.background = ""),
+            s => (s.background = "var(--z)"),
+        ]);
+        ruleCase("rule: margin replaced and written again", [
+            s => (s.margin = "var(--y)"),
+            s => (s.margin = "1px"),
+            s => (s.margin = "var(--y)"),
+            s => s.removeProperty("margin-top"),
+        ]);
+        ruleCase("rule: margin-left replaced and margin written again", [
+            s => (s.margin = "var(--y)"),
+            s => (s.marginLeft = "1px"),
+            s => (s.margin = "var(--y)"),
+        ]);
+        ruleCase("rule: border-top-width removed", [
+            s => (s.border = "var(--x)"),
+            s => s.removeProperty("border-top-width"),
+        ]);
+    });
+</script>

@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<math><mi id="identifier" mathcolor="green">x</mi></math>
+<script>
+    // A MathML element's hints are mapped from its own attributes, so moving the attributes moves the
+    // element's computed values.
+    test(() => {
+        internals.updateStyle();
+        println(`color: ${getComputedStyle(identifier).color}`);
+        identifier.setAttribute("mathcolor", "red");
+        internals.updateStyle();
+        println(`color: ${getComputedStyle(identifier).color}`);
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+@property --length {
+    syntax: "<length>";
+    inherits: false;
+    initial-value: 0px;
+}
+@property --integer {
+    syntax: "<integer>";
+    inherits: false;
+    initial-value: 7;
+}
+#a { --plus: +; --sum: calc(1px var(--plus)2px); --alias: var(--sum); --length: var(--alias); }
+#d { --plus: +; --length: calc(1px var(--plus)2px); }
+#b { --number: 1.0; --alias: var(--number); --integer: var(--alias); }
+#c { --number: 12; --joined: var(--number)0; --alias: var(--joined); }
+</style>
+<div id="a"></div>
+<div id="b"></div>
+<div id="c"></div>
+<div id="d"></div>
+<script>
+    test(() => {
+        const computedValue = (id, property) => getComputedStyle(document.getElementById(id)).getPropertyValue(property);
+        println(computedValue("a", "--alias"));
+        println(computedValue("a", "--length"));
+        println(computedValue("d", "--length"));
+        println(computedValue("b", "--alias"));
+        println(computedValue("b", "--integer"));
+        println(computedValue("c", "--alias"));
+    });
+</script>

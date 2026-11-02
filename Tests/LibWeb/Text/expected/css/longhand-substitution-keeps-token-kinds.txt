@@ -1,0 +1,4 @@
+integer: 1
+decimal: auto
+exponent: auto
+joined: auto

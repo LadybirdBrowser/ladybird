@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<style>
+    @property --local {
+        syntax: "*";
+        inherits: false;
+    }
+    .root { --shared: 2px; }
+    .holder { --local: 1; }
+    .first { color: rgb(1, 0, 0); width: 11px; }
+    .second { color: rgb(2, 0, 0); width: 12px; }
+    .third { color: rgb(3, 0, 0); width: 13px; }
+    .fourth { color: rgb(4, 0, 0); width: 14px; }
+    .fifth { color: rgb(5, 0, 0); width: 15px; }
+</style>
+<div class="root"><div class="holder" id="holder"></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const holder = document.getElementById("holder");
+        const styles = {
+            first: "rgb(1, 0, 0) 11px",
+            second: "rgb(2, 0, 0) 12px",
+            third: "rgb(3, 0, 0) 13px",
+            fourth: "rgb(4, 0, 0) 14px",
+            fifth: "rgb(5, 0, 0) 15px",
+        };
+        const names = Object.keys(styles);
+        const read = (label) => {
+            let wrong = 0;
+            for (const child of holder.children) {
+                const style = getComputedStyle(child);
+                if (`${style.color} ${style.width}` !== styles[child.classList[0]]) wrong++;
+            }
+            const cold = internals.styleColdPass(true);
+            println(`${label}: ${holder.children.length} children, ${wrong} with the style of another`);
+            println(`${label}: ${cold.differences} installed differently from a cold pass`);
+        };
+        internals.updateStyle();
+
+        // The holder hands down nothing its parent does not, so its children inherit their parent's environment, each
+        // in a record of its own that gives way to an installed one holding the same style. Their styles must stay
+        // their own, as many records come and go through one installation.
+        for (let i = 0; i < 600; ++i) {
+            const child = document.createElement("div");
+            child.className = names[(i * i + i) % names.length];
+            holder.appendChild(child);
+        }
+        internals.updateStyle();
+        read("inserted");
+
+        for (const child of holder.children) child.classList.add("again");
+        internals.updateStyle();
+        read("restyled");
+    });
+</script>

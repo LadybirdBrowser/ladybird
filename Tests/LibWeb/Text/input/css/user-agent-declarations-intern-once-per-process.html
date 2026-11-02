@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe srcdoc="<p>x</p>"></iframe>
+<script>
+    // Have this document attach the user agent sheets, which has the process keep their rules.
+    internals.updateStyle();
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        iframe.onload = () => {
+            // The frame reads the rules the process keeps, without recording or interning any of them itself.
+            const p = iframe.contentDocument.querySelector("p");
+            println(`margin-top from the user-agent sheet: ${iframe.contentWindow.getComputedStyle(p).marginTop}`);
+            const counters = iframe.contentWindow.internals.styleEngineCounters();
+            println(`declarations the frame published: ${counters.sheetDeclarationsInterned + counters.sheetDeclarationsShared}`);
+            done();
+        };
+    });
+</script>

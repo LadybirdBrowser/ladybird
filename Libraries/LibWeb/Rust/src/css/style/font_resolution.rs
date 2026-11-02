@@ -11,6 +11,8 @@ use super::bridge::{
 use super::tree::TreeScopeID;
 use crate::css::host_shared::HostShared;
 use crate::css::style_value::{RetainedStyleValueData, retain_style_value};
+use crate::fork::ForkShared;
+use smallvec::SmallVec;
 use std::ffi::c_void;
 
 /// Resolves one request against the document's published `@font-face` table, through the memo of
@@ -35,72 +37,170 @@ unsafe extern "C" {
     fn web_css_font_cascade_memo_unreference(memo: *const c_void);
 }
 
-#[derive(Clone, PartialEq, Eq, Hash)]
-struct FontResolutionKey {
-    font_family: usize,
-    font_feature_values: [usize; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
+/// The scalars of a request, as bits: a request answers another exactly where both name the same
+/// values and these are equal.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct FontRequestScalars {
     font_size_raw: i32,
     font_slope: i32,
     font_weight: u64,
     font_width: u64,
+    font_size_adjust_value: u64,
+    font_feature_values_scope: u32,
     font_optical_sizing: u8,
     font_size_adjust: FontSizeAdjustKind,
     font_size_adjust_metric: u8,
-    font_size_adjust_value: u64,
-    font_feature_values_scope: u32,
 }
 
-impl FontResolutionKey {
-    fn new(request: FfiFontResolutionRequest) -> Self {
+impl FontRequestScalars {
+    fn of(request: &FfiFontResolutionRequest) -> Self {
         Self {
-            font_family: request.font_family.address,
-            font_feature_values: request.font_feature_values.map(|value| value.address),
             font_size_raw: request.font_size_raw,
             font_slope: request.font_slope,
             font_weight: request.font_weight.to_bits(),
             font_width: request.font_width.to_bits(),
+            font_size_adjust_value: request.font_size_adjust_value.to_bits(),
+            font_feature_values_scope: request.font_feature_values_scope,
             font_optical_sizing: request.font_optical_sizing,
             font_size_adjust: request.font_size_adjust,
             font_size_adjust_metric: request.font_size_adjust_metric,
-            font_size_adjust_value: request.font_size_adjust_value.to_bits(),
-            font_feature_values_scope: request.font_feature_values_scope,
         }
     }
 }
 
-/// Own the request's family and the feature values it names until the boundary transfers them
-/// into the prepared table.
+/// A hash of the identities of the values `request` names and of its scalars, which the cache
+/// finds its resolutions by.
+fn request_identity_hash(request: &FfiFontResolutionRequest) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = crate::fast_hash::fast_hasher();
+    request.font_family.address.hash(&mut hasher);
+    for value in request.font_feature_values {
+        value.address.hash(&mut hasher);
+    }
+    FontRequestScalars::of(request).hash(&mut hasher);
+    hasher.finish()
+}
+
+/// The value a request names by `handle`, or none for a null one.
+fn requested_value(handle: FfiHostHandle) -> Option<&'static crate::css::style_value::StyleValueData> {
+    // SAFETY: A request names live style values for as long as it is asked about.
+    (!handle.as_pointer().is_null())
+        .then(|| unsafe { &*handle.as_pointer().cast::<crate::css::style_value::StyleValueData>() })
+}
+
+/// A hash of the content of the values a request names.
+fn request_content_hash(request: &FfiFontResolutionRequest) -> u64 {
+    let mut hash =
+        requested_value(request.font_family).map_or(0, crate::css::style_value::StyleValueData::content_hash);
+    for value in request.font_feature_values {
+        hash = hash.rotate_left(7)
+            ^ requested_value(value).map_or(0, crate::css::style_value::StyleValueData::content_hash);
+    }
+    hash
+}
+
+/// A request for a font, which holds the values it names alive for their identities, with its
+/// scalars and the generation of the font environment it was made for.
 #[derive(Clone)]
 pub(super) struct FontRequest {
-    ffi: FfiFontResolutionRequest,
     family: RetainedStyleValueData,
-    feature_values: [Option<RetainedStyleValueData>; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
+    /// The feature values, each empty where the property has its initial value, boxed only where
+    /// any is set: most requests name none.
+    feature_values: Option<Box<[RetainedStyleValueData; FONT_RESOLUTION_FEATURE_INPUT_COUNT]>>,
+    scalars: FontRequestScalars,
+    generation: u64,
 }
+
+const _: () = assert!(size_of::<FontRequest>() <= 64);
 
 impl FontRequest {
     pub fn new(ffi: FfiFontResolutionRequest) -> Self {
-        let retain = |handle: FfiHostHandle| unsafe {
-            RetainedStyleValueData::from_retained_pointer(retain_style_value(handle.as_pointer().cast()))
+        let retain = |handle: FfiHostHandle| {
+            if handle.as_pointer().is_null() {
+                return RetainedStyleValueData::none();
+            }
+            // SAFETY: A request names live style values, a reference to which this takes.
+            unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(handle.as_pointer().cast())) }
         };
+        let names_feature_values = ffi
+            .font_feature_values
+            .iter()
+            .any(|value| !value.as_pointer().is_null());
         Self {
-            ffi,
             family: retain(ffi.font_family),
-            feature_values: ffi
-                .font_feature_values
-                .map(|value| (!value.as_pointer().is_null()).then(|| retain(value))),
+            feature_values: names_feature_values.then(|| Box::new(ffi.font_feature_values.map(retain))),
+            scalars: FontRequestScalars::of(&ffi),
+            generation: ffi.font_environment_generation,
         }
+    }
+
+    /// The request, made for the font environment of `generation`.
+    pub fn for_generation(mut self, generation: u64) -> Self {
+        self.generation = generation;
+        self
+    }
+
+    /// The generation of the font environment the request was made for.
+    pub fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    /// The request as the host resolves it, naming the values this holds.
+    fn ffi(&self) -> FfiFontResolutionRequest {
+        let handle = |value: &RetainedStyleValueData| FfiHostHandle::from_pointer(value.pointer().cast());
+        let scalars = self.scalars;
+        FfiFontResolutionRequest {
+            font_family: handle(&self.family),
+            font_feature_values: match &self.feature_values {
+                Some(values) => std::array::from_fn(|index| handle(&values[index])),
+                None => [FfiHostHandle::from_pointer(std::ptr::null()); FONT_RESOLUTION_FEATURE_INPUT_COUNT],
+            },
+            font_size_raw: scalars.font_size_raw,
+            font_slope: scalars.font_slope,
+            font_weight: f64::from_bits(scalars.font_weight),
+            font_width: f64::from_bits(scalars.font_width),
+            font_optical_sizing: scalars.font_optical_sizing,
+            font_size_adjust: scalars.font_size_adjust,
+            font_size_adjust_metric: scalars.font_size_adjust_metric,
+            font_size_adjust_value: f64::from_bits(scalars.font_size_adjust_value),
+            font_feature_values_scope: scalars.font_feature_values_scope,
+            font_environment_generation: self.generation,
+        }
+    }
+
+    /// The feature value at `index`, or none where the request names none.
+    fn feature_value(&self, index: usize) -> Option<&crate::css::style_value::StyleValueData> {
+        self.feature_values.as_ref()?[index].optional_data()
+    }
+
+    /// Whether the request names the values `request` names, by identity, and has its scalars:
+    /// it is the same request, whatever generation either was made for.
+    fn is(&self, request: &FfiFontResolutionRequest) -> bool {
+        self.scalars == FontRequestScalars::of(request)
+            && self.family.pointer() as usize == request.font_family.address
+            && (0..FONT_RESOLUTION_FEATURE_INPUT_COUNT).all(|index| {
+                self.feature_values
+                    .as_ref()
+                    .map_or(0, |values| values[index].pointer() as usize)
+                    == request.font_feature_values[index].address
+            })
+    }
+
+    /// Whether the request names values equal to those `request` names, by whatever identities,
+    /// and has its scalars.
+    fn names_values_equal_to(&self, request: &FfiFontResolutionRequest) -> bool {
+        self.scalars == FontRequestScalars::of(request)
+            && self.family.optional_data() == requested_value(request.font_family)
+            && (0..FONT_RESOLUTION_FEATURE_INPUT_COUNT)
+                .all(|index| self.feature_value(index) == requested_value(request.font_feature_values[index]))
     }
 }
 
+/// One resolution: the request it answers and what the host resolved it to.
 #[derive(Clone)]
-
-struct ResolvedFont {
-    // Keep the family and feature values alive for the pointer identities in the cache key.
-    _font_family: RetainedStyleValueData,
-    _font_feature_values: [Option<RetainedStyleValueData>; FONT_RESOLUTION_FEATURE_INPUT_COUNT],
+struct FontResolution {
+    request: FontRequest,
     ffi: FfiResolvedFont,
-    /// The reference a fork's cache holds to the cascade, which the host's memo frees once the generation changes.
-    _font_cascade_list: Option<HeldFontCascadeList>,
 }
 
 /// A reference to a cascade, which a cache only holds.
@@ -112,28 +212,94 @@ struct HeldFontCascadeList(#[allow(dead_code)] libgfx_rust::font::FontCascadeLis
 unsafe impl Send for HeldFontCascadeList {}
 unsafe impl Sync for HeldFontCascadeList {}
 
+/// The resolutions of one generation, with the indices a lookup finds them by.
+#[derive(Clone, Default)]
+struct FontResolutions {
+    /// Each holding its request once.
+    resolutions: Vec<FontResolution>,
+    /// The resolutions by the hash of their requests' identities.
+    by_identity: HashMap<u64, SmallVec<[u32; 1]>>,
+    /// The resolutions by the content of the values their requests name, for a request naming
+    /// equal values by other identities.
+    by_content: HashMap<u64, SmallVec<[u32; 1]>>,
+}
+
+impl FontResolutions {
+    fn heap_size(&self) -> usize {
+        use crate::heap_size::{map_bytes, small_vec_bytes, vec_bytes};
+        vec_bytes(&self.resolutions)
+            + self
+                .resolutions
+                .iter()
+                .filter(|resolution| resolution.request.feature_values.is_some())
+                .count()
+                * size_of::<[RetainedStyleValueData; FONT_RESOLUTION_FEATURE_INPUT_COUNT]>()
+            + map_bytes(&self.by_identity)
+            + self.by_identity.values().map(small_vec_bytes).sum::<usize>()
+            + map_bytes(&self.by_content)
+            + self.by_content.values().map(small_vec_bytes).sum::<usize>()
+    }
+
+    /// The resolution of `request`, made for its very values.
+    fn find(&self, request: &FfiFontResolutionRequest) -> Option<&FontResolution> {
+        self.by_identity
+            .get(&request_identity_hash(request))?
+            .iter()
+            .map(|&index| &self.resolutions[index as usize])
+            .find(|resolution| resolution.request.is(request))
+    }
+}
+
 /// The resolutions this document has already been given, keyed by content and scoped to one
 /// font-environment generation. This is retained engine state: an evaluation step reads it and
 /// never calls the host.
 ///
 /// It names the cascades it was given without holding a reference to any of them. The host's
-/// cascade memo keeps every cascade it resolves alive until the font environment generation
-/// changes, and a lookup answers only for the generation the cache was filled at. So the engine
-/// never gives up the last reference to a `Gfx::FontCascadeList`, whose destructor releases fonts
-/// into host caches, and nothing in the cache stops it from moving to another thread.
+/// cascade memo keeps every cascade it resolves alive until it publishes the font faces of a later
+/// generation, which empties the cache, and a lookup answers only for the generation the cache was
+/// filled at. So the engine never gives up the last reference to a `Gfx::FontCascadeList`, whose
+/// destructor releases fonts into host caches, and nothing in the cache stops it from moving to
+/// another thread.
 ///
-/// A fork of the render state sees no generation change, so its cache holds a reference to each
-/// cascade it names instead. See [`Self::start_over_for_fork`].
+/// A fork of the render state shares the resolutions until either side writes, and sees no
+/// publication, so its cache holds a reference of its own to each cascade they name instead. See
+/// [`Self::hold_cascades_for_fork`].
 #[derive(Clone, Default)]
 pub(super) struct FontResolutionCache {
     generation: Option<u64>,
-    cache: HashMap<FontResolutionKey, ResolvedFont>,
-    holds_cascades: bool,
+    resolutions: ForkShared<FontResolutions>,
+    /// Whether a lookup finds a resolution made for equal values by other identities, which a
+    /// style pass needs: it computes the values its requests name anew each time.
+    matches_by_content: bool,
+    /// The references a fork's cache holds to the cascades its resolutions name, and none in the
+    /// cache of the render state the host writes.
+    held_cascades: Option<Vec<HeldFontCascadeList>>,
+    /// The requests the earlier generations resolved, which the next one is likely to be asked
+    /// for again.
+    carried: Vec<FontRequest>,
     /// The shadow tree scopes whose own `@font-feature-values` the published table carries.
     feature_values_shadow_scopes: Box<[TreeScopeID]>,
 }
 
 impl FontResolutionCache {
+    /// The bytes the cache holds on the heap, but for the values its requests name, which their
+    /// declarations and records hold too.
+    pub(super) fn heap_size(&self) -> usize {
+        use crate::heap_size::vec_bytes;
+        self.resolutions.heap_size()
+            + self.held_cascades.as_ref().map_or(0, vec_bytes)
+            + vec_bytes(&self.carried)
+            + size_of_val::<[TreeScopeID]>(&self.feature_values_shadow_scopes)
+    }
+
+    pub fn matches_by_content(&self) -> bool {
+        self.matches_by_content
+    }
+
+    pub fn set_matches_by_content(&mut self, matches_by_content: bool) {
+        self.matches_by_content = matches_by_content;
+    }
+
     pub fn publish_feature_values_shadow_scopes(&mut self, scopes: Box<[TreeScopeID]>) {
         self.feature_values_shadow_scopes = scopes;
     }
@@ -142,44 +308,125 @@ impl FontResolutionCache {
         &self.feature_values_shadow_scopes
     }
 
-    /// Empties the cache of a fork of the render state, which holds a reference to each cascade it names from here on:
-    /// the host frees the cascades the copied entries name once the generation it resolves at changes, which the fork
-    /// never sees.
-    pub fn start_over_for_fork(&mut self) {
+    /// Has the cache of a fork of the render state hold a reference to each cascade it names, the shared resolutions'
+    /// and those it resolves from here on: the host frees the cascades of a generation once it publishes the next,
+    /// which the fork never sees. The fork resolves what the state it forked resolved as that state did, at the
+    /// generation of its inputs, whatever the host's font environment moved to since.
+    pub fn hold_cascades_for_fork(&mut self) {
+        if self.held_cascades.is_some() {
+            return;
+        }
+        let held = self
+            .resolutions
+            .resolutions
+            .iter()
+            .map(|resolution| {
+                // SAFETY: The host keeps the cascades of the generation the cache was filled at alive until it
+                //         publishes the font faces of the next, which empties the cache first.
+                HeldFontCascadeList(unsafe {
+                    libgfx_rust::font::FontCascadeListHandle::retain(resolution.ffi.font_cascade_list.as_pointer())
+                })
+            })
+            .collect();
+        self.held_cascades = Some(held);
+    }
+
+    /// Forget every resolution, as the host published the font faces of a later generation: it frees the cascades of
+    /// the earlier ones from here on.
+    pub fn forget_earlier_generations(&mut self) {
         self.generation = None;
-        self.cache.clear();
-        self.holds_cascades = true;
+        self.carry_requests();
     }
 
     pub fn prepare(&mut self, generation: u64) {
         if self.generation != Some(generation) {
-            self.cache.clear();
+            self.carry_requests();
             self.generation = Some(generation);
         }
+    }
+
+    /// Forget every resolution, keeping the requests they answered.
+    fn carry_requests(&mut self) {
+        let resolutions = self.resolutions.take();
+        self.carried
+            .extend(resolutions.resolutions.into_iter().map(|resolution| resolution.request));
+        if let Some(held) = &mut self.held_cascades {
+            held.clear();
+        }
+    }
+
+    /// Take the requests the earlier generations resolved, which no resolution of this one
+    /// answers yet.
+    pub fn take_carried_requests(&mut self) -> Vec<FontRequest> {
+        // NB: A request carried over several generations is carried once for each, the latest last.
+        let mut taken: HashMap<u64, SmallVec<[usize; 1]>> = HashMap::default();
+        let mut requests: Vec<FontRequest> = Vec::new();
+        for request in std::mem::take(&mut self.carried).into_iter().rev() {
+            let ffi = request.ffi();
+            if self.resolutions.find(&ffi).is_some() {
+                continue;
+            }
+            let same = taken.entry(request_identity_hash(&ffi)).or_default();
+            if same.iter().any(|&index| requests[index].is(&ffi)) {
+                continue;
+            }
+            same.push(requests.len());
+            requests.push(request);
+        }
+        requests.reverse();
+        requests
     }
 
     pub fn lookup(&self, request: FfiFontResolutionRequest) -> Option<FfiResolvedFont> {
         if self.generation != Some(request.font_environment_generation) {
             return None;
         }
-        self.cache
-            .get(&FontResolutionKey::new(request))
-            .map(|resolved| resolved.ffi)
+        if let Some(resolution) = self.resolutions.find(&request) {
+            return Some(resolution.ffi);
+        }
+        if !self.matches_by_content {
+            return None;
+        }
+        // A family or feature value equal to one a resolution was made for resolves the same.
+        let candidates = self.resolutions.by_content.get(&request_content_hash(&request))?;
+        candidates.iter().find_map(|&index| {
+            let resolution = &self.resolutions.resolutions[index as usize];
+            resolution
+                .request
+                .names_values_equal_to(&request)
+                .then_some(resolution.ffi)
+        })
     }
 
     fn insert(&mut self, request: FontRequest, ffi: FfiResolvedFont, font_cascade_list: Option<HeldFontCascadeList>) {
         // The host resolves every request, to the fallback font where nothing else matches, so the
         // resolution always names a list.
         debug_assert!(!ffi.font_cascade_list.is_none());
-        self.cache.insert(
-            FontResolutionKey::new(request.ffi),
-            ResolvedFont {
-                _font_family: request.family,
-                _font_feature_values: request.feature_values,
-                ffi,
-                _font_cascade_list: font_cascade_list,
-            },
-        );
+        if let (Some(held), Some(font_cascade_list)) = (&mut self.held_cascades, font_cascade_list) {
+            held.push(font_cascade_list);
+        }
+        let request_ffi = request.ffi();
+        let identity_hash = request_identity_hash(&request_ffi);
+        let resolutions = &mut *self.resolutions;
+        let resolution = FontResolution { request, ffi };
+        let same_request = resolutions.by_identity.get(&identity_hash).and_then(|indices| {
+            indices
+                .iter()
+                .copied()
+                .find(|&index| resolutions.resolutions[index as usize].request.is(&request_ffi))
+        });
+        if let Some(index) = same_request {
+            resolutions.resolutions[index as usize] = resolution;
+            return;
+        }
+        let index = u32::try_from(resolutions.resolutions.len()).expect("a document resolves fewer than 2^32 fonts");
+        resolutions.resolutions.push(resolution);
+        resolutions.by_identity.entry(identity_hash).or_default().push(index);
+        resolutions
+            .by_content
+            .entry(request_content_hash(&request_ffi))
+            .or_default()
+            .push(index);
     }
 }
 
@@ -302,7 +549,7 @@ impl FontResolverHost {
         Self::with_callbacks(web_css_resolve_font, web_css_resolve_font_for_fork, font_faces)
     }
 
-    fn with_callbacks(
+    pub(super) fn with_callbacks(
         resolve: ResolveFontCallback,
         resolve_for_fork: ResolveFontCallback,
         font_faces: PublishedFontFaces,
@@ -323,8 +570,8 @@ impl FontResolverHost {
     /// builds and freezes a cascade from the document's font face state. Pending web faces remain
     /// in the returned cascade and retain the host's rendering-triggered loading behavior.
     pub fn refill(&self, cache: &mut FontResolutionCache, request: FontRequest) {
-        cache.prepare(request.ffi.font_environment_generation);
-        let resolve = if cache.holds_cascades {
+        cache.prepare(request.generation);
+        let resolve = if cache.held_cascades.is_some() {
             self.resolve_for_fork
         } else {
             self.resolve
@@ -333,11 +580,11 @@ impl FontResolverHost {
             resolve(
                 self.font_faces.memo.as_ptr(),
                 self.font_faces.snapshot.as_ptr(),
-                request.ffi,
+                request.ffi(),
             )
         };
         // SAFETY: A fork's resolution hands over a reference to the cascade it names.
-        let font_cascade_list = cache.holds_cascades.then(|| {
+        let font_cascade_list = cache.held_cascades.is_some().then(|| {
             HeldFontCascadeList(unsafe {
                 libgfx_rust::font::FontCascadeListHandle::adopt(ffi.font_cascade_list.as_pointer())
             })
@@ -433,7 +680,7 @@ mod tests {
     }
 
     #[test]
-    fn a_forks_cache_resolves_its_own_cascades_and_holds_them() {
+    fn a_forks_cache_answers_what_it_copied_and_holds_the_cascades() {
         let unrefs_before = font_cascade_list_unref_count();
         let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 2 });
         let host = FontResolverHost::with_callbacks(resolve_font_uncounted, resolve_font_uncounted, unsafe {
@@ -458,11 +705,10 @@ mod tests {
         host.refill(&mut resolver, FontRequest::new(request));
         assert!(resolver.lookup(request).is_some());
 
-        // The fork names none of the host's cascades, which the host frees once its generation changes.
+        // The fork answers what the cache it copied answered, holding a reference to each cascade, which the host frees
+        // once it publishes another generation.
         let mut fork = resolver.clone();
-        fork.start_over_for_fork();
-        assert!(fork.lookup(request).is_none());
-        host.refill(&mut fork, FontRequest::new(request));
+        fork.hold_cascades_for_fork();
         assert!(fork.lookup(request).is_some());
         assert_eq!(font_cascade_list_unref_count(), unrefs_before);
         drop(fork);

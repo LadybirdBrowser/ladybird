@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .level {
+        font-family: monospace;
+    }
+
+    .level::before {
+        content: "b";
+        font-family: serif;
+    }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        // Each level asks for a font size no element asked for before, which the style engine
+        // resolves once an element waits on it.
+        const host = document.getElementById("host");
+        let parent = host;
+        for (let level = 0; level < 6; ++level) {
+            const element = document.createElement("div");
+            element.className = "level";
+            element.style.fontSize = `${11.25 + level * 1.5}px`;
+            element.textContent = "x";
+            parent.appendChild(element);
+            parent = element;
+        }
+
+        internals.resetStyleCounters();
+        internals.updateStyle();
+        const counters = internals.styleCounters();
+        println(`passes: ${counters.passes}`);
+        println(`elements styled: ${counters.styledElements}`);
+        println(`deepest font size: ${getComputedStyle(parent).fontSize}`);
+    });
+</script>

@@ -1,0 +1,2 @@
+Before the load: 20px
+After the load: normal

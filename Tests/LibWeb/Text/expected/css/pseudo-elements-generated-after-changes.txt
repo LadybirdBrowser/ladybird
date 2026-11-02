@@ -1,0 +1,16 @@
+none: 0
++before -undefined: 7
++after -before: 11
++before -undefined: 18
++null -after: 7
++null -before: 0
+below without parent: 0
+below with parent: 13
+below without parent again: 0
+gated in a container: 17
+gated out of a container: 0
+no content: 0
+marker before: rgb(0, 0, 0)
+marker of a list item: rgb(0, 128, 0) true
+marker without its rule: rgb(0, 0, 0)
+no longer a list item: true

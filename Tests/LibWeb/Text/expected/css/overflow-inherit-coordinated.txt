@@ -1,0 +1,5 @@
+visible-parent: visible visible
+visible-child: auto hidden
+clip-parent: clip clip
+clip-child: hidden scroll
+clip-sibling: clip visible

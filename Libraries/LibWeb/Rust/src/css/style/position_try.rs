@@ -12,30 +12,57 @@ use super::HashMap;
 use super::RetainedState;
 use super::layout_style::LayoutStyle;
 use super::tree::{StyleNodeID, TreeScopeID};
-use crate::css::computed_longhand_table::ComputedLonghandTable;
+use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::computed_value_types::{AnchorValues, FontValues};
-use crate::css::computed_values::InheritedBoxValues;
+use crate::css::computed_values::GroupValuesWriter;
 use crate::css::css_enums::{anchor_size, keyword, position_area, try_tactic, writing_mode};
-use crate::css::declaration_block::DeclarationBlockData;
+use crate::css::declaration_block::SharedDeclarationBlock;
 use crate::css::property_metadata::property_id;
+use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
+use crate::css::style_value::{AnchorPayload, AnchorSizePayload, CalculatedPayload, StyleValueBox};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::css::style_value_arc::StyleValueArc;
 use crate::css::table_group_builder::group_index;
 use std::sync::Arc;
 
 /// One style scope's `@position-try` rules: the declarations of the rule each name resolves to.
-pub(crate) type PositionTryRow = HashMap<Box<[u16]>, Arc<DeclarationBlockData>>;
+pub(crate) type PositionTryRow = HashMap<Box<[u16]>, PositionTryRule>;
+
+/// One `@position-try` rule as a scope resolved it.
+#[derive(Clone)]
+pub(crate) struct PositionTryRule {
+    declarations: SharedDeclarationBlock,
+    id: PositionTryRuleID,
+}
+
+impl PositionTryRule {
+    pub(crate) fn declarations(&self) -> &SharedDeclarationBlock {
+        &self.declarations
+    }
+}
+
+/// What names one `@position-try` rule's declarations for as long as they stay, and never any declarations after
+/// them, as a box's last successful position option remembers it across layouts holding nothing of the rule.
+/// `NONE` stands for no rule.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct PositionTryRuleID(u64);
+
+impl PositionTryRuleID {
+    pub(crate) const NONE: Self = Self(0);
+}
 
 /// The `@position-try` rules every style scope of the document defines, as each scope's rule cache resolved them.
 #[derive(Clone, Default)]
 pub(crate) struct PositionTryRules {
     scopes: HashMap<TreeScopeID, PositionTryRow>,
+    last_id: u64,
 }
 
 impl PositionTryRules {
     /// The row of the names, packed into one buffer of code units with a length each, and the declarations of each.
     ///
     /// # Safety
-    /// Each declaration pointer must be a live `Arc<DeclarationBlockData>`.
+    /// Each declaration pointer must point at the header of a live declaration block.
     pub(crate) unsafe fn row(
         name_lengths: &[u32],
         name_units: &[u16],
@@ -50,27 +77,40 @@ impl PositionTryRules {
                 let units = &name_units[offset..offset + length as usize];
                 offset += length as usize;
                 // SAFETY: Guaranteed by the caller; the row takes a reference of its own.
-                let declarations = unsafe {
-                    let declarations = declarations.cast::<DeclarationBlockData>();
-                    Arc::increment_strong_count(declarations);
-                    Arc::from_raw(declarations)
-                };
-                (Box::from(units), declarations)
+                let declarations = unsafe { SharedDeclarationBlock::retain(declarations.cast()) };
+                (
+                    Box::from(units),
+                    PositionTryRule {
+                        declarations,
+                        id: PositionTryRuleID::NONE,
+                    },
+                )
             })
             .collect()
     }
 
     /// Replaces one scope's row. An empty row gives the scope's row up.
-    pub(crate) fn set(&mut self, tree_scope: TreeScopeID, row: PositionTryRow) {
+    pub(crate) fn set(&mut self, tree_scope: TreeScopeID, mut row: PositionTryRow) {
         if row.is_empty() {
             self.scopes.remove(&tree_scope);
             return;
         }
+        let previous = self.scopes.get(&tree_scope);
+        for (name, rule) in &mut row {
+            rule.id = match previous.and_then(|previous| previous.get(name)) {
+                // NB: The row held these declarations, which no others can have taken the address of.
+                Some(held) if held.declarations.as_ptr() == rule.declarations.as_ptr() => held.id,
+                _ => {
+                    self.last_id += 1;
+                    PositionTryRuleID(self.last_id)
+                }
+            };
+        }
         self.scopes.insert(tree_scope, row);
     }
 
-    /// The declarations of the `@position-try` rule of this name that the tree scope `scope` defines.
-    fn in_scope(&self, scope: TreeScopeID, name: &[u16]) -> Option<&Arc<DeclarationBlockData>> {
+    /// The `@position-try` rule of this name that the tree scope `scope` defines.
+    fn in_scope(&self, scope: TreeScopeID, name: &[u16]) -> Option<&PositionTryRule> {
         self.scopes.get(&scope)?.get(name)
     }
 }
@@ -318,66 +358,75 @@ impl TacticContext {
     /// anchor-size() functions in it changed to maintain the same relative relationship to the new direction.
     fn moved_value(self, value: &RetainedStyleValueData, side: Side) -> RetainedStyleValueData {
         match value.optional_data().and_then(|data| self.moved_function(data, side)) {
-            Some(moved) => RetainedStyleValueData::from_arc(Arc::new(moved)),
+            Some(moved) => RetainedStyleValueData::from_arc(StyleValueArc::new(moved)),
             None => value.clone_retained(),
         }
     }
 
     fn moved_function(self, data: &StyleValueData, side: Side) -> Option<StyleValueData> {
         match data {
-            StyleValueData::Anchor {
-                has_anchor_name,
-                anchor_name,
-                anchor_side,
-                fallback_value,
-            } => Some(StyleValueData::Anchor {
-                has_anchor_name: *has_anchor_name,
-                anchor_name: anchor_name.clone(),
-                anchor_side: match anchor_side
-                    .optional_data()
-                    .and_then(|data| self.anchor_side(data, side))
-                {
-                    Some(moved) => RetainedStyleValueData::from_arc(Arc::new(moved)),
-                    None => anchor_side.clone_retained(),
-                },
-                fallback_value: fallback_value.clone_retained(),
-            }),
-            StyleValueData::AnchorSize {
-                has_anchor_name,
-                anchor_name,
-                has_anchor_size,
-                anchor_size: size,
-                fallback_value,
-            } if *has_anchor_size && self.mapping.transposes() => Some(StyleValueData::AnchorSize {
-                has_anchor_name: *has_anchor_name,
-                anchor_name: anchor_name.clone(),
-                has_anchor_size: true,
-                anchor_size: match *size {
-                    anchor_size::WIDTH => anchor_size::HEIGHT,
-                    anchor_size::HEIGHT => anchor_size::WIDTH,
-                    anchor_size::BLOCK => anchor_size::INLINE,
-                    anchor_size::INLINE => anchor_size::BLOCK,
-                    anchor_size::SELF_BLOCK => anchor_size::SELF_INLINE,
-                    anchor_size::SELF_INLINE => anchor_size::SELF_BLOCK,
-                    size => size,
-                },
-                fallback_value: fallback_value.clone_retained(),
-            }),
-            StyleValueData::Calculated {
-                resolve_as_is_number,
-                resolve_as_base,
-                has_percentages_resolve_as,
-                percentages_resolve_as,
-                resolve_numbers_as_integers,
-                rust_calculation,
-                resolved_type,
-                accepted_ranges,
-            } => {
+            StyleValueData::Anchor(anchor_payload) => {
+                let AnchorPayload {
+                    has_anchor_name,
+                    anchor_name,
+                    anchor_side,
+                    fallback_value,
+                } = &**anchor_payload;
+                Some(StyleValueData::Anchor(StyleValueBox::new(AnchorPayload {
+                    has_anchor_name: *has_anchor_name,
+                    anchor_name: anchor_name.clone(),
+                    anchor_side: match anchor_side
+                        .optional_data()
+                        .and_then(|data| self.anchor_side(data, side))
+                    {
+                        Some(moved) => RetainedStyleValueData::from_arc(StyleValueArc::new(moved)),
+                        None => anchor_side.clone_retained(),
+                    },
+                    fallback_value: fallback_value.clone_retained(),
+                })))
+            }
+            StyleValueData::AnchorSize(anchor_size_payload)
+                if anchor_size_payload.has_anchor_size && self.mapping.transposes() =>
+            {
+                let AnchorSizePayload {
+                    has_anchor_name,
+                    anchor_name,
+                    anchor_size: size,
+                    fallback_value,
+                    ..
+                } = &**anchor_size_payload;
+                Some(StyleValueData::AnchorSize(StyleValueBox::new(AnchorSizePayload {
+                    has_anchor_name: *has_anchor_name,
+                    anchor_name: anchor_name.clone(),
+                    has_anchor_size: true,
+                    anchor_size: match *size {
+                        anchor_size::WIDTH => anchor_size::HEIGHT,
+                        anchor_size::HEIGHT => anchor_size::WIDTH,
+                        anchor_size::BLOCK => anchor_size::INLINE,
+                        anchor_size::INLINE => anchor_size::BLOCK,
+                        anchor_size::SELF_BLOCK => anchor_size::SELF_INLINE,
+                        anchor_size::SELF_INLINE => anchor_size::SELF_BLOCK,
+                        size => size,
+                    },
+                    fallback_value: fallback_value.clone_retained(),
+                })))
+            }
+            StyleValueData::Calculated(calculated_payload) => {
+                let CalculatedPayload {
+                    resolve_as_is_number,
+                    resolve_as_base,
+                    has_percentages_resolve_as,
+                    percentages_resolve_as,
+                    resolve_numbers_as_integers,
+                    rust_calculation,
+                    resolved_type,
+                    accepted_ranges,
+                } = &**calculated_payload;
                 let root = crate::css::calc::map_calc_size_leaves(&rust_calculation.node_arc(), &|leaf| match leaf {
                     crate::css::calc::CalcNode::NonMathFunction { value, numeric_type } => {
                         let moved = self.moved_function(value.optional_data()?, side)?;
                         Some(Arc::new(crate::css::calc::CalcNode::NonMathFunction {
-                            value: RetainedStyleValueData::from_arc(Arc::new(moved)),
+                            value: RetainedStyleValueData::from_arc(StyleValueArc::new(moved)),
                             numeric_type: *numeric_type,
                         }))
                     }
@@ -386,7 +435,7 @@ impl TacticContext {
                 if Arc::ptr_eq(&root, &rust_calculation.node_arc()) {
                     return None;
                 }
-                Some(StyleValueData::Calculated {
+                Some(StyleValueData::Calculated(StyleValueBox::new(CalculatedPayload {
                     resolve_as_is_number: *resolve_as_is_number,
                     resolve_as_base: *resolve_as_base,
                     has_percentages_resolve_as: *has_percentages_resolve_as,
@@ -395,7 +444,7 @@ impl TacticContext {
                     rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(root),
                     resolved_type: *resolved_type,
                     accepted_ranges: accepted_ranges.clone(),
-                })
+                })))
             }
             _ => None,
         }
@@ -478,7 +527,7 @@ impl TacticContext {
                     .map(|item| match item.optional_data() {
                         Some(StyleValueData::Keyword { keyword: code }) if moved_keyword(*code) != *code => {
                             changed = true;
-                            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+                            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
                                 keyword: moved_keyword(*code),
                             }))
                         }
@@ -494,7 +543,7 @@ impl TacticContext {
             _ => None,
         };
         match moved {
-            Some(moved) => RetainedStyleValueData::from_arc(Arc::new(moved)),
+            Some(moved) => RetainedStyleValueData::from_arc(StyleValueArc::new(moved)),
             None => value.clone_retained(),
         }
     }
@@ -502,15 +551,15 @@ impl TacticContext {
     /// https://drafts.csswg.org/css-anchor-position-1/#execute-a-try-tactic
     /// Swap the values of `table` between the associated properties corresponding to the directions, and modify the
     /// values of the properties as they swap to match the new directions.
-    fn execute(self, base: &ComputedLonghandTable, table: &mut ComputedLonghandTable) {
+    fn execute(self, base: &GroupValuesWriter<'_>, table: &mut GroupValuesWriter<'_>) {
         let value = |property: u16| base.get(property).map(RetainedStyleValueData::clone_retained);
         for side in Side::ALL {
             let destination = self.mapping.get(side);
             if let Some(inset) = value(side.inset_property()) {
-                table.set(destination.inset_property(), self.moved_value(&inset, side), -1);
+                table.set(destination.inset_property(), self.moved_value(&inset, side));
             }
             if let Some(margin) = value(side.margin_property()) {
-                table.set(destination.margin_property(), self.moved_value(&margin, side), -1);
+                table.set(destination.margin_property(), self.moved_value(&margin, side));
             }
         }
         let size_pairs = [
@@ -525,10 +574,10 @@ impl TacticContext {
                 (horizontal, vertical)
             };
             if let Some(size) = value(horizontal) {
-                table.set(horizontal_destination, self.moved_value(&size, Side::Left), -1);
+                table.set(horizontal_destination, self.moved_value(&size, Side::Left));
             }
             if let Some(size) = value(vertical) {
-                table.set(vertical_destination, self.moved_value(&size, Side::Top), -1);
+                table.set(vertical_destination, self.moved_value(&size, Side::Top));
             }
         }
         // NB: justify-self aligns in the inline axis of the containing block, and align-self in its block axis.
@@ -548,11 +597,11 @@ impl TacticContext {
         };
         if let Some(justify_self) = value(property_id::JUSTIFY_SELF) {
             let moved = self.moved_self_alignment(&justify_self, inline_start, destination_start(justify_destination));
-            table.set(justify_destination, moved, -1);
+            table.set(justify_destination, moved);
         }
         if let Some(align_self) = value(property_id::ALIGN_SELF) {
             let moved = self.moved_self_alignment(&align_self, block_start, destination_start(align_destination));
-            table.set(align_destination, moved, -1);
+            table.set(align_destination, moved);
         }
     }
 
@@ -636,8 +685,13 @@ impl RetainedState {
     /// https://drafts.csswg.org/css-anchor-position-1/#position-options-list
     /// The first `limit` entries of the `position-try-fallbacks` of the box of `node`, whose record is `record`, that
     /// add a position option to its position options list: the index of each, and the identity of the `@position-try`
-    /// rule it names, or 0 for an entry that names none.
-    pub(crate) fn position_option_entries(&self, node: StyleNodeID, record: u64, limit: usize) -> Vec<(usize, usize)> {
+    /// rule it names, or none for an entry that names none.
+    pub(crate) fn position_option_entries(
+        &self,
+        node: StyleNodeID,
+        record: u64,
+        limit: usize,
+    ) -> Vec<(usize, PositionTryRuleID)> {
         let Some(view) = self.computed_group_sets.style_record_view(record) else {
             return Vec::new();
         };
@@ -651,12 +705,12 @@ impl RetainedState {
             .filter_map(|(index, fallback)| {
                 let name = fallback.name.to_utf16();
                 if name.is_empty() {
-                    return Some((index, 0));
+                    return Some((index, PositionTryRuleID::NONE));
                 }
                 // <dashed-ident>: If there is a @position-try rule with the given name, its associated position
                 // option is added to the position options list. Otherwise, this value has no effect.
-                let declarations = self.resolve_position_try_rule(node, &name)?;
-                Some((index, Arc::as_ptr(&declarations) as usize))
+                let rule = self.resolve_position_try_rule(node, &name)?;
+                Some((index, rule.id))
             })
             .take(limit)
             .collect()
@@ -677,20 +731,14 @@ impl RetainedState {
         containing_block_direction: u8,
     ) -> Option<PositionOptionStyle> {
         let view = self.computed_group_sets.style_record_view(record)?;
-        let base = view.longhand_table?;
+        let base = view.longhands();
         // SAFETY: A live record's payloads are live payloads of their groups.
-        let (anchor, inherited_box) = unsafe {
-            (
-                view.payloads[group_index::ANCHOR].cast::<AnchorValues>().deref(),
-                view.payloads[group_index::INHERITED_BOX]
-                    .cast::<InheritedBoxValues>()
-                    .deref(),
-            )
-        };
+        let anchor = unsafe { view.payloads[group_index::ANCHOR].cast::<AnchorValues>().deref() };
+        let inherited_bits = view.payloads.inherited_bits();
         let fallback = anchor.position_try_fallbacks.as_slice().get(index)?;
         let own = WritingModeSides {
-            writing_mode: inherited_box.writing_mode,
-            direction: inherited_box.direction,
+            writing_mode: inherited_bits.writing_mode(),
+            direction: inherited_bits.direction(),
         };
         let context = TacticContext {
             mapping: SideMapping::of_tactics(
@@ -713,19 +761,8 @@ impl RetainedState {
         let declarations = if name.is_empty() {
             None
         } else {
-            Some(self.resolve_position_try_rule(node, &name)?)
+            Some(self.resolve_position_try_rule(node, &name)?.declarations)
         };
-        let mut table = ComputedLonghandTable::copied_for_partial_drive(base);
-        if let Some(declarations) = declarations {
-            self.apply_position_try_declarations(node, record, own, &declarations, &mut table)?;
-        }
-        if context.mapping != SideMapping::IDENTITY {
-            let mut transformed = ComputedLonghandTable::copied_for_partial_drive(&table);
-            context.execute(&table, &mut transformed);
-            table = transformed;
-        }
-        table.freeze();
-
         // NB: The Animation Origin lies above the Position Fallback Origin.
         let animated_overlay = self
             .computed_group_sets
@@ -733,7 +770,35 @@ impl RetainedState {
             .animated_overlay
             .cloned();
         let mut style = LayoutStyle::from_record(self, record);
-        style.replace_groups_from_table(&table, animated_overlay.as_ref(), &POSITION_OPTION_GROUPS);
+        // The option's values are the base styles' values with the option's declarations and
+        // tactics written over them, written over the default groups.
+        crate::css::computed_values::with_default_seed(&self.process_style.default_groups, |seed| {
+            let mut writer = GroupValuesWriter::seeded_for_child(
+                seed,
+                seed,
+                (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID)
+                    .filter_map(|property| Some((property, base.handle(property)?.clone()))),
+                crate::css::computed_longhand_table::LonghandTableFlags::empty(),
+                0,
+            );
+            writer.set_effective_zoom(base.effective_zoom());
+            writer.set_effective_color_scheme(base.effective_color_scheme());
+            if let Some(declarations) = declarations {
+                self.apply_position_try_declarations(node, record, own, &declarations, &mut writer)?;
+            }
+            if context.mapping != SideMapping::IDENTITY {
+                let before = writer.clone();
+                context.execute(&before, &mut writer);
+            }
+            for entry in animated_overlay.as_ref().map_or(&[][..], AnimatedOverlay::entries) {
+                if overlay_wins(entry, base.is_important(entry.property)) {
+                    writer.set(entry.property, entry.clone_value());
+                }
+            }
+            let (values, ..) = writer.finish(&[]);
+            style.replace_groups_from_values(&values, &POSITION_OPTION_GROUPS, &self.process_style.default_groups);
+            Some(())
+        })?;
         // <position-area>: Automatically creates a position option composed solely of a position-area property with
         // the given value.
         let position_area = if fallback.has_position_area {
@@ -758,19 +823,19 @@ impl RetainedState {
     /// https://drafts.csswg.org/css-shadow-1/#tree-scoped-name
     /// The declarations of the `@position-try` rule of this name that the element of `node` refers to: the one of the
     /// closest tree scope around the element that defines one.
-    fn resolve_position_try_rule(&self, node: StyleNodeID, name: &[u16]) -> Option<Arc<DeclarationBlockData>> {
-        let mut scope = self.tree.tree_scope(node);
+    fn resolve_position_try_rule(&self, node: StyleNodeID, name: &[u16]) -> Option<PositionTryRule> {
+        let mut scope = self.projection.tree_scope(node);
         loop {
-            if let Some(declarations) = self.position_try_rules.in_scope(scope, name) {
-                return Some(declarations.clone());
+            if let Some(rule) = self.position_try_rules.in_scope(scope, name) {
+                return Some(rule.clone());
             }
             if scope == TreeScopeID::DOCUMENT {
                 return None;
             }
             scope = self
                 .scope_root(scope)
-                .and_then(|root| self.tree.host_of(root))
-                .map_or(TreeScopeID::DOCUMENT, |host| self.tree.tree_scope(host));
+                .and_then(|root| self.projection.host_of(root))
+                .map_or(TreeScopeID::DOCUMENT, |host| self.projection.tree_scope(host));
         }
     }
 
@@ -784,15 +849,15 @@ impl RetainedState {
         node: StyleNodeID,
         record: u64,
         own: WritingModeSides,
-        declarations: &DeclarationBlockData,
-        table: &mut ComputedLonghandTable,
+        declarations: &SharedDeclarationBlock,
+        table: &mut GroupValuesWriter<'_>,
     ) -> Option<()> {
         use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
         use crate::css::style_compute::{
             FfiEffectiveColorSchemeInput, FfiFontMetrics, FfiInputLineHeightMetrics, FfiLengthResolutionContext,
             FfiStyleComputationEnvironment, LONGHAND_DRIVE_PHASE_REMAINING, drive_property_computation,
             empty_longhand_driver_results, expand_shorthands_with, is_required_driver_input,
-            map_logical_alias_to_physical, parent_snapshot_for_style_record,
+            map_logical_alias_to_physical, parent_snapshot_of_view,
         };
 
         let mut declared: Vec<(u16, RetainedStyleValueData)> = Vec::new();
@@ -803,8 +868,8 @@ impl RetainedState {
                 .map_or(std::ptr::null(), |store| Arc::as_ptr(store).cast::<std::ffi::c_void>())
         };
         let store = custom_property_store(Some(node));
-        let inheritance_store = custom_property_store(self.tree.inheritance_parent(node));
-        for declaration in &declarations.properties {
+        let inheritance_store = custom_property_store(self.projection.inheritance_parent(node));
+        for declaration in declarations.properties() {
             let mut value = RetainedStyleValueData::from_arc(declaration.value.clone());
             if matches!(value.optional_data(), Some(StyleValueData::Unresolved { .. })) {
                 value = self.substitute_keyframe_value(
@@ -832,7 +897,7 @@ impl RetainedState {
                         StyleValueData::Unresolved { .. }
                         | StyleValueData::PendingSubstitution { .. }
                         | StyleValueData::GuaranteedInvalid,
-                    ) => RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+                    ) => RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
                         keyword: keyword::UNSET,
                     })),
                     // As with the Animation Origin, revert-layer has no special behavior and acts as specified,
@@ -845,7 +910,7 @@ impl RetainedState {
                     // NB: No user style sheet sets an accepted @position-try property, so this is unset.
                     Some(StyleValueData::Keyword {
                         keyword: keyword::REVERT,
-                    }) => RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+                    }) => RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
                         keyword: keyword::UNSET,
                     })),
                     Some(_) => data.clone_retained(),
@@ -854,7 +919,7 @@ impl RetainedState {
                 declared.push((longhand, data));
             });
         }
-        let base = self.computed_group_sets.style_record_view(record)?.longhand_table?;
+        let base = self.computed_group_sets.style_record_view(record)?.longhands();
         declared.retain(|(property, _)| !base.is_important(*property));
         if declared.is_empty() {
             return Some(());
@@ -862,20 +927,17 @@ impl RetainedState {
 
         let view = self.computed_group_sets.style_record_view(record)?;
         let snapshot = self
-            .tree
+            .projection
             .inheritance_parent(node)
             .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
             .and_then(|parent_record| {
                 let parent_view = self.computed_group_sets.style_record_view(parent_record.raw())?;
-                Some(parent_snapshot_for_style_record(
-                    self,
-                    parent_record.raw(),
-                    parent_view.animated_overlay,
-                ))
+                Some(parent_snapshot_of_view(parent_view, parent_view.animated_overlay))
             });
         // SAFETY: A live record's payloads are live payloads of their groups.
         let font = unsafe { view.payloads[group_index::FONT].cast::<FontValues>().deref() };
         let inputs = &self.document_style_computation_inputs;
+        let first_available = font.first_available_font_metrics();
         let font_metric = |value: f32| crate::css::css_pixels::CssPixels::nearest_value_for_f32(value).to_double();
         let mut resolved_viewport_relative_length = false;
         let mut length = FfiLengthResolutionContext {
@@ -883,11 +945,11 @@ impl RetainedState {
             viewport_height: inputs.viewport_height,
             font_metrics: FfiFontMetrics {
                 font_size: font.font_size.to_double(),
-                x_height: font_metric(font.font_x_height),
+                x_height: font_metric(first_available.x_height),
                 // The C++ metrics approximate the cap height with the ascent.
-                cap_height: font_metric(font.font_ascent),
-                zero_advance: font_metric(font.font_zero_advance),
-                line_height: font.line_height_used.to_double(),
+                cap_height: font_metric(first_available.ascent),
+                zero_advance: font_metric(first_available.zero_advance),
+                line_height: font.line_height_used().to_double(),
             },
             root_font_metrics: FfiFontMetrics {
                 font_size: inputs.root_font_size,
@@ -912,9 +974,9 @@ impl RetainedState {
         self.container_unit_bases(node, false).apply_to(&mut length);
         let environment = FfiStyleComputationEnvironment {
             box_type_input: self.box_type_transformation_input(
-                self.computed_group_sets.adjustment_facts(node),
-                crate::css::style_compute::FfiStyleAdjustmentTarget::Element,
-                self.tree.inheritance_parent(node),
+                self.projection.adjustment_facts(node),
+                crate::css::style_compute::StyleAdjustmentTarget::Element,
+                self.projection.inheritance_parent(node),
             ),
             color_scheme_input: FfiEffectiveColorSchemeInput {
                 preferred_color_scheme: 0,
@@ -945,7 +1007,7 @@ impl RetainedState {
             if !is_required_driver_input(property) {
                 continue;
             }
-            if let Some(value) = base.get(property) {
+            if let Some(value) = base.handle(property) {
                 store.seed_retained_property(property, value.clone_retained(), false, false);
             }
         }
@@ -955,34 +1017,49 @@ impl RetainedState {
             let index = usize::from(*property - FIRST_LONGHAND_PROPERTY_ID);
             selected[index / 64] |= 1 << (index % 64);
         }
-        let mut driven = view.longhand_table_for_partial_drive();
         let mut results = empty_longhand_driver_results();
         let mut effective_color_scheme = base.effective_color_scheme();
         let input_line_height_metrics = FfiInputLineHeightMetrics {
             current_line_height: 0.0,
             minimum_line_height: 0.0,
         };
-        // SAFETY: Every pointer the environment and length context hold stays live across the drive.
-        unsafe {
-            drive_property_computation(
-                &mut driven,
-                &store,
-                snapshot.as_ref(),
-                None,
-                &environment,
-                Some(&selected),
-                LONGHAND_DRIVE_PHASE_REMAINING,
-                Some(&length),
-                Some(&input_line_height_metrics),
-                &mut results,
-                &mut effective_color_scheme,
-                false,
-            );
-        }
-        for (property, _) in &declared {
-            if let Some(value) = driven.get(*property) {
-                table.set(*property, value.clone_retained(), -1);
-            }
+        // The drive writes over the base values, written over the default groups.
+        let driven: Vec<(u16, RetainedStyleValueData)> =
+            crate::css::computed_values::with_default_seed(&self.process_style.default_groups, |seed| {
+                let mut writer = crate::css::computed_values::GroupValuesWriter::seeded_for_child(
+                    seed,
+                    seed,
+                    (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID)
+                        .filter_map(|property| Some((property, base.handle(property)?.clone()))),
+                    crate::css::computed_longhand_table::LonghandTableFlags::empty(),
+                    0,
+                );
+                writer.set_effective_zoom(base.effective_zoom());
+                writer.set_effective_color_scheme(base.effective_color_scheme());
+                // SAFETY: Every pointer the environment and length context hold stays live across the drive.
+                unsafe {
+                    drive_property_computation(
+                        &mut writer,
+                        &store,
+                        snapshot.as_ref(),
+                        None,
+                        &environment,
+                        Some(&selected),
+                        LONGHAND_DRIVE_PHASE_REMAINING,
+                        Some(&length),
+                        Some(&input_line_height_metrics),
+                        &mut results,
+                        &mut effective_color_scheme,
+                        false,
+                    );
+                }
+                declared
+                    .iter()
+                    .filter_map(|(property, _)| Some((*property, writer.get(*property)?.clone())))
+                    .collect()
+            });
+        for (property, value) in driven {
+            table.set(property, value);
         }
         Some(())
     }
