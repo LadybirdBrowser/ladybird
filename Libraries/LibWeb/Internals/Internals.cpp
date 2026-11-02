@@ -117,7 +117,6 @@
 #include <LibWeb/PermissionsAPI/PermissionStore.h>
 #include <LibWeb/PermissionsAPI/Permissions.h>
 #include <LibWeb/PictureInPicture/PictureInPictureController.h>
-#include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/WebDriver/Actions.h>
@@ -501,8 +500,6 @@ bool Internals::has_activity_root(JS::Object& object)
 {
     if (auto* xhr = Bindings::impl_from<XHR::XMLHttpRequest>(&object))
         return xhr->has_activity_root();
-    if (auto* resize_observer = Bindings::impl_from<ResizeObserver::ResizeObserver>(&object))
-        return resize_observer->has_activity_root();
     if (auto* web_socket = Bindings::impl_from<WebSockets::WebSocket>(&object))
         return web_socket->has_activity_root();
     return false;

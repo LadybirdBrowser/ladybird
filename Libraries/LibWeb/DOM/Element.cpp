@@ -227,6 +227,8 @@ void Element::RareData::visit_edges(Cell::Visitor& visitor)
         for (auto& observer : *registered_intersection_observers)
             visitor.visit(observer);
     }
+    if (registered_resize_observers)
+        visitor.visit(*registered_resize_observers);
 }
 
 OwnPtr<Node::RareData> Element::create_rare_data() const
@@ -6010,6 +6012,24 @@ void Element::unregister_intersection_observer(Badge<IntersectionObserver::Inter
     if (!rare_data || !rare_data->registered_intersection_observers)
         return;
     rare_data->registered_intersection_observers->remove_first_matching([&observer](GC::Ref<IntersectionObserver::IntersectionObserver> const& entry) {
+        return entry == observer;
+    });
+}
+
+void Element::register_resize_observer(Badge<ResizeObserver::ResizeObserver>, GC::Ref<ResizeObserver::ResizeObserver> observer)
+{
+    auto& registered_resize_observers = ensure_element_rare_data().registered_resize_observers;
+    if (!registered_resize_observers)
+        registered_resize_observers = make<Vector<GC::Ref<ResizeObserver::ResizeObserver>>>();
+    registered_resize_observers->append(observer);
+}
+
+void Element::unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, GC::Ref<ResizeObserver::ResizeObserver> observer)
+{
+    auto* rare_data = element_rare_data();
+    if (!rare_data || !rare_data->registered_resize_observers)
+        return;
+    rare_data->registered_resize_observers->remove_first_matching([&observer](GC::Ref<ResizeObserver::ResizeObserver> const& entry) {
         return entry == observer;
     });
 }

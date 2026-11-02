@@ -8,7 +8,6 @@
 #pragma once
 
 #include <AK/Badge.h>
-#include <LibGC/ActivityRoot.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/ResizeObserver/ResizeObservation.h>
@@ -33,7 +32,6 @@ public:
     void unobserve(DOM::Element& target);
     void disconnect();
     void document_was_destroyed(Badge<DOM::Document>);
-    bool has_activity_root() const { return m_activity_root.is_taken(); }
 
     WebIDL::CallbackType& callback() { return *m_callback; }
 
@@ -41,7 +39,6 @@ public:
     Vector<GC::Ref<ResizeObservation>>& active_targets() { return m_active_targets; }
     Vector<GC::Ref<ResizeObservation>>& skipped_targets() { return m_skipped_targets; }
     void remove_dead_observations();
-    static void release_activity_roots_with_dead_documents();
 
 private:
     explicit ResizeObserver(GC::Ptr<WebIDL::CallbackType> callback, DOM::Document&);
@@ -50,7 +47,6 @@ private:
     virtual void finalize() override;
 
     void unregister_observer_if_needed();
-    void update_activity_root();
 
     GC::Ptr<WebIDL::CallbackType> m_callback;
     Vector<GC::Ref<ResizeObservation>> m_observation_targets;
@@ -59,7 +55,6 @@ private:
 
     // AD-HOC: This is the document where we've registered the observer.
     GC::Weak<DOM::Document> m_document;
-    GC::ActivityRoot m_activity_root;
     bool m_is_registered { false };
 
 public:

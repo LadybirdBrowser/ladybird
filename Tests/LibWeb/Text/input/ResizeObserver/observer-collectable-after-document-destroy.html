@@ -2,19 +2,21 @@
 <script src="../include.js"></script>
 <script>
     promiseTest(async () => {
-        const frame = document.createElement("iframe");
+        let frame = document.createElement("iframe");
         document.body.append(frame);
         frame.contentDocument.body.innerHTML = `<div id="target" style="width: 100px; height: 100px"></div>`;
 
-        const observer = new frame.contentWindow.ResizeObserver(() => {});
+        let observer = new frame.contentWindow.ResizeObserver(() => {});
+        const weak = new WeakRef(observer);
         observer.observe(frame.contentDocument.getElementById("target"));
-        println(`root before destroy: ${internals.hasActivityRoot(observer)}`);
+        observer = null;
+
         await new Promise(resolve => {
             frame.contentWindow.addEventListener("unload", resolve, { once: true });
             frame.remove();
         });
-        // Collect after the unload task has finished destroying the document.
+        frame = null;
         await internals.gcAsync();
-        println(`root after destroy: ${internals.hasActivityRoot(observer)}`);
+        println(`observer collected after document destroy: ${weak.deref() === undefined}`);
     });
 </script>
