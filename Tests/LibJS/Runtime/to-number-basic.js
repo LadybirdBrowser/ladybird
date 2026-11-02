@@ -65,6 +65,12 @@ test("space and space-like escapes", () => {
     expect(+"  \r  \t \n ").toBe(0);
     expect(+"  \n  \t    Infinity   \r   ").toBe(Infinity);
     expect(+"\r     \n1.23   \t\t\t  \n").toBe(1.23);
+    expect(+"﻿1﻿").toBe(1);
+    expect(+"﻿").toBe(0);
+    expect("﻿1" == 1).toBeTrue();
+    expect("﻿1" < 2).toBeTrue();
+    expect(+"\u00851").toBeNaN();
+    expect("\u00851" == 1).toBeFalse();
 });
 
 test("object literals", () => {

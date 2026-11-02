@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicU32;
 
+use num_bigint::BigInt;
+
 pub fn validate_regex(_pattern: &[u16], _flags: &[u16]) -> Result<(), String> {
     Ok(())
 }
@@ -23,6 +25,14 @@ pub fn number_to_utf16(value: f64) -> Vec<u16> {
         value.to_string()
     };
     text.encode_utf16().collect()
+}
+
+pub fn string_to_number(_string: &[u16]) -> f64 {
+    unimplemented!("no cargo test folds constants")
+}
+
+pub fn string_to_bigint(_string: &[u16]) -> Option<BigInt> {
+    unimplemented!("no cargo test folds constants")
 }
 
 pub fn exponentiate(_base: f64, _exponent: f64) -> f64 {

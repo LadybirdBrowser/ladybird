@@ -108,6 +108,9 @@ describe("correct behavior", () => {
         expect(1n == "0b10").toBeFalse();
         expect(1n == "0o2").toBeFalse();
         expect(1n == "0x2").toBeFalse();
+
+        expect(1n == "﻿1﻿").toBeTrue();
+        expect(1n == "\u00851").toBeFalse();
     });
 
     test("strong equality operators", () => {
