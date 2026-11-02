@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<style>
+@property --p { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --q { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@function --read() { result: var(--q); }
+@function --shadow() { --q: 1px; result: --read(); }
+@function --shadow-twice() { result: calc(--shadow() + --shadow()); }
+@function --shadow-then-read() { result: calc(--shadow() + --read()); }
+@function --read-then-shadow() { result: calc(--read() + --shadow()); }
+@function --default(--value: var(--q)) { result: var(--value); }
+@function --passed-twice() { result: calc(--default(5px) + --default(6px)); }
+@function --passed-then-left-out() { result: calc(--default(5px) + --default()); }
+@function --left-out-then-passed() { result: calc(--default() + --default(5px)); }
+</style>
+<body>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // A chain of functions that each call the next twice has twice as many paths at each level.
+        const depth = 40;
+        let css = "";
+        for (let level = 0; level < depth; ++level)
+            css += `@function --chain${level}() { result: calc(--chain${level + 1}() + --chain${level + 1}()); }\n`;
+        css += `@function --chain${depth}() { result: var(--q); }\n`;
+
+        // A function's reads depend on who calls it and on what the call passes, in whichever order the calls come.
+        const cases = {
+            "every path through a chain leads to it": "--chain0()",
+            "each call's local shadows it": "--shadow-twice()",
+            "a local shadows it, then a call reads it": "--shadow-then-read()",
+            "a call reads it, then a local shadows it": "--read-then-shadow()",
+            "each call passes the parameter": "--passed-twice()",
+            "a call passes the parameter, then one leaves it out": "--passed-then-left-out()",
+            "a call leaves the parameter out, then one passes it": "--left-out-then-passed()",
+        };
+
+        const elements = [];
+        Object.entries(cases).forEach(([name, value], index) => {
+            css += `.declared${index} { --p: ${value}; --q: var(--p); }\n`;
+            css += `@keyframes k${index} { from, to { --p: ${value}; } }\n`;
+            css += `.paused${index} { --q: var(--p); animation: k${index} 100s paused; }\n`;
+            const add = variant => {
+                const element = document.createElement("div");
+                element.className = `${variant}${index}`;
+                document.body.append(element);
+                return element;
+            };
+            elements.push({ name, declared: add("declared"), paused: add("paused") });
+        });
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+
+        const values = element => {
+            const style = getComputedStyle(element);
+            return `--p: ${style.getPropertyValue("--p")}, --q: ${style.getPropertyValue("--q")}`;
+        };
+        elements.forEach(({ paused }) => values(paused));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        for (const { name, declared, paused } of elements) {
+            println(`${name}: ${values(declared)}`);
+            if (values(paused) !== values(declared))
+                println(`    paused differs: ${values(paused)}`);
+        }
+        done();
+    });
+</script>

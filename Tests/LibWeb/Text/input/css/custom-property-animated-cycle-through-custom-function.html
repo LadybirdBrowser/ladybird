@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<style>
+@property --p { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --q { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --held { syntax: "<length>"; inherits: true; initial-value: 4px; }
+@function --read() { result: var(--q); }
+@function --nested() { result: --read(); }
+@function --local() { --q: 1px; result: var(--q); }
+@function --parameter(--q: 2px) { result: var(--q); }
+@function --pass(--value) { result: var(--value); }
+@function --unused-local() { --unused: var(--q); result: 1px; }
+@function --held-fallback() { result: var(--held, var(--q)); }
+@function --unset-fallback() { result: var(--unset, var(--q)); }
+@function --default(--value: var(--q)) { result: var(--value); }
+@function --caller-local() { --q: 3px; result: --read(); }
+@function --recursive() { result: --recursive(); }
+</style>
+<body>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // A keyframe's value takes part in a cycle exactly as the same value declared on the element does.
+        const cases = {
+            "a function reads the other property": "calc(--read() + 1px)",
+            "a function reads it through another": "calc(--nested() + 1px)",
+            "a local shadows it": "calc(--local() + 1px)",
+            "a parameter shadows it": "calc(--parameter() + 1px)",
+            "an argument reads it": "calc(--pass(var(--q)) + 1px)",
+            "a local nothing reads reads it": "calc(--unused-local() + 1px)",
+            "a fallback that is not used reads it": "calc(--held-fallback() + 1px)",
+            "a fallback that is used reads it": "calc(--unset-fallback() + 1px)",
+            "a parameter's default reads it": "calc(--default() + 1px)",
+            "a passed parameter's default reads it": "calc(--default(5px) + 1px)",
+            "a caller's local shadows it": "calc(--caller-local() + 1px)",
+            "a function calls itself": "--recursive()",
+        };
+
+        let css = "";
+        const elements = [];
+        Object.entries(cases).forEach(([name, value], index) => {
+            css += `.declared${index} { --p: ${value}; --q: var(--p); }\n`;
+            css += `@keyframes k${index} { from, to { --p: ${value}; } }\n`;
+            css += `.paused${index} { --q: var(--p); animation: k${index} 100s paused; }\n`;
+            css += `.running${index} { --q: var(--p); animation: k${index} 100s linear; }\n`;
+            const add = variant => {
+                const element = document.createElement("div");
+                element.className = `${variant}${index}`;
+                document.body.append(element);
+                return element;
+            };
+            elements.push({ name, declared: add("declared"), paused: add("paused"), running: add("running") });
+        });
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+
+        const values = element => {
+            const style = getComputedStyle(element);
+            return `--p: ${style.getPropertyValue("--p")}, --q: ${style.getPropertyValue("--q")}`;
+        };
+        elements.forEach(({ paused, running }) => {
+            values(paused);
+            values(running);
+        });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        for (const { name, declared, paused, running } of elements) {
+            println(`${name}: ${values(declared)}`);
+            if (values(paused) !== values(declared))
+                println(`    paused differs: ${values(paused)}`);
+            if (values(running) !== values(declared))
+                println(`    running differs: ${values(running)}`);
+        }
+        done();
+    });
+</script>

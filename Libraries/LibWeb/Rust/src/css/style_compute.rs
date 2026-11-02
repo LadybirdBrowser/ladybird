@@ -8304,15 +8304,15 @@ fn finish_animation_sample(
         //     looked at here, since each pass only substitutes the values the last one left.
         let cycle_pseudo =
             (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT).then_some(input.pseudo_kind);
-        for name in engine.custom_properties_in_an_animated_cycle(node, cycle_pseudo) {
-            // SAFETY: The stores are null or live for the sample.
-            let inherited = unsafe {
-                input
-                    .stores
-                    .inheritance
-                    .cast::<crate::css::custom_properties::CustomPropertyStore>()
-                    .as_ref()
-            };
+        // SAFETY: The stores are null or live for the sample.
+        let inherited = unsafe {
+            input
+                .stores
+                .inheritance
+                .cast::<crate::css::custom_properties::CustomPropertyStore>()
+                .as_ref()
+        };
+        for name in engine.custom_properties_in_an_animated_cycle(node, cycle_pseudo, inherited) {
             let value = registry.invalid_at_computed_value_time(&name, inherited);
             match retained.iter_mut().find(|(animated, _)| *animated == name) {
                 Some((_, animated)) => *animated = value,
