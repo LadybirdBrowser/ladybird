@@ -52,7 +52,15 @@ size_t request_wanted_pending_faces();
 
 class FontCascadeList : public AtomicRefCounted<FontCascadeList> {
 public:
-    using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, EmojiPresentation, Font const&)>;
+    // The style a cascade asks the system fallback for, which the cascade's request decides rather than its fonts, so a
+    // face finishing its load does not move it.
+    struct SystemFallbackRequest {
+        float point_size { 0 };
+        u16 weight { 0 };
+        u16 width { 0 };
+        u8 slope { 0 };
+    };
+    using SystemFontFallbackCallback = Function<RefPtr<Font const>(u32, EmojiPresentation, SystemFallbackRequest const&)>;
 
     static NonnullRefPtr<FontCascadeList> create()
     {
@@ -86,6 +94,10 @@ public:
     Gfx::Font const& font_for_code_point(u32 code_point, EmojiPresentationResult = {}) const;
 
     bool equals(FontCascadeList const& other) const;
+
+    // Whether loads of the faces this cascade waits on are all that tells it apart from `resolved`, so filling them
+    // in makes its frozen list select as that of `resolved` does. Both cascades must have been frozen.
+    bool fills_toward(FontCascadeList const& resolved) const;
 
     // One entry of the cascade, flattened into the order font_for_code_point() visits it.
     struct SnapshotEntry {
@@ -178,7 +190,12 @@ public:
         m_first_available_font_cache = nullptr;
         m_last_resort_font = move(font);
     }
-    void set_system_font_fallback_callback(SystemFontFallbackCallback callback) { m_system_font_fallback_callback = move(callback); }
+    void set_system_font_fallback_callback(SystemFallbackRequest request, SystemFontFallbackCallback callback)
+    {
+        m_system_fallback_request = request;
+        m_system_font_fallback_callback = move(callback);
+    }
+    [[nodiscard]] SystemFallbackRequest const& system_fallback_request() const { return m_system_fallback_request; }
 
     ~FontCascadeList();
 
@@ -195,6 +212,7 @@ private:
     };
     Vector<PendingEntry> m_pending_faces;
     mutable HashMap<Font const*, NonnullRefPtr<Font>> m_invisible_fonts;
+    SystemFallbackRequest m_system_fallback_request;
     SystemFontFallbackCallback m_system_font_fallback_callback;
 
     // OPTIMIZATION: Cache of resolved fonts for ASCII code points. Since m_fonts only grows and the cascade returns

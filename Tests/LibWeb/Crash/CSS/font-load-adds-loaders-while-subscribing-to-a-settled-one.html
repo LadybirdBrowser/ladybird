@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<style>
+@font-face { font-family: Settled; src: url(../../Assets/HashSans.woff); }
+@font-face { font-family: Shared; src: url(../../Assets/HashSans.woff); }
+@font-face { font-family: First; src: url(../../Assets/HashSans.woff?1); }
+@font-face { font-family: Second; src: url(../../Assets/HashSans.woff?2); }
+@font-face { font-family: Third; src: url(../../Assets/HashSans.woff?3); }
+@font-face { font-family: Fourth; src: url(../../Assets/HashSans.woff?4); }
+@font-face { font-family: Fifth; src: url(../../Assets/HashSans.woff?5); }
+@font-face { font-family: Sixth; src: url(../../Assets/HashSans.woff?6); }
+@font-face { font-family: Seventh; src: url(../../Assets/HashSans.woff?7); }
+@font-face { font-family: Eighth; src: url(../../Assets/HashSans.woff?8); }
+body { font-weight: 600; }
+.shared { font-family: Shared, serif; }
+.first { font-family: First, Shared, serif; }
+.second { font-family: Second, Shared, serif; }
+.third { font-family: Third, Shared, serif; }
+.fourth { font-family: Fourth, Shared, serif; }
+.fifth { font-family: Fifth, Shared, serif; }
+.sixth { font-family: Sixth, Shared, serif; }
+.seventh { font-family: Seventh, Shared, serif; }
+.eighth { font-family: Eighth, Shared, serif; }
+</style>
+<body>
+<div>text</div><div>text</div><div>text</div><div>text</div><div>text</div><div>text</div><div>text</div><div>text</div><div>text</div>
+<script>
+    // NB: Shared takes the settled loader of Settled, which answers it at once. That selects again, loading the others
+    //     from within, and they grow the map of loaders that loader was found in.
+    const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    window.onload = async () => {
+        await document.fonts.load("16px Settled");
+        await frames();
+        const classes = ["shared", "first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth"];
+        document.querySelectorAll("div").forEach((element, index) => (element.className = classes[index]));
+        await frames();
+        await frames();
+        document.documentElement.classList.remove("test-wait");
+    };
+</script>
+</body>
+</html>

@@ -29,6 +29,8 @@
 #include <LibWeb/Fetch/Response.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WorkerGlobalScope.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
+#include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/RenderDocument.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/RenderingStats.h>
@@ -420,6 +422,7 @@ void FontComputer::invalidate_changed_font_cascades(Vector<Utf16FlyString> const
     // NB: Font-face changes can leave a selection unchanged, including its pending subsets. Compare the frozen
     //     selections before retiring cascades or invalidating their users.
     Vector<Gfx::FontCascadeList const*> invalidated_font_lists;
+    Vector<LoadedFaceFill> loaded_face_fills;
     RefPtr<FontFaceSnapshot const> snapshot;
     m_font_cascade_memo->forget_matching(m_environment_generation, [&](auto const& key, auto const& font_list) {
         if (!computed_font_families_reference_any_family(key.font_families, family_names))
@@ -429,9 +432,17 @@ void FontComputer::invalidate_changed_font_cascades(Vector<Utf16FlyString> const
         auto updated_font_list = resolve_font_cascade(*snapshot, key, font_feature_values_provider(key.font_feature_values_scope));
         if (font_list->equals(*updated_font_list))
             return false;
+        // NB: A face that finished its load fills in where the cascade waited on it, as a font fallback list resolves
+        //     a loaded face in place: the cascade stays the memo's answer, and the styles naming it stay.
+        if (m_document && font_list->fills_toward(*updated_font_list)) {
+            loaded_face_fills.append({ font_list, move(updated_font_list) });
+            return false;
+        }
         invalidated_font_lists.append(font_list.ptr());
         return true;
     });
+    if (!loaded_face_fills.is_empty())
+        fill_loaded_font_faces(move(loaded_face_fills));
     if (!invalidated_font_lists.is_empty() && m_document)
         record_font_input_changes({}, invalidated_font_lists);
     request_wanted_web_faces();
@@ -442,7 +453,7 @@ void FontComputer::invalidate_changed_font_cascades(Vector<Utf16FlyString> const
 // transaction that flew, the elements are found once its drain has installed the styles it computed.
 void FontComputer::record_font_input_changes(ReadonlySpan<Utf16FlyString> family_names, ReadonlySpan<Gfx::FontCascadeList const*> font_lists)
 {
-    if (document().has_flown_style_transaction()) {
+    if (document().has_flown_style_update()) {
         m_font_families_changed_beside_flown_transaction.append(family_names.data(), family_names.size());
         m_font_lists_changed_beside_flown_transaction.append(font_lists.data(), font_lists.size());
         return;
@@ -461,8 +472,14 @@ void FontComputer::record_font_input_changes(ReadonlySpan<Utf16FlyString> family
     for (auto const* font_list : font_lists)
         font_list_addresses.unchecked_append(bit_cast<FlatPtr>(font_list));
 
-    // These are style inputs like any other: the transaction a geometry read deferred is flushed before them, and the
-    // first one asks for a frame.
+    prepare_font_style_inputs();
+    StyleEngineFFI::style_engine_record_font_input_changes(document().style_computer().style_engine().host(), family_name_lengths, family_name_units, font_list_addresses);
+}
+
+// These are style inputs like any other: the transaction a geometry read deferred is flushed before them, and the first
+// one asks for a frame.
+void FontComputer::prepare_font_style_inputs()
+{
     auto& style_engine = document().style_computer().style_engine();
     if (style_engine.may_have_deferred_geometry_transaction())
         document().flush_deferred_style_change_event();
@@ -470,19 +487,57 @@ void FontComputer::record_font_input_changes(ReadonlySpan<Utf16FlyString> family
         set_rendering_pending(document(), RenderingPendingReason::NeedsRenderingUpdate, 1);
         document().page().client().request_frame();
     }
-    StyleEngineFFI::style_engine_record_font_input_changes(style_engine.host(), family_name_lengths, family_name_units, font_list_addresses);
+}
+
+// Fills the faces that loaded into the cascades that waited on them. The style engine fills the frozen cascades in, in
+// order with the other changes to the document's render state, and computes again only the styles that read the
+// metrics of a filled cascade's first available font; every other style keeps its record, and the boxes whose text a
+// filled cascade renders lay out again.
+void FontComputer::fill_loaded_font_faces(Vector<LoadedFaceFill> fills)
+{
+    if (document().has_flown_style_update()) {
+        m_loaded_face_fills_beside_flown_transaction.extend(move(fills));
+        return;
+    }
+    // NB: Each filled cascade is followed by the cascade it fills toward, which the engine reads during the call.
+    Vector<u64> font_list_addresses;
+    font_list_addresses.ensure_capacity(fills.size() * 2);
+    for (auto const& fill : fills) {
+        font_list_addresses.unchecked_append(bit_cast<FlatPtr>(fill.font_list.ptr()));
+        font_list_addresses.unchecked_append(bit_cast<FlatPtr>(fill.resolved.ptr()));
+    }
+    prepare_font_style_inputs();
+    StyleEngineFFI::style_engine_fill_loaded_font_faces(document().style_computer().style_engine().host(), font_list_addresses);
+    Vector<u64> filled_font_lists;
+    filled_font_lists.ensure_capacity(fills.size());
+    for (auto const& fill : fills)
+        filled_font_lists.unchecked_append(bit_cast<FlatPtr>(fill.font_list.ptr()));
+    Layout::RustFFI::render_state_relayout_users_of_font_lists(document().layout_node_arena().host(), filled_font_lists);
+}
+
+void FontComputer::take_in_resolutions_against_older_tables()
+{
+    // A style pass resolved fonts against the table the engine was last given, where a change since made that older
+    // than the memo, into cascades the memo does not hold. The memo takes in the ones that answer the same now, where
+    // it holds none for their requests; the elements holding any other, which answers differently now, waits on a
+    // face the memo would no longer find it waiting on, or is not the cascade the memo names for the request, are
+    // found here.
+    auto resolutions = m_font_cascade_memo->take_resolutions_against_older_tables();
+    Vector<Gfx::FontCascadeList const*> font_lists;
+    for (auto const& resolution : resolutions) {
+        if (!m_font_cascade_memo->adopt_resolution_against_older_table(*font_face_snapshot(), resolution, font_feature_values_provider(resolution.key.font_feature_values_scope)))
+            font_lists.append(resolution.font_list.ptr());
+    }
+    if (!font_lists.is_empty())
+        record_font_input_changes({}, font_lists);
 }
 
 void FontComputer::did_end_flown_style_drain()
 {
-    // The transaction resolved fonts against the table it was sealed with, where a change beside it made that older
-    // than the memo, into cascades the memo never holds. The elements holding one that answers differently now, or
-    // waits on a face the memo would no longer find it waiting on, are found here.
-    auto resolutions = m_font_cascade_memo->take_resolutions_against_older_tables();
-    for (auto const& [key, font_list] : resolutions) {
-        if (!font_list->equals(*m_font_cascade_memo->resolve(*font_face_snapshot(), key, font_feature_values_provider(key.font_feature_values_scope))))
-            m_font_lists_changed_beside_flown_transaction.append(font_list.ptr());
-    }
+    take_in_resolutions_against_older_tables();
+    auto loaded_face_fills = move(m_loaded_face_fills_beside_flown_transaction);
+    if (!loaded_face_fills.is_empty())
+        fill_loaded_font_faces(move(loaded_face_fills));
     auto family_names = move(m_font_families_changed_beside_flown_transaction);
     auto font_lists = move(m_font_lists_changed_beside_flown_transaction);
     if (!family_names.is_empty() || !font_lists.is_empty())
@@ -681,9 +736,12 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ReadonlySpan<FontLoader::Source
 
     auto key = MUST(key_builder.to_string());
     if (auto it = m_loaders_by_source.find(key); it != m_loaders_by_source.end()) {
+        // NB: A loader that has settled answers a new subscriber at once, which can load further faces and so add to
+        //     the map, so nothing of the map is read past this.
+        GC::Ref<FontLoader> loader = *it->value;
         if (on_load)
-            it->value->subscribe(*on_load);
-        return it->value;
+            loader->subscribe(*on_load);
+        return loader;
     }
 
     auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, Vector<FontLoader::Source> { sources }, move(on_load));
