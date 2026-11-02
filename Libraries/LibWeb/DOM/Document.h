@@ -1536,6 +1536,7 @@ public:
     [[nodiscard]] bool is_at_style_stabilization_bound(Layout::BegunRead const& read) const;
     // How many times an element's animated custom properties moved in this style stabilization epoch, counting this one.
     [[nodiscard]] u64 note_animated_custom_properties_moved_in_stabilization_epoch(CSS::StyleNodeID);
+    [[nodiscard]] u64 animated_custom_property_moves_in_stabilization_epoch() const { return m_animated_custom_property_moves_in_stabilization_epoch; }
     void end_style_stabilization_epoch();
     void note_style_stabilization_has_style_reactions()
     {
@@ -2013,6 +2014,7 @@ private:
     bool m_autofocus_processed_flag { false };
 
     HashMap<CSS::StyleNodeID, u64> m_animated_custom_property_changes_in_stabilization_epoch;
+    u64 m_animated_custom_property_moves_in_stabilization_epoch { 0 };
     bool m_created_for_appropriate_template_contents { false };
     GC::Ptr<Document> m_associated_inert_template_document;
     GC::Ptr<Document> m_appropriate_template_contents_owner_document;
