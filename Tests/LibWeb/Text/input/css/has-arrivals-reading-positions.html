@@ -1,0 +1,74 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .position:has(> :nth-child(2)) { color: rgb(0, 128, 0); }
+    .first:has(> .w:first-child) { color: rgb(0, 128, 0); }
+    .empty:has(> :empty) { color: rgb(0, 128, 0); }
+    .nested:has(:is(.outer .inner)) { color: rgb(0, 128, 0); }
+    .next:has(+ .w) { color: rgb(0, 128, 0); }
+    .plain:has(.w) { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // These queries are reached by elements carrying none of their keys, and share the document with one that is not.
+    test(() => {
+        const root = document.getElementById("root");
+        const add = (parent, html) => {
+            const template = document.createElement("template");
+            template.innerHTML = html;
+            const element = template.content.firstElementChild;
+            parent.append(element);
+            return element;
+        };
+        const report = (title, anchor) => println(`${title}: ${getComputedStyle(anchor).color}`);
+
+        const position = add(root, "<div class=position><p></p></div>");
+        report("position before", position);
+        const second = add(position, "<i>x</i>");
+        report("position arrived", position);
+        second.remove();
+        report("position left", position);
+
+        const first = add(root, "<div class=first><b class=w></b></div>");
+        report("first before", first);
+        const pushed = document.createElement("i");
+        first.prepend(pushed);
+        report("first pushed", first);
+        pushed.remove();
+        report("first back", first);
+
+        const empty = add(root, "<div class=empty><p>x</p></div>");
+        report("empty before", empty);
+        const emptied = add(empty, "<i></i>");
+        report("empty arrived", empty);
+        emptied.textContent = "x";
+        report("empty filled", empty);
+
+        const nested = add(root, "<div class=nested><i class=inner></i></div>");
+        report("nested before", nested);
+        const outer = add(root, "<div></div>");
+        outer.append(nested);
+        report("nested moved", nested);
+        outer.className = "outer";
+        report("nested outer", nested);
+
+        const next = add(root, "<div class=next></div>");
+        report("next before", next);
+        const adjacent = add(root, "<div class=w></div>");
+        report("next arrived", next);
+        const between = document.createElement("p");
+        next.after(between);
+        report("next parted", next);
+        between.remove();
+        report("next rejoined", next);
+        adjacent.remove();
+        report("next left", next);
+
+        const plain = add(root, "<div class=plain></div>");
+        report("plain before", plain);
+        const witness = add(plain, "<i class=w></i>");
+        report("plain arrived", plain);
+        witness.remove();
+        report("plain left", plain);
+    });
+</script>

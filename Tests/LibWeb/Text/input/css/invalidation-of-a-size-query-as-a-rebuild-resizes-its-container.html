@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- A media query that changes what is displayed rebuilds the layout tree in the same layout update that resizes the
+     container. The new box has no earlier size to compare, which must not lose the change for the queries on it. -->
+<iframe id="frame" style="width: 800px; height: 300px; border: 0" srcdoc='<!DOCTYPE html>
+<style>
+    .navigation {
+        display: none;
+    }
+    @media (min-width: 700px) {
+        .navigation {
+            display: block;
+        }
+    }
+    footer {
+        container: footer / inline-size;
+    }
+    #subject {
+        order: 3;
+    }
+    @container footer (min-width: 672px) {
+        #subject {
+            order: 2;
+        }
+    }
+</style>
+<div class="navigation"><ul></ul></div>
+<footer><div id="subject"></div></footer>'></iframe>
+<script>
+    asyncTest(done => {
+        const frame = document.getElementById("frame");
+        frame.onload = async () => {
+            const inner = frame.contentWindow;
+            const settle = async () => {
+                for (let i = 0; i < 3; ++i)
+                    await new Promise(resolve => inner.requestAnimationFrame(resolve));
+            };
+            const report = () => {
+                const order = inner.getComputedStyle(inner.document.getElementById("subject")).order;
+                println(`Frame ${frame.style.width}: order ${order}`);
+            };
+            await settle();
+            report();
+            frame.style.width = "640px";
+            await settle();
+            report();
+            frame.style.width = "900px";
+            await settle();
+            report();
+            done();
+        };
+    });
+</script>

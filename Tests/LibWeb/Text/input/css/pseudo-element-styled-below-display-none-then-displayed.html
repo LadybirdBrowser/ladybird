@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<style>
+@keyframes spin {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.animated::before {
+    content: "x";
+    animation: spin 1000s;
+}
+</style>
+<div>
+    <p id="displayed"></p>
+    <p id="moved"></p>
+</div>
+<div id="hidden_parent" hidden></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const [displayed, moved, hiddenParent] = ["displayed", "moved", "hidden_parent"].map(id => document.getElementById(id));
+        requestAnimationFrame(() => {
+            // NB: Styled in one update, with the same rules and the same inherited values, the ::before of the
+            //     displayed element and the one below display: none differ only in being below it.
+            displayed.classList.add("animated");
+            moved.classList.add("animated");
+            hiddenParent.moveBefore(moved, null);
+            requestAnimationFrame(() => {
+                hiddenParent.hidden = false;
+                requestAnimationFrame(() => {
+                    println(`animations of the ::before that was displayed: ${displayed.getAnimations({ subtree: true }).length}`);
+                    println(`animations of the ::before that came to be displayed: ${moved.getAnimations({ subtree: true }).length}`);
+                    done();
+                });
+            });
+        });
+    });
+</script>

@@ -1,0 +1,40 @@
+<!doctype html>
+<style>
+    .a :is(.b .c) .d { color: rgb(0, 128, 0); }
+    .e :where(.b > .c) .f { color: rgb(0, 0, 255); }
+    :not(.b .c) > .g { color: rgb(255, 0, 0); }
+    .h:nth-child(2 of .b .c) { color: rgb(255, 165, 0); }
+</style>
+<div class="a e">
+    <div id="toggled">
+        <div class="c">
+            <div id="isTarget" class="d"></div>
+            <div id="whereTarget" class="f"></div>
+            <div id="notTarget" class="g"></div>
+        </div>
+        <div class="c h" id="nthTarget"></div>
+    </div>
+</div>
+<div id="host"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>:host(.b) .x { color: rgb(128, 0, 128); }</style><span class="x" id="hostTarget">x</span>`;
+        const color = element => getComputedStyle(element).color;
+        const report = label => {
+            println(`${label}:`);
+            for (const id of ["isTarget", "whereTarget", "notTarget", "nthTarget"])
+                println(`  ${id}: ${color(document.getElementById(id))}`);
+            println(`  hostTarget: ${color(shadow.getElementById("hostTarget"))}`);
+        };
+        report("before");
+        document.getElementById("toggled").classList.add("b");
+        host.classList.add("b");
+        report("after adding b");
+        document.getElementById("toggled").classList.remove("b");
+        host.classList.remove("b");
+        report("after removing b");
+    });
+</script>

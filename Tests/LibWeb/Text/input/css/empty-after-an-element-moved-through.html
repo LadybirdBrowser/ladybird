@@ -1,0 +1,24 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .box:empty { color: rgb(0, 128, 0); }
+</style>
+<div id="from"><i id="moved"></i></div>
+<div id="to" class="box"></div>
+<script>
+    // An element moved in and leaving again takes no text along: the parent is empty as it was before.
+    test(() => {
+        const from = document.getElementById("from");
+        const to = document.getElementById("to");
+        const moved = document.getElementById("moved");
+        println(`empty: ${getComputedStyle(to).color}`);
+        to.moveBefore(moved, null);
+        println(`holding it: ${getComputedStyle(to).color}`);
+        moved.remove();
+        println(`after it was removed: ${getComputedStyle(to).color}`);
+        to.append(moved);
+        println(`holding it again: ${getComputedStyle(to).color}`);
+        from.moveBefore(moved, null);
+        println(`after it moved away: ${getComputedStyle(to).color}`);
+    });
+</script>

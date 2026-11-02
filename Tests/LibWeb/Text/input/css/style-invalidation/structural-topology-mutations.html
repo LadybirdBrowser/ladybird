@@ -13,8 +13,6 @@
             if (!mode.includes("cold")) {
                 assertEqual(`${selectorCase.name} ${mode} initial`, readProbe(target), selectorCase.initial ? MATCH : BASE);
                 flushPendingStyleWork();
-            } else {
-                resetStyleCounters();
             }
             if (mode.includes("detached"))
                 fixture.remove();
@@ -22,7 +20,7 @@
             if (mode.includes("detached"))
                 document.body.appendChild(fixture);
             assertEqual(`${selectorCase.name} ${mode} after mutation`, readProbe(target), selectorCase.after ? MATCH : BASE);
-            printPassWithCounters(`target topology ${mode}: ${selectorCase.name}`);
+            printPass(`target topology ${mode}: ${selectorCase.name}`);
         } finally {
             style.remove();
             fixture.remove();

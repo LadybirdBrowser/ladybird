@@ -1,0 +1,15 @@
+rule: "rule value"
+inline: "inline value"
+cssom: "cssom value"
+function: "function value"
+control: a
+script animation: "script animation value"
+keyframes control: b
+keyframes rule: "keyframes rule value"
+style element: "style element value"
+adopted sheet: "adopted sheet value"
+shadow style: "host value"
+own style attribute: "own style value"
+other document: "the frame's"
+this document before: empty
+this document after: "other document value"

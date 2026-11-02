@@ -1,0 +1,5 @@
+early-local: rgb(0, 128, 0)
+early-remote: rgb(0, 0, 238)
+late-local: rgb(0, 128, 0)
+late-fragment: rgb(0, 0, 238)
+late-remote: rgb(0, 0, 238)

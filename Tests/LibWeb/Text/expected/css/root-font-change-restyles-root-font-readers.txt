@@ -1,0 +1,11 @@
+before: remWidth=32px calcWidth=26px pxWidth=20px emWidth=32px substituted=64px registered=80px fontSizeChild=16px pseudo=48px
+after: remWidth=40px calcWidth=30px pxWidth=20px emWidth=32px substituted=80px registered=100px fontSizeChild=20px pseudo=60px
+remWidth styled: true
+calcWidth styled: true
+pseudo styled: true
+substituted styled: true
+registered styled: true
+fontSize styled: true
+fontSizeChild styled: true
+pxWidth styled: false
+emWidth styled: false

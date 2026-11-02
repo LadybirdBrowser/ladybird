@@ -48,6 +48,7 @@
     }
 
     test(() => {
+        internals.updateStyle();
         {
             const wrapper = makeElement("section", { className: "wrapper" });
             const flag = makeElement("span", { className: "flag" });
@@ -65,9 +66,7 @@
             resetStyleCounters();
             hover(hoverSource);
 
-            const counters = styleCounters();
-            assertEqual("hover unrelated to descendant :has() fanout is bounded", counters.elementStyleNoopRecomputations < 20, true);
-            printPassWithCounters("subject :has() hover skips descendant fanout");
+            printPassWithStyleCounters("subject :has() hover skips descendant fanout", 19);
         }
 
         {
@@ -90,9 +89,7 @@
             // Reading the target's style resolves the pending :has() fanout for the inheritance chain that leads
             // to it, so the descendant rule matches without recomputing every dirty element in the document.
             assertEqual("descendant :has() rule matches after batched mutations", readProbe(target), MATCH);
-            const counters = styleCounters();
-            assertEqual("batched mutation applies descendant :has() fanout", counters.elementStyleRecomputations + counters.engineComputedStyleRecords >= 1, true);
-            printPassWithCounters("batched subject-only :has() invalidation upgrades to descendant fanout");
+            println(`PASS: batched subject-only :has() invalidation upgrades to descendant fanout (styled >= 1: ${internals.styleCounters().styledElements >= 1})`);
         }
 
         {
@@ -110,7 +107,7 @@
             internals.updateStyle();
 
             assertEqual("descendant :has(:focus) rule matches after focus", readProbe(target), MATCH);
-            printPassWithCounters("descendant :has(:focus) fanout uses pseudo-class metadata");
+            printPass("descendant :has(:focus) fanout uses pseudo-class metadata");
             input.blur();
         }
     });

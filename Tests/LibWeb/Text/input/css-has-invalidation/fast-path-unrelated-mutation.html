@@ -25,14 +25,14 @@
         // The walker should not run at all.
         document.getElementById("target").classList.add("unrelated");
         getComputedStyle(document.getElementById("target")).color;
-        printCounters("add unrelated class outside any :has() scope");
+        printCounters("add unrelated class outside any :has() scope", 1);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         // The class "match" IS used in :has(.match), but target is not inside
         // any anchor's scope. The walker should still terminate immediately.
         document.getElementById("target").classList.add("match");
         getComputedStyle(document.getElementById("target")).color;
-        printCounters("add .match class outside any :has() scope");
+        printCounters("add .match class outside any :has() scope", 1);
     });
 </script>

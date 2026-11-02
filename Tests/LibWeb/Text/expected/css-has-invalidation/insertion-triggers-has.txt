@@ -1,2 +1,4 @@
 [insert <span class='match'> into anchor subtree]
+  styled <= 4: true
 [remove the matching span]
+  styled <= 3: true

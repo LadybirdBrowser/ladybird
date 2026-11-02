@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<style>
+    li:nth-child(2 of .counted) { color: rgb(0, 128, 0); }
+    @scope (.scope-root) to (.scope-limit) {
+        span { color: rgb(0, 0, 255); }
+    }
+</style>
+<ul id="list"><li id="first"></li><li id="second"></li><li id="third"></li><li></li><li></li></ul>
+<div id="scope"><span id="scoped"></span><div id="limit"><span id="limited"></span></div></div>
+<div id="host"></div>
+<div id="unrelated"></div>
+<script>
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function settle() {
+        internals.updateStyle();
+        internals.resetStyleCounters();
+    }
+
+    function dumpCounters(label, bound) {
+        internals.updateStyle();
+        const c = internals.styleCounters();
+        println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}, full passes ${c.fullPasses}`);
+    }
+
+    function color(id, root = document) {
+        return getComputedStyle(root.getElementById(id)).color;
+    }
+
+    test(() => {
+        addBystanders(document.body, 25);
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = `
+            <style>:is(:host(.on), .wrapper) > span { color: rgb(255, 0, 0); }</style>
+            <span id="shadow-child"></span>`;
+        settle();
+
+        // A class no selector tests in a way the invalidation map does not follow restyles one element.
+        document.getElementById("unrelated").classList.add("whatever");
+        dumpCounters("unrelated class", 1);
+
+        // A sibling an :nth-child(… of S) counts restyles its parent's children.
+        settle();
+        document.getElementById("first").classList.add("counted");
+        document.getElementById("third").classList.add("counted");
+        dumpCounters(":nth-child(… of S) sibling", 6);
+        println(`second: ${color("second")}, third: ${color("third")}`);
+
+        // A scope root restyles its subtree.
+        settle();
+        document.getElementById("scope").classList.add("scope-root");
+        dumpCounters("@scope root", 4);
+        println(`scoped: ${color("scoped")}`);
+
+        // A scope limit restyles its subtree.
+        settle();
+        document.getElementById("limit").classList.add("scope-limit");
+        dumpCounters("@scope limit", 2);
+        println(`limited: ${color("limited")}`);
+
+        // A compound that may or may not be the host restyles the subtree, shadow tree included, of the element carrying the fact.
+        settle();
+        host.classList.add("on");
+        dumpCounters("host or ancestor", 3);
+        println(`shadow child: ${color("shadow-child", shadowRoot)}`);
+    });
+</script>

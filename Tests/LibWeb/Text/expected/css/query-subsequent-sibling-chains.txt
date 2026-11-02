@@ -1,0 +1,6 @@
+.x ~ b: b2 b4 b6
+.y ~ b: b4 b6 c2
+.x ~ .y ~ b: b4 b6
+#root > .x ~ i ~ b: b4 b6
+a ~ a ~ b: b6
+.x ~ a ~ b, .y ~ b: b4 b6 c2

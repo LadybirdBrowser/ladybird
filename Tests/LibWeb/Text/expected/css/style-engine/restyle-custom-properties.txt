@@ -1,0 +1,57 @@
+warm
+  DIV.item: rgb(200, 100, 0) 2px 0px rgb(200, 100, 0) 2px
+  SPAN.: rgb(200, 100, 0) 0px 2px rgb(200, 100, 0) 2px
+  DIV.item tagged: rgb(200, 100, 0) 2px 0px rgb(200, 100, 0) 2px
+  SPAN.: rgb(200, 100, 0) 0px 2px rgb(200, 100, 0) 2px
+  DIV.item: rgb(200, 100, 0) 2px 0px rgb(200, 100, 0) 2px
+  ::before rgb(200, 100, 0) rgb(200, 100, 0)
+wide
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item tagged: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  ::before rgb(200, 100, 0) rgb(200, 100, 0)
+shadowed item
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item tagged shadowed: rgb(0, 0, 255) 9px 0px rgb(0, 0, 255) 9px
+  SPAN.: rgb(0, 0, 255) 0px 9px rgb(0, 0, 255) 9px
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  ::before rgb(0, 0, 255) rgb(0, 0, 255)
+insert
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item tagged shadowed: rgb(0, 0, 255) 9px 0px rgb(0, 0, 255) 9px
+  SPAN.: rgb(0, 0, 255) 0px 9px rgb(0, 0, 255) 9px
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  ::before rgb(200, 100, 0) rgb(200, 100, 0)
+inline
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  SPAN.: rgb(200, 100, 0) 0px 9px rgb(200, 100, 0) 9px
+  DIV.item tagged shadowed: rgb(7, 7, 7) 9px 0px rgb(7, 7, 7) 9px
+  SPAN.: rgb(7, 7, 7) 0px 9px rgb(7, 7, 7) 9px
+  DIV.item: rgb(200, 100, 0) 9px 0px rgb(200, 100, 0) 9px
+  ::before rgb(200, 100, 0) rgb(200, 100, 0)
+cool
+  DIV.item: rgb(1, 2, 3) 9px 0px rgb(1, 2, 3) 9px
+  SPAN.: rgb(1, 2, 3) 0px 9px rgb(1, 2, 3) 9px
+  DIV.item: rgb(1, 2, 3) 9px 0px rgb(1, 2, 3) 9px
+  SPAN.: rgb(1, 2, 3) 0px 9px rgb(1, 2, 3) 9px
+  DIV.item tagged shadowed: rgb(7, 7, 7) 9px 0px rgb(7, 7, 7) 9px
+  SPAN.: rgb(7, 7, 7) 0px 9px rgb(7, 7, 7) 9px
+  DIV.item: rgb(1, 2, 3) 9px 0px rgb(1, 2, 3) 9px
+  ::before rgb(1, 2, 3) rgb(1, 2, 3)
+unshadow
+  DIV.item: rgb(1, 2, 3) 9px 0px rgb(1, 2, 3) 9px
+  SPAN.: rgb(1, 2, 3) 0px 9px rgb(1, 2, 3) 9px
+  DIV.item: rgb(1, 2, 3) 9px 0px rgb(1, 2, 3) 9px
+  SPAN.: rgb(1, 2, 3) 0px 9px rgb(1, 2, 3) 9px
+  DIV.item tagged: rgb(7, 7, 7) 9px 0px rgb(7, 7, 7) 9px
+  SPAN.: rgb(7, 7, 7) 0px 9px rgb(7, 7, 7) 9px
+  DIV.item: rgb(1, 2, 3) 9px 0px rgb(1, 2, 3) 9px
+  ::before rgb(1, 2, 3) rgb(1, 2, 3)

@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #host::part(p) { color: rgb(0, 128, 0); }
+</style>
+<div id="host"><span id="slotted"></span></div>
+<div id="light"><p id="enters" part="p"></p></div>
+<script>
+    // An element with a `part` attribute is a part of the host of the tree it stands in, which moveBefore() can take it
+    // out of or into, with the elements below it.
+    asyncTest(done => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<div id="leaves" part="p"><i id="below" part="p"></i></div><b id="stays"></b>`;
+        const leaves = shadow.getElementById("leaves"), below = shadow.getElementById("below"), stays = shadow.getElementById("stays");
+        const enters = document.getElementById("enters");
+        const report = label => println(`${label}: leaves ${getComputedStyle(leaves).color}, below ${getComputedStyle(below).color}, enters ${getComputedStyle(enters).color}`);
+        requestAnimationFrame(() => {
+            report("before");
+            document.getElementById("light").moveBefore(leaves, enters);
+            shadow.moveBefore(enters, stays);
+            report("after");
+            done();
+        });
+    });
+</script>

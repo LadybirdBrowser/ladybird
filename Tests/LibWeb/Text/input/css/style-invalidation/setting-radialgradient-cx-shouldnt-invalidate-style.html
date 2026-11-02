@@ -8,10 +8,12 @@
 <script>
     test(() => {
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         gradient.setAttribute("cx", "75%");
 
-        println(internals.getStyleInvalidationCounters().elementStyleRecomputations == 0 ? "PASS" : "FAIL");
+        internals.updateStyle();
+        const styled = internals.styleCounters().styledElements;
+        println(styled == 0 ? "PASS" : `FAIL: styled ${styled} elements`);
     });
 </script>

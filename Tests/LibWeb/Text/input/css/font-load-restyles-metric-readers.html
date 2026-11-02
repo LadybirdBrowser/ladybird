@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container {
+        font-family: "LateFace", serif;
+        line-height: 20px;
+    }
+
+    #container > span {
+        white-space: nowrap;
+    }
+
+    .ch {
+        display: inline-block;
+        width: 10ch;
+    }
+</style>
+<div id="container"></div>
+<script>
+    promiseTest(async () => {
+        const face = new FontFace("LateFace", 'url("../../../Assets/HashSans.woff")');
+        document.fonts.add(face);
+        const container = document.getElementById("container");
+        const text = container.appendChild(document.createElement("span"));
+        text.textContent = "Some text in the late face";
+        for (let index = 0; index < 50; ++index)
+            container.appendChild(document.createElement("span")).textContent = "x";
+        const chSized = [];
+        for (let index = 0; index < 5; ++index) {
+            const span = container.appendChild(document.createElement("span"));
+            span.className = "ch";
+            chSized.push(span);
+        }
+        internals.updateStyle();
+        const textWidthBefore = text.getBoundingClientRect().width;
+        const chWidthBefore = chSized[0].getBoundingClientRect().width;
+
+        internals.resetStyleCounters();
+        await face.load();
+        internals.updateStyle();
+        const counters = internals.styleCounters();
+
+        // The face fills in where the cascade waited on it: only the styles reading its metrics
+        // compute again, and the text renders in the loaded face.
+        println(`face loaded: ${face.status}`);
+        println(`elements styled: ${counters.styledElements}`);
+        println(`text width changed: ${text.getBoundingClientRect().width !== textWidthBefore}`);
+        println(`ch width changed: ${chSized[0].getBoundingClientRect().width !== chWidthBefore}`);
+
+        // What the elements styled before the load render now matches what elements styled after it render.
+        const freshText = container.appendChild(document.createElement("span"));
+        freshText.textContent = text.textContent;
+        const freshChSized = container.appendChild(document.createElement("span"));
+        freshChSized.className = "ch";
+        println(`text width matches a fresh style: ${text.getBoundingClientRect().width === freshText.getBoundingClientRect().width}`);
+        println(`ch width matches a fresh style: ${chSized[0].getBoundingClientRect().width === freshChSized.getBoundingClientRect().width}`);
+    });
+</script>

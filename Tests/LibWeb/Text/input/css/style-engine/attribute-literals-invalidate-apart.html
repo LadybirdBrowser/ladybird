@@ -1,0 +1,40 @@
+<!doctype html>
+<style>
+    .p [a^="xy"] { color: rgb(0, 128, 0); }
+</style>
+<style>
+    .p [b^="zw"] { color: rgb(0, 0, 255); }
+    .q > [a^="zw"] + [b^="xy"] { background-color: rgb(255, 0, 0); }
+</style>
+<div id="parent">
+    <span id="first"></span>
+    <span id="second"></span>
+</div>
+<script src="../../include.js"></script>
+<script>
+    // Two attribute selectors with literals at the same place in their sheets test different text,
+    // so each change has to be followed by what its own selector says.
+    test(() => {
+        const parent = document.getElementById("parent");
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const report = label => {
+            println(`${label}:`);
+            for (const element of [first, second])
+                println(`  ${element.id}: ${getComputedStyle(element).color} ${getComputedStyle(element).backgroundColor}`);
+        };
+        report("before");
+        parent.classList.add("p");
+        report("after adding p");
+        first.setAttribute("a", "xyz");
+        second.setAttribute("b", "zwx");
+        report("after setting a=xyz and b=zwx");
+        first.setAttribute("a", "zwx");
+        second.setAttribute("b", "xyz");
+        report("after swapping the values");
+        parent.classList.replace("p", "q");
+        report("after replacing p by q");
+        first.removeAttribute("a");
+        report("after removing a");
+    });
+</script>

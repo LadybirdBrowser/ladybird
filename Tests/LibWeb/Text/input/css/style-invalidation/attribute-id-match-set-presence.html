@@ -35,7 +35,7 @@
             flushPendingStyleWork();
             subject.removeAttribute("id");
             assertEqual(`${name} after id removal`, readProbe(target), BASE);
-            printPassWithCounters(name);
+            printPass(name);
         } finally {
             style.remove();
             fixture.remove();
@@ -55,7 +55,7 @@
         ancestor.classList.add("active");
         assertEqual("unmatched after ancestor class change", readProbe(unmatched), BASE);
         assertEqual("matched after ancestor class change", readProbe(matched), MATCH);
-        printPassWithCounters("attribute id match set requires id attribute presence");
+        printPass("attribute id match set requires id attribute presence");
 
         runIdRemovalCase("[id] descendant loses match", "[id] .target", fixture => {
             const subject = makeElement("div", { id: "holder" });

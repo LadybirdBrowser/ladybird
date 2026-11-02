@@ -10,85 +10,74 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
-/// When a pool's threads start.
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum PoolStart {
-    /// On a thread of its own, once a pass first asks for them: the passes until they have started
-    /// run on the calling thread alone, which spares the first pass of a document starting them.
-    InBackground,
-    /// On the thread of the first pass asking for them, which then runs on them.
-    OnFirstPass,
-}
-
-/// The pool of threads style passes run on besides the calling thread, started once a pass
-/// first asks for it.
-pub(crate) struct StylePool {
-    start: PoolStart,
-    threads: Mutex<PoolThreads>,
-}
-
-enum PoolThreads {
-    NotStarted,
-    /// Starting `workers` threads, on a thread of their own.
-    Starting {
-        workers: usize,
-    },
-    Started(Arc<rayon::ThreadPool>),
+/// The pool of threads style passes run on besides the calling thread.
+pub(crate) enum StylePool {
+    /// The threads of the process, started with the owner of its render states, before any page can run script. How
+    /// many there are never changes after that. There are none where a pass runs on the calling thread alone.
+    OfProcess(Option<Arc<rayon::ThreadPool>>),
+    /// The threads of an engine no render state holds, such as a test's, started once a pass first asks for them.
+    OfEngine(Mutex<Option<Arc<rayon::ThreadPool>>>),
 }
 
 impl StylePool {
-    pub(crate) fn new(start: PoolStart) -> Self {
-        Self {
-            start,
-            threads: Mutex::new(PoolThreads::NotStarted),
-        }
+    /// The threads of the process, which this starts: as many as `LIBWEB_STYLE_THREADS` asks for, or the default number
+    /// for the machine where it names no number of them.
+    pub(crate) fn of_process() -> Self {
+        let workers = workers_for_threads(threads_from_environment());
+        Self::OfProcess((workers > 0).then(|| Arc::new(start_threads(workers))))
     }
 
-    /// The pool of `workers` threads a pass runs on besides the calling thread, where it has
-    /// started: none for no workers, and none while the threads start in the background, which
-    /// the first such ask starts them for.
-    pub(crate) fn workers(self: &Arc<Self>, workers: usize) -> Option<Arc<rayon::ThreadPool>> {
+    /// The threads of an engine, which the first pass to ask for them starts.
+    pub(crate) fn of_engine() -> Self {
+        Self::OfEngine(Mutex::new(None))
+    }
+
+    /// The pool a pass on `threads` threads runs on besides the calling thread, or none for a pass on one thread. The
+    /// threads of the process stay as they are, however many a pass asks for.
+    pub(crate) fn for_threads(&self, threads: u32) -> Option<Arc<rayon::ThreadPool>> {
+        let workers = workers_for_threads(threads);
         if workers == 0 {
             return None;
         }
-        let mut threads = self.threads.lock().unwrap_or_else(PoisonError::into_inner);
-        match &*threads {
-            PoolThreads::Started(pool) if pool.current_num_threads() == workers => return Some(pool.clone()),
-            PoolThreads::Starting { workers: starting } if *starting == workers => return None,
-            _ => {}
-        }
-        match self.start {
-            PoolStart::OnFirstPass => {
-                let pool = Arc::new(start_threads(workers));
-                *threads = PoolThreads::Started(pool.clone());
-                Some(pool)
-            }
-            PoolStart::InBackground => {
-                *threads = PoolThreads::Starting { workers };
-                let this = self.clone();
-                std::thread::Builder::new()
-                    .name("Style start".into())
-                    .spawn(move || {
-                        let pool = Arc::new(start_threads(workers));
-                        let mut threads = this.threads.lock().unwrap_or_else(PoisonError::into_inner);
-                        // NB: A pass may have asked for another number of threads meanwhile.
-                        if matches!(*threads, PoolThreads::Starting { workers: starting } if starting == workers) {
-                            *threads = PoolThreads::Started(pool);
-                        }
-                    })
-                    .expect("the thread starting the engine pool starts");
-                None
+        match self {
+            Self::OfProcess(pool) => pool.clone(),
+            Self::OfEngine(pool) => {
+                let mut pool = pool.lock().unwrap_or_else(PoisonError::into_inner);
+                if let Some(pool) = pool.as_ref().filter(|pool| pool.current_num_threads() == workers) {
+                    return Some(pool.clone());
+                }
+                let started = Arc::new(start_threads(workers));
+                *pool = Some(started.clone());
+                Some(started)
             }
         }
     }
 
     /// The threads of the pool, whatever their number, where they have started.
     pub(crate) fn started(&self) -> Option<Arc<rayon::ThreadPool>> {
-        match &*self.threads.lock().unwrap_or_else(PoisonError::into_inner) {
-            PoolThreads::Started(pool) => Some(pool.clone()),
-            PoolThreads::NotStarted | PoolThreads::Starting { .. } => None,
+        match self {
+            Self::OfProcess(pool) => pool.clone(),
+            Self::OfEngine(pool) => pool.lock().unwrap_or_else(PoisonError::into_inner).clone(),
         }
     }
+}
+
+/// How many threads `LIBWEB_STYLE_THREADS` asks passes to run on, or 0 where it names no number of them.
+pub(super) fn threads_from_environment() -> u32 {
+    std::env::var("LIBWEB_STYLE_THREADS")
+        .ok()
+        .and_then(|threads| threads.parse().ok())
+        .unwrap_or(0)
+}
+
+/// How many threads a pass on `threads` threads runs on besides the calling thread, which is one of them: on the default
+/// number for the machine for none.
+fn workers_for_threads(threads: u32) -> usize {
+    let threads = match threads {
+        0 => super::traversal::thread_count(),
+        threads => (threads as usize).min(super::traversal::MAX_THREAD_COUNT),
+    };
+    threads.max(1) - 1
 }
 
 fn start_threads(workers: usize) -> rayon::ThreadPool {

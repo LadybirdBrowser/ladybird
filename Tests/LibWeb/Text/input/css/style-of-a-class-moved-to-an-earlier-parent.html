@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .a > b { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // The two parents shared a style while they had the same classes, and no rule reads the class of them, so they go
+    // on holding it. The element under the one that lost the class must not take the style of the one under the other.
+    asyncTest(async done => {
+        await animationFrame();
+        document.getElementById("root").innerHTML = '<section><div id="first"><b id="in-first"></b></div><div id="second"><b id="in-second"></b></div></section>';
+        await animationFrame();
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const colors = () => `first ${getComputedStyle(document.getElementById("in-first")).color}, second ${getComputedStyle(document.getElementById("in-second")).color}`;
+        println(`no class: ${colors()}`);
+        await animationFrame();
+        second.classList.add("a");
+        await animationFrame();
+        println(`class on the second: ${colors()}`);
+        second.classList.remove("a");
+        first.classList.add("a");
+        await animationFrame();
+        println(`class on the first: ${colors()}`);
+        first.classList.remove("a");
+        second.classList.add("a");
+        await animationFrame();
+        println(`class on the second again: ${colors()}`);
+        done();
+    });
+</script>

@@ -12,24 +12,27 @@
 <div id="color-source"><span></span><span></span><span></span></div>
 <script>
     test(() => {
+        internals.updateStyle();
+
         // What a child reads of its parent is the inherited half of the parent's style, so a change
         // confined to non-inherited properties has nothing a child can see and the walk stops at the
         // parent. `inherit` on a non-inherited property is the one way a child reaches past that.
-        const measure = (id, label, read) => {
-            flushPendingStyleWork();
+        const measure = (id, label, bound, read) => {
+            internals.updateStyle();
+            resetStyleCounters();
             document.getElementById(id).classList.add("changed");
             internals.updateStyle();
-            printPassWithCounters(label);
+            printPassWithStyleCounters(label, bound);
             if (read)
                 println(read());
         };
 
         const firstChildOf = id => document.getElementById(id).firstElementChild;
 
-        measure("plain", "a non-inherited change reaches no child");
-        measure("inheriting", "a child explicitly inheriting a non-inherited property is reached",
+        measure("plain", "a non-inherited change reaches no child", 1);
+        measure("inheriting", "a child explicitly inheriting a non-inherited property is reached", 4,
             () => `explicitly inherited margin-left: ${getComputedStyle(firstChildOf("inheriting")).marginLeft}`);
-        measure("color-source", "an inherited change reaches every child",
+        measure("color-source", "an inherited change reaches every child", 4,
             () => `inherited color: ${getComputedStyle(firstChildOf("color-source")).color}`);
     });
 </script>

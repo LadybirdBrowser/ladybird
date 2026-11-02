@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    li { color: black; }
+    li:nth-child(3n + 1) { color: red; }
+    li:nth-last-child(2) { color: green; }
+    li.special:nth-of-type(2) { color: blue; }
+    li:last-child { color: purple; }
+    span:first-of-type { color: orange; }
+</style>
+<ul id="list"></ul>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (let i = 0; i < 10; ++i) {
+            const item = document.createElement("li");
+            item.className = i % 2 ? "special" : "";
+            item.textContent = i;
+            list.appendChild(item);
+        }
+        const colors = () =>
+            Array.from(list.children)
+                .map(item => `${item.textContent}:${getComputedStyle(item).color}`)
+                .join(" ");
+        println(colors());
+        const first = document.createElement("li");
+        first.textContent = "new";
+        list.prepend(first);
+        println(colors());
+        list.lastElementChild.remove();
+        println(colors());
+    });
+</script>

@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .t[data-x^="xy"] { color: rgb(255, 0, 0); }
+    .t[data-x^="zw"] { color: rgb(0, 128, 0); }
+</style>
+<div class="t" id="target" data-x="no">x</div>
+<script>
+    // The two rules test the same attribute against literals of the same length, each the first literal of its
+    // own selector. A change matching only the second has to restyle the element as well as one matching the first.
+    test(() => {
+        const target = document.getElementById("target");
+        println(getComputedStyle(target).color);
+        target.setAttribute("data-x", "zw1");
+        println(getComputedStyle(target).color);
+        target.setAttribute("data-x", "xy1");
+        println(getComputedStyle(target).color);
+        target.setAttribute("data-x", "zw2");
+        println(getComputedStyle(target).color);
+    });
+</script>

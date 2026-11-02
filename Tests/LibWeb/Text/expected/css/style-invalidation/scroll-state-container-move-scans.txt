@@ -1,3 +1,3 @@
 dependent before the move: rgb(1, 2, 3)
-elements walked after moving the container: 0
+elements styled after moving the container <= 4: true
 dependent after the move: rgb(1, 2, 3)

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    .a { color: rgb(1, 2, 3); }
+    .a .b { background-color: rgb(0, 100, 0); }
+    .a > .c { padding-left: 3px; }
+    .on + .item { border-top: 1px solid black; }
+    .item:first-child { font-weight: 700; }
+    .item:empty { height: 3px; }
+    .before::before { content: "x"; color: rgb(9, 8, 7); }
+    .hidden { display: none; }
+    .inherits { font-size: 20px; }
+</style>
+<div id="root">
+    <div class="item"><span class="b">1</span></div>
+    <div class="item"><span class="c">2</span></div>
+    <div class="item"></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const items = () => root.querySelectorAll(".item");
+        const read = (label) => {
+            const values = [...root.querySelectorAll("*")].map(element => {
+                const style = getComputedStyle(element);
+                return `${element.tagName}.${element.className}: ${style.color} ${style.backgroundColor} ${style.paddingLeft} ${style.borderTopWidth} ${style.fontWeight} ${style.height} ${style.fontSize} ${style.display}`;
+            });
+            println(`${label}`);
+            for (const value of values)
+                println(`  ${value}`);
+            println(`  ::before ${getComputedStyle(items()[0], "::before").color} ${getComputedStyle(items()[0], "::before").content}`);
+        };
+        internals.updateStyle();
+        const steps = [
+            ["add a", () => root.classList.add("a")],
+            ["add on", () => items()[0].classList.add("on")],
+            ["add before", () => items()[0].classList.add("before")],
+            ["insert first", () => root.insertBefore(Object.assign(document.createElement("div"), { className: "item" }), items()[0])],
+            ["fill empty", () => items()[3].appendChild(document.createElement("i"))],
+            ["remove before", () => items()[1].classList.remove("before")],
+            ["inherit", () => root.classList.add("inherits")],
+            ["hide", () => items()[2].classList.add("hidden")],
+            ["remove a", () => root.classList.remove("a")],
+        ];
+        for (const [label, step] of steps) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

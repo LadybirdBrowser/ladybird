@@ -1,0 +1,4 @@
+on a: 30,30
+moved to b: 130,60
+no anchor: 0,60
+back on a: 30,30

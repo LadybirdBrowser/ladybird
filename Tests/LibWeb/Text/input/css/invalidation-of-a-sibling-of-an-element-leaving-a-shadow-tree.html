@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="root"></div>
+<script>
+    // An element leaving a shadow tree stood below the host a rule's `:host` names, which a later sibling matched through.
+    asyncTest(done => {
+        const root = document.getElementById("root");
+        const build = rule => {
+            const shadow = root.appendChild(document.createElement("div")).attachShadow({ mode: "open" });
+            shadow.innerHTML = `<style>${rule} { color: rgb(0, 128, 0); }</style><div class="left"></div><p class="right"></p>`;
+            return { left: shadow.querySelector(".left"), right: shadow.querySelector(".right") };
+        };
+        const cases = [
+            ":host .left ~ .right",
+            ":host > .left ~ .right",
+            ":host > .left + .right",
+            ":host(div) .left + .right",
+        ].map(rule => [rule, build(rule)]);
+
+        requestAnimationFrame(() => {
+            for (const [rule, { left, right }] of cases) {
+                println(`${rule}, before: ${getComputedStyle(right).color}`);
+                left.remove();
+                println(`${rule}, after: ${getComputedStyle(right).color}`);
+            }
+            done();
+        });
+    });
+</script>

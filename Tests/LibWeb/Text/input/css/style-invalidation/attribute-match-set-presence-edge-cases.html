@@ -33,7 +33,7 @@
             for (const [label, target, expected] of targets.after)
                 assertEqual(`${name} after mutation ${label}`, readProbe(target), expected);
 
-            printPassWithCounters(name);
+            printPass(name);
         } finally {
             cleanupFixture(fixture, style);
         }
@@ -56,7 +56,7 @@
             flushPendingStyleWork();
             subject.removeAttribute("data-state");
             assertEqual("generic attribute removal after mutation", readProbe(target), BASE);
-            printPassWithCounters("generic attribute removal keeps descendants current");
+            printPass("generic attribute removal keeps descendants current");
         } finally {
             cleanupFixture(fixture, style);
         }
@@ -92,7 +92,7 @@
             assertEqual("shadow after mutation unmatched", readProbe(unmatched), BASE);
             assertEqual("shadow after mutation unmatched 2", readProbe(unmatched2), BASE);
             assertEqual("shadow after mutation matched", readProbe(matched), MATCH);
-            printPassWithCounters("shadow tree class attribute presence keeps unrelated branch clean");
+            printPass("shadow tree class attribute presence keeps unrelated branch clean");
         } finally {
             style.remove();
             host.remove();

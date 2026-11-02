@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../../include.js"></script>
+<div id="fancy" style="font-family: FancyFamily; font-variant-alternates: styleset(fancy)">fancy</div>
+<script>
+    function addBystanders(parent, count) {
+        for (let i = 0; i < count; ++i) {
+            const bystander = document.createElement("div");
+            bystander.textContent = `bystander ${i}`;
+            parent.appendChild(bystander);
+        }
+    }
+
+    function settle() {
+        internals.updateStyle();
+        internals.resetStyleCounters();
+    }
+
+    function addSheet(text) {
+        const style = document.createElement("style");
+        style.textContent = text;
+        document.head.appendChild(style);
+        return style;
+    }
+
+    function dumpCounters(label, bound) {
+        internals.updateStyle();
+        const c = internals.styleCounters();
+        println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}, full passes ${c.fullPasses}`);
+    }
+
+    test(() => {
+        addBystanders(document.body, 25);
+        settle();
+
+        // Feature values for a family nobody uses restyle nothing but the arriving style element.
+        addSheet(`@font-feature-values UnusedFamily { @styleset { fancy: 1; } }`);
+        dumpCounters("@font-feature-values nobody uses", 1);
+
+        // Feature values restyle the elements whose fonts name their family.
+        settle();
+        const sheet = addSheet(`@font-feature-values FancyFamily { @styleset { fancy: 2; } }`);
+        dumpCounters("@font-feature-values one element uses", 2);
+
+        settle();
+        sheet.remove();
+        dumpCounters("@font-feature-values removed", 2);
+    });
+</script>

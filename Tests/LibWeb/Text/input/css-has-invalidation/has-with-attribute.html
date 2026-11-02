@@ -13,12 +13,12 @@
 
         document.getElementById("target").setAttribute("data-matched", "");
         internals.updateStyle();
-        printCounters("set data-matched attribute");
+        printCounters("set data-matched attribute", 2);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         document.getElementById("target").removeAttribute("data-matched");
         internals.updateStyle();
-        printCounters("remove data-matched attribute");
+        printCounters("remove data-matched attribute", 2);
     });
 </script>

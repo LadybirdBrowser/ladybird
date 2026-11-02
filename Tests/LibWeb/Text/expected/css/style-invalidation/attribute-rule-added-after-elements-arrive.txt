@@ -1,0 +1,4 @@
+early: color rgb(0, 128, 0), background rgb(0, 0, 255), after "on"
+late: color rgb(0, 128, 0), background rgb(0, 0, 255), after "on"
+changed: color rgb(0, 128, 0), background rgba(0, 0, 0, 0), after "on"
+removed: color rgb(0, 0, 0), background rgba(0, 0, 0, 0), after normal

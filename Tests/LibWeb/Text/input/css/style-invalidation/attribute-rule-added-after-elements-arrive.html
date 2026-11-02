@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="early" data-state="on" data-other="x">early</div>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        // These elements arrive after a style update in which no selector and no attr() read their attributes.
+        const late = document.createElement("div");
+        late.id = "late";
+        late.setAttribute("data-state", "on");
+        late.setAttribute("data-other", "x");
+        late.textContent = "late";
+        document.body.appendChild(late);
+        const changed = document.createElement("div");
+        changed.id = "changed";
+        changed.setAttribute("data-state", "off");
+        changed.textContent = "changed";
+        document.body.appendChild(changed);
+        const removed = document.createElement("div");
+        removed.id = "removed";
+        removed.setAttribute("data-state", "on");
+        removed.textContent = "removed";
+        document.body.appendChild(removed);
+        document.body.offsetWidth;
+
+        // And change while nothing reads them.
+        changed.setAttribute("data-state", "on");
+        removed.removeAttribute("data-state");
+        document.body.offsetWidth;
+
+        const style = document.createElement("style");
+        style.textContent = `
+            [data-state="on"] { color: rgb(0, 128, 0); }
+            [data-other] { background-color: rgb(0, 0, 255); }
+            [data-state^="o"]::after { content: attr(data-state); }
+        `;
+        document.head.appendChild(style);
+
+        for (const id of ["early", "late", "changed", "removed"]) {
+            const element = document.getElementById(id);
+            const computed = getComputedStyle(element);
+            println(`${id}: color ${computed.color}, background ${computed.backgroundColor}, after ${getComputedStyle(element, "::after").content}`);
+        }
+    });
+</script>

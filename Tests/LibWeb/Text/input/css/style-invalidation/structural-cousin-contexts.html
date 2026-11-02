@@ -16,8 +16,6 @@
             } else if (selectorCase.settleBeforeColdMutation) {
                 readProbe(target);
                 flushPendingStyleWork();
-            } else {
-                resetStyleCounters();
             }
             if (mode.includes("detached"))
                 fixture.remove();
@@ -27,10 +25,7 @@
             selectorCase.check?.(context);
             assertEqual(`${selectorCase.name} ${mode} after mutation`, readProbe(target), selectorCase.after ? MATCH : BASE);
             const testName = `cousin context ${mode}: ${selectorCase.name}`;
-            if (selectorCase.omitCountersForModes?.includes(mode))
-                println(`PASS: ${testName}`);
-            else
-                printPassWithCounters(testName);
+            printPass(testName);
         } finally {
             style.remove();
             fixture.remove();
@@ -262,7 +257,6 @@
             initial: true,
             after: false,
             settleBeforeColdMutation: true,
-            omitCountersForModes: ["detached", "detached-cold"],
             setup: fixture => {
                 const subject = makeElement("div", { className: "subject" });
                 const target = makeElement("span", { className: "target" });

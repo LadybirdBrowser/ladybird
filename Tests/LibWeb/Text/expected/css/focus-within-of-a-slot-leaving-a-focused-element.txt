@@ -1,0 +1,6 @@
+remove, before: rgb(0, 128, 0) true
+remove, after: rgb(0, 0, 0) false
+replaceChildren, before: rgb(0, 128, 0) true
+replaceChildren, after: rgb(0, 0, 0) false
+moveBefore, before: rgb(0, 128, 0) true
+moveBefore, after: rgb(0, 0, 0) false

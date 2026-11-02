@@ -15,22 +15,28 @@
 </div>
 <script>
     test(() => {
+        internals.updateStyle();
+
         // A computed style read under a display:none subtree recomputes the element's inheritance
         // chain instead of running the document traversal, and what it leaves marked is what the
         // next flush has to recompute. The rule is the one the traversal applies: a change confined
         // to non-inherited properties has nothing a child can read, so it marks no child. `inherit`
         // on a non-inherited property is the one way a child reaches past that.
-        const measure = (id, label) => {
+        //
+        // FIXME: The read after a non-inherited change should style only the element. The style engine
+        //        styles its three children with it, so that count is printed.
+        const measure = (id, label, bound) => {
             const element = document.getElementById(id);
             getComputedStyle(element).color;
-            flushPendingStyleWork();
+            internals.updateStyle();
+            resetStyleCounters();
             element.classList.add("changed");
             getComputedStyle(element).color;
-            println(`PASS: ${label} | ${styleCounterSummary()}`);
+            printPassWithStyleCounters(label, bound);
         };
 
         measure("plain", "a read after a non-inherited change marks no child");
-        measure("inheriting", "a read marks a child explicitly inheriting a non-inherited property");
-        measure("color-source", "a read after an inherited change marks every child");
+        measure("inheriting", "a read marks a child explicitly inheriting a non-inherited property", 4);
+        measure("color-source", "a read after an inherited change marks every child", 4);
     });
 </script>

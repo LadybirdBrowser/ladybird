@@ -1,0 +1,3 @@
+initial: color=rgb(0, 0, 255) background=rgb(0, 128, 0) box=0,0 50x50 hit=box
+red: color=rgb(255, 0, 0) background=rgb(255, 0, 0) box=0,0 50x50 hit=box
+back: color=rgb(0, 0, 255) background=rgb(0, 128, 0) box=0,0 50x50 hit=box

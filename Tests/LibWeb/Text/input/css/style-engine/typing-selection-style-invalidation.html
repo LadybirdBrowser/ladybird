@@ -17,10 +17,10 @@
         internals.updateStyle();
 
         function type(label, text) {
-            internals.resetStyleInvalidationCounters();
+            internals.resetStyleCounters();
             internals.sendText(editor, text);
             internals.updateStyle();
-            println(`${label} stays local: ${internals.getStyleInvalidationCounters().elementStyleRecomputations < 16}`);
+            println(`${label} stays local: ${internals.styleCounters().styledElements < 16}`);
             println(`${label} leaves a caret: ${selection.isCollapsed}`);
         }
 
@@ -32,7 +32,7 @@
         println(`formatting preserved: ${getComputedStyle(selection.anchorNode.parentElement).fontWeight}`);
         println(`selection query: ${getComputedStyle(editor, "::selection").color}`);
 
-        const beforeSelection = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        internals.resetStyleCounters();
         editor.addEventListener("input", () => {
             selection.selectAllChildren(editor);
             internals.updateStyle();
@@ -40,7 +40,7 @@
         }, { once: true });
         internals.sendText(editor, "d");
         println(`input handler leaves a selection: ${!selection.isCollapsed}`);
-        const activated = internals.styleEngineCounters().computedPseudoAssignmentsPublished - beforeSelection;
+        const activated = internals.styleCounters().styledElements;
         println(`selection styles activated locally: ${activated > 0 && activated < 16}`);
     });
 </script>

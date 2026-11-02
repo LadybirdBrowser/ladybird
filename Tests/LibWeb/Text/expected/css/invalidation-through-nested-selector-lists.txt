@@ -1,0 +1,18 @@
+before:
+  isTarget: rgb(0, 0, 0)
+  whereTarget: rgb(0, 0, 0)
+  notTarget: rgb(255, 0, 0)
+  nthTarget: rgb(0, 0, 0)
+  hostTarget: rgb(0, 0, 0)
+after adding b:
+  isTarget: rgb(0, 128, 0)
+  whereTarget: rgb(0, 0, 255)
+  notTarget: rgb(0, 0, 0)
+  nthTarget: rgb(255, 165, 0)
+  hostTarget: rgb(128, 0, 128)
+after removing b:
+  isTarget: rgb(0, 0, 0)
+  whereTarget: rgb(0, 0, 0)
+  notTarget: rgb(255, 0, 0)
+  nthTarget: rgb(0, 0, 0)
+  hostTarget: rgb(0, 0, 0)

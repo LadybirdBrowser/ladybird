@@ -1,0 +1,14 @@
+div:has(.x): b1 b2 b3 c1 (first: b1)
+div:has(span): b1 b2 b3 c1 d1 d2 d3 (first: b1)
+div:has(.outer .inner): d1 d2 (first: d1)
+div:has(.outer > div .inner):  (first: none)
+div:has(.missing):  (first: none)
+div:has(> .x): b3 c1 (first: b3)
+div:has(> div): a1 a2 b1 b2 b5 c1 c2 d1 d2 (first: a1)
+div:has(~ div .x): a1 b1 (first: a1)
+div:has(+ span): c2 (first: c2)
+div:has(.x, > div > div): a1 b1 b2 b3 c1 d1 (first: a1)
+div:has(.leaf):not(:has(.x)): a1 a2 a3 (first: a1)
+div:not(:has(div)): a3 b3 b6 c3 d3 d5 (first: a3)
+c3 closest div:has(.x): c1
+b6 closest div:has(.x): b1

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #outer { width: 200px; }
+    #box { width: 50px; height: 50px; background: green; }
+    #box.wide { width: 120px; height: 30px; }
+    #after { height: 10px; }
+</style>
+<div id="outer"><div id="box"><span>x</span></div><div id="after"></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const after = document.getElementById("after");
+        const read = (label) => {
+            const rect = box.getBoundingClientRect();
+            println(`${label}: ${getComputedStyle(box).width} box=${rect.width}x${rect.height} after.top=${after.getBoundingClientRect().top} outer.height=${document.getElementById("outer").offsetHeight}`);
+        };
+        internals.updateStyle();
+        read("initial");
+        for (const [label, step] of [["wide", () => box.classList.add("wide")], ["narrow", () => box.classList.remove("wide")], ["inline", () => box.style.height = "70px"]]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

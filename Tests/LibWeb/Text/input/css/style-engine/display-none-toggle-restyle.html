@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<style>
+    .hidden { display: none; }
+    #box { width: 40px; height: 20px; }
+    #box span { display: block; height: 7px; }
+</style>
+<div id="box"><span id="inner"></span></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const inner = document.getElementById("inner");
+        const read = (label) => {
+            const rect = box.getBoundingClientRect();
+            println(`${label}: box ${rect.width}x${rect.height} inner ${getComputedStyle(inner).height} ${getComputedStyle(box).display}`);
+        };
+        internals.updateStyle();
+        read("shown");
+        for (const [label, step] of [["hide", () => box.classList.add("hidden")], ["show", () => box.classList.remove("hidden")], ["hide again", () => box.classList.add("hidden")]]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

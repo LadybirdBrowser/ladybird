@@ -1,0 +1,15 @@
+start: ok
+new previous, old loses its class: ok
+old regains its class, new leaves: ok
+swap with classes moving: ok
+start: ok
+witness moved before the anchors: ok
+witness moved to the end: ok
+witness next to the anchor: ok
+deep witness moved into the witness: ok
+deep witness back, witness loses its class: ok
+class back, removed and appended: ok
+start: ok
+witness between anchors: ok
+subtree with the witness between anchors: ok
+subtree left as the witness arrives: ok

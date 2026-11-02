@@ -41,20 +41,18 @@
         const x = Math.floor(rect.left + rect.width / 2);
         const y = Math.floor(rect.top + rect.height / 2);
 
+        internals.updateStyle();
         internals.mouseMove(x, y);
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         internals.clickAndHold(x, y);
         internals.updateStyle();
 
         println(`active color: ${getComputedStyle(activeTarget).color}`);
 
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.elementStyleRecomputations < 50)
-            println("PASS: :active state change stayed targeted");
-        else
-            println(`FAIL: :active state change recomputed ${counters.elementStyleRecomputations} elements`);
+        const counters = internals.styleCounters();
+        println(`:active state change styled fewer than 50: ${counters.styledElements < 50}, full passes: ${counters.fullPasses}`);
 
         internals.mouseUp(x, y);
     });

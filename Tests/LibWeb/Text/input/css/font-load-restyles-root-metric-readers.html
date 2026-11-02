@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html {
+        font-family: "LateRootFace", serif;
+        line-height: 20px;
+    }
+
+    .rem {
+        display: inline-block;
+        width: 10rem;
+    }
+
+    .rex {
+        display: inline-block;
+        width: 10rex;
+    }
+
+    .rch {
+        display: inline-block;
+        width: 10rch;
+    }
+</style>
+<div id="container"></div>
+<script>
+    promiseTest(async () => {
+        const face = new FontFace("LateRootFace", 'url("../../../Assets/HashSans.woff")');
+        document.fonts.add(face);
+        const container = document.getElementById("container");
+        const add = className => {
+            const span = container.appendChild(document.createElement("span"));
+            span.className = className;
+            return span;
+        };
+        const remSized = [];
+        for (let index = 0; index < 50; ++index)
+            remSized.push(add("rem"));
+        const rexSized = [];
+        for (let index = 0; index < 3; ++index)
+            rexSized.push(add("rex"));
+        const rchSized = [];
+        for (let index = 0; index < 2; ++index)
+            rchSized.push(add("rch"));
+        internals.updateStyle();
+        const remWidthBefore = remSized[0].getBoundingClientRect().width;
+        const rchWidthBefore = rchSized[0].getBoundingClientRect().width;
+
+        internals.resetStyleCounters();
+        await face.load();
+        internals.updateStyle();
+        const counters = internals.styleCounters();
+
+        // The root element's font size stays as it was: only the document element and the styles
+        // reading a metric of its font compute again.
+        println(`face loaded: ${face.status}`);
+        println(`elements styled: ${counters.styledElements}`);
+        println(`rem width changed: ${remSized[0].getBoundingClientRect().width !== remWidthBefore}`);
+        println(`rch width changed: ${rchSized[0].getBoundingClientRect().width !== rchWidthBefore}`);
+
+        // What the elements styled before the load render now matches what elements styled after it render.
+        const fresh = [add("rem"), add("rex"), add("rch")];
+        println(`rem width matches a fresh style: ${remSized[0].getBoundingClientRect().width === fresh[0].getBoundingClientRect().width}`);
+        println(`rex width matches a fresh style: ${rexSized[0].getBoundingClientRect().width === fresh[1].getBoundingClientRect().width}`);
+        println(`rch width matches a fresh style: ${rchSized[0].getBoundingClientRect().width === fresh[2].getBoundingClientRect().width}`);
+    });
+</script>

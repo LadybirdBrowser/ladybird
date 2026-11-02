@@ -13,13 +13,10 @@
 <script>
     test(() => {
         document.body.offsetWidth;
-        internals.resetStyleInvalidationCounters();
 
         target.classList.add("changed");
         target.offsetWidth;
 
-        const counters = internals.getStyleInvalidationCounters();
         println(`computed width: ${getComputedStyle(target).width}`);
-        println(`style invalidation minted wrappers: ${counters.longhandWrappersMinted}`);
     });
 </script>

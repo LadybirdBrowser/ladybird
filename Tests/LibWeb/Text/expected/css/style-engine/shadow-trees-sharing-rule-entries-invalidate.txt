@@ -1,0 +1,13 @@
+first: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 0) border=1px
+second: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 0) border=1px
+nested: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 0) border=1px
+first on: x=rgb(0, 128, 0) opacity=0.5 light=rgb(0, 0, 0) border=3px
+second: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 0) border=1px
+nested slotted: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 255) border=1px
+first off: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 0) border=1px
+second slotted: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 255) border=1px
+nested on: x=rgb(0, 128, 0) opacity=0.5 light=rgb(0, 0, 255) border=3px
+second with its own sheet: x=rgb(0, 0, 0) opacity=0.25 light=rgb(0, 0, 255) border=1px
+nested: x=rgb(0, 128, 0) opacity=0.5 light=rgb(0, 0, 255) border=3px
+second again: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 255) border=1px
+first: x=rgb(0, 0, 0) opacity=0.5 light=rgb(0, 0, 0) border=1px

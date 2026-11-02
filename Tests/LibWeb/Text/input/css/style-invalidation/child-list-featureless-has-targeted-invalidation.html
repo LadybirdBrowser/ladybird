@@ -31,7 +31,7 @@
         }
         const stream = document.getElementById("stream");
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         // Simulate response streaming: append plain paragraphs one at a time,
         // flushing style after each append. No :has() argument anchored at an
@@ -44,10 +44,7 @@
             internals.updateStyle();
         }
 
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.elementStyleRecomputations < 100)
-            println("PASS: streamed appends stayed targeted");
-        else
-            println(`FAIL: streamed appends recomputed ${counters.elementStyleRecomputations} elements`);
+        const counters = internals.styleCounters();
+        println(`streamed appends styled fewer than 100: ${counters.styledElements < 100}, full passes: ${counters.fullPasses}`);
     });
 </script>

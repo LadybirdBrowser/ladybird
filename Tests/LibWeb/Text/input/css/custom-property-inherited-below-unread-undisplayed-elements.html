@@ -1,0 +1,34 @@
+<!doctype html>
+<style>
+    @layer reset { * { --x: 0; } }
+    div:nth-child(2n+1) { --x: 1; }
+</style>
+<script src="../include.js"></script>
+<div id="first"><div><div><div id="into"></div></div></div></div><div id="moved"></div><div id="host" popover="auto"></div>
+<script>
+    // What the host of a shadow tree hands down moves with its position. A details in that tree holds an element in a
+    // slot of its own, which nothing reads, whose custom properties the element still inherits.
+    asyncTest(done => {
+        const shadow = host.attachShadow({ mode: "open" });
+        const inner = shadow.appendChild(document.createElement("div"));
+        const innerShadow = inner.attachShadow({ mode: "open" });
+        innerShadow.innerHTML = `<style>@layer reset { * { --own: 0; } }</style><div><div id="a"><div><div><details><option id="target"></option></details></div></div></div></div>`;
+        const elements = [host, inner, ...innerShadow.querySelectorAll("div, details, option")];
+        const target = innerShadow.getElementById("target");
+        const report = () => println(elements.map(element => getComputedStyle(element).getPropertyValue("--x")).join(" "));
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        (async () => {
+            await frame();
+            report();
+            report();
+            document.documentElement.offsetWidth;
+            report();
+            into.before(moved);
+            internals.updateStyle();
+            report();
+            await frame();
+            report();
+            done();
+        })();
+    });
+</script>

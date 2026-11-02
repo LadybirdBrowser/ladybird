@@ -1,0 +1,4 @@
+closed: backdrop=rgb(10, 20, 30) open=false
+modal: backdrop=rgb(10, 20, 30) open=true
+moved: backdrop=rgb(40, 50, 60) open=true
+closed again: backdrop=rgb(40, 50, 60) open=false

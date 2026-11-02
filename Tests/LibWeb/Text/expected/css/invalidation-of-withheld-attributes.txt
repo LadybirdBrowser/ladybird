@@ -1,0 +1,13 @@
+removed while withheld, name test: PASS
+removed while withheld, value test: PASS
+removed beside the rule: PASS
+changed while withheld, old value test: PASS
+changed while withheld, new value test: PASS
+removed and written again: PASS
+removed while withheld, away as the rule came: PASS
+adopted sheet: PASS
+replaced sheet: PASS
+sheet appended: PASS
+sheet whose media came to apply: PASS
+sheet adopted by a shadow root: PASS
+sheet another document parsed: PASS

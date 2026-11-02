@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .anchor:has(.witness) .item { color: rgb(0, 128, 0); }
+</style>
+<div id="container"></div>
+<script>
+    test(() => {
+        // Every item asks whether its ancestor anchors a witness. The answer is the anchor's, so a pass walks the
+        // anchor's subtree for it once on each thread that styles items under it, not once for every item.
+        const container = document.getElementById("container");
+        const anchor = document.createElement("div");
+        anchor.className = "anchor";
+        const witness = document.createElement("div");
+        witness.className = "witness";
+        anchor.append(witness);
+        const itemCount = 400;
+        for (let i = 0; i < itemCount; ++i) {
+            const item = document.createElement("span");
+            item.className = "item";
+            item.id = `item${i}`;
+            item.setAttribute("data-index", i);
+            anchor.append(item);
+        }
+        internals.updateStyle();
+        const before = internals.styleCounters().relativeWalks;
+        container.append(anchor);
+        const color = getComputedStyle(document.getElementById(`item${itemCount - 1}`)).color;
+        const walks = internals.styleCounters().relativeWalks - before;
+        println(`last item: ${color}`);
+        println(`relational walks at least one: ${walks >= 1}`);
+        println(`relational walks fewer than one per ten items: ${walks < itemCount / 10}`);
+    });
+</script>

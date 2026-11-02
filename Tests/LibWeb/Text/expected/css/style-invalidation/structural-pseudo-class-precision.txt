@@ -1,11 +1,11 @@
-PASS: :first-child only restyles the previous first-child on prepend | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :first-child observers are not restyled when first-child cannot flip | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :last-child only restyles the previous last-child on append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :last-child observers are not restyled when last-child cannot flip | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :last-child only restyles the new last-child on trailing removal | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :only-child loses on prepend before solo child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :only-child loses on append after solo child | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :only-child observers are not restyled when only-child cannot start matching | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :first-child precision works when text nodes interleave element siblings | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :nth-last-child still re-evaluates every previous sibling on append | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
-PASS: :nth-child still re-evaluates every following sibling on prepend | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: :first-child only restyles the previous first-child on prepend
+PASS: :first-child observers are not restyled when first-child cannot flip
+PASS: :last-child only restyles the previous last-child on append
+PASS: :last-child observers are not restyled when last-child cannot flip
+PASS: :last-child only restyles the new last-child on trailing removal
+PASS: :only-child loses on prepend before solo child
+PASS: :only-child loses on append after solo child
+PASS: :only-child observers are not restyled when only-child cannot start matching
+PASS: :first-child precision works when text nodes interleave element siblings
+PASS: :nth-last-child still re-evaluates every previous sibling on append
+PASS: :nth-child still re-evaluates every following sibling on prepend

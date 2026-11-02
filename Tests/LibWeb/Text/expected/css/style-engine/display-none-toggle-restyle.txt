@@ -1,0 +1,4 @@
+shown: box 40x20 inner 7px block
+hide: box 0x0 inner 7px none
+show: box 40x20 inner 7px block
+hide again: box 0x0 inner 7px none

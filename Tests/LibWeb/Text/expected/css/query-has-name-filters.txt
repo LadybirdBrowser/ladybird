@@ -1,0 +1,10 @@
+div:has(.x), div:has(.y): a1 a2 b1 b2
+div:has(.x):has(.y): b1 b2
+div:has(span.x):has(> b), div:has(em): a2 b1 b2
+div:has(.missing), div:has(#a4), div:has(> i): a1 a2
+div:has(.x .y), div:has(p.y): b1 b2
+div:has(> .p span), div:has(~ div .x): a1
+:has(.y):not(:has(.p)), div:has(div): a1 b1 b2 b3 c1
+shadow :host:has(.x) p: inner
+shadow :host:has(.light) p: 
+shadow :host:has(.z):has(.x) p: inner

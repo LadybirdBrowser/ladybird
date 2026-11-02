@@ -1,0 +1,2 @@
+before: leaves rgb(0, 128, 0), below rgb(0, 128, 0), enters rgb(0, 0, 0)
+after: leaves rgb(0, 0, 0), below rgb(0, 0, 0), enters rgb(0, 128, 0)

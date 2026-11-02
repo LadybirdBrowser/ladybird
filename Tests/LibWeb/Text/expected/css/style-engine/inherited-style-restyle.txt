@@ -1,0 +1,5 @@
+plain color: rgb(0, 128, 0)
+declared color: rgb(255, 0, 0)
+border color: rgb(0, 128, 0)
+em margin after font-size change: 40px
+plain font-size: 20px

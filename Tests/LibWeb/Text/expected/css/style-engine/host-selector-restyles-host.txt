@@ -1,0 +1,3 @@
+full pass: false
+changed: [host, style, child]
+styled only what changed: true

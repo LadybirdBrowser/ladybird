@@ -11,9 +11,6 @@
     // Each fixture below seeds several sibling elements and a CSS rule that match-
     // tests the relevant pseudo-class against all of them. The mutation then either
     // (a) flips the pseudo-class for exactly one element, or (b) flips it for none.
-    // Style invalidation counters in the per-test output capture the precision: a
-    // regression that goes back to invalidating every observer would show up as a
-    // jump in elementStyleRecomputations / elementStyleNoopRecomputations.
 
     function makeWatcherFixture(count, className = "watcher") {
         const fixture = makeElement("section");
@@ -27,11 +24,10 @@
         return { fixture, watchers };
     }
 
-    function settleAndReset() {
+    function settle() {
         document.body.offsetWidth;
         document.body.offsetWidth;
         internals.updateStyle();
-        resetStyleCounters();
     }
 
     test(() => {
@@ -41,14 +37,14 @@
         {
             const style = addStyle(document.head, ".watcher:first-child { color: rgb(1, 2, 3); }");
             const { fixture, watchers } = makeWatcherFixture(6);
-            settleAndReset();
+            settle();
 
             fixture.insertBefore(makeElement("div"), watchers[0]);
             internals.updateStyle();
             assertEqual(":first-child loses on prepend", getComputedStyle(watchers[0]).color, "rgb(0, 0, 0)");
             for (let i = 1; i < watchers.length; ++i)
                 assertEqual(`other watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":first-child only restyles the previous first-child on prepend");
+            printPass(":first-child only restyles the previous first-child on prepend");
 
             style.remove();
             fixture.remove();
@@ -60,14 +56,14 @@
             const style = addStyle(document.head, ".watcher:first-child { color: rgb(1, 2, 3); }");
             const { fixture, watchers } = makeWatcherFixture(6);
             assertEqual("first-child initial", getComputedStyle(watchers[0]).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             fixture.insertBefore(makeElement("div"), watchers[3]);
             internals.updateStyle();
             assertEqual("first-child preserved", getComputedStyle(watchers[0]).color, "rgb(1, 2, 3)");
             for (let i = 1; i < watchers.length; ++i)
                 assertEqual(`other watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":first-child observers are not restyled when first-child cannot flip");
+            printPass(":first-child observers are not restyled when first-child cannot flip");
 
             style.remove();
             fixture.remove();
@@ -78,7 +74,7 @@
         {
             const style = addStyle(document.head, ".watcher:last-child { color: rgb(1, 2, 3); }");
             const { fixture, watchers } = makeWatcherFixture(6);
-            settleAndReset();
+            settle();
 
             fixture.appendChild(makeElement("div"));
             internals.updateStyle();
@@ -86,7 +82,7 @@
             assertEqual(":last-child loses on append", getComputedStyle(last).color, "rgb(0, 0, 0)");
             for (let i = 0; i < watchers.length - 1; ++i)
                 assertEqual(`other watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":last-child only restyles the previous last-child on append");
+            printPass(":last-child only restyles the previous last-child on append");
 
             style.remove();
             fixture.remove();
@@ -99,12 +95,12 @@
             const { fixture, watchers } = makeWatcherFixture(6);
             const last = watchers[watchers.length - 1];
             assertEqual("last-child initial", getComputedStyle(last).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             watchers[2].remove();
             internals.updateStyle();
             assertEqual("last-child preserved", getComputedStyle(last).color, "rgb(1, 2, 3)");
-            printPassWithCounters(":last-child observers are not restyled when last-child cannot flip");
+            printPass(":last-child observers are not restyled when last-child cannot flip");
 
             style.remove();
             fixture.remove();
@@ -117,7 +113,7 @@
             const { fixture, watchers } = makeWatcherFixture(6);
             const originalLast = watchers[watchers.length - 1];
             assertEqual("last-child initial", getComputedStyle(originalLast).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             originalLast.remove();
             internals.updateStyle();
@@ -125,7 +121,7 @@
             assertEqual("new last-child gains", getComputedStyle(newLast).color, "rgb(1, 2, 3)");
             for (let i = 0; i < watchers.length - 2; ++i)
                 assertEqual(`other watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":last-child only restyles the new last-child on trailing removal");
+            printPass(":last-child only restyles the new last-child on trailing removal");
 
             style.remove();
             fixture.remove();
@@ -142,12 +138,12 @@
             fixture.appendChild(solo);
             document.body.appendChild(fixture);
             assertEqual(":only-child initial", getComputedStyle(solo).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             fixture.insertBefore(makeElement("div"), solo);
             internals.updateStyle();
             assertEqual(":only-child loses after prepend", getComputedStyle(solo).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":only-child loses on prepend before solo child");
+            printPass(":only-child loses on prepend before solo child");
 
             style.remove();
             fixture.remove();
@@ -160,12 +156,12 @@
             fixture.appendChild(solo);
             document.body.appendChild(fixture);
             assertEqual(":only-child initial", getComputedStyle(solo).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             fixture.appendChild(makeElement("div"));
             internals.updateStyle();
             assertEqual(":only-child loses after append", getComputedStyle(solo).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":only-child loses on append after solo child");
+            printPass(":only-child loses on append after solo child");
 
             style.remove();
             fixture.remove();
@@ -178,13 +174,13 @@
         {
             const style = addStyle(document.head, ".watcher:only-child { color: rgb(1, 2, 3); }");
             const { fixture, watchers } = makeWatcherFixture(6);
-            settleAndReset();
+            settle();
 
             fixture.insertBefore(makeElement("div"), watchers[3]);
             internals.updateStyle();
             for (const watcher of watchers)
                 assertEqual("watcher color unchanged", getComputedStyle(watcher).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":only-child observers are not restyled when only-child cannot start matching");
+            printPass(":only-child observers are not restyled when only-child cannot start matching");
 
             style.remove();
             fixture.remove();
@@ -205,14 +201,14 @@
             }
             document.body.appendChild(fixture);
             assertEqual(":first-child initial with leading text", getComputedStyle(watchers[0]).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             fixture.insertBefore(makeElement("div"), watchers[0]);
             internals.updateStyle();
             assertEqual(":first-child loses across text", getComputedStyle(watchers[0]).color, "rgb(0, 0, 0)");
             for (let i = 1; i < watchers.length; ++i)
                 assertEqual(`later watcher unchanged at ${i}`, getComputedStyle(watchers[i]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":first-child precision works when text nodes interleave element siblings");
+            printPass(":first-child precision works when text nodes interleave element siblings");
 
             style.remove();
             fixture.remove();
@@ -227,14 +223,14 @@
             const { fixture, watchers } = makeWatcherFixture(6);
             const indexFromEnd = watchers.length - 2;
             assertEqual(":nth-last-child(2) initial", getComputedStyle(watchers[indexFromEnd]).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             fixture.appendChild(makeElement("div"));
             internals.updateStyle();
             const newIndex = watchers.length - 1;
             assertEqual(":nth-last-child(2) shifts on append", getComputedStyle(watchers[newIndex]).color, "rgb(1, 2, 3)");
             assertEqual("previous match no longer applies", getComputedStyle(watchers[indexFromEnd]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":nth-last-child still re-evaluates every previous sibling on append");
+            printPass(":nth-last-child still re-evaluates every previous sibling on append");
 
             style.remove();
             fixture.remove();
@@ -246,13 +242,13 @@
             const style = addStyle(document.head, ".watcher:nth-child(2) { color: rgb(1, 2, 3); }");
             const { fixture, watchers } = makeWatcherFixture(6);
             assertEqual(":nth-child(2) initial", getComputedStyle(watchers[1]).color, "rgb(1, 2, 3)");
-            settleAndReset();
+            settle();
 
             fixture.insertBefore(makeElement("div"), watchers[0]);
             internals.updateStyle();
             assertEqual(":nth-child(2) shifts on prepend", getComputedStyle(watchers[0]).color, "rgb(1, 2, 3)");
             assertEqual("previous match no longer applies", getComputedStyle(watchers[1]).color, "rgb(0, 0, 0)");
-            printPassWithCounters(":nth-child still re-evaluates every following sibling on prepend");
+            printPass(":nth-child still re-evaluates every following sibling on prepend");
 
             style.remove();
             fixture.remove();

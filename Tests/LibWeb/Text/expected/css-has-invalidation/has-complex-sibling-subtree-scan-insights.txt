@@ -1,0 +1,2 @@
+[add .match]
+  styled <= 2: true

@@ -1,5 +1,5 @@
 initial shadow host color: rgb(255, 0, 0)
 resized shadow host color: rgb(255, 0, 0)
-resized skipped unrelated host side: true
+resized: styled 0, full passes: 0
 resized back shadow host color: rgb(255, 0, 0)
-resized back skipped unrelated host side: true
+resized back: styled 0, full passes: 0

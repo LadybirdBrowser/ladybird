@@ -1,0 +1,33 @@
+<!DOCTYPE quirks>
+<script src="../include.js"></script>
+<style id="rules" media="not all">
+    .lower-rule { color: rgb(0, 128, 0); }
+    #lower-rule-id { color: rgb(0, 128, 0); }
+    .UPPER-RULE { color: rgb(0, 128, 0); }
+    #UPPER-RULE-ID { color: rgb(0, 128, 0); }
+</style>
+<div id="root">
+    <div class="nothing"></div>
+    <div class="LOWER-RULE"></div>
+    <div id="LOWER-RULE-ID"></div>
+    <div class="upper-rule"></div>
+    <div id="upper-rule-id"></div>
+</div>
+<script>
+    // Ids and classes compare ASCII case-insensitively in a quirks mode document, so a rule arriving reaches an element
+    // that writes its name in another case.
+    test(() => {
+        println(document.compatMode);
+        const rules = document.getElementById("rules");
+        const print = title => {
+            println(title);
+            for (const element of document.querySelectorAll("#root *"))
+                println(`${element.className} ${element.id}: ${getComputedStyle(element).color}`);
+        };
+        print("not all");
+        rules.media = "all";
+        print("all");
+        rules.media = "not all";
+        print("not all");
+    });
+</script>

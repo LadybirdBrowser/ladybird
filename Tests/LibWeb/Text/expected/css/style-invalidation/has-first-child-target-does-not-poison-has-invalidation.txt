@@ -1,1 +1,1 @@
-PASS: :has() with a :first-child target stays targeted | elementStyleRecomputations=0, elementStyleNoopRecomputations=0
+PASS: :has() with a :first-child target stays targeted (styled <= 9: true)

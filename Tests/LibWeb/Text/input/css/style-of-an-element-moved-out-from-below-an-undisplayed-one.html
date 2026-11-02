@@ -1,0 +1,27 @@
+<!doctype html>
+<style>
+    @layer reset { * { --a: 0; } }
+    .a { --a: 1; }
+</style>
+<script src="../include.js"></script>
+<div id="origin"><div id="moved"></div></div>
+<div id="undisplayed"><div id="inside"></div></div>
+<div id="after"></div>
+<script>
+    // A read of an element moved below an undisplayed one installs a record that says so, which an element moved out
+    // again gives up, though it computes what it held before. The self-check tells the difference.
+    asyncTest(done => {
+        requestAnimationFrame(() => {
+            undisplayed.moveBefore(moved, inside);
+            undisplayed.style.display = "none";
+            println(getComputedStyle(moved).getPropertyValue("--a"));
+            document.documentElement.offsetWidth;
+            document.body.moveBefore(moved, after);
+            println(getComputedStyle(moved).getPropertyValue("--a"));
+            requestAnimationFrame(() => {
+                println(getComputedStyle(moved).getPropertyValue("--a"));
+                done();
+            });
+        });
+    });
+</script>

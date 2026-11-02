@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<style>
+    #outer::selection { color: rgb(10, 20, 30); background-color: rgb(40, 50, 60); }
+    #outer.moved::selection { background-color: rgb(70, 80, 90); }
+    #inner::selection { color: rgb(100, 110, 120); }
+</style>
+<div id="outer">outer <span id="inner">inner <b id="leaf">leaf</b></span></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const describe = (element) => {
+            const style = getComputedStyle(element, "::selection");
+            return `${style.color} on ${style.backgroundColor}`;
+        };
+        const read = (label) => {
+            println(`${label}: outer=${describe(outer)} inner=${describe(inner)} leaf=${describe(leaf)}`);
+        };
+        internals.updateStyle();
+        read("deferred");
+        const range = document.createRange();
+        range.selectNodeContents(outer);
+        getSelection().addRange(range);
+        internals.updateStyle();
+        read("selected");
+        outer.classList.add("moved");
+        internals.updateStyle();
+        read("moved");
+        getSelection().removeAllRanges();
+        internals.updateStyle();
+        read("deselected");
+    });
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host" tabindex="0"></div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const shadowRoot = host.attachShadow({ mode: "open" });
+        shadowRoot.innerHTML = "<style>:host(:focus) { color: green }</style><span id=child></span>";
+        internals.updateStyle();
+        internals.resetStyleCounters();
+
+        // `:host()` is a guard on the host, not a combinator: it styles the element it tests. A
+        // change to what it tests reaches that element, and the tree it hosts only through what
+        // that tree inherits from it.
+        host.focus({ preventScroll: true });
+        internals.updateStyle();
+        const pass = internals.styleLastPass();
+        println(`full pass: ${pass.fullPass}`);
+        println(`changed: [${pass.changed.join(", ")}]`);
+        println(`styled only what changed: ${pass.styled.join() === pass.changed.join()}`);
+    });
+</script>

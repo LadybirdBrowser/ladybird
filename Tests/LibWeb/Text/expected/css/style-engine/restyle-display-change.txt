@@ -1,0 +1,9 @@
+block: display=block box=200x16 first=0,2 second=20,2 after.top=16 container.height=21
+inline: display=inline box=40x10 first=0,2 second=20,2 after.top=16 container.height=21
+none: display=none box=0x0 first=0,0 second=0,0 after.top=0 container.height=5
+contents: display=contents box=0x0 first=0,2 second=20,2 after.top=16 container.height=21
+block: display=block box=200x16 first=0,2 second=20,2 after.top=16 container.height=21
+before appears: display=block box=200x16 first=30,2 second=50,2 after.top=16 container.height=21
+inline with before: display=inline box=70x12 first=30,2 second=50,2 after.top=16 container.height=21
+before goes: display=inline box=40x10 first=0,2 second=20,2 after.top=16 container.height=21
+block again: display=block box=200x16 first=0,2 second=20,2 after.top=16 container.height=21

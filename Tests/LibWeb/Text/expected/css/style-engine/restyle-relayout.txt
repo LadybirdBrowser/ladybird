@@ -1,0 +1,4 @@
+initial: 50px box=50x50 after.top=50 outer.height=60
+wide: 120px box=120x30 after.top=30 outer.height=40
+narrow: 50px box=50x50 after.top=50 outer.height=60
+inline: 50px box=50x70 after.top=70 outer.height=80

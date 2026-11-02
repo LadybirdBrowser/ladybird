@@ -1,0 +1,77 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .first > :first-child { color: rgb(0, 128, 0); }
+    .last > :last-child { color: rgb(0, 128, 0); }
+    .only > :only-child { color: rgb(0, 128, 0); }
+    .first-type > i:first-of-type { color: rgb(0, 128, 0); }
+    .last-type > i:last-of-type { color: rgb(0, 128, 0); }
+    .only-type > i:only-of-type { color: rgb(0, 128, 0); }
+    .nth-one > :nth-child(1) { color: rgb(0, 128, 0); }
+    .nth-last-one > :nth-last-child(1) { color: rgb(0, 128, 0); }
+    .second > :nth-child(2) { color: rgb(0, 128, 0); }
+    .second-last > :nth-last-child(2) { color: rgb(0, 128, 0); }
+    .second-type > i:nth-of-type(2) { color: rgb(0, 128, 0); }
+    .of-s > :nth-child(1 of .x) { color: rgb(0, 128, 0); }
+    .mix > :first-child { color: rgb(0, 128, 0); }
+    .mix > :nth-child(3) { background-color: rgb(0, 128, 0); }
+    .chain > :first-child + i { color: rgb(0, 128, 0); }
+    .below > :first-child b { color: rgb(0, 128, 0); }
+    .later > :last-child ~ i { color: rgb(255, 0, 0); }
+    .later > :first-child ~ i { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // What a child's selectors read of where it stands decides which of its moves can change what it matches: each list
+    // goes through elements arriving, leaving and moving at either end and in the middle.
+    test(() => {
+        const root = document.getElementById("root");
+        for (const className of ["first", "last", "only", "first-type", "last-type", "only-type", "nth-one", "nth-last-one",
+            "second", "second-last", "second-type", "of-s", "mix", "chain", "below", "later"]) {
+            const list = document.createElement("div");
+            list.className = className;
+            list.innerHTML = "<i class=x><b></b></i><i class=x><b></b></i><u></u><i><b></b></i>";
+            root.append(list);
+            const print = title => {
+                const colors = [...list.querySelectorAll("*")].map(element => {
+                    const style = getComputedStyle(element);
+                    const color = style.color === "rgb(0, 128, 0)" ? "G" : style.color === "rgb(0, 0, 0)" ? "-" : "R";
+                    return element.localName + color + (style.backgroundColor === "rgb(0, 128, 0)" ? "B" : "");
+                });
+                println(`${className} ${title}: ${colors.join(" ")}`);
+            };
+            print("start");
+            const first = document.createElement("i");
+            list.prepend(first);
+            print("prepended");
+            first.remove();
+            print("first left");
+            const last = document.createElement("i");
+            list.append(last);
+            print("appended");
+            last.remove();
+            print("last left");
+            const middle = document.createElement("u");
+            list.children[1].after(middle);
+            print("arrived in the middle");
+            middle.remove();
+            print("left the middle");
+            list.append(list.firstElementChild);
+            print("first moved last");
+            list.prepend(list.lastElementChild);
+            print("last moved first");
+            list.firstElementChild.remove();
+            print("removed the first");
+            list.lastElementChild.remove();
+            print("removed the last");
+            list.firstElementChild.remove();
+            print("two gone");
+            list.firstElementChild.className = "x";
+            print("class");
+            list.firstElementChild.remove();
+            print("none");
+            list.append(document.createElement("i"));
+            print("one arrived");
+        }
+    });
+</script>

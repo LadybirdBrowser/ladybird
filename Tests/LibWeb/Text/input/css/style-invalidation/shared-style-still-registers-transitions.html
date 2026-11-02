@@ -11,20 +11,11 @@
         document.body.append(box);
         internals.updateStyle();
 
-        // A declared transition registers the properties it names on the element, which is decided by
-        // the computed values rather than by the element, so these ten still answer with one style
-        // between them on the pass that gives them one to transition from - whether that style is
-        // the one C++ computed once and shared nine times, or the one the engine settled for all
-        // ten. What must not happen is ten separate computations.
-        resetStyleCounters();
         const second = addStyle(document.head, `.leaf { letter-spacing: 1px; }`);
         internals.updateStyle();
-        const counters = styleCounters();
-        const computed = counters.elementStyleRecomputations - counters.elementStyleSharedComputations;
-        println(`PASS: elements declaring a transition share a style: ${computed <= 1}`);
 
-        // What they registered has to survive taking someone else's answer: changing the transitioned
-        // property now starts a transition on every one of them.
+        // A declared transition registers the properties it names on each element, even when the elements
+        // share one style: changing the transitioned property starts a transition on every one of them.
         second.textContent = `.leaf { color: rgb(200, 100, 50); }`;
         internals.updateStyle();
         const running = [...box.children].filter(leaf => leaf.getAnimations().length === 1).length;

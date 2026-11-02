@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .doc { color: rgb(0, 0, 255); }
+</style>
+<div id="light"><div id="fromLight" class="doc shadow"><div id="fromLightChild" class="doc shadow"></div></div></div>
+<div id="host"></div>
+<script>
+    // moveBefore() keeps a subtree whole as it moves out of or into a shadow tree: all of it decides with the rules of
+    // the tree it stands in now.
+    asyncTest(done => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>.shadow { color: rgb(0, 128, 0); }</style>
+            <div id="fromShadow" class="doc shadow"><div id="fromShadowChild" class="doc shadow"><i class="doc shadow"></i></div></div><p></p>`;
+        const light = document.getElementById("light");
+        const fromLight = document.getElementById("fromLight");
+        const fromLightChild = document.getElementById("fromLightChild");
+        const fromShadow = shadow.getElementById("fromShadow");
+        const fromShadowChild = shadow.getElementById("fromShadowChild");
+        const report = label => {
+            for (const element of [fromLight, fromLightChild, fromShadow, fromShadowChild, fromShadowChild.firstChild])
+                println(`${label}, ${element.id || "grandchild"}: ${getComputedStyle(element).color}`);
+        };
+
+        requestAnimationFrame(() => {
+            report("before");
+            light.moveBefore(fromShadow, null);
+            shadow.moveBefore(fromLight, shadow.querySelector("p"));
+            report("after");
+            done();
+        });
+    });
+</script>

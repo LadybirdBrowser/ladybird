@@ -1,0 +1,2 @@
+rule of the small sheet: rgb(0, 128, 0)
+rule of the large sheet: rgb(0, 128, 0)

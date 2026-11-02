@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="root"></div>
+<script>
+    // The children of a shadow root stand among each other as the children of an element do: an element arriving,
+    // leaving or moving there moves where the others stand, and what follows what.
+    asyncTest(done => {
+        const root = document.getElementById("root");
+        const rules = `
+            .last:nth-last-child(2n+1) { color: rgb(0, 128, 0); }
+            .first:nth-child(2n+1) { color: rgb(0, 128, 0); }
+            .type:nth-last-of-type(1) { color: rgb(0, 128, 0); }
+            .moved + .after { color: rgb(0, 128, 0); }
+            .earlier ~ .later { color: rgb(0, 128, 0); }
+        `;
+        const shadowWith = (...classNames) => {
+            const shadow = root.appendChild(document.createElement("div")).attachShadow({ mode: "open" });
+            shadow.appendChild(document.createElement("style")).textContent = rules;
+            return classNames.map(className => {
+                const element = shadow.appendChild(document.createElement("div"));
+                element.className = className;
+                return element;
+            });
+        };
+        const color = element => getComputedStyle(element).color;
+
+        const cases = [
+            ["last child leaves", shadowWith("last", ""), ([, second]) => second.remove(), ([first]) => first],
+            ["first child leaves", shadowWith("", "first"), ([first]) => first.remove(), ([, second]) => second],
+            ["child arrives at the end", shadowWith("last"), ([first]) => first.after(document.createElement("div")), ([first]) => first],
+            ["last of its type leaves", shadowWith("type", ""), ([, second]) => second.remove(), ([first]) => first],
+            ["children swap", shadowWith("after", "moved"), ([first, second]) => second.after(first), ([first]) => first],
+            ["earlier sibling moves past", shadowWith("earlier", "", "", "later"), ([first, , , fourth]) => fourth.after(first), ([, , , fourth]) => fourth],
+        ];
+
+        requestAnimationFrame(() => {
+            document.documentElement.offsetWidth;
+            for (const [name, elements, change, subject] of cases) {
+                println(`${name}, before: ${color(subject(elements))}`);
+                change(elements);
+                println(`${name}, after: ${color(subject(elements))}`);
+            }
+            done();
+        });
+    });
+</script>

@@ -16,15 +16,15 @@
         // Adding .match to a direct child should invalidate.
         document.getElementById("child").classList.add("match");
         internals.updateStyle();
-        printCounters("add .match to direct child");
+        printCounters("add .match to direct child", 3);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         // Adding .match to a grandchild is NOT enough for :has(> .match);
         // the anchor should stay unstyled. The walker may still run if the
         // grandchild is in_has_scope (walked during initial match attempt).
         document.getElementById("grandchild").classList.add("match");
         internals.updateStyle();
-        printCounters("add .match to grandchild (should not style anchor)");
+        printCounters("add .match to grandchild (should not style anchor)", 1);
     });
 </script>

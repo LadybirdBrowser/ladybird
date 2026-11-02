@@ -4,4 +4,5 @@ initial outline width: 1px
 updated device pixel ratio: 2
 updated border width: 0.5px
 updated outline width: 0.5px
-reaction batch happened: true
+target restyled: true
+every element restyled: false

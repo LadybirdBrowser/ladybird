@@ -34,10 +34,10 @@
         const host = document.getElementById("host");
 
         // Settle any pending style work, then reset the counters.
-        getComputedStyle(host).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
 
-        // Mutating disconnected elements should not publish any style reaction.
+        // Mutating disconnected elements should not restyle anything.
         const tree = document.createElement("div");
         for (let i = 0; i < 10; ++i) {
             const child = document.createElement("span");
@@ -51,14 +51,14 @@
         const custom = document.createElement("my-element");
         tree.appendChild(custom);
 
-        // Adding these classes changes no StyleEngine facts, because the disconnected tree has no
+        // Adding these classes changes no style inputs, because the disconnected tree has no
         // style identities yet.
-        internals.styleEngineTransactionReactions();
         tree.className = "highlight";
         tree.children[3].className = "flag";
 
-        const reactions = internals.styleEngineTransactionReactions();
-        println(`reactions after disconnected mutations: ${reactions.elements.length}`);
+        internals.updateStyle();
+        println(`no pass after disconnected mutations: ${internals.styleCounters().passes === 0}`);
+        println(`nothing styled after disconnected mutations: ${internals.styleLastPass().styled.length === 0}`);
 
         // Once inserted, all the mutations made while disconnected must still be reflected in computed style.
         host.appendChild(tree);

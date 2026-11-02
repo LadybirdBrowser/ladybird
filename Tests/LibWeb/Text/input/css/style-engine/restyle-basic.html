@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<style>
+    .a { color: rgb(1, 2, 3); }
+    .a .b { background-color: rgb(0, 100, 0); }
+    .a > .c { padding: 3px; }
+    .a .b > * { margin-left: 4px; }
+    .on + .item { border-top: 1px solid black; }
+    .on ~ .item .leaf { text-indent: 5px; }
+    .item:first-child { font-weight: bold; }
+    .item:nth-child(2n) { margin-top: 2px; }
+    [data-x="y"] .leaf { width: 10px; }
+    .item:empty { height: 3px; }
+    #named .leaf { outline: 1px solid red; }
+    .item:not(.off) > .leaf { letter-spacing: 1px; }
+    .inherits { font-size: 20px; }
+    * + .item + .item { padding-left: 6px; }
+    .on + * ~ .item > .leaf { word-spacing: 2px; }
+    .item + .item .leaf { text-transform: uppercase; }
+    .a .b * { border-left: 1px solid green; }
+    .item:last-child .leaf { text-decoration-line: underline; }
+    .item:nth-last-child(2) > .leaf { font-style: italic; }
+    .item:nth-child(3) span { padding-top: 1px; }
+    .item:first-child + .item .leaf { padding-bottom: 2px; }
+    .item:only-child { margin-bottom: 1px; }
+    span:first-of-type { padding-right: 3px; }
+    div:nth-last-of-type(2) .leaf { line-height: 3px; }
+    .item:last-of-type > span { border-right: 1px solid blue; }
+</style>
+<div id="root">
+    <div class="item"><span class="b"><i class="c">x</i></span><span class="leaf">1</span></div>
+    <div class="item"><span class="leaf">2</span></div>
+    <div class="item"><span class="b"><span class="leaf">3</span></span></div>
+    <div class="item"></div>
+    <div class="item"><div><span class="leaf">4</span></div></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const items = () => root.querySelectorAll(".item");
+        internals.updateStyle();
+        // NB: Where the style engine owns the document, the records a restart computes replace the installed ones in the
+        //     next pass, which restyles everything. The steps count from after it.
+        root.setAttribute("data-settled", "");
+        internals.updateStyle();
+        const before = internals.styleLiveReport(false);
+        const steps = [
+            () => root.classList.add("a"),
+            () => items()[1].classList.add("on"),
+            () => items()[0].classList.add("off"),
+            () => root.setAttribute("data-x", "y"),
+            () => items()[2].id = "named",
+            () => root.classList.remove("a"),
+            () => root.insertBefore(document.createElement("div"), items()[0]).className = "item",
+            () => items()[3].remove(),
+            () => items()[3].appendChild(document.createElement("span")).className = "leaf",
+            () => root.setAttribute("data-x", "z"),
+            () => items()[1].classList.remove("on"),
+            () => items()[2].firstElementChild.remove(),
+            () => items()[0].before(document.createElement("span")),
+            () => items()[1].after(Object.assign(document.createElement("div"), { className: "item" })),
+            () => items()[2].remove(),
+            () => items()[0].classList.add("on"),
+            () => root.classList.remove("a"),
+            () => root.classList.add("a"),
+            () => root.classList.add("inherits", "a"),
+            () => root.insertBefore(document.createElement("p"), items()[1]),
+            () => items()[1].prepend(document.createElement("span")),
+            () => root.lastElementChild.after(Object.assign(document.createElement("div"), { className: "item" })),
+            () => root.querySelector("p").remove(),
+        ];
+        for (const step of steps) {
+            step();
+            internals.updateStyle();
+        }
+        const report = internals.styleLiveReport(true);
+        println(`full passes: ${report.fullPasses - before.fullPasses}`);
+        println(`restyled fewer elements than a full pass each: ${report.styledElements - before.styledElements < (report.passes - before.passes) * report.verifiedElements}`);
+        println(`missing records: ${report.missingRecords}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

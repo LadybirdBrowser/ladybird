@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #container > span {
+        font-family: "LateFace", serif;
+    }
+
+    #container > span:nth-child(odd) {
+        color: green;
+    }
+</style>
+<div id="container"></div>
+<script>
+    promiseTest(async () => {
+        const container = document.getElementById("container");
+        for (let index = 0; index < 50; ++index)
+            container.appendChild(document.createElement("span")).textContent = "x";
+        internals.updateStyle();
+
+        internals.resetStyleCounters();
+        const face = new FontFace("LateFace", 'url("../../../Assets/HashSans.woff")');
+        document.fonts.add(face);
+        await face.load();
+        internals.updateStyle();
+
+        // A loaded face moves the fonts of the spans naming it, and no selector reads a font: the
+        // spans are computed again from the rules they matched before.
+        const counters = internals.styleCounters();
+        println(`font users restyled: ${counters.styledElements >= 50}`);
+        println(`elements matched against every rule: ${counters.matchedElements}`);
+        println(`elements sharing a style: ${counters.sharedElements}`);
+        println(`face loaded: ${face.status}`);
+    });
+</script>

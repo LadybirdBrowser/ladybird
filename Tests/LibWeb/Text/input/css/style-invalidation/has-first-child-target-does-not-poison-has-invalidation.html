@@ -29,8 +29,6 @@
         internals.updateStyle();
 
         assertEqual("target matches after child class mutation", getComputedStyle(target).color, "rgb(1, 2, 3)");
-        const counters = styleCounters();
-        assertEqual(":first-child target inside :has() does not force whole-subtree no-op recomputes", counters.elementStyleNoopRecomputations < 10, true);
-        printPassWithCounters(":has() with a :first-child target stays targeted");
+        printPassWithStyleCounters(":has() with a :first-child target stays targeted", 9);
     });
 </script>

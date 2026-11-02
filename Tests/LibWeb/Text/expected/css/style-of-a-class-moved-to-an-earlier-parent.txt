@@ -1,0 +1,4 @@
+no class: first rgb(0, 0, 0), second rgb(0, 0, 0)
+class on the second: first rgb(0, 0, 0), second rgb(0, 128, 0)
+class on the first: first rgb(0, 128, 0), second rgb(0, 0, 0)
+class on the second again: first rgb(0, 0, 0), second rgb(0, 128, 0)

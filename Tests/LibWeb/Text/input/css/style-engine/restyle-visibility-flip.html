@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    #box { width: 50px; height: 50px; background: green; }
+    .invisible { visibility: hidden; }
+</style>
+<div id="box"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const read = (label) => {
+            const hit = document.elementFromPoint(10, 10);
+            println(`${label}: ${getComputedStyle(box).visibility} hit=${hit ? hit.id || hit.tagName : "null"}`);
+        };
+        internals.updateStyle();
+        read("visible");
+        for (const [label, step] of [["hide", () => box.classList.add("invisible")], ["show", () => box.classList.remove("invisible")]]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

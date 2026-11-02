@@ -1,0 +1,2 @@
+animations of the ::before that was displayed: 1
+animations of the ::before that came to be displayed: 1

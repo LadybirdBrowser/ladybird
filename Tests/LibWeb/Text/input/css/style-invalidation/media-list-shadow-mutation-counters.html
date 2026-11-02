@@ -71,12 +71,14 @@
 
         document.body.offsetWidth;
         assertEqual(`${caseData.name} after`, readProperty(target, caseData.property), caseData.after);
-        printPassWithCounters(caseData.name);
+        // Only the host, its shadow tree and the element assigned to its slot should be styled.
+        printPassWithStyleCounters(caseData.name, 5);
 
         fixture.fixture.remove();
     }
 
     test(() => {
+        internals.updateStyle();
         const cases = [
             {
                 name: "shadow media mutation activates bare :host selector",

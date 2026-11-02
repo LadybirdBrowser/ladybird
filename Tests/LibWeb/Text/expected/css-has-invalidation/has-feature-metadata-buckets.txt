@@ -1,6 +1,6 @@
 [add unrelated class]
-  elementStyleRecomputations: 0
+  styled <= 1: true
 [add class referenced by one :has()]
-  elementStyleRecomputations: 0
+  styled <= 1: true
 [add class referenced by two :has() rules]
-  elementStyleRecomputations: 0
+  styled <= 1: true

@@ -9,6 +9,9 @@
     // update_style does not double-invalidate even with the current code.
     //
     // These tests pin that behavior so the optimization commits don't regress it.
+    //
+    // Adding a <style> styles only the elements its rules apply to, beside the arriving <style>
+    // element: .subject where a rule for it applies, nothing else.
 
     function setupFixture() {
         const fixture = makeElement("section");
@@ -25,7 +28,7 @@
         resetStyleCounters();
     }
 
-    function addStyleOnce(name, attributes, cssText) {
+    function addStyleOnce(name, attributes, cssText, bound) {
         const fixture = setupFixture();
         settleAndReset();
 
@@ -36,65 +39,75 @@
         document.head.appendChild(style);
         document.body.offsetWidth;
 
-        printPassWithCounters(name);
+        printPassWithStyleCounters(name, bound);
 
         style.remove();
         fixture.remove();
     }
 
     test(() => {
+        internals.updateStyle();
         addStyleOnce(
             "<style> with empty outer media",
             {},
-            ".subject { color: rgb(1, 2, 3); }"
+            ".subject { color: rgb(1, 2, 3); }",
+            2
         );
 
         addStyleOnce(
             "<style> with outer media=all",
             { media: "all" },
-            ".subject { color: rgb(1, 2, 3); }"
+            ".subject { color: rgb(1, 2, 3); }",
+            2
         );
 
         addStyleOnce(
             "<style> with outer media=screen (matches)",
             { media: "screen" },
-            ".subject { color: rgb(1, 2, 3); }"
+            ".subject { color: rgb(1, 2, 3); }",
+            2
         );
 
         addStyleOnce(
             "<style> with outer media=print (does not match)",
             { media: "print" },
-            ".subject { color: rgb(1, 2, 3); }"
+            ".subject { color: rgb(1, 2, 3); }",
+            1
         );
 
         addStyleOnce(
             "<style> with outer width media that matches",
             { media: "(min-width: 1px)" },
-            ".subject { color: rgb(1, 2, 3); }"
+            ".subject { color: rgb(1, 2, 3); }",
+            2
         );
 
         addStyleOnce(
             "<style> with outer width media that does not match",
             { media: "(min-width: 100000px)" },
-            ".subject { color: rgb(1, 2, 3); }"
+            ".subject { color: rgb(1, 2, 3); }",
+            1
         );
 
         addStyleOnce(
             "<style> with rule that matches no element",
             {},
-            ".no-such-element { color: rgb(1, 2, 3); }"
+            ".no-such-element { color: rgb(1, 2, 3); }",
+            1
         );
 
         addStyleOnce(
             "<style> with inner @media that matches",
             {},
-            "@media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }"
+            "@media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }",
+            2
         );
 
         addStyleOnce(
             "<style> with inner @media that does not match",
             {},
-            "@media (min-width: 100000px) { .subject { color: rgb(1, 2, 3); } }"
+            "@media (min-width: 100000px) { .subject { color: rgb(1, 2, 3); } }",
+            1
         );
 
         addStyleOnce(
@@ -103,7 +116,8 @@
             `
                 @media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }
                 @media all { .subject { background-color: rgb(4, 5, 6); } }
-            `
+            `,
+            2
         );
 
         addStyleOnce(
@@ -112,7 +126,8 @@
             `
                 @media (min-width: 1px) { .subject { color: rgb(1, 2, 3); } }
                 @media print { .subject { background-color: rgb(4, 5, 6); } }
-            `
+            `,
+            2
         );
 
         addStyleOnce(
@@ -124,7 +139,8 @@
                         .subject { color: rgb(1, 2, 3); }
                     }
                 }
-            `
+            `,
+            2
         );
     });
 </script>

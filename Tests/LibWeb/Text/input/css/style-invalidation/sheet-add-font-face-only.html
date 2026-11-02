@@ -7,7 +7,7 @@
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, count) {
@@ -18,9 +18,13 @@
         }
     }
 
-    function dumpCounters(label) {
-        const c = internals.getStyleInvalidationCounters();
-        println(`${label}: elementStyleRecomputations=${c.elementStyleRecomputations}, elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`);
+    function dumpCounters(label, bound) {
+        internals.updateStyle();
+        const c = internals.styleCounters();
+        if (bound === undefined)
+            println(`${label}: styled ${c.styledElements}, full passes ${c.fullPasses}`);
+        else
+            println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}`);
     }
 
     test(() => {
@@ -36,6 +40,7 @@
         document.head.appendChild(fontFaceStyle);
         getComputedStyle(trigger).color;
 
-        dumpCounters("@font-face only sheet add");
+        // Nothing but the arriving style element.
+        dumpCounters("@font-face only sheet add", 1);
     });
 </script>

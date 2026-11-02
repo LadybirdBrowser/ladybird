@@ -1,0 +1,33 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="root"></div>
+<div id="elsewhere"></div>
+<script>
+    // A slot and the elements around it in the shadow tree are flat tree ancestors of the element assigned to it, so
+    // they stop matching `:focus-within` as a subtree holding the focused element leaves.
+    test(() => {
+        const root = document.getElementById("root");
+        const elsewhere = document.getElementById("elsewhere");
+        const build = () => {
+            const host = root.appendChild(document.createElement("div"));
+            const shadow = host.attachShadow({ mode: "open" });
+            shadow.innerHTML = `<style>:focus-within { color: rgb(0, 128, 0); }</style><div id="around"><slot></slot></div>`;
+            const child = host.appendChild(document.createElement("div"));
+            const focusable = child.appendChild(document.createElement("button"));
+            focusable.focus();
+            return { host, around: shadow.getElementById("around"), slot: shadow.querySelector("slot"), child };
+        };
+        const report = ({ around, slot }) => `around ${getComputedStyle(around).color}, slot ${getComputedStyle(slot).color}`;
+
+        for (const [name, change] of [
+            ["remove", ({ child }) => child.remove()],
+            ["replaceChildren", ({ host }) => host.replaceChildren()],
+            ["moveBefore", ({ child }) => elsewhere.moveBefore(child, null)],
+        ]) {
+            const parts = build();
+            println(`${name}, before: ${report(parts)}`);
+            change(parts);
+            println(`${name}, after: ${report(parts)}`);
+        }
+    });
+</script>

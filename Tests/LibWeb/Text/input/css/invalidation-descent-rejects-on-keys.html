@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .on .key-class { color: rgb(0, 128, 0); }
+    .on #key-id { color: rgb(0, 128, 0); }
+    .on [data-key] { color: rgb(0, 128, 0); }
+    .on [DATA-UPPER] { color: rgb(0, 128, 0); }
+    .on section { color: rgb(0, 128, 0); }
+    .on SUMMARY { color: rgb(0, 128, 0); }
+    .on :checked { color: rgb(0, 128, 0); }
+    .on .deep-key .leaf-key { color: rgb(0, 128, 0); }
+</style>
+<div id="root">
+    <p></p>
+    <div class="unrelated"></div>
+    <div class="key-class"></div>
+    <div class="unrelated" id="other-id"></div>
+    <div class="unrelated" id="key-id"></div>
+    <div data-other></div>
+    <div data-key></div>
+    <div data-upper></div>
+    <span></span>
+    <section></section>
+    <summary></summary>
+    <input type="checkbox">
+    <input type="checkbox">
+    <input type="checkbox">
+    <div class="deep-key"><p></p><div class="leaf-key"></div><div class="unrelated"></div></div>
+    <div class="leaf-key"></div>
+</div>
+<script>
+    // Elements sharing their lists and tag are told apart by their states alone, so a level testing a state cannot
+    // remember one as having no candidates for the next. Every other test here has elements carrying no key of the
+    // level beside those that do, with their lists or their tags equal.
+    test(() => {
+        const root = document.getElementById("root");
+        root.querySelectorAll("input")[1].checked = true;
+        const print = title => {
+            println(title);
+            for (const element of root.querySelectorAll("*")) {
+                const checked = element.matches(":checked") ? "checked" : "";
+                const name = [element.localName, element.className, element.id, ...element.getAttributeNames(), checked].join(" ");
+                println(`${name}: ${getComputedStyle(element).color}`);
+            }
+        };
+        getComputedStyle(root).color;
+        root.classList.add("on");
+        print("on");
+        root.classList.remove("on");
+        print("off");
+    });
+</script>

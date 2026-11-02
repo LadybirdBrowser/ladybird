@@ -58,7 +58,6 @@
         child.internals.updateStyle();
         println(`initial animated left: ${child.getComputedStyle(target).left}`);
 
-        child.internals.resetStyleInvalidationCounters();
         await resizeIframe(iframe, child, 500);
         println(`resized animated left: ${child.getComputedStyle(target).left}`);
 

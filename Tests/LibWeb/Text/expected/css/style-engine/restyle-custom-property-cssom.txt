@@ -1,0 +1,42 @@
+initial
+  #middle: --x=rgb(1, 2, 3) --len=4px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(1, 2, 3) --len=4px color=rgb(1, 2, 3) width=4px box=4
+  #second: --x=rgb(0, 0, 255) --len=4px color=rgb(0, 0, 255) width=4px box=4
+  #first::before: --x=rgb(1, 2, 3) --len=4px color=rgb(1, 2, 3) padding-left=4px
+  #second::before: --x=rgb(0, 0, 255) --len=4px color=rgb(0, 0, 255) padding-left=4px
+warm
+  #middle: --x=rgb(200, 100, 0) --len=4px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(200, 100, 0) --len=4px color=rgb(200, 100, 0) width=4px box=4
+  #second: --x=rgb(0, 0, 255) --len=4px color=rgb(0, 0, 255) width=4px box=4
+  #first::before: --x=rgb(200, 100, 0) --len=4px color=rgb(200, 100, 0) padding-left=4px
+  #second::before: --x=rgb(0, 0, 255) --len=4px color=rgb(0, 0, 255) padding-left=4px
+wide
+  #middle: --x=rgb(200, 100, 0) --len=30px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(200, 100, 0) --len=30px color=rgb(200, 100, 0) width=30px box=30
+  #second: --x=rgb(0, 0, 255) --len=30px color=rgb(0, 0, 255) width=30px box=30
+  #first::before: --x=rgb(200, 100, 0) --len=30px color=rgb(200, 100, 0) padding-left=30px
+  #second::before: --x=rgb(0, 0, 255) --len=30px color=rgb(0, 0, 255) padding-left=30px
+inline unregistered
+  #middle: --x=rgb(9, 9, 9) --len=30px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(9, 9, 9) --len=30px color=rgb(9, 9, 9) width=30px box=30
+  #second: --x=rgb(0, 0, 255) --len=30px color=rgb(0, 0, 255) width=30px box=30
+  #first::before: --x=rgb(9, 9, 9) --len=30px color=rgb(9, 9, 9) padding-left=30px
+  #second::before: --x=rgb(0, 0, 255) --len=30px color=rgb(0, 0, 255) padding-left=30px
+inline registered
+  #middle: --x=rgb(9, 9, 9) --len=7px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(9, 9, 9) --len=7px color=rgb(9, 9, 9) width=7px box=7
+  #second: --x=rgb(0, 0, 255) --len=7px color=rgb(0, 0, 255) width=7px box=7
+  #first::before: --x=rgb(9, 9, 9) --len=7px color=rgb(9, 9, 9) padding-left=7px
+  #second::before: --x=rgb(0, 0, 255) --len=7px color=rgb(0, 0, 255) padding-left=7px
+cool
+  #middle: --x=rgb(1, 2, 3) --len=7px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(1, 2, 3) --len=7px color=rgb(1, 2, 3) width=7px box=7
+  #second: --x=rgb(0, 0, 255) --len=7px color=rgb(0, 0, 255) width=7px box=7
+  #first::before: --x=rgb(1, 2, 3) --len=7px color=rgb(1, 2, 3) padding-left=7px
+  #second::before: --x=rgb(0, 0, 255) --len=7px color=rgb(0, 0, 255) padding-left=7px
+narrow
+  #middle: --x=rgb(1, 2, 3) --len=4px color=rgb(0, 0, 0) width=800px box=800
+  #first: --x=rgb(1, 2, 3) --len=4px color=rgb(1, 2, 3) width=4px box=4
+  #second: --x=rgb(0, 0, 255) --len=4px color=rgb(0, 0, 255) width=4px box=4
+  #first::before: --x=rgb(1, 2, 3) --len=4px color=rgb(1, 2, 3) padding-left=4px
+  #second::before: --x=rgb(0, 0, 255) --len=4px color=rgb(0, 0, 255) padding-left=4px

@@ -31,6 +31,6 @@
         customElements.define("x-late", class extends HTMLElement {});
         assertEqual("late target after definition", readProbe(lateTarget), BASE);
         assertEqual("other target after unrelated definition", readProbe(otherTarget), MATCH);
-        printPassWithCounters(":defined invalidation is keyed by the defined element");
+        printPass(":defined invalidation is keyed by the defined element");
     });
 </script>

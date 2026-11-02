@@ -20,15 +20,18 @@
         // A style change on an element has to reach the descendants whose style container queries
         // resolved against it. A change on anything else must leave the dependent unaffected.
         println(`dependent before: ${getComputedStyle(dependent).color}`);
+        internals.updateStyle();
 
-        flushPendingStyleWork();
+        resetStyleCounters();
         unqueried.classList.add("changed");
         internals.updateStyle();
+        printPassWithStyleCounters("a change on an element no query names styles only that element", 1);
         println(`dependent after unrelated change: ${getComputedStyle(dependent).color}`);
 
-        flushPendingStyleWork();
+        resetStyleCounters();
         queried.classList.add("changed");
         internals.updateStyle();
+        printPassWithStyleCounters("a change on the query container styles its subtree", 3);
         println(`dependent after: ${getComputedStyle(dependent).color}`);
     });
 </script>

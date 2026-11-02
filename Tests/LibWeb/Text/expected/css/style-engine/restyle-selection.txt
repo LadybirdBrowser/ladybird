@@ -1,0 +1,4 @@
+deferred: outer=rgb(10, 20, 30) on rgb(40, 50, 60) inner=rgb(100, 110, 120) on rgb(40, 50, 60) leaf=rgb(100, 110, 120) on rgb(40, 50, 60)
+selected: outer=rgb(10, 20, 30) on rgb(40, 50, 60) inner=rgb(100, 110, 120) on rgb(40, 50, 60) leaf=rgb(100, 110, 120) on rgb(40, 50, 60)
+moved: outer=rgb(10, 20, 30) on rgb(70, 80, 90) inner=rgb(100, 110, 120) on rgb(70, 80, 90) leaf=rgb(100, 110, 120) on rgb(70, 80, 90)
+deselected: outer=rgb(10, 20, 30) on rgb(70, 80, 90) inner=rgb(100, 110, 120) on rgb(70, 80, 90) leaf=rgb(100, 110, 120) on rgb(70, 80, 90)

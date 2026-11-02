@@ -1,2 +1,3 @@
 PASS: children reading only the inherited half share a style: true
+PASS: the second plain child reuses the first one's record: true
 PASS: a child that reads the other half is not offered another parent's answer

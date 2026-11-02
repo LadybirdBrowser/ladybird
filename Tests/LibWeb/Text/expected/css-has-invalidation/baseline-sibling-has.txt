@@ -1,1 +1,2 @@
 [after add .match on adjacent sibling]
+  styled <= 2: true

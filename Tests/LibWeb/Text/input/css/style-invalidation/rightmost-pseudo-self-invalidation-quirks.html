@@ -13,10 +13,9 @@
             const state = build(fixture);
             document.body.offsetWidth;
 
-            resetStyleCounters();
             mutate(state);
             verify(state);
-            printPassWithCounters(testName);
+            printPass(testName);
         } finally {
             style.remove();
             fixture.remove();
@@ -37,10 +36,9 @@
             const state = build(fixture, host, shadowRoot);
             document.body.offsetWidth;
 
-            resetStyleCounters();
             mutate(state);
             verify(state);
-            printPassWithCounters(testName);
+            printPass(testName);
         } finally {
             fixture.remove();
         }
@@ -823,7 +821,6 @@
             ({ input }) => {
                 input.classList.add("foo");
                 document.body.offsetWidth;
-                resetStyleCounters();
                 input.checked = true;
             },
             ({ input }) => {
@@ -842,7 +839,6 @@
             ({ input }) => {
                 input.classList.add("Foo");
                 document.body.offsetWidth;
-                resetStyleCounters();
                 input.checked = true;
             },
             ({ input }) => {

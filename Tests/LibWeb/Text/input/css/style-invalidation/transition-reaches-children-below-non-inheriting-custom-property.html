@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @property --not-inherited {
+        syntax: "*";
+        inherits: false;
+    }
+    :root {
+        --inherited: 1;
+    }
+    #grandparent {
+        --not-inherited: 1;
+    }
+    #transitioning {
+        color: rgb(0, 0, 255);
+        transition: color 1000s steps(1, end);
+    }
+    #grandparent.moved #transitioning {
+        color: rgb(255, 0, 0);
+    }
+</style>
+<div id="grandparent">
+    <div id="transitioning">
+        <div id="child"></div>
+    </div>
+</div>
+<script>
+    asyncTest(done => {
+        const report = label => println(label + ": transitioning " + getComputedStyle(transitioning).color + ", child " + getComputedStyle(child).color);
+        requestAnimationFrame(() => {
+            report("before the transition");
+            grandparent.classList.add("moved");
+            requestAnimationFrame(() => {
+                report("first frame of the transition");
+                requestAnimationFrame(() => {
+                    report("second frame of the transition");
+                    done();
+                });
+            });
+        });
+    });
+</script>

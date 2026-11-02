@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="container"></div>
+<script>
+    const css = `:host(.on) .x { color: rgb(0, 128, 0); }
+        ::slotted(.s) { color: rgb(0, 0, 255); }
+        :host { border-left: 1px solid; }
+        :host(.on) { border-left-width: 3px; }
+        .x { animation: grow 1s paused; }
+        @keyframes grow { from { opacity: 0.5; } to { opacity: 0.5; } }`;
+    function makeComponent(parent) {
+        const host = document.createElement("div");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<style>${css}</style><span class="x">x</span><slot></slot>`;
+        const light = document.createElement("span");
+        light.textContent = "light";
+        host.appendChild(light);
+        parent.appendChild(host);
+        return { host, root, light, x: root.querySelector(".x") };
+    }
+    function describe(label, component) {
+        const style = getComputedStyle;
+        println(`${label}: x=${style(component.x).color} opacity=${style(component.x).opacity} light=${style(component.light).color} border=${style(component.host).borderLeftWidth}`);
+    }
+
+    test(() => {
+        const first = makeComponent(container);
+        const second = makeComponent(container);
+        // A component nested in the shadow tree of another of its kind.
+        const nested = makeComponent(first.root);
+        internals.updateStyle();
+        describe("first", first);
+        describe("second", second);
+        describe("nested", nested);
+
+        first.host.classList.add("on");
+        nested.light.classList.add("s");
+        internals.updateStyle();
+        describe("first on", first);
+        describe("second", second);
+        describe("nested slotted", nested);
+
+        nested.host.classList.add("on");
+        second.light.classList.add("s");
+        first.host.classList.remove("on");
+        internals.updateStyle();
+        describe("first off", first);
+        describe("second slotted", second);
+        describe("nested on", nested);
+
+        // A tree leaving the group keeps its styles, and the others theirs.
+        const extra = document.createElement("style");
+        extra.textContent = ".x { opacity: 0.25; animation: none; }";
+        second.root.appendChild(extra);
+        internals.updateStyle();
+        describe("second with its own sheet", second);
+        describe("nested", nested);
+        extra.remove();
+        internals.updateStyle();
+        describe("second again", second);
+        describe("first", first);
+    });
+</script>

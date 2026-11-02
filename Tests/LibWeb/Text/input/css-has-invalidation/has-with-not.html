@@ -17,12 +17,12 @@
 
         document.getElementById("target").classList.add("x");
         internals.updateStyle();
-        printCounters("add .x (anchor should stop being styled)");
+        printCounters("add .x (anchor should stop being styled)", 3);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         document.getElementById("target").classList.remove("x");
         internals.updateStyle();
-        printCounters("remove .x (anchor should be styled again)");
+        printCounters("remove .x (anchor should be styled again)", 3);
     });
 </script>

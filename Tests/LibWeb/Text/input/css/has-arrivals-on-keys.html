@@ -1,0 +1,98 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .by-class:has(.w-class) { color: rgb(0, 128, 0); }
+    .by-tag:has(w-tag) { color: rgb(0, 128, 0); }
+    .by-id:has(#w-id) { color: rgb(0, 128, 0); }
+    .by-attribute:has([data-w]) { color: rgb(0, 128, 0); }
+    .by-upper-attribute:has([DATA-UPPER]) { color: rgb(0, 128, 0); }
+    .by-state:has(:checked) { color: rgb(0, 128, 0); }
+    .by-child:has(> .w-child) { color: rgb(0, 128, 0); }
+    .by-later:has(~ .w-later) { color: rgb(0, 128, 0); }
+    :is(section):has(.w-is) { color: rgb(0, 128, 0); }
+    [data-anchor]:has(.w-attribute-anchor) { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // No query here reads positions or emptiness or reaches out through a nested selector, so an element arrives or
+    // leaves unseen where it carries no key of any: every element below that carries one has to reach its anchor.
+    test(() => {
+        const root = document.getElementById("root");
+        const make = html => {
+            const template = document.createElement("template");
+            template.innerHTML = html;
+            return template.content.firstElementChild;
+        };
+        const report = (title, anchor) => println(`${title}: ${getComputedStyle(anchor).color}`);
+        const cases = [
+            ["by-class", "<div class=w-class></div>"],
+            ["by-class", "<div><p><span class=w-class></span></p></div>"],
+            ["by-tag", "<w-tag></w-tag>"],
+            ["by-tag", "<div><w-tag></w-tag></div>"],
+            ["by-id", "<div id=w-id></div>"],
+            ["by-attribute", "<div data-w></div>"],
+            ["by-upper-attribute", "<div data-upper></div>"],
+            ["by-state", "<input type=checkbox checked>"],
+            ["by-child", "<div class=w-child></div>"],
+        ];
+        for (const [className, html] of cases) {
+            const anchor = make(`<div class=${className}><div><p></p></div></div>`);
+            root.append(anchor);
+            const title = `${className} ${html}`;
+            report(`${title} before`, anchor);
+            anchor.firstElementChild.before(make("<div class=w-noise><i></i></div>"));
+            report(`${title} with noise`, anchor);
+            const witness = make(html);
+            anchor.append(witness);
+            report(`${title} arrived`, anchor);
+            witness.remove();
+            report(`${title} left`, anchor);
+            anchor.remove();
+        }
+
+        // An anchor by a tag and by an attribute.
+        const section = make("<section><div></div></section>");
+        root.append(section);
+        report("section before", section);
+        const inSection = make("<div class=w-is></div>");
+        section.append(inSection);
+        report("section arrived", section);
+        inSection.remove();
+        report("section left", section);
+
+        // An anchor whose required key comes or goes in the same transaction as the witness.
+        const anchor = make("<div></div>");
+        root.append(anchor);
+        report("no key, no witness", anchor);
+        const witness = make("<div class=w-class></div>");
+        anchor.append(witness);
+        report("no key, witness", anchor);
+        witness.remove();
+        report("no key, witness left", anchor);
+        anchor.className = "by-class";
+        anchor.append(witness);
+        report("key and witness together", anchor);
+        anchor.className = "";
+        witness.remove();
+        report("key and witness leave together", anchor);
+        anchor.setAttribute("data-anchor", "");
+        const byAttribute = make("<div class=w-attribute-anchor></div>");
+        anchor.append(byAttribute);
+        report("attribute and witness together", anchor);
+        anchor.removeAttribute("data-anchor");
+        report("attribute leaves", anchor);
+        anchor.remove();
+
+        // An anchor among its later siblings.
+        const sibling = make("<div class=by-later></div>");
+        root.append(sibling);
+        report("later before", sibling);
+        const later = make("<div class=w-later></div>");
+        root.append(make("<div></div>"));
+        report("later noise", sibling);
+        root.append(later);
+        report("later arrived", sibling);
+        later.remove();
+        report("later left", sibling);
+    });
+</script>

@@ -1,0 +1,149 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="sheet">
+    #unused { color: rgb(1, 1, 1); }
+</style>
+<body>
+<script>
+    // An attribute nothing reads is withheld from the style engine, and the element carrying it is published once
+    // something comes to read the name. Each way a selector arrives has to reach that, and so does a value the engine
+    // heard of before the name was known to be unread, of an attribute written since.
+    const GREEN = "rgb(0, 128, 0)";
+    const sheet = document.getElementById("sheet").sheet;
+
+    function element() {
+        const div = document.createElement("div");
+        document.body.append(div);
+        return div;
+    }
+
+    function learn(div) {
+        getComputedStyle(div).color;
+    }
+
+    function report(name, div, expected) {
+        const color = getComputedStyle(div).color;
+        println(`${name}: ${color === expected ? "PASS" : `FAIL ${color}`}`);
+    }
+
+    // Published while a queued rule leaves the host not knowing, then written while the name is known to be unread.
+    function stale(name) {
+        const div = element();
+        sheet.insertRule(`#unused-${name} { color: rgb(1, 1, 1); }`);
+        div.setAttribute(name, "a");
+        learn(div);
+        return div;
+    }
+
+    asyncTest(async done => {
+        let div = stale("data-gone");
+        div.removeAttribute("data-gone");
+        learn(div);
+        sheet.insertRule(`[data-gone] { color: ${GREEN}; }`);
+        report("removed while withheld, name test", div, "rgb(0, 0, 0)");
+
+        div = stale("data-gone-value");
+        div.removeAttribute("data-gone-value");
+        learn(div);
+        sheet.insertRule(`[data-gone-value="a"] { color: ${GREEN}; }`);
+        report("removed while withheld, value test", div, "rgb(0, 0, 0)");
+
+        div = stale("data-gone-no-read");
+        div.removeAttribute("data-gone-no-read");
+        sheet.insertRule(`[data-gone-no-read] { color: ${GREEN}; }`);
+        report("removed beside the rule", div, "rgb(0, 0, 0)");
+
+        div = stale("data-changed");
+        div.setAttribute("data-changed", "b");
+        learn(div);
+        sheet.insertRule(`[data-changed="a"] { color: ${GREEN}; }`);
+        report("changed while withheld, old value test", div, "rgb(0, 0, 0)");
+
+        div = stale("data-changed-new");
+        div.setAttribute("data-changed-new", "b");
+        learn(div);
+        sheet.insertRule(`[data-changed-new="b"] { color: ${GREEN}; }`);
+        report("changed while withheld, new value test", div, GREEN);
+
+        div = stale("data-returned");
+        div.removeAttribute("data-returned");
+        learn(div);
+        div.setAttribute("data-returned", "a");
+        learn(div);
+        sheet.insertRule(`[data-returned="a"] { color: ${GREEN}; }`);
+        report("removed and written again", div, GREEN);
+
+        div = stale("data-moved");
+        div.removeAttribute("data-moved");
+        learn(div);
+        div.remove();
+        sheet.insertRule(`[data-moved] { color: ${GREEN}; }`);
+        learn(document.body);
+        document.body.append(div);
+        report("removed while withheld, away as the rule came", div, "rgb(0, 0, 0)");
+
+        const arriving = name => {
+            const div = element();
+            learn(div);
+            div.setAttribute(name, "");
+            learn(div);
+            return div;
+        };
+
+        div = arriving("data-adopted");
+        const adopted = new CSSStyleSheet();
+        adopted.replaceSync(`[data-adopted] { color: ${GREEN}; }`);
+        document.adoptedStyleSheets = [adopted];
+        report("adopted sheet", div, GREEN);
+
+        div = arriving("data-replaced");
+        adopted.replaceSync(`[data-replaced] { color: ${GREEN}; }`);
+        report("replaced sheet", div, GREEN);
+
+        div = arriving("data-disabled");
+        const disabledStyle = document.createElement("style");
+        disabledStyle.textContent = `[data-disabled] { color: ${GREEN}; }`;
+        document.head.append(disabledStyle);
+        report("sheet appended", div, GREEN);
+
+        div = arriving("data-media");
+        const mediaStyle = document.createElement("style");
+        mediaStyle.media = "print";
+        mediaStyle.textContent = `[data-media] { color: ${GREEN}; }`;
+        document.head.append(mediaStyle);
+        learn(div);
+        div.setAttribute("data-media", "x");
+        mediaStyle.media = "all";
+        report("sheet whose media came to apply", div, GREEN);
+
+        const host = element();
+        const shadow = host.attachShadow({ mode: "open" });
+        div = document.createElement("div");
+        shadow.append(div);
+        learn(div);
+        div.setAttribute("data-shadow", "");
+        learn(div);
+        const shadowSheet = new CSSStyleSheet();
+        shadowSheet.replaceSync(`[data-shadow] { color: ${GREEN}; }`);
+        shadow.adoptedStyleSheets = [shadowSheet];
+        report("sheet adopted by a shadow root", div, GREEN);
+
+        // A sheet another document parsed: this document takes the parse rather than making it.
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<!doctype html><link rel=stylesheet href="${new URL("withheld-attribute-resource.css", location.href)}">`;
+        await new Promise(resolve => {
+            frame.onload = resolve;
+            document.body.append(frame);
+        });
+        div = arriving("data-shared");
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "withheld-attribute-resource.css";
+        await new Promise(resolve => {
+            link.onload = resolve;
+            document.head.append(link);
+        });
+        report("sheet another document parsed", div, GREEN);
+        done();
+    });
+</script>

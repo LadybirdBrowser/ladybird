@@ -33,7 +33,7 @@
         }
         const stream = document.getElementById("stream");
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         for (let i = 0; i < 10; ++i) {
             const p = document.createElement("p");
@@ -42,11 +42,8 @@
             internals.updateStyle();
         }
 
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.elementStyleRecomputations < 100)
-            println("PASS: appends near interaction :has() stayed targeted");
-        else
-            println(`FAIL: appends near interaction :has() recomputed ${counters.elementStyleRecomputations} elements`);
+        const counters = internals.styleCounters();
+        println(`appends near interaction :has() styled fewer than 100: ${counters.styledElements < 100}, full passes: ${counters.fullPasses}`);
 
         // Focus changes and removal of a focused element must still invalidate
         // the :has(:focus) anchor.

@@ -1,0 +1,5 @@
+initial: content="a" width=20px color=rgb(0, 0, 0) text.left=20 box.height=16
+big: content="bb" width=60px color=rgb(0, 0, 0) text.left=60 box.height=30
+colored: content="bb" width=60px color=rgb(255, 0, 0) text.left=60 box.height=30
+small: content="a" width=20px color=rgb(255, 0, 0) text.left=20 box.height=16
+plain: content="a" width=20px color=rgb(0, 0, 0) text.left=20 box.height=16

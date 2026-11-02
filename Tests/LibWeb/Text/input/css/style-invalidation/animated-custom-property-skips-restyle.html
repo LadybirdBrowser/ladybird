@@ -20,6 +20,7 @@
 <div id="ordinary"></div>
 <script>
     test(() => {
+        internals.updateStyle();
         CSS.registerProperty({ name: "--turn", syntax: "<angle>", inherits: false, initialValue: "0deg" });
         const results = [];
         for (const id of ["plain", "inactive", "ordinary"]) {
@@ -28,13 +29,12 @@
             animation.pause();
             animation.currentTime = 125;
             internals.updateStyle();
-            internals.resetStyleInvalidationCounters();
+            internals.resetStyleCounters();
             for (const time of [375, 625, 125]) {
                 animation.currentTime = time;
                 internals.updateStyle();
             }
-            const counters = internals.getStyleInvalidationCounters();
-            const recomputations = counters.elementStyleRecomputations + counters.engineComputedStyleRecords;
+            const recomputations = internals.styleCounters().styledElements;
             const rotation = getComputedStyle(target).getPropertyValue("--rotation");
             results.push(`${id}: ${recomputations === 0 ? "skipped" : "recomputed"}, ${rotation}`);
         }

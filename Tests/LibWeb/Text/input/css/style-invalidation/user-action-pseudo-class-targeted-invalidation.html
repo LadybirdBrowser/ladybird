@@ -50,12 +50,12 @@
         internals.updateStyle();
     }
 
-    function dumpCounters(label) {
-        const c = internals.getStyleInvalidationCounters();
-        println(
-            `${label}: elementStyleRecomputations=${c.elementStyleRecomputations}, ` +
-            `elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`
-        );
+    function dumpCounters(label, bound) {
+        const c = internals.styleCounters();
+        if (bound === undefined)
+            println(`${label}: styled ${c.styledElements}, full passes ${c.fullPasses}`);
+        else
+            println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}`);
     }
 
     function appendUnaffectedSubtree(parent, count) {
@@ -80,25 +80,23 @@
 
         getComputedStyle(plain).color;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
         moveTo(plain);
-        dumpCounters("plain text hover");
+        dumpCounters("plain text hover", 0);
 
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
         moveTo(link);
-        dumpCounters("link hover");
+        dumpCounters("link hover", 1);
         println(`link color: ${getComputedStyle(link).color}`);
 
         appendUnaffectedSubtree(activeContainer, 100);
         getComputedStyle(activeContainer).color;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
         clickAndHold(activeTarget);
-
-        const counters = internals.getStyleInvalidationCounters();
-        println(
-            `active state: elementStyleRecomputations=${counters.elementStyleRecomputations}`
-        );
+        // The target, its container and the two elements their :active rules reach, not the 100
+        // unaffected leaves.
+        dumpCounters("active state", 4);
         internals.mouseUp(0, 0);
     });
 </script>

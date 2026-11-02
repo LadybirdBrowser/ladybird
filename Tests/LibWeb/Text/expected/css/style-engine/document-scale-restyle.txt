@@ -1,0 +1,13 @@
+descendant styled the same at every document size: true
+descendant full passes: 0, 0, 0
+descendant changed: descendant-target, descendant-target, descendant-target
+sibling styled the same at every document size: true
+sibling full passes: 0, 0, 0
+sibling changed: sibling-target, sibling-target, sibling-target
+positional styled the same at every document size: true
+positional full passes: 0, 0, 0
+positional changed: div positional-target, div positional-target, div positional-target
+relational styled the same at every document size: true
+relational full passes: 0, 0, 0
+relational changed: relational-anchor span, relational-anchor span, relational-anchor span
+largest unrelated population: 4096

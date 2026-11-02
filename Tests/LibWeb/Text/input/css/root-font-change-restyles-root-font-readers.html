@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    @property --registered-length {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    html { font-size: 16px; }
+    html.big { font-size: 20px; }
+    body { font-size: 16px; margin: 0; }
+    #remWidth { width: 2rem; }
+    #calcWidth { width: calc(10px + 1rlh); line-height: normal; }
+    #pxWidth { width: 20px; }
+    #emWidth { width: 2em; }
+    #pseudo::before { content: ""; display: block; width: 3rem; }
+    #substituted { --w: 4rem; width: var(--w); }
+    #registered { --registered-length: 5rem; width: var(--registered-length); }
+    #fontSize { font-size: 0.5rem; }
+    #fontSize > span { display: block; width: 2em; }
+    #warm { font-size: 20px; }
+</style>
+<div id="warm">x</div>
+<div id="remWidth"></div>
+<div id="calcWidth"></div>
+<div id="pxWidth"></div>
+<div id="emWidth"></div>
+<div id="pseudo"></div>
+<div id="substituted"></div>
+<div id="registered"></div>
+<div id="fontSize"><span id="fontSizeChild"></span></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const ids = ["remWidth", "calcWidth", "pxWidth", "emWidth", "substituted", "registered", "fontSizeChild"];
+        const widths = () =>
+            ids
+                .map(id => `${id}=${getComputedStyle(document.getElementById(id)).width}`)
+                .concat(`pseudo=${getComputedStyle(pseudo, "::before").width}`)
+                .join(" ");
+        println(`before: ${widths()}`);
+        internals.updateStyle();
+        document.documentElement.style.fontSize = "20px";
+        internals.updateStyle();
+        const styled = internals.styleLastPass().styled;
+        println(`after: ${widths()}`);
+        for (const id of ["remWidth", "calcWidth", "pseudo", "substituted", "registered", "fontSize", "fontSizeChild"])
+            println(`${id} styled: ${styled.includes(id)}`);
+        for (const id of ["pxWidth", "emWidth"])
+            println(`${id} styled: ${styled.includes(id)}`);
+    });
+</script>

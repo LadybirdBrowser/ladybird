@@ -7,7 +7,7 @@
         getComputedStyle(triggerElement).animationName;
         getComputedStyle(triggerElement).animationName;
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
     }
 
     function addBystanders(parent, count) {
@@ -18,9 +18,13 @@
         }
     }
 
-    function dumpCounters(label) {
-        const c = internals.getStyleInvalidationCounters();
-        println(`${label}: elementStyleRecomputations=${c.elementStyleRecomputations}, elementStyleNoopRecomputations=${c.elementStyleNoopRecomputations}`);
+    function dumpCounters(label, bound) {
+        internals.updateStyle();
+        const c = internals.styleCounters();
+        if (bound === undefined)
+            println(`${label}: styled ${c.styledElements}, full passes ${c.fullPasses}`);
+        else
+            println(`${label}: styled <= ${bound}: ${c.styledElements <= bound}`);
     }
 
     test(() => {
@@ -46,6 +50,8 @@
         shadowRoot.appendChild(keyframesStyle);
         getComputedStyle(host).animationName;
 
-        dumpCounters("@keyframes only sheet add (host animation-name via :host)");
+        // At most one element, the arriving style element: the host's animation is planned again
+        // without a restyle.
+        dumpCounters("@keyframes only sheet add (host animation-name via :host)", 1);
     });
 </script>

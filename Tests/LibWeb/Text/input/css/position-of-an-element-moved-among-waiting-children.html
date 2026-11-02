@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    :nth-child(even) { padding-left: 2px; }
+    #hidden { display: none; }
+</style>
+<div id="from"><div id="moved"></div></div>
+<div id="hidden"><div id="to"><div id="kept"></div></div></div>
+<script>
+    // The children of an element in a display:none subtree can wait to take part in style until something asks. One
+    // moved in has taken part all along, and where it stands among them still counts them.
+    asyncTest(async done => {
+        const to = document.getElementById("to");
+        const moved = document.getElementById("moved");
+        const kept = document.getElementById("kept");
+        const all = [...document.querySelectorAll("div")];
+        await animationFrame();
+        for (const element of all)
+            getComputedStyle(element).paddingLeft;
+        await animationFrame();
+        to.moveBefore(moved, kept);
+        to.prepend(document.createElement("div"));
+        await animationFrame();
+        await animationFrame();
+        println(`second: matches ${moved.matches(":nth-child(even)")}, padding ${getComputedStyle(moved).paddingLeft}`);
+        println(`third: matches ${kept.matches(":nth-child(even)")}, padding ${getComputedStyle(kept).paddingLeft}`);
+        done();
+    });
+</script>

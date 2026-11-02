@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
+<script src="_helpers.js"></script>
 <script>
     function settleDocumentStyle() {
         document.documentElement.classList.toggle("__settle__");
         getComputedStyle(document.body).color;
         document.documentElement.classList.toggle("__settle__");
         getComputedStyle(document.body).color;
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
     }
 
     test(() => {
         const noHasSheet = new CSSStyleSheet();
         noHasSheet.replaceSync(".target { color: green; }");
 
+        internals.updateStyle();
         settleDocumentStyle();
 
         const shadowRoots = [];
@@ -31,9 +33,7 @@
         }
         getComputedStyle(document.body).color;
 
-        const countersAfterNoHasMutation = internals.getStyleInvalidationCounters();
-        println("[cold shadow roots without :has()]");
-        println(`  elementStyleRecomputations: ${countersAfterNoHasMutation.elementStyleRecomputations}`);
+        printCounters("cold shadow roots without :has()", 50);
 
         const hasSheet = new CSSStyleSheet();
         hasSheet.replaceSync(":host(:has(.target)) { color: red; }");
@@ -50,8 +50,6 @@
         host.appendChild(target);
         println(getComputedStyle(host).color);
 
-        const countersAfterHasMutation = internals.getStyleInvalidationCounters();
-        println("[cold shadow root with :has()]");
-        println(`  elementStyleRecomputations: ${countersAfterHasMutation.elementStyleRecomputations}`);
+        printCounters("cold shadow root with :has()", 2);
     });
 </script>

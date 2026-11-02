@@ -1,0 +1,18 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="host"></div>
+<script>
+    // A slot's fallback content stands in the flat tree only until the slot is assigned something, so the elements above
+    // the slot stop matching `:focus-within` as that happens, while the focused element stays where it is.
+    test(() => {
+        const host = document.getElementById("host");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>:focus-within { color: rgb(0, 128, 0); }</style><div id="around"><slot><button>x</button></slot></div>`;
+        const around = shadow.getElementById("around");
+        shadow.querySelector("button").focus();
+        const report = label => println(`${label}: ${getComputedStyle(around).color} ${around.matches(":focus-within")}`);
+        report("before");
+        host.append(document.createElement("div"));
+        report("after");
+    });
+</script>

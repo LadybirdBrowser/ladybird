@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<style>
+    .last:nth-last-child(2n+1 of div) {
+        --matched: yes;
+    }
+    .first:nth-child(2n+1 of div) {
+        --matched: yes;
+    }
+    .nested:nth-last-child(2n+1 of :nth-last-child(n+2 of :nth-last-of-type(n+2))) {
+        --matched: yes;
+    }
+</style>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const [name, html, className, change] of [
+            ["a later sibling replaced", `<div></div><div class="last"></div><div></div><a id="other"></a>`, "last", host => host.querySelector("#other").replaceWith(document.createElement("div"))],
+            ["a later sibling moved in as another leaves", `<div></div><div class="last"></div><div></div><a id="other"><div><div id="moved"></div></div></a>`, "last", host => {
+                host.querySelector(".last").after(host.querySelector("#moved"));
+                host.querySelector("#other").remove();
+            }],
+            ["an earlier sibling replaced", `<a id="other"></a><div></div><div class="first"></div>`, "first", host => host.querySelector("#other").replaceWith(document.createElement("div"))],
+            ["an earlier sibling moved in as another leaves", `<a id="other"><div><div id="moved"></div></div></a><div></div><div class="first"></div>`, "first", host => {
+                host.querySelector(".first").before(host.querySelector("#moved"));
+                host.querySelector("#other").remove();
+            }],
+            ["nested selectors", `<div></div><div class="nested"></div><div></div><a id="other"><div><div id="moved"></div></div></a>`, "nested", host => {
+                host.querySelector(".nested").after(host.querySelector("#moved"));
+                host.querySelector("#other").remove();
+            }],
+        ]) {
+            const host = document.createElement("section");
+            document.body.append(host);
+            host.innerHTML = html;
+            const target = host.querySelector(`.${className}`);
+            internals.updateStyle();
+            const before = getComputedStyle(target).getPropertyValue("--matched");
+            change(host);
+            const after = getComputedStyle(target).getPropertyValue("--matched");
+            const selector = [...document.styleSheets[0].cssRules].find(rule => rule.selectorText.startsWith(`.${className}`)).selectorText;
+            println(`${name}: "${before}" then "${after}", matches ${target.matches(selector)}`);
+            host.remove();
+        }
+    });
+</script>

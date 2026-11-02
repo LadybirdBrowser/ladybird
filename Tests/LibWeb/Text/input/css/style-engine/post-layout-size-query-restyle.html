@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #container { container-type: inline-size; width: 100px; }
+    @container (min-width: 200px) {
+        #dependent { color: rgb(1, 2, 3); }
+    }
+</style>
+<div id="container"><span id="dependent"></span></div>
+<script>
+    test(() => {
+        const container = document.getElementById("container");
+        const dependent = document.getElementById("dependent");
+        document.body.offsetWidth;
+
+        container.style.width = "300px";
+        document.body.offsetWidth;
+
+        println("dependent color: " + getComputedStyle(dependent).color);
+    });
+</script>

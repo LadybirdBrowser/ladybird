@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target:checked + #reaction { color: green; }
+</style>
+<input id="target" type="checkbox">
+<span id="reaction"></span>
+<span id="query"></span>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const query = document.getElementById("query");
+        const reaction = document.getElementById("reaction");
+        internals.updateStyle();
+
+        target.checked = true;
+        getComputedStyle(query).color;
+
+        internals.updateStyle();
+        const reactionColor = getComputedStyle(reaction).color;
+
+        println("reaction color: " + reactionColor);
+    });
+</script>

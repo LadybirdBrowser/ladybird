@@ -12,11 +12,12 @@
 <script>
     test(() => {
         getComputedStyle(document.getElementById("target")).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        resetCounters();
 
         // No :has() in any stylesheet: walk must not run, no matches should happen.
         document.getElementById("target").classList.add("descendant");
         getComputedStyle(document.getElementById("target")).color;
-        printCounters("after add .descendant (no :has() in sheet)");
+        printCounters("after add .descendant (no :has() in sheet)", 1);
     });
 </script>

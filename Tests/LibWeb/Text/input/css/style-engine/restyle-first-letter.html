@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; font: 16px/20px serif; }
+    #box { width: 300px; }
+    #box.styled::first-letter { color: rgb(255, 0, 0); font-size: 40px; width: 100px; }
+    #box.styled.green::first-letter { color: rgb(0, 128, 0); }
+</style>
+<div id="box">hello <span id="text">x</span></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const text = document.getElementById("text");
+        const read = (label) => {
+            const style = getComputedStyle(box, "::first-letter");
+            println(`${label}: color=${style.color} font-size=${style.fontSize} width=${style.width} box.height=${box.offsetHeight} text.left=${Math.round(text.getBoundingClientRect().left)}`);
+        };
+        internals.updateStyle();
+        read("initial");
+        for (const [label, step] of [["styled", () => box.classList.add("styled")], ["green", () => box.classList.add("green")], ["unstyled", () => box.classList.remove("styled", "green")]]) {
+            step();
+            internals.updateStyle();
+            read(label);
+        }
+    });
+</script>

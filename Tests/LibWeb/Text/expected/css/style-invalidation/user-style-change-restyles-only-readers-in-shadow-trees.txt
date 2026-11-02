@@ -1,0 +1,4 @@
+with a user style: styled plainReader sheetReader
+with a user style: readers rgb(1, 2, 3) rgb(1, 2, 3), animated opacity=0.25
+after the user style: styled plainReader sheetReader
+after the user style: readers rgb(0, 0, 0) rgb(0, 0, 0), animated opacity=0.5

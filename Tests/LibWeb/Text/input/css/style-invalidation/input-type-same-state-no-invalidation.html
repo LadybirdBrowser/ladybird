@@ -31,7 +31,7 @@
 
         const input = document.getElementById("file-input");
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         // Re-setting the type attribute to a value that parses to the same
         // state must not rebuild the input's internal shadow tree. If it does,
@@ -40,10 +40,10 @@
         input.setAttribute("type", "file");
         internals.updateStyle();
 
-        const counters = internals.getStyleInvalidationCounters();
-        if (counters.elementStyleRecomputations < 10)
+        const styled = internals.styleCounters().styledElements;
+        if (styled < 10)
             println("PASS: same-state type set stayed targeted");
         else
-            println(`FAIL: same-state type set recomputed ${counters.elementStyleRecomputations} elements`);
+            println(`FAIL: same-state type set styled ${styled} elements`);
     });
 </script>

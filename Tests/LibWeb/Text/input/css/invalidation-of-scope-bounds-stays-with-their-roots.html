@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @scope (li:first-child) { .in-first { color: rgb(0, 128, 0); } }
+    @scope (.a + .b) { .in-next { color: rgb(0, 128, 0); } }
+    @scope (.card:has(.on)) { .in-card { color: rgb(0, 128, 0); } }
+    @scope (:nth-child(1 of .x)) { .in-of { color: rgb(0, 128, 0); } }
+    .plain:first-child { margin-left: 1px; }
+    .plain + .plain { margin-left: 2px; }
+</style>
+<div id="unrelated"><div class="plain"><span>x</span></div><div class="plain"><span>x</span></div></div>
+<ul id="list"><li><a class="in-first">x</a></li></ul>
+<script>
+    // What a bound of `@scope` tests restyles the subtrees of the elements it matched or matches, rather than those of
+    // the children of any parent whose children read where they stand, or the whole document.
+    test(() => {
+        const unrelated = document.getElementById("unrelated");
+        const list = document.getElementById("list");
+        const link = list.querySelector("a");
+        const subtreesHinted = change => {
+            getComputedStyle(unrelated).color;
+            internals.resetStyleCounters();
+            change();
+            getComputedStyle(unrelated).color;
+            const counters = internals.styleCounters();
+            return counters.fullPasses === 0 ? counters.hintedSubtrees : "full pass";
+        };
+
+        const newcomer = document.createElement("div");
+        println(`arrival among children read by a plain rule: ${subtreesHinted(() => unrelated.prepend(newcomer))}`);
+        println(`departure among children read by a plain rule: ${subtreesHinted(() => newcomer.remove())}`);
+        println(`a class nothing tests: ${subtreesHinted(() => unrelated.classList.add("untested"))}`);
+
+        const pushed = document.createElement("li");
+        println(`arrival moving a root: ${subtreesHinted(() => list.prepend(pushed)) > 0}`);
+        println(`moved root: ${getComputedStyle(link).color}`);
+        pushed.remove();
+        println(`moved back: ${getComputedStyle(link).color}`);
+    });
+</script>

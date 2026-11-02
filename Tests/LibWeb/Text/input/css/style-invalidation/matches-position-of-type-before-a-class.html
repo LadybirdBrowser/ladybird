@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="parent">
+    <p>before</p>
+    <section class="a b" id="target">target</section>
+    <span>after</span>
+</div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        for (const selector of [
+            ".a:first-of-type.b",
+            "section:first-of-type.b",
+            ".a:last-of-type.b",
+            "section:last-of-type.b",
+            ".a:only-of-type.b",
+            "#target:nth-of-type(1).b",
+        ])
+            println(`${selector}: matches ${target.matches(selector)}, found by querySelector ${document.querySelector(selector) === target}`);
+    });
+</script>

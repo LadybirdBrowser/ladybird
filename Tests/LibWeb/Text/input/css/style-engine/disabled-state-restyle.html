@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    fieldset:disabled #generic {
+        color: green;
+    }
+    input:disabled {
+        color: green;
+    }
+</style>
+<fieldset id="fieldset">
+    <div id="generic"></div>
+    <input id="control">
+</fieldset>
+<script>
+    test(() => {
+        const generic = document.getElementById("generic");
+        for (let i = 0; i < 100; ++i)
+            generic.appendChild(document.createElement("div"));
+
+        internals.updateStyle();
+
+        const fieldset = document.getElementById("fieldset");
+        fieldset.disabled = true;
+        internals.updateStyle();
+
+        println(`generic descendant updated: ${getComputedStyle(generic).color}`);
+        println(`disabled control updated: ${getComputedStyle(document.getElementById("control")).color}`);
+
+        fieldset.disabled = false;
+        internals.updateStyle();
+
+        println(`generic descendant after enable: ${getComputedStyle(generic).color}`);
+        println(`control after enable: ${getComputedStyle(document.getElementById("control")).color}`);
+    });
+</script>

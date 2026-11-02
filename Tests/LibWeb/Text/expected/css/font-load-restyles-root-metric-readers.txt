@@ -1,0 +1,7 @@
+face loaded: loaded
+elements styled: 6
+rem width changed: false
+rch width changed: true
+rem width matches a fresh style: true
+rex width matches a fresh style: true
+rch width matches a fresh style: true

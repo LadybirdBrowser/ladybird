@@ -1,0 +1,25 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="kept">.t { color: rgb(0, 128, 0); }</style>
+<style id="off" media="print">.t { color: rgb(255, 0, 0); }</style>
+<div id="target" class="t">x</div>
+<script>
+    // A sheet whose conditions do not hold moves before another, and then its conditions come to hold: it cascades
+    // where it stands now.
+    test(() => {
+        const target = document.getElementById("target");
+        const kept = document.getElementById("kept");
+        const off = document.getElementById("off");
+        println(`while off: ${getComputedStyle(target).color}`);
+        document.head.insertBefore(off, kept);
+        println(`moved before: ${getComputedStyle(target).color}`);
+        off.media = "all";
+        println(`on, before the other: ${getComputedStyle(target).color}`);
+        off.media = "print";
+        println(`off again: ${getComputedStyle(target).color}`);
+        document.head.append(off);
+        println(`moved after: ${getComputedStyle(target).color}`);
+        off.media = "all";
+        println(`on, after the other: ${getComputedStyle(target).color}`);
+    });
+</script>

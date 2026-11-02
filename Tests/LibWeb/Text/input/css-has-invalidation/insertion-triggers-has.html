@@ -19,13 +19,13 @@
         child.className = "match";
         document.getElementById("container").appendChild(child);
         internals.updateStyle();
-        printCounters("insert <span class='match'> into anchor subtree");
+        printCounters("insert <span class='match'> into anchor subtree", 4);
 
-        internals.resetStyleInvalidationCounters();
+        resetCounters();
 
         // Remove the matching element. Anchor should unstyle.
         child.remove();
         internals.updateStyle();
-        printCounters("remove the matching span");
+        printCounters("remove the matching span", 3);
     });
 </script>

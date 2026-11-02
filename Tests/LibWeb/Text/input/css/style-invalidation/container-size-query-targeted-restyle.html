@@ -11,10 +11,10 @@
     }
 
     function counterSummary() {
-        const counters = internals.getStyleInvalidationCounters();
+        const counters = internals.styleCounters();
         return {
-            elementStyleRecomputations: counters.elementStyleRecomputations,
-            elementStyleNoopRecomputations: counters.elementStyleNoopRecomputations,
+            styledElements: counters.styledElements,
+            unchangedElements: counters.styledElements - counters.changedElements,
         };
     }
 
@@ -54,21 +54,21 @@
         // Settle everything the page setup left pending before measuring, or what this counts
         // depends on how much of that was still outstanding when the first read arrived.
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
         getComputedStyle(target).color;
 
         const initialCounters = counterSummary();
         const initialElementCount = document.querySelectorAll("*").length;
         println(`initial target color: ${getComputedStyle(target).color}`);
-        println(`initial recomputations bounded: ${initialCounters.elementStyleRecomputations < initialElementCount + 5}`);
+        println(`initial recomputations bounded: ${initialCounters.styledElements < initialElementCount + 5}`);
 
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
         container.style.width = "300px";
         getComputedStyle(target).color;
 
         const dynamicCounters = counterSummary();
         println(`dynamic target color: ${getComputedStyle(target).color}`);
-        println(`dynamic recomputations bounded: ${dynamicCounters.elementStyleRecomputations <= 4}`);
-        println(`dynamic noop recomputations bounded: ${dynamicCounters.elementStyleNoopRecomputations <= 2}`);
+        println(`dynamic recomputations bounded: ${dynamicCounters.styledElements <= 4}`);
+        println(`dynamic noop recomputations bounded: ${dynamicCounters.unchangedElements <= 2}`);
     });
 </script>

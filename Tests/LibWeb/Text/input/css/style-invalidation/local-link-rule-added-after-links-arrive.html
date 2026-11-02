@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<a id="early-local" href="">Local</a>
+<a id="early-remote" href="https://example.com/">Remote</a>
+<script>
+    test(() => {
+        document.body.offsetWidth;
+
+        // These links arrive after a style update in which no selector tested :local-link.
+        for (const [id, href] of [["late-local", ""], ["late-fragment", "#fragment"], ["late-remote", "https://example.com/"]]) {
+            const link = document.createElement("a");
+            link.id = id;
+            link.href = href;
+            link.textContent = id;
+            document.body.appendChild(link);
+        }
+        document.body.offsetWidth;
+
+        const style = document.createElement("style");
+        style.textContent = ":local-link { color: rgb(0, 128, 0); }";
+        document.head.appendChild(style);
+
+        for (const id of ["early-local", "early-remote", "late-local", "late-fragment", "late-remote"])
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+    });
+</script>

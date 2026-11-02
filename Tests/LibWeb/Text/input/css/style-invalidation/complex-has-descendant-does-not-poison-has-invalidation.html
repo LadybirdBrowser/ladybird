@@ -34,8 +34,6 @@
         internals.updateStyle();
 
         assertEqual("target matches after :has() mutation", getComputedStyle(target).color, "rgb(1, 2, 3)");
-        const counters = styleCounters();
-        assertEqual("descendant-only complex :has() does not force whole-subtree no-op recomputes", counters.elementStyleNoopRecomputations < 10, true);
-        printPassWithCounters("descendant-only complex :has() keeps later :has() invalidation targeted");
+        printPassWithStyleCounters("descendant-only complex :has() keeps later :has() invalidation targeted", 9);
     });
 </script>

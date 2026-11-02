@@ -1,0 +1,9 @@
+@property nobody uses: styled <= 1: true, full passes 0
+@property a parent declares: styled <= 6: true, full passes 0
+parent: 10px
+inheritor: 3px
+CSS.registerProperty() one element reads: styled <= 2: true, full passes 0
+reader: rgb(0, 128, 0)
+@counter-style nobody uses: styled <= 1: true, full passes 0
+@function one element calls: styled <= 2: true, full passes 0
+caller: 10px

@@ -1,3 +1,5 @@
 dependent before: rgb(0, 0, 0)
+PASS: a change on an element no query names styles only that element (styled <= 1: true)
 dependent after unrelated change: rgb(0, 0, 0)
+PASS: a change on the query container styles its subtree (styled <= 3: true)
 dependent after: rgb(1, 2, 3)

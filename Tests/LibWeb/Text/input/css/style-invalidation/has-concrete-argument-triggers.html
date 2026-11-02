@@ -28,16 +28,14 @@
         assertEqual("initial other target", readProbe(otherTarget), BASE);
 
         document.body.offsetWidth;
-        resetStyleCounters();
         mutating.classList.add("needle");
         assertEqual("needle target after relevant mutation", readProbe(needleTarget), MATCH);
         assertEqual("other target after unrelated mutation", readProbe(otherTarget), BASE);
-        printPassWithoutRecomputeCounters("class mutation invalidates affected :has() rule");
+        printPass("class mutation invalidates affected :has() rule");
 
-        resetStyleCounters();
         mutating.classList.add("other");
         assertEqual("other target after relevant mutation", readProbe(otherTarget), MATCH);
-        printPassWithoutRecomputeCounters("class mutation still invalidates matching :has() rule");
+        printPass("class mutation still invalidates matching :has() rule");
 
         const style = addStyle(document.head, `.empty-dir-auto-scope .outer:has(.auto:empty) .target { ${MATCH_DECLARATION} }`);
         const fixture = makeElement("section", { className: "empty-dir-auto-scope" });
@@ -51,10 +49,9 @@
         document.body.appendChild(fixture);
 
         assertEqual("dir=auto empty text initial", readProbe(target), MATCH);
-        resetStyleCounters();
         text.data = "text";
         assertEqual("dir=auto empty text after mutation", readProbe(target), BASE);
-        printPassWithoutRecomputeCounters("dir=auto text mutation invalidates :has(:empty)");
+        printPass("dir=auto text mutation invalidates :has(:empty)");
 
         style.remove();
         fixture.remove();
@@ -70,10 +67,9 @@
             fixture.appendChild(anchor);
             document.body.appendChild(fixture);
 
-            resetStyleCounters();
             mutate(subject);
             assertEqual(`${name} after mutation`, readProbe(target), expectedAfter ? MATCH : BASE);
-            printPassWithoutRecomputeCounters(`${name} invalidates :has()`);
+            printPass(`${name} invalidates :has()`);
 
             style.remove();
             fixture.remove();
@@ -91,10 +87,9 @@
             document.body.appendChild(fixture);
 
             assertEqual(`${name} initial`, readProbe(target), BASE);
-            resetStyleCounters();
             mutate(subject);
             assertEqual(`${name} after mutation`, readProbe(target), expectedAfter ? MATCH : BASE);
-            printPassWithoutRecomputeCounters(`${name} invalidates :has()`);
+            printPass(`${name} invalidates :has()`);
 
             style.remove();
             fixture.remove();

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<!-- An SVG resource below a display:none element is styled for what references it, and so are the elements above it. Where
+     a size container among them is told what its dependents read moved, restyling them finds the records they hold, which
+     must rebuild nothing: a rebuild tells the container the same again, forever. -->
+<style>
+    x-hidden:not(:defined) {
+        display: none;
+    }
+    :root {
+        --space: clamp(2rem, 0.99rem + 3.67cqi, 4rem);
+    }
+    .container {
+        container-type: inline-size;
+    }
+    .container > * + * {
+        margin-block-start: var(--space);
+    }
+</style>
+<x-hidden>
+    <div class="container">
+        <div></div>
+        <svg><linearGradient id="gradient"></linearGradient></svg>
+    </div>
+</x-hidden>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        document.body.offsetWidth;
+        println("The update settled");
+        done();
+    });
+</script>

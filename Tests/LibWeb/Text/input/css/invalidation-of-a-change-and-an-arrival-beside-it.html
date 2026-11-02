@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .a + .t { color: rgb(0, 128, 0); }
+    :not(.a):not(.b) + .u { color: rgb(0, 128, 0); }
+    .a ~ .v { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // In one transaction an element stops being what a `+` wanted of the previous sibling, and another comes between
+    // it and the element right of it: the element it changed for is no longer the one it changes the next sibling of.
+    test(() => {
+        const root = document.getElementById("root");
+        const pair = (firstClass, targetClass) => {
+            root.insertAdjacentHTML("beforeend", `<div><i class="${firstClass}"></i><b class="${targetClass}"></b></div>`);
+            const parent = root.lastElementChild;
+            return [parent, parent.firstChild, parent.lastChild];
+        };
+        const color = element => getComputedStyle(element).color;
+
+        {
+            const [parent, first, target] = pair("a", "t");
+            println(`loses and is parted, before: ${color(target)}`);
+            first.classList.remove("a");
+            parent.insertBefore(document.createElement("u"), target);
+            println(`loses and is parted, after: ${color(target)}`);
+        }
+        {
+            const [parent, first, target] = pair("", "u");
+            println(`gains and is parted, before: ${color(target)}`);
+            first.classList.add("b");
+            const between = document.createElement("u");
+            between.className = "a";
+            parent.insertBefore(between, target);
+            println(`gains and is parted, after: ${color(target)}`);
+        }
+        {
+            const [parent, first, target] = pair("", "t");
+            const between = document.createElement("u");
+            between.className = "a";
+            parent.insertBefore(between, target);
+            println(`joined by one that loses, before: ${color(target)}`);
+            between.classList.remove("a");
+            first.classList.add("a");
+            between.remove();
+            println(`joined by one that loses, after: ${color(target)}`);
+        }
+        {
+            const [parent, first, target] = pair("a", "v");
+            println(`one before moves after, before: ${color(target)}`);
+            parent.append(first);
+            println(`one before moves after, after: ${color(target)}`);
+            parent.prepend(first);
+            println(`one moves back before, after: ${color(target)}`);
+        }
+    });
+</script>
