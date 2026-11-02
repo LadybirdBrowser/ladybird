@@ -36,7 +36,8 @@ interface Internals {
     // This does not work for values stored only in optimized locals or registers.
     undefined markAsGarbage(DOMString variableName);
     boolean wrapperIsPreserved(object object);
-    boolean hasPendingActivity(object object);
+    // Asks the global of the given document, or else the global of the object's realm.
+    boolean hasPendingActivity(object object, optional Document document);
     unsigned long long messagePortPendingOutgoingMessageCount(MessagePort port);
     unsigned long long htmlCollectionCacheGeneration(HTMLCollection collection);
     undefined failNextMessagePortTransfer(MessagePort port);

@@ -9,7 +9,6 @@
 
 #include <AK/NonnullRefPtr.h>
 #include <AK/Types.h>
-#include <LibGC/ActivityRoot.h>
 #include <LibMedia/Track.h>
 #include <LibMediaClient/Forward.h>
 #include <LibWeb/Bindings/SourceBuffer.h>
@@ -124,10 +123,6 @@ private:
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-updating
     bool m_updating { false };
-
-    // NB: The operation's events may still begin playback, so they keep this, its MediaSource and the media element
-    //     alive.
-    GC::ActivityRoot m_activity_root;
 
     // https://w3c.github.io/media-source/#dom-sourcebuffer-timestampoffset
     double m_timestamp_offset_assigned_by_script { 0 };

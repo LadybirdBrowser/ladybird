@@ -1,0 +1,3 @@
+frame's global before adoption: true
+frame's global after adoption: false
+top-level global after adoption: true
