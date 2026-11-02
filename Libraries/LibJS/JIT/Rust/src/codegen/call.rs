@@ -930,7 +930,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         if template.allocator == 0
             || template_bytes > u64::from(template.cell_size)
             || u64::from(template.binding_values_offset) + 8 > template_bytes
-            || u64::from(template.this_value_offset) + 8 > template_bytes
+            || (template.binds_this && u64::from(template.this_value_offset) + 8 > template_bytes)
         {
             return Err(CompileFailure::CodeGeneration);
         }

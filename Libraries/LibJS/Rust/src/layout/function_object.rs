@@ -183,7 +183,8 @@ pub struct SharedFunctionInstanceData {
 /// The number of words of a FunctionEnvironment: a DeclarativeEnvironment and two more words of fields.
 pub const FUNCTION_ENVIRONMENT_WORDS: usize = size_of::<DeclarativeEnvironment>() / 8 + 2;
 
-/// A function environment like the ones the calls of a function get, with its final shape and room for its binding
+/// The environment of a call of a function (a function environment if `has_function_fields` is not 0, and a declarative
+/// environment otherwise) like the ones the calls of a function get, with its final shape and room for its binding
 /// values in its cell, for JIT code to allocate from the local free list of its `size_class` (cells of `cell_size`
 /// bytes, see `jit::allocation::FunctionEnvironmentFreeLists`) and fill with `words`. The words have no binding values pointer, outer environment, function object or this
 /// value, which differ between calls: the binding values start `binding_values_offset` bytes into the cell (0 if they
@@ -196,5 +197,6 @@ pub struct CallEnvironmentTemplate {
     pub cell_size: u64,
     pub binding_values_offset: u64,
     pub binds_this: u64,
+    pub has_function_fields: u64,
     pub words: [u64; FUNCTION_ENVIRONMENT_WORDS],
 }
