@@ -1,0 +1,12 @@
+Ladybird constrains sticky movement to the enclosing block instead of an
+anonymous flow wrapper. Structural fieldset content boxes remain bounds.
+
+Blink’s LayoutBoxModelObject::ComputeStickyPositionConstraints skips
+anonymous containing blocks, except for the fieldset content box.
+
+WebKit’s RenderBoxModelObject::computeStickyPositionConstraints skips
+anonymous blocks when selecting the bounds for sticky movement.
+
+Gecko’s StickyScrollContainer::ComputeStickyLimits uses nsIFrame::
+GetContainingBlock(). Its IsBlockContainer() excludes the wrappers
+around blocks inside inline elements.
