@@ -9,7 +9,7 @@ use core::ptr::NonNull;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
 use crate::gc::visitor::{Trace, Visitor};
-use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
+use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::value::Value;
 use libjs_abi::register::RESERVED_REGISTER_COUNT;
 
@@ -32,7 +32,7 @@ impl ExecutionContext {
             context.write(ExecutionContext {
                 function: Cell::new(None),
                 realm: Cell::new(None),
-                script_or_module: Cell::new(ScriptOrModule::Empty),
+                script_or_module: ScriptOrModuleSlot::new(ScriptOrModule::Empty),
                 lexical_environment: Cell::new(None),
                 variable_environment: Cell::new(None),
                 private_environment: Cell::new(None),

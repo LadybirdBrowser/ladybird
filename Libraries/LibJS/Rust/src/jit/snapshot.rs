@@ -7,7 +7,6 @@
 //! Snapshots of executables for compile jobs, captured on the main thread straight from the runtime's structures.
 //! A snapshot refers to cells only by address; the cells it captured are kept alive by whoever owns the job.
 
-use core::mem::offset_of;
 use libjs_abi::Builtin;
 use std::collections::HashMap;
 
@@ -37,9 +36,8 @@ use crate::gc::defer_gc::{DeferGc, Deferred};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
-use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{
-    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction, SharedFunctionInstanceData,
+    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction,
 };
 use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase};
 use crate::layout::property_lookup_cache::{GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntryType};
@@ -359,13 +357,7 @@ fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<Gc<RawNativeFu
 fn function_frame_fields(function: Gc<EcmascriptFunctionObject>) -> FunctionFrameFields {
     let shared_data = function.shared_data();
     FunctionFrameFields {
-        script_or_module: [
-            word_of(shared_data, offset_of!(SharedFunctionInstanceData, script_or_module)),
-            word_of(
-                shared_data,
-                offset_of!(SharedFunctionInstanceData, script_or_module) + 8,
-            ),
-        ],
+        script_or_module: shared_data.script_or_module.word(),
         environment: function
             .environment()
             .map_or(0, |environment| environment.as_ptr() as u64),
@@ -373,19 +365,6 @@ fn function_frame_fields(function: Gc<EcmascriptFunctionObject>) -> FunctionFram
             .private_environment()
             .map_or(0, |environment| environment.as_ptr() as u64),
     }
-}
-
-/// The words of the `[[ScriptOrModule]]` of a frame, like `function_frame_fields()` has them of a function.
-fn script_or_module_words(frame: &ExecutionContext) -> [u64; 2] {
-    let address = core::ptr::from_ref(&frame.script_or_module).cast::<u64>();
-    // SAFETY: The field is two words.
-    unsafe { [address.read_unaligned(), address.add(1).read_unaligned()] }
-}
-
-/// The words at `offset` of a cell.
-fn word_of<T>(cell: Gc<T>, offset: usize) -> u64 {
-    // SAFETY: The callers read fields of the cell that are words.
-    unsafe { cell.as_ptr().cast::<u8>().add(offset).cast::<u64>().read_unaligned() }
 }
 
 impl SnapshotBuilder<'_> {
@@ -1274,7 +1253,7 @@ pub fn capture_snapshot<'d>(
     let compiled_function_fields = match function {
         Some(function) => function_frame_fields(function),
         None => FunctionFrameFields {
-            script_or_module: script_or_module_words(vm.running_execution_context_ref()),
+            script_or_module: vm.running_execution_context_ref().script_or_module.word(),
             ..FunctionFrameFields::default()
         },
     };

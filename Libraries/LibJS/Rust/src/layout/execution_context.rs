@@ -5,6 +5,7 @@
  */
 
 use core::cell::Cell;
+use core::ptr::NonNull;
 
 use super::cell::Gc;
 use super::environment::{Environment, PrivateEnvironment};
@@ -14,20 +15,61 @@ use super::realm::Realm;
 use super::value::Value;
 use crate::layout_forward::{Module, Script};
 
-pub const SCRIPT_OR_MODULE_TAG_EMPTY: u8 = 0;
-pub const SCRIPT_OR_MODULE_TAG_SCRIPT: u8 = 1;
-pub const SCRIPT_OR_MODULE_TAG_MODULE: u8 = 2;
-
-/// Mirrors JS::ScriptOrModule. The interpreter clears the field by zeroing it, so all-zero bytes must mean Empty.
+/// [[ScriptOrModule]]: null, a Script Record or a Module Record.
 #[derive(Clone, Copy)]
-#[repr(C, u8)]
 pub enum ScriptOrModule {
-    Empty = SCRIPT_OR_MODULE_TAG_EMPTY,
-    Script(Gc<Script>) = SCRIPT_OR_MODULE_TAG_SCRIPT,
-    Module(Gc<Module>) = SCRIPT_OR_MODULE_TAG_MODULE,
+    Empty,
+    Script(Gc<Script>),
+    Module(Gc<Module>),
 }
 
-const _: () = assert!(size_of::<ScriptOrModule>() == 16);
+/// A ScriptOrModule in one word, which is what frames and shared function data keep: zero for Empty, otherwise the
+/// pointer to the cell with its lowest bit set for a module. The interpreter copies it around and clears it by zeroing.
+#[repr(transparent)]
+pub struct ScriptOrModuleSlot(Cell<u64>);
+
+pub const SCRIPT_OR_MODULE_SLOT_MODULE_BIT: u64 = 1;
+
+impl ScriptOrModuleSlot {
+    pub fn new(value: ScriptOrModule) -> Self {
+        Self(Cell::new(Self::encode(value)))
+    }
+
+    fn encode(value: ScriptOrModule) -> u64 {
+        match value {
+            ScriptOrModule::Empty => 0,
+            ScriptOrModule::Script(script) => script.as_ptr() as u64,
+            ScriptOrModule::Module(module) => module.as_ptr() as u64 | SCRIPT_OR_MODULE_SLOT_MODULE_BIT,
+        }
+    }
+
+    pub fn get(&self) -> ScriptOrModule {
+        let word = self.0.get();
+        let Some(pointer) = NonNull::new((word & !SCRIPT_OR_MODULE_SLOT_MODULE_BIT) as *mut u8) else {
+            return ScriptOrModule::Empty;
+        };
+        // SAFETY: A slot holds what encode() made of a live script or module, which whoever holds the slot traces.
+        unsafe {
+            if word & SCRIPT_OR_MODULE_SLOT_MODULE_BIT != 0 {
+                ScriptOrModule::Module(Gc::from_non_null(pointer.cast()))
+            } else {
+                ScriptOrModule::Script(Gc::from_non_null(pointer.cast()))
+            }
+        }
+    }
+
+    pub fn set(&self, value: ScriptOrModule) {
+        self.0.set(Self::encode(value));
+    }
+
+    pub fn word(&self) -> u64 {
+        self.0.get()
+    }
+
+    pub fn from_word(word: u64) -> Self {
+        Self(Cell::new(word))
+    }
+}
 
 /// Mirrors JS::ExecutionContext field for field: the interpreter builds whole frames inline, so a field it does not
 /// know about would be left uninitialized in those frames. The frame's value slots follow it directly.
@@ -35,7 +77,7 @@ const _: () = assert!(size_of::<ScriptOrModule>() == 16);
 pub struct ExecutionContext {
     pub function: Cell<Option<Gc<FunctionObject>>>,
     pub realm: Cell<Option<Gc<Realm>>>,
-    pub script_or_module: Cell<ScriptOrModule>,
+    pub script_or_module: ScriptOrModuleSlot,
     pub lexical_environment: Cell<Option<Gc<Environment>>>,
     pub variable_environment: Cell<Option<Gc<Environment>>>,
     pub private_environment: Cell<Option<Gc<PrivateEnvironment>>>,

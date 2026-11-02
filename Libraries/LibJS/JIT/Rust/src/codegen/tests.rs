@@ -2876,7 +2876,7 @@ mod inlining {
             executable.feedback.arith = vec![NUMBERS_AND_STRINGS_FEEDBACK];
             // NB: The words of a function its frames start with are constants in code.
             executable.function_fields = Some(FunctionFrameFields {
-                script_or_module: [FUNCTION_WORDS[2], FUNCTION_WORDS[3]],
+                script_or_module: FUNCTION_WORDS[2],
                 environment: FUNCTION_WORDS[0],
                 private_environment: FUNCTION_WORDS[1],
             });
@@ -3363,7 +3363,7 @@ mod direct_calls {
                 registers_and_locals_and_constants_count: 9,
                 // NB: The fake function's words (see `offsets()`).
                 function_fields: FunctionFrameFields {
-                    script_or_module: [self.function[2], self.function[3]],
+                    script_or_module: self.function[2],
                     environment: self.function[0],
                     private_environment: self.function[1],
                 },
@@ -3472,7 +3472,7 @@ mod direct_calls {
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
             assert_eq!(word(72), REALM);
-            assert_eq!((word(80), word(88)), (FUNCTION_WORDS[2], FUNCTION_WORDS[3]));
+            assert_eq!(word(80), FUNCTION_WORDS[2]);
             assert_eq!(
                 (word(8), word(96), word(16)),
                 (FUNCTION_WORDS[0], FUNCTION_WORDS[0], FUNCTION_WORDS[1])
@@ -3869,7 +3869,7 @@ mod direct_calls {
             let byte = |offset: usize| (frame[offset / 8] >> (8 * (offset % 8))) as u8;
             assert_eq!(word(64), callee.function.as_ptr() as u64, "function");
             assert_eq!(word(72), callee.realm);
-            assert_eq!((word(80), word(88)), (FUNCTION_WORDS[2], FUNCTION_WORDS[3]));
+            assert_eq!(word(80), FUNCTION_WORDS[2]);
             assert_eq!(
                 (word(8), word(96), word(16)),
                 (
@@ -4161,7 +4161,11 @@ mod direct_calls {
                 assert_eq!(&cell[..2], &[0x1000, 0x1001]);
                 assert_eq!(cell[2], if in_cell { address + 48 } else { 0 });
                 assert_eq!(cell[3] as u32, FUNCTION_WORDS[0] as u32, "compressed outer environment");
-                assert_eq!(cell[4], callee.function.as_ptr() as u64, "function object");
+                assert_eq!(
+                    cell[4] as u32,
+                    (callee.function.as_ptr() as u64 >> 3) as u32,
+                    "compressed function object"
+                );
                 assert_eq!(cell[5], if binds_this { value::int32(3) } else { 0 });
                 assert_eq!(heap, [164, 10_000, 1064]);
             }

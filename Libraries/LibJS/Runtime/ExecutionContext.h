@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <AK/BitCast.h>
 #include <AK/Checked.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Optional.h>
@@ -27,23 +28,21 @@
 
 namespace JS {
 
-// [[ScriptOrModule]]: null, a Script Record or a Module Record. The Rust runtime puts the tag before the record, so
-// this type keeps that layout rather than being a Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>, whose index
-// follows its storage, and offers the part of Variant's interface that LibJS's users call.
+// [[ScriptOrModule]]: null, a Script Record or a Module Record, in the one word the Rust runtime keeps it in: zero for
+// null, otherwise the pointer to the record with its lowest bit set for a module. It offers the part of
+// Variant<Empty, GC::Ref<Script>, GC::Ref<Module>>'s interface that LibJS's users call.
 class ScriptOrModule {
 public:
     ScriptOrModule() { }
     ScriptOrModule(Empty) { }
 
     ScriptOrModule(GC::Ref<Script> script)
-        : m_tag(Tag::Script)
-        , m_script(script)
+        : m_bits(bit_cast<FlatPtr>(script.ptr()))
     {
     }
 
     ScriptOrModule(GC::Ref<Module> module)
-        : m_tag(Tag::Module)
-        , m_module(module)
+        : m_bits(bit_cast<FlatPtr>(module.ptr()) | JS_LAYOUT_SCRIPT_OR_MODULE_MODULE_BIT)
     {
     }
 
@@ -51,111 +50,40 @@ public:
     bool has() const
     {
         if constexpr (IsSame<T, Empty>)
-            return m_tag == Tag::Empty;
+            return m_bits == 0;
         else if constexpr (IsSame<T, GC::Ref<Script>>)
-            return m_tag == Tag::Script;
+            return m_bits != 0 && !(m_bits & JS_LAYOUT_SCRIPT_OR_MODULE_MODULE_BIT);
         else if constexpr (IsSame<T, GC::Ref<Module>>)
-            return m_tag == Tag::Module;
+            return m_bits & JS_LAYOUT_SCRIPT_OR_MODULE_MODULE_BIT;
         else
             static_assert(DependentFalse<T>, "A ScriptOrModule holds Empty, GC::Ref<Script> or GC::Ref<Module>");
-    }
-
-    template<typename T>
-    T& get()
-    {
-        VERIFY(has<T>());
-        return alternative<T>();
-    }
-
-    template<typename T>
-    T const& get() const
-    {
-        VERIFY(has<T>());
-        return const_cast<ScriptOrModule&>(*this).alternative<T>();
-    }
-
-    template<typename T>
-    T* get_pointer()
-    {
-        return has<T>() ? &alternative<T>() : nullptr;
-    }
-
-    template<typename T>
-    T const* get_pointer() const
-    {
-        return has<T>() ? &const_cast<ScriptOrModule&>(*this).alternative<T>() : nullptr;
-    }
-
-    template<typename... Functions>
-    decltype(auto) visit(Functions&&... functions)
-    {
-        return visit_alternative(*this, OverloadedVisitor<RemoveCVReference<Functions>...> { forward<Functions>(functions)... });
     }
 
     template<typename... Functions>
     decltype(auto) visit(Functions&&... functions) const
     {
-        return visit_alternative(*this, OverloadedVisitor<RemoveCVReference<Functions>...> { forward<Functions>(functions)... });
+        OverloadedVisitor<RemoveCVReference<Functions>...> visitor { forward<Functions>(functions)... };
+        if (has<GC::Ref<Script>>()) {
+            GC::Ref<Script> script = *bit_cast<Script*>(m_bits);
+            return visitor(script);
+        }
+        if (has<GC::Ref<Module>>()) {
+            GC::Ref<Module> module = *bit_cast<Module*>(m_bits & ~static_cast<FlatPtr>(JS_LAYOUT_SCRIPT_OR_MODULE_MODULE_BIT));
+            return visitor(module);
+        }
+        Empty empty;
+        return visitor(empty);
     }
 
-    bool operator==(ScriptOrModule const& other) const
-    {
-        return m_tag == other.m_tag && m_cell_or_null == other.m_cell_or_null;
-    }
+    bool operator==(ScriptOrModule const&) const = default;
 
 private:
-    enum class Tag : u8 {
-        Empty = JS_LAYOUT_SCRIPT_OR_MODULE_TAG_EMPTY,
-        Script = JS_LAYOUT_SCRIPT_OR_MODULE_TAG_SCRIPT,
-        Module = JS_LAYOUT_SCRIPT_OR_MODULE_TAG_MODULE,
-    };
-
     template<typename... Functions>
     struct AK_COMPACT_EMPTY_BASES OverloadedVisitor : Functions... {
         using Functions::operator()...;
     };
 
-    template<typename T>
-    T& alternative()
-    {
-        if constexpr (IsSame<T, Empty>)
-            return m_empty;
-        else if constexpr (IsSame<T, GC::Ref<Script>>)
-            return m_script;
-        else
-            return m_module;
-    }
-
-    template<typename Self, typename Visitor>
-    static decltype(auto) visit_alternative(Self& self, Visitor&& visitor)
-    {
-        auto& mutable_self = const_cast<ScriptOrModule&>(self);
-        switch (self.m_tag) {
-        case Tag::Script:
-            return visitor(static_cast<CopyConst<Self, GC::Ref<Script>>&>(mutable_self.m_script));
-        case Tag::Module:
-            return visitor(static_cast<CopyConst<Self, GC::Ref<Module>>&>(mutable_self.m_module));
-        case Tag::Empty:
-            break;
-        }
-        return visitor(static_cast<CopyConst<Self, Empty>&>(mutable_self.m_empty));
-    }
-
-    Tag m_tag { Tag::Empty };
-    // The payload is the cell for a script or a module, and null for an empty one.
-    union {
-        void* m_cell_or_null { nullptr };
-        GC::Ref<Script> m_script;
-        GC::Ref<Module> m_module;
-    };
-    // Empty has no bits, so it lives outside the payload, which the runtime reads.
-    NO_UNIQUE_ADDRESS Empty m_empty;
-
-    static constexpr void assert_layout_matches_the_runtime()
-    {
-        static_assert(__builtin_offsetof(ScriptOrModule, m_tag) == JS_LAYOUT_SCRIPT_OR_MODULE_TAG_OFFSET);
-        static_assert(__builtin_offsetof(ScriptOrModule, m_cell_or_null) == JS_LAYOUT_SCRIPT_OR_MODULE_PAYLOAD_OFFSET);
-    }
+    FlatPtr m_bits { 0 };
 };
 
 static_assert(sizeof(ScriptOrModule) == JS_LAYOUT_SCRIPT_OR_MODULE_SIZE);

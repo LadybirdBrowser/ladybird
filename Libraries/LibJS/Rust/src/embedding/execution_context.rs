@@ -23,57 +23,32 @@ use crate::embedding::abi_types::{JSOwnedUtf16String, owned_utf16_string_into_ab
 use crate::gc::capi::GCVisitor;
 use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::execution_context::OwnedExecutionContext;
-use crate::layout::cell::Gc;
-use crate::layout::execution_context::{
-    ExecutionContext, SCRIPT_OR_MODULE_TAG_EMPTY, SCRIPT_OR_MODULE_TAG_MODULE, SCRIPT_OR_MODULE_TAG_SCRIPT,
-    ScriptOrModule,
-};
+use crate::layout::execution_context::{ExecutionContext, ScriptOrModule, ScriptOrModuleSlot};
 use crate::layout::host_class::JSVM;
-use crate::runtime::module::Module;
-use crate::script::Script;
 
 /// An execution context, laid out as the JS_LAYOUT_EXECUTION_CONTEXT_* values of LibJS/Embedding/Layout.h describe.
 pub struct JSExecutionContext {
     _opaque: [u8; 0],
 }
 
-/// A ScriptOrModule, laid out like the field of an execution context. The tag is one of the
-/// JS_LAYOUT_SCRIPT_OR_MODULE_TAG_* values of LibJS/Embedding/Layout.h, and the cell is the Script or the Module, or
-/// null for an empty one.
-#[repr(C)]
-pub struct JSScriptOrModule {
-    pub tag: u8,
-    pub cell: *mut c_void,
-}
+/// A ScriptOrModule, laid out like the field of an execution context: zero for null, otherwise the pointer to the
+/// Script or the Module, with JS_LAYOUT_SCRIPT_OR_MODULE_MODULE_BIT set for a module.
+#[repr(transparent)]
+pub struct JSScriptOrModule(u64);
 
-const _: () = assert!(size_of::<JSScriptOrModule>() == size_of::<ScriptOrModule>());
-const _: () = assert!(align_of::<JSScriptOrModule>() == align_of::<ScriptOrModule>());
+const _: () = assert!(size_of::<JSScriptOrModule>() == size_of::<ScriptOrModuleSlot>());
 
 impl From<ScriptOrModule> for JSScriptOrModule {
     fn from(script_or_module: ScriptOrModule) -> Self {
-        let (tag, cell) = match script_or_module {
-            ScriptOrModule::Empty => (SCRIPT_OR_MODULE_TAG_EMPTY, core::ptr::null_mut()),
-            ScriptOrModule::Script(script) => (SCRIPT_OR_MODULE_TAG_SCRIPT, script.as_ptr().cast()),
-            ScriptOrModule::Module(module) => (SCRIPT_OR_MODULE_TAG_MODULE, module.as_ptr().cast()),
-        };
-        Self { tag, cell }
+        Self(ScriptOrModuleSlot::new(script_or_module).word())
     }
 }
 
 /// # Safety
 ///
-/// The cell of `script_or_module` must be a live Script or Module, as its tag says, unless the tag is the empty one.
+/// `script_or_module` must be empty or name a live Script or Module.
 pub unsafe fn script_or_module_from_abi(script_or_module: JSScriptOrModule) -> ScriptOrModule {
-    let cell = || NonNull::new(script_or_module.cell).expect("a script or module has its cell");
-    // SAFETY: The caller guarantees that the cell is a live record of the kind the tag names.
-    unsafe {
-        match script_or_module.tag {
-            SCRIPT_OR_MODULE_TAG_EMPTY => ScriptOrModule::Empty,
-            SCRIPT_OR_MODULE_TAG_SCRIPT => ScriptOrModule::Script(Gc::from_non_null(cell().cast::<Script>())),
-            SCRIPT_OR_MODULE_TAG_MODULE => ScriptOrModule::Module(Gc::from_non_null(cell().cast::<Module>())),
-            tag => panic!("{tag} is not the tag of a script or module"),
-        }
-    }
+    ScriptOrModuleSlot::from_word(script_or_module.0).get()
 }
 
 fn execution_context_from_abi(execution_context: *mut JSExecutionContext) -> NonNull<ExecutionContext> {

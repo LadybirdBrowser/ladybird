@@ -38,11 +38,21 @@ impl<T: Copy> InterpreterBuffer<T> {
     }
 
     pub fn size(&self) -> usize {
-        self.size.get()
+        self.size.get() as usize
     }
 
     pub fn capacity(&self) -> usize {
-        self.capacity.get()
+        self.capacity.get() as usize
+    }
+
+    fn set_size(&self, size: usize) {
+        self.size
+            .set(u32::try_from(size).expect("the size of a buffer fits in u32"));
+    }
+
+    fn set_capacity(&self, capacity: usize) {
+        self.capacity
+            .set(u32::try_from(capacity).expect("the capacity of a buffer fits in u32"));
     }
 
     pub fn is_empty(&self) -> bool {
@@ -76,7 +86,7 @@ impl<T: Copy> InterpreterBuffer<T> {
         }
         // SAFETY: The buffer has room for one more element.
         unsafe { self.data.get().add(size).write(value) };
-        self.size.set(size + 1);
+        self.set_size(size + 1);
     }
 
     /// Makes room for `needed_capacity` elements in total, exactly like AK::Vector::ensure_capacity.
@@ -107,7 +117,7 @@ impl<T: Copy> InterpreterBuffer<T> {
     pub unsafe fn use_unowned_storage(&self, data: *mut T, capacity: usize) {
         assert!(self.data.get().is_null());
         self.data.set(data);
-        self.capacity.set(capacity);
+        self.set_capacity(capacity);
     }
 
     /// Moves the elements from storage the buffer does not own to storage of its own, with room for at least
@@ -153,7 +163,7 @@ impl<T: Copy> InterpreterBuffer<T> {
             unsafe { dealloc(old_data.cast(), old_layout) };
         }
         self.data.set(new_data);
-        self.capacity.set(new_capacity);
+        self.set_capacity(new_capacity);
     }
 }
 

@@ -9,7 +9,7 @@ use core::ffi::{c_char, c_void};
 use super::capi::GCVisitor;
 use super::class_id::ClassId;
 use super::visitor::{Trace, Visitor};
-use crate::layout::cell::{CellHeader, CellKind, CellState};
+use crate::layout::cell::{CellHeader, CellHeaderTail, CellKind, CellState};
 use crate::runtime::object::ObjectMethods;
 
 #[cfg(feature = "address-sanitizer")]
@@ -72,7 +72,7 @@ impl Class {
         object_methods: Option<&'static ObjectMethods>,
         finalize: Option<unsafe extern "C" fn(cell: *mut c_void)>,
     ) -> Self {
-        assert!(size_of::<T>() >= MIN_CELL_SIZE);
+        // NB: Heap::allocate() checks MIN_CELL_SIZE, as a class that is only a base of others may be smaller.
         assert!(size_of::<T>().is_multiple_of(8));
         assert!(align_of::<T>() <= MAX_CELL_ALIGNMENT);
         assert!(
@@ -394,6 +394,17 @@ impl<T> crate::layout::cell::Gc<T> {
             .is_class_of::<Derived>()
             // SAFETY: The cell was allocated as a Derived or a subclass of it.
             .then(|| unsafe { crate::layout::cell::Gc::from_non_null(self.as_non_null().cast()) })
+    }
+}
+
+impl CellHeaderTail {
+    /// The header of a cell of `class` that keeps fields of its own in the first word, like `CellHeader::for_class()`.
+    pub fn for_class(class: &'static Class) -> Self {
+        Self {
+            mark: false.into(),
+            state: CellState::Live.into(),
+            kind: class.kind(),
+        }
     }
 }
 

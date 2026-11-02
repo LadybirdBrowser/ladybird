@@ -312,7 +312,7 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
             core::mem::offset_of!(Environment, outer),
             size_of::<NullableMember<Environment>>(),
         ),
-        (FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, 8),
+        (FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, 4),
         (FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET, 8),
     ] {
         clear_bytes(&mut template.words, offset, size);

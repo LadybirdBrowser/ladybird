@@ -6,10 +6,10 @@
 
 use core::cell::Cell;
 
-use super::cell::CellHeader;
+use super::cell::{CellHeader, CellHeaderTail};
 use super::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment};
 use super::executable::ExecutableHead;
-use super::execution_context::ScriptOrModule;
+use super::execution_context::ScriptOrModuleSlot;
 use super::member::{Member, NullableMember};
 use super::object::Object;
 use super::realm::Realm;
@@ -115,33 +115,48 @@ pub mod ecmascript_function_flags {
     pub const HAS_CUSTOM_NAME: u8 = 1 << 4;
 }
 
-/// Bits of SharedFunctionInstanceData::asm_call_metadata above the formal parameter count in its low 32 bits.
+/// Bits of SharedFunctionInstanceData::asm_call_metadata above the formal parameter count in its low 32 bits. The first
+/// four are what the interpreter and JIT code decide calls by, and the rest is what else there is to know about the
+/// function in few bits.
 pub mod asm_call_metadata {
     pub const CAN_INLINE_CALL: u64 = 1 << 32;
     pub const NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION: u64 = 1 << 33;
     pub const USES_THIS: u64 = 1 << 34;
     pub const STRICT: u64 = 1 << 35;
+    pub const FUNCTION_ENVIRONMENT_NEEDED: u64 = 1 << 36;
+    pub const THIS_VALUE_NEEDS_ENVIRONMENT_RESOLUTION: u64 = 1 << 37;
+    pub const MIGHT_NEED_ARGUMENTS_OBJECT: u64 = 1 << 38;
+    pub const CONTAINS_DIRECT_CALL_TO_EVAL: u64 = 1 << 39;
+    pub const IS_ARROW_FUNCTION: u64 = 1 << 40;
+    pub const HAS_SIMPLE_PARAMETER_LIST: u64 = 1 << 41;
+    pub const IS_MODULE_WRAPPER: u64 = 1 << 42;
+    pub const IS_CLASS_CONSTRUCTOR: u64 = 1 << 43;
+    pub const IS_DERIVED_CONSTRUCTOR: u64 = 1 << 44;
+    pub const CLOSURE_COUNT_SHIFT: u32 = 45;
+    pub const CLOSURE_COUNT_MASK: u64 = 0b11;
+    pub const FUNCTION_KIND_SHIFT: u32 = 47;
+    pub const FUNCTION_KIND_MASK: u64 = 0b11;
+    pub const CONSTRUCT_COUNT_SHIFT: u32 = 49;
+    pub const CONSTRUCT_COUNT_MASK: u64 = (1 << 15) - 1;
 }
 
 #[repr(C)]
 pub struct SharedFunctionInstanceData {
-    pub header: CellHeader,
     pub executable: NullableMember<ExecutableHead>,
-    pub asm_call_metadata: Cell<u64>,
-    pub formal_parameter_count: Cell<u32>,
-    pub strict: Cell<bool>,
-    pub function_environment_needed: Cell<bool>,
-    pub uses_this: Cell<bool>,
-    pub can_inline_call: Cell<bool>,
     /// How JIT code allocates the function environments of calls of the functions, once the runtime made one.
     pub call_environment_template: NullableMember<CallEnvironmentTemplate>,
+    pub header: CellHeaderTail,
+    /// How many properties the objects constructions of the function create get, as far as known.
+    pub construct_reserve: Cell<u8>,
+    pub function_length: i32,
+    pub asm_call_metadata: Cell<u64>,
     /// The [[ScriptOrModule]] of the functions, which is the same for all of them.
-    pub script_or_module: Cell<ScriptOrModule>,
+    pub script_or_module: ScriptOrModuleSlot,
     pub storage: SharedFunctionInstanceDataStorage,
 }
 
-/// The number of words of a FunctionEnvironment: a DeclarativeEnvironment and three more fields.
-pub const FUNCTION_ENVIRONMENT_WORDS: usize = size_of::<DeclarativeEnvironment>() / 8 + 3;
+/// The number of words of a FunctionEnvironment: a DeclarativeEnvironment and two more words of fields.
+pub const FUNCTION_ENVIRONMENT_WORDS: usize = size_of::<DeclarativeEnvironment>() / 8 + 2;
 
 /// A function environment like the ones the calls of a function get, with its final shape and room for its binding
 /// values in its cell, for JIT code to allocate from the local free list of its `size_class` (cells of `cell_size`

@@ -1098,7 +1098,7 @@ pub struct ObjectPropertyIteratorCacheDataStorage {
 
 define_cell!(ObjectPropertyIteratorCacheData, Other, finalize: finalize);
 
-const _: () = assert!(size_of::<ObjectPropertyIteratorCacheData>() == 72);
+const _: () = assert!(size_of::<ObjectPropertyIteratorCacheData>() == 64);
 
 // SAFETY: Visits the shape, the validity, the materialized key values and the keys.
 unsafe impl Trace for ObjectPropertyIteratorCacheData {
@@ -1345,10 +1345,11 @@ struct ExecutableParts {
 }
 
 fn interpreter_buffer<T>(elements: &[T]) -> InterpreterBuffer<T> {
+    let size = u32::try_from(elements.len()).expect("the number of elements fits in u32");
     InterpreterBuffer {
         data: Cell::new(elements.as_ptr().cast_mut()),
-        size: Cell::new(elements.len()),
-        capacity: Cell::new(elements.len()),
+        size: Cell::new(size),
+        capacity: Cell::new(size),
     }
 }
 
@@ -1468,10 +1469,13 @@ impl Executable {
             property_lookup_caches: interpreter_buffer(&property_lookup_caches),
             global_variable_caches: interpreter_buffer(&global_variable_caches),
             // The interpreter only reads the caches, which slow paths update through their cells.
-            environment_coordinate_caches: InterpreterBuffer {
-                data: Cell::new(environment_coordinate_caches.as_ptr().cast_mut().cast()),
-                size: Cell::new(environment_coordinate_caches.len()),
-                capacity: Cell::new(environment_coordinate_caches.len()),
+            environment_coordinate_caches: {
+                let size = u32::try_from(environment_coordinate_caches.len()).expect("the cache count fits in u32");
+                InterpreterBuffer {
+                    data: Cell::new(environment_coordinate_caches.as_ptr().cast_mut().cast()),
+                    size: Cell::new(size),
+                    capacity: Cell::new(size),
+                }
             },
         };
         Self {

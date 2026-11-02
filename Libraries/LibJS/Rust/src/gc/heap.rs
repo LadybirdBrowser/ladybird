@@ -11,7 +11,7 @@ use core::ptr::NonNull;
 use std::collections::HashMap;
 
 use super::capi::{self, GCAllocator, GCGatherRootsCallback, GCHeap, GCLayout};
-use super::class::{BLOCK_CLASS_OFFSET, BLOCK_CLASS_TAIL_TAG, BLOCK_SIZE, CellTypeInfo, Class, GcCell};
+use super::class::{BLOCK_CLASS_OFFSET, BLOCK_CLASS_TAIL_TAG, BLOCK_SIZE, CellTypeInfo, Class, GcCell, MIN_CELL_SIZE};
 use super::class_id::{CLASS_COUNT, ClassId};
 use super::defer_gc::DeferGc;
 use super::weak::WEAK_IMPL_POINTER_OFFSET;
@@ -240,6 +240,7 @@ impl Heap {
     /// Moves the cell that `build` returns into the heap, with collections deferred from before `build` runs until
     /// the cell is in the heap.
     pub fn allocate<T: GcCell>(&self, build: impl FnOnce(&DeferGc<'_>) -> T) -> Gc<T> {
+        const { assert!(size_of::<T>() >= MIN_CELL_SIZE) };
         let allocator = self.allocator_for(T::CLASS);
         // SAFETY: The allocator is the one of the cell's static class, whose cells have the size and alignment of a T.
         unsafe { self.allocate_with(allocator, size_of::<T>(), AllocationKind::Cell, build, |_| {}) }

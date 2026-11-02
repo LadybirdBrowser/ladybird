@@ -7,7 +7,7 @@
 use core::cell::Cell;
 
 use super::buffer::InterpreterBuffer;
-use super::cell::{CellHeader, Gc};
+use super::cell::{CellHeader, CellHeaderTail, Gc};
 use super::member::NullableMember;
 use super::object::Object;
 use super::value::Value;
@@ -20,28 +20,35 @@ pub const BINDING_FLAG_MUTABLE: u8 = 1 << 1;
 
 #[repr(C)]
 pub struct Environment {
-    pub header: CellHeader,
+    pub outer: NullableMember<Environment>,
+    /// The shape of a declarative environment (null for other environments).
+    pub shape: NullableMember<EnvironmentShape>,
+    pub header: CellHeaderTail,
     pub this_binding_status: Cell<u8>,
     pub permanently_screwed_by_eval: Cell<bool>,
     pub declarative: Cell<bool>,
     /// Whether the binding values of a declarative environment are stored in its cell, after the fields of its class.
     pub binding_values_are_inline: Cell<bool>,
-    pub outer: NullableMember<Environment>,
-    /// The shape of a declarative environment, in what would otherwise be padding (null for other environments).
-    pub shape: NullableMember<EnvironmentShape>,
 }
 
-const _: () = assert!(size_of::<Environment>() == 24);
+const _: () = assert!(size_of::<Environment>() == 16);
 
 #[repr(C)]
 pub struct DeclarativeEnvironment {
     pub base: Environment,
     pub binding_values: InterpreterBuffer<Value>,
     pub rare_data: Cell<*mut DeclarativeEnvironmentRareData>,
-    pub serial_number: Cell<u64>,
 }
 
-const _: () = assert!(size_of::<DeclarativeEnvironment>() == 64);
+const _: () = assert!(size_of::<DeclarativeEnvironment>() == 40);
+
+/// The declarative environment of a global environment. Caches of global variables hold on to its serial number, which
+/// changes when the bindings do.
+#[repr(C)]
+pub struct GlobalDeclarativeEnvironment {
+    pub base: DeclarativeEnvironment,
+    pub serial_number: Cell<u64>,
+}
 
 #[repr(C)]
 pub struct DeclarativeEnvironmentRareData {

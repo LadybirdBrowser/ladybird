@@ -578,18 +578,15 @@ pub struct EnvironmentTemplateSnapshot {
 /// what they point to lives as long as the function.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct FunctionFrameFields {
-    pub script_or_module: [u64; 2],
+    pub script_or_module: u64,
     pub environment: u64,
     pub private_environment: u64,
 }
 
 impl FunctionFrameFields {
-    /// Whether the functions have the same `[[ScriptOrModule]]`: the tag in
-    /// the low byte of the first word (whose other bytes are padding) and
-    /// the record in the second.
+    /// Whether the functions have the same `[[ScriptOrModule]]`.
     pub fn has_script_or_module_of(&self, other: &FunctionFrameFields) -> bool {
-        self.script_or_module[0] as u8 == other.script_or_module[0] as u8
-            && self.script_or_module[1] == other.script_or_module[1]
+        self.script_or_module == other.script_or_module
     }
 }
 
@@ -1507,7 +1504,7 @@ pub struct RuntimeOffsets {
     pub execution_context_function: u32,
     /// `ExecutionContext::realm` (cell pointer).
     pub execution_context_realm: u32,
-    /// `ExecutionContext::script_or_module` (16 bytes).
+    /// `ExecutionContext::script_or_module` (8 bytes).
     pub execution_context_script_or_module: u32,
     /// `ExecutionContext::variable_environment` (cell pointer).
     pub execution_context_variable_environment: u32,
@@ -1546,7 +1543,7 @@ pub struct RuntimeOffsets {
     /// `EcmascriptFunctionObjectWithRareData::private_environment` (cell
     /// pointer), of functions with the flag for it.
     pub ecmascript_function_private_environment: u32,
-    /// `SharedFunctionInstanceData::script_or_module` (16 bytes, as in `ExecutionContext`).
+    /// `SharedFunctionInstanceData::script_or_module` (8 bytes, as in `ExecutionContext`).
     pub shared_function_script_or_module: u32,
     /// `Object::function_bits` (u8).
     pub object_function_bits: u32,
@@ -1823,9 +1820,9 @@ pub struct RuntimeLayout {
     /// `GeneratorObject::pending_completion_type` (u32): the type of that
     /// completion, as `GetCompletionFields` writes it.
     pub generator_object_pending_completion_type: u32,
-    /// `DeclarativeEnvironment::binding_values.size` (u64).
+    /// `DeclarativeEnvironment::binding_values.size` (u32).
     pub declarative_environment_binding_values_size: u32,
-    /// The capacity (u64) of `DeclarativeEnvironment::binding_values`.
+    /// The capacity (u32) of `DeclarativeEnvironment::binding_values`.
     pub declarative_environment_binding_values_capacity: u32,
     /// The pointer to the first binding name (a `Utf16FlyString`, one
     /// word) of an `EnvironmentShape`.

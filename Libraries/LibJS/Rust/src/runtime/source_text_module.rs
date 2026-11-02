@@ -499,9 +499,8 @@ impl SourceTextModule {
             Vec::new(),
         );
         tla_shared_data.set_is_module_wrapper(true);
-        tla_shared_data.uses_this.set(true);
-        tla_shared_data.function_environment_needed.set(true);
-        tla_shared_data.update_asm_call_metadata();
+        tla_shared_data.set_uses_this(true);
+        tla_shared_data.set_function_environment_needed(true);
         tla_shared_data.set_executable(Some(top_level_await_executable));
         tla_shared_data
     }

@@ -303,7 +303,7 @@ inline fn load_binding_flag(
     if binding_shape == 0 {
         environment.rare_data.binding_flags[binding_index]
     } else {
-        let shape_size = binding_shape.binding_flags_size;
+        let shape_size: u64 = alias(binding_shape.binding_flags_size);
         if shape_size <= alias(binding_index) {
             let local_index: u64 = alias(binding_index) - shape_size;
             environment.rare_data.binding_flags[local_index]
@@ -3221,7 +3221,7 @@ handler GetById(
         native_frame.private_environment = exec_ctx.private_environment;
         let receiver: Value = alias(box_object(receiver_object));
         native_frame.this_value = receiver;
-        native_frame.script_or_module = zeroed();
+        native_frame.script_or_module = 0;
         native_frame.executable = null;
         native_frame.program_counter = 0;
         native_frame.skip_when_determining_incumbent_counter = 0;
@@ -4020,7 +4020,7 @@ handler Call(
         native_frame.private_environment = private_environment;
         let receiver = load(this_value);
         native_frame.this_value = receiver;
-        native_frame.script_or_module = zeroed();
+        native_frame.script_or_module = 0;
         # Raw native frames deliberately have no executable.
         native_frame.executable = null;
         native_frame.program_counter = 0;
@@ -4158,7 +4158,7 @@ handler ObjectPropertyIteratorNext(
     guard let next_cursor_index = checked_add(cursor_index, 1) else slow;
     let cursor_wide: i64 = i64(cursor_index);
     let unsigned_cursor: u64 = alias(cursor_wide);
-    let property_value_count = cache.property_value_count;
+    let property_value_count: u64 = alias(cache.property_value_count);
     if unsigned_cursor < property_value_count {
         let property_values = cache.property_values;
         assert(property_values != 0);

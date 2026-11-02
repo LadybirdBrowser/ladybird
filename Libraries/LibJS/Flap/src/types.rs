@@ -228,7 +228,6 @@ define_named_types! {
         RawNativeFunction => "RawNativeFunction", Some(8), true;
         DirectGetterFunction => "DirectGetterFunction", Some(8), true;
         SharedFunctionInstanceData => "SharedFunctionInstanceData", Some(8), true;
-        ScriptOrModule => "ScriptOrModule", Some(8), true;
         PropertyStorage => "PropertyStorage", Some(8), true;
     }
     source {
