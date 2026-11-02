@@ -5888,6 +5888,17 @@ fn generate_switch_statement(
 
     let discriminant = generate_expression(&data.discriminant, generator, None)?;
 
+    // A case test may reassign the local or argument the discriminant was read from.
+    let discriminant = if data
+        .cases
+        .iter()
+        .any(|case| case.test.as_ref().is_some_and(might_contain_assignment_expression))
+    {
+        generator.copy_if_needed_to_preserve_evaluation_order(&discriminant)
+    } else {
+        discriminant
+    };
+
     // Block declaration instantiation: create lexical environment for
     // function declarations and let/const across all switch cases.
     let did_create_env = emit_switch_block_declaration_instantiation(generator, data);

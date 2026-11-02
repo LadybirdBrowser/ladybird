@@ -130,6 +130,31 @@ describe("basic switch tests", () => {
         expect(write(0)).toBe(7);
         expect(() => write(1)).toThrow(ReferenceError);
     });
+
+    test("case tests compare against the discriminant as it was evaluated", () => {
+        function local(value) {
+            let discriminant = value;
+            switch (discriminant) {
+                case ((discriminant = 2), 2):
+                    return "reassigned";
+                case 1:
+                    return "original";
+            }
+            return "none";
+        }
+        expect(local(1)).toBe("original");
+
+        function argument(discriminant) {
+            switch (discriminant) {
+                case ((discriminant = 2), 2):
+                    return "reassigned";
+                case 1:
+                    return "original";
+            }
+            return "none";
+        }
+        expect(argument(1)).toBe("original");
+    });
 });
 
 describe("errors", () => {
