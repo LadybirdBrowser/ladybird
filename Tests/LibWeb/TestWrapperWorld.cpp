@@ -872,23 +872,32 @@ TEST_CASE(cross_origin_descriptor_cache_does_not_root_realm_after_wrapper_dies)
     EXPECT(!weak_realm);
 }
 
-TEST_CASE(single_shot_timer_restarted_from_callback_keeps_activity_root)
+// An active timer lives only as long as its owner reaches it. One that nothing reaches is collected, and must be
+// stopped then rather than fire into a callback that was collected with it.
+TEST_CASE(unreachable_active_timer_is_stopped_when_collected)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::EventLoop event_loop;
     auto vm = JS::VM::create();
-    IGNORE_USE_IN_ESCAPING_LAMBDA GC::Root<Web::Platform::Timer> timer;
-    timer = Web::Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), nullptr);
-    timer->on_timeout = GC::create_function(GC::Heap::the(), [&] {
-        timer->restart(AK::Duration::from_milliseconds(1000));
+    IGNORE_USE_IN_ESCAPING_LAMBDA bool fired = false;
+    GC::Weak<Web::Platform::Timer> weak_timer;
+    [&] {
+        auto timer = Web::Platform::Timer::create_single_shot(GC::Heap::the(), AK::Duration::from_milliseconds(0), GC::create_function(GC::Heap::the(), [&] {
+            fired = true;
+        }));
+        timer->start();
+        weak_timer = *timer;
+    }();
+
+    vm->heap().collect_garbage(GC::Heap::CollectionType::CollectEverything);
+    EXPECT(!weak_timer);
+
+    auto quit_timer = Core::Timer::create_single_shot(AK::Duration::from_milliseconds(10), [&] {
         event_loop.quit(0);
     });
-
-    timer->start();
+    quit_timer->start();
     event_loop.exec();
 
-    EXPECT(timer->is_active());
-    EXPECT(timer->has_activity_root());
-    timer->stop();
+    EXPECT(!fired);
 }
 
 TEST_CASE(extension_world_hash_cache_scales)
