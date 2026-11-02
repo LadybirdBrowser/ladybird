@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    const blankURL = "../../data/blank.html";
+
+    function busyWait(milliseconds) {
+        const end = performance.now() + milliseconds;
+        while (performance.now() < end);
+    }
+
+    // Navigates a new iframe, lets that run for the given number of timer turns, and navigates it again. The iframe has
+    // to finish loading whichever navigation goes on.
+    function navigateTwice(turnsBetween) {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                iframe.remove();
+                resolve();
+            };
+            iframe.src = blankURL;
+
+            const navigateAgain = () => {
+                if (turnsBetween-- > 0) {
+                    setTimeout(navigateAgain, 1);
+                    return;
+                }
+                // NB: While this task holds the event loop, the first navigation can reach the point where it goes on
+                //     to populate its document, whose message is then handled after the second navigation started.
+                busyWait(40);
+                iframe.src = blankURL;
+            };
+            navigateAgain();
+        });
+    }
+
+    asyncTest(async done => {
+        // NB: How many turns the first navigation needs to get there varies with the machine.
+        for (let turnsBetween = 0; turnsBetween < 12; ++turnsBetween)
+            await navigateTwice(turnsBetween);
+        println("PASS");
+        done();
+    });
+</script>
