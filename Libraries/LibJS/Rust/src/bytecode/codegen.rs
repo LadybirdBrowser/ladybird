@@ -2752,10 +2752,16 @@ fn generate_for_statement_without_disposal(
     // CreatePerIterationEnvironment after init (first iteration setup).
     emit_per_iteration_bindings(generator, &per_iteration_binding_names);
 
-    // Block creation order: body → update (if exists) → test (if exists) → end.
+    // Block creation order: body → per-iteration (if needed) → update (if exists) → test (if exists) → end.
     // If 'test' is missing, fuse 'test' and 'body' blocks.
     // If 'update' is missing, fuse 'body' and 'update' blocks.
     let body_block = generator.make_block();
+    // `continue` targets this block too, so CreatePerIterationEnvironment runs before every update.
+    let per_iteration_block = if per_iteration_binding_names.is_empty() {
+        None
+    } else {
+        Some(generator.make_block())
+    };
     let update_block = if update.is_some() {
         generator.make_block()
     } else {
@@ -2809,8 +2815,9 @@ fn generate_for_statement_without_disposal(
     // Body
     generator.switch_to_basic_block(body_block);
     let labels = std::mem::take(&mut generator.pending_labels);
-    let continue_target = if update.is_some() { update_block } else { test_block };
-    generator.begin_continuable_scope(continue_target, labels.clone(), completion.clone());
+    let next_iteration_block = if update.is_some() { update_block } else { test_block };
+    let continue_block = per_iteration_block.unwrap_or(next_iteration_block);
+    generator.begin_continuable_scope(continue_block, labels.clone(), completion.clone());
     generator.begin_breakable_scope(end_block, labels, completion.clone());
 
     generate_with_completion(body, generator, completion.as_ref(), preferred_dst);
@@ -2818,13 +2825,15 @@ fn generate_for_statement_without_disposal(
     generator.end_breakable_scope();
     generator.end_continuable_scope();
     if !generator.is_current_block_terminated() {
-        // CreatePerIterationEnvironment at end of each iteration.
+        generator.emit(Instruction::Jump { target: continue_block });
+    }
+
+    if let Some(per_iteration_block) = per_iteration_block {
+        generator.switch_to_basic_block(per_iteration_block);
         emit_per_iteration_bindings(generator, &per_iteration_binding_names);
-        if update.is_some() {
-            generator.emit(Instruction::Jump { target: update_block });
-        } else {
-            generator.emit(Instruction::Jump { target: test_block });
-        }
+        generator.emit(Instruction::Jump {
+            target: next_iteration_block,
+        });
     }
 
     generator.switch_to_basic_block(end_block);
