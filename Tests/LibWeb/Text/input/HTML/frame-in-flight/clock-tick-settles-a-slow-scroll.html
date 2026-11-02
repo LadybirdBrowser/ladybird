@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        0% { height: 400px; }
+        5%, 100% { height: 0px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #shrinking {
+        height: 400px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #subject {
+        height: 100px;
+        animation: widen linear both;
+        animation-timeline: view();
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="shrinking"></div>
+<div id="subject"></div>
+<div id="spacer"></div>
+<script>
+    // A smooth scroll's tail moves by less per frame than counts as a scroll, but it adds up. The boxes it moved decide
+    // the view timeline's progress all the same.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => subject.getAnimations()[0], frameTime => {
+            const step = 0.04;
+            const ticks = 500;
+            let box;
+            for (let tick = 1; tick <= ticks; tick++) {
+                internals.injectClockTick(frameTime + tick, step * tick);
+                box = internals.presentedBorderBox(subject);
+            }
+            return { position: step * ticks, top: box.top, width: box.width };
+        });
+        const coverStart = result.top - window.innerHeight;
+        const progress = (result.position - coverStart) / (result.top + 100 - coverStart);
+        println(`the scroll moved the subject: ${result.top < 400}`);
+        println(`the subject shows the progress where the scroll moved it: ${Math.abs(result.width - (100 + 200 * progress)) < 0.5}`);
+        done();
+    });
+</script>

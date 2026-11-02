@@ -60,6 +60,8 @@ public:
         bool vertical { true };
         double scroll_offset { 0 };
         double max_scroll_offset { 0 };
+
+        bool operator==(FollowedScroller const&) const = default;
     };
     Optional<FollowedScroller> const& followed_scroller() const { return m_followed_scroller; }
 
@@ -96,6 +98,9 @@ protected:
     };
     // Empty while the source has no box, is not a scroll container or has no scrollable overflow.
     Optional<ScrollerMetrics> scroller_metrics() const;
+
+    static Optional<FollowedScroller> followed_scroller_from(ScrollerMetrics const&);
+    void set_followed_scroller(Optional<FollowedScroller> followed_scroller) { m_followed_scroller = move(followed_scroller); }
 
 private:
     Variant<GC::Ptr<DOM::Element const>, GC::Ptr<DOM::Document>> get_propagated_source() const;

@@ -1,0 +1,6 @@
+verticalMoved: true
+verticalMatches: true
+verticalRangeMatches: true
+horizontalMoved: true
+horizontalMatches: true
+horizontalRangeMatches: true

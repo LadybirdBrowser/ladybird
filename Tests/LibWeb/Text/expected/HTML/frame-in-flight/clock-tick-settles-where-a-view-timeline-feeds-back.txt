@@ -1,0 +1,3 @@
+the ticks tried both layouts: true
+the ticks settled on one: true
+render clock: ticking

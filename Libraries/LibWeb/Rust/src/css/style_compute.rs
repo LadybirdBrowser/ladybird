@@ -6381,6 +6381,16 @@ pub extern "C" fn rust_length_percentage_px(value: &StyleValueData, basis: f64) 
         .to_double()
 }
 
+/// Whether a computed length-percentage is a length plus a percentage of what it resolves against, which only a
+/// calculation may not be.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_length_percentage_is_linear(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Calculated(calculated) => calculated.rust_calculation.node().is_linear_in_percentages(),
+        _ => true,
+    }
+}
+
 /// A length-percentage computed value as a length plus a percentage of what it resolves against.
 fn length_plus_percentage(value: &StyleValueData) -> (f64, f64) {
     match value {

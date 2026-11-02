@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes tall {
+        from { height: 10px; }
+        to { height: 30px; }
+    }
+    body {
+        margin: 0;
+    }
+    #scroller {
+        direction: rtl;
+        display: flex;
+        height: 100px;
+        width: 200px;
+        overflow: auto;
+    }
+    #scroller > * {
+        flex: none;
+    }
+    #before {
+        width: 300px;
+        height: 10px;
+    }
+    #subject {
+        width: 100px;
+        height: 10px;
+        animation: tall linear both;
+        animation-timeline: view(x);
+    }
+    #after {
+        width: 600px;
+        height: 10px;
+    }
+</style>
+<div id="scroller">
+    <div id="before"></div>
+    <div id="subject"></div>
+    <div id="after"></div>
+</div>
+<script>
+    // A scroller that overflows towards its start scrolls to negative offsets, which a tick samples its timelines at.
+    // The subject starts 200px before the scrollport, so that its cover range runs from -400px to -100px.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => subject.getAnimations()[0], frameTime => {
+            for (let tick = 1; tick <= 4; tick++)
+                internals.injectClockTickScrollingElement(frameTime + 16 * tick, scroller, -250, 0);
+            return internals.presentedBorderBox(subject).height;
+        });
+        println(`the subject shows the progress at the negative scroll offset: ${Math.abs(result - 20) < 0.5}`);
+        done();
+    });
+</script>

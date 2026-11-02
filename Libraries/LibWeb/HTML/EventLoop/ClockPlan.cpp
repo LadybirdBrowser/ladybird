@@ -10,6 +10,7 @@
 #include <LibWeb/Animations/DocumentTimeline.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/Animations/ScrollTimeline.h>
+#include <LibWeb/Animations/ViewTimeline.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
@@ -36,8 +37,20 @@ static bool timing_is_in(Animations::KeyframeEffect const& effect, Animations::T
     return effect.start_delay().type == type && effect.iteration_duration().type == type && effect.active_duration().type == type;
 }
 
-// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`, whose last entry is
-// the timeline's where an effect of it was planned before. Answers whether a tick may sample it.
+// How much of `edge` is a percentage of the scrollport's size, which a tick that resizes the scrollport resolves again.
+static double inset_percentage(Animations::ViewTimeline::InsetEdge const& edge)
+{
+    return edge.is_auto ? 0 : edge.percentage;
+}
+
+// Whether `edge` is a length plus a percentage, which is all a tick that resizes the scrollport can resolve again.
+static bool inset_is_linear(Animations::ViewTimeline::InsetEdge const& edge)
+{
+    return !edge.calculated || CSS::ComputedValuesFFI::rust_length_percentage_is_linear(edge.calculated.data());
+}
+
+// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`, whose last entry
+// is the timeline's where an effect of it was planned before. Answers whether a tick may sample it.
 static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimeline>& scroll_timelines, Animations::ScrollTimeline const& timeline, Animations::KeyframeEffect const& effect, Optional<Animations::TimeValue> local_time)
 {
     auto const& scroller = timeline.followed_scroller();
@@ -45,6 +58,13 @@ static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimelin
     if (!scroller.has_value() || !progress.has_value() || progress->type != Animations::TimeValue::Type::Percentage
         || !local_time.has_value() || local_time->type != Animations::TimeValue::Type::Percentage
         || !timing_is_in(effect, Animations::TimeValue::Type::Percentage))
+        return false;
+    // A tick finds the subject of a view timeline by its box, which a pseudo-element does not name.
+    auto const* view_timeline = as_if<Animations::ViewTimeline>(timeline);
+    if (view_timeline && (view_timeline->subject_internal().pseudo_element().has_value() || !view_timeline->subject_internal().element().style_node_id() || !view_timeline->last_metrics().has_value()))
+        return false;
+    // A tick resolves the insets of a view timeline as a length plus a percentage, which not every calculation is.
+    if (view_timeline && (!inset_is_linear(view_timeline->inset().start) || !inset_is_linear(view_timeline->inset().end)))
         return false;
     if (scroll_timelines.is_empty() || scroll_timelines.last().timeline != timeline.clock_identity()) {
         scroll_timelines.append({
@@ -54,6 +74,18 @@ static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimelin
             .vertical = scroller->vertical,
             .scroll_offset = scroller->scroll_offset,
             .max_scroll_offset = scroller->max_scroll_offset,
+            .view = view_timeline
+                ? Layout::RustFFI::FfiPlannedViewTimeline {
+                      .subject = view_timeline->subject_internal().element().style_node_id().value(),
+                      .scrollport_size = view_timeline->last_metrics()->scrollport_size,
+                      .inset_start = view_timeline->last_metrics()->inset_start,
+                      .inset_end = view_timeline->last_metrics()->inset_end,
+                      .inset_start_percentage = inset_percentage(view_timeline->inset().start),
+                      .inset_end_percentage = inset_percentage(view_timeline->inset().end),
+                      .subject_offset = view_timeline->last_metrics()->subject_offset,
+                      .subject_size = view_timeline->last_metrics()->subject_size,
+                  }
+                : Layout::RustFFI::FfiPlannedViewTimeline {},
         });
     }
     return true;

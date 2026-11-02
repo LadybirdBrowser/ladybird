@@ -1,0 +1,2 @@
+the ticks shrank the page: true
+the bar stays at the end of its animation: true

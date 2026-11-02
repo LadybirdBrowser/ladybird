@@ -1,7 +1,7 @@
-presented width a quarter through the cover range: none
-presented width half through the cover range: none
-presented width past the cover range: none
-presented width scrolled back to half: none
+presented width a quarter through the cover range: 150.0
+presented width half through the cover range: 200.0
+presented width past the cover range: 300.0
+presented width scrolled back to half: 200.0
 render clock: ticking
 last frame presented by: clock
 the page holds at the top: true

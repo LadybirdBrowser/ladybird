@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        from { height: 400px; }
+        to { height: 0px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #shrinking {
+        height: 400px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #subject {
+        height: 100px;
+        animation: widen linear both;
+        animation-timeline: view();
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="shrinking"></div>
+<div id="subject"></div>
+<div id="spacer"></div>
+<script>
+    // Where a tick lays out the subject of a view timeline decides the timeline's progress at the next tick, as a host's
+    // layout decides it at its next rendering update.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => subject.getAnimations()[0], frameTime => {
+            const hostTop = subject.getBoundingClientRect().top;
+            const position = 200;
+            let box;
+            for (let tick = 1; tick <= 40; tick++) {
+                internals.injectClockTick(frameTime + 16 * tick, position);
+                box = internals.presentedBorderBox(subject);
+            }
+            return { hostTop, position, top: box.top, width: box.width };
+        });
+        const coverStart = result.top - window.innerHeight;
+        const coverEnd = result.top + 100;
+        const progress = (result.position - coverStart) / (coverEnd - coverStart);
+        println(`the ticks moved the subject up: ${result.top < result.hostTop}`);
+        println(`the subject shows the progress where the ticks laid it out: ${Math.abs(result.width - (100 + 200 * progress)) < 0.5}`);
+        done();
+    });
+</script>

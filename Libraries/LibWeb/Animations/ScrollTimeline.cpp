@@ -166,6 +166,13 @@ Optional<ScrollTimeline::ScrollerMetrics> ScrollTimeline::scroller_metrics() con
     };
 }
 
+Optional<ScrollTimeline::FollowedScroller> ScrollTimeline::followed_scroller_from(ScrollerMetrics const& metrics)
+{
+    if (!metrics.scroll_node.has_value())
+        return {};
+    return FollowedScroller { *metrics.scroll_node, metrics.scroller_style_node, metrics.is_vertical, metrics.scroll_offset, metrics.max_scroll_offset };
+}
+
 void ScrollTimeline::set_axis(ScrollAxis axis)
 {
     if (m_axis == axis)
@@ -227,8 +234,7 @@ void ScrollTimeline::update_current_time(double)
     //     scroll offset ÷ (scrollable overflow size − scroll container size)
     auto progress = scroll_offset_data->scroll_offset / scroll_offset_data->max_scroll_offset;
 
-    if (scroll_offset_data->scroll_node.has_value())
-        m_followed_scroller = FollowedScroller { *scroll_offset_data->scroll_node, scroll_offset_data->scroller_style_node, scroll_offset_data->is_vertical, scroll_offset_data->scroll_offset, scroll_offset_data->max_scroll_offset };
+    m_followed_scroller = followed_scroller_from(*scroll_offset_data);
 
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }

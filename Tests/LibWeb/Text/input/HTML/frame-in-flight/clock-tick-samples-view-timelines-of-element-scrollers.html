@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink-height {
+        from { height: 200px; }
+        to { height: 0px; }
+    }
+    @keyframes shrink-width {
+        from { width: 200px; }
+        to { width: 0px; }
+    }
+    @keyframes tall {
+        from { height: 10px; }
+        to { height: 30px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #vertical {
+        height: 200px;
+        width: 400px;
+        overflow: auto;
+        margin-top: 10px;
+    }
+    #vertical-shrinking {
+        height: 200px;
+        animation: shrink-height linear both;
+        animation-timeline: scroll(nearest block);
+    }
+    #vertical-subject {
+        height: 100px;
+        animation: widen linear both;
+        animation-timeline: view();
+    }
+    #vertical-after {
+        height: 600px;
+    }
+    #horizontal {
+        display: flex;
+        height: 100px;
+        width: 200px;
+        overflow: auto;
+        margin-left: 20px;
+    }
+    #horizontal > * {
+        flex: none;
+    }
+    #horizontal-shrinking {
+        width: 200px;
+        animation: shrink-width linear both;
+        animation-timeline: scroll(nearest inline);
+    }
+    #horizontal-subject {
+        width: 100px;
+        height: 10px;
+        animation: tall linear both;
+        animation-timeline: view(inline);
+    }
+    #horizontal-after {
+        width: 600px;
+    }
+</style>
+<div id="vertical">
+    <div id="vertical-shrinking"></div>
+    <div id="vertical-subject"></div>
+    <div id="vertical-after"></div>
+</div>
+<div id="horizontal">
+    <div id="horizontal-shrinking"></div>
+    <div id="horizontal-subject"></div>
+    <div id="horizontal-after"></div>
+</div>
+<script>
+    // The render clock samples view and scroll timelines of an element's scroll node, along either axis, from the boxes
+    // its ticks laid out.
+    asyncTest(async done => {
+        const close = (a, b) => Math.abs(a - b) < 0.5;
+        const scrolling = (frameTime, scroller, x, y) => {
+            for (let tick = 1; tick <= 10; tick++)
+                internals.injectClockTickScrollingElement(frameTime + 16 * tick, scroller, x, y);
+        };
+        const result = await whileLaneAnimates(() => document.getElementById("vertical-subject").getAnimations()[0], frameTime => {
+            const verticalSubject = document.getElementById("vertical-subject");
+            const horizontalSubject = document.getElementById("horizontal-subject");
+            const verticalScrollport = vertical.getBoundingClientRect();
+            const horizontalScrollport = horizontal.getBoundingClientRect();
+
+            scrolling(frameTime, vertical, 0, 100);
+            const verticalBox = internals.presentedBorderBox(verticalSubject);
+            const verticalShrinking = internals.presentedBorderBox(document.getElementById("vertical-shrinking"));
+            scrolling(frameTime + 160, horizontal, 100, 0);
+            const horizontalBox = internals.presentedBorderBox(horizontalSubject);
+            const horizontalShrinking = internals.presentedBorderBox(document.getElementById("horizontal-shrinking"));
+
+            const verticalOffset = verticalBox.top - verticalScrollport.top;
+            const horizontalOffset = horizontalBox.left - horizontalScrollport.left;
+            return {
+                verticalMoved: verticalOffset < 200,
+                verticalMatches: close(verticalBox.width, 100 + 200 * (100 - (verticalOffset - 200)) / (100 + 200)),
+                verticalRangeMatches: close(verticalShrinking.height, 200 * (1 - 100 / (verticalShrinking.height + 100 + 600 - 200))),
+                horizontalMoved: horizontalOffset < 200,
+                horizontalMatches: close(horizontalBox.height, 10 + 20 * (100 - (horizontalOffset - 200)) / (100 + 200)),
+                horizontalRangeMatches: close(horizontalShrinking.width, 200 * (1 - 100 / (horizontalShrinking.width + 100 + 600 - 200))),
+            };
+        });
+        for (const [name, value] of Object.entries(result))
+            println(`${name}: ${value}`);
+        done();
+    });
+</script>

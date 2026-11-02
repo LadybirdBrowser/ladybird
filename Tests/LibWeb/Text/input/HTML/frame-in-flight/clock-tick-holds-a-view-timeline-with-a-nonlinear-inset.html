@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes resize {
+        from { height: 100px; }
+        to { height: 300px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #scroller {
+        height: 100px;
+        width: 400px;
+        overflow: auto;
+        animation: resize linear both;
+        animation-timeline: scroll(root);
+    }
+    #before {
+        height: 50px;
+    }
+    #subject {
+        height: 50px;
+        animation: widen linear both;
+        animation-timeline: view(min(5%, 10px));
+    }
+    #after {
+        height: 1000px;
+    }
+    #spacer {
+        height: 2000px;
+    }
+</style>
+<div id="scroller">
+    <div id="before"></div>
+    <div id="subject"></div>
+    <div id="after"></div>
+</div>
+<div id="spacer"></div>
+<script>
+    // A tick resolves a view timeline's inset as a length plus a percentage of the scrollport, which min(5%, 10px) is
+    // not, so the ticks present nothing of the subject of that timeline, and the host answers in its next rendering
+    // update.
+    const inset = size => Math.min(0.05 * size, 10);
+    const widthAt = (position, size) => {
+        const coverStart = 50 - (size - inset(size));
+        const coverEnd = 50 + 50 - inset(size);
+        return 100 + 200 * (position - coverStart) / (coverEnd - coverStart);
+    };
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => subject.getAnimations()[0], frameTime => {
+            const position = document.documentElement.scrollHeight - window.innerHeight;
+            for (let tick = 1; tick <= 8; tick++)
+                internals.injectClockTick(frameTime + 16 * tick, position);
+            return {
+                size: internals.presentedBorderBox(scroller).height,
+                subject: internals.presentedBorderBox(subject),
+            };
+        });
+        println(`the ticks resized the scrollport: ${result.size > 100}`);
+        println(`the ticks present nothing of the subject: ${result.subject === null}`);
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        await twoFrames();
+        await twoFrames();
+        const size = scroller.getBoundingClientRect().height;
+        println(`the host computes that progress in its own scrollport: ${Math.abs(subject.getBoundingClientRect().width - widthAt(0, size)) < 0.5}`);
+        done();
+    });
+</script>
