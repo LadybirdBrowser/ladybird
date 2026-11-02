@@ -14,8 +14,11 @@
 use super::super::*;
 use super::bloom::AncestorFilter;
 use super::matching::{ElementMatch, Matcher};
-use super::records::RetainedRecords;
-use super::rules::{RuleIndex, ScopeGroupID};
+use super::records::{MatchList, RetainedRecords};
+use super::rules::{BoundSegment, RuleIndex, ScopeGroupID};
+use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
+use smallvec::SmallVec;
+use std::collections::hash_map::Entry;
 
 /// The entries of the rule index an update changed.
 #[derive(Default)]
@@ -42,7 +45,15 @@ pub(super) struct RuleIndexChanges {
     /// The shadow trees that stopped deciding with the entries of one group, or started deciding
     /// with those of another that was there before.
     regrouped: Vec<Regrouped>,
+    /// Whether the entries that died declared what their rules declare now, and those that stayed
+    /// stand as they stood, which lets what they decide be told from their rules.
+    conditions_moved_alone: bool,
+    /// The segments the update let go of, which alone still tell what their entries were.
+    pub(super) let_go: Vec<BoundSegment>,
 }
+
+/// The list an element holding one list comes to hold as the given entries arrive, if it keeps its style.
+type KeptLists<'a> = HashMap<(&'a [u32], SmallVec<[u32; 4]>), Option<MatchList>>;
 
 /// A shadow tree whose sheets or layers moved, which decides with the entries of another group of
 /// trees: the elements that matched an entry of the group it left, or that match one of the
@@ -79,11 +90,15 @@ struct Ranks {
 
 impl Ranks {
     fn of(entries: &super::rules::IndexEntries, id: u32) -> Self {
-        let placement = entries.placement(id as usize);
+        Self::of_view(entries, entries.view(id as usize))
+    }
+
+    fn of_view(entries: &super::rules::IndexEntries, view: super::rules::EntryView<'_>) -> Self {
+        let placement = entries.placement_of(view);
         Self {
             layer: placement.layer_rank,
             sheet: placement.sheet_rank,
-            rule: entries.view(id as usize).rule_rank(),
+            rule: view.rule_rank(),
         }
     }
 }
@@ -99,8 +114,9 @@ pub(super) fn note_moved(entries: &super::rules::IndexEntries, stayed: &[StayedE
             .iter()
             .filter(|stayed| !important || entries.entry(stayed.id as usize).declares_important())
             .collect();
-        let now = |stayed: &StayedEntry| cascade_key(entries, stayed.id, Ranks::of(entries, stayed.id), important);
-        let before = |stayed: &StayedEntry| cascade_key(entries, stayed.id, stayed.ranks, important);
+        let view = |stayed: &StayedEntry| entries.view(stayed.id as usize);
+        let now = |stayed: &StayedEntry| cascade_key(entries, view(stayed), Ranks::of(entries, stayed.id), important);
+        let before = |stayed: &StayedEntry| cascade_key(entries, view(stayed), stayed.ranks, important);
         order.sort_unstable_by_key(|stayed| (now(stayed), before(stayed)));
         let keys: Vec<_> = order.iter().map(|stayed| before(stayed)).collect();
         let kept = longest_ordered_run(&keys);
@@ -122,6 +138,7 @@ impl RuleIndexChanges {
         added: &[u32],
         user_agent_moved: bool,
         regrouped: Vec<Regrouped>,
+        conditions_moved_alone: bool,
     ) -> Self {
         let mut before = vec![false; index.entries.len()];
         let mut scopes: Vec<TreeScopeID> = Vec::new();
@@ -161,6 +178,8 @@ impl RuleIndexChanges {
             first_arrived_entry: added.iter().copied().min(),
             scopes,
             regrouped,
+            conditions_moved_alone,
+            let_go: Vec::new(),
         }
     }
 
@@ -192,7 +211,8 @@ impl RuleIndexChanges {
     /// Visit each element under `roots` in the flat tree that the changes restyle, where `records`
     /// holds what the elements matched against the index before and `index` is the updated one,
     /// with the entries that arrived it matches, where those and what left its matches are all
-    /// that moved of them, and none where it has to be matched anew.
+    /// that moved of them, and none where it has to be matched anew. An element where what moved
+    /// of its matches decides nothing goes to `keep` instead, with the matches it has now.
     ///
     /// NB: No other entry's answer depends on the sheets: its selector and `@scope` levels are
     ///     its own. What an entry that died matched leaves the element's matches as it is renumbered.
@@ -203,6 +223,7 @@ impl RuleIndexChanges {
         records: &RetainedRecords,
         roots: &[StyleNodeID],
         mut visit: impl FnMut(StyleNodeID, Option<&[ElementMatch]>),
+        mut keep: impl FnMut(StyleNodeID, MatchList),
     ) {
         let mut matcher = Matcher::reaching(index, &self.arrived, state);
         // NB: The arrived entries are few, and each is evaluated where an element reaches its
@@ -212,7 +233,11 @@ impl RuleIndexChanges {
         let mut matches = Vec::new();
         let left_any = self.before.iter().any(|&changed| changed);
         // NB: Match lists are interned, and a run of alike elements holds one of them.
-        let mut last_list: Option<(&super::records::MatchList, bool)> = None;
+        let mut last_list: Option<(&MatchList, bool)> = None;
+        // NB: Entries numbered anew leave no list of them to keep.
+        let keeps_styles = self.conditions_moved_alone && !index.wants_compaction();
+        // NB: Elements alike hold one list, and what arrives for them is alike too.
+        let mut kept_lists: KeptLists<'_> = HashMap::default();
         // NB: An element sharing no bit with these reaches no bucket of the entries that arrived,
         //     and so matches none of them. Elements compare to selectors folded where ids and
         //     classes do, which the bits are not.
@@ -253,14 +278,53 @@ impl RuleIndexChanges {
                         continue;
                     }
                 }
-                if matched_one || !matches.is_empty() {
-                    visit(node, Some(&matches));
+                if !matched_one && matches.is_empty() {
+                    continue;
                 }
+                if let Some(matched) = records.matches_of(node).filter(|_| keeps_styles) {
+                    let arrived: SmallVec<[u32; 4]> = matches.iter().map(|arrived| arrived.entry).collect();
+                    let list = match kept_lists.entry((&matched[..], arrived)) {
+                        Entry::Occupied(found) => found.into_mut(),
+                        Entry::Vacant(vacant) => {
+                            let list = self.matches_keeping_style(state, index, matched, &vacant.key().1);
+                            vacant.insert(list)
+                        }
+                    };
+                    if let Some(list) = list {
+                        keep(node, list.clone());
+                        continue;
+                    }
+                }
+                visit(node, Some(&matches));
             }
         }
         for regrouped in &self.regrouped {
             Self::for_each_regrouped(regrouped, state, index, records, &filter, &mut |node| visit(node, None));
         }
+    }
+
+    /// The entries an element holding the record of `matched` matches, where those that died left
+    /// it and `arrived` joined it, if its style stays as it is for all of them.
+    fn matches_keeping_style(
+        &self,
+        state: &RetainedState,
+        index: &RuleIndex,
+        matched: &[u32],
+        arrived: &[u32],
+    ) -> Option<MatchList> {
+        let stayed: SmallVec<[u32; 16]> = matched
+            .iter()
+            .copied()
+            .filter(|&entry| !self.before[entry as usize])
+            .collect();
+        let left = matched.iter().copied().filter(|&entry| self.before[entry as usize]);
+        if !all_lose_every_longhand(state, index, &self.let_go, left.chain(arrived.iter().copied()), &stayed) {
+            return None;
+        }
+        let mut now: Vec<u32> = stayed.iter().chain(arrived).copied().collect();
+        now.sort_unstable();
+        now.dedup();
+        Some(std::sync::Arc::new(now.into_boxed_slice()))
     }
 
     /// Visit each element the shadow tree of `regrouped` reaches whose matches can have moved with
@@ -323,17 +387,105 @@ impl RuleIndexChanges {
     }
 }
 
+/// How many matches and declarations a check of what moved of an element's matches reads at most. Past
+/// that the check costs more than the cascade it would save, and the element is restyled.
+const MOST_READ_FOR_KEEPING_A_STYLE: usize = 1 << 14;
+
+/// Whether an element matching the entries of `stayed` cascades alike with `moved` and without them, as
+/// [`loses_every_longhand`] says of each, as far as is worth reading to tell. The update of the rule
+/// index let go of the segments `let_go`, if any.
+pub(super) fn all_lose_every_longhand(
+    state: &RetainedState,
+    index: &RuleIndex,
+    let_go: &[BoundSegment],
+    moved: impl IntoIterator<Item = u32>,
+    stayed: &[u32],
+) -> bool {
+    let mut reads_left = MOST_READ_FOR_KEEPING_A_STYLE;
+    moved
+        .into_iter()
+        .all(|entry| loses_every_longhand(state, index, let_go, entry, stayed, &mut reads_left))
+}
+
+/// Whether an element matching the entries of `stayed` cascades alike with `entry` and without it:
+/// each longhand it declares goes to an entry of `stayed` above it, and it declares nothing else.
+/// Answers no once it has read all of `reads_left`.
+///
+/// NB: A `revert` or `revert-layer` that rolls back past the entry above, as declared or substituted,
+///     rolls back past this one in the layer they share too, which then decides nothing either.
+fn loses_every_longhand(
+    state: &RetainedState,
+    index: &RuleIndex,
+    let_go: &[BoundSegment],
+    entry: u32,
+    stayed: &[u32],
+    reads_left: &mut usize,
+) -> bool {
+    let entries = &index.entries;
+    let Some(view) = entries.try_view_before(let_go, entry as usize) else {
+        return false;
+    };
+    // NB: The entries that apply under container conditions leave what they read in the record, and
+    //     may not apply. Those of a pseudo-element decide for it alone.
+    let holds_by_its_rule =
+        |view: super::rules::EntryView<'_>| !view.pseudo_element() && !view.scoped() && !view.gated();
+    let placement = entries.placement_of(view);
+    if !holds_by_its_rule(view)
+        || view.declares_custom_properties()
+        || view.declares_important()
+        || placement.group != ScopeGroupID::DOCUMENT
+    {
+        return false;
+    }
+    let rule = index.rule_of_view(view);
+    *reads_left = reads_left.saturating_sub(stayed.len());
+    // NB: The entries of a rule decide by the greatest specificity among them.
+    if stayed
+        .iter()
+        .any(|&other| index.rule_of_view(entries.view(other as usize)) == rule)
+    {
+        return false;
+    }
+    let declared = state.rules.declared_properties_of(rule);
+    let priority = cascade_key(entries, view, Ranks::of_view(entries, view), false);
+    !declared.is_empty()
+        && declared.iter().all(|declaration| {
+            (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&declaration.property())
+                // NB: What decides an element mostly comes late in the cascade.
+                && stayed.iter().rev().any(|&other| {
+                    if *reads_left == 0 {
+                        return false;
+                    }
+                    *reads_left -= 1;
+                    let other_view = entries.view(other as usize);
+                    let other_placement = entries.placement_of(other_view);
+                    if !holds_by_its_rule(other_view)
+                        || other_placement.group != placement.group
+                        || other_placement.origin != placement.origin
+                        || other_placement.layer_rank != placement.layer_rank
+                        || cascade_key(entries, other_view, Ranks::of_view(entries, other_view), false) <= priority
+                    {
+                        return false;
+                    }
+                    let above = state.rules.declared_properties_of(index.rule_of_view(other_view));
+                    *reads_left = reads_left.saturating_sub(above.len());
+                    above
+                        .iter()
+                        .any(|above| above.property() == declaration.property() && !above.important())
+                })
+        })
+}
+
 /// Where the declarations of `entry` of the given importance stand in the cascade order against
 /// those of the other entries of its tree scope. Entries of different scopes reach an element
 /// from different encapsulation contexts, which the tree orders, or from different origins.
 fn cascade_key(
     entries: &super::rules::IndexEntries,
-    id: u32,
+    entry: super::rules::EntryView<'_>,
     ranks: Ranks,
     important: bool,
 ) -> (ScopeGroupID, CascadePriority) {
-    let entry = entries.view(id as usize);
-    let placement = entries.placement(id as usize);
+    let placement = entries.placement_of(entry);
     (
         placement.group,
         CascadePriority::new(PriorityInputs {

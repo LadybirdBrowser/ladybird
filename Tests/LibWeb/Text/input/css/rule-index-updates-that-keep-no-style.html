@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<style id="first">
+    .swapped { color: rgb(1, 1, 1); }
+</style>
+<style id="second">
+    .swapped { color: rgb(2, 2, 2); }
+</style>
+<div id="swapped" class="swapped"></div>
+<div id="outer"></div>
+<template id="tree">
+    <style>
+        @media (prefers-color-scheme: dark) {
+            .slotted { color: rgb(1, 1, 1); }
+        }
+        ::slotted(.slotted) { color: rgb(2, 2, 2); }
+    </style>
+    <slot></slot>
+</template>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // Sheets swapped: the rule that loses now won before, which what it declares and where it stands no longer tell.
+    const swapped = document.getElementById("swapped");
+    const reportSwapped = title => {
+        internals.updateStyle();
+        println(`${title}: ${getComputedStyle(swapped).color}`);
+    };
+    reportSwapped("Sheets in order");
+    document.getElementById("first").before(document.getElementById("second"));
+    reportSwapped("Sheets swapped");
+    document.getElementById("second").before(document.getElementById("first"));
+    reportSwapped("Sheets swapped back");
+
+    // Two shadow trees alike reach an element in the outer one, whose rule wins from there though the other is later.
+    const tree = document.getElementById("tree");
+    const attachTree = host => {
+        const root = host.attachShadow({ mode: "open" });
+        root.append(tree.content.cloneNode(true));
+        return root;
+    };
+    const outer = attachTree(document.getElementById("outer"));
+    const inner = document.createElement("div");
+    outer.append(inner);
+    attachTree(inner);
+    const slotted = document.createElement("div");
+    slotted.className = "slotted";
+    inner.append(slotted);
+    const reportSlotted = title => {
+        internals.updateStyle();
+        println(`${title}: ${getComputedStyle(slotted).color}`);
+    };
+    internals.setPreferredColorScheme("dark");
+    reportSlotted("Dark");
+    internals.setPreferredColorScheme("light");
+    reportSlotted("Light");
+    internals.setPreferredColorScheme("dark");
+    reportSlotted("Dark again");
+    internals.setPreferredColorScheme("auto");
+});
+</script>

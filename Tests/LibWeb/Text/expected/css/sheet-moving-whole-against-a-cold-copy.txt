@@ -1,0 +1,84 @@
+Light: decides  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: decides ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: decides-and-loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: decides-and-loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: important  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: important ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: custom  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: custom ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: pseudo  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: pseudo ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: container  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light: container ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark: decides  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Dark: decides ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark: loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark: loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark: decides-and-loses  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Dark: decides-and-loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark: important  as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Dark: important ::before as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Dark: custom  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|rgb(2, 2, 2)
+Dark: custom ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|rgb(2, 2, 2)
+Dark: pseudo  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark: pseudo ::before as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Dark: container  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Dark: container ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: decides  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: decides ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: decides-and-loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: decides-and-loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: important  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: important ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: custom  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: custom ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: pseudo  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: pseudo ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: container  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Light again: container ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark again: decides  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Dark again: decides ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark again: loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark again: loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark again: decides-and-loses  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Dark again: decides-and-loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark again: important  as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Dark again: important ::before as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Dark again: custom  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|rgb(2, 2, 2)
+Dark again: custom ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|rgb(2, 2, 2)
+Dark again: pseudo  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Dark again: pseudo ::before as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Dark again: container  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Dark again: container ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: decides  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Adopted: decides ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: decides-and-loses  as a cold copy, rgb(1, 1, 1)|rgb(2, 2, 2)|
+Adopted: decides-and-loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: important  as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Adopted: important ::before as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Adopted: custom  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|rgb(2, 2, 2)
+Adopted: custom ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|rgb(2, 2, 2)
+Adopted: pseudo  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: pseudo ::before as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|
+Adopted: container  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Adopted: container ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: decides  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: decides ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: decides-and-loses  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: decides-and-loses ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: important  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: important ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: custom  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: custom ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: pseudo  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: pseudo ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: container  as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|
+Replaced: container ::before as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|

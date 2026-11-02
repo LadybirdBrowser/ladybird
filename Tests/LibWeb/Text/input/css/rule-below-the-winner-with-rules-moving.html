@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<style id="sheet">
+    @media (prefers-color-scheme: dark) { .declares-otherwise { margin-left: 5px; } }
+    .declares-otherwise.w { color: rgb(1, 1, 1); }
+
+    .root-loser { font-size: 20px; color: rgb(2, 2, 2); }
+    .root-winner { font-size: 10px; color: rgb(1, 1, 1); }
+    .reads-root-font { width: 2rem; }
+
+    .class-flip-as-winner-deleted.l { color: rgb(2, 2, 2); }
+    .class-flip-as-winner-deleted.w { color: rgb(1, 1, 1); }
+
+    .class-flip-as-loser-deleted.l { color: rgb(2, 2, 2); }
+    .class-flip-as-loser-deleted.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) { .declarations-move { color: rgb(2, 2, 2); } }
+    .declarations-move.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) { .winner-deleted { color: rgb(2, 2, 2); } }
+    .winner-deleted.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) { .loser-moves { color: rgb(2, 2, 2); } }
+    .loser-moves.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) { .new-winner { color: rgb(2, 2, 2); } }
+
+    @media (prefers-color-scheme: dark) { .selector-moves { color: rgb(2, 2, 2); } }
+    .selector-moves.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) {
+        .winner-flips-too { color: rgb(2, 2, 2); }
+        .winner-flips-too.w { color: rgb(1, 1, 1); }
+    }
+
+    @media (prefers-color-scheme: light) { .winner-leaves-as-loser-arrives.w { color: rgb(1, 1, 1); } }
+    @media (prefers-color-scheme: dark) { .winner-leaves-as-loser-arrives { color: rgb(2, 2, 2); } }
+
+    @media (prefers-color-scheme: dark) {
+        @layer flipping-first;
+    }
+    @layer flipping-second { .layer-order.w { color: rgb(1, 1, 1); } }
+    @layer flipping-first { .layer-order.w { color: rgb(2, 2, 2); } }
+
+    @media (prefers-color-scheme: dark) {
+        @layer first-when-dark;
+    }
+    @layer second-when-dark { .layer-order-of-winner { color: rgb(1, 1, 1); } }
+    @layer first-when-dark { @media (prefers-color-scheme: dark) { .layer-order-of-winner.w { color: rgb(2, 2, 2); } } }
+
+    @media (prefers-color-scheme: dark) { @media (min-width: 1px) { .nested-media { color: rgb(2, 2, 2); } } }
+    .nested-media.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) { .media-text-moves { color: rgb(2, 2, 2); } }
+    .media-text-moves.w { color: rgb(1, 1, 1); }
+
+    @media (prefers-color-scheme: dark) { .keyframes-flip { animation: flip 100s paused; } }
+    .keyframes-flip.w { animation: none; }
+    @media (prefers-color-scheme: dark) { @keyframes flip { from { margin-left: 3px; } to { margin-left: 3px; } } }
+
+    @media (prefers-color-scheme: dark) { .winner-keyframes { margin-top: 2px; } }
+    .winner-keyframes.w { margin-top: 1px; animation: flip-again 100s paused; }
+    @keyframes flip-again { from { margin-left: 1px; } to { margin-left: 1px; } }
+    @media (prefers-color-scheme: dark) { @keyframes flip-again { from { margin-left: 2px; } to { margin-left: 2px; } } }
+</style>
+<style id="moved-loser-sheet">.moved-loser { color: rgb(2, 2, 2); }</style>
+<style id="flipped-loser-sheet">@media (prefers-color-scheme: dark) { .moved-loser { margin-top: 2px; } }</style>
+<style>.moved-loser.w { color: rgb(1, 1, 1); margin-top: 1px; }</style>
+<style id="flipped-sheet" media="(prefers-color-scheme: dark)">.sheet-media { color: rgb(2, 2, 2); }</style>
+<style>.sheet-media.w { color: rgb(1, 1, 1); }</style>
+<style id="disabled-sheet">@media (prefers-color-scheme: dark) { .sheet-disabled { color: rgb(2, 2, 2); } }</style>
+<style id="winner-sheet">.sheet-disabled.w { color: rgb(1, 1, 1); }</style>
+<style id="moved-sheet">.sheet-moved.w { color: rgb(1, 1, 1); }</style>
+<style>@media (prefers-color-scheme: dark) { .sheet-moved { color: rgb(2, 2, 2); } }</style>
+<div id="cases">
+    <div id="declares-otherwise" class="declares-otherwise w"></div>
+    <div id="moved-loser" class="moved-loser w"></div>
+    <div id="reads-root-font" class="reads-root-font"></div>
+    <div id="class-flip-as-winner-deleted" class="class-flip-as-winner-deleted w"></div>
+    <div id="class-flip-as-loser-deleted" class="class-flip-as-loser-deleted w"></div>
+    <div id="declarations-move" class="declarations-move w"></div>
+    <div id="winner-deleted" class="winner-deleted w"></div>
+    <div id="loser-moves" class="loser-moves w"></div>
+    <div id="new-winner" class="new-winner"></div>
+    <div id="selector-moves" class="selector-moves w"></div>
+    <div id="winner-flips-too" class="winner-flips-too w"></div>
+    <div id="winner-leaves-as-loser-arrives" class="winner-leaves-as-loser-arrives w"></div>
+    <div id="layer-order" class="layer-order w"></div>
+    <div id="layer-order-of-winner" class="layer-order-of-winner w"></div>
+    <div id="nested-media" class="nested-media w"></div>
+    <div id="media-text-moves" class="media-text-moves w"></div>
+    <div id="keyframes-flip" class="keyframes-flip w"></div>
+    <div id="winner-keyframes" class="winner-keyframes w"></div>
+    <div id="sheet-media" class="sheet-media w"></div>
+    <div id="sheet-disabled" class="sheet-disabled w"></div>
+    <div id="sheet-moved" class="sheet-moved w"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const report = title => {
+        internals.updateStyle();
+        println(`${title}:`);
+        for (const element of document.getElementById("cases").children) {
+            const style = getComputedStyle(element);
+            println(`  ${element.id}: ${style.color} ${style.animationName} ${style.marginLeft} ${style.marginTop} ${style.width}`);
+        }
+    };
+    const sheet = document.getElementById("sheet").sheet;
+    const ruleMatching = text => {
+        for (const rule of sheet.cssRules) {
+            if (rule.cssText.startsWith(text))
+                return rule;
+        }
+        throw new Error(`No rule ${text}`);
+    };
+    const indexOf = rule => [...sheet.cssRules].indexOf(rule);
+    const flip = scheme => internals.setPreferredColorScheme(scheme);
+
+    // The rule that loses on the root element changes no font a length reads.
+    const root = document.documentElement;
+    report("Root, alone");
+    root.classList.add("root-winner");
+    report("Root, with the winner");
+    root.classList.add("root-loser");
+    report("Root, with the loser below the winner");
+    root.classList.remove("root-winner");
+    report("Root, with the loser alone");
+    root.classList.remove("root-loser");
+
+    // A class flips the entry in the update that removes the rule above it, and the one below it.
+    document.getElementById("class-flip-as-winner-deleted").classList.add("l");
+    sheet.deleteRule(indexOf(ruleMatching(".class-flip-as-winner-deleted.w")));
+    report("Winner deleted as the class of the rule below it arrives");
+    const loserDeleted = document.getElementById("class-flip-as-loser-deleted");
+    loserDeleted.classList.add("l");
+    report("The class of the rule below the winner arrived");
+    loserDeleted.classList.remove("l");
+    sheet.deleteRule(indexOf(ruleMatching(".class-flip-as-loser-deleted.l")));
+    report("Rule below the winner deleted as its class leaves");
+    loserDeleted.classList.remove("w");
+    report("The winner over the rule deleted leaves");
+
+    // The rule moves in the sheets as a media query flips. It still matches once the winner above it leaves.
+    flip("dark");
+    report("Dark, before a sheet moves");
+    const movedLoser = document.getElementById("moved-loser");
+    document.head.insertBefore(document.getElementById("moved-loser-sheet"), document.getElementById("flipped-loser-sheet").nextSibling);
+    flip("light");
+    report("Light as the sheet moves");
+    movedLoser.classList.remove("w");
+    report("Without the winner over the rule that moved");
+
+    // The rule that held the winning value declares what it lost to now, as its media query flips off.
+    const declaresOtherwise = sheet.cssRules[0].cssRules[0];
+    flip("dark");
+    report("Dark, with the rule declaring what wins");
+    declaresOtherwise.style.removeProperty("margin-left");
+    declaresOtherwise.style.setProperty("color", "rgb(2, 2, 2)");
+    flip("light");
+    report("Light, with the rule declaring otherwise");
+
+    flip("light");
+    report("Light");
+    flip("dark");
+    report("Dark");
+    flip("light");
+    report("Light again");
+
+    // Each moves in the update that flips the media query.
+    ruleMatching(".declarations-move.w").style.removeProperty("color");
+    sheet.deleteRule(indexOf(ruleMatching(".winner-deleted.w")));
+    sheet.insertRule(".new-winner.new-winner { color: rgb(1, 1, 1); }", sheet.cssRules.length);
+    ruleMatching(".selector-moves.w").selectorText = ".selector-moves.unmatched";
+    document.getElementById("disabled-sheet").sheet.disabled = false;
+    document.getElementById("winner-sheet").sheet.disabled = true;
+    document.head.append(document.getElementById("moved-sheet"));
+    flip("dark");
+    report("Dark with rules moving in the same update");
+
+    flip("light");
+    ruleMatching(".declarations-move.w").style.setProperty("color", "rgb(1, 1, 1)");
+    sheet.deleteRule(indexOf(ruleMatching("@media (prefers-color-scheme: dark) {\n  .loser-moves")));
+    report("Light with the rules moved back");
+
+    flip("dark");
+    report("Dark with the rules moved back");
+
+    ruleMatching("@media (prefers-color-scheme: dark) {\n  .media-text-moves").media.mediaText = "(prefers-color-scheme: light)";
+    flip("light");
+    report("Light with the media text moved");
+
+    flip("auto");
+});
+</script>

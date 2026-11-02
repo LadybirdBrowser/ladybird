@@ -93,6 +93,8 @@ pub(in super::super) struct Live {
     pending_index_rebuild: bool,
     /// The rules changed since the last pass, which the rule index indexes again.
     changed_rules: HashSet<RuleID>,
+    /// Those of `changed_rules` where more than their conditions moved.
+    changed_rule_contents: HashSet<RuleID>,
     /// The sheets attached, detached, enabled or disabled since the last pass, or whose
     /// conditions moved, which the rule index indexes again where they started or stopped
     /// deciding.
@@ -842,6 +844,8 @@ impl Live {
             self.note_custom_functions_moved(state);
         }
         self.changed_rules.extend(changes.rules.iter().copied());
+        self.changed_rule_contents
+            .extend(changes.rules_with_moved_contents.iter().copied());
         self.changed_sheets.extend(changes.sheets.iter().copied());
         self.reordered_scopes.extend(changes.reordered_scopes.iter().copied());
         self.layered_scopes.extend(changes.layered_scopes.iter().copied());
@@ -1929,6 +1933,7 @@ impl Live {
         let keyframes_moved = std::mem::take(&mut self.keyframes_moved);
         let keyframes_moved = (!keyframes_moved.is_empty()).then_some(keyframes_moved);
         let changed_rules = std::mem::take(&mut self.changed_rules);
+        let changed_rule_contents = std::mem::take(&mut self.changed_rule_contents);
         let changed_sheets = std::mem::take(&mut self.changed_sheets);
         let reordered_scopes = std::mem::take(&mut self.reordered_scopes);
         let layered_scopes = std::mem::take(&mut self.layered_scopes);
@@ -1943,6 +1948,7 @@ impl Live {
                 state.process_rule_indexes(),
                 &IndexChanges {
                     rules: &changed_rules,
+                    rule_contents: &changed_rule_contents,
                     sheets: &changed_sheets,
                     reordered_scopes: &reordered_scopes,
                     layered_scopes: &layered_scopes,
@@ -1954,17 +1960,26 @@ impl Live {
                 let hints = &mut self.hints;
                 // NB: Entries numbered anew leave no entry to rematch an element for alone.
                 let renumbers_entries = self.index.wants_compaction() || changes.user_agent_moved;
-                changes.for_each_restyled(state, &self.index, &self.records, &roots, |node, arrived| match arrived
-                    .filter(|_| !renumbers_entries)
-                {
-                    None => hints.add(node, RESTYLE_SELF),
-                    Some(arrived) => {
-                        hints.mark(node, RESTYLE_SELF | RECOMPUTE_SELF);
-                        for matched in arrived {
-                            hints.add_for(node, RESTYLE_SELF, matched.entry);
+                let mut kept_styles: Vec<(StyleNodeID, super::records::MatchList)> = Vec::new();
+                changes.for_each_restyled(
+                    state,
+                    &self.index,
+                    &self.records,
+                    &roots,
+                    |node, arrived| match arrived.filter(|_| !renumbers_entries) {
+                        None => hints.add(node, RESTYLE_SELF),
+                        Some(arrived) => {
+                            hints.mark(node, RESTYLE_SELF | RECOMPUTE_SELF);
+                            for matched in arrived {
+                                hints.add_for(node, RESTYLE_SELF, matched.entry);
+                            }
                         }
-                    }
-                });
+                    },
+                    |node, matches| kept_styles.push((node, matches)),
+                );
+                for (node, matches) in kept_styles {
+                    self.records.replace_matches(node, matches);
+                }
             }
             // The elements a pass does not restyle keep their matches, but for those matching
             // an entry that died, which match again.
@@ -3999,6 +4014,7 @@ impl StyleEngine {
             pending_everything: false,
             pending_index_rebuild: false,
             changed_rules: HashSet::default(),
+            changed_rule_contents: HashSet::default(),
             changed_sheets: HashSet::default(),
             reordered_scopes: HashSet::default(),
             layered_scopes: HashSet::default(),

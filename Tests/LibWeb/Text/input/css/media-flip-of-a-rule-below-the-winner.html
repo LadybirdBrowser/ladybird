@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<style>
+    .target { color: rgb(0, 0, 0); }
+
+    .target.winner { color: rgb(1, 1, 1); }
+    @media (prefers-color-scheme: dark) {
+        .loser { color: rgb(2, 2, 2); }
+        .partial { color: rgb(2, 2, 2); background-color: rgb(2, 2, 2); }
+        .important { color: rgb(2, 2, 2) !important; }
+        .container { color: rgb(2, 2, 2); }
+        .later { color: rgb(2, 2, 2); }
+        .pseudo::before { color: rgb(2, 2, 2); }
+        .custom { --custom: rgb(2, 2, 2); color: var(--custom, rgb(3, 3, 3)); }
+    }
+
+    .later-winner { color: rgb(1, 1, 1); }
+    @media (prefers-color-scheme: dark) {
+        .later-winner { color: rgb(2, 2, 2); }
+    }
+
+    @layer low, high;
+    @layer low {
+        @media (prefers-color-scheme: dark) {
+            .layered { color: rgb(2, 2, 2); }
+        }
+    }
+    @layer high {
+        .layered.layered { color: revert-layer; }
+        .substituted.substituted { color: var(--undefined, revert-layer); }
+    }
+    @layer low {
+        @media (prefers-color-scheme: dark) {
+            .substituted { color: rgb(2, 2, 2); }
+        }
+    }
+
+    .box { container-type: inline-size; width: 10px; }
+    @container (min-width: 1000px) {
+        .container.target.winner { color: rgb(1, 1, 1); }
+    }
+</style>
+<div id="loser" class="loser target winner"><span id="loser-child"></span></div>
+<div id="partial" class="partial target winner"></div>
+<div id="important" class="important target winner"></div>
+<div class="box"><div id="container" class="container target"></div></div>
+<div id="later" class="later target"></div>
+<div id="later-winner" class="later-winner"></div>
+<div id="pseudo" class="pseudo target winner"></div>
+<div id="custom" class="custom target winner"></div>
+<div id="layered" class="layered"></div>
+<div id="substituted" class="substituted"></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const color = (id, pseudo) => getComputedStyle(document.getElementById(id), pseudo).color;
+    const report = title => {
+        internals.updateStyle();
+        println(`${title}:`);
+        for (const id of ["loser", "partial", "important", "container", "later", "later-winner", "custom", "layered", "substituted"])
+            println(`  ${id}: ${color(id)}`);
+        println(`  loser-child: ${color("loser-child")}`);
+        println(`  partial background: ${getComputedStyle(document.getElementById("partial")).backgroundColor}`);
+        println(`  pseudo before: ${color("pseudo", "::before")}`);
+        println(`  custom property: ${getComputedStyle(document.getElementById("custom")).getPropertyValue("--custom")}`);
+    };
+
+    internals.setPreferredColorScheme("light");
+    report("Light");
+
+    internals.setPreferredColorScheme("dark");
+    report("Dark");
+
+    // A rule that arrived below the winner decides once the winner leaves.
+    document.getElementById("loser").classList.remove("winner");
+    report("Dark, without the winner");
+    document.getElementById("loser").classList.add("winner");
+
+    // A rule that left below the winner decides nothing once the winner leaves too.
+    internals.setPreferredColorScheme("light");
+    report("Light again");
+    document.getElementById("loser").classList.remove("winner");
+    report("Light, without the winner");
+    document.getElementById("loser").classList.add("winner");
+
+    // Flipping again finds the entries the rules are indexed with now.
+    internals.setPreferredColorScheme("dark");
+    report("Dark again");
+    document.getElementById("loser").classList.remove("winner");
+    report("Dark again, without the winner");
+
+    internals.setPreferredColorScheme("auto");
+});
+</script>

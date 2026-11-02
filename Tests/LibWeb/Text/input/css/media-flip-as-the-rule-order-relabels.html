@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style id="sheet"></style>
+<div id="target" class="target"></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const sheet = document.getElementById("sheet").sheet;
+    const report = title => {
+        internals.updateStyle();
+        println(`${title}: ${getComputedStyle(document.getElementById("target")).color}`);
+    };
+
+    sheet.insertRule(".target { color: rgb(1, 1, 1); }", 0);
+    sheet.insertRule("@media (prefers-color-scheme: dark) { .target { color: rgb(2, 2, 2); } }", 1);
+    for (let i = 0; i < 1000; ++i)
+        sheet.insertRule(`.filler-${i} { color: rgb(9, 9, 9); }`, sheet.cssRules.length);
+    internals.setPreferredColorScheme("dark");
+    report("Dark");
+
+    while (sheet.cssRules.length > 2)
+        sheet.deleteRule(sheet.cssRules.length - 1);
+    report("Dark, with the rules after the winner gone");
+
+    // Rules arriving one after the other run out of room between their ranks, and the sheet ranks its rules anew. The
+    // rule that wins leaves in the same update, with the rank it had.
+    for (let i = 0; i < 100; ++i)
+        sheet.insertRule(`.filler-${i} { color: rgb(9, 9, 9); }`, sheet.cssRules.length);
+    internals.setPreferredColorScheme("light");
+    report("Light, as the rule order relabels");
+
+    internals.setPreferredColorScheme("auto");
+});
+</script>

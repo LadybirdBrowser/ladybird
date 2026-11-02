@@ -1,0 +1,3 @@
+Dark: rgb(2, 2, 2)
+Dark, with the rules after the winner gone: rgb(2, 2, 2)
+Light, as the rule order relabels: rgb(1, 1, 1)
