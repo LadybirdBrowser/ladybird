@@ -91,9 +91,13 @@ WebIDL::ExceptionOr<NormalizedAlgorithmAndParameter> normalize_an_algorithm(JS::
 
     // If alg is an object:
     // 1. Let registeredAlgorithms be the associative container stored at the op key of supportedAlgorithms.
-    // NOTE: There should always be a container at the op key.
     auto const& internal_object = supported_algorithms();
     auto maybe_registered_algorithms = internal_object.get(operation);
+
+    // NB: supports() can normalize with op set to "deriveKey", for which there is no container and thus no registered
+    //     algorithm.
+    if (!maybe_registered_algorithms.has_value())
+        return WebIDL::NotSupportedError::create(Utf16String::formatted("Operation '{}' is not supported", operation));
     auto registered_algorithms = maybe_registered_algorithms.value();
 
     // 2. Let initialAlg be the result of converting the ECMAScript object represented by alg to
@@ -1645,6 +1649,227 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::get_public_key(JS::Realm& realm, GC::Ref<
     return promise;
 }
 
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-determine-support-from-operation-steps
+static bool determine_support_from_operation_steps(JS::Realm& realm, StringView op, NormalizedAlgorithmAndParameter& normalized_algorithm, Optional<u32> length)
+{
+    auto& methods = *normalized_algorithm.methods;
+    auto const& parameter = *normalized_algorithm.parameter;
+
+    // 1. If the specified operation or normalized algorithm (or one of its parameter values) is expected to fail (for
+    //    any key and/or data) for an implementation-specific reason (e.g. known nonconformance to the specification),
+    //    return false.
+    // NB: The validate_*_parameters() methods of the algorithms also reject parameters that we do not support.
+
+    // 2. If op is "generateKey" or "importKey", let usages be the empty list.
+    // NB: An empty list of usages never makes a step of these operations throw.
+
+    // 3. For each of the steps of the operation specified by op of the algorithm specified by normalizedAlgorithm:
+    //    -> If the step says to throw an error: Return false.
+    //    -> If the step says to generate a key: Return true.
+    //    -> If the step relies on an unavailable parameter, such as key, plaintext or ciphertext: Return true.
+    //    -> If the step says to return a value: Return true.
+    //    -> Otherwise: Execute the step.
+    // NB: The validate_*_parameters() methods of an algorithm perform the steps of its operations that come before the
+    //     first step that relies on an unavailable parameter, generates a key or returns a value. The operations that
+    //     have no such method rely on an unavailable parameter in their first steps. The get key length operation
+    //     relies on its parameters only, so we perform it in full.
+    auto result = [&] -> WebIDL::ExceptionOr<void> {
+        if (op == "encrypt"sv)
+            return methods.validate_encrypt_parameters(parameter);
+        if (op == "decrypt"sv)
+            return methods.validate_decrypt_parameters(parameter);
+        if (op == "sign"sv)
+            return methods.validate_sign_parameters(parameter);
+        if (op == "verify"sv)
+            return methods.validate_verify_parameters(parameter);
+        if (op == "digest"sv)
+            return methods.validate_digest_parameters(parameter);
+        if (op == "generateKey"sv)
+            return methods.validate_generate_key_parameters(parameter);
+        if (op == "importKey"sv)
+            return methods.validate_import_key_parameters(parameter);
+        if (op == "deriveBits"sv)
+            return methods.validate_derive_bits_parameters(parameter, length);
+        if (op == "get key length"sv)
+            TRY(methods.get_key_length(realm, parameter));
+        return {};
+    }();
+    return !result.is_error();
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-check-support-for-algorithm
+static bool check_support_for_an_algorithm(JS::Realm& realm, String op, AlgorithmIdentifier const& alg, Optional<u32> length)
+{
+    // 1. If op is "encapsulateKey" or "encapsulateBits", set op to "encapsulate".
+    if (op.is_one_of("encapsulateKey"sv, "encapsulateBits"sv))
+        op = "encapsulate"_string;
+
+    // 2. If op is "decapsulateKey" or "decapsulateBits", set op to "decapsulate".
+    if (op.is_one_of("decapsulateKey"sv, "decapsulateBits"sv))
+        op = "decapsulate"_string;
+
+    // 3. If op is "getPublicKey":
+    if (op == "getPublicKey"sv) {
+        // 1. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to alg and op set to
+        //    "exportKey".
+        auto normalized_algorithm = normalize_an_algorithm(realm, alg, "exportKey"_string);
+
+        // 2. If an error occurred, return false.
+        if (normalized_algorithm.is_error())
+            return false;
+
+        // 3. If the cryptographic algorithm identified by normalizedAlgorithm does not support deriving a public key
+        //    from a private key, then return false.
+        // 4. Otherwise, return true.
+        return normalized_algorithm.value().methods->public_key_usages().has_value();
+    }
+
+    // 4. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to alg and op set to op.
+    auto normalized_algorithm = normalize_an_algorithm(realm, alg, op);
+
+    // 5. If an error occurred:
+    if (normalized_algorithm.is_error()) {
+        // 1. If op is "wrapKey", return the result of checking support for an algorithm with op set to "encrypt" and
+        //    alg set to alg.
+        if (op == "wrapKey"sv)
+            return check_support_for_an_algorithm(realm, "encrypt"_string, alg, {});
+
+        // 2. If op is "unwrapKey", return the result of checking support for an algorithm with op set to "decrypt" and
+        //    alg set to alg.
+        if (op == "unwrapKey"sv)
+            return check_support_for_an_algorithm(realm, "decrypt"_string, alg, {});
+
+        // 3. Otherwise, return false.
+        return false;
+    }
+
+    // 6. Return the result of determining support from operation steps, with op set to op, normalizedAlgorithm set to
+    //    normalizedAlgorithm, and length set to length.
+    return determine_support_from_operation_steps(realm, op, normalized_algorithm.value(), length);
+}
+
+static bool is_a_supported_operation(Utf16String const& operation)
+{
+    return operation.is_one_of("encrypt"sv, "decrypt"sv, "sign"sv, "verify"sv, "digest"sv, "generateKey"sv,
+        "deriveKey"sv, "deriveBits"sv, "importKey"sv, "exportKey"sv, "wrapKey"sv, "unwrapKey"sv, "encapsulateKey"sv,
+        "encapsulateBits"sv, "decapsulateKey"sv, "decapsulateBits"sv, "getPublicKey"sv);
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-supports
+bool SubtleCrypto::supports(JS::Realm& realm, Utf16String const& operation, AlgorithmIdentifier const& algorithm, Optional<u32> length)
+{
+    // 1. If operation is not one of "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey",
+    //    "deriveBits", "importKey", "exportKey", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits",
+    //    "decapsulateKey", "decapsulateBits" or "getPublicKey", return false.
+    if (!is_a_supported_operation(operation))
+        return false;
+
+    // 2. Return the result of checking support for an algorithm, with op set to operation, alg set to algorithm, and
+    //    length set to length.
+    return check_support_for_an_algorithm(realm, operation.to_utf8(), algorithm, length);
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-supports-additionalAlgorithm
+bool SubtleCrypto::supports(JS::Realm& realm, Utf16String const& operation, AlgorithmIdentifier const& algorithm, AlgorithmIdentifier const& additional_algorithm)
+{
+    // 1. If operation is not one of "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey",
+    //    "deriveBits", "importKey", "exportKey", "wrapKey", "unwrapKey", "encapsulateKey", "encapsulateBits",
+    //    "decapsulateKey", "decapsulateBits" or "getPublicKey", return false.
+    if (!is_a_supported_operation(operation))
+        return false;
+
+    auto op = operation.to_utf8();
+
+    // 2. If operation is "deriveKey" or "unwrapKey":
+    if (op.is_one_of("deriveKey"sv, "unwrapKey"sv)) {
+        // 1. If the result of checking support for an algorithm with op set to "importKey" and alg set to
+        //    additionalAlgorithm is false, return false.
+        if (!check_support_for_an_algorithm(realm, "importKey"_string, additional_algorithm, {}))
+            return false;
+    }
+
+    // 3. If operation is "wrapKey":
+    if (op == "wrapKey"sv) {
+        // 1. If the result of checking support for an algorithm with op set to "exportKey" and alg set to
+        //    additionalAlgorithm is false, return false.
+        if (!check_support_for_an_algorithm(realm, "exportKey"_string, additional_algorithm, {}))
+            return false;
+    }
+
+    // 4. If operation is "encapsulateKey" or "decapsulateKey":
+    if (op.is_one_of("encapsulateKey"sv, "decapsulateKey"sv)) {
+        // 1. Let normalizedAlgorithm be the result of normalizing an algorithm, with alg set to algorithm and op set
+        //    to "get shared key length".
+        auto normalized_algorithm = normalize_an_algorithm(realm, algorithm, "get shared key length"_string);
+
+        // 2. If an error occurred, return false.
+        if (normalized_algorithm.is_error())
+            return false;
+
+        // 3. Let sharedKeyLength be the result of performing the get shared key length algorithm specified by
+        //    normalizedAlgorithm using algorithm.
+        auto shared_key_length = normalized_algorithm.value().methods->get_shared_key_length(*normalized_algorithm.value().parameter);
+        if (shared_key_length.is_error())
+            return false;
+
+        // 4. Let normalizedAdditionalAlgorithm be the result of normalizing an algorithm, with alg set to
+        //    additionalAlgorithm and op set to "importKey".
+        auto normalized_additional_algorithm = normalize_an_algorithm(realm, additional_algorithm, "importKey"_string);
+
+        // 5. If an error occurred, return false.
+        if (normalized_additional_algorithm.is_error())
+            return false;
+
+        // 6. If the result of determining support from operation steps with op set to "importKey" and
+        //    normalizedAlgorithm set to normalizedAdditionalAlgorithm, and length set to null is false, return false.
+        if (!determine_support_from_operation_steps(realm, "importKey"sv, normalized_additional_algorithm.value(), {}))
+            return false;
+
+        // 7. If the import key operation specified by normalizedAdditionalAlgorithm would throw an error for every value
+        //    of keyData that is a byte sequence whose length in bits is sharedKeyLength when format is "raw-secret",
+        //    return false.
+        // NB: Whether importing secret key data fails depends on its length only, so importing zeroes of that length
+        //     tells whether every such keyData fails.
+        auto key_data = MUST(ByteBuffer::create_zeroed(ceil_div(shared_key_length.value(), 8u)));
+        auto const& import_algorithm = normalized_additional_algorithm.value();
+        if (import_algorithm.methods->import_key(realm, *import_algorithm.parameter, KeyFormat::RawSecret, move(key_data), false, {}).is_error())
+            return false;
+    }
+
+    // 5. Let length be null.
+    Optional<u32> length;
+
+    // 6. If operation is "deriveKey":
+    if (op == "deriveKey"sv) {
+        // 1. If the result of checking support for an algorithm with op set to "get key length" and alg set to
+        //    additionalAlgorithm is false, return false.
+        if (!check_support_for_an_algorithm(realm, "get key length"_string, additional_algorithm, {}))
+            return false;
+
+        // 2. Let normalizedAdditionalAlgorithm be the result of normalizing an algorithm, with alg set to
+        //    additionalAlgorithm and op set to "get key length".
+        // NB: Normalizing can run author code, so this second normalization can fail even though the first succeeded.
+        auto normalized_additional_algorithm = normalize_an_algorithm(realm, additional_algorithm, "get key length"_string);
+        if (normalized_additional_algorithm.is_error())
+            return false;
+
+        // 3. Let length be the result of performing the get key length algorithm specified by additionalAlgorithm
+        //    using normalizedAdditionalAlgorithm.
+        auto& normalized_length_algorithm = normalized_additional_algorithm.value();
+        auto key_length = normalized_length_algorithm.methods->get_key_length(realm, *normalized_length_algorithm.parameter);
+        if (key_length.is_error())
+            return false;
+        length = key_length.release_value();
+
+        // 4. Set operation to "deriveBits".
+        op = "deriveBits"_string;
+    }
+
+    // 7. Return the result of checking support for an algorithm, with op set to operation, alg set to algorithm, and
+    //    length set to length.
+    return check_support_for_an_algorithm(realm, move(op), algorithm, length);
+}
+
 SupportedAlgorithmsMap& supported_algorithms_internal()
 {
     static NeverDestroyed<SupportedAlgorithmsMap> supported_algorithms;
@@ -1676,7 +1901,8 @@ SupportedAlgorithmsMap const& supported_algorithms()
         "exportKey"_string,
         "get key length"_string,
         "encapsulate"_string,
-        "decapsulate"_string
+        "decapsulate"_string,
+        "get shared key length"_string
     };
 
     for (auto& operation : supported_operations) {
@@ -1826,6 +2052,7 @@ SupportedAlgorithmsMap const& supported_algorithms()
         define_an_algorithm<MLKEM>("exportKey"_string, name);
         define_an_algorithm<MLKEM>("encapsulate"_string, name);
         define_an_algorithm<MLKEM>("decapsulate"_string, name);
+        define_an_algorithm<MLKEM>("get shared key length"_string, name);
     }
 
     // https://wicg.github.io/webcrypto-modern-algos/#argon2-registration

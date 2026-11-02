@@ -356,6 +356,11 @@ public:
         return WebIDL::NotSupportedError::create("getKeyLength is not supported"_utf16);
     }
 
+    virtual WebIDL::ExceptionOr<u32> get_shared_key_length(AlgorithmParams const&) const
+    {
+        return WebIDL::NotSupportedError::create("getSharedKeyLength is not supported"_utf16);
+    }
+
     virtual WebIDL::ExceptionOr<ByteBuffer> wrap_key(JS::Realm&, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&)
     {
         return WebIDL::NotSupportedError::create("wrapKey is not supported"_utf16);
@@ -709,6 +714,7 @@ public:
     virtual WebIDL::ExceptionOr<ExportKeyResult> export_key(JS::Realm& realm, KeyFormat, GC::Ref<CryptoKey>) override;
     virtual WebIDL::ExceptionOr<EncapsulatedBits> encapsulate(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>) override;
     virtual WebIDL::ExceptionOr<ByteBuffer> decapsulate(JS::Realm& realm, AlgorithmParams const&, GC::Ref<CryptoKey>, ByteBuffer const&) override;
+    virtual WebIDL::ExceptionOr<u32> get_shared_key_length(AlgorithmParams const&) const override;
 
     virtual Optional<ReadonlySpan<KeyUsage>> public_key_usages() const override;
 

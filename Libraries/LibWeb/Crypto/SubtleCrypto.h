@@ -52,6 +52,9 @@ public:
 
     GC::Ref<WebIDL::Promise> get_public_key(JS::Realm&, GC::Ref<CryptoKey> key, Vector<KeyUsage> key_usages);
 
+    static bool supports(JS::Realm&, Utf16String const& operation, AlgorithmIdentifier const& algorithm, Optional<u32> length);
+    static bool supports(JS::Realm&, Utf16String const& operation, AlgorithmIdentifier const& algorithm, AlgorithmIdentifier const& additional_algorithm);
+
 private:
     SubtleCrypto();
 };

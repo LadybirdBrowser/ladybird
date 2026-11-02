@@ -1,0 +1,73 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const subtle = crypto.subtle;
+        const data = new Uint8Array([1, 2, 3]);
+
+        async function check(label, operation, algorithm, length, run) {
+            const supported = length === undefined ? SubtleCrypto.supports(operation, algorithm) : SubtleCrypto.supports(operation, algorithm, length);
+            let outcome;
+            try {
+                await run(algorithm);
+                outcome = "ok";
+            } catch (error) {
+                outcome = error.name;
+            }
+            println(`${label}: supports ${supported}, ${operation} ${outcome}`);
+        }
+
+        const digest = algorithm => subtle.digest(algorithm, data);
+        await check("cSHAKE128", "digest", { name: "cSHAKE128", outputLength: 256 }, undefined, digest);
+        await check("cSHAKE128 with customization", "digest", { name: "cSHAKE128", outputLength: 256, customization: new Uint8Array([1]) }, undefined, digest);
+        await check("cSHAKE256 with function name", "digest", { name: "cSHAKE256", outputLength: 256, functionName: new Uint8Array([1]) }, undefined, digest);
+        await check("cSHAKE128 with partial byte output length", "digest", { name: "cSHAKE128", outputLength: 12 }, undefined, digest);
+
+        const generateKey = algorithm => subtle.generateKey(algorithm, false, ["sign"]);
+        await check("HMAC SHA-256", "generateKey", { name: "HMAC", hash: "SHA-256" }, undefined, generateKey);
+        await check("HMAC SHA3-256", "generateKey", { name: "HMAC", hash: "SHA3-256" }, undefined, generateKey);
+        await check("HMAC SHA3-256 with length", "generateKey", { name: "HMAC", hash: "SHA3-256", length: 256 }, undefined, generateKey);
+
+        for (const name of ["RSA-OAEP", "RSA-PSS", "RSASSA-PKCS1-v1_5"]) {
+            const usages = name === "RSA-OAEP" ? ["decrypt"] : ["sign"];
+            const generateRsaKey = algorithm => subtle.generateKey(algorithm, false, usages);
+            for (const modulusLength of [512, 511]) {
+                const algorithm = { name, modulusLength, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" };
+                await check(`${name} ${modulusLength}-bit modulus`, "generateKey", algorithm, undefined, generateRsaKey);
+            }
+        }
+
+        const ecdsaKeys = await subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+        const ecdsaSign = algorithm => subtle.sign(algorithm, ecdsaKeys.privateKey, data);
+        await check("ECDSA SHA-256", "sign", { name: "ECDSA", hash: "SHA-256" }, undefined, ecdsaSign);
+        await check("ECDSA SHA3-256", "sign", { name: "ECDSA", hash: "SHA3-256" }, undefined, ecdsaSign);
+
+        const pbkdf2Key = await subtle.importKey("raw", new Uint8Array(16), "PBKDF2", false, ["deriveBits"]);
+        const pbkdf2 = algorithm => subtle.deriveBits(algorithm, pbkdf2Key, 256);
+        await check("PBKDF2 SHA-256", "deriveBits", { name: "PBKDF2", hash: "SHA-256", salt: new Uint8Array(8), iterations: 1 }, 256, pbkdf2);
+        await check("PBKDF2 SHA3-256", "deriveBits", { name: "PBKDF2", hash: "SHA3-256", salt: new Uint8Array(8), iterations: 1 }, 256, pbkdf2);
+
+        const kmacKey = await subtle.generateKey({ name: "KMAC128" }, false, ["sign"]);
+        const kmacSign = algorithm => subtle.sign(algorithm, kmacKey, data);
+        await check("KMAC128 output length 256", "sign", { name: "KMAC128", outputLength: 256 }, undefined, kmacSign);
+        await check("KMAC128 output length 1", "sign", { name: "KMAC128", outputLength: 1 }, undefined, kmacSign);
+        await check("KMAC128 512-byte customization", "sign", { name: "KMAC128", outputLength: 256, customization: new Uint8Array(512) }, undefined, kmacSign);
+        await check("KMAC128 513-byte customization", "sign", { name: "KMAC128", outputLength: 256, customization: new Uint8Array(513) }, undefined, kmacSign);
+        const kmacImport = algorithm => subtle.importKey("raw-secret", new Uint8Array(Math.ceil(algorithm.length / 8)), algorithm, false, ["sign"]);
+        await check("KMAC128 import length 8", "importKey", { name: "KMAC128", length: 8 }, undefined, kmacImport);
+        await check("KMAC128 import length 1", "importKey", { name: "KMAC128", length: 1 }, undefined, kmacImport);
+        await check("KMAC128 import length 4104", "importKey", { name: "KMAC128", length: 4104 }, undefined, kmacImport);
+
+        for (const name of ["AES-GCM", "AES-OCB"]) {
+            const key = await subtle.generateKey({ name, length: 128 }, false, ["encrypt"]);
+            const encrypt = algorithm => subtle.encrypt(algorithm, key, data);
+            await check(`${name} 12-byte IV`, "encrypt", { name, iv: new Uint8Array(12) }, undefined, encrypt);
+            await check(`${name} empty IV`, "encrypt", { name, iv: new Uint8Array(0) }, undefined, encrypt);
+        }
+
+        const argon2Key = await subtle.importKey("raw-secret", new Uint8Array(16), "Argon2id", false, ["deriveBits"]);
+        const argon2 = algorithm => subtle.deriveBits(algorithm, argon2Key, 256);
+        await check("Argon2id 8-byte nonce", "deriveBits", { name: "Argon2id", nonce: new Uint8Array(8), parallelism: 1, memory: 8, passes: 1 }, 256, argon2);
+        await check("Argon2id 7-byte nonce", "deriveBits", { name: "Argon2id", nonce: new Uint8Array(7), parallelism: 1, memory: 8, passes: 1 }, 256, argon2);
+    });
+</script>
