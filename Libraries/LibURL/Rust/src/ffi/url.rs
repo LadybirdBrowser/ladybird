@@ -244,10 +244,13 @@ pub unsafe extern "C" fn rust_url_set_password(
 pub unsafe extern "C" fn rust_url_set_port(
     url: *const RustUrl,
     has_port: bool,
-    port: u16,
+    port: u32,
     ctx: *mut c_void,
     on_complete: FfiUrlResultFn,
 ) {
+    // NB: A port travels in 32 bits. rustc takes the upper bits of a narrower parameter to be zero, which GCC 16 does not
+    //     hold to: it sign-extends a u16 of 32768 or above.
+    let port = port as u16;
     abort_on_panic(|| unsafe {
         modify_url(url, ctx, on_complete, |url| url.set_port(has_port.then_some(port)));
     })
