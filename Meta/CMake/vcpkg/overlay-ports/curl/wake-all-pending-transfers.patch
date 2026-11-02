@@ -1,0 +1,106 @@
+diff --git a/include/curl/curlver.h b/include/curl/curlver.h
+index ca371de..80812f5 100644
+--- a/include/curl/curlver.h
++++ b/include/curl/curlver.h
+@@ -57,6 +57,9 @@
+    Note: This define is the full hex number and _does not_ use the
+    CURL_VERSION_BITS() macro since curl's own configure script greps for it
+    and needs it to contain the full number. */
++/* Tells Ladybird that CURLOPT_PIPEWAIT cannot hold a transfer back forever. */
++#define LIBCURL_WAKES_ALL_PENDING_TRANSFERS 1
++
+ #define LIBCURL_VERSION_NUM 0x081700
+ 
+ /*
+diff --git a/lib/multi.c b/lib/multi.c
+index 8e2d1fd..f38cd01 100644
+--- a/lib/multi.c
++++ b/lib/multi.c
+@@ -2519,9 +2519,9 @@ static CURLMcode multistate_connecting(struct Curl_easy *data,
+   if(!Curl_xfer_recv_is_paused(data)) {
+     *result = Curl_conn_connect(data, FIRSTSOCKET, FALSE, &connected);
+     if(connected && !*result) {
+-      if(!data->conn->bits.reuse &&
+-         Curl_conn_is_multiplex(data->conn, FIRSTSOCKET)) {
+-        /* new connection, can multiplex, wake pending handles */
++      if(!data->conn->bits.reuse) {
++        /* new connection, wake pending handles: they can multiplex over it,
++           or they stop waiting for it now that it is known that they cannot */
+         multi_schedule_pending(data->multi);
+       }
+       multistate(data, MSTATE_PROTOCONNECT);
+@@ -3858,51 +3858,26 @@ static void move_pending_to_connect(struct Curl_multi *multi,
+   Curl_multi_mark_dirty(data); /* make it run */
+ }
+ 
+-/* multi_schedule_pending() moves a handle from PENDING back into the process
+-   list and change state to CONNECT.
+-
+-   We do not move all transfers because that can be a significant amount.
+-   Since this is tried every now and then doing too many too often becomes a
+-   performance problem.
+-
+-   When there is a change for connection limits like max host connections etc,
+-   this likely only allows one new transfer. When there is a pipewait change,
+-   it can potentially allow hundreds of new transfers.
++/* multi_schedule_pending() moves all handles from PENDING back into the
++   process list and changes their state to CONNECT.
+ 
+-   We could consider an improvement where we store the queue reason and allow
+-   more pipewait rechecks than others. */
++   Moving a single handle is not enough. The handles wait for different
++   connections, so that handle can go right back to PENDING, while another one
++   that could proceed stays there with nothing left to wake it. */
+ static void multi_schedule_pending(struct Curl_multi *multi)
+ {
+-  uint32_t mid = multi->last_pending_mid;
+-
+-  if(mid) {
+-    while(Curl_uint32_bset_next(&multi->pending, mid, &mid)) {
+-      struct Curl_easy *data = Curl_multi_get_easy(multi, mid);
+-      if(data) {
+-        move_pending_to_connect(multi, data);
+-        multi->last_pending_mid = mid;
+-        return;
+-      }
+-      /* transfer no longer known, should not happen */
+-      Curl_uint32_bset_remove(&multi->pending, mid);
+-      DEBUGASSERT(0);
+-    }
+-    /* found no pending transfers with `mid` larger than `last_pending_mid`.
+-     * Start at the beginning of the pending set again. */
+-    multi->last_pending_mid = 0;
+-  }
++  uint32_t mid;
+ 
+   if(Curl_uint32_bset_first(&multi->pending, &mid)) {
+     do {
+       struct Curl_easy *data = Curl_multi_get_easy(multi, mid);
+-      if(data) {
++      if(data)
+         move_pending_to_connect(multi, data);
+-        multi->last_pending_mid = mid;
+-        return;
++      else {
++        /* transfer no longer known, should not happen */
++        Curl_uint32_bset_remove(&multi->pending, mid);
++        DEBUGASSERT(0);
+       }
+-      /* transfer no longer known, should not happen */
+-      Curl_uint32_bset_remove(&multi->pending, mid);
+-      DEBUGASSERT(0);
+     } while(Curl_uint32_bset_next(&multi->pending, mid, &mid));
+   }
+ }
+diff --git a/lib/multihandle.h b/lib/multihandle.h
+index 6a0bf51..44c2f73 100644
+--- a/lib/multihandle.h
++++ b/lib/multihandle.h
+@@ -178,7 +178,6 @@ struct Curl_multi {
+   uint32_t maxconnects; /* if >0, a fixed limit of the maximum number of
+                                entries we are allowed to grow the connection
+                                cache to */
+-  uint32_t last_pending_mid; /* mid of last pending transfer rescheduled */
+   uint32_t last_resolv_id; /* id of the last DNS resolve operation */
+   BIT(ipv6_works);
+   BIT(multiplexing);           /* multiplexing wanted */
