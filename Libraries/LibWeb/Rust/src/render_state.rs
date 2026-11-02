@@ -450,14 +450,21 @@ impl ArenaChange {
         )
     }
 
+    fn is_mint(&self) -> bool {
+        matches!(
+            self,
+            Self::Engine(crate::css::style::engine_calls::EngineWrite::MintStyleNodes(_))
+        )
+    }
+
     /// Whether the change writes what the document's style engine computes from. A mint of style node identities does
     /// not: it makes them live in the engine's tree, in the order the host minted them, so it need not wait for the
     /// drain of a transaction that flew.
     fn writes_style(&self) -> bool {
-        use crate::css::style::engine_calls::EngineWrite;
         match self {
             Self::Style(_) => true,
-            Self::Engine(write) => !matches!(write, EngineWrite::MintStyleNodes(_)),
+            Self::Engine(_) if self.is_mint() => false,
+            Self::Engine(_) => true,
             Self::Rule(_) => true,
             Self::Layout(_)
             | Self::Paint(_)
@@ -793,7 +800,13 @@ impl ChangeQueue {
         );
         self.forget_moves();
         self.sets_writes_aside.set(true);
-        *self.set_aside.borrow_mut() = self.queued.take();
+        let mut set_aside = self.queued.take();
+        // NB: A mint moves nothing the render state reads, and the writes about what it makes live may be queued ahead
+        //     of those set aside, so it stays queued.
+        let mints: Vec<ArenaChange> = set_aside.extract_if(.., |change| change.is_mint()).collect();
+        mints.iter().for_each(|change| self.note(change));
+        *self.queued.borrow_mut() = mints;
+        *self.set_aside.borrow_mut() = set_aside;
     }
 
     /// Queues the style writes set aside where a publication is among them: the render state's layout goes on reading as
@@ -1021,6 +1034,57 @@ mod tests {
         assert!(!host.has_made_state(), "a queued write waits for the host's first job");
         host.fresh_rows(ScriptForcedRead::for_test());
         assert!(host.has_made_state());
+    }
+
+    #[test]
+    fn a_mint_stays_ahead_of_what_is_written_of_its_nodes_as_writes_are_set_aside() {
+        use crate::css::style::engine_calls::EngineWrite;
+        use crate::css::style::tree::StyleNodeID;
+        let text = StyleNodeID::text(1);
+        let mint = || ArenaChange::Engine(EngineWrite::MintStyleNodes(Box::new([text.raw()])));
+        let retire = || ArenaChange::Engine(EngineWrite::RetireTexts(Box::new([text])));
+        let is_mint = |changes: Vec<ArenaChange>| changes.iter().map(ArenaChange::is_mint).collect::<Vec<_>>();
+        let drained = |queue: &ChangeQueue| queue.drain(|changes| changes.collect::<Vec<_>>());
+
+        // The write about the node leaves first where it is queued while the mint would be set aside.
+        let queue = ChangeQueue::default();
+        queue.push(mint(), |_| {});
+        queue.set_aside();
+        queue.push(retire(), |_| {});
+        assert_eq!(is_mint(drained(&queue)), [true, false]);
+        assert!(!queue.queue_set_aside());
+        assert!(queue.queued.borrow().is_empty());
+
+        // Nor does the mint wait with the writes set aside, which a publication can take ahead of those that stay.
+        let queue = ChangeQueue::default();
+        queue.push(mint(), |_| {});
+        queue.push(retire(), |_| {});
+        queue.set_aside();
+        let aside: Vec<_> = queue.set_aside.borrow().iter().map(ArenaChange::is_mint).collect();
+        assert_eq!(aside, [false]);
+        assert_eq!(is_mint(drained(&queue)), [true]);
+    }
+
+    #[test]
+    fn a_text_node_given_its_identity_and_retired_before_writes_are_set_aside_retires_in_that_order() {
+        use crate::css::style::engine_calls::EngineWrite;
+        use crate::css::style::tree::StyleNodeID;
+        let test_host = TestHost::new();
+        let host = test_host.host();
+        let text = StyleNodeID::text(1);
+        let publish = || {
+            host.engine_memo().note_backing_element(StyleNodeID::element(1));
+            host.publish_element_writes();
+        };
+        host.queue_change(ArenaChange::Engine(EngineWrite::MintStyleNodes(Box::new([text.raw()]))));
+        host.queue_change(ArenaChange::Engine(EngineWrite::RetireTexts(Box::new([text]))));
+        publish();
+        host.set_writes_aside();
+        // NB: The next publication takes the style writes set aside ahead of it, for the render state to apply first.
+        publish();
+        host.ask(ScriptForcedRead::for_test(), |_| ());
+        host.queue_writes_set_aside();
+        host.ask(ScriptForcedRead::for_test(), |_| ());
     }
 
     #[test]
