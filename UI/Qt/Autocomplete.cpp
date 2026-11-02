@@ -368,8 +368,10 @@ Autocomplete::Autocomplete(QLineEdit* anchor)
 void Autocomplete::create_popup()
 {
     // Use a non-activating top-level widget for its own translucent backing store. Its native window is embedded in the
-    // browser window in position_popup().
-    m_popup = new AutocompleteCard(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+    // browser window in position_popup(), except on Windows.
+    // NB: Without WindowDoesNotAcceptFocus, a click on a suggestion activates the popup's window on Windows, which takes
+    //     the focus from the location field and closes the popup before the click is released.
+    m_popup = new AutocompleteCard(m_anchor->window(), Qt::ToolTip | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint | Qt::WindowDoesNotAcceptFocus);
     connect(m_popup, &QObject::destroyed, this, [this] {
         // The popup dies with its parent window, which can go away while this object lives on (for
         // example when the tab is moved to another window); it is recreated on the next show.
@@ -622,10 +624,15 @@ void Autocomplete::position_popup()
             window->setAttribute(Qt::WA_X11DoNotAcceptFocus);
         }
 
+#if !defined(AK_OS_WINDOWS)
         // Embed the native window so it stacks above native web content without being animated independently of the
         // location field by the window system.
+        // NB: Windows keeps a tooltip's native window a popup even when it has a parent, and such a window is activated
+        //     as it is embedded, taking the keyboard focus from the location field. There, the popup stays a window of
+        //     its own, which the browser window owns and so keeps above its native web content.
         (void)window->winId();
         window->windowHandle()->setParent(top_window->windowHandle());
+#endif
     }
 
     // The card is as wide as the field and sits a little below it.
@@ -639,6 +646,9 @@ void Autocomplete::position_popup()
     m_popup->setFixedSize(card_width, list_height + vertical_overhead);
 
     auto card = QRect(card_position, m_popup->size());
+#if defined(AK_OS_WINDOWS)
+    card.translate(top_window->mapToGlobal(QPoint(0, 0)));
+#endif
     m_shadow->setGeometry(card.marginsAdded(POPUP_SHADOW_MARGINS));
     m_popup->setGeometry(card);
     m_shadow->raise();
