@@ -1,0 +1,25 @@
+Before:
+  reverts: block
+  reverts-layer: block
+  substitutes: inline
+  reads-root-font: 32px rgb(1, 1, 1)
+Hidden:
+  reverts: none
+  reverts-layer: none
+  substitutes: none
+  reads-root-font: 32px rgb(1, 1, 1)
+Not hidden:
+  reverts: block
+  reverts-layer: block
+  substitutes: inline
+  reads-root-font: 32px rgb(1, 1, 1)
+The rule below the winner arrives as the root font moves:
+  reverts: block
+  reverts-layer: block
+  substitutes: inline
+  reads-root-font: 80px rgb(1, 1, 1)
+The rule below the winner leaves as the root font moves back:
+  reverts: block
+  reverts-layer: block
+  substitutes: inline
+  reads-root-font: 32px rgb(1, 1, 1)

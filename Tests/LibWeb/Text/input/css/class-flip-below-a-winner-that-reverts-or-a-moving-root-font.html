@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<style>
+    body { font-size: 10px; }
+    .big { font-size: 40px; }
+
+    .reverts { display: revert; }
+    .reverts-layer { display: revert-layer; }
+    .substitutes { display: var(--undefined, revert); }
+
+    .reads-root-font { width: 2rem; }
+    .loser { color: rgb(2, 2, 2); }
+    .reads-root-font.winner { color: rgb(1, 1, 1); }
+</style>
+<div id="reverts" class="reverts"></div>
+<div id="reverts-layer" class="reverts-layer"></div>
+<span id="substitutes" class="substitutes"></span>
+<div id="reads-root-font" class="reads-root-font winner"></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const element = id => document.getElementById(id);
+    const reverting = ["reverts", "reverts-layer", "substitutes"];
+    const report = title => {
+        internals.updateStyle();
+        println(`${title}:`);
+        for (const id of reverting)
+            println(`  ${id}: ${getComputedStyle(element(id)).display}`);
+        const style = getComputedStyle(element("reads-root-font"));
+        println(`  reads-root-font: ${style.width} ${style.color}`);
+    };
+    report("Before");
+
+    // A rule of the user agent below an author rule that rolls back to it decides.
+    for (const id of reverting)
+        element(id).toggleAttribute("hidden", true);
+    report("Hidden");
+    for (const id of reverting)
+        element(id).toggleAttribute("hidden", false);
+    report("Not hidden");
+
+    // A rule that arrives below the winner leaves the style to what else moved of it.
+    element("reads-root-font").classList.add("loser");
+    document.documentElement.classList.add("big");
+    report("The rule below the winner arrives as the root font moves");
+    element("reads-root-font").classList.remove("loser");
+    document.documentElement.classList.remove("big");
+    report("The rule below the winner leaves as the root font moves back");
+});
+</script>

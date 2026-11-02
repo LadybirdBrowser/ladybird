@@ -28,6 +28,7 @@ use super::drive::DriveRecords;
 use super::matching::{ElementMatch, MatchCounters, Matcher};
 use super::records::{ChildImpact, RareStyleFacts, Record, Records};
 use super::results::{ResultCache, ResultContext};
+use super::rule_changes::all_lose_every_longhand;
 use super::rules::{ContainerGateID, RuleIndex};
 use super::sharing::SharingCache;
 #[cfg(test)]
@@ -720,6 +721,27 @@ impl<'a> Scratch<'a> {
         true
     }
 
+    /// Whether every entry of `reasons` that answered other than before for `node` loses each longhand
+    /// it declares to the matches that stay, in the answers `test_reasons` left and the matches
+    /// `merge_reason_answers` made of them.
+    fn flipped_reasons_lose(&self, context: &PassContext<'_>, node: StyleNodeID, reasons: &[u32]) -> bool {
+        let Some(before) = context.records.matches_of(node) else {
+            return false;
+        };
+        let stayed: SmallVec<[u32; 16]> = self
+            .matches
+            .iter()
+            .map(|matched| matched.entry)
+            .filter(|entry| before.binary_search(entry).is_ok())
+            .collect();
+        let flipped = reasons
+            .iter()
+            .zip(&self.reason_answers)
+            .filter(|&(reason, &holds)| holds != before.binary_search(reason).is_ok())
+            .map(|(&reason, _)| reason);
+        all_lose_every_longhand(context.state, context.index, &[], flipped, &stayed)
+    }
+
     /// The matches of `node` from the answers `test_reasons` left: those of `reasons` that hold,
     /// and its other matches from before.
     fn merge_reason_answers(&mut self, context: &PassContext<'_>, node: StyleNodeID, reasons: &[u32]) {
@@ -779,21 +801,26 @@ impl<'a> Scratch<'a> {
             };
         // What an element matches, its parent and its containers decide its style. Its matches
         // are the ones it had where no entry it was rematched for answers otherwise.
-        if rematched
-            && !self.reason_flipped
+        let only_matches_moved = rematched
             && moved & (PARENT_CHANGED | CONTAINERS_MOVED | RECOMPUTE_SELF) == 0
             && (moved & PARENT_RESTYLED == 0
                 || state
                     .projection
                     .inheritance_parent(node)
                     .is_some_and(|parent| context.records.child_impact(parent) == ChildImpact::None))
-            && !context.reads_root_font_move(node)
-            && context.records.keep_previous(node)
-        {
+            && !context.reads_root_font_move(node);
+        if only_matches_moved && !self.reason_flipped && context.records.keep_previous(node) {
             return Self::children_are_styled(context, node);
         }
         if let (true, Some(reasons)) = (rematched, reasons) {
             self.merge_reason_answers(context, node, reasons);
+            // NB: Nor does its style move where the entries answering otherwise decide nothing.
+            if only_matches_moved && self.flipped_reasons_lose(context, node, reasons) {
+                let matches = self.interned_matches();
+                if context.records.keep_previous_matching(node, Some(matches)) {
+                    return Self::children_are_styled(context, node);
+                }
+            }
         }
         // An element standing for its shadow host's pseudo-element is styled from the host's
         // rules, which no other element's style tells.

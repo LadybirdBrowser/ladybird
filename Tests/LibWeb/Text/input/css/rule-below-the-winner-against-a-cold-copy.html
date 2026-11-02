@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<style id="sheet">
+    /* Each case's element holds `w`, the winner's class, and `l` flips the loser. */
+    #cases { width: 400px; }
+    #sentinel.on { color: rgb(9, 9, 9); }
+
+    .simple.l { color: rgb(2, 2, 2); }
+    .simple.w { color: rgb(1, 1, 1); }
+
+    .higher-specificity-loser.l.l.l { color: rgb(2, 2, 2); }
+    .higher-specificity-loser.w { color: rgb(1, 1, 1); }
+
+    .selector-list.l, .selector-list.l.m.n.o { color: rgb(2, 2, 2); }
+    .selector-list.w.w.w { color: rgb(1, 1, 1); }
+
+    :is(.is-specificity.l, #never#never) { color: rgb(2, 2, 2); }
+    .is-specificity.w.w.w { color: rgb(1, 1, 1); }
+
+    .where-specificity:where(.l) { color: rgb(2, 2, 2); }
+    .where-specificity.w { color: rgb(1, 1, 1); }
+
+    .winner-in-its-list.l.l { color: rgb(2, 2, 2); }
+    .winner-in-its-list.w, #never.w { color: rgb(1, 1, 1); }
+
+    .same-rule.l, .same-rule.w { color: rgb(2, 2, 2); }
+
+    .important-loser.l { color: rgb(2, 2, 2) !important; }
+    .important-loser.w { color: rgb(1, 1, 1); }
+
+    .important-winner.l { color: rgb(2, 2, 2); }
+    .important-winner.w { color: rgb(1, 1, 1) !important; }
+
+    .both-important.l { color: rgb(2, 2, 2) !important; }
+    .both-important.w { color: rgb(1, 1, 1) !important; }
+
+    .important-revert.l { color: rgb(2, 2, 2); }
+    .important-revert.w { color: revert-layer !important; }
+
+    .important-sibling.l { color: rgb(2, 2, 2); background-color: rgb(2, 2, 2); }
+    .important-sibling.w { color: rgb(1, 1, 1); background-color: rgb(1, 1, 1) !important; }
+
+    @layer low, high;
+    @layer low {
+        .lower-layer.l { color: rgb(2, 2, 2); }
+        .higher-layer.w { color: rgb(1, 1, 1); }
+        .revert-layer.l { color: rgb(2, 2, 2); }
+        .same-layer.l { color: rgb(2, 2, 2); }
+        .same-layer.w { color: rgb(1, 1, 1); }
+        .revert-in-layer.l { color: rgb(2, 2, 2); }
+        .revert-in-layer.w { color: revert-layer; }
+        .below-revert.l { color: rgb(3, 3, 3); }
+    }
+    @layer high {
+        .lower-layer.w { color: rgb(1, 1, 1); }
+        .higher-layer.l { color: rgb(2, 2, 2); }
+        .revert-layer.w { color: revert-layer; }
+        .below-revert.m { color: rgb(2, 2, 2); }
+        .below-revert.w { color: revert-layer; }
+    }
+    .unlayered-winner.w { color: rgb(1, 1, 1); }
+    @layer low { .unlayered-winner.l { color: rgb(2, 2, 2); } }
+
+    .revert.l { color: rgb(2, 2, 2); }
+    .revert.w { color: revert; }
+
+    .revert-display.l { display: inline; }
+    .revert-display.w { display: revert; }
+
+    .revert-over-user-agent.w { display: revert; color: rgb(1, 1, 1); }
+
+    .revert-substituted.l { color: rgb(2, 2, 2); }
+    .revert-substituted.w { color: var(--undefined, revert); }
+
+    .invalid-at-computed-value.l { color: rgb(2, 2, 2); }
+    .invalid-at-computed-value.w { color: var(--undefined); }
+
+    .inherit.l { color: rgb(2, 2, 2); }
+    .inherit.w { color: inherit; }
+
+    .logical-loser.l { margin-inline-start: 2px; }
+    .logical-loser.w { margin-left: 1px; }
+
+    .physical-loser.l { margin-left: 2px; }
+    .physical-loser.w { margin-inline-start: 1px; }
+
+    .logical-both.l { margin-inline-start: 2px; }
+    .logical-both.w { margin-inline-start: 1px; }
+
+    .logical-rtl.l { margin-inline-start: 2px; }
+    .logical-rtl.w { margin-left: 1px; }
+    .logical-rtl { direction: rtl; }
+
+    .logical-writing-mode.l { width: 2px; }
+    .logical-writing-mode.w { inline-size: 1px; }
+    .logical-writing-mode.m { block-size: 3px; }
+    .logical-writing-mode { writing-mode: vertical-rl; }
+
+    .between-logical.l { margin-inline-start: 2px; }
+    .between-logical.m { margin-left: 3px; }
+    .between-logical.w { margin-inline-start: 1px; }
+
+    .all-loser.l { all: unset; }
+    .all-loser.w { color: rgb(1, 1, 1); }
+
+    .all-winner.l { color: rgb(2, 2, 2); }
+    .all-winner.w { all: initial; }
+
+    .all-revert.l { color: rgb(2, 2, 2); }
+    .all-revert.w { all: revert; }
+
+    .all-both.l { all: unset; }
+    .all-both.w { all: initial; }
+
+    .shorthand-both.l { margin: 2px; }
+    .shorthand-both.w { margin: 1px; }
+
+    .shorthand-loser.l { margin: 2px; }
+    .shorthand-loser.w { margin-left: 1px; }
+
+    .shorthand-winner.l { margin-left: 2px; }
+    .shorthand-winner.w { margin: 1px; }
+
+    .font-shorthand.l { font-size: 20px; font-weight: 700; }
+    .font-shorthand.w { font: 10px serif; }
+
+    .variable-shorthand.l { margin: var(--two, 2px); }
+    .variable-shorthand.w { margin-left: 1px; margin-right: 1px; margin-top: 1px; margin-bottom: 1px; }
+
+    .variable-shorthand-winner.l { margin-left: 2px; }
+    .variable-shorthand-winner.w { margin: var(--one, 1px); }
+
+    .variable-longhand.l { color: var(--two, rgb(2, 2, 2)); }
+    .variable-longhand.w { color: rgb(1, 1, 1); }
+
+    .custom-winner.l { color: rgb(2, 2, 2); }
+    .custom-winner.w { --one: rgb(1, 1, 1); color: var(--one); }
+
+    .border-reset.l { border-image-width: 2px; border-top-width: 2px; }
+    .border-reset.w { border: 1px solid rgb(1, 1, 1); }
+
+    .duplicate-declarations.l { color: rgb(2, 2, 2); color: rgb(3, 3, 3); }
+    .duplicate-declarations.w { color: rgb(1, 1, 1); color: not-a-color; }
+
+    .attribute-loser[data-l] { color: rgb(2, 2, 2); }
+    .attribute-loser.w { color: rgb(1, 1, 1); }
+
+    .attribute-read[data-l] { width: 2px; }
+    .attribute-read.w { width: attr(data-l px, 5px); }
+
+    .attribute-value[data-v="x"] { color: rgb(2, 2, 2); }
+    .attribute-value.w { color: rgb(1, 1, 1); }
+
+    .pseudo-attribute::before { content: attr(data-l); }
+    .pseudo-attribute[data-l] { color: rgb(2, 2, 2); }
+    .pseudo-attribute.w { color: rgb(1, 1, 1); }
+
+    .has-loser:has(> .l) { color: rgb(2, 2, 2); }
+    .has-loser.w { color: rgb(1, 1, 1); }
+
+    .has-winner.l { color: rgb(2, 2, 2); }
+    .has-winner:has(> .w) { color: rgb(1, 1, 1); }
+
+    .not-loser:not(.l) { color: rgb(2, 2, 2); }
+    .not-loser.w { color: rgb(1, 1, 1); }
+
+    .sibling-loser.l + .target { color: rgb(2, 2, 2); }
+    .target.w.w { color: rgb(1, 1, 1); }
+
+    .own-pseudo-element::before { content: "before"; color: rgb(4, 4, 4); }
+    .own-pseudo-element.l { color: rgb(2, 2, 2); }
+    .own-pseudo-element.w { color: rgb(1, 1, 1); }
+
+    .inherited-into-pseudo-element::before { content: "before"; }
+    .inherited-into-pseudo-element.l { color: rgb(2, 2, 2); }
+    .inherited-into-pseudo-element.w { color: rgb(1, 1, 1); }
+
+    .pseudo-element-flips.l::before { content: "flipped"; color: rgb(2, 2, 2); }
+    .pseudo-element-flips::before { content: "before"; color: rgb(1, 1, 1); }
+
+    .pseudo-element-winner.l { color: rgb(2, 2, 2); }
+    .pseudo-element-winner.w::before { color: rgb(1, 1, 1); content: "x"; }
+
+    .marker-flips.l::marker { color: rgb(2, 2, 2); }
+    .marker-flips { display: list-item; }
+
+    .first-line-flips.l::first-line { color: rgb(2, 2, 2); }
+
+    .box { container-type: inline-size; width: 200px; }
+    @container (min-width: 100px) {
+        .container-loser.l { color: rgb(2, 2, 2); }
+        .container-winner.w { color: rgb(1, 1, 1); }
+        .container-read.w { color: rgb(1, 1, 1); }
+    }
+    .container-loser.w { color: rgb(1, 1, 1); }
+    .container-winner.l { color: rgb(2, 2, 2); }
+    .container-read.l { color: rgb(2, 2, 2); }
+    .container-unit.l { width: 2px; }
+    .container-unit.w { width: 10cqw; }
+
+    .font-relative.l { font-size: 20px; }
+    .font-relative.w { font-size: 10px; width: 2em; }
+
+    .root-font-reader { width: 2rem; }
+
+    .presentational-hint[bgcolor] { color: rgb(2, 2, 2); }
+    .presentational-hint.w { color: rgb(1, 1, 1); }
+
+    .inline-style.l { color: rgb(2, 2, 2); }
+    .inline-style.w { color: rgb(1, 1, 1); }
+
+    .inherits-from-parent.l { color: rgb(2, 2, 2); }
+    .inherits-from-parent.w { color: inherit; }
+
+    .transition.l { color: rgb(2, 2, 2); transition: margin-top 100s; }
+    .transition.w { color: rgb(1, 1, 1); transition: none; }
+
+    .animation.l { animation-name: none; }
+    .animation.w { animation-name: slide; animation-duration: 100s; animation-play-state: paused; }
+    @keyframes slide { from { margin-left: 7px; } to { margin-left: 7px; } }
+
+    @scope (.scope-root) {
+        .scoped-loser.l { color: rgb(2, 2, 2); }
+        .scoped-winner.w { color: rgb(1, 1, 1); }
+    }
+    .scoped-loser.w { color: rgb(1, 1, 1); }
+    .scoped-winner.l { color: rgb(2, 2, 2); }
+
+    .host-element.l { color: rgb(2, 2, 2); }
+    .host-element.w { color: rgb(1, 1, 1); }
+
+    host-loser::part(thing) { color: rgb(2, 2, 2); }
+    .part-flip.l::part(thing) { color: rgb(3, 3, 3); }
+    .part-flip.w::part(thing) { color: rgb(1, 1, 1); }
+
+    .nested-loser.l { color: rgb(2, 2, 2); & .never { color: rgb(9, 9, 9); } background-color: rgb(2, 2, 2); }
+    .nested-loser.w { color: rgb(1, 1, 1); background-color: rgb(1, 1, 1); }
+
+    .unset-later.l { color: rgb(2, 2, 2); }
+    .unset-later.w { color: unset; }
+</style>
+<div id="sentinel"></div>
+<div id="cases"></div>
+<template id="shadow-template"><style>:host(.l) { color: rgb(3, 3, 3); } :host(.w) { margin-left: 3px; }</style><span part="thing"></span></template>
+<script src="../include.js"></script>
+<script>
+// NB: Which classes each element takes and what wraps it, by case: the name is a class too.
+const cases = {
+    default: ["simple", "higher-specificity-loser", "selector-list", "is-specificity", "where-specificity",
+        "winner-in-its-list", "same-rule", "important-loser", "important-winner", "both-important",
+        "important-revert", "important-sibling", "lower-layer", "higher-layer", "revert-layer", "same-layer", "revert-in-layer",
+        "below-revert", "unlayered-winner", "revert", "revert-display", "revert-substituted",
+        "invalid-at-computed-value", "inherit", "logical-loser", "physical-loser", "logical-both", "logical-rtl",
+        "logical-writing-mode", "between-logical", "all-loser", "all-winner", "all-revert", "all-both",
+        "shorthand-both", "shorthand-loser", "shorthand-winner", "font-shorthand", "variable-shorthand",
+        "variable-shorthand-winner", "variable-longhand", "custom-winner", "border-reset",
+        "duplicate-declarations", "not-loser", "own-pseudo-element", "inherited-into-pseudo-element",
+        "pseudo-element-flips", "pseudo-element-winner", "marker-flips", "first-line-flips", "font-relative",
+        "transition", "animation", "unset-later", "nested-loser", "inline-style", "inherits-from-parent",
+        "root-font-reader"],
+};
+
+const properties = ["color", "background-color", "display", "width", "height", "font-size", "font-weight", "margin-left", "margin-right",
+    "margin-top", "border-top-width", "border-top-style", "border-image-width", "animation-name", "transition-duration", "direction", "--one"];
+const describeStyle = (element, pseudo) => {
+    const style = getComputedStyle(element, pseudo);
+    return properties.map(property => style.getPropertyValue(property)).join("|");
+};
+
+function elementsToCheck(root) {
+    return [...root.querySelectorAll("*")].filter(element => !["STYLE", "SCRIPT", "TEMPLATE"].includes(element.tagName));
+}
+
+// A frame holding the same rules, where a copy of a case is styled from nothing as it arrives.
+let frame = null;
+function coldCopyOf(subtree) {
+    if (!frame) {
+        frame = document.createElement("iframe");
+        document.body.append(frame);
+        const copy = frame.contentDocument;
+        copy.open();
+        copy.write(`<!DOCTYPE html><style>${document.getElementById("sheet").textContent}</style><div id="cases"></div>`);
+        copy.close();
+    }
+    const cases = frame.contentDocument.getElementById("cases");
+    cases.innerHTML = subtree.outerHTML;
+    const copied = cases.firstElementChild;
+    for (const host of subtree.matches(".has-shadow") ? [subtree] : subtree.querySelectorAll(".has-shadow"))
+        (host === subtree ? copied : copied.querySelector(`#${host.id}`)).attachShadow({ mode: "open" }).innerHTML = host.shadowRoot.innerHTML;
+    return copied;
+}
+
+const pseudos = [undefined, "::before", "::first-line", "::marker"];
+const withItself = subtree => [subtree, ...elementsToCheck(subtree)];
+function compareWithCold(title, element) {
+    // NB: A self-check runs where an update installs styles, which keeping every style does not.
+    document.getElementById("sentinel").classList.toggle("on");
+    internals.updateStyle();
+    let subtree = element;
+    while (subtree.parentElement.id !== "cases")
+        subtree = subtree.parentElement;
+    const copied = coldCopyOf(subtree);
+    const live = withItself(subtree);
+    const cold = withItself(copied);
+    let differences = 0;
+    live.forEach((element, index) => {
+        for (const pseudo of pseudos) {
+            const liveStyle = describeStyle(element, pseudo);
+            const coldStyle = frame.contentWindow.getComputedStyle(cold[index], pseudo);
+            const coldDescription = properties.map(property => coldStyle.getPropertyValue(property)).join("|");
+            if (liveStyle !== coldDescription) {
+                println(`${title}: ${element.id} ${pseudo ?? ""} differs:`);
+                println(`  live ${liveStyle}`);
+                println(`  cold ${coldDescription}`);
+                ++differences;
+            }
+        }
+    });
+    if (differences === 0)
+        println(`${title}: as a cold copy, ${describeStyle(element)}`);
+}
+
+test(() => {
+    const container = document.getElementById("cases");
+    const make = (name, classes = "", parent = container) => {
+        const element = document.createElement("div");
+        element.id = name;
+        element.className = `${name} ${classes}`;
+        parent.append(element);
+        return element;
+    };
+
+    const flipped = [];
+    const flips = (name, element, flip, unflip) => flipped.push({ name, element, flip, unflip });
+    const flipClass = (name, element, cls = "l") => flips(name, element, () => element.classList.add(cls), () => element.classList.remove(cls));
+
+    for (const name of cases.default)
+        flipClass(name, make(name, "w"));
+
+    const inlineStyle = document.getElementById("inline-style");
+    flips("inline style moved with the flip", inlineStyle, () => { inlineStyle.classList.add("l"); inlineStyle.style.width = "3px"; }, () => { inlineStyle.classList.remove("l"); inlineStyle.style.width = ""; });
+
+    const parentOf = document.getElementById("inherits-from-parent");
+    const inheritor = make("child-of-inherits", "", parentOf);
+
+    const box = document.createElement("div");
+    box.className = "box";
+    box.id = "box";
+    container.append(box);
+    for (const name of ["container-loser", "container-winner", "container-read", "container-unit"])
+        flipClass(name, make(name, "w", box));
+    flips("container size moved with the flip", document.getElementById("container-read"), () => { document.getElementById("container-read").classList.add("l"); box.style.width = "50px"; }, () => { document.getElementById("container-read").classList.remove("l"); box.style.width = ""; });
+    flips("container size moved under a unit with the flip", document.getElementById("container-unit"), () => { document.getElementById("container-unit").classList.add("l"); box.style.width = "60px"; }, () => { document.getElementById("container-unit").classList.remove("l"); box.style.width = ""; });
+
+    const attributed = (name, attribute, value = "") => {
+        const element = make(name, "w");
+        flips(name, element, () => element.setAttribute(attribute, value), () => element.removeAttribute(attribute));
+    };
+    attributed("attribute-loser", "data-l");
+    attributed("attribute-read", "data-l", "7");
+    attributed("attribute-value", "data-v", "x");
+    attributed("pseudo-attribute", "data-l", "text");
+    attributed("presentational-hint", "bgcolor", "red");
+    // NB: The flipped rule is of the user agent's sheet, which `revert` rolls back to.
+    attributed("revert-over-user-agent", "hidden");
+
+    const tableCell = document.createElement("td");
+    tableCell.id = "table-cell";
+    tableCell.className = "presentational-hint w";
+    const row = document.createElement("tr");
+    const tableBody = document.createElement("tbody");
+    const table = document.createElement("table");
+    table.append(tableBody);
+    tableBody.append(row);
+    row.append(tableCell);
+    container.append(table);
+    flips("hint on a cell", tableCell, () => tableCell.setAttribute("bgcolor", "red"), () => tableCell.removeAttribute("bgcolor"));
+
+    for (const [name, childClass, parentClass] of [["has-loser", "l", "w"], ["has-winner", "w", "l"]]) {
+        const parent = make(name, parentClass);
+        const child = make(`${name}-child`, "", parent);
+        flipClass(name, child, childClass);
+    }
+
+    const siblings = make("siblings");
+    const before = make("sibling-loser", "", siblings);
+    const target = make("sibling-target", "target w", siblings);
+    flips("sibling-loser", target, () => before.classList.add("l"), () => before.classList.remove("l"));
+
+    const scopeRoot = make("scope-root", "scope-root");
+    for (const name of ["scoped-loser", "scoped-winner"])
+        flipClass(name, make(name, "w", scopeRoot));
+
+    const shadowHost = (name, classes) => {
+        const host = document.createElement(name === "host-loser" ? "host-loser" : "div");
+        host.id = name;
+        host.className = `${name} has-shadow ${classes}`;
+        host.attachShadow({ mode: "open" }).append(document.getElementById("shadow-template").content.cloneNode(true));
+        container.append(host);
+        return host;
+    };
+    flipClass("host-element", shadowHost("host-element", "w"));
+    flipClass("part-flip", shadowHost("part-flip", "w"));
+
+    for (const { name, flip, unflip, element } of flipped) {
+        flip();
+        compareWithCold(`${name}, flipped on`, element);
+        element.classList.remove("w");
+        compareWithCold(`${name}, flipped on without the winner`, element);
+        element.classList.add("w");
+        compareWithCold(`${name}, flipped on with the winner again`, element);
+        unflip();
+        compareWithCold(`${name}, flipped off`, element);
+        element.classList.remove("w");
+        compareWithCold(`${name}, flipped off without the winner`, element);
+        element.classList.add("w");
+        compareWithCold(`${name}, flipped off with the winner again`, element);
+        // The two moving in one update, either way.
+        element.classList.remove("w");
+        flip();
+        compareWithCold(`${name}, the winner leaving as the flip arrives`, element);
+        unflip();
+        element.classList.add("w");
+        compareWithCold(`${name}, the winner arriving as the flip leaves`, element);
+    }
+});
+</script>
