@@ -1,0 +1,14 @@
+Ladybird’s Uint8Array toBase64() and toHex() compute the length of
+their result from the byte count, and throw a RangeError before encoding
+anything when it’s longer than a string can hold. All three engines
+reject an oversized result before encoding too, each with its own kind
+of error: V8’s Uint8ArrayPrototypeToBase64 and Uint8ArrayPrototypeToHex
+compare it against String::kMaxLength and throw a TypeError for
+kInvalidStringLength. JavaScriptCore’s uint8ArrayPrototypeToBase64 and
+uint8ArrayPrototypeToHex throw an out-of-memory error, from a null
+result of base64EncodeToStringReturnNullIfOverflow() and from a checked
+length * 2. And SpiderMonkey’s uint8array_toBase64 and uint8array_toHex
+compare it against JSString::MAX_LENGTH, then report the overflow with
+ReportAllocationOverflow(). The RangeError is the one Ladybird already
+throws whenever another builtin’s result would overflow a string, as in
+String.prototype.repeat().
