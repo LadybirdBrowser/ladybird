@@ -188,6 +188,12 @@ MediaCapabilities::MediaCapabilities()
 {
 }
 
+void MediaCapabilities::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_pending_decoding_info_promises);
+}
+
 // https://w3c.github.io/media-capabilities/#dom-mediacapabilities-decodinginfo
 void MediaCapabilities::decoding_info(MediaDecodingConfiguration const& configuration, GC::Ref<WebIDL::Promise> promise)
 {
@@ -204,10 +210,17 @@ void MediaCapabilities::decoding_info(MediaDecodingConfiguration const& configur
     // FIXME: Implement this.
 
     // 4. Run the following steps in parallel:
-    auto resolve_with_capabilities = [promise = GC::Root(promise), configuration](Optional<Media::DecoderCapabilities> const& capabilities) {
+    m_pending_decoding_info_promises.append(promise);
+    auto resolve_with_capabilities = [weak_this = GC::Weak { *this }, weak_promise = GC::Weak { *promise }, configuration](Optional<Media::DecoderCapabilities> const& capabilities) {
+        auto self = weak_this.ptr();
+        auto pending_promise = weak_promise.ptr();
+        if (!self || !pending_promise)
+            return;
+        self->m_pending_decoding_info_promises.remove_first_matching([&](auto const& promise) { return promise.ptr() == pending_promise.ptr(); });
+
         // 1. Run the Create a MediaCapabilitiesDecodingInfo algorithm with configuration.
         // 2. Queue a Media Capabilities task to resolve p with its result.
-        queue_a_media_capabilities_task(WebIDL::promise_realm(*promise).global_object(), [promise, configuration, capabilities] {
+        queue_a_media_capabilities_task(WebIDL::promise_realm(*pending_promise).global_object(), [promise = GC::Root { *pending_promise }, configuration, capabilities] {
             auto& realm = WebIDL::promise_realm(*promise);
             HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             auto result = Bindings::media_capabilities_decoding_info_to_value(realm, create_a_media_capabilities_decoding_info(configuration, capabilities));

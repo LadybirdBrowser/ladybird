@@ -51,6 +51,10 @@ public:
 
 private:
     MediaCapabilities();
+
+    virtual void visit_edges(Cell::Visitor&) override;
+
+    Vector<GC::Ref<WebIDL::Promise>> m_pending_decoding_info_promises;
 };
 
 using DecoderCapabilitiesPromise = Core::Promise<Optional<Media::DecoderCapabilities>>;
