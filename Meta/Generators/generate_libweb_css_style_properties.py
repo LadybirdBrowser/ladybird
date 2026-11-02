@@ -85,14 +85,47 @@ JS::ThrowCompletionOr<CSS::CSSStyleProperties*> impl_from(JS::VM& vm)
     return impl_from(vm, this_value);
 }
 
-GC::Ref<JS::NativeFunction> create_getter(JS::Realm& realm, Utf16FlyString const& attribute_name, Utf16FlyString property_name)
+struct Property {
+    StringView attribute_name;
+    StringView property_name;
+};
+
+static constexpr auto properties = Array {
+""")
+
+    for name in properties:
+        out.write(f'    Property {{ "{css_property_to_idl_attribute(name)}"sv, "{name}"sv }},\n')
+        if name.startswith("-webkit-"):
+            out.write(
+                f'    Property {{ "{css_property_to_idl_attribute(name, lowercase_first=True)}"sv, "{name}"sv }},\n'
+            )
+        if "-" in name:
+            out.write(f'    Property {{ "{name}"sv, "{name}"sv }},\n')
+
+    out.write("""};
+
+// NB: The accessors capture the index of their property, not its name. The garbage collector scans captures
+//     conservatively, and a name's pointer can look like a pointer to any cell.
+Utf16FlyString const& property_name_at(size_t index)
 {
-    auto getter = [property_name = move(property_name)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    static auto const& property_names = *[] {
+        auto* property_names = new Vector<Utf16FlyString>;
+        property_names->ensure_capacity(properties.size());
+        for (auto const& property : properties)
+            property_names->unchecked_append(Utf16FlyString::from_utf8(property.property_name));
+        return property_names;
+    }();
+    return property_names[index];
+}
+
+GC::Ref<JS::NativeFunction> create_getter(JS::Realm& realm, Utf16FlyString const& attribute_name, size_t property_index)
+{
+    auto getter = [property_index](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         auto* idl_object = TRY(impl_from(vm));
         auto& realm = *vm.current_realm();
 
         auto result = TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
-            return idl_object->get_property_value(property_name);
+            return idl_object->get_property_value(property_name_at(property_index));
         }));
         return JS::PrimitiveString::create(vm, result);
     };
@@ -100,9 +133,9 @@ GC::Ref<JS::NativeFunction> create_getter(JS::Realm& realm, Utf16FlyString const
     return JS::NativeFunction::create(realm, move(getter), 0, JS::PropertyKey { attribute_name }, &realm, "get"sv);
 }
 
-GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const& attribute_name, Utf16FlyString property_name)
+GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const& attribute_name, size_t property_index)
 {
-    auto setter = [property_name = move(property_name)](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
+    auto setter = [property_index](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
         auto* idl_object = TRY(impl_from(vm));
         auto& realm = *vm.current_realm();
 
@@ -113,7 +146,7 @@ GC::Ref<JS::NativeFunction> create_setter(JS::Realm& realm, Utf16FlyString const
 
         auto original_steps = [&]() -> JS::ThrowCompletionOr<JS::Value> {
             TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
-                return idl_object->set_property(property_name, idl_value, ""sv);
+                return idl_object->set_property(property_name_at(property_index), idl_value, ""sv);
             }));
             return JS::js_undefined();
         };
@@ -154,31 +187,10 @@ void GeneratedCSSStyleProperties::initialize(JS::Realm& realm, JS::Object& objec
     // CSS declarations).
     [[maybe_unused]] u8 default_attributes = JS::Attribute::Configurable | JS::Attribute::Writable;
 
-    struct Property {
-        StringView attribute_name;
-        StringView property_name;
-    };
-
-    static constexpr auto properties = Array {
-""")
-
-    for name in properties:
-        out.write(f'        Property {{ "{css_property_to_idl_attribute(name)}"sv, "{name}"sv }},\n')
-        if name.startswith("-webkit-"):
-            out.write(
-                f'        Property {{ "{css_property_to_idl_attribute(name, lowercase_first=True)}"sv, "{name}"sv }},\n'
-            )
-        if "-" in name:
-            out.write(f'        Property {{ "{name}"sv, "{name}"sv }},\n')
-
-    out.write("""
-    };
-
-    for (auto property : properties) {
-        auto attribute_name = Utf16FlyString::from_utf8(property.attribute_name);
-        auto property_name = Utf16FlyString::from_utf8(property.property_name);
-        auto native_getter = create_getter(realm, attribute_name, property_name);
-        auto native_setter = create_setter(realm, attribute_name, property_name);
+    for (size_t property_index = 0; property_index < properties.size(); ++property_index) {
+        auto attribute_name = Utf16FlyString::from_utf8(properties[property_index].attribute_name);
+        auto native_getter = create_getter(realm, attribute_name, property_index);
+        auto native_setter = create_setter(realm, attribute_name, property_index);
         object.define_direct_accessor(attribute_name, native_getter, native_setter, default_attributes);
     }
 }
