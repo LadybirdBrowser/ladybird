@@ -147,6 +147,12 @@ impl Application<'_> {
             for &record in &installation.pinned_records {
                 engine.unpin_layout_style_record(record);
             }
+            // NB: Installing the record replays the element's animations over it, which ask to restyle what reads the
+            //     custom properties they sample. The next demand of the walk reads those from here, and what the walk
+            //     does not reach computes when something reads it.
+            // FIXME: A read below an element that is not displayed stays at the first sampled value of a custom property
+            //        animation that moves later.
+            engine.consume_element_style_input(node);
         });
         true
     }
