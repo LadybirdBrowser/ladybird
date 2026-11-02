@@ -17,7 +17,7 @@ pub use crate::layout::environment::GlobalEnvironment;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
-use crate::runtime::declarative_environment::DeclarativeEnvironment;
+use crate::runtime::declarative_environment::{DeclarativeEnvironment, GlobalDeclarativeEnvironment};
 use crate::runtime::environment::{ENVIRONMENT_METHODS, Environment, EnvironmentMethods, InitializeBindingHint};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
@@ -81,7 +81,7 @@ impl GlobalEnvironment {
     // 9.1.2.5 NewGlobalEnvironment ( G, thisValue ), https://tc39.es/ecma262/#sec-newglobalenvironment
     pub fn create(vm: &Vm, global_object: Gc<Object>, this_value: Gc<Object>) -> Gc<GlobalEnvironment> {
         let object_record = ObjectEnvironment::create(vm, global_object, IsWithEnvironment::No, None);
-        let declarative_record = DeclarativeEnvironment::create(vm, None);
+        let declarative_record = GlobalDeclarativeEnvironment::create(vm);
         declarative_record.track_binding_assignments();
         vm.heap().allocate(|_| GlobalEnvironment {
             base: Environment::new(Self::CLASS, None, false),

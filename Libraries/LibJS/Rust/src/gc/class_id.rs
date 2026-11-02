@@ -42,6 +42,7 @@ define_class_ids! {
     ProxyObject,
     Environment,
     DeclarativeEnvironment,
+    GlobalDeclarativeEnvironment,
     FunctionEnvironment,
     ModuleEnvironment,
     EnvironmentShape,

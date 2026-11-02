@@ -243,13 +243,6 @@ macro_rules! check_host_object_abi_constants {
     };
 }
 
-/// The C layout that #[repr(C, u8)] gives ScriptOrModule: the tag, then the payload of the variant.
-#[repr(C)]
-struct ScriptOrModuleRepresentation {
-    tag: u8,
-    payload: usize,
-}
-
 /// Spells a class name such as RawJSONObject the way C spells constants, RAW_JSON_OBJECT.
 fn screaming_snake_case(name: &str) -> String {
     let characters: Vec<char> = name.chars().collect();
@@ -359,15 +352,9 @@ pub fn generate() -> LayoutHeader {
     size!(w, "EXECUTION_CONTEXT", ExecutionContext);
     w.define("EXECUTION_CONTEXT_ALIGN", align_of::<ExecutionContext>());
 
-    w.section("ScriptOrModule, a tag and the script or module cell it names");
-    assert_eq!(size_of::<ScriptOrModuleRepresentation>(), size_of::<ScriptOrModule>());
-    assert_eq!(align_of::<ScriptOrModuleRepresentation>(), align_of::<ScriptOrModule>());
-    w.define("SCRIPT_OR_MODULE_TAG_OFFSET", offset_of!(ScriptOrModuleRepresentation, tag));
-    w.define("SCRIPT_OR_MODULE_PAYLOAD_OFFSET", offset_of!(ScriptOrModuleRepresentation, payload));
-    size!(w, "SCRIPT_OR_MODULE", ScriptOrModule);
-    w.define("SCRIPT_OR_MODULE_TAG_EMPTY", SCRIPT_OR_MODULE_TAG_EMPTY);
-    w.define("SCRIPT_OR_MODULE_TAG_SCRIPT", SCRIPT_OR_MODULE_TAG_SCRIPT);
-    w.define("SCRIPT_OR_MODULE_TAG_MODULE", SCRIPT_OR_MODULE_TAG_MODULE);
+    w.section("ScriptOrModule, the script or module cell it names in one word");
+    size!(w, "SCRIPT_OR_MODULE", ScriptOrModuleSlot);
+    w.define("SCRIPT_OR_MODULE_MODULE_BIT", SCRIPT_OR_MODULE_SLOT_MODULE_BIT);
 
     w.section("VM, whose head is at its start");
     offset!(w, "VM_RUNNING_EXECUTION_CONTEXT", VmHead, running_execution_context);

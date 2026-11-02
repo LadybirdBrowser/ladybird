@@ -11,6 +11,8 @@ use core::cell::Cell;
 #[repr(C)]
 pub struct InterpreterBuffer<T> {
     pub data: Cell<*mut T>,
-    pub size: Cell<usize>,
-    pub capacity: Cell<usize>,
+    pub size: Cell<u32>,
+    pub capacity: Cell<u32>,
 }
+
+const _: () = assert!(size_of::<InterpreterBuffer<u8>>() == 16);

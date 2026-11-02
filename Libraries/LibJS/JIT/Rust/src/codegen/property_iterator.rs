@@ -115,7 +115,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let layout = self.runtime.layout;
         let small = self.masm.new_label();
         self.emit_unbox_cell(output, keys);
-        self.masm.load64(
+        self.masm.load32(
             output,
             &Address::new(output, layout.property_iterator_property_value_count as i32),
         );

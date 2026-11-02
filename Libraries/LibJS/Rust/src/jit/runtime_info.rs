@@ -37,7 +37,7 @@ use crate::layout::accessor::Accessor;
 use crate::layout::cell::Gc;
 use crate::layout::environment::{
     BINDING_FLAG_MUTABLE, DeclarativeEnvironment, DeclarativeEnvironmentRareData, Environment, EnvironmentShape,
-    PrivateEnvironment,
+    GlobalDeclarativeEnvironment, PrivateEnvironment,
 };
 use crate::layout::executable::ExecutableHead;
 use crate::layout::execution_context::ExecutionContext;
@@ -280,7 +280,7 @@ fn runtime_layout() -> RuntimeLayout {
         rare_data_binding_flags: offset(offset_of!(DeclarativeEnvironmentRareData, binding_flags.data)),
         environment_shape_binding_flags_size: offset(offset_of!(EnvironmentShape, binding_flags.size)),
         environment_shape_binding_flags: offset(offset_of!(EnvironmentShape, binding_flags.data)),
-        declarative_environment_serial: offset(offset_of!(DeclarativeEnvironment, serial_number)),
+        declarative_environment_serial: offset(offset_of!(GlobalDeclarativeEnvironment, serial_number)),
         realm_global_object: offset(offset_of!(Realm, global_object)),
         realm_global_declarative_environment: offset(offset_of!(Realm, global_declarative_environment)),
         executable_global_variable_caches: offset(offset_of!(ExecutableHead, global_variable_caches.data)),

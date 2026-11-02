@@ -330,7 +330,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     assert_eq!(align_of::<ExecutionContext>(), value_size);
     field!(w, "EXECUTION_CONTEXT_FUNCTION", "ExecutionContext.function", "Object", ExecutionContext, function, 8, "nullable", "cell", "function_and_realm");
     field!(w, "EXECUTION_CONTEXT_REALM", "ExecutionContext.realm", "Realm", ExecutionContext, realm, 8, "nullable", "cell", "function_and_realm");
-    field!(w, "EXECUTION_CONTEXT_SCRIPT_OR_MODULE", "ExecutionContext.script_or_module", "ScriptOrModule", ExecutionContext, script_or_module, 16, "nullable", "scalar");
+    field!(w, "EXECUTION_CONTEXT_SCRIPT_OR_MODULE", "ExecutionContext.script_or_module", "u64", ExecutionContext, script_or_module, 8, "nullable", "scalar");
     field!(w, "EXECUTION_CONTEXT_LEXICAL_ENVIRONMENT", "ExecutionContext.lexical_environment", "Environment", ExecutionContext, lexical_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_VARIABLE_ENVIRONMENT", "ExecutionContext.variable_environment", "Environment", ExecutionContext, variable_environment, 8, "nullable", "cell", "environments");
     field!(w, "EXECUTION_CONTEXT_PRIVATE_ENVIRONMENT", "ExecutionContext.private_environment", "PrivateEnvironment", ExecutionContext, private_environment, 8, "nullable", "cell");
@@ -367,7 +367,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field ExecutionContext.saved_lexical_environment Value EXECUTION_CONTEXT_SAVED_LEXICAL_ENVIRONMENT nullable scalar return_and_saved_environment");
     w.constant("ALIGNOF_EXECUTION_CONTEXT", align_of::<ExecutionContext>());
     w.constant("EXECUTION_CONTEXT_NO_YIELD_CONTINUATION", ExecutionContext::NO_YIELD_CONTINUATION);
-    size!(w, "SIZEOF_SCRIPT_OR_MODULE", ScriptOrModule);
+    size!(w, "SIZEOF_SCRIPT_OR_MODULE", ScriptOrModuleSlot);
     size!(w, "SIZEOF_VALUE", Value);
 
     w.section("InterpreterStack layout");
@@ -441,7 +441,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA", ObjectPropertyIteratorCacheData, property_values.data);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE", ObjectPropertyIteratorCacheData, property_values.size);
     w.line("field ObjectPropertyIteratorCacheData.property_values Sequence<Value> OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA nullable scalar");
-    w.line("field ObjectPropertyIteratorCacheData.property_value_count u64 OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE nullable scalar");
+    w.line("field ObjectPropertyIteratorCacheData.property_value_count u32 OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE nullable scalar");
 
     w.section("PutKind enum");
     w.constant("PUT_KIND_NORMAL", PutKind::Normal as u8);
@@ -451,7 +451,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
 
     w.section("DeclarativeEnvironment layout");
     field!(w, "DECLARATIVE_ENVIRONMENT_RARE_DATA", "DeclarativeEnvironment.rare_data", "DeclarativeEnvironmentRareData", DeclarativeEnvironment, rare_data, 8, "nullable", "scalar");
-    field!(w, "DECLARATIVE_ENVIRONMENT_SERIAL", "DeclarativeEnvironment.serial_number", "u64", DeclarativeEnvironment, serial_number, 8, "nullable", "scalar");
+    field!(w, "DECLARATIVE_ENVIRONMENT_SERIAL", "DeclarativeEnvironment.serial_number", "u64", GlobalDeclarativeEnvironment, serial_number, 8, "nullable", "scalar");
 
     w.section("GlobalVariableCache layout");
     offset!(w, "GLOBAL_VARIABLE_CACHE_ENTRY", GlobalVariableCache, entry);
@@ -498,14 +498,9 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.constant("ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA", ecmascript_function_flags::HAS_RARE_DATA);
 
     w.section("SharedFunctionInstanceData layout");
-    field!(w, "SHARED_FUNCTION_INSTANCE_DATA_SCRIPT_OR_MODULE", "SharedFunctionInstanceData.script_or_module", "ScriptOrModule", SharedFunctionInstanceData, script_or_module, 16, "nullable", "scalar");
+    field!(w, "SHARED_FUNCTION_INSTANCE_DATA_SCRIPT_OR_MODULE", "SharedFunctionInstanceData.script_or_module", "u64", SharedFunctionInstanceData, script_or_module, 8, "nullable", "scalar");
     field!(w, "SHARED_FUNCTION_INSTANCE_DATA_EXECUTABLE", "SharedFunctionInstanceData.executable", "Executable", SharedFunctionInstanceData, executable, 4, "nullable", "compressed");
     field!(w, "SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA", "SharedFunctionInstanceData.asm_call_metadata", "u64", SharedFunctionInstanceData, asm_call_metadata, 8, "nullable", "scalar");
-    offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_FORMAL_PARAMETER_COUNT", SharedFunctionInstanceData, formal_parameter_count);
-    offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_STRICT", SharedFunctionInstanceData, strict);
-    offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_FUNCTION_ENVIRONMENT_NEEDED", SharedFunctionInstanceData, function_environment_needed);
-    offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_USES_THIS", SharedFunctionInstanceData, uses_this);
-    offset!(w, "SHARED_FUNCTION_INSTANCE_DATA_CAN_INLINE_CALL", SharedFunctionInstanceData, can_inline_call);
     w.constant("SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL", asm_call_metadata::CAN_INLINE_CALL);
     w.constant("SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION", asm_call_metadata::NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION);
     w.constant("SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS", asm_call_metadata::USES_THIS);
@@ -569,7 +564,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field DeclarativeEnvironmentRareData.binding_flags BindingFlags BINDING_FLAGS_DATA_PTR nonnull scalar");
     offset!(w, "ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR", EnvironmentShape, binding_flags.data);
     offset!(w, "ENVIRONMENT_SHAPE_BINDING_FLAGS_SIZE", EnvironmentShape, binding_flags.size);
-    w.line("field EnvironmentShape.binding_flags_size u64 ENVIRONMENT_SHAPE_BINDING_FLAGS_SIZE nullable scalar");
+    w.line("field EnvironmentShape.binding_flags_size u32 ENVIRONMENT_SHAPE_BINDING_FLAGS_SIZE nullable scalar");
     w.line("field EnvironmentShape.binding_flags BindingFlags ENVIRONMENT_SHAPE_BINDING_FLAGS_DATA_PTR nonnull scalar");
 
     w.section("EnvironmentCoordinate layout");

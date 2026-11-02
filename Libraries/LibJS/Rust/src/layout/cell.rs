@@ -91,6 +91,16 @@ pub struct CellHeader {
 
 const _: () = assert!(size_of::<CellHeader>() == 11);
 
+/// The header of a cell that keeps fields of its own in the first word, which comes right after those fields.
+#[repr(C, packed)]
+pub struct CellHeaderTail {
+    pub mark: Cell<bool>,
+    pub state: Cell<CellState>,
+    pub kind: CellKind,
+}
+
+const _: () = assert!(size_of::<CellHeaderTail>() == 3);
+
 /// Added to the class that the block of an allocator holds when the classes that extend it share the allocator, whose
 /// cells each keep their own class in the word after the cell_size bytes of that class.
 pub const BLOCK_CLASS_TAIL_TAG: usize = 1;

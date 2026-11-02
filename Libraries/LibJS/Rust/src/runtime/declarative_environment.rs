@@ -24,7 +24,9 @@ use crate::interpreter::vm::Vm;
 use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::buffer::InterpreterBuffer;
 use crate::layout::cell::Gc;
-pub use crate::layout::environment::{DeclarativeEnvironment, DeclarativeEnvironmentRareData};
+pub use crate::layout::environment::{
+    DeclarativeEnvironment, DeclarativeEnvironmentRareData, GlobalDeclarativeEnvironment,
+};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{DisposeCapability, add_disposable_resource};
 use crate::runtime::completion::ThrowCompletionOr;
@@ -251,6 +253,40 @@ pub fn allocate_environment<T: GcCell>(
     environment
 }
 
+define_cell!(GlobalDeclarativeEnvironment, Other, extends: [DeclarativeEnvironment, Environment], finalize: finalize);
+
+impl Finalize for GlobalDeclarativeEnvironment {
+    fn finalize(&self) {
+        self.base.finalize();
+    }
+}
+
+// SAFETY: Visits what the declarative environment holds. The serial number is no cell.
+unsafe impl Trace for GlobalDeclarativeEnvironment {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.base.trace(visitor);
+    }
+}
+
+impl Deref for GlobalDeclarativeEnvironment {
+    type Target = DeclarativeEnvironment;
+
+    fn deref(&self) -> &DeclarativeEnvironment {
+        &self.base
+    }
+}
+
+impl GlobalDeclarativeEnvironment {
+    pub fn create(vm: &Vm) -> Gc<DeclarativeEnvironment> {
+        vm.heap()
+            .allocate(|_| Self {
+                base: DeclarativeEnvironment::new(Self::CLASS, None),
+                serial_number: Cell::new(0),
+            })
+            .upcast()
+    }
+}
+
 /// The cell sizes of the size classes of declarative environments.
 pub const DECLARATIVE_ENVIRONMENT_CELL_SIZES: [u32; INLINE_BINDING_CAPACITIES.len()] =
     inline_binding_cell_sizes(size_of::<DeclarativeEnvironment>());
@@ -301,7 +337,6 @@ impl DeclarativeEnvironment {
             base: Environment::new(class, outer_environment, true),
             binding_values: InterpreterBuffer::new(),
             rare_data: Cell::new(core::ptr::null_mut()),
-            serial_number: Cell::new(0),
         }
     }
 
@@ -366,8 +401,11 @@ impl DeclarativeEnvironment {
         {
             return;
         }
-        let serial = self.serial_number.get();
-        self.serial_number.set(serial + 1);
+        let Some(global_environment) = self.downcast_ref::<GlobalDeclarativeEnvironment>() else {
+            return;
+        };
+        let serial = global_environment.serial_number.get();
+        global_environment.serial_number.set(serial + 1);
         if self.has_dependent_code() {
             crate::jit::dependencies::invalidate_dependents(
                 vm,
@@ -454,7 +492,10 @@ impl DeclarativeEnvironment {
     }
 
     pub fn environment_serial_number(&self) -> u64 {
-        self.serial_number.get()
+        self.downcast_ref::<GlobalDeclarativeEnvironment>()
+            .expect("only global declarative environments have a serial number")
+            .serial_number
+            .get()
     }
 
     pub fn dispose_capability(&self) -> &GcRefCell<DisposeCapability> {

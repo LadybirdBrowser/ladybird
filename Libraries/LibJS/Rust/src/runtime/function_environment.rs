@@ -13,6 +13,8 @@ use crate::gc::class::{Finalize, GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::function_object::{FUNCTION_ENVIRONMENT_WORDS, FunctionObject};
+use crate::layout::member::NullableMember;
+use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::declarative_environment::{
@@ -28,9 +30,10 @@ use crate::runtime::error_types::ErrorType;
 #[derive(Trace)]
 pub struct FunctionEnvironment {
     base: DeclarativeEnvironment,
-    this_value: Cell<Value>,                           // [[ThisValue]]
-    function_object: Cell<Option<Gc<FunctionObject>>>, // [[FunctionObject]]
-    new_target: Cell<Value>,                           // [[NewTarget]]
+    this_value: Cell<Value>,                         // [[ThisValue]]
+    function_object: NullableMember<FunctionObject>, // [[FunctionObject]]
+    /// [[NewTarget]], which is undefined if null.
+    new_target: NullableMember<Object>,
 }
 
 define_cell!(FunctionEnvironment, Other, extends: [DeclarativeEnvironment, Environment], finalize: finalize);
@@ -88,8 +91,8 @@ impl FunctionEnvironment {
             FunctionEnvironment {
                 base: DeclarativeEnvironment::new(Self::CLASS, outer_environment),
                 this_value: Cell::new(Value::UNDEFINED),
-                function_object: Cell::new(None),
-                new_target: Cell::new(Value::UNDEFINED),
+                function_object: NullableMember::null(),
+                new_target: NullableMember::null(),
             },
             binding_capacity,
             &FUNCTION_ENVIRONMENT_CELL_SIZES,
@@ -116,12 +119,13 @@ impl FunctionEnvironment {
     }
 
     pub fn new_target(&self) -> Value {
-        self.new_target.get()
+        self.new_target.get().map_or(Value::UNDEFINED, Value::from_object)
     }
 
     pub fn set_new_target(&self, new_target: Value) {
         assert!(!new_target.is_empty());
-        self.new_target.set(new_target);
+        self.new_target
+            .set(new_target.is_object().then(|| new_target.as_object()));
     }
 
     // 9.1.1.3.5 GetSuperBase ( ), https://tc39.es/ecma262/#sec-getsuperbase
