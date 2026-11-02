@@ -27,3 +27,8 @@ pub fn js_number_to_utf16(value: f64) -> Utf16String {
 pub fn validate_regex(pattern: &[u16], flags: &[u16]) -> Result<(), Utf16String> {
     implementation::validate_regex(pattern, flags).map_err(|message| Utf16String(message.encode_utf16().collect()))
 }
+
+/// Number::exponentiate(base, exponent), which the host implements.
+pub fn exponentiate(base: f64, exponent: f64) -> f64 {
+    implementation::exponentiate(base, exponent)
+}

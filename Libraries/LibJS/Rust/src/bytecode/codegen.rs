@@ -10319,18 +10319,6 @@ fn try_constant_fold_bigint_binary(
     }
 }
 
-/// Try to constant-fold a binary operation when both operands are constants.
-// 6.1.6.1.3 Number::exponentiate ( base, exponent )
-// https://tc39.es/ecma262/#sec-numeric-types-number-exponentiate
-// Rust's f64::powf follows C's pow() which returns 1.0 for pow(±1, ±∞),
-// but JS specifies NaN when abs(base) is 1 and exponent is ±∞.
-fn js_exponentiate(base: f64, exponent: f64) -> f64 {
-    if exponent.is_infinite() && base.abs() == 1.0 {
-        return f64::NAN;
-    }
-    base.powf(exponent)
-}
-
 /// Parse a non-decimal integer string via BigInt to f64, matching
 /// UnsignedBigInteger::from_base() + to_double(). This avoids u64 overflow
 /// for large literals like 0x10000000000000000.
@@ -10453,6 +10441,7 @@ fn compare_bigint_and_number(bigint_str: &str, number: f64) -> Option<Option<std
     Some(Some(bigint.cmp(&number_bigint)))
 }
 
+/// Try to constant-fold a binary operation when both operands are constants.
 fn try_constant_fold_binary(
     generator: &mut Generator,
     op: BinaryOp,
@@ -10508,7 +10497,7 @@ fn try_constant_fold_binary(
         BinaryOp::Exponentiation => {
             let a = constant_to_number(lhs_const)?;
             let b = constant_to_number(rhs_const)?;
-            Some(generator.add_constant_number(js_exponentiate(a, b)))
+            Some(generator.add_constant_number(crate::host::exponentiate(a, b)))
         }
         BinaryOp::StrictlyEquals | BinaryOp::StrictlyInequals => {
             let equal = match (lhs_const, rhs_const) {
