@@ -924,6 +924,9 @@ void BrowserWindow::initialize_tab(Tab* tab)
     QObject::connect(tab, &Tab::title_changed, this, &BrowserWindow::tab_title_changed);
     QObject::connect(tab, &Tab::favicon_changed, this, &BrowserWindow::tab_favicon_changed);
     QObject::connect(tab, &Tab::playing_audio_indicator_changed, this, &BrowserWindow::tab_playing_audio_indicator_changed);
+    QObject::connect(tab, &Tab::microphone_in_use_changed, this, [this] {
+        m_tabs_container->tab_bar()->update_microphone_indicators();
+    });
     QObject::connect(tab, &Tab::loading_changed, this, [this] {
         m_tabs_container->tab_bar()->update_loading_ring_animation();
     });

@@ -22,6 +22,7 @@
 #include <UI/Qt/WindowToolbar.h>
 
 #include <QHash>
+#include <QLabel>
 #include <QPixmap>
 #include <QPointer>
 #include <QPushButton>
@@ -54,6 +55,7 @@ namespace Ladybird {
 class AllTabsPopover;
 class LadybirdButton;
 
+class TabMicrophoneIndicator;
 class TabPreviewPopup;
 class TabWidget;
 class WindowControlsReveal;
@@ -100,6 +102,7 @@ public:
     int pinned_tab_count() const;
 
     void update_loading_ring_animation();
+    void update_microphone_indicators();
     // How far the end of the horizontal tabs is from where it settles, while tabs open and close.
     int horizontal_tabs_end_offset() const;
     // A horizontal tab that closes shrinks away as the others close the gap.
@@ -116,6 +119,8 @@ private:
 
     virtual void resizeEvent(QResizeEvent*) override;
     virtual void tabLayoutChange() override;
+    virtual void tabInserted(int index) override;
+    virtual void tabRemoved(int index) override;
 
     virtual bool event(QEvent*) override;
     virtual void paintEvent(QPaintEvent*) override;
@@ -218,6 +223,7 @@ private:
     qreal loading_ring_opacity(int index) const;
     void ensure_tab_visible(int index);
     void update_tab_button_geometry();
+    TabMicrophoneIndicator* microphone_indicator(int index) const;
 
     QPointer<TabWidget> m_tab_widget;
 
@@ -263,6 +269,9 @@ private:
     int m_settled_tab_count { 0 };
 
     QVariantAnimation* m_loading_ring_animation { nullptr };
+    // NB: QTabBar has room for only two widgets on each tab, the speaker and the close button, so the tab bar keeps the
+    //     microphone indicators itself.
+    HashMap<Tab const*, TabMicrophoneIndicator*> m_microphone_indicators;
     QIcon m_fallback_tab_icon;
     QHash<QString, QStaticText> m_tab_title_texts;
     // The tabs whose titles were too long to show in full when last painted.
@@ -534,6 +543,23 @@ private:
     bool m_quiet_close_icon_is_dark { false };
     qreal m_opacity { 1 };
     QVariantAnimation* m_reveal_animation { nullptr };
+};
+
+// Shows that a tab's page is using the microphone. It is not a control, so a press on it goes to the tab beneath.
+// NB: It is a label so that assistive technology reads it as text.
+class TabMicrophoneIndicator final : public QLabel {
+    Q_OBJECT
+
+public:
+    AK_ALLOC_WITH_KMALLOC;
+
+    explicit TabMicrophoneIndicator(QWidget* parent);
+    void set_placement(TabBarButton::Placement);
+
+private:
+    virtual void paintEvent(QPaintEvent*) override;
+
+    TabBarButton::Placement m_placement { TabBarButton::Placement::Tab };
 };
 
 }
