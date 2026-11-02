@@ -119,10 +119,6 @@ Ordinary wrapper/implementation edges are:
   inline main-world representative;
 - implementation to preserved wrapper: strong, visited by `Wrappable`.
 
-Pending activity is explicit. Objects such as timers, XHR, WebSocket, and
-ResizeObserver take and release `GC::ActivityRoot`s at their state transitions
-instead of relying on silent GC virtual predicates.
-
 LibGC finalization clears wrapper cache entries before weak pointers are
 observed as live again. Code that depends on weak wrapper caches relies on that
 ordering: wrapper finalization removes the cache entry, then weak references can
@@ -182,8 +178,7 @@ Keep new wrapper work behind the narrow binding surface:
 Do not add ad-hoc implementation-pointer plumbing or new GC-specific liveness
 side channels outside that surface. When non-GC implementation objects arrive,
 the migration points are the generated implementation handle, weak
-implementation-to-wrapper caches, preserved-wrapper roots, and the current
-`ActivityRoot` model.
+implementation-to-wrapper caches, and preserved-wrapper roots.
 
 ## Testing wrapper and GC behavior (mandatory rules)
 

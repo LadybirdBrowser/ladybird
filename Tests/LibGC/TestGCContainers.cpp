@@ -5,7 +5,6 @@
  */
 
 #include <AK/NeverDestroyed.h>
-#include <LibGC/ActivityRoot.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
 #include <LibGC/ConservativeHashMap.h>
@@ -154,28 +153,6 @@ TEST_CASE(root_vector_reports_roots)
 
     EXPECT(roots.contains(cell.ptr()));
     EXPECT_EQ(roots.size(), 1u);
-}
-
-TEST_CASE(activity_root_controls_cell_liveness)
-{
-    auto& heap = test_heap();
-    GC::ActivityRoot root;
-    GC::Weak<TestCell> weak_cell;
-
-    {
-        auto cell = heap.allocate<TestCell>();
-        weak_cell = cell.ptr();
-        root.take(*cell);
-    }
-
-    GC::scrub_stack_for_testing();
-    heap.collect_garbage();
-    EXPECT(weak_cell);
-
-    root.release();
-    GC::scrub_stack_for_testing();
-    heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
-    EXPECT(!weak_cell);
 }
 
 TEST_CASE(root_vector_ptr_reports_roots)
