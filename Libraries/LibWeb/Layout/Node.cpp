@@ -327,6 +327,9 @@ void NodeWithStyle::rebuild_image_observers(Vector<RefPtr<CSS::CursorStyleValue 
         background_image_element = pseudo_element_generator().ptr();
 
     auto new_observers = make<ImageObserverSlots>();
+    new_observers->background_images = Vector<RefPtr<CSS::AbstractImageStyleValue const>> { background_images() };
+    new_observers->mask_images = Vector<RefPtr<CSS::AbstractImageStyleValue const>> { mask_images() };
+    new_observers->border_image_source_value = border_image_source();
     for (auto const& image : background_images()) {
         auto observer = observer_for(image.ptr());
         if (observer && background_image_element)
