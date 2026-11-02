@@ -6677,6 +6677,13 @@ void Document::destroy()
         return task.document() == this;
     });
 
+    // AD-HOC: Destroying the document abandons "the end", whose remaining steps run in tasks that step 5 just
+    //         removed. Cancel its state, so that its timeout doesn't report it as stuck.
+    if (m_html_parser_end_state) {
+        m_html_parser_end_state->cancel();
+        m_html_parser_end_state = nullptr;
+    }
+
     // AD-HOC: Mark this document as destroyed so we can remove tasks from the queue that will never be able to run.
     m_has_been_destroyed = true;
     rendering_pending_document_changed(*this);
