@@ -42,7 +42,7 @@ use crate::runtime::realm::Realm;
 use crate::runtime::realm_watchpoints;
 use crate::runtime::regexp_constructor::is_raw_native_function_running;
 use crate::runtime::regexp_legacy_static_properties::{
-    invalidate_legacy_regexp_static_properties, update_legacy_regexp_static_properties_lazy,
+    LegacyCaptureSlots, invalidate_legacy_regexp_static_properties, update_legacy_regexp_static_properties_lazy,
 };
 #[cfg(feature = "jit")]
 use crate::runtime::regexp_object::NEW_REGEXP_OBJECT_LAST_INDEX_OFFSET;
@@ -52,10 +52,8 @@ use crate::runtime::regexp_object::{
 use crate::runtime::regexp_string_iterator::RegExpStringIterator;
 use crate::runtime::string_prototype::code_point_at;
 use crate::runtime::value::same_value;
+use crate::u32_from_usize;
 use crate::utf16::{Utf16StringBuilder, Utf16View, concatenate};
-
-/// The most legacy static properties ($1-$9) a match updates.
-const MAX_LEGACY_CAPTURES: u32 = 9;
 
 fn contains_code_unit(string: &Utf16String, code_unit: u8) -> bool {
     Utf16View::of_string(string)
@@ -343,41 +341,16 @@ fn exec_with_unicode_last_index_retry(
     }
 }
 
-/// The start and end of each of the first nine captures of the last exec of `compiled_regex`, which the legacy
-/// static properties are updated with.
-/// The capture slots that the legacy static properties record for $1 through $9, kept inline.
-struct LegacyCaptureSlots {
-    starts: [i32; MAX_LEGACY_CAPTURES as usize],
-    ends: [i32; MAX_LEGACY_CAPTURES as usize],
-    count: usize,
-}
-
-impl LegacyCaptureSlots {
-    fn starts(&self) -> &[i32] {
-        &self.starts[..self.count]
-    }
-
-    fn ends(&self) -> &[i32] {
-        &self.ends[..self.count]
-    }
-}
-
 fn legacy_capture_slots(compiled_regex: &EcmaScriptRegex, n_capture_groups: u32) -> LegacyCaptureSlots {
     let total_groups = compiled_regex.total_groups();
-    let capture_count = MAX_LEGACY_CAPTURES.min(n_capture_groups);
-    let mut slots = LegacyCaptureSlots {
-        starts: [-1; MAX_LEGACY_CAPTURES as usize],
-        ends: [-1; MAX_LEGACY_CAPTURES as usize],
-        count: capture_count as usize,
-    };
-    for group in 0..capture_count {
-        let group_index = group + 1;
-        if group_index < total_groups {
-            slots.starts[group as usize] = compiled_regex.capture_slot(group_index * 2);
-            slots.ends[group as usize] = compiled_regex.capture_slot(group_index * 2 + 1);
+    LegacyCaptureSlots::new(n_capture_groups as usize, |slot| {
+        let slot = u32_from_usize(slot);
+        if slot / 2 < total_groups {
+            compiled_regex.capture_slot(slot)
+        } else {
+            -1
         }
-    }
-    slots
+    })
 }
 
 fn throw_backtrack_limit_exceeded<T>(vm: &Vm) -> ThrowCompletionOr<T> {
@@ -628,8 +601,7 @@ fn regexp_builtin_exec(
             string,
             match_index,
             end_index,
-            legacy_captures.starts(),
-            legacy_captures.ends(),
+            &legacy_captures,
         );
     } else if realm == regexp_object.realm() {
         invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(vm));
@@ -1493,8 +1465,7 @@ impl RegExpPrototype {
                 string,
                 last_match_start,
                 last_match_end,
-                legacy_captures.starts(),
-                legacy_captures.ends(),
+                &legacy_captures,
             );
         } else if had_match && realm == typed_regexp.realm() {
             invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(vm));
@@ -1596,17 +1567,14 @@ impl RegExpPrototype {
 
         if let Some(last_match) = slots.rchunks(slots_per_match).next() {
             if typed_regexp.legacy_features_enabled() && realm == typed_regexp.realm() {
-                let capture_count = (slots_per_match / 2 - 1).min(MAX_LEGACY_CAPTURES as usize);
-                let starts: Vec<i32> = (1..=capture_count).map(|group| last_match[group * 2]).collect();
-                let ends: Vec<i32> = (1..=capture_count).map(|group| last_match[group * 2 + 1]).collect();
+                let legacy_captures = LegacyCaptureSlots::new(slots_per_match / 2 - 1, |slot| last_match[slot]);
                 update_legacy_regexp_static_properties_lazy(
                     vm,
                     realm.intrinsics().regexp_constructor(vm),
                     string,
                     last_match[0] as usize,
                     last_match[1] as usize,
-                    &starts,
-                    &ends,
+                    &legacy_captures,
                 );
             } else if realm == typed_regexp.realm() {
                 invalidate_legacy_regexp_static_properties(realm.intrinsics().regexp_constructor(vm));
@@ -2181,8 +2149,7 @@ impl RegExpPrototype {
                     string,
                     match_start,
                     match_end,
-                    legacy_captures.starts(),
-                    legacy_captures.ends(),
+                    &legacy_captures,
                 );
             }
 
@@ -2519,8 +2486,7 @@ impl RegExpPrototype {
                         string,
                         match_start,
                         match_end,
-                        legacy_captures.starts(),
-                        legacy_captures.ends(),
+                        &legacy_captures,
                     );
                 }
                 return Ok(Value::from_bool(matched));

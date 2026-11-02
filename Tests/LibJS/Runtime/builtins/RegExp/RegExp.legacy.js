@@ -202,6 +202,21 @@ test("the last parenthesis didn't match.", () => {
     expect(RegExp.lastParen).toBe("");
 });
 
+test("the last parenthesis can be past $9", () => {
+    /(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)/.exec("abcdefghij");
+    expect(RegExp.lastParen).toBe("j");
+    expect(RegExp.$9).toBe("i");
+
+    /(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)(k)?/.exec("abcdefghij");
+    expect(RegExp.lastParen).toBe("");
+
+    "abcdefghij".replace(/(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)/g, "");
+    expect(RegExp.lastParen).toBe("j");
+
+    "abcdefghij".split(/(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)/);
+    expect(RegExp.lastParen).toBe("j");
+});
+
 test("$1 to $9", () => {
     for (var i = 1; i <= 9; i++) {
         var haystack = "foo";
