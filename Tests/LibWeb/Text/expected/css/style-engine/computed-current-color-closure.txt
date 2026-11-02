@@ -1,3 +1,2 @@
-currentColor longhand evaluations: 0
 color: rgb(0, 0, 255)
 border color: rgb(0, 0, 255)

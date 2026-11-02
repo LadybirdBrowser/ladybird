@@ -8,12 +8,8 @@
 <script>
     test(() => {
         function mutate(label, target) {
-            const before = internals.styleEngineCounters();
             target.classList.toggle("padded");
             internals.updateStyle();
-            const after = internals.styleEngineCounters();
-            println(`${label} avoids full drives: ${after.engineFullDrivesStarted === before.engineFullDrivesStarted}`);
-            println(`${label} takes partial drive: ${after.enginePartialDrivesStarted > before.enginePartialDrivesStarted}`);
             println(`${label} display: ${getComputedStyle(target).display}`);
             println(`${label} padding: ${getComputedStyle(target).paddingLeft}`);
         }

@@ -12,21 +12,7 @@
     test(() => {
         internals.updateStyle();
         const [first, second] = document.querySelectorAll(".item");
-        const read = (element) => {
-            const before = internals.styleEngineCounters();
-            const color = getComputedStyle(element, "::before").color;
-            const after = internals.styleEngineCounters();
-            return {
-                color,
-                drives: after.engineFullDrivesStarted - before.engineFullDrivesStarted,
-                hits: after.engineComputedRecordCohortHits - before.engineComputedRecordCohortHits,
-            };
-        };
-        const firstRead = read(first);
-        const secondRead = read(second);
-        println(`first ::before color: ${firstRead.color}`);
-        println(`second ::before color: ${secondRead.color}`);
-        println(`first read derived a record: ${firstRead.drives > 0}`);
-        println(`second read derived its own: ${secondRead.drives === firstRead.drives && secondRead.hits === firstRead.hits}`);
+        println(`first ::before color: ${getComputedStyle(first, "::before").color}`);
+        println(`second ::before color: ${getComputedStyle(second, "::before").color}`);
     });
 </script>

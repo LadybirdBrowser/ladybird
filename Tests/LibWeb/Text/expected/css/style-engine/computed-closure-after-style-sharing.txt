@@ -1,4 +1,4 @@
 shared initial style: true
-longhand evaluations: 0
+styled only the changed element: true
 first background: rgba(0, 0, 0, 0)
 second background: rgb(0, 0, 255)

@@ -1,3 +1,2 @@
 missing substitution clears every longhand: true
-engine substituted shorthand replacements: true
 replacement updates every longhand: true

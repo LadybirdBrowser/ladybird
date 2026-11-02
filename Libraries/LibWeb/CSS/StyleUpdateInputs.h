@@ -23,7 +23,7 @@ class ContainerLayoutUpToDate {
 // of the document does this first, ahead of its own style update scopes, as it is a read of the embedding document's.
 ContainerLayoutUpToDate lay_out_container_for_style_update(DOM::Document&);
 
-// Proof that a style update brought up to date and recorded what a document's style transaction is taken against: the
+// Proof that update_style() brought up to date and recorded what a document's style update runs against: the
 // layout of its container, its dirty style attributes, its viewport, its media rules, its user-agent and user sheets,
 // the sample of an animation-only update, and its counter styles. Only begin_style_update_inputs() makes one, and the
 // document takes or lets fly a transaction only with one, so a transaction taken without them does not compile.
@@ -36,8 +36,8 @@ private:
     StyleUpdateInputs() = default;
 };
 
-// Brings up to date and records what a style transaction of the document is taken against, as a style update does
-// before it takes one, and the seal of a transaction that flies before it lets it fly. Runs inside a style update of the
+// Brings up to date and records what a style update of the document runs against, as update_style() does
+// before it runs one, and the seal of a transaction that flies before it lets it fly. Runs inside a style update of the
 // document (StyleComputer::begin_style_update()). Answers nothing where the document's style is up to date once its
 // animations are sampled, so that there is no transaction to take.
 Optional<StyleUpdateInputs> begin_style_update_inputs(Layout::BegunRead const&, DOM::Document&, ContainerLayoutUpToDate);

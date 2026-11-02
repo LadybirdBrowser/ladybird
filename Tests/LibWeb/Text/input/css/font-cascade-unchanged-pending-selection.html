@@ -11,6 +11,7 @@
         target.style.cssText = "display: inline-block; font: 20px PendingSelection, monospace; width: 10ch";
         target.textContent = "AA";
         const width = target.getBoundingClientRect().width;
+        internals.updateStyle();
         const results = [];
 
         const layoutBefore = internals.fullLayoutCount();
@@ -20,22 +21,20 @@
 
         const unused = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "700", unicodeRange: "U+0-7F" });
         await unused.load();
-        let before = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         document.fonts.add(unused);
         internals.updateStyle();
-        let after = internals.styleEngineCounters();
-        results.push(`unused weight registration recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        results.push(`unused weight registration recomputed style: ${internals.styleCounters().passes > 0}`);
         document.fonts.delete(unused);
         internals.updateStyle();
 
         const loading = new FontFace("PendingSelection", 'url("../../../Ref/data/fonts/Ahem.ttf")', { weight: "700", unicodeRange: "U+0-7F" });
         document.fonts.add(loading);
         target.getBoundingClientRect();
-        before = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         await loading.load();
         internals.updateStyle();
-        after = internals.styleEngineCounters();
-        results.push(`unused weight completion recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        results.push(`unused weight completion recomputed style: ${internals.styleCounters().passes > 0}`);
         results.push(`unchanged selection preserves width: ${target.getBoundingClientRect().width === width}`);
         results.push(`unused subset stays unloaded: ${pending.status === "unloaded"}`);
 
@@ -44,11 +43,10 @@
         document.fonts.delete(loading);
         document.fonts.delete(resident);
         target.getBoundingClientRect();
-        before = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         document.fonts.add(replacement);
         const changedWidth = target.getBoundingClientRect().width;
-        after = internals.styleEngineCounters();
-        results.push(`matching weight registration recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        results.push(`matching weight registration recomputed style: ${internals.styleCounters().passes > 0}`);
         results.push(`matching selection changes width: ${changedWidth !== width}`);
         document.fonts.delete(replacement);
         document.fonts.add(resident);

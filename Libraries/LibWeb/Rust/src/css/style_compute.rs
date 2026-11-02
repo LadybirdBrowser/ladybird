@@ -6757,7 +6757,7 @@ fn in_display_none_subtree_for_animations(
     {
         return false;
     }
-    if longhands.effective_display(None).is_none() {
+    if longhands.effective_display(None).is_none() && !longhands.display_none_is_animated() {
         return true;
     }
     // The element's own display is answered above, so an element's walk starts at its parent; a

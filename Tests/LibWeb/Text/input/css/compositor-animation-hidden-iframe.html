@@ -3,12 +3,14 @@
 <div id="target" style="width: 20px; height: 20px; background: red"></div>
 <script>
 asyncTest(async done => {
+    internals.updateStyle();
     const frame = document.createElement("iframe");
     frame.style.display = "none";
     frame.srcdoc = "<!DOCTYPE html><body>Hidden document";
     const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
     document.body.appendChild(frame);
     await loaded;
+    frame.contentWindow.internals.updateStyle();
     const target = document.getElementById("target");
     const timeline = internals.createInternalAnimationTimeline();
     const animation = new Animation(new KeyframeEffect(target,

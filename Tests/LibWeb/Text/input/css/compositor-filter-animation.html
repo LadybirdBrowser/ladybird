@@ -43,6 +43,7 @@
 <div id="referenced" class="target"></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 

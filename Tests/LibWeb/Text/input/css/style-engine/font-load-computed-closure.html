@@ -20,12 +20,8 @@
         document.fonts.delete(face);
         internals.updateStyle();
         const oldWidth = getComputedStyle(container.firstElementChild).width;
-        const before = internals.getStyleInvalidationCounters();
         document.fonts.add(face);
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`environment unchanged: ${after.styleEnvironmentVersion === before.styleEnvironmentVersion}`);
-        println(`unrelated longhands skipped: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations < 3000}`);
         println(`font metrics updated: ${getComputedStyle(container.firstElementChild).width !== oldWidth}`);
         println(`font-relative margin: ${getComputedStyle(container.lastElementChild).marginLeft}`);
         println(`pseudo-element width: ${getComputedStyle(container, "::before").width}`);

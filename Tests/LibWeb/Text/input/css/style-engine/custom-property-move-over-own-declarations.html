@@ -16,12 +16,8 @@
         internals.updateStyle();
         document.body.offsetWidth;
         const root = document.getElementById("root");
-        const before = internals.getStyleInvalidationCounters();
         root.style.setProperty("--theme", "blue");
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`records computed: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords}`);
-        println(`transactions: ${after.styleEngineTransactionSetups - before.styleEngineTransactionSetups}`);
         for (const reader of document.querySelectorAll(".reader"))
             println(`reader: ${getComputedStyle(reader).color}`);
         for (const scope of document.querySelectorAll(".scope"))

@@ -1,4 +1,3 @@
-base change takes partial drive: true
 transition objects survive: true
 transition color: rgb(50, 50, 50)
 transition opacity: 0.5

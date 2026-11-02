@@ -150,7 +150,7 @@ impl PrecedingBoxes for PredictedBoxes<'_, '_> {
                 return step;
             }
             // Of the text that is white space alone, only empty text may or may not get a box once it is inserted.
-            if engine.tree().text_is_ascii_whitespace(node) && engine.text_collapses_white_space(node) == Some(true) {
+            if engine.text_is_ascii_whitespace(node) && engine.text_collapses_white_space(node) == Some(true) {
                 return Step::Unknown;
             }
             return Step::Box(text_box(engine, node));
@@ -205,8 +205,8 @@ fn is_display_contents(engine: &RetainedState, element: StyleNodeID) -> bool {
 /// nothing after the same box that comes before them both. So the walk back stops at it without asking about its box,
 /// which also keeps a walk over a long run of white space and hidden elements short.
 fn collapsing_whitespace_text_step(engine: &RetainedState, text: StyleNodeID) -> Option<Step> {
-    let is_collapsing_whitespace = engine.tree().text_is_ascii_whitespace(text)
-        && engine.tree().text_data(text).is_some_and(|data| !data.is_empty())
+    let is_collapsing_whitespace = engine.text_is_ascii_whitespace(text)
+        && engine.text_data(text).is_some_and(|data| !data.is_empty())
         && engine.text_collapses_white_space(text) == Some(true);
     is_collapsing_whitespace.then_some(Step::Box(PrecedingBox::Text {
         ends_in_collapsible_white_space: true,
@@ -214,7 +214,7 @@ fn collapsing_whitespace_text_step(engine: &RetainedState, text: StyleNodeID) ->
 }
 
 fn text_box(engine: &RetainedState, text: StyleNodeID) -> PrecedingBox {
-    let last_code_unit = engine.tree().text_data(text).and_then(|data| match data.as_units() {
+    let last_code_unit = engine.text_data(text).and_then(|data| match data.as_units() {
         ak::Utf16StringUnits::Ascii(units) | ak::Utf16StringUnits::Latin1(units) => {
             units.last().map(|&unit| unit.into())
         }
@@ -229,7 +229,7 @@ fn text_box(engine: &RetainedState, text: StyleNodeID) -> PrecedingBox {
 /// The node before `node` among the children of its parent in the flat tree: the slot it is assigned to, or its
 /// parent.
 fn previous_flat_tree_sibling(engine: &RetainedState, node: StyleNodeID) -> Option<StyleNodeID> {
-    let tree = engine.tree();
+    let tree = engine;
     if let Some(slot) = tree.assigned_slot_of(node) {
         let assigned = tree.assigned_nodes_of(slot);
         let index = assigned.iter().position(|&assigned_node| assigned_node == node)?;
@@ -240,7 +240,7 @@ fn previous_flat_tree_sibling(engine: &RetainedState, node: StyleNodeID) -> Opti
 
 /// The children of `element` in the flat tree, text included.
 fn flat_tree_children(engine: &RetainedState, element: StyleNodeID) -> Vec<StyleNodeID> {
-    let tree = engine.tree();
+    let tree = engine;
     if let Some(shadow_root) = tree.shadow_root_of(element) {
         return tree.dom_children(shadow_root).collect();
     }
@@ -298,7 +298,7 @@ fn preceding_box(boxes: &impl PrecedingBoxes, text: StyleNodeID) -> Option<Prece
             sibling = previous_flat_tree_sibling(engine, current);
         }
         // The slot the node is assigned to, its parent, or the host of the shadow root it is a child of.
-        let Some(parent) = engine.tree().inheritance_parent(node) else {
+        let Some(parent) = engine.inheritance_parent(node) else {
             return Some(PrecedingBox::Nothing);
         };
         if let Some(found) = pseudo_element_box(boxes, parent, GENERATED_FOR_BEFORE)? {
@@ -333,11 +333,7 @@ fn decision_of_layout_parent_or_text(
         return Some(false);
     }
     if engine.text_collapses_white_space(text) != Some(true)
-        || text_produces_line_box_fragment_when_empty(
-            engine,
-            text,
-            engine.tree().text_is_in_user_agent_shadow_tree(text),
-        )
+        || text_produces_line_box_fragment_when_empty(engine, text, engine.text_is_in_user_agent_shadow_tree(text))
     {
         return Some(true);
     }
@@ -426,7 +422,7 @@ pub(super) fn starts_with_whitespace_text(engine: &RetainedState, element: Style
 fn first_content_is_whitespace_text(engine: &RetainedState, element: StyleNodeID) -> Option<bool> {
     for child in flat_tree_children(engine, element) {
         if child.text_index().is_some() {
-            return Some(engine.tree().text_is_ascii_whitespace(child));
+            return Some(engine.text_is_ascii_whitespace(child));
         }
         let Some(facts) = engine.element_published_box_facts(child) else {
             return Some(true);

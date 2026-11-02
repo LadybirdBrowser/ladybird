@@ -519,12 +519,6 @@ public:
     [[nodiscard]] u32 associated_animation_count_in_subtree() const { return m_associated_animation_count_in_subtree; }
     void change_associated_animation_count_in_subtree(i32 delta);
 
-    [[nodiscard]] u32 children_explicitly_inherited_non_inherited_style_groups() const { return m_children_explicitly_inherited_non_inherited_style_groups; }
-    void add_children_explicitly_inherited_non_inherited_style_groups(u32 style_groups);
-    // Tell the style engine of this node's mark, which it keeps for the node's style node.
-    void publish_children_explicitly_inherit_mark();
-
-    void record_style_environment_change();
     CSS::StyleScope& style_scope();
     CSS::StyleScope const& style_scope() const { return const_cast<Node*>(this)->style_scope(); }
 
@@ -557,8 +551,6 @@ public:
     bool is_shadow_including_inclusive_ancestor_of(Node const&) const;
 
     [[nodiscard]] UniqueNodeID unique_id() const;
-    // The node's unique id, without giving it one if it has none.
-    [[nodiscard]] Optional<UniqueNodeID> unique_id_if_assigned() const;
     static Node* from_unique_id(UniqueNodeID);
 
     Optional<String> webdriver_node_id() const;
@@ -720,7 +712,6 @@ protected:
     };
     [[nodiscard]] u8 layout_tree_update_reuse_reasons() const;
 
-    u32 m_children_explicitly_inherited_non_inherited_style_groups { 0 };
     u32 m_associated_animation_count_in_subtree { 0 };
     bool m_in_editable_subtree { false };
     bool m_is_connected { false };

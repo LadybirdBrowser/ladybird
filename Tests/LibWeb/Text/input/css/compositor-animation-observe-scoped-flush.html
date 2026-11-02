@@ -16,6 +16,7 @@
 <div id="unrelated"></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
         println(`animation uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);

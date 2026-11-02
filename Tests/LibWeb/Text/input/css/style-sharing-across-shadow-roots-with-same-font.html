@@ -14,12 +14,17 @@ test(() => {
     // trees added after the first one is styled can take their styles from it.
     addShadowTree();
     document.body.offsetWidth;
-    const before = internals.styleEngineCounters();
+    internals.updateStyle();
+    internals.resetStyleCounters();
     for (let i = 0; i < 20; ++i)
         addShadowTree();
     document.body.offsetWidth;
-    const after = internals.styleEngineCounters();
-    println(`full drives for 20 more shadow trees: ${after.engineFullDrivesStarted - before.engineFullDrivesStarted}`);
+    const after = internals.styleCounters();
+    println(`full passes for 20 more shadow trees: ${after.fullPasses}`);
+    // FIXME: The paragraphs and spans of the 20 trees added after the first should take their records
+    //     from the first tree's, so that at least 60 elements are shared, but the style engine shares records
+    //     only within a shadow tree, whose rules come from a sheet of its own.
+    println(`shared elements: ${after.sharedElements}`);
 
     const spans = [...container.children].map(host => host.shadowRoot.querySelector("span"));
     println(`span font: ${getComputedStyle(spans[0]).fontSize} ${getComputedStyle(spans[0]).fontWeight}`);

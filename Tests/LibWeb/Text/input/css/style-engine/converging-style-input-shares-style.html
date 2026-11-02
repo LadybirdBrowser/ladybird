@@ -23,18 +23,13 @@
         const items = document.querySelectorAll("span");
         internals.updateStyle();
 
-        internals.resetStyleInvalidationCounters();
-        const engineCountersBefore = internals.styleEngineCounters();
-        const engineSharedBefore = (engineCountersBefore.engineComputedRecordSharedHits ?? 0) + (engineCountersBefore.engineComputedRecordCohortHits ?? 0);
+        internals.resetStyleCounters();
         for (const item of items)
             item.className = "new";
         internals.updateStyle();
 
-        const counters = internals.getStyleInvalidationCounters();
-        const engineCounters = internals.styleEngineCounters();
-        const engineShared = (engineCounters.engineComputedRecordSharedHits ?? 0) + (engineCounters.engineComputedRecordCohortHits ?? 0) - engineSharedBefore;
-        println(`shared converging style: ${counters.elementStyleSharedComputations >= 1 || engineShared >= 1}`);
-        println(`shared style transition damage: ${counters.styleRecordPropertyDamageCacheHits >= 1}`);
+        const counters = internals.styleCounters();
+        println(`shared converging style: ${counters.sharedElements + counters.reusedElements >= 1}`);
         println(`colors became green: ${[...items].every(item => getComputedStyle(item).color === "rgb(0, 128, 0)")}`);
     });
 </script>

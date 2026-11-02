@@ -13,13 +13,10 @@
         const parentElement = document.getElementById("parent");
         const target = document.getElementById("target");
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
 
         parentElement.className = "after";
         internals.updateStyle();
 
-        const after = internals.getStyleInvalidationCounters();
-        println(`inherited UI longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
         println(`color: ${getComputedStyle(target).color}`);
         println(`background: ${getComputedStyle(target).backgroundColor}`);
     });

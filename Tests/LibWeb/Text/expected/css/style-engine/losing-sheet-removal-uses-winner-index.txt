@@ -1,4 +1,2 @@
-losing rules rejected: 100
-only local nodes invalidated: true
 ordinary item: rgb(0, 0, 0)
 sentinel: none

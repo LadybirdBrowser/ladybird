@@ -104,6 +104,20 @@ static bool is_top_level_document_viewport(DOM::Node const* node)
     return document && document->navigable() && !document->navigable()->parent();
 }
 
+// Whether a listener can run on `element` as its blur and focusout events are dispatched: on its flat tree path, or on
+// its document or window.
+static bool a_handler_may_read_style_during_blur(DOM::Element& element)
+{
+    auto listens = [](DOM::EventTarget const& target) {
+        return target.has_event_listener(HTML::EventNames::blur) || target.has_event_listener(HTML::EventNames::focusout);
+    };
+    for (DOM::Node* node = &element; node; node = node->flat_tree_parent()) {
+        if (listens(*node))
+            return true;
+    }
+    return listens(element.document()) || listens(relevant_window(element));
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#focus-update-steps
 void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Root<DOM::Node>> new_chain, GC::Ptr<DOM::Node> new_focus_target)
 {
@@ -121,6 +135,8 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
     auto new_focus_target_is_document_viewport = new_focus_target && new_focus_target->is_document();
     GC::Ptr<DOM::Node> focus_transition_source;
     Vector<GC::Root<DOM::Element>> old_focus_within_chain;
+    bool focus_transition_source_indicated_focus = false;
+    bool focus_state_published_for_blur_handlers = false;
 
     auto build_focus_within_chain = [](GC::Ptr<DOM::Node> source) {
         Vector<GC::Root<DOM::Element>> chain;
@@ -134,9 +150,29 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
         return chain;
     };
 
+    // AD-HOC: What a blur handler reads of the old area's style is what it matches now, while the focusability check of
+    //         the new area runs over the state the old area left, so that a selector keeping the new area rendered
+    //         does not hide it first.
+    auto publish_focus_state_of_transition_source = [&](bool focused) {
+        auto* element = as_if<DOM::Element>(focus_transition_source.ptr());
+        if (!element)
+            return;
+        CSS::record_element_state_changed(*element, CSS::PseudoClass::Focus, focused);
+        if (focus_transition_source_indicated_focus)
+            CSS::record_element_state_changed(*element, CSS::PseudoClass::FocusVisible, focused);
+        for (auto& ancestor : old_focus_within_chain)
+            CSS::record_element_state_changed(*ancestor, CSS::PseudoClass::FocusWithin, focused);
+    };
+
+    auto restore_focus_state_for_focusability_check = [&] {
+        if (exchange(focus_state_published_for_blur_handlers, false))
+            publish_focus_state_of_transition_source(true);
+    };
+
     auto finish_focus_transition = [&](GC::Ptr<DOM::Node> destination) {
         if (!focus_transition_source)
             return;
+        restore_focus_state_for_focusability_check();
 
         CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::Focus, focus_transition_source, destination);
         CSS::Invalidation::invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass::FocusVisible, focus_transition_source, destination);
@@ -223,8 +259,13 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
             if (preserve_focus_state) {
                 focus_transition_source = element;
                 old_focus_within_chain = build_focus_within_chain(element);
+                focus_transition_source_indicated_focus = element->should_indicate_focus();
             }
             element->document().set_focused_area(nullptr, preserve_focus_state ? DOM::Document::InvalidateFocusPseudoClasses::No : DOM::Document::InvalidateFocusPseudoClasses::Yes);
+            if (preserve_focus_state && a_handler_may_read_style_during_blur(*element)) {
+                publish_focus_state_of_transition_source(false);
+                focus_state_published_for_blur_handlers = true;
+            }
         }
 
         // 4. If blur event target is not null, fire a focus event named blur at blur event target, with related blur
@@ -262,6 +303,7 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
         if (entry->is_document()) {
             designate_document_viewport_as_focused_area(entry->document());
         } else if (entry->document().focused_area().ptr() != entry.ptr()) {
+            restore_focus_state_for_focusability_check();
             if (entry->is_focusable()) {
                 relevant_window(*entry).navigation()->set_focus_changed_during_ongoing_navigation(true);
 

@@ -1,4 +1,3 @@
-moving a witness under non-anchors avoids the anchor posting: true
 a link without a witness child is unstyled: true
 a link gaining a div child is styled: true
 other links stay unstyled: true

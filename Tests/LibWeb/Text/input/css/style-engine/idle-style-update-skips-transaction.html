@@ -7,29 +7,30 @@
 <script>
     test(() => {
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         for (let iteration = 0; iteration < 100; ++iteration)
             internals.updateStyle();
 
-        let counters = internals.getStyleInvalidationCounters();
-        println(`idle transaction setups: ${counters.styleEngineTransactionSetups}`);
+        println(`idle passes: ${internals.styleCounters().passes}`);
+
+        target.className = "unnamed";
+        internals.updateStyle();
+        println(`unnamed class passes: ${internals.styleCounters().passes}`);
 
         target.className = "changed";
         internals.updateStyle();
-        counters = internals.getStyleInvalidationCounters();
-        println(`changed transaction setups: ${counters.styleEngineTransactionSetups}`);
+        println(`changed passes: ${internals.styleCounters().passes}`);
         println(`changed color: ${getComputedStyle(target).color}`);
 
         const animation = target.animate({ opacity: [0, 1] }, 1000);
         animation.pause();
         internals.updateStyle();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         animation.currentTime = 500;
         internals.updateStyle();
-        counters = internals.getStyleInvalidationCounters();
-        println(`animation transaction setups: ${counters.styleEngineTransactionSetups}`);
+        println(`animation passes: ${internals.styleCounters().passes}`);
         println(`animated opacity: ${getComputedStyle(target).opacity}`);
     });
 </script>

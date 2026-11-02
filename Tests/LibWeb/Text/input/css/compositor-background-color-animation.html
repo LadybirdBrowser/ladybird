@@ -89,6 +89,7 @@
     }
 
     asyncTest(async done => {
+        internals.updateStyle();
         internals.setManualRenderingOpportunities(true);
         await nextTask();
         let frameTime = performance.now();

@@ -11,10 +11,8 @@
         // cache. A rule that gives it an animation-name still starts the animation.
         const target = document.getElementById("target");
         internals.updateStyle();
-        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         target.classList.add("animated");
         internals.updateStyle();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         println(`animation-name: ${getComputedStyle(target).animationName}`);
         println(`animations: ${target.getAnimations().length}`);
         println(`height: ${getComputedStyle(target).height}`);

@@ -10,12 +10,10 @@
     test(() => {
         internals.updateStyle();
         println(`before: ${getComputedStyle(document.getElementById("reader")).width}`);
-        internals.resetStyleInvalidationCounters();
 
         CSS.registerProperty({ name: "--late", syntax: "<length>", inherits: true, initialValue: "7px" });
         internals.updateStyle();
 
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations}`);
         println(`after: ${getComputedStyle(document.getElementById("reader")).width}`);
     });
 </script>

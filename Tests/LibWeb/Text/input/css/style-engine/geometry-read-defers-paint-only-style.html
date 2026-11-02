@@ -66,8 +66,6 @@
         target.getBoundingClientRect();
         target.className = "paint-only-next";
         internals.updateStyle();
-        counters = internals.getStyleInvalidationCounters();
         println(`merged deferred style is observable: ${getComputedStyle(target).backgroundColor}`);
-        println(`deferred and current style used one transaction: ${counters.styleEngineTransactionSetups === 1}`);
     });
 </script>

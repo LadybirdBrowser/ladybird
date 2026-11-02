@@ -14,6 +14,7 @@
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -2014,13 +2015,15 @@ void Page::invalidate_user_style()
     if (!has_top_level_traversable())
         return;
 
+    // NB: The new user sheet is attached in place of the old one, which restyles the elements the rules of either
+    //     match. It is attached now, so a style read before the next style update sees it pending. Its rules
+    //     match in shadow trees as in the document, and the animations naming its @keyframes, which the document's
+    //     scope publishes, are planned again, so no element of a shadow tree restyles for it otherwise.
     auto invalidate_document = [](DOM::Document& document) {
         document.invalidate_content_blocker_style_sheet();
         document.style_scope().invalidate_user_style_sheet();
-        document.for_each_shadow_root([](auto& shadow_root) {
-            shadow_root.record_style_environment_change();
-        });
-        document.record_style_environment_change();
+        if (document.style_computer_if_created())
+            CSS::record_non_author_stylesheets(document);
     };
 
     // Each page invalidates the documents it hosts.
@@ -2036,7 +2039,7 @@ void Page::invalidate_style_for_preference_change()
         return;
 
     auto invalidate_document = [](DOM::Document& document) {
-        document.record_style_environment_change();
+        document.record_style_environment_change(DOM::StyleEnvironmentChange::ColorScheme | DOM::StyleEnvironmentChange::MediaFeatures);
         document.set_needs_media_query_evaluation();
     };
 

@@ -8,38 +8,6 @@
     test(() => {
         const root = document.getElementById("root");
         const target = document.getElementById("target");
-        const graphCounterNames = [
-            "normalizedUniqueKeys",
-            "routedEntryPoints",
-            "candidateChecks",
-            "localFeatureTests",
-            "combinatorSteps",
-            "structuralTests",
-            "coldNodesEvaluated",
-            "selectorTruthAdditions",
-            "matchAnswerChanges",
-            "matchAnswerUpqueries",
-            "remainingPostingRowsCopied",
-            "remainingPostingRowsInspected",
-            "preparedMatchingBatchCompletenessRowsInspected",
-            "preparedMatchingBatchRowsCloned",
-            "invalidatedStyleNodes",
-            "plannedNodesWithDirectAction",
-            "plannedNodesWithSignedDelta",
-            "plannedNodesWithOutputChange",
-            "plannedNodesWithUpquery",
-            "plannedNodesUnattributed",
-        ];
-        const styleCounterNames = [
-            "styleEngineReactionElements",
-            "styleEnginePublishedReactions",
-            "elementStyleRecomputations",
-            "elementComputedStyleChanges",
-        ];
-
-        function difference(after, before, names) {
-            return Object.fromEntries(names.map(name => [name, after[name] - before[name]]));
-        }
 
         function toggleActive(active) {
             target.classList.toggle("active", active);
@@ -51,15 +19,20 @@
             toggleActive(true);
             toggleActive(false);
 
-            const graphBefore = internals.styleEngineCounters();
-            const styleBefore = internals.getStyleInvalidationCounters();
+            internals.resetStyleCounters();
             toggleActive(true);
-            const graphAfter = internals.styleEngineCounters();
-            const styleAfter = internals.getStyleInvalidationCounters();
+            const counters = internals.styleCounters();
+            const lastPass = internals.styleLastPass();
             toggleActive(false);
             return {
-                graph: difference(graphAfter, graphBefore, graphCounterNames),
-                style: difference(styleAfter, styleBefore, styleCounterNames),
+                passes: counters.passes,
+                fullPasses: counters.fullPasses,
+                styled: lastPass.styled,
+                changed: lastPass.changed,
+                hintedElements: counters.hintedElements,
+                hintedSubtrees: counters.hintedSubtrees,
+                invalidationVisits: counters.invalidationVisits,
+                invalidationTests: counters.invalidationTests,
             };
         }
 
@@ -75,24 +48,21 @@
             internals.updateStyle();
         }
 
+        internals.updateStyle();
         const measurements = [];
-        // These sizes exercise the same selective planner strategy while increasing the
-        // unrelated document population by 16x.
+        // These sizes increase the unrelated document population by 16x.
         for (const size of [257, 1025, 4097]) {
             growTo(size);
             measurements.push(measureAddition());
         }
 
         const baseline = JSON.stringify(measurements[0]);
-        println(`normalized action rows: ${measurements[0].graph.normalizedUniqueKeys}`);
-        println(`one selector reaction: ${measurements[0].graph.selectorTruthAdditions}`);
-        println(`one match reaction: ${measurements[0].graph.matchAnswerChanges}`);
-        println(`one computed reaction: ${measurements[0].style.elementComputedStyleChanges}`);
-        println(`one directly acted node: ${measurements[0].graph.plannedNodesWithDirectAction}`);
-        println(`one signed-delta node: ${measurements[0].graph.plannedNodesWithSignedDelta}`);
-        println(`one changed-output node: ${measurements[0].graph.plannedNodesWithOutputChange}`);
-        println(`no upquery nodes: ${measurements[0].graph.plannedNodesWithUpquery}`);
-        println(`no unattributed nodes: ${measurements[0].graph.plannedNodesUnattributed}`);
+        println(`one pass: ${measurements[0].passes}`);
+        println(`no full pass: ${measurements[0].fullPasses}`);
+        println(`styled: ${measurements[0].styled}`);
+        println(`changed: ${measurements[0].changed}`);
+        println(`one hinted element: ${measurements[0].hintedElements}`);
+        println(`no hinted subtree: ${measurements[0].hintedSubtrees}`);
         println(`physical work is document-scale invariant: ${measurements.every(measurement => JSON.stringify(measurement) === baseline)}`);
         println(`largest document elements: ${root.childElementCount}`);
     });

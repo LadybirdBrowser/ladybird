@@ -13,7 +13,6 @@
         const distinct = document.getElementById("distinct");
         const declaration = document.styleSheets[0].cssRules[1].style;
         let allValuesUpdated = true;
-        const countersBefore = internals.styleEngineCounters();
 
         for (let index = 0; index < 256; ++index) {
             declaration.setProperty("width", `calc(var(--base) + ${index}px)`);
@@ -25,11 +24,6 @@
             }
         }
 
-        const countersAfter = internals.styleEngineCounters();
-        const usedSubstitutions = countersAfter.engineComputedRecordSubstitutions > countersBefore.engineComputedRecordSubstitutions;
-        const reusedSubstitutions = countersAfter.engineComputedRecordSubstitutionMemoHits > countersBefore.engineComputedRecordSubstitutionMemoHits;
-        println(`engine substitutions used: ${usedSubstitutions}`);
-        println(`memo reused substitutions: ${reusedSubstitutions}`);
         println(`replaced declarations use their own written value: ${allValuesUpdated}`);
     });
 </script>

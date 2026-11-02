@@ -130,8 +130,14 @@ static GC::Ptr<DOM::Node> associated_descendant_editing_host(Layout::BegunRead c
                 return editing_host;
         }
 
-        if (ancestor != &node && ancestor->is_focusable())
-            break;
+        if (ancestor != &node) {
+            auto ancestor_is_focusable = ancestor->is_focusable();
+            // NB: Asking whether an element is focusable catches up its style, animations included, which can leave
+            //     layout stale for what is read of it next.
+            node.document().update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
+            if (ancestor_is_focusable)
+                break;
+        }
     }
 
     return nullptr;

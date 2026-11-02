@@ -17,11 +17,9 @@
             #normal, ::slotted(#normal) { animation: fade 100s linear paused; }
             #important, ::slotted(#important) { animation: fade 100s linear paused !important; }
         `);
-        const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         document.adoptedStyleSheets = [shared];
         root.adoptedStyleSheets = [shared];
         internals.updateStyle();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - before}`);
         println(`normal: ${getComputedStyle(document.getElementById("normal")).width}`);
         println(`important: ${getComputedStyle(document.getElementById("important")).width}`);
     });

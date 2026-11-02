@@ -19,6 +19,9 @@
 #include <AK/Vector.h>
 #include <LibGC/Cell.h>
 #include <LibGC/Ptr.h>
+#include <LibGC/RootVector.h>
+#include <LibGC/Weak.h>
+#include <LibURL/URL.h>
 #include <LibWeb/CSS/ParkedRandomBaseValues.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/StyleEngineIdentifiers.h>
@@ -36,7 +39,7 @@ using Layout::RustFFI::DocumentHost;
 // The entries of the table in Rust/src/css/style/boundary.rs, which cbindgen cannot see: a macro expands to them. A
 // test there checks each declaration against its row. An AK Span crosses by value as the table's FfiSpan.
 extern "C" {
-void style_engine_set_pseudo_element_style_deferred(DocumentHost const*, u8 kind, bool deferred);
+void style_engine_set_highlight_observing_elements(DocumentHost const*, u8 kind, ReadonlySpan<StyleNodeID> nodes);
 void style_engine_set_fold_id_and_class_name_case(DocumentHost const*, bool fold);
 void style_engine_set_html_element_namespace(DocumentHost const*, StyleAtomID namespace_atom);
 void style_engine_mark_relation_only_style_node(DocumentHost const*, StyleNodeID node);
@@ -46,14 +49,12 @@ void style_engine_retire_text_style_nodes(DocumentHost const*, ReadonlySpan<Styl
 void style_engine_set_slot_assigned_nodes(DocumentHost const*, StyleNodeID slot, ReadonlySpan<StyleNodeID> assigned);
 void style_engine_set_top_layer_elements(DocumentHost const*, ReadonlySpan<StyleNodeID> members);
 void style_engine_set_text_is_ascii_whitespace(DocumentHost const*, StyleNodeID node, bool value);
-void style_engine_set_text_is_in_user_agent_shadow_tree(DocumentHost const*, StyleNodeID node, bool value);
-void style_engine_set_text_is_password_input(DocumentHost const*, StyleNodeID node, bool value);
 void style_engine_set_node_dom_paint_facts(DocumentHost const*, StyleNodeID node, u8 facts);
 void style_engine_set_element_unique_node_id(DocumentHost const*, StyleNodeID node, u64 unique_node_id);
 void style_engine_set_element_table_spans(DocumentHost const*, StyleNodeID node, u32 column_span, u32 row_span);
 void style_engine_set_element_id_name(DocumentHost const*, StyleNodeID node, StyleAtomID name);
 void style_engine_set_shadow_root(DocumentHost const*, StyleNodeID shadow_host, StyleNodeID shadow_root);
-void style_engine_record_environment_change(DocumentHost const*);
+void style_engine_record_environment_change(DocumentHost const*, u8 changes);
 void style_engine_record_custom_property_registration_change(DocumentHost const*, StyleAtomID name);
 void style_engine_flush(DocumentHost const*);
 void style_engine_finish_sheet_rules_replacement(DocumentHost const*, SheetID sheet, u32 declaration_block);
@@ -61,54 +62,54 @@ void style_engine_attach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID t
 void style_engine_detach_sheet(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope);
 void style_engine_attach_sheet_occurrence(DocumentHost const*, SheetID sheet, TreeScopeID tree_scope, u64 identity, u64 before, bool conditions_hold);
 void style_engine_detach_sheet_occurrence(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
-void style_engine_set_sheet_kept_for_reattachment(DocumentHost const*, SheetID sheet, bool kept);
 void style_engine_set_sheet_occurrence_conditions(DocumentHost const*, TreeScopeID tree_scope, u64 identity, bool conditions_hold);
 void style_engine_set_element_part_exposure(DocumentHost const*, StyleNodeID node, StyleAtomID exposure);
 void style_engine_set_element_directionality(DocumentHost const*, StyleNodeID node, StyleAtomID directionality);
 void style_engine_set_element_custom_states(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> states);
 void style_engine_end_deferred_geometry_transaction_flush(DocumentHost const*);
 void style_engine_record_container_query_input(DocumentHost const*, StyleNodeID node);
-void style_engine_note_children_explicitly_inherit(DocumentHost const*, StyleNodeID node, u32 groups);
 void style_engine_record_derived_element_style_input(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups);
 void style_engine_record_font_input_changes(DocumentHost const*, ReadonlySpan<u32> family_name_lengths, ReadonlySpan<u16> family_name_units, ReadonlySpan<u64> font_lists);
-void style_engine_record_flat_tree_descendant_style_inputs(DocumentHost const*, StyleNodeID root, u8 reaction, u8 inherited_style_groups);
+void style_engine_fill_loaded_font_faces(DocumentHost const*, ReadonlySpan<u64> fills);
 void style_engine_consume_element_style_input(DocumentHost const*, StyleNodeID node);
-void style_engine_note_style_reaction_applied(DocumentHost const*, StyleNodeID node, u8 reaction, u8 inherited_style_groups_changed, u32 changed_non_inherited_style_groups, u32 facts);
 void style_engine_set_element_adjustment_facts(DocumentHost const*, StyleNodeID node, u32 facts);
 void style_engine_set_element_construction_facts(DocumentHost const*, StyleNodeID node, u32 facts);
 void style_engine_set_element_box_kind(DocumentHost const*, StyleNodeID node, u8 box_kind);
 void style_engine_set_element_replaced_content_input(DocumentHost const*, StyleNodeID node, u8 kind, u8 present, u32 const* values);
 void style_engine_set_element_heading_level(DocumentHost const*, StyleNodeID node, u8 level);
-void style_engine_acknowledge_engine_computed_record(DocumentHost const*, StyleNodeID node);
-void style_engine_record_transition_baseline(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record);
+void style_engine_record_transition_baseline(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, void const* style_record);
 void style_engine_release_transition_baselines(DocumentHost const*);
-void style_engine_pin_style_record(DocumentHost const*, u64 style_record);
-void style_engine_unpin_style_record(DocumentHost const*, u64 style_record);
 void style_engine_begin_style_record_view_epoch(DocumentHost const*);
 void style_engine_end_style_record_view_epoch(DocumentHost const*);
 void style_engine_set_tree_scope_uses_document_sheets(DocumentHost const*, TreeScopeID tree_scope);
-void style_engine_set_element_custom_property_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms, bool uses_unnamed, bool uses_custom_functions);
-void style_engine_set_element_animation_names(DocumentHost const*, StyleNodeID node, ReadonlySpan<StyleAtomID> name_atoms);
-void style_engine_set_element_recomputes_on_environment_move(DocumentHost const*, StyleNodeID node, bool recomputes);
 void style_engine_set_element_scroll_state(DocumentHost const*, StyleNodeID node, u8 stuck, u8 snapped, u8 scrollable, u8 scrolled);
 void style_engine_set_element_size_container_query_facts(DocumentHost const*, StyleNodeID node, bool is_queried_container, bool depends_on_size_container_query);
 void style_engine_note_size_container_needs_evaluation_after_layout(DocumentHost const*, StyleNodeID node);
 void style_engine_record_size_container_query_dependents(DocumentHost const*, StyleNodeID container);
 void style_engine_evaluate_size_containers_needing_evaluation_after_layout(DocumentHost const*);
-void style_engine_set_element_associated_pseudo_kind(DocumentHost const*, StyleNodeID node, u8 pseudo_kind_plus_one);
+void style_engine_set_element_backing_pseudo_kind(DocumentHost const*, StyleNodeID node, u8 pseudo_kind_plus_one);
 void style_engine_set_counter_style_environment_identity(DocumentHost const*, TreeScopeID tree_scope, u64 identity);
-void style_engine_set_held_style_record(DocumentHost const*, StyleNodeID node, u64 style_record);
-void style_engine_set_held_pseudo_style_record(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record);
+void style_engine_set_held_style_record(DocumentHost const*, StyleNodeID node, void const* record);
+void style_engine_set_held_pseudo_style_record(DocumentHost const*, StyleNodeID node, u8 pseudo_kind, u64 style_record, void const* released);
 void style_engine_set_element_css_defined_animations(DocumentHost const*, StyleNodeID node, u8 slot, ReadonlySpan<FlatPtr> names, ReadonlySpan<FfiAppliedAnimationDefinition> definitions);
 void style_engine_set_tree_scope_root(DocumentHost const*, TreeScopeID tree_scope, StyleNodeID root);
 void style_engine_set_sheet_conditions_hold(DocumentHost const*, SheetID sheet, bool conditions_hold);
 u32 style_engine_connected_element_count(DocumentHost const*, BegunRead const*);
-bool style_engine_has_suspended_style_pass(DocumentHost const*, BegunRead const*);
+bool style_engine_self_check_is_enabled(DocumentHost const*);
+bool style_engine_custom_property_environment_is_engine_made(DocumentHost const*, BegunRead const*, u64 identity);
 bool style_engine_pending_transaction_may_affect_layout_geometry(DocumentHost const*, BegunRead const*);
-bool style_engine_defer_pending_transaction_for_geometry_read(DocumentHost const*, BegunRead const*);
+void style_engine_defer_pending_transaction_for_geometry_read(DocumentHost const*, BegunRead const*);
 bool style_engine_begin_deferred_geometry_transaction_flush(DocumentHost const*, BegunRead const*);
 bool style_engine_has_deferred_geometry_transaction(DocumentHost const*, BegunRead const*);
-size_t style_engine_match_document(DocumentHost const*, BegunRead const*, StyleNodeID root);
+u64 style_engine_cold_pass(DocumentHost const*, BegunRead const*, StyleNodeID root, bool verify, u32 threads);
+u64 style_engine_cold_pass_report(DocumentHost const*, BegunRead const*, u32 index);
+u64 style_engine_live_report(DocumentHost const*, BegunRead const*, StyleNodeID root, bool verify, u32 index);
+u64 style_engine_style_counter(DocumentHost const*, BegunRead const*, u32 index);
+bool style_engine_reset_style_counters(DocumentHost const*, BegunRead const*);
+bool style_engine_last_pass_is_full(DocumentHost const*, BegunRead const*);
+u32 style_engine_last_pass_size(DocumentHost const*, BegunRead const*, StyleNodeID root, bool changed);
+u32 style_engine_last_pass_element(DocumentHost const*, BegunRead const*, StyleNodeID root, bool changed, u32 index);
+u64 style_engine_animated_style_samples(DocumentHost const*, BegunRead const*, bool rebuilt_every_group, bool reset);
 u32 style_engine_layer_index(DocumentHost const*, BegunRead const*, TreeScopeID tree_scope, u32 layer);
 u64 style_engine_size_query_container_scan_visits(DocumentHost const*, BegunRead const*, bool reset);
 u64 style_engine_ensure_random_base_value(DocumentHost const*, BegunRead const*, StyleNodeID node, ReadonlySpan<u16> name, bool element_shared);
@@ -150,8 +151,11 @@ struct CollectedStyleSheetResourceContext {
 // element, so they are collected again only once either has moved on.
 struct StyleSheetResourceContexts {
     Vector<CollectedStyleSheetResourceContext> contexts;
+    // What the engine is lent of the contexts, which borrows from them.
+    Vector<StyleEngineFFI::FfiStyleSheetResourceContextEntry> entries;
     u64 style_sheet_set_generation { 0 };
-    String document_api_base_url;
+    ::URL::URL document_api_base_url;
+    u64 version { 0 };
 };
 
 // Owns one document's StyleEngine. The engine itself lives entirely on the Rust side: selector
@@ -192,6 +196,8 @@ public:
         m_nodes_awaiting_first_style_computation.remove(style_node);
     }
     [[nodiscard]] bool has_deferred_element_initial_features(StyleNodeID style_node) const { return m_nodes_with_pending_initial_features.contains(style_node); }
+    // Whether any element waits to have its initial features published, or to be prepared for its first style.
+    [[nodiscard]] bool has_elements_awaiting_initial_style_work() const { return !m_nodes_with_pending_initial_features.is_empty() || !m_nodes_awaiting_first_style_computation.is_empty(); }
     HashTable<StyleNodeID> take_deferred_element_initial_features();
     HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
 
@@ -201,24 +207,15 @@ public:
     // continuation semantics.
     void set_element_inline_style_properties(StyleNodeID node, Parser::ValueParserFFI::DeclarationBlock const*);
     void set_element_presentational_hint_properties(StyleNodeID node, StyleEngineFFI::FfiElementDeclarationKind, ReadonlySpan<StyleProperty>);
-    struct StyleRecordDelta {
-        StyleRecordID old_style_record;
-        StyleRecordID new_style_record;
-    };
-    using StyleRecordView = StyleEngineFFI::FfiStyleRecordView;
-    // Publish the immutable input identities of an element or pseudo-element's base style and
-    // return its previous and current StyleRecordID assignments. A zero node interns an unassigned
-    // record for a style target which is not registered in the engine.
-    [[nodiscard]] StyleRecordDelta publish_computed_groups(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind, ReadonlySpan<void const*> payloads, size_t inherited_group_count, u64 custom_property_environment, bool inherited_group_swap_candidate, u64 counter_style_environment_identity, u64 animation_overlay_identity, void const* animated_overlay, ReadonlySpan<void const*> animation_overlay_payloads, void const* computed_longhand_table, void const* custom_property_store);
-    [[nodiscard]] StyleRecordDependencyFlag style_record_dependency_flags(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    [[nodiscard]] u64 style_record_custom_property_environment(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    // The borrowed views are stable while a base record exists or an animation-overlay generation remains assigned or
-    // pinned.
-    [[nodiscard]] StyleRecordView style_record_view(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    // Remove the retained input identities for one pseudo-element kind and return its removal.
-    [[nodiscard]] StyleRecordDelta remove_computed_pseudo(Layout::BegunRead const& read, StyleNodeID node, u8 pseudo_kind);
+    // Install the record of a style the host made outside the engine, such as a layout node's, which holds every
+    // computed group. Nothing holds the record until the caller pins it.
+    [[nodiscard]] StyleRecordID install_host_style_record(Layout::BegunRead const& read, ReadonlySpan<void const*> payloads, ComputedValuesFFI::InheritedSetValues inherited, ComputedValuesFFI::ResetBits reset, u64 custom_property_environment, u64 counter_style_environment_identity, void const* source_record, void const* custom_property_store);
+    // The record the engine holds for the host for a record identity, or null for one it does not hold. The engine
+    // holds it while it holds the identity, which a base record or an assigned or pinned animation-overlay generation
+    // keeps; an InstalledStyle holds it longer.
+    [[nodiscard]] void const* host_record(Layout::BegunRead const& read, StyleRecordID style_record) const;
     // A sheet the host numbers itself, which the engine adds as it applies the host's writes.
-    [[nodiscard]] SheetID add_sheet(u32 object, StyleEngineFFI::FfiCascadeOrigin origin);
+    [[nodiscard]] SheetID add_sheet(StyleEngineFFI::FfiCascadeOrigin origin);
     // Ends a replacement of the sheet's rules that style_engine_begin_sheet_rules_replacement() began.
     void finish_sheet_rules_replacement(SheetID sheet);
 
@@ -232,8 +229,7 @@ public:
     // Counts the reclaims of this document's atoms, so a cache keyed by atoms can tell when one may have been reused.
     [[nodiscard]] u64 atom_generation() const;
     // Moves a node's record to the environment its inherited custom-property data was refreshed
-    // to; the new record's identity, or zero when nothing moved.
-    [[nodiscard]] StyleRecordID republish_record_environment(Layout::BegunRead const&, StyleNodeID, u64 environment, void const* store);
+    // to; the record the host holds for the new one, or null when nothing moved.
     // What a read of an element's style, or one of its pseudo-elements', made before the next style update asks of
     // the style engine, and the pseudo-element a demand may read.
     using RecordDemand = StyleEngineFFI::FfiRecordDemand;
@@ -244,8 +240,8 @@ public:
     // Answers a record demand of an element: the record the engine derived from the document as it is now, or zero
     // where the read is C++'s.
     [[nodiscard]] StyleEngineFFI::FfiRecordDemandAnswer answer_record_demand(Layout::BegunRead const& read, StyleNodeID, RecordDemand);
-    // Whether an environment identity is one the engine minted for an environment it resolved.
-    [[nodiscard]] static bool is_engine_custom_property_environment(u64 identity) { return (identity & (1ull << 62)) != 0; }
+    // Whether the environment `identity` names is one the engine resolved.
+    [[nodiscard]] bool is_engine_custom_property_environment(Layout::BegunRead const& read, u64 identity) const { return identity && StyleEngineFFI::style_engine_custom_property_environment_is_engine_made(host(), &read, identity); }
 
     // A name both a selector and the DOM produce as text, with no interned identity on either side:
     // a language subtag and a `:dir()` keyword. Matched ASCII case-insensitively.
@@ -276,14 +272,46 @@ public:
         return StyleEngineFFI::document_host_attribute_is_known_unread(host(), name.value());
     }
 
-    // Demand expansion already has every value identity. Check the name before interning the text
-    // so attributes nothing reads as text do not pay another string hash.
-    void backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value);
+    // Whether the document host knows that no selector tests `:local-link`.
+    bool local_link_is_known_untested() const
+    {
+        return StyleEngineFFI::document_host_local_link_is_known_untested(host());
+    }
+    // What an element arrives with that the host knows nothing reads is withheld from the engine: whether a link is a
+    // local link where no selector tests `:local-link`, and each attribute no selector and no attr() reads. Each
+    // withheld fact notes the element it was withheld from, so that once something may read it, it is published for
+    // those elements alone.
+    struct WithheldAttributeName {
+        Utf16FlyString local_name;
+        Optional<Utf16FlyString> namespace_uri;
+        bool operator==(WithheldAttributeName const&) const = default;
+    };
+    struct WithheldAttributeNameTraits : public DefaultTraits<WithheldAttributeName> {
+        static unsigned hash(WithheldAttributeName const& name) { return pair_int_hash(name.local_name.hash(), name.namespace_uri.has_value() ? name.namespace_uri->hash() : 0); }
+    };
+    // NB: An element's identity may have been retired, or taken by another element, by the time a fact withheld from
+    //     it is published: what is published is read from whatever element holds the identity then.
+    using WithheldAttributeCarriers = HashMap<WithheldAttributeName, HashTable<StyleNodeID>, WithheldAttributeNameTraits>;
+    void note_local_link_state_withheld(StyleNodeID node) { m_withheld_local_link_states.set(node); }
+    void note_attribute_withheld(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri, StyleNodeID node)
+    {
+        m_withheld_attribute_carriers.ensure({ local_name, namespace_uri }).set(node);
+    }
+    // What was withheld that something may read now, which is withheld no longer, with the elements it was withheld
+    // from.
+    struct WithheldFeaturesNowRead {
+        HashTable<StyleNodeID> local_link_states;
+        WithheldAttributeCarriers attributes;
+    };
+    WithheldFeaturesNowRead take_withheld_features_now_read(Layout::BegunRead const&);
 
     // The document host stages deltas, which cross to the engine in one batch per style flush, never one write per
     // element.
     void record_tree_delta(StyleEngineFFI::FfiTreeDelta const&);
-    void record_element_arrival(StyleEngineFFI::FfiElementArrival const&, ReadonlySpan<StyleAtomID> custom_states);
+    // Everything an element's selectors test arrives with it, as one row: its custom states, classes, and attributes
+    // as name and value atom pairs, beside the facts the arrival names.
+    void record_element_arrivals(ReadonlySpan<StyleEngineFFI::FfiArrivingElement>);
+    void record_element_arrival(StyleEngineFFI::FfiElementArrival const&, ReadonlySpan<StyleAtomID> custom_states, ReadonlySpan<StyleAtomID> classes, ReadonlySpan<StyleAtomID> attributes);
     void record_local_feature_delta(StyleEngineFFI::FfiLocalFeatureDelta const&);
     void record_state_delta(StyleEngineFFI::FfiStateDelta const&);
     // The hover moves to `target`, or off the document for none, as the events of a mouse move hover it, once the rest
@@ -293,41 +321,32 @@ public:
     enum StyleReaction : u8 {
         PublishedStyle = 1 << 0,
         RecomputeStyle = 1 << 1,
-        InheritedStyle = 1 << 2,
-        InheritedCustomProperties = 1 << 3,
-        RecomputeDescendantStyles = 1 << 4,
-        AncestorBecameVisible = 1 << 5,
-        PseudoInputsMayHaveChanged = 1 << 6,
-        FontInputsChanged = 1 << 7,
-    };
-    // What applying a style reaction found, reported so the engine derives the children's reactions.
-    enum StyleReactionAppliedFact : u32 {
-        DidChangeCustomProperties = 1 << 0,
-        InvalidationIsNone = 1 << 1,
-        NeedsLayoutTreeRebuild = 1 << 2,
-        RecomputeDescendants = 1 << 3,
-        ChildrenExplicitlyInherit = 1 << 4,
-        ShadowChildrenExplicitlyInherit = 1 << 5,
-        WasUnstyled = 1 << 6,
-        WasDisplayNone = 1 << 7,
-        DisplayChanged = 1 << 11,
     };
     // A style reaction of one element, for the engine to settle where it can. It names what moved,
     // not who computes the element's style again.
     void record_derived_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
-    void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
+    // The elements the host shows the highlight pseudo-element of the kind in, which style updates
+    // style that pseudo-element of. Those that start or stop showing it are restyled.
+    void set_highlight_observing_elements(PseudoElement, ReadonlySpan<StyleNodeID>);
     // What a container query or container-relative length read of the element's containers moved.
     void record_container_query_input_change(StyleNodeID style_node);
     // Records every element whose style a size query or container-relative unit decided against the container.
     void record_size_container_query_dependents(StyleNodeID container);
     // Records the dependents of every container a style computation asked about before it had a box.
     void evaluate_size_containers_needing_evaluation_after_layout(Layout::BegunRead const& read);
-    [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes(Layout::BegunRead const& read);
+    // The style nodes whose style depends on the axes of the viewport moved_axes names, as DOM::StyleEnvironmentChange bits.
+    [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes(Layout::BegunRead const& read, u8 moved_axes);
     [[nodiscard]] bool has_recorded_input() const;
     // Nodes that connected without taking an identity yet count as recorded input: they arrive when the input is
     // next submitted.
     void note_pending_arrivals(size_t count);
     void forget_pending_arrivals() { m_pending_arrival_count = 0; }
+    // The nodes marked as waiting to arrive since the last take-in, which it takes in without walking the marks down
+    // from the document where the list holds every node marked since.
+    void list_arrival(DOM::Node&);
+    void note_unlisted_arrivals() { m_arrivals_unlisted = true; }
+    // The nodes listed, or none where a node was marked that the list does not hold.
+    Optional<GC::RootVector<GC::Ref<DOM::Node>>> take_listed_arrivals();
     [[nodiscard]] bool has_pending_arrivals() const { return m_pending_arrival_count > 0; }
     // Children that wait to arrive in a display:none subtree may have to arrive now. Nothing is recorded until the
     // input is next submitted, so this can be noted while a style update applies its reactions.
@@ -360,7 +379,7 @@ public:
     // host knows without reading the render state.
     [[nodiscard]] bool may_have_deferred_geometry_transaction() const { return m_geometry_read_deferred_transaction; }
     [[nodiscard]] bool pending_transaction_may_affect_layout_geometry(Layout::BegunRead const& read);
-    [[nodiscard]] bool defer_pending_transaction_for_geometry_read(Layout::BegunRead const& read);
+    void defer_pending_transaction_for_geometry_read(Layout::BegunRead const& read);
     [[nodiscard]] bool begin_deferred_geometry_transaction_flush(Layout::BegunRead const& read);
     // Geometry reads establish the before-change style used by CSS transitions. Keep this
     // monotonic because an inactive rule or a later inline edit can expose the transition only
@@ -371,45 +390,26 @@ public:
     // Submits everything recorded since the last flush as one transaction and normalizes it.
     void flush();
 
-    using PublishedStyleDelta = StyleEngineFFI::FfiStyleDelta;
-    struct PublishedTransactionVersion {
-        u64 transaction;
-        u64 program;
-    };
-    struct PublishedStyleTransaction {
-        PublishedTransactionVersion version;
-        ReadonlySpan<PublishedStyleDelta> reactions;
-        bool is_scoped;
-        bool only_derived_child_reactions;
-        u32 connected_element_count;
-        // Returned to the caller so diagnostic transactions do not charge style-update clocks.
-        u64 submission_microseconds;
-        u64 bridge_microseconds;
+    struct StyleUpdateTimings {
+        u64 submission_microseconds { 0 };
+        u64 bridge_microseconds { 0 };
     };
 
-    // Takes pending inputs. The diagnostic transaction reports reaction nodes and then discards
-    // its matching outputs. The style transaction publishes versioned match-answer records. False
-    // means the result is broad enough to prefer complete matching scratch.
-    // NB: The returned reactions borrow Rust storage until the next mutable engine call or an
-    //     explicit discard. Consume them synchronously before asking the engine anything else.
-    bool take_diagnostic_style_transaction(Layout::BegunRead const& read, StyleNodeID root, Function<void(ReadonlySpan<StyleNodeID>)>&&);
-    PublishedStyleTransaction take_style_transaction(Layout::BegunRead const& read, StyleNodeID root);
-    // Lets the pending style transaction under root, taken against `inputs`, fly beside the event loop where `blocker` is
-    // none, and answers whether it flies. The next style update drains it first, with take_flown_style_transaction().
-    [[nodiscard]] bool let_style_transaction_fly(Layout::BegunRead const& read, StyleUpdateInputs const& inputs, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker);
-    // Whether a style transaction flew whose reactions no style update has drained yet, which its document knows.
-    [[nodiscard]] bool has_flown_style_transaction() const;
-    // Takes the style transaction that flew in, waiting for it to land, to drain its reactions against the inputs it
+    // Takes pending inputs, and answers how long that took.
+    StyleUpdateTimings run_style_update(Layout::BegunRead const& read, StyleNodeID root);
+    // Lets the pending style update under root, taken against `inputs`, fly beside the event loop where `blocker` is
+    // none, and answers whether it flies. The next style update drains it first, with drain_flown_style_update().
+    [[nodiscard]] bool let_style_update_fly(StyleUpdateInputs const& inputs, StyleNodeID root, Layout::RustFFI::FfiFlightBlocker blocker);
+    // Whether a style update flew whose reactions have not been drained yet, which its document knows.
+    [[nodiscard]] bool has_flown_style_update() const;
+    // Takes the style update that flew in, waiting for it to land, to drain its reactions against the inputs it
     // was sealed with. What was written beside it waits for end_flown_style_drain(): it is the next transaction's.
-    PublishedStyleTransaction take_flown_style_transaction(Layout::BegunRead const& read);
+    StyleUpdateTimings drain_flown_style_update(Layout::BegunRead const& read);
     void end_flown_style_drain();
-    // The transaction that flew knows an element that arrived or was removed beside it as it was sealed: the drain
-    // leaves its change, and what inherits from it, to the next transaction.
-    void note_style_node_arrived_or_retired(StyleNodeID);
-    // The transaction that flew decided which of its rows the host composes from the animations each element had as it
-    // was sealed: an element whose animations changed beside it holds them composed from the next transaction on.
-    void note_animations_changed(StyleNodeID);
-    [[nodiscard]] bool animations_changed_beside_flown_transaction(StyleNodeID style_node) const { return m_style_nodes_with_animations_changed_beside_flown_transaction.contains(style_node); }
+    // Takes in the fonts passes resolved against a table older than the document's. Those of a transaction that flew wait
+    // for the end of its drain, as what was written beside it does; a drain's own later passes publish the newer table
+    // ahead of that.
+    void take_in_fonts_resolved_against_older_tables();
     // Has the engine recompute the children of `parent` whose style reads their place among their siblings, where some
     // child's does.
     void restyle_children_reading_sibling_position(DOM::Element& parent);
@@ -421,26 +421,20 @@ public:
         if (parent != 0)
             m_parents_whose_children_changed_beside_flown_transaction.set(parent);
     }
-    void discard_style_transaction_outputs(Layout::BegunRead const& read);
+    void discard_style_update_outputs();
 
-    using RuleMatch = StyleEngineFFI::FfiRuleMatch;
+    using MatchedRule = StyleEngineFFI::FfiMatchedRule;
 
-    enum class MatchPurpose {
-        Exact,
-        Cascade,
-    };
-
-    // Every rule that decides for one element, in the order the cascade applies them. Cascade
-    // callers may omit rules whose declarations cannot win; exact callers receive the same answer
-    // as the document pass. Returns false when matching could not complete.
-    bool match_element(Layout::BegunRead const& read, StyleNodeID node, Vector<RuleMatch>&, MatchPurpose);
+    // Every rule that matches one element, user agent rules included, in the order the cascade
+    // applies them. Returns false when matching could not complete.
+    bool matched_rules(Layout::BegunRead const& read, StyleNodeID node, Vector<MatchedRule>&);
 
     // Give the engine the document's @font-face table and cascade memo, when they moved since it was last given them.
     void publish_font_faces(FontComputer const&);
 
     // The custom-property environment each element holds is kept here; the element keeps none of its own.
-    void set_element_custom_property_data(Layout::BegunRead const& read, DOM::Element const&, CustomPropertyData const*);
-    void note_element_custom_property_environments(Layout::BegunRead const& read, DOM::Element const&, CustomPropertyData const&);
+    void set_element_custom_property_data(Layout::BegunRead const& read, DOM::Element const&, CustomPropertyData const*, IsAnimationOverlay);
+    void note_element_custom_property_environments(Layout::BegunRead const& read, DOM::Element const&, CustomPropertyData const&, IsAnimationOverlay);
     void republish_element_custom_property_environments(Layout::BegunRead const& read, DOM::Document&);
 
     // Enumerates the engine's counters. Returns false once index is past the last counter.
@@ -456,28 +450,35 @@ public:
 private:
     struct LentComputationInputs;
     void gather_computation_inputs(LentComputationInputs&);
-    PublishedStyleTransaction publish_style_transaction_view(StyleEngineFFI::FfiStyleTransactionView const&, MonotonicTime submission_started_at, MonotonicTime bridge_started_at);
 
     void submit_recorded_input();
     void publish_attribute_value_texts_if_requirements_moved(Layout::BegunRead const& read);
 
     Optional<StyleSheetResourceContexts> m_style_sheet_resource_contexts;
+    u64 m_style_sheet_resource_contexts_version { 0 };
 
     NonnullRefPtr<Layout::RenderDocument> m_render_document;
-    StyleEngineFFI::StyleNodeIdAllocator* m_style_node_ids { nullptr };
     u64 m_published_font_environment_generation { 0 };
     GC::Ptr<StyleComputer> m_style_computer;
+    // The language the host interned last, which most elements arriving after one share: its tag, its atom, and the
+    // atom generation the atom was interned in.
+    Utf16String m_last_language_text;
+    StyleAtomID m_last_language_atom;
+    u64 m_last_language_atom_generation { 0 };
 
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
-    size_t m_element_match_capacity { 64 };
 
-    HashTable<StyleNodeID> m_style_nodes_with_animations_changed_beside_flown_transaction;
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;
     size_t m_pending_arrival_count { 0 };
+    // NB: The list holds the nodes weakly: a node that left the tree and was collected arrives nowhere.
+    Vector<GC::Weak<DOM::Node>> m_listed_arrivals;
+    bool m_arrivals_unlisted { false };
     RelationalArrivalKeys m_relational_arrival_keys;
     Optional<u64> m_waiting_children_checked_against_keys_version;
     bool m_may_have_waiting_children { false };
+    HashTable<StyleNodeID> m_withheld_local_link_states;
+    WithheldAttributeCarriers m_withheld_attribute_carriers;
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };
     StyleAtomID m_html_element_namespace;

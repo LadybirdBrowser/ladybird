@@ -1,4 +1,3 @@
-moving a non-witness asks no anchor again: true
 label styled without a witness: true
 label unstyled once a witness arrives: true
 label styled again once the witness departs: true

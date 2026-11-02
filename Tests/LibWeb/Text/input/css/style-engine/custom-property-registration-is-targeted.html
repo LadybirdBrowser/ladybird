@@ -11,14 +11,6 @@
 <div class="declarer"></div>
 <div class="reference"></div>
 <script>
-    function printRegistrationCounters(label, environmentVersion, graphCounters) {
-        const counters = internals.getStyleInvalidationCounters();
-        const currentGraphCounters = internals.styleEngineCounters();
-        println(`${label} recomputations: ${counters.elementStyleRecomputations}`);
-        println(`${label} environment deltas: ${currentGraphCounters.environmentDeltas - graphCounters.environmentDeltas}`);
-        println(`${label} environment version unchanged: ${counters.styleEnvironmentVersion === environmentVersion}`);
-    }
-
     test(() => {
         const sheet = document.getElementById("registrations").sheet;
         // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
@@ -27,9 +19,7 @@
         sheet.deleteRule(0);
 
         internals.updateStyle();
-        let environmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
-        let graphCounters = internals.styleEngineCounters();
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
 
         document.getElementById("registrations").sheet.insertRule(
             "@property --registered { syntax: '<length>'; inherits: false; initial-value: 0px; }"
@@ -37,7 +27,9 @@
         document.getElementById("registrations").sheet.insertRule(":not(*) { color: red; }");
         internals.updateStyle();
 
-        printRegistrationCounters("@property", environmentVersion, graphCounters);
+        // The registration restyles at most the declarer and the reference.
+        const lastPass = internals.styleLastPass();
+        println(`@property styled: ${lastPass.styled.length}, full pass: ${lastPass.fullPass}`);
         println(`unrelated registered initial value: ${getComputedStyle(unrelated).getPropertyValue("--registered")}`);
 
         document.querySelector(".reference").remove();
@@ -48,10 +40,8 @@
         apiReference.style.width = "var(--api-registered)";
         document.body.appendChild(apiReference);
         internals.updateStyle();
-        environmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
-        graphCounters = internals.styleEngineCounters();
-        internals.resetStyleInvalidationCounters();
 
+        internals.resetStyleCounters();
         CSS.registerProperty({
             name: "--api-registered",
             syntax: "<length>",
@@ -61,7 +51,10 @@
         document.getElementById("registrations").sheet.insertRule(":not(*) { color: green; }");
         internals.updateStyle();
 
-        printRegistrationCounters("CSS.registerProperty()", environmentVersion, graphCounters);
+        // This registration restyles at most the API declarer and reference.
+        const counters = internals.styleCounters();
+        println(`CSS.registerProperty() styled: ${counters.styledElements}, full passes: ${counters.fullPasses}`);
+
         println(`unrelated API initial value: ${getComputedStyle(unrelated).getPropertyValue("--api-registered")}`);
     });
 </script>

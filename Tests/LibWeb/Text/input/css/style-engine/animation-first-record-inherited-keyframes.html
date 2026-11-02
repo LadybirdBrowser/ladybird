@@ -23,11 +23,9 @@
             if (withChild)
                 target.append(child);
             internals.updateStyle();
-            const before = internals.getStyleInvalidationCounters();
             container.append(target);
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}, animations ${target.getAnimations().map(animation => animation.animationName).join(",")}, ${read(target, child)}`);
+            println(`${label}: animations ${target.getAnimations().map(animation => animation.animationName).join(",")}, ${read(target, child)}`);
             target.remove();
         }
 

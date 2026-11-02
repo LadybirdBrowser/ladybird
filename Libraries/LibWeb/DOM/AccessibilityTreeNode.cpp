@@ -612,7 +612,7 @@ void AccessibilityTreeNode::serialize_tree_as_node_data(Vector<WebView::Accessib
 
                 auto fg = text_values->color_value();
                 node_data.color = MUST(String::from_byte_string(fg.to_byte_string_without_alpha()));
-                auto bg = background_values ? background_values->background_color_value() : Color::Transparent;
+                auto bg = background_values ? background_values->background_color_value(fg) : Color::Transparent;
                 if (bg.alpha() > 0)
                     node_data.background_color = MUST(String::from_byte_string(bg.to_byte_string_without_alpha()));
 

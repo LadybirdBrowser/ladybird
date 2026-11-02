@@ -13,13 +13,9 @@
                 :host(.on)::before { color: rgb(0, 128, 0); }
             </style>`;
         internals.updateStyle();
-        const start = internals.styleEngineCounters();
         host.className = "on";
         internals.updateStyle();
-        const end = internals.styleEngineCounters();
         println(`host: ${getComputedStyle(host).color}`);
         println(`before: ${getComputedStyle(host, "::before").content} ${getComputedStyle(host, "::before").color}`);
-        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
-        println(`incomplete winner bails: ${end.engineComputedRecordBailIncompleteWinners - start.engineComputedRecordBailIncompleteWinners}`);
     });
 </script>

@@ -4695,6 +4695,7 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
     if (m_viewport_size == size && invalidate_display_list == InvalidateDisplayList::No)
         return;
 
+    auto previous_viewport_size = m_viewport_size;
     m_viewport_size = size;
 
     if (has_compositor_context()) {
@@ -4705,10 +4706,11 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
     }
 
     if (auto document = active_document()) {
+        // NB: A display list invalidated with the viewport is for a device pixel ratio that moved, as a zoom moves it.
         if (invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList)
-            document->record_style_environment_change();
-        else
-            document->invalidate_style_for_viewport_change();
+            document->record_style_environment_change(DOM::StyleEnvironmentChange::DevicePixelRatio | DOM::StyleEnvironmentChange::MediaFeatures);
+        if (previous_viewport_size != size)
+            document->invalidate_style_for_viewport_change(previous_viewport_size);
         document->set_needs_media_query_evaluation();
         document->set_needs_layout_update(DOM::SetNeedsLayoutReason::NavigableSetViewportSize);
     }
@@ -7369,7 +7371,7 @@ void LocalNavigable::abort_in_flight_smooth_scrolls_taken_over_by_user_input(Web
 static bool scrolls_smoothly(Bindings::ScrollBehavior behavior, GC::Ptr<DOM::Element> associated_element)
 {
     if (behavior == Bindings::ScrollBehavior::Auto && associated_element) {
-        if (auto const* values = associated_element->style_group<CSS::ComputedValues::MiscResetValues>())
+        if (auto const* values = associated_element->style_group<CSS::ComputedValues::MiscInteractionValues>())
             return static_cast<CSS::ScrollBehavior>(values->scroll_behavior) == CSS::ScrollBehavior::Smooth;
     }
     return behavior == Bindings::ScrollBehavior::Smooth;
@@ -7983,8 +7985,8 @@ void LocalNavigable::reset_zoom()
 bool LocalNavigable::has_inclusive_ancestor_with_visibility_hidden() const
 {
     if (auto container = this->container()) {
-        if (auto const* values = container->style_group<CSS::ComputedValues::InheritedBoxValues>()) {
-            if (static_cast<CSS::Visibility>(values->visibility) == CSS::Visibility::Hidden)
+        if (auto const* values = container->style_inherited_set_values()) {
+            if (CSS::visibility_from_inherited_bits(values->bits) == CSS::Visibility::Hidden)
                 return true;
         }
         if (auto ancestor_navigable = container->document().navigable()) {

@@ -16,15 +16,11 @@
         }
         internals.updateStyle();
 
-        const before = internals.styleEngineCounters();
         for (const rect of rects)
             rect.setAttribute("height", 60);
         churn.firstElementChild.remove();
         churn.appendChild(document.createElementNS(namespace, "line"));
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`selector truth repair upqueries: ${after.selectorTruthRepairUpqueries - before.selectorTruthRepairUpqueries}`);
-        println(`candidate checks: ${after.candidateChecks - before.candidateChecks}`);
         println(`rect height: ${getComputedStyle(rects[0]).height}`);
     });
 </script>

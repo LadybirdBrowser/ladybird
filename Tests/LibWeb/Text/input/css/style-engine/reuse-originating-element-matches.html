@@ -18,14 +18,9 @@
     test(() => {
         internals.updateStyle();
 
-        const before = internals.styleEngineCounters();
         target.classList.add("changed");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
 
-        println(`cold node evaluations: ${after.coldNodesEvaluated - before.coldNodesEvaluated}`);
-        println(`candidate checks: ${after.candidateChecks - before.candidateChecks}`);
-        println(`rule matches emitted: ${after.ruleMatchesEmitted - before.ruleMatchesEmitted}`);
         println(`element: ${getComputedStyle(target).color}`);
         println(`before: ${getComputedStyle(target, "::before").color}`);
         println(`after: ${getComputedStyle(target, "::after").color}`);

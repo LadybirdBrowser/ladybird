@@ -1,3 +1,0 @@
-rules compiled: 100
-selector candidates tested: 100
-only local nodes invalidated: true

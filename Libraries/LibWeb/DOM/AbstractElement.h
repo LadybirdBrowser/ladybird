@@ -15,6 +15,9 @@ namespace Web::CSS {
 
 class InstalledStyle;
 
+template<typename StyleGroup>
+StyleGroup const& style_record_group(void const* record);
+
 }
 
 namespace Web::DOM {
@@ -47,29 +50,30 @@ public:
     GC::Ptr<Element const> parent_element() const;
     Element* flat_tree_parent_element() const;
     Optional<AbstractElement> element_to_inherit_style_from() const;
-    Optional<AbstractElement> highlight_inheritance_parent() const;
     GC::Ptr<Node> root();
 
     [[nodiscard]] CSS::ComputedStyleRecordView computed_style() const;
     [[nodiscard]] CSS::StyleRecordID style_record_identity() const;
     [[nodiscard]] CSS::InstalledStyle const& installed_style() const;
     [[nodiscard]] bool has_style() const { return !!style_record_identity(); }
-    [[nodiscard]] void const* style_record_payloads() const;
+    [[nodiscard]] void const* style_record_groups() const;
     template<typename StyleGroup>
     StyleGroup const* style_group() const
     {
-        auto const* payloads = static_cast<void const* const*>(style_record_payloads());
-        if (!payloads)
+        auto const* groups = style_record_groups();
+        if (!groups)
             return nullptr;
-        auto const* payload = payloads[StyleGroup::style_group_index];
-        VERIFY(payload);
-        return static_cast<StyleGroup const*>(payload);
+        return &CSS::style_record_group<StyleGroup>(groups);
     }
     GC::Ptr<CSS::CSSStyleProperties const> inline_style() const;
 
     void set_custom_property_data(RefPtr<CSS::CustomPropertyData const>);
-    void replace_custom_property_data(Badge<CSS::StyleComputer>, RefPtr<CSS::CustomPropertyData const>);
+    void replace_custom_property_data(Badge<CSS::StyleComputer>, RefPtr<CSS::CustomPropertyData const>, CSS::IsAnimationOverlay);
     [[nodiscard]] RefPtr<CSS::CustomPropertyData const> custom_property_data() const;
+    // Whether the environment `custom_property_data()` answers is the overlay of what this element's own animations
+    // sample. A child that inherits all of its parent's custom properties holds its parent's overlay itself, which is
+    // not an animation of the child's.
+    [[nodiscard]] bool custom_property_data_is_animation_overlay() const;
     RefPtr<CSS::StyleValue const> get_custom_property(Utf16FlyString const& name) const;
 
     Vector<GC::Ref<CSS::CSSAnimation>> const* css_defined_animations() const;

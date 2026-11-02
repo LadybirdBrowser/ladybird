@@ -60,7 +60,7 @@ RefPtr<StyleValue const> AbstractOrHypotheticalElement::get_custom_property(Utf1
             return abstract_element.get_custom_property(name);
         },
         [&](HypotheticalElement* hypothetical_element) -> RefPtr<StyleValue const> {
-            if (auto const* property = hypothetical_element->custom_property_data->get(name))
+            if (auto property = hypothetical_element->custom_property_data->get(name); property.has_value())
                 return property->value;
             return nullptr;
         });

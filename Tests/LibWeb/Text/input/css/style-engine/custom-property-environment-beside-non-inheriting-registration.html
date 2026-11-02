@@ -14,15 +14,10 @@
     // a child inherits its parent's environment without the name, and `inherit` reads it whole.
     test(() => {
         internals.updateStyle();
-        const before = Object.assign({}, internals.styleEngineCounters());
-        internals.resetStyleInvalidationCounters();
 
         document.getElementById("parent").classList.add("wide");
         internals.updateStyle();
 
-        const after = internals.styleEngineCounters();
-        println(`environment refusals: ${after.engineCustomPropertyEnvironmentBails - before.engineCustomPropertyEnvironmentBails}`);
-        println(`environments the engine resolved: ${after.engineCustomPropertyEnvironmentsResolved - before.engineCustomPropertyEnvironmentsResolved}`);
         for (const id of ["parent", "child", "declaring", "explicit"]) {
             const style = getComputedStyle(document.getElementById(id));
             println(`${id}: --local ${style.getPropertyValue("--local")}, --shared ${style.getPropertyValue("--shared")}, width ${style.width}, height ${style.height}, margin-left ${style.marginLeft}`);

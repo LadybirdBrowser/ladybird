@@ -97,9 +97,6 @@
 
         // Writing the same declaration again moves nothing, and neither does a rule inserted and
         // deleted before anything is observed.
-        // FIXME: The second of these reaches `other`. A rule that arrived and left in one transaction
-        //        never decided anything, but its two sides are journalled under different rule
-        //        identities and so do not cancel.
         plan("rewrite a rule's declaration with the same value", () => {
             sheet.cssRules[0].style.color = "teal";
             sheet.cssRules[0].style.color = "teal";

@@ -1,5 +1,2 @@
-C++ recomputations: 0
 transitions: color ::before
 before: rgb(128, 0, 128)
-engine pseudo records: 1
-property bails: 0

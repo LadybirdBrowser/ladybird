@@ -30,8 +30,5 @@ test(() => {
     internals.updateStyle();
     println(`hidden inherited style was updated: ${internals.styleRecordIdentity(flood) !== previousStyle}`);
     println(`hidden inherited color: ${getComputedStyle(flood).color}`);
-    // Who restored the styles while hiding: the ancestor, the SVG elements and the HTML element
-    // they inherit from.
-    println(`hiding: engine records ${afterHiding.engineComputedStyleRecords - beforeHiding.engineComputedStyleRecords}, C++ recomputations ${afterHiding.elementStyleRecomputations - beforeHiding.elementStyleRecomputations}`);
 });
 </script>

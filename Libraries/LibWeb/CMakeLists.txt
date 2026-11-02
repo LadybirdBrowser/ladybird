@@ -196,6 +196,7 @@ set(SOURCES
     CSS/SelectorMatching.cpp
     CSS/Serialize.cpp
     CSS/Sizing.cpp
+    CSS/DevToolsAppliedStyleRules.cpp
     CSS/StyleComputer.cpp
     CSS/StyleEngineBridge.cpp
     CSS/StyleEngineInput.cpp
@@ -262,6 +263,7 @@ set(SOURCES
     DOM/CommitMessages.cpp
     DOM/CustomEvent.cpp
     DOM/Document.cpp
+    DOM/DocumentHighlightStyles.cpp
     DOM/DocumentFragment.cpp
     DOM/DocumentLoadEventDelayer.cpp
     DOM/DocumentLoading.cpp

@@ -1,6 +1,2 @@
-differing sibling: 0 C++ longhand evaluations
-differing sibling: takes the donor's record: false
 differing sibling: color rgb(0, 0, 255)
-identical sibling: 0 C++ longhand evaluations
-identical sibling: takes the donor's record: true
 identical sibling: color rgb(255, 0, 0)

@@ -10,17 +10,14 @@
 <div id="host"></div>
 <script>
     // The marker of a list-item ::before takes the element's ::marker style, which the element holds
-    // none of: the style engine derives it for the tree builder's read.
+    // none of.
     test(() => {
         const host = document.getElementById("host");
         document.body.offsetWidth;
-        const drives = () => internals.getStyleInvalidationCounters().computedLonghandDrivesStarted;
-        const before = drives();
         const item = document.createElement("div");
         item.className = "item";
         host.appendChild(item);
         document.body.offsetWidth;
-        println(`C++ style computations: ${drives() - before}`);
         println(`marker color: ${getComputedStyle(item, "::marker").color}`);
     });
 </script>

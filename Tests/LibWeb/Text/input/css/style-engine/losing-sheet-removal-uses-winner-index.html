@@ -20,14 +20,10 @@
             Array.from({ length: 100 }, () => ".item { color: red; }").join("\n") +
             "\n#sentinel { outline: 0 solid green; }";
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
 
         losing.remove();
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
 
-        println(`losing rules rejected: ${after.programCandidatesRejectedByCascade - before.programCandidatesRejectedByCascade}`);
-        println(`only local nodes invalidated: ${after.invalidatedStyleNodes - before.invalidatedStyleNodes < 10}`);
         println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
         println(`sentinel: ${getComputedStyle(root.lastElementChild).outlineStyle}`);
     });

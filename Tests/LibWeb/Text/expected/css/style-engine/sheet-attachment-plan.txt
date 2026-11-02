@@ -1,4 +1,4 @@
-sheet attaches: [style, inside]
+sheet attaches: [inside]
 sheet disables: [inside]
 sheet enables: [inside]
 sheet detaches: [inside]

@@ -1685,6 +1685,49 @@ impl<'a> Scratch<'a> {
                 return Err(Outcome::ComputeDeclined);
             };
             computed.element_dependent |= custom_properties_read_subject;
+            // https://drafts.csswg.org/css-animations-2/#owning-element-section
+            // If the display property of an element is set to none and its display value would compute to none when
+            // ignoring the Transitions and Animations cascade origins, then terminate running animations with this
+            // owning element.
+            // NB: The sampled custom properties are part of the Animations origin, so what they make of `display` is
+            //     not what ends the animations. Only an element they leave with none computes this again.
+            let display_is_none = |computed: &super::compute::ComputedElement| {
+                crate::css::style_compute::display_of(
+                    computed
+                        .groups
+                        .value(crate::css::property_metadata::property_id::DISPLAY),
+                )
+                .is_none()
+            };
+            if sampled.is_some() && display_is_none(&computed) {
+                let ignoring_animations = state.drive_element(
+                    context.records,
+                    node,
+                    parent,
+                    context.initial,
+                    &self.cascade.winners,
+                    &super::cascade::CascadeBelow {
+                        cascade: &self.cascade,
+                        state,
+                        node,
+                    },
+                    &mut None,
+                    &mut Default::default(),
+                    super::custom_properties::CustomPropertyStores {
+                        own: substituted.as_ref(),
+                        inherited: parent_held.as_deref(),
+                        substitutions: &self.substitutions,
+                        subject: &subject,
+                    },
+                    &mut self.groups,
+                    &mut self.absolutized,
+                    u8::MAX,
+                    context.root_font(),
+                    group_seeds,
+                );
+                computed.reads.display_none_is_animated =
+                    ignoring_animations.is_ok_and(|ignoring_animations| !display_is_none(&ignoring_animations));
+            }
             let registered = state.registered_custom_property_store(
                 node,
                 parent_store.as_deref(),

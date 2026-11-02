@@ -13,15 +13,10 @@
         // container unit and so stays out of every record cache.
         const target = document.getElementById("target");
         internals.updateStyle();
-        const start = internals.styleEngineCounters();
-        const startRecomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
         target.className = "changed";
         internals.updateStyle();
-        const end = internals.styleEngineCounters();
-        println(`C++ recomputations: ${internals.getStyleInvalidationCounters().elementStyleRecomputations - startRecomputations}`);
         const before = getComputedStyle(target, "::before");
         println(`before: ${before.content} ${before.color}`);
         println(`marker: ${getComputedStyle(target, "::marker").color}`);
-        println(`engine pseudo records: ${end.engineComputedPseudoRecords - start.engineComputedPseudoRecords}`);
     });
 </script>

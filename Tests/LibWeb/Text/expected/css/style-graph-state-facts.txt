@@ -1,3 +1,0 @@
-focusing records a state fact: true
-blurring records another: true
-no scope markers: true

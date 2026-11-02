@@ -8,13 +8,10 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
 
         target.className = "after";
         internals.updateStyle();
 
-        const after = internals.getStyleInvalidationCounters();
-        println(`currentColor longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
         println(`color: ${getComputedStyle(target).color}`);
         println(`border color: ${getComputedStyle(target).borderTopColor}`);
     });

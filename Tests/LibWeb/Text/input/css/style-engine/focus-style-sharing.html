@@ -16,13 +16,9 @@
         for (let index = 0; index < 4; ++index)
             inputs[index & 1].focus();
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
         for (let index = 0; index < 20; ++index)
             inputs[index & 1].focus();
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`shared computations: ${after.elementStyleSharedComputations - before.elementStyleSharedComputations}`);
-        println(`element recomputations: ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
         const fallback = document.getElementById("fallback");
         const printPseudo = label => {
             const style = getComputedStyle(fallback, "::before");

@@ -1,28 +1,30 @@
 // Shared harness for the StyleEngine mutation-surface tests.
 //
 // Every way the engine's inputs can move should be provable twice over: that the mutation reaches
-// the engine at all, and that its reaction batch is no wider than it has to be. The plan names
-// exactly the elements whose semantic output changed before any consumer materializes the result.
+// the engine at all, and that the elements it changes are exactly the ones whose style it moves.
+// The plan names the elements whose records the style pass after the mutation changed.
 
-// Settle everything before the mutation under test, so the batch describes that mutation and no
-// other. Forcing layout is not enough: layout that is already clean does not flush style, and
-// whether it happens to be clean depends on what else the page has been doing. Asking for the
-// reactions afterwards takes the transaction the settle left behind, so the next one starts empty.
+// Settle everything before the mutation under test, so the pass after it describes that mutation
+// and no other. Forcing layout is not enough: layout that is already clean does not flush style,
+// and whether it happens to be clean depends on what else the page has been doing. Resetting the
+// counters forgets the last pass, so a mutation that restyles nothing reports nothing.
 function planSetup() {
     internals.updateStyle();
-    internals.styleEngineTransactionReactions();
+    internals.resetStyleCounters();
 }
 
-// Run `mutate`, then report the elements whose semantic output changed.
+// Run the style pass for the mutations since planSetup(), and report it as { fullPass, styled,
+// changed }.
+function planPass() {
+    internals.updateStyle();
+    return internals.styleLastPass();
+}
+
+// Run `mutate`, then report the elements whose records changed.
 function plan(name, mutate) {
     planSetup();
     mutate();
-    const result = internals.styleEngineTransactionReactions();
-    if (result.wholeDocument) {
-        println(`${name}: WHOLE DOCUMENT`);
-        return;
-    }
-    println(`${name}: [${result.elements.join(", ")}]`);
+    println(`${name}: [${planPass().changed.join(", ")}]`);
 }
 
 function make(tagName, id, options = {}) {

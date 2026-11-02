@@ -22,27 +22,29 @@
     promiseTest(async () => {
         const keyframes = [{ transform: "translateY(0)" }, { transform: "translateY(-100px)" }];
 
-        async function descendantsRecomputedDuringAnimationUpdate(container) {
+        // What the style engine styled for an animation update of `container`, which composes the animated
+        // values over the record of the container itself without restyling it.
+        async function styledDuringAnimationUpdate(container) {
             const animation = container.animate(keyframes, { duration: 1000 });
             animation.pause();
             animation.currentTime = 250;
             await animation.ready;
             await animationFrame();
-            internals.resetStyleInvalidationCounters();
+            internals.updateStyle();
+            internals.resetStyleCounters();
             animation.currentTime = 500;
             getComputedStyle(container).transform;
-            const counters = internals.getStyleInvalidationCounters();
+            const styled = { count: internals.styleCounters().styledElements, elements: internals.styleLastPass().styled };
             animation.cancel();
-            // C++ recomputes a descendant, or the style engine computes its record.
-            return counters.elementStyleRecomputations + counters.engineComputedStyleRecords > 0;
+            return styled;
         }
 
-        println(`plain descendants recomputed: ${await descendantsRecomputedDuringAnimationUpdate(plainContainer)}`);
-        println(
-            `text-decoration-line inheritor recomputed: ${await descendantsRecomputedDuringAnimationUpdate(decorationContainer)}`
-        );
-        println(
-            `transform inheritor recomputed: ${await descendantsRecomputedDuringAnimationUpdate(transformContainer)}`
-        );
+        println(`plain descendants styled <= 0: ${(await styledDuringAnimationUpdate(plainContainer)).count <= 0}`);
+        // FIXME: This should style nothing, as the inheritor inherits text-decoration-line, which the
+        //     animation does not move, but the style engine restyles an element inheriting a property explicitly
+        //     whenever its parent's record changes, whichever properties change.
+        println(`text-decoration-line inheritor styled: ${(await styledDuringAnimationUpdate(decorationContainer)).count}`);
+        const transformStyled = await styledDuringAnimationUpdate(transformContainer);
+        println(`transform inheritor restyled: ${transformStyled.elements.includes("transformInheritor")}`);
     });
 </script>

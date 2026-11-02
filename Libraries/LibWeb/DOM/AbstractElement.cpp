@@ -112,24 +112,6 @@ Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
     return AbstractElement { const_cast<DOM::Element&>(*element) };
 }
 
-// https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
-// When any supported property is not given a value by the cascade, or given a value of inherit or unset, its
-// specified value is determined by inheritance from the corresponding highlight pseudo-element of its originating
-// element's parent element.
-Optional<AbstractElement> AbstractElement::highlight_inheritance_parent() const
-{
-    if (!m_pseudo_element.has_value() || !CSS::is_highlight_pseudo_element(*m_pseudo_element))
-        return OptionalNone {};
-
-    // An ancestor without a record for this pseudo-element has no declarations for it, so the nearest record is
-    // what its own would have inherited anyway.
-    for (auto ancestor = m_element->element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({})) {
-        if (!!ancestor->style_record_identity(*m_pseudo_element))
-            return AbstractElement { *ancestor, m_pseudo_element };
-    }
-    return OptionalNone {};
-}
-
 GC::Ptr<Node> AbstractElement::root()
 {
     if (m_pseudo_element.has_value()) {
@@ -157,9 +139,9 @@ CSS::InstalledStyle const& AbstractElement::installed_style() const
     return m_element->installed_style(m_pseudo_element);
 }
 
-void const* AbstractElement::style_record_payloads() const
+void const* AbstractElement::style_record_groups() const
 {
-    return m_element->style_record_payloads(m_pseudo_element);
+    return m_element->style_record_groups(m_pseudo_element);
 }
 
 GC::Ptr<CSS::CSSStyleProperties const> AbstractElement::inline_style() const
@@ -188,9 +170,14 @@ void AbstractElement::set_custom_property_data(RefPtr<CSS::CustomPropertyData co
     m_element->set_custom_property_data(m_pseudo_element, move(data));
 }
 
-void AbstractElement::replace_custom_property_data(Badge<CSS::StyleComputer>, RefPtr<CSS::CustomPropertyData const> data)
+void AbstractElement::replace_custom_property_data(Badge<CSS::StyleComputer>, RefPtr<CSS::CustomPropertyData const> data, CSS::IsAnimationOverlay is_animation_overlay)
 {
-    m_element->replace_custom_property_data(m_pseudo_element, move(data));
+    m_element->replace_custom_property_data(m_pseudo_element, move(data), is_animation_overlay);
+}
+
+bool AbstractElement::custom_property_data_is_animation_overlay() const
+{
+    return m_element->custom_property_data_is_animation_overlay(m_pseudo_element);
 }
 
 RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(Utf16FlyString const& name) const
@@ -198,7 +185,7 @@ RefPtr<CSS::StyleValue const> AbstractElement::get_custom_property(Utf16FlyStrin
     auto data = custom_property_data();
     if (!data)
         return nullptr;
-    if (auto const* property = data->get(name))
+    if (auto property = data->get(name); property.has_value())
         return property->value;
     return nullptr;
 }

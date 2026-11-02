@@ -292,7 +292,7 @@ Optional<Compositing::DisplayListResource> SVGDecodedImageData::record_display_l
         m_natural_size.clear();
         m_document->set_svg_image_color_scheme(color_scheme);
         m_document->style_scope().invalidate_style_cache();
-        m_document->record_style_environment_change();
+        m_document->record_style_environment_change(DOM::StyleEnvironmentChange::ColorScheme | DOM::StyleEnvironmentChange::MediaFeatures);
     }
 
     navigable.set_viewport_size(css_size);

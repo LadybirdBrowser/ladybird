@@ -2,14 +2,14 @@ Harness status: OK
 
 Found 18 tests
 
-12 Pass
-6 Fail
+15 Pass
+3 Fail
 Pass	getAnimations for non-animated content
 Pass	getAnimations for CSS Animations
 Pass	Order of CSS Animations - within an element unaffected by start time
 Pass	Order of CSS Animations - within an element
-Fail	Order of CSS Animations - across elements
-Fail	Order of CSS Animations - across and within elements
+Pass	Order of CSS Animations - across elements
+Pass	Order of CSS Animations - across and within elements
 Pass	Order of CSS Animations - markup-bound vs free animations
 Fail	Order of CSS Animations - free animation vs CSS Transitions
 Fail	Order of CSS Animations - free animations
@@ -21,4 +21,4 @@ Pass	CSS Animations canceled via the API are not returned
 Pass	CSS Animations canceled and restarted via the API are returned
 Pass	pseudo element with replaced target does not affect animation ordering
 Pass	CSS Animations targetting (pseudo-)elements should have correct order after sorting
-Fail	CSS Animations targetting (pseudo-)elements should have correct order after sorting (::marker)
+Pass	CSS Animations targetting (pseudo-)elements should have correct order after sorting (::marker)

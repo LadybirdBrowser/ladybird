@@ -216,10 +216,7 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(Utf16FlyStrin
         if (!data)
             return {};
 
-        if (auto const* property = data->get(custom_property_name))
-            return *property;
-
-        return {};
+        return data->get(custom_property_name);
     }
 
     return custom_properties().get(custom_property_name);
@@ -375,15 +372,15 @@ static NonnullRefPtr<StyleValue const> style_value_for_transform_origin(Transfor
     return StyleValueList::create(move(offsets), StyleValueList::Separator::Space, StyleValueList::Collapsible::No);
 }
 
-static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, ReadonlySpan<ShadowData> shadow_data)
+static RefPtr<StyleValue const> style_value_for_shadow(ShadowStyleValue::ShadowType shadow_type, ReadonlySpan<ShadowData> shadow_data, Color current_color)
 {
     if (shadow_data.is_empty())
         return KeywordStyleValue::create(Keyword::None);
 
-    auto make_shadow_style_value = [shadow_type](ShadowData const& shadow) {
+    auto make_shadow_style_value = [shadow_type, current_color](ShadowData const& shadow) {
         return ShadowStyleValue::create(
             shadow_type,
-            ColorStyleValue::create_from_color(shadow.color, ColorSyntax::Modern),
+            ColorStyleValue::create_from_color(shadow.resolved_color(current_color), ColorSyntax::Modern),
             style_value_for_css_pixels(shadow.offset_x),
             style_value_for_css_pixels(shadow.offset_y),
             style_value_for_css_pixels(shadow.blur_radius),
@@ -595,9 +592,21 @@ Optional<StyleProperty> CSSStyleProperties::get_property_internal(PropertyNameAn
             // shorthand property must serialize to the empty string.
             if (list.first()->is_pending_substitution()) {
                 auto original_shorthand_value = list.first()->as_pending_substitution().original_shorthand_value();
+                // NB: A longhand of a shorthand nested in the one written pends the nested shorthand, which pends the
+                //     written one in turn. Writing an equal value again leaves longhands holding equal values, not
+                //     the same one, so what they have in common is the shorthand written and its value as written.
+                auto written_shorthand = [](ValueComparingNonnullRefPtr<StyleValue const> value) {
+                    while (value->as_pending_substitution().original_shorthand_value()->is_pending_substitution())
+                        value = value->as_pending_substitution().original_shorthand_value();
+                    return value;
+                };
+                auto const first_written_shorthand = written_shorthand(list.first());
                 auto all_from_same_original = all_of(list, [&](auto const& value) {
-                    return value->is_pending_substitution()
-                        && value->as_pending_substitution().original_shorthand_value()->rust_style_value_data() == original_shorthand_value->rust_style_value_data();
+                    if (!value->is_pending_substitution())
+                        return false;
+                    auto const this_written_shorthand = written_shorthand(value);
+                    return this_written_shorthand->as_pending_substitution().original_shorthand() == first_written_shorthand->as_pending_substitution().original_shorthand()
+                        && this_written_shorthand->as_pending_substitution().original_shorthand_value() == first_written_shorthand->as_pending_substitution().original_shorthand_value();
                 });
                 if (all_from_same_original) {
                     return StyleProperty {
@@ -641,16 +650,15 @@ static void install_engine_pseudo_element_style(Layout::BegunRead const& read, D
     if (!answer.is_absent && answer.record.style_record == 0)
         return;
     StyleRecordID record { answer.record.style_record };
-    element.set_computed_style(pseudo_element, record);
+    element.set_computed_style(read, pseudo_element, InstalledStyle { answer.record.host_record });
     // A pseudo-element that generates no box holds the environment its rules declare, if any rule styles it.
-    auto environment = !!record ? style_engine.style_record_custom_property_environment(read, record) : answer.custom_property_environment;
+    auto environment = !!record ? InstalledStyle { answer.record.host_record }.custom_property_environment() : answer.custom_property_environment;
     if (!!record || environment != 0)
         element.install_engine_pseudo_element_custom_property_data(read, pseudo_element, environment);
     else
         element.set_custom_property_data(pseudo_element, nullptr);
     if (!!record)
         element.document().style_computer().compose_installed_engine_record(read, target, {});
-    StyleEngineFFI::style_engine_acknowledge_engine_computed_record(style_engine.host(), element.style_node_id());
 }
 
 static void ensure_pseudo_element_style_for_cssom(Layout::BegunRead const& read, DOM::AbstractElement abstract_element)
@@ -727,7 +735,7 @@ static NonnullRefPtr<StyleValue const> resolve_unresolvable_anchor_functions(Pro
 
 // NB: An element without a layout node may still generate a box whose layout is not up to date yet, so this only
 //     looks at whether the element's style places it outside the box tree.
-static bool element_generates_no_box(Layout::BegunRead const& read, DOM::AbstractElement abstract_element, ComputedValues const& style)
+static bool element_generates_no_box(DOM::AbstractElement abstract_element, ComputedValues const& style)
 {
     if (style.display().is_none() || style.display().is_contents())
         return true;
@@ -741,8 +749,8 @@ static bool element_generates_no_box(Layout::BegunRead const& read, DOM::Abstrac
         if ((is_before_or_after || *pseudo_element == PseudoElement::Marker) && content->is_keyword() && content->to_keyword() == Keyword::None)
             return true;
     }
-    auto style_record = abstract_element.style_record_identity();
-    return !!style_record && has_flag(abstract_element.document().style_computer().style_engine().style_record_dependency_flags(read, style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree);
+    auto const& installed_style = abstract_element.installed_style();
+    return installed_style && has_flag(installed_style.dependency_flags(), StyleRecordDependencyFlag::InDisplayNoneSubtree);
 }
 
 // Brings style (and, when the property needs it, layout) up to date for computed-style property
@@ -778,11 +786,14 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     // so the leaf and its inheritance ancestors may still be stale at this point.
     // NB: Only the style record's presence and its display:none-subtree bit matter here, so probe
     //     those directly instead of materializing a full style record view.
-    auto style_record = abstract_element.style_record_identity();
-    bool const style_is_in_display_none_subtree = !layout_node
-        && !!style_record
-        && has_flag(abstract_element.document().style_computer().style_engine().style_record_dependency_flags(read, style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree);
-    if (!style_record || style_is_in_display_none_subtree)
+    auto const& style = abstract_element.installed_style();
+    // NB: An element moved below a display:none element holds the record it had where it stood, and its box until
+    //     layout next runs.
+    bool const style_is_in_display_none_subtree = style
+        && ((!layout_node && has_flag(style.dependency_flags(), StyleRecordDependencyFlag::InDisplayNoneSubtree))
+            || ((!layout_node || !abstract_element.document().layout_is_up_to_date())
+                && abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations()));
+    if (!style || style_is_in_display_none_subtree)
         abstract_element.document().update_style_for_element(abstract_element);
     else
         abstract_element.document().update_style_for_element(abstract_element, DOM::Document::StyleUpdateMode::OnlyIfNeeded);
@@ -809,6 +820,11 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     if (needs_layout_for_container_queries) {
         abstract_element.document().update_layout_if_needed_for_node(abstract_element.element(), DOM::UpdateLayoutReason::ResolvedCSSStyleDeclarationProperty);
         layout_node = abstract_element.layout_node(read);
+        // NB: The style update of the layout skips display:none subtrees, so a style read below one is answered
+        //     again against the container sizes the layout settled.
+        if (auto const& settled_style = abstract_element.installed_style(); !layout_node && settled_style
+            && has_flag(settled_style.dependency_flags(), StyleRecordDependencyFlag::InDisplayNoneSubtree))
+            abstract_element.document().update_style_for_element(abstract_element);
         // A synthetic pseudo which is not rendered is not part of the layout-driven pseudo
         // recomputation above. Refresh its CSSOM-only style against the settled container size.
         ensure_pseudo_element_style_for_cssom(read, abstract_element);
@@ -965,9 +981,9 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 case PropertyID::WebkitTextFillColor:
                     return resolve_color_style_value(*computed_value, computed_values->webkit_text_fill_color()).release_nonnull();
                 case PropertyID::BoxShadow:
-                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, computed_values->box_shadow()).release_nonnull();
+                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, computed_values->box_shadow(), computed_values->color()).release_nonnull();
                 case PropertyID::TextShadow:
-                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, computed_values->text_shadow()).release_nonnull();
+                    return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, computed_values->text_shadow(), computed_values->color()).release_nonnull();
                 case PropertyID::BackdropFilter:
                 case PropertyID::Filter:
                     return resolve_filter_style_value(move(computed_value), computed_values->color());
@@ -981,7 +997,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                     // For backwards-compatibility, the resolved value of this keyword is zero for boxes of all [CSS2]
                     // display types (block and inline boxes, inline blocks, and all table display types) when
                     // 'aspect-ratio' is 'auto'. It also resolves to zero when no box is generated.
-                    if (computed_value->to_keyword() == Keyword::Auto && element_generates_no_box(read, abstract_element, *computed_values))
+                    if (computed_value->to_keyword() == Keyword::Auto && element_generates_no_box(abstract_element, *computed_values))
                         return LengthStyleValue::create(Length::make_px(0));
                     return resolve_unresolvable_anchor_functions(computed_property_id, move(computed_value));
                 case PropertyID::MaxHeight:
@@ -1016,7 +1032,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
             return {};
         return StyleProperty {
             .property_id = property_id,
-            .value = unscaled_by_zoom(property_id, value.release_nonnull(), layout_node->style_group<ComputedValues::InheritedBoxValues>().effective_zoom_value()),
+            .value = unscaled_by_zoom(property_id, value.release_nonnull(), effective_zoom_of(layout_node->inherited_set_values())),
         };
     }
 
@@ -1364,7 +1380,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             static_cast<StyleValueFFI::StyleValueData const*>(handle.pointer)));
         return resolve_color_style_value(
             *style_value,
-            background_values->background_color_value(),
+            background_values->background_color_value(element.style_group<ComputedValues::InheritedTextValues>(pseudo_element)->color_value()),
             color_resolution_style);
     }
     case PropertyID::BorderBottomColor:
@@ -1376,7 +1392,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::BorderTopColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.border_top().color, color_resolution_style);
     case PropertyID::BoxShadow:
-        return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, layout_node.box_shadow());
+        return style_value_for_shadow(ShadowStyleValue::ShadowType::Normal, layout_node.box_shadow(), layout_node.color());
     case PropertyID::CaretColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.caret_color(), color_resolution_style);
     case PropertyID::Color: {
@@ -1396,7 +1412,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     case PropertyID::TextDecorationColor:
         return resolve_color_style_value(*get_computed_value(property_id), layout_node.text_decoration_color(), color_resolution_style);
     case PropertyID::TextShadow:
-        return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, layout_node.text_shadow());
+        return style_value_for_shadow(ShadowStyleValue::ShadowType::Text, layout_node.text_shadow(), layout_node.color());
     case PropertyID::BackdropFilter:
     case PropertyID::Filter:
         return resolve_filter_style_value(*get_computed_value(property_id), layout_node.color());
@@ -1411,7 +1427,7 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
             return line_height;
         auto const* font_values = element.style_group<ComputedValues::FontValues>(pseudo_element);
         VERIFY(font_values);
-        return LengthStyleValue::create(Length::make_px(font_values->line_height_used));
+        return LengthStyleValue::create(Length::make_px(font_values->line_height_used_value()));
     }
 
         // -> block-size
@@ -1853,6 +1869,11 @@ Utf16String CSSStyleProperties::serialized() const
 
         // 2. If property is in already serialized, continue with the steps labeled declaration loop.
         if (already_serialized.contains(property))
+            continue;
+
+        // AD-HOC: A shorthand pending an outer shorthand has no value of its own to serialize. The outer shorthand
+        //         serializes for it, or else each of its longhands does.
+        if (property_is_shorthand(property) && declaration.value->is_pending_substitution())
             continue;
 
         // 3. If property maps to one or more shorthand properties, let shorthands be an array of those shorthand properties, in preferred order.

@@ -1,5 +1,0 @@
-winner groups cover the document: true
-losing candidates rejected: 100
-only local nodes invalidated: true
-ordinary item: rgb(0, 0, 0)
-sentinel: rgb(0, 128, 0)

@@ -1,8 +1,4 @@
-@property recomputations: 0
-@property environment deltas: 0
-@property environment version unchanged: true
+@property styled: 2, full pass: false
 unrelated registered initial value: 0px
-CSS.registerProperty() recomputations: 0
-CSS.registerProperty() environment deltas: 0
-CSS.registerProperty() environment version unchanged: true
+CSS.registerProperty() styled: 2, full passes: 0
 unrelated API initial value: 0px

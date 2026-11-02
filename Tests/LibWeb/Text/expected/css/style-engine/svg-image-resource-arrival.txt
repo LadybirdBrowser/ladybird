@@ -1,2 +1,1 @@
-C++ recomputations: 0
 image width: 120

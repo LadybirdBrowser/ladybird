@@ -1,7 +1,4 @@
-shared environment: 1 resolved, memoized: true
 shared value: 7px
-later transaction: 0 resolved, memoized: true
 later transaction value: 7px
-moved environment: 1 resolved, memoized: true
 moved value: 9px
 moved neighbour: 9px

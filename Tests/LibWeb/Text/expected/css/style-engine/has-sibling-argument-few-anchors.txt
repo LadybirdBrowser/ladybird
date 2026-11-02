@@ -1,4 +1,3 @@
-moving an element among possible witnesses considers few anchors: true
 item unstyled without a selected element after the divider: true
 item styled once the element after the divider is selected: true
 item unstyled once something lands between: true

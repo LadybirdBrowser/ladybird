@@ -1,5 +1,2 @@
-C++ recomputations: 0
 before: "a"
 after: monospace
-engine pseudo records: 2
-font refill rounds: 2

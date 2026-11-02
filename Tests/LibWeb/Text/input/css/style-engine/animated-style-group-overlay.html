@@ -39,10 +39,5 @@
         // element's color.
         println(`color: ${getComputedStyle(tinter).color}`);
         println(`border color: ${getComputedStyle(tinter).borderTopColor}`);
-
-        const counters = internals.getStyleInvalidationCounters();
-        println(`reconstruction fallbacks: ${counters.animatedStyleReconstructionFallbacks > 0 ? "some" : "none"}`);
-        println(`overlay builds: ${counters.animatedStyleOverlayBuilds > 0 ? "some" : "none"}`);
-        println(`full builds: ${counters.animatedStyleFullBuilds > 0 ? "some" : "none"}`);
     });
 </script>

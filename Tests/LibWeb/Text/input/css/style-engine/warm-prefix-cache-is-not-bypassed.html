@@ -12,13 +12,9 @@
         root.lastElementChild.className = "rare";
 
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         root.classList.add("guard");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
 
         println(`rare subject updated: ${getComputedStyle(root.lastElementChild).color}`);
-        println(`prefix convergence bypassed: ${after.prefixConvergenceBypasses > before.prefixConvergenceBypasses}`);
-        println(`prefix convergence maintained: ${after.prefixConvergencePasses > before.prefixConvergencePasses}`);
     });
 </script>

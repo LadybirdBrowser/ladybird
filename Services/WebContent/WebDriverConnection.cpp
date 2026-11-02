@@ -1285,7 +1285,7 @@ Web::WebDriver::Response WebDriverConnection::get_element_css_value(String eleme
             if (auto property = Web::CSS::PropertyNameAndID::from_name(Utf16FlyString::from_utf8(name)); property.has_value()) {
                 if (property->is_custom_property()) {
                     if (auto data = element->custom_property_data({}); data) {
-                        if (auto const* style_property = data->get(property->name()))
+                        if (auto style_property = data->get(property->name()); style_property.has_value())
                             computed_value = style_property->value->to_string(Web::CSS::SerializationMode::Normal);
                     }
                 } else if (auto computed_values = element->computed_style()) {

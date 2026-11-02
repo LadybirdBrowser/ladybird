@@ -9,15 +9,12 @@
     test(() => {
         const host = document.getElementById("host");
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         for (let index = 0; index < 12; ++index) {
             const item = document.createElement("div");
             item.className = "item";
             host.appendChild(item);
             internals.updateStyle();
         }
-        const after = internals.styleEngineCounters();
-        println(`substitution memo hits: ${after.engineComputedRecordSubstitutionMemoHits - before.engineComputedRecordSubstitutionMemoHits}`);
         println(`width: ${getComputedStyle(host.lastChild).width}`);
         host.style.setProperty("--width", "20px");
         internals.updateStyle();

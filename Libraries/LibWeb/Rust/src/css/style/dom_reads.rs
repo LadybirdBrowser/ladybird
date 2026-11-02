@@ -107,6 +107,38 @@ impl RetainedState {
         self.projection.assigned_nodes_of(slot)[index]
     }
 
+    /// The nodes assigned to the slot, in assignment order.
+    #[must_use]
+    pub fn assigned_nodes_of(&self, slot: StyleNodeID) -> &[StyleNodeID] {
+        self.projection.assigned_nodes_of(slot)
+    }
+
+    /// The element a node inherits from: the slot it is assigned to, its parent, or the host of the shadow root it is a
+    /// child of.
+    #[must_use]
+    pub fn inheritance_parent(&self, node: StyleNodeID) -> Option<StyleNodeID> {
+        if node.text_index().is_none() {
+            return self.projection.inheritance_parent(node);
+        }
+        if let Some(slot) = self.assigned_slot_of(node) {
+            return Some(slot);
+        }
+        let parent = self.text_parent(node)?;
+        Some(self.host_of(parent).unwrap_or(parent))
+    }
+
+    /// Whether the text node is in a user agent shadow tree.
+    #[must_use]
+    pub fn text_is_in_user_agent_shadow_tree(&self, node: StyleNodeID) -> bool {
+        self.tree.text_is_in_user_agent_shadow_tree(node)
+    }
+
+    /// The characters the text node holds.
+    #[must_use]
+    pub fn text_data(&self, node: StyleNodeID) -> Option<&ak::Utf16String> {
+        self.tree.text_data(node)
+    }
+
     /// The node's DOM children in order, text nodes included.
     pub fn dom_children(&self, node: StyleNodeID) -> impl Iterator<Item = StyleNodeID> + '_ {
         self.tree.dom_children(node)

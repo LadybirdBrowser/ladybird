@@ -21,11 +21,8 @@
         internals.updateStyle();
         host.className = "warm";
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         host.className = "changed";
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        println(`shared across different parent padding: ${after.engineComputedRecordCohortHits - before.engineComputedRecordCohortHits >= 3}`);
         println(`updated backgrounds: ${Array.from(host.querySelectorAll(".item")).every(item => getComputedStyle(item).backgroundColor === "rgb(0, 0, 255)")}`);
         for (const className of ["inherit", "substitute"]) {
             host.className = `changed ${className}`;

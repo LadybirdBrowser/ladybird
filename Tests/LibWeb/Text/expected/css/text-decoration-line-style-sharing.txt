@@ -1,4 +1,4 @@
 none
 none
 none
-shared computations: 2
+spans taking another's record >= 2: true

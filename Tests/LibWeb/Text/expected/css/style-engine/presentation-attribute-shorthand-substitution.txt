@@ -1,2 +1,1 @@
-C++ recomputations: 0
 font-variant-caps: all-small-caps

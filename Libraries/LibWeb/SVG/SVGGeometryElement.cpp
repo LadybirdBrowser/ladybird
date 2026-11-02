@@ -5,7 +5,6 @@
  */
 
 #include <AK/Math.h>
-#include <AK/ScopeGuard.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/DOMPointReadOnly.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
@@ -42,9 +41,8 @@ CSS::ElementBoxKind SVGGeometryElement::box_kind() const
 }
 
 // The style of an element outside the document, where no rule reaches it: the style engine cascades its own
-// presentation attributes and inline style over the initial values. The record comes back pinned for the caller, or
-// zero where the engine leaves the computation to C++.
-static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& read, CSS::StyleComputer& style_computer, DOM::Document const& document, SVGGeometryElement& element)
+// presentation attributes and inline style over the initial values, or none where the engine computes none.
+static CSS::InstalledStyle declared_only_style(Layout::BegunRead const& read, CSS::StyleComputer& style_computer, DOM::Document const& document, SVGGeometryElement& element)
 {
     auto hints = CSS::StyleComputer::collect_presentational_hint_properties({ element });
     Vector<CSS::Parser::ValueParserFFI::FfiDeclaredProperty> declarations;
@@ -57,14 +55,14 @@ static CSS::StyleRecordID declared_only_style_record(Layout::BegunRead const& re
             .name = {},
         });
     }
-    return CSS::StyleRecordID { CSS::StyleEngineFFI::style_engine_declared_only_record(
+    return CSS::InstalledStyle::adopt(CSS::StyleEngineFFI::style_engine_declared_only_record(
         style_computer.style_engine().host(),
         &read, document.style_node_id().value(),
         CSS::element_box_type_adjustment_facts(element),
         CSS::StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute,
         declarations.data(),
         declarations.size(),
-        element.inline_style_declarations()) };
+        element.inline_style_declarations()));
 }
 
 // The geometry of the element in user units, which the geometry queries such as getTotalLength() measure. It is empty
@@ -89,22 +87,21 @@ bool SVGGeometryElement::with_computed_values(Function<void(CSSPixelSize viewpor
     // NB: An element with no style is either in a subtree that is not rendered, which the style engine answers
     //     without installing anything, or outside the document, where no rule reaches it. The engine of the window's
     //     document computes the latter, as an element's own document may never have been styled, like the one
-    //     holding a template's contents.
-    auto const has_no_style_node = style_node_id() == CSS::StyleNodeID {};
-    auto& style_document = has_no_style_node ? HTML::relevant_window(*this).associated_document() : document();
+    //     holding a template's contents, whose elements have no style even where they are connected.
+    auto const computes_in_own_document = style_node_id() != CSS::StyleNodeID {} && !document().created_for_appropriate_template_contents();
+    auto& style_document = computes_in_own_document ? document() : HTML::relevant_window(*this).associated_document();
+    // NB: The engine of the window's document owns that document from its first style update, which may not have run.
+    if (!computes_in_own_document)
+        style_document.update_style();
     auto& style_computer = style_document.style_computer();
     // The style comes from the engine of the document that computes it, as that document's read.
     Layout::ForcedReadScope style_read { style_document };
-    auto record = has_no_style_node
-        ? declared_only_style_record(style_read, style_computer, style_document, *this)
-        : CSS::StyleRecordID { style_computer.style_engine().answer_record_demand(style_read, style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead).record.style_record };
-    ScopeGuard unpin_record = [&] {
-        if (has_no_style_node && !!record)
-            style_computer.unpin_style_record(record);
-    };
-    auto view = style_computer.computed_style_record_view(style_read, record);
-    if (!view)
+    auto style = computes_in_own_document
+        ? CSS::InstalledStyle { style_computer.style_engine().answer_record_demand(style_read, style_node_id(), CSS::StyleEngine::RecordDemand::ElementRead).record.host_record }
+        : declared_only_style(style_read, style_computer, style_document, *this);
+    if (!style)
         return false;
+    auto view = style_computer.computed_style_record_view(style);
     callback({ viewport_size.width(), viewport_size.height() }, *view);
     return true;
 }
@@ -114,15 +111,16 @@ bool SVGGeometryElement::with_computed_values(Function<void(CSSPixelSize viewpor
 template<typename Measure>
 static auto measure_geometry(SVGGeometryElement const& element, CSSPixelSize viewport_size, CSS::ComputedValues const& computed_values, Measure measure)
 {
+    // NB: The groups are laid out as a style record's are, so the shape reads them as the element's style.
     Array<void const*, to_underlying(CSS::StyleGroupIndex::Count)> payloads;
     for (size_t index = 0; index < payloads.size(); ++index)
         payloads[index] = computed_values.style_group_payload(static_cast<CSS::StyleGroupIndex>(index));
+    CSS::StyleRecordGroupsOverPayloads groups { payloads, computed_values.inherited_set_values(), computed_values.reset_bits() };
     auto points = Layout::svg_shape_points(element);
     static_assert(sizeof(Gfx::FloatPoint) == sizeof(Layout::RustFFI::FfiFloatPoint));
     Layout::RustFFI::FfiSvgGeometryElementShape shape {
         .geometry = Layout::svg_geometry_facts(element),
-        .payloads = payloads.data(),
-        .payload_count = payloads.size(),
+        .style = &groups,
         .points = reinterpret_cast<Layout::RustFFI::FfiFloatPoint const*>(points.data()),
         .point_count = points.size(),
         .viewport_size = viewport_size,

@@ -25,11 +25,6 @@
         const first_root = attach(document.getElementById("first"), "A");
         const second_root = attach(document.getElementById("second"), "BBBBBBBB");
         internals.updateStyle();
-        const shared_hits = () => {
-            const counters = internals.styleEngineCounters();
-            return counters.engineComputedRecordSharedHits + counters.engineComputedRecordCohortHits;
-        };
-        const before = shared_hits();
         const first = append_items(first_root);
         const second = append_items(second_root);
         internals.updateStyle();
@@ -37,7 +32,6 @@
         // The consumers of one scope's counter style share a record, as do their markers, and
         // neither answers for a consumer of the other scope's; an element naming no counter style
         // shares its record across scopes.
-        println(`consumer records shared: ${shared_hits() - before}`);
         println(`first scope's consumers share a record: ${first.every(item => record(item) === record(first[0]))}`);
         println(`second scope's consumers share a record: ${second.every(item => record(item) === record(second[0]))}`);
         println(`scopes' consumers hold different records: ${record(first[0]) !== record(second[0])}`);

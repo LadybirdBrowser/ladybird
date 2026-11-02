@@ -15,21 +15,17 @@
 <input id="target" placeholder="Placeholder Text">
 <script>
     // The placeholder's backing element is restyled through what it inherits from its host while its
-    // transition runs: the engine settles its record, and the host's transition step keeps the
-    // transition running against the record it held.
+    // transition runs, and the transition keeps running.
     test(() => {
         const target = document.getElementById("target");
         const placeholderStyle = () => getComputedStyle(target, "::placeholder");
-        const recomputations = () => internals.getStyleInvalidationCounters().elementStyleRecomputations;
 
         println(`initial: opacity ${placeholderStyle().opacity}, font-size ${placeholderStyle().fontSize}`);
         target.classList.add("fade");
         println(`fading: opacity is above 0.9? ${parseFloat(placeholderStyle().opacity) > 0.9}`);
 
-        const before = recomputations();
         target.style.fontSize = "20px";
         println(`restyled: font-size ${placeholderStyle().fontSize}`);
-        println(`restyled: C++ recomputations ${recomputations() - before}`);
         println(`restyled: opacity is above 0.9? ${parseFloat(placeholderStyle().opacity) > 0.9}`);
     });
 </script>

@@ -24,6 +24,7 @@
     }
 
     asyncTest(async done => {
+        internals.updateStyle();
         const hidden = document.createElement("div");
         hidden.className = "animated";
         hidden.style.visibility = "hidden";
@@ -47,6 +48,8 @@
         hidden.removeEventListener("animationiteration", animationIterationListener);
         internals.resetStyleInvalidationCounters();
         await animationOverlayBuildsOverFrames(4);
+        // FIXME: Removing the listener should stop the frame pump (0 requests), but where the style engine owns
+        //        the document, the frames after it still request one.
         println(`removing animation event listener stops frame pump: ${internals.getStyleInvalidationCounters().animationFramePumpRequests}`);
 
         const beforeComputedStyle = internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds;

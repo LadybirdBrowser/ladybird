@@ -87,6 +87,7 @@
 <div id="competing-transform-effects"></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         for (let i = 0; i < 4; ++i)
             await new Promise(requestAnimationFrame);
 

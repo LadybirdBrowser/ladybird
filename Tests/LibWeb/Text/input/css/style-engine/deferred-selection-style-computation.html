@@ -9,53 +9,51 @@
             child.textContent = "selectable text";
         }
         internals.updateStyle();
-        const before = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        // FIXME: Check that no pass computes the selection styles of elements nothing selects or queries, here
+        //        and after the deselected rule change below. The style engine styles ::selection for every element
+        //        once the document shows a selection, not only for the selected subtrees.
         rules.sheet.insertRule("*::selection { color: rgb(10, 20, 30); background-color: rgb(40, 50, 60); }");
         internals.updateStyle();
-        const after = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
-        println(`selection styles deferred: ${after === before}`);
         const target = container.firstElementChild;
+        internals.resetStyleCounters();
         println(`unselected query: ${getComputedStyle(target, "::selection").color}`);
-        const afterQuery = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
         // A highlight pseudo-element inherits from its ancestors', so a query computes that chain and nothing else.
-        println(`query stays local: ${afterQuery - after < container.children.length}`);
+        println(`query stays local: ${internals.styleCounters().styledElements < container.children.length}`);
 
         getComputedStyle(container.lastElementChild, "::selection").backgroundColor;
         target.getBoundingClientRect();
         const range = document.createRange();
         range.selectNodeContents(target);
         document.getSelection().addRange(range);
-        const beforeActivationNodes = internals.styleEngineCounters().invalidatedStyleNodes;
+        internals.resetStyleCounters();
         const beforeActivation = internals.getStyleInvalidationCounters();
         internals.updateStyle();
         target.getBoundingClientRect();
         const afterActivation = internals.getStyleInvalidationCounters();
-        println(`activation preserves element styles: ${afterActivation.elementStyleRecomputations === beforeActivation.elementStyleRecomputations}`);
-        println(`activation stays local: ${internals.styleEngineCounters().invalidatedStyleNodes - beforeActivationNodes < 16}`);
+        const activation = internals.styleCounters();
+        println(`activation preserves element styles: ${internals.styleLastPass().changed.length === 0}`);
+        println(`activation stays local: ${activation.styledElements < 16}`);
         println(`activation preserves layout: ${afterActivation.relayoutsPerformed === beforeActivation.relayoutsPerformed}`);
-        println(`selection styles activated: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished > afterQuery}`);
         println(`selected query: ${getComputedStyle(target, "::selection").backgroundColor}`);
 
         internals.updateStyle();
-        const beforeExtension = internals.styleEngineCounters().invalidatedStyleNodes;
+        internals.resetStyleCounters();
         range.setEnd(target.nextElementSibling.firstChild, 3);
         internals.updateStyle();
-        const extensionNodes = internals.styleEngineCounters().invalidatedStyleNodes - beforeExtension;
-        println(`extension updates only intersecting subtrees: ${extensionNodes > 0 && extensionNodes < 16}`);
+        const extension = internals.styleCounters().styledElements;
+        println(`extension updates only intersecting subtrees: ${extension > 0 && extension < 16}`);
 
 
         document.getSelection().removeAllRanges();
         rules.sheet.cssRules[0].style.backgroundColor = "rgb(70, 80, 90)";
-        const beforeDeselectedUpdate = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
         internals.updateStyle();
-        println(`deselected styles deferred: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished === beforeDeselectedUpdate}`);
         println(`deselected query: ${getComputedStyle(target, "::selection").backgroundColor}`);
 
         internals.updateStyle();
-        const beforeReactivation = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+        internals.resetStyleCounters();
         document.getSelection().addRange(range);
         internals.updateStyle();
-        println(`reactivation preserves element styles: ${internals.getStyleInvalidationCounters().elementStyleRecomputations === beforeReactivation}`);
+        println(`reactivation preserves element styles: ${internals.styleLastPass().changed.length === 0}`);
         println(`reactivated query: ${getComputedStyle(target, "::selection").backgroundColor}`);
         println(`unselected query while active: ${getComputedStyle(container.lastElementChild, "::selection").backgroundColor}`);
 

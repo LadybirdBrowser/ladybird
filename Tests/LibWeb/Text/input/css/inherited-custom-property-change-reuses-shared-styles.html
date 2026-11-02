@@ -21,13 +21,18 @@
             outer.append(child);
         }
         getComputedStyle(outer.lastChild).marginLeft;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
         outer.style.setProperty("--theme", "2px");
         println("margin after change: " + getComputedStyle(outer.lastChild).marginLeft);
         println("every child keeps its own margin: " + [...outer.children].every(child => getComputedStyle(child).marginLeft === "2px"));
+        println("every child inherits the new theme: " + [...outer.children].every(child => getComputedStyle(child).getPropertyValue("--theme") === "2px"));
         // No child reads --theme, so none of them computes its style again: the moved environment
         // reaches each child directly.
-        const counters = internals.getStyleInvalidationCounters();
-        println("children keep their styles: " + (counters.elementStyleRecomputations <= 1));
+        const counters = internals.styleCounters();
+        println("styled at most 1: " + (counters.styledElements <= 1));
+        // Of the elements styled, only #outer and the first child compute a record; every other
+        // child takes the record of one before it.
+        println("children compute no record of their own past the first: " + (counters.styledElements - counters.sharedElements - counters.reusedElements <= 2));
     });
 </script>

@@ -10,13 +10,13 @@
         internals.updateStyle();
 
         const shared = internals.styleRecordIdentity(first) === internals.styleRecordIdentity(second);
-        const before = internals.getStyleInvalidationCounters();
+        internals.resetStyleCounters();
         second.className = "changed";
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
+        const styled = internals.styleCounters().styledElements;
 
         println(`shared initial style: ${shared}`);
-        println(`longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
+        println(`styled only the changed element: ${styled <= 1}`);
         println(`first background: ${getComputedStyle(first).backgroundColor}`);
         println(`second background: ${getComputedStyle(second).backgroundColor}`);
     });

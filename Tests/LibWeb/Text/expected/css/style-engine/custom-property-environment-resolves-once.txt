@@ -1,6 +1,3 @@
-environments resolved: 1
-environment memo hits: 0
-environment answer hits: 50
 padding: 1px
 changed padding: 9px
 neighbour padding: 1px

@@ -1,3 +1,3 @@
-PASS: shadow-local replaceSync ignores matching light-DOM bystanders (at most 2 recomputations)
-PASS: shadow-local replaceSync stays bounded on subsequent updates (at most 2 recomputations)
-PASS: shadow-local replaceSync clearing the sheet stays bounded (at most 2 recomputations)
+shadow-local replaceSync ignores matching light-DOM bystanders, styled <= 2: true
+shadow-local replaceSync stays bounded on subsequent updates, styled <= 2: true
+shadow-local replaceSync clearing the sheet stays bounded, styled <= 2: true

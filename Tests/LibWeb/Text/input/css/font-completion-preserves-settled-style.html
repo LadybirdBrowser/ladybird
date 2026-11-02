@@ -25,15 +25,16 @@
         const faces = Array.from(document.fonts).filter(face => face.family === "CompletionFace");
         const loadedFace = faces.find(face => face.unicodeRange === "U+41");
         const loadingStatus = loadedFace.status;
-        const before = internals.styleEngineCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
         await loadedFace.loaded;
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
+        const after = internals.styleCounters();
         const finalWidth = target.getBoundingClientRect().width;
         println(`resident face used before completion: ${width === 20}`);
         println(`status before completion: ${loadingStatus}`);
         println(`status after completion: ${loadedFace.status}`);
-        println(`completion recomputed style: ${after.engineFullDrivesStarted !== before.engineFullDrivesStarted}`);
+        println(`completion recomputed style: ${after.passes > 0}`);
         println(`completion preserves geometry: ${finalWidth === width}`);
         println(`unused subset: ${faces.find(face => face !== loadedFace).status}`);
 

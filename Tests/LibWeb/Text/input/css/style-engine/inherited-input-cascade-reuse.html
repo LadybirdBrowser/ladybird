@@ -17,12 +17,9 @@
         internals.updateStyle();
         host.style.setProperty("--accent", "green");
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         host.style.setProperty("--accent", "blue");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
         println(`color: ${getComputedStyle(host.lastChild).color}`);
         println(`pseudo color: ${getComputedStyle(host.lastChild, "::before").color}`);
-        println(`cascade matches: ${after.cascadeMatchesBeforeCompaction - before.cascadeMatchesBeforeCompaction}`);
     });
 </script>

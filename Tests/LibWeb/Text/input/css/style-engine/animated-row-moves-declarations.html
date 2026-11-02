@@ -21,11 +21,8 @@
         };
         const measure = (label, mutation) => {
             internals.updateStyle();
-            const before = internals.getStyleInvalidationCounters();
             mutation();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}`);
             println(`${label}: ${describe()}`);
         };
         println(`before: ${describe()}`);

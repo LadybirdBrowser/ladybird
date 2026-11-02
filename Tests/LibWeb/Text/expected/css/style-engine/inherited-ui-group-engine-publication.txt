@@ -1,4 +1,2 @@
 child color scheme: dark
 dependent background changed: true
-materialized gaps: 0
-engine record publications: 3

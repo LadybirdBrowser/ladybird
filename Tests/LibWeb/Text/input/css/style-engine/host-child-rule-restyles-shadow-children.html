@@ -11,14 +11,11 @@
         }
         getComputedStyle(light).color;
         getComputedStyle(root.firstChild).color;
-        internals.resetStyleInvalidationCounters();
         const style = document.createElement("style");
         style.textContent = ":host > * { color: rgb(0, 128, 0); }";
         root.appendChild(style);
         println(`light child: ${getComputedStyle(light).color}`);
         println(`shadow child: ${getComputedStyle(root.firstChild).color}`);
         println(`shadow last child: ${getComputedStyle(root.children[24]).color}`);
-        const counters = internals.getStyleInvalidationCounters();
-        println(`reactions: ${counters.styleEnginePublishedReactions}, recomputes: ${counters.elementStyleRecomputations}`);
     });
 </script>

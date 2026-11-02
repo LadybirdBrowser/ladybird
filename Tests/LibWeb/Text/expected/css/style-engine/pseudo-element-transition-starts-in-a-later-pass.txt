@@ -1,0 +1,3 @@
+element: rgb(128, 0, 128)
+::before: rgb(128, 0, 128)
+transitions: element color, ::before color

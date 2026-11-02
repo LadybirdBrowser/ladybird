@@ -8,6 +8,7 @@
 <svg width="40" height="40"><g id="internal"><rect width="10" height="10" /></g><svg id="nested" width="10" height="10"></svg></svg>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const timeline = internals.createInternalAnimationTimeline();
         const makeAnimation = target => {
             const animation = new Animation(new KeyframeEffect(target,

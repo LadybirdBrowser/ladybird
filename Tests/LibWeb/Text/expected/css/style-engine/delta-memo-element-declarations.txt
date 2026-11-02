@@ -4,4 +4,3 @@ rgb(0, 0, 255)
 rgb(0, 128, 0)
 rgb(0, 0, 255)
 rgb(0, 0, 255)
-delta memo replays: 2

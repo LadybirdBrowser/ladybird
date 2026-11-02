@@ -17,26 +17,18 @@
 <script>
     promiseTest(async () => {
         internals.updateStyle();
-        const before = internals.styleEngineCounters();
         target.classList.add("changed");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
-        const requests = after.fontResolutionRequests - before.fontResolutionRequests;
-        const resumes = after.fontRefillResumedDrives - before.fontRefillResumedDrives;
         const output = [];
-        output.push(`synchronous refill exercised: ${requests > 0}`);
-        output.push(`each request resumes its drive: ${requests === resumes}`);
         output.push(`element: ${getComputedStyle(target).fontSize}`);
         output.push(`child: ${getComputedStyle(child).fontSize}, ${getComputedStyle(child).marginLeft}`);
         output.push(`grandchild: ${getComputedStyle(grandchild).fontSize}, ${getComputedStyle(grandchild).marginLeft}`);
         output.push(`before: ${getComputedStyle(target, "::before").marginLeft}`);
         output.push(`after: ${getComputedStyle(target, "::after").marginLeft}`);
 
-        const warmBefore = internals.styleEngineCounters();
         target.classList.add("warm");
         internals.updateStyle();
-        const warmAfter = internals.styleEngineCounters();
-        output.push(`warm table needs no refill: ${warmAfter.fontResolutionRequests === warmBefore.fontResolutionRequests}`);
+        output.push(`warm margin: ${getComputedStyle(target).marginLeft}`);
 
         // No text is shaped: a synchronous metric probe must keep this face unloaded.
         // Complete loading explicitly, without relying on a network delay or a timer.

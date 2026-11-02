@@ -1,4 +1,3 @@
-base change takes partial drive: true
 animation object survives: true
 sampled color: rgb(50, 50, 50)
 sampled opacity: 0.5

@@ -103,10 +103,8 @@
             innerLayered.insertRule("@layer inner-b, inner-a;", 0);
         });
 
-        // A topology change that moves nothing has nothing to say.
-        // FIXME: Re-appending the sheet that is already last reaches the element its rules match. The
-        //        order token is rewritten either way, so nothing notices that the order it describes
-        //        is the one it already had.
+        // A topology change that moves nothing has nothing to say: re-appending the sheet that is already
+        // last moves none of its rules against another, and changes only the style element it moved.
         plan("append a sheet that is already last", () => head.appendChild(head.lastElementChild));
     });
 </script>

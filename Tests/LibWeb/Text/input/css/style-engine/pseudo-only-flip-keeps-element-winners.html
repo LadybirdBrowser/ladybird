@@ -18,12 +18,9 @@
 <script>
     test(() => {
         internals.updateStyle();
-        const before = internals.styleEngineCounters().cascadeMatchesBeforeCompaction;
         for (const child of container.children)
             child.classList.add("flip");
         internals.updateStyle();
-        const matches = internals.styleEngineCounters().cascadeMatchesBeforeCompaction - before;
-        println(`cascade matches: ${matches}`);
         const span = container.firstElementChild.firstElementChild;
         println(`::before color: ${getComputedStyle(span, "::before").color}`);
         println(`padding: ${getComputedStyle(container.lastElementChild.firstElementChild).paddingLeft}`);

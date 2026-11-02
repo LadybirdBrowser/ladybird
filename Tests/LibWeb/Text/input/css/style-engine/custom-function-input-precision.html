@@ -11,14 +11,16 @@
         println(`initial width: ${getComputedStyle(target).width}`);
         const sheet = definitions.sheet;
 
+        internals.updateStyle();
+
+        // Each change stays selective: only the element calling the custom function restyles.
         function change(label, callback) {
-            const before = internals.getStyleInvalidationCounters();
+            internals.resetStyleCounters();
             callback();
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label} environment unchanged: ${after.styleEnvironmentVersion === before.styleEnvironmentVersion}`);
-            println(`${label} stays selective: ${after.elementStyleRecomputations - before.elementStyleRecomputations < 16}`);
+            const counters = internals.styleCounters();
             println(`${label} width: ${getComputedStyle(target).width}`);
+            println(`${label} styled: ${counters.styledElements}, full passes: ${counters.fullPasses}`);
         }
 
         change("delete", () => sheet.deleteRule(0));

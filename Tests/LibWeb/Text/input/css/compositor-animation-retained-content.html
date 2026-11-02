@@ -25,6 +25,7 @@
 <div id="transform">transform</div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const animations = document.getAnimations();
         animations.forEach(animation => animation.currentTime = 0);
 

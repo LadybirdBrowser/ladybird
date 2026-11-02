@@ -26,20 +26,17 @@
             container.appendChild(document.createElement("span")).className = "bold";
         internals.updateStyle();
 
-        internals.resetStyleInvalidationCounters();
+        internals.resetStyleCounters();
         const regularFace = new FontFace("WeightSpecific", 'url("../../../Assets/HashSansNoSpace.woff")', { weight: "400" });
         document.fonts.add(regularFace);
         await regularFace.load();
         internals.updateStyle();
 
-        // A font-environment reaction is settled by the style engine where it can be and by C++
-        // otherwise, so count both: what this test is about is how many elements were recomputed,
-        // not which side recomputed them.
-        const counters = internals.getStyleInvalidationCounters();
-        const recomputed = counters.elementStyleRecomputations + counters.engineComputedStyleRecords;
+        // Only the span with the regular weight selects the new face, so it is the only one of the
+        // 101 spans that has to be restyled.
+        const recomputed = internals.styleCounters().styledElements;
         println(`affected weight recomputed: ${recomputed > 0}`);
         println(`unaffected weights skipped: ${recomputed < 10}`);
-        println(`affected weight computed by the style engine: ${counters.engineComputedStyleRecords > 0}`);
         println(`regular face loaded: ${regularFace.status}`);
     });
 </script>

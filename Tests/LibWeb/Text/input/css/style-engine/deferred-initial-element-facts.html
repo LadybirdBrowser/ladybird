@@ -8,7 +8,6 @@
     test(() => {
         internals.updateStyle();
 
-        const beforeTemporary = internals.styleEngineCounters();
         const temporary = document.createElement("div");
         temporary.id = "temporary";
         temporary.className = "item selected";
@@ -16,8 +15,6 @@
         settled.appendChild(temporary);
         temporary.remove();
         internals.updateStyle();
-        const afterTemporary = internals.styleEngineCounters();
-        println(`temporary element facts omitted: ${afterTemporary.localFeatureDeltas === beforeTemporary.localFeatureDeltas}`);
 
         const pending = document.createElement("input");
         settled.appendChild(pending);

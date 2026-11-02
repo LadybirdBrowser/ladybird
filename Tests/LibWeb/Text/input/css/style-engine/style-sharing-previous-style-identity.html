@@ -14,14 +14,11 @@
         getComputedStyle(first).color;
         getComputedStyle(second).color;
 
-        const before = internals.getStyleInvalidationCounters();
         first.className = "shared";
         second.className = "shared";
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
 
         println(getComputedStyle(first).color);
         println(getComputedStyle(second).color);
-        println(`shared computations: ${after.elementStyleSharedComputations - before.elementStyleSharedComputations}`);
     });
 </script>

@@ -13,15 +13,6 @@
 <script>
     test(() => {
         internals.updateStyle();
-        let last = internals.styleEngineCounters();
-        const substitutions = () => {
-            const counters = internals.styleEngineCounters();
-            const resolved = (counters.engineComputedRecordSubstitutions ?? 0) - (last.engineComputedRecordSubstitutions ?? 0);
-            const memoHits = (counters.engineComputedRecordSubstitutionMemoHits ?? 0) - (last.engineComputedRecordSubstitutionMemoHits ?? 0);
-            const result = `${resolved} resolved, memoized: ${memoHits > 0}`;
-            last = counters;
-            return result;
-        };
 
         const host = document.getElementById("host");
         for (let index = 0; index < 50; ++index) {
@@ -33,21 +24,15 @@
             host.appendChild(item);
         }
         internals.updateStyle();
-        // One declaration under one environment substitutes once; later substitutions take it
-        // from the memo. Record donors can avoid some of those substitutions entirely.
-        println(`shared environment: ${substitutions()}`);
         println(`shared value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
         host.lastElementChild.style.zIndex = 100;
         internals.updateStyle();
-        println(`later transaction: ${substitutions()}`);
         println(`later transaction value: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
 
-        // A moved environment substitutes the declaration again, once, and every item takes the
-        // new value from the memo.
+        // A moved environment gives every item the new value.
         document.styleSheets[0].cssRules[0].style.setProperty("--spacing", "9px");
         internals.updateStyle();
-        println(`moved environment: ${substitutions()}`);
         println(`moved value: ${getComputedStyle(host.firstElementChild).paddingLeft}`);
         println(`moved neighbour: ${getComputedStyle(host.lastElementChild).paddingLeft}`);
     });

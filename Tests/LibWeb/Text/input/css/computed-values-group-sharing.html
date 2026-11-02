@@ -7,7 +7,7 @@
         internals.updateStyle();
 
         let info = internals.styleGroupSharingInfo(child);
-        for (const group of ["animation", "grid", "svgReset", "mask", "anchor", "content", "transform", "effects", "inheritedTable", "inheritedList", "inheritedSVG"])
+        for (const group of ["animation", "grid", "svgReset", "mask", "anchor", "content", "transform", "effects", "inheritedListTable", "inheritedSVG"])
             println(`unstyled child ${group} at default: ${info[group].isDefault}`);
 
         child.style.color = "red";
@@ -25,23 +25,21 @@
         child.style.color = "";
         internals.updateStyle();
         info = internals.styleGroupSharingInfo(child);
-        for (const group of ["inheritedList", "inheritedText", "font", "inheritedBox", "inheritedUI"])
+        for (const group of ["inheritedListTable", "inheritedText", "font", "inheritedUI"])
             println(`unstyled-again child ${group} shared with parent: ${info[group].sharedWithParent}`);
 
-        // A non-default inherited box on the parent must end up shared with the
-        // child, which inherits every field unchanged.
+        // The writing mode and visibility a child inherits unchanged are its parent's, and one it
+        // overrides is its own.
         const parent = document.getElementById("parent");
         parent.style.writingMode = "vertical-rl";
         parent.style.visibility = "hidden";
         internals.updateStyle();
-        info = internals.styleGroupSharingInfo(child);
-        println(`writing-mode parent: child inheritedBox at default: ${info.inheritedBox.isDefault}`);
-        println(`writing-mode parent: child inheritedBox shared with parent: ${info.inheritedBox.sharedWithParent}`);
+        println(`writing-mode parent: child writing-mode: ${getComputedStyle(child).writingMode}`);
+        println(`writing-mode parent: child visibility: ${getComputedStyle(child).visibility}`);
 
-        // A child that overrides one inherited box field must stop sharing.
         child.style.visibility = "visible";
         internals.updateStyle();
-        info = internals.styleGroupSharingInfo(child);
-        println(`visibility-overriding child inheritedBox shared with parent: ${info.inheritedBox.sharedWithParent}`);
+        println(`visibility-overriding child visibility: ${getComputedStyle(child).visibility}`);
+        println(`visibility-overriding child writing-mode: ${getComputedStyle(child).writingMode}`);
     });
 </script>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes first { from { opacity: 0.2 } to { opacity: 0.8 } }
+    @keyframes second { from { opacity: 0.3 } to { opacity: 0.7 } }
+    .first { animation: first 1000s linear both; }
+    .second { animation: second 1000s linear both; }
+</style>
+<div id="host"></div>
+<script>
+    // Sorting the events and animations of many siblings by composite order asks where they stand in tree order. That
+    // takes in a walk of their siblings only at first, whatever their number, and follows the tree as it changes.
+    asyncTest(async done => {
+        const total = 2000;
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < total; ++i)
+            fragment.append(document.createElement("div"));
+        host.append(fragment);
+
+        async function eventsInTreeOrder(animationName) {
+            const targets = [];
+            const allFired = new Promise(resolve => {
+                const listener = event => {
+                    if (event.animationName !== animationName)
+                        return;
+                    targets.push(event.target);
+                    if (targets.length === total) {
+                        document.removeEventListener("animationstart", listener);
+                        resolve();
+                    }
+                };
+                document.addEventListener("animationstart", listener);
+            });
+            for (const element of host.children)
+                element.className = animationName;
+            await allFired;
+            return targets.every((target, index) => target === host.children[index]);
+        }
+
+        internals.resetStyleInvalidationCounters();
+        println(`events in tree order: ${await eventsInTreeOrder("first")}`);
+        println(`after moving the last element first: ${await (async () => {
+            host.prepend(host.lastElementChild);
+            return eventsInTreeOrder("second");
+        })()}`);
+        const compares = internals.getStyleInvalidationCounters().compositeOrderDocumentPositionCompares;
+        println(`walks of the tree are bounded: ${compares <= 2000}`);
+
+        // NB: An attribute moves no element, so the tree positions the sort holds stand.
+        document.getAnimations();
+        host.firstElementChild.setAttribute("data-moved", "no");
+        internals.resetStyleInvalidationCounters();
+        document.getAnimations();
+        println(`walks of the tree after an attribute change: ${internals.getStyleInvalidationCounters().compositeOrderDocumentPositionCompares}`);
+        done();
+    });
+</script>

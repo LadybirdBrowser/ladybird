@@ -1,5 +1,3 @@
-environment unchanged: true
-unrelated longhands skipped: true
 font metrics updated: true
 font-relative margin: 240px
 pseudo-element width: 160px

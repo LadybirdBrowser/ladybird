@@ -38,7 +38,7 @@ TEST_CASE(unowned_atoms_are_released_in_one_transaction_batch)
     }
     EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), initial_fly_string_count + 256);
     auto initial_generation = engine.atom_generation();
-    (void)engine.take_style_transaction(read, root);
+    (void)engine.run_style_update(read, root);
     EXPECT_EQ(engine.atom_generation(), initial_generation + 1);
     EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), initial_fly_string_count);
 }
@@ -90,7 +90,7 @@ TEST_CASE(reclaimed_language_atoms_republish_their_text)
     EXPECT_EQ(counter_value(engine, "languageTextsPublished"sv), 1ull);
 
     engine.flush();
-    (void)engine.take_style_transaction(read, root);
+    (void)engine.run_style_update(read, root);
     engine.intern_language_atom(language.view());
 
     EXPECT_EQ(counter_value(engine, "languageTextsPublished"sv), 2ull);
@@ -114,7 +114,7 @@ TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
         engine.intern_atom(Utf16FlyString::from_utf8_without_validation(churn));
     }
     auto generation = engine.atom_generation();
-    (void)engine.take_style_transaction(read, root);
+    (void)engine.run_style_update(read, root);
     EXPECT(engine.atom_generation() > generation);
     engine.intern_atom(Utf16FlyString::from_utf8_without_validation("--replacement-property"sv));
     EXPECT_EQ(engine.intern_atom(name), atom);

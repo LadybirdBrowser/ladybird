@@ -129,11 +129,10 @@
         println(`explicit inherit initial child margin-left: ${getComputedStyle(explicitInheritChild).marginLeft}`);
 
         document.body.offsetWidth;
-        resetStyleCounters();
         explicitInheritHost.style.marginLeft = "27px";
 
         println(`explicit inherit changed child margin-left: ${getComputedStyle(explicitInheritChild).marginLeft}`);
-        printPassWithCounters("explicit inherit only marks direct shadow-root children");
+        printPass("explicit inherit only marks direct shadow-root children");
 
         const descendantExplicitInheritHost = document.getElementById("descendant-explicit-inherit-host");
         const descendantExplicitInheritGrandchild = descendantExplicitInheritHost.shadowRoot.getElementById("grandchild");
@@ -141,10 +140,9 @@
         println(`descendant explicit inherit initial grandchild margin-left: ${getComputedStyle(descendantExplicitInheritGrandchild).marginLeft}`);
 
         document.body.offsetWidth;
-        resetStyleCounters();
         descendantExplicitInheritHost.style.marginLeft = "27px";
 
         println(`descendant explicit inherit changed grandchild margin-left: ${getComputedStyle(descendantExplicitInheritGrandchild).marginLeft}`);
-        printPassWithCounters("descendant explicit inherit does not mark all ancestors");
+        printPass("descendant explicit inherit does not mark all ancestors");
     });
 </script>

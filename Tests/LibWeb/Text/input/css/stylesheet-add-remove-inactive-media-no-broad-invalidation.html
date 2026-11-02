@@ -5,15 +5,18 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
-    function verifyNoBroadReactionWasPublished(label) {
-        const reactions = internals.getStyleInvalidationCounters().styleEnginePublishedReactions;
-        if (reactions <= 1)
-            println(`PASS: ${label}`);
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function verifyStyledStaysBounded(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
         else
-            println(`FAIL: ${label} (${reactions} reactions)`);
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     test(() => {
@@ -29,12 +32,12 @@
         document.head.appendChild(inactiveStyle);
 
         getComputedStyle(target).color;
-        verifyNoBroadReactionWasPublished("inactive media stylesheet add publishes no broad reactions");
+        verifyStyledStaysBounded("inactive media stylesheet add publishes no broad reactions", 1);
 
         settleAndReset(target);
         inactiveStyle.remove();
 
         getComputedStyle(target).color;
-        verifyNoBroadReactionWasPublished("inactive media stylesheet remove publishes no broad reactions");
+        verifyStyledStaysBounded("inactive media stylesheet remove publishes no broad reactions", 1);
     });
 </script>

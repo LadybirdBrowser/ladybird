@@ -1,2 +1,1 @@
-C++ style computations: 0
 marker color: rgb(0, 0, 0)

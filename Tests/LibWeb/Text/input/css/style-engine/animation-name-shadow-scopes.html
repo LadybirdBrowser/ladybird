@@ -49,11 +49,9 @@
         ];
         internals.updateStyle();
         for (const [label, element] of cases) {
-            const before = internals.getStyleInvalidationCounters();
             element.classList.add("animating");
             internals.updateStyle();
-            const after = internals.getStyleInvalidationCounters();
-            println(`${label}: C++ recomputations ${after.elementStyleRecomputations - before.elementStyleRecomputations}, width ${getComputedStyle(element).width}, animations ${element.getAnimations().length}`);
+            println(`${label}: width ${getComputedStyle(element).width}, animations ${element.getAnimations().length}`);
         }
     });
 </script>

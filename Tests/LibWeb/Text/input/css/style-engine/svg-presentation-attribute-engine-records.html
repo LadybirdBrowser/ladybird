@@ -17,12 +17,9 @@
 
     function measure(label, mutate, rect) {
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
         rect = mutate(rect);
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
         const style = getComputedStyle(rect);
-        println(`${label}: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords} engine records, ${after.elementStyleRecomputations - before.elementStyleRecomputations} C++ recomputations`);
         println(`${label}: x ${style.x}, fill ${style.fill}, width ${style.width}`);
         return rect;
     }

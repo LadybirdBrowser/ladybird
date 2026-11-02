@@ -9,12 +9,7 @@
 <script>
     test(() => {
         internals.updateStyle();
-        // The engine computes these records itself now; C++ shares the ones it computes.
-        const settledWithoutRecomputation = () => {
-            const counters = internals.getStyleInvalidationCounters();
-            return counters.elementStyleSharedComputations + counters.engineComputedStyleRecords;
-        };
-        const before = settledWithoutRecomputation();
+        internals.resetStyleCounters();
         const nodes = [];
         for (const className of ["local", "imported"]) {
             for (let index = 0; index < 8; ++index) {
@@ -25,8 +20,8 @@
             }
         }
         internals.updateStyle();
-        const after = settledWithoutRecomputation();
-        println(`image styles share within each declaration context: ${after - before >= 14}`);
+        const counters = internals.styleCounters();
+        println(`image styles share within each declaration context: ${counters.sharedElements + counters.reusedElements >= 14}`);
 
         function checkImages(label) {
             const correct = nodes.every(node => {

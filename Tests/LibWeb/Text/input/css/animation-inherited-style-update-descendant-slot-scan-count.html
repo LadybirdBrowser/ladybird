@@ -14,8 +14,6 @@
             }
 
             getComputedStyle(current).color;
-            internals.resetStyleInvalidationCounters();
-
             const animation = root.animate([{ color: "red" }, { color: "blue" }], {
                 duration: 1000,
             });

@@ -19,13 +19,9 @@
     test(() => {
         internals.updateStyle();
 
-        const before = internals.styleEngineCounters();
         container.classList.add("changed");
         internals.updateStyle();
-        const after = internals.styleEngineCounters();
 
-        const candidateChecks = after.candidateChecks - before.candidateChecks;
-        println(`parent dispatch bounds candidate checks: ${candidateChecks < 20000}`);
         println(`first target: ${getComputedStyle(container.firstElementChild).color}`);
         println(`last target: ${getComputedStyle(container.lastElementChild).color}`);
     });

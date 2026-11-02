@@ -6,15 +6,18 @@
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
-        internals.resetStyleInvalidationCounters();
+        internals.updateStyle();
+        internals.resetStyleCounters();
     }
 
-    function verifyRecomputationsStayBounded(label, maximum) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations <= maximum)
-            println(`PASS: ${label}`);
+    // Print whether the style engine styled at most `maximum` elements since its counters were reset, or,
+    // without a bound, how many it styled.
+    function verifyStyledStaysBounded(label, maximum) {
+        const styled = internals.styleCounters().styledElements;
+        if (maximum === undefined)
+            println(`${label}, styled: ${styled}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`${label}, styled <= ${maximum}: ${styled <= maximum}`);
     }
 
     function attachSlotShadowRoot(host) {
@@ -44,11 +47,11 @@
         settleAndReset(target);
         shadowRootA.appendChild(shadowStyle);
         getComputedStyle(target).color;
-        verifyRecomputationsStayBounded("slotted stylesheet add ignores matching bystanders outside the current host", 4);
+        verifyStyledStaysBounded("slotted stylesheet add ignores matching bystanders outside the current host", 4);
 
         settleAndReset(target);
         shadowStyle.remove();
         getComputedStyle(target).color;
-        verifyRecomputationsStayBounded("slotted stylesheet remove ignores matching bystanders outside the current host", 4);
+        verifyStyledStaysBounded("slotted stylesheet remove ignores matching bystanders outside the current host", 4);
     });
 </script>

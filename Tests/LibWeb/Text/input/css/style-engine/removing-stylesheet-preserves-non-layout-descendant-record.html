@@ -23,17 +23,6 @@
         });
 
         const churnTarget = document.getElementById("churn-target");
-        let churnIndex = 1;
-        const churnOnce = () => {
-            churnTarget.dataset.color = `rgb(${churnIndex & 255}, ${(churnIndex >> 8) & 255}, ${(churnIndex >> 16) & 255})`;
-            ++churnIndex;
-            internals.updateStyle();
-        };
-
-        const sweepKey = () => {
-            const counters = internals.styleEngineCounters();
-            return `${counters.computedGroupsRetained}:${counters.computedGroupsReachable}`;
-        };
 
         const container = document.createElement("div");
         const link = document.createElement("link");
@@ -77,29 +66,7 @@
         const pseudoColor = getComputedStyle(pseudoTarget, "::before").color;
         const fontLoadPromise = document.fonts.load("16px SlowAhem", "X").catch(() => {});
 
-        let sweepInterval = 0;
-        let sweeps = 0;
-        let iterationsSinceSweep = 0;
-        let lastSweepKey = sweepKey();
-        for (let count = 0; count < 20000; ++count) {
-            churnOnce();
-            ++iterationsSinceSweep;
-            const currentSweepKey = sweepKey();
-            if (currentSweepKey !== lastSweepKey) {
-                ++sweeps;
-                sweepInterval = iterationsSinceSweep;
-                iterationsSinceSweep = 0;
-                lastSweepKey = currentSweepKey;
-                if (sweeps === 2)
-                    break;
-            }
-        }
-        for (let count = 1; count < sweepInterval; ++count)
-            churnOnce();
-
         println(`font status before removal: ${document.fonts.status}`);
-        println(`live overlays before removal: ${internals.styleEngineCounters().liveAnimationOverlayRecords}`);
-        println(`prepared style-record activity before removal: ${sweeps === 2}`);
         println(`later link has style record before removal: ${internals.styleRecordIdentity(laterLink) !== 0}`);
         println(`later link has layout before removal: ${internals.layoutNodeIdentity(laterLink) !== 0}`);
         println(`non-layout pseudo-element has computed style before removal: ${pseudoColor === "rgb(7, 8, 9)"}`);
@@ -107,7 +74,7 @@
         println(`shadow link has layout before removal: ${internals.layoutNodeIdentity(shadowLaterLink) !== 0}`);
 
         await new Promise(requestAnimationFrame);
-        churnTarget.dataset.color = `rgb(${churnIndex & 255}, ${(churnIndex >> 8) & 255}, ${(churnIndex >> 16) & 255})`;
+        churnTarget.dataset.color = "rgb(1, 2, 3)";
         container.remove();
         println("PASS (did not crash)");
 

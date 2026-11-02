@@ -1,0 +1,10 @@
+focused: first rgb(0, 128, 0), wrapper rgb(0, 128, 0), second rgb(255, 0, 0)
+in blur: active BODY, first false, wrapper false
+in blur: first rgb(255, 0, 0), wrapper rgb(255, 0, 0), second rgb(255, 0, 0)
+moved: first rgb(255, 0, 0), wrapper rgb(255, 0, 0), second rgb(0, 128, 0)
+blurred: first rgb(255, 0, 0), wrapper rgb(255, 0, 0), second rgb(255, 0, 0)
+keeper in blur: false, target none
+keeper: active target, target block
+in blur: active BODY, first false, wrapper false
+in blur: first rgb(255, 0, 0), wrapper rgb(255, 0, 0), second rgb(255, 0, 0)
+moved back: active first, first rgb(0, 128, 0), wrapper rgb(0, 128, 0)

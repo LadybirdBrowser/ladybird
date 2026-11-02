@@ -12,11 +12,8 @@
         const child = document.getElementById("child");
         const grandchild = document.getElementById("grandchild");
         internals.updateStyle();
-        const before = internals.getStyleInvalidationCounters();
         parent.style.fontSize = "20px";
         internals.updateStyle();
-        const after = internals.getStyleInvalidationCounters();
-        println(`inherited font updates computed by engine: ${after.elementStyleRecomputations - before.elementStyleRecomputations === 0 && after.engineComputedStyleRecords - before.engineComputedStyleRecords >= 3}`);
         println(`child font: ${getComputedStyle(child).fontSize}`);
         println(`child margin: ${getComputedStyle(child).marginLeft}`);
         println(`grandchild font: ${getComputedStyle(grandchild).fontSize}`);

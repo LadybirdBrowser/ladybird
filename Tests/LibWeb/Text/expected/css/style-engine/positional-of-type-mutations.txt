@@ -1,4 +1,4 @@
 other type leaves (subject): []
-same type leaves (subject): [subject]
+same type leaves (subject): [subject, target]
 other type leaves (descendant): []
 same type leaves (descendant): [target]

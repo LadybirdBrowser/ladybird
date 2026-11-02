@@ -4,29 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Applying the reactions of a style transaction to the elements they name.
+//! Applying the reactions of a style update to the elements they name.
 //!
-//! The engine decides what each reaction installs: the record it settled, a record it demands now, or nothing, where
-//! it refuses the reaction. The host installs a record on its element, runs the element's animations and transitions,
+//! The engine decides what each reaction installs: the record it settled, or a record it demands now. The host installs a record on its element, runs the element's animations and transitions,
 //! invalidates its layout, and reports what the installation did, from which the engine derives the reactions of the
 //! element's children.
 
 use super::StyleNodeID;
-use super::boundary::StyleChange;
-use super::bridge::{
-    FfiEngineComputedRecord, FfiRecordDemand, FfiStyleDelta, FfiStyleDeltaDamage, FfiStyleDeltaGap,
-    FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS, close_style_reactions_over_inheritance,
-    sort_style_deltas_for_direct_application,
-};
-use super::engine_calls::{
-    absorb_element_style_input, has_deferred_element_style_input, note_bound_failure_trace, with_engine,
-};
-use super::publication::RecordDemand;
-use super::transaction::{
-    STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
-    STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES, STYLE_REACTION_RECOMPUTE_STYLE,
-};
-use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
+use super::engine_calls::{has_deferred_element_style_input, with_engine};
+use super::pipeline::install::{StyleInstallation, StyleSwap};
+use super::pipeline::main_effects::InstalledElementEffects;
+use crate::render_state::{BegunRead, DocumentHost};
 
 /// A `Web::DOM::Element`, which Rust names by pointer only.
 #[repr(C)]
@@ -54,20 +42,6 @@ impl HostElementPtr {
     }
 }
 
-/// The custom-property environment an engine-computed record was published with, as it stands to the one the element
-/// inherits now.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-#[expect(dead_code, reason = "C++ constructs the variants")]
-pub enum FfiRecordEnvironment {
-    /// The engine resolved no environment for the record over the one the element inherits.
-    Uninstallable = 0,
-    /// The environment the element inherits.
-    Inherited = 1,
-    /// An environment the engine resolved over the one the element inherits.
-    ResolvedOverInherited = 2,
-}
-
 /// The element a style node names, as the host holds it while it applies a reaction to it.
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -79,8 +53,6 @@ pub struct FfiReactionElement {
     pub connected: bool,
     pub has_style: bool,
     pub style_record: u64,
-    /// Whether the element's style reads its custom-property environment through `var()` or `inherit()`.
-    pub reads_environment: bool,
     /// Whether the style the element holds has display:none.
     pub display_none: bool,
 }
@@ -115,44 +87,6 @@ pub enum FfiTargetedStyleAnswer {
     NeedsStyleUpdate,
 }
 
-/// What a targeted update of an element in an inheritance chain did, for the elements below it.
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
-pub struct FfiTargetedStyleReaction {
-    /// The update moved what the element's descendants inherit or how their boxes are built.
-    pub descendants_need_recompute: bool,
-    /// The update asks for the element's descendants to compute their styles again.
-    pub recompute_descendant_styles: bool,
-}
-
-/// What moving a pseudo-element from one record to another damages, where the engine answered it.
-#[derive(Clone, Copy, Default)]
-#[repr(C)]
-pub struct FfiPseudoRecordDamage {
-    pub old_style_record: u64,
-    pub new_style_record: u64,
-    /// An `FfiStyleInvalidationField` word with `EngineComputed` set, or zero where the engine answered nothing.
-    pub damage: u32,
-}
-
-/// A record the host installs on an element, as one the engine computed, with the pseudo-element records beside it.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiRecordInstallation {
-    /// The element's reaction, holding the record and what it says about the installation.
-    pub delta: FfiStyleDelta,
-    /// Whether the host acknowledges the record to the engine once it holds it.
-    pub acknowledge: bool,
-    /// What moving the element from the reaction's old record to its new one damages, where the engine answered it: an
-    /// `FfiStyleInvalidationField` word with `EngineComputed` set, or zero.
-    pub damage: u32,
-    /// The synthetic pseudo-element kinds whose records install beside the element's, as a bit per kind; a present
-    /// slot holding zero is a removal.
-    pub pseudo_records_present: u16,
-    pub pseudo_records: [u64; PSEUDO_RECORD_SLOTS],
-    pub pseudo_damages: [FfiPseudoRecordDamage; PSEUDO_RECORD_SLOTS],
-}
-
 /// What the reaction passes of a style update did, for the host's counters.
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
@@ -162,75 +96,28 @@ pub struct FfiStyleReactionCounts {
     pub batch_runs: u32,
     pub reaction_elements: u32,
     pub published_reactions: u32,
-    pub materialized_gaps: u32,
-    pub record_deltas_applied: u32,
     pub pass_guard_hits: u32,
     pub apply_microseconds: u64,
 }
 
-/// A style transaction the host took, whose reactions live until the host takes the next one.
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiTakenStyleTransaction {
-    pub reactions: *const FfiStyleDelta,
-    pub count: usize,
-    pub scoped: bool,
-    /// The transaction holds nothing but the child reactions the engine derived from the reactions the host applied
-    /// last: one more generation of the same style change, not a new one.
-    pub only_derived_child_reactions: bool,
-    /// The elements connected to the document as the transaction was taken.
-    pub connected_element_count: u32,
-}
-
 unsafe extern "C" {
-    fn web_css_republish_moved_environment(
-        application: *mut HostStyleReactionApplication,
-        node: u32,
-        style_record: u64,
-        replaced: u64,
-        new_inheritable: *const std::ffi::c_void,
-    );
-    fn web_css_rebuild_custom_property_environment(
-        application: *mut HostStyleReactionApplication,
-        node: u32,
-        new_inheritable: *const std::ffi::c_void,
-    );
     fn web_css_style_inheritance_parent(
         application: *mut HostStyleReactionApplication,
         element: *mut HostElement,
     ) -> FfiReactionElement;
-    fn web_css_apply_targeted_style_reaction(
-        application: *mut HostStyleReactionApplication,
-        element: *mut HostElement,
-        installation: *const FfiRecordInstallation,
-        descendant_style_recompute_needed: bool,
-    ) -> FfiTargetedStyleReaction;
-    fn web_css_take_style_transaction(
-        application: *mut HostStyleReactionApplication,
-        flown: bool,
-    ) -> FfiTakenStyleTransaction;
-    fn web_css_has_pending_style_transaction(application: *mut HostStyleReactionApplication) -> bool;
+    fn web_css_run_style_update(application: *mut HostStyleReactionApplication, flown: bool);
+    fn web_css_has_pending_style_update(application: *mut HostStyleReactionApplication) -> bool;
     fn web_css_note_style_update_has_reactions(application: *mut HostStyleReactionApplication);
     fn web_css_sample_animations_for_style_update(application: *mut HostStyleReactionApplication);
     fn web_css_begin_style_update_pass(application: *mut HostStyleReactionApplication, first: bool);
     fn web_css_style_reaction_element(application: *mut HostStyleReactionApplication, node: u32) -> FfiReactionElement;
-    fn web_css_parent_style_has_animated_values(element: *mut HostElement) -> bool;
-    fn web_css_engine_record_environment(
+    fn web_css_install_styles(
         application: *mut HostStyleReactionApplication,
-        element: *mut HostElement,
-        style_record: u64,
-    ) -> FfiRecordEnvironment;
-    fn web_css_record_derived_element_style_input(
-        application: *mut HostStyleReactionApplication,
-        node: u32,
-        reaction: u8,
-        groups: u8,
-    );
-    fn web_css_apply_style_reaction(
-        application: *mut HostStyleReactionApplication,
-        element: *mut HostElement,
-        reaction: u8,
-        installation: *const FfiRecordInstallation,
+        swaps: *const StyleSwap,
+        swap_count: usize,
+        effects: *const InstalledElementEffects,
+        effect_count: usize,
+        document_damage: u32,
     );
 }
 
@@ -248,353 +135,20 @@ impl Application<'_> {
         unsafe { web_css_style_reaction_element(self.host_application, node) }
     }
 
-    fn record_environment_is_installable(
-        self,
-        element: &FfiReactionElement,
-        node: StyleNodeID,
-        style_record: u64,
-    ) -> bool {
-        // SAFETY: As above, and the element is live while its reaction is applied.
-        let environment =
-            unsafe { web_css_engine_record_environment(self.host_application, element.element.0, style_record) };
-        match environment {
-            FfiRecordEnvironment::Uninstallable => false,
-            FfiRecordEnvironment::Inherited => true,
-            // Only an element whose cascade declares custom properties holds an environment the engine resolved over
-            // the one it inherits. An element declaring none holds exactly what it inherits: its record was resolved
-            // over the parent's environment before an earlier reaction of the batch moved it.
-            FfiRecordEnvironment::ResolvedOverInherited => with_engine(self.read, self.host, |engine| {
-                engine.node_declares_custom_properties(node)
-            }),
-        }
-    }
-
-    fn apply(self, element: &FfiReactionElement, reaction: u8, installation: Option<&FfiRecordInstallation>) {
-        let installation = installation.map_or(std::ptr::null(), std::ptr::from_ref);
-        // SAFETY: As above.
-        unsafe { web_css_apply_style_reaction(self.host_application, element.element.0, reaction, installation) };
-    }
-
-    /// The engine's answer to a targeted demand for the element's record, where the host can install it. The engine
-    /// resolved the record's environment over the parent's own; where the parent's inheritable environment differs,
-    /// it takes back what the demand derived.
-    fn answer_record_demand(self, element: &FfiReactionElement, node: StyleNodeID) -> Option<FfiEngineComputedRecord> {
-        let demand = RecordDemand::Element(FfiRecordDemand::TargetedElement);
-        let mut refusal = None;
-        let answer = with_engine(self.read, self.host, |engine| {
-            let answer = engine.answer_record_demand(node, demand);
-            if let Err(unanswered) = &answer {
-                refusal = Some(*unanswered);
+    /// A targeted update of `node`: the engine computes the record it demands for the element now, and the host takes
+    /// the installation of that record as it takes a style update's. Answers whether the engine could: where it could
+    /// not, the element keeps what it holds until the next style update.
+    fn demand(self, node: StyleNodeID) -> bool {
+        let Some(installation) = with_engine(self.read, self.host, |engine| engine.demand_installation(node)) else {
+            return false;
+        };
+        self.install_styles(&installation);
+        with_engine(self.read, self.host, |engine| {
+            for &record in &installation.pinned_records {
+                engine.unpin_layout_style_record(record);
             }
-            super::bridge::ffi_record_demand_answer(engine, node, demand.is_read_only(), answer)
-        })
-        .record;
-        if let Some(unanswered) = refusal {
-            note_bound_failure_trace(self.host, || format!("unanswered:{unanswered:?}"));
-        }
-        if answer.style_record == 0 {
-            note_bound_failure_trace(self.host, || "demand:none".to_string());
-            return None;
-        }
-        if !self.record_environment_is_installable(element, node, answer.style_record) {
-            note_bound_failure_trace(self.host, || format!("demand:uninstallable:{}", answer.style_record));
-            self.host
-                .queue_change(ArenaChange::Style(StyleChange::AbandonDemandedRecords {
-                    node: Some(node),
-                }));
-            return None;
-        }
-        note_bound_failure_trace(self.host, || format!("demand:record:{}", answer.style_record));
-        Some(answer)
-    }
-
-    /// The engine declined the reaction. Nothing else computes styles: the element keeps the record it holds. The
-    /// engine answers no demand below an ancestor that owes a style input, such as one whose custom-property animations
-    /// published new values as an earlier reaction of the batch installed its record. That ancestor's style moves in
-    /// the next transaction, so the reaction is owed to it too, which orders it after the ancestor's.
-    fn refuse(self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
-        let ancestor_owes_style_input = with_engine(self.read, self.host, |engine| {
-            std::iter::successors(engine.retained.tree.inheritance_parent(node), |&ancestor| {
-                engine.retained.tree.inheritance_parent(ancestor)
-            })
-            .any(|ancestor| engine.has_deferred_element_style_input(ancestor))
         });
-        note_bound_failure_trace(self.host, || {
-            format!(
-                "refuse:{}",
-                if ancestor_owes_style_input {
-                    "ancestor-owes"
-                } else {
-                    "consume"
-                }
-            )
-        });
-        if ancestor_owes_style_input {
-            // SAFETY: The host lends its application for the call that applies the batch.
-            unsafe {
-                web_css_record_derived_element_style_input(
-                    self.host_application,
-                    node.raw(),
-                    reaction,
-                    inherited_style_groups,
-                );
-            }
-            return;
-        }
-        self.host
-            .queue_change(ArenaChange::Style(StyleChange::ConsumeElementStyleInput {
-                node: Some(node),
-            }));
-    }
-
-    /// A reaction the engine did not settle in its transaction, or a targeted update: the record the engine demands
-    /// for the element now, which installs as one the engine computed, moving the element from the record it holds. A
-    /// refused demand refuses the reaction.
-    fn demand(
-        self,
-        element: &FfiReactionElement,
-        node: StyleNodeID,
-        reaction: u8,
-        inherited_style_groups: u8,
-    ) -> Option<FfiRecordInstallation> {
-        let Some(answer) = self.answer_record_demand(element, node) else {
-            self.refuse(node, reaction, inherited_style_groups);
-            return None;
-        };
-        let mut delta = FfiStyleDelta::unsettled(node, 0);
-        delta.old_style_record = element.style_record;
-        let mut installation = FfiRecordInstallation::new(delta, true);
-        installation.settle(&answer);
-        Some(installation)
-    }
-}
-
-impl FfiStyleDelta {
-    /// Leaves the reaction to the host to answer from the element's record demand.
-    fn unsettle(&mut self) {
-        self.gap = FfiStyleDeltaGap::Materialize;
-        self.new_style_record = 0;
-        self.damage = FfiStyleDeltaDamage::None;
-    }
-
-    /// What moving to the reaction's record damages, where the engine answered it.
-    fn answered_damage(&self) -> u32 {
-        if self.record_damage & FfiStyleInvalidationField::EngineComputed as u32 != 0 {
-            self.record_damage
-        } else {
-            0
-        }
-    }
-}
-
-impl FfiRecordInstallation {
-    fn new(delta: FfiStyleDelta, acknowledge: bool) -> Self {
-        Self {
-            damage: delta.answered_damage(),
-            delta,
-            acknowledge,
-            pseudo_records_present: 0,
-            pseudo_records: [0; PSEUDO_RECORD_SLOTS],
-            pseudo_damages: [FfiPseudoRecordDamage::default(); PSEUDO_RECORD_SLOTS],
-        }
-    }
-
-    /// Installs the record the engine settled for the reaction by a demand, with the pseudo-element records it settled
-    /// beside it.
-    fn settle(&mut self, record: &FfiEngineComputedRecord) {
-        let delta = &mut self.delta;
-        delta.new_style_record = record.style_record;
-        delta.uses_substitution = record.uses_substitution;
-        delta.record_reads = record.record_reads;
-        delta.explicitly_inherited_groups = record.explicitly_inherited_groups;
-        delta.owes_an_animation_plan = record.owes_an_animation_plan;
-        delta.owes_a_transition_step = record.owes_a_transition_step;
-        delta.composed_by_the_host = record.composed_by_the_host;
-        delta.damage = FfiStyleDeltaDamage::Full;
-        delta.gap = FfiStyleDeltaGap::Computed;
-        delta.record_damage = 0;
-        self.damage = 0;
-        self.pseudo_records_present = record.pseudo_records_present;
-        self.pseudo_records = record.pseudo_records;
-    }
-
-    /// Installs the record of a pseudo-element reaction the batch published beside the element's.
-    fn add_pseudo_element_delta(&mut self, delta: &FfiStyleDelta) {
-        let kind = usize::from(delta.pseudo_kind);
-        self.pseudo_records_present |= 1 << kind;
-        self.pseudo_records[kind] = delta.new_style_record;
-        self.pseudo_damages[kind] = FfiPseudoRecordDamage {
-            old_style_record: delta.old_style_record,
-            new_style_record: delta.new_style_record,
-            damage: delta.answered_damage(),
-        };
-    }
-}
-
-/// Applies `reactions` in preorder, so every element's inheritance inputs are ready when it is applied. What an
-/// applied element's change means for its (flat-tree) children is the engine's to derive: it reads each application
-/// and derives the children's reactions as the next transaction of this style update.
-fn apply_style_reactions(
-    application: Application<'_>,
-    reactions: &[FfiStyleDelta],
-    counts: &mut FfiStyleReactionCounts,
-) {
-    let Application { host, read, .. } = application;
-    let _noting = host.engine_memo().note_declaration_changes_during_apply();
-    for (index, published) in reactions.iter().enumerate() {
-        // A pseudo-element record installs with its element's, which leads it. An element the engine answered as
-        // hidden needs no style until a read or its subtree's reveal asks for one.
-        if published.pseudo_kind != u8::MAX || published.gap == FfiStyleDeltaGap::Hidden {
-            continue;
-        }
-        let element = application.element(published.style_node);
-        if element.element.is_null() {
-            continue;
-        }
-        let node = StyleNodeID::from_raw(published.style_node).expect("a style reaction names an element");
-        let mut delta = *published;
-
-        // A host that rewrote the element's declarations while an earlier reaction was applied (a form control
-        // restyling its shadow tree as its own style moves) leaves the record the engine computed from the old ones:
-        // it is answered from its demand, over the declarations as they are now.
-        if delta.gap == FfiStyleDeltaGap::Computed && host.engine_memo().declarations_changed_during_apply(node) {
-            delta.unsettle();
-            delta.reaction |= STYLE_REACTION_RECOMPUTE_STYLE;
-        }
-
-        // NB: An earlier reaction's environment move can republish the record an element holds over the moved
-        //     environment. A swap of its inherited groups computed over the record it held before would undo the move:
-        //     the reaction is
-        //     answered from its demand, over the record the element holds now.
-        if delta.gap == FfiStyleDeltaGap::None && element.has_style && delta.old_style_record != element.style_record {
-            delta.unsettle();
-        }
-
-        // A reaction the engine derived for this element while applying an earlier one in this batch joins the
-        // element's own reaction where it covers it, which a demand for the element's record always does.
-        let absorbed = absorb_element_style_input(
-            host,
-            read,
-            node,
-            delta.reaction,
-            delta.inherited_style_groups,
-            delta.gap == FfiStyleDeltaGap::Materialize,
-        );
-        if absorbed != 0 {
-            delta.reaction = absorbed as u8;
-            delta.inherited_style_groups = (absorbed >> 8) as u8;
-        }
-
-        // An engine-computed record installs on an element without style as a first record does, its style cleared on
-        // entry to display:none included; other record deltas assume the style they move.
-        // NB: A reaction that only lets an ancestor's reactions reach its descendants computes nothing of its own. If
-        //     an earlier display:none reaction cleared its style and no derived input reached it, leave it unstyled
-        //     until a read or reveal.
-        if !element.has_style
-            && (delta.gap == FfiStyleDeltaGap::None
-                || (delta.gap == FfiStyleDeltaGap::Materialize && delta.reaction == 0))
-        {
-            continue;
-        }
-
-        let needs_regular_style_recompute = delta.reaction
-            & (STYLE_REACTION_PUBLISHED_STYLE
-                | STYLE_REACTION_RECOMPUTE_STYLE
-                | STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES
-                | STYLE_REACTION_ANCESTOR_BECAME_VISIBLE)
-            != 0;
-        let needs_custom_property_recompute = delta.reaction & STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES != 0;
-        let needs_inherited_style_recompute = delta.reaction & STYLE_REACTION_INHERITED_STYLE != 0;
-        // An element declaring custom properties of its own layers them over the environment it inherits, which its
-        // cascade decides.
-        let computes_style = needs_regular_style_recompute
-            || needs_inherited_style_recompute
-            || (needs_custom_property_recompute
-                && (element.reads_environment
-                    || with_engine(read, host, |engine| engine.node_declares_custom_properties(node))));
-
-        // A reaction the engine did not settle in its transaction, and that computes the element's style, is answered
-        // from its record demand, as a targeted update of the element is: the record installs as one the engine
-        // computed, moving the element from the record it holds.
-        let mut installation = None;
-        if delta.gap == FfiStyleDeltaGap::Materialize
-            && computes_style
-            && let Some(answer) = application.answer_record_demand(&element, node)
-        {
-            delta.old_style_record = element.style_record;
-            let mut demanded = FfiRecordInstallation::new(delta, true);
-            demanded.settle(&answer);
-            delta = demanded.delta;
-            installation = Some(demanded);
-        }
-
-        if delta.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
-            counts.published_reactions += 1;
-        }
-        if delta.gap == FfiStyleDeltaGap::Materialize {
-            if delta.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0 {
-                counts.materialized_gaps += 1;
-            }
-            assert!(delta.new_style_record == 0 && delta.damage == FfiStyleDeltaDamage::None);
-        } else {
-            counts.record_deltas_applied += 1;
-            // An engine-computed record is the engine's current answer for the element, which may have skipped a
-            // delta the host never installed; it is applied against whatever the element holds now.
-            assert!(delta.gap == FfiStyleDeltaGap::Computed || delta.old_style_record == element.style_record);
-            assert!(delta.new_style_record != 0 && delta.damage == FfiStyleDeltaDamage::Full);
-        }
-
-        let installation = match delta.gap {
-            FfiStyleDeltaGap::None => {
-                assert!(!needs_regular_style_recompute && needs_inherited_style_recompute);
-                assert!(!needs_custom_property_recompute);
-                // The engine swapped the element's inherited groups for its parent's: the record installs as an
-                // engine record. The engine refuses the swap to an element that animates, declares transitions, or
-                // inherits from an animating parent. A parent this batch installed may have taken animated values
-                // from its own ancestors since the engine swapped, which the element inherits in place of the base
-                // ones: the reaction is answered from its demand.
-                // SAFETY: The element is live while its reaction is applied.
-                if unsafe { web_css_parent_style_has_animated_values(element.element.0) } {
-                    application.demand(&element, node, delta.reaction, delta.inherited_style_groups)
-                } else {
-                    Some(FfiRecordInstallation::new(delta, false))
-                }
-            }
-            FfiStyleDeltaGap::Computed => {
-                // The engine computed the new record from this element's moved cascade winners, from its parent's
-                // moved inherited style or display, or from its moved inherited custom-property environment.
-                assert!(
-                    needs_regular_style_recompute || needs_inherited_style_recompute || needs_custom_property_recompute
-                );
-                // A demand settled the pseudo-elements beside the element's record; the reactions the batch published
-                // beside the element's moved from a record the demand replaced.
-                let installation = installation.unwrap_or_else(|| {
-                    let mut installation = FfiRecordInstallation::new(delta, true);
-                    reactions[index + 1..]
-                        .iter()
-                        .take_while(|next| next.style_node == delta.style_node && next.pseudo_kind != u8::MAX)
-                        .for_each(|pseudo_delta| installation.add_pseudo_element_delta(pseudo_delta));
-                    installation
-                });
-                if application.record_environment_is_installable(&element, node, delta.new_style_record) {
-                    Some(installation)
-                } else {
-                    // The engine resolved the record's environment over the parent's own, which an earlier reaction of
-                    // the batch moved: the reaction is answered from a fresh demand.
-                    application.demand(&element, node, delta.reaction, delta.inherited_style_groups)
-                }
-            }
-            // The engine declined the reaction's demand above.
-            _ if computes_style => {
-                application.refuse(node, delta.reaction, delta.inherited_style_groups);
-                None
-            }
-            // A reaction that owes only a moved inherited environment on an element whose style reads none has nothing
-            // left for the host: the engine moved the element's environment, and the record over it, when its
-            // parent's moved.
-            _ => None,
-        };
-        application.apply(&element, delta.reaction, installation.as_ref());
+        true
     }
 }
 
@@ -603,152 +157,119 @@ fn apply_style_reactions(
 const MAX_STYLE_UPDATE_PASSES: u32 = 8;
 
 impl Application<'_> {
-    /// Takes the next style transaction of the update, the one computed beside the event loop first where the update
-    /// drains it, and
-    /// answers the reactions naming an element into `reactions`, and whether the batch is dense enough to match
-    /// broadly.
-    fn take_transaction(self, flown: bool, reactions: &mut Vec<FfiStyleDelta>) -> (bool, bool) {
-        let taken = {
+    /// Takes the next style update of the host's update_style(), the one computed beside the event loop first where it
+    /// drains it, and answers the style installation the render side made of it for the host to swap in.
+    fn take_transaction(self, flown: bool) -> StyleInstallation {
+        {
             let _taking = self.host.engine_memo().take_transactions_to_apply();
             // SAFETY: The host lends its application for the call that updates the style.
-            unsafe { web_css_take_style_transaction(self.host_application, flown) }
-        };
-        // SAFETY: The host's transaction lives until it takes the next one.
-        let taken_reactions = unsafe { super::bridge::borrow(taken.reactions, taken.count) };
-        reactions.clear();
-        for reaction in taken_reactions {
-            // The complete answer remains in the engine's transaction scratch under this node, which the reaction
-            // names. An element removed while the transaction was computed beside the event loop has no style to
-            // install: its removal is the next transaction's.
-            if self.element(reaction.style_node).element.is_null() {
-                let node = StyleNodeID::from_raw(reaction.style_node).expect("a style reaction names an element");
-                assert!(
-                    self.host
-                        .engine_memo()
-                        .beside_flown_transaction
-                        .borrow()
-                        .contains(&node)
-                );
-                continue;
-            }
-            reactions.push(*reaction);
+            unsafe { web_css_run_style_update(self.host_application, flown) };
         }
-        // A reaction can name an element created by editing after its new inheritance parent was inserted, and an
-        // element between a reaction and an ancestor that reacts too needs a reaction of its own for the reactions the
-        // ancestor derives to reach the reaction. The engine closes a transaction's reactions over both as it computes
-        // them, and orders them for application in preorder: every parent is ready before its descendants, and a
-        // parent's derived reaction can merge into an unconsumed child reaction in the same batch. The reactions of a
-        // transaction computed beside the event loop close only as the host drains them, over the elements it has now.
-        if flown {
-            let beside_flown_transaction = self.host.engine_memo().beside_flown_transaction.borrow();
-            with_engine(self.read, self.host, |engine| {
-                if close_style_reactions_over_inheritance(engine, reactions, &beside_flown_transaction) {
-                    sort_style_deltas_for_direct_application(engine, reactions);
-                }
-            });
+        self.host.take_transaction_installation().unwrap_or_default()
+    }
+
+    /// Has the host swap in the styles of `installation`, a style installation, and perform their side effects.
+    fn install_styles(self, installation: &StyleInstallation) {
+        // SAFETY: The host lends its application for the call that updates the style, and the slices live for it.
+        unsafe {
+            web_css_install_styles(
+                self.host_application,
+                installation.swaps.as_ptr(),
+                installation.swaps.len(),
+                installation.effects.as_ptr(),
+                installation.effects.len(),
+                installation.document_damage,
+            );
         }
-        // A reaction batch covering more than one sixteenth of the connected elements is dense enough that packing
-        // the scope once is cheaper than repeatedly reconstructing cold element state while matching its elements.
-        let prefers_broad_matching_batch =
-            !taken.scoped || reactions.len() * 16 > taken.connected_element_count as usize;
-        (prefers_broad_matching_batch, taken.only_derived_child_reactions)
     }
 
     fn has_pending_transaction(self) -> bool {
         // SAFETY: As above.
-        unsafe { web_css_has_pending_style_transaction(self.host_application) }
+        unsafe { web_css_has_pending_style_update(self.host_application) }
     }
 }
 
-/// Applies the reactions of the style transactions of one style update, from the first, computed beside the event
-/// loop where the update drains it, until the reactions they feed back settle. Each pass applies one transaction's
+/// Applies the reactions of the style updates of one update_style(), from the first, computed beside the event
+/// loop where it drains one, until the reactions they feed back settle. Each pass applies one transaction's
 /// reactions, closed over the elements they inherit through, and the consequences produced while applying them become
 /// the next transaction.
-fn update_style(
-    application: Application<'_>,
-    drains_flown_transaction: bool,
-    root: Option<StyleNodeID>,
-) -> FfiStyleReactionCounts {
-    let host = application.host;
+fn update_style(application: Application<'_>, drains_flown_transaction: bool) -> FfiStyleReactionCounts {
     let mut counts = FfiStyleReactionCounts::default();
-    let mut reactions = Vec::new();
-    let (mut prefers_broad_matching_batch, mut only_derived_child_reactions) =
-        application.take_transaction(drains_flown_transaction, &mut reactions);
+    let mut taken = application.take_transaction(drains_flown_transaction);
+    let is_empty = |installation: &StyleInstallation| installation.swaps.is_empty() && installation.effects.is_empty();
     // SAFETY: The host lends its application for the call that updates the style.
     unsafe {
-        if !reactions.is_empty() {
+        if !is_empty(&taken) {
             web_css_note_style_update_has_reactions(application.host_application);
         }
         web_css_sample_animations_for_style_update(application.host_application);
     }
-    if reactions.is_empty() && application.has_pending_transaction() {
-        (prefers_broad_matching_batch, only_derived_child_reactions) =
-            application.take_transaction(false, &mut reactions);
+    if is_empty(&taken) && application.has_pending_transaction() {
+        taken = application.take_transaction(false);
     }
     // SAFETY: As above.
     unsafe { web_css_begin_style_update_pass(application.host_application, true) };
-    if reactions.is_empty() {
+    if is_empty(&taken) {
         return counts;
     }
     counts.had_reactions = true;
 
-    let cold_matching_batch = root.map(|root| {
-        host.queue_change(ArenaChange::Style(if prefers_broad_matching_batch {
-            StyleChange::BeginColdMatchingBatch { root: Some(root) }
-        } else {
-            StyleChange::BeginAdaptiveColdMatchingBatch { root: Some(root) }
-        }));
-    });
-
     let mut style_update_passes = 0;
     let mut first_pass = true;
-    while !reactions.is_empty() {
+    while !is_empty(&taken) {
         let apply_started_at = std::time::Instant::now();
-        // One more tree generation of the same style change is not a new pass of it.
-        if !std::mem::take(&mut first_pass) && !only_derived_child_reactions {
+        if !std::mem::take(&mut first_pass) {
             // SAFETY: As above.
             unsafe { web_css_begin_style_update_pass(application.host_application, false) };
         }
-        let published_reactions = reactions
-            .iter()
-            .filter(|reaction| reaction.reaction & STYLE_REACTION_PUBLISHED_STYLE != 0)
-            .count() as u32;
-        if published_reactions > 0 && !only_derived_child_reactions {
+        let published_reactions = taken.swaps.len() as u32;
+        if published_reactions > 0 {
             style_update_passes += 1;
             if style_update_passes > MAX_STYLE_UPDATE_PASSES {
                 counts.pass_guard_hits += 1;
+                // NB: The render side noted the records the installation swaps in as the host's, so the host takes it
+                //     before it stops.
+                application.install_styles(&taken);
                 counts.apply_microseconds += apply_started_at.elapsed().as_micros() as u64;
                 break;
             }
         }
-
-        reactions.retain(|reaction| application.element(reaction.style_node).connected);
-        if !reactions.is_empty() {
-            if published_reactions > 0 {
-                counts.batch_runs += 1;
-                counts.reaction_elements += published_reactions;
-            }
-            apply_style_reactions(application, &reactions, &mut counts);
-            reactions.clear();
-        }
+        counts.batch_runs += 1;
+        counts.reaction_elements += published_reactions;
+        application.install_styles(&taken);
         counts.apply_microseconds += apply_started_at.elapsed().as_micros() as u64;
 
-        // Exact consequences produced while recomputing become the next transaction in this stabilization epoch. Take
-        // it only after consuming the current published answers, since a new transaction retires their scratch.
-        if application.has_pending_transaction() {
-            (_, only_derived_child_reactions) = application.take_transaction(false, &mut reactions);
-        }
-    }
-    if cold_matching_batch.is_some() {
-        host.queue_change(ArenaChange::Style(StyleChange::EndColdMatchingBatch));
+        // The consequences produced while installing become the next transaction in this stabilization epoch.
+        taken = match application.has_pending_transaction() {
+            true => application.take_transaction(false),
+            false => StyleInstallation::default(),
+        };
     }
     counts
 }
 
-/// Applies the reactions of the style transactions of a style update of the host's document, from the one computed
+/// Whether `LIBWEB_STYLE_SELFCHECK` asks for what `style_engine_self_check` does.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_self_check_is_enabled(host: &DocumentHost) -> bool {
+    host.engine_memo().style_self_check.is_enabled()
+}
+
+/// Checks what the engine holds for the host's document under `root`, its document element's style node or zero,
+/// against a cold pass, as `LIBWEB_STYLE_SELFCHECK` asks, once a style update has settled.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_self_check(host: &DocumentHost, read: &BegunRead, root: u32) {
+    let settings = host.engine_memo().style_self_check;
+    if let Some(root) = StyleNodeID::from_raw(root)
+        && settings.is_enabled()
+    {
+        with_engine(read, host, |engine| engine.run_self_check(root, settings));
+    }
+}
+
+/// Applies the reactions of the style updates of one update_style() of the host's document, from the one computed
 /// beside the event loop
 /// where `drains_flown_transaction`, through `host_application`, the host's state for applying them, and answers what
-/// they did for its counters. `root` is the document element's style node, or zero.
+/// they did for its counters.
 ///
 /// # Safety
 ///
@@ -759,14 +280,13 @@ pub unsafe extern "C" fn style_engine_update_style(
     read: &BegunRead,
     host_application: *mut HostStyleReactionApplication,
     drains_flown_transaction: bool,
-    root: u32,
 ) -> FfiStyleReactionCounts {
     let application = Application {
         host,
         read,
         host_application,
     };
-    update_style(application, drains_flown_transaction, StyleNodeID::from_raw(root))
+    update_style(application, drains_flown_transaction)
 }
 
 /// What an inheritance chain holds, by depth from its first element.
@@ -843,14 +363,16 @@ impl Application<'_> {
         embedding_document_layout_was_stale: bool,
     ) -> FfiTargetedStyleAnswer {
         let scan = self.scan_inheritance_chain(first, true);
-        note_bound_failure_trace(self.host, || {
-            format!(
-                "scan:{:?}/{:?}/{:?}",
-                scan.topmost_requiring_style, scan.nearest_display_none, scan.topmost_display_none
-            )
-        });
         if mode == FfiStyleUpdateMode::StopAtDisplayNone && scan.display_none_above_every_element_requiring_style() {
             return FfiTargetedStyleAnswer::Unstyled;
+        }
+        // NB: The records the engine installs for a document it owns are current once the style update ran, but
+        //     for those below an element that is not displayed, which no style update styles: a read in normal mode
+        //     demands them again, as their inputs may have moved since they were demanded last.
+        if scan.topmost_requiring_style.is_none()
+            && (mode != FfiStyleUpdateMode::Normal || scan.nearest_display_none.is_none())
+        {
+            return FfiTargetedStyleAnswer::HeldStyle;
         }
         // Normal mode also re-cascades the target path under its display:none ancestors.
         let mut topmost_element_to_recompute = scan.topmost_requiring_style;
@@ -871,59 +393,19 @@ impl Application<'_> {
             .take(topmost_element_to_recompute + 1)
             .map(|element| element.style_node)
             .collect();
-        let mut descendant_style_recompute_needed = false;
-        note_bound_failure_trace(self.host, || format!("chain:{}", chain.len()));
         for &style_node in chain.iter().rev() {
             let element = self.element(style_node);
-            note_bound_failure_trace(self.host, || {
-                format!(
-                    "node:{}:{}{}",
-                    style_node,
-                    if element.has_style { "styled" } else { "unstyled" },
-                    if element.element.is_null() { ",gone" } else { "" }
-                )
-            });
             let Some(node) = StyleNodeID::from_raw(style_node).filter(|_| !element.element.is_null()) else {
                 return FfiTargetedStyleAnswer::HeldStyle;
             };
-            let installation = self.demand(
-                &element,
-                node,
-                STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_STYLE,
-                0,
-            );
-            let installation = installation.as_ref().map_or(std::ptr::null(), std::ptr::from_ref);
-            // SAFETY: The host lends its application for the call, and the element is live while it is updated.
-            let applied = unsafe {
-                web_css_apply_targeted_style_reaction(
-                    self.host_application,
-                    element.element.0,
-                    installation,
-                    descendant_style_recompute_needed,
-                )
-            };
-            descendant_style_recompute_needed |= applied.recompute_descendant_styles;
-
-            // The engine can refuse a first style, which leaves the rest of the chain nothing to inherit from.
-            let element = self.element(style_node);
-            note_bound_failure_trace(self.host, || {
-                format!(
-                    "after:{}{}:{}",
-                    if element.has_style { "styled" } else { "unstyled" },
-                    if element.display_none { ",none" } else { "" },
-                    element.style_record
-                )
-            });
-            if !element.has_style {
+            if !self.demand(node) {
                 return FfiTargetedStyleAnswer::HeldStyle;
             }
-            if element.display_none {
-                if mode == FfiStyleUpdateMode::StopAtDisplayNone {
-                    return FfiTargetedStyleAnswer::Unstyled;
-                }
-                descendant_style_recompute_needed = false;
+
+            let element = self.element(style_node);
+            if element.display_none && mode == FfiStyleUpdateMode::StopAtDisplayNone {
+                return FfiTargetedStyleAnswer::Unstyled;
             }
-            descendant_style_recompute_needed |= applied.descendants_need_recompute;
         }
         FfiTargetedStyleAnswer::HeldStyle
     }
@@ -974,103 +456,4 @@ pub unsafe extern "C" fn style_engine_update_style_for_inheritance_chain(
         host_application,
     };
     application.update_style_for_inheritance_chain(first, mode, embedding_document_layout_was_stale)
-}
-
-/// Moves the custom-property environments below `origin`, whose own moved as `moved` says, and acts on what the move
-/// reached, in flat tree preorder, through `host_application`.
-///
-/// Every styled descendant holds the environment it inherits by identity, and the engine keeps what each holds: it
-/// hands the moved environment to the descendants that hold the one the element handed down before, with their
-/// records. What is left is the host's: installing those records, the environments of element-backed pseudo-elements,
-/// which the engine does not keep, and the custom properties a descendant declares itself, built again over the moved
-/// environment. A descendant whose style reads the environment computes again.
-///
-/// # Safety
-///
-/// `host` must be a live document host, on its document's thread, `host_application` must be live for the call, the
-/// stores `moved` names must be null or live raw `Arc` pointers, and `moved.new_inheritable_data` must be null or a
-/// live `Web::CSS::CustomPropertyData`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_move_custom_property_environment(
-    host: &DocumentHost,
-    read: &BegunRead,
-    host_application: *mut HostStyleReactionApplication,
-    origin: u32,
-    moved: super::bridge::FfiEnvironmentMove,
-) {
-    use super::environment_move::{EnvironmentMove, EnvironmentMoveAction, NamedEnvironment};
-    let Some(origin) = StyleNodeID::from_raw(origin) else {
-        return;
-    };
-    let named = |environment: super::bridge::FfiNamedEnvironment| NamedEnvironment {
-        identity: environment.identity,
-        store: environment.store,
-    };
-    let environment_move = EnvironmentMove {
-        old_environment: named(moved.old_environment),
-        new_environment: named(moved.new_environment),
-        old_inheritable: moved.old_inheritable,
-        new_inheritable: named(moved.new_inheritable),
-        new_inheritable_data: moved.new_inheritable_data,
-        new_inheritable_declares: moved.new_inheritable_declares,
-    };
-    let (actions, moved_environments) = with_engine(read, host, |engine| {
-        let mut actions = Vec::new();
-        // SAFETY: Guaranteed by the caller.
-        unsafe { engine.move_custom_property_environment(origin, &environment_move, |action| actions.push(action)) };
-        // Each element the move left an environment takes the record republished over it.
-        let mut moved_environments = Vec::new();
-        for action in &actions {
-            let EnvironmentMoveAction::Republish { node, .. } = *action else {
-                continue;
-            };
-            moved_environments.push((
-                node,
-                None,
-                engine.element_custom_property_data(node).expose_provenance(),
-            ));
-            moved_environments.extend(
-                engine
-                    .pseudo_element_custom_property_environments(node)
-                    .map(|(pseudo, data)| (node, Some(pseudo), data.expose_provenance())),
-            );
-        }
-        (actions, moved_environments)
-    });
-    host.engine_memo().held.borrow_mut().follow_moved(&moved_environments);
-
-    for action in actions {
-        // SAFETY: The host lends its application for the call, and the environment it moved to outlives it.
-        unsafe {
-            match action {
-                EnvironmentMoveAction::Republish {
-                    node,
-                    style_record,
-                    replaced,
-                } => web_css_republish_moved_environment(
-                    host_application,
-                    node.raw(),
-                    style_record,
-                    replaced,
-                    moved.new_inheritable_data,
-                ),
-                EnvironmentMoveAction::Rebuild(node) => {
-                    web_css_rebuild_custom_property_environment(
-                        host_application,
-                        node.raw(),
-                        moved.new_inheritable_data,
-                    );
-                }
-                // An element that has to compute again is recorded with a recompute reaction alone: its descendants
-                // are the move's, or that computation's, to reach. (The engine fans an inherited custom-properties
-                // reaction out to every child of an applied reaction.)
-                EnvironmentMoveAction::Recompute(node) => web_css_record_derived_element_style_input(
-                    host_application,
-                    node.raw(),
-                    STYLE_REACTION_RECOMPUTE_STYLE,
-                    0,
-                ),
-            }
-        }
-    }
 }

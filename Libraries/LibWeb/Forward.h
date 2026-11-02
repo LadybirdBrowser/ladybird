@@ -207,6 +207,7 @@ class BackgroundSizeStyleValue;
 class BlurFilterStyleValue;
 class CalculatedStyleValue;
 class CustomPropertyData;
+enum class IsAnimationOverlay : bool;
 class ColorFilterStyleValue;
 class ColorFunctionStyleValue;
 class ColorSchemeStyleValue;

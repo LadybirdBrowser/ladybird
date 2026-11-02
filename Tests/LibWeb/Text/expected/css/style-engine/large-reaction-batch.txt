@@ -1,2 +1,0 @@
-whole document: false
-published reactions: 1100

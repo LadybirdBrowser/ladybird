@@ -20,16 +20,17 @@
         target.textContent = "AAAA";
         const fallbackWidth = target.getBoundingClientRect().width;
         const results = [`selected face is loading: ${face.status === "loading"}`];
+        internals.updateStyle();
 
         let before = internals.fullLayoutCount();
         target.style.color = "red";
         target.getBoundingClientRect();
         results.push(`paint change preserves pending layout: ${internals.fullLayoutCount() === before}`);
 
-        let styleBefore = internals.styleEngineCounters();
+        internals.resetStyleCounters();
         face.display = "swap";
         target.getBoundingClientRect();
-        results.push(`display transition recomputes style: ${internals.styleEngineCounters().engineFullDrivesStarted !== styleBefore.engineFullDrivesStarted}`);
+        results.push(`display transition recomputes style: ${internals.styleCounters().passes > 0}`);
         results.push(`display transition keeps fallback metrics: ${target.getBoundingClientRect().width === fallbackWidth}`);
 
         before = internals.fullLayoutCount();

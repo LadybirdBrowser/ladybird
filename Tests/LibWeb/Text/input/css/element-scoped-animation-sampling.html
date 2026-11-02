@@ -29,6 +29,7 @@
 <div id="overflow-container"><div id="overflow-animated"></div></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const overflowAnimated = document.getElementById("overflow-animated");
         const overflowContainer = document.getElementById("overflow-container");
         await new Promise(requestAnimationFrame);

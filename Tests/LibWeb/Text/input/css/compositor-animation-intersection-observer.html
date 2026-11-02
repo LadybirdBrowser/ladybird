@@ -21,6 +21,7 @@
 <div id="target"></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const animation = document.getAnimations()[0];
         animation.currentTime = 0;
         for (let i = 0; i < 4; ++i)

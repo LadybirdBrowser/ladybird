@@ -1,12 +1,9 @@
-paint change publishes once: true
 layout follows installed record: true
 paint background: rgb(255, 0, 0)
 kept box width: 20
-named: each assigned box publishes once: true
 named: assigned colors: true
 named: layout records follow installed records: true
 named: assigned box widths: true
-manual: each assigned box publishes once: true
 manual: assigned colors: true
 manual: layout records follow installed records: true
 manual: assigned box widths: true

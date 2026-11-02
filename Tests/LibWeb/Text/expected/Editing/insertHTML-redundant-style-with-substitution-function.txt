@@ -1,0 +1,8 @@
+a<span style="--own: 7px; margin: var(--own)">x</span>b
+a<span style="margin: var(--three); color: red">x</span>b
+a<span class="matched">x</span>b
+axb
+a<span style="margin-inline: var(--three)">x</span>b
+a<span style="border: var(--three) solid">x</span>b
+a<span style="color: red;">x</span>b
+a<span style="margin: var(--three); margin-left: 1px">x</span>b

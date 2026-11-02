@@ -10,6 +10,7 @@
 <div id="target"></div>
 <script>
     asyncTest(async done => {
+        internals.updateStyle();
         const target = document.querySelector("#target");
         println(`pseudo-element is hidden: ${getComputedStyle(target, "::before").display === "none"}`);
         internals.resetStyleInvalidationCounters();

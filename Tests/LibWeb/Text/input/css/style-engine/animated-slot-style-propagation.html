@@ -49,11 +49,10 @@
                 animation.pause();
                 animation.currentTime = 500000;
                 internals.updateStyle();
-                const before = internals.styleEngineCounters();
+                internals.resetStyleCounters();
                 animation.currentTime = 750000;
                 internals.updateStyle();
-                const after = internals.styleEngineCounters();
-                println(`${prefix} paint avoids descendant style work: ${after.reachedStyleNodes - before.reachedStyleNodes <= 1}`);
+                println(`${prefix} paint avoids descendant style work: ${internals.styleCounters().styledElements <= 1}`);
                 println(`${prefix} slot sample: ${getComputedStyle(slot).backgroundColor}`);
                 println(`${prefix} assigned background: ${getComputedStyle(children[39]).backgroundColor}`);
                 children[0].style.backgroundColor = "inherit";

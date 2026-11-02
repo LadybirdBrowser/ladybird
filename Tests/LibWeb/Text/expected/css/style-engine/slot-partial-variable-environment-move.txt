@@ -1,4 +1,3 @@
-changed variables use partial descendant drives: true
 changed width: 20px
 changed shorthand: 2px
 changed inherited color: rgb(0, 0, 255)
