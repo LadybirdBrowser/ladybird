@@ -12,7 +12,7 @@ use super::*;
 /// key. Viewport changes reach a run through that input or through the
 /// normal style/layout epoch invalidation for viewport-dependent computed
 /// values.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, PartialEq)]
 pub(super) struct FcRunCacheKey {
     fc_type: formatting_context::FormattingContextType,
     input: LayoutInput,
@@ -114,7 +114,10 @@ impl FcRunCacheKey {
             *containing_block_position_in_bfc_root = FfiCssPixelPoint::default();
         }
         if let ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs) = &mut input.participation {
-            *inputs = inputs.without_static_position_in_axes_placed_by_own_insets();
+            let normalized_inputs = inputs.without_static_position_in_axes_placed_by_own_insets();
+            if normalized_inputs != **inputs {
+                *inputs = std::sync::Arc::new(normalized_inputs);
+            }
         }
         Self {
             fc_type,
@@ -125,7 +128,7 @@ impl FcRunCacheKey {
 
     /// The key with the intrinsic block padding a table hands its cell taken out of the root's block paddings.
     fn without_table_cell_intrinsic_block_padding(&self) -> Self {
-        let mut key = *self;
+        let mut key = self.clone();
         if let Some((padding_top, padding_bottom)) = key.input.sizing.table_cell_intrinsic_block_padding {
             key.root_cells.padding_top -= padding_top;
             key.root_cells.padding_bottom -= padding_bottom;
@@ -168,13 +171,13 @@ fn layout_inputs_match_ignoring_unobserved(
         containing_block_constraints,
         sizing,
         participation,
-    } = *a;
+    } = a;
     let ContainingBlockConstraints {
         percentage_basis_inline_size,
         percentage_basis_block_size,
         quirks_mode_percentage_basis_block_size,
-    } = containing_block_constraints;
-    if participation != b.participation {
+    } = *containing_block_constraints;
+    if *participation != b.participation {
         return false;
     }
     let available_inline_sizes_match = available_space.inline_size == b.available_space.inline_size
@@ -203,7 +206,7 @@ fn layout_inputs_match_ignoring_unobserved(
         && inline_bases_match
         && block_bases_match
         && sizing_directives_match_ignoring_unobserved(
-            &sizing,
+            sizing,
             &b.sizing,
             unobserved.available_block_size_definiteness(),
             unobserved.inline_space_around_root,
@@ -1371,7 +1374,7 @@ mod tests {
             ParticipationInParentFormattingContext::Item,
         );
         let key_of = |input| FcRunCacheKey::new(formatting_context::FormattingContextType::Block, input, root_cells);
-        let stored = key_of(item_input);
+        let stored = key_of(item_input.clone());
 
         let mut adopting_input = item_input;
         adopting_input.sizing.adopt_automatic_content_block_size = true;

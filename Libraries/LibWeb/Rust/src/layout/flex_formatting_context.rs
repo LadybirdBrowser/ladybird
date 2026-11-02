@@ -634,7 +634,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn container_cross_size_is_known_for_layout(&self) -> bool {
         self.has_definite_cross_size_used(&self.container_cells)
-            || (self.layout_input.unwrap().participation == ParticipationInParentFormattingContext::Item
+            || (self.layout_input.as_ref().unwrap().participation == ParticipationInParentFormattingContext::Item
                 && !self
                     .available_space_for_items
                     .unwrap()
@@ -1774,6 +1774,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             && crate::layout::sizing_context::is_plain_auto(self.container_computed_main_size())
             && self
                 .layout_input
+                .as_ref()
                 .unwrap()
                 .sizing
                 .flex_self_block_size_resolution_space
@@ -2389,7 +2390,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             axis,
             property,
             self.available_space.unwrap(),
-            self.layout_input.unwrap().containing_block_constraints,
+            self.layout_input.as_ref().unwrap().containing_block_constraints,
         )
     }
 
@@ -2432,6 +2433,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 .is_intrinsic_sizing_constraint()
             && !self
                 .layout_input
+                .as_ref()
                 .unwrap()
                 .sizing
                 .root_is_measured_for_its_content_block_size
@@ -3757,7 +3759,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn resolve_own_auto_block_size_from_max_content_main_size(&mut self) {
-        let sizing = self.layout_input.unwrap().sizing;
+        let sizing = self.layout_input.as_ref().unwrap().sizing;
         let resolution_space = sizing.flex_self_block_size_resolution_space;
         if resolution_space.is_none() && !sizing.root_is_measured_for_its_content_block_size {
             return;
@@ -3792,7 +3794,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         if self.cross_axis_is_horizontal() {
             return;
         }
-        let sizing = self.layout_input.unwrap().sizing;
+        let sizing = self.layout_input.as_ref().unwrap().sizing;
         if let Some(resolution_space) = sizing.flex_self_block_size_resolution_space {
             self.resolve_own_auto_block_size(self.automatic_block_size_from_line_cross_sizes(), resolution_space);
         } else if sizing.root_is_measured_for_its_content_block_size {
@@ -3816,7 +3818,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.sizing().resolve_used_block_size_if_treated_as_auto(
             sizing_context::SizedCells::new(self.run.box_, &self.container_cells, self.run.callbacks.frame),
             resolution_space,
-            self.layout_input.unwrap().containing_block_constraints,
+            self.layout_input.as_ref().unwrap().containing_block_constraints,
             Some(automatic_block_size),
             || automatic_block_size,
         );
@@ -4018,6 +4020,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             || self.has_definite_main_size(index)
             || self
                 .layout_input
+                .as_ref()
                 .unwrap()
                 .sizing
                 .flex_self_block_size_resolution_space
@@ -4053,7 +4056,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     fn content_inline_size_of_generated_items(&mut self, layout_input: LayoutInput) -> CssPixels {
-        self.take_layout_input(layout_input);
+        self.take_layout_input(layout_input.clone());
         if self.main_axis_is_horizontal() {
             self.determine_flex_base_sizes_and_hypothetical_main_sizes();
             self.collect_flex_items_into_flex_lines();
@@ -4107,7 +4110,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn take_layout_input(&mut self, layout_input: LayoutInput) {
         self.available_space = Some(layout_input.available_space);
-        self.layout_input = Some(layout_input);
+        self.layout_input = Some(layout_input.clone());
         self.item_runs_offered_to_block_size_measurements = None;
         // 2. Determine the available main and cross space for the flex items
         self.determine_available_space_for_items(layout_input.available_space);

@@ -1511,7 +1511,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.subgrid_block_size_memo = std::cell::OnceCell::new();
         }
         self.available_space = Some(input.available_space);
-        self.layout_input = Some(input);
+        self.layout_input = Some(input.clone());
         self.maximum_inline_size_resolved_by_caller = input.sizing.maximum_inline_size_resolved_by_caller;
         self.item_runs_offered_to_row_measurements = None;
         self.column_lines.clear();
@@ -1908,7 +1908,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 axis.sizing_axis(),
                 axis.select(SizingProperty::MinWidth, SizingProperty::MinHeight),
                 self.container_available_space(),
-                self.layout_input.unwrap().containing_block_constraints,
+                self.layout_input.as_ref().unwrap().containing_block_constraints,
             ))
         };
         let Some((available_size, round_up)) = maximum_size
@@ -2624,7 +2624,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn container_constraints(&self) -> ContainingBlockConstraints {
         let cells = self.container_cells.get();
-        let constraints = self.layout_input.unwrap().containing_block_constraints;
+        let constraints = self.layout_input.as_ref().unwrap().containing_block_constraints;
         if let Some((memo_cells, memo_constraints, container_constraints)) = self.container_constraints_for_cells.get()
             && memo_cells == cells
             && memo_constraints == constraints
@@ -3245,7 +3245,7 @@ impl<'pass> GridFormattingContext<'pass> {
     // NB: The grid container's own sizing properties resolve against the space it was given, not the indefinite block
     //     size its rows are sized with during intrinsic measurement.
     fn container_available_space(&self) -> AvailableSpace {
-        self.layout_input.unwrap().available_space
+        self.layout_input.as_ref().unwrap().available_space
     }
 
     fn calculate_grid_container_maximum_size(&self, axis: Axis) -> CssPixels {
@@ -3255,7 +3255,7 @@ impl<'pass> GridFormattingContext<'pass> {
             return maximum_inline_size;
         }
         let available = self.container_available_space();
-        let constraints = self.layout_input.unwrap().containing_block_constraints;
+        let constraints = self.layout_input.as_ref().unwrap().containing_block_constraints;
         self.sizing().calculate_inner_size_for_property(
             sizing_context::SizedBox::of_own_metrics(self.run.box_, &self.container_cells, self.run.callbacks.frame),
             axis.sizing_axis(),
@@ -3284,6 +3284,7 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn own_block_size_is_being_measured(&self) -> bool {
         self.layout_input
+            .as_ref()
             .is_some_and(|input| input.sizing.root_is_measured_for_its_content_block_size)
     }
 
@@ -3293,7 +3294,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         let space = self.container_available_space();
         let available = axis.select(space.inline_size, space.block_size);
-        let constraints = self.layout_input.unwrap().containing_block_constraints;
+        let constraints = self.layout_input.as_ref().unwrap().containing_block_constraints;
         let is_none = if axis.is_column() {
             self.sizing()
                 .should_treat_max_inline_size_as_none(self.run.box_, available, constraints)
@@ -3314,7 +3315,7 @@ impl<'pass> GridFormattingContext<'pass> {
             self.sizing().should_treat_max_inline_size_as_none(
                 self.run.box_,
                 available_size,
-                self.layout_input.unwrap().containing_block_constraints,
+                self.layout_input.as_ref().unwrap().containing_block_constraints,
             )
         } else {
             !computed_values.max_height().is_auto()
@@ -4558,7 +4559,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn used_container_block_size_for_second_row_layout(&self) -> CssPixels {
         let mut block_size = self.automatic_content_block_size;
         let available = self.container_available_space();
-        let constraints = self.layout_input.unwrap().containing_block_constraints;
+        let constraints = self.layout_input.as_ref().unwrap().containing_block_constraints;
         let style = self.container_style;
         let sizing = self.sizing();
         if !style.max_height().is_auto()
@@ -5506,7 +5507,7 @@ impl<'pass> GridFormattingContext<'pass> {
                     self.run.callbacks.frame,
                 ),
                 available,
-                self.layout_input.unwrap().containing_block_constraints,
+                self.layout_input.as_ref().unwrap().containing_block_constraints,
             )
         {
             self.row_alignment_container_size = block_size;
