@@ -154,7 +154,7 @@ private:
 
         size_t m_queue_max_size { 8 };
         AudioQueue m_queue;
-        AK::Duration m_earliest_available_timestamp;
+        AK::Duration m_consumed_media_time_end;
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };

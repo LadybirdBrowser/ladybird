@@ -164,8 +164,6 @@ private:
 
         FrameQueue m_queue;
         RefPtr<VideoFrame> m_last_queued_frame;
-        AK::Duration m_earliest_available_timestamp;
-        AK::Duration m_latest_available_timestamp;
         ErrorHandler m_error_handler;
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };

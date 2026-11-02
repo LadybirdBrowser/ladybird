@@ -327,7 +327,7 @@ void DecodedAudioProducer::ThreadData::consume()
     note_consumer_activity_while_locked();
     if (m_queue.is_empty())
         return;
-    m_earliest_available_timestamp = max(m_earliest_available_timestamp, m_queue.head().block.media_time_end());
+    m_consumed_media_time_end = max(m_consumed_media_time_end, m_queue.head().block.media_time_end());
     m_queue.dequeue();
     wake();
 }
@@ -549,12 +549,12 @@ void DecodedAudioProducer::ThreadData::handle_seek()
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
 
             if (seek_reason == SeekReason::DecoderResetNeeded && !seek_was_externally_requested) {
-                timestamp = m_earliest_available_timestamp;
+                timestamp = m_consumed_media_time_end;
                 if (!m_queue.is_empty())
                     timestamp = m_queue.tail().block.media_time_end();
             } else {
                 m_queue.clear();
-                m_earliest_available_timestamp = timestamp;
+                m_consumed_media_time_end = timestamp;
             }
 
             m_current_halting_status = PipelineStatus::Pending;
