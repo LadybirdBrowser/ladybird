@@ -1,0 +1,18 @@
+Ladybird’s Notification.requestPermission() refuses to prompt from a
+document whose origin isn’t its top-level origin, and without transient
+activation, which it consumes when it does prompt; a refused request
+resolves with the current state (“default” when nothing is stored), and
+so does a dismissed prompt. A document that isn’t a secure context
+already reads “denied” from the Permissions API’s “permission state”
+algorithm, so its request resolves “denied” at once, with no message.
+WebKit’s Notification::requestPermission() denies the frame, insecure,
+and no-gesture cases with console errors, consuming the activation
+through DOMWindow::consumeTransientActivation(), and resolves “denied”
+for them. Blink’s Notification::requestPermission() only reports a
+discouraged-API violation for a missing gesture and counts the
+cross-origin-iframe and insecure cases, leaving the refusals to the
+browser’s NotificationPermissionContext. Gecko’s
+NotificationPermissionRequest::Run() auto-denies without a gesture
+under dom.webnotifications.requireuserinteraction, resolving with the
+raw stored state (“default”) and a console error. All three resolve
+“default” for a prompt the user dismissed.
