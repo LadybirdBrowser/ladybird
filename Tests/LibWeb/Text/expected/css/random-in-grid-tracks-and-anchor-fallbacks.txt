@@ -1,0 +1,6 @@
+grid-auto-columns: 1px
+grid-auto-rows: minmax(1px, 2px)
+grid-template-columns: 1px 1px
+grid-template-rows: 2px 2px
+left: 1px
+width: 1px

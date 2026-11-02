@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // A random function nested in grid tracks or an anchor fallback draws its base value like any other.
+        for (const [property, value] of [
+            ["grid-auto-columns", "random(1px, 1px)"],
+            ["grid-auto-rows", "minmax(random(1px, 1px), 2px)"],
+            ["grid-template-columns", "repeat(2, random(1px, 1px))"],
+            ["grid-template-rows", "repeat(2, minmax(random(1px, 1px), 2px))"],
+            ["left", "anchor(--nothing left, random(1px, 1px))"],
+            ["width", "anchor-size(--nothing width, random(1px, 1px))"],
+        ]) {
+            const element = document.createElement("div");
+            element.style.position = "absolute";
+            element.style.display = "grid";
+            element.style.setProperty(property, value);
+            document.body.append(element);
+            println(`${property}: ${getComputedStyle(element).getPropertyValue(property)}`);
+            element.remove();
+        }
+    });
+</script>
