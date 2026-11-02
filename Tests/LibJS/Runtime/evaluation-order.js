@@ -48,6 +48,20 @@ test("optional chain call with multiple arguments preserving order", () => {
     expect(x).toBe(20);
 });
 
+test("optional chain base is copied before its computed property reassigns it", () => {
+    let a = [{ b: 1 }];
+    expect(a[((a = null), 0)]?.b).toBe(1);
+
+    a = [{ b: { c: 2 } }];
+    expect(a[((a = null), 0)]?.b?.c).toBe(2);
+
+    a = [() => 3];
+    expect(a[((a = null), 0)]?.()).toBe(3);
+
+    a = [{ b: () => 4 }];
+    expect(a[((a = null), 0)]?.b()).toBe(4);
+});
+
 test("postfix increment evaluation order", () => {
     function bar(a, b) {
         expect(a).toBe(0);
