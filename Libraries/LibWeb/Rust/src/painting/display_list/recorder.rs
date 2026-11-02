@@ -751,6 +751,10 @@ impl DisplayListRecorder {
                 dst_rect,
                 child_context_id,
                 scaling_mode,
+                spatial_node_index: self.context.spatial,
+                snap_origin_if_untransformed: self
+                    .ambient_inline_transform
+                    .is_none_or(|transform| transform.is_identity()),
             },
             &[],
         );

@@ -907,11 +907,15 @@ pub struct DrawCompositedContext {
     pub dst_rect: FloatRect,
     pub child_context_id: CompositorContextId,
     pub scaling_mode: ScalingMode,
+    pub spatial_node_index: SpatialNodeIndex,
+    pub snap_origin_if_untransformed: bool,
 }
 ffi_bytes_fields!(DrawCompositedContext {
     dst_rect,
     child_context_id,
-    scaling_mode
+    scaling_mode,
+    spatial_node_index,
+    snap_origin_if_untransformed
 });
 
 impl DisplayListCommand for DrawCompositedContext {

@@ -85,6 +85,7 @@ public:
     AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
     // The sampled background color of a recorded fill's animation effect.
     Optional<Gfx::Color> sampled_background_color(EffectNodeIndex) const;
+    bool can_snap_composited_context_origin(SpatialNodeIndex) const;
 
     Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
     Gfx::FloatPoint inverse_transform_point(SpatialNodeIndex, Gfx::FloatPoint) const;

@@ -1,0 +1,52 @@
+<!doctype html>
+<html class="reftest-wait">
+    <link rel="match" href="../expected/iframe-fractional-position-ref.html" />
+    <style>
+        iframe {
+            display: block;
+            width: 120px;
+            height: 120px;
+            border: 0;
+        }
+        .case {
+            position: absolute;
+        }
+    </style>
+    <iframe class="case" style="left: 8.5px; top: 8.5px" src="../data/iframe-fractional-position-content.html"></iframe>
+    <iframe
+        class="case"
+        style="left: 160.5px; top: 8.5px"
+        srcdoc="
+            <style>
+                body { margin: 0; }
+                iframe { display: block; width: 120px; height: 120px; border: 0; }
+            </style>
+            <iframe src='../data/iframe-fractional-position-content.html'></iframe>
+        "
+    ></iframe>
+    <div id="identity" class="case" style="left: 312.5px; top: 8.5px; transform: translate(0.25px)">
+        <iframe src="../data/iframe-fractional-position-content.html"></iframe>
+    </div>
+    <div id="fractional" class="case" style="left: 8.5px; top: 160.5px; transform: translate(0px)">
+        <iframe src="../data/iframe-fractional-position-content.html"></iframe>
+    </div>
+    <div id="animated" class="case" style="left: 160.5px; top: 160.5px; transform: translate(0px)">
+        <iframe src="../data/iframe-fractional-position-content.html"></iframe>
+    </div>
+    <script>
+        addEventListener("load", async () => {
+            const nextPaint = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+            const animation = document
+                .getElementById("animated")
+                .animate({ transform: ["translate(0px)", "translate(0.5px)"] }, 1000);
+            animation.pause();
+            animation.currentTime = 0;
+            await nextPaint();
+            document.getElementById("identity").style.transform = "translate(0px)";
+            document.getElementById("fractional").style.transform = "translate(0.25px)";
+            animation.currentTime = 500;
+            await nextPaint();
+            document.documentElement.classList.remove("reftest-wait");
+        });
+    </script>
+</html>

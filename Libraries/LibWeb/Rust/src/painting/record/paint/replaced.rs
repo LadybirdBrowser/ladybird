@@ -441,8 +441,7 @@ pub(crate) fn paint_navigable_container_foreground<O: Observer>(
     if let Some(corner_radii) = corner_radii {
         inline_clips.push(PendingInlineClip::intersecting_rounded_rect(content_rect, corner_radii));
     }
-    // Preserve fractional placement so the child raster uses the same pixel phase as content
-    // painted directly under the embedding transform.
+
     let scale = recorder.converter.device_pixels_per_css_pixel();
     let destination_rect = FloatRect::new(
         (absolute_rect.x.to_double() * scale) as f32,
