@@ -1969,13 +1969,13 @@ PASS: float none -> right on table-column-group in inline list-item | incrementa
 PRESERVED: float right -> left on table-column-group in -webkit-box | fixture ancestor
 PRESERVED: float right -> left on table-column-group in -webkit-box | distant sibling
 PRESERVED: float right -> left on table-column-group in -webkit-box | distant sibling descendant
-RECREATED: float right -> left on table-column-group in -webkit-box | DOM parent
-RECREATED: float right -> left on table-column-group in -webkit-box | preceding sibling
-RECREATED: float right -> left on table-column-group in -webkit-box | preceding sibling descendant
+PRESERVED: float right -> left on table-column-group in -webkit-box | DOM parent
+PRESERVED: float right -> left on table-column-group in -webkit-box | preceding sibling
+PRESERVED: float right -> left on table-column-group in -webkit-box | preceding sibling descendant
 RECREATED: float right -> left on table-column-group in -webkit-box | target
 RECREATED: float right -> left on table-column-group in -webkit-box | target descendant
-RECREATED: float right -> left on table-column-group in -webkit-box | following sibling
-RECREATED: float right -> left on table-column-group in -webkit-box | following sibling descendant
+PRESERVED: float right -> left on table-column-group in -webkit-box | following sibling
+PRESERVED: float right -> left on table-column-group in -webkit-box | following sibling descendant
 STATS: float right -> left on table-column-group in -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: float right -> left on table-column-group in -webkit-box | incremental tree matches full rebuild
 PRESERVED: float inline-end -> left on table-column-group in table-column | fixture ancestor

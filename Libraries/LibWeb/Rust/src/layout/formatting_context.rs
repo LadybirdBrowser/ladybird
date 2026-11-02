@@ -3662,15 +3662,11 @@ fn prepare_layout_stage(state: &mut super::ArenaHandle, kind: LayoutStageKind, r
     let (arena, scratch) = state.arena_mut_and_layout_scratch();
     match kind {
         LayoutStageKind::Root { .. } => {
-            // NB: The tree builder derives the facts of rebuilt subtrees. Unclassified invalidations
-            // require deriving them for the entire tree instead.
+            // NB: Boxes take their facts as they are attached. Unclassified invalidations require deriving
+            // them for the entire tree instead.
             if arena.pending_updates_escape_partial_relayout {
                 arena.derive_facts_in_subtree(root);
                 arena.clear_partial_relayout_escape();
-                arena.pending_attached_subtree_roots.clear();
-            } else {
-                // NB: Top-layer updates can attach boxes without running the tree builder.
-                arena.derive_facts_after_tree_update(&[]);
             }
             arena.mark_flex_and_grid_items_of_nodes_marked_for_layout();
         }

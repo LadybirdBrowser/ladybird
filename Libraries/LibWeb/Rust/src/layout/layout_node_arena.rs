@@ -1145,10 +1145,11 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) partial_relayout_boundary_roots: super::partial_relayout::PartialRelayoutBoundaryRoots,
     nodes_with_layout_update_flags: Vec<NodeSlotId>,
     layout_update_flag_node_indices: HashMap<NodeSlotId, usize>,
-    pub(super) pending_attached_subtree_roots: Vec<NodeSlotId>,
     /// Boxes whose child lists gained children since the last layout tree build, held back from
     /// layout invalidation until the build shows what the new children are.
     pub(crate) deferred_child_list_insertion_parents: Vec<(NodeSlotId, NodeSlotId)>,
+    pub(super) deferred_child_list_insertion_parent_slots: HashSet<NodeSlotId>,
+    pub(super) children_inserted_under_deferred_parents: Vec<(NodeSlotId, NodeSlotId)>,
     /// Layout inputs for new absolutely positioned boxes that the build confined to themselves.
     /// They stand in for the committed inputs such a box does not have yet.
     pub(crate) confined_abspos_layout_inputs: HashMap<NodeSlotId, AbsposLayoutInputs>,
@@ -1263,8 +1264,9 @@ impl LayoutNodeArena {
             partial_relayout_boundary_roots: Default::default(),
             nodes_with_layout_update_flags: Vec::new(),
             layout_update_flag_node_indices: HashMap::default(),
-            pending_attached_subtree_roots: Vec::new(),
             deferred_child_list_insertion_parents: Vec::new(),
+            deferred_child_list_insertion_parent_slots: HashSet::default(),
+            children_inserted_under_deferred_parents: Vec::new(),
             confined_abspos_layout_inputs: HashMap::default(),
             position_options_in_use: (HashMap::default()),
             last_successful_position_options: (HashMap::default()),
@@ -4025,10 +4027,10 @@ impl LayoutNodeArena {
             if !self.slot_is_live(node) {
                 continue;
             }
-            self.mark_flex_or_grid_item(node);
+            self.derive_flex_or_grid_item_flags(node);
             let mut child = self.data(node).first_child.get();
             while !child.is_invalid() {
-                self.mark_flex_or_grid_item(child);
+                self.derive_flex_or_grid_item_flags(child);
                 child = self.data(child).next_sibling.get();
             }
         }
@@ -4760,37 +4762,6 @@ impl LayoutNodeArena {
         }
     }
 
-    /// Returns every attached subtree root the derivation visited.
-    pub(crate) fn derive_facts_after_tree_update(&mut self, rebuilt_roots: &[NodeSlotId]) -> HashSet<NodeSlotId> {
-        // NB: Anonymous wrappers, generated content, and table fixup can attach nodes
-        // outside the builder's reported rebuild roots. Include every attached subtree.
-        let mut pending = std::mem::take(&mut self.pending_attached_subtree_roots);
-        let roots: HashSet<_> = pending
-            .drain(..)
-            .chain(rebuilt_roots.iter().copied())
-            .filter(|&root| self.slot_is_live(root))
-            .collect();
-        self.pending_attached_subtree_roots = pending;
-        for &root in &roots {
-            let mut ancestor = self.data(root).parent.get();
-            if ancestor.is_invalid() && self.data(root).kind.get() != NodeKind::Viewport {
-                continue;
-            }
-            while !ancestor.is_invalid() && !roots.contains(&ancestor) {
-                ancestor = self.data(ancestor).parent.get();
-            }
-            if ancestor.is_invalid() {
-                self.derive_facts_in_subtree(root);
-                // NB: Whether an anonymous box is a flex or grid item depends on its children.
-                let parent = self.data(root).parent.get();
-                if !parent.is_invalid() {
-                    self.mark_flex_or_grid_item(parent);
-                }
-            }
-        }
-        roots
-    }
-
     /// Derives what the nodes in the inclusive subtree of `root` take from their ancestors: whether they
     /// establish containing blocks, and their ancestor facts, which the pre-order walk finds already derived
     /// for the parent. Out-of-flow boxes in the subtree also mark the ancestors they escape.
@@ -4800,48 +4771,86 @@ impl LayoutNodeArena {
             self.derive_containing_block_establishment_flags(node);
             self.mark_nodes_escaped_by_attached_out_of_flow_box(node);
             self.derive_ancestor_facts_for_node(node);
-            self.mark_flex_or_grid_item(node);
+            self.derive_flex_or_grid_item_flags(node);
             cursor = self.next_node_in_layout_subtree_in_pre_order(root, node);
         }
     }
 
-    /// Marks `node` as a flex or grid item once its parent lays it out as one, as its parent's run would: an in-flow
-    /// box that is not an anonymous run of collapsible whitespace. The mark is never taken back.
-    pub(crate) fn mark_flex_or_grid_item(&mut self, node: NodeSlotId) {
+    fn derive_facts_of_attached_node(&mut self, node: NodeSlotId) {
+        self.derive_containing_block_establishment_flags(node);
+        let brings_children = !self.data(node).first_child.get().is_invalid();
+        if self.derive_ancestor_facts_for_node(node) && brings_children {
+            self.refresh_ancestor_facts_of_anonymous_children(node);
+        }
+        self.mark_nodes_escaped_by_out_of_flow_boxes_attached_with(node);
+        self.derive_flex_or_grid_item_flags(node);
+        let parent = self.data(node).parent.get();
+        if super::node_facts::has_flag(self.data(parent), NodeFlag::Anonymous) {
+            self.derive_flex_or_grid_item_flags(parent);
+        }
+    }
+
+    fn mark_nodes_escaped_by_out_of_flow_boxes_attached_with(&mut self, root: NodeSlotId) {
+        self.mark_nodes_escaped_by_attached_out_of_flow_box(root);
+        let mut boxes_with_escaping_descendants: smallvec::SmallVec<[NodeSlotId; 8]> = smallvec::smallvec![root];
+        while let Some(node) = boxes_with_escaping_descendants.pop() {
+            let mut child = self.data(node).first_child.get();
+            while !child.is_invalid() {
+                self.mark_nodes_escaped_by_attached_out_of_flow_box(child);
+                if super::node_facts::has_flag(self.data(child), NodeFlag::AbsposDescendantEscapes) {
+                    boxes_with_escaping_descendants.push(child);
+                }
+                child = self.data(child).next_sibling.get();
+            }
+        }
+    }
+
+    /// Marks `node` as a flex or grid item exactly when its parent lays it out as one, as its parent's run would: an
+    /// in-flow box that is not an anonymous run of collapsible whitespace.
+    pub(crate) fn derive_flex_or_grid_item_flags(&mut self, node: NodeSlotId) {
         let data = self.data(node);
         let parent = data.parent.get();
         if parent.is_invalid() || !super::node_facts::kind_is_box(data.kind.get()) {
             return;
         }
         let parent_data = self.data(parent);
-        let parents_formatting_context = super::formatting_context::formatting_context_type_created_by_node_data(
-            parent_data,
-            super::node_facts::node_style_view(parent_data),
-            super::node_facts::has_ancestor_fact(parent_data, AncestorFact::ParentIsFlexOrGridContainer),
-            || {
-                let grandparent = parent_data.parent.get();
-                (!grandparent.is_invalid())
-                    .then(|| super::node_facts::node_style_view(self.data(grandparent)))
-                    .flatten()
-                    .map(|style| style.writing_mode())
-            },
-        );
-        let flag = match parents_formatting_context {
-            Some(super::formatting_context::FormattingContextType::Flex) => NodeFlag::IsFlexItem,
-            Some(super::formatting_context::FormattingContextType::Grid) => NodeFlag::IsGridItem,
-            _ => return,
+        let parent_style = super::node_facts::node_style_view(parent_data);
+        let parents_formatting_context = if super::node_facts::node_is_flex_or_grid_container(parent_style) {
+            super::formatting_context::formatting_context_type_created_by_node_data(
+                parent_data,
+                parent_style,
+                super::node_facts::has_ancestor_fact(parent_data, AncestorFact::ParentIsFlexOrGridContainer),
+                || {
+                    let grandparent = parent_data.parent.get();
+                    (!grandparent.is_invalid())
+                        .then(|| super::node_facts::node_style_view(self.data(grandparent)))
+                        .flatten()
+                        .map(|style| style.writing_mode())
+                },
+            )
+        } else {
+            None
         };
-        if super::node_facts::has_flag(data, flag)
-            || super::node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned())
-            || self.may_be_anonymous_run_of_collapsible_whitespace(node)
-        {
-            return;
+        let item_flag = match parents_formatting_context {
+            Some(super::formatting_context::FormattingContextType::Flex) => Some(NodeFlag::IsFlexItem),
+            Some(super::formatting_context::FormattingContextType::Grid) => Some(NodeFlag::IsGridItem),
+            _ => None,
         }
-        self.set_node_flag(node, flag, true);
+        .filter(|_| {
+            !super::node_facts::node_style_view(data).is_some_and(|style| style.is_absolutely_positioned())
+                && !self.may_be_anonymous_run_of_collapsible_whitespace(node)
+        });
+        for flag in [NodeFlag::IsFlexItem, NodeFlag::IsGridItem] {
+            let is_item = item_flag == Some(flag);
+            if super::node_facts::has_flag(self.data(node), flag) != is_item {
+                self.set_node_flag(node, flag, is_item);
+            }
+        }
     }
 
     /// Whether `node` is an anonymous box holding only text that is ASCII whitespace, which flex and grid containers
-    /// do not lay out as an item. A child whose text is not synced yet counts too: the sync marks its parent again.
+    /// do not lay out as an item. A child whose text is not synced yet counts too: publishing its text marks its parent
+    /// again.
     fn may_be_anonymous_run_of_collapsible_whitespace(&self, node: NodeSlotId) -> bool {
         let data = self.data(node);
         if !super::node_facts::has_flag(data, NodeFlag::Anonymous) || data.generated_for.get() != 0 {
@@ -5369,6 +5378,10 @@ impl LayoutNodeArena {
         }
         state.content = Some(content);
         drop(state);
+        let parent = self.data(id).parent.get();
+        if !parent.is_invalid() && super::node_facts::has_flag(self.data(parent), NodeFlag::Anonymous) {
+            self.derive_flex_or_grid_item_flags(parent);
+        }
         self.memo_invalidations.note_text_replaced(id.slot_index());
         self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
@@ -5855,13 +5868,16 @@ impl LayoutNodeArena {
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_layout_subtree_attached(child);
-        self.pending_attached_subtree_roots.push(child);
+        if self.deferred_child_list_insertion_parent_slots.contains(&parent) {
+            self.children_inserted_under_deferred_parents.push((parent, child));
+        }
         // NB: Resolving the deferred insertion marks the parent for layout, which resets its intrinsic sizes.
         self.invalidate_self_and_ancestors(
             parent,
             AncestorInvalidation::StructuralChange,
             AncestorIntrinsicSizes::Kept,
         );
+        self.derive_facts_of_attached_node(child);
     }
 
     pub(crate) fn remove_child(&mut self, parent: NodeSlotId, child: NodeSlotId) {
@@ -6440,8 +6456,6 @@ pub(crate) fn sync_enrolled_content_for_layout(arena: &mut LayoutNodeArena) {
             continue;
         }
         super::rendered_text::ensure_text_content(arena, node);
-        // NB: Whether an anonymous box is a flex or grid item depends on whether its text is all whitespace.
-        arena.mark_flex_or_grid_item(arena.data(node).parent.get());
     }
     arena.sync_enrolled_replaced_content_facts();
 }

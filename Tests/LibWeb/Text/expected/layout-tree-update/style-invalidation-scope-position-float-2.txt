@@ -1645,13 +1645,13 @@ PASS: float left -> right on table-header-group in inline list-item | incrementa
 PRESERVED: float inline-start -> left on table-header-group in -webkit-box | fixture ancestor
 PRESERVED: float inline-start -> left on table-header-group in -webkit-box | distant sibling
 PRESERVED: float inline-start -> left on table-header-group in -webkit-box | distant sibling descendant
-RECREATED: float inline-start -> left on table-header-group in -webkit-box | DOM parent
-RECREATED: float inline-start -> left on table-header-group in -webkit-box | preceding sibling
-RECREATED: float inline-start -> left on table-header-group in -webkit-box | preceding sibling descendant
+PRESERVED: float inline-start -> left on table-header-group in -webkit-box | DOM parent
+PRESERVED: float inline-start -> left on table-header-group in -webkit-box | preceding sibling
+PRESERVED: float inline-start -> left on table-header-group in -webkit-box | preceding sibling descendant
 RECREATED: float inline-start -> left on table-header-group in -webkit-box | target
 RECREATED: float inline-start -> left on table-header-group in -webkit-box | target descendant
-RECREATED: float inline-start -> left on table-header-group in -webkit-box | following sibling
-RECREATED: float inline-start -> left on table-header-group in -webkit-box | following sibling descendant
+PRESERVED: float inline-start -> left on table-header-group in -webkit-box | following sibling
+PRESERVED: float inline-start -> left on table-header-group in -webkit-box | following sibling descendant
 STATS: float inline-start -> left on table-header-group in -webkit-box | rebuilt subtree roots=1, escaped=false
 PASS: float inline-start -> left on table-header-group in -webkit-box | incremental tree matches full rebuild
 PRESERVED: clear none -> right on table-header-group in table-column | fixture ancestor
@@ -1717,25 +1717,25 @@ PASS: position sticky -> relative on table-footer-group in contents | incrementa
 PRESERVED: float left -> right on table-footer-group in flex | fixture ancestor
 PRESERVED: float left -> right on table-footer-group in flex | distant sibling
 PRESERVED: float left -> right on table-footer-group in flex | distant sibling descendant
-RECREATED: float left -> right on table-footer-group in flex | DOM parent
-RECREATED: float left -> right on table-footer-group in flex | preceding sibling
-RECREATED: float left -> right on table-footer-group in flex | preceding sibling descendant
+PRESERVED: float left -> right on table-footer-group in flex | DOM parent
+PRESERVED: float left -> right on table-footer-group in flex | preceding sibling
+PRESERVED: float left -> right on table-footer-group in flex | preceding sibling descendant
 RECREATED: float left -> right on table-footer-group in flex | target
 RECREATED: float left -> right on table-footer-group in flex | target descendant
-RECREATED: float left -> right on table-footer-group in flex | following sibling
-RECREATED: float left -> right on table-footer-group in flex | following sibling descendant
+PRESERVED: float left -> right on table-footer-group in flex | following sibling
+PRESERVED: float left -> right on table-footer-group in flex | following sibling descendant
 STATS: float left -> right on table-footer-group in flex | rebuilt subtree roots=1, escaped=false
 PASS: float left -> right on table-footer-group in flex | incremental tree matches full rebuild
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | fixture ancestor
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | distant sibling
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | distant sibling descendant
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | DOM parent
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | preceding sibling
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | preceding sibling descendant
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | fixture ancestor
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | distant sibling
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | distant sibling descendant
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | DOM parent
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | preceding sibling
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | preceding sibling descendant
 RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | target
 RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | target descendant
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | following sibling
-RECREATED: float inline-start -> left on table-footer-group in -webkit-inline-box | following sibling descendant
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | following sibling
+PRESERVED: float inline-start -> left on table-footer-group in -webkit-inline-box | following sibling descendant
 STATS: float inline-start -> left on table-footer-group in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
 PASS: float inline-start -> left on table-footer-group in -webkit-inline-box | incremental tree matches full rebuild
 PRESERVED: clear none -> right on table-footer-group in table-caption | fixture ancestor

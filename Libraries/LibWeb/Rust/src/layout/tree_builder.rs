@@ -1582,13 +1582,14 @@ impl TreeBuildJob {
 
         let built_scroll_containers = host.arena_mut().take_built_scroll_containers();
         let arena = host.arena_mut();
+        let children_inserted_under_deferred_parents =
+            std::mem::take(&mut arena.children_inserted_under_deferred_parents);
         if rebuilt_subtrees_were_updated_individually {
-            let attached_roots = arena.derive_facts_after_tree_update(&state.rebuilt_subtree_roots);
-            arena.resolve_deferred_child_list_insertions(&attached_roots);
+            arena.resolve_deferred_child_list_insertions(&children_inserted_under_deferred_parents);
         } else {
-            // NB: The full layout entry must derive the facts of this tree.
+            // NB: A tree that was not rebuilt subtree by subtree is beyond what a partial relayout plan covers.
             arena.record_partial_relayout_escape();
-            arena.resolve_deferred_child_list_insertions(&Default::default());
+            arena.resolve_deferred_child_list_insertions(&[]);
         }
 
         // Table fixup can free a rebuilt root after it was recorded, such as whitespace at the edge of a
