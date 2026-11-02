@@ -1603,12 +1603,6 @@ bool BrowserWindow::event(QEvent* event)
 
 bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
 {
-    if (auto* native_window = as_if<QWindow>(object)) {
-        if (filter_native_window_event(*native_window, *event))
-            return true;
-        return QMainWindow::eventFilter(object, event);
-    }
-
     auto* widget = as_if<QWidget>(object);
     if (!widget || widget->window() != this)
         return QMainWindow::eventFilter(object, event);
@@ -1710,56 +1704,6 @@ bool BrowserWindow::eventFilter(QObject* object, QEvent* event)
         return true;
 
     return QMainWindow::eventFilter(object, event);
-}
-
-bool BrowserWindow::filter_native_window_event(QWindow& window, QEvent& event)
-{
-    if (!uses_client_side_decorations())
-        return false;
-
-    auto* window_handle = windowHandle();
-    if (!window_handle)
-        return false;
-
-    bool window_is_embedded_in_this_window = false;
-    for (auto const* ancestor = window.parent(); ancestor; ancestor = ancestor->parent()) {
-        if (ancestor == window_handle) {
-            window_is_embedded_in_this_window = true;
-            break;
-        }
-    }
-    if (!window_is_embedded_in_this_window)
-        return false;
-
-    switch (event.type()) {
-    case QEvent::Enter:
-        update_resize_cursor(mapFromGlobal(QCursor::pos()));
-        return false;
-    case QEvent::MouseMove:
-        update_resize_cursor(mapFromGlobal(static_cast<QMouseEvent const&>(event).globalPosition().toPoint()));
-        return false;
-    case QEvent::Leave: {
-        auto position = mapFromGlobal(QCursor::pos());
-        if (rect().contains(position))
-            update_resize_cursor(position);
-        else
-            clear_resize_cursor();
-        return false;
-    }
-    case QEvent::MouseButtonPress: {
-        auto const& mouse_event = static_cast<QMouseEvent const&>(event);
-        if (mouse_event.button() != Qt::LeftButton || isMaximized() || isFullScreen())
-            return false;
-
-        auto edges = resize_edges_for_position(mapFromGlobal(mouse_event.globalPosition().toPoint()));
-        if (edges == Qt::Edges {})
-            return false;
-
-        return window_handle->startSystemResize(edges);
-    }
-    default:
-        return false;
-    }
 }
 
 Qt::Edges BrowserWindow::resize_edges_for_position(QPoint const& position) const
