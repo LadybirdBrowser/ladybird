@@ -1,0 +1,2 @@
+Before: slottable 4px, child 4px
+After: slottable 0px, child 0px
