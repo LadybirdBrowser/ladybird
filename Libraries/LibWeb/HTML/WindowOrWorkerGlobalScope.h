@@ -101,6 +101,10 @@ public:
     };
     AffectedAnyWebSockets make_disappear_all_web_sockets();
 
+    void set_has_pending_activity(DOM::EventTarget&, bool);
+    bool has_pending_activity(DOM::EventTarget const&) const;
+    void clear_objects_with_pending_activity() { m_objects_with_pending_activity.clear(); }
+
     i32 run_steps_after_a_timeout(i32 timeout, Function<void()> completion_step);
 
     void document_visibility_state_changed(Badge<DOM::Document>);
@@ -221,6 +225,10 @@ private:
     bool m_in_error_reporting_mode { false };
 
     WebSockets::WebSocket::List m_registered_web_sockets;
+
+    // Objects with pending activity, such as a WebSocket with a listener for events still to come, which this global
+    // keeps alive. They're held here rather than rooted, so they can't keep their global alive.
+    HashTable<GC::Ref<DOM::EventTarget>> m_objects_with_pending_activity;
 
     // https://w3c.github.io/resource-timing/#sec-extensions-performance-interface
     // Each ECMAScript global environment has:

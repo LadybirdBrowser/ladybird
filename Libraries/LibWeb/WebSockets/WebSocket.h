@@ -10,7 +10,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Utf16String.h>
 #include <LibCore/EventReceiver.h>
-#include <LibGC/ActivityRoot.h>
 #include <LibJS/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibRequests/WebSocket.h>
@@ -63,7 +62,6 @@ public:
     WebIDL::ExceptionOr<void> send(WebSocketSendData const& data);
 
     void make_disappear();
-    bool has_activity_root() const { return m_activity_root.is_taken(); }
 
 private:
     void on_open();
@@ -85,7 +83,7 @@ private:
     HTML::WindowOrWorkerGlobalScopeMixin& relevant_global_scope() const;
     ErrorOr<void> establish_web_socket_connection(URL::URL const& url_record, Vector<Utf16String> const& protocols, HTML::EnvironmentSettingsObject& client);
     bool should_be_kept_alive() const;
-    void update_activity_root();
+    void update_pending_activity();
 
     URL::URL m_url;
     Requests::WebSocket::ReadyState m_ready_state { Requests::WebSocket::ReadyState::Connecting };
@@ -93,7 +91,6 @@ private:
     u64 m_buffered_amount { 0 };
     RefPtr<Requests::WebSocket> m_websocket;
     GC::Ref<DOM::EventTarget> m_global_object;
-    GC::ActivityRoot m_activity_root;
     bool m_has_disappeared { false };
 
     IntrusiveListNode<WebSocket> m_list_node;

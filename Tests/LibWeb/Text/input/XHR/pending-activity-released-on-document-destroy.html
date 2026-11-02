@@ -3,7 +3,7 @@
 <script>
     promiseTest(async () => {
         const server = httpTestServer();
-        const url = await server.createEcho("GET", "/xhr-activity-root-release", {
+        const url = await server.createEcho("GET", "/xhr-pending-activity-release", {
             status: 200,
             headers: { "Content-Type": "text/plain" },
             body: "done",
@@ -16,14 +16,14 @@
         const xhr = new frame.contentWindow.XMLHttpRequest();
         xhr.open("GET", url);
         xhr.send();
-        println(`listenerless root: ${internals.hasActivityRoot(xhr)}`);
+        println(`listenerless: ${internals.hasPendingActivity(xhr)}`);
 
         const listener = () => {};
         xhr.addEventListener("progress", listener);
-        println(`root with listener: ${internals.hasActivityRoot(xhr)}`);
+        println(`with listener: ${internals.hasPendingActivity(xhr)}`);
 
         xhr.removeEventListener("progress", listener);
-        println(`root after removing listener: ${internals.hasActivityRoot(xhr)}`);
+        println(`after removing listener: ${internals.hasPendingActivity(xhr)}`);
 
         xhr.addEventListener("loadend", listener);
         await new Promise(resolve => {
@@ -32,6 +32,6 @@
         });
         // Collect after the unload task has finished destroying the document.
         await internals.gcAsync();
-        println(`root after destroy: ${internals.hasActivityRoot(xhr)}`);
+        println(`after destroy: ${internals.hasPendingActivity(xhr)}`);
     });
 </script>

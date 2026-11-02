@@ -6,14 +6,14 @@
         document.body.append(frame);
 
         const webSocket = new frame.contentWindow.WebSocket(`ws://localhost:${internals.getEchoServerPort()}/`);
-        println(`listenerless root: ${internals.hasActivityRoot(webSocket)}`);
+        println(`listenerless: ${internals.hasPendingActivity(webSocket)}`);
 
         webSocket.onclose = () => {};
         await new Promise(resolve => webSocket.addEventListener("open", resolve, { once: true }));
-        println(`root with listener: ${internals.hasActivityRoot(webSocket)}`);
+        println(`with listener: ${internals.hasPendingActivity(webSocket)}`);
 
         webSocket.onclose = null;
-        println(`root after removing listener: ${internals.hasActivityRoot(webSocket)}`);
+        println(`after removing listener: ${internals.hasPendingActivity(webSocket)}`);
 
         webSocket.onclose = () => {};
         await new Promise(resolve => {
@@ -22,6 +22,6 @@
         });
         // Collect after the unload task has finished destroying the document.
         await internals.gcAsync();
-        println(`root after destroy: ${internals.hasActivityRoot(webSocket)}`);
+        println(`after destroy: ${internals.hasPendingActivity(webSocket)}`);
     });
 </script>

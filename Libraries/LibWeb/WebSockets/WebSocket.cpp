@@ -167,7 +167,6 @@ void WebSocket::finalize()
         m_websocket->close(1000);
     }
 
-    m_activity_root.release();
     relevant_global_scope().unregister_web_socket({}, *this);
 }
 
@@ -290,17 +289,14 @@ bool WebSocket::should_be_kept_alive() const
     return false;
 }
 
-void WebSocket::update_activity_root()
+void WebSocket::update_pending_activity()
 {
-    if (should_be_kept_alive())
-        m_activity_root.take(*this);
-    else
-        m_activity_root.release();
+    relevant_global_scope().set_has_pending_activity(*this, should_be_kept_alive());
 }
 
 void WebSocket::event_listener_list_changed()
 {
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-readystate
@@ -312,7 +308,7 @@ Requests::WebSocket::ReadyState WebSocket::ready_state() const
 void WebSocket::set_ready_state(Requests::WebSocket::ReadyState ready_state)
 {
     m_ready_state = ready_state;
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://websockets.spec.whatwg.org/#dom-websocket-extensions
@@ -546,6 +542,7 @@ void WebSocket::on_close(u16 code, Utf16String reason, bool was_clean)
 void WebSocket::make_disappear()
 {
     m_has_disappeared = true;
+    update_pending_activity();
 
     // -> If the WebSocket connection is not yet established [WSP]
     //    - Fail the WebSocket connection. [WSP]
@@ -555,13 +552,10 @@ void WebSocket::make_disappear()
     //    - Do nothing.
     // NOTE: All of these are handled by the WebSocket Protocol when calling close()
     auto ready_state = this->ready_state();
-    if (!m_websocket || ready_state == Requests::WebSocket::ReadyState::Closing || ready_state == Requests::WebSocket::ReadyState::Closed) {
-        m_activity_root.release();
+    if (!m_websocket || ready_state == Requests::WebSocket::ReadyState::Closing || ready_state == Requests::WebSocket::ReadyState::Closed)
         return;
-    }
 
     m_websocket->close(1001);
-    m_activity_root.release();
 }
 
 #undef __ENUMERATE

@@ -281,7 +281,6 @@
 #include <LibWeb/WebIDL/ObservableArray.h>
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebRTC/WebRTCAgent.h>
-#include <LibWeb/XHR/XMLHttpRequest.h>
 #include <LibWeb/XPath/XPath.h>
 #include <LibWebCommon/CSS/SystemColor.h>
 #include <LibWebCommon/Infra/CharacterTypes.h>
@@ -6622,7 +6621,9 @@ void Document::run_unloading_cleanup_steps()
     //         GC collects it. However, we need to be proactive about this when navigating for the sake of test-web.
     window.close_all_idb_connections();
     WebRTC::WebRTCAgent::the().close_connections_for_global(window.this_impl());
-    XHR::XMLHttpRequest::release_activity_roots_for_relevant_global_object(window.this_impl());
+
+    // AD-HOC: An unloaded document's objects have no activity left to finish, so the window stops keeping them alive.
+    window.clear_objects_with_pending_activity();
 
     FileAPI::run_unloading_cleanup_steps(*this);
     fully_exit_fullscreen();
