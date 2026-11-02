@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use core::cell::Cell;
+use core::cell::{Cell, Ref};
+use core::mem::ManuallyDrop;
 use core::ops::ControlFlow;
 use std::collections::{HashMap, HashSet};
 
@@ -19,7 +20,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::gc::weak::GcWeak;
 use crate::interpreter::vm::Vm;
 use crate::jit::dependencies::{CellId, Dependency};
-use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::cell::{CellHeader, CellHeaderTail, Gc};
 use crate::layout::member::{Member, NullableMember};
 use crate::layout::object::Object;
 use crate::layout::property_lookup_cache::ObjectPropertyIteratorCacheData;
@@ -64,19 +65,46 @@ enum PropertyCountChange {
 type PropertyTable = IndexMap<PropertyKey, PropertyMetadata, RandomState>;
 type ForwardTransitionMap = HashMap<TransitionKey, GcWeak<Shape>, RandomState>;
 
-enum PropertyStorage {
-    Descriptors(Option<Gc<DescriptorArray>>),
-    PropertyTable(Box<PropertyTable>),
+/// The properties of a dictionary shape, which it changes in place. A shape keeps it where other shapes keep their
+/// descriptor array.
+#[repr(C)]
+pub struct DictionaryPropertyTable {
+    header: CellHeader,
+    table: GcRefCell<PropertyTable>,
 }
 
-enum ForwardTransitions {
-    Empty,
-    Single {
-        property_key: PropertyKey,
-        attributes: u8,
-        target: GcWeak<Shape>,
-    },
-    Multiple(Box<ForwardTransitionMap>),
+define_cell!(DictionaryPropertyTable, Other);
+
+// SAFETY: The keys are the only cells a table reaches.
+unsafe impl Trace for DictionaryPropertyTable {
+    fn trace(&self, visitor: &mut Visitor) {
+        for property_key in self.table.borrow().keys() {
+            property_key.trace(visitor);
+        }
+    }
+}
+
+/// What only some shapes have. The rest keep at most one forward transition, in the word of ShapeStorage.
+struct ShapeExtra {
+    forward_transitions: GcRefCell<ForwardTransitionMap>,
+    property_iterator_cache: NullableMember<ObjectPropertyIteratorCacheData>,
+    /// What Get of the properties that conversions look up gives on the objects of this shape (see
+    /// `SpecialPropertyCache`).
+    special_property_cache: NullableMember<SpecialPropertyCache>,
+    rare_data: GcRefCell<Option<Box<RareData>>>,
+}
+
+// SAFETY: Visits the keys of the forward transitions, the caches and the rare data. The shapes of transitions are weak.
+unsafe impl Trace for ShapeExtra {
+    fn trace(&self, visitor: &mut Visitor) {
+        // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
+        for transition_key in self.forward_transitions.borrow().keys() {
+            transition_key.property_key.trace(visitor);
+        }
+        self.property_iterator_cache.trace(visitor);
+        self.special_property_cache.trace(visitor);
+        self.rare_data.trace(visitor);
+    }
 }
 
 #[derive(Default)]
@@ -141,62 +169,112 @@ struct OwnStringKeys {
     enumerable: Box<[bool]>,
 }
 
-/// The parts of a shape the interpreter does not read.
+/// The parts of a shape the interpreter does not read: one word that is null, a forward transition (an owned GcWeak)
+/// or, tagged, an owned ShapeExtra. The word of a shape with a transition holds no key: a transition that adds a
+/// property leads to a shape whose descriptors have the key and the attributes, at the property count of the shape it
+/// came from, and they live for as long as the transition is good for anything. The other forward transitions go in
+/// ShapeExtra.
 pub struct ShapeStorage {
-    property_storage: GcRefCell<PropertyStorage>,
-    forward_transitions: GcRefCell<ForwardTransitions>,
-    rare_data: GcRefCell<Option<Box<RareData>>>,
+    word: Cell<*mut ()>,
 }
 
+const SHAPE_EXTRA_TAG: usize = 1;
+
 // NB: Every shape has these bytes.
-const _: () = assert!(size_of::<Shape>() == 120);
+const _: () = assert!(size_of::<Shape>() == 40);
+
+enum ShapeStorageState<'a> {
+    Empty,
+    /// The target of a transition that adds a property, unless it died.
+    PutTransition(Option<Gc<Shape>>),
+    Extra(&'a ShapeExtra),
+}
 
 impl ShapeStorage {
     fn new(_: &DeferGc<'_>) -> Self {
         Self {
-            property_storage: GcRefCell::new(PropertyStorage::Descriptors(None)),
-            forward_transitions: GcRefCell::new(ForwardTransitions::Empty),
-            rare_data: GcRefCell::new(None),
+            word: Cell::new(core::ptr::null_mut()),
+        }
+    }
+
+    fn state(&self) -> ShapeStorageState<'_> {
+        let word = self.word.get();
+        if word.is_null() {
+            return ShapeStorageState::Empty;
+        }
+        if word.addr() & SHAPE_EXTRA_TAG != 0 {
+            // SAFETY: A tagged word is a box this storage owns, which it keeps until it is dropped.
+            return ShapeStorageState::Extra(unsafe {
+                &*word.map_addr(|address| address & !SHAPE_EXTRA_TAG).cast::<ShapeExtra>()
+            });
+        }
+        // SAFETY: Any other word is a weak reference this storage owns, which stays with it.
+        let target = ManuallyDrop::new(unsafe { GcWeak::<Shape>::from_raw(word) });
+        ShapeStorageState::PutTransition(target.get())
+    }
+
+    /// Replaces the word of a storage that has no extra with a new one, giving up the weak reference it owned.
+    fn replace_put_transition(&self, word: *mut ()) {
+        let old_word = self.word.replace(word);
+        assert!(old_word.addr() & SHAPE_EXTRA_TAG == 0);
+        if !old_word.is_null() {
+            // SAFETY: The word was a weak reference this storage owned, which it no longer holds.
+            drop(unsafe { GcWeak::<Shape>::from_raw(old_word) });
+        }
+    }
+
+    /// A new weak reference to the target of the forward transition in the word.
+    fn clone_put_transition(&self) -> GcWeak<Shape> {
+        let word = self.word.get();
+        assert!(!word.is_null() && word.addr() & SHAPE_EXTRA_TAG == 0);
+        // SAFETY: Any other word is a weak reference this storage owns, which stays with it.
+        (*ManuallyDrop::new(unsafe { GcWeak::<Shape>::from_raw(word) })).clone()
+    }
+
+    fn set_put_transition(&self, target: GcWeak<Shape>) {
+        self.replace_put_transition(target.into_raw());
+    }
+
+    fn clear_put_transition(&self) {
+        self.replace_put_transition(core::ptr::null_mut());
+    }
+
+    #[cfg_attr(
+        ladybird_gc_lints,
+        expect(
+            gc_container_on_stack,
+            reason = "the caller allocates nothing while it holds the box"
+        )
+    )]
+    fn set_extra(&self, extra: Box<ShapeExtra>) -> &ShapeExtra {
+        let extra = Box::into_raw(extra).cast::<()>();
+        self.replace_put_transition(extra.map_addr(|address| address | SHAPE_EXTRA_TAG));
+        // SAFETY: This storage owns the box from here on, and keeps it until it is dropped.
+        unsafe { &*extra.cast::<ShapeExtra>() }
+    }
+}
+
+impl Drop for ShapeStorage {
+    fn drop(&mut self) {
+        let word = self.word.get();
+        if word.is_null() {
+            return;
+        }
+        if word.addr() & SHAPE_EXTRA_TAG != 0 {
+            // SAFETY: A tagged word is a box this storage owns.
+            drop(unsafe { Box::from_raw(word.map_addr(|address| address & !SHAPE_EXTRA_TAG).cast::<ShapeExtra>()) });
+        } else {
+            // SAFETY: Any other word is a weak reference this storage owns.
+            drop(unsafe { GcWeak::<Shape>::from_raw(word) });
         }
     }
 }
 
-// SAFETY: Visits the descriptor array, the keys this storage owns and the rare data. The shapes of transitions are weak.
+// SAFETY: Visits what the extra reaches. The shape of a transition in the word is weak.
 unsafe impl Trace for ShapeStorage {
     fn trace(&self, visitor: &mut Visitor) {
-        self.property_storage.trace(visitor);
-        self.forward_transitions.trace(visitor);
-        self.rare_data.trace(visitor);
-    }
-}
-
-// SAFETY: Visits the descriptor array or the keys of the property table.
-unsafe impl Trace for PropertyStorage {
-    fn trace(&self, visitor: &mut Visitor) {
-        match self {
-            PropertyStorage::Descriptors(descriptors) => descriptors.trace(visitor),
-            // Descriptor arrays mark their own keys; dictionary tables are not cells, so Shape marks their keys directly.
-            PropertyStorage::PropertyTable(property_table) => {
-                for property_key in property_table.keys() {
-                    property_key.trace(visitor);
-                }
-            }
-        }
-    }
-}
-
-// SAFETY: Visits the keys. The shapes of transitions are weak.
-unsafe impl Trace for ForwardTransitions {
-    fn trace(&self, visitor: &mut Visitor) {
-        // FIXME: The forward transition keys should be weak, but we have to mark them for now in case they go stale.
-        match self {
-            ForwardTransitions::Empty => {}
-            ForwardTransitions::Single { property_key, .. } => property_key.trace(visitor),
-            ForwardTransitions::Multiple(map) => {
-                for transition_key in map.keys() {
-                    transition_key.property_key.trace(visitor);
-                }
-            }
+        if let ShapeStorageState::Extra(extra) = self.state() {
+            extra.trace(visitor);
         }
     }
 }
@@ -235,16 +313,15 @@ unsafe impl Trace for RareData {
 
 define_cell!(Shape, Other);
 
-// SAFETY: Visits the realm, the prototype, the validity, the iterator cache, the previous shape, the special property
-// cache and what the storage owns.
+// SAFETY: Visits the realm, the prototype, the validity, the previous shape, the descriptors or property table and what
+// the storage owns.
 unsafe impl Trace for Shape {
     fn trace(&self, visitor: &mut Visitor) {
         self.realm.trace(visitor);
         self.prototype.trace(visitor);
         self.prototype_chain_validity.trace(visitor);
-        self.property_iterator_cache.trace(visitor);
         self.previous.trace(visitor);
-        self.special_property_cache.trace(visitor);
+        self.property_storage.trace(visitor);
         self.storage.trace(visitor);
     }
 }
@@ -322,16 +399,15 @@ impl Default for PrototypeTransitionCache {
 impl Shape {
     fn new(defer_gc: &DeferGc<'_>, realm: Gc<Realm>) -> Self {
         Self {
-            header: CellHeader::for_class(Self::CLASS),
-            flags: Cell::new(0),
             realm: Member::new(realm),
             prototype: NullableMember::null(),
-            prototype_chain_validity: NullableMember::null(),
-            property_iterator_cache: NullableMember::null(),
-            previous: NullableMember::null(),
-            special_property_cache: NullableMember::null(),
+            header: CellHeaderTail::for_class(Self::CLASS),
+            flags: Cell::new(0),
             property_count: Cell::new(0),
+            prototype_chain_validity: NullableMember::null(),
+            previous: NullableMember::null(),
             dictionary_generation: Cell::new(0),
+            property_storage: NullableMember::null(),
             storage: ShapeStorage::new(defer_gc),
         }
     }
@@ -392,44 +468,100 @@ impl Shape {
 
     fn descriptors(&self) -> Option<Gc<DescriptorArray>> {
         assert!(!self.is_dictionary());
-        match &*self.storage.property_storage.borrow() {
-            PropertyStorage::Descriptors(descriptors) => *descriptors,
-            PropertyStorage::PropertyTable(_) => unreachable!("a shape that is not a dictionary has descriptors"),
-        }
+        self.property_storage.get()
     }
 
     fn set_descriptors(&self, descriptors: Option<Gc<DescriptorArray>>) {
         assert!(!self.is_dictionary());
-        self.storage
+        self.property_storage.set(descriptors);
+    }
+
+    fn dictionary_property_table(&self) -> Gc<DictionaryPropertyTable> {
+        assert!(self.is_dictionary());
+        let cell = self
             .property_storage
-            .replace(PropertyStorage::Descriptors(descriptors));
+            .get()
+            .expect("a dictionary shape has a property table");
+        // SAFETY: What a dictionary shape keeps there is its table, as become_dictionary_shape() put it.
+        unsafe { Gc::from_non_null(cell.as_non_null().cast()) }
     }
 
     fn with_property_table<R>(&self, vm: &Vm, callback: impl FnOnce(&mut PropertyTable) -> R) -> R {
-        assert!(self.is_dictionary());
-        match &mut *self.storage.property_storage.borrow_mut(vm) {
-            PropertyStorage::PropertyTable(property_table) => callback(property_table),
-            PropertyStorage::Descriptors(_) => unreachable!("a dictionary shape has a property table"),
-        }
+        let property_table = self.dictionary_property_table();
+        callback(&mut property_table.table.borrow_mut(vm))
     }
 
-    fn become_dictionary_shape(&self) {
+    fn become_dictionary_shape(&self, vm: &Vm) {
         assert!(!self.is_dictionary());
-        self.storage
-            .property_storage
-            .replace(PropertyStorage::PropertyTable(Box::default()));
+        let property_table = vm.heap().allocate(|_| DictionaryPropertyTable {
+            header: CellHeader::for_class(DictionaryPropertyTable::CLASS),
+            table: GcRefCell::new(PropertyTable::default()),
+        });
+        // SAFETY: Only the dictionary flag set below reads the field as anything other than descriptors, and it reads
+        //         it as the table it is.
+        self.property_storage
+            .set(Some(unsafe { Gc::from_non_null(property_table.as_non_null().cast()) }));
         self.flags.set(self.flags.get() | shape_flag::DICTIONARY);
     }
 
+    fn extra(&self) -> Option<&ShapeExtra> {
+        match self.storage.state() {
+            ShapeStorageState::Extra(extra) => Some(extra),
+            ShapeStorageState::Empty | ShapeStorageState::PutTransition(_) => None,
+        }
+    }
+
+    /// The extra of this shape, which it gets now if it had none, and which takes over its forward transition.
+    fn ensure_extra(&self) -> &ShapeExtra {
+        #[cfg_attr(
+            ladybird_gc_lints,
+            expect(gc_container_on_stack, reason = "nothing is allocated before the shape owns the map")
+        )]
+        let mut forward_transitions = ForwardTransitionMap::default();
+        match self.storage.state() {
+            ShapeStorageState::Extra(extra) => return extra,
+            ShapeStorageState::Empty | ShapeStorageState::PutTransition(None) => {}
+            ShapeStorageState::PutTransition(Some(target)) => {
+                let (property_key, attributes) = target
+                    .descriptors()
+                    .expect("the target of a transition has descriptors")
+                    .property_at_enum_index(self.property_count());
+                forward_transitions.insert(
+                    TransitionKey {
+                        property_key,
+                        attributes,
+                    },
+                    self.storage.clone_put_transition(),
+                );
+            }
+        }
+        self.storage.set_extra(Box::new(ShapeExtra {
+            forward_transitions: GcRefCell::new(forward_transitions),
+            property_iterator_cache: NullableMember::null(),
+            special_property_cache: NullableMember::null(),
+            rare_data: GcRefCell::new(None),
+        }))
+    }
+
+    /// The rare data of this shape, if it has any.
+    fn rare_data(&self) -> Option<Ref<'_, RareData>> {
+        Ref::filter_map(self.extra()?.rare_data.borrow(), |rare_data| rare_data.as_deref()).ok()
+    }
+
+    fn with_existing_rare_data<R>(&self, vm: &Vm, callback: impl FnOnce(&mut RareData) -> R) -> Option<R> {
+        let mut rare_data = self.extra()?.rare_data.borrow_mut(vm);
+        Some(callback(rare_data.as_deref_mut()?))
+    }
+
     fn with_rare_data<R>(&self, vm: &Vm, callback: impl FnOnce(&mut RareData) -> R) -> R {
-        let mut rare_data = self.storage.rare_data.borrow_mut(vm);
+        let mut rare_data = self.ensure_extra().rare_data.borrow_mut(vm);
         callback(rare_data.get_or_insert_with(Box::default))
     }
 
     pub fn create_dictionary_transition(&self, vm: &Vm) -> Gc<Shape> {
         self.mark_unstable(vm);
         let new_shape = Self::create(vm, self.realm());
-        new_shape.become_dictionary_shape();
+        new_shape.become_dictionary_shape(vm);
         new_shape
             .flags
             .set(new_shape.flags.get() | (self.flags.get() & shape_flag::HAS_PARAMETER_MAP));
@@ -457,15 +589,13 @@ impl Shape {
             longest = longest.max(length);
             longest >= depth_limit
         };
-        match &*self.storage.forward_transitions.borrow() {
-            ForwardTransitions::Empty => {}
-            ForwardTransitions::Single { target, .. } => {
-                if let Some(target) = target.get() {
-                    reaches_depth_limit(target);
-                }
+        match self.storage.state() {
+            ShapeStorageState::Empty | ShapeStorageState::PutTransition(None) => {}
+            ShapeStorageState::PutTransition(Some(target)) => {
+                reaches_depth_limit(target);
             }
-            ForwardTransitions::Multiple(map) => {
-                for target in map.values().filter_map(GcWeak::get) {
+            ShapeStorageState::Extra(extra) => {
+                for target in extra.forward_transitions.borrow().values().filter_map(GcWeak::get) {
                     if reaches_depth_limit(target) {
                         break;
                     }
@@ -479,32 +609,43 @@ impl Shape {
         if self.is_prototype_shape() {
             return None;
         }
-        let mut forward_transitions = self.storage.forward_transitions.borrow_mut(vm);
-        match &mut *forward_transitions {
-            ForwardTransitions::Empty => None,
-            ForwardTransitions::Single {
-                property_key,
-                attributes,
-                target,
-            } => {
+        match self.storage.state() {
+            ShapeStorageState::Empty => None,
+            ShapeStorageState::PutTransition(None) => {
+                // The cached forward transition has gone stale (from garbage collection). Prune it.
+                self.storage.clear_put_transition();
+                None
+            }
+            ShapeStorageState::PutTransition(Some(target)) => {
+                let descriptors = target
+                    .descriptors()
+                    .expect("the target of a transition has descriptors");
+                descriptors
+                    .has_property_at_enum_index(self.property_count(), &key.property_key, key.attributes)
+                    .then_some(target)
+            }
+            ShapeStorageState::Extra(extra) => {
+                let mut forward_transitions = extra.forward_transitions.borrow_mut(vm);
+                let target = forward_transitions.get(key)?;
                 let Some(shape) = target.get() else {
                     // The cached forward transition has gone stale (from garbage collection). Prune it.
-                    *forward_transitions = ForwardTransitions::Empty;
+                    forward_transitions.remove(key);
                     return None;
                 };
-                if !(*property_key == key.property_key && *attributes == key.attributes.bits()) {
-                    return None;
-                }
                 Some(shape)
             }
-            ForwardTransitions::Multiple(map) => {
-                let target = map.get(key)?;
-                let Some(shape) = target.get() else {
-                    // The cached forward transition has gone stale (from garbage collection). Prune it.
-                    map.remove(key);
-                    return None;
-                };
-                Some(shape)
+        }
+    }
+
+    /// Remembers a transition that adds a property, which the word of the storage can hold when it is the only one.
+    fn cache_put_transition(&self, vm: &Vm, key: TransitionKey, shape: Gc<Shape>) {
+        assert!(!self.is_prototype_shape());
+        match self.storage.state() {
+            ShapeStorageState::Empty | ShapeStorageState::PutTransition(None) => {
+                self.storage.set_put_transition(GcWeak::new(vm.heap(), shape));
+            }
+            ShapeStorageState::PutTransition(Some(_)) | ShapeStorageState::Extra(_) => {
+                self.cache_forward_transition(vm, key, shape);
             }
         }
     }
@@ -512,85 +653,43 @@ impl Shape {
     fn cache_forward_transition(&self, vm: &Vm, key: TransitionKey, shape: Gc<Shape>) {
         assert!(!self.is_prototype_shape());
         let target = GcWeak::new(vm.heap(), shape);
-
-        let mut forward_transitions = self.storage.forward_transitions.borrow_mut(vm);
-        if let ForwardTransitions::Multiple(map) = &mut *forward_transitions {
-            map.insert(key, target);
-            return;
-        }
-        match core::mem::replace(&mut *forward_transitions, ForwardTransitions::Empty) {
-            ForwardTransitions::Empty => {
-                *forward_transitions = ForwardTransitions::Single {
-                    property_key: key.property_key,
-                    attributes: key.attributes.bits(),
-                    target,
-                };
-            }
-            ForwardTransitions::Single {
-                property_key,
-                attributes,
-                target: existing_target,
-            } => {
-                if existing_target.get().is_none() {
-                    *forward_transitions = ForwardTransitions::Single {
-                        property_key: key.property_key,
-                        attributes: key.attributes.bits(),
-                        target,
-                    };
-                    return;
-                }
-
-                if property_key == key.property_key && attributes == key.attributes.bits() {
-                    *forward_transitions = ForwardTransitions::Single {
-                        property_key,
-                        attributes,
-                        target,
-                    };
-                    return;
-                }
-
-                let existing_key = TransitionKey {
-                    property_key,
-                    attributes: PropertyAttributes::new(attributes),
-                };
-                *forward_transitions = ForwardTransitions::Multiple(Box::new(ForwardTransitionMap::from_iter([
-                    (existing_key, existing_target),
-                    (key, target),
-                ])));
-            }
-            ForwardTransitions::Multiple(_) => unreachable!("the map takes the transition above"),
-        }
+        self.ensure_extra()
+            .forward_transitions
+            .borrow_mut(vm)
+            .insert(key, target);
     }
 
     fn get_or_prune_cached_delete_transition(&self, vm: &Vm, key: &PropertyKey) -> Option<Gc<Shape>> {
         if self.is_prototype_shape() {
             return None;
         }
-        let mut rare_data = self.storage.rare_data.borrow_mut(vm);
-        let delete_transitions = &mut rare_data.as_mut()?.delete_transitions;
-        let target = delete_transitions.get(key)?;
-        let Some(shape) = target.get() else {
-            // The cached delete transition has gone stale (from garbage collection). Prune it.
-            delete_transitions.remove(key);
-            return None;
-        };
-        Some(shape)
+        self.with_existing_rare_data(vm, |rare_data| {
+            let target = rare_data.delete_transitions.get(key)?;
+            let Some(shape) = target.get() else {
+                // The cached delete transition has gone stale (from garbage collection). Prune it.
+                rare_data.delete_transitions.remove(key);
+                return None;
+            };
+            Some(shape)
+        })
+        .flatten()
     }
 
     fn get_or_prune_cached_prototype_transition(&self, vm: &Vm, prototype: Option<Gc<Object>>) -> Option<Gc<Shape>> {
         if self.is_prototype_shape() {
             return None;
         }
-        let mut rare_data = self.storage.rare_data.borrow_mut(vm);
-        let prototype_transitions = &mut rare_data.as_mut()?.prototype_transitions;
         let key = prototype_address(prototype);
-        let target = prototype_transitions.get(&key)?;
-        let Some(shape) = target.get() else {
-            // The cached prototype transition has gone stale (from garbage collection). Prune it.
-            prototype_transitions.remove(&key);
-            return None;
-        };
-        Some(shape)
+        self.with_existing_rare_data(vm, |rare_data| {
+            let target = rare_data.prototype_transitions.get(&key)?;
+            let Some(shape) = target.get() else {
+                // The cached prototype transition has gone stale (from garbage collection). Prune it.
+                rare_data.prototype_transitions.remove(&key);
+                return None;
+            };
+            Some(shape)
+        })
+        .flatten()
     }
 
     pub fn create_put_transition(
@@ -629,7 +728,7 @@ impl Shape {
         }
         self.invalidate_prototype_if_needed_for_new_prototype(vm, new_shape);
         if !self.is_prototype_shape() {
-            self.cache_forward_transition(vm, key, new_shape);
+            self.cache_put_transition(vm, key, new_shape);
         }
         new_shape
     }
@@ -708,7 +807,7 @@ impl Shape {
             .heap()
             .allocate(|defer_gc| Self::new_from_previous_shape_with_prototype(defer_gc, self, realm, new_prototype));
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
-            new_shape.become_dictionary_shape();
+            new_shape.become_dictionary_shape(vm);
             self.copy_properties_to_dictionary_shape(vm, &new_shape);
         } else if self.is_dictionary() {
             new_shape.set_descriptors(Some(self.copy_descriptors(vm)));
@@ -850,13 +949,12 @@ impl Shape {
     /// shape until its properties change. The callback must not allocate cells.
     pub fn with_own_string_keys<R>(&self, vm: &Vm, callback: impl FnOnce(&[Value], &[bool]) -> R) -> R {
         let generation = self.dictionary_generation();
-        let is_cached = self
-            .storage
-            .rare_data
-            .borrow()
-            .as_ref()
-            .and_then(|rare_data| rare_data.own_string_keys.as_ref())
-            .is_some_and(|own_string_keys| own_string_keys.generation == generation);
+        let is_cached = self.rare_data().is_some_and(|rare_data| {
+            rare_data
+                .own_string_keys
+                .as_ref()
+                .is_some_and(|own_string_keys| own_string_keys.generation == generation)
+        });
         if !is_cached {
             let mut property_keys = Vec::with_capacity(self.property_count() as usize);
             self.for_each_property_in_insertion_order(|property_key, metadata| {
@@ -880,21 +978,17 @@ impl Shape {
                 });
             });
         }
-        let rare_data = self.storage.rare_data.borrow();
+        let rare_data = self.rare_data().expect("the shape has its own string keys");
         let own_string_keys = rare_data
+            .own_string_keys
             .as_ref()
-            .and_then(|rare_data| rare_data.own_string_keys.as_ref())
             .expect("the shape has its own string keys");
         callback(&own_string_keys.keys, &own_string_keys.enumerable)
     }
 
     /// What Object.assign of an object with this shape onto an empty object made, if it was kept.
     pub fn cached_assign_copy(&self) -> Option<AssignCopy> {
-        self.storage
-            .rare_data
-            .borrow()
-            .as_ref()
-            .and_then(|rare_data| rare_data.assign_copy)
+        self.rare_data().and_then(|rare_data| rare_data.assign_copy)
     }
 
     pub fn set_cached_assign_copy(&self, vm: &Vm, assign_copy: AssignCopy) {
@@ -905,10 +999,7 @@ impl Shape {
     /// The shape that SetIntegrityLevel with `level` gave objects of this shape that have no accessor properties, if
     /// it was kept.
     pub fn cached_integrity_level_shape(&self, level: IntegrityLevel) -> Option<Gc<Shape>> {
-        self.storage
-            .rare_data
-            .borrow()
-            .as_ref()
+        self.rare_data()
             .and_then(|rare_data| rare_data.integrity_level_shapes[level as usize])
     }
 
@@ -935,7 +1026,7 @@ impl Shape {
             .set(new_shape.flags.get() | (self.flags.get() & shape_flag::HAS_PARAMETER_MAP));
         new_shape.prototype.set(self.prototype());
         if self.is_dictionary() && self.property_count() > MAX_DESCRIPTOR_COUNT {
-            new_shape.become_dictionary_shape();
+            new_shape.become_dictionary_shape(vm);
             self.copy_properties_to_dictionary_shape(vm, &new_shape);
         } else if self.is_dictionary() {
             new_shape.set_descriptors(Some(self.copy_descriptors(vm)));
@@ -984,12 +1075,8 @@ impl Shape {
         // The owning object is keeping the same [[Prototype]], so its existing
         // children descend from new_prototype_shape going forward.
         let child_prototype_shapes = self
-            .storage
-            .rare_data
-            .borrow_mut(vm)
-            .as_mut()
-            .filter(|rare_data| !rare_data.child_prototype_shapes.is_empty())
-            .map(|rare_data| core::mem::take(&mut rare_data.child_prototype_shapes));
+            .with_existing_rare_data(vm, |rare_data| core::mem::take(&mut rare_data.child_prototype_shapes))
+            .filter(|child_prototype_shapes| !child_prototype_shapes.is_empty());
         if let Some(child_prototype_shapes) = child_prototype_shapes {
             new_prototype_shape.with_rare_data(vm, |rare_data| {
                 rare_data.child_prototype_shapes = child_prototype_shapes;
@@ -1016,10 +1103,7 @@ impl Shape {
 
     fn invalidate_all_prototype_chains_leading_to_this(&self, vm: &Vm) {
         let has_child_prototype_shapes = self
-            .storage
-            .rare_data
-            .borrow()
-            .as_ref()
+            .rare_data()
             .is_some_and(|rare_data| !rare_data.child_prototype_shapes.is_empty());
         if !has_child_prototype_shapes {
             return;
@@ -1029,20 +1113,18 @@ impl Shape {
         let shapes_to_invalidate = MarkedVec::new(vm);
         let worklist = MarkedVec::new(vm);
         let enqueue_children_of = |shape: &Shape, shapes_already_enqueued: &mut HashSet<usize>| {
-            let mut rare_data = shape.storage.rare_data.borrow_mut(vm);
-            let Some(rare_data) = rare_data.as_mut() else {
-                return;
-            };
-            // Prune dead weak refs and enqueue the live ones in one pass.
-            rare_data.child_prototype_shapes.retain(|weak| {
-                let Some(child) = weak.get() else {
-                    return false;
-                };
-                if shapes_already_enqueued.insert(child.as_ptr().addr()) {
-                    shapes_to_invalidate.push(child);
-                    worklist.push(child);
-                }
-                true
+            shape.with_existing_rare_data(vm, |rare_data| {
+                // Prune dead weak refs and enqueue the live ones in one pass.
+                rare_data.child_prototype_shapes.retain(|weak| {
+                    let Some(child) = weak.get() else {
+                        return false;
+                    };
+                    if shapes_already_enqueued.insert(child.as_ptr().addr()) {
+                        shapes_to_invalidate.push(child);
+                        worklist.push(child);
+                    }
+                    true
+                });
             });
         };
         enqueue_children_of(self, &mut shapes_already_enqueued);
@@ -1110,12 +1192,12 @@ impl Shape {
     }
 
     pub fn special_property_cache(&self) -> Option<Gc<SpecialPropertyCache>> {
-        self.special_property_cache.get()
+        self.extra()?.special_property_cache.get()
     }
 
     pub fn set_special_property_cache(&self, cache: Gc<SpecialPropertyCache>) {
         assert!(!self.is_dictionary() && !self.is_prototype_shape());
-        self.special_property_cache.set(Some(cache));
+        self.ensure_extra().special_property_cache.set(Some(cache));
     }
 
     /// The watchpoint set that fires when the value in slot `offset` of the object of this prototype shape changes, or
@@ -1126,9 +1208,7 @@ impl Shape {
             return None;
         }
         match self
-            .storage
-            .rare_data
-            .borrow()
+            .rare_data()
             .as_ref()
             .and_then(|rare_data| rare_data.watched_slots.get(&offset))
         {
@@ -1155,7 +1235,7 @@ impl Shape {
     /// Whether something relies on the value in slot `offset` of the object of this prototype shape.
     pub fn is_slot_watched(&self, offset: u32) -> bool {
         self.has_watched_slots()
-            && self.storage.rare_data.borrow().as_ref().is_some_and(|rare_data| {
+            && self.rare_data().is_some_and(|rare_data| {
                 matches!(
                     rare_data.watched_slots.get(&offset),
                     Some(WatchedSlot::Watched(watchpoint_set)) if watchpoint_set.is_valid()
@@ -1166,10 +1246,7 @@ impl Shape {
     /// Whether the value in slot `offset` of the object of this prototype shape changed while something relied on it,
     /// which compiled code takes as a sign that it may change again, rather than rely on it once more.
     pub fn was_slot_replaced(&self, offset: u32) -> bool {
-        self.storage
-            .rare_data
-            .borrow()
-            .as_ref()
+        self.rare_data()
             .is_some_and(|rare_data| rare_data.replaced_slots.contains(&offset))
     }
 
@@ -1179,24 +1256,20 @@ impl Shape {
         if !self.has_watched_slots() {
             return;
         }
-        let watchpoint_set = {
-            let mut rare_data = self.storage.rare_data.borrow_mut(vm);
-            let Some(rare_data) = rare_data.as_mut() else {
-                return;
-            };
-            match rare_data.watched_slots.get(&offset) {
-                Some(WatchedSlot::Watched(watchpoint_set)) => {
-                    let watchpoint_set = *watchpoint_set;
-                    rare_data.watched_slots.remove(&offset);
-                    if !rare_data.replaced_slots.contains(&offset) {
-                        rare_data.replaced_slots.push(offset);
-                    }
-                    watchpoint_set
+        let watchpoint_set = self.with_existing_rare_data(vm, |rare_data| match rare_data.watched_slots.get(&offset) {
+            Some(WatchedSlot::Watched(watchpoint_set)) => {
+                let watchpoint_set = *watchpoint_set;
+                rare_data.watched_slots.remove(&offset);
+                if !rare_data.replaced_slots.contains(&offset) {
+                    rare_data.replaced_slots.push(offset);
                 }
-                Some(WatchedSlot::WrittenByCaches) | None => return,
+                Some(watchpoint_set)
             }
-        };
-        watchpoint_set.fire(vm);
+            Some(WatchedSlot::WrittenByCaches) | None => None,
+        });
+        if let Some(watchpoint_set) = watchpoint_set.flatten() {
+            watchpoint_set.fire(vm);
+        }
     }
 
     /// Notes that property lookup caches may write to slot `offset` of the object of this prototype shape from now on,
@@ -1222,7 +1295,7 @@ impl Shape {
         }
         self.flags.set(self.flags.get() & !shape_flag::HAS_WATCHED_SLOTS);
         let watchpoint_sets = MarkedVec::new(vm);
-        if let Some(rare_data) = self.storage.rare_data.borrow_mut(vm).as_mut() {
+        self.with_existing_rare_data(vm, |rare_data| {
             rare_data.watched_slots.retain(|_, watched_slot| match watched_slot {
                 WatchedSlot::Watched(watchpoint_set) => {
                     watchpoint_sets.push(*watchpoint_set);
@@ -1230,18 +1303,18 @@ impl Shape {
                 }
                 WatchedSlot::WrittenByCaches => true,
             });
-        }
+        });
         for watchpoint_set in watchpoint_sets.values().iter() {
             watchpoint_set.fire(vm);
         }
     }
 
     pub fn property_iterator_cache(&self) -> Option<Gc<ObjectPropertyIteratorCacheData>> {
-        self.property_iterator_cache.get()
+        self.extra()?.property_iterator_cache.get()
     }
 
     pub fn set_property_iterator_cache(&self, cache: Gc<ObjectPropertyIteratorCacheData>) {
-        self.property_iterator_cache.set(Some(cache));
+        self.ensure_extra().property_iterator_cache.set(Some(cache));
     }
 
     pub fn realm(&self) -> Gc<Realm> {
@@ -1261,10 +1334,12 @@ impl Shape {
             return None;
         }
         if self.is_dictionary() {
-            return match &*self.storage.property_storage.borrow() {
-                PropertyStorage::PropertyTable(property_table) => property_table.get(property_key).copied(),
-                PropertyStorage::Descriptors(_) => unreachable!("a dictionary shape has a property table"),
-            };
+            return self
+                .dictionary_property_table()
+                .table
+                .borrow()
+                .get(property_key)
+                .copied();
         }
         self.descriptors()?.lookup(property_key, self.property_count())
     }
@@ -1275,19 +1350,15 @@ impl Shape {
         &self,
         mut callback: impl FnMut(&PropertyKey, PropertyMetadata) -> ControlFlow<()>,
     ) {
-        let property_storage = self.storage.property_storage.borrow();
-        match &*property_storage {
-            PropertyStorage::PropertyTable(property_table) => {
-                for (property_key, metadata) in property_table.iter() {
-                    if callback(property_key, *metadata).is_break() {
-                        return;
-                    }
+        if self.is_dictionary() {
+            let property_table = self.dictionary_property_table();
+            for (property_key, metadata) in property_table.table.borrow().iter() {
+                if callback(property_key, *metadata).is_break() {
+                    return;
                 }
             }
-            PropertyStorage::Descriptors(None) => {}
-            PropertyStorage::Descriptors(Some(descriptors)) => {
-                descriptors.for_each_in_insertion_order(callback, self.property_count());
-            }
+        } else if let Some(descriptors) = self.descriptors() {
+            descriptors.for_each_in_insertion_order(callback, self.property_count());
         }
     }
 }

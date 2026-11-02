@@ -172,6 +172,25 @@ impl DescriptorArray {
         Some(entries[index].metadata())
     }
 
+    /// The key and the attributes of the property with the given enum index.
+    pub fn property_at_enum_index(&self, enum_index: u32) -> (PropertyKey, PropertyAttributes) {
+        let entries = self.entries.borrow();
+        let entry = &entries[self.entry_indices_by_enum_index.borrow()[enum_index as usize] as usize];
+        (entry.property_key.clone(), entry.metadata().attributes)
+    }
+
+    /// Whether the property with the given enum index has the key and the attributes.
+    pub fn has_property_at_enum_index(
+        &self,
+        enum_index: u32,
+        property_key: &PropertyKey,
+        attributes: PropertyAttributes,
+    ) -> bool {
+        let entries = self.entries.borrow();
+        let entry = &entries[self.entry_indices_by_enum_index.borrow()[enum_index as usize] as usize];
+        entry.property_key == *property_key && entry.metadata().attributes == attributes
+    }
+
     pub fn set(&self, vm: &Vm, property_key: &PropertyKey, metadata: PropertyMetadata, enum_index: u32) {
         set_entry(
             &mut self.entries.borrow_mut(vm),
