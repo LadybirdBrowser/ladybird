@@ -1,5 +1,5 @@
 // https://w3c.github.io/server-timing/#the-performanceservertiming-interface
-[Exposed=(Window,Worker)]
+[Exposed=(Window,Worker), ImplementedIn=Rust]
 interface PerformanceServerTiming {
     readonly attribute DOMString name;
     readonly attribute DOMHighResTimeStamp duration;
