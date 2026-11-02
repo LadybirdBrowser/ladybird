@@ -1,0 +1,205 @@
+Harness status: OK
+
+Found 200 tests
+
+200 Fail
+Fail	SubtleCrypto.supports method exists
+Fail	supports returns false for invalid operations
+Fail	supports returns false for invalid algorithms
+Fail	supports(generateKey, RSASSA-PKCS1-v1_5)
+Fail	supports(importKey, RSASSA-PKCS1-v1_5)
+Fail	supports(sign, RSASSA-PKCS1-v1_5)
+Fail	supports(verify, RSASSA-PKCS1-v1_5)
+Fail	supports(encrypt, RSASSA-PKCS1-v1_5)
+Fail	supports(decrypt, RSASSA-PKCS1-v1_5)
+Fail	supports(deriveBits, RSASSA-PKCS1-v1_5)
+Fail	supports(digest, RSASSA-PKCS1-v1_5)
+Fail	supports(getPublicKey, RSASSA-PKCS1-v1_5)
+Fail	supports(generateKey, RSA-PSS)
+Fail	supports(importKey, RSA-PSS)
+Fail	supports(sign, RSA-PSS)
+Fail	supports(verify, RSA-PSS)
+Fail	supports(encrypt, RSA-PSS)
+Fail	supports(decrypt, RSA-PSS)
+Fail	supports(deriveBits, RSA-PSS)
+Fail	supports(digest, RSA-PSS)
+Fail	supports(getPublicKey, RSA-PSS)
+Fail	supports(generateKey, RSA-OAEP)
+Fail	supports(importKey, RSA-OAEP)
+Fail	supports(sign, RSA-OAEP)
+Fail	supports(verify, RSA-OAEP)
+Fail	supports(encrypt, RSA-OAEP)
+Fail	supports(decrypt, RSA-OAEP)
+Fail	supports(deriveBits, RSA-OAEP)
+Fail	supports(digest, RSA-OAEP)
+Fail	supports(getPublicKey, RSA-OAEP)
+Fail	supports(generateKey, ECDSA)
+Fail	supports(importKey, ECDSA)
+Fail	supports(sign, ECDSA)
+Fail	supports(verify, ECDSA)
+Fail	supports(encrypt, ECDSA)
+Fail	supports(decrypt, ECDSA)
+Fail	supports(deriveBits, ECDSA)
+Fail	supports(digest, ECDSA)
+Fail	supports(getPublicKey, ECDSA)
+Fail	supports(generateKey, ECDH)
+Fail	supports(importKey, ECDH)
+Fail	supports(sign, ECDH)
+Fail	supports(verify, ECDH)
+Fail	supports(encrypt, ECDH)
+Fail	supports(decrypt, ECDH)
+Fail	supports(deriveBits, ECDH)
+Fail	supports(digest, ECDH)
+Fail	supports(getPublicKey, ECDH)
+Fail	supports(generateKey, Ed25519)
+Fail	supports(importKey, Ed25519)
+Fail	supports(sign, Ed25519)
+Fail	supports(verify, Ed25519)
+Fail	supports(encrypt, Ed25519)
+Fail	supports(decrypt, Ed25519)
+Fail	supports(deriveBits, Ed25519)
+Fail	supports(digest, Ed25519)
+Fail	supports(getPublicKey, Ed25519)
+Fail	supports(generateKey, X25519)
+Fail	supports(importKey, X25519)
+Fail	supports(sign, X25519)
+Fail	supports(verify, X25519)
+Fail	supports(encrypt, X25519)
+Fail	supports(decrypt, X25519)
+Fail	supports(deriveBits, X25519)
+Fail	supports(digest, X25519)
+Fail	supports(getPublicKey, X25519)
+Fail	supports(generateKey, AES-CBC)
+Fail	supports(importKey, AES-CBC)
+Fail	supports(sign, AES-CBC)
+Fail	supports(verify, AES-CBC)
+Fail	supports(encrypt, AES-CBC)
+Fail	supports(decrypt, AES-CBC)
+Fail	supports(deriveBits, AES-CBC)
+Fail	supports(digest, AES-CBC)
+Fail	supports(getPublicKey, AES-CBC)
+Fail	supports(generateKey, AES-CTR)
+Fail	supports(importKey, AES-CTR)
+Fail	supports(sign, AES-CTR)
+Fail	supports(verify, AES-CTR)
+Fail	supports(encrypt, AES-CTR)
+Fail	supports(decrypt, AES-CTR)
+Fail	supports(deriveBits, AES-CTR)
+Fail	supports(digest, AES-CTR)
+Fail	supports(getPublicKey, AES-CTR)
+Fail	supports(generateKey, AES-GCM)
+Fail	supports(importKey, AES-GCM)
+Fail	supports(sign, AES-GCM)
+Fail	supports(verify, AES-GCM)
+Fail	supports(encrypt, AES-GCM)
+Fail	supports(decrypt, AES-GCM)
+Fail	supports(deriveBits, AES-GCM)
+Fail	supports(digest, AES-GCM)
+Fail	supports(getPublicKey, AES-GCM)
+Fail	supports(generateKey, AES-KW)
+Fail	supports(importKey, AES-KW)
+Fail	supports(sign, AES-KW)
+Fail	supports(verify, AES-KW)
+Fail	supports(encrypt, AES-KW)
+Fail	supports(decrypt, AES-KW)
+Fail	supports(deriveBits, AES-KW)
+Fail	supports(digest, AES-KW)
+Fail	supports(getPublicKey, AES-KW)
+Fail	supports(generateKey, HMAC)
+Fail	supports(importKey, HMAC)
+Fail	supports(sign, HMAC)
+Fail	supports(verify, HMAC)
+Fail	supports(encrypt, HMAC)
+Fail	supports(decrypt, HMAC)
+Fail	supports(deriveBits, HMAC)
+Fail	supports(digest, HMAC)
+Fail	supports(getPublicKey, HMAC)
+Fail	supports(generateKey, SHA-1)
+Fail	supports(importKey, SHA-1)
+Fail	supports(sign, SHA-1)
+Fail	supports(verify, SHA-1)
+Fail	supports(encrypt, SHA-1)
+Fail	supports(decrypt, SHA-1)
+Fail	supports(deriveBits, SHA-1)
+Fail	supports(digest, SHA-1)
+Fail	supports(getPublicKey, SHA-1)
+Fail	supports(generateKey, SHA-256)
+Fail	supports(importKey, SHA-256)
+Fail	supports(sign, SHA-256)
+Fail	supports(verify, SHA-256)
+Fail	supports(encrypt, SHA-256)
+Fail	supports(decrypt, SHA-256)
+Fail	supports(deriveBits, SHA-256)
+Fail	supports(digest, SHA-256)
+Fail	supports(getPublicKey, SHA-256)
+Fail	supports(generateKey, SHA-384)
+Fail	supports(importKey, SHA-384)
+Fail	supports(sign, SHA-384)
+Fail	supports(verify, SHA-384)
+Fail	supports(encrypt, SHA-384)
+Fail	supports(decrypt, SHA-384)
+Fail	supports(deriveBits, SHA-384)
+Fail	supports(digest, SHA-384)
+Fail	supports(getPublicKey, SHA-384)
+Fail	supports(generateKey, SHA-512)
+Fail	supports(importKey, SHA-512)
+Fail	supports(sign, SHA-512)
+Fail	supports(verify, SHA-512)
+Fail	supports(encrypt, SHA-512)
+Fail	supports(decrypt, SHA-512)
+Fail	supports(deriveBits, SHA-512)
+Fail	supports(digest, SHA-512)
+Fail	supports(getPublicKey, SHA-512)
+Fail	supports(generateKey, HKDF)
+Fail	supports(importKey, HKDF)
+Fail	supports(sign, HKDF)
+Fail	supports(verify, HKDF)
+Fail	supports(encrypt, HKDF)
+Fail	supports(decrypt, HKDF)
+Fail	supports(deriveBits, HKDF)
+Fail	supports(digest, HKDF)
+Fail	supports(getPublicKey, HKDF)
+Fail	supports(generateKey, PBKDF2)
+Fail	supports(importKey, PBKDF2)
+Fail	supports(sign, PBKDF2)
+Fail	supports(verify, PBKDF2)
+Fail	supports(encrypt, PBKDF2)
+Fail	supports(decrypt, PBKDF2)
+Fail	supports(deriveBits, PBKDF2)
+Fail	supports(digest, PBKDF2)
+Fail	supports(getPublicKey, PBKDF2)
+Fail	supports works with algorithm objects
+Fail	supports returns false for algorithm objects with invalid parameters
+Fail	supports validates HKDF SHA-1 output length
+Fail	supports validates HKDF SHA-256 output length
+Fail	supports validates HKDF SHA-384 output length
+Fail	supports validates HKDF SHA-512 output length
+Fail	supports validates HKDF output length for deriveKey
+Fail	supports validates HMAC import length
+Fail	supports rejects RSASSA-PKCS1-v1_5 generateKey with a modulus shorter than 4 bits
+Fail	supports rejects RSASSA-PKCS1-v1_5 generateKey with a public exponent less than 3
+Fail	supports rejects RSASSA-PKCS1-v1_5 generateKey with an even public exponent
+Fail	supports rejects RSASSA-PKCS1-v1_5 generateKey with a public exponent equal to 2^modulusLength - 1
+Fail	supports rejects RSA-PSS generateKey with a modulus shorter than 4 bits
+Fail	supports rejects RSA-PSS generateKey with a public exponent less than 3
+Fail	supports rejects RSA-PSS generateKey with an even public exponent
+Fail	supports rejects RSA-PSS generateKey with a public exponent equal to 2^modulusLength - 1
+Fail	supports rejects RSA-OAEP generateKey with a modulus shorter than 4 bits
+Fail	supports rejects RSA-OAEP generateKey with a public exponent less than 3
+Fail	supports rejects RSA-OAEP generateKey with an even public exponent
+Fail	supports rejects RSA-OAEP generateKey with a public exponent equal to 2^modulusLength - 1
+Fail	supports validates ECDSA import namedCurve
+Fail	supports validates ECDH import namedCurve
+Fail	supports validates ECDH P-256 deriveBits length
+Fail	supports validates ECDH P-384 deriveBits length
+Fail	supports validates ECDH P-521 deriveBits length
+Fail	supports validates X25519 deriveBits length
+Fail	supports validates the ECDH public key
+Fail	supports validates the X25519 public key
+Fail	supports derives the ECDH output limit from the public curve
+Fail	Common algorithm and operation combinations work
+Fail	Invalid algorithm and operation combinations fail
+Fail	deriveKey tests
+Fail	deriveKey promise tests
+Fail	exportKey tests
+Fail	wrapKey tests
