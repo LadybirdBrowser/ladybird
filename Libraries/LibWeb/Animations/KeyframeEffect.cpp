@@ -1295,7 +1295,7 @@ bool KeyframeEffect::css_animation_events_are_heard(bool only_iteration_events) 
 
 static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)
 {
-    if (abstract_element.pseudo_element().has_value() && abstract_element.element().installed_style(abstract_element.pseudo_element()).display_is_none())
+    if (abstract_element.pseudo_element().has_value() && abstract_element.element().installed_style(abstract_element.pseudo_element()).display_is_none_ignoring_animations())
         return true;
     return abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations();
 }

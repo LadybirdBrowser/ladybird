@@ -1324,6 +1324,36 @@ impl<'a> Scratch<'a> {
                 });
             };
             computed.element_dependent |= custom_properties_read_subject;
+            // NB: As for an element, what its sampled custom properties make of `display` is not what ends its animations.
+            if sampled.is_some() && computed_display_is_none(&computed) {
+                let ignoring_animations = state.drive_element(
+                    context.records,
+                    node,
+                    Some((inherited.parent, inherited.color)),
+                    context.initial,
+                    &self.cascade.winners,
+                    &super::cascade::CascadeBelow {
+                        cascade: &self.cascade,
+                        state,
+                        node,
+                    },
+                    &mut None,
+                    &mut Default::default(),
+                    super::custom_properties::CustomPropertyStores {
+                        own: substituted.as_ref(),
+                        inherited: inherited.held.as_ref(),
+                        substitutions: &self.substitutions,
+                        subject: &subject,
+                    },
+                    &mut self.groups,
+                    &mut self.absolutized,
+                    kind,
+                    context.root_font(),
+                    group_seeds,
+                );
+                computed.reads.display_none_is_animated = ignoring_animations
+                    .is_ok_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
+            }
             let registered = state.registered_custom_property_store(
                 node,
                 inherited.handed_down.as_ref(),
@@ -1691,15 +1721,7 @@ impl<'a> Scratch<'a> {
             // owning element.
             // NB: The sampled custom properties are part of the Animations origin, so what they make of `display` is
             //     not what ends the animations. Only an element they leave with none computes this again.
-            let display_is_none = |computed: &super::compute::ComputedElement| {
-                crate::css::style_compute::display_of(
-                    computed
-                        .groups
-                        .value(crate::css::property_metadata::property_id::DISPLAY),
-                )
-                .is_none()
-            };
-            if sampled.is_some() && display_is_none(&computed) {
+            if sampled.is_some() && computed_display_is_none(&computed) {
                 let ignoring_animations = state.drive_element(
                     context.records,
                     node,
@@ -1725,8 +1747,8 @@ impl<'a> Scratch<'a> {
                     context.root_font(),
                     group_seeds,
                 );
-                computed.reads.display_none_is_animated =
-                    ignoring_animations.is_ok_and(|ignoring_animations| !display_is_none(&ignoring_animations));
+                computed.reads.display_none_is_animated = ignoring_animations
+                    .is_ok_and(|ignoring_animations| !computed_display_is_none(&ignoring_animations));
             }
             let registered = state.registered_custom_property_store(
                 node,
@@ -2740,6 +2762,16 @@ pub(super) enum DemandedPseudoElement {
 /// Style the pseudo-element of `kind` of `node` for a read of its style, whether or not it
 /// generates a box, from the rules the element matches for it, over the record `context` holds for
 /// `node`, which it inherits from. Which pseudo-elements are styled is what `read` says.
+/// Whether the computed values of `computed` hold `display: none`.
+fn computed_display_is_none(computed: &super::compute::ComputedElement) -> bool {
+    crate::css::style_compute::display_of(
+        computed
+            .groups
+            .value(crate::css::property_metadata::property_id::DISPLAY),
+    )
+    .is_none()
+}
+
 pub(super) fn style_pseudo_element(
     context: &PassContext<'_>,
     node: StyleNodeID,
