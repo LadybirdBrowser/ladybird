@@ -1,0 +1,17 @@
+Ladybird saves a force-dark choice per host, next to the global
+default, and WebContent decides each top-level document’s value as
+that document becomes active — so the first paint is already right.
+Same-process child frames follow the top-level document.
+
+Chromium does the same only on Android: It stores a per-site
+AUTO_DARK_WEB_CONTENT content setting, scoped to the top-level origin,
+through WebContentsDarkModeController’s isEnabledForUrl() and
+setEnabledForUrl(). Then after each navigation, its
+ChromeContentBrowserClient::OverrideWebPreferencesAfterNavigation()
+resets WebPreferences::force_dark_mode_enabled from
+WebContentsThemeClient::IsForceDarkWebContentEnabled(). Ladybird
+differs in three ways: It keys the choice by host, as its per-site
+zoom does; it keeps every explicit choice, even one that matches the
+default; and it decides inside WebContent rather than in the browser
+process after the navigation. Gecko and WebKit have no built-in
+force-dark mode, so they have no per-site choice to compare.
