@@ -1,0 +1,2 @@
+Wasm enabled: 64 black pixels
+JavaScript fallback: 64 black pixels

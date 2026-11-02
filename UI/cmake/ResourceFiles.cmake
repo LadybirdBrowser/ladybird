@@ -90,6 +90,7 @@ list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 set(PDFJS_BUILD_FILES "")
 set(PDFJS_WEB_BASE_FILES "")
 set(PDFJS_WEB_IMAGE_FILES "")
+set(PDFJS_WEB_WASM_FILES "")
 set(PDFJS_WEB_LOCALE_JSON "")
 set(PDFJS_WEB_LOCALE_EN_US "")
 set(PDFJS_VIEWER_HTML "")
@@ -104,6 +105,7 @@ if (NOT "${VCPKG_INSTALLED_DIR}" STREQUAL "" AND NOT "${VCPKG_TARGET_TRIPLET}" S
             "${_pdfjs_vcpkg_dir}/web/viewer.css"
         )
         file(GLOB PDFJS_WEB_IMAGE_FILES "${_pdfjs_vcpkg_dir}/web/images/*")
+        file(GLOB PDFJS_WEB_WASM_FILES "${_pdfjs_vcpkg_dir}/web/wasm/*")
         set(PDFJS_WEB_LOCALE_JSON "${_pdfjs_vcpkg_dir}/web/locale/locale.json")
         set(PDFJS_WEB_LOCALE_EN_US "${_pdfjs_vcpkg_dir}/web/locale/en-US/viewer.ftl")
         set(PDFJS_VIEWER_HTML "${_pdfjs_vcpkg_dir}/web/viewer.html")
@@ -200,6 +202,9 @@ function(copy_resources_to_build base_directory bundle_target)
         copy_resource_set(ladybird/pdfjs/web/images RESOURCES ${PDFJS_WEB_IMAGE_FILES}
             DESTINATION ${base_directory} TARGET ${bundle_target}
         )
+        copy_resource_set(ladybird/pdfjs/web/wasm RESOURCES ${PDFJS_WEB_WASM_FILES}
+            DESTINATION ${base_directory} TARGET ${bundle_target}
+        )
         copy_resource_set(ladybird/pdfjs/web/locale RESOURCES ${PDFJS_WEB_LOCALE_JSON}
             DESTINATION ${base_directory} TARGET ${bundle_target}
         )
@@ -227,6 +232,7 @@ function(install_ladybird_resources destination component)
         install(FILES ${PDFJS_BUILD_FILES} DESTINATION "${destination}/ladybird/pdfjs/build" COMPONENT ${component})
         install(FILES ${PDFJS_WEB_BASE_FILES} ${PDFJS_VIEWER_HTML} DESTINATION "${destination}/ladybird/pdfjs/web" COMPONENT ${component})
         install(FILES ${PDFJS_WEB_IMAGE_FILES} DESTINATION "${destination}/ladybird/pdfjs/web/images" COMPONENT ${component})
+        install(FILES ${PDFJS_WEB_WASM_FILES} DESTINATION "${destination}/ladybird/pdfjs/web/wasm" COMPONENT ${component})
         install(FILES ${PDFJS_WEB_LOCALE_JSON} DESTINATION "${destination}/ladybird/pdfjs/web/locale" COMPONENT ${component})
         install(FILES ${PDFJS_WEB_LOCALE_EN_US} DESTINATION "${destination}/ladybird/pdfjs/web/locale/en-US" COMPONENT ${component})
     endif()

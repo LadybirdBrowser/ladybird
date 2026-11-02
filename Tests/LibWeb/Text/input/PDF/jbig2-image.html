@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const { getDocument, GlobalWorkerOptions } = await import("resource://ladybird/pdfjs/build/pdf.mjs");
+        GlobalWorkerOptions.workerSrc = "resource://ladybird/pdfjs/build/pdf.worker.mjs";
+        // A single-page PDF containing an 8x8 black JBIG2 image with MMR-encoded pixels.
+        const data = Uint8Array.fromBase64(
+            "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA4IDhdIC9SZXNvdXJjZXMgPDwgL1hPYmplY3QgPDwgL0ltYWdlIDQgMCBSID4+ID4+IC9Db250ZW50cyA1IDAgUiA+PgplbmRvYmoKNCAwIG9iago8PCAvVHlwZSAvWE9iamVjdCAvU3VidHlwZSAvSW1hZ2UgL1dpZHRoIDggL0hlaWdodCA4IC9Db2xvclNwYWNlIC9EZXZpY2VHcmF5IC9CaXRzUGVyQ29tcG9uZW50IDEgL0ZpbHRlciAvSkJJRzJEZWNvZGUgL0xlbmd0aCA3NyA+PgpzdHJlYW0KAAAAATAAAQAAABMAAAAIAAAACAAAAAAAAAAAAAAAAAAAAiYAAQAAABkAAAAIAAAACAAAAAAAAAAAAAEmov/+ACACAAAAAzEAAQAAAAAKZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9MZW5ndGggMjggPj4Kc3RyZWFtCnEgOCAwIDAgOCAwIDAgY20gL0ltYWdlIERvIFEKZW5kc3RyZWFtCmVuZG9iagp4cmVmCjAgNgowMDAwMDAwMDAwIDY1NTM1IGYgCjAwMDAwMDAwMDkgMDAwMDAgbiAKMDAwMDAwMDA1OCAwMDAwMCBuIAowMDAwMDAwMTE1IDAwMDAwIG4gCjAwMDAwMDAyNDMgMDAwMDAgbiAKMDAwMDAwMDQ4NSAwMDAwMCBuIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjU2MwolJUVPRgo="
+        );
+        for (const useWasm of [true, false]) {
+            const loadingTask = getDocument({
+                data: new Uint8Array(data.slice(0)),
+                wasmUrl: "resource://ladybird/pdfjs/web/wasm/",
+                useWasm,
+                isOffscreenCanvasSupported: false,
+            });
+            const pdf = await loadingTask.promise;
+            const page = await pdf.getPage(1);
+            const viewport = page.getViewport({ scale: 1 });
+            const canvas = document.createElement("canvas");
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            const context = canvas.getContext("2d");
+            await page.render({ canvasContext: context, viewport }).promise;
+            const pixels = context.getImageData(0, 0, 8, 8).data;
+            let blackPixels = 0;
+            for (let i = 0; i < pixels.length; i += 4) {
+                if (pixels[i] === 0 && pixels[i + 1] === 0 && pixels[i + 2] === 0 && pixels[i + 3] === 255)
+                    ++blackPixels;
+            }
+            println(`${useWasm ? "Wasm enabled" : "JavaScript fallback"}: ${blackPixels} black pixels`);
+            await loadingTask.destroy();
+        }
+        done();
+    });
+</script>
