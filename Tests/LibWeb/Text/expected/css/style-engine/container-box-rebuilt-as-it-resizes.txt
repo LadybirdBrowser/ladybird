@@ -1,0 +1,2 @@
+display change: rgb(0, 128, 0)
+fixed child shown: rgb(0, 128, 0)
