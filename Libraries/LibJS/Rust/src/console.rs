@@ -1195,8 +1195,11 @@ impl ConsoleClient {
         // 6. TODO: process %c
         else {
             // NOTE: This has no spec yet. `%c` specifiers treat the argument as CSS styling for the log message.
-            let css_style = current.to_utf16_string(vm)?;
-            self.add_css_style_to_current_message(Utf16View::of_string(&css_style));
+            // NB: A Symbol has no string conversion, so it adds no styling, as in other engines.
+            if !current.is_symbol() {
+                let css_style = current.to_utf16_string(vm)?;
+                self.add_css_style_to_current_message(Utf16View::of_string(&css_style));
+            }
             converted = Some(Value::from_string(PrimitiveString::create(vm, Utf16String::default())));
         }
 
