@@ -21,6 +21,7 @@
 #include <LibCompositing/FontServiceClient.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Process.h>
+#include <LibCore/StatsLog.h>
 #include <LibDevTools/IndexedDBSerialization.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/Bitmap.h>
@@ -1039,6 +1040,71 @@ void ConnectionFromClient::enqueue_input_event(Web::QueuedInputEvent event)
         Web::HTML::main_thread_event_loop().queue_task_to_process_input_events();
 }
 
+// Prints the shortest path from a root to each destroyed document that is still reachable, grouped by the classes along
+// it. Unless script still holds objects of the document, as of a removed iframe, whatever keeps it alive leaks it.
+static void report_leaked_documents()
+{
+    static constexpr size_t max_documents = 1000;
+    auto paths = Web::Bindings::main_thread_vm().heap().find_retaining_paths([](GC::Cell& cell) {
+        // NB: Most cells are not C++ objects, so check the class their heap block records before casting.
+        if (!GC::class_name_of(cell).is_one_of("Document"sv, "HTMLDocument"sv, "XMLDocument"sv))
+            return false;
+        return static_cast<Web::DOM::Document&>(cell).has_been_destroyed();
+    },
+        max_documents);
+
+    HashMap<String, size_t> counts;
+    Vector<String> order;
+    for (auto const& path : paths) {
+        StringBuilder builder;
+        builder.append(GC::Heap::describe_root(path.root));
+        for (size_t i = 0; i < path.steps.size(); ++i) {
+            auto const& step = path.steps[i];
+            if (i == 0) {
+                builder.append(": "sv);
+            } else {
+                switch (step.edge_kind) {
+                case GC::Heap::RetainingEdgeKind::Precise:
+                    builder.append(" -> "sv);
+                    break;
+                case GC::Heap::RetainingEdgeKind::ConservativeWord:
+                    builder.append(" ~word~> "sv);
+                    break;
+                case GC::Heap::RetainingEdgeKind::ConservativeHalf:
+                    builder.append(" ~half~> "sv);
+                    break;
+                }
+            }
+            builder.append(step.class_name);
+        }
+        auto signature = builder.to_string_without_validation();
+        auto& count = counts.ensure(signature, [&] -> size_t {
+            order.append(signature);
+            return 0;
+        });
+        ++count;
+    }
+    quick_sort(order, [&](auto const& a, auto const& b) { return counts.get(a).value() > counts.get(b).value(); });
+
+    dbgln("Leaked documents: {} destroyed documents are reachable{}", paths.size(), paths.size() >= max_documents ? " (or more)"sv : ""sv);
+    JsonArray groups;
+    for (auto const& signature : order) {
+        auto count = counts.get(signature).value();
+        dbgln("  {}x {}", count, signature);
+        JsonObject group;
+        group.set("count"sv, count);
+        group.set("path"sv, signature);
+        groups.must_append(move(group));
+    }
+
+    if (auto* log = Core::StatsLog::the()) {
+        JsonObject data;
+        data.set("documents"sv, paths.size());
+        data.set("paths"sv, move(groups));
+        log->event("leaked_documents"sv, move(data));
+    }
+}
+
 void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request, ByteString argument)
 {
     auto page = this->page(page_id);
@@ -1147,6 +1213,14 @@ void ConnectionFromClient::debug_request(Web::PageId page_id, ByteString request
 
     if (request == "dump-all-css-errors") {
         Web::CSS::Parser::ErrorReporter::the().dump();
+        return;
+    }
+
+    if (request == "report-leaked-documents") {
+        // NOTE: We use deferred_invoke here so that as little as possible on the stack becomes a root.
+        Core::deferred_invoke([] {
+            report_leaked_documents();
+        });
         return;
     }
 
