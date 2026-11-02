@@ -192,7 +192,18 @@ pub(crate) fn compute_sticky_data(
     }
 
     let sticky_border_box_rect = paintable_geometry::absolute_border_box_rect(layout_arena, paintable);
-    let containing_block = layout_arena.paintable_data(paintable).containing_block;
+    let mut containing_block = layout_arena.paintable_data(paintable).containing_block;
+    // https://drafts.csswg.org/css2/#anonymous-block-level
+    // Anonymous flow wrappers group inline content, but their bounds don't constrain sticky movement.
+    while style_queries::is_anonymous(layout_arena, containing_block)
+        && style_queries::display(layout_arena, containing_block).is_flow_inside()
+        && !layout_arena.node_is_generated_for_pseudo_element(containing_block)
+    {
+        containing_block = layout_arena.paintable_data(containing_block).containing_block;
+        if !layout_arena.paintable_row_is_populated(containing_block) {
+            return data;
+        }
+    }
     let scroller_rect = paintable_geometry::absolute_rect(layout_arena, scroller);
     // NB: The box moves within the content box of its containing block, less its own margins. For the scroll
     //     container itself, that is its scrollable overflow rectangle less its padding. This matches other engines.
