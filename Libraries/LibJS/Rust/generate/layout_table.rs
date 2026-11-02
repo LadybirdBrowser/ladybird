@@ -260,8 +260,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES", ExecutableHead, environment_coordinate_caches);
     field!(w, "EXECUTABLE_REGISTERS_AND_LOCALS_COUNT", "Executable.registers_and_locals_count", "u32", ExecutableHead, registers_and_locals_count, 4, "nullable", "scalar", "slot_counts");
     field!(w, "EXECUTABLE_REGISTERS_AND_LOCALS_AND_CONSTANTS_COUNT", "Executable.registers_and_locals_and_constants_count", "u32", ExecutableHead, registers_and_locals_and_constants_count, 4, "nullable", "scalar", "slot_counts");
-    field!(w, "EXECUTABLE_ASM_CONSTANTS_SIZE", "Executable.asm_constants_size", "u64", ExecutableHead, asm_constants_size, 8, "nullable", "scalar", "constants");
-    field!(w, "EXECUTABLE_ASM_CONSTANTS_DATA", "Executable.asm_constants_data", "Sequence<Value>", ExecutableHead, asm_constants_data, 8, "nullable", "scalar", "constants");
+    field!(w, "EXECUTABLE_CONSTANTS_DATA", "Executable.constants_data", "Sequence<Value>", ExecutableHead, constants, 8, "nullable", "scalar");
     field!(w, "EXECUTABLE_TIER_UP_BUDGET", "Executable.tier_up_budget", "i32", ExecutableHead, tier_up_budget, 4, "nullable", "scalar");
     field!(w, "EXECUTABLE_JIT_COMPILE_STATE", "Executable.jit_compile_state", "u8", ExecutableHead, jit_compile_state, 1, "nullable", "scalar");
     w.constant("JIT_COMPILE_STATE_INSTALLED", JIT_COMPILE_STATE_INSTALLED);
@@ -436,8 +435,6 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     w.line("field Executable.global_variable_caches GlobalVariableCaches EXECUTABLE_GLOBAL_VARIABLE_CACHES_DATA nonnull scalar");
     offset!(w, "EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA", ExecutableHead, environment_coordinate_caches.data);
     w.line("field Executable.environment_coordinate_caches Sequence<EnvironmentCoordinateEntry> EXECUTABLE_ENVIRONMENT_COORDINATE_CACHES_DATA nullable scalar");
-    offset!(w, "EXECUTABLE_CONSTANTS_DATA", ExecutableHead, constants.data);
-    offset!(w, "EXECUTABLE_CONSTANTS_SIZE", ExecutableHead, constants.size);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA", ObjectPropertyIteratorCacheData, property_values.data);
     offset!(w, "OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_SIZE", ObjectPropertyIteratorCacheData, property_values.size);
     w.line("field ObjectPropertyIteratorCacheData.property_values Sequence<Value> OBJECT_PROPERTY_ITERATOR_CACHE_DATA_PROPERTY_VALUES_DATA nullable scalar");

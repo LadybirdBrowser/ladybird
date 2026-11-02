@@ -1249,8 +1249,8 @@ handler Enter() {
     if slot_index < alias(registers_and_locals_count) {
         values[slot_index] = empty_tag;
     }
-    let constant_count = executable.asm_constants_size;
-    let constant_data = executable.asm_constants_data;
+    let constant_count: u32 = executable.registers_and_locals_and_constants_count - registers_and_locals_count;
+    let constant_data = executable.constants_data;
     let mut write_index: u64 = alias(registers_and_locals_count);
     let mut constant_index: u64 = 0;
     while constant_index < alias(constant_count) {
