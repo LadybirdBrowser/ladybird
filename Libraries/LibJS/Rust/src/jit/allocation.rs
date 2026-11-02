@@ -285,9 +285,9 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
         return;
     };
     let has_inline_binding_values = binding_count != 0;
-    if !environment.rare_data.get().is_null()
-        || environment.binding_values_are_inline.get() != has_inline_binding_values
-        || environment.binding_values.size() != 0
+    if !environment.rare_data.is_null()
+        || environment.binding_values_are_inline() != has_inline_binding_values
+        || environment.binding_count.get() != 0
         || (has_inline_binding_values && environment.shape.get().is_none())
     {
         return;
@@ -307,7 +307,7 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
     };
     template.words.copy_from_slice(&words);
     for (offset, size) in [
-        (core::mem::offset_of!(DeclarativeEnvironment, binding_values.data), 8),
+        (core::mem::offset_of!(DeclarativeEnvironment, binding_values), 8),
         (
             core::mem::offset_of!(Environment, outer),
             size_of::<NullableMember<Environment>>(),
@@ -346,7 +346,7 @@ pub fn function_environment_template(
     if binds_this {
         sample.bind_this_value(vm, Value::UNDEFINED).must();
     }
-    if !sample.rare_data.get().is_null() || sample.binding_values_are_inline.get() != (binding_count != 0) {
+    if !sample.rare_data.is_null() || sample.binding_values_are_inline() != (binding_count != 0) {
         return None;
     }
     let mut cells = Vec::new();
@@ -364,7 +364,7 @@ pub fn function_environment_template(
         cell_size,
         words: cell_words(sample, size_of::<FunctionEnvironment>()),
         inline_binding_values: binding_count != 0,
-        binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values.data)),
+        binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values)),
         binds_this,
         this_value_offset: offset(FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET),
         cells,
@@ -405,7 +405,7 @@ pub fn lexical_environment_templates(
                 u32::try_from(binding_count).ok()?,
                 false,
             );
-            if !sample.rare_data.get().is_null() || sample.binding_values_are_inline.get() != (binding_count != 0) {
+            if !sample.rare_data.is_null() || sample.binding_values_are_inline() != (binding_count != 0) {
                 return None;
             }
             Some(LexicalEnvironmentTemplateSnapshot {
@@ -414,7 +414,7 @@ pub fn lexical_environment_templates(
                 words: cell_words(sample, size_of::<DeclarativeEnvironment>()),
                 binding_count: u32::try_from(binding_count).ok()?,
                 inline_binding_values: binding_count != 0,
-                binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values.data)),
+                binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values)),
                 outer_offset: offset(core::mem::offset_of!(Environment, outer)),
                 shape: shape.map(|shape| cell(header_of(shape))),
             })

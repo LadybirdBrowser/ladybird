@@ -3665,7 +3665,10 @@ asm_handler_SetLexicalBinding:
     cmp w2, #0
     csel x2, x9, xzr, ne
     cbnz x2, .Lasm_SetLexicalBinding.ssa_block_9
-    ldr x1, [x1, #48]
+    ldr w1, [x1, #48]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     ldr x1, [x1]
     cbz x1, .Lasm_SetLexicalBinding.assert_failure_1
     ldrb w1, [x1, x0]
@@ -3674,7 +3677,10 @@ asm_handler_SetLexicalBinding:
     ldr w4, [x2, #24]
     cmp x4, x0
     b.hi .Lasm_SetLexicalBinding.ssa_block_12
-    ldr x1, [x1, #48]
+    ldr w1, [x1, #48]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     ldr x1, [x1]
     cbz x1, .Lasm_SetLexicalBinding.assert_failure_2
     mov x2, x0
@@ -3726,7 +3732,10 @@ asm_handler_SetVariableBinding:
     cmp w2, #0
     csel x2, x9, xzr, ne
     cbnz x2, .Lasm_SetVariableBinding.ssa_block_9
-    ldr x1, [x1, #48]
+    ldr w1, [x1, #48]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     ldr x1, [x1]
     cbz x1, .Lasm_SetVariableBinding.assert_failure_1
     ldrb w1, [x1, x0]
@@ -3735,7 +3744,10 @@ asm_handler_SetVariableBinding:
     ldr w4, [x2, #24]
     cmp x4, x0
     b.hi .Lasm_SetVariableBinding.ssa_block_12
-    ldr x1, [x1, #48]
+    ldr w1, [x1, #48]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     ldr x1, [x1]
     cbz x1, .Lasm_SetVariableBinding.assert_failure_2
     mov x2, x0
@@ -3801,7 +3813,10 @@ asm_handler_DynamicSetLexicalBinding:
     cmp w2, #0
     csel x2, x9, xzr, ne
     cbnz x2, .Lasm_DynamicSetLexicalBinding.ssa_block_13
-    ldr x0, [x0, #48]
+    ldr w0, [x0, #48]
+    add x9, x24, w0, uxtw #3
+    cmp w0, #0
+    csel x0, x9, xzr, ne
     ldr x0, [x0]
     cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_1
     ldrb w0, [x0, x1]
@@ -3810,7 +3825,10 @@ asm_handler_DynamicSetLexicalBinding:
     ldr w4, [x2, #24]
     cmp x4, x1
     b.hi .Lasm_DynamicSetLexicalBinding.ssa_block_16
-    ldr x0, [x0, #48]
+    ldr w0, [x0, #48]
+    add x9, x24, w0, uxtw #3
+    cmp w0, #0
+    csel x0, x9, xzr, ne
     ldr x0, [x0]
     cbz x0, .Lasm_DynamicSetLexicalBinding.assert_failure_2
     mov x2, x1
@@ -3876,7 +3894,10 @@ asm_handler_DynamicSetVariableBinding:
     cmp w2, #0
     csel x2, x9, xzr, ne
     cbnz x2, .Lasm_DynamicSetVariableBinding.ssa_block_13
-    ldr x0, [x0, #48]
+    ldr w0, [x0, #48]
+    add x9, x24, w0, uxtw #3
+    cmp w0, #0
+    csel x0, x9, xzr, ne
     ldr x0, [x0]
     cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_1
     ldrb w0, [x0, x1]
@@ -3885,7 +3906,10 @@ asm_handler_DynamicSetVariableBinding:
     ldr w4, [x2, #24]
     cmp x4, x1
     b.hi .Lasm_DynamicSetVariableBinding.ssa_block_16
-    ldr x0, [x0, #48]
+    ldr w0, [x0, #48]
+    add x9, x24, w0, uxtw #3
+    cmp w0, #0
+    csel x0, x9, xzr, ne
     ldr x0, [x0]
     cbz x0, .Lasm_DynamicSetVariableBinding.assert_failure_2
     mov x2, x1
@@ -5920,7 +5944,10 @@ asm_handler_SetGlobal:
     cmp w2, #0
     csel x2, x9, xzr, ne
     cbnz x2, .Lasm_SetGlobal.ssa_block_6
-    ldr x1, [x1, #48]
+    ldr w1, [x1, #48]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     ldr x1, [x1]
     cbz x1, .Lasm_SetGlobal.assert_failure_4
     ldrb w1, [x1, x0]
@@ -5929,7 +5956,10 @@ asm_handler_SetGlobal:
     ldr w4, [x2, #24]
     cmp x4, x0
     b.hi .Lasm_SetGlobal.ssa_block_9
-    ldr x1, [x1, #48]
+    ldr w1, [x1, #48]
+    add x9, x24, w1, uxtw #3
+    cmp w1, #0
+    csel x1, x9, xzr, ne
     ldr x1, [x1]
     cbz x1, .Lasm_SetGlobal.assert_failure_5
     mov x2, x0

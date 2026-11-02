@@ -1152,7 +1152,7 @@ impl SnapshotBuilder<'_> {
             let Some(environment) = environment.as_declarative_environment() else {
                 continue;
             };
-            if coordinate.index as usize >= environment.binding_values.size() {
+            if coordinate.index as usize >= environment.binding_count.get() as usize {
                 continue;
             }
             let value = environment.get_initialized_binding_value_direct(coordinate.index as usize);

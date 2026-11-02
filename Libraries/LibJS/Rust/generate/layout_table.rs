@@ -447,7 +447,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "WATCHPOINT_SET_VALID", "WatchpointSet.valid", "bool", WatchpointSet, valid, 1, "nonnull", "scalar");
 
     w.section("DeclarativeEnvironment layout");
-    field!(w, "DECLARATIVE_ENVIRONMENT_RARE_DATA", "DeclarativeEnvironment.rare_data", "DeclarativeEnvironmentRareData", DeclarativeEnvironment, rare_data, 8, "nullable", "scalar");
+    field!(w, "DECLARATIVE_ENVIRONMENT_RARE_DATA", "DeclarativeEnvironment.rare_data", "DeclarativeEnvironmentRareData", DeclarativeEnvironment, rare_data, 4, "nullable", "compressed");
     field!(w, "DECLARATIVE_ENVIRONMENT_SERIAL", "DeclarativeEnvironment.serial_number", "u64", GlobalDeclarativeEnvironment, serial_number, 8, "nullable", "scalar");
 
     w.section("GlobalVariableCache layout");
@@ -557,7 +557,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     offset!(w, "DECLARATIVE_ENVIRONMENT_RARE_DATA_BINDING_FLAGS", DeclarativeEnvironmentRareData, binding_flags);
     offset!(w, "ENVIRONMENT_SHAPE_BINDING_FLAGS", EnvironmentShape, binding_flags);
     w.constant("BINDING_FLAG_MUTABLE", BINDING_FLAG_MUTABLE);
-    offset!(w, "BINDING_VALUES_DATA_PTR", DeclarativeEnvironment, binding_values.data);
+    offset!(w, "BINDING_VALUES_DATA_PTR", DeclarativeEnvironment, binding_values);
     w.line("field DeclarativeEnvironment.binding_values BindingValues BINDING_VALUES_DATA_PTR nonnull scalar");
     offset!(w, "BINDING_FLAGS_DATA_PTR", DeclarativeEnvironmentRareData, binding_flags.data);
     w.line("field DeclarativeEnvironmentRareData.binding_flags BindingFlags BINDING_FLAGS_DATA_PTR nonnull scalar");

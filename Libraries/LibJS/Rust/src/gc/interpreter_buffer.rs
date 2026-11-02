@@ -16,13 +16,6 @@ use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use super::visitor::{Trace, Visitor};
 use crate::layout::buffer::{InterpreterBuffer, ThinSlice};
 
-/// Whether a buffer owns its storage, which it then allocated itself.
-#[derive(PartialEq, Eq)]
-enum Ownership {
-    Owned,
-    Unowned,
-}
-
 /// Mirrors AK::Vector's growth policy.
 fn padded_capacity(capacity: usize) -> usize {
     4 + capacity + capacity / 4
@@ -108,36 +101,7 @@ impl<T: Copy> InterpreterBuffer<T> {
         self.reallocate(0);
     }
 
-    /// Makes room for `capacity` elements at `data`, which the buffer does not own, the storage of this buffer.
-    ///
-    /// # Safety
-    ///
-    /// The buffer must have no storage, and `data` must have room for `capacity` elements for as long as the buffer
-    /// uses it.
-    pub unsafe fn use_unowned_storage(&self, data: *mut T, capacity: usize) {
-        assert!(self.data.get().is_null());
-        self.data.set(data);
-        self.set_capacity(capacity);
-    }
-
-    /// Moves the elements from storage the buffer does not own to storage of its own, with room for at least
-    /// `needed_capacity` elements and as much more as append() would make.
-    pub fn move_to_owned_storage(&self, needed_capacity: usize) {
-        self.reallocate_from(needed_capacity.max(padded_capacity(self.size())), Ownership::Unowned);
-    }
-
-    /// Removes every element and forgets storage the buffer does not own.
-    pub fn forget_unowned_storage(&self) {
-        self.data.set(core::ptr::null_mut());
-        self.size.set(0);
-        self.capacity.set(0);
-    }
-
     fn reallocate(&self, new_capacity: usize) {
-        self.reallocate_from(new_capacity, Ownership::Owned);
-    }
-
-    fn reallocate_from(&self, new_capacity: usize, ownership: Ownership) {
         const { assert!(size_of::<T>() != 0) };
         let size = self.size();
         assert!(new_capacity >= size);
@@ -157,7 +121,7 @@ impl<T: Copy> InterpreterBuffer<T> {
             }
             new_data
         };
-        if !old_data.is_null() && ownership == Ownership::Owned {
+        if !old_data.is_null() {
             let old_layout = Layout::array::<T>(self.capacity()).expect("the buffer was allocated with this layout");
             // SAFETY: The old storage was allocated by this method with this layout.
             unsafe { dealloc(old_data.cast(), old_layout) };

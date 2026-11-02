@@ -1268,7 +1268,7 @@ fn fake_object_layout() -> RuntimeLayout {
         generator_object_pending_completion_value: 0,
         generator_object_pending_completion_type: 0,
         declarative_environment_binding_values_size: 32,
-        declarative_environment_binding_values_capacity: 40,
+        declarative_environment_inline_binding_capacity: 40,
         environment_shape_binding_names: 48,
         environment_shape_has_unique_binding_names: 32,
         declarative_environment_shape: 24,
@@ -1877,7 +1877,7 @@ const BINDING_MUTABLE: u8 = 2;
 struct FakeEnvironment {
     words: &'static mut [u64],
     values: Vec<u64>,
-    rare_data: Vec<u64>,
+    rare_data: &'static mut [u64],
     rare_flags: Vec<u8>,
     shape: &'static mut [u64],
     shape_flags: Vec<u8>,
@@ -1888,10 +1888,10 @@ impl FakeEnvironment {
     /// a shape (if any) and whose other flags are in its rare data.
     fn new(values: &[u64], flags: &[u8], shape_flags: Option<usize>, outer: Option<&FakeEnvironment>) -> Box<Self> {
         let in_shape = shape_flags.unwrap_or(0);
-        let mut environment = Box::new(Self {
+        let environment = Box::new(Self {
             words: super::fake_heap::cell(&[0; 10]),
             values: values.to_vec(),
-            rare_data: vec![0; 8],
+            rare_data: super::fake_heap::cell(&[0; 8]),
             rare_flags: flags[in_shape..].to_vec(),
             shape: super::fake_heap::cell(&[0; 8]),
             shape_flags: flags[..in_shape].to_vec(),
@@ -1904,7 +1904,7 @@ impl FakeEnvironment {
             environment.words[3] = super::fake_heap::compressed(environment.shape.as_ptr() as u64);
         }
         environment.words[6] = environment.values.as_ptr() as u64;
-        environment.words[7] = environment.rare_data.as_ptr() as u64;
+        environment.words[7] = super::fake_heap::compressed(environment.rare_data.as_ptr() as u64);
         environment
     }
 
@@ -2203,6 +2203,10 @@ impl FakeGlobals {
         globals.object[7] = globals.named_properties.as_ptr() as u64;
         globals.shape[10] = 7 << 32;
         globals.environment.words[8] = 99;
+        // NB: The code of these tests has a heap region base of 0, so compressed pointers name low fake cells.
+        let rare_data = low_cell(&[0; 8]);
+        rare_data[5] = globals.environment.rare_flags.as_ptr() as u64;
+        globals.environment.words[7] = compressed(rare_data);
         globals.realm[3] = globals.object.as_ptr() as u64;
         globals.realm[4] = globals.environment.address();
         globals.executable[1] = globals.caches.as_ptr() as u64;
