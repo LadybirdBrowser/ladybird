@@ -214,6 +214,7 @@ private:
     void leave_report_review();
     void position_private_session_popover();
     QWidget& site_settings_anchor() const;
+    void update_permission_prompts();
     void hide_hover_label();
     QImage render_hover_text(QString const&) const;
     void set_loading(bool);
