@@ -2091,7 +2091,7 @@ impl RegExpPrototype {
 
     /// The fast path of symbol_split_impl(): split with an unmodified RegExp, which bypasses the spec's
     /// SpeciesConstructor/Construct overhead and calls the regex directly with explicit start positions. Returns None
-    /// when the regex cannot be compiled, in which case the generic path runs.
+    /// when the RegExp is sticky or the regex cannot be compiled, in which case the generic path runs.
     fn symbol_split_fast_path(
         vm: &Vm,
         realm: Gc<Realm>,
@@ -2099,11 +2099,15 @@ impl RegExpPrototype {
         string: Gc<PrimitiveString>,
         limit_value: Value,
     ) -> ThrowCompletionOr<Option<Value>> {
+        // The compiled regex of a sticky pattern only matches at the position it is run from.
+        let flag_bits = typed_regexp.flag_bits();
+        if flag_bits.has(RegExpFlags::STICKY) {
+            return Ok(None);
+        }
         let Some(compiled_regex) = get_or_compile_regex(&typed_regexp) else {
             return Ok(None);
         };
 
-        let flag_bits = typed_regexp.flag_bits();
         let is_unicode = flag_bits.has(RegExpFlags::UNICODE);
         let is_unicode_sets = flag_bits.has(RegExpFlags::UNICODE_SETS);
         let unicode_matching = is_unicode || is_unicode_sets;
