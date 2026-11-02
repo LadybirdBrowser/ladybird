@@ -107,12 +107,12 @@ pub struct CalendarFields {
     pub month: Option<u32>,
     pub month_code: Option<Utf16String>,
     pub day: Option<u32>,
-    pub hour: Option<u8>,
-    pub minute: Option<u8>,
-    pub second: Option<u8>,
-    pub millisecond: Option<u16>,
-    pub microsecond: Option<u16>,
-    pub nanosecond: Option<u16>,
+    pub hour: Option<f64>,
+    pub minute: Option<f64>,
+    pub second: Option<f64>,
+    pub millisecond: Option<f64>,
+    pub microsecond: Option<f64>,
+    pub nanosecond: Option<f64>,
     pub offset_string: Option<Utf16String>,
     pub time_zone: Option<Utf16String>,
 }
@@ -121,12 +121,12 @@ pub struct CalendarFields {
 impl Default for CalendarFields {
     fn default() -> Self {
         Self {
-            hour: Some(0),
-            minute: Some(0),
-            second: Some(0),
-            millisecond: Some(0),
-            microsecond: Some(0),
-            nanosecond: Some(0),
+            hour: Some(0.0),
+            minute: Some(0.0),
+            second: Some(0.0),
+            millisecond: Some(0.0),
+            microsecond: Some(0.0),
+            nanosecond: Some(0.0),
             ..Self::unset()
         }
     }
@@ -191,20 +191,20 @@ impl CalendarFields {
         }
     }
 
-    /// Sets a field to a double, converted to the integer type of the field: to an i32 or a u32 saturating, and to the
-    /// u8 and u16 time fields through an i32, wrapping.
+    /// Sets a field to a double. The date fields convert to their integer type, saturating so that a value out of range
+    /// stays out of it. The time fields keep the double for RegulateTime to range-check.
     fn set_number_field(&mut self, field: CalendarField, value: f64) {
         match field {
             CalendarField::EraYear => self.era_year = Some(value as i32),
             CalendarField::Year => self.year = Some(value as i32),
             CalendarField::Month => self.month = Some(value as u32),
             CalendarField::Day => self.day = Some(value as u32),
-            CalendarField::Hour => self.hour = Some(value as i32 as u8),
-            CalendarField::Minute => self.minute = Some(value as i32 as u8),
-            CalendarField::Second => self.second = Some(value as i32 as u8),
-            CalendarField::Millisecond => self.millisecond = Some(value as i32 as u16),
-            CalendarField::Microsecond => self.microsecond = Some(value as i32 as u16),
-            CalendarField::Nanosecond => self.nanosecond = Some(value as i32 as u16),
+            CalendarField::Hour => self.hour = Some(value),
+            CalendarField::Minute => self.minute = Some(value),
+            CalendarField::Second => self.second = Some(value),
+            CalendarField::Millisecond => self.millisecond = Some(value),
+            CalendarField::Microsecond => self.microsecond = Some(value),
+            CalendarField::Nanosecond => self.nanosecond = Some(value),
             CalendarField::Era | CalendarField::MonthCode | CalendarField::Offset | CalendarField::TimeZone => {}
         }
     }
