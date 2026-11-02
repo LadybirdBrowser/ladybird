@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Text fragment matching across a line break followed by white space</title>
+<link rel="help" href="https://wicg.github.io/scroll-to-text-fragment/#find-a-range-from-a-node-list">
+<script src="wpt-import/resources/testharness.js"></script>
+<script src="wpt-import/resources/testharnessreport.js"></script>
+
+<style>
+    #target { margin-top: 2000px; }
+</style>
+
+<p id="target">gamma<br>
+<b>delta</b></p>
+
+<script>
+promise_test(async () => {
+    await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+
+    location.href = "#:~:text=gamma%20delta";
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    assert_greater_than(scrollY, 0, "the words on both sides of the line break matched");
+}, "A line break followed by white space separates words");
+</script>

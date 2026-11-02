@@ -5,7 +5,7 @@
  */
 
 use super::LayoutNodeArena;
-use super::node_data::{GENERATED_FOR_FIRST_LETTER, NodeSlotId};
+use super::node_data::{GENERATED_FOR_FIRST_LETTER, NodeKind, NodeSlotId};
 use super::node_facts::{kind_is_box, kind_is_text, node_style_view};
 use super::rendered_text::{FfiTextSourceRange, RenderedTextBoundary, ensure_text_content};
 use crate::css::css_enums::{visibility, white_space_collapse};
@@ -68,6 +68,11 @@ impl MappedText {
             start,
             end,
         });
+    }
+
+    /// Where the text appended last ends.
+    fn end(&self) -> Option<TextPosition> {
+        self.runs.last().map(|run| run.end)
     }
 
     fn position(&self, offset: usize, boundary: RenderedTextBoundary) -> Option<TextPosition> {
@@ -269,6 +274,16 @@ impl SearchTextBuilder {
         self.pending_space = None;
     }
 
+    /// A line break separates the words around it as collapsible white space does, and collapses with the white space
+    /// next to it. The space it stands for covers no DOM text, at the end of the text before it.
+    fn break_line(&mut self) {
+        if self.pending_space.is_none()
+            && let Some(end) = self.current.end()
+        {
+            self.pending_space = Some((end, end));
+        }
+    }
+
     fn append(&mut self, node: NodeSlotId, text: &[u16], collapse: bool) {
         for (offset, &unit) in text.iter().enumerate() {
             let start = TextPosition { node, offset };
@@ -299,6 +314,7 @@ fn text_node_identity(arena: &LayoutNodeArena, node: NodeSlotId) -> u32 {
 enum SearchNode {
     Skip,
     Break,
+    LineBreak,
     Text(StyleNodeID),
 }
 
@@ -317,6 +333,9 @@ fn search_node(arena: &LayoutNodeArena, node: NodeSlotId) -> SearchNode {
     let data = arena.data(node);
     if node_style_view(data).is_some_and(|style| style.display().is_none()) {
         return SearchNode::Skip;
+    }
+    if data.kind.get() == NodeKind::BreakNode {
+        return SearchNode::LineBreak;
     }
     let pseudo = data.generated_for.get();
     if kind_is_box(data.kind.get()) || (pseudo != 0 && pseudo != GENERATED_FOR_FIRST_LETTER) {
@@ -361,6 +380,7 @@ fn ensure_searchable_text(
         match search_node(arena, node) {
             SearchNode::Skip => {}
             SearchNode::Break => builder.flush(),
+            SearchNode::LineBreak => builder.break_line(),
             SearchNode::Text(text) => {
                 if !is_searchable(text) {
                     continue;
@@ -461,7 +481,6 @@ pub extern "C" fn layout_text_word_range(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layout::node_data::NodeKind;
     use crate::layout::rendered_text::{RenderedTextEdit, TextContent};
 
     fn node(

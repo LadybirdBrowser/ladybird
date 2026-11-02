@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<p id="no-whitespace">alpha<br>beta</p>
+<p id="whitespace-after">gamma<br>
+<b>delta</b></p>
+<p id="whitespace-around">epsilon <br> zeta</p>
+<p id="block-start"><br>eta</p>
+<script>
+    test(() => {
+        function find(query) {
+            window.getSelection().removeAllRanges();
+            return window.find(query);
+        }
+
+        // A line break separates words as a space does, whether or not white space sits next to it.
+        println("'alpha beta': " + find("alpha beta"));
+        println("'gamma delta': " + find("gamma delta"));
+        println("'epsilon zeta': " + find("epsilon zeta"));
+        println("'alphabeta': " + find("alphabeta"));
+
+        // A match that ends on the line break ends where the text before it ends.
+        find("alpha ");
+        let range = window.getSelection().getRangeAt(0);
+        println("'alpha ' ends in its text node: " + (range.endContainer.nodeType === Node.TEXT_NODE && range.endOffset === 5));
+
+        // A line break at the start of a block adds no space.
+        println("' eta': " + find(" eta"));
+    });
+</script>
