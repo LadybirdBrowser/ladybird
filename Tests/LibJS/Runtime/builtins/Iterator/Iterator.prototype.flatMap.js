@@ -121,6 +121,46 @@ describe("normal behavior", () => {
         expect(Iterator.prototype.flatMap).toHaveLength(1);
     });
 
+    test("many empty inner iterators are exhausted without overflowing the stack", () => {
+        let calls = 0;
+        const iterator = new Array(200000).values().flatMap(() => {
+            ++calls;
+            return [];
+        });
+
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+        expect(calls).toBe(200000);
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+        expect(calls).toBe(200000);
+    });
+
+    test("many empty inner iterators can precede the first value", () => {
+        const iterator = new Array(200001)
+            .values()
+            .flatMap((value, index) => (index < 200000 ? [] : [index, index + 1]));
+
+        expect(iterator.next()).toEqual({ value: 200000, done: false });
+        expect(iterator.next()).toEqual({ value: 200001, done: false });
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+    });
+
+    test("many empty inner iterators can separate and follow yielded values", () => {
+        let calls = 0;
+        const iterator = new Array(400002).values().flatMap((value, index) => {
+            ++calls;
+            return index === 0 || index === 200001 ? [index, index + 1] : [];
+        });
+
+        expect(iterator.next()).toEqual({ value: 0, done: false });
+        expect(iterator.next()).toEqual({ value: 1, done: false });
+        expect(calls).toBe(1);
+        expect(iterator.next()).toEqual({ value: 200001, done: false });
+        expect(iterator.next()).toEqual({ value: 200002, done: false });
+        expect(calls).toBe(200002);
+        expect(iterator.next()).toEqual({ value: undefined, done: true });
+        expect(calls).toBe(400002);
+    });
+
     test("mapper function sees every value", () => {
         function* generator() {
             yield "Well hello";
