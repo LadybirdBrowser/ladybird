@@ -1216,14 +1216,6 @@ intrinsic_names!(BytecodeOperation {
 
 define_named_intrinsic_enum! {
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-    pub(crate) enum AggregateOperation {
-        Copy16 => "copy16_field";
-        Zero16 => "zero16_field";
-    }
-}
-
-define_named_intrinsic_enum! {
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
     pub(crate) enum ClassificationOperation {
         Float64Tag => "is_f64_tag";
         NumberTag => "is_number_tag";
@@ -1572,7 +1564,6 @@ macro_rules! define_intrinsic_families {
 
 define_intrinsic_families! {
     Address(AddressOperation),
-    Aggregate(AggregateOperation),
     Assertion(AssertionOperation),
     Branch(BranchOperation),
     Bytecode(BytecodeOperation),
@@ -1657,13 +1648,6 @@ impl Intrinsic {
 
     pub(crate) fn effects(self) -> IntrinsicEffects {
         match self {
-            Self::Aggregate(operation) => IntrinsicEffects {
-                memory: match operation {
-                    AggregateOperation::Copy16 => ModRef::ReadWrite,
-                    AggregateOperation::Zero16 => ModRef::Write,
-                },
-                ..IntrinsicEffects::PURE
-            },
             Self::Assertion(_) => IntrinsicEffects {
                 may_trap: true,
                 ..IntrinsicEffects::PURE

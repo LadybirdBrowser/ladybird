@@ -14,7 +14,7 @@ use crate::bytecode::{BytecodeFieldId, HandlerLayout as BytecodeHandlerLayout};
 use crate::frontend::layout::{KnownLayoutConstant, LayoutConstantCategory, LayoutConstants};
 use crate::hash::{HashMap, HashSet};
 use crate::intrinsic::{
-    AddressOperation, AggregateOperation, BranchOperation, BytecodeOperation, CallOperation, CheckedIntegerOperation,
+    AddressOperation, BranchOperation, BytecodeOperation, CallOperation, CheckedIntegerOperation,
     ClassificationOperation, ComparisonDomain, ComparisonRelation, ControlOperation, FieldWidth, FloatConversion,
     FloatingPointOperation, IntegerBinaryOperation, IntegerComparisonOperation, IntegerSignedness, Intrinsic,
     LowLevelOperation, MemoryOperation, OperandLoad, OperandOperation, OperandStore, ValueOperation,
@@ -2601,27 +2601,6 @@ fn lower_instruction(
             };
             emit!(output; MachineOperation::Control(ControlOperation::GotoHandler) => [target];);
         }
-        Operation::Intrinsic(Intrinsic::Aggregate(AggregateOperation::Copy16)) => {
-            let [destination, source] = require_inputs(&inputs, "copy16_field")?;
-            let suffix = output.len();
-            let destination_address = Operand::VirtualRegister(format!("ssa_copy16_{suffix}_destination").into());
-            let source_address = Operand::VirtualRegister(format!("ssa_copy16_{suffix}_source").into());
-            let low = Operand::VirtualRegister(format!("ssa_copy16_{suffix}_low").into());
-            let high = Operand::VirtualRegister(format!("ssa_copy16_{suffix}_high").into());
-            emit!(output; MachineOperation::LoadEffectiveAddress => [destination_address.clone(), destination.clone()];);
-            emit!(output; MachineOperation::LoadEffectiveAddress => [source_address.clone(), source.clone()];);
-            emit!(output; MachineOperation::load_pair(PairWidth::DoubleWord) => [low.clone(), high.clone(), offset_memory(&source_address, 0)?, offset_memory(&source_address, 8)?];);
-            emit!(output; MachineOperation::store_pair(PairWidth::DoubleWord) => [offset_memory(&destination_address, 0)?, offset_memory(&destination_address, 8)?, low, high];);
-        }
-        Operation::Intrinsic(Intrinsic::Aggregate(AggregateOperation::Zero16)) => {
-            let [destination] = require_inputs(&inputs, "zero16_field")?;
-            let suffix = output.len();
-            let destination_address = Operand::VirtualRegister(format!("ssa_zero16_{suffix}_destination").into());
-            let zero = Operand::VirtualRegister(format!("ssa_zero16_{suffix}_zero").into());
-            emit!(output; MachineOperation::IntegerBinary { operation: IntegerBinaryOperation::Binary(BinaryOperation::Xor), width: IntegerWidth::U64 } => [zero.clone(), zero.clone()];);
-            emit!(output; MachineOperation::LoadEffectiveAddress => [destination_address.clone(), destination.clone()];);
-            emit!(output; MachineOperation::store_pair(PairWidth::DoubleWord) => [offset_memory(&destination_address, 0)?, offset_memory(&destination_address, 8)?, zero.clone(), zero];);
-        }
         Operation::Intrinsic(Intrinsic::Bytecode(operation @ BytecodeOperation::Load(field_width))) => {
             let [destination] = require_results(&results, operation.name())?;
             let [Operand::BytecodeField(field)] = inputs.as_slice() else {
@@ -3066,16 +3045,6 @@ fn value_operand(function: &FunctionUses<'_>, value: ValueId) -> Result<Operand,
         },
         ValueDefinition::Dead => return Err(format!("cannot select dead SSA value {value:?}")),
     })
-}
-
-fn offset_memory(base: &Operand, offset: i64) -> Result<Operand, String> {
-    let base = address_register(base).ok_or_else(|| "indexed memory requires a register base".to_string())?;
-    Ok(Operand::Address(MemoryAddress {
-        base,
-        index: None,
-        scale: None,
-        displacement: (offset != 0).then_some(AddressDisplacement::Immediate(offset)),
-    }))
 }
 
 fn address_register(operand: &Operand) -> Option<AddressRegister> {
