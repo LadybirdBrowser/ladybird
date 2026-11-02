@@ -18,8 +18,8 @@ class BackgroundSizeStyleValue final : public StyleValueWithDefaultOperators<Bac
 public:
     virtual ~BackgroundSizeStyleValue() override = default;
 
-    ValueComparingNonnullRefPtr<StyleValue const> size_x() const { return wrap_rust_child(m_value->background_size.size_x); }
-    ValueComparingNonnullRefPtr<StyleValue const> size_y() const { return wrap_rust_child(m_value->background_size.size_y); }
+    ValueComparingNonnullRefPtr<StyleValue const> size_x() const { return wrap_rust_child(m_value->background_size._0->size_x); }
+    ValueComparingNonnullRefPtr<StyleValue const> size_y() const { return wrap_rust_child(m_value->background_size._0->size_y); }
 
 private:
     friend class StyleValue;

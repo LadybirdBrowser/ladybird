@@ -94,7 +94,8 @@ public:
     NonnullRefPtr<CSS::StyleSheetState> parse_as_css_stylesheet(Utf16View, Optional<::URL::URL> location, RustMediaList = {});
     NonnullRefPtr<StyleSheetState> create_css_stylesheet(RustStyleSheetParse const&, Optional<::URL::URL> location, RustMediaList = {});
 
-    RustDeclarationBlock parse_as_property_declaration_block(Utf16View);
+    // NB: When given, `parsed_cleanly` is set to whether the parse reported no diagnostics or rejected declarations.
+    RustDeclarationBlock parse_as_property_declaration_block(Utf16View, bool* parsed_cleanly = nullptr);
     Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block(Utf16View);
     RustDescriptorBlock parse_as_descriptor_declaration_block(Utf16View, AtRuleID);
     Optional<RustRule> parse_as_css_rule(Utf16View, bool nested = false);
@@ -185,7 +186,7 @@ namespace Web {
 
 NonnullRefPtr<CSS::StyleSheetState> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, CSS::RustMediaList media_list = {});
 NonnullRefPtr<CSS::StyleSheetState> parse_css_stylesheet(CSS::Parser::ParsingParams const&, Utf16View, Optional<::URL::URL> location = {}, CSS::RustMediaList media_list = {});
-CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View);
+CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View, bool* parsed_cleanly = nullptr);
 CSS::RustDescriptorBlock parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, Utf16View);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, Utf16View, CSS::PropertyID);

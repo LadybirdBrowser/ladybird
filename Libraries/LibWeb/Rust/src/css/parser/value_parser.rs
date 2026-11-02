@@ -51,13 +51,18 @@ use crate::css::property_metadata::{
 };
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
-    RetainedByteList, RetainedComponentValueList, RetainedCounterDefinition, RetainedCounterDefinitionList,
-    RetainedNumericRangeList, RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList,
-    RetainedString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
+    BackgroundSizePayload, BorderImageSlicePayload, CalculatedPayload, ColorSchemePayload, ContentPayload,
+    CounterDefinitionsPayload, CounterPayload, CounterStylePayload, CursorPayload, FunctionPayload, RatioPayload,
+    ScrollbarColorPayload, ShadowPayload, ShorthandPayload, StyleValueBox, UrlPayload,
 };
+use crate::css::style_value::{
+    RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
+    RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
+    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, UnresolvedValueComponents, shared_style_value,
+};
+use crate::css::style_value_arc::StyleValueArc;
 use crate::css::value_codes::*;
 use std::ffi::c_void;
-use std::sync::Arc;
 
 pub(crate) use crate::css::dimension_units::*;
 
@@ -175,7 +180,7 @@ impl Default for ParseContext<'_> {
 }
 
 pub(crate) enum ParseOutcome {
-    Parsed(Arc<StyleValueData>),
+    Parsed(StyleValueArc),
     Invalid,
     NotHandled,
 }
@@ -461,11 +466,11 @@ pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) ->
         }
         _ => return None,
     };
-    Some(StyleValueData::Url {
+    Some(StyleValueData::Url(StyleValueBox::new(UrlPayload {
         url: RetainedString::from_utf16(url)?,
         url_type,
         modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(modifiers),
-    })
+    })))
 }
 
 pub(crate) fn value_list(values: Vec<StyleValueData>, separator: u8, collapsible: bool) -> StyleValueData {
@@ -896,10 +901,10 @@ fn parse_ratio_value(values: &[&ComponentValue]) -> Option<StyleValueData> {
         [_, slash, denominator] if slash.is_delim(b'/') => parse_number_value(denominator, NumericRange::NON_NEGATIVE)?,
         _ => return None,
     };
-    Some(StyleValueData::Ratio {
+    Some(StyleValueData::Ratio(StyleValueBox::new(RatioPayload {
         numerator: RetainedStyleValueData::from_owned(numerator),
         denominator: RetainedStyleValueData::from_owned(denominator),
-    })
+    })))
 }
 
 pub(crate) fn parse_ratio_value_with_context(
@@ -930,10 +935,10 @@ pub(crate) fn parse_ratio_value_with_context(
         [_, slash, denominator] if slash.is_delim(b'/') => parse_component(denominator)?,
         _ => return None,
     };
-    Some(StyleValueData::Ratio {
+    Some(StyleValueData::Ratio(StyleValueBox::new(RatioPayload {
         numerator: RetainedStyleValueData::from_owned(numerator),
         denominator: RetainedStyleValueData::from_owned(denominator),
-    })
+    })))
 }
 
 fn parse_opacity_value(value: &ComponentValue) -> Option<StyleValueData> {
@@ -1320,7 +1325,7 @@ pub(crate) fn parse_calculated_numeric_value_allowing_size_keyword(
     let (range_value_type, range) = opacity_resolved_type
         .map(|value_type| (value_type, NumericRange::INFINITE))
         .unwrap_or((value_type, range));
-    let calculated = StyleValueData::Calculated {
+    let calculated = StyleValueData::Calculated(StyleValueBox::new(CalculatedPayload {
         rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(root),
         resolve_as_is_number: percentages_resolve_as == Some(VALUE_TYPE_NUMBER),
         resolve_as_base: resolve_as
@@ -1334,7 +1339,7 @@ pub(crate) fn parse_calculated_numeric_value_allowing_size_keyword(
         percentages_resolve_as: percentages_resolve_as.unwrap_or(0),
         resolve_numbers_as_integers: value_type == VALUE_TYPE_INTEGER,
         accepted_ranges: RetainedNumericRangeList::from_single_numeric_range(range_value_type, range.min, range.max),
-    };
+    }));
     if value_type == VALUE_TYPE_OPACITY_VALUE {
         Some(StyleValueData::OpacityValue {
             value: RetainedStyleValueData::from_owned(calculated),
@@ -1714,13 +1719,15 @@ fn parse_contain_intrinsic_size_shorthand(
         [width, height] => vec![width.clone(), height.clone()],
         _ => return ParseOutcome::Invalid,
     };
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand {
-        shorthand_property: property,
-        sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
-        values: RetainedStyleValueDataList::from_retained_values(
-            expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
-        ),
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand(StyleValueBox::new(
+        ShorthandPayload {
+            shorthand_property: property,
+            sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+            values: RetainedStyleValueDataList::from_retained_values(
+                expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+            ),
+        },
+    ))))
 }
 
 // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
@@ -1840,10 +1847,12 @@ fn parse_math_depth_property(context: &ParseContext, property: u16, values: &[Co
         return ParseOutcome::Invalid;
     }
     let name = CssString::from_utf16(&"add".encode_utf16().collect::<Vec<_>>());
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::Function {
-        name,
-        value: RetainedStyleValueData::from_owned(integer),
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Function(StyleValueBox::new(
+        FunctionPayload {
+            name,
+            value: RetainedStyleValueData::from_owned(integer),
+        },
+    ))))
 }
 
 fn parse_scrollbar_color_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -1865,10 +1874,12 @@ fn parse_scrollbar_color_property(context: &ParseContext, property: u16, values:
     if stream.has_next_token() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::ScrollbarColor {
-        thumb_color: RetainedStyleValueData::from_owned(thumb_color),
-        track_color: RetainedStyleValueData::from_owned(track_color),
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::ScrollbarColor(StyleValueBox::new(
+        ScrollbarColorPayload {
+            thumb_color: RetainedStyleValueData::from_owned(thumb_color),
+            track_color: RetainedStyleValueData::from_owned(track_color),
+        },
+    ))))
 }
 
 fn parse_stroke_dasharray_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -2283,10 +2294,12 @@ fn parse_background_size_item(
     } else {
         StyleValueData::Keyword { keyword: keyword::AUTO }
     };
-    Some(StyleValueData::BackgroundSize {
-        size_x: RetainedStyleValueData::from_owned(size_x),
-        size_y: RetainedStyleValueData::from_owned(size_y),
-    })
+    Some(StyleValueData::BackgroundSize(StyleValueBox::new(
+        BackgroundSizePayload {
+            size_x: RetainedStyleValueData::from_owned(size_x),
+            size_y: RetainedStyleValueData::from_owned(size_y),
+        },
+    )))
 }
 
 fn parse_background_size_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -2356,13 +2369,15 @@ fn parse_border_image_slice_property(context: &ParseContext, property: u16, valu
         [top, right, bottom, left] => (top, right, bottom, left),
         _ => return ParseOutcome::Invalid,
     };
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::BorderImageSlice {
-        top: RetainedStyleValueData::from_owned(top.clone()),
-        right: RetainedStyleValueData::from_owned(right.clone()),
-        bottom: RetainedStyleValueData::from_owned(bottom.clone()),
-        left: RetainedStyleValueData::from_owned(left.clone()),
-        fill,
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::BorderImageSlice(
+        StyleValueBox::new(BorderImageSlicePayload {
+            top: RetainedStyleValueData::from_owned(top.clone()),
+            right: RetainedStyleValueData::from_owned(right.clone()),
+            bottom: RetainedStyleValueData::from_owned(bottom.clone()),
+            left: RetainedStyleValueData::from_owned(left.clone()),
+            fill,
+        }),
+    )))
 }
 
 fn parse_shadow_item(
@@ -2435,7 +2450,7 @@ fn parse_shadow_item(
         return None;
     }
 
-    Some(StyleValueData::Shadow {
+    Some(StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
         shadow_type: u8::from(is_text_shadow),
         color: color.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
         offset_x: RetainedStyleValueData::from_owned(offset_x?),
@@ -2443,7 +2458,7 @@ fn parse_shadow_item(
         blur_radius: blur_radius.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
         spread_distance: spread_distance.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
         placement: u8::from(inset),
-    })
+    })))
 }
 
 fn parse_shadow_property(context: &ParseContext, property: u16, values: &[ComponentValue]) -> ParseOutcome {
@@ -2935,11 +2950,13 @@ fn parse_color_scheme_property(_context: &ParseContext, values: &[ComponentValue
             .ident()
             .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"normal"))
     {
-        return ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme {
-            schemes: CssStringList::from_strings(Vec::new()),
-            scheme_codes: RetainedByteList::from_bytes(Vec::new()),
-            only: false,
-        }));
+        return ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme(StyleValueBox::new(
+            ColorSchemePayload {
+                schemes: CssStringList::from_strings(Vec::new()),
+                scheme_codes: RetainedByteList::from_bytes(Vec::new()),
+                only: false,
+            },
+        ))));
     }
 
     let mut only = false;
@@ -2972,11 +2989,13 @@ fn parse_color_scheme_property(_context: &ParseContext, values: &[ComponentValue
     if schemes.is_empty() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme {
-        schemes: CssStringList::from_strings(schemes),
-        scheme_codes: RetainedByteList::from_bytes(scheme_codes),
-        only,
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme(StyleValueBox::new(
+        ColorSchemePayload {
+            schemes: CssStringList::from_strings(schemes),
+            scheme_codes: RetainedByteList::from_bytes(scheme_codes),
+            only,
+        },
+    ))))
 }
 
 fn parse_quotes_property(_context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -3065,9 +3084,11 @@ fn parse_counter_definitions_property(
     if definitions.is_empty() {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::CounterDefinitions {
-        counter_definitions: RetainedCounterDefinitionList::from_retained_elements(definitions),
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::CounterDefinitions(
+        StyleValueBox::new(CounterDefinitionsPayload {
+            counter_definitions: RetainedCounterDefinitionList::from_retained_elements(definitions),
+        }),
+    )))
 }
 
 fn parse_counter_style(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
@@ -3092,12 +3113,12 @@ fn parse_counter_style(_context: &ParseContext, value: &ComponentValue) -> Optio
         } else {
             identifier.to_vec()
         };
-        return Some(StyleValueData::CounterStyle {
+        return Some(StyleValueData::CounterStyle(StyleValueBox::new(CounterStylePayload {
             is_symbols: false,
             name: CssString::from_utf16(&name),
             symbols_type: symbols_type::SYMBOLIC,
             symbols: CssStringList::from_strings(Vec::new()),
-        });
+        })));
     }
 
     let (name, arguments) = value.function()?;
@@ -3129,12 +3150,12 @@ fn parse_counter_style(_context: &ParseContext, value: &ComponentValue) -> Optio
     {
         return None;
     }
-    Some(StyleValueData::CounterStyle {
+    Some(StyleValueData::CounterStyle(StyleValueBox::new(CounterStylePayload {
         is_symbols: true,
         name: CssString::none(),
         symbols_type: symbol_type,
         symbols: CssStringList::from_strings(symbols),
-    })
+    })))
 }
 
 fn parse_list_style_type_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -3174,19 +3195,19 @@ fn parse_counter_function(context: &ParseContext, value: &ComponentValue) -> Opt
     let counter_style = if parts.len() > style_index {
         parse_counter_style(context, single_non_whitespace_value(parts[style_index])?)?
     } else {
-        StyleValueData::CounterStyle {
+        StyleValueData::CounterStyle(StyleValueBox::new(CounterStylePayload {
             is_symbols: false,
             name: CssString::from_utf16(&"decimal".encode_utf16().collect::<Vec<_>>()),
             symbols_type: symbols_type::SYMBOLIC,
             symbols: CssStringList::from_strings(Vec::new()),
-        }
+        }))
     };
-    Some(StyleValueData::Counter {
+    Some(StyleValueData::Counter(StyleValueBox::new(CounterPayload {
         function: function as u8,
         counter_name: CssString::from_utf16(counter_name),
         counter_style: RetainedStyleValueData::from_owned(counter_style),
         join_string,
-    })
+    })))
 }
 
 fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -3257,14 +3278,16 @@ fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> 
     if content.is_empty() || (in_alt_text && alt_text.is_empty()) {
         return ParseOutcome::Invalid;
     }
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::Content {
-        content: RetainedStyleValueData::from_owned(value_list(content, 0, true)),
-        alt_text: if alt_text.is_empty() {
-            RetainedStyleValueData::none()
-        } else {
-            RetainedStyleValueData::from_owned(value_list(alt_text, 0, true))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Content(StyleValueBox::new(
+        ContentPayload {
+            content: RetainedStyleValueData::from_owned(value_list(content, 0, true)),
+            alt_text: if alt_text.is_empty() {
+                RetainedStyleValueData::none()
+            } else {
+                RetainedStyleValueData::from_owned(value_list(alt_text, 0, true))
+            },
         },
-    }))
+    ))))
 }
 
 fn parse_cursor_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -3317,11 +3340,11 @@ fn parse_cursor_property(context: &ParseContext, values: &[ComponentValue]) -> P
         if tokens.has_next_token() {
             return ParseOutcome::Invalid;
         }
-        cursors.push(StyleValueData::Cursor {
+        cursors.push(StyleValueData::Cursor(StyleValueBox::new(CursorPayload {
             image: RetainedStyleValueData::from_owned(image),
             x,
             y,
-        });
+        })));
     }
     ParseOutcome::Parsed(shared_style_value(match cursors.as_slice() {
         [_] => cursors.remove(0),
@@ -3362,12 +3385,12 @@ fn parse_view_timeline_inset_from_stream(
 }
 
 fn retained_function(name: &[u8], arguments: Vec<RetainedStyleValueData>) -> StyleValueData {
-    StyleValueData::Function {
+    StyleValueData::Function(StyleValueBox::new(FunctionPayload {
         name: CssString::from_utf16(&name.iter().map(|byte| u16::from(*byte)).collect::<Vec<_>>()),
         value: RetainedStyleValueData::from_owned(StyleValueData::Tuple {
             values: RetainedStyleValueDataList::from_retained_values(arguments),
         }),
-    }
+    }))
 }
 
 fn parse_scroll_function(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
@@ -3996,18 +4019,20 @@ fn parse_positional_value_list_shorthand(
         },
         _ => return ParseOutcome::Invalid,
     };
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand {
-        shorthand_property: property,
-        sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
-        values: RetainedStyleValueDataList::from_retained_values(
-            expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
-        ),
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand(StyleValueBox::new(
+        ShorthandPayload {
+            shorthand_property: property,
+            sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
+            values: RetainedStyleValueDataList::from_retained_values(
+                expanded.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+            ),
+        },
+    ))))
 }
 
 /// A longhand's initial value from Properties.json, parsed as a value of that property outside any
 /// document.
-pub(crate) fn parse_initial_value(property: u16) -> Option<Arc<StyleValueData>> {
+pub(crate) fn parse_initial_value(property: u16) -> Option<StyleValueArc> {
     let property_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Property,
         value: property,
@@ -4061,11 +4086,11 @@ fn retained_shorthand_value(
     sub_properties: Vec<u16>,
     values: Vec<RetainedStyleValueData>,
 ) -> StyleValueData {
-    StyleValueData::Shorthand {
+    StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property,
         sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
         values: RetainedStyleValueDataList::from_retained_values(values),
-    }
+    }))
 }
 
 fn shorthand_with_initial_longhands(context: &ParseContext, property: u16) -> Option<StyleValueData> {
@@ -4183,18 +4208,20 @@ fn parse_unordered_shorthand(context: &ParseContext, property: u16, values: &[Co
         }
         parsed_order
     };
-    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand {
-        shorthand_property: property,
-        sub_properties: RetainedPropertyIdList::from_property_ids(
-            order.iter().map(|&index| longhands[index]).collect(),
-        ),
-        values: RetainedStyleValueDataList::from_retained_values(
-            order
-                .into_iter()
-                .map(|index| RetainedStyleValueData::from_owned(parsed[index].clone()))
-                .collect(),
-        ),
-    }))
+    ParseOutcome::Parsed(shared_style_value(StyleValueData::Shorthand(StyleValueBox::new(
+        ShorthandPayload {
+            shorthand_property: property,
+            sub_properties: RetainedPropertyIdList::from_property_ids(
+                order.iter().map(|&index| longhands[index]).collect(),
+            ),
+            values: RetainedStyleValueDataList::from_retained_values(
+                order
+                    .into_iter()
+                    .map(|index| RetainedStyleValueData::from_owned(parsed[index].clone()))
+                    .collect(),
+            ),
+        },
+    ))))
 }
 
 // https://drafts.csswg.org/css-overflow-4/#line-clamp
@@ -5451,9 +5478,10 @@ fn parse_background_shorthand(context: &ParseContext, values: &[ComponentValue])
             return ParseOutcome::Invalid;
         }
         let (position_x, position_y) = if let Some(position) = parsed[5].take() {
-            let StyleValueData::Shorthand { values, .. } = position else {
+            let StyleValueData::Shorthand(shorthand_payload) = position else {
                 return ParseOutcome::Invalid;
             };
+            let ShorthandPayload { values, .. } = &*shorthand_payload;
             let [x, y] = values.as_slice() else {
                 return ParseOutcome::Invalid;
             };
@@ -5877,28 +5905,31 @@ pub(crate) fn unresolved_value_from_string(
     unresolved_value(unresolved_source, values, presence)
 }
 
+/// An unresolved value of `values`, whose source text `unresolved_source` is, and which it tokenizes again when its
+/// components are read.
 pub(crate) fn unresolved_value(
     unresolved_source: &[u16],
     values: impl Into<ComponentValueList>,
     presence: SubstitutionFunctionsPresence,
 ) -> StyleValueData {
+    let values = values.into();
+    unresolved_value_with_components(unresolved_source, UnresolvedValueComponents::OfText(&values), presence)
+}
+
+/// An unresolved value whose source text is `unresolved_source`, made of `components`.
+fn unresolved_value_with_components(
+    unresolved_source: &[u16],
+    components: UnresolvedValueComponents<'_>,
+    presence: SubstitutionFunctionsPresence,
+) -> StyleValueData {
     let source_text = trim_component_value_boundary_whitespace(unresolved_source);
-    let components = RetainedComponentValueList::from_values(values);
-    if presence.attr {
-        crate::css::parser::arbitrary_substitution::note_attr_names_read_by(components.as_slice());
-    }
-    StyleValueData::Unresolved {
+    StyleValueData::Unresolved(crate::css::style_value::UnresolvedBox::new(
+        TokenizerInput::Utf16(source_text),
         components,
-        source_text: CssString::from_utf16(source_text),
-        presence_attr: presence.attr,
-        presence_dashed_function: presence.dashed_function,
-        presence_env: presence.env,
-        presence_if: presence.if_,
-        presence_inherit: presence.inherit,
-        presence_var: presence.var,
-        contains_attr_tainted_values: false,
-        parsed_value: RetainedStyleValueData::none(),
-    }
+        presence,
+        false,
+        RetainedStyleValueData::none(),
+    ))
 }
 
 pub(crate) fn unresolved_value_from_component_values(
@@ -5909,7 +5940,7 @@ pub(crate) fn unresolved_value_from_component_values(
         &values,
         crate::css::parser::component_value::ComponentSerializationMode::Retokenize,
     );
-    unresolved_value(&source, values, presence)
+    unresolved_value_with_components(&source, UnresolvedValueComponents::OfSerialization(&values), presence)
 }
 
 pub(crate) fn parse_css_value_with_source(
@@ -5950,20 +5981,37 @@ fn parse_css_value_after_substitution_scan(
         if !declaration_values.is_empty() && !declaration_value_is_valid(declaration_values) {
             return ParseOutcome::Invalid;
         }
-        let mut unresolved = unresolved_value(unresolved_source, values.to_vec(), substitution_presence);
-        if let StyleValueData::Unresolved {
-            source_text,
-            contains_attr_tainted_values,
-            ..
-        } = &mut unresolved
-        {
-            *contains_attr_tainted_values = context.contains_attr_tainted_values;
+        // NB: A declaration's own text tokenizes to its values. A substituted value's text is the serialization of what
+        //     it substituted to, which tokenizes back to it where its comments only keep tokens apart. Values without
+        //     text are written as that serialization.
+        let serialization;
+        let mut unresolved = if context.is_substituted_value || unresolved_source.is_empty() {
+            let text = if context.is_substituted_value {
+                unresolved_source
+            } else {
+                serialization = crate::css::serialize::serialize_component_values_to_utf16(
+                    values,
+                    crate::css::parser::component_value::ComponentSerializationMode::Retokenize,
+                );
+                &serialization
+            };
+            unresolved_value_with_components(
+                text,
+                UnresolvedValueComponents::OfSerialization(values),
+                substitution_presence,
+            )
+        } else {
+            unresolved_value(unresolved_source, values.to_vec(), substitution_presence)
+        };
+        if let StyleValueData::Unresolved(unresolved_payload) = &mut unresolved {
+            unresolved_payload.payload_mut().contains_attr_tainted_values = context.contains_attr_tainted_values;
             if property_id == property_id::CUSTOM && context.is_substituted_value {
                 let first_non_whitespace = unresolved_source
                     .iter()
                     .position(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
                     .unwrap_or(unresolved_source.len());
-                *source_text = CssString::from_utf16(&unresolved_source[first_non_whitespace..]);
+                *unresolved_payload = unresolved_payload
+                    .with_source_text(TokenizerInput::Utf16(&unresolved_source[first_non_whitespace..]));
             }
         }
         return ParseOutcome::Parsed(shared_style_value(unresolved));
@@ -6384,7 +6432,7 @@ pub unsafe extern "C" fn rust_parse_css_value(
         Err(()) => ParseOutcome::NotHandled,
     };
     let (status, value) = match outcome {
-        ParseOutcome::Parsed(value) => (FfiParseStatus::Parsed, Arc::into_raw(value).cast()),
+        ParseOutcome::Parsed(value) => (FfiParseStatus::Parsed, StyleValueArc::into_raw(value).cast()),
         ParseOutcome::Invalid => (FfiParseStatus::Invalid, std::ptr::null()),
         ParseOutcome::NotHandled => (FfiParseStatus::NotHandled, std::ptr::null()),
     };
@@ -6580,7 +6628,8 @@ pub unsafe extern "C" fn rust_parse_entire_css_primitive_from_source(
         return std::ptr::null();
     };
     if values[consumed..].iter().all(ComponentValue::is_whitespace) {
-        Arc::into_raw(Arc::new(parsed)).cast()
+        crate::css::style_value_arc::StyleValueArc::into_raw(crate::css::style_value_arc::StyleValueArc::new(parsed))
+            .cast()
     } else {
         std::ptr::null()
     }
@@ -6612,8 +6661,10 @@ mod tests {
         source.encode_utf16().collect()
     }
 
-    fn retained_utf16(source: &CssString) -> Vec<u16> {
-        source.units().to_vec()
+    fn retained_utf16(source: TokenizerInput<'_>) -> Vec<u16> {
+        let mut units = Vec::with_capacity(source.len());
+        source.append_to(&mut units);
+        units
     }
 
     fn context() -> ParseContext<'static> {
@@ -6688,14 +6739,14 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
+                panic!("value should be a shorthand: {source}");
+            };
+            let ShorthandPayload {
                 shorthand_property,
                 sub_properties,
                 values,
-            } = &*value
-            else {
-                panic!("value should be a shorthand: {source}");
-            };
+            } = &**shorthand_payload;
             assert_eq!(*shorthand_property, property);
             assert_eq!(sub_properties.as_slice(), longhands_for_shorthand(property));
             assert_eq!(values.as_slice().len(), expected_values);
@@ -6715,12 +6766,12 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand {
-                sub_properties, values, ..
-            } = &*value
-            else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload {
+                sub_properties, values, ..
+            } = &**shorthand_payload;
             if property == property_id::FLEX_FLOW {
                 assert_eq!(sub_properties.as_slice(), longhands_for_shorthand(property));
             }
@@ -6798,12 +6849,12 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand {
-                sub_properties, values, ..
-            } = &*value
-            else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload {
+                sub_properties, values, ..
+            } = &**shorthand_payload;
             assert_eq!(sub_properties.as_slice().len(), expected_properties);
             assert_eq!(values.as_slice().len(), expected_properties);
         }
@@ -6880,9 +6931,10 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property_id::BORDER_IMAGE, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand { values, .. } = &*value else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload { values, .. } = &**shorthand_payload;
             assert_eq!(values.as_slice().len(), 5);
         }
         for source in ["10 /", "10 / /", "10 / 2 /", "round round round"] {
@@ -6916,9 +6968,10 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand { values, .. } = &*value else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload { values, .. } = &**shorthand_payload;
             assert_eq!(values.as_slice().len(), expected_values);
         }
         for (property, source) in [
@@ -6957,9 +7010,10 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand { values, .. } = &*value else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload { values, .. } = &**shorthand_payload;
             assert_eq!(values.as_slice().len(), expected_values);
         }
         for (property, source) in [
@@ -7069,7 +7123,7 @@ mod tests {
         ));
         assert!(matches!(
             parse(property_id::COLOR_SCHEME, "var(--scheme)"),
-            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Unresolved { presence_var: true, .. })
+            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Unresolved(unresolved) if unresolved.presence().var)
         ));
     }
 
@@ -7188,22 +7242,22 @@ mod tests {
             panic!("URL token should parse");
         };
         assert!(
-            matches!(&*value, StyleValueData::Url { url, url_type: 0, .. } if url.ascii_bytes() == b"images/mask.svg#shape")
+            matches!(&*value, StyleValueData::Url(url) if url.url_type == 0 && url.url.ascii_bytes() == b"images/mask.svg#shape")
         );
 
         let value = component(
             "src(\"font.woff2\" referrer-policy(no-referrer) integrity(\"sha256-value\") cross-origin(anonymous))",
         );
-        let StyleValueData::Url {
+        let StyleValueData::Url(url_payload) = parse_url_value(&context(), &value).expect("src() should parse") else {
+            panic!("src() should produce a URL");
+        };
+        let UrlPayload {
             url,
             url_type,
             modifiers,
-        } = parse_url_value(&context(), &value).expect("src() should parse")
-        else {
-            panic!("src() should produce a URL");
-        };
+        } = &*url_payload;
         assert_eq!(url.ascii_bytes(), b"font.woff2");
-        assert_eq!(url_type, 1);
+        assert_eq!(*url_type, 1);
         assert_eq!(
             modifiers
                 .as_slice()
@@ -7268,7 +7322,7 @@ mod tests {
         }
         assert!(matches!(
             parse(property_id::ANCHOR_NAME, "var(--anchor)"),
-            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Unresolved { presence_var: true, .. })
+            ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Unresolved(unresolved) if unresolved.presence().var)
         ));
     }
 
@@ -7634,9 +7688,10 @@ mod tests {
             .filter(|value| !value.is_whitespace())
             .collect::<Vec<_>>();
         let references = values.iter().collect::<Vec<_>>();
-        let StyleValueData::Ratio { numerator, denominator } = parse_ratio_value(&references).unwrap() else {
+        let StyleValueData::Ratio(ratio_payload) = parse_ratio_value(&references).unwrap() else {
             panic!("ratio should use its specialized wrapper");
         };
+        let RatioPayload { numerator, denominator } = &*ratio_payload;
         assert!(matches!(numerator.data(), StyleValueData::Number { value } if *value == 16.0));
         assert!(matches!(denominator.data(), StyleValueData::Number { value } if *value == 9.0));
         assert!(parse_ratio_value(&[&component("-1")]).is_none());
@@ -7752,15 +7807,13 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("substitution function should parse: {source}");
             };
-            let StyleValueData::Unresolved {
-                source_text,
-                presence_attr,
-                presence_var,
-                ..
-            } = &*value
-            else {
+            let StyleValueData::Unresolved(unresolved_payload) = &*value else {
                 panic!("substitution function should produce an unresolved value: {source}");
             };
+            let unresolved_payload: &crate::css::style_value::UnresolvedPayload = unresolved_payload;
+            let source_text = unresolved_payload.source_text();
+            let presence_attr = &unresolved_payload.presence().attr;
+            let presence_var = &unresolved_payload.presence().var;
             assert_eq!(retained_utf16(source_text), utf16(source));
             assert_eq!(*presence_attr, expected_attr);
             assert_eq!(*presence_var, expected_var);
@@ -7784,9 +7837,11 @@ mod tests {
         else {
             panic!("attr() should parse");
         };
-        let StyleValueData::Unresolved { source_text, .. } = &*value else {
+        let StyleValueData::Unresolved(unresolved_payload) = &*value else {
             panic!("attr() should remain unresolved");
         };
+        let unresolved_payload: &crate::css::style_value::UnresolvedPayload = unresolved_payload;
+        let source_text = unresolved_payload.source_text();
         assert_eq!(retained_utf16(source_text), utf16("attr( foo )"));
     }
 
@@ -7799,16 +7854,16 @@ mod tests {
         else {
             panic!("custom property should parse");
         };
-        let StyleValueData::Unresolved {
-            components,
-            source_text,
-            ..
-        } = &*value
-        else {
+        let StyleValueData::Unresolved(unresolved_payload) = &*value else {
             panic!("custom property should produce an unresolved value");
         };
+        let source_text = unresolved_payload.source_text();
         assert_eq!(retained_utf16(source_text), utf16("10\\70 x"));
-        assert_eq!(components.as_slice(), values.as_slice());
+        // NB: The value's source text is its declaration's, without the whitespace around it.
+        assert!(crate::css::style_value::components_equal(
+            &unresolved_payload.components(),
+            crate::css::parser::component_value::trim_whitespace(&values)
+        ));
 
         let source = utf16("a/* comment */");
         let values = consume_a_list_of_component_values(tokenize_for_parser(&source)).unwrap();
@@ -7817,10 +7872,13 @@ mod tests {
         else {
             panic!("custom property should parse");
         };
-        let StyleValueData::Unresolved { components, .. } = &*value else {
+        let StyleValueData::Unresolved(unresolved_payload) = &*value else {
             panic!("custom property should produce an unresolved value");
         };
-        assert_eq!(components.as_slice(), values.as_slice());
+        assert!(crate::css::style_value::components_equal(
+            &unresolved_payload.components(),
+            &values
+        ));
         assert!(matches!(
             parse(property_id::CUSTOM, "inherit"),
             ParseOutcome::Parsed(value) if matches!(&*value, StyleValueData::Keyword { keyword: keyword::INHERIT })

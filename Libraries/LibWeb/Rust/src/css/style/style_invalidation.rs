@@ -582,8 +582,8 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     ) && (!old.text_reset().text_decoration_lines.as_slice().is_empty()
         || !new.text_reset().text_decoration_lines.as_slice().is_empty())
     {
-        result.repaint_text_decorations = property != property_id::COLOR
-            || old.text_reset().text_decoration_color != new.text_reset().text_decoration_color;
+        result.repaint_text_decorations =
+            property != property_id::COLOR || old.text_decoration_color() != new.text_decoration_color();
     }
     // https://drafts.csswg.org/css-viewport/#effective-zoom
     // NB: The lengths of each descendant are zoomed by its effective zoom, which the element's zoom is part of.

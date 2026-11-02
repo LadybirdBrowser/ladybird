@@ -22,13 +22,13 @@ public:
     }
     virtual ~TransformationStyleValue() override = default;
 
-    TransformFunction transform_function() const { return static_cast<TransformFunction>(m_value->transformation.transform_function); }
+    TransformFunction transform_function() const { return static_cast<TransformFunction>(m_value->transformation._0->transform_function); }
     StyleValueVector values() const
     {
-        auto const& values = m_value->transformation.values;
+        auto const& values = m_value->transformation._0->values;
         StyleValueVector result;
-        result.ensure_capacity(values.length);
-        for (size_t i = 0; i < values.length; ++i) {
+        result.ensure_capacity(values.length());
+        for (size_t i = 0; i < values.length(); ++i) {
             auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
             result.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
         }
@@ -59,15 +59,15 @@ private:
         return StyleValueFFI::rust_style_value_create_transformation(to_underlying(property), static_cast<u8>(to_underlying(transform_function)), pointers.data(), pointers.size());
     }
 
-    size_t size() const { return m_value->transformation.values.length; }
+    size_t size() const { return m_value->transformation._0->values.length(); }
 
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
     {
-        auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(m_value->transformation.values.pointer[i].pointer);
+        auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(m_value->transformation._0->values.pointer[i].pointer);
         return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
     }
 
-    PropertyID property() const { return static_cast<PropertyID>(m_value->transformation.property); }
+    PropertyID property() const { return static_cast<PropertyID>(m_value->transformation._0->property); }
 };
 
 // The transform functions of a computed or freshly parsed transform value:

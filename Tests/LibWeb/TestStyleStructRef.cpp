@@ -13,38 +13,45 @@ namespace Web::CSS {
 // the registered group vtables, so these tests also cover the FFI layout and
 // lifecycle contract for real style value group types.
 
-using TableGroup = ComputedValues::InheritedTableValues;
+using TableGroup = ComputedValues::InheritedListTableValues;
 using TextGroup = ComputedValues::InheritedTextValues;
 
-TEST_CASE(default_constructed_refs_share_the_default_payload)
+template<typename T>
+static StyleStructRef<T> default_ref()
 {
-    StyleStructRef<TableGroup> a;
-    StyleStructRef<TableGroup> b;
+    StyleStructRef<T> ref;
+    ref.adopt(ComputedValuesFFI::rust_style_group_create_default(T::style_group_index));
+    return ref;
+}
+
+TEST_CASE(default_payloads_hold_the_initial_values)
+{
+    auto a = default_ref<TableGroup>();
+    auto b = default_ref<TableGroup>();
     EXPECT(a.is_default());
     EXPECT(b.is_default());
-    EXPECT(a.ptr_equals(b));
-    EXPECT_EQ(a->border_collapse, to_underlying(InitialValues::border_collapse()));
+    EXPECT_EQ(a, b);
+    EXPECT_EQ(a->border_spacing_horizontal, 0);
 }
 
 TEST_CASE(access_clones_when_shared)
 {
-    StyleStructRef<TableGroup> a;
-    StyleStructRef<TableGroup> untouched;
+    auto a = default_ref<TableGroup>();
+    auto untouched = a;
 
-    a.access().caption_side = to_underlying(CaptionSide::Bottom);
+    a.access().border_spacing_horizontal = 7;
     EXPECT(!a.is_default());
     EXPECT(!a.ptr_equals(untouched));
-    EXPECT_EQ(a->caption_side, to_underlying(CaptionSide::Bottom));
+    EXPECT_EQ(a->border_spacing_horizontal, 7);
 
-    // The default payload must be unaffected by the mutation.
+    // The shared payload must be unaffected by the mutation.
     EXPECT(untouched.is_default());
-    EXPECT_EQ(untouched->caption_side, to_underlying(InitialValues::caption_side()));
-    EXPECT_EQ(StyleStructRef<TableGroup>::default_value().caption_side, to_underlying(InitialValues::caption_side()));
+    EXPECT_EQ(untouched->border_spacing_horizontal, 0);
 }
 
 TEST_CASE(access_does_not_clone_when_unique)
 {
-    StyleStructRef<TableGroup> a;
+    auto a = default_ref<TableGroup>();
     auto* first = &a.access();
     auto* second = &a.access();
     EXPECT_EQ(first, second);
@@ -52,31 +59,31 @@ TEST_CASE(access_does_not_clone_when_unique)
 
 TEST_CASE(copies_share_until_mutated)
 {
-    StyleStructRef<TextGroup> a;
-    a.access().word_break = to_underlying(WordBreak::BreakAll);
+    auto a = default_ref<TextGroup>();
+    a.access().text_transform = to_underlying(TextTransform::Uppercase);
 
     StyleStructRef<TextGroup> b(a);
     EXPECT(a.ptr_equals(b));
 
-    b.access().word_break = to_underlying(WordBreak::KeepAll);
+    b.access().text_transform = to_underlying(TextTransform::Lowercase);
     EXPECT(!a.ptr_equals(b));
-    EXPECT_EQ(a->word_break, to_underlying(WordBreak::BreakAll));
-    EXPECT_EQ(b->word_break, to_underlying(WordBreak::KeepAll));
+    EXPECT_EQ(a->text_transform, to_underlying(TextTransform::Uppercase));
+    EXPECT_EQ(b->text_transform, to_underlying(TextTransform::Lowercase));
     EXPECT_EQ(b->text_shadow_span().size(), 0u);
 }
 
 TEST_CASE(assignment_shares_and_releases_old_payload)
 {
-    StyleStructRef<TableGroup> a;
-    a.access().caption_side = to_underlying(CaptionSide::Bottom);
+    auto a = default_ref<TableGroup>();
+    a.access().border_spacing_horizontal = 7;
 
-    StyleStructRef<TableGroup> b;
-    b.access().empty_cells = to_underlying(EmptyCells::Hide);
+    auto b = default_ref<TableGroup>();
+    b.access().border_spacing_vertical = 5;
 
     b = a;
     EXPECT(a.ptr_equals(b));
-    EXPECT_EQ(b->caption_side, to_underlying(CaptionSide::Bottom));
-    EXPECT_EQ(b->empty_cells, to_underlying(InitialValues::empty_cells()));
+    EXPECT_EQ(b->border_spacing_horizontal, 7);
+    EXPECT_EQ(b->border_spacing_vertical, 0);
 
     auto& self_reference = b;
     b = self_reference;
@@ -85,8 +92,8 @@ TEST_CASE(assignment_shares_and_releases_old_payload)
 
 TEST_CASE(value_equality_across_distinct_payloads)
 {
-    StyleStructRef<TableGroup> a;
-    StyleStructRef<TableGroup> b;
+    auto a = default_ref<TableGroup>();
+    auto b = default_ref<TableGroup>();
     a.access().border_spacing_horizontal = 9;
     b.access().border_spacing_horizontal = 9;
     EXPECT(!a.ptr_equals(b));
@@ -98,56 +105,56 @@ TEST_CASE(value_equality_across_distinct_payloads)
 
 TEST_CASE(empty_borrowed_reference_can_be_destroyed)
 {
-    StyleStructRef<TableGroup> empty { StyleGroupInitialization::Empty };
+    StyleStructRef<TableGroup> empty;
 }
 
 TEST_CASE(empty_borrowed_reference_clones_before_mutation)
 {
-    StyleStructRef<TableGroup> source;
-    source.access().caption_side = to_underlying(CaptionSide::Bottom);
-    StyleStructRef<TableGroup> borrowed { StyleGroupInitialization::Empty };
+    auto source = default_ref<TableGroup>();
+    source.access().border_spacing_horizontal = 7;
+    StyleStructRef<TableGroup> borrowed;
     borrowed.borrow(&*source);
     EXPECT(borrowed.ptr_equals(source));
-    borrowed.access().caption_side = to_underlying(CaptionSide::Top);
+    borrowed.access().border_spacing_horizontal = 3;
     EXPECT(!borrowed.ptr_equals(source));
-    EXPECT_EQ(source->caption_side, to_underlying(CaptionSide::Bottom));
-    EXPECT_EQ(borrowed->caption_side, to_underlying(CaptionSide::Top));
+    EXPECT_EQ(source->border_spacing_horizontal, 7);
+    EXPECT_EQ(borrowed->border_spacing_horizontal, 3);
 }
 
 TEST_CASE(copy_of_borrowed_reference_outlives_owner)
 {
     auto copy = [] {
-        StyleStructRef<TableGroup> owner;
-        owner.access().caption_side = to_underlying(CaptionSide::Bottom);
-        StyleStructRef<TableGroup> borrowed { StyleGroupInitialization::Empty };
+        auto owner = default_ref<TableGroup>();
+        owner.access().border_spacing_horizontal = 7;
+        StyleStructRef<TableGroup> borrowed;
         borrowed.borrow(&*owner);
         return StyleStructRef<TableGroup> { borrowed };
     }();
-    EXPECT_EQ(copy->caption_side, to_underlying(CaptionSide::Bottom));
-    copy.access().caption_side = to_underlying(CaptionSide::Top);
-    EXPECT_EQ(copy->caption_side, to_underlying(CaptionSide::Top));
+    EXPECT_EQ(copy->border_spacing_horizontal, 7);
+    copy.access().border_spacing_horizontal = 3;
+    EXPECT_EQ(copy->border_spacing_horizontal, 3);
 }
 
 TEST_CASE(assignment_initializes_empty_reference_with_owned_payload)
 {
-    StyleStructRef<TableGroup> source;
-    source.access().caption_side = to_underlying(CaptionSide::Bottom);
-    StyleStructRef<TableGroup> target { StyleGroupInitialization::Empty };
+    auto source = default_ref<TableGroup>();
+    source.access().border_spacing_horizontal = 7;
+    StyleStructRef<TableGroup> target;
     target = source;
     EXPECT(target.ptr_equals(source));
-    source.access().caption_side = to_underlying(CaptionSide::Top);
-    EXPECT_EQ(target->caption_side, to_underlying(CaptionSide::Bottom));
+    source.access().border_spacing_horizontal = 3;
+    EXPECT_EQ(target->border_spacing_horizontal, 7);
 }
 
 TEST_CASE(assignment_acquires_ownership_of_same_borrowed_payload)
 {
-    StyleStructRef<TableGroup> owner;
-    owner.access().caption_side = to_underlying(CaptionSide::Bottom);
-    StyleStructRef<TableGroup> borrowed { StyleGroupInitialization::Empty };
+    auto owner = default_ref<TableGroup>();
+    owner.access().border_spacing_horizontal = 7;
+    StyleStructRef<TableGroup> borrowed;
     borrowed.borrow(&*owner);
     borrowed = owner;
-    owner.access().caption_side = to_underlying(CaptionSide::Top);
-    EXPECT_EQ(borrowed->caption_side, to_underlying(CaptionSide::Bottom));
+    owner.access().border_spacing_horizontal = 3;
+    EXPECT_EQ(borrowed->border_spacing_horizontal, 7);
 }
 
 }

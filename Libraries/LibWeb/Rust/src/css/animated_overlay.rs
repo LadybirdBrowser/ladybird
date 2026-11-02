@@ -28,6 +28,9 @@ pub struct AnimatedOverlay {
     /// Properties to treat as included in will-change due to animations, separate from sampled CSS values.
     pub(crate) implicit_will_change: Vec<u16>,
     pub(crate) animation_preparation: Option<Arc<crate::css::animation::PreparedAnimationBatch>>,
+    /// The keyframe values the last sample substituted against the element, which the next reuses while what they
+    /// read stands.
+    pub(crate) keyframe_conversions: Option<Arc<crate::css::animation::KeyframeConversions>>,
 }
 
 impl Clone for AnimatedOverlay {
@@ -37,6 +40,7 @@ impl Clone for AnimatedOverlay {
             entries,
             implicit_will_change: self.implicit_will_change.clone(),
             animation_preparation: self.animation_preparation.clone(),
+            keyframe_conversions: self.keyframe_conversions.clone(),
         }
     }
 }
@@ -130,6 +134,7 @@ impl AnimatedOverlay {
             entries,
             implicit_will_change: Vec::new(),
             animation_preparation: self.animation_preparation.clone(),
+            keyframe_conversions: self.keyframe_conversions.clone(),
         }
     }
 
@@ -193,6 +198,7 @@ pub extern "C" fn rust_animated_overlay_create() -> *mut AnimatedOverlay {
         entries: Vec::new(),
         implicit_will_change: Vec::new(),
         animation_preparation: None,
+        keyframe_conversions: None,
     }))
 }
 
@@ -228,7 +234,7 @@ pub extern "C" fn rust_animated_overlay_free(overlay: OwnedBox<AnimatedOverlay>)
 pub extern "C" fn rust_animated_overlay_set(
     overlay: &mut AnimatedOverlay,
     property: u16,
-    value: crate::css::ffi_support::ArcRef<'_, StyleValueData>,
+    value: crate::css::style_value_arc::StyleValueRef<'_>,
     inherited: bool,
     result_of_transition: bool,
 ) {

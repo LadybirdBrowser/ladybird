@@ -5,10 +5,13 @@
  */
 
 // Parsed values use the thread-confined shared graph owned by the C++ style objects.
-#![allow(clippy::arc_with_non_send_sync)]
 
+use crate::css::style_value::{
+    FunctionPayload, GridTemplateAreaPayload, GridTrackPlacementPayload, GridTrackSizeListPayload, ShorthandPayload,
+    StyleValueBox,
+};
+use crate::css::style_value_arc::StyleValueArc;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use super::value_parser::{
     NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, is_arbitrary_substitution_function,
@@ -36,11 +39,11 @@ fn grid_track_list(
     preserve_line_name_sets: bool,
     entries: Vec<RetainedGridTrackEntry>,
 ) -> StyleValueData {
-    StyleValueData::GridTrackSizeList {
+    StyleValueData::GridTrackSizeList(StyleValueBox::new(GridTrackSizeListPayload {
         is_subgrid,
         preserve_line_name_sets,
         entries: RetainedGridTrackEntryList::from_retained_entries(entries),
-    }
+    }))
 }
 
 fn parse_keyword(value: &ComponentValue, expected: u16) -> Option<StyleValueData> {
@@ -221,10 +224,10 @@ fn parse_grid_track_size(
                 tokens.position = start;
                 return None;
             }
-            let function = StyleValueData::Function {
+            let function = StyleValueData::Function(StyleValueBox::new(FunctionPayload {
                 name: CssString::from_utf16(name),
                 value: RetainedStyleValueData::from_owned(value),
-            };
+            }));
             tokens.discard_a_token();
             return Some(RetainedGridTrackEntry::size(function));
         }
@@ -321,10 +324,10 @@ fn parse_grid_intrinsic_or_fixed_size(
                 tokens.position = start;
                 return None;
             }
-            let function = StyleValueData::Function {
+            let function = StyleValueData::Function(StyleValueBox::new(FunctionPayload {
                 name: CssString::from_utf16(name),
                 value: RetainedStyleValueData::from_owned(value),
-            };
+            }));
             tokens.discard_a_token();
             return Some(RetainedGridTrackEntry::size(function));
         }
@@ -703,14 +706,16 @@ fn parse_grid_track_placement(
         tokens.discard_a_token();
         tokens.discard_whitespace();
         if tokens.is_empty() {
-            return Some(StyleValueData::GridTrackPlacement {
-                kind: 0,
-                value: RetainedStyleValueData::none(),
-                has_name: false,
-                name: crate::css::css_string::CssString::none(),
-                implicit_start_name: crate::css::css_string::CssString::none(),
-                implicit_end_name: crate::css::css_string::CssString::none(),
-            });
+            return Some(StyleValueData::GridTrackPlacement(StyleValueBox::new(
+                GridTrackPlacementPayload {
+                    kind: 0,
+                    value: RetainedStyleValueData::none(),
+                    has_name: false,
+                    name: crate::css::css_string::CssString::none(),
+                    implicit_start_name: crate::css::css_string::CssString::none(),
+                    implicit_end_name: crate::css::css_string::CssString::none(),
+                },
+            )));
         }
         return None;
     }
@@ -786,62 +791,66 @@ fn parse_grid_track_placement(
         && (parsed_integer.is_some() || has_name)
         && !matches!(parsed_integer, Some(StyleValueData::Integer { value: 0 }))
     {
-        return Some(StyleValueData::GridTrackPlacement {
-            kind: 2,
-            value: parsed_integer.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
-            has_name,
-            name: name.unwrap_or_else(crate::css::css_string::CssString::none),
-            implicit_start_name: implicit_start_name.unwrap_or_else(crate::css::css_string::CssString::none),
-            implicit_end_name: implicit_end_name.unwrap_or_else(crate::css::css_string::CssString::none),
-        });
+        return Some(StyleValueData::GridTrackPlacement(StyleValueBox::new(
+            GridTrackPlacementPayload {
+                kind: 2,
+                value: parsed_integer.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
+                has_name,
+                name: name.unwrap_or_else(crate::css::css_string::CssString::none),
+                implicit_start_name: implicit_start_name.unwrap_or_else(crate::css::css_string::CssString::none),
+                implicit_end_name: implicit_end_name.unwrap_or_else(crate::css::css_string::CssString::none),
+            },
+        )));
     }
     if is_span
         && (parsed_integer.is_some() || has_name)
         && !matches!(parsed_integer, Some(StyleValueData::Integer { value }) if value <= 0)
     {
-        return Some(StyleValueData::GridTrackPlacement {
-            kind: 1,
-            value: RetainedStyleValueData::from_owned(parsed_integer.unwrap_or(StyleValueData::Integer { value: 1 })),
-            has_name,
-            name: name.unwrap_or_else(crate::css::css_string::CssString::none),
-            implicit_start_name: crate::css::css_string::CssString::none(),
-            implicit_end_name: crate::css::css_string::CssString::none(),
-        });
+        return Some(StyleValueData::GridTrackPlacement(StyleValueBox::new(
+            GridTrackPlacementPayload {
+                kind: 1,
+                value: RetainedStyleValueData::from_owned(
+                    parsed_integer.unwrap_or(StyleValueData::Integer { value: 1 }),
+                ),
+                has_name,
+                name: name.unwrap_or_else(crate::css::css_string::CssString::none),
+                implicit_start_name: crate::css::css_string::CssString::none(),
+                implicit_end_name: crate::css::css_string::CssString::none(),
+            },
+        )));
     }
     None
 }
 
 fn auto_grid_track_placement() -> StyleValueData {
-    StyleValueData::GridTrackPlacement {
+    StyleValueData::GridTrackPlacement(StyleValueBox::new(GridTrackPlacementPayload {
         kind: 0,
         value: RetainedStyleValueData::none(),
         has_name: false,
         name: crate::css::css_string::CssString::none(),
         implicit_start_name: crate::css::css_string::CssString::none(),
         implicit_end_name: crate::css::css_string::CssString::none(),
-    }
+    }))
 }
 
 pub(crate) fn is_custom_ident_placement(value: &StyleValueData) -> bool {
     matches!(
         value,
-        StyleValueData::GridTrackPlacement {
-            kind: 2,
-            value,
-            has_name: true,
-            ..
-        } if value.optional_data().is_none()
+        StyleValueData::GridTrackPlacement(placement)
+            if placement.kind == 2 && placement.has_name && placement.value.optional_data().is_none()
     )
 }
 
 fn grid_shorthand(property: u16, sub_properties: Vec<u16>, values: Vec<StyleValueData>) -> ParseOutcome {
-    ParseOutcome::Parsed(Arc::new(StyleValueData::Shorthand {
-        shorthand_property: property,
-        sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
-        values: RetainedStyleValueDataList::from_retained_values(
-            values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
-        ),
-    }))
+    ParseOutcome::Parsed(StyleValueArc::new(StyleValueData::Shorthand(StyleValueBox::new(
+        ShorthandPayload {
+            shorthand_property: property,
+            sub_properties: RetainedPropertyIdList::from_property_ids(sub_properties),
+            values: RetainedStyleValueDataList::from_retained_values(
+                values.into_iter().map(RetainedStyleValueData::from_owned).collect(),
+            ),
+        },
+    ))))
 }
 
 fn slash_separated_components(values: &[ComponentValue]) -> Option<Vec<&[ComponentValue]>> {
@@ -955,11 +964,11 @@ fn initial_grid_values() -> [StyleValueData; 6] {
                 keyword: keyword::AUTO,
             })],
         ),
-        StyleValueData::GridTemplateArea {
+        StyleValueData::GridTemplateArea(StyleValueBox::new(GridTemplateAreaPayload {
             grid_areas: RetainedGridAreaList::from_retained_elements(Vec::new()),
             row_count: 0,
             column_count: 0,
-        },
+        })),
         grid_track_list(false, false, Vec::new()),
         grid_track_list(false, false, Vec::new()),
     ]
@@ -1301,10 +1310,12 @@ fn parse_grid_template_areas(_context: &ParseContext, values: &[ComponentValue])
     if parse_keyword(tokens.next_token(), keyword::NONE).is_some() {
         tokens.discard_a_token();
         tokens.discard_whitespace();
-        return tokens.is_empty().then(|| StyleValueData::GridTemplateArea {
-            grid_areas: RetainedGridAreaList::from_retained_elements(Vec::new()),
-            row_count: 0,
-            column_count: 0,
+        return tokens.is_empty().then(|| {
+            StyleValueData::GridTemplateArea(StyleValueBox::new(GridTemplateAreaPayload {
+                grid_areas: RetainedGridAreaList::from_retained_elements(Vec::new()),
+                row_count: 0,
+                column_count: 0,
+            }))
         });
     }
     let mut rows = Vec::new();
@@ -1365,11 +1376,13 @@ fn parse_grid_template_areas(_context: &ParseContext, values: &[ComponentValue])
             ));
         }
     }
-    Some(StyleValueData::GridTemplateArea {
-        grid_areas: RetainedGridAreaList::from_retained_elements(areas),
-        row_count: rows.len(),
-        column_count: column_count.unwrap_or(0),
-    })
+    Some(StyleValueData::GridTemplateArea(StyleValueBox::new(
+        GridTemplateAreaPayload {
+            grid_areas: RetainedGridAreaList::from_retained_elements(areas),
+            row_count: rows.len(),
+            column_count: column_count.unwrap_or(0),
+        },
+    )))
 }
 
 fn contains_math_function(values: &[ComponentValue]) -> bool {
@@ -1428,7 +1441,7 @@ pub(crate) fn parse_grid_property(context: &ParseContext, property: u16, values:
         _ => return ParseOutcome::NotHandled,
     };
     if let Some(parsed) = parsed {
-        ParseOutcome::Parsed(Arc::new(parsed))
+        ParseOutcome::Parsed(StyleValueArc::new(parsed))
     } else if contains_deferred_function(values) || contains_math_function(values) {
         ParseOutcome::NotHandled
     } else {
@@ -1539,9 +1552,10 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand { values, .. } = &*value else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload { values, .. } = &**shorthand_payload;
             assert_eq!(values.as_slice().len(), expected_values);
         }
         for (property, source) in [
@@ -1571,9 +1585,10 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse(property, source) else {
                 panic!("shorthand should parse: {source}");
             };
-            let StyleValueData::Shorthand { values, .. } = &*value else {
+            let StyleValueData::Shorthand(shorthand_payload) = &*value else {
                 panic!("value should be a shorthand: {source}");
             };
+            let ShorthandPayload { values, .. } = &**shorthand_payload;
             assert_eq!(values.as_slice().len(), expected_values);
         }
         for (property, source) in [

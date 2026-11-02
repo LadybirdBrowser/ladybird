@@ -16,14 +16,14 @@ public:
 
     Vector<Utf16FlyString> schemes() const
     {
-        auto const& list = m_value->color_scheme.schemes;
+        auto const& list = m_value->color_scheme._0->schemes;
         Vector<Utf16FlyString> schemes;
         schemes.ensure_capacity(list.length);
         for (size_t i = 0; i < list.length; ++i)
             schemes.unchecked_append(css_string_from_rust(&list.pointer[i]));
         return schemes;
     }
-    bool only() const { return m_value->color_scheme.only; }
+    bool only() const { return m_value->color_scheme._0->only; }
 
 private:
     friend class StyleValue;

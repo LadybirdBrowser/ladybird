@@ -7,14 +7,14 @@
 use crate::css::css_string::CssString;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::syntax::SyntaxNode;
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value_arc::StyleValueArc;
 use std::ffi::c_void;
 use std::sync::Arc;
 
 pub(crate) struct FunctionParameterData {
     pub(crate) name: ak::Utf16FlyString,
     pub(crate) syntax: Arc<SyntaxNode>,
-    pub(crate) default_value: Option<Arc<StyleValueData>>,
+    pub(crate) default_value: Option<StyleValueArc>,
 }
 
 pub struct FunctionSignature {
@@ -65,6 +65,6 @@ pub extern "C" fn rust_function_signature_parameter(
         default_value: parameter
             .default_value
             .as_ref()
-            .map_or(std::ptr::null(), |value| Arc::as_ptr(value).cast()),
+            .map_or(std::ptr::null(), |value| StyleValueArc::as_ptr(value).cast()),
     }
 }

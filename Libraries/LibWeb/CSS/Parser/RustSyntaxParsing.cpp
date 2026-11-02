@@ -235,7 +235,7 @@ Optional<RustRule> Parser::parse_as_keyframe_rule(Utf16View source)
     return rules.at(0);
 }
 
-RustDeclarationBlock Parser::parse_as_property_declaration_block(Utf16View source)
+RustDeclarationBlock Parser::parse_as_property_declaration_block(Utf16View source, bool* parsed_cleanly)
 {
     auto context = make_parse_context(ParseContextMode::Syntax);
     // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
@@ -244,6 +244,8 @@ RustDeclarationBlock Parser::parse_as_property_declaration_block(Utf16View sourc
     RustStyleSheetParse parse { handle };
     report_diagnostics(parse);
     rust_css_syntax_visit_declaration_errors(parse.handle(), report_declaration_error);
+    if (parsed_cleanly)
+        *parsed_cleanly = rust_css_syntax_parse_is_clean(parse.handle());
     return RustDeclarationBlock { rust_css_syntax_parse_declaration_block(handle) };
 }
 

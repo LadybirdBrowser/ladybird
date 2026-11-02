@@ -7,7 +7,7 @@
 use crate::css::css_string::CssString;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::syntax::SyntaxNode;
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value_arc::StyleValueArc;
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -16,7 +16,7 @@ pub struct PropertyRuleData {
     pub(crate) syntax_source: CssString,
     pub(crate) syntax: Arc<SyntaxNode>,
     pub(crate) inherits: bool,
-    pub(crate) initial_value: Option<Arc<StyleValueData>>,
+    pub(crate) initial_value: Option<StyleValueArc>,
 }
 
 const _: () = {
@@ -45,6 +45,6 @@ pub extern "C" fn rust_property_rule_view(rule: &PropertyRuleData) -> FfiPropert
         initial_value: rule
             .initial_value
             .as_ref()
-            .map_or(std::ptr::null(), |value| Arc::as_ptr(value).cast()),
+            .map_or(std::ptr::null(), |value| StyleValueArc::as_ptr(value).cast()),
     }
 }

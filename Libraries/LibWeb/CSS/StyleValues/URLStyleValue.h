@@ -65,7 +65,7 @@ public:
 
     URL url() const
     {
-        auto const& data = m_value->url;
+        auto const& data = *m_value->url._0;
         return url_from_rust_data(data.url, data.url_type, data.modifiers);
     }
 

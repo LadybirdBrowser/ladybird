@@ -24,7 +24,7 @@ namespace Web::CSS {
 CursorStyleValue::CursorStyleValue(StyleValueFFI::StyleValueData const* data)
     : StyleValueWithDefaultOperators(Type::Cursor, data)
     , m_image(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-                                                          static_cast<StyleValueFFI::StyleValueData const*>(data->cursor.image.pointer)))
+                                                          static_cast<StyleValueFFI::StyleValueData const*>(data->cursor._0->image.pointer)))
               ->as_abstract_image())
 {
 }

@@ -31,7 +31,7 @@ static StyleProperty wrap_property(FfiDeclaredProperty const& property, HashMap<
     return { property.important ? Important::Yes : Important::No, static_cast<PropertyID>(property.property_id), move(value) };
 }
 
-RustDeclarationBlockSnapshot::RustDeclarationBlockSnapshot(DeclarationBlockData const* data)
+RustDeclarationBlockSnapshot::RustDeclarationBlockSnapshot(DeclarationBlockHeader const* data)
     : m_data(data)
 {
     VERIFY(m_data);
@@ -39,7 +39,9 @@ RustDeclarationBlockSnapshot::RustDeclarationBlockSnapshot(DeclarationBlockData 
 
 RustDeclarationBlockSnapshot::~RustDeclarationBlockSnapshot()
 {
-    rust_declaration_data_release(m_data);
+    // NB: A snapshot that was moved from holds no reference.
+    if (m_data)
+        rust_declaration_data_release(m_data);
 }
 
 RustDeclarationBlockSnapshot::RustDeclarationBlockSnapshot(RustDeclarationBlockSnapshot&& other)

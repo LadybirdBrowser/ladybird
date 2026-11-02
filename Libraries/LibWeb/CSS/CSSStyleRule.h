@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/NonnullRefPtr.h>
+#include <AK/OwnPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
@@ -21,7 +22,7 @@ class CSSStyleRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSStyleRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSStyleRule> create(RustRule, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSStyleRule> create(RustRule);
 
     virtual ~CSSStyleRule() override = default;
 
@@ -36,7 +37,7 @@ public:
     GC::Ref<StylePropertyMap> style_map();
 
 private:
-    CSSStyleRule(RustRule, CSSRuleList&);
+    explicit CSSStyleRule(RustRule);
     GC::Ref<CSSStyleProperties> ensure_style_properties() const;
     virtual size_t external_memory_size() const override;
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -44,8 +45,15 @@ private:
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
-    mutable Optional<SelectorList> m_selectors;
-    mutable Optional<SelectorList> m_cached_absolutized_selectors;
+    // What the rule makes of its selectors when they are first read; boxed, as most rules never make it.
+    struct SelectorCaches {
+        AK_ALLOC_WITH_KMALLOC;
+        Optional<SelectorList> selectors;
+        Optional<SelectorList> absolutized_selectors;
+    };
+    SelectorCaches& selector_caches() const;
+
+    mutable OwnPtr<SelectorCaches> m_selector_caches;
     RustDeclarationBlock m_declarations;
     mutable GC::Ptr<CSSStyleProperties> m_declaration;
     GC::Ptr<StylePropertyMap> m_style_map;

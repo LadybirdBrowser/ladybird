@@ -20,22 +20,36 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSStyleRule);
 
-GC::Ref<CSSStyleRule> CSSStyleRule::create(RustRule rule, CSSRuleList& nested_rules)
+// NB: The CSSOM wraps every style rule a script reads, so its wrapper stays small.
+#if ARCH(X86_64) && !defined(AK_OS_WINDOWS)
+static_assert(sizeof(CSSRule) <= 64);
+static_assert(sizeof(CSSStyleRule) <= 112);
+#endif
+
+GC::Ref<CSSStyleRule> CSSStyleRule::create(RustRule rule)
 {
-    return GC::Heap::the().allocate<CSSStyleRule>(move(rule), nested_rules);
+    return GC::Heap::the().allocate<CSSStyleRule>(move(rule));
 }
 
-CSSStyleRule::CSSStyleRule(RustRule rule, CSSRuleList& nested_rules)
-    : CSSGroupingRule(nested_rules, move(rule))
+CSSStyleRule::CSSStyleRule(RustRule rule)
+    : CSSGroupingRule(nullptr, move(rule))
     , m_declarations(Parser::ValueParserFFI::rust_rule_declarations(native_rule().handle()))
 {
 }
 
+CSSStyleRule::SelectorCaches& CSSStyleRule::selector_caches() const
+{
+    if (!m_selector_caches)
+        m_selector_caches = make<SelectorCaches>();
+    return *m_selector_caches;
+}
+
 SelectorList const& CSSStyleRule::selectors() const
 {
-    if (!m_selectors.has_value())
-        m_selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList const*>(Parser::ValueParserFFI::rust_rule_selectors(native_rule().handle())));
-    return *m_selectors;
+    auto& caches = selector_caches();
+    if (!caches.selectors.has_value())
+        caches.selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList const*>(Parser::ValueParserFFI::rust_rule_selectors(native_rule().handle())));
+    return *caches.selectors;
 }
 
 size_t CSSStyleRule::external_memory_size() const
@@ -153,7 +167,8 @@ void CSSStyleRule::set_selector_text(Utf16View selector_text)
 
     // 2. If the algorithm returns a non-null value replace the associated group of selectors with the returned value.
     if (Parser::ValueParserFFI::rust_rule_set_selector_text(native_rule().handle(), Parser::ffi_utf16_view(selector_text), sheet ? sheet->native_rules().handle() : nullptr)) {
-        m_selectors.clear();
+        if (m_selector_caches)
+            m_selector_caches->selectors.clear();
         clear_caches();
         if (sheet) {
             record_style_rule_selector_changed(*this);
@@ -166,17 +181,17 @@ void CSSStyleRule::set_selector_text(Utf16View selector_text)
 
 SelectorList const& CSSStyleRule::absolutized_selectors() const
 {
-    if (m_cached_absolutized_selectors.has_value())
-        return m_cached_absolutized_selectors.value();
-
-    m_cached_absolutized_selectors = matching_selectors_for_rule(native_rule());
-    return m_cached_absolutized_selectors.value();
+    auto& caches = selector_caches();
+    if (!caches.absolutized_selectors.has_value())
+        caches.absolutized_selectors = matching_selectors_for_rule(native_rule());
+    return *caches.absolutized_selectors;
 }
 
 void CSSStyleRule::clear_caches()
 {
     Base::clear_caches();
-    m_cached_absolutized_selectors.clear();
+    if (m_selector_caches)
+        m_selector_caches->absolutized_selectors.clear();
 }
 
 void CSSStyleRule::dump(StringBuilder& builder, int indent_levels) const

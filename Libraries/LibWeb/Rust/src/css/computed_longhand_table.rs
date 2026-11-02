@@ -4,108 +4,22 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// Like the style values it retains, the table is shared across the FFI boundary but remains
-// confined to the thread owning the C++ style objects.
-#![allow(clippy::arc_with_non_send_sync)]
+//! What a style records beside its longhand values: whether each was important, inherited or
+//! evaluated, the dependency flags, the metadata the host settles beside them, and the recorded
+//! specified values helpers.
 
-//! The computed longhand table: the source of truth for one style drive's
-//! computed values, one slot per longhand.
-//!
-//! Every store a C++ `ComputedStyleWorkingSet` funnel performs lands
-//! here as a strong reference to the shared style value data; the C++ side
-//! keeps only a lazily filled wrapper cache over these slots, minting a
-//! wrapper when a caller asks for one. A sparse sidecar remembers which
-//! longhands took their value from a declaration that carries style sheet
-//! context, together with the declaration's cascade source slot. The C++
-//! The C++ `ComputedStyleWorkingSet` creates the table and freezes it when
-//! the drive completes; the frozen table is then shared
-//! by reference count with every `ComputedValues` built from those
-//! properties and with the style record publication that interns it.
-
-use smallvec::SmallVec;
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, OnceLock};
 
-use crate::css::animated_overlay::AnimatedOverlay;
-use crate::css::animated_overlay::overlay_wins;
-use crate::css::ffi_stats;
-use crate::css::host_shared::{HostShared, SharedPayload};
-use crate::css::property_metadata::{
-    FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_id, property_is_inherited,
-};
-use crate::css::style_value::retained_value_depends_on_current_color;
+use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, property_is_inherited};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
 pub(crate) const LONGHAND_COUNT: usize = (LAST_LONGHAND_PROPERTY_ID - FIRST_LONGHAND_PROPERTY_ID + 1) as usize;
 
-fn is_current_color_keyword(value: &StyleValueData) -> bool {
+pub(crate) fn is_current_color_keyword(value: &StyleValueData) -> bool {
     matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::keyword::CURRENTCOLOR)
 }
 
 pub(crate) const LONGHAND_BITMAP_BYTES: usize = LONGHAND_COUNT.div_ceil(8);
-
-/// Mixes one slot's value content hash with the slot index, so that a sum over the slots is
-/// order-sensitive while any one slot's share can still be subtracted and replaced.
-const fn mix_slot_hash(slot: usize, content: u64) -> u64 {
-    (content ^ (slot as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15))
-        .wrapping_mul(0x2545_F491_4F6C_DD1D)
-        .rotate_left((slot as u32) & 63)
-}
-
-pub(crate) fn longhand_slot_hash(slot: usize, value: Option<&StyleValueData>) -> u64 {
-    mix_slot_hash(slot, crate::css::style_value::style_value_content_hash(value))
-}
-
-/// The memoized sum of a table's per-slot hashes.
-///
-/// Every write but one goes through `&mut self` on an unfrozen table nobody else can see. The
-/// exception is `ComputedLonghandTable::slot_hash_sum`, which fills the memo through `&self` on a
-/// frozen table that every worker seeding a drive from it shares. That is not a race in value -
-/// the sum is a pure function of immutable slots, so two workers store the same number - but it
-/// has to be spelled with atomics for the compiler to agree, and it is cheaper than the `Cell`
-/// pair it replaces was: `adjust_slot_hash_sum` runs per slot write, and a relaxed store is one
-/// instruction.
-#[derive(Clone, Default)]
-struct MemoizedHashSum {
-    sum: crate::fork::ForkCopied<AtomicU64>,
-    known: crate::fork::ForkCopied<AtomicBool>,
-}
-
-impl MemoizedHashSum {
-    fn get(&self) -> Option<u64> {
-        // Acquire pairs with the release below: a reader that sees the memo filled sees the sum.
-        self.known
-            .load(Ordering::Acquire)
-            .then(|| self.sum.load(Ordering::Relaxed))
-    }
-
-    fn set(&self, sum: Option<u64>) {
-        match sum {
-            Some(sum) => {
-                self.sum.store(sum, Ordering::Relaxed);
-                self.known.store(true, Ordering::Release);
-            }
-            None => self.known.store(false, Ordering::Release),
-        }
-    }
-}
-
-/// One sparse inheritance-dependent specified value, exposed to C++ as the
-/// borrowed span behind a style's inheritance-dependent value view.
-#[repr(C)]
-#[derive(Clone)]
-pub struct FfiTableInheritanceDependentValue {
-    pub property: u16,
-    pub value: *const c_void,
-}
-
-// SAFETY: `value` borrows the `StyleValueData` the neighboring
-// `inheritance_dependent` entry retains; `RetainedStyleValueData` is itself
-// `Send + Sync` because a style value is immutable and its count is an
-// `Arc`'s. This view owns nothing and is rebuilt, never mutated in place.
-unsafe impl Send for FfiTableInheritanceDependentValue {}
-unsafe impl Sync for FfiTableInheritanceDependentValue {}
 
 /// The effective value of one longhand: the value data pointer together with
 /// which source produced it, so the C++ side can preserve wrapper identity
@@ -120,6 +34,28 @@ pub const EFFECTIVE_LONGHAND_SOURCE_TABLE: u8 = 0;
 pub const EFFECTIVE_LONGHAND_SOURCE_OVERLAY: u8 = 1;
 pub const EFFECTIVE_LONGHAND_SOURCE_SPECIFIED: u8 = 2;
 
+/// The longhands that inherit by default, by slot.
+const INHERITED_LONGHAND_BITS: [u8; LONGHAND_BITMAP_BYTES] = {
+    use crate::css::property_metadata::{FIRST_INHERITED_PROPERTY_ID, LAST_INHERITED_PROPERTY_ID};
+    let mut bits = [0; LONGHAND_BITMAP_BYTES];
+    let mut property = FIRST_INHERITED_PROPERTY_ID;
+    while property <= LAST_INHERITED_PROPERTY_ID {
+        let index = (property - FIRST_LONGHAND_PROPERTY_ID) as usize;
+        bits[index / 8] |= 1 << (index % 8);
+        property += 1;
+    }
+    bits
+};
+
+/// The bit of `property_id` in a bitmap of longhands.
+fn slot_index(property_id: u16) -> usize {
+    assert!(
+        (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id),
+        "longhand bitmap indices are longhand property identifiers"
+    );
+    (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize
+}
+
 fn bitmap_bit(bits: &[u8; LONGHAND_BITMAP_BYTES], index: usize) -> bool {
     bits[index / 8] & (1 << (index % 8)) != 0
 }
@@ -132,469 +68,268 @@ fn set_bitmap_bit(bits: &mut [u8; LONGHAND_BITMAP_BYTES], index: usize, value: b
     }
 }
 
-/// Where `index` sits in a change list kept in slot order: the number of changed slots below it.
-/// Locating a change this way keeps a drive's cost linear in the slots it writes.
-fn bitmap_rank(bits: &[u8; LONGHAND_BITMAP_BYTES], index: usize) -> usize {
-    let byte = index / 8;
-    let below: u32 = bits[..byte].iter().map(|bits| bits.count_ones()).sum();
-    (below + (bits[byte] & ((1u8 << (index % 8)) - 1)).count_ones()) as usize
-}
-
-/// The per-slot arrays, kept on the heap so that a table moves as a handful of words rather than
-/// as the several kilobytes the slots occupy.
-struct DenseSlotStorage {
-    // Empty slots use the handle's null pointer; the same storage supplies the borrowed FFI view.
-    slots: [RetainedStyleValueData; LONGHAND_COUNT],
-    /// Cascade source slot for each longhand, or `-1` when its value carries
-    /// no style sheet context. Allocate the dense sidecar only when a declaration needs it;
-    /// both reads and writes remain direct slot lookups.
-    source_slots: Option<Box<[i32; LONGHAND_COUNT]>>,
-}
-
-impl Clone for DenseSlotStorage {
-    fn clone(&self) -> Self {
-        // NB: Only copying an unfrozen host working table can share mutable dense storage.
-        ffi_stats::count_table_copy(|| {
-            (
-                LONGHAND_COUNT as u64,
-                self.slots.iter().filter(|value| !value.pointer().is_null()).count() as u64,
-            )
-        });
-        Self {
-            slots: self.slots.clone(),
-            source_slots: self.source_slots.clone(),
-        }
-    }
-}
-
-impl DenseSlotStorage {
-    fn source_slot(&self, index: usize) -> i32 {
-        self.source_slots.as_ref().map_or(-1, |slots| slots[index])
-    }
-
-    fn set_source_slot(&mut self, index: usize, source_slot: i32) {
-        if let Some(slots) = &mut self.source_slots {
-            slots[index] = source_slot;
-        } else if source_slot != -1 {
-            let mut slots = Box::new([-1; LONGHAND_COUNT]);
-            slots[index] = source_slot;
-            self.source_slots = Some(slots);
-        }
-    }
-
-    /// Drop a source sidecar that carries no context; reads then answer `-1` for every slot.
-    fn release_empty_sources(&mut self) {
-        if self
-            .source_slots
-            .as_ref()
-            .is_some_and(|slots| slots.iter().all(|&slot| slot == -1))
-        {
-            self.source_slots = None;
-        }
-    }
-
-    fn new_shared() -> Arc<Self> {
-        let mut storage = Arc::<Self>::new_uninit();
-        let pointer = Arc::get_mut(&mut storage).unwrap().as_mut_ptr();
-        // SAFETY: Every field is initialized in place below, so the allocation holds a complete value
-        // when it is assumed initialized; nothing is moved through the stack.
-        unsafe {
-            let slots = std::ptr::addr_of_mut!((*pointer).slots).cast::<RetainedStyleValueData>();
-            for index in 0..LONGHAND_COUNT {
-                slots.add(index).write(RetainedStyleValueData::none());
-            }
-            std::ptr::addr_of_mut!((*pointer).source_slots).write(None);
-            storage.assume_init()
-        }
-    }
-}
-
-/// A working table borrows unchanged slots through one owner of a flat base.
-/// The base is always dense, so even a seed made from another working delta
-/// cannot introduce a chain. Publication materializes only a unique result.
+/// What a longhand table publishes beside its values, its recorded specified values, its zoom,
+/// box display, color scheme and dependency flags: whether each longhand's value was important,
+/// inherited or evaluated by the computation, and what the box adjustments and monospace
+/// recascades read.
 #[derive(Clone)]
-struct ChangedSlot {
-    index: u16,
-    // None keeps the base value; Some(none()) represents an empty slot.
-    value: Option<RetainedStyleValueData>,
-    source_slot: i32,
-}
-
-/// The slot values of a table in slot order: a delta's changes, which are kept in slot order, are
-/// merged over its base as the walk reaches them.
-struct SlotValues<'a> {
-    base: &'a [RetainedStyleValueData; LONGHAND_COUNT],
-    changes: &'a [ChangedSlot],
-    index: usize,
-}
-
-impl<'a> Iterator for SlotValues<'a> {
-    type Item = &'a RetainedStyleValueData;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let index = self.index;
-        let base = self.base.get(index)?;
-        self.index += 1;
-        match self.changes.split_first() {
-            Some((change, rest)) if usize::from(change.index) == index => {
-                self.changes = rest;
-                Some(change.value.as_ref().unwrap_or(base))
-            }
-            _ => Some(base),
-        }
-    }
-}
-
-// NB: Inline changes avoid a separate allocation for each sparse drive.
-#[allow(clippy::large_enum_variant)]
-#[derive(Clone)]
-enum SlotStorage {
-    Dense(Arc<DenseSlotStorage>),
-    Delta {
-        base: Arc<DenseSlotStorage>,
-        changes: SmallVec<[ChangedSlot; 16]>,
-        changed_bits: [u8; LONGHAND_BITMAP_BYTES],
-        preserve_sources: bool,
-        // Only consumers explicitly asking for the contiguous ABI span pay for it.
-        view: OnceLock<Box<[SharedPayload; LONGHAND_COUNT]>>,
-    },
-}
-
-impl SlotStorage {
-    fn new() -> Self {
-        Self::Dense(DenseSlotStorage::new_shared())
-    }
-
-    fn slot(&self, index: usize) -> (&RetainedStyleValueData, i32) {
-        match self {
-            Self::Dense(storage) => (&storage.slots[index], storage.source_slot(index)),
-            Self::Delta {
-                base,
-                changes,
-                changed_bits,
-                preserve_sources,
-                ..
-            } => {
-                if bitmap_bit(changed_bits, index) {
-                    let change = &changes[bitmap_rank(changed_bits, index)];
-                    return (change.value.as_ref().unwrap_or(&base.slots[index]), change.source_slot);
-                }
-                (
-                    &base.slots[index],
-                    if *preserve_sources { base.source_slot(index) } else { -1 },
-                )
-            }
-        }
-    }
-
-    fn change(&mut self, index: usize) -> &mut ChangedSlot {
-        let source_slot = self.slot(index).1;
-        let Self::Delta {
-            changes,
-            changed_bits,
-            view,
-            ..
-        } = self
-        else {
-            unreachable!()
-        };
-        view.take();
-        // Changes stay in slot order, so a rank names an entry directly. A drive that writes
-        // its slots in order only ever appends.
-        let rank = bitmap_rank(changed_bits, index);
-        if !bitmap_bit(changed_bits, index) {
-            set_bitmap_bit(changed_bits, index, true);
-            changes.insert(
-                rank,
-                ChangedSlot {
-                    index: index as u16,
-                    value: None,
-                    source_slot,
-                },
-            );
-        }
-        &mut changes[rank]
-    }
-
-    fn set_value(&mut self, index: usize, value: RetainedStyleValueData) {
-        match self {
-            Self::Dense(storage) => Arc::make_mut(storage).slots[index] = value,
-            Self::Delta { .. } => self.change(index).value = Some(value),
-        }
-    }
-
-    /// Release an all-empty source sidecar of a uniquely owned dense base; shared or delta
-    /// storage keeps its sources, since a later materialization decides them.
-    fn release_empty_sources(&mut self) {
-        if let Self::Dense(storage) = self
-            && let Some(storage) = Arc::get_mut(storage)
-        {
-            storage.release_empty_sources();
-        }
-    }
-
-    #[cfg(test)]
-    fn has_source_slots(&self) -> bool {
-        match self {
-            Self::Dense(storage) => storage.source_slots.is_some(),
-            Self::Delta { base, changes, .. } => {
-                base.source_slots.is_some() || changes.iter().any(|change| change.source_slot != -1)
-            }
-        }
-    }
-
-    fn set_source(&mut self, index: usize, source_slot: i32) {
-        if self.slot(index).1 == source_slot {
-            return;
-        }
-        match self {
-            Self::Dense(storage) => Arc::make_mut(storage).set_source_slot(index, source_slot),
-            Self::Delta { .. } => self.change(index).source_slot = source_slot,
-        }
-    }
-
-    fn seeded(source: &Self, preserve_sources: bool) -> Self {
-        // NB: One base owner replaces the former retain of every slot.
-        ffi_stats::count_table_copy(|| (0, 1));
-        let (base, changes, changed_bits, old_preserve_sources) = match source {
-            Self::Dense(storage) => (storage.clone(), SmallVec::new(), [0; LONGHAND_BITMAP_BYTES], true),
-            Self::Delta {
-                base,
-                changes,
-                changed_bits,
-                preserve_sources,
-                ..
-            } => {
-                ffi_stats::count_table_copy(|| {
-                    let slots = changes.iter().filter_map(|change| change.value.as_ref());
-                    (
-                        slots.clone().count() as u64,
-                        slots.filter(|value| !value.pointer().is_null()).count() as u64,
-                    )
-                });
-                let changes = changes
-                    .iter()
-                    .map(|change| ChangedSlot {
-                        index: change.index,
-                        value: change.value.clone(),
-                        source_slot: change.source_slot,
-                    })
-                    .collect();
-                (base.clone(), changes, *changed_bits, *preserve_sources)
-            }
-        };
-        let mut result = Self::Delta {
-            base,
-            changes,
-            changed_bits,
-            preserve_sources: preserve_sources && old_preserve_sources,
-            view: OnceLock::new(),
-        };
-        if !preserve_sources && let Self::Delta { changes, .. } = &mut result {
-            for change in changes {
-                change.source_slot = -1;
-            }
-        }
-        result
-    }
-
-    /// Every slot's value, in slot order, without locating each change by rank.
-    fn values(&self) -> SlotValues<'_> {
-        let (base, changes) = match self {
-            Self::Dense(storage) => (&storage.slots, &[][..]),
-            Self::Delta { base, changes, .. } => (&base.slots, &changes[..]),
-        };
-        debug_assert!(changes.windows(2).all(|pair| pair[0].index < pair[1].index));
-        SlotValues {
-            base,
-            changes,
-            index: 0,
-        }
-    }
-
-    /// Compare only the slot values, ignoring the cascade source slots that publication ignores.
-    ///
-    /// Two deltas over one base already agree on every slot neither of them changed, so a shared
-    /// base reduces the comparison to the union of the two change lists, and a delta agrees with
-    /// its own base everywhere but in its changes. Two tables sharing dense storage agree
-    /// everywhere.
-    fn values_are_equal(
-        &self,
-        other: &Self,
-        equal: impl Fn(&RetainedStyleValueData, &RetainedStyleValueData) -> bool,
-    ) -> bool {
-        match (self, other) {
-            (Self::Dense(dense), Self::Delta { base, changes, .. })
-            | (Self::Delta { base, changes, .. }, Self::Dense(dense))
-                if Arc::ptr_eq(dense, base) =>
-            {
-                changes.iter().all(|change| {
-                    change
-                        .value
-                        .as_ref()
-                        .is_none_or(|value| equal(value, &base.slots[usize::from(change.index)]))
-                })
-            }
-            (Self::Dense(first), Self::Dense(second)) => {
-                Arc::ptr_eq(first, second)
-                    || first
-                        .slots
-                        .iter()
-                        .zip(second.slots.iter())
-                        .all(|(first, second)| equal(first, second))
-            }
-            (
-                Self::Delta {
-                    base: first_base,
-                    changes: first_changes,
-                    ..
-                },
-                Self::Delta {
-                    base: second_base,
-                    changes: second_changes,
-                    ..
-                },
-            ) if Arc::ptr_eq(first_base, second_base) => {
-                let mut first = 0;
-                let mut second = 0;
-                while first < first_changes.len() || second < second_changes.len() {
-                    let first_index = first_changes.get(first).map_or(u16::MAX, |change| change.index);
-                    let second_index = second_changes.get(second).map_or(u16::MAX, |change| change.index);
-                    let index = usize::from(first_index.min(second_index));
-                    let base = &first_base.slots[index];
-                    let mut first_value = base;
-                    let mut second_value = base;
-                    if usize::from(first_index) == index {
-                        first_value = first_changes[first].value.as_ref().unwrap_or(base);
-                        first += 1;
-                    }
-                    if usize::from(second_index) == index {
-                        second_value = second_changes[second].value.as_ref().unwrap_or(base);
-                        second += 1;
-                    }
-                    if !equal(first_value, second_value) {
-                        return false;
-                    }
-                }
-                true
-            }
-            _ => self
-                .values()
-                .zip(other.values())
-                .all(|(first, second)| equal(first, second)),
-        }
-    }
-
-    fn value_pointers(&self) -> &[*const c_void] {
-        match self {
-            Self::Dense(storage) => RetainedStyleValueData::pointer_slice(&storage.slots),
-            Self::Delta { view, .. } => HostShared::as_pointer_slice(
-                view.get_or_init(|| {
-                    Box::new(std::array::from_fn(|index| {
-                        SharedPayload::new(self.slot(index).0.pointer().cast())
-                    }))
-                })
-                .as_slice(),
-            ),
-        }
-    }
-
-    fn materialize(&mut self) {
-        if matches!(self, Self::Dense(_)) {
-            return;
-        }
-        let dense = DenseSlotStorage::new_shared();
-        let old = std::mem::replace(self, Self::Dense(dense));
-        let Self::Delta {
-            base,
-            changes,
-            preserve_sources,
-            ..
-        } = old
-        else {
-            unreachable!()
-        };
-        let Self::Dense(dense) = self else { unreachable!() };
-        let storage = Arc::get_mut(dense).unwrap();
-        let mut owned_bits = [0; LONGHAND_BITMAP_BYTES];
-        storage.source_slots = if preserve_sources {
-            base.source_slots.clone()
-        } else {
-            None
-        };
-        for change in changes {
-            let index = usize::from(change.index);
-            storage.set_source_slot(index, change.source_slot);
-            if let Some(value) = change.value {
-                storage.slots[index] = value;
-                set_bitmap_bit(&mut owned_bits, index, true);
-            }
-        }
-        ffi_stats::count_table_copy(|| {
-            let mut slots = 0;
-            let mut retains = 0;
-            for index in 0..LONGHAND_COUNT {
-                if !bitmap_bit(&owned_bits, index) {
-                    slots += 1;
-                    retains += u64::from(!base.slots[index].pointer().is_null());
-                }
-            }
-            (slots, retains)
-        });
-        for index in 0..LONGHAND_COUNT {
-            if !bitmap_bit(&owned_bits, index) {
-                storage.slots[index] = base.slots[index].clone();
-            }
-        }
-    }
-}
-
-#[derive(Clone)]
-
-pub struct ComputedLonghandTable {
-    storage: SlotStorage,
-    /// Whether the longhand's winning declaration was `!important`, in the
-    /// byte layout of the C++ `FixedBitmap` (bit `i` is byte `i / 8`, bit
-    /// `i % 8`), so whole bitmaps copy across the FFI without translation.
+pub(crate) struct LonghandTableFlags {
     important_bits: [u8; LONGHAND_BITMAP_BYTES],
-    /// Whether the longhand's computed value was taken by inheritance.
     inherited_bits: [u8; LONGHAND_BITMAP_BYTES],
-    /// Which longhands a drive over this table (not the styles it was seeded
-    /// from) has evaluated and stored; an evaluated longhand's value always
-    /// comes from the table, while an unevaluated one keeps the recorded
-    /// currentcolor-dependent specified value's preference.
     evaluated_bits: [u8; LONGHAND_BITMAP_BYTES],
-    /// The recorded inheritance-dependent specified values, sparse.
-    inheritance_dependent: Vec<(u16, RetainedStyleValueData)>,
-    /// Whether `inheritance_dependent` was seeded from another table, so that a drive over this
-    /// one must replace or drop the record of every row it evaluates.
-    inheritance_dependent_is_seeded: bool,
-    /// Which longhands have a recorded inheritance-dependent specified value, so a lookup for
-    /// one of the many that do not never walks the list.
-    inheritance_dependent_bits: [u8; LONGHAND_BITMAP_BYTES],
-    /// The winning cascaded font-size retained for monospace recascades.
-    raw_cascaded_font_size: Option<RetainedStyleValueData>,
-    /// The borrowed view over `inheritance_dependent` handed to C++.
-    inheritance_dependent_view: Vec<FfiTableInheritanceDependentValue>,
-    /// Viewport dependency flags accumulated by the longhand drive.
-    metadata: FfiComputedStyleMetadata,
-    /// Values before automatic post-compute adjustments, retained only while
-    /// animation processing may need to restore them.
-    /// The computed `overflow-x` and `overflow-y` keywords before the axes were adjusted against
-    /// each other, which an animation of one axis is adjusted against again, once known.
     overflow_before_adjustment: Option<[u16; 2]>,
-    /// The sum of every slot's `longhand_slot_hash`, once known. A table seeded from a published
-    /// table inherits its sum and adjusts it on each slot write, so publishing hashes only the
-    /// values the drive changed; a table that starts empty computes the sum once, when it is
-    /// first published.
-    slot_hash_sum: MemoizedHashSum,
-    /// The longhands the table's `transition-*` values make transitionable, resolved once per
-    /// frozen table because every drive seeded from it asks for them.
-    frozen_transition_longhands: OnceLock<Box<[u16]>>,
-    /// https://drafts.csswg.org/css-viewport/#effective-zoom
-    /// The product of the computed value of zoom and the computed values of zoom of all flat tree ancestors.
-    effective_zoom: f32,
-    frozen: bool,
+    raw_cascaded_font_size: Option<RetainedStyleValueData>,
+}
+
+impl LonghandTableFlags {
+    /// The flags of a copy of `initial` a drive starts from, before it computes anything.
+    pub(crate) fn of_drive_copy(initial: &LonghandTableFlags) -> Self {
+        Self {
+            evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
+            ..initial.clone()
+        }
+    }
+
+    /// The flags of the table `initial` seeds for a child, before the child computes anything:
+    /// every longhand that inherits by default is inherited, and none is evaluated.
+    pub(crate) fn of_child_seed(initial: &LonghandTableFlags) -> Self {
+        Self {
+            important_bits: initial.important_bits,
+            inherited_bits: INHERITED_LONGHAND_BITS,
+            evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
+            ..initial.clone()
+        }
+    }
+
+    pub(crate) fn is_important(&self, property_id: u16) -> bool {
+        bitmap_bit(&self.important_bits, slot_index(property_id))
+    }
+
+    /// One bit per longhand: whether its value is important.
+    pub(crate) fn importance_bits(&self) -> &[u8] {
+        &self.important_bits
+    }
+
+    pub(crate) fn is_inherited(&self, property_id: u16) -> bool {
+        bitmap_bit(&self.inherited_bits, slot_index(property_id))
+    }
+
+    pub(crate) fn is_evaluated(&self, property_id: u16) -> bool {
+        bitmap_bit(&self.evaluated_bits, slot_index(property_id))
+    }
+
+    pub(crate) fn set_important(&mut self, property_id: u16, important: bool) {
+        set_bitmap_bit(&mut self.important_bits, slot_index(property_id), important);
+    }
+
+    pub(crate) fn set_inherited(&mut self, property_id: u16, inherited: bool) {
+        set_bitmap_bit(&mut self.inherited_bits, slot_index(property_id), inherited);
+    }
+
+    /// The flags of a computation that starts from nothing: no longhand is important, inherited
+    /// or evaluated.
+    pub(crate) fn empty() -> Self {
+        Self {
+            important_bits: [0; LONGHAND_BITMAP_BYTES],
+            inherited_bits: [0; LONGHAND_BITMAP_BYTES],
+            evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
+            overflow_before_adjustment: None,
+            raw_cascaded_font_size: None,
+        }
+    }
+
+    pub(crate) fn mark_evaluated(&mut self, property_id: u16) {
+        set_bitmap_bit(&mut self.evaluated_bits, slot_index(property_id), true);
+    }
+
+    /// Takes the importance and inheritance a drive found for each longhand it evaluated, one bit
+    /// per longhand index in each of the words.
+    pub(crate) fn merge_driver_flags(
+        &mut self,
+        important_words: &[u64],
+        inherited_words: &[u64],
+        evaluated_words: &[u64],
+    ) {
+        assert!(important_words.len() * 64 >= LONGHAND_COUNT);
+        assert_eq!(inherited_words.len(), important_words.len());
+        assert_eq!(evaluated_words.len(), important_words.len());
+        for (word_index, &evaluated_word) in evaluated_words.iter().enumerate() {
+            let mut remaining = evaluated_word;
+            while remaining != 0 {
+                let bit = remaining.trailing_zeros() as usize;
+                remaining &= remaining - 1;
+                let index = word_index * 64 + bit;
+                if index >= LONGHAND_COUNT {
+                    break;
+                }
+                set_bitmap_bit(
+                    &mut self.important_bits,
+                    index,
+                    important_words[word_index] & (1 << bit) != 0,
+                );
+                set_bitmap_bit(
+                    &mut self.inherited_bits,
+                    index,
+                    inherited_words[word_index] & (1 << bit) != 0,
+                );
+            }
+        }
+    }
+
+    pub(crate) fn set_overflow_before_adjustment(&mut self, overflow: [u16; 2]) {
+        self.overflow_before_adjustment = Some(overflow);
+    }
+
+    /// The overflow keywords before the box adjustments, where they adjusted them.
+    pub(crate) fn overflow_before_adjustment(&self) -> Option<[u16; 2]> {
+        self.overflow_before_adjustment
+    }
+
+    pub(crate) fn set_raw_cascaded_font_size(&mut self, value: Option<RetainedStyleValueData>) {
+        self.raw_cascaded_font_size = value;
+    }
+
+    /// The element's cascaded font size, where it declares one, which the monospace recascade of
+    /// a descendant reads.
+    pub(crate) fn raw_cascaded_font_size_value(&self) -> Option<&StyleValueData> {
+        self.raw_cascaded_font_size
+            .as_ref()
+            .and_then(RetainedStyleValueData::optional_data)
+    }
+
+    /// Whether these are the very flags `other` are: the same bits, and the same cascaded font size
+    /// value, not only an equal one.
+    pub(crate) fn same_as(&self, other: &Self) -> bool {
+        self.important_bits == other.important_bits
+            && self.inherited_bits == other.inherited_bits
+            && self.evaluated_bits == other.evaluated_bits
+            && self.overflow_before_adjustment == other.overflow_before_adjustment
+            && self
+                .raw_cascaded_font_size
+                .as_ref()
+                .map(RetainedStyleValueData::pointer)
+                == other
+                    .raw_cascaded_font_size
+                    .as_ref()
+                    .map(RetainedStyleValueData::pointer)
+    }
+
+    /// Whether these are the flags `other` are, as a publication compares them.
+    pub(crate) fn publication_equals(&self, other: &Self) -> bool {
+        use crate::css::style_value::optional_style_values_equal;
+        self.important_bits == other.important_bits
+            && self.inherited_bits == other.inherited_bits
+            && self.evaluated_bits == other.evaluated_bits
+            && self.overflow_before_adjustment == other.overflow_before_adjustment
+            && optional_style_values_equal(
+                self.raw_cascaded_font_size
+                    .as_ref()
+                    .and_then(RetainedStyleValueData::optional_data),
+                other
+                    .raw_cascaded_font_size
+                    .as_ref()
+                    .and_then(RetainedStyleValueData::optional_data),
+            )
+    }
+
+    /// What these flags hold differently from `other`, by name, for a diagnostic to show.
+    pub(crate) fn publication_differences(&self, other: &Self) -> Vec<String> {
+        let bits_differ = |name: &str, first: &[u8; LONGHAND_BITMAP_BYTES], second: &[u8; LONGHAND_BITMAP_BYTES]| {
+            let longhands: Vec<_> = (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID)
+                .filter(|&property| {
+                    let slot = slot_index(property);
+                    bitmap_bit(first, slot) != bitmap_bit(second, slot)
+                })
+                .map(crate::css::property_metadata::property_name)
+                .collect();
+            (!longhands.is_empty()).then(|| format!("{name} of {}", longhands.join(", ")))
+        };
+        let mut differences: Vec<String> = [
+            bits_differ("important bits", &self.important_bits, &other.important_bits),
+            bits_differ("inherited bits", &self.inherited_bits, &other.inherited_bits),
+            bits_differ("evaluated bits", &self.evaluated_bits, &other.evaluated_bits),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let mut note = |name: &str, first: String, second: String| {
+            if first != second {
+                differences.push(format!("{name} {first} != {second}"));
+            }
+        };
+        note(
+            "overflow before adjustment",
+            format!("{:?}", self.overflow_before_adjustment),
+            format!("{:?}", other.overflow_before_adjustment),
+        );
+        if !crate::css::style_value::optional_style_values_equal(
+            self.raw_cascaded_font_size_value(),
+            other.raw_cascaded_font_size_value(),
+        ) {
+            differences.push("cascaded font size".into());
+        }
+        differences
+    }
+}
+
+/// The recorded specified value of `property` among `values`, where it has one.
+fn inheritance_dependent_value_among<'a>(
+    mut values: impl Iterator<Item = (u16, &'a RetainedStyleValueData)>,
+    property: u16,
+) -> Option<&'a RetainedStyleValueData> {
+    values.find(|(held, _)| *held == property).map(|(_, value)| value)
+}
+
+/// Whether the recorded specified value of `property` moved from `old` to `new`, the recorded
+/// specified values of two longhand tables or of the group values they are made from.
+/// NB: Equal resolved colors can retain specified values that inherit differently.
+fn inheritance_dependent_value_changed<'a, Values>(old: Values, new: Values, property: u16) -> bool
+where
+    Values: Iterator<Item = (u16, &'a RetainedStyleValueData)>,
+{
+    let old = inheritance_dependent_value_among(old, property);
+    let new = inheritance_dependent_value_among(new, property);
+    old.map(RetainedStyleValueData::pointer) != new.map(RetainedStyleValueData::pointer)
+        && old.map(RetainedStyleValueData::data) != new.map(RetainedStyleValueData::data)
+}
+
+/// Whether a property that inherits by default retains another specified value among `new` than
+/// among `old`, the recorded specified values of two longhand tables or of the group values they
+/// are made from, which the children inheriting it resolve differently though the resolved colors
+/// are equal.
+pub(crate) fn inherited_inheritance_dependent_value_moved<'a, Values>(old: Values, new: Values) -> bool
+where
+    Values: Iterator<Item = (u16, &'a RetainedStyleValueData)> + Clone,
+{
+    old.clone().chain(new.clone()).any(|(property, _)| {
+        property_is_inherited(property) && inheritance_dependent_value_changed(old.clone(), new.clone(), property)
+    })
+}
+
+/// The non-inherited groups whose recorded specified values moved from `old` to `new`, the recorded
+/// specified values of two longhand tables or of the group values they are made from.
+/// NB: Report these source changes separately from resolved group payload changes.
+pub(crate) fn non_inherited_inheritance_changes<'a, Values>(old: Values, new: Values) -> u32
+where
+    Values: Iterator<Item = (u16, &'a RetainedStyleValueData)> + Clone,
+{
+    // NB: A property both hold is visited once, through `old`.
+    old.clone()
+        .chain(
+            new.clone()
+                .filter(|(property, _)| inheritance_dependent_value_among(old.clone(), *property).is_none()),
+        )
+        .filter(|(property, _)| {
+            !property_is_inherited(*property)
+                && inheritance_dependent_value_changed(old.clone(), new.clone(), *property)
+        })
+        .fold(0, |groups, (property, _)| {
+            groups
+                | match crate::css::computed_values::StyleGroupMasks::get().dependencies(property) {
+                    0 => u32::MAX,
+                    mask => mask,
+                }
+        })
 }
 
 /// The dependency-flag bit of a record holding a value resolved against the viewport, as a `vw`
@@ -624,1363 +359,59 @@ pub(crate) const NATIVE_APPEARANCE_DISABLED: u8 = 1 << 7;
 #[repr(C)]
 pub struct FfiComputedStyleMetadata {
     pub display_before_box_type_transformation: u32,
-    pub pseudo_element_styles: u64,
     pub effective_color_scheme: i16,
     pub dependency_flags: u8,
     pub in_display_none_subtree: bool,
 }
 
-impl ComputedLonghandTable {
-    pub(crate) fn new() -> Self {
-        Self::with_storage(SlotStorage::new())
-    }
-
-    fn with_storage(storage: SlotStorage) -> Self {
-        Self {
-            storage,
-            important_bits: [0; LONGHAND_BITMAP_BYTES],
-            inherited_bits: [0; LONGHAND_BITMAP_BYTES],
-            evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
-            inheritance_dependent: Vec::new(),
-            inheritance_dependent_is_seeded: false,
-            inheritance_dependent_bits: [0; LONGHAND_BITMAP_BYTES],
-            inheritance_dependent_view: Vec::new(),
-            raw_cascaded_font_size: None,
-            metadata: FfiComputedStyleMetadata {
-                display_before_box_type_transformation: 0,
-                pseudo_element_styles: 0,
-                effective_color_scheme: -1,
-                dependency_flags: 0,
-                in_display_none_subtree: false,
-            },
-            overflow_before_adjustment: None,
-            slot_hash_sum: MemoizedHashSum::default(),
-            frozen_transition_longhands: OnceLock::new(),
-            effective_zoom: 1.0,
-            frozen: false,
-        }
-    }
-
-    fn slot_index(property_id: u16) -> usize {
-        assert!(
-            (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID).contains(&property_id),
-            "computed longhand table indices are longhand property identifiers"
-        );
-        (property_id - FIRST_LONGHAND_PROPERTY_ID) as usize
-    }
-
-    pub(crate) fn set(&mut self, property_id: u16, value: RetainedStyleValueData, source_slot: i64) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        let index = Self::slot_index(property_id);
-        self.replace_slot_value(index, value);
-        self.mark_evaluated(index, source_slot);
-    }
-
-    /// A slot that already holds an equal value keeps it, and so its identity: an unchanged longhand
-    /// then costs no allocation, no hash and no deep comparison when the table is published.
-    pub(crate) fn set_computed(&mut self, property_id: u16, value: StyleValueData, source_slot: i64) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        let index = Self::slot_index(property_id);
-        if self
-            .storage
-            .slot(index)
-            .0
-            .optional_data()
-            .is_none_or(|existing| *existing != value)
-        {
-            self.replace_slot_value(index, RetainedStyleValueData::from_owned(value));
-        }
-        self.mark_evaluated(index, source_slot);
-    }
-
-    pub(crate) fn set_or_keep_equal(&mut self, property_id: u16, value: RetainedStyleValueData, source_slot: i64) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        let index = Self::slot_index(property_id);
-        let existing = self.storage.slot(index).0;
-        let equal_to_existing = !existing.pointer().is_null() && *existing == value;
-        if !equal_to_existing {
-            self.replace_slot_value(index, value);
-        }
-        self.mark_evaluated(index, source_slot);
-    }
-
-    fn replace_slot_value(&mut self, index: usize, value: RetainedStyleValueData) {
-        let previous = self.storage.slot(index).0;
-        if previous.pointer() != value.pointer() {
-            self.adjust_slot_hash_sum(index, previous.optional_data(), value.optional_data());
-        }
-        self.storage.set_value(index, value);
-    }
-
-    fn mark_evaluated(&mut self, index: usize, source_slot: i64) {
-        set_bitmap_bit(&mut self.evaluated_bits, index, true);
-        self.storage.set_source(index, i32::try_from(source_slot).unwrap_or(-1));
-    }
-
-    fn adjust_slot_hash_sum(
-        &self,
-        index: usize,
-        previous: Option<&StyleValueData>,
-        replacement: Option<&StyleValueData>,
-    ) {
-        if let Some(sum) = self.slot_hash_sum.get() {
-            self.slot_hash_sum.set(Some(
-                sum.wrapping_sub(longhand_slot_hash(index, previous))
-                    .wrapping_add(longhand_slot_hash(index, replacement)),
-            ));
-        }
-    }
-
-    pub(crate) fn slot_hash_sum(&self) -> u64 {
-        if let Some(sum) = self.slot_hash_sum.get() {
-            return sum;
-        }
-        let sum = self.recomputed_slot_hash_sum();
-        self.slot_hash_sum.set(Some(sum));
-        sum
-    }
-
-    pub(crate) fn recomputed_slot_hash_sum(&self) -> u64 {
-        (0..LONGHAND_COUNT).fold(0_u64, |sum, slot| {
-            sum.wrapping_add(longhand_slot_hash(slot, self.storage.slot(slot).0.optional_data()))
-        })
-    }
-
-    pub(crate) fn frozen_transition_longhands(&self, compute: impl FnOnce(&Self) -> Box<[u16]>) -> Option<&[u16]> {
-        if !self.frozen {
-            return None;
-        }
-        Some(self.frozen_transition_longhands.get_or_init(|| compute(self)))
-    }
-
-    pub(crate) fn set_important(&mut self, property_id: u16, important: bool) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        set_bitmap_bit(&mut self.important_bits, Self::slot_index(property_id), important);
-    }
-
-    pub(crate) fn set_inherited(&mut self, property_id: u16, inherited: bool) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        set_bitmap_bit(&mut self.inherited_bits, Self::slot_index(property_id), inherited);
-    }
-
-    pub(crate) fn merge_driver_flags(
-        &mut self,
-        important_words: &[u64],
-        inherited_words: &[u64],
-        evaluated_words: &[u64],
-    ) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        assert!(important_words.len() * 64 >= LONGHAND_COUNT);
-        assert_eq!(inherited_words.len(), important_words.len());
-        assert_eq!(evaluated_words.len(), important_words.len());
-        for (word_index, &evaluated_word) in evaluated_words.iter().enumerate() {
-            let mut remaining = evaluated_word;
-            while remaining != 0 {
-                let bit = remaining.trailing_zeros() as usize;
-                remaining &= remaining - 1;
-                let index = word_index * 64 + bit;
-                if index >= LONGHAND_COUNT {
-                    break;
-                }
-                set_bitmap_bit(
-                    &mut self.important_bits,
-                    index,
-                    important_words[word_index] & (1 << bit) != 0,
-                );
-                set_bitmap_bit(
-                    &mut self.inherited_bits,
-                    index,
-                    inherited_words[word_index] & (1 << bit) != 0,
-                );
-            }
-        }
-    }
-
-    pub(crate) fn merge_dependency_flags(
-        &mut self,
-        depends_on_viewport_metrics: bool,
-        font_metrics_depend_on_viewport_metrics: bool,
-        highlight_colors_authored: bool,
-        highlight_color_is_current_color: bool,
-    ) {
-        self.metadata.dependency_flags |= (u8::from(depends_on_viewport_metrics) * DEPENDS_ON_VIEWPORT_METRICS)
-            | (u8::from(font_metrics_depend_on_viewport_metrics) * FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS)
-            | (u8::from(highlight_colors_authored) * HIGHLIGHT_COLORS_AUTHORED)
-            | (u8::from(highlight_color_is_current_color) * HIGHLIGHT_COLOR_IS_CURRENT_COLOR);
-    }
-
-    pub(crate) fn dependency_flags(&self) -> u8 {
-        self.metadata.dependency_flags
-    }
-
-    pub(crate) fn set_native_appearance_disabled(&mut self, disabled: bool) {
-        if disabled {
-            self.metadata.dependency_flags |= NATIVE_APPEARANCE_DISABLED;
-        } else {
-            self.metadata.dependency_flags &= !NATIVE_APPEARANCE_DISABLED;
-        }
-    }
-
-    pub(crate) fn publication_dependency_flags(&self) -> u8 {
-        if self.metadata.in_display_none_subtree {
-            self.metadata.dependency_flags | IN_DISPLAY_NONE_SUBTREE
-        } else {
-            self.metadata.dependency_flags
-        }
-    }
-
-    pub(crate) fn pseudo_element_styles(&self) -> u64 {
-        self.metadata.pseudo_element_styles
-    }
-
-    pub(crate) fn set_effective_color_scheme(&mut self, color_scheme: i16) {
-        self.metadata.effective_color_scheme = color_scheme;
-    }
-
-    pub(crate) fn set_display_before_box_type_transformation(&mut self, display: u32) {
-        self.metadata.display_before_box_type_transformation = display;
-    }
-
-    pub(crate) fn set_in_display_none_subtree(&mut self, in_display_none_subtree: bool) {
-        self.metadata.in_display_none_subtree = in_display_none_subtree;
-    }
-
-    pub(crate) fn display_before_box_type_transformation(&self) -> u32 {
-        self.metadata.display_before_box_type_transformation
-    }
-
-    pub(crate) fn set_overflow_before_adjustment(&mut self, overflow: [u16; 2]) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        self.overflow_before_adjustment = Some(overflow);
-    }
-
-    /// The computed `overflow-x` and `overflow-y` keywords before the axes were adjusted against
-    /// each other.
-    pub(crate) fn overflow_before_adjustment(&self) -> Option<[u16; 2]> {
-        self.overflow_before_adjustment
-    }
-
-    pub(crate) fn inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, *const c_void)> + '_ {
-        self.inheritance_dependent
-            .iter()
-            .map(|(property, value)| (*property, value.pointer().cast()))
-    }
-
-    /// NB: Equal resolved colors can retain specified values that inherit differently.
-    pub(crate) fn inheritance_dependent_value_changed(&self, other: &Self, property: u16) -> bool {
-        let old = self.inheritance_dependent_value(property);
-        let new = other.inheritance_dependent_value(property);
-        old.map(RetainedStyleValueData::pointer) != new.map(RetainedStyleValueData::pointer)
-            && old.map(RetainedStyleValueData::data) != new.map(RetainedStyleValueData::data)
-    }
-
-    /// NB: Report these source changes separately from resolved group payload changes.
-    pub(crate) fn non_inherited_inheritance_changes(&self, other: &Self) -> u32 {
-        if std::ptr::eq(self, other) {
-            return 0;
-        }
-        // NB: A property both tables hold is visited once, through this table.
-        self.inheritance_dependent_values()
-            .chain(
-                other
-                    .inheritance_dependent_values()
-                    .filter(|(property, _)| !bitmap_bit(&self.inheritance_dependent_bits, Self::slot_index(*property))),
-            )
-            .filter(|(property, _)| {
-                !crate::css::property_metadata::property_is_inherited(*property)
-                    && self.inheritance_dependent_value_changed(other, *property)
-            })
-            .fold(0, |groups, (property, _)| {
-                groups
-                    | match crate::css::computed_values::StyleGroupMasks::get().dependencies(property) {
-                        0 => u32::MAX,
-                        mask => mask,
-                    }
-            })
-    }
-
-    pub(crate) fn retained_inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, &RetainedStyleValueData)> {
-        self.inheritance_dependent
-            .iter()
-            .map(|(property, value)| (*property, value))
-    }
-
-    pub(crate) fn raw_cascaded_font_size_value(&self) -> Option<&StyleValueData> {
-        self.raw_cascaded_font_size
-            .as_ref()
-            .and_then(RetainedStyleValueData::optional_data)
-    }
-
-    pub(crate) fn set_raw_cascaded_font_size(&mut self, value: Option<RetainedStyleValueData>) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        self.raw_cascaded_font_size = value;
-    }
-
-    fn copy_metadata_from(&mut self, source: &ComputedLonghandTable) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        self.slot_hash_sum.set(source.slot_hash_sum.get());
-        self.important_bits = source.important_bits;
-        self.inherited_bits = source.inherited_bits;
-        self.evaluated_bits = source.evaluated_bits;
-        self.metadata = source.metadata;
-        self.overflow_before_adjustment = source.overflow_before_adjustment;
-        self.raw_cascaded_font_size.clone_from(&source.raw_cascaded_font_size);
-        self.effective_zoom = source.effective_zoom;
-    }
-
-    /// https://drafts.csswg.org/css-viewport/#effective-zoom
-    pub(crate) fn effective_zoom(&self) -> f32 {
-        self.effective_zoom
-    }
-
-    pub(crate) fn set_effective_zoom(&mut self, effective_zoom: f32) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        self.effective_zoom = effective_zoom;
-    }
-
-    fn copy_from(&mut self, source: &ComputedLonghandTable) {
-        self.storage = SlotStorage::seeded(&source.storage, true);
-        self.copy_metadata_from(source);
-        self.inheritance_dependent.clone_from(&source.inheritance_dependent);
-        self.inheritance_dependent_bits = source.inheritance_dependent_bits;
-        self.rebuild_inheritance_dependent_view();
-    }
-
-    /// Take one slot back from `source`: its value, provenance and flags, exactly as stored there.
-    pub(crate) fn copy_slot_from(&mut self, source: &ComputedLonghandTable, property_id: u16) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        let slot = Self::slot_index(property_id);
-        let previous = self.storage.slot(slot).0;
-        let replacement = source.storage.slot(slot).0;
-        if previous.pointer() != replacement.pointer() {
-            self.adjust_slot_hash_sum(slot, previous.optional_data(), replacement.optional_data());
-        }
-        let replacement = replacement.pointer().cast::<c_void>();
-        let source_slot = source.storage.slot(slot).1;
-        if let SlotStorage::Delta {
-            base,
-            changes,
-            changed_bits,
-            view,
-            ..
-        } = &mut self.storage
-            && base.slots[slot].pointer().cast::<c_void>() == replacement
-        {
-            view.take();
-            if bitmap_bit(changed_bits, slot) {
-                changes.remove(bitmap_rank(changed_bits, slot));
-                set_bitmap_bit(changed_bits, slot, false);
-            }
-            if self.storage.slot(slot).1 != source_slot {
-                self.storage.set_source(slot, source_slot);
-            }
-        } else {
-            ffi_stats::count_table_copy(|| (1, u64::from(!replacement.is_null())));
-            self.storage.set_value(slot, source.storage.slot(slot).0.clone());
-            self.storage.set_source(slot, source_slot);
-        }
-        set_bitmap_bit(&mut self.important_bits, slot, bitmap_bit(&source.important_bits, slot));
-        set_bitmap_bit(&mut self.inherited_bits, slot, bitmap_bit(&source.inherited_bits, slot));
-        set_bitmap_bit(&mut self.evaluated_bits, slot, bitmap_bit(&source.evaluated_bits, slot));
-    }
-
-    pub(crate) fn effective_color_scheme(&self) -> i16 {
-        self.metadata.effective_color_scheme
-    }
-
-    pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
-        let mut table = Self::with_storage(SlotStorage::seeded(&source.storage, true));
-        table.copy_metadata_from(source);
-        table.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
-        table
-    }
-
-    pub(crate) fn copied_for_partial_drive(source: &ComputedLonghandTable) -> Self {
-        let mut table = Self::with_storage(SlotStorage::seeded(&source.storage, true));
-        table.copy_metadata_from(source);
-        table.inheritance_dependent.clone_from(&source.inheritance_dependent);
-        table.inheritance_dependent_bits = source.inheritance_dependent_bits;
-        table.rebuild_inheritance_dependent_view();
-        table.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
-        table.inheritance_dependent_is_seeded = true;
-        table.set_in_display_none_subtree(false);
-        table
-    }
-
-    pub(crate) fn with_inherited_values_from(&self, inherited_source: &ComputedLonghandTable) -> Self {
-        self.with_inherited_values_and_flags_from(inherited_source, &self.important_bits, &self.inherited_bits)
-    }
-
-    pub(crate) fn with_inherited_values_and_flags_from(
-        &self,
-        inherited_source: &ComputedLonghandTable,
-        importance: &[u8],
-        inheritance: &[u8],
-    ) -> Self {
-        assert!(self.frozen);
-        assert!(inherited_source.frozen);
-        let mut table = Self::with_storage(SlotStorage::seeded(&self.storage, true));
-        table.copy_metadata_from(self);
-        table.inheritance_dependent.clone_from(&self.inheritance_dependent);
-        table.inheritance_dependent_bits = self.inheritance_dependent_bits;
-        table.rebuild_inheritance_dependent_view();
-        for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
-            if !property_is_inherited(property_id) {
-                continue;
-            }
-            let Some(value) = inherited_source.get(property_id) else {
-                continue;
-            };
-            // An inherited value equal to the one already held keeps that one, so a swap that
-            // changes nothing leaves the table equal to its source slot for slot.
-            table.set_or_keep_equal(property_id, value.clone(), -1);
-        }
-        table.metadata.effective_color_scheme = inherited_source.metadata.effective_color_scheme;
-        // A value reading `currentcolor` - the keyword itself, or a color function of it - is
-        // what a fresh computation leaves in the table too: the color resolves when the groups
-        // are built, never in the computed value.
-        for (property, value) in &table.inheritance_dependent {
-            if retained_value_depends_on_current_color(value) {
-                set_bitmap_bit(&mut table.evaluated_bits, Self::slot_index(*property), false);
-            }
-        }
-        table.load_flag_bitmaps(importance, inheritance);
-        table.frozen = true;
-        table
-    }
-
-    pub(crate) fn into_raw_shared(mut self) -> *const Self {
-        self.storage.materialize();
-        Arc::into_raw(Arc::new(self))
-    }
-
-    fn copy_from_values(&mut self, values: &[*const c_void]) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        assert_eq!(values.len(), LONGHAND_COUNT);
-        ffi_stats::count_table_copy(|| {
-            (
-                values.len() as u64,
-                values.iter().filter(|value| !value.is_null()).count() as u64,
-            )
-        });
-        self.storage = SlotStorage::new();
-        for (index, &value) in values.iter().enumerate() {
-            let retained = unsafe {
-                RetainedStyleValueData::from_retained_optional_pointer(crate::css::style_value::retain_style_value(
-                    value.cast(),
-                ))
-            };
-            self.storage.set_value(index, retained);
-        }
-        self.slot_hash_sum.set(None);
-        self.important_bits = [0; LONGHAND_BITMAP_BYTES];
-        self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
-        self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
-        self.metadata.dependency_flags = 0;
-        self.inheritance_dependent.clear();
-        self.inheritance_dependent_bits = [0; LONGHAND_BITMAP_BYTES];
-        self.inheritance_dependent_view.clear();
-        self.raw_cascaded_font_size = None;
-    }
-
-    fn rebuild_inheritance_dependent_view(&mut self) {
-        self.inheritance_dependent_view.clear();
-        self.inheritance_dependent_view
-            .extend(
-                self.inheritance_dependent
-                    .iter()
-                    .map(|(property, value)| FfiTableInheritanceDependentValue {
-                        property: *property,
-                        value: value.pointer().cast(),
-                    }),
-            );
-    }
-
-    /// Reset the state a fresh drive must not inherit from the style its
-    /// table was seeded from: the evaluated bits and the recorded
-    /// inheritance-dependent specified values.
-    fn clear_seeded_state(&mut self) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
-        self.inheritance_dependent.clear();
-        self.inheritance_dependent_is_seeded = false;
-        self.inheritance_dependent_bits = [0; LONGHAND_BITMAP_BYTES];
-        self.inheritance_dependent_view.clear();
-    }
-
-    pub(crate) fn add_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        match self
-            .inheritance_dependent
-            .iter_mut()
-            .find(|(property, _)| *property == property_id)
-        {
-            Some((_, existing)) => *existing = value,
-            None => self.inheritance_dependent.push((property_id, value)),
-        }
-        set_bitmap_bit(
-            &mut self.inheritance_dependent_bits,
-            Self::slot_index(property_id),
-            true,
-        );
-        self.rebuild_inheritance_dependent_view();
-    }
-
-    #[cfg(test)]
-    pub(crate) fn append_drive_inheritance_dependent_value(&mut self, property_id: u16, value: RetainedStyleValueData) {
-        self.set_drive_inheritance_dependent_value(property_id, Some(value));
-    }
-
-    /// Record what a drive found for one row: its inheritance-dependent specified value, or that
-    /// it has none. A table seeded with another table's records replaces or drops the row's old
-    /// record, so a row the drive leaves alone keeps its record and an evaluated row keeps no
-    /// stale one.
-    pub(crate) fn set_drive_inheritance_dependent_value(
-        &mut self,
-        property_id: u16,
-        value: Option<RetainedStyleValueData>,
-    ) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        if self.inheritance_dependent_is_seeded {
-            let slot = Self::slot_index(property_id);
-            let existing = bitmap_bit(&self.inheritance_dependent_bits, slot).then(|| {
-                self.inheritance_dependent
-                    .iter()
-                    .position(|(property, _)| *property == property_id)
-                    .expect("a longhand with a recorded inheritance-dependent value must be listed")
-            });
-            match (existing, value) {
-                (Some(index), Some(value)) => self.inheritance_dependent[index].1 = value,
-                (Some(index), None) => {
-                    self.inheritance_dependent.swap_remove(index);
-                    set_bitmap_bit(&mut self.inheritance_dependent_bits, slot, false);
-                }
-                (None, Some(value)) => {
-                    self.inheritance_dependent.push((property_id, value));
-                    set_bitmap_bit(&mut self.inheritance_dependent_bits, slot, true);
-                }
-                (None, None) => {}
-            }
-            return;
-        }
-        debug_assert!(
-            self.inheritance_dependent
-                .iter()
-                .all(|(property, _)| *property != property_id),
-            "a longhand drive must visit each property once"
-        );
-        if let Some(value) = value {
-            self.inheritance_dependent.push((property_id, value));
-            set_bitmap_bit(
-                &mut self.inheritance_dependent_bits,
-                Self::slot_index(property_id),
-                true,
-            );
-        }
-    }
-
-    pub(crate) fn finish_drive_inheritance_dependent_values(&mut self) {
-        self.rebuild_inheritance_dependent_view();
-    }
-
-    fn inheritance_dependent_value(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
-        if !bitmap_bit(&self.inheritance_dependent_bits, Self::slot_index(property_id)) {
-            return None;
-        }
-        self.inheritance_dependent
-            .iter()
-            .find(|(property, _)| *property == property_id)
-            .map(|(_, value)| value)
-    }
-
-    /// Whether the longhand was specified as the `currentcolor` keyword itself.
-    pub(crate) fn specified_value_is_current_color(&self, property_id: u16) -> bool {
-        self.specified_value(property_id)
-            .is_some_and(|value| is_current_color_keyword(value.data()))
-    }
-
-    /// Whether each layer of the specified `text-shadow` has the `currentcolor` keyword as its
-    /// color, or no color, in the order the computed layers have; empty for `none`.
-    pub(crate) fn text_shadow_layer_colors_are_current_color(&self) -> Vec<bool> {
-        let Some(StyleValueData::ValueList { values, .. }) = self
-            .specified_value(property_id::TEXT_SHADOW)
-            .map(RetainedStyleValueData::data)
-        else {
-            return Vec::new();
-        };
-        values
-            .as_slice()
-            .iter()
-            .map(|layer| match layer.optional_data() {
-                Some(StyleValueData::Shadow { color, .. }) => {
-                    color.optional_data().is_none_or(is_current_color_keyword)
-                }
-                _ => false,
-            })
-            .collect()
-    }
-
-    /// The longhand's value as specified: an unevaluated longhand's recorded specified value, else
-    /// the table slot's.
-    fn specified_value(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
-        if !self.is_evaluated(property_id)
-            && let Some(value) = self.inheritance_dependent_value(property_id)
-        {
-            return Some(value);
-        }
-        self.get(property_id)
-    }
-
-    pub(crate) fn is_important(&self, property_id: u16) -> bool {
-        bitmap_bit(&self.important_bits, Self::slot_index(property_id))
-    }
-
-    pub(crate) fn is_inherited(&self, property_id: u16) -> bool {
-        bitmap_bit(&self.inherited_bits, Self::slot_index(property_id))
-    }
-
-    pub(crate) fn importance_bits(&self) -> &[u8] {
-        &self.important_bits
-    }
-
-    pub(crate) fn publication_sidecars(&self) -> (&[u8; LONGHAND_BITMAP_BYTES], u32, Option<[u16; 2]>, i16) {
-        (
-            &self.evaluated_bits,
-            self.metadata.display_before_box_type_transformation,
-            self.overflow_before_adjustment,
-            self.metadata.effective_color_scheme,
-        )
-    }
-
-    pub(crate) fn inheritance_bits(&self) -> &[u8] {
-        &self.inherited_bits
-    }
-
-    pub(crate) fn evaluated_bits(&self) -> &[u8] {
-        &self.evaluated_bits
-    }
-
-    pub(crate) fn load_flag_bitmaps(&mut self, importance: &[u8], inheritance: &[u8]) {
-        assert!(!self.frozen);
-        assert_eq!(importance.len(), LONGHAND_BITMAP_BYTES);
-        assert_eq!(inheritance.len(), LONGHAND_BITMAP_BYTES);
-        self.important_bits.copy_from_slice(importance);
-        self.inherited_bits.copy_from_slice(inheritance);
-    }
-
-    pub(crate) fn property_inheritance_is_standard(&self) -> bool {
-        (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID)
-            .all(|property_id| self.is_inherited(property_id) == property_is_inherited(property_id))
-    }
-
-    pub(crate) fn publication_equals(&self, other: &Self) -> bool {
-        use crate::css::style_value::{optional_style_values_equal, retained_style_values_equal};
-        self.important_bits == other.important_bits
-            && self.inherited_bits == other.inherited_bits
-            && self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
-            && self.publication_sidecars() == other.publication_sidecars()
-            && self.publication_dependency_flags() == other.publication_dependency_flags()
-            && self.pseudo_element_styles() == other.pseudo_element_styles()
-            && self.inheritance_dependent.len() == other.inheritance_dependent.len()
-            && self
-                .storage
-                .values_are_equal(&other.storage, retained_style_values_equal)
-            && optional_style_values_equal(
-                self.raw_cascaded_font_size
-                    .as_ref()
-                    .and_then(RetainedStyleValueData::optional_data),
-                other
-                    .raw_cascaded_font_size
-                    .as_ref()
-                    .and_then(RetainedStyleValueData::optional_data),
-            )
-            && self.inheritance_dependent.iter().all(|(property, value)| {
-                other
-                    .inheritance_dependent
-                    .iter()
-                    .find(|(other_property, _)| other_property == property)
-                    .is_some_and(|(_, other_value)| retained_style_values_equal(value, other_value))
-            })
-    }
-
-    pub(crate) fn display_is_list_item(&self) -> bool {
-        let Some(StyleValueData::Display { raw }) = self.get(property_id::DISPLAY).map(RetainedStyleValueData::data)
-        else {
-            return false;
-        };
-        crate::css::display::FfiDisplay::from_raw(*raw).is_list_item()
-    }
-
-    fn is_evaluated(&self, property_id: u16) -> bool {
-        bitmap_bit(&self.evaluated_bits, Self::slot_index(property_id))
-    }
-
-    /// The effective value property() returns for one longhand: the animated
-    /// overlay under the overlay read rule, then an unevaluated longhand's
-    /// recorded currentcolor-dependent specified value, then the table slot.
-    pub(crate) fn effective_value(
-        &self,
-        overlay: Option<&AnimatedOverlay>,
-        property_id: u16,
-        with_animations: bool,
-    ) -> FfiEffectiveLonghandValue {
-        let (value, source) = self.effective_value_handle(overlay, property_id, with_animations);
-        FfiEffectiveLonghandValue {
-            value: value.pointer().cast(),
-            source,
-        }
-    }
-
-    /// The handle `effective_value` reads the longhand's value from, and which source it is.
-    pub(crate) fn effective_value_handle<'a>(
-        &'a self,
-        overlay: Option<&'a AnimatedOverlay>,
-        property_id: u16,
-        with_animations: bool,
-    ) -> (&'a RetainedStyleValueData, u8) {
-        if with_animations
-            && let Some(overlay) = overlay
-            && let Some(entry) = overlay.get(property_id)
-            && overlay_wins(entry, self.is_important(property_id))
-        {
-            return (entry.value_handle(), EFFECTIVE_LONGHAND_SOURCE_OVERLAY);
-        }
-        if !self.is_evaluated(property_id)
-            && let Some(value) = self.inheritance_dependent_value(property_id)
-            && retained_value_depends_on_current_color(value)
-        {
-            return (value, EFFECTIVE_LONGHAND_SOURCE_SPECIFIED);
-        }
-        (
-            self.storage.slot(Self::slot_index(property_id)).0,
-            EFFECTIVE_LONGHAND_SOURCE_TABLE,
-        )
-    }
-
-    pub(crate) fn freeze(&mut self) {
-        self.storage.materialize();
-        self.finish_delta();
-    }
-
-    pub(crate) fn finish_delta(&mut self) {
-        if !self.frozen {
-            self.storage.release_empty_sources();
-        }
-        self.frozen = true;
-    }
-
-    /// The stored value for a longhand, when the drive stored one.
-    pub(crate) fn get(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
-        let value = self.storage.slot(Self::slot_index(property_id)).0;
-        (!value.pointer().is_null()).then_some(value)
-    }
-
-    /// The cascade source slot of the declaration a longhand's value came
-    /// from, recorded only when that declaration carries style sheet context.
-    pub(crate) fn source_slot(&self, property_id: u16) -> Option<u32> {
-        u32::try_from(self.storage.slot(Self::slot_index(property_id)).1).ok()
-    }
-
-    /// One raw data pointer per longhand slot, null where the drive stored no
-    /// value. The span is stable for the table's lifetime once frozen.
-    pub(crate) fn value_pointers(&self) -> &[*const c_void] {
-        self.storage.value_pointers()
-    }
-
-    pub(crate) fn is_frozen(&self) -> bool {
-        self.frozen
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_create() -> *mut ComputedLonghandTable {
-    Arc::into_raw(Arc::new(ComputedLonghandTable::new())).cast_mut()
-}
-
-/// Takes one additional strong reference to a frozen table.
-///
-/// # Safety
-/// `table` must be a live strong reference; a table may only be shared once
-/// it is frozen, because the mutating calls require unique ownership.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_retain(
-    table: *const ComputedLonghandTable,
-) -> *const ComputedLonghandTable {
-    debug_assert!(unsafe { &*table }.frozen, "only frozen tables are shared");
-    unsafe { Arc::increment_strong_count(table) };
-    table
-}
-
-/// Releases one strong reference.
-///
-/// # Safety
-/// `table` must be a live strong reference that is not used after this call;
-/// no references into the table may outlive the final release.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_release(table: *mut ComputedLonghandTable) {
-    unsafe { Arc::decrement_strong_count(table.cast_const()) };
-}
-
-/// Creates a frozen copy of `table` with every inherited longhand value taken
-/// from `inherited_source`.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_create_with_inherited_values(
-    table: &ComputedLonghandTable,
-    inherited_source: &ComputedLonghandTable,
-) -> *mut ComputedLonghandTable {
-    table
-        .with_inherited_values_from(inherited_source)
-        .into_raw_shared()
-        .cast_mut()
-}
-
-/// Stores one computed longhand, retaining `data`. `source_slot` is the
-/// winning declaration's cascade source slot when its value carries style
-/// sheet context, and -1 otherwise; storing without a slot clears any slot a
-/// previous store recorded for the longhand.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_set(
-    table: &mut ComputedLonghandTable,
-    property_id: u16,
-    data: crate::css::ffi_support::ArcRef<'_, StyleValueData>,
-    source_slot: i64,
-) {
-    table.set(
-        property_id,
-        RetainedStyleValueData::from_arc(data.to_arc()),
-        source_slot,
-    );
-}
-
-/// Replaces the table's contents with `source`'s, for the C++ builder that
-/// starts from an existing style's property array.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_copy_from(
-    table: &mut ComputedLonghandTable,
-    source: &ComputedLonghandTable,
-) {
-    table.copy_from(source);
-}
-
-/// Replaces the table's values with a complete borrowed value span, retaining
-/// every non-null entry. The style-sheet-context sidecar is cleared: a span
-/// borrowed from a published style record carries no usable cascade slots.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table and `values` must
-/// have exactly one readable entry per longhand, each null or pointing at
-/// live `StyleValueData`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_copy_from_values(
-    table: &mut ComputedLonghandTable,
-    values: *const *const c_void,
-    count: usize,
-) {
-    let values = unsafe { ak::slice_from_raw_parts(values, count) };
-    table.copy_from_values(values);
-}
-
-/// Returns the table's value span: one borrowed data pointer per longhand,
-/// null where the drive stored no value. The span stays valid while the
-/// caller's table reference is live and the table stays frozen.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_values(table: &ComputedLonghandTable) -> *const *const c_void {
-    debug_assert!(table.frozen, "only frozen tables hand out their value span");
-    table.value_pointers().as_ptr()
-}
-
-/// Whether two frozen tables have equal values and publication metadata.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_tables_equal_for_publication(
-    first: &ComputedLonghandTable,
-    second: &ComputedLonghandTable,
-) -> bool {
-    first.publication_equals(second)
-}
-
-/// Makes the table immutable; every later store aborts. Only a frozen table
-/// may be shared through `rust_computed_longhand_table_retain`.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_freeze(table: &mut ComputedLonghandTable) {
-    table.freeze();
-}
-
-/// The importance bitmap, in the C++ `FixedBitmap` byte layout. The pointer
-/// stays valid while the caller's table reference is live.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_importance_bits(table: &ComputedLonghandTable) -> *const u8 {
-    table.important_bits.as_ptr()
-}
-
-/// The inheritance bitmap, in the C++ `FixedBitmap` byte layout.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_inheritance_bits(table: &ComputedLonghandTable) -> *const u8 {
-    table.inherited_bits.as_ptr()
-}
-
-/// Replaces the whole importance and inheritance bitmaps, for the builder
-/// seeding a fresh table from an existing style's published bitmaps.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_load_flag_bitmaps(
-    table: &mut ComputedLonghandTable,
-    importance: ak::Span<'_, u8>,
-    inheritance: ak::Span<'_, u8>,
-) {
-    table.load_flag_bitmaps(importance.as_slice(), inheritance.as_slice());
-}
-
-/// Resets the state a fresh drive must not inherit from the style its table
-/// was seeded from: the evaluated bits and the recorded inheritance-dependent
-/// specified values.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_clear_seeded_state(table: &mut ComputedLonghandTable) {
-    table.clear_seeded_state();
-}
-
-/// Records (or replaces) a longhand's inheritance-dependent specified value,
-/// retaining `value`.
-///
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table and `value` must
-/// point at live style value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_add_inheritance_dependent_value(
-    table: &mut ComputedLonghandTable,
-    property_id: u16,
-    value: *const c_void,
-) {
-    let value = unsafe {
-        RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
-    };
-    table.add_inheritance_dependent_value(property_id, value);
-}
-
-/// Returns the non-longhand computation state stored alongside the table.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_metadata(
-    table: &mut ComputedLonghandTable,
-) -> *mut FfiComputedStyleMetadata {
-    &raw mut table.metadata
-}
-
-/// The recorded inheritance-dependent specified values as a borrowed span.
-/// The span stays valid while the caller's table reference is live and no
-/// further add or remove mutates the table.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_inheritance_dependent_values(
-    table: &ComputedLonghandTable,
-    out_count: &mut usize,
-) -> *const FfiTableInheritanceDependentValue {
-    *out_count = table.inheritance_dependent_view.len();
-    table.inheritance_dependent_view.as_ptr()
-}
-
-/// The non-inherited groups whose inheritance-dependent source values changed.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_non_inherited_inheritance_changes(
-    old: &ComputedLonghandTable,
-    new: &ComputedLonghandTable,
-) -> u32 {
-    old.non_inherited_inheritance_changes(new)
-}
-
-/// The effective value for one longhand: the animated overlay under the
-/// overlay read rule (important base values override animated but not
-/// transitioned properties), then an unevaluated longhand's recorded
-/// currentcolor-dependent specified value, then the stored table slot.
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_computed_longhand_table_effective_value(
-    table: &ComputedLonghandTable,
-    overlay: Option<&AnimatedOverlay>,
-    property_id: u16,
-    with_animations: bool,
-) -> FfiEffectiveLonghandValue {
-    table.effective_value(overlay, property_id, with_animations)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
+    use crate::css::style_value_arc::StyleValueArc;
 
     use super::*;
+    use crate::css::property_metadata::property_id;
     use crate::css::style_value::StyleValueData;
 
-    fn retained_number(value: f64) -> RetainedStyleValueData {
-        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }))
+    type Recorded = Vec<(u16, RetainedStyleValueData)>;
+
+    fn entry((property, value): &(u16, RetainedStyleValueData)) -> (u16, &RetainedStyleValueData) {
+        (*property, value)
+    }
+
+    fn table_inheritance_changes(old: &Recorded, new: &Recorded) -> u32 {
+        non_inherited_inheritance_changes(old.iter().map(entry), new.iter().map(entry))
     }
 
     #[test]
     fn inheritance_source_changes_keep_their_exact_non_inherited_group() {
-        let mut current_color = ComputedLonghandTable::new();
-        current_color.add_inheritance_dependent_value(
+        let current_color: Recorded = vec![(
             property_id::TEXT_DECORATION_COLOR,
             RetainedStyleValueData::from_owned(StyleValueData::Keyword {
                 keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
             }),
-        );
-        let mut equal = ComputedLonghandTable::new();
-        equal.add_inheritance_dependent_value(
+        )];
+        let equal: Recorded = vec![(
             property_id::TEXT_DECORATION_COLOR,
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
                 keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
             })),
-        );
-        assert_eq!(current_color.non_inherited_inheritance_changes(&equal), 0);
-        let resolved = ComputedLonghandTable::new();
-        let expected = 1 << crate::css::computed_value_types::STYLE_GROUP_INDEX_TEXT_RESET;
-        assert_eq!(current_color.non_inherited_inheritance_changes(&resolved), expected);
-        assert_eq!(resolved.non_inherited_inheritance_changes(&current_color), expected);
-        assert_eq!(
-            current_color.non_inherited_inheritance_changes(&current_color.clone()),
-            0
-        );
+        )];
+        assert_eq!(table_inheritance_changes(&current_color, &equal), 0);
+        let resolved = Recorded::new();
+        let expected = 1 << crate::css::table_group_builder::group_index::TEXT_RESET;
+        assert_eq!(table_inheritance_changes(&current_color, &resolved), expected);
+        assert_eq!(table_inheritance_changes(&resolved, &current_color), expected);
+        assert_eq!(table_inheritance_changes(&current_color, &current_color.clone()), 0);
     }
 
     #[test]
     fn inherited_source_changes_do_not_mark_non_inherited_groups() {
-        let mut current_color = ComputedLonghandTable::new();
-        current_color.add_inheritance_dependent_value(
+        let current_color: Recorded = vec![(
             property_id::COLOR,
             RetainedStyleValueData::from_owned(StyleValueData::Keyword {
                 keyword: crate::css::style_compute::keyword::CURRENTCOLOR,
             }),
-        );
-        assert_eq!(
-            current_color.non_inherited_inheritance_changes(&ComputedLonghandTable::new()),
-            0
-        );
-    }
-
-    #[test]
-    fn partial_delta_borrows_base_values_and_preserves_sidecars() {
-        let mut source = ComputedLonghandTable::new();
-        source.set(property_id::OPACITY, retained_number(0.5), 9);
-        source.set(property_id::Z_INDEX, retained_number(7.0), 4);
-        source.set_important(property_id::Z_INDEX, true);
-        source.set_inherited(property_id::Z_INDEX, true);
-        source.freeze();
-        let value = source.get(property_id::Z_INDEX).unwrap().clone().into_arc();
-        let owners = Arc::strong_count(&value);
-        let mut delta = ComputedLonghandTable::copied_for_partial_drive(&source);
-        assert_eq!(Arc::strong_count(&value), owners);
-        assert!(delta.evaluated_bits().iter().all(|&bits| bits == 0));
-        assert_eq!(delta.source_slot(property_id::Z_INDEX), Some(4));
-        assert!(delta.is_important(property_id::Z_INDEX));
-        assert!(delta.is_inherited(property_id::Z_INDEX));
-        delta.set(property_id::OPACITY, retained_number(0.75), -1);
-        delta.set(property_id::Z_INDEX, retained_number(8.0), -1);
-        delta.copy_slot_from(&source, property_id::Z_INDEX);
-        assert_eq!(Arc::strong_count(&value), owners);
-        assert_eq!(delta.source_slot(property_id::Z_INDEX), Some(4));
-        assert!(source.get(property_id::OPACITY).unwrap().data() == &StyleValueData::Number { value: 0.5 });
-        assert_eq!(delta.slot_hash_sum(), delta.recomputed_slot_hash_sum());
-        drop(source);
-        assert_eq!(Arc::strong_count(&value), owners);
-        delta.freeze();
-        assert!(matches!(delta.storage, SlotStorage::Dense(_)));
-        assert!(delta.get(property_id::Z_INDEX).unwrap().data() == value.as_ref());
-        assert_eq!(Arc::strong_count(&value), owners);
-        drop(delta);
-        assert_eq!(Arc::strong_count(&value), owners - 1);
-    }
-
-    #[test]
-    fn slot_values_compare_over_a_shared_base_and_across_bases() {
-        let equal = crate::css::style_value::retained_style_values_equal;
-        let mut base = ComputedLonghandTable::new();
-        base.set(property_id::OPACITY, retained_number(0.5), -1);
-        base.set(property_id::Z_INDEX, retained_number(7.0), -1);
-        base.freeze();
-
-        let mut kept = ComputedLonghandTable::copied_for_drive(&base);
-        kept.set_or_keep_equal(property_id::Z_INDEX, retained_number(7.0), -1);
-        kept.set(property_id::OPACITY, retained_number(0.5), -1);
-        kept.finish_delta();
-        assert!(matches!(kept.storage, SlotStorage::Delta { .. }));
-        assert!(base.storage.values_are_equal(&kept.storage, equal));
-        assert!(kept.storage.values_are_equal(&base.storage, equal));
-
-        let mut moved = ComputedLonghandTable::copied_for_drive(&base);
-        moved.set(property_id::Z_INDEX, retained_number(8.0), -1);
-        moved.finish_delta();
-        assert!(!base.storage.values_are_equal(&moved.storage, equal));
-        assert!(!moved.storage.values_are_equal(&base.storage, equal));
-
-        // Tables over separate storage compare slot by slot, a delta's changes merged in order.
-        let mut other_base = ComputedLonghandTable::new();
-        other_base.set(property_id::OPACITY, retained_number(0.5), -1);
-        other_base.set(property_id::Z_INDEX, retained_number(8.0), -1);
-        other_base.freeze();
-        assert!(other_base.storage.values_are_equal(&moved.storage, equal));
-        assert!(moved.storage.values_are_equal(&other_base.storage, equal));
-        assert!(!other_base.storage.values_are_equal(&kept.storage, equal));
-        let mut other_moved = ComputedLonghandTable::copied_for_drive(&other_base);
-        other_moved.set(property_id::OPACITY, retained_number(0.25), -1);
-        other_moved.finish_delta();
-        assert!(!other_moved.storage.values_are_equal(&moved.storage, equal));
-        let mut moved_again = ComputedLonghandTable::copied_for_drive(&base);
-        moved_again.set(property_id::Z_INDEX, retained_number(8.0), -1);
-        moved_again.set(property_id::OPACITY, retained_number(0.25), -1);
-        moved_again.finish_delta();
-        assert!(other_moved.storage.values_are_equal(&moved_again.storage, equal));
-        assert_eq!(moved_again.storage.values().count(), LONGHAND_COUNT);
-    }
-
-    #[test]
-    fn set_retains_and_release_drops() {
-        let value = Arc::new(StyleValueData::Number { value: 42.0 });
-        let weak_value = Arc::downgrade(&value);
-        let retained_value = RetainedStyleValueData::from_arc(value);
-
-        let mut table = ComputedLonghandTable::new();
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_value, -1);
-        assert!(table.get(FIRST_LONGHAND_PROPERTY_ID).is_some());
-        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), None);
-        assert!(weak_value.upgrade().is_some());
-
-        drop(table);
-        assert!(weak_value.upgrade().is_none());
-    }
-
-    #[test]
-    fn copying_empty_slots_releases_values_and_updates_the_pointer_view() {
-        let value = Arc::new(StyleValueData::Number { value: 42.0 });
-        let weak_value = Arc::downgrade(&value);
-        let retained_value = RetainedStyleValueData::from_arc(value);
-        let mut source = ComputedLonghandTable::new();
-        source.set(FIRST_LONGHAND_PROPERTY_ID, retained_value, 3);
-        let mut copy = ComputedLonghandTable::new();
-        copy.copy_from(&source);
-        assert_eq!(copy.value_pointers(), source.value_pointers());
-        assert!(copy.get(LAST_LONGHAND_PROPERTY_ID).is_none());
-
-        let empty_values = [std::ptr::null(); LONGHAND_COUNT];
-        source.copy_from_values(&empty_values);
-        assert!(source.get(FIRST_LONGHAND_PROPERTY_ID).is_none());
-        assert_eq!(source.value_pointers(), empty_values);
-        assert!(weak_value.upgrade().is_some());
-
-        copy.copy_from(&source);
-        assert!(copy.get(FIRST_LONGHAND_PROPERTY_ID).is_none());
-        assert_eq!(copy.value_pointers(), empty_values);
-        assert!(weak_value.upgrade().is_none());
-    }
-
-    #[test]
-    fn source_slot_storage_is_absent_when_no_value_needs_sheet_context() {
-        let mut table = ComputedLonghandTable::new();
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), -1);
-        assert!(!table.storage.has_source_slots());
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), 7);
-        assert!(table.storage.has_source_slots());
-        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(7));
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), -1);
-        let pointers = table.value_pointers().as_ptr();
-        table.freeze();
-        assert!(!table.storage.has_source_slots());
-        assert_eq!(table.value_pointers().as_ptr(), pointers);
-        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), None);
-    }
-
-    #[test]
-    fn source_slot_sidecar_follows_overwrites() {
-        let mut table = ComputedLonghandTable::new();
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(1.0), 7);
-        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(7));
-
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(2.0), 9);
-        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(9));
-
-        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(3.0), -1);
-        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), None);
-    }
-
-    #[test]
-    fn copy_from_values_retains_entries_and_clears_sidecar() {
-        let mut source = ComputedLonghandTable::new();
-        source.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(1.0), 3);
-        let source_pointer = source.get(FIRST_LONGHAND_PROPERTY_ID).unwrap().pointer();
-
-        let mut copy = ComputedLonghandTable::new();
-        let source_values = source.value_pointers().to_vec();
-        copy.copy_from_values(&source_values);
-        drop(source);
-
-        assert_eq!(copy.get(FIRST_LONGHAND_PROPERTY_ID).unwrap().pointer(), source_pointer);
-        assert_eq!(copy.value_pointers()[0], source_pointer.cast());
-        assert_eq!(copy.source_slot(FIRST_LONGHAND_PROPERTY_ID), None);
-    }
-
-    #[test]
-    fn copy_from_replicates_slots_and_sidecar() {
-        let mut source = ComputedLonghandTable::new();
-        source.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(1.0), 3);
-        let source_pointer = source.get(FIRST_LONGHAND_PROPERTY_ID).unwrap().pointer();
-
-        let mut copy = ComputedLonghandTable::new();
-        copy.copy_from(&source);
-        drop(source);
-
-        assert_eq!(copy.get(FIRST_LONGHAND_PROPERTY_ID).unwrap().pointer(), source_pointer);
-        assert_eq!(copy.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(3));
-    }
-
-    #[test]
-    fn dependency_flags_follow_the_table() {
-        let mut source = ComputedLonghandTable::new();
-        source.merge_dependency_flags(true, false, false, false);
-
-        let mut copy = ComputedLonghandTable::new();
-        copy.copy_from(&source);
-        assert_eq!(copy.dependency_flags(), 1);
-
-        copy.merge_dependency_flags(false, true, false, false);
-        assert_eq!(copy.dependency_flags(), 3);
-    }
-
-    #[test]
-    fn slot_hash_sum_follows_every_slot_write() {
-        let mut source = ComputedLonghandTable::new();
-        source.set(property_id::OPACITY, retained_number(1.0), -1);
-        assert_eq!(source.slot_hash_sum(), source.recomputed_slot_hash_sum());
-        source.set(property_id::OPACITY, retained_number(0.5), -1);
-        source.set(property_id::Z_INDEX, retained_number(3.0), -1);
-        source.set(property_id::OPACITY, retained_number(0.25), -1);
-        assert_eq!(source.slot_hash_sum(), source.recomputed_slot_hash_sum());
-
-        let mut seeded = ComputedLonghandTable::copied_for_partial_drive(&source);
-        assert_eq!(seeded.slot_hash_sum(), source.slot_hash_sum());
-        seeded.set(property_id::Z_INDEX, retained_number(4.0), -1);
-        assert_ne!(seeded.slot_hash_sum(), source.slot_hash_sum());
-        assert_eq!(seeded.slot_hash_sum(), seeded.recomputed_slot_hash_sum());
-        seeded.copy_slot_from(&source, property_id::Z_INDEX);
-        assert_eq!(seeded.slot_hash_sum(), source.slot_hash_sum());
-
-        let mut copied = ComputedLonghandTable::new();
-        copied.copy_from_values(source.value_pointers());
-        assert_eq!(copied.slot_hash_sum(), source.slot_hash_sum());
-    }
-
-    #[test]
-    fn set_computed_keeps_an_equal_value_and_replaces_a_different_one() {
-        let mut table = ComputedLonghandTable::new();
-        table.set(property_id::OPACITY, retained_number(0.5), 7);
-        let original = table.get(property_id::OPACITY).unwrap().pointer();
-
-        table.set_computed(property_id::OPACITY, StyleValueData::Number { value: 0.5 }, -1);
-        assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), original);
-        assert_eq!(table.source_slot(property_id::OPACITY), None);
-
-        table.set_computed(property_id::OPACITY, StyleValueData::Number { value: 0.75 }, -1);
-        assert_ne!(table.get(property_id::OPACITY).unwrap().pointer(), original);
-        assert_eq!(table.slot_hash_sum(), table.recomputed_slot_hash_sum());
-    }
-
-    #[test]
-    fn set_or_keep_equal_keeps_the_existing_allocation() {
-        let mut table = ComputedLonghandTable::new();
-        table.set(property_id::OPACITY, retained_number(0.5), -1);
-        let original = table.get(property_id::OPACITY).unwrap().pointer();
-        let equal = retained_number(0.5);
-        assert_ne!(equal.pointer(), original);
-        table.set_or_keep_equal(property_id::OPACITY, equal, -1);
-        assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), original);
-        let different = retained_number(1.0);
-        let different_pointer = different.pointer();
-        table.set_or_keep_equal(property_id::OPACITY, different, -1);
-        assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), different_pointer);
-    }
-
-    #[test]
-    fn merge_driver_flags_touches_only_evaluated_slots() {
-        let mut table = ComputedLonghandTable::new();
-        let words = LONGHAND_COUNT.div_ceil(64);
-        let mut important = vec![u64::MAX; words];
-        let inherited = vec![u64::MAX; words];
-        let mut evaluated = vec![0_u64; words];
-        let z_index = ComputedLonghandTable::slot_index(property_id::Z_INDEX);
-        evaluated[z_index / 64] |= 1 << (z_index % 64);
-        important[z_index / 64] &= !(1 << (z_index % 64));
-        table.merge_driver_flags(&important, &inherited, &evaluated);
-        assert!(!table.is_important(property_id::Z_INDEX));
-        assert!(table.is_inherited(property_id::Z_INDEX));
-        assert!(!table.is_important(property_id::OPACITY));
-        assert!(!table.is_inherited(property_id::OPACITY));
-    }
-
-    #[test]
-    fn frozen_transition_longhands_resolve_once() {
-        let mut table = ComputedLonghandTable::new();
-        let mut resolutions = 0;
-        let mut resolve = |_: &ComputedLonghandTable| {
-            resolutions += 1;
-            Box::from([property_id::OPACITY])
-        };
-        assert!(table.frozen_transition_longhands(&mut resolve).is_none());
-        table.freeze();
-        assert_eq!(
-            table.frozen_transition_longhands(&mut resolve),
-            Some(&[property_id::OPACITY][..])
-        );
-        assert_eq!(
-            table.frozen_transition_longhands(&mut resolve),
-            Some(&[property_id::OPACITY][..])
-        );
-        assert_eq!(resolutions, 1);
+        )];
+        assert_eq!(table_inheritance_changes(&current_color, &Recorded::new()), 0);
     }
 }
-
-/// A frozen table is read by every worker that seeds a drive from it, and travels to one inside a
-/// produced record's scratch, so it has to be both. Its lazily-filled memos are the only writes a
-/// shared table sees, and both are atomic (see `MemoizedHashSum` and the `OnceLock`s above).
-const _: () = {
-    const fn assert_sync<T: Sync>() {}
-    const fn assert_send<T: Send>() {}
-    assert_sync::<ComputedLonghandTable>();
-    assert_send::<ComputedLonghandTable>();
-};

@@ -21,13 +21,21 @@
 
 namespace Web::CSS {
 
-// The base class color_type()/color_syntax() accessors read the ColorBase prefix through the
-// color_function arm without knowing which color variant they have; every color variant payload
-// must keep the prefix immediately after the Rust discriminant.
-static_assert(offsetof(StyleValueFFI::StyleValueData::ColorFunction_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
-static_assert(offsetof(StyleValueFFI::StyleValueData::ColorMix_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
-static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
-static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
+StyleValueFFI::ColorBase const& ColorStyleValue::color_base() const
+{
+    switch (m_value->tag) {
+    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
+        return m_value->color_function._0->color_base;
+    case StyleValueFFI::StyleValueData::Tag::ColorMix:
+        return m_value->color_mix._0->color_base;
+    case StyleValueFFI::StyleValueData::Tag::LightDark:
+        return m_value->light_dark._0->color_base;
+    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
+        return m_value->contrast_color.color_base;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+}
 
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {

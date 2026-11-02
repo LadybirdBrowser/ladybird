@@ -112,6 +112,25 @@ impl CompiledFunction {
     }
 }
 
+/// Notes what the `attr()`s of the `@function` rule `rule`, which the host is handing the engine, can read.
+pub(super) fn note_attr_names_read_by_function(host: &crate::render_state::DocumentHost, rule: RuleRef<'_>) {
+    let function = CompiledFunction::compile(&NativeRuleView { rule, containers: &[] });
+    let defaults = function
+        .parameter_defaults
+        .iter()
+        .flatten()
+        .filter(|_| function.parameter_defaults_read_attributes);
+    let bodies = function
+        .inputs
+        .iter()
+        .filter(|input| input.reads_attributes)
+        .flat_map(|input| &input.declarations)
+        .map(SubstitutionFunctionDeclaration::tokens);
+    for tokens in defaults.map(|tokens| tokens.as_ref()).chain(bodies) {
+        crate::css::style::host_atoms::note_attr_names_read_by_tokens(host, tokens);
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_view_compile_function(view: &NativeRuleView<'_>) -> *const CompiledFunction {
     Arc::into_raw(Arc::new(CompiledFunction::compile(view)))

@@ -8,8 +8,6 @@ use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::value_parser::equals_ascii_case_insensitive;
 use std::collections::HashSet;
-use std::sync::RwLock;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Clone, Copy)]
 pub(crate) enum ArbitrarySubstitutionFunction {
@@ -312,27 +310,47 @@ pub(crate) fn collect_arbitrary_substitution_function_presence(
     Ok(())
 }
 
-/// The attribute names an `attr()` anywhere in the process can read, ASCII-lowercased, or every
-/// name once one computes its name. A style engine copies an attribute's value text only for names
+/// The attribute names the `attr()`s a document holds can read, ASCII-lowercased, or every name
+/// once one computes its name. The document's host copies an attribute's value text only for names
 /// a selector or this set can read, and backfills its elements when the set grows.
-struct AttrNamesRead {
+#[derive(Default)]
+pub(crate) struct AttrNamesRead {
     any_name: bool,
     names: HashSet<Box<[u16]>>,
+    generation: u64,
 }
 
-static ATTR_NAMES_READ: RwLock<Option<AttrNamesRead>> = RwLock::new(None);
-static ATTR_NAMES_READ_GENERATION: AtomicU64 = AtomicU64::new(0);
+impl AttrNamesRead {
+    /// Grows with every name an `attr()` can newly read.
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
 
-/// Grows with every name an `attr()` can newly read.
-pub(crate) fn attr_names_read_generation() -> u64 {
-    ATTR_NAMES_READ_GENERATION.load(Ordering::Acquire)
-}
+    /// Whether an `attr()` may read an attribute with this local name.
+    pub(crate) fn may_read(&self, local_name: &[u16]) -> bool {
+        self.any_name || self.names.contains(ascii_lowercase(local_name).as_slice())
+    }
 
-/// Whether an `attr()` may read an attribute with this local name.
-pub(crate) fn attr_may_read_name(local_name: &[u16]) -> bool {
-    let read = ATTR_NAMES_READ.read().expect("attr() name set poisoned");
-    read.as_ref()
-        .is_some_and(|read| read.any_name || read.names.contains(ascii_lowercase(local_name).as_slice()))
+    /// Record what the `attr()` functions of a declared value can read.
+    pub(crate) fn note(&mut self, values: &[ComponentValue]) {
+        let mut names = Vec::new();
+        let mut any_name = false;
+        collect_attr_names_read(values, &mut names, &mut any_name);
+        let mut grew = any_name && !self.any_name;
+        self.any_name |= any_name;
+        for name in names {
+            grew |= self.names.insert(name.into_boxed_slice());
+        }
+        if grew {
+            self.generation += 1;
+        }
+    }
+
+    /// The bytes the names hold on the heap.
+    pub(crate) fn heap_size(&self) -> usize {
+        crate::heap_size::set_bytes(&self.names)
+            + self.names.iter().map(|name| size_of_val::<[u16]>(name)).sum::<usize>()
+    }
 }
 
 fn ascii_lowercase(text: &[u16]) -> Vec<u16> {
@@ -382,34 +400,6 @@ fn collect_attr_names_read(values: &[ComponentValue], names: &mut Vec<Vec<u16>>,
             ComponentKind::Token(_) => continue,
         };
         collect_attr_names_read(nested, names, any_name);
-    }
-}
-
-/// Record what the `attr()` functions of a declared value can read, before any engine resolves it.
-pub(crate) fn note_attr_names_read_by(values: &[ComponentValue]) {
-    let mut names = Vec::new();
-    let mut any_name = false;
-    collect_attr_names_read(values, &mut names, &mut any_name);
-    {
-        let read = ATTR_NAMES_READ.read().expect("attr() name set poisoned");
-        if read.as_ref().is_some_and(|read| {
-            read.any_name || (!any_name && names.iter().all(|name| read.names.contains(name.as_slice())))
-        }) {
-            return;
-        }
-    }
-    let mut read = ATTR_NAMES_READ.write().expect("attr() name set poisoned");
-    let read = read.get_or_insert_with(|| AttrNamesRead {
-        any_name: false,
-        names: HashSet::new(),
-    });
-    let mut grew = any_name && !read.any_name;
-    read.any_name |= any_name;
-    for name in names {
-        grew |= read.names.insert(name.into_boxed_slice());
-    }
-    if grew {
-        ATTR_NAMES_READ_GENERATION.fetch_add(1, Ordering::AcqRel);
     }
 }
 

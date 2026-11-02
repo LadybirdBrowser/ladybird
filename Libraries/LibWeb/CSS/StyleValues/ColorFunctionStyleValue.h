@@ -33,7 +33,7 @@ public:
 
     ValueComparingNonnullRefPtr<StyleValue const> channel(size_t index) const
     {
-        auto const& color_function = m_value->color_function;
+        auto const& color_function = *m_value->color_function._0;
         switch (index) {
         case 0:
             return wrap_rust_child(color_function.channel_0);
@@ -48,14 +48,14 @@ public:
     {
         return { channel(0), channel(1), channel(2) };
     }
-    ValueComparingRefPtr<StyleValue const> alpha() const { return wrap_rust_child_or_null(m_value->color_function.alpha); }
+    ValueComparingRefPtr<StyleValue const> alpha() const { return wrap_rust_child_or_null(m_value->color_function._0->alpha); }
     Optional<Utf16FlyString> name() const
     {
-        if (!m_value->color_function.has_name)
+        if (!m_value->color_function._0->has_name)
             return {};
-        return css_string_from_rust(&m_value->color_function.name);
+        return css_string_from_rust(&m_value->color_function._0->name);
     }
-    ValueComparingRefPtr<StyleValue const> origin_color() const { return wrap_rust_child_or_null(m_value->color_function.origin_color); }
+    ValueComparingRefPtr<StyleValue const> origin_color() const { return wrap_rust_child_or_null(m_value->color_function._0->origin_color); }
 
     ColorFunctionDescriptor const& descriptor() const { return color_function_descriptor_for(*color_type()); }
 

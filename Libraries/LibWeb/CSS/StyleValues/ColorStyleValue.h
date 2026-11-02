@@ -45,20 +45,19 @@ public:
         XYZD65,
         Alpha, // This is used for alpha(from ...), whose result is in the color space of its origin color.
     };
-    // AD-HOC: Every color variant payload starts with the same ColorBase prefix, so the base
-    //         class reads it through one arm without knowing which color variant it has. The
-    //         static_asserts in ColorStyleValue.cpp keep the prefixes in place.
     Optional<ColorType> color_type() const
     {
-        auto const& color_base = m_value->color_function.color_base;
-        if (!color_base.has_color_type)
+        auto const& base = color_base();
+        if (!base.has_color_type)
             return {};
-        return static_cast<ColorType>(color_base.color_type);
+        return static_cast<ColorType>(base.color_type);
     }
-    ColorSyntax color_syntax() const { return static_cast<ColorSyntax>(m_value->color_function.color_base.color_syntax); }
+    ColorSyntax color_syntax() const { return static_cast<ColorSyntax>(color_base().color_syntax); }
 
 protected:
     friend class StyleValue;
+
+    StyleValueFFI::ColorBase const& color_base() const;
 
     explicit ColorStyleValue(StyleValueFFI::StyleValueData const* value)
         : StyleValue(Type::Color, value)

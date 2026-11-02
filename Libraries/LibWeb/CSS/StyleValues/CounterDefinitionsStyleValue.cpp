@@ -15,7 +15,7 @@ CounterDefinitionsStyleValue::CounterDefinitionsStyleValue(StyleValueFFI::StyleV
 
 Vector<CounterDefinition> CounterDefinitionsStyleValue::counter_definitions() const
 {
-    auto const& list = m_value->counter_definitions.counter_definitions;
+    auto const& list = m_value->counter_definitions._0->counter_definitions;
     Vector<CounterDefinition> counter_definitions;
     counter_definitions.ensure_capacity(list.length);
     for (size_t i = 0; i < list.length; ++i) {

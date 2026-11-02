@@ -1,0 +1,155 @@
+background cleared:
+    attribute: --y: 7px; --z: rgb(0, 128, 0);
+    cssText: --y: 7px; --z: rgb(0, 128, 0);
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0);
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0);
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+background removed:
+    attribute: --y: 7px; --z: rgb(0, 128, 0);
+    cssText: --y: 7px; --z: rgb(0, 128, 0);
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0);
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0);
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+a longhand removed:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin-right: ; margin-bottom: ; margin-left: ;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin-right: ; margin-bottom: ; margin-left: ;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 7px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin-right: ; margin-bottom: ; margin-left: ;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin-right: ; margin-bottom: ; margin-left: ;
+    clone computed: rgba(0, 0, 0, 0) | 0px | 7px | 0px | 0px
+replaced by a value:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin: 1px;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin: 1px;
+    background: "" margin: "1px" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 1px | 1px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin: 1px;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin: 1px;
+    clone computed: rgba(0, 0, 0, 0) | 1px | 1px | 0px | 0px
+a longhand replaced:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 1px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    clone computed: rgba(0, 0, 0, 0) | 7px | 1px | 0px | 0px
+a longhand replaced and written again:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    background: "" margin: "var(--y)" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    clone computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+written again after clearing:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    background: "" margin: "var(--y)" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    clone computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+written over an earlier longhand:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y); color: red;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y); color: red;
+    background: "" margin: "var(--y)" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y); color: red;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y); color: red;
+    clone computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+nested shorthand replaced:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); border-width: var(--y); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); border-width: var(--y); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    background: "" margin: "" border: "" border-width: "var(--y)"
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 7px | 7px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); border-width: var(--y); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); border-width: var(--y); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 7px | 7px
+nested shorthand removed:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 3px | 3px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 3px | 3px
+nested longhand replaced:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); border-top-width: 1px; border-right-width: ; border-bottom-width: ; border-left-width: ; border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); border-top-width: 1px; border-right-width: ; border-bottom-width: ; border-left-width: ; border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 1px | 7px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); border-top-width: 1px; border-right-width: ; border-bottom-width: ; border-left-width: ; border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); border-top-width: 1px; border-right-width: ; border-bottom-width: ; border-left-width: ; border-top-style: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-top-color: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 1px | 7px
+each side written the same:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right: var(--y); border-bottom: var(--y); border-left: var(--y);
+    cssText: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right: var(--y); border-bottom: var(--y); border-left: var(--y);
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right: var(--y); border-bottom: var(--y); border-left: var(--y);
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right: var(--y); border-bottom: var(--y); border-left: var(--y);
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+a side over the whole:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right-width: ; border-bottom-width: ; border-left-width: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right-width: ; border-bottom-width: ; border-left-width: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right-width: ; border-bottom-width: ; border-left-width: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); border-top: var(--y); border-right-width: ; border-bottom-width: ; border-left-width: ; border-right-style: ; border-bottom-style: ; border-left-style: ; border-right-color: ; border-bottom-color: ; border-left-color: ; border-image-source: ; border-image-slice: ; border-image-width: ; border-image-outset: ; border-image-repeat: ;
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 0px | 0px
+untouched:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    background: "" margin: "var(--y)" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); margin: var(--y);
+    clone computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+untouched nested:
+    attribute: --y: 7px; --z: rgb(0, 128, 0); border: var(--y) solid;
+    cssText: --y: 7px; --z: rgb(0, 128, 0); border: var(--y) solid;
+    background: "" margin: "" border: "var(--y) solid" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 0px | 0px | 7px | 7px
+    clone attribute: --y: 7px; --z: rgb(0, 128, 0); border: var(--y) solid;
+    clone cssText: --y: 7px; --z: rgb(0, 128, 0); border: var(--y) solid;
+    clone computed: rgba(0, 0, 0, 0) | 0px | 0px | 7px | 7px
+attribute with a later longhand:
+    attribute: --y: 7px; margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    cssText: --y: 7px; margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 1px | 0px | 0px
+    clone attribute: --y: 7px; margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    clone cssText: --y: 7px; margin-top: ; margin-right: ; margin-bottom: ; margin-left: 1px;
+    clone computed: rgba(0, 0, 0, 0) | 7px | 1px | 0px | 0px
+attribute with an earlier important longhand:
+    attribute: --y: 7px; margin-left: 1px !important; margin-top: ; margin-right: ; margin-bottom: ;
+    cssText: --y: 7px; margin-left: 1px !important; margin-top: ; margin-right: ; margin-bottom: ;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 1px | 0px | 0px
+    clone attribute: --y: 7px; margin-left: 1px !important; margin-top: ; margin-right: ; margin-bottom: ;
+    clone cssText: --y: 7px; margin-left: 1px !important; margin-top: ; margin-right: ; margin-bottom: ;
+    clone computed: rgba(0, 0, 0, 0) | 7px | 1px | 0px | 0px
+attribute untouched:
+    attribute: --y: 7px; margin: var(--y);
+    cssText: --y: 7px; margin: var(--y);
+    background: "" margin: "var(--y)" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+    clone attribute: --y: 7px; margin: var(--y);
+    clone cssText: --y: 7px; margin: var(--y);
+    clone computed: rgba(0, 0, 0, 0) | 7px | 7px | 0px | 0px
+typed OM write over a longhand:
+    attribute: --y: 7px; margin-right: ; margin-bottom: ; margin-left: ; margin-top: 1px;
+    cssText: --y: 7px; margin-right: ; margin-bottom: ; margin-left: ; margin-top: 1px;
+    background: "" margin: "" border: "" border-width: ""
+    computed: rgba(0, 0, 0, 0) | 1px | 7px | 0px | 0px
+    clone attribute: --y: 7px; margin-right: ; margin-bottom: ; margin-left: ; margin-top: 1px;
+    clone cssText: --y: 7px; margin-right: ; margin-bottom: ; margin-left: ; margin-top: 1px;
+    clone computed: rgba(0, 0, 0, 0) | 1px | 7px | 0px | 0px
+rule: --y: 7px; margin-right: ; margin-bottom: ; margin-left: ;
+rule cleared: --y: 7px;
+rule computed: 0px

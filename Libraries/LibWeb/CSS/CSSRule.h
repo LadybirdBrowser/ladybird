@@ -46,7 +46,7 @@ public:
     MUST_UPCALL virtual void set_parent_style_sheet(StyleSheetState*);
     CSSStyleSheet* parent_style_sheet_for_bindings() const;
 
-    Optional<SourcePosition> const& source_location() const { return m_source_position; }
+    Optional<SourcePosition> source_location() const;
 
     template<typename T>
     bool fast_is() const = delete;
@@ -69,8 +69,6 @@ protected:
     GC::Ptr<CSSRule> m_parent_rule;
     RefPtr<StyleSheetState> m_parent_style_sheet;
     GC::Ptr<CSSStyleSheet> m_parent_cssom_sheet;
-
-    Optional<SourcePosition> m_source_position;
 };
 
 }

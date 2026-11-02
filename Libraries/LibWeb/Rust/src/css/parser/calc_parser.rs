@@ -26,6 +26,8 @@ use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::positions_shapes_parser::{parse_anchor_function, parse_anchor_size_function};
 use crate::css::property_metadata::property_name;
 use crate::css::style_compute::LENGTH_UNIT_NAMES;
+use crate::css::style_value::RandomValueSharingPayload;
+use crate::css::style_value::StyleValueBox;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::css::value_codes::VALUE_TYPE_NUMBER;
 use std::sync::Arc;
@@ -656,13 +658,15 @@ fn parse_random_value_sharing(
             }
             _ => return Err(CalcParseError::Invalid),
         };
-        return Ok(Some(StyleValueData::RandomValueSharing {
-            fixed_value: RetainedStyleValueData::from_owned(fixed_value),
-            is_auto: false,
-            has_name: false,
-            name: CssString::none(),
-            element_shared: false,
-        }));
+        return Ok(Some(StyleValueData::RandomValueSharing(StyleValueBox::new(
+            RandomValueSharingPayload {
+                fixed_value: RetainedStyleValueData::from_owned(fixed_value),
+                is_auto: false,
+                has_name: false,
+                name: CssString::none(),
+                element_shared: false,
+            },
+        ))));
     }
 
     let mut has_explicit_auto = false;
@@ -695,13 +699,15 @@ fn parse_random_value_sharing(
         return Ok(None);
     }
     let (is_auto, name) = dashed_ident.map_or((true, auto_name), |name| (false, name));
-    Ok(Some(StyleValueData::RandomValueSharing {
-        fixed_value: RetainedStyleValueData::none(),
-        is_auto,
-        has_name: true,
-        name,
-        element_shared,
-    }))
+    Ok(Some(StyleValueData::RandomValueSharing(StyleValueBox::new(
+        RandomValueSharingPayload {
+            fixed_value: RetainedStyleValueData::none(),
+            is_auto,
+            has_name: true,
+            name,
+            element_shared,
+        },
+    ))))
 }
 
 fn parse_random(arguments: &[&[ComponentValue]], context: CalcParserContext) -> Result<Arc<CalcNode>> {
@@ -736,13 +742,15 @@ fn parse_random(arguments: &[&[ComponentValue]], context: CalcParserContext) -> 
         return Err(CalcParseError::Invalid);
     }
     require_consistent(&types)?;
-    let sharing = explicit_sharing.unwrap_or(StyleValueData::RandomValueSharing {
-        fixed_value: RetainedStyleValueData::none(),
-        is_auto: true,
-        has_name: true,
-        name: auto_name,
-        element_shared: false,
-    });
+    let sharing = explicit_sharing.unwrap_or(StyleValueData::RandomValueSharing(StyleValueBox::new(
+        RandomValueSharingPayload {
+            fixed_value: RetainedStyleValueData::none(),
+            is_auto: true,
+            has_name: true,
+            name: auto_name,
+            element_shared: false,
+        },
+    )));
     Ok(Arc::new(CalcNode::Random {
         min: nodes[0].clone(),
         max: nodes[1].clone(),

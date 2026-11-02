@@ -381,9 +381,8 @@ pub(crate) struct CascadeResolutionContext<'a> {
 }
 
 /// Length, tree-counting and color inputs used when evaluating style queries.
-#[repr(C)]
 #[derive(Clone, Copy)]
-pub struct FfiStyleQueryInputs {
+pub struct StyleQueryInputs {
     pub length: crate::css::style_compute::FfiLengthResolutionContext,
     pub tree_counting: Option<(u64, u64)>,
     /// A PreferredColorScheme code.
@@ -392,7 +391,7 @@ pub struct FfiStyleQueryInputs {
     pub current_color: u32,
 }
 
-impl FfiStyleQueryInputs {
+impl StyleQueryInputs {
     pub(crate) fn color_input(&self) -> crate::css::color_resolution::ColorResolutionInput<'_> {
         crate::css::color_resolution::ColorResolutionInput {
             scheme: Some(self.color_scheme),
@@ -418,7 +417,7 @@ pub(crate) fn resolve_declared_custom_properties(
     Option<Arc<CustomPropertyStore>>,
     crate::css::custom_properties::RegisteredValueReads,
 ) {
-    let names = &store.declared_names;
+    let names = store.declared_names();
     let mut environment = crate::css::custom_properties::prepare_var_resolution_environment(
         resolution_context.attributes,
         resolution_context.custom_functions,
@@ -447,4 +446,7 @@ pub(crate) fn resolve_declared_custom_properties(
 }
 
 /// Sentinel passed when cascading for an element rather than a pseudo-element.
+/// NB: An `extern "C"` function that can be handed this takes it as a `u32`. rustc assumes a narrower
+///     parameter arrives zero-extended, which x86-64 callers need not do: GCC 16 sign-extends one, so
+///     `u8::MAX` would arrive unequal to itself.
 pub(crate) const NO_PSEUDO_ELEMENT: u8 = u8::MAX;

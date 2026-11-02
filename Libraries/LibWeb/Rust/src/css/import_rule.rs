@@ -8,12 +8,12 @@ use crate::css::css_string::CssString;
 use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::query_parser::FfiQueryHandle;
 use crate::css::scope_selectors::ScopeSelectors;
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value_arc::StyleValueArc;
 use std::ffi::c_void;
 use std::sync::Arc;
 
 pub struct ImportRuleData {
-    pub(crate) url: Arc<StyleValueData>,
+    pub(crate) url: StyleValueArc,
     pub(crate) layer: Option<CssString>,
     pub(crate) supports: Option<Arc<FfiQueryHandle>>,
     pub(crate) scope: Option<Arc<ScopeSelectors>>,
@@ -49,7 +49,7 @@ pub extern "C" fn rust_import_rule_release(rule: OwnedArc<ImportRuleData>) {
 pub extern "C" fn rust_import_rule_view(rule: &ImportRuleData) -> FfiImportRuleView<'_> {
     let layer = rule.layer.as_ref().map_or(&[][..], CssString::units);
     FfiImportRuleView {
-        url: Arc::as_ptr(&rule.url).cast(),
+        url: StyleValueArc::as_ptr(&rule.url).cast(),
         has_layer: rule.layer.is_some(),
         layer: FfiUtf16View::from_utf16(layer),
         supports: rule.supports.as_ref().map_or(std::ptr::null(), Arc::as_ptr),

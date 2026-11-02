@@ -28,13 +28,13 @@ public:
         return adopt_ref(*new (nothrow) StyleValueList(move(values), separator, collapsible));
     }
 
-    size_t size() const { return m_value->value_list.values.length; }
+    size_t size() const { return m_value->value_list.values.length(); }
     StyleValueVector values() const
     {
         auto const& values = m_value->value_list.values;
         StyleValueVector result;
-        result.ensure_capacity(values.length);
-        for (size_t i = 0; i < values.length; ++i) {
+        result.ensure_capacity(values.length());
+        for (size_t i = 0; i < values.length(); ++i) {
             auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
             result.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
         }

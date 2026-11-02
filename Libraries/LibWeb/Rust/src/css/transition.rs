@@ -346,17 +346,13 @@ fn value_is_current_color(value: *const StyleValueData) -> bool {
 }
 
 fn computed_value(
-    table: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    longhands: crate::css::style::ViewLonghands<'_>,
     overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
     property_id: u16,
 ) -> *const StyleValueData {
-    if let Some(entry) = overlay.and_then(|overlay| overlay.get(property_id))
-        && crate::css::animated_overlay::overlay_wins(entry, table.is_important(property_id))
-    {
-        return entry.value_pointer();
-    }
-    table
-        .get(property_id)
+    longhands
+        .overlay_value(overlay, property_id)
+        .or_else(|| longhands.handle(property_id))
         .expect("a transition property must have a computed value")
         .pointer()
 }
@@ -370,8 +366,7 @@ pub(crate) fn records_compute_differently(
 ) -> bool {
     let value = |record| {
         let view = engine.style_record_view(record)?;
-        let table = view.longhand_table?;
-        Some(table.get(property_id)?.pointer())
+        Some(view.longhands().handle(property_id)?.pointer())
     };
     match (value(first), value(second)) {
         (Some(first), Some(second)) => !values_equal(first, second),
@@ -379,31 +374,27 @@ pub(crate) fn records_compute_differently(
     }
 }
 
-fn originates_from_current_color(
-    table: &crate::css::computed_longhand_table::ComputedLonghandTable,
-    property_id: u16,
-) -> bool {
-    let value = table
-        .retained_inheritance_dependent_values()
-        .find_map(|(property, value)| (property == property_id).then_some(value))
+fn originates_from_current_color(longhands: crate::css::style::ViewLonghands<'_>, property_id: u16) -> bool {
+    let value = longhands
+        .inheritance_dependent_value(property_id)
         .filter(|value| crate::css::style_value::retained_value_depends_on_current_color(value))
-        .or_else(|| table.get(property_id))
+        .or_else(|| longhands.handle(property_id))
         .expect("a transition property must have a computed value");
     crate::css::style_value::retained_value_depends_on_current_color(value)
 }
 
 fn prepare_transition_values(
     before_style: (
-        &crate::css::computed_longhand_table::ComputedLonghandTable,
+        crate::css::style::ViewLonghands<'_>,
         Option<&crate::css::animated_overlay::AnimatedOverlay>,
     ),
-    after_table: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    after_longhands: crate::css::style::ViewLonghands<'_>,
     after_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
     inherited_animation: Option<crate::css::style::InheritedAnimatedValue<'_>>,
     property: &mut TransitionProperty,
 ) -> Option<bool> {
-    let (before_table, before_overlay) = before_style;
-    property.before_change_value = computed_value(before_table, before_overlay, property.property_id);
+    let (before_longhands, before_overlay) = before_style;
+    property.before_change_value = computed_value(before_longhands, before_overlay, property.property_id);
     if !property.has_matching_transition {
         return Some(false);
     }
@@ -422,17 +413,17 @@ fn prepare_transition_values(
         property.after_change_value = entry.value_pointer();
         let originates_from_current_color = value_is_current_color(entry.value_pointer());
         if property.has_running_transition {
-            property.current_value = computed_value(after_table, after_overlay, property.property_id);
+            property.current_value = computed_value(after_longhands, after_overlay, property.property_id);
         }
         return Some(originates_from_current_color);
     } else if let Some(crate::css::style::InheritedAnimatedValue::BeneathTransitions(base_value)) = inherited_animation
     {
         property.after_change_value = std::ptr::from_ref(base_value);
     } else {
-        property.after_change_value = computed_value(after_table, None, property.property_id);
+        property.after_change_value = computed_value(after_longhands, None, property.property_id);
     }
     if property.has_running_transition {
-        property.current_value = computed_value(after_table, after_overlay, property.property_id);
+        property.current_value = computed_value(after_longhands, after_overlay, property.property_id);
     }
     // NB: Whether the table values originate from currentColor matters only where they differ, which the caller
     //     knows once the before-change value is final.
@@ -443,8 +434,8 @@ fn prepare_transition_values(
 /// changes from the record `before` to the record `after`, the record the target installed. The transitions resolve
 /// their lengths against `after`.
 pub(crate) struct TransitionDecision {
-    pub(crate) before: u64,
-    pub(crate) after: u64,
+    pub(crate) before: std::sync::Arc<crate::css::style::pipeline::Record>,
+    pub(crate) after: std::sync::Arc<crate::css::style::pipeline::Record>,
     /// The target's style node, where the target is an element: only an element's own record inherits from its
     /// inheritance parent.
     pub(crate) element: Option<crate::css::style::tree::StyleNodeID>,
@@ -456,31 +447,26 @@ impl TransitionDecision {
     /// in that order. The transitions resolve their transforms against `reference_box`, the transform reference box of
     /// the box of the target's element, where it was laid out.
     pub(crate) fn decide(
-        self,
+        &self,
         engine: &crate::css::style::StyleEngine,
         reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         existing: &[FfiExistingTransition],
     ) -> Vec<FfiTransitionAction> {
-        let Some(after_table) = engine
-            .style_record_view(self.after)
-            .and_then(|after| after.longhand_table)
-        else {
-            debug_assert!(false, "the records of a transition step carry longhand tables");
-            return Vec::new();
-        };
+        let after_longhands = crate::css::style::StyleRecordView::of_host_record(&self.after).longhands();
         // A declaration whose delay and duration are each the single value 0s starts nothing, so it matters only to a
         // target holding a transition it could cancel.
-        if existing.is_empty() && crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_table)
+        if existing.is_empty()
+            && crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_longhands)
         {
             return Vec::new();
         }
-        let entries = crate::css::style_compute::transition_entries(after_table);
+        let entries = crate::css::style_compute::transition_entries(after_longhands);
         self.decide_entries(engine, reference_box, &entries, existing)
     }
 
     /// As `decide`, for the after-change style's `entries`.
     fn decide_entries(
-        self,
+        &self,
         engine: &crate::css::style::StyleEngine,
         reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         entries: &[TransitionEntry],
@@ -492,7 +478,7 @@ impl TransitionDecision {
     /// As `decide_entries`, with `after_overlay` in place of the after-change record's overlay where it is given: the
     /// current values of the target's running transitions, which the record holds none of.
     fn decide_over(
-        self,
+        &self,
         engine: &crate::css::style::StyleEngine,
         reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         after_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
@@ -500,36 +486,25 @@ impl TransitionDecision {
         existing: &[FfiExistingTransition],
         ended: &[u16],
     ) -> Vec<FfiTransitionAction> {
-        let Self { before, after, element } = self;
-        let length_resolution_context = engine.transition_length_resolution_context(after);
-        let (Some(before), Some(after)) = (engine.style_record_view(before), engine.style_record_view(after)) else {
-            debug_assert!(false, "the records a transition step decides over remain live");
-            return Vec::new();
-        };
-        let (Some(before_table), before_overlay, Some(after_table), record_after_overlay) = (
-            before.longhand_table,
-            before.animated_overlay,
-            after.longhand_table,
-            after.animated_overlay,
-        ) else {
-            debug_assert!(false, "the records of a transition step carry longhand tables");
-            return Vec::new();
-        };
-        let after_overlay = after_overlay.or(record_after_overlay);
+        let element = self.element;
+        let length_resolution_context = engine.transition_length_resolution_context(&self.after);
+        let before = crate::css::style::StyleRecordView::of_host_record(&self.before);
+        let after = crate::css::style::StyleRecordView::of_host_record(&self.after);
+        let (before_longhands, before_overlay) = (before.longhands(), before.animated_overlay);
+        let after_longhands = after.longhands();
+        let after_overlay = after_overlay.or(after.animated_overlay);
         let mut context = crate::css::animation::FfiAnimationContext {
             allow_discrete: false,
             // The value that matters is the one in the after-change style.
             allow_keyword_size_interpolation: crate::css::animation::allows_keyword_size_interpolation(
-                after_table,
+                after_longhands,
                 after_overlay,
             ),
             current_color: Some(
-                after_table
-                    .effective_value_handle(after_overlay, crate::css::property_metadata::property_id::COLOR, true)
-                    .0,
+                after_longhands.effective_value(after_overlay, crate::css::property_metadata::property_id::COLOR),
             ),
-            has_length_resolution_context: length_resolution_context.is_some(),
-            length_resolution_context: length_resolution_context.unwrap_or_default(),
+            has_length_resolution_context: true,
+            length_resolution_context,
             has_transform_reference_box: false,
             transform_reference_box_width: 0.0,
             transform_reference_box_height: 0.0,
@@ -555,16 +530,16 @@ impl TransitionDecision {
                 let mut property = TransitionProperty::new(property_id, entry, existing);
                 let inherited_animation = element
                     .filter(|&element| {
-                        after_table.is_inherited(property_id)
+                        after_longhands.is_inherited(property_id)
                             && after_overlay
                                 .and_then(|overlay| overlay.get(property_id))
                                 .is_none_or(|entry| !entry.inherited)
                             && inherits_animated_values(element)
                     })
-                    .and_then(|element| engine.inherited_animated_value(element, after_table, property_id));
+                    .and_then(|element| engine.inherited_animated_value(element, after_longhands, property_id));
                 let overlay_values_originate_from_current_color = prepare_transition_values(
-                    (before_table, before_overlay),
-                    after_table,
+                    (before_longhands, before_overlay),
+                    after_longhands,
                     after_overlay,
                     inherited_animation,
                     &mut property,
@@ -574,10 +549,10 @@ impl TransitionDecision {
                 if ended.contains(&property_id)
                     && std::ptr::eq(
                         property.before_change_value,
-                        computed_value(before_table, before_overlay, property_id),
+                        computed_value(before_longhands, before_overlay, property_id),
                     )
                 {
-                    property.before_change_value = computed_value(before_table, None, property_id);
+                    property.before_change_value = computed_value(before_longhands, None, property_id);
                 }
                 // OPTIMIZATION: The values originating from currentColor only matters where they differ, and finding out
                 //               reads both tables. A shared value differs from nothing; values compared equal leave the
@@ -585,8 +560,8 @@ impl TransitionDecision {
                 let values_originate_from_current_color =
                     overlay_values_originate_from_current_color.unwrap_or_else(|| {
                         !std::ptr::eq(property.before_change_value, property.after_change_value)
-                            && originates_from_current_color(before_table, property_id)
-                            && originates_from_current_color(after_table, property_id)
+                            && originates_from_current_color(before_longhands, property_id)
+                            && originates_from_current_color(after_longhands, property_id)
                     });
                 decide_transition(&context, &property, values_originate_from_current_color)
             })
@@ -601,12 +576,13 @@ impl TransitionDecision {
     }
 }
 
-/// What the transition step a style transaction's row owes decides, where nothing but the engine's records decides it
+/// What the transition step a style update's row owes decides, where nothing but the engine's records decides it
 /// (see [`DecidedTransitionStep::of_row`]).
 pub(crate) struct RowTransitions {
     pub(crate) node: crate::css::style::tree::StyleNodeID,
-    pub(crate) before: u64,
-    pub(crate) after: u64,
+    /// The records the step decided over: the before-change style, and the record the row moves the element to.
+    pub(crate) before: std::sync::Arc<crate::css::style::pipeline::Record>,
+    pub(crate) after: std::sync::Arc<crate::css::style::pipeline::Record>,
     actions: Vec<FfiTransitionAction>,
     /// The time of the style change event, in the document timeline's milliseconds, where the caller knew it.
     at: Option<f64>,
@@ -731,7 +707,7 @@ fn transition_values(
     effect: &crate::css::style::effect_descriptions::PublishedEffect,
 ) -> Option<(u16, *const StyleValueData, *const StyleValueData)> {
     use crate::css::style::effect_descriptions::PublishedValue;
-    let [start, end] = effect.keyframes.as_ref() else {
+    let [start, end] = effect.keyframes() else {
         return None;
     };
     let value = |keyframe| match effect.declarations_of(keyframe) {
@@ -759,13 +735,23 @@ impl RowTransitions {
         if !row.owes_a_transition_step || row.owes_an_animation_plan || row.pseudo_kind != u8::MAX {
             return false;
         }
-        let before = match engine.transition_baseline(node, u8::MAX) {
-            0 => row.old_style_record,
-            baseline => baseline,
-        };
-        engine.style_record_view(before).is_some_and(|view| {
-            view.dependency_flags & crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE != 0
+        Self::before_change_record(engine, node, row).is_some_and(|before| {
+            crate::css::style::StyleRecordView::of_host_record(before).dependency_flags
+                & crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE
+                != 0
         })
+    }
+
+    /// The before-change style of the step `row` owes its element `node`: the record the epoch keeps for it, or else
+    /// the record it held.
+    fn before_change_record<'a>(
+        engine: &'a crate::css::style::StyleEngine,
+        node: crate::css::style::tree::StyleNodeID,
+        row: &crate::css::style::bridge::FfiStyleDelta,
+    ) -> Option<&'a std::sync::Arc<crate::css::style::pipeline::Record>> {
+        engine
+            .transition_baseline(node, u8::MAX)
+            .or_else(|| engine.host_record(row.old_style_record))
     }
 
     /// Decides the step `row` owes, with the transform reference box of the element's box where one is known, or
@@ -806,14 +792,16 @@ impl RowTransitions {
                 ),
                 (None, true, None) => return Err("an element with animations"),
             };
-        let before = match engine.transition_baseline(node, u8::MAX) {
-            0 => row.old_style_record,
-            baseline => baseline,
-        };
-        let after = row.new_style_record;
-        let before_view = engine.style_record_view(before).ok_or("a record that is gone")?;
-        let after_view = engine.style_record_view(after).ok_or("a record that is gone")?;
-        let after_table = after_view.longhand_table.ok_or("a record without a table")?;
+        let before = Self::before_change_record(engine, node, row)
+            .ok_or("a record that is gone")?
+            .clone();
+        let after = engine
+            .host_record(row.new_style_record)
+            .ok_or("a record that is gone")?
+            .clone();
+        let before_view = crate::css::style::StyleRecordView::of_host_record(&before);
+        let after_view = crate::css::style::StyleRecordView::of_host_record(&after);
+        let after_longhands = after_view.longhands();
         if before_view.dependency_flags & crate::css::computed_longhand_table::IN_DISPLAY_NONE_SUBTREE != 0 {
             return Err("a style under display: none");
         }
@@ -823,11 +811,11 @@ impl RowTransitions {
         // A declaration whose delay and duration are each the single value 0s starts nothing, so it matters only to an
         // element running transitions it could cancel, as `TransitionDecision::decide` has it.
         let entries = if running.is_empty()
-            && crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_table)
+            && crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_longhands)
         {
             Vec::new()
         } else {
-            crate::css::style_compute::transition_entries(after_table)
+            crate::css::style_compute::transition_entries(after_longhands)
         };
         // A transform interpolates against the box it transforms.
         if reference_box.is_none() && entries.iter().any(|entry| entry.property_id == prop::TRANSFORM) {
@@ -835,7 +823,9 @@ impl RowTransitions {
         }
         // An inherited value moves with the animations of the ancestors it comes from, which the host composes. Only a
         // caller that knows the time of the style change takes the values of ancestors that run none.
-        if entries.iter().any(|entry| after_table.is_inherited(entry.property_id))
+        if entries
+            .iter()
+            .any(|entry| after_longhands.is_inherited(entry.property_id))
             && (at.is_none() || engine.inheritance_ancestors_animate(node))
         {
             return Err("a transition of an inherited value");
@@ -874,7 +864,7 @@ impl RowTransitions {
                 engine
                     .sample_over_record(
                         node,
-                        after,
+                        &after,
                         &mut overlay,
                         lane_effects,
                         composed,
@@ -894,12 +884,12 @@ impl RowTransitions {
             })
             .map(|transition| transition.property_id)
             .collect();
-        let actions = TransitionDecision {
+        let decision = TransitionDecision {
             before,
             after,
             element: Some(node),
-        }
-        .decide_over(
+        };
+        let actions = decision.decide_over(
             engine,
             reference_box,
             after_overlay.as_deref(),
@@ -907,6 +897,7 @@ impl RowTransitions {
             &existing,
             &ended,
         );
+        let TransitionDecision { before, after, .. } = decision;
         Ok(Self {
             node,
             before,
@@ -938,19 +929,18 @@ pub(crate) struct LaneTransitions<'a> {
     pub(crate) start_time: f64,
 }
 
-/// The transition step a style transaction decided beside the row of an element that owes one, which the host's step
+/// The transition step a style update decided beside the row of an element that owes one, which the host's step
 /// reads rather than asking where it decides over the same inputs.
 pub(crate) struct DecidedTransitionStep {
     node: u32,
-    before: u64,
-    after: u64,
+    before: std::sync::Arc<crate::css::style::pipeline::Record>,
+    after: std::sync::Arc<crate::css::style::pipeline::Record>,
     actions: Box<[FfiTransitionAction]>,
     /// The first sample of the transitions the step starts, until a host step that reads the decision takes it.
     fresh_sample: std::cell::Cell<Option<FreshTransitionSample>>,
 }
 
-// SAFETY: The values a decision points at live in the records it decided over, which the host keeps live across the drain
-// of the transaction that decided it, the only time it reads them.
+// SAFETY: The values a decision points at live in the records it decided over, which it holds.
 unsafe impl Send for DecidedTransitionStep {}
 
 impl DecidedTransitionStep {
@@ -971,7 +961,7 @@ impl DecidedTransitionStep {
             actions,
             ..
         } = RowTransitions::decide(engine, row, None, None, None).ok()?;
-        let fresh_sample = FreshTransitionSample::of_step(engine, node, after, &actions);
+        let fresh_sample = FreshTransitionSample::of_step(engine, node, &after, &actions);
         Some(Self {
             node: row.style_node,
             before,
@@ -992,7 +982,10 @@ impl DecidedTransitionStep {
         decision: &TransitionDecision,
         existing: &[FfiExistingTransition],
     ) -> Option<&[FfiTransitionAction]> {
-        (decision.before == self.before && decision.after == self.after && existing.is_empty()).then_some(&self.actions)
+        (std::sync::Arc::ptr_eq(&decision.before, &self.before)
+            && std::sync::Arc::ptr_eq(&decision.after, &self.after)
+            && existing.is_empty())
+        .then_some(&self.actions)
     }
 
     /// The first sample of the transitions the step starts, which only the host step that read its decision samples.
@@ -1005,7 +998,7 @@ impl DecidedTransitionStep {
 /// element to, which the host's sample of them reads rather than asks. Each transition has only just started, so it
 /// samples at the key its delay and easing give at its start, whatever the time.
 pub(crate) struct FreshTransitionSample {
-    after: u64,
+    after: std::sync::Arc<crate::css::style::pipeline::Record>,
     /// The key each transition the step starts samples at, in the order the step starts them.
     keys: Box<[f64]>,
     overlay: crate::css::animated_overlay::AnimatedOverlay,
@@ -1018,7 +1011,7 @@ impl FreshTransitionSample {
     fn of_step(
         engine: &mut crate::css::style::StyleEngine,
         node: crate::css::style::tree::StyleNodeID,
-        after: u64,
+        after: &std::sync::Arc<crate::css::style::pipeline::Record>,
         actions: &[FfiTransitionAction],
     ) -> Option<Self> {
         use crate::css::animation::{FfiAnimationPreparationEffect, FfiSampledAnimationEffect};
@@ -1053,7 +1046,7 @@ impl FreshTransitionSample {
         // The preparation is keyed by the step's own effects, which the host's are not.
         overlay.animation_preparation = None;
         Some(Self {
-            after,
+            after: after.clone(),
             keys,
             overlay,
             result,
@@ -1071,7 +1064,12 @@ impl FreshTransitionSample {
         crate::css::style_compute::FfiHostAnimationSampleResult,
         crate::css::style::animations::SampledEffectTimings,
     )> {
-        if input.style_record != self.after || input.has_animated_overlay {
+        if !input
+            .style_record
+            .as_ref()
+            .is_some_and(|record| std::sync::Arc::ptr_eq(record, &self.after))
+            || input.has_animated_overlay
+        {
             return None;
         }
         let effects = input.effects.as_slice();
@@ -1365,7 +1363,7 @@ impl HoverTransitions {
         }
         let decision = RowTransitions::decide(engine, row, reference_box, Some(at), lane)?;
         let (effects, runs) = hover_transition_effects(&decision)?;
-        let (node, after) = (decision.node, decision.after);
+        let (node, after) = (decision.node, row.new_style_record);
         let decided_over_running = !decision.running.is_empty();
         if effects.is_empty() && !decided_over_running {
             return Ok(None);
@@ -1376,7 +1374,7 @@ impl HoverTransitions {
             .fold(0.0, f64::max);
         let properties = effects
             .iter()
-            .filter_map(|effect| effect.declarations_of(effect.keyframes.first()?).first())
+            .filter_map(|effect| effect.declarations_of(effect.keyframes().first()?).first())
             .map(|declaration| declaration.property_id)
             .collect();
         // A running transition of the host's the step leaves no run of ended with the step.
@@ -1536,9 +1534,10 @@ impl HoverTransitions {
                 current_key,
             });
         }
+        let after = engine.host_record(self.after).ok_or(NeedsHost)?.clone();
         engine.sample_composed_over_record(
             self.node,
-            self.after,
+            &after,
             crate::css::animated_overlay::AnimatedOverlay::default(),
             Some(&self.effects),
             composed,
@@ -1564,20 +1563,16 @@ pub(crate) struct TransitionEntry {
     pub(crate) behavior: u8,
 }
 
-/// Whether the table's `transition-*` values give any longhand a matching entry, stopping at the first. A declaration
-/// whose delay and duration are each the single value `0s`, which is how nearly every element declares no transition
-/// at all, starts nothing, so it gives none unless the element `has_existing_transitions` it could still cancel.
-///
-/// # Safety
-/// `longhand_table` must point to a live computed longhand table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_transition_has_matching_entries(
-    longhand_table: *const std::ffi::c_void,
+/// Whether the `transition-*` values of `longhands` give any longhand a matching entry, stopping at the first. A
+/// declaration whose delay and duration are each the single value `0s`, which is how nearly every element declares no
+/// transition at all, starts nothing, so it gives none unless the element `has_existing_transitions` it could still
+/// cancel.
+pub(crate) fn has_matching_transition_entries(
+    longhands: crate::css::style::ViewLonghands<'_>,
     has_existing_transitions: bool,
 ) -> bool {
-    let table = unsafe { &*longhand_table.cast::<crate::css::computed_longhand_table::ComputedLonghandTable>() };
-    (has_existing_transitions || !crate::css::style_compute::transition_delay_and_duration_are_single_zero(table))
-        && crate::css::style_compute::has_transition_entries(table)
+    (has_existing_transitions || !crate::css::style_compute::transition_delay_and_duration_are_single_zero(longhands))
+        && crate::css::style_compute::has_transition_entries(longhands)
 }
 
 #[cfg(test)]
@@ -1659,9 +1654,9 @@ mod tests {
     #[test]
     fn equal_nested_values_do_not_start_a_transition() {
         let nested_value = || {
-            let number = crate::css::style_value::RetainedStyleValueData::from_arc(std::sync::Arc::new(
-                StyleValueData::Number { value: 0.5 },
-            ));
+            let number = crate::css::style_value::RetainedStyleValueData::from_arc(
+                crate::css::style_value_arc::StyleValueArc::new(StyleValueData::Number { value: 0.5 }),
+            );
             StyleValueData::OpacityValue { value: number }
         };
         let before = nested_value();
@@ -1693,14 +1688,16 @@ mod tests {
             separator: 0,
             collapsible: false,
         };
-        let mut table = crate::css::computed_longhand_table::ComputedLonghandTable::new();
-        table.set(
-            by_computed_value_property(),
-            crate::css::style_value::RetainedStyleValueData::from_owned(nested),
-            -1,
-        );
+        let nested = crate::css::style_value::RetainedStyleValueData::from_owned(nested);
+        let value_of = |property| match property == by_computed_value_property() {
+            true => nested.clone(),
+            false => crate::css::style_compute::initial_value_handle(property).clone(),
+        };
 
-        assert!(originates_from_current_color(&table, by_computed_value_property()));
+        assert!(crate::css::style::ViewLonghands::with_test_record(
+            value_of,
+            |longhands| { originates_from_current_color(longhands, by_computed_value_property()) }
+        ));
     }
 
     #[test]
@@ -1784,10 +1781,15 @@ mod tests {
             } else {
                 Vec::new()
             };
+            let record = || {
+                std::sync::Arc::new(crate::css::style::pipeline::Record::of_test_values(|property| {
+                    crate::css::style_compute::initial_value_handle(property).clone()
+                }))
+            };
             let decision = RowTransitions {
                 node: StyleNodeID::element(1),
-                before: 1,
-                after: 2,
+                before: record(),
+                after: record(),
                 actions: vec![action],
                 at: Some(500.0),
                 running,

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! A pointer to a value the style transaction only borrows.
+//! A pointer to a value the style update only borrows.
 //!
 //! The evaluation step reads computed style values, style-group payloads, longhand tables and
 //! animated overlays that somebody else owns: the retained catalog, an earlier pass, or the host.
@@ -12,10 +12,9 @@
 //! side or scratch from being shareable, even though the step never writes through it and never
 //! touches its reference count. [`HostShared`] is that pointer with the contract written down.
 
-use std::ffi::c_void;
 use std::hash::{Hash, Hasher};
 
-/// A borrowed pointer to a value that is frozen for the length of a style transaction.
+/// A borrowed pointer to a value that is frozen for the length of a style update.
 ///
 /// This is a plain `*const T` with one word of layout and no ownership: it retains nothing on
 /// construction and releases nothing on drop. What it adds is the thread bound the raw pointer
@@ -26,7 +25,7 @@ pub(crate) struct HostShared<T: ?Sized>(*const T);
 // SAFETY: The invariant, which every construction site upholds and the whole borrow-only
 // computation contract rests on:
 //
-// 1. The pointee is immutable for the length of a style transaction. A style value, a style-group
+// 1. The pointee is immutable for the length of a style update. A style value, a style-group
 //    payload, a frozen `ComputedLonghandTable` and an installed animated overlay are all written
 //    once, before the walk that reads them begins, and are replaced rather than mutated.
 // 2. No reference count on the pointee is touched through this handle. `HostShared` owns nothing:
@@ -86,29 +85,12 @@ impl<T> HostShared<T> {
         Self(pointer)
     }
 
-    /// The address of `value`, or null.
-    pub(crate) fn from_option(value: Option<&T>) -> Self {
-        Self(value.map_or(std::ptr::null(), std::ptr::from_ref))
-    }
-
     pub(crate) const fn as_ptr(self) -> *const T {
         self.0
     }
 
-    pub(crate) fn cast_mut(self) -> *mut T {
-        self.0.cast_mut()
-    }
-
-    pub(crate) fn is_null(self) -> bool {
-        self.0.is_null()
-    }
-
     pub(crate) fn cast<U>(self) -> HostShared<U> {
         HostShared(self.0.cast())
-    }
-
-    pub(crate) fn addr(self) -> usize {
-        self.0 as usize
     }
 
     /// The pointee, for a caller that has already established it is live.
@@ -127,32 +109,4 @@ impl<T> HostShared<T> {
     pub(crate) unsafe fn as_ref<'a>(self) -> Option<&'a T> {
         unsafe { self.0.as_ref() }
     }
-
-    /// The same addresses as a plain pointer slice, for a C++ consumer or an FFI signature.
-    ///
-    /// `HostShared<T>` is `repr(transparent)` over `*const T`, so the two slices have the same
-    /// layout; this is a reinterpretation, not a copy.
-    pub(crate) fn as_pointer_slice(handles: &[Self]) -> &[*const T] {
-        // SAFETY: `repr(transparent)` makes the element types layout-identical.
-        unsafe { ak::slice_from_raw_parts(handles.as_ptr().cast::<*const T>(), handles.len()) }
-    }
-
-    /// The inverse of [`Self::as_pointer_slice`].
-    pub(crate) fn from_pointer_slice(pointers: &[*const T]) -> &[Self] {
-        // SAFETY: `repr(transparent)` makes the element types layout-identical.
-        unsafe { ak::slice_from_raw_parts(pointers.as_ptr().cast::<Self>(), pointers.len()) }
-    }
 }
-
-/// The style-group payload and style-value handles are untyped on the C++ side, so they travel as
-/// `c_void` exactly as the raw pointers they replace did.
-pub(crate) type SharedPayload = HostShared<c_void>;
-
-const _: () = {
-    const fn assert_send<T: Send>() {}
-    const fn assert_sync<T: Sync>() {}
-    assert_send::<SharedPayload>();
-    assert_sync::<SharedPayload>();
-    assert!(size_of::<SharedPayload>() == size_of::<*const c_void>());
-    assert!(align_of::<SharedPayload>() == align_of::<*const c_void>());
-};

@@ -8,32 +8,48 @@
 
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 
-// Prefix the Arc slice with its length so each string owns one allocation while
-// retaining the one-word handle used throughout parsed and bound selector trees.
-const LENGTH_PREFIX_UNITS: usize = size_of::<usize>() / size_of::<u16>();
+/// The header of a string's one allocation, which its UTF-16 code units follow: a count of its
+/// handles and its length, in 8 bytes.
+#[repr(C)]
+struct StringHeader {
+    references: AtomicU32,
+    length: u32,
+}
 
-fn allocate_string(units: &[u16]) -> Arc<[u16]> {
-    let length = units
-        .len()
-        .checked_add(LENGTH_PREFIX_UNITS)
+const HEADER_BYTES: usize = size_of::<StringHeader>();
+
+fn layout(length: usize) -> std::alloc::Layout {
+    let bytes = length
+        .checked_mul(size_of::<u16>())
+        .and_then(|bytes| bytes.checked_add(HEADER_BYTES))
         .expect("CSS string size overflow");
-    let mut data = Arc::<[u16]>::new_uninit_slice(length);
-    let pointer = Arc::get_mut(&mut data).unwrap().as_mut_ptr().cast::<u16>();
-    // SAFETY: The prefix occupies exactly one usize, and the remaining slice has
-    // room for every source unit. Both writes initialize valid u16 bit patterns.
-    // The Arc's data is only guaranteed to have u16 alignment.
+    std::alloc::Layout::from_size_align(bytes, align_of::<StringHeader>()).expect("CSS string size overflow")
+}
+
+fn allocate_string(units: &[u16]) -> usize {
+    let length = u32::try_from(units.len()).expect("CSS string size overflow");
+    let layout = layout(units.len());
+    // SAFETY: The layout is nonzero; the header and every code unit are written before any read.
     unsafe {
-        pointer.cast::<usize>().write_unaligned(units.len());
-        std::ptr::copy_nonoverlapping(units.as_ptr(), pointer.add(LENGTH_PREFIX_UNITS), units.len());
-        data.assume_init()
+        let base = std::alloc::alloc(layout);
+        if base.is_null() {
+            std::alloc::handle_alloc_error(layout);
+        }
+        base.cast::<StringHeader>().write(StringHeader {
+            references: AtomicU32::new(1),
+            length,
+        });
+        std::ptr::copy_nonoverlapping(units.as_ptr(), base.add(HEADER_BYTES).cast::<u16>(), units.len());
+        base as usize
     }
 }
 
 #[repr(C)]
 pub struct CssString {
-    // An owned length-prefixed Arc<[u16]>, or zero for an absent optional string.
+    // One handle to a counted allocation of a `StringHeader` and the code units, or zero for an
+    // absent optional string.
     raw: usize,
 }
 
@@ -43,17 +59,14 @@ impl CssString {
             return Self::default();
         }
         Self {
-            raw: Arc::into_raw(allocate_string(units)).cast::<u16>() as usize,
+            raw: allocate_string(units),
         }
     }
 
-    fn data_pointer(&self) -> *const [u16] {
+    fn header(&self) -> &StringHeader {
         debug_assert_ne!(self.raw, 0);
-        let pointer = self.raw as *const u16;
-        // SAFETY: Every nonzero handle owns an Arc created by allocate_string.
-        // Its initialized prefix records the slice metadata discarded by the handle.
-        let length = unsafe { pointer.cast::<usize>().read_unaligned() };
-        std::ptr::slice_from_raw_parts(pointer, LENGTH_PREFIX_UNITS + length)
+        // SAFETY: Every nonzero handle refers to a live allocation `allocate_string` made.
+        unsafe { &*(self.raw as *const StringHeader) }
     }
 
     pub(crate) fn none() -> Self {
@@ -64,13 +77,21 @@ impl CssString {
         if self.raw == 0 { std::ptr::null() } else { self }
     }
 
+    /// The bytes of the string's counted allocation, the first time `sizer` reaches it.
+    pub(crate) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        if !sizer.first_sight(self.raw as *const u8) {
+            return 0;
+        }
+        HEADER_BYTES + size_of_val::<[u16]>(self.units())
+    }
+
     pub(crate) fn units(&self) -> &[u16] {
         if self.raw == 0 {
             return &[];
         }
-        // SAFETY: The handle owns the reconstructed Arc slice for this borrow.
-        let data = unsafe { &*self.data_pointer() };
-        &data[LENGTH_PREFIX_UNITS..]
+        let length = self.header().length as usize;
+        // SAFETY: The code units follow the header, `length` of them.
+        unsafe { ak::slice_from_raw_parts((self.raw + HEADER_BYTES) as *const u16, length) }
     }
 
     /// Copy a borrowed AK string into Rust-owned storage at the host boundary.
@@ -113,11 +134,12 @@ impl CssString {
 // An empty string is present, unlike the null handle used for an absent optional string.
 impl Default for CssString {
     fn default() -> Self {
-        static EMPTY: std::sync::OnceLock<Arc<[u16]>> = std::sync::OnceLock::new();
-        let data = EMPTY.get_or_init(|| allocate_string(&[]));
-        Self {
-            raw: Arc::into_raw(Arc::clone(data)).cast::<u16>() as usize,
-        }
+        static EMPTY: std::sync::OnceLock<CssString> = std::sync::OnceLock::new();
+        EMPTY
+            .get_or_init(|| Self {
+                raw: allocate_string(&[]),
+            })
+            .clone()
     }
 }
 
@@ -150,7 +172,8 @@ impl AsRef<[u16]> for CssString {
 impl Clone for CssString {
     fn clone(&self) -> Self {
         if self.raw != 0 {
-            unsafe { Arc::increment_strong_count(self.data_pointer()) };
+            let previous = self.header().references.fetch_add(1, Ordering::Relaxed);
+            assert!(previous < u32::MAX / 2, "CSS string reference count overflow");
         }
         Self { raw: self.raw }
     }
@@ -158,9 +181,13 @@ impl Clone for CssString {
 
 impl Drop for CssString {
     fn drop(&mut self) {
-        if self.raw != 0 {
-            unsafe { Arc::decrement_strong_count(self.data_pointer()) };
+        if self.raw == 0 || self.header().references.fetch_sub(1, Ordering::Release) != 1 {
+            return;
         }
+        std::sync::atomic::fence(Ordering::Acquire);
+        let length = self.header().length as usize;
+        // SAFETY: The last handle frees the allocation `allocate_string` made.
+        unsafe { std::alloc::dealloc(self.raw as *mut u8, layout(length)) };
     }
 }
 

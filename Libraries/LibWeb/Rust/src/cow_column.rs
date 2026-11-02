@@ -109,7 +109,49 @@ impl<T, const CHUNK: usize> Clone for ColumnSnapshot<T, CHUNK> {
     }
 }
 
+/// The bytes of the spine, groups and chunks of `spine` that `sizer` reaches for the first time,
+/// with what `row_heap` says each row of such a chunk holds.
+fn spine_heap_size<T, const CHUNK: usize>(
+    spine: &Spine<T, CHUNK>,
+    sizer: &mut crate::heap_size::HeapSizer,
+    row_heap: &mut impl FnMut(&T, &mut crate::heap_size::HeapSizer) -> usize,
+) -> usize {
+    use crate::heap_size::ARC_HEADER_BYTES;
+    if !sizer.first_sight(Arc::as_ptr(spine)) {
+        return 0;
+    }
+    let mut bytes = ARC_HEADER_BYTES + size_of_val::<[Arc<Group<T, CHUNK>>]>(spine);
+    for group in spine.iter() {
+        if !sizer.first_sight(Arc::as_ptr(group)) {
+            continue;
+        }
+        bytes += ARC_HEADER_BYTES + size_of::<Group<T, CHUNK>>();
+        for chunk in group.0.iter().flatten() {
+            if !sizer.first_sight(Arc::as_ptr(chunk)) {
+                continue;
+            }
+            // NB: The chunk's alignment pads the reference counts in front of it to a cache line.
+            bytes += size_of::<Chunk<T, CHUNK>>().max(ARC_HEADER_BYTES)
+                + align_of::<Chunk<T, CHUNK>>()
+                + chunk.0.iter().map(|row| row_heap(row, sizer)).sum::<usize>();
+        }
+    }
+    bytes
+}
+
 impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
+    /// The bytes the column holds that `sizer` reaches for the first time, with what `row_heap`
+    /// says each row holds.
+    pub(crate) fn heap_size(
+        &self,
+        sizer: &mut crate::heap_size::HeapSizer,
+        mut row_heap: impl FnMut(&T, &mut crate::heap_size::HeapSizer) -> usize,
+    ) -> usize {
+        crate::heap_size::vec_bytes(&self.chunks)
+            + crate::heap_size::vec_bytes(&self.unshared)
+            + spine_heap_size(&self.spine, sizer, &mut row_heap)
+    }
+
     const CHUNK_IS_NOT_EMPTY: () = assert!(CHUNK > 0);
 
     #[inline]
@@ -172,6 +214,11 @@ impl<T: Clone + Default, const CHUNK: usize> CowColumn<T, CHUNK> {
         }
     }
 
+    /// How many rows the column holds: whole chunks, the rows it was never asked for reading as the default.
+    pub(crate) fn len(&self) -> usize {
+        self.chunks.len() * CHUNK
+    }
+
     /// How far the column has been written. A snapshot reads as the column does for as long as the version stays what
     /// it was when the snapshot was published, whoever published since: every write advances it, except one to a chunk
     /// the column already made its own after it last published, whose first write did.
@@ -223,6 +270,16 @@ impl<T: Clone + Default + PartialEq, const CHUNK: usize> CowColumn<T, CHUNK> {
             *self.owned_row(index)? = value;
         }
         Some(())
+    }
+
+    /// Sets the row at `index` as [`Self::set`] does, answering what the row held. `None` if the column does not hold
+    /// the row.
+    pub(crate) fn replace(&mut self, index: usize, value: T) -> Option<T> {
+        self.get(index)?;
+        if self.owns_chunk_of(index) || *self.get(index)? != value {
+            return Some(std::mem::replace(self.owned_row(index)?, value));
+        }
+        Some(value)
     }
 
     /// The row at `index`, for writing. See [`RowMut`].
@@ -308,6 +365,56 @@ where
 }
 
 impl<T, const CHUNK: usize> ColumnSnapshot<T, CHUNK> {
+    /// Whether `other` is this very generation of the column: one no write came between.
+    pub(crate) fn is_same_generation_as(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.spine, &other.spine)
+    }
+
+    /// The bytes of the snapshot's chunks that `sizer` reaches for the first time, with what
+    /// `row_heap` says each row holds.
+    pub(crate) fn heap_size(
+        &self,
+        sizer: &mut crate::heap_size::HeapSizer,
+        mut row_heap: impl FnMut(&T, &mut crate::heap_size::HeapSizer) -> usize,
+    ) -> usize {
+        spine_heap_size(&self.spine, sizer, &mut row_heap)
+    }
+
+    /// The rows of the chunks this snapshot holds other than `older` does, as ranges of row indices: a chunk either
+    /// holds and the other does not, or that the two hold different allocations of. A group both share is skipped
+    /// whole, so the cost follows the chunks written between the two generations rather than the column's size.
+    pub(crate) fn changed_rows_since(&self, older: &Self) -> Vec<std::ops::Range<usize>> {
+        let mut changed = Vec::new();
+        if Arc::ptr_eq(&self.spine, &older.spine) {
+            return changed;
+        }
+        for group_index in 0..self.spine.len().max(older.spine.len()) {
+            let (group, older_group) = (self.spine.get(group_index), older.spine.get(group_index));
+            if let (Some(group), Some(older_group)) = (group, older_group)
+                && Arc::ptr_eq(group, older_group)
+            {
+                continue;
+            }
+            for chunk_in_group in 0..GROUP {
+                let chunk = group.and_then(|group| group.0[chunk_in_group].as_ref());
+                let older_chunk = older_group.and_then(|group| group.0[chunk_in_group].as_ref());
+                let same = match (chunk, older_chunk) {
+                    (Some(chunk), Some(older_chunk)) => Arc::ptr_eq(chunk, older_chunk),
+                    (None, None) => true,
+                    _ => false,
+                };
+                if !same {
+                    let start = (group_index * GROUP + chunk_in_group) * CHUNK;
+                    match changed.last_mut() {
+                        Some(last) if last.end == start => last.end = start + CHUNK,
+                        _ => changed.push(start..start + CHUNK),
+                    }
+                }
+            }
+        }
+        changed
+    }
+
     /// How many rows the snapshot has room for: every row index below it may be read.
     pub(crate) fn slot_capacity(&self) -> usize {
         self.spine.last().map_or(0, |last| {
@@ -341,6 +448,104 @@ const _: () = {
     assert_send_and_sync::<CowColumn<u64, 64>>();
     assert_send_and_sync::<ColumnSnapshot<u64, 64>>();
 };
+
+/// A vector whose fork shares its storage, as a [`CowColumn`]'s does: cloning it costs a reference count per chunk,
+/// and each side copies a chunk the other shares the first time it writes there. Rows past `len` read as the default
+/// and are reset to it before the vector grows over them again.
+pub(crate) struct CowVec<T, const CHUNK: usize> {
+    column: CowColumn<T, CHUNK>,
+    len: usize,
+}
+
+impl<T, const CHUNK: usize> Default for CowVec<T, CHUNK> {
+    fn default() -> Self {
+        Self {
+            column: CowColumn::default(),
+            len: 0,
+        }
+    }
+}
+
+impl<T: Clone + Default, const CHUNK: usize> Clone for CowVec<T, CHUNK> {
+    fn clone(&self) -> Self {
+        Self {
+            column: self.column.clone(),
+            len: self.len,
+        }
+    }
+}
+
+impl<T: Clone + Default, const CHUNK: usize> CowVec<T, CHUNK> {
+    pub(crate) fn len(&self) -> usize {
+        self.len
+    }
+
+    /// The bytes the vector holds that `sizer` reaches for the first time, with what `row_heap` says each row holds.
+    pub(crate) fn heap_size(
+        &self,
+        sizer: &mut crate::heap_size::HeapSizer,
+        row_heap: impl FnMut(&T, &mut crate::heap_size::HeapSizer) -> usize,
+    ) -> usize {
+        self.column.heap_size(sizer, row_heap)
+    }
+
+    /// Every row, in order.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
+        (0..self.len).filter_map(|index| self.column.get(index))
+    }
+
+    #[inline]
+    pub(crate) fn get(&self, index: usize) -> Option<&T> {
+        if index >= self.len {
+            return None;
+        }
+        self.column.get(index)
+    }
+
+    /// The row at `index`, for writing, copying its chunk where a fork shares it.
+    #[inline]
+    pub(crate) fn get_mut(&mut self, index: usize) -> Option<&mut T> {
+        if index >= self.len {
+            return None;
+        }
+        self.column.owned_row(index)
+    }
+
+    pub(crate) fn push(&mut self, value: T) {
+        let index = self.len;
+        self.resize_with_default(index + 1);
+        self[index] = value;
+    }
+
+    /// Grows the vector to `len` rows, the new ones default, or truncates it to them.
+    pub(crate) fn resize_with_default(&mut self, len: usize) {
+        if len < self.len {
+            for index in len..self.len {
+                if self.column.get(index).is_some() {
+                    *self.column.owned_row(index).expect("the row is in the column") = T::default();
+                }
+            }
+        }
+        self.column.grow_to(len);
+        self.len = len;
+    }
+}
+
+impl<T: Clone + Default, const CHUNK: usize> std::ops::Index<usize> for CowVec<T, CHUNK> {
+    type Output = T;
+
+    #[inline]
+    fn index(&self, index: usize) -> &T {
+        self.get(index).expect("index within the vector")
+    }
+}
+
+impl<T: Clone + Default, const CHUNK: usize> std::ops::IndexMut<usize> for CowVec<T, CHUNK> {
+    #[inline]
+    fn index_mut(&mut self, index: usize) -> &mut T {
+        self.get_mut(index).expect("index within the vector")
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -412,6 +617,21 @@ mod tests {
         assert_eq!(rows(&first, 6), [1, 2, 3, 4, 5, 6]);
         assert_eq!(rows(&second, 7), [1, 20, 3, 4, 5, 6, 7]);
         assert_eq!(rows(&column.publish(), 7), [1, 20, 3, 4, 5, 60, 7]);
+    }
+
+    #[test]
+    fn a_snapshot_names_the_rows_of_the_chunks_written_since_an_older_one() {
+        let mut column = column_of(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        let first = column.publish();
+        assert!(column.publish().changed_rows_since(&first).is_empty());
+        set(&mut column, 5, 60);
+        set(&mut column, 9, 90);
+        column.grow_to(13);
+        let second = column.publish();
+        assert_eq!(second.changed_rows_since(&first), [4..16]);
+        set(&mut column, 1, 20);
+        assert_eq!(column.publish().changed_rows_since(&second), [0..4]);
+        assert_eq!(first.changed_rows_since(&ColumnSnapshot::default()), [0..12]);
     }
 
     #[test]
