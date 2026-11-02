@@ -647,9 +647,9 @@ mod native {
     use libwasm_jit::convention::Place;
     use libwasm_jit::stubs::NativeCall;
     use libwasm_jit::{CompileContext, CompileRequest, CompiledFunction, RuntimeInfo};
-    use std::collections::{HashMap, HashSet};
+    use std::collections::{HashMap, HashSet, VecDeque};
     use std::sync::mpsc::{Receiver, Sender, channel};
-    use std::sync::{Arc, Mutex, OnceLock, Weak};
+    use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 
     /// The code the process's stores share.
     pub struct Stubs {
@@ -1061,34 +1061,96 @@ mod native {
         reply: Sender<Finished>,
     }
 
+    /// How long a compile thread waits for another job before it gives up the memory its compiles used.
+    const IDLE_MEMORY_RELEASE_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+
+    struct SharedJobs {
+        queue: Mutex<VecDeque<Job>>,
+        job_available: Condvar,
+    }
+
+    enum NextJob {
+        Job(Job),
+        Idle,
+    }
+
+    impl SharedJobs {
+        fn add(&self, job: Job) {
+            self.queue
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner())
+                .push_back(job);
+            self.job_available.notify_one();
+        }
+
+        // NB: A shared channel would not do: the thread waiting on it holds the lock that the other threads need to
+        //     start their own idle waits.
+        fn next(&self, released_memory_since_last_job: bool) -> NextJob {
+            let mut queue = self.queue.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+            loop {
+                if let Some(job) = queue.pop_front() {
+                    return NextJob::Job(job);
+                }
+                if released_memory_since_last_job {
+                    queue = self
+                        .job_available
+                        .wait(queue)
+                        .unwrap_or_else(|poisoned| poisoned.into_inner());
+                    continue;
+                }
+                let (next_queue, wait) = self
+                    .job_available
+                    .wait_timeout(queue, IDLE_MEMORY_RELEASE_DELAY)
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                queue = next_queue;
+                if wait.timed_out() && queue.is_empty() {
+                    return NextJob::Idle;
+                }
+            }
+        }
+    }
+
     /// The process's compile threads, which every store sends its compiles to. Each thread takes the oldest job no
     /// other thread took yet, so jobs finish in any order.
     struct CompileThreads {
-        jobs: Mutex<Sender<Job>>,
+        jobs: Arc<SharedJobs>,
     }
 
     fn compile_threads() -> &'static CompileThreads {
         static THREADS: OnceLock<CompileThreads> = OnceLock::new();
         THREADS.get_or_init(|| {
-            let (jobs, receiver) = channel::<Job>();
-            let receiver = Arc::new(Mutex::new(receiver));
+            let jobs = Arc::new(SharedJobs {
+                queue: Mutex::new(VecDeque::new()),
+                job_available: Condvar::new(),
+            });
             let count = match super::options().threads {
                 0 => std::thread::available_parallelism().map_or(1, |cores| cores.get().saturating_sub(1).max(1)),
                 count => count as usize,
             };
             for index in 0..count {
-                let receiver = Arc::clone(&receiver);
+                let jobs = Arc::clone(&jobs);
                 let spawned = std::thread::Builder::new()
                     .name("LibWasm JIT".to_string())
                     .spawn(move || {
                         let mut context = CompileContext::default();
+                        let mut released_memory_since_last_job = true;
                         loop {
-                            // NB: The lock is held only while waiting for a job, so the other threads compile
-                            //     meanwhile.
-                            let job = receiver.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).recv();
-                            let Ok(job) = job else {
-                                return;
+                            let job = match jobs.next(released_memory_since_last_job) {
+                                NextJob::Job(job) => job,
+                                NextJob::Idle => {
+                                    // NB: The context keeps its storage at the size of the largest function it
+                                    //     compiled, for the next compile to reuse. The allocator then keeps what this
+                                    //     thread freed until the thread allocates again, which an idle thread may never
+                                    //     do.
+                                    context = CompileContext::default();
+                                    // NB: Standalone Rust tests do not link the C++ allocator this calls into.
+                                    #[cfg(feature = "allocator")]
+                                    ak::release_unused_allocator_memory();
+                                    released_memory_since_last_job = true;
+                                    continue;
+                                }
                             };
+                            released_memory_since_last_job = false;
                             let code = compile(&mut context, &job.request);
                             // NB: The store may be gone, and its results with it.
                             let _ = job.reply.send(Finished {
@@ -1105,7 +1167,7 @@ mod native {
                     break;
                 }
             }
-            CompileThreads { jobs: Mutex::new(jobs) }
+            CompileThreads { jobs }
         })
     }
 
@@ -1314,12 +1376,7 @@ mod native {
                 request,
                 reply: reply.clone(),
             };
-            compile_threads()
-                .jobs
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .send(job)
-                .expect("the compile threads run while the process does");
+            compile_threads().jobs.add(job);
         }
 
         /// Installs what the compile threads finished; with `wait`, waits for every pending compile first.
