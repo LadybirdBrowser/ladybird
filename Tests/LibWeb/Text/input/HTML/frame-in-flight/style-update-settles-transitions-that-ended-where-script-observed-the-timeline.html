@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #compositor {
+        width: 50px;
+        height: 50px;
+        background: green;
+    }
+    .hidden #drawer {
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 20ms, visibility 20ms;
+    }
+    .hidden #menu > li {
+        transition: all 20ms;
+    }
+    .hidden #menu > li > a, .hidden #menu > li > ul > li > a {
+        display: inline-block;
+        padding: 10px;
+        transition: all 20ms;
+    }
+    .hidden #menu > li > ul {
+        opacity: 0;
+        transition: all 20ms;
+    }
+    .hidden button::before {
+        content: "";
+        transition: all 20ms;
+    }
+</style>
+<div id="compositor"></div>
+<div id="other">text</div>
+<div id="drawer">
+    <ul id="menu"><li><a href="#">one</a><button></button><ul><li><a href="#">two</a></li></ul></li></ul>
+</div>
+<script>
+    // The transitions run in the last rendering update and have ended by the time script observes the timeline, ahead of
+    // that update as an animation runs on the compositor. A forced sample at that time ends them, and each record it has
+    // the style update install is sampled over. Where that sample read the time of the rendering update, the transitions
+    // ran again, which flipped the visibility of their elements and started transitions of the pseudo-elements, which
+    // asked for another forced sample, on alternate passes until the stabilization bound failed.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const frame = async time => {
+            internals.injectRenderingOpportunity(time);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle");
+        };
+        compositor.animate({ opacity: [0, 1] }, { duration: 100000 });
+        const start = performance.now();
+        document.documentElement.classList.add("hidden");
+        await frame(start);
+        await frame(start + 5);
+        while (performance.now() < start + 50) await nextTask();
+
+        document.getAnimations();
+        println(`timeline ahead of the end of the transitions: ${document.timeline.currentTime > start + 25}`);
+        other.style.marginTop = "1px";
+        println(`scroll width: ${menu.scrollWidth > 0}`);
+        println(`visibility: ${getComputedStyle(menu).visibility}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

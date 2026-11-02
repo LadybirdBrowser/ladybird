@@ -1,0 +1,3 @@
+timeline ahead of the end of the transitions: true
+scroll width: true
+visibility: hidden
