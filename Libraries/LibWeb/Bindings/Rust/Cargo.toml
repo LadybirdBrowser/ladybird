@@ -24,6 +24,7 @@ ladybird_allocator = { path = "../../../RustAllocator", optional = true }
 libcompositing_rust = { path = "../../../LibCompositing/Rust" }
 libcompress_rust = { path = "../../../LibCompress/Rust" }
 libgfx_rust = { path = "../../../LibGfx/Rust", default-features = false }
+libhttp_rust = { path = "../../../LibHTTP/Rust" }
 libjs_rust = { path = "../../../LibJS/Rust", default-features = false }
 libtextcodec_rust = { path = "../../../LibTextCodec/Rust" }
 libunicode_rust = { path = "../../../LibUnicode/Rust", default-features = false }

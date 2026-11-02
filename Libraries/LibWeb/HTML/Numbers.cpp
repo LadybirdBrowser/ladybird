@@ -460,4 +460,19 @@ WebIDL::ExceptionOr<String> convert_non_negative_integer_to_string(WebIDL::Long 
     return String::number(value);
 }
 
+extern "C" {
+
+// Called from Bindings/Rust/src/html/numbers.rs.
+bool web_html_parse_floating_point_number(ReadonlyBytes string, double* value);
+}
+
+bool web_html_parse_floating_point_number(ReadonlyBytes string, double* value)
+{
+    auto result = parse_floating_point_number(Utf16String::from_utf8(StringView { string }));
+    if (!result.has_value())
+        return false;
+    *value = *result;
+    return true;
+}
+
 }
