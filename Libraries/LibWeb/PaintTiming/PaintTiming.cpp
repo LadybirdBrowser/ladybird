@@ -144,8 +144,6 @@ static bool is_contentful(Layout::Node const& node)
     if (!node_with_style)
         return false;
 
-    auto const* dom_node = node.dom_node();
-
     switch (node.kind()) {
     // - target is a replaced element representing an available image.
     case Layout::RustFFI::NodeKind::ImageBox:
@@ -157,13 +155,13 @@ static bool is_contentful(Layout::Node const& node)
     }
     // - target is a canvas with its context mode set to any value other than none.
     case Layout::RustFFI::NodeKind::CanvasBox:
-        if (auto const* canvas = as_if<HTML::HTMLCanvasElement>(dom_node); canvas && !canvas->context().has<Empty>())
+        if (auto const* canvas = as_if<HTML::HTMLCanvasElement>(node.dom_node()); canvas && !canvas->context().has<Empty>())
             return true;
         break;
     // - target is a video element that represents its poster frame or the first video frame and the frame is
     //   available.
     case Layout::RustFFI::NodeKind::VideoBox:
-        if (auto const* video = as_if<HTML::HTMLVideoElement>(dom_node)) {
+        if (auto const* video = as_if<HTML::HTMLVideoElement>(node.dom_node())) {
             auto representation = video->current_representation();
             if (representation == HTML::HTMLVideoElement::Representation::PosterFrame && video->poster_frame().has_value())
                 return true;
@@ -179,7 +177,7 @@ static bool is_contentful(Layout::Node const& node)
     // - target is an input element with a non-empty value attribute.
     // NB: The value is what the control renders, which the value attribute only provides the default for.
     case Layout::RustFFI::NodeKind::TextInputBox:
-        if (auto const* input = as_if<HTML::HTMLInputElement>(dom_node)) {
+        if (auto const* input = as_if<HTML::HTMLInputElement>(node.dom_node())) {
             auto value = input->value();
             if (is_non_empty(value.utf16_view()))
                 return true;
