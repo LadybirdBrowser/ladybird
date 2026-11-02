@@ -89,6 +89,8 @@ pub(crate) struct ClockPlan {
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct FfiPlannedScrollTimeline {
+    /// The identity the host gave the timeline.
+    pub timeline: u64,
     /// The unique node id of the element whose scroll node the timeline follows, or of the document for its viewport,
     /// and whether along the vertical axis.
     pub scroller: i64,
@@ -118,6 +120,8 @@ impl ClockPlan {
         round: ClockRound,
         hover: Option<hover::HoverPlan>,
     ) -> Self {
+        let mut scroll_timelines = scroll_timelines;
+        scroll_timelines.sort_unstable_by_key(|timeline| timeline.timeline);
         Self {
             elements,
             time_origin,
@@ -129,8 +133,8 @@ impl ClockPlan {
         }
     }
 
-    /// The progress of the scroll timelines where `scroll_offsets` scrolled their scrollers to, or where the host laid
-    /// out those it has none for.
+    /// The progress of the scroll timelines, sorted by timeline, where `scroll_offsets` scrolled their scrollers to, or
+    /// where the host laid out those it has none for.
     fn scroll_progress(&self, scroll_offsets: &[FfiScrollOffset]) -> SmallVec<[ScrollProgress; 2]> {
         self.scroll_timelines
             .iter()
@@ -143,8 +147,7 @@ impl ClockPlan {
                         position / timeline.max_scroll_offset * 100.0
                     });
                 ScrollProgress {
-                    scroller: timeline.scroller,
-                    vertical: timeline.vertical,
+                    timeline: timeline.timeline,
                     progress,
                 }
             })

@@ -61,6 +61,9 @@ public:
     };
     Optional<FollowedScroller> const& followed_scroller() const { return m_followed_scroller; }
 
+    // What names the timeline to the render clock, whose ticks sample its animations.
+    u64 clock_identity() const { return m_clock_identity; }
+
     virtual bool is_progress_based() const override { return true; }
     virtual AttachmentInterval interval_for_attachment_range(AnimationAttachmentRange const&) const override;
 
@@ -102,6 +105,7 @@ private:
 
     Optional<double> m_last_max_scroll_offset;
     Optional<FollowedScroller> m_followed_scroller;
+    u64 m_clock_identity { 0 };
 };
 
 ScrollAxis scroll_axis_from_css_axis(CSS::Axis);

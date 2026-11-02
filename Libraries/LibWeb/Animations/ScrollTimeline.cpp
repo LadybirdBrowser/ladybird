@@ -248,6 +248,8 @@ ScrollTimeline::ScrollTimeline(DOM::Document& document, Source source, ScrollAxi
     , m_source(source)
     , m_axis(axis)
 {
+    static u64 s_next_clock_identity = 1;
+    m_clock_identity = s_next_clock_identity++;
 }
 
 void ScrollTimeline::visit_edges(GC::Cell::Visitor& visitor)

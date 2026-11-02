@@ -610,13 +610,11 @@ ComputedValuesFFI::FfiEffectTiming style_engine_effect_timing(Animations::Keyfra
             timing.has_timeline_origin_time = origin_time.has_value();
             timing.timeline_origin_time = origin_time.value_or(0);
         }
-        // A scroll timeline's time is the scroll progress of the scroller it follows, which is what lets a clock tick
-        // sample it where the compositor has scrolled to.
+        // A scroll timeline's time is the progress of the scroller it follows, which is what lets a clock tick sample
+        // it where the compositor has scrolled to.
         if (auto const* scroll_timeline = as_if<Animations::ScrollTimeline>(*timeline); scroll_timeline && scroll_timeline->followed_scroller().has_value()) {
-            auto const& scroller = *scroll_timeline->followed_scroller();
             timing.has_timeline_scroller = true;
-            timing.timeline_scroller_is_vertical = scroller.vertical;
-            timing.timeline_scroller = scroller.scroll_node.node_id.value();
+            timing.scroll_timeline = scroll_timeline->clock_identity();
         }
         if (auto minimum = timeline->minimum_timeline_time(), maximum = timeline->maximum_timeline_time(); minimum.has_value() && maximum.has_value()) {
             timing.has_timeline_boundaries = true;

@@ -395,18 +395,16 @@ pub(crate) struct AnimationTimelineSamples<'a> {
     scroll_progress: &'a [ScrollProgress],
 }
 
-/// The scroll progress, in percent, of the scroll node of an element or of a document's viewport, by its
-/// unique node id, along one axis: the time of a scroll timeline that follows it.
+/// The progress, in percent, of a scroll timeline, which is its time, by the identity the host gave the timeline.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ScrollProgress {
-    pub(crate) scroller: i64,
-    pub(crate) vertical: bool,
+    pub(crate) timeline: u64,
     pub(crate) progress: f64,
 }
 
 impl<'a> AnimationTimelineSamples<'a> {
     /// The times a clock tick at `timestamp` samples at, which moves every document timeline: a timestamp less its
-    /// timeline's origin time, and every scroll timeline that follows a scroller in `scroll_progress` to its progress
+    /// timeline's origin time, and every scroll timeline in `scroll_progress`, sorted by timeline, to its progress
     /// there. No other timeline is sampled with it.
     #[must_use]
     pub(crate) fn at_tick(timestamp: f64, scroll_progress: &'a [ScrollProgress]) -> Self {
@@ -423,12 +421,9 @@ impl<'a> AnimationTimelineSamples<'a> {
             None => Some(timing.has_timeline_time.then_some(timing.timeline_time)),
             Some(_) if timing.has_timeline_scroller => self
                 .scroll_progress
-                .iter()
-                .find(|scroll| {
-                    scroll.scroller == timing.timeline_scroller
-                        && scroll.vertical == timing.timeline_scroller_is_vertical
-                })
-                .map(|scroll| Some(scroll.progress)),
+                .binary_search_by_key(&timing.scroll_timeline, |scroll| scroll.timeline)
+                .ok()
+                .map(|index| Some(self.scroll_progress[index].progress)),
             Some(timestamp) => timing
                 .has_timeline_origin_time
                 .then_some(Some(timestamp - timing.timeline_origin_time)),
@@ -851,8 +846,7 @@ mod tests {
             timing: FfiEffectTiming {
                 has_timeline_origin_time: false,
                 has_timeline_scroller: true,
-                timeline_scroller_is_vertical: true,
-                timeline_scroller: 7,
+                scroll_timeline: 7,
                 has_timeline_boundaries: false,
                 minimum_timeline_time: 0.0,
                 maximum_timeline_time: 0.0,
@@ -861,10 +855,9 @@ mod tests {
             },
             ..timing_at(25.0)
         };
-        let scrolled = |vertical| {
+        let scrolled = |timeline| {
             [ScrollProgress {
-                scroller: 7,
-                vertical,
+                timeline,
                 progress: 60.0,
             }]
         };
@@ -874,13 +867,13 @@ mod tests {
             "where the host sampled it"
         );
         assert_eq!(
-            on_scroll_timeline.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(true))),
+            on_scroll_timeline.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(7))),
             Some(Some(60_000.0))
         );
         assert_eq!(
-            on_scroll_timeline.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(false))),
+            on_scroll_timeline.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(8))),
             None,
-            "a tick that has no progress for its scroller does not move it"
+            "a tick that has no progress for its timeline does not move it"
         );
         let finished = EffectTiming {
             timing: FfiEffectTiming {
@@ -892,7 +885,7 @@ mod tests {
             ..on_scroll_timeline
         };
         assert_eq!(
-            finished.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(true))),
+            finished.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(7))),
             Some(Some(60_000.0)),
             "a finished animation runs again as a tick scrolls back before its end"
         );
@@ -905,7 +898,7 @@ mod tests {
             ..finished
         };
         assert_eq!(
-            paused.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(true))),
+            paused.key_at(AnimationTimelineSamples::at_tick(1000.0, &scrolled(7))),
             Some(Some(40_000.0)),
             "a paused animation holds"
         );
