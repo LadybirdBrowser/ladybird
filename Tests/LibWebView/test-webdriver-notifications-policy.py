@@ -21,13 +21,9 @@ def run_browser(webdriver_binary, settings, check):
         config.mkdir()
         settings_file = config / "Settings.json"
         settings_file.write_text(json.dumps(settings))
-        port = helpers["unused_port"]()
-        process = subprocess.Popen(
-            [webdriver_binary, "--headless", "-l", "127.0.0.1", "-p", str(port), "--profile-path", directory]
-        )
+        process, port = helpers["launch_webdriver"](webdriver_binary, "--headless", "--profile-path", directory)
         session = None
         try:
-            helpers["wait_for_port"](port)
             session = helpers["create_session"](port)
 
             def command(path, body=None, method="POST"):
