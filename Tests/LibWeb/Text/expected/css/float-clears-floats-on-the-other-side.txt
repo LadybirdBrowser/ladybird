@@ -1,0 +1,3 @@
+clears-left: 50px below the top of its container
+clears-right: 50px below the top of its container
+clears-both: 50px below the top of its container
