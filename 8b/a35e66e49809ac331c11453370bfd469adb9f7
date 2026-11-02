@@ -1,0 +1,10 @@
+Ladybird fires no select event when an edit or the value setter moves
+the cursor in a text control, and fires one when setSelectionRange(),
+select() or setRangeText() changes the selection, collapsed or not.
+Blink, WebKit and Gecko do the same. Blink schedules select from
+TextControlElement::setSelectionRangeForBinding() when the cached
+selection changes; WebKit schedules it from HTMLTextFormControlElement::
+setSelectionRange() and setRangeText(), through scheduleSelectEvent();
+and Gecko, in SelectionChangeEventDispatcher::OnSelectionChange(), for
+selection changes with JS_REASON. Neither editing commands nor the value
+setter go through any of those.
