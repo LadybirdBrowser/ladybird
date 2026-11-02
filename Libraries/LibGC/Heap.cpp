@@ -647,51 +647,9 @@ public:
 
             auto node = AK::JsonObject();
             if (it.value.root_origin.has_value()) {
-                auto type = it.value.root_origin->type;
-                auto const* location = it.value.root_origin->location;
-                switch (type) {
-                case HeapRoot::Type::ConservativeHashMap:
-                    node.set("root"sv, "ConservativeHashMap"sv);
-                    break;
-                case HeapRoot::Type::ConservativeHashTable:
-                    node.set("root"sv, "ConservativeHashTable"sv);
-                    break;
-                case HeapRoot::Type::ConservativeVector:
-                    node.set("root"sv, "ConservativeVector"sv);
-                    break;
-                case HeapRoot::Type::CrossHeapMember:
-                    node.set("root"sv, "CrossHeapMember"sv);
-                    break;
-                case HeapRoot::Type::HeapFunctionCapturedPointer:
-                    node.set("root"sv, "HeapFunctionCapturedPointer"sv);
-                    break;
-                case HeapRoot::Type::Root:
-                    node.set("root"sv, MUST(String::formatted("Root {} {}:{}", location->function_name(), location->filename(), location->line_number())));
-                    break;
-                case HeapRoot::Type::RootVector:
-                    node.set("root"sv, "RootVector"sv);
-                    break;
-                case HeapRoot::Type::RootHashMap:
-                    node.set("root"sv, "RootHashMap"sv);
-                    break;
-                case HeapRoot::Type::RootHashTable:
-                    node.set("root"sv, "RootHashTable"sv);
-                    break;
-                case HeapRoot::Type::RegisterPointer:
-                    node.set("root"sv, "RegisterPointer"sv);
-                    if (it.value.root_origin->stack_frame_index.has_value())
-                        node.set("stack_frame_index"sv, it.value.root_origin->stack_frame_index.value());
-                    break;
-                case HeapRoot::Type::StackPointer:
-                    node.set("root"sv, "StackPointer"sv);
-                    if (it.value.root_origin->stack_frame_index.has_value())
-                        node.set("stack_frame_index"sv, it.value.root_origin->stack_frame_index.value());
-                    break;
-                case HeapRoot::Type::VM:
-                    node.set("root"sv, "VM"sv);
-                    break;
-                }
-                VERIFY(node.has("root"sv));
+                node.set("root"sv, Heap::describe_root(*it.value.root_origin));
+                if (it.value.root_origin->stack_frame_index.has_value())
+                    node.set("stack_frame_index"sv, it.value.root_origin->stack_frame_index.value());
             }
             node.set("class_name"sv, it.value.class_name);
             node.set("edges"sv, edges);
@@ -761,6 +719,153 @@ AK::JsonObject Heap::build_graph(ReadonlySpan<FlatPtr> callee_saved_registers)
     }
 
     return graph;
+}
+
+String Heap::describe_root(HeapRoot const& root)
+{
+    switch (root.type) {
+    case HeapRoot::Type::ConservativeHashMap:
+        return "ConservativeHashMap"_string;
+    case HeapRoot::Type::ConservativeHashTable:
+        return "ConservativeHashTable"_string;
+    case HeapRoot::Type::ConservativeVector:
+        return "ConservativeVector"_string;
+    case HeapRoot::Type::CrossHeapMember:
+        return "CrossHeapMember"_string;
+    case HeapRoot::Type::HeapFunctionCapturedPointer:
+        return "HeapFunctionCapturedPointer"_string;
+    case HeapRoot::Type::Root:
+        return MUST(String::formatted("Root {} {}:{}", root.location->function_name(), root.location->filename(), root.location->line_number()));
+    case HeapRoot::Type::RootVector:
+        return "RootVector"_string;
+    case HeapRoot::Type::RootHashMap:
+        return "RootHashMap"_string;
+    case HeapRoot::Type::RootHashTable:
+        return "RootHashTable"_string;
+    case HeapRoot::Type::RegisterPointer:
+        return "RegisterPointer"_string;
+    case HeapRoot::Type::StackPointer:
+        return "StackPointer"_string;
+    case HeapRoot::Type::VM:
+        return "VM"_string;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+// Visits every reachable cell breadth first, so the parent it records for each is on a shortest path from a root.
+class RetainingPathVisitor final : public Cell::Visitor {
+public:
+    struct Node {
+        Cell* parent { nullptr };
+        Heap::RetainingEdgeKind edge_kind { Heap::RetainingEdgeKind::Precise };
+    };
+
+    RetainingPathVisitor(Heap& heap, HashMap<Cell*, HeapRoot> const& roots)
+        : m_heap(heap)
+        , m_possible_pointer_bounds(PossiblePointerBounds::current())
+    {
+        m_queue.ensure_capacity(roots.size());
+        for (auto& [root, root_origin] : roots) {
+            m_nodes.set(root, {});
+            m_queue.append(*root);
+        }
+    }
+
+    virtual void visit_impl(Cell& cell) override
+    {
+        reach(cell, Heap::RetainingEdgeKind::Precise);
+    }
+
+    virtual void visit_impl(ReadonlySpan<NanBoxedValue> values) override
+    {
+        for (auto const& value : values)
+            visit(value);
+    }
+
+    virtual void visit_possible_values(ReadonlyBytes bytes) override
+    {
+        PossiblePointers possible_pointers;
+        add_possible_captured_values(possible_pointers, bytes, m_possible_pointer_bounds);
+        for_each_cell_among_possible_pointers(m_heap.m_live_heap_blocks, possible_pointers, [&](Cell* cell, auto& candidates, FlatPtr) {
+            if (cell->state() != Cell::State::Live)
+                return;
+            reach(*cell, &candidates == &possible_pointers.compressed_pointers ? Heap::RetainingEdgeKind::ConservativeHalf : Heap::RetainingEdgeKind::ConservativeWord);
+        });
+    }
+
+    void visit_all_cells()
+    {
+        for (size_t i = 0; i < m_queue.size(); ++i) {
+            m_cell_being_visited = m_queue[i].ptr();
+            if (m_cell_being_visited->state() == Cell::State::Live)
+                m_cell_being_visited->type_info().visit_edges(m_cell_being_visited, this);
+        }
+        m_cell_being_visited = nullptr;
+    }
+
+    ReadonlySpan<Ref<Cell>> cells() const { return m_queue; }
+    Node const& node(Cell& cell) const { return *m_nodes.get(&cell); }
+
+private:
+    void reach(Cell& cell, Heap::RetainingEdgeKind edge_kind)
+    {
+        if (m_nodes.contains(&cell))
+            return;
+        m_nodes.set(&cell, { m_cell_being_visited, edge_kind });
+        m_queue.append(cell);
+    }
+
+    Heap& m_heap;
+    PossiblePointerBounds m_possible_pointer_bounds;
+    HashMap<Cell*, Node> m_nodes;
+    Vector<Ref<Cell>> m_queue;
+    Cell* m_cell_being_visited { nullptr };
+};
+
+NO_SANITIZE_ADDRESS Vector<Heap::RetainingPath> Heap::find_retaining_paths(AK::Function<bool(Cell&)> const& is_target, size_t max_paths)
+{
+    jmp_buf registers;
+    setjmp(registers);
+    ReadonlySpan<FlatPtr> captured_registers { reinterpret_cast<FlatPtr const*>(registers), sizeof(jmp_buf) / (sizeof(FlatPtr)) };
+    return build_retaining_paths(captured_registers, is_target, max_paths);
+}
+
+Vector<Heap::RetainingPath> Heap::build_retaining_paths(ReadonlySpan<FlatPtr> callee_saved_registers, AK::Function<bool(Cell&)> const& is_target, size_t max_paths)
+{
+    ConservativeScanOrigin origin {
+        .stack_floor = bit_cast<FlatPtr>(__builtin_frame_address(0)),
+        .callee_saved_registers = callee_saved_registers,
+    };
+
+    // NB: See build_graph(), which needs a stable heap for the same reasons.
+    finish_pending_incremental_sweep();
+    give_back_local_free_lists();
+
+    HashMap<Cell*, HeapRoot> roots;
+    gather_roots(origin, roots);
+    RetainingPathVisitor visitor(*this, roots);
+    visitor.visit_all_cells();
+
+    Vector<RetainingPath> paths;
+    for (auto const& cell : visitor.cells()) {
+        if (paths.size() >= max_paths)
+            break;
+        if (cell->state() != Cell::State::Live || !is_target(*cell))
+            continue;
+
+        Vector<Cell*> path_cells;
+        for (Cell* step = cell.ptr(); step; step = visitor.node(*step).parent)
+            path_cells.append(step);
+
+        RetainingPath path { .root = *roots.get(path_cells.last()), .steps = {} };
+        path.steps.ensure_capacity(path_cells.size());
+        for (size_t i = path_cells.size(); i > 0; --i) {
+            auto& step = *path_cells[i - 1];
+            path.steps.unchecked_append({ class_name_of(step), visitor.node(step).edge_kind });
+        }
+        paths.append(move(path));
+    }
+    return paths;
 }
 
 // This must run before any finalizer, so that no finalizer can reach a dead cell through a weak pointer. Finalizers run
