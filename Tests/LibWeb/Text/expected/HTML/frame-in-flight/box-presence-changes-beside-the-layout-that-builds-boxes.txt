@@ -1,0 +1,19 @@
+flow read shown, hidden and shown: 10
+flow read shown, then hidden: 0
+flow read appended, sibling shown: 20
+flow unread shown, hidden and shown: 10
+flow unread shown, then hidden: 0
+flow unread appended, sibling shown: 20
+flex read shown, hidden and shown: 10
+flex read shown, then hidden: 0
+flex read appended, sibling shown: 20
+flex unread shown, hidden and shown: 10
+flex unread shown, then hidden: 0
+flex unread appended, sibling shown: 20
+empty read shown, hidden and shown: 10
+empty read shown, then hidden: 0
+empty read appended, sibling shown: 20
+empty unread shown, hidden and shown: 10
+empty unread shown, then hidden: 0
+empty unread appended, sibling shown: 20
+differences from a cold pass: 0

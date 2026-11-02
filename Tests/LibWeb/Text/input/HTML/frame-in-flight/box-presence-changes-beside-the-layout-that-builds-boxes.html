@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .row { height: 10px; }
+    .hidden { display: none; }
+</style>
+<div id="flow"><div class="row"></div></div>
+<div id="flex" style="display: flex; flex-direction: column"></div>
+<div id="empty"></div>
+<script>
+    // Each shows or hides a box while the layout that builds it is in flight, by a style change that a read then
+    // applies with the layout in flight or just after it. The heights say how many boxes each parent has.
+    const flight = async (mutate, during) => {
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            mutate();
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        during();
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        await twoFramesLanded();
+    };
+    const row = hidden => {
+        const element = document.createElement("div");
+        element.className = hidden ? "row hidden" : "row";
+        return element;
+    };
+    const parents = [["flow", flow], ["flex", flex], ["empty", empty]];
+    asyncTest(async done => {
+        for (const [name, parent] of parents) {
+            for (const [label, read] of [["read", element => getComputedStyle(element).display], ["unread", () => {}]]) {
+                const base = parent.offsetHeight;
+                const shown = row(true);
+                parent.append(shown);
+                await twoFramesLanded();
+                // Shown by the frame in flight, hidden and shown again beside it.
+                await flight(() => shown.classList.remove("hidden"), () => {
+                    shown.classList.add("hidden");
+                    read(shown);
+                    shown.classList.remove("hidden");
+                    read(shown);
+                });
+                println(`${name} ${label} shown, hidden and shown: ${parent.offsetHeight - base}`);
+                shown.remove();
+                await twoFramesLanded();
+
+                // Shown by the frame in flight, hidden beside it.
+                const hidden = row(true);
+                parent.append(hidden);
+                await twoFramesLanded();
+                await flight(() => hidden.classList.remove("hidden"), () => {
+                    hidden.classList.add("hidden");
+                    read(hidden);
+                });
+                println(`${name} ${label} shown, then hidden: ${parent.offsetHeight - base}`);
+                hidden.remove();
+                await twoFramesLanded();
+
+                // Appended for the frame in flight, its sibling shown beside it.
+                const built = row(false);
+                const sibling = row(true);
+                parent.append(sibling);
+                await twoFramesLanded();
+                await flight(() => parent.append(built), () => {
+                    sibling.classList.remove("hidden");
+                    read(sibling);
+                });
+                println(`${name} ${label} appended, sibling shown: ${parent.offsetHeight - base}`);
+                built.remove();
+                sibling.remove();
+                await twoFramesLanded();
+            }
+        }
+        println(`differences from a cold pass: ${internals.styleColdPass().differences}`);
+        done();
+    });
+</script>
