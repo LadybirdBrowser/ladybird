@@ -201,14 +201,23 @@ fn rope_template(vm: &Vm) -> Vec<u64> {
     words
 }
 
-/// The size class of function environments with room for `binding_count` binding values in their cells, as
-/// `FunctionEnvironmentFreeLists` numbers them: 0 for none, and the inline binding size class plus one otherwise.
-fn function_environment_size_class(binding_count: usize) -> Option<usize> {
-    match inline_binding_size_class(binding_count) {
-        Some(size_class) => Some(size_class + 1),
-        None if binding_count == 0 => Some(0),
-        None => None,
-    }
+/// The size class of the environments of calls with room for `binding_count` binding values in their cells, as
+/// `FunctionEnvironmentFreeLists` numbers them: 0 for none, and the inline binding size class plus one otherwise, past
+/// DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES for declarative environments.
+fn function_environment_size_class(has_function_fields: bool, binding_count: usize) -> Option<usize> {
+    let size_class = match inline_binding_size_class(binding_count) {
+        Some(size_class) => size_class + 1,
+        None if binding_count == 0 => 0,
+        None => return None,
+    };
+    Some(
+        size_class
+            + if has_function_fields {
+                0
+            } else {
+                DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES
+            },
+    )
 }
 
 /// The local free list function environments of a size class (see `function_environment_size_class()`) come from,
@@ -218,6 +227,18 @@ fn function_environment_size_class_allocator(
     size_class: usize,
 ) -> Option<(NonNull<*mut core::ffi::c_void>, u32)> {
     let heap = vm.heap();
+    if size_class >= DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES {
+        let size_class = size_class - DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES;
+        if size_class == 0 {
+            return Some((
+                heap.local_free_list_of(DeclarativeEnvironment::CLASS)?,
+                size(size_of::<DeclarativeEnvironment>()),
+            ));
+        }
+        let size_class =
+            heap.size_classes(DeclarativeEnvironment::CLASS, &DECLARATIVE_ENVIRONMENT_CELL_SIZES)[size_class - 1];
+        return Some((size_class.local_free_list()?, size_class.cell_size()));
+    }
     if size_class == 0 {
         return Some((
             heap.local_free_list_of(FunctionEnvironment::CLASS)?,
@@ -230,13 +251,21 @@ fn function_environment_size_class_allocator(
 
 /// The local free list function environments with room for `binding_count` binding values in their cells come from,
 /// and the size of their cells, if they have room for that many and the heap gives the address of the list.
-fn function_environment_allocator(vm: &Vm, binding_count: usize) -> Option<(NonNull<*mut core::ffi::c_void>, u32)> {
-    function_environment_size_class_allocator(vm, function_environment_size_class(binding_count)?)
+fn function_environment_allocator(
+    vm: &Vm,
+    has_function_fields: bool,
+    binding_count: usize,
+) -> Option<(NonNull<*mut core::ffi::c_void>, u32)> {
+    function_environment_size_class_allocator(vm, function_environment_size_class(has_function_fields, binding_count)?)
 }
 
 /// The number of entries of `FunctionEnvironmentFreeLists`, a power of two above the number of size classes.
-pub const FUNCTION_ENVIRONMENT_FREE_LIST_COUNT: usize = 16;
-const _: () = assert!(FUNCTION_ENVIRONMENT_CELL_SIZES.len() < FUNCTION_ENVIRONMENT_FREE_LIST_COUNT);
+pub const FUNCTION_ENVIRONMENT_FREE_LIST_COUNT: usize = 32;
+
+/// Where the size classes of declarative environments start in `FunctionEnvironmentFreeLists`.
+const DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES: usize = FUNCTION_ENVIRONMENT_FREE_LIST_COUNT / 2;
+const _: () = assert!(FUNCTION_ENVIRONMENT_CELL_SIZES.len() < DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES);
+const _: () = assert!(DECLARATIVE_ENVIRONMENT_CELL_SIZES.len() < DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES);
 
 /// A list that is always empty, for the size classes whose free lists JIT code does not pop. It is never written: JIT
 /// code only pops lists that are not empty.
@@ -258,7 +287,11 @@ impl Default for FunctionEnvironmentFreeLists {
 impl FunctionEnvironmentFreeLists {
     /// The address of the table, after filling it in from the VM's heap.
     pub fn address(&self, vm: &Vm) -> u64 {
-        for size_class in 0..=FUNCTION_ENVIRONMENT_CELL_SIZES.len() {
+        let size_classes = (0..=FUNCTION_ENVIRONMENT_CELL_SIZES.len()).chain(
+            DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES
+                ..=DECLARATIVE_CALL_ENVIRONMENT_SIZE_CLASSES + DECLARATIVE_ENVIRONMENT_CELL_SIZES.len(),
+        );
+        for size_class in size_classes {
             if let Some((allocator, _)) = function_environment_size_class_allocator(vm, size_class) {
                 self.0[size_class].set(allocator.as_ptr() as u64);
             }
@@ -275,11 +308,12 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
     if !shared_data.call_environment_template.is_null() {
         return;
     }
-    let Some(environment) = environment.downcast::<FunctionEnvironment>() else {
+    let Some(environment) = environment.downcast::<DeclarativeEnvironment>() else {
         return;
     };
+    let has_function_fields = environment.downcast::<FunctionEnvironment>().is_some();
     let binding_count = shared_data.function_environment_bindings_count();
-    let Some(size_class) = function_environment_size_class(binding_count) else {
+    let Some(size_class) = function_environment_size_class(has_function_fields, binding_count) else {
         return;
     };
     let Some((_, cell_size)) = function_environment_size_class_allocator(vm, size_class) else {
@@ -293,30 +327,38 @@ pub fn make_call_environment_template(vm: &Vm, function: Gc<EcmascriptFunctionOb
     {
         return;
     }
-    let words = cell_words(environment, size_of::<FunctionEnvironment>());
+    let cell_bytes = if has_function_fields {
+        size_of::<FunctionEnvironment>()
+    } else {
+        size_of::<DeclarativeEnvironment>()
+    };
+    let words = cell_words(environment, cell_bytes);
     let mut template = CallEnvironmentTemplate {
         header: CellHeader::for_class(CallEnvironmentTemplate::CLASS),
         size_class: size_class as u64,
         cell_size: u64::from(cell_size),
         binding_values_offset: if has_inline_binding_values {
-            size_of::<FunctionEnvironment>() as u64
+            cell_bytes as u64
         } else {
             0
         },
         binds_this: u64::from(function.uses_this() && function.this_mode() != ThisMode::Lexical),
+        has_function_fields: u64::from(has_function_fields),
         words: [0; FUNCTION_ENVIRONMENT_WORDS],
     };
-    template.words.copy_from_slice(&words);
+    template.words[..words.len()].copy_from_slice(&words);
     for (offset, size) in [
         (core::mem::offset_of!(DeclarativeEnvironment, binding_values), 8),
         (
             core::mem::offset_of!(Environment, outer),
             size_of::<NullableMember<Environment>>(),
         ),
-        (FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, 4),
-        (FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET, 8),
     ] {
         clear_bytes(&mut template.words, offset, size);
+    }
+    if has_function_fields {
+        clear_bytes(&mut template.words, FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET, 4);
+        clear_bytes(&mut template.words, FUNCTION_ENVIRONMENT_THIS_VALUE_OFFSET, 8);
     }
     shared_data
         .call_environment_template
@@ -338,14 +380,18 @@ pub fn function_environment_template(
     }
     let shared_data = function.shared_data();
     let binding_count = shared_data.function_environment_bindings_count();
-    let (allocator, cell_size) = function_environment_allocator(vm, binding_count)?;
+    let has_function_fields = shared_data.function_environment_has_this_binding();
+    let (allocator, cell_size) = function_environment_allocator(vm, has_function_fields, binding_count)?;
     let sample = function
         .inline_call_environment(vm, None)?
-        .downcast::<FunctionEnvironment>()?;
+        .downcast::<DeclarativeEnvironment>()?;
     // NB: Calls that bind `this` store it in the environment, as resolve_and_bind_this() does.
-    let binds_this = function.uses_this() && function.this_mode() != ThisMode::Lexical;
+    let binds_this = has_function_fields && function.uses_this() && function.this_mode() != ThisMode::Lexical;
     if binds_this {
-        sample.bind_this_value(vm, Value::UNDEFINED).must();
+        sample
+            .downcast::<FunctionEnvironment>()?
+            .bind_this_value(vm, Value::UNDEFINED)
+            .must();
     }
     if !sample.rare_data.is_null() || sample.binding_values_are_inline() != (binding_count != 0) {
         return None;
@@ -363,7 +409,14 @@ pub fn function_environment_template(
     Some(EnvironmentTemplateSnapshot {
         allocator: allocator.as_ptr() as u64,
         cell_size,
-        words: cell_words(sample, size_of::<FunctionEnvironment>()),
+        words: cell_words(
+            sample,
+            if has_function_fields {
+                size_of::<FunctionEnvironment>()
+            } else {
+                size_of::<DeclarativeEnvironment>()
+            },
+        ),
         inline_binding_values: binding_count != 0,
         binding_values_offset: offset(core::mem::offset_of!(DeclarativeEnvironment, binding_values)),
         binds_this,

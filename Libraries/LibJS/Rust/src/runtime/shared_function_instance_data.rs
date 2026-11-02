@@ -918,6 +918,15 @@ impl SharedFunctionInstanceData {
         u32::from(self.construct_reserve.get())
     }
 
+    /// Whether the environment of a call has to answer for `this`, `new.target` or `super`, because something reads
+    /// them through the environment. Otherwise a declarative environment does for the function's bindings, just as no
+    /// environment at all does for a function without any.
+    pub fn function_environment_has_this_binding(&self) -> bool {
+        self.contains_direct_call_to_eval()
+            || self.is_module_wrapper()
+            || (!self.is_arrow_function() && self.this_value_needs_environment_resolution())
+    }
+
     pub fn function_environment_needed(&self) -> bool {
         self.metadata_bit(asm_call_metadata::FUNCTION_ENVIRONMENT_NEEDED)
     }

@@ -610,8 +610,10 @@ fn dynamic_call_layout(vm: &Vm) -> DynamicCallLayout {
             binding_values_offset
         )),
         call_environment_template_binds_this: offset(offset_of!(CallEnvironmentTemplate, binds_this)),
+        call_environment_template_has_function_fields: offset(offset_of!(CallEnvironmentTemplate, has_function_fields)),
         call_environment_template_words: offset(offset_of!(CallEnvironmentTemplate, words)),
         function_environment_words: offset(FUNCTION_ENVIRONMENT_WORDS),
+        declarative_environment_words: offset(size_of::<DeclarativeEnvironment>() / 8),
         function_environment_binding_values: offset(offset_of!(DeclarativeEnvironment, binding_values)),
         function_environment_outer: offset(offset_of!(Environment, outer)),
         function_environment_function_object: offset(FUNCTION_ENVIRONMENT_FUNCTION_OBJECT_OFFSET),

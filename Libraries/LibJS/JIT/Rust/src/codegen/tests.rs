@@ -4046,7 +4046,8 @@ mod direct_calls {
         #[test]
         fn callees_with_a_call_environment_template_get_it_inline() {
             // A fake template (size class, cell size, binding values offset,
-            // whether calls bind `this`, then six words) and heap, and the
+            // whether calls bind `this`, whether the environment has the
+            // fields of a function environment, then six words) and heap, and the
             // environment's fields: binding values at 16, outer environment at
             // 24, function object at 32 and this value at 40.
             struct Case {
@@ -4056,6 +4057,7 @@ mod direct_calls {
                 template: bool,
                 free_cell: bool,
                 inline: bool,
+                function_fields: bool,
             }
             let run = |case: Case| {
                 let flags = CAN_INLINE_CALL | NEEDS_ENVIRONMENT | USES_THIS | if case.strict { STRICT } else { 0 };
@@ -4076,7 +4078,13 @@ mod direct_calls {
                 // The free lists of size classes 0 to 3: the template's size
                 // class 6 masks to 2.
                 let free_lists = vec![0, 0, free_list.as_mut_ptr() as u64, 0];
-                let mut template = vec![6, 64, if case.inline { 48 } else { 0 }, u64::from(case.binds_this)];
+                let mut template = vec![
+                    6,
+                    64,
+                    if case.inline { 48 } else { 0 },
+                    u64::from(case.binds_this),
+                    u64::from(case.function_fields),
+                ];
                 template.extend([0x1000, 0x1001, 0, 0, 0, 0]);
                 let template = fake_heap::cell(&template);
                 // NB: Bits in the other half of the word, which the stub ignores.
@@ -4098,8 +4106,10 @@ mod direct_calls {
                     layout.call_environment_template_cell_size = 8;
                     layout.call_environment_template_binding_values_offset = 16;
                     layout.call_environment_template_binds_this = 24;
-                    layout.call_environment_template_words = 32;
+                    layout.call_environment_template_has_function_fields = 32;
+                    layout.call_environment_template_words = 40;
                     layout.function_environment_words = 6;
+                    layout.declarative_environment_words = 4;
                     layout.function_environment_binding_values = 16;
                     layout.function_environment_outer = 24;
                     layout.function_environment_function_object = 32;
@@ -4146,6 +4156,7 @@ mod direct_calls {
                 template: true,
                 free_cell: true,
                 inline,
+                function_fields: true,
             };
             for (case, this) in [
                 (inline(true, true, value::int32(3), true), value::int32(3)),
@@ -4170,6 +4181,21 @@ mod direct_calls {
                 assert_eq!(cell[5], if binds_this { value::int32(3) } else { 0 });
                 assert_eq!(heap, [164, 10_000, 1064]);
             }
+
+            // Without the fields of a function environment, `this` only goes in
+            // the frame, and the cell's words after the declarative ones stay.
+            let (_, frame, from_runtime, _, block) = run(Case {
+                function_fields: false,
+                ..inline(true, true, value::int32(3), true)
+            });
+            assert!(!from_runtime);
+            let cell = block.cell();
+            let address = cell.as_ptr() as u64;
+            assert_eq!((frame[1], frame[12]), (address, address), "environments");
+            assert_eq!(frame[120 / 8], value::int32(3), "this");
+            assert_eq!(&cell[..2], &[0x1000, 0x1001]);
+            assert_eq!(cell[3] as u32, FUNCTION_WORDS[0] as u32, "compressed outer environment");
+            assert_eq!(&cell[4..6], &[0x5a5a, 0x5a5a]);
 
             // Sloppy callees binding primitives, callees without a template and
             // empty free lists get their environment from the runtime.

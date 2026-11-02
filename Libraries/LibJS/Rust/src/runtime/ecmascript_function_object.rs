@@ -29,7 +29,7 @@ use crate::layout::member::NullableMember;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{
-    create_unmapped_arguments_object, get_prototype_from_constructor, new_function_environment,
+    create_unmapped_arguments_object, get_prototype_from_constructor, new_call_environment,
 };
 use crate::runtime::async_function_driver_wrapper::AsyncFunctionDriverWrapper;
 use crate::runtime::async_generator::AsyncGenerator;
@@ -658,7 +658,8 @@ impl EcmascriptFunctionObject {
 
         if self.function_environment_needed() {
             // 7. Let localEnv be NewFunctionEnvironment(F, newTarget).
-            let local_environment = new_function_environment(vm, self.as_ecmascript_function_gc(), new_target);
+            // NB: Or what the function's code needs of one.
+            let local_environment = new_call_environment(vm, self.as_ecmascript_function_gc(), new_target);
             let shared_data = self.shared_data();
             let function_environment_bindings_count = shared_data.function_environment_bindings_count();
             local_environment.set_environment_shape_cache(
@@ -751,7 +752,7 @@ impl EcmascriptFunctionObject {
         // 7. Assert: localEnv is a function Environment Record.
         // 8. Assert: The next step never returns an abrupt completion because localEnv.[[ThisBindingStatus]] is not initialized.
         // 9. Perform ! localEnv.BindThisValue(thisValue).
-        if self.function_environment_needed() {
+        if self.shared_data().function_environment_has_this_binding() {
             local_env
                 .and_then(|environment| environment.downcast::<FunctionEnvironment>())
                 .expect("the lexical environment of the call is a function environment")
@@ -770,7 +771,7 @@ impl EcmascriptFunctionObject {
         if !self.function_environment_needed() {
             return self.environment();
         }
-        let local_environment = new_function_environment(vm, self.as_ecmascript_function_gc(), new_target);
+        let local_environment = new_call_environment(vm, self.as_ecmascript_function_gc(), new_target);
         let shared_data = self.shared_data();
         let function_environment_bindings_count = shared_data.function_environment_bindings_count();
         local_environment.set_environment_shape_cache(

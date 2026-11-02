@@ -824,6 +824,24 @@ pub fn new_object_environment(
     )
 }
 
+/// The environment of a call of `function`, which needs one: a function environment if the function's code reads
+/// anything of one through its environment, and otherwise the same without the fields it would never read.
+pub fn new_call_environment(
+    vm: &Vm,
+    function: Gc<EcmascriptFunctionObject>,
+    new_target: Option<Gc<Object>>,
+) -> Gc<DeclarativeEnvironment> {
+    let shared_data = function.shared_data();
+    if shared_data.function_environment_has_this_binding() {
+        return new_function_environment(vm, function, new_target).upcast();
+    }
+    DeclarativeEnvironment::create_with_binding_capacity(
+        vm,
+        function.environment(),
+        shared_data.function_environment_bindings_count(),
+    )
+}
+
 // 9.1.2.4 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/ecma262/#sec-newfunctionenvironment
 // 4.1.2.2 NewFunctionEnvironment ( F, newTarget ), https://tc39.es/proposal-explicit-resource-management/#sec-newfunctionenvironment
 pub fn new_function_environment(

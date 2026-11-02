@@ -547,7 +547,7 @@ pub struct LexicalEnvironmentTemplateSnapshot {
     pub shape: Option<CellId>,
 }
 
-/// A `FunctionEnvironment` like the ones calls of a function get (see
+/// A `FunctionEnvironment` or `DeclarativeEnvironment` like the ones calls of a function get (see
 /// `ECMAScriptFunctionObject::inline_call_environment()`), with its final
 /// shape and room for its binding values in the cell, as JIT code allocates
 /// it: from the local free list at `allocator` (like
@@ -1228,6 +1228,7 @@ pub struct DynamicCallLayout {
     pub call_environment_template_cell_size: u32,
     pub call_environment_template_binding_values_offset: u32,
     pub call_environment_template_binds_this: u32,
+    pub call_environment_template_has_function_fields: u32,
     pub call_environment_template_words: u32,
     /// The address of a table of the addresses of the local free lists of
     /// the function environment size classes, which the stub pops the cell
@@ -1237,6 +1238,8 @@ pub struct DynamicCallLayout {
     pub function_environment_size_class_mask: u32,
     /// The number of words of a `FunctionEnvironment`.
     pub function_environment_words: u32,
+    /// The number of words of a `DeclarativeEnvironment`, which the first words of a `FunctionEnvironment` are.
+    pub declarative_environment_words: u32,
     /// `FunctionEnvironment` fields: the pointer to its binding values, its
     /// outer environment, its function object and its this value.
     pub function_environment_binding_values: u32,

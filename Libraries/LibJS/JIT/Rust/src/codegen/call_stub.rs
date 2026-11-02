@@ -213,7 +213,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_pop_free_list_of(scratch, cell, heap, from_runtime);
 
         // The environment, from the template's words and the call.
-        for index in 0..layout.function_environment_words {
+        for index in 0..layout.declarative_environment_words {
             self.masm.load64(
                 scratch,
                 &at(template, layout.call_environment_template_words + 8 * index),
@@ -238,6 +238,21 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             &at(function, self.runtime.offsets.ecmascript_function_environment),
         );
         self.masm.store32(&at(cell, layout.function_environment_outer), scratch);
+        // The rest of a function environment, which only some callees need.
+        let no_function_fields = self.masm.new_label();
+        self.masm.load64(
+            scratch,
+            &at(template, layout.call_environment_template_has_function_fields),
+        );
+        self.masm
+            .branch_test64(Condition::Zero, scratch, u64::MAX, no_function_fields);
+        for index in layout.declarative_environment_words..layout.function_environment_words {
+            self.masm.load64(
+                scratch,
+                &at(template, layout.call_environment_template_words + 8 * index),
+            );
+            self.masm.store64(&at(cell, 8 * index), scratch);
+        }
         self.masm.shr64_imm(scratch, function, COMPRESSED_POINTER_SHIFT);
         self.masm
             .store32(&at(cell, layout.function_environment_function_object), scratch);
@@ -249,6 +264,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .store64(&at(cell, layout.function_environment_this_value), scratch);
         self.masm.bind(no_this);
+        self.masm.bind(no_function_fields);
         self.masm.store64(&environment_local, cell);
 
         // Count the cell like the heap does.
