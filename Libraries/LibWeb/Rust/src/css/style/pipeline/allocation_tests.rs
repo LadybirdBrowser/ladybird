@@ -11,6 +11,7 @@
 //! The engine runs on the calling thread here, where every allocation is counted. Run with
 //! LIBWEB_TEST_ALLOCATION_BACKTRACES set to see where a test's allocations come from.
 
+use super::super::bridge::element_adjustment_fact;
 use super::super::*;
 use super::allocation_count::{Allocations, count_allocations};
 use super::test_support::*;
@@ -139,5 +140,54 @@ fn a_class_one_selector_names_on_a_leaf_allocates_at_most_as_today() {
         everywhere(&allocations),
         114 + MUTEX_ALLOCATIONS_RESTYLING_ONE_ELEMENT,
         "toggles of a class one selector names",
+    );
+}
+
+/// What taking an element out of a list allocates in style, under `depth` ancestors, where the only
+/// selector reading siblings tests nothing of the element or of the ancestors.
+fn allocations_of_an_element_leaving_at_depth(depth: usize) -> Vec<u64> {
+    let mut engine = hosted_engine();
+    let nodes = allocate_nodes(&mut engine, depth + 2 + WARMUP_ROUNDS + MEASURED_ROUNDS);
+    let (ancestors, others) = nodes.split_at(depth + 1);
+    let (kept, leaving) = others.split_first().expect("the document holds the element kept");
+    let (root, parent, kept) = (ancestors[0], ancestors[depth], *kept);
+    engine.record_tree_delta(root, None, Some(relations(None, None, None)));
+    for pair in ancestors.windows(2) {
+        engine.record_tree_delta(pair[1], None, Some(relations(Some(pair[0]), None, None)));
+    }
+    engine.record_tree_delta(kept, None, Some(relations(Some(parent), None, None)));
+    engine.set_element_adjustment_facts(root, element_adjustment_fact::IS_DOCUMENT_ELEMENT);
+    for &node in ancestors.iter().chain([&kept]) {
+        set_tag(&mut engine, node, "div");
+    }
+    for &node in ancestors {
+        add_class(&mut engine, node, "ancestor");
+        add_class(&mut engine, node, "other-ancestor");
+    }
+    add_class(&mut engine, kept, "y");
+    let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+    add_rules(&mut engine, sheet, ".x ~ .y { width: 10px; }");
+    start_live(&mut engine, root);
+
+    let in_the_list = relations(Some(parent), None, Some(kept));
+    let allocations: Vec<u64> = leaving
+        .iter()
+        .map(|&node| {
+            engine.record_tree_delta(node, None, Some(in_the_list));
+            set_tag(&mut engine, node, "div");
+            add_class(&mut engine, node, "leaving");
+            run_style_update(&mut engine, root);
+            engine.record_tree_delta(node, Some(in_the_list), None);
+            count_allocations(|| run_style_update(&mut engine, root)).1.in_style
+        })
+        .collect();
+    allocations[WARMUP_ROUNDS..].to_vec()
+}
+
+#[test]
+fn an_element_leaving_reads_no_ancestors_where_no_selector_asks() {
+    assert_eq!(
+        allocations_of_an_element_leaving_at_depth(64),
+        allocations_of_an_element_leaving_at_depth(2)
     );
 }

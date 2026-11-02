@@ -19,7 +19,7 @@ use super::super::transaction_view::TransactionFactSide;
 use super::super::*;
 use super::drive::DriveRecords;
 use super::invalidation::{
-    AnchorReach, Dependency, InvalidationMap, PositionKey, ReachCombinator, Step, Trigger, TriggerReach,
+    AnchorReach, Dependency, HeldDependency, InvalidationMap, PositionKey, ReachCombinator, Step, Trigger, TriggerReach,
 };
 use super::projection::ProjectionEvaluator;
 use super::projection::{ElementChange, FactListsIdentity, Projection, ProjectionRow, StructuralFlags};
@@ -1404,6 +1404,12 @@ impl Live {
         let restyled_whole = |node: Option<StyleNodeID>| {
             std::iter::successors(node, |&node| projection.parent(node)).any(|node| arrived.contains(&node))
         };
+        // NB: What the later siblings of each element are is found once over a transaction, which may move
+        //     every child of a long list.
+        let next_sibling = |node: StyleNodeID| projection.next_element_sibling(node);
+        let bloom_of = |node: StyleNodeID| projection.facts(node).map_or(0, |facts| facts.dispatch_bloom(false));
+        let mut past_arrived: HashMap<StyleNodeID, Option<StyleNodeID>> = HashMap::default();
+        let mut later_blooms: HashMap<StyleNodeID, u64> = HashMap::default();
         for &(node, left, first_later_sibling) in moves.iter() {
             // NB: What no child of the parent matched read of its earlier siblings cannot move with them.
             let parent = relations_moved
@@ -1420,18 +1426,11 @@ impl Live {
             if !left && restyled_whole(projection.parent(node)) {
                 continue;
             }
-            let Some(mut first_later_sibling) = live_from(first_later_sibling) else {
+            let Some(first_later_sibling) = live_from(first_later_sibling)
+                .and_then(|sibling| first_not_arrived(sibling, &arrived, next_sibling, &mut past_arrived))
+            else {
                 continue;
             };
-            while arrived.contains(&first_later_sibling) {
-                let Some(next) = projection.next_element_sibling(first_later_sibling) else {
-                    break;
-                };
-                first_later_sibling = next;
-            }
-            if arrived.contains(&first_later_sibling) {
-                continue;
-            }
             let triggers = match left {
                 true => match follower.row_before(node).map(triggers_of) {
                     Some(found) => found,
@@ -1451,11 +1450,28 @@ impl Live {
                 },
             };
             links.clear();
-            // NB: A compound testing several of the element's facts is matched once.
-            let mut effects: SmallVec<[Dependency; 16]> = triggers
+            // NB: A compound is matched leftwards only where the compound right of it could match a later sibling
+            //     and its ancestors could match around the element, which rejects most of them for far less.
+            let next_bloom = bloom_of(first_later_sibling);
+            let mut held_effects: SmallVec<[HeldDependency; 16]> = triggers
                 .iter()
-                .flat_map(|trigger| map.sibling_effects(trigger))
+                .flat_map(|trigger| map.held_sibling_effects(trigger))
+                .filter(|held| {
+                    map.right(held.dependency).is_some_and(|link| {
+                        let step = map.step(link);
+                        step.required_key.is_none_or(|key| {
+                            let carried = match step.combinator {
+                                ReachCombinator::NextSibling => next_bloom,
+                                _ => bloom_from(first_later_sibling, next_sibling, bloom_of, &mut later_blooms),
+                            };
+                            carried & dispatch_bloom_bit(key) != 0
+                        })
+                    })
+                })
                 .collect();
+            follower.retain_effects_around(node, &mut held_effects);
+            // NB: A compound testing several of the element's facts is matched once.
+            let mut effects: SmallVec<[Dependency; 16]> = held_effects.iter().map(|held| held.dependency).collect();
             effects.sort_unstable();
             effects.dedup();
             for effect in effects {
@@ -1487,6 +1503,7 @@ impl Live {
                 continue;
             }
             links.clear();
+            let carried = projection.facts(node).map_or(0, |facts| facts.dispatch_bloom(false));
             for previous in previous_siblings.into_iter().flatten() {
                 let Some(row) = projection.row_of(previous).filter(|_| tree.is_live(previous)) else {
                     continue;
@@ -1499,24 +1516,35 @@ impl Live {
                 if facts_moved {
                     triggers.extend(follower.row_before(previous).map(triggers_of).into_iter().flatten());
                 }
-                let mut effects: SmallVec<[Dependency; 16]> = triggers
+                // NB: As for the moves above, only where `node` could match the compound right of it.
+                let mut held_effects: SmallVec<[HeldDependency; 16]> = triggers
                     .iter()
-                    .flat_map(|trigger| map.sibling_effects(trigger))
+                    .flat_map(|trigger| map.held_sibling_effects(trigger))
+                    .filter(|held| {
+                        map.right(held.dependency).is_some_and(|link| {
+                            let step = map.step(link);
+                            step.combinator == ReachCombinator::NextSibling
+                                && step
+                                    .required_key
+                                    .is_none_or(|key| carried & dispatch_bloom_bit(key) != 0)
+                        })
+                    })
                     .collect();
+                follower.retain_effects_around(node, &mut held_effects);
+                let mut effects: SmallVec<[Dependency; 16]> = held_effects.iter().map(|held| held.dependency).collect();
                 effects.sort_unstable();
                 effects.dedup();
                 for effect in effects {
                     let Some(link) = follower.map.right(effect) else {
                         continue;
                     };
-                    if follower.map.step(link).combinator == ReachCombinator::NextSibling
-                        && (follower.matches_from(effect, previous, false).unwrap_or(true)
-                            // NB: A compound testing names alone with nothing left of it answers by the sibling's
-                            //     facts, which answer alike on both sides where they did not move.
-                            || (facts_moved
-                                || follower.map.left(effect).is_some()
-                                || follower.map.operand_names(effect).is_empty())
-                                && follower.matches_from(effect, previous, true).unwrap_or(true))
+                    if follower.matches_from(effect, previous, false).unwrap_or(true)
+                        // NB: A compound testing names alone with nothing left of it answers by the sibling's
+                        //     facts, which answer alike on both sides where they did not move.
+                        || (facts_moved
+                            || follower.map.left(effect).is_some()
+                            || follower.map.operand_names(effect).is_empty())
+                            && follower.matches_from(effect, previous, true).unwrap_or(true)
                     {
                         links.push(link);
                     }
@@ -2654,6 +2682,57 @@ impl Hints {
     }
 }
 
+/// The first of `first` and its later siblings not in `arrived`, as `next` tells them, remembering in `past_arrived`
+/// what it finds for each one it walks over: a run of arrived siblings is walked once.
+fn first_not_arrived(
+    first: StyleNodeID,
+    arrived: &HashSet<StyleNodeID>,
+    next: impl Fn(StyleNodeID) -> Option<StyleNodeID>,
+    past_arrived: &mut HashMap<StyleNodeID, Option<StyleNodeID>>,
+) -> Option<StyleNodeID> {
+    let mut walked: SmallVec<[StyleNodeID; 16]> = SmallVec::new();
+    let mut current = Some(first);
+    let found = loop {
+        let Some(sibling) = current.filter(|sibling| arrived.contains(sibling)) else {
+            break current;
+        };
+        if let Some(&known) = past_arrived.get(&sibling) {
+            break known;
+        }
+        walked.push(sibling);
+        current = next(sibling);
+    };
+    past_arrived.extend(walked.into_iter().map(|sibling| (sibling, found)));
+    found
+}
+
+/// The union of `bloom_of` over `first` and its later siblings, as `next` tells them, remembering in `known` what it
+/// finds for each one it walks over: a run of siblings is walked once, however many of them it is asked from.
+fn bloom_from(
+    first: StyleNodeID,
+    next: impl Fn(StyleNodeID) -> Option<StyleNodeID>,
+    bloom_of: impl Fn(StyleNodeID) -> u64,
+    known: &mut HashMap<StyleNodeID, u64>,
+) -> u64 {
+    let mut walked: SmallVec<[StyleNodeID; 16]> = SmallVec::new();
+    let mut current = Some(first);
+    let mut bloom = loop {
+        let Some(sibling) = current else {
+            break 0;
+        };
+        if let Some(&found) = known.get(&sibling) {
+            break found;
+        }
+        walked.push(sibling);
+        current = next(sibling);
+    };
+    for &sibling in walked.iter().rev() {
+        bloom |= bloom_of(sibling);
+        known.insert(sibling, bloom);
+    }
+    bloom
+}
+
 /// The links a descendant is tested against, by the key an element matching each one's compound
 /// carries, where it has one.
 #[derive(Default)]
@@ -3573,6 +3652,31 @@ impl<'a> Follower<'a> {
         self.evaluate(link, element, false).unwrap_or(true)
     }
 
+    /// Keep of `effects` those whose ancestor keys the ancestors of `node` might carry on either side of the
+    /// transaction, whichever parents it had on them. The ancestors are read only where an effect asks.
+    fn retain_effects_around(&mut self, node: StyleNodeID, effects: &mut SmallVec<[HeldDependency; 16]>) {
+        if effects.iter().all(|held| held.ancestor_hashes.is_empty()) {
+            return;
+        }
+        let mut keys = self.ancestor_keys(node);
+        let mut ancestor = self.projection.parent_on(TransactionFactSide::Before, node);
+        while let Some(current) = ancestor {
+            if let Some(row) = self.row_before(current) {
+                keys.extend(super::ancestor_keys_of(row));
+            }
+            ancestor = self.projection.parent_on(TransactionFactSide::Before, current);
+        }
+        let mut ancestors = self.ancestors.take().unwrap_or_else(super::bloom::AncestorFilter::new);
+        for &key in &keys {
+            ancestors.insert(key);
+        }
+        effects.retain(|held| ancestors.might_contain_all(&held.ancestor_hashes));
+        for &key in &keys {
+            ancestors.remove(key);
+        }
+        *self.ancestors = Some(ancestors);
+    }
+
     /// The keys the ancestors of `node` carry, now and before the transaction.
     fn ancestor_keys(&self, node: StyleNodeID) -> SmallVec<[u32; 32]> {
         let mut keys = SmallVec::new();
@@ -4249,5 +4353,61 @@ impl RetainedState {
             .as_ref()
             .and_then(|live| live.report.get(index as usize).copied())
             .unwrap_or(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    const SIBLINGS: u32 = 1000;
+
+    fn next_of(steps: &Cell<u32>) -> impl Fn(StyleNodeID) -> Option<StyleNodeID> + '_ {
+        |node| {
+            steps.set(steps.get() + 1);
+            let index = node.element_index().unwrap();
+            (index < SIBLINGS).then(|| StyleNodeID::element(index + 1))
+        }
+    }
+
+    #[test]
+    fn the_bloom_of_later_siblings_is_found_once_from_any_of_them() {
+        let bloom_of = |node: StyleNodeID| 1u64 << (node.element_index().unwrap() % 64);
+        let expected = |first: u32| (first..=SIBLINGS).fold(0, |bits, index| bits | 1u64 << (index % 64));
+        for firsts in [
+            vec![1; SIBLINGS as usize],
+            (1..=SIBLINGS).rev().collect(),
+            (1..=SIBLINGS).collect(),
+        ] {
+            let steps = Cell::new(0);
+            let mut known = HashMap::default();
+            for first in firsts {
+                let bloom = bloom_from(StyleNodeID::element(first), next_of(&steps), bloom_of, &mut known);
+                assert_eq!(bloom, expected(first));
+            }
+            assert!(steps.get() <= SIBLINGS);
+        }
+    }
+
+    #[test]
+    fn a_run_of_arrived_siblings_is_walked_once() {
+        let arrived: HashSet<StyleNodeID> = (1..SIBLINGS).map(StyleNodeID::element).collect();
+        let steps = Cell::new(0);
+        let mut past_arrived = HashMap::default();
+        for first in 1..SIBLINGS {
+            let found = first_not_arrived(
+                StyleNodeID::element(first),
+                &arrived,
+                next_of(&steps),
+                &mut past_arrived,
+            );
+            assert_eq!(found, Some(StyleNodeID::element(SIBLINGS)));
+        }
+        assert!(steps.get() <= SIBLINGS);
+
+        let all: HashSet<StyleNodeID> = (1..=SIBLINGS).map(StyleNodeID::element).collect();
+        let found = first_not_arrived(StyleNodeID::element(1), &all, next_of(&steps), &mut HashMap::default());
+        assert_eq!(found, None);
     }
 }
