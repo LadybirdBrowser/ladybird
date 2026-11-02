@@ -24,6 +24,7 @@ use super::invalidation::{
 use super::projection::ProjectionEvaluator;
 use super::projection::{ElementChange, FactListsIdentity, Projection, ProjectionRow, StructuralFlags};
 use super::records::{ChildImpact, Record, RecordCells, Records, Replaced, RetainedRecords};
+use super::rule_changes::Restyled;
 use super::rule_store::RuleChanges;
 use super::rules::{IndexChanges, RuleIndex};
 use super::traversal::{
@@ -1961,22 +1962,19 @@ impl Live {
                 // NB: Entries numbered anew leave no entry to rematch an element for alone.
                 let renumbers_entries = self.index.wants_compaction() || changes.user_agent_moved;
                 let mut kept_styles: Vec<(StyleNodeID, super::records::MatchList)> = Vec::new();
-                changes.for_each_restyled(
-                    state,
-                    &self.index,
-                    &self.records,
-                    &roots,
-                    |node, arrived| match arrived.filter(|_| !renumbers_entries) {
-                        None => hints.add(node, RESTYLE_SELF),
-                        Some(arrived) => {
+                changes.for_each_restyled(state, &self.index, &self.records, &roots, pool, |node, restyled| {
+                    match restyled {
+                        Restyled::Anew => hints.add(node, RESTYLE_SELF),
+                        Restyled::Arrived(_) if renumbers_entries => hints.add(node, RESTYLE_SELF),
+                        Restyled::Arrived(arrived) => {
                             hints.mark(node, RESTYLE_SELF | RECOMPUTE_SELF);
-                            for matched in arrived {
-                                hints.add_for(node, RESTYLE_SELF, matched.entry);
+                            for entry in arrived {
+                                hints.add_for(node, RESTYLE_SELF, entry);
                             }
                         }
-                    },
-                    |node, matches| kept_styles.push((node, matches)),
-                );
+                        Restyled::Kept(matches) => kept_styles.push((node, matches)),
+                    }
+                });
                 for (node, matches) in kept_styles {
                     self.records.replace_matches(node, matches);
                 }

@@ -26,6 +26,8 @@ pub(super) struct RuleIndexChanges {
     /// By their number, whether each entry died or moved against another in the cascade order: an
     /// element that matched one is restyled.
     before: Vec<bool>,
+    /// Whether `before` holds any entry.
+    left_any: bool,
     /// The entries that arrived, in the buckets the index holds them in: an element that matches
     /// one now is restyled.
     arrived: RuleIndex,
@@ -50,6 +52,125 @@ pub(super) struct RuleIndexChanges {
     conditions_moved_alone: bool,
     /// The segments the update let go of, which alone still tell what their entries were.
     pub(super) let_go: Vec<BoundSegment>,
+}
+
+/// What the changes of the rule index do to an element they reach.
+pub(super) enum Restyled {
+    /// It is restyled, and has to be matched anew.
+    Anew,
+    /// It is restyled, and matches these of the entries that arrived, which with what left its
+    /// matches are all that moved of them.
+    Arrived(SmallVec<[u32; 4]>),
+    /// It keeps its style, and matches these now.
+    Kept(MatchList),
+}
+
+/// One thread's walk over elements for what the changes of the rule index do to them.
+struct RestyleWalk<'a> {
+    changes: &'a RuleIndexChanges,
+    state: &'a RetainedState,
+    index: &'a RuleIndex,
+    records: &'a RetainedRecords,
+    matcher: Matcher<'a>,
+    filter: AncestorFilter,
+    matches: Vec<ElementMatch>,
+    /// NB: Match lists are interned, and a run of alike elements holds one of them.
+    last_list: Option<(&'a MatchList, bool)>,
+    keeps_styles: bool,
+    /// NB: Elements alike hold lists alike, and what arrives for them is alike too.
+    kept_lists: KeptLists<'a>,
+    reaching_bits: u64,
+}
+
+impl<'a> RestyleWalk<'a> {
+    fn new(
+        changes: &'a RuleIndexChanges,
+        state: &'a RetainedState,
+        index: &'a RuleIndex,
+        records: &'a RetainedRecords,
+    ) -> Self {
+        // NB: The arrived entries are few, and each is evaluated where an element reaches its
+        //     bucket, without the ancestor filter of a traversal.
+        let mut filter = AncestorFilter::new();
+        filter.fill();
+        Self {
+            changes,
+            state,
+            index,
+            records,
+            matcher: Matcher::reaching(index, &changes.arrived, state),
+            filter,
+            matches: Vec::new(),
+            last_list: None,
+            // NB: Entries numbered anew leave no list of them to keep.
+            keeps_styles: changes.conditions_moved_alone && !index.wants_compaction(),
+            kept_lists: HashMap::default(),
+            // NB: An element sharing no bit with these reaches no bucket of the entries that
+            //     arrived, and so matches none of them. Elements compare to selectors folded where
+            //     ids and classes do, which the bits are not.
+            reaching_bits: match state.document_matching().fold_ids_and_classes {
+                true => u64::MAX,
+                false => changes.arrived.bucket_key_bits(),
+            },
+        }
+    }
+
+    fn walk(&mut self, elements: &[StyleNodeID]) -> Vec<(StyleNodeID, Restyled)> {
+        elements
+            .iter()
+            .filter_map(|&node| Some((node, self.restyle_of(node)?)))
+            .collect()
+    }
+
+    fn restyle_of(&mut self, node: StyleNodeID) -> Option<Restyled> {
+        let changes = self.changes;
+        let facts = self.state.projection.facts(node)?;
+        // An element holding no record is under one that is not displayed, or arrived and is
+        // styled for it.
+        self.records.get(node)?;
+        let held = self.records.matches_of(node);
+        let mut matched_one = false;
+        if changes.left_any {
+            matched_one = match (held, self.last_list) {
+                (Some(matched), Some((list, answer))) if std::sync::Arc::ptr_eq(matched, list) => answer,
+                (Some(matched), _) => {
+                    let answer = matched.iter().any(|&entry| changes.before[entry as usize]);
+                    self.last_list = Some((matched, answer));
+                    answer
+                }
+                (None, _) => return Some(Restyled::Anew),
+            };
+        }
+        self.matches.clear();
+        if changes.arrived_entries > 0
+            && facts.dispatch_bloom(true) & self.reaching_bits != 0
+            // NB: An element whose match is not known is restyled, which finds out.
+            && self
+                .matcher
+                .match_element(node, facts, &self.filter, &mut self.matches)
+                .is_err()
+        {
+            return Some(Restyled::Anew);
+        }
+        if !matched_one && self.matches.is_empty() {
+            return None;
+        }
+        let arrived: SmallVec<[u32; 4]> = self.matches.iter().map(|arrived| arrived.entry).collect();
+        if let Some(matched) = held.filter(|_| self.keeps_styles) {
+            let matched: &'a [u32] = matched;
+            let list = match self.kept_lists.entry((matched, arrived.clone())) {
+                Entry::Occupied(found) => found.into_mut(),
+                Entry::Vacant(vacant) => {
+                    let list = changes.matches_keeping_style(self.state, self.index, matched, &vacant.key().1);
+                    vacant.insert(list)
+                }
+            };
+            if let Some(list) = list {
+                return Some(Restyled::Kept(list.clone()));
+            }
+        }
+        Some(Restyled::Arrived(arrived))
+    }
 }
 
 /// The list an element holding one list comes to hold as the given entries arrive, if it keeps its style.
@@ -167,6 +288,7 @@ impl RuleIndexChanges {
             }
         }
         Self {
+            left_any: !died.is_empty() || !moved.is_empty(),
             before,
             arrived: match added.is_empty() {
                 true => RuleIndex::default(),
@@ -208,11 +330,9 @@ impl RuleIndexChanges {
         self.scopes.is_empty()
     }
 
-    /// Visit each element under `roots` in the flat tree that the changes restyle, where `records`
-    /// holds what the elements matched against the index before and `index` is the updated one,
-    /// with the entries that arrived it matches, where those and what left its matches are all
-    /// that moved of them, and none where it has to be matched anew. An element where what moved
-    /// of its matches decides nothing goes to `keep` instead, with the matches it has now.
+    /// Visit each element under `roots` in the flat tree that the changes restyle, or that takes new
+    /// matches alone, where `records` holds what the elements matched against the index before and
+    /// `index` is the updated one, in tree order.
     ///
     /// NB: No other entry's answer depends on the sheets: its selector and `@scope` levels are
     ///     its own. What an entry that died matched leaves the element's matches as it is renumbered.
@@ -222,84 +342,51 @@ impl RuleIndexChanges {
         index: &RuleIndex,
         records: &RetainedRecords,
         roots: &[StyleNodeID],
-        mut visit: impl FnMut(StyleNodeID, Option<&[ElementMatch]>),
-        mut keep: impl FnMut(StyleNodeID, MatchList),
+        pool: Option<&rayon::ThreadPool>,
+        mut visit: impl FnMut(StyleNodeID, Restyled),
     ) {
-        let mut matcher = Matcher::reaching(index, &self.arrived, state);
-        // NB: The arrived entries are few, and each is evaluated where an element reaches its
-        //     bucket, without the ancestor filter of a traversal.
+        const ELEMENTS_PER_TASK: usize = 512;
+        let elements: Vec<StyleNodeID> = roots
+            .iter()
+            .flat_map(|&root| state.projection.style_preorder(root))
+            .collect();
+        let walk = || RestyleWalk::new(self, state, index, records);
+        let found: Vec<Vec<(StyleNodeID, Restyled)>> = match pool {
+            Some(pool) if elements.len() > ELEMENTS_PER_TASK => {
+                use rayon::prelude::*;
+                pool.install(|| {
+                    elements
+                        .par_chunks(ELEMENTS_PER_TASK)
+                        .map_init(walk, |walk, elements| walk.walk(elements))
+                        .collect()
+                })
+            }
+            _ => vec![walk().walk(&elements)],
+        };
+        // NB: Each walk finds its own lists, which elements alike hold one of across them.
+        let mut interned: HashSet<MatchList> = HashSet::default();
+        let mut intern = |matches: MatchList| match interned.get(&matches) {
+            Some(held) => held.clone(),
+            None => {
+                interned.insert(matches.clone());
+                matches
+            }
+        };
+        for (node, restyled) in found.into_iter().flatten() {
+            visit(
+                node,
+                match restyled {
+                    Restyled::Kept(matches) => Restyled::Kept(intern(matches)),
+                    restyled => restyled,
+                },
+            );
+        }
         let mut filter = AncestorFilter::new();
         filter.fill();
-        let mut matches = Vec::new();
-        let left_any = self.before.iter().any(|&changed| changed);
-        // NB: Match lists are interned, and a run of alike elements holds one of them.
-        let mut last_list: Option<(&MatchList, bool)> = None;
-        // NB: Entries numbered anew leave no list of them to keep.
-        let keeps_styles = self.conditions_moved_alone && !index.wants_compaction();
-        // NB: Elements alike hold one list, and what arrives for them is alike too.
-        let mut kept_lists: KeptLists<'_> = HashMap::default();
-        // NB: An element sharing no bit with these reaches no bucket of the entries that arrived,
-        //     and so matches none of them. Elements compare to selectors folded where ids and
-        //     classes do, which the bits are not.
-        let reaching_bits = match state.document_matching().fold_ids_and_classes {
-            true => u64::MAX,
-            false => self.arrived.bucket_key_bits(),
-        };
-        for &root in roots {
-            for node in state.projection.style_preorder(root) {
-                let Some(facts) = state.projection.facts(node) else {
-                    continue;
-                };
-                // An element holding no record is under one that is not displayed, or arrived and
-                // is styled for it.
-                if records.get(node).is_none() {
-                    continue;
-                }
-                let mut matched_one = false;
-                if left_any {
-                    matched_one = match (records.matches_of(node), last_list) {
-                        (Some(matched), Some((list, answer))) if std::sync::Arc::ptr_eq(matched, list) => answer,
-                        (Some(matched), _) => {
-                            let answer = matched.iter().any(|&entry| self.before[entry as usize]);
-                            last_list = Some((matched, answer));
-                            answer
-                        }
-                        (None, _) => {
-                            visit(node, None);
-                            continue;
-                        }
-                    };
-                }
-                matches.clear();
-                if self.arrived_entries > 0 && facts.dispatch_bloom(true) & reaching_bits != 0 {
-                    // NB: An element whose match is not known is restyled, which finds out.
-                    if matcher.match_element(node, facts, &filter, &mut matches).is_err() {
-                        visit(node, None);
-                        continue;
-                    }
-                }
-                if !matched_one && matches.is_empty() {
-                    continue;
-                }
-                if let Some(matched) = records.matches_of(node).filter(|_| keeps_styles) {
-                    let arrived: SmallVec<[u32; 4]> = matches.iter().map(|arrived| arrived.entry).collect();
-                    let list = match kept_lists.entry((&matched[..], arrived)) {
-                        Entry::Occupied(found) => found.into_mut(),
-                        Entry::Vacant(vacant) => {
-                            let list = self.matches_keeping_style(state, index, matched, &vacant.key().1);
-                            vacant.insert(list)
-                        }
-                    };
-                    if let Some(list) = list {
-                        keep(node, list.clone());
-                        continue;
-                    }
-                }
-                visit(node, Some(&matches));
-            }
-        }
         for regrouped in &self.regrouped {
-            Self::for_each_regrouped(regrouped, state, index, records, &filter, &mut |node| visit(node, None));
+            Self::for_each_regrouped(regrouped, state, index, records, &filter, &mut |node| {
+                visit(node, Restyled::Anew);
+            });
         }
     }
 
