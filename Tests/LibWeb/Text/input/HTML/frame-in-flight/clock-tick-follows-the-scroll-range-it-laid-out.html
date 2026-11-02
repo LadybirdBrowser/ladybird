@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes grow-page {
+        from { height: 0px; }
+        to { height: 1000px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #bar {
+        height: 10px;
+        animation: widen linear both;
+        animation-timeline: scroll(root);
+    }
+    #spacer {
+        height: 2000px;
+    }
+    #growing {
+        height: 0px;
+        animation: grow-page linear both;
+        animation-timeline: scroll(root);
+    }
+</style>
+<div id="bar"></div>
+<div id="spacer"></div>
+<div id="growing"></div>
+<script>
+    // The boxes a tick lays out decide the scroll range of the next tick's scroll timelines, as a host's layout decides
+    // that of its next rendering update. Otherwise what a tick shows jumps once the host lays out the same page.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => bar.getAnimations()[0], frameTime => {
+            const position = (document.documentElement.scrollHeight - window.innerHeight) / 2;
+            const hostBottom = growing.getBoundingClientRect().bottom;
+            const belowThePage = document.documentElement.scrollHeight - hostBottom;
+            const rows = [];
+            for (let tick = 1; tick <= 40; tick++) {
+                internals.injectClockTick(frameTime + 16 * tick, position);
+                rows.push({
+                    barWidth: internals.presentedBorderBox(bar).width,
+                    pageBottom: internals.presentedBorderBox(growing).bottom,
+                });
+            }
+            return { position, hostBottom, belowThePage, rows };
+        });
+        const last = result.rows[result.rows.length - 1];
+        const maxScroll = last.pageBottom + result.belowThePage - window.innerHeight;
+        println(`the ticks grew the page: ${last.pageBottom > result.hostBottom}`);
+        println(`the ticks settled: ${Math.abs(last.barWidth - result.rows[result.rows.length - 2].barWidth) < 0.5}`);
+        println(`the bar shows the progress in the scroll range the ticks laid out: ${Math.abs(last.barWidth - (100 + 200 * result.position / maxScroll)) < 0.5}`);
+        done();
+    });
+</script>

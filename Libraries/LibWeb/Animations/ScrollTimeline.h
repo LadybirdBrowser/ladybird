@@ -52,11 +52,13 @@ public:
     virtual bool is_stale() const;
     virtual void update_current_time(double timestamp) override;
 
-    // The scroll node the timeline followed at its last update, and the scroll offset at 100% progress there, in CSS
-    // pixels: empty while it was inactive.
+    // The scroll node the timeline followed at its last update, the style node of the element whose box scrolls, or 0
+    // for the viewport, and the scroll offset there and at 100% progress, in CSS pixels: empty while it was inactive.
     struct FollowedScroller {
         AsyncScrollNodeStableID scroll_node;
+        u32 scroller_style_node { 0 };
         bool vertical { true };
+        double scroll_offset { 0 };
         double max_scroll_offset { 0 };
     };
     Optional<FollowedScroller> const& followed_scroller() const { return m_followed_scroller; }
@@ -81,6 +83,7 @@ protected:
     // The scroll container the timeline follows, along the timeline's axis, in CSS pixels.
     struct ScrollerMetrics {
         Optional<AsyncScrollNodeStableID> scroll_node;
+        u32 scroller_style_node { 0 };
         bool is_vertical { true };
         double scroll_offset { 0 };
         double max_scroll_offset { 0 };

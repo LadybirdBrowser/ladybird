@@ -40,7 +40,7 @@ use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::{ClockRound, ClockRoundDeclined, HostStyle, LayoutNodeArena, build_keeps_box};
 use crate::paint_stage::Presenting;
 use crate::painting::paint_passes::{ClockTickVisualContexts, VisualContextsNeedHost, prepare_for_clock_tick};
-use crate::painting::paintable_geometry::absolute_border_box_rect;
+use crate::painting::paintable_geometry::{absolute_border_box_rect, committed_content_size, scrollable_overflow_rect};
 use crate::painting::presentation::Presentation;
 use crate::painting::record::damage::PaintDamage;
 use crate::painting::record::inputs::UnframedRecordingInputs;
@@ -94,11 +94,40 @@ pub struct FfiPlannedScrollTimeline {
     /// The unique node id of the element whose scroll node the timeline follows, or of the document for its viewport,
     /// and whether along the vertical axis.
     pub scroller: i64,
+    /// The style node of the element whose box scrolls, or 0 for the viewport.
+    pub scroller_element: u32,
     pub vertical: bool,
-    /// The scroll offset at 100% progress, in CSS pixels, in the layout the host sealed the plan from.
+    /// The scroll offset the host laid out, in CSS pixels.
+    pub scroll_offset: f64,
+    /// The scroll offset at 100% progress, in CSS pixels, in the layout the host sealed the plan from, and in the layout
+    /// of the last frame a tick presented from then on.
     pub max_scroll_offset: f64,
-    /// The progress, in percent, at the scroll offset the host laid out.
-    pub progress: f64,
+}
+
+impl FfiPlannedScrollTimeline {
+    /// The progress, in percent, of the timeline at the scroll offset `position`.
+    fn progress_at(&self, position: f64) -> f64 {
+        position / self.max_scroll_offset * 100.0
+    }
+
+    /// Has the timeline follow the layout `arena` holds, as a host's layout decides its next rendering update's samples.
+    /// What makes the timeline inactive there leaves it where it was: the host decides that.
+    fn follow_layout(&mut self, arena: &LayoutNodeArena) {
+        let rows = arena.paintable_rows();
+        let scroller = StyleNodeID::from_raw(self.scroller_element)
+            .map_or_else(|| arena.layout_root(), |element| arena.bound_row(element));
+        let Some(overflow) = scrollable_overflow_rect(&rows, scroller) else {
+            return;
+        };
+        let content = committed_content_size(&rows, scroller);
+        let max_scroll_offset = match self.vertical {
+            true => overflow.height.to_double() - content.height.to_double(),
+            false => overflow.width.to_double() - content.width.to_double(),
+        };
+        if max_scroll_offset > 0.0 {
+            self.max_scroll_offset = max_scroll_offset;
+        }
+    }
 }
 
 /// Where the compositor had scrolled the scroll node of an element, or of a document's viewport, by its unique node id,
@@ -139,16 +168,15 @@ impl ClockPlan {
         self.scroll_timelines
             .iter()
             .map(|timeline| {
-                let progress = scroll_offsets
+                let position = scroll_offsets
                     .iter()
                     .find(|offset| offset.scroller == timeline.scroller)
-                    .map_or(timeline.progress, |offset| {
-                        let position = if timeline.vertical { offset.y } else { offset.x };
-                        position / timeline.max_scroll_offset * 100.0
+                    .map_or(timeline.scroll_offset, |offset| {
+                        if timeline.vertical { offset.y } else { offset.x }
                     });
                 ScrollProgress {
                     timeline: timeline.timeline,
-                    progress,
+                    progress: timeline.progress_at(position),
                 }
             })
             .collect()
@@ -1492,6 +1520,9 @@ impl Lane {
                 Some((element, generated_for, color))
             })
         }));
+        for timeline in &mut self.plan.scroll_timelines {
+            timeline.follow_layout(arena);
+        }
         Ok(())
     }
 }

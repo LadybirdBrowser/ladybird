@@ -50,9 +50,10 @@ static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimelin
         scroll_timelines.append({
             .timeline = timeline.clock_identity(),
             .scroller = scroller->scroll_node.node_id.value(),
+            .scroller_element = scroller->scroller_style_node,
             .vertical = scroller->vertical,
+            .scroll_offset = scroller->scroll_offset,
             .max_scroll_offset = scroller->max_scroll_offset,
-            .progress = progress->value,
         });
     }
     return true;

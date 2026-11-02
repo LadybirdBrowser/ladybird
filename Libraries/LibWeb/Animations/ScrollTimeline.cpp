@@ -145,6 +145,9 @@ Optional<ScrollTimeline::ScrollerMetrics> ScrollTimeline::scroller_metrics() con
 
     return ScrollerMetrics {
         .scroll_node = Painting::async_scroll_node_stable_id(*layout_node),
+        .scroller_style_node = propagated_source.visit(
+            [](GC::Ptr<DOM::Element const> const& element) { return element->style_node_id().value(); },
+            [](GC::Ptr<DOM::Document> const&) -> u32 { return 0; }),
         .is_vertical = computed_axis.is_vertical,
         .scroll_offset = computed_axis.is_vertical
             ? Painting::scroll_offset(*layout_node).y().to_double()
@@ -225,7 +228,7 @@ void ScrollTimeline::update_current_time(double)
     auto progress = scroll_offset_data->scroll_offset / scroll_offset_data->max_scroll_offset;
 
     if (scroll_offset_data->scroll_node.has_value())
-        m_followed_scroller = FollowedScroller { *scroll_offset_data->scroll_node, scroll_offset_data->is_vertical, scroll_offset_data->max_scroll_offset };
+        m_followed_scroller = FollowedScroller { *scroll_offset_data->scroll_node, scroll_offset_data->scroller_style_node, scroll_offset_data->is_vertical, scroll_offset_data->scroll_offset, scroll_offset_data->max_scroll_offset };
 
     set_current_time(TimeValue { TimeValue::Type::Percentage, progress * 100 });
 }
