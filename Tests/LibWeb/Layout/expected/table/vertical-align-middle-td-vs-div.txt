@@ -9,13 +9,9 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 frag 0 from TextNode start: 0, length: 5, rect: [11,53 36.84375x16] baseline: 12.796875
                     "hello"
                 TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,114] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,114] [0+0+0 784 0+0+0] [0+0+0 100 0+0+0] children: inline
         frag 0 from TextNode start: 0, length: 5, rect: [8,114 36.84375x16] baseline: 12.796875
             "hello"
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,214] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

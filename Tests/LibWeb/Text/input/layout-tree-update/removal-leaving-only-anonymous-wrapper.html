@@ -93,7 +93,8 @@
                 name: "remove first block leaving empty text",
                 root: () => el("div", {}, el("div", { id: "x" }), ""),
                 mutate: remove,
-                expectNoBuild: false,
+                // The empty text renders nothing with the block or without it, so the block leaves in place.
+                expectNoBuild: true,
             },
             {
                 name: "replace first block with hidden element leaving empty text",
@@ -137,7 +138,8 @@
                 name: "remove last block after empty text",
                 root: () => el("div", {}, "", el("div", { id: "x" })),
                 mutate: remove,
-                expectNoBuild: false,
+                // The empty text renders nothing with the block or without it, so the block leaves in place.
+                expectNoBuild: true,
             },
             {
                 name: "remove block between inline siblings",

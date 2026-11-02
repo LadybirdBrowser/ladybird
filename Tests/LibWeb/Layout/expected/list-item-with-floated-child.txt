@@ -10,8 +10,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 1, rect: [8,8 14.265625x16] baseline: 12.796875
               "A"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,24] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       ListItemBox <li> at [8,24] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: not-inline
         ListItemMarkerBox <(anonymous)> at [-6,24] [0+0+0 13.84375 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
           frag 0 from GeneratedTextNode start: 0, length: 2, rect: [-6,24 13.84375x16] baseline: 12.796875
@@ -21,8 +19,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 1, rect: [8,24 9.34375x16] baseline: 12.796875
               "B"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x48] (z-index: auto)

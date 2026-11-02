@@ -899,6 +899,18 @@ impl RetainedState {
         }
     }
 
+    /// Whether the text node collapses its white space, as the element it inherits from publishes: its slot, its
+    /// parent, or the host of the shadow root it is a child of. `None` where no element publishes a style for it.
+    #[must_use]
+    pub fn text_collapses_white_space(&self, node: StyleNodeID) -> Option<bool> {
+        let parent = self
+            .tree
+            .inheritance_parent(node)
+            .filter(|parent| !self.tree.is_relation_only(*parent))?;
+        let view = self.published_style_record_view(self.published_element_record(parent))?;
+        Some(view.white_space_collapse() == crate::css::css_enums::white_space_collapse::COLLAPSE)
+    }
+
     /// Whether the text node's data is nothing but ASCII whitespace.
     #[must_use]
     pub fn text_is_ascii_whitespace(&self, node: StyleNodeID) -> bool {

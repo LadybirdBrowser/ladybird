@@ -1,13 +1,8 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       Box <div.container> at [8,8] positioned flex-container(row) [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [FFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.top-right> at [48,18] positioned [500+5+5 50 5+5+0] [0+5+5 50 5+5+0] [BFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
-      TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)

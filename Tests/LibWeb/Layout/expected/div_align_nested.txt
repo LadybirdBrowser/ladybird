@@ -7,8 +7,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "This text and the green square are both right aligned:"
           TextNode <#text> (not painted)
         BlockContainer <div.square> at [692,24] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
-        BlockContainer <(anonymous)> at [8,124] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div> at [8,124] [0+0+0 784 0+0+0] [0+0+0 132 0+0+0] children: not-inline
           BlockContainer <(anonymous)> at [8,124] [0+0+0 784 0+0+0] [0+0+0 32 0+0+0] children: inline
             frag 0 from TextNode start: 9, length: 87, rect: [8,124 711.4375x16] baseline: 12.796875
@@ -16,12 +14,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             frag 1 from TextNode start: 97, length: 14, rect: [8,140 94.296875x16] baseline: 12.796875
                 "align="right":"
             TextNode <#text> (not painted)
-          BlockContainer <div.square> at [8,156] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: inline
-            TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> at [8,256] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [8,256] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
+          BlockContainer <div.square> at [8,156] [0+0+0 100 0+0+684] [0+0+0 100 0+0+0] children: not-inline
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x264] (z-index: auto)

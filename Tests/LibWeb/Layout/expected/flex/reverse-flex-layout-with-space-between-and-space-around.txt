@@ -14,8 +14,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 7, rect: [98.015625,8 55.359375x16] baseline: 12.796875
               "friends"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,158] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.outer.row-reverse> at [8,158] flex-container(row-reverse) [0+0+0 150 0+0+634] [0+0+0 150 0+0+0] [FFC] children: not-inline
         BlockContainer <div.inner> at [123.3125,158] flex-item [0+0+0 30.078125 0+0+0] [0+0+0 150 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [123.3125,158 30.078125x16] baseline: 12.796875
@@ -29,8 +27,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 7, rect: [12.625,158 55.359375x16] baseline: 12.796875
               "friends"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,308] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.outer.column> at [8,308] flex-container(column) [0+0+0 150 0+0+634] [0+0+0 150 0+0+0] [FFC] children: not-inline
         BlockContainer <div.inner> at [8,325] flex-item [0+0+0 150 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [8,325 30.078125x16] baseline: 12.796875
@@ -44,8 +40,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 7, rect: [8,425 55.359375x16] baseline: 12.796875
               "friends"
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,458] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.outer.column-reverse> at [8,458] flex-container(column-reverse) [0+0+0 150 0+0+634] [0+0+0 150 0+0+0] [FFC] children: not-inline
         BlockContainer <div.inner> at [8,575] flex-item [0+0+0 150 0+0+0] [0+0+0 16 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 4, rect: [8,575 30.078125x16] baseline: 12.796875

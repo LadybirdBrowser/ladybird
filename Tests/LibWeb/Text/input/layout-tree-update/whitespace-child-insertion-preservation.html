@@ -636,7 +636,8 @@
             markup: '<div class="parent first-letter"><div class="tracked"></div><span>inline</span></div>',
             steps: [
                 { name: "append whitespace", mutate: parent => parent.append(" "), preserve: false },
-                { name: "append multiple whitespace nodes", mutate: parent => parent.append("\n", "\t", " "), preserve: false },
+                // White space after white space renders nothing, so it gets no box and the parent keeps its own.
+                { name: "append multiple whitespace nodes", mutate: parent => parent.append("\n", "\t", " ") },
             ],
         },
         {

@@ -5,21 +5,13 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         Box <figure> at [50,70] table-box [0+2+0 102 0+2+0] [0+2+0 52 0+2+0] [TFC] children: not-inline
           Box <(anonymous)> at [50,70] table-row [0+0+0 102 0+0+0] [0+0+0 52 0+0+0] children: not-inline
             BlockContainer <(anonymous)> at [50,70] table-cell [0+0+0 102 0+0+0] [0+0+0 52 0+0+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at [50,70] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
               BlockContainer <div.table-content> at [51,71] [0+1+0 100 0+1+0] [0+1+0 50 0+1+0] children: not-inline
-              BlockContainer <(anonymous)> at [50,122] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
           BlockContainer <figcaption> at [50,18] [0+2+0 102 0+2+0] [0+2+0 48 0+2+0] [BFC] children: not-inline
             BlockContainer <(anonymous)> at [50,18] [0+0+0 102 0+0+0] [0+0+0 16 0+0+0] children: inline
               frag 0 from TextNode start: 9, length: 12, rect: [50,18 100.609375x16] baseline: 12.796875
                   "Caption text"
               TextNode <#text> (not painted)
             BlockContainer <div.caption-content> at [51,35] [0+1+0 100 0+1+0] [0+1+0 30 0+1+0] children: not-inline
-            BlockContainer <(anonymous)> at [50,66] [0+0+0 102 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,140] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x140] (z-index: auto)

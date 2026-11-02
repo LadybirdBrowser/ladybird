@@ -1,22 +1,14 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 164 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 148 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       Box <div.wrapper> at [8,8] [0+0+0 784 0+0+0] [0+0+0 148 0+0+0] [GFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.box.a> at [28,38] [0+0+20 60 20+0+0] [0+0+20 24 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [28,38 21.40625x24] baseline: 19.1875
               "A"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.box.b> at [28,112] [0+0+20 60 20+0+0] [0+0+20 24 20+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [28,112 14.015625x24] baseline: 19.1875
               "B"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

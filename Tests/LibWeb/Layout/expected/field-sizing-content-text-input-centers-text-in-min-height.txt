@@ -10,7 +10,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                 "abc"
             TextNode <#text> (not painted)
       BreakNode <br> (not painted)
-      TextNode <#text> (not painted)
       BlockContainer <input> at [13,57] inline-block [0+2+3 20.796875 3+2+0] [0+2+1 40 1+2+0] [BFC] children: not-inline
         Box <div> at [13,57] flex-container(row) [0+0+0 20.796875 0+0+0] [0+0+0 40 0+0+0] [FFC] children: not-inline
           BlockContainer <div> at [13,71] flex-item [0+0+0 20.796875 0+0+0] [0+0+0 12 0+0+0] [BFC] children: inline

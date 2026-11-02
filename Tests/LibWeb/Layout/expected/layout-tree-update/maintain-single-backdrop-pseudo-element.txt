@@ -1,7 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
-      TextNode <#text> (not painted)
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
   BlockContainer <(anonymous)> at [0,0] positioned [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <dialog#d> at [315.15625,290] positioned [296.15625+3+16 169.6875 16+3+296.15625] [271+3+16 20 16+3+271] [BFC] children: inline
     frag 0 from TextInputBox start: 0, length: 0, rect: [320.15625,293 159.6875x14] baseline: 13.984375

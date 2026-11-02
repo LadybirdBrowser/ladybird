@@ -2,8 +2,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 528 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 512 0+0+8] children: not-inline
       Box <div.grid-container> at [8,8] [0+0+0 784 0+0+0] [0+0+0 512 0+0+0] [GFC] children: not-inline
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-span-one-one> at [108.640625,8] [0+0+0 101.515625 0+0+0] [0+0+0 224 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 4, rect: [108.640625,8 31.546875x16] baseline: 12.796875
               "In a"
@@ -33,8 +31,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "consequat"
           frag 13 from TextNode start: 148, length: 8, rect: [108.640625,216 61.609375x16] baseline: 12.796875
               "ut orci."
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-span-one-two> at [108.640625,232] [0+0+0 101.515625 0+0+0] [0+0+0 288 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 11, rect: [108.640625,232 98.65625x16] baseline: 12.796875
@@ -73,8 +69,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "nisi luctus"
           frag 17 from TextNode start: 176, length: 3, rect: [108.640625,504 20.546875x16] baseline: 12.796875
               "at."
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.grid-item.item-span-two> at [8,8] [0+0+0 100.640625 0+0+0] [0+0+0 512 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 1, length: 5, rect: [8,8 50.96875x16] baseline: 12.796875
@@ -125,8 +119,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
               "Proin sed"
           frag 23 from TextNode start: 218, length: 9, rect: [8,376 68.296875x16] baseline: 12.796875
               "orci leo."
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> (not painted) [BFC] children: inline
           TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

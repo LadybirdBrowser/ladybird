@@ -113,10 +113,10 @@
         }
         document.body.offsetHeight;
 
-        const shouldPreserve = insertionPosition !== "outside";
+        // White space in a row group renders nothing and has no box, so no row inserted around it makes it interior.
         const preserved = internals.layoutNodeIdentity(body) === bodyIdentity;
         const name = `${groupTag} ${direction} ${insertionPosition} ${boundaryKind}`;
-        println(`${preserved === shouldPreserve ? "PASS" : "FAIL"}: ${name} | ${shouldPreserve ? "preserve" : "rebuild"} row group`);
+        println(`${preserved ? "PASS" : "FAIL"}: ${name} | preserve row group`);
         println(`${internals.compareLayoutTreeWithFullRebuild().matches ? "PASS" : "FAIL"}: ${name} | incremental tree matches full rebuild`);
     }
 
@@ -209,7 +209,7 @@
                 const fragment = new DocumentFragment();
                 fragment.append(...nodes);
                 body.insertBefore(fragment, after);
-            }, boundaryKind === "whitespace");
+            }, true);
         }
         runWhitespaceInsertionCase("prepend edge whitespace", "whitespace", (body, after, nodes) => body.prepend(...nodes), true);
         runWhitespaceInsertionCase("append edge whitespace", "whitespace", (body, after, nodes) => body.append(...nodes), true);

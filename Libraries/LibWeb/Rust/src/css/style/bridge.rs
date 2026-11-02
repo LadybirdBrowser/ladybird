@@ -81,6 +81,9 @@ pub enum FfiStyleInvalidationField {
     EngineComputed = 1 << 23,
     /// Highlight pseudo-elements, which text descendants paint, repaint.
     RepaintHighlights = 1 << 24,
+    /// The white space of the element's text children collapses where it did not, or the other way round, so the white
+    /// space text among them may gain or lose its box.
+    WhiteSpaceCollapseChanged = 1 << 25,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

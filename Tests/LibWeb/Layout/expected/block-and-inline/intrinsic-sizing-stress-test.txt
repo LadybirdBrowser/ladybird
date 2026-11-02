@@ -1,226 +1,114 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline overflow: [0,0 831.75x1760.375]
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 1760.375 0+0+0] [BFC] children: not-inline
-    BlockContainer <(anonymous)> at [0,0] [0+0+0 800 0+0+0] [0+0+0 0 0+0+0] children: inline
-      TextNode <#text> (not painted)
     BlockContainer <body> at [0,10] [0+0+0 831.75 0+0+-31.75] [0+0+0 1740.375 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at [0,10] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,12] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,12] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,16] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 25, rect: [6,16 199.703125x16] baseline: 12.796875
               "Test 1: Plain nested divs"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,36] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,38] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,40] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             BlockContainer <div.plain> at [8,42] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] children: not-inline
               BlockContainer <div.plain> at [10,44] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,46] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,46] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,46] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 29, rect: [12,46 239.796875x16] baseline: 12.796875
                         "Plain nesting works correctly"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,62] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,72] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,84] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,86] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,86] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,90] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 39, rect: [6,90 326.875x16] baseline: 12.796875
               "Test 2: min-width on intermediate boxes"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,110] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,112] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.with-min-width> at [6,114] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             BlockContainer <div.plain> at [8,116] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] children: not-inline
               BlockContainer <div.with-min-width> at [10,118] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,120] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,120] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.short-content> at [12,120] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 2, rect: [12,120 16.796875x16] baseline: 12.796875
                         "Hi"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,136] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,146] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,158] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,160] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,160] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,164] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 39, rect: [6,164 332.03125x16] baseline: 12.796875
               "Test 3: max-width on intermediate boxes"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,184] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,186] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.with-max-width> at [6,188] [0+0+2 300 2+0+519.75] [0+0+2 28 2+0+0] children: not-inline
             BlockContainer <div.plain> at [8,190] [0+0+2 296 2+0+0] [0+0+2 24 2+0+0] children: not-inline
               BlockContainer <div.plain> at [10,192] [0+0+2 292 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,194] [0+0+2 288 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,194] [0+0+0 288 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,194] [0+0+0 288 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 69, rect: [12,194 585.390625x16] baseline: 12.796875
                         "This text is longer than 300px and should be constrained by max-width"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,210] [0+0+0 288 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,220] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,232] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,234] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,234] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,238] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 51, rect: [6,238 412.484375x16] baseline: 12.796875
               "Test 4: overflow:hidden (creates BFC) in the middle"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,258] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,260] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,262] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             BlockContainer <div.creates-bfc> at [8,264] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] [BFC] children: not-inline
               BlockContainer <div.plain> at [10,266] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,268] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,268] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,268] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 28, rect: [12,268 229.75x16] baseline: 12.796875
                         "BFC in the middle of nesting"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,284] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,294] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,306] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,308] [0+2+0 827.75 0+2+0] [10+2+0 84 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,308] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,312] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 25, rect: [6,312 191.703125x16] baseline: 12.796875
               "Test 5: Multiple siblings"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,332] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,334] [0+0+2 823.75 2+0+0] [0+0+2 56 2+0+0] children: not-inline
-          BlockContainer <(anonymous)> at [4,334] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.plain> at [6,336] [0+0+2 819.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
-            BlockContainer <(anonymous)> at [6,336] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
             BlockContainer <div.content> at [6,336] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
               frag 0 from TextNode start: 0, length: 13, rect: [6,336 99.484375x16] baseline: 12.796875
                   "First sibling"
-              TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [6,352] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
               TextNode <#text> (not painted)
             BlockContainer <div.content> at [6,352] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
               frag 0 from TextNode start: 0, length: 35, rect: [6,352 281.109375x16] baseline: 12.796875
                   "Second sibling is longer than first"
               TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [6,368] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> at [4,370] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.plain> at [6,372] [0+0+2 819.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-            BlockContainer <(anonymous)> at [6,372] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
             BlockContainer <div.content> at [6,372] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
               frag 0 from TextNode start: 0, length: 14, rect: [6,372 131.375x16] baseline: 12.796875
                   "Another branch"
               TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [6,388] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> at [4,390] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,392] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,404] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,406] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,406] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,410] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 36, rect: [6,410 294.203125x16] baseline: 12.796875
               "Test 6: Flex container in the middle"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,430] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,432] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,434] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             Box <div.flex-container> at [8,436] flex-container(row) [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] [FFC] children: not-inline
               BlockContainer <div.plain> at [10,438] flex-item [0+0+2 203.9375 2+0+0] [0+0+2 20 2+0+0] [BFC] children: not-inline
                 BlockContainer <div.plain> at [12,440] [0+0+2 199.9375 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,440] [0+0+0 199.9375 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,440] [0+0+0 199.9375 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 23, rect: [12,440 199.9375x16] baseline: 12.796875
                         "Flex container ancestor"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,456] [0+0+0 199.9375 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,466] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,478] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,480] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,480] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,484] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 36, rect: [6,484 293.46875x16] baseline: 12.796875
               "Test 7: Grid container in the middle"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,504] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,506] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,508] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             Box <div.grid-container> at [8,510] [0+0+2 815.75 2+0+0] [0+0+2 24 2+0+0] [GFC] children: not-inline
               BlockContainer <div.plain> at [10,512] [0+0+2 811.75 2+0+0] [0+0+2 20 2+0+0] [BFC] children: not-inline
                 BlockContainer <div.plain> at [12,514] [0+0+2 807.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,514] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,514] [0+0+0 807.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 23, rect: [12,514 199.21875x16] baseline: 12.796875
                         "Grid container ancestor"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,530] [0+0+0 807.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,540] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,552] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,554] [0+2+0 827.75 0+2+0] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,554] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,558] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 34, rect: [6,558 263.421875x16] baseline: 12.796875
               "Test 8: inline-block in the middle"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,578] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,580] [0+0+2 823.75 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,582] [0+0+2 819.75 2+0+0] [0+0+2 28 2+0+0] children: inline
@@ -228,207 +116,99 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             BlockContainer <div.inline-block> at [8,584] inline-block [0+0+2 176.40625 2+0+0] [0+0+2 24 2+0+0] [BFC] children: not-inline
               BlockContainer <div.plain> at [10,586] [0+0+2 172.40625 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,588] [0+0+2 168.40625 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,588] [0+0+0 168.40625 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,588] [0+0+0 168.40625 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 21, rect: [12,588 168.40625x16] baseline: 12.796875
                         "inline-block ancestor"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,604] [0+0+0 168.40625 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,614] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,626] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section.clearfix> at [2,628] [0+2+0 827.75 0+2+0] [10+2+0 52 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,628] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,632] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 37, rect: [6,632 306.796875x16] baseline: 12.796875
               "Test 9: Float inside nested structure"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,652] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,654] [0+0+2 823.75 2+0+0] [0+0+2 24 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,656] [0+0+2 819.75 2+0+0] [0+0+2 20 2+0+0] children: not-inline
             BlockContainer <div.plain> at [8,658] [0+0+2 815.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-              BlockContainer <(anonymous)> at [8,658] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
-                BlockContainer <div.floated> at [10,660] floating [0+0+2 128.828125 2+0+0] [0+0+2 16 2+0+0] [BFC] children: not-inline
-                  BlockContainer <div.content> at [10,660] [0+0+0 128.828125 0+0+0] [0+0+0 16 0+0+0] children: inline
-                    frag 0 from TextNode start: 0, length: 15, rect: [10,660 128.828125x16] baseline: 12.796875
-                        "Floated content"
-                    TextNode <#text> (not painted)
-                TextNode <#text> (not painted)
+              BlockContainer <div.floated> at [10,660] floating [0+0+2 128.828125 2+0+0] [0+0+2 16 2+0+0] [BFC] children: not-inline
+                BlockContainer <div.content> at [10,660] [0+0+0 128.828125 0+0+0] [0+0+0 16 0+0+0] children: inline
+                  frag 0 from TextNode start: 0, length: 15, rect: [10,660 128.828125x16] baseline: 12.796875
+                      "Floated content"
+                  TextNode <#text> (not painted)
               BlockContainer <div.content> at [8,658] [0+0+0 815.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                 frag 0 from TextNode start: 0, length: 19, rect: [140.828125,658 147.890625x16] baseline: 12.796875
                     "Non-floated sibling"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> at [8,674] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,680] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <(anonymous)> at [2,680] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at [0,692] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,694] [0+2+0 827.75 0+2+0] [10+2+0 70 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,694] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,698] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 41, rect: [6,698 344.28125x16] baseline: 12.796875
               "Test 10: Borders and padding accumulating"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,718] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.with-border> at [5,721] [0+3+0 821.75 0+3+0] [0+3+0 40 0+3+0] children: not-inline
           BlockContainer <div.with-border> at [8,724] [0+3+0 815.75 0+3+0] [0+3+0 34 0+3+0] children: not-inline
             BlockContainer <div.with-border> at [11,727] [0+3+0 809.75 0+3+0] [0+3+0 28 0+3+0] children: not-inline
               BlockContainer <div.with-border> at [14,730] [0+3+0 803.75 0+3+0] [0+3+0 22 0+3+0] children: not-inline
                 BlockContainer <div.with-border> at [17,733] [0+3+0 797.75 0+3+0] [0+3+0 16 0+3+0] children: not-inline
-                  BlockContainer <(anonymous)> at [17,733] [0+0+0 797.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [17,733] [0+0+0 797.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 19, rect: [17,733 172.203125x16] baseline: 12.796875
                         "Accumulated borders"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [17,749] [0+0+0 797.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,764] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,776] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,778] [0+2+0 827.75 0+2+0] [10+2+0 62 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,778] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,782] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 28, rect: [6,782 226.078125x16] baseline: 12.796875
               "Test 11: Mixed nesting types"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,802] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,804] [0+0+2 823.75 2+0+0] [0+0+2 34 2+0+0] children: not-inline
-          BlockContainer <(anonymous)> at [4,804] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text> (not painted)
           BlockContainer <div.with-min-width> at [6,806] [0+0+2 819.75 2+0+0] [0+0+2 30 2+0+0] children: not-inline
-            BlockContainer <(anonymous)> at [6,806] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
             BlockContainer <div.creates-bfc> at [8,808] [0+0+2 815.75 2+0+0] [0+0+2 26 2+0+0] [BFC] children: not-inline
-              BlockContainer <(anonymous)> at [8,808] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
               BlockContainer <div.plain> at [10,810] [0+0+2 811.75 2+0+0] [0+0+2 22 2+0+0] children: not-inline
-                BlockContainer <(anonymous)> at [10,810] [0+0+0 811.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                  TextNode <#text> (not painted)
                 BlockContainer <div.with-border> at [13,813] [0+3+0 805.75 0+3+0] [0+3+0 16 0+3+0] children: not-inline
-                  BlockContainer <(anonymous)> at [13,813] [0+0+0 805.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [13,813] [0+0+0 805.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 21, rect: [13,813 180.265625x16] baseline: 12.796875
                         "Complex mixed nesting"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [13,829] [0+0+0 805.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-                BlockContainer <(anonymous)> at [10,832] [0+0+0 811.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                  TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> at [8,834] [0+0+0 815.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
-            BlockContainer <(anonymous)> at [6,836] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-              TextNode <#text> (not painted)
-          BlockContainer <(anonymous)> at [4,838] [0+0+0 823.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-            TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,840] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,852] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,854] [0+2+0 297.71875 0+2+530.03125] [10+2+0 60 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,854] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,858] [0+0+4 289.71875 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 27, rect: [6,858 217.953125x16] baseline: 12.796875
               "Test 12: min-content sizing"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,878] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,880] [0+0+2 293.71875 2+0+0] [0+0+2 32 2+0+0] children: not-inline
           BlockContainer <div.plain> at [6,882] [0+0+2 289.71875 2+0+0] [0+0+2 28 2+0+0] children: not-inline
             BlockContainer <div.plain> at [8,884] [0+0+2 285.71875 2+0+0] [0+0+2 24 2+0+0] children: not-inline
               BlockContainer <div.plain> at [10,886] [0+0+2 281.71875 2+0+0] [0+0+2 20 2+0+0] children: not-inline
                 BlockContainer <div.plain> at [12,888] [0+0+2 277.71875 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                  BlockContainer <(anonymous)> at [12,888] [0+0+0 277.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
                   BlockContainer <div.content> at [12,888] [0+0+0 277.71875 0+0+0] [0+0+0 16 0+0+0] children: inline
                     frag 0 from TextNode start: 0, length: 32, rect: [12,888 277.71875x16] baseline: 12.796875
                         "min-content test with some words"
                     TextNode <#text> (not painted)
-                  BlockContainer <(anonymous)> at [12,904] [0+0+0 277.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
-                    TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,914] [0+0+0 297.71875 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,926] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,928] [0+2+0 827.75 0+2+0] [10+2+0 58 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,928] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,932] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 42, rect: [6,932 349.140625x16] baseline: 12.796875
               "Test 13: Auto margins in intrinsic context"
           TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,952] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,954] [0+0+2 823.75 2+0+0] [0+0+2 30 2+0+0] children: not-inline
           BlockContainer <div.with-margin> at [4,959] [0+0+0 823.75 0+0+0] [5+0+0 20 0+0+5] children: not-inline
             BlockContainer <div.plain> at [6,961] [0+0+2 819.75 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-              BlockContainer <(anonymous)> at [6,961] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
               BlockContainer <div.content> at [6,961] [0+0+0 819.75 0+0+0] [0+0+0 16 0+0+0] children: inline
                 frag 0 from TextNode start: 0, length: 12, rect: [6,961 110.703125x16] baseline: 12.796875
                     "Auto margins"
                 TextNode <#text> (not painted)
-              BlockContainer <(anonymous)> at [6,977] [0+0+0 819.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-                TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,986] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,998] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,1000] [0+2+0 827.75 0+2+0] [10+2+0 134.375 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,1000] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,1004] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 27, rect: [6,1004 224.09375x16] baseline: 12.796875
               "Test 14: Percentage padding"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,1024] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div.plain> at [4,1026] [0+0+2 823.75 2+0+0] [0+0+2 106.375 2+0+0] children: not-inline
           BlockContainer <div.plain> at [45.1875,1067.1875] [0+0+41.1875 741.375 41.1875+0+0] [0+0+41.1875 24 41.1875+0+0] children: not-inline
             BlockContainer <div.plain> at [47.1875,1069.1875] [0+0+2 737.375 2+0+0] [0+0+2 20 2+0+0] children: not-inline
               BlockContainer <div.plain> at [49.1875,1071.1875] [0+0+2 733.375 2+0+0] [0+0+2 16 2+0+0] children: not-inline
-                BlockContainer <(anonymous)> at [49.1875,1071.1875] [0+0+0 733.375 0+0+0] [0+0+0 0 0+0+0] children: inline
-                  TextNode <#text> (not painted)
                 BlockContainer <div.content> at [49.1875,1071.1875] [0+0+0 733.375 0+0+0] [0+0+0 16 0+0+0] children: inline
                   frag 0 from TextNode start: 0, length: 18, rect: [49.1875,1071.1875 153x16] baseline: 12.796875
                       "Percentage padding"
                   TextNode <#text> (not painted)
-                BlockContainer <(anonymous)> at [49.1875,1087.1875] [0+0+0 733.375 0+0+0] [0+0+0 0 0+0+0] children: inline
-                  TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,1134.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,1146.375] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
       BlockContainer <div.section> at [2,1148.375] [0+2+0 827.75 0+2+0] [10+2+0 600 0+2+10] children: not-inline
-        BlockContainer <(anonymous)> at [2,1148.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
         BlockContainer <div.section-title> at [6,1152.375] [0+0+4 819.75 4+0+0] [0+0+4 16 4+0+0] children: inline
           frag 0 from TextNode start: 0, length: 44, rect: [6,1152.375 353.5625x16] baseline: 12.796875
               "Test 15: Deep generated nesting (100 levels)"
-          TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,1172.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
           TextNode <#text> (not painted)
         BlockContainer <div#deep-container> at [2,1172.375] [0+0+0 827.75 0+0+0] [0+0+0 576 0+0+0] children: not-inline
           BlockContainer <div.plain> at [4,1174.375] [0+0+2 823.75 2+0+0] [0+0+2 572 2+0+0] children: not-inline
@@ -535,11 +315,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                                                                                                                                                                                                                     frag 0 from TextNode start: 0, length: 32, rect: [282,1452.375 267.75x16] baseline: 12.796875
                                                                                                                                                                                                                         "Deep generated nesting complete!"
                                                                                                                                                                                                                     TextNode <#text> (not painted)
-        BlockContainer <(anonymous)> at [2,1748.375] [0+0+0 827.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-          TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [0,1760.375] [0+0+0 831.75 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x1760.375] (z-index: auto)

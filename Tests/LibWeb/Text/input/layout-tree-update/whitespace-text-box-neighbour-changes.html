@@ -1,0 +1,217 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .flex { display: flex; }
+    .grid { display: grid; }
+    .table { display: table; }
+    .row { display: table-row; }
+    .cell { display: table-cell; }
+    .contents { display: contents; }
+    .before-inline::before { content: "before"; }
+    .after-inline::after { content: "after"; }
+    .inside { list-style-position: inside; }
+</style>
+<div id="fixture"></div>
+<script>
+    // Each step changes something a white space text's box depends on: the box before it, its parent's display, the
+    // white space its text collapses, its parent's ::before, editability, or the text before it. After each step, the
+    // line lists which of the parent's white space text nodes have a box, and checks the tree against a full rebuild.
+    const cases = [
+        {
+            name: "between blocks",
+            markup: '<div class="parent"><p>a</p> <p class="n">b</p> <p>c</p></div>',
+            steps: [
+                { name: "insert inline before whitespace", mutate: p => p.firstElementChild.after(document.createElement("span")) },
+                { name: "remove that inline", mutate: p => p.querySelector("span").remove() },
+                { name: "insert text before whitespace", mutate: p => p.firstElementChild.after("text") },
+                { name: "remove that text", mutate: p => p.childNodes[1].remove() },
+                { name: "remove block after inline", mutate: p => { p.firstElementChild.before(document.createElement("span")); p.querySelector("p").remove(); } },
+            ],
+        },
+        {
+            name: "neighbour display",
+            markup: '<div class="parent"><span class="n">a</span> <div>b</div> <span>c</span></div>',
+            steps: [
+                { name: "inline to block", mutate: p => p.querySelector(".n").style.display = "block" },
+                { name: "block to inline-block", mutate: p => p.querySelector(".n").style.display = "inline-block" },
+                { name: "inline-block to none", mutate: p => p.querySelector(".n").style.display = "none" },
+                { name: "none to contents", mutate: p => p.querySelector(".n").style.display = "contents" },
+                { name: "contents to inline", mutate: p => p.querySelector(".n").style.display = "" },
+                { name: "position absolute", mutate: p => p.querySelector(".n").style.position = "absolute" },
+                { name: "float instead", mutate: p => { p.querySelector(".n").style.position = ""; p.querySelector(".n").style.float = "left"; } },
+                { name: "no float", mutate: p => p.querySelector(".n").style.float = "" },
+            ],
+        },
+        {
+            name: "parent white-space",
+            markup: '<div class="parent"><p>a</p> <p>b</p> </div>',
+            steps: [
+                { name: "pre", mutate: p => p.style.whiteSpace = "pre" },
+                { name: "pre-line", mutate: p => p.style.whiteSpace = "pre-line" },
+                { name: "normal", mutate: p => p.style.whiteSpace = "" },
+            ],
+        },
+        {
+            name: "text before whitespace",
+            markup: '<div class="parent">foo<!----> <b>x</b><!---->\n<i>y</i></div>',
+            steps: [
+                { name: "add trailing space", mutate: p => p.firstChild.data = "foo " },
+                { name: "remove trailing space", mutate: p => p.firstChild.data = "foo" },
+                { name: "turn whitespace into text", mutate: p => p.childNodes[5].data = "z" },
+                { name: "turn it back into whitespace", mutate: p => p.childNodes[5].data = " " },
+                { name: "empty the first text", mutate: p => p.firstChild.data = "" },
+            ],
+        },
+        {
+            name: "after a line break",
+            markup: '<div class="parent">a<br> <b>x</b></div>',
+            steps: [
+                { name: "replace break with inline", mutate: p => p.querySelector("br").replaceWith(document.createElement("span")) },
+                { name: "replace inline with break", mutate: p => p.querySelector("span").replaceWith(document.createElement("br")) },
+            ],
+        },
+        {
+            name: "start of a block",
+            markup: '<div class="parent"> <b>x</b></div>',
+            steps: [
+                { name: "inline ::before", mutate: p => p.classList.add("before-inline") },
+                { name: "no ::before", mutate: p => p.classList.remove("before-inline") },
+                { name: "prepend text", mutate: p => p.prepend("a") },
+                { name: "remove that text", mutate: p => p.firstChild.remove() },
+                { name: "parent becomes inline", mutate: p => p.style.display = "inline" },
+                { name: "parent becomes block", mutate: p => p.style.display = "" },
+            ],
+        },
+        {
+            name: "list item marker",
+            markup: '<ul><li class="parent"> <b>x</b></li></ul>',
+            steps: [
+                { name: "inside marker", mutate: p => p.classList.add("inside") },
+                { name: "outside marker", mutate: p => p.classList.remove("inside") },
+            ],
+        },
+        {
+            name: "editing host",
+            markup: '<div class="parent"><p>a</p> <p>b</p></div>',
+            steps: [
+                { name: "contenteditable", mutate: p => p.contentEditable = "true" },
+                { name: "not contenteditable", mutate: p => p.contentEditable = "false" },
+            ],
+        },
+        {
+            name: "flex",
+            markup: '<div class="parent flex">foo<!----> <div>x</div> <div>y</div></div>',
+            steps: [
+                { name: "add trailing space", mutate: p => p.firstChild.data = "foo " },
+                { name: "remove trailing space", mutate: p => p.firstChild.data = "foo" },
+                { name: "grid", mutate: p => p.classList.replace("flex", "grid") },
+                { name: "block", mutate: p => p.classList.remove("grid") },
+                { name: "remove item", mutate: p => p.querySelector("div").remove() },
+            ],
+        },
+        {
+            name: "table",
+            markup: '<div class="parent table"><div class="row"><div class="cell">a</div></div> <span>b</span> <span>c</span> </div>',
+            steps: [
+                { name: "insert row before inline", mutate: p => p.querySelector("span").before(Object.assign(document.createElement("div"), { className: "row" })) },
+                { name: "remove first row", mutate: p => p.querySelector(".row").remove() },
+                { name: "inline becomes block", mutate: p => p.querySelector("span").style.display = "block" },
+            ],
+        },
+        {
+            name: "after a table cell in an inline",
+            markup: '<div><span class="parent">a <span class="cell">b</span> <span>c</span></span></div>',
+            steps: [
+                { name: "cell becomes inline", mutate: p => p.querySelector(".cell").classList.remove("cell") },
+                { name: "inline becomes cell", mutate: p => p.children[0].classList.add("cell") },
+            ],
+        },
+        {
+            name: "display contents",
+            markup: '<div class="parent"><p>a</p><span class="contents c"> <b>x</b> </span> <p>b</p></div>',
+            steps: [
+                { name: "insert inline before contents", mutate: p => p.querySelector(".c").before(document.createElement("span")) },
+                { name: "::before on contents", mutate: p => p.querySelector(".c").classList.add("before-inline") },
+                { name: "::after on contents", mutate: p => p.querySelector(".c").classList.add("after-inline") },
+                { name: "contents becomes inline", mutate: p => p.querySelector(".c").classList.remove("contents") },
+                { name: "inline becomes contents", mutate: p => p.querySelector(".c").classList.add("contents") },
+                { name: "remove inline before contents", mutate: p => p.querySelector(":scope > span:not(.c)").remove() },
+            ],
+        },
+        {
+            name: "slotted",
+            markup: '<div class="parent"><span slot="s">a</span> <span slot="s">b</span> </div>',
+            shadow: '<p>x</p><slot name="s"></slot> <slot></slot>',
+            steps: [
+                { name: "unslot first", mutate: p => p.firstElementChild.removeAttribute("slot") },
+                { name: "slot first again", mutate: p => p.firstElementChild.setAttribute("slot", "s") },
+                { name: "insert block in light DOM", mutate: p => p.firstElementChild.after(Object.assign(document.createElement("div"), { slot: "s" })) },
+                { name: "slot becomes block", mutate: p => p.shadowRoot.querySelector("slot").style.display = "block" },
+            ],
+        },
+        {
+            name: "shadow root children",
+            markup: '<div class="parent"></div>',
+            shadow: '<span>a</span> <p>b</p> <span>c</span>',
+            steps: [
+                { name: "shadow inline becomes block", mutate: p => p.shadowRoot.querySelector("span").style.display = "block" },
+                { name: "insert inline into shadow root", mutate: p => p.shadowRoot.querySelector("p").before(document.createElement("i")) },
+            ],
+        },
+        {
+            name: "appending",
+            markup: '<div class="parent"><p>a</p> </div>',
+            steps: [
+                { name: "append inline, whitespace, inline", mutate: p => p.append(document.createElement("span"), " ", document.createElement("span")) },
+                { name: "append whitespace and block", mutate: p => p.append("\n", document.createElement("div"), "\n") },
+                { name: "remove first block", mutate: p => p.querySelector("p").remove() },
+            ],
+        },
+        {
+            name: "list",
+            markup: '<ul class="parent">\n<li>1</li>\n<li class="n">2</li>\n<li>3</li>\n</ul>',
+            steps: [
+                { name: "remove middle item", mutate: p => p.querySelector(".n").remove() },
+                { name: "remove first item", mutate: p => p.firstElementChild.remove() },
+                { name: "append item", mutate: p => p.append(document.createElement("li"), "\n") },
+            ],
+        },
+    ];
+
+    function boxedWhitespace(parent) {
+        const root = parent.shadowRoot ?? parent;
+        const flags = [];
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const visit = node => {
+            if (node.nodeType === Node.TEXT_NODE && /^[ \t\n\f\r]*$/.test(node.data))
+                flags.push(internals.layoutNodeIdentity(node) !== 0 ? 1 : 0);
+        };
+        for (let node = walker.nextNode(); node; node = walker.nextNode())
+            visit(node);
+        if (parent.shadowRoot) {
+            for (const node of parent.childNodes)
+                visit(node);
+        }
+        return flags.join("");
+    }
+
+    test(() => {
+        for (const case_ of cases) {
+            fixture.innerHTML = case_.markup;
+            const parent = fixture.querySelector(".parent");
+            if (case_.shadow)
+                parent.attachShadow({ mode: "open" }).innerHTML = case_.shadow;
+            document.body.offsetWidth;
+            println(`${case_.name} | initial | boxed whitespace ${boxedWhitespace(parent)}`);
+
+            for (const step of case_.steps) {
+                const buildsBefore = internals.layoutTreeBuildStats().builds;
+                step.mutate(parent);
+                document.body.offsetWidth;
+                const builds = internals.layoutTreeBuildStats().builds - buildsBefore;
+                const matches = internals.compareLayoutTreeWithFullRebuild().matches;
+                println(`${case_.name} | ${step.name} | boxed whitespace ${boxedWhitespace(parent)} | builds ${builds} | ${matches ? "PASS" : "FAIL"}`);
+            }
+        }
+    });
+</script>

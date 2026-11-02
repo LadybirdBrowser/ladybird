@@ -5,14 +5,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/CharacterTypes.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibUnicode/Segmenter.h>
+#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/Text.h>
@@ -47,6 +50,33 @@ CharacterData::RareData const* CharacterData::character_data_rare_data() const
 }
 
 GC_DEFINE_ALLOCATOR(CharacterData);
+
+static bool ends_in_ascii_whitespace(Utf16String const& data)
+{
+    return !data.is_empty() && is_ascii_space(data.code_unit_at(data.length_in_code_units() - 1));
+}
+
+// Whether white space text may follow the node among the boxes of its parent, with no in-flow box between them.
+static bool whitespace_text_may_follow(Node const& node)
+{
+    for (auto const* sibling = node.next_sibling(); sibling; sibling = sibling->next_sibling()) {
+        if (auto const* text = as_if<Text>(*sibling))
+            return text->data().is_ascii_whitespace();
+        auto const* element = as_if<Element>(*sibling);
+        auto const* box_values = element ? element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
+        if (!box_values)
+            continue;
+        auto display = box_values->display_value();
+        // The children of a display: contents element continue the boxes before it.
+        if (display.is_contents())
+            return true;
+        auto is_out_of_flow = box_values->float_value() != CSS::Float::None
+            || first_is_one_of(box_values->position_value(), CSS::Positioning::Absolute, CSS::Positioning::Fixed);
+        if (!display.is_none() && !is_out_of_flow)
+            return false;
+    }
+    return false;
+}
 
 CharacterData::CharacterData(Document& document, NodeType type, Utf16String data)
     : Node(document, type)
@@ -198,17 +228,20 @@ WebIDL::ExceptionOr<void> CharacterData::replace_data(size_t offset, size_t coun
         Layout::RustFFI::FfiBoxMarks marks {};
         marks.text_data_changed = true;
         mark_box(marks);
-        // Whitespace alone may render as nothing, so a text that turns into it or out of it may gain or lose its box.
-        if (whitespace_only_changed && is_connected()) {
-            if (has_layout_box())
+        // White space alone may render as nothing, so a text that turns into it or out of it may gain or lose its box.
+        // So may white space text after it, which renders nothing after text ending in collapsible white space.
+        auto trailing_whitespace_changed = ends_in_ascii_whitespace(old_data) != ends_in_ascii_whitespace(m_data);
+        if (is_connected() && (whitespace_only_changed || (trailing_whitespace_changed && whitespace_text_may_follow(*this)))) {
+            if (!has_layout_box())
+                set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
+            else if (whitespace_only_changed)
                 set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
-            else if (auto* parent = this->parent())
-                parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData);
-
-            // NB: Paint timing stops looking at text that is all white space, which this text no longer is.
-            if (!m_data.is_ascii_whitespace())
-                PaintTiming::text_node_may_be_painted_for_the_first_time(as<Text>(*this));
+            if (auto* parent = this->parent())
+                parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
         }
+        // NB: Paint timing stops looking at text that is all white space, which this text no longer is.
+        if (whitespace_only_changed && is_connected() && !m_data.is_ascii_whitespace())
+            PaintTiming::text_node_may_be_painted_for_the_first_time(as<Text>(*this));
     }
 
     bump_character_data_version();

@@ -1,7 +1,6 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
-      TextNode <#text> (not painted)
       InlineNode <span> at [8,8] [0+0+0 193.453125 0+0+0] [0+0+0 16 0+0+0]
         frag 0 from BlockContainer start: 0, length: 0, rect: [8,8 185.453125x16] baseline: 12.796875
         frag 1 from TextNode start: 0, length: 1, rect: [193.453125,8 8x16] baseline: 12.796875

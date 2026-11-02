@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    .note::before { content: "Note:"; }
+    .cell { display: table-cell; }
+    svg { display: block; }
+</style>
+<!-- No box: between blocks, at the start of a block, after a line break, among flex and grid items, in a table. -->
+<div id="between-blocks"><p>a</p>
+<p>b</p>
+</div>
+<div id="start-of-block">
+    <span>a</span></div>
+<div id="after-line-break">a<br>
+<span>b</span></div>
+<div id="flex" style="display: flex">
+    <div>a</div>
+    <div>b</div>
+</div>
+<div id="grid" style="display: grid">
+    <div>a</div>
+</div>
+<table id="table"><tr>
+    <td>a</td>
+</tr></table>
+<div id="start-of-display-contents"><span style="display: contents"> <b>a</b></span></div>
+<svg id="svg" width="10" height="10">
+    <rect width="5" height="5"/>
+</svg>
+<!-- A box: after inline content, at the start of an inline box, after an inline ::before or an inside marker, after a
+     table cell in an inline, as an editing host's child, where white space is preserved, inside SVG text. -->
+<div id="after-inline"><span>a</span> <span>b</span></div>
+<div id="start-of-inline-box"><span> <b>a</b></span></div>
+<p id="after-before" class="note"> <b>a</b></p>
+<ul><li id="after-inside-marker" style="list-style-position: inside"> <b>a</b></li></ul>
+<div id="after-table-cell-in-inline"><span>a <span class="cell">b</span> <span>c</span></span></div>
+<div id="editing-host" contenteditable><p>a</p>
+<p>b</p></div>
+<div id="preserved" style="white-space: pre"><p>a</p>
+<p>b</p></div>
+<div id="after-display-contents"><span>a</span><span style="display: contents"> <b>b</b></span></div>
+<svg id="svg-text" width="50" height="20"><text y="15">a <tspan>b</tspan> <tspan>c</tspan></text></svg>
+<!-- An absolutely positioned box after white space between blocks is laid out as a block-level sibling. -->
+<div id="abspos" style="position: relative"><p>a</p>
+<div style="position: absolute">abs</div>
+<p>b</p></div>

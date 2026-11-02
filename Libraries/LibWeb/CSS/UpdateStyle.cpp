@@ -142,6 +142,8 @@ static void apply_element_style_invalidation_after_style_change(Layout::BegunRea
     }
     if (invalidation.needs_layout_tree_rebuild())
         element.set_needs_layout_tree_rebuild(read, DOM::SetNeedsLayoutTreeUpdateReason::StyleChange, invalidation.layout_tree_rebuild_root());
+    else if (invalidation.white_space_collapse_changed)
+        element.set_needs_layout_tree_update(true, DOM::SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
 }
 
 static void apply_document_style_invalidation_after_style_change(DOM::Document& document, RequiredInvalidationAfterStyleChange const& invalidation)

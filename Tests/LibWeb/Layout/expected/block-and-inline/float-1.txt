@@ -1,50 +1,33 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 320 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 304 0+0+8] children: not-inline
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
         BlockContainer <div#lefty> at [8,8] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [8,8 10.859375x16] baseline: 12.796875
               "L"
           TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
         BlockContainer <div#righty> at [742,8] floating [0+0+0 50 0+0+0] [0+0+0 50 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 1, rect: [742,8 13.6875x16] baseline: 12.796875
               "R"
           TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
         BlockContainer <div#lefty2> at [108,8] floating [0+0+0 80 0+0+0] [0+0+0 80 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 2, rect: [108,8 19.671875x16] baseline: 12.796875
               "L2"
           TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
         BlockContainer <div#righty2> at [712,8] floating [0+0+0 30 0+0+0] [0+0+0 30 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 2, rect: [712,8 22.5x16] baseline: 12.796875
               "R2"
           TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
+      BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: not-inline
         BlockContainer <div#lefty3> at [188,8] floating [0+0+0 40 0+0+0] [0+0+0 40 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 2, rect: [188,8 19.953125x16] baseline: 12.796875
               "L3"
           TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
         BlockContainer <div#righty3> at [692,8] floating [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: inline
           frag 0 from TextNode start: 0, length: 2, rect: [692,8 22.78125x16] baseline: 12.796875
               "R3"
           TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,8] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div> at [8,8] [0+0+0 784 0+0+0] [0+0+0 304 0+0+0] children: inline
         frag 0 from TextNode start: 5, length: 47, rect: [228,8 414.5625x16] baseline: 12.796875
             "lorem ipsum lorem ipsum lorem ipsum lorem ipsum"
@@ -90,8 +73,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem"
         frag 21 from TextNode start: 1383, length: 17, rect: [8,296 150.9375x16] baseline: 12.796875
             "ipsum lorem ipsum"
-        TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,312] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
         TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

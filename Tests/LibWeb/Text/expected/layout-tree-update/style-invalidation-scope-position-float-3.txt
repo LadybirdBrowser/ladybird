@@ -1273,13 +1273,13 @@ PASS: position static -> fixed on math in table-row-group | incremental tree mat
 PRESERVED: position absolute -> fixed on math in block flow | fixture ancestor
 PRESERVED: position absolute -> fixed on math in block flow | distant sibling
 PRESERVED: position absolute -> fixed on math in block flow | distant sibling descendant
-PRESERVED: position absolute -> fixed on math in block flow | DOM parent
-PRESERVED: position absolute -> fixed on math in block flow | preceding sibling
-PRESERVED: position absolute -> fixed on math in block flow | preceding sibling descendant
+RECREATED: position absolute -> fixed on math in block flow | DOM parent
+RECREATED: position absolute -> fixed on math in block flow | preceding sibling
+RECREATED: position absolute -> fixed on math in block flow | preceding sibling descendant
 RECREATED: position absolute -> fixed on math in block flow | target
 RECREATED: position absolute -> fixed on math in block flow | target descendant
-PRESERVED: position absolute -> fixed on math in block flow | following sibling
-PRESERVED: position absolute -> fixed on math in block flow | following sibling descendant
+RECREATED: position absolute -> fixed on math in block flow | following sibling
+RECREATED: position absolute -> fixed on math in block flow | following sibling descendant
 STATS: position absolute -> fixed on math in block flow | rebuilt subtree roots=1, escaped=false
 PASS: position absolute -> fixed on math in block flow | incremental tree matches full rebuild
 RECREATED: position sticky -> absolute on math in block table | fixture ancestor
@@ -1441,13 +1441,13 @@ PASS: position static -> fixed on -webkit-inline-box in table-footer-group | inc
 PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | fixture ancestor
 PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | distant sibling
 PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | distant sibling descendant
-PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | DOM parent
-PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | preceding sibling
-PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | preceding sibling descendant
+RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | DOM parent
+RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | preceding sibling
+RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | preceding sibling descendant
 RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | target
 RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | target descendant
-PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | following sibling
-PRESERVED: position absolute -> fixed on -webkit-inline-box in block flow-root | following sibling descendant
+RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | following sibling
+RECREATED: position absolute -> fixed on -webkit-inline-box in block flow-root | following sibling descendant
 STATS: position absolute -> fixed on -webkit-inline-box in block flow-root | rebuilt subtree roots=1, escaped=false
 PASS: position absolute -> fixed on -webkit-inline-box in block flow-root | incremental tree matches full rebuild
 PRESERVED: position sticky -> absolute on -webkit-inline-box in block flow list-item | fixture ancestor
@@ -2278,16 +2278,16 @@ RECREATED: position static -> fixed on inline flow in block flex | following sib
 RECREATED: position static -> fixed on inline flow in block flex | following sibling descendant
 STATS: position static -> fixed on inline flow in block flex | rebuilt subtree roots=1, escaped=false
 PASS: position static -> fixed on inline flow in block flex | incremental tree matches full rebuild
-PRESERVED: position absolute -> fixed on inline flow in contents | fixture ancestor
-PRESERVED: position absolute -> fixed on inline flow in contents | distant sibling
-PRESERVED: position absolute -> fixed on inline flow in contents | distant sibling descendant
+RECREATED: position absolute -> fixed on inline flow in contents | fixture ancestor
+RECREATED: position absolute -> fixed on inline flow in contents | distant sibling
+RECREATED: position absolute -> fixed on inline flow in contents | distant sibling descendant
 ABSENT: position absolute -> fixed on inline flow in contents | DOM parent
-PRESERVED: position absolute -> fixed on inline flow in contents | preceding sibling
-PRESERVED: position absolute -> fixed on inline flow in contents | preceding sibling descendant
+RECREATED: position absolute -> fixed on inline flow in contents | preceding sibling
+RECREATED: position absolute -> fixed on inline flow in contents | preceding sibling descendant
 RECREATED: position absolute -> fixed on inline flow in contents | target
 RECREATED: position absolute -> fixed on inline flow in contents | target descendant
-PRESERVED: position absolute -> fixed on inline flow in contents | following sibling
-PRESERVED: position absolute -> fixed on inline flow in contents | following sibling descendant
+RECREATED: position absolute -> fixed on inline flow in contents | following sibling
+RECREATED: position absolute -> fixed on inline flow in contents | following sibling descendant
 STATS: position absolute -> fixed on inline flow in contents | rebuilt subtree roots=1, escaped=false
 PASS: position absolute -> fixed on inline flow in contents | incremental tree matches full rebuild
 PRESERVED: position sticky -> absolute on inline flow in flex | fixture ancestor
@@ -2614,16 +2614,16 @@ RECREATED: position static -> fixed on inline flex in block table | following si
 RECREATED: position static -> fixed on inline flex in block table | following sibling descendant
 STATS: position static -> fixed on inline flex in block table | rebuilt subtree roots=1, escaped=false
 PASS: position static -> fixed on inline flex in block table | incremental tree matches full rebuild
-PRESERVED: position absolute -> fixed on inline flex in inline-block | fixture ancestor
-PRESERVED: position absolute -> fixed on inline flex in inline-block | distant sibling
-PRESERVED: position absolute -> fixed on inline flex in inline-block | distant sibling descendant
-PRESERVED: position absolute -> fixed on inline flex in inline-block | DOM parent
-PRESERVED: position absolute -> fixed on inline flex in inline-block | preceding sibling
-PRESERVED: position absolute -> fixed on inline flex in inline-block | preceding sibling descendant
+RECREATED: position absolute -> fixed on inline flex in inline-block | fixture ancestor
+RECREATED: position absolute -> fixed on inline flex in inline-block | distant sibling
+RECREATED: position absolute -> fixed on inline flex in inline-block | distant sibling descendant
+RECREATED: position absolute -> fixed on inline flex in inline-block | DOM parent
+RECREATED: position absolute -> fixed on inline flex in inline-block | preceding sibling
+RECREATED: position absolute -> fixed on inline flex in inline-block | preceding sibling descendant
 RECREATED: position absolute -> fixed on inline flex in inline-block | target
 RECREATED: position absolute -> fixed on inline flex in inline-block | target descendant
-PRESERVED: position absolute -> fixed on inline flex in inline-block | following sibling
-PRESERVED: position absolute -> fixed on inline flex in inline-block | following sibling descendant
+RECREATED: position absolute -> fixed on inline flex in inline-block | following sibling
+RECREATED: position absolute -> fixed on inline flex in inline-block | following sibling descendant
 STATS: position absolute -> fixed on inline flex in inline-block | rebuilt subtree roots=1, escaped=false
 PASS: position absolute -> fixed on inline flex in inline-block | incremental tree matches full rebuild
 RECREATED: position sticky -> absolute on inline flex in table | fixture ancestor
@@ -2785,13 +2785,13 @@ PASS: position static -> fixed on inline grid in block flow list-item | incremen
 PRESERVED: position absolute -> fixed on inline grid in list-item | fixture ancestor
 PRESERVED: position absolute -> fixed on inline grid in list-item | distant sibling
 PRESERVED: position absolute -> fixed on inline grid in list-item | distant sibling descendant
-PRESERVED: position absolute -> fixed on inline grid in list-item | DOM parent
-PRESERVED: position absolute -> fixed on inline grid in list-item | preceding sibling
-PRESERVED: position absolute -> fixed on inline grid in list-item | preceding sibling descendant
+RECREATED: position absolute -> fixed on inline grid in list-item | DOM parent
+RECREATED: position absolute -> fixed on inline grid in list-item | preceding sibling
+RECREATED: position absolute -> fixed on inline grid in list-item | preceding sibling descendant
 RECREATED: position absolute -> fixed on inline grid in list-item | target
 RECREATED: position absolute -> fixed on inline grid in list-item | target descendant
-PRESERVED: position absolute -> fixed on inline grid in list-item | following sibling
-PRESERVED: position absolute -> fixed on inline grid in list-item | following sibling descendant
+RECREATED: position absolute -> fixed on inline grid in list-item | following sibling
+RECREATED: position absolute -> fixed on inline grid in list-item | following sibling descendant
 STATS: position absolute -> fixed on inline grid in list-item | rebuilt subtree roots=1, escaped=false
 PASS: position absolute -> fixed on inline grid in list-item | incremental tree matches full rebuild
 RECREATED: position sticky -> absolute on inline grid in math | fixture ancestor

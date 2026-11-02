@@ -38,7 +38,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 17 from TextNode start: 351, length: 7, rect: [252,352 70.5625x20] baseline: 16
           "tortor."
       BlockContainer <div.left> at [253,11] floating [0+1+0 300 0+1+0] [0+1+0 200 0+1+0] [BFC] children: not-inline
-      TextNode <#text> (not painted)
       BlockContainer <div.right> at [489,213] floating [0+1+0 300 0+1+0] [0+1+0 200 0+1+0] [BFC] children: not-inline
       TextNode <#text> (not painted)
 

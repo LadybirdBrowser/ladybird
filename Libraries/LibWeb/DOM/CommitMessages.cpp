@@ -60,6 +60,13 @@ void CommitMessages::append(Layout::BegunRead const& read, Layout::RustFFI::FfiC
             .layout_tree_update_reason = SetNeedsLayoutTreeUpdateReason::PseudoElementBoxEscapedRebuildRoot,
         });
         return;
+    case Layout::RustFFI::FfiCommitMessageKind::WhitespaceTextBoxesStale:
+        m_messages.append({
+            .identity = identity,
+            .kind = Kind::NeedsLayoutTreeUpdate,
+            .layout_tree_update_reason = SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange,
+        });
+        return;
     case Layout::RustFFI::FfiCommitMessageKind::TopLayerZoneRebuildNeeded:
         m_messages.append({ .identity = identity, .kind = Kind::TopLayerZoneRebuildNeeded });
         return;

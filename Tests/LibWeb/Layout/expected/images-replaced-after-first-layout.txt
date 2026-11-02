@@ -11,9 +11,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 1 from ImageBox start: 0, length: 0, rect: [128,128 400x400] baseline: 400
           ImageBox <(anonymous)> at [8,408] [0+0+0 120 0+0+0] [0+0+0 120 0+0+0] children: not-inline
           ImageBox <(anonymous)> at [128,128] [0+0+0 400 0+0+0] [0+0+0 400 0+0+0] children: not-inline
-      BlockContainer <(anonymous)> at [8,528] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x536] (z-index: auto)

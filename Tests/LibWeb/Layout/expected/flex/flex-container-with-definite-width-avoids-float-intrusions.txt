@@ -9,8 +9,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 31, rect: [8,124 257.3125x16] baseline: 12.796875
               "This should clear the blue box."
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,224] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <hr> at [9,233] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,242] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       BlockContainer <div.b> at [358,242] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
@@ -19,8 +17,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 0 from TextNode start: 0, length: 32, rect: [8,442 268.5625x16] baseline: 12.796875
               "This should clear the green box."
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,542] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <hr> at [9,551] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,560] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       BlockContainer <div.b> at [358,560] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
@@ -31,8 +27,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 1 from TextNode start: 35, length: 32, rect: [58,676 258.65625x16] baseline: 12.796875
               "sit flush against the green box."
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,760] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <hr> at [9,769] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,778] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       Box <div.e> at [148,778] flex-container(row) [50+0+40 150 0+0+110] [0+0+0 100 0+0+0] [FFC] children: not-inline
@@ -48,8 +42,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 4 from TextNode start: 65, length: 12, rect: [148,842 88.6875x16] baseline: 12.796875
               "to the left."
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,878] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <hr> at [9,887] [0+1+0 398 0+1+0] [8+1+0 0 0+1+8] [BFC] children: not-inline
       BlockContainer <div.a> at [8,896] floating [0+0+0 100 0+0+0] [0+0+0 100 0+0+0] [BFC] children: not-inline
       BlockContainer <div.b> at [358,896] floating [0+0+0 50 0+0+0] [0+0+0 200 0+0+0] [BFC] children: not-inline
@@ -62,8 +54,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
           frag 2 from TextNode start: 45, length: 12, rect: [133,928 103.375x16] baseline: 12.796875
               "green boxes."
           TextNode <#text> (not painted)
-      BlockContainer <(anonymous)> at [8,996] [0+0+0 400 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x1096] (z-index: auto)

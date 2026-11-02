@@ -2512,6 +2512,15 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         marks.is_editing_host = node.is_editing_host();
         marks.produces_line_box_fragment_when_empty = produces_line_box_fragment_when_empty(node);
         node.mark_box(marks);
+        // White space that renders nothing has no box, except where the caret anchors in it: an editing host's text.
+        if (auto* text = as_if<Text>(node); text && text->is_connected() && text->data().is_ascii_whitespace()) {
+            if (marks.produces_line_box_fragment_when_empty != text->has_layout_box()) {
+                if (!text->has_layout_box())
+                    text->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
+                if (auto* parent = text->parent())
+                    parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange);
+            }
+        }
         return TraversalDecision::Continue;
     });
     document().page().keyboard_scroll_editability_changed(document());
@@ -2674,6 +2683,7 @@ static bool is_structural_boundary_self_rebuild_reason(SetNeedsLayoutTreeUpdateR
 {
     switch (reason) {
     case SetNeedsLayoutTreeUpdateReason::NodeInsertBefore:
+    case SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange:
     case SetNeedsLayoutTreeUpdateReason::NodeRemove:
     case SetNeedsLayoutTreeUpdateReason::NodeSetTextContent:
     case SetNeedsLayoutTreeUpdateReason::CharacterDataReplaceData:
@@ -2784,7 +2794,8 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             Layout::RustFFI::render_state_apply_layout_tree_update_mark(marks, box_owner.style_node().value(),
                 {
                     .reuse_reason = reuse_reason,
-                    .is_child_list_insertion = reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore,
+                    .is_child_list_insertion = reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore
+                        || reason == SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange,
                     .is_structural_boundary_self_rebuild = is_structural_boundary_self_rebuild_reason(reason),
                 });
         }
@@ -2797,7 +2808,8 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
 
 u8 Node::layout_tree_update_reuse_reason(SetNeedsLayoutTreeUpdateReason reason)
 {
-    if (reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
+    // A white space text that gains or loses its box changes its parent's child list as an insertion does.
+    if (reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore || reason == SetNeedsLayoutTreeUpdateReason::WhitespaceTextBoxChange)
         return ChildListInsertion;
     if (reason == SetNeedsLayoutTreeUpdateReason::PseudoElementChange)
         return PseudoElementChange;

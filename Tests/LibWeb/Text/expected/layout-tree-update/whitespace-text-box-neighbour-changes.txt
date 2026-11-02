@@ -1,0 +1,77 @@
+between blocks | initial | boxed whitespace 00
+between blocks | insert inline before whitespace | boxed whitespace 10 | builds 1 | PASS
+between blocks | remove that inline | boxed whitespace 00 | builds 1 | PASS
+between blocks | insert text before whitespace | boxed whitespace 10 | builds 1 | PASS
+between blocks | remove that text | boxed whitespace 00 | builds 1 | PASS
+between blocks | remove block after inline | boxed whitespace 10 | builds 1 | PASS
+neighbour display | initial | boxed whitespace 10
+neighbour display | inline to block | boxed whitespace 00 | builds 1 | PASS
+neighbour display | block to inline-block | boxed whitespace 10 | builds 1 | PASS
+neighbour display | inline-block to none | boxed whitespace 00 | builds 1 | PASS
+neighbour display | none to contents | boxed whitespace 10 | builds 1 | PASS
+neighbour display | contents to inline | boxed whitespace 10 | builds 1 | PASS
+neighbour display | position absolute | boxed whitespace 00 | builds 1 | PASS
+neighbour display | float instead | boxed whitespace 00 | builds 1 | PASS
+neighbour display | no float | boxed whitespace 10 | builds 1 | PASS
+parent white-space | initial | boxed whitespace 00
+parent white-space | pre | boxed whitespace 11 | builds 1 | PASS
+parent white-space | pre-line | boxed whitespace 11 | builds 1 | PASS
+parent white-space | normal | boxed whitespace 00 | builds 1 | PASS
+text before whitespace | initial | boxed whitespace 11
+text before whitespace | add trailing space | boxed whitespace 01 | builds 1 | PASS
+text before whitespace | remove trailing space | boxed whitespace 11 | builds 1 | PASS
+text before whitespace | turn whitespace into text | boxed whitespace 1 | builds 1 | PASS
+text before whitespace | turn it back into whitespace | boxed whitespace 11 | builds 1 | PASS
+text before whitespace | empty the first text | boxed whitespace 001 | builds 1 | PASS
+after a line break | initial | boxed whitespace 0
+after a line break | replace break with inline | boxed whitespace 1 | builds 1 | PASS
+after a line break | replace inline with break | boxed whitespace 0 | builds 1 | PASS
+start of a block | initial | boxed whitespace 0
+start of a block | inline ::before | boxed whitespace 1 | builds 1 | PASS
+start of a block | no ::before | boxed whitespace 0 | builds 1 | PASS
+start of a block | prepend text | boxed whitespace 1 | builds 1 | PASS
+start of a block | remove that text | boxed whitespace 0 | builds 1 | PASS
+start of a block | parent becomes inline | boxed whitespace 1 | builds 1 | PASS
+start of a block | parent becomes block | boxed whitespace 0 | builds 1 | PASS
+list item marker | initial | boxed whitespace 0
+list item marker | inside marker | boxed whitespace 1 | builds 1 | PASS
+list item marker | outside marker | boxed whitespace 0 | builds 1 | PASS
+editing host | initial | boxed whitespace 0
+editing host | contenteditable | boxed whitespace 1 | builds 1 | PASS
+editing host | not contenteditable | boxed whitespace 0 | builds 1 | PASS
+flex | initial | boxed whitespace 10
+flex | add trailing space | boxed whitespace 00 | builds 1 | PASS
+flex | remove trailing space | boxed whitespace 10 | builds 1 | PASS
+flex | grid | boxed whitespace 10 | builds 1 | PASS
+flex | block | boxed whitespace 10 | builds 1 | PASS
+flex | remove item | boxed whitespace 10 | builds 1 | PASS
+table | initial | boxed whitespace 011
+table | insert row before inline | boxed whitespace 011 | builds 1 | PASS
+table | remove first row | boxed whitespace 011 | builds 1 | PASS
+table | inline becomes block | boxed whitespace 001 | builds 1 | PASS
+after a table cell in an inline | initial | boxed whitespace 1
+after a table cell in an inline | cell becomes inline | boxed whitespace 1 | builds 1 | PASS
+after a table cell in an inline | inline becomes cell | boxed whitespace 1 | builds 1 | PASS
+display contents | initial | boxed whitespace 010
+display contents | insert inline before contents | boxed whitespace 110 | builds 1 | PASS
+display contents | ::before on contents | boxed whitespace 110 | builds 1 | PASS
+display contents | ::after on contents | boxed whitespace 111 | builds 1 | PASS
+display contents | contents becomes inline | boxed whitespace 111 | builds 1 | PASS
+display contents | inline becomes contents | boxed whitespace 111 | builds 1 | PASS
+display contents | remove inline before contents | boxed whitespace 111 | builds 1 | PASS
+slotted | initial | boxed whitespace 100
+slotted | unslot first | boxed whitespace 110 | builds 1 | PASS
+slotted | slot first again | boxed whitespace 100 | builds 1 | PASS
+slotted | insert block in light DOM | boxed whitespace 100 | builds 1 | PASS
+slotted | slot becomes block | boxed whitespace 000 | builds 1 | PASS
+shadow root children | initial | boxed whitespace 10
+shadow root children | shadow inline becomes block | boxed whitespace 00 | builds 1 | PASS
+shadow root children | insert inline into shadow root | boxed whitespace 00 | builds 1 | PASS
+appending | initial | boxed whitespace 0
+appending | append inline, whitespace, inline | boxed whitespace 01 | builds 1 | PASS
+appending | append whitespace and block | boxed whitespace 0110 | builds 1 | PASS
+appending | remove first block | boxed whitespace 0110 | builds 1 | PASS
+list | initial | boxed whitespace 0000
+list | remove middle item | boxed whitespace 0000 | builds 1 | PASS
+list | remove first item | boxed whitespace 0000 | builds 1 | PASS
+list | append item | boxed whitespace 00000 | builds 1 | PASS

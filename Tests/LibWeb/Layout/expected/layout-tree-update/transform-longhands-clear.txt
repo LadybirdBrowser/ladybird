@@ -2,15 +2,8 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 368 0+0+0] [BFC] children: not-inline
     BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 340 0+0+8] children: not-inline
       BlockContainer <div#scaled> at [8,8] [0+0+0 100 0+0+684] [0+0+0 100 0+0+20] children: not-inline
-      BlockContainer <(anonymous)> at [8,128] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div#translated> at [8,128] [0+0+0 100 0+0+684] [0+0+0 100 0+0+20] children: not-inline
-      BlockContainer <(anonymous)> at [8,248] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
       BlockContainer <div#rotated> at [8,248] [0+0+0 100 0+0+684] [0+0+0 100 0+0+20] children: not-inline
-      BlockContainer <(anonymous)> at [8,368] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
-        TextNode <#text> (not painted)
-        TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x368] (z-index: auto)

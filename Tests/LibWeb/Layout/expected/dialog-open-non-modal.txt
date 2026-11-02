@@ -1,14 +1,12 @@
 Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
   BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 0 0+0+8] children: not-inline
       BlockContainer <dialog> at [358.84375,27] positioned [339.84375+3+16 82.3125 16+3+339.84375] [0+3+16 16 16+3+0] [BFC] children: inline
-        TextNode <#text> (not painted)
         InlineNode <span> at [358.84375,27] [0+0+0 82.3125 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 10, rect: [358.84375,27 82.3125x16] baseline: 12.796875
               "I'm a node"
           TextNode <#text> (not painted)
         TextNode <#text> (not painted)
-      TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x16] (z-index: auto)

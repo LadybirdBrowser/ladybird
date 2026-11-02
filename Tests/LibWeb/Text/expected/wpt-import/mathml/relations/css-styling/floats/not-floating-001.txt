@@ -2,10 +2,10 @@ Harness status: OK
 
 Found 24 tests
 
-17 Pass
-7 Fail
+19 Pass
+5 Fail
 Pass	float child ignored in a
-Fail	float child ignored in maction
+Pass	float child ignored in maction
 Pass	float child ignored in menclose
 Pass	float child ignored in merror
 Pass	float child ignored in mfrac
@@ -27,4 +27,4 @@ Pass	float child ignored in msup
 Fail	float child ignored in mtext
 Pass	float child ignored in munder
 Pass	float child ignored in munderover
-Fail	float child ignored in semantics
+Pass	float child ignored in semantics

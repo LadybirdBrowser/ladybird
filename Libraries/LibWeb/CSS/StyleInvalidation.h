@@ -99,6 +99,9 @@ struct RequiredInvalidationAfterStyleChange {
     bool repaint_propagated_text_decorations : 1 { false };
     // Highlight pseudo-elements are painted by text descendants, even when the element has no box.
     bool repaint_highlights : 1 { false };
+    // The white space of the element's text children collapses where it did not, or the other way round, so the white
+    // space text among them may gain or lose its box.
+    bool white_space_collapse_changed : 1 { false };
     bool affects_hit_testing : 1 { false };
     // A non-inherited property changed without any other invalidation, which happens when a running
     // animation covers the property. Descendants that explicitly inherit non-inherited properties
@@ -123,6 +126,7 @@ struct RequiredInvalidationAfterStyleChange {
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
         repaint_propagated_text_decorations |= other.repaint_propagated_text_decorations;
         repaint_highlights |= other.repaint_highlights;
+        white_space_collapse_changed |= other.white_space_collapse_changed;
         affects_hit_testing |= other.affects_hit_testing;
         non_inherited_property_inheritance_sources_changed |= other.non_inherited_property_inheritance_sources_changed;
     }
@@ -136,6 +140,7 @@ struct RequiredInvalidationAfterStyleChange {
             && !recompute_descendant_styles
             && !inherited_style_changed()
             && !repaint_highlights
+            && !white_space_collapse_changed
             && !affects_hit_testing
             && !repaint_propagated_text_decorations
             && !non_inherited_property_inheritance_sources_changed;

@@ -16,7 +16,6 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
             "lorem ipsum"
         TextNode <#text> (not painted)
       BlockContainer <(anonymous)> at [8,40] [0+0+0 784 0+0+0] [0+0+0 16 0+0+0] children: inline
-        TextNode <#text> (not painted)
         InlineNode <span> at [8,40] [0+0+0 54.796875 0+0+0] [0+0+0 16 0+0+0]
           frag 0 from TextNode start: 0, length: 6, rect: [8,40 54.796875x16] baseline: 12.796875
               "foobar"
