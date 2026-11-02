@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<style id="sheet">.rule { margin-left: 4px; }</style>
+<script src="../../include.js"></script>
+<div id="host"><span id="slottable" class="rule"></span></div>
+<div id="plain"><span id="child" class="rule"></span></div>
+<script>
+    // A slottable is below its slot. Where the slot hides in the update that takes a rule away, a read answers without
+    // the rule, as it does below any other element that hides.
+    asyncTest(async done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const report = title => {
+            println(`${title}: slottable ${getComputedStyle(slottable).marginLeft}, child ${getComputedStyle(child).marginLeft}`);
+        };
+        const slot = document.createElement("slot");
+        host.attachShadow({ mode: "open" }).append(slot);
+        await frame();
+        report("Before");
+        await frame();
+        slot.hidden = true;
+        plain.hidden = true;
+        document.getElementById("sheet").media = "print";
+        await frame();
+        await frame();
+        report("After");
+        done();
+    });
+</script>
