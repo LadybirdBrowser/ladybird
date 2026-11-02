@@ -7,8 +7,7 @@
 #include <AK/kmalloc.h>
 #include <UI/Qt/NativeWindowContainer.h>
 
-#include <QCoreApplication>
-#include <QFocusEvent>
+#include <QEvent>
 #include <QWidget>
 #include <QWindow>
 
@@ -16,89 +15,37 @@ namespace Ladybird {
 
 namespace {
 
-class EventForwarder final : public QObject {
+class ContainerPaintFilter final : public QObject {
 public:
     AK_ALLOC_WITH_KMALLOC;
 
-    EventForwarder(QWidget& host, QWidget& container)
-        : QObject(&container)
-        , m_host(host)
-        , m_container(container)
-    {
-    }
+    using QObject::QObject;
 
 private:
-    virtual bool eventFilter(QObject* watched, QEvent* event) override
+    virtual bool eventFilter(QObject*, QEvent* event) override
     {
-        switch (event->type()) {
-        case QEvent::FocusIn:
-        case QEvent::FocusOut:
-            if (watched == &m_container) {
-                QFocusEvent forwarded_event { event->type(), static_cast<QFocusEvent*>(event)->reason() };
-                QCoreApplication::sendEvent(&m_host, &forwarded_event);
-            }
-            break;
-
-        case QEvent::KeyPress:
-        case QEvent::KeyRelease:
-            // Keyboard input belongs to the host, not the container. Forwarding it from an event filter also preempts
-            // QWidget's Tab focus navigation, which would otherwise consume Tab before the host sees it.
-            if (watched == &m_container)
-                return QCoreApplication::sendEvent(&m_host, event);
-            break;
-
-        case QEvent::MouseButtonPress:
-            if (m_host.focusProxy() == &m_container)
-                m_container.setFocus(Qt::MouseFocusReason);
-            break;
-
-        case QEvent::Paint:
-            // NB: QWindowContainer clears its whole area to transparent on platforms that may stack native child
-            //     windows below their parent. Ours are always above it, and the clear would only hide the host's own
-            //     painting wherever the native window has nothing on screen yet.
-            if (watched == &m_container)
-                return true;
-            break;
-
-        default:
-            break;
-        }
-
-        return false;
+        // NB: QWindowContainer clears its whole area to transparent on platforms that may stack native child windows
+        //     below their parent. Ours are always above it, and the clear would only hide the host's own painting
+        //     wherever the native window has nothing on screen yet.
+        return event->type() == QEvent::Paint;
     }
-
-    QWidget& m_host;
-    QWidget& m_container;
 };
 
 }
 
-void set_native_window_container_visible(QWidget& host, QWidget& container, bool visible)
+QWidget* create_native_window_container(QWindow& native_window, QWidget& host)
 {
-    if (container.isVisible() == visible)
-        return;
+    // NB: The host takes all pointer input and drags, as the receiver of a press keeps getting events while it is
+    //     dragged out of the browser window, or while the container hides. The window must not take the focus either:
+    //     On X11, a window that is transparent for input doesn't ask for key events, and X doesn't pass them on past
+    //     the window with the input focus.
+    native_window.setFlag(Qt::WindowTransparentForInput);
+    native_window.setFlag(Qt::WindowDoesNotAcceptFocus);
 
-    if (visible) {
-        bool host_had_focus = host.hasFocus();
-        container.setGeometry(host.rect());
-        container.show();
-        host.setFocusProxy(&container);
-        if (host_had_focus)
-            container.setFocus();
-    } else {
-        bool container_had_focus = container.hasFocus();
-        host.setFocusProxy(nullptr);
-        container.hide();
-        if (container_had_focus)
-            host.setFocus();
-    }
-}
-
-void install_native_window_container_event_forwarding(QWidget& host, QWindow& native_window, QWidget& container)
-{
-    auto* forwarder = new EventForwarder(host, container);
-    native_window.installEventFilter(forwarder);
-    container.installEventFilter(forwarder);
+    auto* container = QWidget::createWindowContainer(&native_window, &host);
+    container->setAttribute(Qt::WA_TransparentForMouseEvents);
+    container->installEventFilter(new ContainerPaintFilter(container));
+    return container;
 }
 
 }

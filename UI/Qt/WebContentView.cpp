@@ -1118,17 +1118,10 @@ void WebContentView::focusOutEvent(QFocusEvent*)
 
 void WebContentView::update_page_focus()
 {
-    // Focus can move between this widget, the native window container, and the embedded native window in bursts of
-    // events whose order is not meaningful (e.g. the container reports losing focus after native focus has already
-    // moved to the embedded window). Instead of trusting individual events, evaluate the resulting focus state once
-    // the burst has settled.
+    // A change of the active window and the change of focus it leads to arrive as separate events. Instead of trusting
+    // individual events, evaluate the resulting focus state once they have all arrived.
     QTimer::singleShot(0, this, [this] {
-        auto focused = hasFocus();
-#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
-        if (!focused)
-            focused = vulkan_window_has_native_focus();
-#endif
-        set_has_system_focus(focused);
+        set_has_system_focus(hasFocus());
     });
 }
 
@@ -2237,64 +2230,64 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
     cursor.visit([this](Gfx::StandardCursor standard_cursor) {
         switch (standard_cursor) {
         case Gfx::StandardCursor::Hidden:
-            apply_web_content_cursor(Qt::BlankCursor);
+            setCursor(Qt::BlankCursor);
             break;
         case Gfx::StandardCursor::Arrow:
-            apply_web_content_cursor(Qt::ArrowCursor);
+            setCursor(Qt::ArrowCursor);
             break;
         case Gfx::StandardCursor::Crosshair:
-            apply_web_content_cursor(Qt::CrossCursor);
+            setCursor(Qt::CrossCursor);
             break;
         case Gfx::StandardCursor::IBeam:
-            apply_web_content_cursor(Qt::IBeamCursor);
+            setCursor(Qt::IBeamCursor);
             break;
         case Gfx::StandardCursor::ResizeHorizontal:
-            apply_web_content_cursor(Qt::SizeHorCursor);
+            setCursor(Qt::SizeHorCursor);
             break;
         case Gfx::StandardCursor::ResizeVertical:
-            apply_web_content_cursor(Qt::SizeVerCursor);
+            setCursor(Qt::SizeVerCursor);
             break;
         case Gfx::StandardCursor::ResizeDiagonalTLBR:
-            apply_web_content_cursor(Qt::SizeFDiagCursor);
+            setCursor(Qt::SizeFDiagCursor);
             break;
         case Gfx::StandardCursor::ResizeDiagonalBLTR:
-            apply_web_content_cursor(Qt::SizeBDiagCursor);
+            setCursor(Qt::SizeBDiagCursor);
             break;
         case Gfx::StandardCursor::ResizeColumn:
-            apply_web_content_cursor(Qt::SplitHCursor);
+            setCursor(Qt::SplitHCursor);
             break;
         case Gfx::StandardCursor::ResizeRow:
-            apply_web_content_cursor(Qt::SplitVCursor);
+            setCursor(Qt::SplitVCursor);
             break;
         case Gfx::StandardCursor::Hand:
-            apply_web_content_cursor(Qt::PointingHandCursor);
+            setCursor(Qt::PointingHandCursor);
             break;
         case Gfx::StandardCursor::Help:
-            apply_web_content_cursor(Qt::WhatsThisCursor);
+            setCursor(Qt::WhatsThisCursor);
             break;
         case Gfx::StandardCursor::OpenHand:
-            apply_web_content_cursor(Qt::OpenHandCursor);
+            setCursor(Qt::OpenHandCursor);
             break;
         case Gfx::StandardCursor::Drag:
-            apply_web_content_cursor(Qt::ClosedHandCursor);
+            setCursor(Qt::ClosedHandCursor);
             break;
         case Gfx::StandardCursor::DragCopy:
-            apply_web_content_cursor(Qt::DragCopyCursor);
+            setCursor(Qt::DragCopyCursor);
             break;
         case Gfx::StandardCursor::Move:
-            apply_web_content_cursor(Qt::DragMoveCursor);
+            setCursor(Qt::DragMoveCursor);
             break;
         case Gfx::StandardCursor::Wait:
-            apply_web_content_cursor(Qt::BusyCursor);
+            setCursor(Qt::BusyCursor);
             break;
         case Gfx::StandardCursor::Disallowed:
-            apply_web_content_cursor(Qt::ForbiddenCursor);
+            setCursor(Qt::ForbiddenCursor);
             break;
         case Gfx::StandardCursor::Eyedropper:
         case Gfx::StandardCursor::Zoom:
             // FIXME: No corresponding Qt cursors, default to Arrow
         default:
-            apply_web_content_cursor(Qt::ArrowCursor);
+            setCursor(Qt::ArrowCursor);
             break;
         } },
         [this](Gfx::ImageCursor const& image_cursor) {
@@ -2313,16 +2306,8 @@ void WebContentView::update_cursor(Gfx::Cursor cursor)
                 dbgln("Failed to set cursor: Couldn't create QPixmap from QImage.");
                 return;
             }
-            apply_web_content_cursor(QCursor { qpixmap, image_cursor.hotspot.x(), image_cursor.hotspot.y() });
+            setCursor(QCursor { qpixmap, image_cursor.hotspot.x(), image_cursor.hotspot.y() });
         });
-}
-
-void WebContentView::apply_web_content_cursor(QCursor const& cursor)
-{
-    setCursor(cursor);
-#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
-    set_vulkan_window_cursor(cursor);
-#endif
 }
 
 Web::DevicePixelPoint WebContentView::node_picker_position_for(QSinglePointEvent const& event) const
@@ -2489,78 +2474,6 @@ bool WebContentView::handle_native_gesture_event(QNativeGestureEvent const& even
         return false;
     }
 }
-
-#ifdef LADYBIRD_QT_USE_VULKAN_WINDOW
-bool WebContentView::handle_vulkan_window_event(QEvent* event)
-{
-    switch (event->type()) {
-    case QEvent::KeyPress:
-        keyPressEvent(static_cast<QKeyEvent*>(event));
-        return true;
-    case QEvent::KeyRelease:
-        keyReleaseEvent(static_cast<QKeyEvent*>(event));
-        return true;
-    case QEvent::MouseMove:
-        mouseMoveEvent(static_cast<QMouseEvent*>(event));
-        return true;
-    case QEvent::MouseButtonPress:
-        mousePressEvent(static_cast<QMouseEvent*>(event));
-        return true;
-    case QEvent::MouseButtonRelease:
-        mouseReleaseEvent(static_cast<QMouseEvent*>(event));
-        return true;
-    case QEvent::MouseButtonDblClick:
-        // QWindow sends a MouseButtonPress before MouseButtonDblClick for the second click, so the press has already
-        // been forwarded and included in the click count.
-        return true;
-    case QEvent::Wheel:
-        wheelEvent(static_cast<QWheelEvent*>(event));
-        // An ignored event is reserved for a browser shortcut such as Ctrl+wheel zoom. A native window has no widget
-        // ancestors to propagate it through, so send it to the top-level window directly.
-        if (!event->isAccepted())
-            return QCoreApplication::sendEvent(window(), event);
-        return true;
-    case QEvent::Leave:
-        leaveEvent(event);
-        return true;
-    case QEvent::FocusIn:
-        focusInEvent(static_cast<QFocusEvent*>(event));
-        return true;
-    case QEvent::FocusOut:
-        focusOutEvent(static_cast<QFocusEvent*>(event));
-        return true;
-    case QEvent::InputMethod:
-        inputMethodEvent(static_cast<QInputMethodEvent*>(event));
-        return true;
-    case QEvent::DragEnter:
-        dragEnterEvent(static_cast<QDragEnterEvent*>(event));
-        return true;
-    case QEvent::DragMove:
-        dragMoveEvent(static_cast<QDragMoveEvent*>(event));
-        return true;
-    case QEvent::DragLeave:
-        dragLeaveEvent(static_cast<QDragLeaveEvent*>(event));
-        return true;
-    case QEvent::Drop:
-        dropEvent(static_cast<QDropEvent*>(event));
-        return true;
-    case QEvent::NativeGesture:
-        return handle_native_gesture_event(*static_cast<QNativeGestureEvent const*>(event));
-    case QEvent::ShortcutOverride: {
-        auto* key_event = static_cast<QKeyEvent*>(event);
-        if (is_browser_reserved_shortcut(*key_event)) {
-            event->ignore();
-            return false;
-        }
-
-        event->accept();
-        return true;
-    }
-    default:
-        return false;
-    }
-}
-#endif
 
 void WebContentView::enqueue_native_event(Web::MouseEvent::Type type, QSinglePointEvent const& event, Optional<Web::ScrollGesturePhase> scroll_gesture_phase_the_platform_reports)
 {
