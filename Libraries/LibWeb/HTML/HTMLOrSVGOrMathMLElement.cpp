@@ -205,6 +205,13 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
         if (!target.allow_focus())
             return;
 
+        // AD-HOC: Match Chromium, Firefox, and WebKit by excluding autofocus candidates with a cross-origin ancestor.
+        for (auto ancestor = target.navigable()->parent(); ancestor; ancestor = ancestor->parent()) {
+            auto ancestor_origin = ancestor->active_document_origin();
+            if (!ancestor_origin.has_value() || !target.origin().is_same_origin(*ancestor_origin))
+                return;
+        }
+
         // 6. Let topDocument be target's node navigable's top-level traversable's active document.
         // FIXME: The candidates of a top-level document hosted by another process are kept there. Only an element same
         //        origin with that document is flushed, which a document isolated from it never is, save for a

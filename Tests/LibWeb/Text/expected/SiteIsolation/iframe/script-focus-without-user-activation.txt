@@ -1,0 +1,2 @@
+focused=true, hasFocus=true, activated=false
+parent frame active=true
