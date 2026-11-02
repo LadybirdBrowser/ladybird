@@ -191,3 +191,34 @@ fn an_element_leaving_reads_no_ancestors_where_no_selector_asks() {
         allocations_of_an_element_leaving_at_depth(2)
     );
 }
+
+#[test]
+fn a_class_flip_of_a_rule_that_loses_computes_nothing() {
+    let (mut engine, nodes) = linear_document();
+    let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+    add_rules(
+        &mut engine,
+        sheet,
+        ".loser { color: rgb(2, 2, 2); } .winner { color: rgb(1, 1, 1); }",
+    );
+    add_class(&mut engine, nodes[1], "winner");
+    start_live(&mut engine, nodes[0]);
+    let (root, element) = (nodes[0], nodes[1]);
+    let mut round = || {
+        add_class(&mut engine, element, "loser");
+        let (_, added) = count_allocations(|| run_style_update(&mut engine, root));
+        remove_class(&mut engine, element, "loser");
+        let (_, removed) = count_allocations(|| run_style_update(&mut engine, root));
+        [added, removed]
+    };
+    for _ in 0..WARMUP_ROUNDS {
+        round();
+    }
+    let allocations: Vec<Allocations> = (0..MEASURED_ROUNDS).flat_map(|_| round()).collect();
+    // NB: Computing the record again allocates about twice this.
+    assert_at_most(
+        in_style(&allocations),
+        20 + MUTEX_ALLOCATIONS_RESTYLING_ONE_ELEMENT,
+        "flips of a rule that loses",
+    );
+}

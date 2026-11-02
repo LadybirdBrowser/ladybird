@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<style>
+    .target { color: rgb(0, 0, 0); }
+    .target.winner { color: rgb(1, 1, 1); }
+
+    .loser { color: rgb(2, 2, 2); }
+    .partial { color: rgb(2, 2, 2); background-color: rgb(2, 2, 2); }
+    .important { color: rgb(2, 2, 2) !important; }
+    .custom { --custom: rgb(2, 2, 2); }
+    .pseudo::before { color: rgb(2, 2, 2); }
+    .marker + .after-marker { color: rgb(2, 2, 2); }
+    [data-loser] { color: rgb(2, 2, 2); }
+    .box { container-type: inline-size; width: 10px; }
+    @container (min-width: 1000px) {
+        .gated.target { color: rgb(1, 1, 1); }
+    }
+</style>
+<div id="loser" class="target winner"><span id="loser-child"></span></div>
+<div id="partial" class="target winner"></div>
+<div id="important" class="target winner"></div>
+<div id="custom" class="target winner"></div>
+<div id="pseudo" class="target winner"></div>
+<div id="marker"></div>
+<div id="after-marker" class="after-marker target winner"></div>
+<div id="attribute" class="target winner"></div>
+<div class="box"><div id="gated" class="gated target"></div></div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const element = id => document.getElementById(id);
+    const report = title => {
+        internals.updateStyle();
+        println(`${title}:`);
+        for (const id of ["loser", "loser-child", "partial", "important", "after-marker", "attribute", "gated"])
+            println(`  ${id}: ${getComputedStyle(element(id)).color}`);
+        println(`  partial background: ${getComputedStyle(element("partial")).backgroundColor}`);
+        println(`  custom property: ${getComputedStyle(element("custom")).getPropertyValue("--custom")}`);
+        println(`  pseudo before: ${getComputedStyle(element("pseudo"), "::before").color}`);
+    };
+    const winners = ["loser", "partial", "important", "custom", "pseudo", "after-marker", "attribute"];
+
+    report("Before");
+
+    const flipLosers = on => {
+        for (const [id, name] of [["loser", "loser"], ["partial", "partial"], ["important", "important"], ["custom", "custom"], ["pseudo", "pseudo"], ["marker", "marker"], ["gated", "loser"]])
+            element(id).classList.toggle(name, on);
+        element("attribute").toggleAttribute("data-loser", on);
+    };
+
+    flipLosers(true);
+    report("With the losers");
+
+    // A rule that came below the winner decides once the winner leaves.
+    for (const id of winners)
+        element(id).classList.remove("winner");
+    report("With the losers, without the winners");
+    for (const id of winners)
+        element(id).classList.add("winner");
+    report("With the losers and the winners again");
+
+    // A rule that left below the winner decides nothing once the winner leaves too.
+    flipLosers(false);
+    report("Without the losers");
+    for (const id of winners)
+        element(id).classList.remove("winner");
+    report("Without the losers or the winners");
+});
+</script>

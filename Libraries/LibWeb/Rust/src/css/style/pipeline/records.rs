@@ -1950,13 +1950,19 @@ impl<'a> Records<'a> {
 
     /// Keep the record `node` held before for this pass, with what it matched.
     pub(super) fn keep_previous(&self, node: StyleNodeID) -> bool {
+        let matches = self.previous.and_then(|previous| previous.held(node)?.matches.clone());
+        self.keep_previous_matching(node, matches)
+    }
+
+    /// Keep what `node` held before, but for the entries it matched, which are `matches` now.
+    pub(super) fn keep_previous_matching(&self, node: StyleNodeID, matches: Option<MatchList>) -> bool {
         let Some(previous) = self.previous else {
             return false;
         };
         let Some(held) = previous.held(node) else {
             return false;
         };
-        self.insert(node, held.record.clone(), node, held.matches.clone());
+        self.insert(node, held.record.clone(), node, matches);
         self.insert_pseudo_element_records(node, previous.pseudo_element_records(node).into());
         if let Some(reads) = previous.container_reads(node) {
             self.insert_container_reads(node, reads.clone());

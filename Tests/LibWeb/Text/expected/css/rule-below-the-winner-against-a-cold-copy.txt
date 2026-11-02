@@ -1,0 +1,640 @@
+simple, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+simple, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-specificity-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+selector-list, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+is-specificity, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+where-specificity, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+winner-in-its-list, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, flipped off: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, flipped off with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-rule, the winner arriving as the flip leaves: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-winner, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+both-important, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-revert, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, flipped on: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgb(2, 2, 2)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, flipped off: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgb(2, 2, 2)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+important-sibling, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+lower-layer, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+higher-layer, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-layer, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+same-layer, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-in-layer, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, flipped on: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, flipped on without the winner: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, flipped on with the winner again: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, the winner leaving as the flip arrives: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+below-revert, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unlayered-winner, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-display, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-substituted, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+invalid-at-computed-value, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherit, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+logical-loser, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+physical-loser, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+logical-both, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+logical-rtl, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|2px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|2px|0px|0px|none|1|none|0s|rtl|
+logical-rtl, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|rtl|
+logical-writing-mode, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+logical-writing-mode, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|0px|1px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+between-logical, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-winner, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-revert, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+all-both, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|inline|0px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-both, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-both, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
+shorthand-both, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-both, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-both, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-both, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-both, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
+shorthand-both, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-loser, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|2px|0px|none|1|none|0s|ltr|
+shorthand-loser, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
+shorthand-loser, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|1px|2px|2px|0px|none|1|none|0s|ltr|
+shorthand-loser, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-loser, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-loser, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
+shorthand-loser, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|399px|0px|16px|400|1px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-winner, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-winner, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-winner, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-winner, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-winner, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+shorthand-winner, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+shorthand-winner, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+font-shorthand, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|20px|700|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|20px|700|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-shorthand, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-shorthand, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
+variable-shorthand, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-shorthand, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|396px|0px|16px|400|2px|2px|2px|0px|none|1|none|0s|ltr|
+variable-shorthand, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|2px|0px|0px|0px|none|1|none|0s|ltr|
+variable-shorthand-winner, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|1px|1px|1px|0px|none|1|none|0s|ltr|
+variable-longhand, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+variable-longhand, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+custom-winner, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|rgb(1, 1, 1)
+custom-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+custom-winner, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|rgb(1, 1, 1)
+custom-winner, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|rgb(1, 1, 1)
+custom-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+custom-winner, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|rgb(1, 1, 1)
+custom-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+custom-winner, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|rgb(1, 1, 1)
+border-reset, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|0px|0px|1px|solid|1|none|0s|ltr|
+border-reset, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|2px|none|0s|ltr|
+border-reset, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|0px|0px|1px|solid|1|none|0s|ltr|
+border-reset, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|0px|0px|1px|solid|1|none|0s|ltr|
+border-reset, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+border-reset, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|0px|0px|1px|solid|1|none|0s|ltr|
+border-reset, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|2px|none|0s|ltr|
+border-reset, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|398px|0px|16px|400|0px|0px|0px|1px|solid|1|none|0s|ltr|
+duplicate-declarations, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, flipped on without the winner: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, the winner leaving as the flip arrives: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+duplicate-declarations, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, flipped off without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+not-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+own-pseudo-element, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherited-into-pseudo-element, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-flips, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-element-winner, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+marker-flips, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|list-item|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+first-line-flips, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|20px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|20px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+font-relative, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|10px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+transition, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+transition, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|100s|ltr|
+transition, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+transition, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+transition, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+transition, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+transition, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|100s|ltr|
+transition, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+animation, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|393px|0px|16px|400|7px|0px|0px|0px|none|1|slide|0s|ltr|
+animation, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+animation, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|393px|0px|16px|400|7px|0px|0px|0px|none|1|slide|0s|ltr|
+animation, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|393px|0px|16px|400|7px|0px|0px|0px|none|1|slide|0s|ltr|
+animation, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+animation, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|393px|0px|16px|400|7px|0px|0px|0px|none|1|slide|0s|ltr|
+animation, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+animation, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|393px|0px|16px|400|7px|0px|0px|0px|none|1|slide|0s|ltr|
+unset-later, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+unset-later, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgb(2, 2, 2)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgb(2, 2, 2)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+nested-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgb(1, 1, 1)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline-style, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inherits-from-parent, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+root-font-reader, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|32px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|3px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|3px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|3px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|3px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+inline style moved with the flip, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-winner, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-read, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container-unit, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|50px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|50px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|50px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|50px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved with the flip, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|6px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|6px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|200px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+container size moved under a unit with the flip, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|20px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, flipped on: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|7px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, flipped on with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|7px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|5px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|5px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|2px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-read, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|5px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+attribute-value, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|16px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+pseudo-attribute, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+presentational-hint, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-over-user-agent, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|none|auto|auto|16px|400|0px|0px|0px|3px|none|1|none|0s|ltr|
+revert-over-user-agent, flipped on without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|none|auto|auto|16px|400|0px|0px|0px|3px|none|1|none|0s|ltr|
+revert-over-user-agent, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|none|auto|auto|16px|400|0px|0px|0px|3px|none|1|none|0s|ltr|
+revert-over-user-agent, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-over-user-agent, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-over-user-agent, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+revert-over-user-agent, the winner leaving as the flip arrives: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|none|auto|auto|16px|400|0px|0px|0px|3px|none|1|none|0s|ltr|
+revert-over-user-agent, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, flipped on: as a cold copy, rgb(1, 1, 1)|rgb(255, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgb(255, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgb(255, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgb(255, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+hint on a cell, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|table-cell|0px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, flipped on without the winner: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, flipped off without the winner: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, the winner leaving as the flip arrives: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, flipped off: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, flipped off without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, the winner leaving as the flip arrives: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+has-winner, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+sibling-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, flipped on: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, flipped on with the winner again: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-loser, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+scoped-winner, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, flipped on: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, flipped on without the winner: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, flipped on with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, flipped off: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, flipped off with the winner again: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, the winner leaving as the flip arrives: as a cold copy, rgb(2, 2, 2)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+host-element, the winner arriving as the flip leaves: as a cold copy, rgb(1, 1, 1)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, flipped on: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, flipped on without the winner: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, flipped on with the winner again: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, flipped off: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, flipped off without the winner: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, flipped off with the winner again: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, the winner leaving as the flip arrives: as a cold copy, rgb(3, 3, 3)|rgba(0, 0, 0, 0)|block|400px|0px|16px|400|0px|0px|0px|0px|none|1|none|0s|ltr|
+part-flip, the winner arriving as the flip leaves: as a cold copy, rgb(0, 0, 0)|rgba(0, 0, 0, 0)|block|397px|0px|16px|400|3px|0px|0px|0px|none|1|none|0s|ltr|
