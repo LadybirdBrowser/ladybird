@@ -9,7 +9,6 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
-#include <LibGC/ActivityRoot.h>
 #include <LibGC/CellAllocator.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Export.h>
@@ -43,8 +42,6 @@ public:
     bool is_single_shot() const;
     void set_single_shot(bool);
 
-    bool has_activity_root() const { return m_activity_root.is_taken(); }
-
     GC::Ptr<GC::Function<void()>> on_timeout;
 
 private:
@@ -53,7 +50,6 @@ private:
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     NonnullRefPtr<Core::Timer> m_timer;
-    GC::ActivityRoot m_activity_root;
 };
 
 }
