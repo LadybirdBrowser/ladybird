@@ -64,6 +64,33 @@ impl LayoutNodeArena {
         }
     }
 
+    /// What a size container's new box moved from, for a commit that has no earlier fragment of it to compare. The
+    /// layout tree can rebuild the box in the update that resizes it, with no commit between to say it lost the old one,
+    /// so the row still holds the size of the box it replaced.
+    pub(crate) fn content_size_change_of_rebuilt_box(
+        &self,
+        node: NodeSlotId,
+    ) -> Option<(FfiCssPixelSize, FfiCssPixelSize)> {
+        if !node_is_size_container(self, node) {
+            return None;
+        }
+        let style_node = self.snapshot_target(node)?;
+        let row = self.with_style_store(|engine| engine.layout_style_snapshot(style_node))?;
+        if !row.has_committed_box {
+            return None;
+        }
+        let geometry = self.committed_geometry(node, style_node);
+        let size = |width_raw, height_raw| FfiCssPixelSize {
+            width: crate::css::css_pixels::CssPixels::from_raw(width_raw),
+            height: crate::css::css_pixels::CssPixels::from_raw(height_raw),
+        };
+        let (old_size, new_size) = (
+            size(row.content_width_raw, row.content_height_raw),
+            size(geometry.content_width_raw, geometry.content_height_raw),
+        );
+        (old_size != new_size).then_some((old_size, new_size))
+    }
+
     /// Gathers the node's row for the style engine. Style asks layout only about size containers,
     /// and about scroll-state containers, whose rows the scroll state makes; an element that
     /// stops being one keeps its row up to date until it goes.

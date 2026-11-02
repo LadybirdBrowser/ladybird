@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    .container {
+        container-type: inline-size;
+        width: 400px;
+    }
+    .dependent {
+        color: red;
+    }
+    @container (min-width: 500px) {
+        .dependent {
+            color: green;
+        }
+    }
+    .fixed {
+        position: fixed;
+        display: none;
+    }
+</style>
+<div id="rebuilt" class="container"><div class="dependent"></div></div>
+<div id="sibling" class="container">
+    <div class="fixed"></div>
+    <div class="dependent"></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const colorBelow = container => getComputedStyle(container.querySelector(".dependent")).color;
+
+        // The container's own box is rebuilt in the update that resizes it.
+        rebuilt.offsetWidth;
+        rebuilt.style.width = "600px";
+        rebuilt.style.display = "flow-root";
+        println(`display change: ${colorBelow(rebuilt)}`);
+
+        // A fixed child that starts to show rebuilds the box of its parent.
+        sibling.offsetWidth;
+        sibling.style.width = "600px";
+        sibling.querySelector(".fixed").style.display = "block";
+        println(`fixed child shown: ${colorBelow(sibling)}`);
+    });
+</script>

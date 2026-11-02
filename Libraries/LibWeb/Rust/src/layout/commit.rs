@@ -464,8 +464,12 @@ impl<'tree> Commit<'_, 'tree> {
         if fragment.line_data.is_some() {
             line_root_changes_for_children = replaced.line_root_changes;
         }
-        if prepared.row_existed_before_this_commit
-            && let Some((old_content_size, new_content_size)) = replaced.content_size_change
+        let content_size_change = if prepared.row_existed_before_this_commit {
+            replaced.content_size_change
+        } else {
+            self.arena().content_size_change_of_rebuilt_box(node)
+        };
+        if let Some((old_content_size, new_content_size)) = content_size_change
             && crate::layout::node_facts::node_style_view(self.arena().data(node)).is_some_and(|style| {
                 content_size_change_affects_container_queries(style, old_content_size, new_content_size)
             })
