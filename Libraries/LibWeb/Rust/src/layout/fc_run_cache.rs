@@ -312,7 +312,7 @@ impl FcRunCacheEntry {
         let Some(root) = self.outputs.root.as_ref() else {
             return false;
         };
-        if !root.payloads_past_run.pending_abspos.is_empty() || !arena.paintable_row_is_populated(box_) {
+        if !root.payloads_past_run().pending_abspos.is_empty() || !arena.paintable_row_is_populated(box_) {
             return false;
         }
         let (content_inline_size, content_block_size) = self.root_content_size_as_its_parent_holds_it();
@@ -903,7 +903,7 @@ pub(super) fn run_observes_root_block_padding(
         || outputs
             .root
             .as_ref()
-            .is_none_or(|root| !root.payloads_past_run.is_empty())
+            .is_none_or(|root| root.payloads_past_run.is_some())
 }
 
 #[cfg(test)]

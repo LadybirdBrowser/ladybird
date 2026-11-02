@@ -874,8 +874,8 @@ impl RunContents {
                 &mut scoped_descendants,
             );
         }
-        RunRootFragment {
-            fragment: snapshot_fragment(
+        RunRootFragment::new(
+            snapshot_fragment(
                 callbacks,
                 node,
                 scoped_descendants,
@@ -884,7 +884,7 @@ impl RunContents {
                 root_payloads,
             ),
             payloads_past_run,
-        }
+        )
     }
 }
 
@@ -894,16 +894,34 @@ impl RunContents {
 #[must_use = "a child's fragments are lost unless its placement takes them"]
 pub(crate) struct RunRootFragment {
     pub(crate) fragment: std::sync::Arc<Fragment>,
-    pub(crate) payloads_past_run: PayloadsPastRun,
+    pub(crate) payloads_past_run: Option<Box<PayloadsPastRun>>,
 }
 
+static NO_PAYLOADS_PAST_RUN: PayloadsPastRun = PayloadsPastRun {
+    pending_abspos: Vec::new(),
+    anchor_candidates: Vec::new(),
+    inline_containing_block_rects: Vec::new(),
+    abspos_containing_block_info: Vec::new(),
+};
+
 impl RunRootFragment {
+    pub(crate) fn new(fragment: std::sync::Arc<Fragment>, payloads_past_run: PayloadsPastRun) -> Self {
+        Self {
+            fragment,
+            payloads_past_run: (!payloads_past_run.is_empty()).then(|| Box::new(payloads_past_run)),
+        }
+    }
+
     /// The root fragment of a run that hands nothing past `fragment`.
     pub(crate) fn propagating_nothing(fragment: std::sync::Arc<Fragment>) -> Self {
         Self {
             fragment,
-            payloads_past_run: PayloadsPastRun::default(),
+            payloads_past_run: None,
         }
+    }
+
+    pub(crate) fn payloads_past_run(&self) -> &PayloadsPastRun {
+        self.payloads_past_run.as_deref().unwrap_or(&NO_PAYLOADS_PAST_RUN)
     }
 }
 
@@ -1547,19 +1565,26 @@ impl RunFragmentBuilder {
             "a child run's root and an open pending fragment both carry children for slot {slot}"
         );
         pending_fragment.arrived = Some(root.fragment);
+        let Some(payloads_past_run) = root.payloads_past_run else {
+            return;
+        };
+        let PayloadsPastRun {
+            pending_abspos,
+            anchor_candidates,
+            inline_containing_block_rects,
+            abspos_containing_block_info,
+        } = *payloads_past_run;
         pending_fragment
             .pending_abspos
-            .extend(root.payloads_past_run.pending_abspos.into_iter().map(|mut entry| {
+            .extend(pending_abspos.into_iter().map(|mut entry| {
                 formatting_context::resolve_pending_abspos_containing_block(callbacks, &mut entry, self.root_node);
                 entry
             }));
-        pending_fragment
-            .anchor_candidates
-            .extend(root.payloads_past_run.anchor_candidates);
+        pending_fragment.anchor_candidates.extend(anchor_candidates);
         pending_fragment
             .inline_containing_block_rects
-            .extend(root.payloads_past_run.inline_containing_block_rects);
-        inner.receive_abspos_containing_block_info(root.payloads_past_run.abspos_containing_block_info);
+            .extend(inline_containing_block_rects);
+        inner.receive_abspos_containing_block_info(abspos_containing_block_info);
     }
 
     #[allow(clippy::too_many_arguments)]
