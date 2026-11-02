@@ -1,0 +1,19 @@
+Nested input -> top body: iframe events=none
+  #top-body active in its document: true
+Focus outer window: iframe events=none
+Outer window -> explicit outer iframe: iframe events=outer.focus, outer.focusin
+Explicit outer iframe -> top body: iframe events=outer.blur, outer.focusout
+Focus inner iframe: iframe events=inner.focus, inner.focusin
+Explicit inner iframe -> middle body: iframe events=inner.blur, inner.focusout
+iframe element focus handler -> nested input: iframe events=outer.focus, outer.focusin
+  #input active in its document: true
+Refocus after iframe element handler: iframe events=none
+  #input active in its document: true
+Leave iframe after iframe element handler: iframe events=outer.blur, outer.focusout
+content window focus handler -> nested input: iframe events=outer.focus, outer.focusin
+  #input active in its document: true
+Refocus after content window handler: iframe events=none
+  #input active in its document: true
+Leave iframe after content window handler: iframe events=outer.blur, outer.focusout
+Content window focus handler -> top button: iframe events=outer.blur, outer.focusout
+  #button active in its document: true

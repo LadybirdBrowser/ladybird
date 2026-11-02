@@ -1,0 +1,55 @@
+<!doctype html>
+<script src="../include.js"></script>
+<body id="top-body" tabindex="-1">
+    <iframe id="outer" srcdoc="<body tabindex=-1><iframe id=inner srcdoc='<input id=input>'></iframe>"></iframe>
+    <button id="button"></button>
+    <script>
+        promiseTest(async () => {
+            await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+
+            const outerFrame = document.getElementById("outer");
+            const middleDocument = outerFrame.contentDocument;
+            const innerFrame = middleDocument.querySelector("iframe");
+            const innerInput = innerFrame.contentDocument.querySelector("input");
+            const events = [];
+            for (const frame of [outerFrame, innerFrame]) {
+                for (const type of ["focus", "focusin", "blur", "focusout"])
+                    frame.addEventListener(type, () => events.push(`${frame.id}.${type}`));
+            }
+
+            function focusAndReport(target, label, expectedActiveElement) {
+                target.focus();
+                println(`${label}: iframe events=${events.join(", ") || "none"}`);
+                if (expectedActiveElement)
+                    println(
+                        `  #${expectedActiveElement.id} active in its document: ${expectedActiveElement.ownerDocument.activeElement === expectedActiveElement}`
+                    );
+                events.length = 0;
+            }
+
+            innerInput.focus();
+            focusAndReport(document.body, "Nested input -> top body", document.body);
+
+            focusAndReport(outerFrame.contentWindow, "Focus outer window");
+            focusAndReport(outerFrame, "Outer window -> explicit outer iframe");
+            focusAndReport(document.body, "Explicit outer iframe -> top body");
+
+            focusAndReport(innerFrame, "Focus inner iframe");
+            focusAndReport(middleDocument.body, "Explicit inner iframe -> middle body");
+
+            for (const [name, target] of [
+                ["iframe element", outerFrame],
+                ["content window", outerFrame.contentWindow],
+            ]) {
+                target.addEventListener("focus", () => innerInput.focus(), { once: true });
+                focusAndReport(outerFrame, `${name} focus handler -> nested input`, innerInput);
+                focusAndReport(outerFrame, `Refocus after ${name} handler`, innerInput);
+                focusAndReport(document.body, `Leave iframe after ${name} handler`);
+            }
+
+            const topButton = document.getElementById("button");
+            outerFrame.contentWindow.addEventListener("focus", () => topButton.focus(), { once: true });
+            focusAndReport(outerFrame, "Content window focus handler -> top button", topButton);
+        });
+    </script>
+</body>

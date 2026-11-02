@@ -800,6 +800,9 @@ public:
     };
     void set_focused_area(GC::Ptr<Node>, InvalidateFocusPseudoClasses = InvalidateFocusPseudoClasses::Yes);
 
+    bool focused_container_has_explicit_focus() const { return m_focused_container_has_explicit_focus; }
+    void set_focused_container_has_explicit_focus(bool value) { m_focused_container_has_explicit_focus = value; }
+
     // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-starting-point
     GC::Ptr<Node> sequential_focus_navigation_starting_point() { return m_sequential_focus_navigation_starting_point; }
     void move_sequential_focus_navigation_starting_point_to(GC::Ptr<Node> node) { m_sequential_focus_navigation_starting_point = node; }
@@ -2010,6 +2013,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/interaction.html#focused-area-of-the-document
     GC::Ptr<Node> m_focused_area;
+    bool m_focused_container_has_explicit_focus { false };
 
     // https://html.spec.whatwg.org/multipage/interaction.html#sequential-focus-navigation-starting-point
     GC::Ptr<Node> m_sequential_focus_navigation_starting_point;
