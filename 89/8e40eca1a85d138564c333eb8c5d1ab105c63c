@@ -1,0 +1,11 @@
+When a page doesn’t have system focus, Ladybird still treats the area
+its top-level traversable would have focused as the focused one, so
+focusing that area again fires no focus events. All three engines do the
+same: Blink’s Element::Focus() compares the element against the
+document’s FocusedElement(), WebKit’s Element::focus() against
+Document::focusedElement(), and Gecko’s nsFocusManager::CanSkipFocus()
+against the window’s remembered focused element when the window isn’t
+active — so a focus listener that focuses its own target again never
+recurses, with or without system focus. When focus moves to another area
+without system focus, Ladybird still fires its focus events, as WebKit
+can; Blink and Gecko wait for the window to regain system focus first.
