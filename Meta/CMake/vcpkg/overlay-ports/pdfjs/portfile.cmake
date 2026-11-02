@@ -35,6 +35,10 @@ file(INSTALL
 file(INSTALL "${SOURCE_PATH}/web/images/"
      DESTINATION "${CURRENT_PACKAGES_DIR}/share/pdfjs/web/images")
 
+# web/wasm/: decoders, JavaScript fallbacks and their licenses
+file(INSTALL "${SOURCE_PATH}/web/wasm/"
+     DESTINATION "${CURRENT_PACKAGES_DIR}/share/pdfjs/web/wasm")
+
 # web/locale/: en-US only with a minimal locale.json
 file(INSTALL "${SOURCE_PATH}/web/locale/en-US/"
      DESTINATION "${CURRENT_PACKAGES_DIR}/share/pdfjs/web/locale/en-US")

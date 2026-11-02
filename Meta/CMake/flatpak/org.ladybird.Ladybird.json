@@ -681,10 +681,11 @@
       "buildsystem": "simple",
       "build-commands": [
         "patch -p1 -i 0001-ladybird-embed.patch",
-        "install -d /app/share/pdfjs/build /app/share/pdfjs/web/images /app/share/pdfjs/web/locale/en-US",
+        "install -d /app/share/pdfjs/build /app/share/pdfjs/web/images /app/share/pdfjs/web/wasm /app/share/pdfjs/web/locale/en-US",
         "install -m644 build/*.mjs /app/share/pdfjs/build/",
         "install -m644 web/viewer.html web/viewer.mjs web/viewer.css /app/share/pdfjs/web/",
         "cp -r web/images/. /app/share/pdfjs/web/images/",
+        "cp -r web/wasm/. /app/share/pdfjs/web/wasm/",
         "install -m644 web/locale/locale.json /app/share/pdfjs/web/locale/",
         "install -m644 web/locale/en-US/viewer.ftl /app/share/pdfjs/web/locale/en-US/"
       ],
