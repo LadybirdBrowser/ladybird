@@ -1,0 +1,7 @@
+Ladybird shows the console messages of a tab’s same-process iframes in
+the tab’s console, along with the top-level document’s. Gecko does the
+same: For a window target, its console API listener takes the messages
+of each window that WebConsoleUtils.getInnerWindowIDsForFrames() names.
+And Blink’s MainThreadDebugger::ContextCreated() puts each frame’s
+context in the page’s V8 context group, so V8 reports any frame’s
+console calls to the DevTools session of the page.
