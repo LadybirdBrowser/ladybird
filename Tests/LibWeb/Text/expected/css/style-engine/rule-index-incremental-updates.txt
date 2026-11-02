@@ -1,0 +1,16 @@
+appended sheet: index builds 0, entries indexed 1, full passes 0, hinted <= 2 true
+target: rgb(0, 128, 0)
+inserted rule: index builds 0, entries indexed 2, full passes 0, hinted <= 2 true
+other: rgb(0, 0, 255)
+edited rule: index builds 0, entries indexed 1, full passes 0, hinted <= 2 true
+other: rgb(255, 165, 0)
+deleted rule: index builds 0, entries indexed 0, full passes 0, hinted <= 2 true
+other: rgb(0, 0, 0)
+media off: index builds 0, entries indexed 0, full passes 0, hinted <= 2 true
+target: rgb(0, 0, 0)
+media on: index builds 0, entries indexed 1, full passes 0, hinted <= 2 true
+target: rgb(0, 128, 0)
+removed sheet: index builds 0, entries indexed 0, full passes 0, hinted <= 2 true
+target: rgb(0, 0, 0)
+sheet inserted before: index builds 0, entries indexed 1, full passes 0, hinted <= 2 true
+target: rgb(0, 128, 0)

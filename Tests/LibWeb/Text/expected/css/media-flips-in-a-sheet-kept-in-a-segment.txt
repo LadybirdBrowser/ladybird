@@ -1,0 +1,15 @@
+wide: a rgb(0, 128, 0), b 0px, c 0px, d 0px
+narrow 1: a rgb(0, 0, 255), b 0px, c 0px, d 0px
+narrow, classes on 1: a rgb(0, 0, 255), b 3px, c 0px, d 4px
+wide 1: a rgb(0, 128, 0), b 3px, c 2px, d 4px
+wide, classes off 1: a rgb(0, 128, 0), b 0px, c 0px, d 0px
+narrow 2: a rgb(0, 0, 255), b 0px, c 0px, d 0px
+narrow, classes on 2: a rgb(0, 0, 255), b 3px, c 0px, d 4px
+wide 2: a rgb(0, 128, 0), b 3px, c 2px, d 4px
+wide, classes off 2: a rgb(0, 128, 0), b 0px, c 0px, d 0px
+narrow 3: a rgb(0, 0, 255), b 0px, c 0px, d 0px
+narrow, classes on 3: a rgb(0, 0, 255), b 3px, c 0px, d 4px
+wide 3: a rgb(0, 128, 0), b 3px, c 2px, d 4px
+wide, classes off 3: a rgb(0, 128, 0), b 0px, c 0px, d 0px
+after a rule was deleted: a rgb(0, 128, 0), b 0px, c 0px, d 0px
+after a rule was inserted: a rgb(1, 2, 3), b 0px, c 0px, d 0px

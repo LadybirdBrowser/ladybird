@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Components commonly style each shadow tree with a link to the same sheet. Every link loads a sheet of its own,
+    // whose rules the parse cache answers with the same contents; the document compiles those rules once.
+    function makeRoot() {
+        const host = document.createElement("div");
+        document.body.append(host);
+        const root = host.attachShadow({ mode: "open" });
+        const target = document.createElement("span");
+        target.className = "target";
+        root.append(target);
+        return root;
+    }
+    function addLink(root) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "resources/shared-link-component.css";
+        const loaded = new Promise(resolve => (link.onload = resolve));
+        root.append(link);
+        return { link, loaded };
+    }
+    function color(root) {
+        return getComputedStyle(root.querySelector(".target")).color;
+    }
+
+    promiseTest(async () => {
+        // The first link has the document compile the sheet.
+        const firstRoot = makeRoot();
+        await addLink(firstRoot).loaded;
+        println(`first: ${color(firstRoot)}`);
+
+        const before = internals.styleEngineCounters().styleRulesCompiled;
+        const roots = [makeRoot(), makeRoot(), makeRoot()];
+        const links = roots.map(addLink);
+        await Promise.all(links.map(({ loaded }) => loaded));
+        println(`others: ${roots.map(color).join(", ")}`);
+        println(`rules compiled for the other links: ${internals.styleEngineCounters().styleRulesCompiled - before}`);
+
+        // Each link's sheet keeps conditions of its own.
+        links[0].link.media = "not all";
+        println(`after the first other stops matching: ${roots.map(color).join(", ")}`);
+        links[1].link.remove();
+        println(`after removing the second other: ${color(roots[0])}, ${color(roots[2])}`);
+    });
+</script>

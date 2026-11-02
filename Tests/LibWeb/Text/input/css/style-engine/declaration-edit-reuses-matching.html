@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: green }
+    .target { color: red }
+</style>
+<div class="target" id="target"></div>
+<script>
+    test(() => {
+        const sheet = document.styleSheets[0];
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule first, so the declaration edit below is an incremental edit.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
+
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        document.styleSheets[0].cssRules[0].style.setProperty("color", "blue", "important");
+        internals.updateStyle();
+
+        println(`color: ${getComputedStyle(target).color}`);
+    });
+</script>

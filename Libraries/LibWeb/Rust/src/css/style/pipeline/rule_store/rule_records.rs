@@ -1,0 +1,212 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+use super::Rule;
+use crate::css::style::fast_hash::fast_hasher;
+use crate::css::style::weak_pool::WeakPool;
+use std::hash::{Hash, Hasher};
+use std::ops::{Index, IndexMut};
+use std::sync::{Arc, Mutex};
+
+const RULE_RECORDS_PER_PAGE: usize = 128;
+
+pub(in crate::css::style) struct RuleRecordPage {
+    values: [Option<Rule>; RULE_RECORDS_PER_PAGE],
+    shared_hash: Option<u64>,
+}
+
+impl RuleRecordPage {
+    fn new(values: [Option<Rule>; RULE_RECORDS_PER_PAGE]) -> Self {
+        Self {
+            values,
+            shared_hash: None,
+        }
+    }
+}
+
+/// The pool equal pages of rule records are shared through.
+pub(in crate::css::style) type RuleRecordPages = Mutex<WeakPool<RuleRecordPage>>;
+
+/// Equal rule records share immutable pages through the process's pool. Child lists remain
+/// outside the records; mutations detach only their page, including updates to its child-list slot.
+#[derive(Clone, Default)]
+pub(super) struct RuleRecordTable {
+    pages: Vec<Arc<RuleRecordPage>>,
+    len: usize,
+    needs_sharing: bool,
+}
+
+impl RuleRecordTable {
+    /// The bytes of the table's pages, each counted once, with what `rule_heap` says each rule
+    /// holds.
+    pub(super) fn heap_size(
+        &self,
+        sizer: &mut crate::heap_size::HeapSizer,
+        mut rule_heap: impl FnMut(&Rule, &mut crate::heap_size::HeapSizer) -> usize,
+    ) -> usize {
+        let mut bytes = crate::heap_size::vec_bytes(&self.pages);
+        for page in &self.pages {
+            if sizer.first_sight(Arc::as_ptr(page)) {
+                bytes += crate::heap_size::ARC_HEADER_BYTES + size_of::<RuleRecordPage>();
+                bytes += page
+                    .values
+                    .iter()
+                    .flatten()
+                    .map(|rule| rule_heap(rule, sizer))
+                    .sum::<usize>();
+            }
+        }
+        bytes
+    }
+
+    pub(super) fn len(&self) -> usize {
+        self.len
+    }
+
+    pub(super) fn push(&mut self, value: Rule) {
+        if self.len.is_multiple_of(RULE_RECORDS_PER_PAGE) {
+            self.pages
+                .push(Arc::new(RuleRecordPage::new(std::array::from_fn(|_| None))));
+        }
+        let index = self.len;
+        self.len = self.len.checked_add(1).expect("rule record space exhausted");
+        self.needs_sharing = true;
+        self.set(index, value);
+    }
+
+    fn page_mut(&mut self, index: usize) -> &mut RuleRecordPage {
+        assert!(index < self.len);
+        self.needs_sharing = true;
+        let page = &mut self.pages[index / RULE_RECORDS_PER_PAGE];
+        // NB: A page the pool knows is copied, as one another table holds is: the pool keeps no
+        //     page alive, and the copy is published again where the table is next shared.
+        if Arc::get_mut(page).is_none() {
+            *page = Arc::new(RuleRecordPage::new(page.values.clone()));
+        }
+        let page = Arc::get_mut(page).expect("a private page has one owner");
+        page.shared_hash = None;
+        page
+    }
+
+    fn set(&mut self, index: usize, value: Rule) {
+        self.page_mut(index).values[index % RULE_RECORDS_PER_PAGE] = Some(value);
+    }
+
+    pub(super) fn iter(&self) -> impl Iterator<Item = &Rule> {
+        self.pages
+            .iter()
+            .flat_map(|page| page.values.iter())
+            .take(self.len)
+            .map(|rule| rule.as_ref().expect("a live rule slot has a record"))
+    }
+
+    pub(super) fn share(&mut self, pool: &RuleRecordPages) {
+        if !self.needs_sharing {
+            return;
+        }
+        let mut pool = pool.lock().unwrap();
+        for page in &mut self.pages {
+            if page.shared_hash.is_some() {
+                continue;
+            }
+            let mut hasher = fast_hasher();
+            page.values.hash(&mut hasher);
+            let hash = hasher.finish();
+            if let Some(found) = pool.find(hash, |candidate| candidate.values == page.values) {
+                *page = found;
+                continue;
+            }
+            // A clone of the table, as a fork of the style engine, holds the unpublished page too, and publishes a
+            // copy of its own.
+            if Arc::get_mut(page).is_none() {
+                *page = Arc::new(RuleRecordPage::new(page.values.clone()));
+            }
+            Arc::get_mut(page).expect("a private page has one owner").shared_hash = Some(hash);
+            pool.insert(hash, page);
+        }
+        self.needs_sharing = false;
+    }
+}
+
+impl Index<usize> for RuleRecordTable {
+    type Output = Rule;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        assert!(index < self.len);
+        self.pages[index / RULE_RECORDS_PER_PAGE].values[index % RULE_RECORDS_PER_PAGE]
+            .as_ref()
+            .expect("a live rule slot has a record")
+    }
+}
+
+impl IndexMut<usize> for RuleRecordTable {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.page_mut(index).values[index % RULE_RECORDS_PER_PAGE]
+            .as_mut()
+            .expect("a live rule slot has a record")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::css::style::pipeline::rule_store::RuleStore;
+    use crate::css::style::pipeline::rule_store::{CascadeOrigin, RuleID, RuleKind};
+
+    #[test]
+    fn shared_rule_records_detach_flags_and_keep_child_lists_document_local() {
+        let pools = crate::css::style::pipeline::ProcessRuleIndexes::default();
+        let make_program = || {
+            let mut program = RuleStore::new();
+            let sheet = program.add_sheet(CascadeOrigin::Author);
+            for _ in 0..RULE_RECORDS_PER_PAGE * 2 + 1 {
+                program.append_rule(sheet, None, RuleKind::Style);
+            }
+            program.share_rule_storage(Some(&pools));
+            program
+        };
+        let first = make_program();
+        let mut second = make_program();
+        assert!(!second.set_rule_live(RuleID(0), first.rules[0].live));
+        for (left, right) in first.rules.pages.iter().zip(&second.rules.pages) {
+            assert!(Arc::ptr_eq(left, right));
+        }
+        let changed = RuleID((RULE_RECORDS_PER_PAGE + 7) as u32);
+        second.set_rule_conditions_hold(changed, false);
+        assert!(first.rule_conditions_hold(changed));
+        assert!(!second.rule_conditions_hold(changed));
+        assert!(Arc::ptr_eq(&first.rules.pages[0], &second.rules.pages[0]));
+        assert!(!Arc::ptr_eq(&first.rules.pages[1], &second.rules.pages[1]));
+        second.share_rule_storage(Some(&pools));
+
+        let parent = RuleID(0);
+        let child = second.append_rule(second.rule_sheet(parent), Some(parent), RuleKind::Style);
+        assert!(first.rule_children(parent).is_empty());
+        assert_eq!(second.rule_children(parent), &[child]);
+        assert!(!Arc::ptr_eq(&first.rules.pages[0], &second.rules.pages[0]));
+        drop(second);
+        let third = make_program();
+        for (left, right) in first.rules.pages.iter().zip(&third.rules.pages) {
+            assert!(Arc::ptr_eq(left, right));
+        }
+    }
+
+    #[test]
+    fn a_clone_shares_the_unpublished_pages_it_holds_with_the_original() {
+        let pools = crate::css::style::pipeline::ProcessRuleIndexes::default();
+        let mut program = RuleStore::new();
+        let sheet = program.add_sheet(CascadeOrigin::Author);
+        for _ in 0..RULE_RECORDS_PER_PAGE + 1 {
+            program.append_rule(sheet, None, RuleKind::Style);
+        }
+        let mut clone = program.clone();
+        clone.share_rule_storage(Some(&pools));
+        program.share_rule_storage(Some(&pools));
+        for (left, right) in program.rules.pages.iter().zip(&clone.rules.pages) {
+            assert!(Arc::ptr_eq(left, right));
+        }
+    }
+}

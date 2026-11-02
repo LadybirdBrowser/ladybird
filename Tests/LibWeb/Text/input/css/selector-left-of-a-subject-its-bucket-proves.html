@@ -1,0 +1,79 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .a .class-subject { color: rgb(0, 128, 0); }
+    .a #id-subject { color: rgb(0, 128, 0); }
+    .a tag-subject { color: rgb(0, 128, 0); }
+    .a TAG-WRITTEN-UPPER { color: rgb(0, 128, 0); }
+    .a .UPPER-CLASS-SUBJECT { color: rgb(0, 128, 0); }
+    .a * { background-color: rgb(0, 128, 0); }
+    .a > :checked { color: rgb(0, 128, 0); }
+    .a + .next-subject { color: rgb(0, 128, 0); }
+    .a ~ .later-subject { color: rgb(0, 128, 0); }
+    .a .pseudo-subject::before { color: rgb(0, 128, 0); }
+    :has(.has-witness) .after-has { color: rgb(0, 128, 0); }
+    .a div.two-part-subject { color: rgb(0, 128, 0); }
+    @scope (.a) { .scoped-subject { color: rgb(0, 128, 0); } }
+    @scope (.a) { :scope .scope-subject { color: rgb(0, 128, 0); } }
+</style>
+<svg id="svg-host"></svg>
+<div id="root"></div>
+<script>
+    // The bucket an element reaches a selector by can prove the subject compound, so that matching starts left of it:
+    // what the rest of the selector asks of other elements is still asked, for an element with and without them.
+    test(() => {
+        const root = document.getElementById("root");
+        const add = (parent, html) => {
+            const template = document.createElement("template");
+            template.innerHTML = html;
+            const element = template.content.firstElementChild;
+            parent.append(element);
+            return element;
+        };
+        const subjects = [
+            "<div class=class-subject></div>",
+            "<div id=id-subject></div>",
+            "<tag-subject></tag-subject>",
+            "<tag-written-upper></tag-written-upper>",
+            "<div class=UPPER-CLASS-SUBJECT></div>",
+            "<input type=checkbox checked>",
+            "<div class=two-part-subject></div>",
+            "<p class=two-part-subject></p>",
+            "<div class=scoped-subject></div>",
+            "<div class=scope-subject></div>",
+        ];
+        for (const html of subjects) {
+            const outside = add(add(root, "<div></div>"), html);
+            const inside = add(add(root, "<div class=a></div>"), html);
+            println(`${html} outside: ${getComputedStyle(outside).color} ${getComputedStyle(outside).backgroundColor}`);
+            println(`${html} inside: ${getComputedStyle(inside).color} ${getComputedStyle(inside).backgroundColor}`);
+        }
+
+        const siblings = add(root, "<div><i class=a></i><b class=next-subject></b><b class=later-subject></b></div>");
+        println(`next: ${getComputedStyle(siblings.children[1]).color}`);
+        println(`later: ${getComputedStyle(siblings.children[2]).color}`);
+        siblings.firstElementChild.className = "";
+        println(`next without: ${getComputedStyle(siblings.children[1]).color}`);
+        println(`later without: ${getComputedStyle(siblings.children[2]).color}`);
+
+        const pseudo = add(add(root, "<div class=a></div>"), "<div class=pseudo-subject></div>");
+        println(`pseudo: ${getComputedStyle(pseudo, "::before").color}`);
+        pseudo.parentElement.className = "";
+        println(`pseudo without: ${getComputedStyle(pseudo, "::before").color}`);
+
+        const has = add(root, "<div><i class=has-witness></i><b class=after-has></b></div>");
+        println(`has: ${getComputedStyle(has.lastElementChild).color}`);
+        has.firstElementChild.className = "";
+        println(`has without: ${getComputedStyle(has.lastElementChild).color}`);
+
+        // An element outside the HTML namespace is reached by the folding of its tag too.
+        const svgRule = document.createElement("style");
+        svgRule.textContent = ".a lineargradient { color: rgb(0, 128, 0); } .a svgwritten { color: rgb(255, 0, 0); }";
+        document.head.append(svgRule);
+        const svg = document.getElementById("svg-host");
+        svg.setAttribute("class", "a");
+        const gradient = document.createElementNS("http://www.w3.org/2000/svg", "linearGradient");
+        svg.append(gradient);
+        println(`folded tag: ${getComputedStyle(gradient).color}`);
+    });
+</script>

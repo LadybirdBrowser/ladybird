@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: rgb(1, 2, 3); }
+    .attribute .item { color: attr(data-color type(<color>)); }
+</style>
+<div id="parent"><span class="item" id="first" data-color="green"></span><span class="item" id="second" data-color="purple"></span></div>
+<script>
+    // An attr() substitutes the element's own attributes: two elements alike in everything else
+    // take their own values, and an attribute change reaches the element.
+    test(() => {
+        internals.updateStyle();
+        document.getElementById("parent").classList.add("attribute");
+        internals.updateStyle();
+        println(`colors: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+        first.dataset.color = "red";
+        internals.updateStyle();
+        println(`colors: ${getComputedStyle(first).color} ${getComputedStyle(second).color}`);
+    });
+</script>

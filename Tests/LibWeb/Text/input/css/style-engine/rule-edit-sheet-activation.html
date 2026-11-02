@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: blue }
+</style>
+<style id="sheet">
+    #guard .activation-target { color: red }
+</style>
+<div id="guard"><span id="target" class="activation-target"></span></div>
+<span class="activation-target"></span>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = document.getElementById("sheet").sheet;
+        sheet.disabled = true;
+        internals.updateStyle();
+
+        sheet.disabled = false;
+        internals.updateStyle();
+        println(`active color: ${getComputedStyle(target).color}`);
+        sheet.disabled = true;
+        internals.updateStyle();
+        println(`inactive color: ${getComputedStyle(target).color}`);
+    });
+</script>

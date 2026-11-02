@@ -8,10 +8,13 @@
 
 #include <AK/StringBuilder.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibCore/EventLoop.h>
+#include <LibCore/Timer.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/RustMediaList.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
@@ -26,6 +29,7 @@
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS {
@@ -356,6 +360,31 @@ static StyleSheetState& svg_stylesheet()
     return *sheet;
 }
 
+void StyleScope::prepare_user_agent_rules(DOM::Document& document)
+{
+    // NB: A document outside an event loop has no task to do this in, and is only there to be looked at by a test.
+    static bool prepared = false;
+    if (prepared || !Core::EventLoop::is_running())
+        return;
+    prepared = true;
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(document.heap(), [document = GC::Ref { document }] {
+        auto& sheet = default_stylesheet();
+        publish_user_agent_sheet(sheet, document);
+        MediaEnvironmentSnapshot environment { document };
+        Parser::ValueParserFFI::rust_user_agent_style_sheet_index_ahead(sheet.native_sheet().handle(), environment.ffi_environment());
+    }));
+
+    // What only the process keeps goes some time after its last use, however idle the process is by then.
+    static auto& prune_timer = *new RefPtr<Core::Timer>;
+    prune_timer = Core::Timer::create_repeating(AK::Duration::from_seconds(60), [] { Parser::ValueParserFFI::rust_style_prune_kept_data(); });
+    prune_timer->start();
+}
+
+void StyleScope::release_kept_data()
+{
+    Parser::ValueParserFFI::rust_style_release_kept_data();
+}
+
 void StyleScope::for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const& callback)
 {
     auto callback_with_identifier = [&](StyleSheetState& sheet, Utf16String url) {
@@ -467,7 +496,7 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
                     // a single value is meaningful.
                     if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList) {
                         auto const& list = value->value_list.values;
-                        if (list.length == 0)
+                        if (list.length() == 0)
                             return;
                         value = static_cast<StyleValueFFI::StyleValueData const*>(list.pointer[0].pointer);
                     }
@@ -483,7 +512,7 @@ void StyleRuleCache::add_rules_from_sheet(StyleSheetState& sheet, CascadeOrigin 
                 }
                 if (property_id == PropertyID::AnimationComposition) {
                     AnimationComposition composition = AnimationComposition::Replace;
-                    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList && value->value_list.values.length == 1)
+                    if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList && value->value_list.values.length() == 1)
                         value = static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[0].pointer);
                     if (value->tag == StyleValueFFI::StyleValueData::Tag::Keyword) {
                         if (static_cast<Keyword>(value->keyword.keyword) == Keyword::Add)
@@ -590,7 +619,7 @@ void StyleScope::publish_animation_keyframes()
         return;
     StyleEngineFFI::style_engine_set_tree_scope_animation_keyframes(
         document().style_computer().style_engine().host(), style_engine_tree_scope().value(),
-        bit_cast<FlatPtr>(as_if<DOM::ShadowRoot>(*m_node)), name_lengths.span(), name_units.span(),
+        name_lengths.span(), name_units.span(),
         keyframe_sets.span());
     m_published_keyframe_sets = move(published);
 }
@@ -642,7 +671,6 @@ Optional<StyleScope::DepartedAnimationKeyframes> StyleScope::take_published_anim
         return {};
     return DepartedAnimationKeyframes {
         .tree_scope = shadow_root->style_engine_tree_scope(),
-        .shadow_root_identity = bit_cast<FlatPtr>(shadow_root),
         .keyframe_sets = move(m_published_keyframe_sets),
         .has_position_try_rules = has_position_try_rules,
     };
@@ -656,6 +684,10 @@ TreeScopeID StyleScope::style_engine_tree_scope() const
 void StyleScope::invalidate_counter_style_cache()
 {
     m_needs_counter_style_cache_update = true;
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(*m_node))
+        document().note_counter_style_scope_to_settle(*shadow_root);
+    else
+        document().set_counter_style_scopes_need_update(true);
 
     // Only this style scope and those whose counter style names pass on to it, which may include counter styles that
     // extend the ones defined in this scope, can resolve differently.
@@ -664,6 +696,7 @@ void StyleScope::invalidate_counter_style_cache()
         for (auto const* ancestor = scope.parent_style_scope(); ancestor; ancestor = ancestor->parent_style_scope()) {
             if (ancestor == this) {
                 scope.m_needs_counter_style_cache_update = true;
+                shadow_root.document().note_counter_style_scope_to_settle(shadow_root);
                 break;
             }
         }
@@ -700,6 +733,12 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
     Vector<CounterStyleRule> rules;
     auto& style_engine = document().style_computer().style_engine();
     auto const tree_scope = style_engine_tree_scope();
+    // NB: Asking the style engine for the index of a layer waits on it, and the predefined counter styles alone are
+    //     over a hundred rules in one layer, so each layer is asked for once.
+    HashMap<u32, u32> layer_indices;
+    auto layer_index = [&](u32 layer) {
+        return layer_indices.ensure(layer, [&] { return StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer); });
+    };
     auto collect_counter_style_rules = [&](CSS::CascadeOrigin cascade_origin, CSS::StyleSheetState const& style_sheet) {
         if (!style_sheet.native_media_list().matches())
             return;
@@ -712,7 +751,7 @@ void StyleScope::build_counter_style_cache(Layout::BegunRead const& read)
                 .name = Utf16FlyString { rule.name() },
                 .descriptors = rule.descriptors(),
                 .origin = cascade_origin_precedence(cascade_origin),
-                .layer = StyleEngineFFI::style_engine_layer_index(style_engine.host(), &read, tree_scope, layer),
+                .layer = layer_index(layer),
             });
         });
     };

@@ -1,0 +1,4 @@
+colors: rgb(0, 128, 0) rgb(128, 0, 128) rgb(0, 128, 0)
+colors: rgb(255, 0, 0) rgb(128, 0, 128) rgb(255, 0, 0)
+fallback width: 1px
+attribute width: 5px

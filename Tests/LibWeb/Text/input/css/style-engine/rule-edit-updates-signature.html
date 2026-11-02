@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: blue }
+    #target.active { color: red }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        internals.updateStyle();
+
+        target.classList.add("active");
+        internals.updateStyle();
+        println(`active color: ${getComputedStyle(target).color}`);
+        target.classList.remove("active");
+        internals.updateStyle();
+
+        println(`inactive color: ${getComputedStyle(target).color}`);
+    });
+</script>

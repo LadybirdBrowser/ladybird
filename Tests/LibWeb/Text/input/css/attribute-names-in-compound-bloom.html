@@ -1,0 +1,88 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    @namespace xlink url("http://www.w3.org/1999/xlink");
+    .subject[data-lower] { color: rgb(0, 128, 0); }
+    [data-ancestor] .below { color: rgb(0, 128, 0); }
+    [data-parent] > .child { color: rgb(0, 128, 0); }
+    .upper[DATA-UPPER] { color: rgb(0, 128, 0); }
+    .written-upper[data-written-upper] { color: rgb(0, 128, 0); }
+    .any-namespace[*|href] { color: rgb(0, 128, 0); }
+    .named[xlink|href] { color: rgb(0, 128, 0); }
+    .no-namespace[href] { color: rgb(0, 128, 0); }
+    .svg-lower[viewbox] { color: rgb(0, 128, 0); }
+    .svg-written[viewBox] { color: rgb(0, 128, 0); }
+    .value[type="text" i] { color: rgb(0, 128, 0); }
+    .late[data-late] { color: rgb(0, 128, 0); }
+    .script[data-script] { color: rgb(0, 128, 0); }
+</style>
+<div id="root"></div>
+<script>
+    // Each compound here tests an attribute, which an element is rejected on before its selector is read where it can
+    // carry no such name: a name written or carried in another case or namespace has to stay out of that.
+    test(() => {
+        const root = document.getElementById("root");
+        const add = html => {
+            const template = document.createElement("template");
+            template.innerHTML = html;
+            const element = template.content.firstElementChild;
+            root.append(element);
+            return element;
+        };
+        const report = (title, element) => println(`${title}: ${getComputedStyle(element).color}`);
+        report("subject", add("<div class=subject data-lower></div>"));
+        report("subject without", add("<div class=subject></div>"));
+        report("ancestor", add("<div data-ancestor><p><b class=below></b></p></div>").querySelector("b"));
+        report("no ancestor", add("<div><p><b class=below></b></p></div>").querySelector("b"));
+        report("parent", add("<div data-parent><b class=child></b></div>").querySelector("b"));
+        report("upper in the selector", add("<div class=upper data-upper></div>"));
+        report("upper in the source", add("<div class=written-upper DATA-WRITTEN-UPPER></div>"));
+        report("value case", add("<input class=value type=TEXT>"));
+
+        const namespaced = name => {
+            const element = document.createElement("div");
+            element.setAttributeNS("http://www.w3.org/1999/xlink", name, "x");
+            root.append(element);
+            return element;
+        };
+        const anyNamespace = namespaced("xlink:href");
+        anyNamespace.className = "any-namespace";
+        report("any namespace", anyNamespace);
+        const named = namespaced("xlink:href");
+        named.className = "named";
+        report("named namespace", named);
+        const noNamespace = namespaced("xlink:href");
+        noNamespace.className = "no-namespace";
+        report("no namespace on a namespaced attribute", noNamespace);
+
+        report("svg lowercase selector", add('<svg class=svg-lower viewBox="0 0 1 1"></svg>'));
+        report("svg written selector", add('<svg class=svg-written viewBox="0 0 1 1"></svg>'));
+
+        // A name set while no rule reads it, then read by a rule arriving later.
+        const late = add("<div class=late></div>");
+        late.setAttribute("data-unread", "");
+        report("late before", late);
+        late.setAttribute("data-late", "");
+        report("late after", late);
+        late.removeAttribute("data-late");
+        report("late removed", late);
+
+        const script = add("<div class=script></div>");
+        report("script before", script);
+        script.setAttribute("DATA-SCRIPT", "");
+        report("script set in another case", script);
+        const below = add("<div><b class=below></b></div>");
+        report("ancestor before", below.firstElementChild);
+        below.setAttribute("data-ancestor", "");
+        report("ancestor set", below.firstElementChild);
+        below.removeAttribute("data-ancestor");
+        report("ancestor removed", below.firstElementChild);
+
+        const style = document.createElement("style");
+        style.textContent = ".arrives[data-withheld] { color: rgb(0, 128, 0); }";
+        const withheld = add("<div class=arrives data-withheld></div>");
+        report("withheld before", withheld);
+        document.head.append(style);
+        report("withheld read by a rule arriving", withheld);
+    });
+</script>

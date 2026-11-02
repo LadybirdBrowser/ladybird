@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe id="frame" style="width: 600px; height: 100px"></iframe>
+<script>
+    // A rule under a media query that stops holding leaves the document alone: the sheet stays as it is for the rest of
+    // its rules, however often the query flips, and what the rule tested still restyles the rest of them.
+    asyncTest(async done => {
+        const frame = document.getElementById("frame");
+        const doc = frame.contentDocument;
+        doc.open();
+        doc.write("<!doctype html><body></body>");
+        doc.close();
+        let text = "";
+        for (let i = 0; i < 100; ++i)
+            text += `.filler${i} { top: ${i}px; }\n`;
+        text += "@media (min-width: 300px) { .a { color: rgb(0, 128, 0); } .p > .c { padding-left: 2px; } }\n";
+        text += "@media (max-width: 299px) { .a { color: rgb(0, 0, 255); } }\n";
+        text += ".b { margin-left: 3px; } .p > .d { margin-top: 4px; }\n";
+        const style = doc.createElement("style");
+        style.textContent = text;
+        doc.head.append(style);
+        doc.body.innerHTML = '<div id="parent"><i id="a" class="a"></i><i id="b"></i><i id="c" class="c"></i><i id="d" class="d"></i></div>';
+        const $ = id => doc.getElementById(id);
+        const say = label => {
+            const view = frame.contentWindow;
+            const style = id => view.getComputedStyle($(id));
+            println(`${label}: a ${style("a").color}, b ${style("b").marginLeft}, c ${style("c").paddingLeft}, d ${style("d").marginTop}`);
+        };
+        await animationFrame();
+        say("wide");
+        for (const round of [1, 2, 3]) {
+            frame.style.width = "200px";
+            await animationFrame();
+            await animationFrame();
+            say(`narrow ${round}`);
+            $("parent").classList.add("p");
+            $("b").classList.add("b");
+            await animationFrame();
+            say(`narrow, classes on ${round}`);
+            frame.style.width = "600px";
+            await animationFrame();
+            await animationFrame();
+            say(`wide ${round}`);
+            $("parent").classList.remove("p");
+            $("b").classList.remove("b");
+            await animationFrame();
+            say(`wide, classes off ${round}`);
+        }
+        style.sheet.deleteRule(0);
+        await animationFrame();
+        say("after a rule was deleted");
+        style.sheet.insertRule(".a { color: rgb(1, 2, 3); }", style.sheet.cssRules.length);
+        await animationFrame();
+        say("after a rule was inserted");
+        done();
+    });
+</script>

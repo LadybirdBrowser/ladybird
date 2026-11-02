@@ -1,0 +1,5 @@
+first: rgb(0, 128, 0)
+others: rgb(0, 128, 0), rgb(0, 128, 0), rgb(0, 128, 0)
+rules compiled for the other links: 0
+after the first other stops matching: rgb(0, 0, 0), rgb(0, 128, 0), rgb(0, 128, 0)
+after removing the second other: rgb(0, 0, 0), rgb(0, 128, 0)

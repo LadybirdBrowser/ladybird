@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<div id="root">
+    <p id="one" class="c"><span id="s1" class="c"></span><span id="s2"></span></p>
+    <p id="dup" class="first"><span id="d1" class="c"></span><i id="dup" class="nested"><span id="d2" class="c"></span></i></p>
+    <p id="dup" class="last"><span id="d3" class="c"></span></p>
+    <b id="sib"></b><span id="after1" class="c"></span><em><span id="inside" class="c"></span></em><span id="after2" class="c"></span>
+</div>
+<div id="host"></div>
+<script src="../include.js"></script>
+<script>
+    function ids(list) {
+        return Array.from(list, element => `${element.id || element.tagName}.${element.className}`).join(" ") || "(none)";
+    }
+
+    test(() => {
+        const root = document.getElementById("root");
+        const one = document.getElementById("one");
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `<p id="one"><span id="shadow-span" class="c"></span></p><b id="sib"></b><span id="shadow-after"></span>`;
+        const detached = document.createElement("div");
+        detached.innerHTML = `<p id="one"><span id="detached-span"></span></p>`;
+
+        const queries = [
+            [document, "#one"],
+            [document, "#missing"],
+            [document, "#missing .c"],
+            [document, "#dup"],
+            [document, "p#dup"],
+            [document, "#dup.last"],
+            [document, "#dup .c"],
+            [document, "#dup > .c"],
+            [document, "#one .c"],
+            [document, "#one > span"],
+            [document, "#sib ~ span"],
+            [document, "#sib + span"],
+            [document, "#sib ~ * .c"],
+            [document, "#root #one span"],
+            [document, "#one ~ p span"],
+            [root, "#one"],
+            [root, "#root span"],
+            [root, "#root > p"],
+            [one, "#one span"],
+            [one, "#one"],
+            [one, "#sib ~ span"],
+            [one.firstElementChild, "#one span"],
+            [shadow, "#one"],
+            [shadow, "#one span"],
+            [shadow, "#sib + span"],
+            [shadow, "#root"],
+            [detached, "#one span"],
+            [detached, "#one"],
+        ];
+        for (const [scope, selector] of queries) {
+            const name = scope === document ? "document" : scope === shadow ? "shadow" : scope === detached ? "detached" : scope.id;
+            const first = scope.querySelector(selector);
+            println(`${name} ${selector}: ${ids(scope.querySelectorAll(selector))} (first: ${first ? ids([first]) : "none"})`);
+        }
+
+        // A query made again sees the ids the tree has now.
+        document.getElementById("s2").id = "moved";
+        println(`after id change: ${ids(document.querySelectorAll("#moved"))} ${ids(document.querySelectorAll("#s2"))}`);
+        document.getElementById("d3").parentElement.remove();
+        println(`after removal: ${ids(document.querySelectorAll("#dup"))} ${ids(document.querySelectorAll("#dup .c"))}`);
+    });
+</script>

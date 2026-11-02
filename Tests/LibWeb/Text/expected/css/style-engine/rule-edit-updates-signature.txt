@@ -1,0 +1,2 @@
+active color: rgb(255, 0, 0)
+inactive color: rgb(0, 0, 255)

@@ -1,0 +1,6 @@
+first frame margin-top: 7px
+first frame blocks interned: 50
+first frame blocks shared: 0
+second frame margin-top: 7px
+second frame blocks interned: 0
+second frame blocks shared: 50

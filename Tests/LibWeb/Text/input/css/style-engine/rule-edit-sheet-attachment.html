@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .target { color: green }
+</style>
+<div id="target" class="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("#target { color: red }");
+        internals.updateStyle();
+
+        document.adoptedStyleSheets = [sheet];
+        internals.updateStyle();
+        println(`attached color: ${getComputedStyle(target).color}`);
+        document.adoptedStyleSheets = [];
+        internals.updateStyle();
+        println(`detached color: ${getComputedStyle(target).color}`);
+    });
+</script>

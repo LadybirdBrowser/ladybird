@@ -6,25 +6,22 @@
 
 //! The cache-free selector correctness floor.
 //!
-//! This matcher enumerates attached rules directly from the stylesheet program and evaluates their
-//! match selector IR against committed facts and tree relations. It deliberately owns no
+//! This matcher enumerates attached rules directly from the rule store and matches their selectors
+//! against committed facts and tree relations. It deliberately owns no
 //! dispatch index, Bloom summary, prefix state, relation or position cache, retained witness,
 //! retained answer, or cascade-pruning state.
 
-use super::index::StyleNodeFacts;
-use super::instrumentation::Counters;
-use super::program::CascadeOrigin;
-use super::program::RuleID;
-use super::program::SelectorProgramID;
-use super::program::StyleSheetProgram;
+use super::RetainedState;
+use super::pipeline::projection::Projection;
+use super::pipeline::rule_store::CascadeOrigin;
+use super::pipeline::rule_store::RuleID;
+use super::pipeline::rule_store::RuleStore;
 use super::selector::Incomplete;
-use super::selector::MatchEvaluator;
-use super::selector::SelectorPrograms;
 use super::selector::Specificity;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
-use super::tree::StyleNodeTree;
 use super::tree::TreeScopeID;
+use smallvec::SmallVec;
 
 /// One selector-list answer produced without derived matching state.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -32,7 +29,6 @@ pub struct ExactRuleMatch {
     pub node: StyleNodeID,
     pub pseudo_element: Option<PseudoElementTarget>,
     pub rule: RuleID,
-    pub program: SelectorProgramID,
     pub entry: u32,
     pub specificity: Specificity,
     pub tree_scope: TreeScopeID,
@@ -51,13 +47,12 @@ pub enum ExactMatchContext {
 
 /// Direct evaluator over attached rules and committed base relations only.
 pub struct ExactMatcher<'a> {
-    tree: &'a StyleNodeTree,
-    facts: &'a StyleNodeFacts,
-    programs: &'a SelectorPrograms,
-    program: &'a StyleSheetProgram,
+    projection: &'a Projection,
+    program: &'a RuleStore,
     scope: TreeScopeID,
     shadow_root: Option<StyleNodeID>,
     context: ExactMatchContext,
+    document: super::component_matching::DocumentMatching,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -68,20 +63,18 @@ enum DocumentSheets {
 
 impl<'a> ExactMatcher<'a> {
     #[must_use]
-    pub fn new(
-        tree: &'a StyleNodeTree,
-        facts: &'a StyleNodeFacts,
-        programs: &'a SelectorPrograms,
-        program: &'a StyleSheetProgram,
+    pub(super) fn new(
+        projection: &'a Projection,
+        program: &'a RuleStore,
+        document: super::component_matching::DocumentMatching,
     ) -> Self {
         Self {
-            tree,
-            facts,
-            programs,
+            projection,
             program,
             scope: TreeScopeID::DOCUMENT,
             shadow_root: None,
             context: ExactMatchContext::Ordinary,
+            document,
         }
     }
 
@@ -104,24 +97,19 @@ impl<'a> ExactMatcher<'a> {
     }
 
     /// Evaluate one element by walking every attached rule entry directly.
-    pub fn match_node(
-        &self,
-        node: StyleNodeID,
-        out: &mut Vec<ExactRuleMatch>,
-        counters: &Counters,
-    ) -> Result<(), Incomplete> {
-        if self.facts.row_of(node).is_none() {
+    pub fn match_node(&self, node: StyleNodeID, out: &mut Vec<ExactRuleMatch>) -> Result<(), Incomplete> {
+        if self.projection.facts(node).is_none() {
             return Err(Incomplete::MissingFacts(node));
         }
         let start = out.len();
         let result = (|| {
-            self.match_sheets(node, self.scope, DocumentSheets::All, start, out, counters)?;
+            self.match_sheets(node, self.scope, DocumentSheets::All, start, out)?;
             if self.scope != TreeScopeID::DOCUMENT {
                 let document_sheets = match self.program.scope_uses_document_sheets(self.scope) {
                     true => DocumentSheets::All,
                     false => DocumentSheets::NonAuthorOnly,
                 };
-                self.match_sheets(node, TreeScopeID::DOCUMENT, document_sheets, start, out, counters)?;
+                self.match_sheets(node, TreeScopeID::DOCUMENT, document_sheets, start, out)?;
             }
             Ok(())
         })();
@@ -133,25 +121,6 @@ impl<'a> ExactMatcher<'a> {
         Ok(())
     }
 
-    /// Evaluate every element under `root` in preorder.
-    #[cfg(test)]
-    pub fn match_subtree(
-        &self,
-        root: StyleNodeID,
-        out: &mut Vec<ExactRuleMatch>,
-        counters: &Counters,
-    ) -> Result<(), Incomplete> {
-        let start = out.len();
-        for node in self.tree.preorder(root) {
-            if let Err(incomplete) = self.match_node(node, out, counters) {
-                out.truncate(start);
-                return Err(incomplete);
-            }
-        }
-        out[start..].sort_unstable_by_key(|matched| (matched.node, matched.rule, matched.pseudo_element));
-        Ok(())
-    }
-
     fn match_sheets(
         &self,
         node: StyleNodeID,
@@ -159,7 +128,6 @@ impl<'a> ExactMatcher<'a> {
         take: DocumentSheets,
         match_start: usize,
         out: &mut Vec<ExactRuleMatch>,
-        counters: &Counters,
     ) -> Result<(), Incomplete> {
         for &sheet in self.program.sheets_in_scope(sheet_scope) {
             if take == DocumentSheets::NonAuthorOnly
@@ -178,35 +146,41 @@ impl<'a> ExactMatcher<'a> {
                 if !version.kind.matches_elements() {
                     continue;
                 }
-                let Some(program_id) = version.selector_program else {
+                let Some(selectors) = self.program.selectors_of(sheet, version) else {
                     continue;
                 };
-                let compiled = self.programs.get(program_id);
-                let mut evaluator = MatchEvaluator::new(self.tree, self.facts);
-                if let Some(shadow_root) = self.shadow_root {
-                    evaluator = evaluator.in_shadow_tree(shadow_root);
-                }
+                let scope = self.program.scope_chain(version.scope).map(|chain| &**chain);
+                let mut evaluator = self.projection.evaluator();
+                evaluator.set_scope_shadow_root(self.shadow_root);
                 if self.context == ExactMatchContext::Part {
-                    evaluator = evaluator.for_a_part_exposed_in(self.scope);
+                    evaluator.set_part_exposure_scope(Some(self.scope));
                 }
-                for (index, entry) in compiled.entries().iter().enumerate() {
+                for (index, (selector, specificity, pseudo_kind)) in super::pipeline::entries_of(&selectors).enumerate()
+                {
+                    let entry_selector = super::component_matching::EntrySelector::new(selector, scope);
+                    let facts = super::selector_analysis::EntryFacts::of(entry_selector);
                     let context_admits = match self.context {
                         ExactMatchContext::Ordinary => true,
-                        ExactMatchContext::Slotted => compiled.subject_is_slotted(entry.root),
-                        ExactMatchContext::Part => compiled.subject_is_a_part(entry.root),
-                        ExactMatchContext::Host => compiled.subject_is_the_host(entry.root),
+                        ExactMatchContext::Slotted => facts.slotted,
+                        ExactMatchContext::Part => facts.part,
+                        ExactMatchContext::Host => facts.host,
                     };
-                    if !context_admits || !evaluator.matches_entry(compiled, entry, node, counters)? {
+                    if !context_admits {
                         continue;
                     }
-                    let scope_proximity = evaluator.scope_proximity_of(compiled, entry, node, counters)?;
+                    let matched = evaluator.matches_entry_selector(entry_selector, node, self.document)?;
+                    let pseudo_element = (pseudo_kind != u8::MAX)
+                        .then(|| PseudoElementTarget::new(super::tree::PseudoElementKind(u16::from(pseudo_kind))));
+                    if !matched {
+                        continue;
+                    }
+                    let scope_proximity = evaluator.scope_proximity_of_match(node);
                     let candidate = ExactRuleMatch {
                         node,
-                        pseudo_element: entry.pseudo_element,
+                        pseudo_element,
                         rule,
-                        program: program_id,
                         entry: u32::try_from(index).expect("selector entry space exhausted"),
-                        specificity: entry.specificity,
+                        specificity,
                         tree_scope: self.scope,
                         scope_proximity,
                     };
@@ -214,7 +188,7 @@ impl<'a> ExactMatcher<'a> {
                         existing.node == node
                             && existing.rule == rule
                             && existing.tree_scope == self.scope
-                            && existing.pseudo_element == entry.pseudo_element
+                            && existing.pseudo_element == pseudo_element
                     }) {
                         if candidate.specificity > existing.specificity {
                             *existing = candidate;
@@ -229,118 +203,68 @@ impl<'a> ExactMatcher<'a> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::super::index::StateSet;
-    use super::super::index::StyleAtomID;
-    use super::super::program::RuleKind;
-    use super::super::program::StyleSheetObjectID;
-    use super::super::selector::FeatureTest;
-    use super::super::selector::SelectorOp;
-    use super::super::selector::SelectorProgramBuilder;
-    use super::*;
-
-    #[test]
-    fn exact_matching_enumerates_rules_without_a_dispatch() {
-        let mut tree = StyleNodeTree::new();
-        let root = tree.allocate_element();
-        let child = tree.allocate_element();
-        tree.set_first_element_child(root, Some(child));
-        tree.set_parent(child, Some(root));
-
-        let theme = StyleAtomID(1);
-        let item = StyleAtomID(2);
-        let mut facts = StyleNodeFacts::new();
-        facts.push_row(
-            root,
-            StyleAtomID(10),
-            StyleAtomID::NONE,
-            StateSet::default(),
-            &[theme],
-            &[],
-        );
-        facts.push_row(
-            child,
-            StyleAtomID(11),
-            StyleAtomID::NONE,
-            StateSet::default(),
-            &[item],
-            &[],
-        );
-
-        let mut programs = SelectorPrograms::new();
-        let mut builder = SelectorProgramBuilder::new();
-        let ancestor = builder.push_feature(FeatureTest::Class(theme));
-        let ancestor = builder.push(SelectorOp::Ancestor(ancestor));
-        let subject = builder.push_feature(FeatureTest::Class(item));
-        let selector = builder.push_compound(&[subject, ancestor]);
-        builder.push_entry(selector);
-        let selector = programs.add(builder.finish());
-
-        let mut program = StyleSheetProgram::new();
-        let sheet = program.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
-        program.attach_sheet(sheet, TreeScopeID::DOCUMENT);
-        let rule = program.append_rule(sheet, None, RuleKind::Style);
-        let mut version = program.rule_version(rule);
-        version.selector_program = Some(selector);
-        program.replace_rule_version(rule, version);
-
-        let mut matches = Vec::new();
-        let counters = Counters::new();
-        ExactMatcher::new(&tree, &facts, &programs, &program)
-            .match_subtree(root, &mut matches, &counters)
-            .unwrap();
-
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].node, child);
-        assert_eq!(matches[0].rule, rule);
+impl RetainedState {
+    pub(super) fn append_exact_matches_in_scope(
+        &self,
+        node: StyleNodeID,
+        scope: TreeScopeID,
+        context: ExactMatchContext,
+        matches: &mut Vec<ExactRuleMatch>,
+    ) -> Result<(), Incomplete> {
+        let shadow_root = self.scope_root(scope);
+        let mut matcher = ExactMatcher::new(&self.projection, &self.rules, self.document_matching())
+            .in_scope(scope)
+            .with_context(context);
+        if let Some(shadow_root) = shadow_root {
+            matcher = matcher.in_shadow_tree(shadow_root);
+        }
+        matcher.match_node(node, matches)
     }
 
-    #[test]
-    fn exact_matching_keeps_the_greatest_selector_list_specificity() {
-        let mut tree = StyleNodeTree::new();
-        let node = tree.allocate_element();
-        let class = StyleAtomID(1);
-        let id = StyleAtomID(2);
-        let mut facts = StyleNodeFacts::new();
-        facts.push_row(node, StyleAtomID(10), id, StateSet::default(), &[class], &[]);
+    /// Append what `node` matches from every tree whose rules can decide for it, evaluating every
+    /// attached rule directly, and answer whether a rule can match it from more than one tree.
+    pub(super) fn append_exact_matches_in_every_scope(
+        &self,
+        node: StyleNodeID,
+        exact: &mut Vec<ExactRuleMatch>,
+    ) -> Result<bool, Incomplete> {
+        let scope = self.projection.tree_scope(node);
+        let inner_scope = self
+            .projection
+            .shadow_root_of(node)
+            .and_then(|shadow_root| self.scope_by_root.get(shadow_root).filter(|&inner| inner != scope));
+        let slotted_scopes: SmallVec<[TreeScopeID; 1]> = self
+            .scopes_slotted_into(node)
+            .filter(|&slotted| slotted != scope && Some(slotted) != inner_scope)
+            .collect();
+        let part_scopes: SmallVec<[TreeScopeID; 1]> = self
+            .part_exposure_scopes(node)
+            .filter(|&exposed| exposed != scope && Some(exposed) != inner_scope && !slotted_scopes.contains(&exposed))
+            .collect();
 
-        let mut programs = SelectorPrograms::new();
-        let mut builder = SelectorProgramBuilder::new();
-        let by_class = builder.push_feature(FeatureTest::Class(class));
-        let by_class = builder.push_entry(by_class);
-        builder.set_entry_specificity(
-            by_class,
-            Specificity {
-                classes: 1,
-                ..Specificity::default()
-            },
-        );
-        let by_id = builder.push_feature(FeatureTest::Id(id));
-        let by_id = builder.push_entry(by_id);
-        builder.set_entry_specificity(
-            by_id,
-            Specificity {
-                ids: 1,
-                ..Specificity::default()
-            },
-        );
-        let selector = programs.add(builder.finish());
-
-        let mut program = StyleSheetProgram::new();
-        let sheet = program.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
-        program.attach_sheet(sheet, TreeScopeID::DOCUMENT);
-        let rule = program.append_rule(sheet, None, RuleKind::Style);
-        let mut version = program.rule_version(rule);
-        version.selector_program = Some(selector);
-        program.replace_rule_version(rule, version);
-
-        let mut matches = Vec::new();
-        ExactMatcher::new(&tree, &facts, &programs, &program)
-            .match_node(node, &mut matches, &Counters::new())
-            .unwrap();
-
-        assert_eq!(matches.len(), 1);
-        assert_eq!(matches[0].entry, 1);
+        for_each_matching_scope(scope, inner_scope, &slotted_scopes, &part_scopes, |scope, context| {
+            self.append_exact_matches_in_scope(node, scope, context, exact)
+        })?;
+        Ok(inner_scope.is_some() || !slotted_scopes.is_empty() || !part_scopes.is_empty())
     }
+}
+
+fn for_each_matching_scope(
+    scope: TreeScopeID,
+    inner_scope: Option<TreeScopeID>,
+    slotted_scopes: &[TreeScopeID],
+    part_scopes: &[TreeScopeID],
+    mut ask: impl FnMut(TreeScopeID, ExactMatchContext) -> Result<(), Incomplete>,
+) -> Result<(), Incomplete> {
+    ask(scope, ExactMatchContext::Ordinary)?;
+    if let Some(inner_scope) = inner_scope {
+        ask(inner_scope, ExactMatchContext::Host)?;
+    }
+    for &slotted_scope in slotted_scopes {
+        ask(slotted_scope, ExactMatchContext::Slotted)?;
+    }
+    for &part_scope in part_scopes {
+        ask(part_scope, ExactMatchContext::Part)?;
+    }
+    Ok(())
 }
