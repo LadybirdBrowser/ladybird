@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<style>
+    #item::before {
+        content: "before";
+        display: list-item;
+        list-style-position: inside;
+    }
+</style>
+<div id="chain"><div id="item">item</div></div>
+<script>
+    test(() => {
+        // A style update stops after a number of passes, and the chain moves one value per pass. The tree build demands
+        // the style of a list marker below it, which it may only do once the chain has settled.
+        const depth = 24;
+        const style = document.createElement("style");
+        const animations = [];
+        for (let level = 1; level <= depth; ++level) {
+            CSS.registerProperty({ name: `--level${level}`, syntax: "<length>", inherits: true, initialValue: "0px" });
+            const previous = level === 1 ? "0px" : `var(--level${level - 1})`;
+            const value = `--level${level}: calc(${previous} + 1px)`;
+            style.textContent += `@keyframes level${level} { from { ${value} } to { ${value} } }\n`;
+            animations.push(`level${level} 1000s linear both`);
+        }
+        document.head.append(style);
+        chain.style.animation = animations.join(", ");
+        println(`has a box: ${item.getBoundingClientRect().height > 0}`);
+        println(`the element: ${getComputedStyle(item).getPropertyValue(`--level${depth}`)}`);
+    });
+</script>

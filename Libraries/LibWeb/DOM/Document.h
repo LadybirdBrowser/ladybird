@@ -1536,7 +1536,6 @@ public:
     [[nodiscard]] bool is_at_style_stabilization_bound(Layout::BegunRead const& read) const;
     // How many times an element's animated custom properties moved in this style stabilization epoch, counting this one.
     [[nodiscard]] u64 note_animated_custom_properties_moved_in_stabilization_epoch(CSS::StyleNodeID);
-    [[nodiscard]] u64 animated_custom_property_moves_in_stabilization_epoch() const { return m_animated_custom_property_moves_in_stabilization_epoch; }
     void end_style_stabilization_epoch();
     void note_style_stabilization_has_style_reactions()
     {
