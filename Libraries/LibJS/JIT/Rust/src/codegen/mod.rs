@@ -2163,7 +2163,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let offsets = self.runtime.offsets;
         let done = self.masm.new_label();
         self.masm
-            .load8(dst, &Address::new(function, offsets.object_function_bits as i32));
+            .load8(dst, &Address::new(function, offsets.object_class_bits as i32));
         self.masm
             .and32_imm(dst, dst, offsets.ecmascript_function_flag_has_rare_data);
         self.masm.branch_test32(Condition::Zero, dst, u32::MAX, done);

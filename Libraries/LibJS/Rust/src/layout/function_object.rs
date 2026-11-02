@@ -85,8 +85,33 @@ pub struct NativeFunctionTableEntry {
 #[repr(C)]
 pub struct EcmascriptFunctionObject {
     pub base: FunctionObject,
+}
+
+const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 32);
+
+/// What an ECMAScript function object keeps where other objects have the pointer to their indexed elements. Hardly any
+/// function has indexed properties, and those it has stay in a dictionary outside of the cell (see
+/// `IndexedStorageKind::Dictionary`), so the indexed storage kind of a function never lets anything read the pointer.
+#[repr(C)]
+pub struct EcmascriptFunctionFields {
     pub shared_data: NullableMember<SharedFunctionInstanceData>,
     pub environment: NullableMember<Environment>,
+}
+
+const _: () = assert!(size_of::<EcmascriptFunctionFields>() == size_of::<*mut Value>());
+
+pub const ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_OFFSET: usize =
+    core::mem::offset_of!(Object, indexed_elements) + core::mem::offset_of!(EcmascriptFunctionFields, shared_data);
+pub const ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT_OFFSET: usize =
+    core::mem::offset_of!(Object, indexed_elements) + core::mem::offset_of!(EcmascriptFunctionFields, environment);
+
+impl EcmascriptFunctionObject {
+    #[inline(always)]
+    pub fn fields(&self) -> &EcmascriptFunctionFields {
+        // SAFETY: The fields are as large as the pointer they take the place of, and no more aligned. They are cells,
+        //         like the pointer, which this kind of object never uses as one.
+        unsafe { &*core::ptr::from_ref(&self.base.base.indexed_elements).cast() }
+    }
 }
 
 /// An ECMAScript function object that needs more than most: a method or a class constructor, or a function of code
@@ -99,7 +124,7 @@ pub struct EcmascriptFunctionObjectWithRareData {
     pub storage: EcmascriptFunctionObjectStorage,
 }
 
-/// The bits of FunctionObject::flags of an ECMAScript function object.
+/// The bits of Object::class_bits of an ECMAScript function object.
 pub mod ecmascript_function_flags {
     /// Set on all ECMAScript function objects, which keeps their flags from reading as a builtin.
     pub const IS_ECMASCRIPT_FUNCTION: u8 = 1 << 7;

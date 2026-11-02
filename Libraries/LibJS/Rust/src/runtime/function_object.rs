@@ -94,7 +94,7 @@ impl FunctionObject {
     }
 
     pub fn builtin(&self) -> Option<Builtin> {
-        let bits = self.function_bits.get();
+        let bits = self.class_bits.get();
         if bits == 0 || bits & ecmascript_function_flags::IS_ECMASCRIPT_FUNCTION != 0 {
             return None;
         }
@@ -102,7 +102,7 @@ impl FunctionObject {
     }
 
     pub fn set_builtin(&self, builtin: Option<Builtin>) {
-        self.function_bits.set(builtin.map_or(0, |builtin| builtin as u8 + 1));
+        self.class_bits.set(builtin.map_or(0, |builtin| builtin as u8 + 1));
     }
 
     pub fn is_array_prototype_next_builtin(&self) -> bool {

@@ -186,7 +186,7 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
 
     w.section("Object flags");
     field!(w, "OBJECT_FLAGS", "Object.flags", "u16", Object, flags, 2, "nullable", "scalar");
-    field!(w, "OBJECT_FUNCTION_BITS", "Object.function_bits", "u8", Object, function_bits, 1, "nullable", "scalar");
+    field!(w, "OBJECT_CLASS_BITS", "Object.class_bits", "u8", Object, class_bits, 1, "nullable", "scalar");
     w.constant("OBJECT_FLAG_HAS_MAGICAL_LENGTH", object_flag::HAS_MAGICAL_LENGTH_PROPERTY);
     w.constant("OBJECT_FLAG_MAY_INTERFERE", object_flag::MAY_INTERFERE_WITH_INDEXED_PROPERTY_ACCESS);
     w.constant("OBJECT_FLAG_IS_TYPED_ARRAY", object_flag::IS_TYPED_ARRAY);
@@ -489,8 +489,10 @@ pub fn generate(configuration: &LayoutConfiguration) -> LayoutWriter {
     field!(w, "DIRECT_GETTER_FUNCTION_IMPLEMENTATION_VALUE_IS_COMPRESSED", "DirectGetterFunction.implementation_value_is_compressed", "u32", DirectGetterFunction, implementation_value_is_compressed, 4, "nullable", "scalar");
 
     w.section("ECMAScriptFunctionObject layout");
-    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA", "ECMAScriptFunctionObject.shared_data", "SharedFunctionInstanceData", EcmascriptFunctionObject, shared_data, 4, "nonnull", "compressed");
-    field!(w, "ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT", "ECMAScriptFunctionObject.environment", "Environment", EcmascriptFunctionObject, environment, 4, "nullable", "compressed");
+    w.constant("ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA", ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA_OFFSET);
+    w.field("ECMAScriptFunctionObject.shared_data", "SharedFunctionInstanceData", "ECMASCRIPT_FUNCTION_OBJECT_SHARED_DATA", "nonnull", "compressed");
+    w.constant("ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT", ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT_OFFSET);
+    w.field("ECMAScriptFunctionObject.environment", "Environment", "ECMASCRIPT_FUNCTION_OBJECT_ENVIRONMENT", "nullable", "compressed");
     field!(w, "ECMASCRIPT_FUNCTION_OBJECT_PRIVATE_ENVIRONMENT", "ECMAScriptFunctionObject.private_environment", "PrivateEnvironment", EcmascriptFunctionObjectWithRareData, private_environment, 4, "nullable", "compressed");
     w.constant("ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA", ecmascript_function_flags::HAS_RARE_DATA);
 
