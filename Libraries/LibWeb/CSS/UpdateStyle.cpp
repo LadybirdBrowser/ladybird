@@ -586,8 +586,9 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     // NB: Where LIBWEB_STYLE_SELFCHECK is set, what the style engine installed is checked against a cold pass once the
     //     update has settled. What was written beside a transaction that flew, such as the fonts that resolve
     //     differently since, reaches the engine only once its drain has ended, as the next update's input: that
-    //     update checks.
-    if (!drains_flown_transaction && StyleEngineFFI::style_engine_self_check_is_enabled(document.style_computer().style_engine().host())) {
+    //     update checks. So does the one after an update that stopped at its limit of passes, with what they fed back
+    //     still pending.
+    if (!drains_flown_transaction && applied.pass_guard_hits == 0 && StyleEngineFFI::style_engine_self_check_is_enabled(document.style_computer().style_engine().host())) {
         auto* root = document.document_element();
         StyleEngineFFI::style_engine_self_check(document.style_computer().style_engine().host(), &read, root ? root->style_node_id().value() : 0);
     }
