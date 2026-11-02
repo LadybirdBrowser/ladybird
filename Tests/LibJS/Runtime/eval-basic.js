@@ -19,12 +19,23 @@ test("returns value of last value-producing statement", () => {
 
 test("completion value of a labelled break", () => {
     // A `break label;` carries the last value V of the labelled statement (UpdateEmpty), and an
-    // empty completion becomes undefined. The completion register must be initialized so that the
-    // break path never exposes a stale register.
+    // empty completion leaves the running value of the statement list. The completion register must
+    // be initialized so that the break path never exposes a stale register.
     expect(eval("L: { break L; }")).toBeUndefined();
     expect(eval("L: { 1; break L; 2; }")).toBe(1);
     expect(eval("L: { 1; break L; }")).toBe(1);
     expect(eval("x: { 42; break x; 99; }")).toBe(42);
+});
+
+test("completion value of a labelled statement that completes empty", () => {
+    expect(eval("11; L: { break L; }")).toBe(11);
+    expect(eval("12; L: break L;")).toBe(12);
+    expect(eval("15; L: { }")).toBe(15);
+    expect(eval("18; L: ;")).toBe(18);
+    expect(eval("19; { L: { break L; } }")).toBe(19);
+    expect(eval("20; L: { if (true) break L; }")).toBeUndefined();
+    expect(eval("21; L: { 22; break L; }")).toBe(22);
+    expect(eval("23; L: { while (true) break L; }")).toBeUndefined();
 });
 
 test("a for-in iterator does not leak through a labelled break", () => {

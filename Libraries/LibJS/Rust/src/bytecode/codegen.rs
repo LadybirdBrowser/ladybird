@@ -2904,6 +2904,19 @@ fn generate_scope_children(
     scope: &ScopeData,
     _preferred_dst: Option<&ScopedOperand>,
 ) -> Option<ScopedOperand> {
+    // A labelled statement that completes empty keeps the running value, so it needs that value in a register.
+    let running_completion = if generator.must_propagate_completion
+        && generator.current_completion_register.is_none()
+        && reaches_labelled_statement(&scope.children, &generator.arena)
+    {
+        generator.allocate_completion_register()
+    } else {
+        None
+    };
+    if running_completion.is_some() {
+        generator.current_completion_register = running_completion.clone();
+    }
+
     let mut last_result = None;
     for child in &scope.children {
         let result = generate_statement(child, generator, None);
@@ -2925,7 +2938,19 @@ fn generate_scope_children(
             break;
         }
     }
-    last_result
+
+    if running_completion.is_some() {
+        generator.current_completion_register = None;
+    }
+    running_completion.or(last_result)
+}
+
+fn reaches_labelled_statement(statements: &[Statement], arena: &AstArena) -> bool {
+    statements.iter().any(|statement| match &statement.inner {
+        StatementKind::Labelled(_) => true,
+        StatementKind::Block(scope) => reaches_labelled_statement(&arena.scopes[*scope].children, arena),
+        _ => false,
+    })
 }
 
 /// Generate bytecode for a block statement, creating a lexical environment
@@ -7726,13 +7751,14 @@ fn generate_labelled_statement(
         result
     } else {
         // Non-iteration: wrap in a breakable scope so `break label;` works. When completion
-        // propagation is on we allocate a completion register initialized to undefined and hand it
-        // to the breakable scope. `break label;` then yields undefined, the empty completion the
-        // spec requires. Without it the break path would leave whatever stale value the reused
-        // completion register last held, which can surface an internal object (such as a for-in
-        // iterator) as the statement's completion value.
+        // propagation is on, the breakable scope shares the running completion register of the
+        // enclosing statement list, so a body that completes empty, or `break label;` with an empty
+        // value, leaves the running value in place.
         let end_block = generator.make_block();
-        let completion = generator.allocate_completion_register();
+        let completion = generator
+            .current_completion_register
+            .clone()
+            .or_else(|| generator.allocate_completion_register());
         generator.begin_breakable_scope(end_block, labels, completion.clone());
         let result = generate_with_completion(inner, generator, completion.as_ref(), preferred_dst);
         generator.end_breakable_scope();
