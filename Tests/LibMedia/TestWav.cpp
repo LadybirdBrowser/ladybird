@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibMedia/DecodeAudioStream.h>
 #include <LibMedia/DecoderRegistrations.h>
 #include <Tests/LibMedia/TestMediaCommon.h>
 
@@ -74,4 +75,21 @@ TEST_CASE(stereo_8khz_24bit)
 TEST_CASE(underspecified_5_1_44khz)
 {
     decode_audio("WAV/tone_44100_5_1_underspecified.wav"sv, 44100, 6, 44100, Audio::ChannelMap::surround_5_1());
+}
+
+TEST_CASE(decoding_an_entire_stream_refuses_audio_past_the_size_limit)
+{
+    auto file = MUST(Core::File::open("WAV/tone_8000_mono.wav"sv, Core::File::OpenMode::Read));
+    auto data = MUST(file->read_until_eof());
+    auto decode_with_limit = [&](size_t maximum_decoded_byte_count) {
+        return Media::decode_entire_audio_stream(Media::IncrementallyPopulatedStream::create_from_buffer(data), {}, maximum_decoded_byte_count);
+    };
+
+    static constexpr size_t decoded_byte_count = 40000 * sizeof(float);
+    auto decoded = decode_with_limit(decoded_byte_count);
+    EXPECT(!decoded.is_error());
+    EXPECT_EQ(decoded.value().channels.first().size(), 40000u);
+
+    auto refused = decode_with_limit(decoded_byte_count - sizeof(float));
+    EXPECT_EQ(refused.error().category(), Media::DecoderErrorCategory::Memory);
 }

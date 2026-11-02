@@ -20,7 +20,7 @@ namespace Media {
 
 // Materializing an entire stream can require a large amount of memory for long inputs, so all sample storage is
 // allocated fallibly and any failure is reported as a decoder error instead of crashing the process.
-static DecoderErrorOr<void> append_block_samples(AudioBlock const& block, DecodedAudioData& data)
+static DecoderErrorOr<void> append_block_samples(AudioBlock const& block, DecodedAudioData& data, size_t maximum_decoded_byte_count)
 {
     if (block.frame_count() == 0)
         return {};
@@ -34,7 +34,10 @@ static DecoderErrorOr<void> append_block_samples(AudioBlock const& block, Decode
 
     Checked<size_t> new_frame_count { data.channels[0].size() };
     new_frame_count += block.frame_count();
-    if (new_frame_count.has_overflow())
+    auto new_byte_count = new_frame_count;
+    new_byte_count *= data.channels.size();
+    new_byte_count *= sizeof(float);
+    if (new_byte_count.has_overflow() || new_byte_count.value() > maximum_decoded_byte_count)
         return DecoderError::with_description(DecoderErrorCategory::Memory, "Decoded audio stream is too large"sv);
 
     for (size_t channel = 0; channel < data.channels.size(); channel++) {
@@ -49,7 +52,7 @@ static DecoderErrorOr<void> append_block_samples(AudioBlock const& block, Decode
 // to a single sample specification: the requested output sample rate (or the stream's native rate) combined with the
 // stream's native channel map. Routing all blocks through the converter also makes streams whose sample specification
 // changes mid-stream come out uniform.
-DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaStream> const& stream, Optional<u32> output_sample_rate)
+DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaStream> const& stream, Optional<u32> output_sample_rate, size_t maximum_decoded_byte_count)
 {
     auto demuxer = TRY(create_demuxer(stream));
     auto track = TRY(demuxer->get_preferred_track_for_type(TrackType::Audio));
@@ -146,7 +149,7 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
                 return block_result.release_error();
             }
 
-            TRY(append_block_samples(block, data));
+            TRY(append_block_samples(block, data, maximum_decoded_byte_count));
         }
     }
 
