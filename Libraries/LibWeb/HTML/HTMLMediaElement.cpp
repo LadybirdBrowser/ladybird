@@ -257,7 +257,7 @@ void HTMLMediaElement::initialize_element()
             m_remote_fetch_data->stream->set_may_idle(true);
 
         detach_video_sink_edge();
-        update_activity_root();
+        update_pending_activity();
     });
 
     m_document_observer->set_document_became_active([this]() {
@@ -267,7 +267,7 @@ void HTMLMediaElement::initialize_element()
             m_remote_fetch_data->stream->set_may_idle(m_remote_fetch_data->download_is_suspended);
 
         add_current_video_sink();
-        update_activity_root();
+        update_pending_activity();
     });
 
     m_document_observer->set_document_visibility_state_observer([this](VisibilityState visibility_state) {
@@ -384,7 +384,7 @@ void HTMLMediaElement::attribute_changed(Utf16FlyString const& name, Optional<Ut
             continue_fetching_the_resource_after_an_implementation_defined_event();
         }
         update_download_suspension();
-        update_activity_root();
+        update_pending_activity();
     }
 }
 
@@ -429,6 +429,9 @@ void HTMLMediaElement::removed_from(IsSubtreeRoot is_subtree_root, DOM::Node* ol
 void HTMLMediaElement::adopted_from(DOM::Document& old_document)
 {
     Base::adopted_from(old_document);
+
+    // NB: The element's relevant global follows its node document, so the old document's global stops keeping it alive.
+    relevant_window_or_worker_global_scope(old_document).set_has_pending_activity(*this, false);
 
     // NB: The became-inactive transition synthesized when moving into a document that is not fully active stops any
     //     in-flight fetch, and the became-active transition synthesized when moving back into a fully active document
@@ -481,6 +484,8 @@ void HTMLMediaElement::adopted_from(DOM::Document& old_document)
         m_screen_wake_lock.clear();
         update_screen_wake_lock();
     }
+
+    update_pending_activity();
 }
 
 void HTMLMediaElement::cancel_the_fetching_process()
@@ -597,7 +602,7 @@ void HTMLMediaElement::set_seeking(bool seeking)
     m_seeking = seeking;
     CSS::Invalidation::invalidate_style_after_media_seeking_state_change(*this, seeking);
     update_download_suspension();
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-load
@@ -1871,7 +1876,7 @@ void HTMLMediaElement::load_local_resource(MediaProvider const& media_provider, 
 
                 media_source->set_assigned_to_media_element({}, *this);
                 m_attached_media_source = media_source;
-                update_activity_root();
+                update_pending_activity();
                 set_up_playback_manager_for_local(move(failure_callback));
 
                 // 4. Set the readyState attribute to "open".
@@ -2716,7 +2721,7 @@ void HTMLMediaElement::detach_attached_media_source()
         return;
     m_attached_media_source->detach_from_media_element({});
     m_attached_media_source = nullptr;
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#forget-the-media-element's-media-resource-specific-tracks
@@ -2771,7 +2776,7 @@ void HTMLMediaElement::set_ready_state(ReadyState ready_state)
         update_screen_wake_lock();
         update_representation();
         update_download_suspension();
-        update_activity_root();
+        update_pending_activity();
     } };
 
     // When the ready state of a media element whose networkState is not NETWORK_EMPTY changes, the user agent must
@@ -3401,7 +3406,7 @@ void HTMLMediaElement::set_paused(bool paused)
 
     update_representation();
     CSS::Invalidation::invalidate_style_after_media_paused_state_change(*this, paused);
-    update_activity_root();
+    update_pending_activity();
 }
 
 void HTMLMediaElement::set_ended(bool ended)
@@ -3412,7 +3417,7 @@ void HTMLMediaElement::set_ended(bool ended)
     m_ended = ended;
 
     update_screen_wake_lock();
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#dom-media-defaultplaybackrate
@@ -3516,13 +3521,13 @@ bool HTMLMediaElement::is_eligible_for_autoplay() const
 void HTMLMediaElement::set_network_state(NetworkState network_state)
 {
     m_network_state = network_state;
-    update_activity_root();
+    update_pending_activity();
 }
 
 void HTMLMediaElement::set_can_autoplay(bool can_autoplay)
 {
     m_can_autoplay = can_autoplay;
-    update_activity_root();
+    update_pending_activity();
 }
 
 void HTMLMediaElement::set_delaying_the_load_event(bool delaying)
@@ -3531,7 +3536,7 @@ void HTMLMediaElement::set_delaying_the_load_event(bool delaying)
         m_delaying_the_load_event.emplace(document());
     else
         m_delaying_the_load_event.clear();
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#playing-the-media-resource
@@ -3570,12 +3575,9 @@ bool HTMLMediaElement::should_be_kept_alive() const
     return is_eligible_for_autoplay() && m_ready_state != ReadyState::HaveEnoughData && m_network_state != NetworkState::Empty;
 }
 
-void HTMLMediaElement::update_activity_root()
+void HTMLMediaElement::update_pending_activity()
 {
-    if (should_be_kept_alive())
-        m_activity_root.take(*this);
-    else
-        m_activity_root.release();
+    relevant_window_or_worker_global_scope(*this).set_has_pending_activity(*this, should_be_kept_alive());
 }
 
 // https://html.spec.whatwg.org/multipage/media.html#allowed-to-play

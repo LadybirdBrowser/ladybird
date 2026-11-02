@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A loading media element's pending activity belongs to its relevant global, which follows its node document.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `adoption-moves-pending-activity-${crypto.randomUUID()}`;
+        const mediaURL = await server.createEcho("GET", `/${token}.webm`, { status: 404, wait_for_unblock: token });
+        const unblockURL = new URL(`/unblock/${token}`, mediaURL);
+        unblockURL.hostname = uniqueLocalhostHostname("adoption-moves-pending-activity-unblock");
+
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const video = frame.contentDocument.createElement("video");
+        video.src = mediaURL;
+        await server.waitForRequest(mediaURL);
+        println(`frame's global before adoption: ${internals.hasPendingActivity(video, frame.contentDocument)}`);
+
+        document.adoptNode(video);
+        println(`frame's global after adoption: ${internals.hasPendingActivity(video, frame.contentDocument)}`);
+        println(`top-level global after adoption: ${internals.hasPendingActivity(video, document)}`);
+
+        await fetch(unblockURL);
+    });
+</script>

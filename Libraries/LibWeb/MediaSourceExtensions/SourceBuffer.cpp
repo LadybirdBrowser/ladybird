@@ -18,6 +18,7 @@
 #include <LibWeb/HTML/TimeRanges.h>
 #include <LibWeb/HTML/TrackEvent.h>
 #include <LibWeb/HTML/VideoTrackList.h>
+#include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/MediaSourceExtensions/EventNames.h>
 #include <LibWeb/MediaSourceExtensions/MediaSource.h>
@@ -336,10 +337,10 @@ bool SourceBuffer::updating() const
 void SourceBuffer::set_updating(bool updating)
 {
     m_updating = updating;
-    if (updating)
-        m_activity_root.take(*this);
-    else
-        m_activity_root.release();
+
+    // NB: The operation's events may still begin playback, so they keep this, its MediaSource and the media element
+    //     alive.
+    HTML::relevant_window_or_worker_global_scope(m_media_source->relevant_global_object()).set_has_pending_activity(*this, updating);
 }
 
 // https://w3c.github.io/media-source/#dom-sourcebuffer-buffered

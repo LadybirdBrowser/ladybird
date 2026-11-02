@@ -77,7 +77,7 @@ public:
     WebIDL::UnsignedLongLong discard_decoded_image_frames();
     WebIDL::ExceptionOr<void> mark_as_garbage(Utf16String const& variable_name);
     bool wrapper_is_preserved(JS::Object&);
-    bool has_pending_activity(JS::Object&);
+    bool has_pending_activity(JS::Object&, GC::Ptr<DOM::Document>);
     WebIDL::UnsignedLongLong message_port_pending_outgoing_message_count(HTML::MessagePort&);
     WebIDL::UnsignedLongLong html_collection_cache_generation(DOM::HTMLCollection&);
     void fail_next_message_port_transfer(HTML::MessagePort&);

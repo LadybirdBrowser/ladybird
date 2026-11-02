@@ -495,10 +495,14 @@ bool Internals::wrapper_is_preserved(JS::Object& object)
     return Bindings::wrapper_is_preserved(*platform_object);
 }
 
-bool Internals::has_pending_activity(JS::Object& object)
+bool Internals::has_pending_activity(JS::Object& object, GC::Ptr<DOM::Document> document)
 {
     auto* target = Bindings::impl_from<DOM::EventTarget>(&object);
-    return target && HTML::relevant_window_or_worker_global_scope(object).has_pending_activity(*target);
+    if (!target)
+        return false;
+    if (document)
+        return document->window() && document->window()->has_pending_activity(*target);
+    return HTML::relevant_window_or_worker_global_scope(object).has_pending_activity(*target);
 }
 
 WebIDL::UnsignedLongLong Internals::message_port_pending_outgoing_message_count(HTML::MessagePort& port)
