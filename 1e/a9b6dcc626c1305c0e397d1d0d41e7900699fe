@@ -1,0 +1,10 @@
+For a point over an element with no line near it, Ladybird’s
+caretPositionFromPoint() now returns the position at that
+element’s start rather than null, as Blink, WebKit and Gecko
+all do. Blink’s LayoutBlockFlow::PositionForPoint() returns
+CreatePositionWithAffinity(0) for a block without fragments; WebKit’s
+RenderBlockFlow::positionForPointWithInlineChildren() returns
+createPositionWithAffinity(0) when InlineIterator::firstLineBoxFor()
+finds no line; and Gecko’s nsIFrame::GetContentOffsetsFromPoint() falls
+back to OffsetsForSingleFrame(), which gives the frame’s content range.
+None of them returns null over an element.
