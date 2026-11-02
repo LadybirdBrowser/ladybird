@@ -14,7 +14,7 @@ use core::cell::Cell;
 use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 
 use super::visitor::{Trace, Visitor};
-use crate::layout::buffer::InterpreterBuffer;
+use crate::layout::buffer::{InterpreterBuffer, ThinSlice};
 
 /// Whether a buffer owns its storage, which it then allocated itself.
 #[derive(PartialEq, Eq)]
@@ -188,5 +188,115 @@ unsafe impl<T: Copy + Trace> Trace for InterpreterBuffer<T> {
         // SAFETY: The first `size` elements are initialized, and nothing writes them while they are visited.
         let elements = unsafe { ak::slice_from_raw_parts(self.data.get(), self.size()) };
         T::trace_slice(elements, visitor);
+    }
+}
+
+const THIN_SLICE_HEADER_SIZE: usize = size_of::<usize>();
+
+impl<T> ThinSlice<T> {
+    const fn layout_for(length: usize) -> Layout {
+        const { assert!(size_of::<T>() != 0 && align_of::<T>() <= THIN_SLICE_HEADER_SIZE) };
+        // SAFETY: The size fits in memory, since the caller holds that many elements, and the alignment is a power of
+        //         two.
+        unsafe {
+            Layout::from_size_align_unchecked(THIN_SLICE_HEADER_SIZE + length * size_of::<T>(), THIN_SLICE_HEADER_SIZE)
+        }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        if self.data.is_null() {
+            return &[];
+        }
+        // SAFETY: A non-null slice has its length in front of its initialized elements, which it owns.
+        unsafe { ak::slice_from_raw_parts(self.data, self.data.cast::<usize>().sub(1).read()) }
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        if self.data.is_null() {
+            return &mut [];
+        }
+        // SAFETY: A non-null slice has its length in front of its initialized elements, which it owns.
+        unsafe { ak::slice_from_raw_parts_mut(self.data, self.data.cast::<usize>().sub(1).read()) }
+    }
+}
+
+impl<T> From<Vec<T>> for ThinSlice<T> {
+    fn from(mut elements: Vec<T>) -> Self {
+        let length = elements.len();
+        if length == 0 {
+            return Self::empty();
+        }
+        let layout = Self::layout_for(length);
+        // SAFETY: The layout has a non-zero size. The allocation has room for the length and for `length` elements,
+        //         aligned for them, which move out of the vector.
+        unsafe {
+            let allocation = alloc(layout);
+            if allocation.is_null() {
+                handle_alloc_error(layout);
+            }
+            allocation.cast::<usize>().write(length);
+            let data = allocation.add(THIN_SLICE_HEADER_SIZE).cast::<T>();
+            core::ptr::copy_nonoverlapping(elements.as_ptr(), data, length);
+            elements.set_len(0);
+            Self::from_data(data)
+        }
+    }
+}
+
+impl<T> FromIterator<T> for ThinSlice<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iterator: I) -> Self {
+        iterator.into_iter().collect::<Vec<T>>().into()
+    }
+}
+
+impl<T: Clone> Clone for ThinSlice<T> {
+    fn clone(&self) -> Self {
+        self.as_slice().to_vec().into()
+    }
+}
+
+impl<T> core::ops::Deref for ThinSlice<T> {
+    type Target = [T];
+
+    fn deref(&self) -> &[T] {
+        self.as_slice()
+    }
+}
+
+impl<T> core::ops::DerefMut for ThinSlice<T> {
+    fn deref_mut(&mut self) -> &mut [T] {
+        self.as_mut_slice()
+    }
+}
+
+impl<'a, T> IntoIterator for &'a ThinSlice<T> {
+    type Item = &'a T;
+    type IntoIter = core::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.as_slice().iter()
+    }
+}
+
+impl<T> Drop for ThinSlice<T> {
+    fn drop(&mut self) {
+        if self.data.is_null() {
+            return;
+        }
+        let elements = core::ptr::from_mut(self.as_mut_slice());
+        let layout = Self::layout_for(elements.len());
+        // SAFETY: The elements are initialized and nothing uses them after this. The allocation starts at the length,
+        //         and From<Vec<T>> made it with this layout.
+        unsafe {
+            core::ptr::drop_in_place(elements);
+            dealloc(self.data.cast::<u8>().sub(THIN_SLICE_HEADER_SIZE), layout);
+        }
+    }
+}
+
+// SAFETY: Visits every element.
+unsafe impl<T: Trace> Trace for ThinSlice<T> {
+    fn trace(&self, visitor: &mut Visitor) {
+        T::trace_slice(self.as_slice(), visitor);
     }
 }

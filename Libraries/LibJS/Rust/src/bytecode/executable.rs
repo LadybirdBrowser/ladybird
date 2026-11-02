@@ -32,8 +32,8 @@ use crate::gc::weak::SweptAfterCollection;
 use crate::interpreter::vm::Vm;
 use crate::jit::InterpreterTier;
 use crate::jit::code::ExecutableJitState;
-use crate::layout::buffer::InterpreterBuffer;
-use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::buffer::{InterpreterBuffer, ThinSlice};
+use crate::layout::cell::{CellHeader, CellHeaderTail, Gc};
 use crate::layout::executable::ExecutableHead;
 use crate::layout::feedback::ExecutableFeedbackHead;
 use crate::layout::function_object::FunctionObject;
@@ -1224,8 +1224,8 @@ impl ObjectPropertyIteratorCacheData {
 /// Where the bytecode of an executable lives: in memory of its own, or in place in the bytecode cache blob it was
 /// materialized from, which it keeps alive.
 pub enum ExecutableBytecode {
-    Owned(Box<[u8]>),
-    InBytecodeCacheBlob(DecodedBytecodeBytes),
+    Owned(ThinSlice<u8>),
+    InBytecodeCacheBlob(Box<DecodedBytecodeBytes>),
 }
 
 impl ExecutableBytecode {
@@ -1237,62 +1237,64 @@ impl ExecutableBytecode {
     }
 }
 
+/// The parts of an executable that few executables need.
+#[derive(Default)]
+struct ExecutableRareData {
+    /// The global variable caches of the dynamic binding accesses that found their binding in the global environment,
+    /// indexed like the environment coordinate caches. Made when the first such access needs one.
+    dynamic_global_variable_caches: OnceCell<Box<[GlobalVariableCache]>>,
+    /// The breakpoints of the debugger at the offsets of the instructions it pauses before.
+    debugger_breakpoint_sites: RefCell<HashMap<u32, DebuggerBreakpointSite, foldhash::fast::RandomState>>,
+}
+
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
 #[repr(C)]
 pub struct Executable {
     pub head: ExecutableHead,
     bytecode: ExecutableBytecode,
-    constants: Box<[Value]>,
-    property_lookup_caches: Box<[PropertyLookupCache]>,
-    global_variable_caches: Box<[GlobalVariableCache]>,
-    environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]>,
-    /// The global variable caches of the dynamic binding accesses that found their binding in the global environment,
-    /// indexed like the environment coordinate caches. Made when the first such access needs one.
-    dynamic_global_variable_caches: OnceCell<Box<[GlobalVariableCache]>>,
-    environment_shape_caches: Box<[NullableMember<EnvironmentShape>]>,
-    template_object_caches: Box<[Gc<TemplateObjectCache>]>,
-    object_shape_caches: Box<[ObjectShapeCache]>,
-    object_property_iterator_caches: Box<[ObjectPropertyIteratorCache]>,
-    /// Which interpreter handlers the executable's frames run with, see `head.dispatch_table_index`.
-    interpreter_tier: Cell<InterpreterTier>,
+    environment_shape_caches: ThinSlice<NullableMember<EnvironmentShape>>,
+    template_object_caches: ThinSlice<Gc<TemplateObjectCache>>,
+    object_shape_caches: ThinSlice<ObjectShapeCache>,
+    object_property_iterator_caches: ThinSlice<ObjectPropertyIteratorCache>,
     /// How many feedback slots of each kind the bytecode indexes into.
     feedback_slot_counts: FeedbackSlotCounts,
     /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
     /// plain tier collect feedback, so it is made when the executable first does.
-    feedback: OnceCell<ExecutableFeedback>,
-    /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
-    has_dumped_feedback: Cell<bool>,
-    /// The executable's JIT code and what its exits taught the JIT.
-    jit: ExecutableJitState,
+    feedback: OnceCell<Box<ExecutableFeedback>>,
+    /// The executable's JIT code and what its exits taught the JIT. Made when the JIT first looks at the executable.
+    jit: OnceCell<Box<ExecutableJitState>>,
+    rare_data: OnceCell<Box<ExecutableRareData>>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
-    pub is_strict_mode: bool,
-    pub identifier_table: Vec<ak::Utf16FlyString>,
-    /// The property keys as the strings they were made from, which is how the bytecode dump prints them.
-    property_key_table: Vec<ak::Utf16FlyString>,
-    /// The property keys themselves, made once, since turning a string into a property key checks whether it is an
-    /// array index.
-    property_keys: Box<[PropertyKey]>,
-    pub string_table: Vec<ak::Utf16FlyString>,
-    /// Sorted by start offset, and not overlapping.
-    pub exception_handlers: Box<[ExceptionHandler]>,
-    /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
-    shared_function_data: Box<[Gc<SharedFunctionInstanceData>]>,
-    class_blueprints: Box<[ClassBlueprint]>,
     pub length_identifier: Option<PropertyKeyTableIndex>,
+    /// Which interpreter handlers the executable's frames run with, see `head.dispatch_table_index`.
+    interpreter_tier: Cell<InterpreterTier>,
+    /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
+    has_dumped_feedback: Cell<bool>,
+    pub is_strict_mode: bool,
+    pub identifier_table: ThinSlice<ak::Utf16FlyString>,
+    /// The property keys, made once, since turning a string into a property key checks whether it is an array index.
+    property_keys: ThinSlice<PropertyKey>,
+    pub string_table: ThinSlice<ak::Utf16FlyString>,
+    /// Sorted by start offset, and not overlapping.
+    pub exception_handlers: ThinSlice<ExceptionHandler>,
+    /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
+    shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>>,
+    class_blueprints: ThinSlice<ClassBlueprint>,
     /// The name of the function the executable is the body of, given when the function is first compiled. Empty for
     /// other code.
     name: FlyStringSlot,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
-    pub source_map: Box<[SourceMapEntry]>,
-    pub local_variable_names: Box<[Utf16FlyString]>,
-    pub argument_variable_names: Box<[Utf16FlyString]>,
+    pub source_map: ThinSlice<SourceMapEntry>,
+    pub local_variable_names: ThinSlice<Utf16FlyString>,
+    pub argument_variable_names: ThinSlice<Utf16FlyString>,
     /// One for each of the local variables.
-    pub local_variable_metadata: Box<[LocalVariableMetadata]>,
+    pub local_variable_metadata: ThinSlice<LocalVariableMetadata>,
     pub source_code: Option<Rc<SourceCode>>,
-    /// The breakpoints of the debugger at the offsets of the instructions it pauses before.
-    debugger_breakpoint_sites: RefCell<HashMap<u32, DebuggerBreakpointSite, foldhash::fast::RandomState>>,
 }
+
+// NB: Every function that was called has these bytes.
+const _: () = assert!(size_of::<Executable>() <= 304);
 
 define_cell!(Executable, Other);
 
@@ -1344,18 +1346,9 @@ struct ExecutableParts {
     class_blueprints: Vec<PendingClassBlueprint>,
 }
 
-fn interpreter_buffer<T>(elements: &[T]) -> InterpreterBuffer<T> {
-    let size = u32::try_from(elements.len()).expect("the number of elements fits in u32");
-    InterpreterBuffer {
-        data: Cell::new(elements.as_ptr().cast_mut()),
-        size: Cell::new(size),
-        capacity: Cell::new(size),
-    }
-}
-
 impl Executable {
     pub fn property_lookup_cache(&self, index: usize) -> &PropertyLookupCache {
-        &self.property_lookup_caches[index]
+        &self.head.property_lookup_caches[index]
     }
 
     pub fn template_object_cache(&self, index: u32) -> Gc<TemplateObjectCache> {
@@ -1363,11 +1356,11 @@ impl Executable {
     }
 
     pub fn property_lookup_caches(&self) -> &[PropertyLookupCache] {
-        &self.property_lookup_caches
+        &self.head.property_lookup_caches
     }
 
     pub fn global_variable_caches(&self) -> &[GlobalVariableCache] {
-        &self.global_variable_caches
+        &self.head.global_variable_caches
     }
 
     pub fn object_shape_caches(&self) -> &[ObjectShapeCache] {
@@ -1390,13 +1383,8 @@ impl Executable {
         &self.property_keys[index.0 as usize]
     }
 
-    pub fn property_key_table(&self) -> &[ak::Utf16FlyString] {
-        &self.property_key_table
-    }
-
     pub fn set_property_key_table(&mut self, property_key_table: Vec<ak::Utf16FlyString>) {
-        self.property_keys = property_key_table.iter().cloned().map(PropertyKey::from).collect();
-        self.property_key_table = property_key_table;
+        self.property_keys = property_key_table.into_iter().map(PropertyKey::from).collect();
     }
 
     pub fn get_string(&self, index: StringTableIndex) -> &Utf16FlyString {
@@ -1405,13 +1393,18 @@ impl Executable {
 
     /// Forgets the cells the inline caches remember that died in this collection.
     pub fn remove_dead_cells(&self, sweep: &Sweep<'_>) {
-        for cache in &self.property_lookup_caches {
+        for cache in &self.head.property_lookup_caches {
             cache.remove_dead_entries(sweep);
         }
+        let dynamic_global_variable_caches = self
+            .rare_data
+            .get()
+            .and_then(|rare_data| rare_data.dynamic_global_variable_caches.get());
         for cache in self
+            .head
             .global_variable_caches
             .iter()
-            .chain(self.dynamic_global_variable_caches.get().into_iter().flatten())
+            .chain(dynamic_global_variable_caches.into_iter().flatten())
         {
             cache.entry.clear_if_it_has_a_dead_cell(sweep);
         }
@@ -1431,18 +1424,18 @@ impl Executable {
         number_of_registers: u32,
         number_of_locals: u32,
         number_of_arguments: u32,
-        constants: Box<[Value]>,
+        constants: ThinSlice<Value>,
         cache_counts: &ExecutableCacheCounts,
         is_strict_mode: bool,
         _defer_gc: &DeferGc<'_>,
     ) -> Self {
-        let property_lookup_caches: Box<[PropertyLookupCache]> = (0..cache_counts.property_lookup_caches)
+        let property_lookup_caches: ThinSlice<PropertyLookupCache> = (0..cache_counts.property_lookup_caches)
             .map(|_| PropertyLookupCache::new())
             .collect();
-        let global_variable_caches: Box<[GlobalVariableCache]> = (0..cache_counts.global_variable_caches)
+        let global_variable_caches: ThinSlice<GlobalVariableCache> = (0..cache_counts.global_variable_caches)
             .map(|_| GlobalVariableCache::default())
             .collect();
-        let environment_coordinate_caches: Box<[Cell<EnvironmentCoordinate>]> = (0..cache_counts
+        let environment_coordinate_caches: ThinSlice<Cell<EnvironmentCoordinate>> = (0..cache_counts
             .environment_coordinate_caches)
             .map(|_| Cell::new(EnvironmentCoordinate::invalid()))
             .collect();
@@ -1452,67 +1445,51 @@ impl Executable {
         let registers_and_locals_count = number_of_registers + number_of_locals;
         let constant_count = u32::try_from(constants.len()).expect("constant count fits in u32");
         let head = ExecutableHead {
-            header: CellHeader::for_class(Self::CLASS),
             registers_and_locals_count: Cell::new(registers_and_locals_count),
             registers_and_locals_and_constants_count: Cell::new(registers_and_locals_count + constant_count),
-            asm_constants_size: Cell::new(constants.len() as u64),
-            asm_constants_data: Cell::new(constants.as_ptr()),
-            bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
-            bytecode_size: Cell::new(bytecode.as_slice().len()),
+            header: CellHeaderTail::for_class(Self::CLASS),
             // The VM picks the table when it registers the executable.
             dispatch_table_index: Cell::new(InterpreterTier::Plain as u8),
-            feedback: ExecutableFeedbackHead::empty(),
             tier_up_budget: Cell::new(i32::MAX),
+            bytecode_data: Cell::new(bytecode.as_slice().as_ptr()),
             jit_entry_slot: Cell::new(0),
             jit_compile_state: Cell::new(0),
-            constants: interpreter_buffer(&constants),
-            property_lookup_caches: interpreter_buffer(&property_lookup_caches),
-            global_variable_caches: interpreter_buffer(&global_variable_caches),
+            feedback: ExecutableFeedbackHead::empty(),
+            constants,
+            property_lookup_caches,
+            global_variable_caches,
             // The interpreter only reads the caches, which slow paths update through their cells.
-            environment_coordinate_caches: {
-                let size = u32::try_from(environment_coordinate_caches.len()).expect("the cache count fits in u32");
-                InterpreterBuffer {
-                    data: Cell::new(environment_coordinate_caches.as_ptr().cast_mut().cast()),
-                    size: Cell::new(size),
-                    capacity: Cell::new(size),
-                }
-            },
+            environment_coordinate_caches,
         };
         Self {
             head,
             bytecode,
-            constants,
-            property_lookup_caches,
-            global_variable_caches,
-            environment_coordinate_caches,
-            dynamic_global_variable_caches: OnceCell::new(),
             environment_shape_caches,
-            template_object_caches: Box::new([]),
-            object_shape_caches: Box::new([]),
-            object_property_iterator_caches: Box::new([]),
-            interpreter_tier: Cell::new(InterpreterTier::Plain),
+            template_object_caches: ThinSlice::empty(),
+            object_shape_caches: ThinSlice::empty(),
+            object_property_iterator_caches: ThinSlice::empty(),
             feedback_slot_counts: FeedbackSlotCounts::default(),
             feedback: OnceCell::new(),
-            has_dumped_feedback: Cell::new(false),
-            jit: ExecutableJitState::default(),
+            jit: OnceCell::new(),
+            rare_data: OnceCell::new(),
             number_of_registers,
             number_of_arguments,
-            is_strict_mode,
-            identifier_table: Vec::new(),
-            property_key_table: Vec::new(),
-            property_keys: Box::new([]),
-            string_table: Vec::new(),
-            exception_handlers: Box::new([]),
-            shared_function_data: Box::new([]),
-            class_blueprints: Box::new([]),
             length_identifier: None,
+            interpreter_tier: Cell::new(InterpreterTier::Plain),
+            has_dumped_feedback: Cell::new(false),
+            is_strict_mode,
+            identifier_table: ThinSlice::empty(),
+            property_keys: ThinSlice::empty(),
+            string_table: ThinSlice::empty(),
+            exception_handlers: ThinSlice::empty(),
+            shared_function_data: ThinSlice::empty(),
+            class_blueprints: ThinSlice::empty(),
             name: FlyStringSlot::new(None),
-            source_map: Box::new([]),
-            local_variable_names: Box::new([]),
-            argument_variable_names: Box::new([]),
-            local_variable_metadata: Box::new([]),
+            source_map: ThinSlice::empty(),
+            local_variable_names: ThinSlice::empty(),
+            argument_variable_names: ThinSlice::empty(),
+            local_variable_metadata: ThinSlice::empty(),
             source_code: None,
-            debugger_breakpoint_sites: RefCell::new(HashMap::default()),
         }
     }
 
@@ -1549,7 +1526,7 @@ impl Executable {
         }
 
         let parts = ExecutableParts {
-            bytecode: ExecutableBytecode::Owned(data.bytecode.into_boxed_slice()),
+            bytecode: ExecutableBytecode::Owned(data.bytecode.into()),
             number_of_registers: data.number_of_registers,
             number_of_arguments: data.number_of_arguments,
             is_strict: data.is_strict,
@@ -1580,7 +1557,7 @@ impl Executable {
         replaced_executable: Option<Gc<Executable>>,
     ) -> Option<Gc<Executable>> {
         let parts = ExecutableParts {
-            bytecode: ExecutableBytecode::InBytecodeCacheBlob(record.bytecode().clone()),
+            bytecode: ExecutableBytecode::InBytecodeCacheBlob(Box::new(record.bytecode().clone())),
             number_of_registers: record.number_of_registers(),
             number_of_arguments: record.number_of_arguments(),
             is_strict: record.is_strict(),
@@ -1643,21 +1620,21 @@ impl Executable {
         replaced_executable: Option<Gc<Executable>>,
         defer_gc: &DeferGc<'_>,
     ) -> Executable {
-        let class_blueprints: Box<[ClassBlueprint]> = parts
+        let class_blueprints: ThinSlice<ClassBlueprint> = parts
             .class_blueprints
             .iter()
             .map(|blueprint| ClassBlueprint::create(vm, blueprint, source_code, defer_gc))
             .collect();
-        let shared_function_data: Box<[Gc<SharedFunctionInstanceData>]> =
-            (*rooted_shared_function_data.values()).into();
-        let constants: Box<[Value]> = parts
+        let shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>> =
+            rooted_shared_function_data.values().iter().copied().collect();
+        let constants: ThinSlice<Value> = parts
             .constants
             .iter()
             .map(|constant| constant_value(vm, constant))
             .collect();
         // An executable this one replaces shares its template object caches, so that both hand out the same template
         // objects.
-        let template_object_caches: Box<[Gc<TemplateObjectCache>]> = match replaced_executable {
+        let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = match replaced_executable {
             Some(replaced_executable)
                 if replaced_executable.template_object_caches.len() == parts.cache_counts.template_object as usize =>
             {
@@ -1684,10 +1661,10 @@ impl Executable {
             parts.is_strict,
             defer_gc,
         );
-        executable.identifier_table = parts.identifier_table;
+        executable.identifier_table = parts.identifier_table.into();
         executable.set_property_key_table(parts.property_key_table);
-        executable.string_table = parts.string_table;
-        executable.exception_handlers = parts.exception_handlers.into_boxed_slice();
+        executable.string_table = parts.string_table.into();
+        executable.exception_handlers = parts.exception_handlers.into();
         executable.shared_function_data = shared_function_data;
         executable.class_blueprints = class_blueprints;
         executable.template_object_caches = template_object_caches;
@@ -1702,7 +1679,7 @@ impl Executable {
             keyed: parts.cache_counts.keyed_feedback,
         };
         executable.length_identifier = parts.length_identifier.map(PropertyKeyTableIndex);
-        executable.source_map = parts.source_map.into_boxed_slice();
+        executable.source_map = parts.source_map.into();
         executable.local_variable_metadata = parts
             .local_variables
             .iter()
@@ -1725,7 +1702,7 @@ impl Executable {
             .into_iter()
             .map(|local_variable| local_variable.name)
             .collect();
-        executable.argument_variable_names = parts.argument_variable_names.into_boxed_slice();
+        executable.argument_variable_names = parts.argument_variable_names.into();
         executable.source_code = source_code.cloned();
         executable
     }
@@ -1800,8 +1777,12 @@ impl Executable {
         })
     }
 
+    fn rare_data(&self) -> &ExecutableRareData {
+        self.rare_data.get_or_init(Box::default)
+    }
+
     pub fn add_debugger_breakpoint(&self, bytecode_offset: u32, breakpoint_id: BreakpointID) {
-        let mut sites = self.debugger_breakpoint_sites.borrow_mut();
+        let mut sites = self.rare_data().debugger_breakpoint_sites.borrow_mut();
         let site = sites.entry(bytecode_offset).or_default();
         if !site.breakpoint_ids.contains(&breakpoint_id) {
             site.breakpoint_ids.push(breakpoint_id);
@@ -1809,7 +1790,10 @@ impl Executable {
     }
 
     pub fn remove_debugger_breakpoint(&self, breakpoint_id: BreakpointID) {
-        let mut sites = self.debugger_breakpoint_sites.borrow_mut();
+        let Some(rare_data) = self.rare_data.get() else {
+            return;
+        };
+        let mut sites = rare_data.debugger_breakpoint_sites.borrow_mut();
         sites.retain(|_, site| {
             if let Some(index) = site.breakpoint_ids.iter().position(|&id| id == breakpoint_id) {
                 site.breakpoint_ids.remove(index);
@@ -1822,26 +1806,41 @@ impl Executable {
     }
 
     pub fn clear_debugger_breakpoints(&self) {
-        *self.debugger_breakpoint_sites.borrow_mut() = HashMap::default();
+        if let Some(rare_data) = self.rare_data.get() {
+            *rare_data.debugger_breakpoint_sites.borrow_mut() = HashMap::default();
+        }
     }
 
     pub fn has_debugger_breakpoint_at(&self, bytecode_offset: u32) -> bool {
-        self.debugger_breakpoint_sites.borrow().contains_key(&bytecode_offset)
+        self.rare_data.get().is_some_and(|rare_data| {
+            rare_data
+                .debugger_breakpoint_sites
+                .borrow()
+                .contains_key(&bytecode_offset)
+        })
     }
 
     pub fn debugger_breakpoints_at(&self, bytecode_offset: u32) -> Vec<BreakpointID> {
-        self.debugger_breakpoint_sites
-            .borrow()
-            .get(&bytecode_offset)
-            .map(|site| site.breakpoint_ids.clone())
+        self.rare_data
+            .get()
+            .and_then(|rare_data| {
+                rare_data
+                    .debugger_breakpoint_sites
+                    .borrow()
+                    .get(&bytecode_offset)
+                    .map(|site| site.breakpoint_ids.clone())
+            })
             .unwrap_or_default()
     }
 
     pub fn has_debugger_breakpoint(&self, breakpoint_id: BreakpointID) -> bool {
-        self.debugger_breakpoint_sites
-            .borrow()
-            .values()
-            .any(|site| site.breakpoint_ids.contains(&breakpoint_id))
+        self.rare_data.get().is_some_and(|rare_data| {
+            rare_data
+                .debugger_breakpoint_sites
+                .borrow()
+                .values()
+                .any(|site| site.breakpoint_ids.contains(&breakpoint_id))
+        })
     }
 
     pub fn bytecode(&self) -> &[u8] {
@@ -1877,13 +1876,23 @@ impl Executable {
     ///     it registered. Entries copied into one not registered yet could outlive the cells they point to.
     fn copy_runtime_caches_from(executable: Gc<Executable>, other: &Executable) {
         let this = &*executable;
-        if this.property_lookup_caches.len() == other.property_lookup_caches.len() {
-            for (cache, other_cache) in this.property_lookup_caches.iter().zip(&other.property_lookup_caches) {
+        if this.head.property_lookup_caches.len() == other.head.property_lookup_caches.len() {
+            for (cache, other_cache) in this
+                .head
+                .property_lookup_caches
+                .iter()
+                .zip(&other.head.property_lookup_caches)
+            {
                 cache.copy_from(other_cache);
             }
         }
-        if this.global_variable_caches.len() == other.global_variable_caches.len() {
-            for (cache, other_cache) in this.global_variable_caches.iter().zip(&other.global_variable_caches) {
+        if this.head.global_variable_caches.len() == other.head.global_variable_caches.len() {
+            for (cache, other_cache) in this
+                .head
+                .global_variable_caches
+                .iter()
+                .zip(&other.head.global_variable_caches)
+            {
                 cache.entry.set(other_cache.entry.get());
                 cache
                     .environment_serial_number
@@ -1896,11 +1905,12 @@ impl Executable {
                     .set(other_cache.has_environment_binding_index.get());
             }
         }
-        if this.environment_coordinate_caches.len() == other.environment_coordinate_caches.len() {
+        if this.head.environment_coordinate_caches.len() == other.head.environment_coordinate_caches.len() {
             for (cache, other_cache) in this
+                .head
                 .environment_coordinate_caches
                 .iter()
-                .zip(&other.environment_coordinate_caches)
+                .zip(&other.head.environment_coordinate_caches)
             {
                 cache.set(other_cache.get());
             }
@@ -1934,7 +1944,7 @@ impl Executable {
     }
 
     pub fn constants(&self) -> &[Value] {
-        &self.constants
+        &self.head.constants
     }
 
     pub fn registers_and_locals_count(&self) -> u32 {
@@ -1942,17 +1952,17 @@ impl Executable {
     }
 
     pub fn global_variable_cache(&self, index: u32) -> &GlobalVariableCache {
-        &self.global_variable_caches[index as usize]
+        &self.head.global_variable_caches[index as usize]
     }
 
     pub fn environment_coordinate_cache(&self, index: u32) -> &Cell<EnvironmentCoordinate> {
-        &self.environment_coordinate_caches[index as usize]
+        &self.head.environment_coordinate_caches[index as usize]
     }
 
     /// The global variable cache of the dynamic binding access with the environment coordinate cache `index`.
     pub fn dynamic_global_variable_cache(&self, index: u32) -> &GlobalVariableCache {
-        let caches = self.dynamic_global_variable_caches.get_or_init(|| {
-            (0..self.environment_coordinate_caches.len())
+        let caches = self.rare_data().dynamic_global_variable_caches.get_or_init(|| {
+            (0..self.head.environment_coordinate_caches.len())
                 .map(|_| GlobalVariableCache::default())
                 .collect()
         });
@@ -1977,7 +1987,7 @@ impl Executable {
         if let Some(feedback) = self.feedback.get() {
             return feedback;
         }
-        let feedback = ExecutableFeedback::new(self.feedback_slot_counts);
+        let feedback = Box::new(ExecutableFeedback::new(self.feedback_slot_counts));
         let head = &self.head.feedback;
         let [arith, value_buckets, call, keyed] = feedback.array_offsets();
         head.arith.set(arith);
@@ -2001,11 +2011,11 @@ impl Executable {
     /// What the interpreter observed running the bytecode, indexed by the feedback slots of its instructions, if the
     /// executable ever left the plain tier.
     pub fn feedback(&self) -> Option<&ExecutableFeedback> {
-        self.feedback.get()
+        self.feedback.get().map(Box::as_ref)
     }
 
     pub fn jit_state(&self) -> &ExecutableJitState {
-        &self.jit
+        self.jit.get_or_init(Box::default)
     }
 
     pub fn environment_shape_cache_count(&self) -> u32 {
@@ -2176,9 +2186,9 @@ fn dump_metadata(output: &mut Vec<u8>, executable: &Executable) {
         output.push(b'\n');
     }
 
-    if !executable.constants.is_empty() {
+    if !executable.head.constants.is_empty() {
         let _ = writeln!(output, "  {GREEN}Constants{RESET}:");
-        for (i, &value) in executable.constants.iter().enumerate() {
+        for (i, &value) in executable.head.constants.iter().enumerate() {
             output.extend_from_slice(b"    ");
             let _ = write!(output, "{YELLOW}[{i}]{RESET} = ");
             output.extend_from_slice(CYAN.as_bytes());
@@ -2300,12 +2310,20 @@ fn parse_big_int_literal(literal: &str) -> SignedBigInteger {
     SignedBigInteger::parse_bytes(digits, radix).expect("the frontend only emits valid BigInt literals")
 }
 
+// SAFETY: Visits the constants, the only cells that the head holds. Its inline caches do not keep what they remember
+// alive.
+unsafe impl Trace for ExecutableHead {
+    fn trace(&self, visitor: &mut Visitor) {
+        visitor.visit_values(&self.constants);
+    }
+}
+
 // SAFETY: Visits the constants, the for-in key snapshots, the environment shapes, the template object caches, the
 // functions the bytecode creates and the literal values of its classes, which are all the cells an executable keeps
 // alive so far. The inline caches do not keep the shapes and objects they remember alive.
 unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
-        visitor.visit_values(&self.constants);
+        self.head.trace(visitor);
         self.property_keys.trace(visitor);
         for cache in &self.object_property_iterator_caches {
             cache.data.trace(visitor);

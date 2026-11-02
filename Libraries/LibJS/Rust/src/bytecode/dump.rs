@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::encoding::PropertyKeyTableIndex;
 use super::executable::{Executable, append_double_formatted_like_ak, append_value_formatted_like_ak};
 use super::generator::ExceptionHandler;
 use super::instruction::dump_instruction_from_bytes;
@@ -285,16 +286,21 @@ impl BytecodeDumper<'_> {
         Utf16View::of_fly_string(&self.executable.identifier_table[index as usize]).append_as_wtf8_to(self.output);
     }
 
-    /// The table holds the property keys as the strings they were made from. Formatting a PropertyKey writes an array
-    /// index key as its number, which is the same text, since only canonical index strings become numbers.
+    /// A PropertyKey is the text it was made from, since only canonical index strings become numbers.
     pub fn append_property_key_quoted(&mut self, index: u32) {
-        self.append_quoted(Utf16View::of_fly_string(
-            &self.executable.property_key_table()[index as usize],
-        ));
+        let key = self
+            .executable
+            .get_property_key(PropertyKeyTableIndex(index))
+            .to_utf16_string();
+        self.append_quoted(Utf16View::of_string(&key));
     }
 
     pub fn append_property_key_plain(&mut self, index: u32) {
-        Utf16View::of_fly_string(&self.executable.property_key_table()[index as usize]).append_as_wtf8_to(self.output);
+        let key = self
+            .executable
+            .get_property_key(PropertyKeyTableIndex(index))
+            .to_utf16_string();
+        Utf16View::of_string(&key).append_as_wtf8_to(self.output);
     }
 
     pub fn append_string(&mut self, index: u32) {
