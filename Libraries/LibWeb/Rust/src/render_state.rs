@@ -929,6 +929,8 @@ pub(crate) fn fly(host: &DocumentHost, job: FrameJob, _license: &crate::painting
     }
     #[cfg(not(test))]
     let lays_out_alone = !with_style || crate::painting::recording_slot::take_style_flight_hold_for_testing();
+    #[cfg(not(test))]
+    let claim_held = !lays_out_alone && crate::painting::recording_slot::take_style_flight_claim_hold_for_testing();
     host.note_flight_tree_depth(host.tree_depth_bound(&changes));
     host.let_frame_fly(|document, seed, marks| {
         // A host that waits for the frame says the stop word, and the frame comes back without running its round.
@@ -969,6 +971,12 @@ pub(crate) fn fly(host: &DocumentHost, job: FrameJob, _license: &crate::painting
         //     it flies with, as the stop word the waiting host says has it do on the thread.
         if lays_out_alone {
             crate::painting::recording_slot::submit_layout(run, |job| owner::hold(job))
+        } else if claim_held {
+            let flight = crate::stage_thread::render_thread().submit_reclaimable(run, |job| {
+                crate::painting::recording_slot::wait_while_recording_is_held_for_testing();
+                owner::hold(job);
+            });
+            (flight, true)
         } else {
             let flight = crate::stage_thread::render_thread().submit_reclaimable(run, |job| owner::hold(job));
             (flight, false)

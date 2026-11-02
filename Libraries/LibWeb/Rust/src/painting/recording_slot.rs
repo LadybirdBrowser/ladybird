@@ -334,6 +334,7 @@ enum RecordingHold {
         _parked: ParkedJob,
     },
     ArmedForStyle,
+    ArmedForClaim,
 }
 
 static RECORDING_HOLD: Mutex<RecordingHold> = Mutex::new(RecordingHold::Idle);
@@ -388,6 +389,17 @@ pub(crate) fn take_style_flight_hold_for_testing() -> bool {
     true
 }
 
+/// Whether the style update about to fly is the one the test hold is armed to keep the Render thread from claiming.
+#[cfg(not(test))]
+pub(crate) fn take_style_flight_claim_hold_for_testing() -> bool {
+    let mut hold = recording_hold();
+    if !matches!(*hold, RecordingHold::ArmedForClaim) {
+        return false;
+    }
+    *hold = RecordingHold::Holding;
+    true
+}
+
 pub(crate) fn wait_while_recording_is_held_for_testing() {
     let _released = RECORDING_HOLD_RELEASED
         .wait_while(recording_hold(), |hold| matches!(hold, RecordingHold::Holding))
@@ -405,6 +417,12 @@ pub(crate) fn hold_next_recording_for_testing() {
 /// of everything the transaction computes.
 pub(crate) fn hold_next_style_flight_for_testing() {
     *recording_hold() = RecordingHold::ArmedForStyle;
+}
+
+/// Keeps the Render thread from claiming the next style update that flies until the host waits for it, which then takes
+/// it back, or until [`release_held_recording_for_testing`].
+pub(crate) fn hold_next_style_flight_claim_for_testing() {
+    *recording_hold() = RecordingHold::ArmedForClaim;
 }
 
 /// Lets the recording held for the test go, or disarms the hold no recording has taken yet.

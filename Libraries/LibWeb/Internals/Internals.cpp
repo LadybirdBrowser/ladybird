@@ -19,6 +19,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibCore/TimeZone.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/Cursor.h>
 #include <LibHTTP/HSTS/ParsedHSTSPolicy.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -45,7 +46,9 @@
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/FontFace.h>
+#include <LibWeb/CSS/InstalledStyle.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
@@ -2542,6 +2545,15 @@ Utf16String Internals::frame_scheduler_state() const
 
 void Internals::hold_next_frame(Utf16String const& hold)
 {
+    if (hold == "claim"sv) {
+        Layout::RustFFI::render_state_hold_next_style_flight_claim_for_testing();
+        return;
+    }
+    if (hold == "style"sv) {
+        Layout::RustFFI::render_state_hold_next_style_flight_for_testing();
+        HTML::main_thread_event_loop().hold_next_frame_for_testing();
+        return;
+    }
     Layout::RustFFI::render_state_hold_next_recording_for_testing();
     if (hold == "layout"sv) {
         HTML::main_thread_event_loop().hold_next_layout_for_testing();
@@ -2673,6 +2685,68 @@ GC::Ref<JS::Object> Internals::style_ffi_counters()
     return object;
 }
 
+GC::Ref<JS::Object> Internals::style_memory_report()
+{
+    auto& document = window().associated_document();
+    Layout::ForcedReadScope read { document };
+    auto& realm = HTML::relevant_realm(window());
+    auto owners = JS::Object::create(realm, nullptr);
+    auto define = [&](JS::Object& object, StringView name, u64 value) {
+        object.define_direct_property(Utf16FlyString::from_utf8(name), JS::Value(static_cast<double>(value)), JS::default_attributes);
+    };
+
+    Vector<u64> bytes;
+    for (size_t index = 0;; ++index) {
+        size_t name_length = 0;
+        if (!CSS::StyleEngineFFI::style_engine_memory_owner_name(index, &name_length))
+            break;
+        bytes.append(0);
+    }
+    u64 elements = 0;
+    u64 styled_elements = 0;
+    auto count = CSS::StyleEngineFFI::style_engine_memory_report(document.style_computer().style_engine().host(), read, bytes.data(), bytes.size(), &elements, &styled_elements);
+    VERIFY(count == bytes.size());
+    for (size_t index = 0; index < bytes.size(); ++index) {
+        size_t name_length = 0;
+        auto const* name = CSS::StyleEngineFFI::style_engine_memory_owner_name(index, &name_length);
+        define(*owners, StringView { name, name_length }, bytes[index]);
+    }
+
+    // NB: What the elements hold of style on the C++ side: the installed style view each carries and the presentational
+    //     hints it published. The custom-property environments they hold are the style engine's stores.
+    u64 installed_style_bytes = 0;
+    u64 hint_bytes = 0;
+    document.for_each_in_inclusive_subtree_of_type<DOM::Element>([&](DOM::Element& element) {
+        installed_style_bytes += sizeof(CSS::InstalledStyle);
+        hint_bytes += element.published_presentational_hint_properties_heap_size();
+        return TraversalDecision::Continue;
+    });
+    define(*owners, "cppInstalledStyles"sv, installed_style_bytes);
+    define(*owners, "cppHintProperties"sv, hint_bytes);
+
+    auto object = JS::Object::create(realm, nullptr);
+    object->define_direct_property("owners"_utf16_fly_string, owners, JS::default_attributes);
+    define(*object, "elements"sv, elements);
+    define(*object, "styledElements"sv, styled_elements);
+    return object;
+}
+
+u64 Internals::style_memory_of_frames()
+{
+    auto* sizer = CSS::StyleEngineFFI::style_engine_memory_sizer_create();
+    u64 bytes = 0;
+    for (auto const& navigable : window().associated_document().inclusive_descendant_navigables()) {
+        auto* local_navigable = as_if<HTML::LocalNavigable>(*navigable);
+        if (!local_navigable || !local_navigable->active_document())
+            continue;
+        auto document = local_navigable->active_document();
+        Layout::ForcedReadScope read { *document };
+        bytes += CSS::StyleEngineFFI::style_engine_memory_beyond(document->style_computer().style_engine().host(), read, sizer);
+    }
+    CSS::StyleEngineFFI::style_engine_memory_sizer_destroy(sizer);
+    return bytes;
+}
+
 GC::Ref<JS::Object> Internals::style_engine_counters()
 {
     Layout::ForcedReadScope read { window().associated_document() };
@@ -2687,10 +2761,6 @@ GC::Ref<JS::Object> Internals::style_engine_counters()
             JS::Value(static_cast<double>(value)),
             JS::default_attributes);
     }
-    object->define_direct_property(
-        "computedStyleRecordViewPins"_utf16_fly_string,
-        JS::Value(static_cast<double>(window().associated_document().style_computer().computed_style_record_view_pin_count())),
-        JS::default_attributes);
     return object;
 }
 
@@ -2757,48 +2827,151 @@ u64 Internals::layout_arena_shell_count()
     return Layout::RustFFI::render_state_shell_count(document.layout_node_arena().host());
 }
 
-GC::Ref<JS::Object> Internals::style_engine_transaction_reactions()
+GC::Ref<JS::Object> Internals::style_cold_pass(bool verify, u32 threads)
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
-    auto& realm = HTML::relevant_realm(window());
-    auto& document = window().associated_document();
-    auto& style_computer = document.style_computer();
+    auto& realm = window().principal_realm();
     auto object = JS::Object::create(realm, nullptr);
-
+    auto& document = window().associated_document();
     auto* root = document.document_element();
     if (!root || root->style_node_id() == 0)
         return object;
-
-    auto tags = MUST(JS::Array::create(realm, 0));
-    u32 index = 0;
-    Function<void(ReadonlySpan<CSS::StyleNodeID>)> consume = [&](ReadonlySpan<CSS::StyleNodeID> style_node_ids) {
-        for (auto style_node_id : style_node_ids) {
-            auto element = style_computer.element_for_style_node(style_node_id);
-            if (!element)
-                continue;
-            auto identity = element->id().has_value() ? *element->id() : element->local_name();
-            MUST(tags->create_data_property_or_throw(index++, JS::PrimitiveString::create(vm(), identity)));
-        }
+    auto host = document.style_computer().style_engine().host();
+    auto nanoseconds = CSS::StyleEngineFFI::style_engine_cold_pass(host, read, root->style_node_id(), verify, threads);
+    object->define_direct_property("milliseconds"_utf16_fly_string, JS::Value(static_cast<double>(nanoseconds) / 1'000'000.0), JS::default_attributes);
+    // NB: In the order of the report fields of the Rust style engine.
+    static constexpr Array field_names {
+        "elements"sv,
+        "indexedEntries"sv,
+        "indexNanoseconds"sv,
+        "styleNanoseconds"sv,
+        "threads"sv,
+        "candidates"sv,
+        "bloomRejections"sv,
+        "evaluations"sv,
+        "matches"sv,
+        "winners"sv,
+        "computedElements"sv,
+        "directlyComputedElements"sv,
+        "sharedElements"sv,
+        "reusedElements"sv,
+        "pseudoElements"sv,
+        "differences"sv,
     };
-    auto transaction_is_scoped = style_computer.style_engine().take_diagnostic_style_transaction(read, root->style_node_id(), move(consume));
-    object->define_direct_property("wholeDocument"_utf16_fly_string, JS::Value(!transaction_is_scoped), JS::default_attributes);
-    object->define_direct_property("elements"_utf16_fly_string, tags, JS::default_attributes);
+    for (u32 index = 0; index < field_names.size(); ++index) {
+        auto value = CSS::StyleEngineFFI::style_engine_cold_pass_report(host, read, index);
+        object->define_direct_property(Utf16FlyString::from_utf8(field_names[index]), JS::Value(static_cast<double>(value)), JS::default_attributes);
+    }
     return object;
 }
 
-double Internals::style_engine_match_document()
+GC::Ref<JS::Object> Internals::style_live_report(bool verify)
 {
     // A script reads the render state, which waits for a frame in flight.
     Layout::ForcedReadScope read { window().associated_document() };
+    auto& realm = window().principal_realm();
+    auto object = JS::Object::create(realm, nullptr);
     auto& document = window().associated_document();
     auto* root = document.document_element();
     if (!root || root->style_node_id() == 0)
-        return -1;
-    auto matches = CSS::StyleEngineFFI::style_engine_match_document(document.style_computer().style_engine().host(), read, root->style_node_id());
-    if (matches == NumericLimits<size_t>::max())
-        return -1;
-    return static_cast<double>(matches);
+        return object;
+    auto host = document.style_computer().style_engine().host();
+    // NB: In the order of the live report fields of the Rust style engine.
+    static constexpr Array field_names {
+        "passes"sv,
+        "fullPasses"sv,
+        "styledElements"sv,
+        "invalidationNanoseconds"sv,
+        "styleNanoseconds"sv,
+        "verifiedElements"sv,
+        "missingRecords"sv,
+        "differences"sv,
+        "hintedElements"sv,
+        "hintedSubtrees"sv,
+        "changedElements"sv,
+        "invalidationVisits"sv,
+        "invalidationTests"sv,
+        "coldPasses"sv,
+    };
+    for (u32 index = 0; index < field_names.size(); ++index) {
+        auto value = CSS::StyleEngineFFI::style_engine_live_report(host, read, root->style_node_id(), verify && index == 0, index);
+        object->define_direct_property(Utf16FlyString::from_utf8(field_names[index]), JS::Value(static_cast<double>(value)), JS::default_attributes);
+    }
+    return object;
+}
+
+GC::Ref<JS::Object> Internals::style_counters()
+{
+    // A script reads the render state, which waits for a frame in flight.
+    Layout::ForcedReadScope read { window().associated_document() };
+    auto& realm = window().principal_realm();
+    auto object = JS::Object::create(realm, nullptr);
+    auto host = window().associated_document().style_computer().style_engine().host();
+    // NB: In the order of StyleCounter in the Rust style engine.
+    static constexpr Array field_names {
+        "passes"sv,
+        "fullPasses"sv,
+        "styledElements"sv,
+        "changedElements"sv,
+        "hintedElements"sv,
+        "hintedSubtrees"sv,
+        "invalidationVisits"sv,
+        "invalidationTests"sv,
+        "coldPasses"sv,
+        "sharedElements"sv,
+        "reusedElements"sv,
+        "indexBuilds"sv,
+        "indexedEntries"sv,
+        "compiledSelectors"sv,
+        "userAgentIndexBuilds"sv,
+        "matchedElements"sv,
+        "relativeWalks"sv,
+    };
+    for (u32 index = 0; index < field_names.size(); ++index) {
+        auto value = CSS::StyleEngineFFI::style_engine_style_counter(host, read, index);
+        object->define_direct_property(Utf16FlyString::from_utf8(field_names[index]), JS::Value(static_cast<double>(value)), JS::default_attributes);
+    }
+    return object;
+}
+
+void Internals::reset_style_counters()
+{
+    // A script reads the render state, which waits for a frame in flight.
+    Layout::ForcedReadScope read { window().associated_document() };
+    (void)CSS::StyleEngineFFI::style_engine_reset_style_counters(window().associated_document().style_computer().style_engine().host(), read);
+}
+
+GC::Ref<JS::Object> Internals::style_last_pass()
+{
+    // A script reads the render state, which waits for a frame in flight.
+    Layout::ForcedReadScope read { window().associated_document() };
+    auto& realm = window().principal_realm();
+    auto& document = window().associated_document();
+    auto& style_computer = document.style_computer();
+    auto host = style_computer.style_engine().host();
+    auto object = JS::Object::create(realm, nullptr);
+    auto* root = document.document_element();
+    auto root_id = root ? root->style_node_id() : CSS::StyleNodeID {};
+    object->define_direct_property("fullPass"_utf16_fly_string, JS::Value(CSS::StyleEngineFFI::style_engine_last_pass_is_full(host, read)), JS::default_attributes);
+    auto elements = [&](bool changed) {
+        auto array = MUST(JS::Array::create(realm, 0));
+        if (root_id == 0)
+            return array;
+        u32 index = 0;
+        auto size = CSS::StyleEngineFFI::style_engine_last_pass_size(host, read, root_id, changed);
+        for (u32 position = 0; position < size; ++position) {
+            auto element = style_computer.element_for_style_node(CSS::StyleNodeID { CSS::StyleEngineFFI::style_engine_last_pass_element(host, read, root_id, changed, position) });
+            if (!element)
+                continue;
+            auto identity = element->id().has_value() ? *element->id() : element->local_name();
+            MUST(array->create_data_property_or_throw(index++, JS::PrimitiveString::create(vm(), identity)));
+        }
+        return array;
+    };
+    object->define_direct_property("styled"_utf16_fly_string, elements(false), JS::default_attributes);
+    object->define_direct_property("changed"_utf16_fly_string, elements(true), JS::default_attributes);
+    return object;
 }
 
 // Names every rule identity StyleEngine was given, so a disagreement can be reported as the selector
@@ -2829,12 +3002,11 @@ static void collect_style_engine_rule_names(Layout::BegunRead const& read, CSS::
     }
 }
 
-// What StyleEngine matches, element by element, in the order the cascade applies it.
+// What the style engine matches, element by element, in the order the cascade applies it.
 //
 // This is a snapshot of the engine's own answer rather than a comparison against a second matcher:
 // a shape whose matching changes shows up as a diff, and the expectation is readable enough to say
-// whether the change was meant. It is the regression guard the agreement report used to be, without
-// a second engine to be right or wrong about.
+// whether the change was meant.
 Utf16String Internals::style_engine_matched_rules()
 {
     // A script reads the render state, which waits for a frame in flight.
@@ -2843,23 +3015,15 @@ Utf16String Internals::style_engine_matched_rules()
     document.update_style();
 
     auto& style_computer = document.style_computer();
-    // The page's own rules are what a test is about. A user-agent rule reaching an element is not
-    // this page's business and would bury the answer, so it is named and then left out.
+    // The page's own rules are what a test is about, so the engine leaves user-agent rules out and
+    // only the page's are named.
     HashMap<CSS::StyleEngineRuleID, Utf16String> rule_names;
     HashMap<CSS::StyleEngineRuleID, Utf16String> rule_places;
-    HashTable<CSS::StyleEngineRuleID> user_agent_rules;
     auto name_sheet = [&](CSS::StyleSheetState& source_sheet, StringView place) {
         auto& sheet = source_sheet.shared_compiled_style_sheet() ? source_sheet.shared_compiled_style_sheet()->contents() : source_sheet;
-        HashMap<CSS::StyleEngineRuleID, Utf16String> names;
         for (size_t index = 0; index < sheet.css_rules()->length(); ++index)
-            collect_style_engine_rule_names(read, style_computer, *sheet.css_rules()->item(index), names, rule_places, Utf16String::from_utf8(place));
-        for (auto const& [rule_id, name] : names) {
-            rule_names.set(rule_id, name);
-            if (place == "user-agent"sv)
-                user_agent_rules.set(rule_id);
-        }
+            collect_style_engine_rule_names(read, style_computer, *sheet.css_rules()->item(index), rule_names, rule_places, Utf16String::from_utf8(place));
     };
-    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "user-agent"sv); });
     document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::User, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "user"sv); });
     document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "author"sv); });
     for (auto& sheet : document.style_scope().style_sheets())
@@ -2870,7 +3034,28 @@ Utf16String Internals::style_engine_matched_rules()
             name_sheet(*sheet, "shadow"sv);
     });
 
-    Utf16StringBuilder builder;
+    GC::RootVector<GC::Ref<DOM::Element>> elements;
+    Vector<u32> nodes;
+    document.for_each_shadow_including_descendant([&](DOM::Node& node) {
+        if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() != 0) {
+            elements.append(*element);
+            nodes.append(element->style_node_id().value());
+        }
+        return TraversalDecision::Continue;
+    });
+
+    auto host = style_computer.style_engine().host();
+    Vector<CSS::StyleEngineFFI::FfiMatchedRule> matches;
+    matches.resize(max(nodes.size() * 4, 16uz));
+    auto count = CSS::StyleEngineFFI::style_engine_matched_rules(host, read, nodes.data(), nodes.size(), matches.data(), matches.size(), false);
+    if (count > matches.size()) {
+        // Nothing was written, so grow and ask again.
+        matches.resize(count);
+        count = CSS::StyleEngineFFI::style_engine_matched_rules(host, read, nodes.data(), nodes.size(), matches.data(), matches.size(), false);
+        VERIFY(count <= matches.size());
+    }
+    matches.shrink(count);
+
     auto describe = [&](DOM::Element const& element) {
         Utf16StringBuilder description;
         description.append(element.local_name());
@@ -2881,33 +3066,34 @@ Utf16String Internals::style_engine_matched_rules()
         return description.to_string();
     };
 
-    document.for_each_shadow_including_descendant([&](DOM::Node& node) {
-        auto* element = as_if<DOM::Element>(node);
-        if (!element || element->style_node_id() == 0)
-            return TraversalDecision::Continue;
-        Vector<CSS::StyleEngine::RuleMatch> matches;
-        if (!style_computer.style_engine().match_element(read, element->style_node_id(), matches, CSS::StyleEngine::MatchPurpose::Exact)) {
-            builder.appendff("{}: the engine could not answer\n", describe(*element));
-            return TraversalDecision::Continue;
-        }
+    Utf16StringBuilder builder;
+    size_t next_match = 0;
+    for (u32 position = 0; position < elements.size(); ++position) {
+        auto const& element = *elements[position];
         Utf16StringBuilder line;
-        for (auto const& match : matches) {
-            auto rule_id = CSS::StyleEngineRuleID { match.rule };
-            if (user_agent_rules.contains(rule_id))
+        bool answered = true;
+        for (; next_match < matches.size() && matches[next_match].node == position; ++next_match) {
+            auto const& match = matches[next_match];
+            if (match.rule == 0) {
+                answered = false;
                 continue;
-            auto name = rule_names.get(rule_id).value_or(Utf16String::formatted("<rule {}>", match.rule));
+            }
+            auto name = rule_names.get(CSS::StyleEngineRuleID { match.rule }).value_or(Utf16String::formatted("<rule {}>", match.rule));
             line.appendff(" {}", name);
             if (match.pseudo_element != NumericLimits<u32>::max())
                 line.appendff("[pseudo {}]", match.pseudo_element);
         }
+        if (!answered) {
+            builder.appendff("{}: the engine could not answer\n", describe(element));
+            continue;
+        }
         if (line.is_empty())
-            return TraversalDecision::Continue;
-        builder.append(describe(*element));
+            continue;
+        builder.append(describe(element));
         builder.append(":"sv);
         builder.append(line.to_string());
         builder.append("\n"sv);
-        return TraversalDecision::Continue;
-    });
+    }
     return builder.to_string();
 }
 
@@ -3249,9 +3435,10 @@ GC::Ref<WebIDL::Promise> Internals::request_writing_suggestion_for_testing(Utf16
 Utf16String Internals::writing_suggestion()
 {
     for (auto const& navigable : page().hosted_navigables()) {
-        auto document = navigable->active_document();
-        if (!document)
+        auto* local_navigable = as_if<HTML::LocalNavigable>(*navigable);
+        if (!local_navigable || !local_navigable->active_document())
             continue;
+        auto document = local_navigable->active_document();
         if (auto* controller = document->writing_suggestion_controller_if_exists(); controller && controller->showing().has_value())
             return controller->showing()->remainder;
     }
@@ -3329,21 +3516,12 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("styleEngineReactionBatchRuns"_utf16_fly_string, JS::Value(counters.style_engine_reaction_batch_runs), JS::default_attributes);
     object->define_direct_property("styleEngineReactionElements"_utf16_fly_string, JS::Value(counters.style_engine_reaction_elements), JS::default_attributes);
     object->define_direct_property("styleEnginePublishedReactions"_utf16_fly_string, JS::Value(counters.style_engine_published_reactions), JS::default_attributes);
-    object->define_direct_property("styleEngineRecordDeltasApplied"_utf16_fly_string, JS::Value(counters.style_engine_record_deltas_applied), JS::default_attributes);
     object->define_direct_property("layoutStyleRecordPublications"_utf16_fly_string, JS::Value(counters.layout_style_record_publications), JS::default_attributes);
-    object->define_direct_property("styleEngineMaterializedGaps"_utf16_fly_string, JS::Value(counters.style_engine_materialized_gaps), JS::default_attributes);
-    object->define_direct_property("elementStyleRecomputations"_utf16_fly_string, JS::Value(counters.element_style_recomputations), JS::default_attributes);
-    object->define_direct_property("elementStyleNoopRecomputations"_utf16_fly_string, JS::Value(counters.element_style_noop_recomputations), JS::default_attributes);
-    object->define_direct_property("styleRecordPropertyDamageCacheHits"_utf16_fly_string, JS::Value(counters.style_record_property_damage_cache_hits), JS::default_attributes);
-    object->define_direct_property("elementComputedStyleChanges"_utf16_fly_string, JS::Value(counters.element_computed_style_changes), JS::default_attributes);
-    object->define_direct_property("elementStyleSharedComputations"_utf16_fly_string, JS::Value(counters.element_style_shared_computations), JS::default_attributes);
-    object->define_direct_property("elementStyleInputChangedByParentStyle"_utf16_fly_string, JS::Value(counters.element_style_input_changed_by_parent_style), JS::default_attributes);
-    object->define_direct_property("elementStyleInputChangedByParentCustomProperties"_utf16_fly_string, JS::Value(counters.element_style_input_changed_by_parent_custom_properties), JS::default_attributes);
-    object->define_direct_property("elementStyleInputReused"_utf16_fly_string, JS::Value(counters.element_style_input_reused), JS::default_attributes);
-    object->define_direct_property("engineComputedStyleRecords"_utf16_fly_string, JS::Value(counters.engine_computed_style_records), JS::default_attributes);
-    object->define_direct_property("animatedStyleReconstructionFallbacks"_utf16_fly_string, JS::Value(counters.animated_style_reconstruction_fallbacks), JS::default_attributes);
-    object->define_direct_property("animatedStyleOverlayBuilds"_utf16_fly_string, JS::Value(counters.animated_style_overlay_builds), JS::default_attributes);
-    object->define_direct_property("animatedStyleFullBuilds"_utf16_fly_string, JS::Value(counters.animated_style_full_builds), JS::default_attributes);
+    auto animated_style_samples = [&](bool rebuilt_every_group) {
+        return static_cast<double>(CSS::StyleEngineFFI::style_engine_animated_style_samples(document.style_computer().style_engine().host(), read, rebuilt_every_group, false));
+    };
+    object->define_direct_property("animatedStyleOverlayBuilds"_utf16_fly_string, JS::Value(animated_style_samples(false)), JS::default_attributes);
+    object->define_direct_property("animatedStyleFullBuilds"_utf16_fly_string, JS::Value(animated_style_samples(true)), JS::default_attributes);
     object->define_direct_property("animationFramePumpRequests"_utf16_fly_string, JS::Value(counters.animation_frame_pump_requests), JS::default_attributes);
     object->define_direct_property("animationStyleSkipCacheHits"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_hits), JS::default_attributes);
     object->define_direct_property("animationStyleSkipCacheMisses"_utf16_fly_string, JS::Value(counters.animation_style_skip_cache_misses), JS::default_attributes);
@@ -3374,15 +3552,12 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("documentTimelineCurrentTime"_utf16_fly_string, document_timeline_current_time.has_value() ? JS::Value(document_timeline_current_time->value) : JS::js_null(), JS::default_attributes);
     object->define_direct_property("compositorAnimationWakeupTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_wakeup_timer_is_active()), JS::default_attributes);
     object->define_direct_property("compositorAnimationObservationTimerActive"_utf16_fly_string, JS::Value(document.compositor_animation_observation_timer_is_active()), JS::default_attributes);
-    object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
-    object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
-    object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);
-    object->define_direct_property("computedLonghandDrivesStarted"_utf16_fly_string, JS::Value(counters.computed_longhand_drives_started), JS::default_attributes);
     object->define_direct_property("longhandWrappersMinted"_utf16_fly_string, JS::Value(CSS::longhand_wrappers_minted()), JS::default_attributes);
     object->define_direct_property("styleStabilizationEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_epochs), JS::default_attributes);
     object->define_direct_property("styleStabilizationFeedbackEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_feedback_epochs), JS::default_attributes);
     object->define_direct_property("provisionalStylePasses"_utf16_fly_string, JS::Value(counters.provisional_style_passes), JS::default_attributes);
     object->define_direct_property("styleStabilizationRoundGuardHits"_utf16_fly_string, JS::Value(counters.style_stabilization_round_guard_hits), JS::default_attributes);
+    object->define_direct_property("compositeOrderDocumentPositionCompares"_utf16_fly_string, JS::Value(counters.composite_order_document_position_compares), JS::default_attributes);
     object->define_direct_property("styleUpdatePassGuardHits"_utf16_fly_string, JS::Value(counters.style_update_pass_guard_hits), JS::default_attributes);
     object->define_direct_property("exactStabilizationPasses"_utf16_fly_string, JS::Value(counters.exact_stabilization_passes), JS::default_attributes);
     object->define_direct_property("styleStabilizationBoundFailures"_utf16_fly_string, JS::Value(counters.style_stabilization_bound_failures), JS::default_attributes);
@@ -3405,13 +3580,6 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("styleUpdateBridgeMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_bridge_microseconds), JS::default_attributes);
     object->define_direct_property("styleUpdateApplyMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_apply_microseconds), JS::default_attributes);
     object->define_direct_property("styleUpdateRemainderMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_remainder_microseconds), JS::default_attributes);
-    object->define_direct_property("customPropertyResolutions"_utf16_fly_string, JS::Value(counters.custom_property_resolutions), JS::default_attributes);
-    object->define_direct_property("customPropertyElements"_utf16_fly_string, JS::Value(counters.custom_property_elements), JS::default_attributes);
-    object->define_direct_property("customPropertyValueComputations"_utf16_fly_string, JS::Value(counters.custom_property_value_computations), JS::default_attributes);
-    object->define_direct_property("customPropertyOverlayHits"_utf16_fly_string, JS::Value(counters.custom_property_overlay_hits), JS::default_attributes);
-    object->define_direct_property("customPropertyCycleParticipants"_utf16_fly_string, JS::Value(counters.custom_property_cycle_participants), JS::default_attributes);
-    object->define_direct_property("styleCascadeMicroseconds"_utf16_fly_string, JS::Value(counters.style_cascade_microseconds), JS::default_attributes);
-    object->define_direct_property("styleValuesMicroseconds"_utf16_fly_string, JS::Value(counters.style_values_microseconds), JS::default_attributes);
     object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(Layout::RustFFI::render_state_scrollable_overflow_recalculation_count(document.layout_node_arena().host(), false)), JS::default_attributes);
     return object;
 }

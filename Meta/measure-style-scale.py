@@ -20,47 +20,13 @@ from pathlib import Path
 
 DEFAULT_WEBDRIVER = "Build/release/bin/Ladybird.app/Contents/MacOS/WebDriver"
 
-GRAPH_COUNTERS = [
+MATCHING_COUNTERS = [
     "normalizedUniqueKeys",
-    "routedEntryPoints",
-    "candidateChecks",
-    "localFeatureTests",
-    "combinatorSteps",
-    "structuralTests",
-    "coldNodesEvaluated",
-    "selectorTruthAdditions",
-    "selectorTruthRemovals",
-    "selectorTruthRefreshes",
-    "matchAnswerChanges",
-    "matchAnswerUpqueries",
-    "retainedMatchAnswerReuses",
-    "retainedMatchAnswerRefusals",
-    "retainedMatchAnswerPatches",
-    "retainedMatchAnswerDeltaPatches",
-    "retainedMatchAnswerFilteredPatches",
-    "retainedMatchAnswerPatchMisses",
-    "retainedPatchesUnattributed",
-    "retainedPatchesPoisoned",
-    "retainedPatchesCoarseCovered",
-    "tier3BenefitEvictions",
-    "remainingPostingRowsCopied",
-    "remainingPostingRowsInspected",
-    "preparedMatchingBatchCompletenessRowsInspected",
-    "preparedMatchingBatchRowsCloned",
-    "invalidatedStyleNodes",
-    "plannedNodesWithDirectAction",
-    "plannedNodesWithSignedDelta",
-    "plannedNodesWithOutputChange",
-    "plannedNodesWithUpquery",
-    "plannedNodesUnattributed",
 ]
 
 STYLE_COUNTERS = [
     "styleEngineReactionElements",
     "styleEnginePublishedReactions",
-    "elementStyleRecomputations",
-    "elementComputedStyleChanges",
-    "committedStyleObserverConsequences",
 ]
 
 BENCHMARK_SCRIPT = r"""
@@ -204,7 +170,7 @@ def run_iteration(webdriver, document_size, cycles, warmup_cycles):
                 f"/session/{session}/execute/sync",
                 {
                     "script": BENCHMARK_SCRIPT,
-                    "args": [document_size, cycles, warmup_cycles, GRAPH_COUNTERS, STYLE_COUNTERS],
+                    "args": [document_size, cycles, warmup_cycles, MATCHING_COUNTERS, STYLE_COUNTERS],
                 },
             )["value"]
             return json.loads(value)
@@ -234,7 +200,7 @@ def summarize(values):
 
 def summarize_size(iterations):
     samples = [sample for iteration in iterations for sample in iteration]
-    graph = {name: sorted(set(sample["graph"][name] for sample in samples)) for name in GRAPH_COUNTERS}
+    graph = {name: sorted(set(sample["graph"][name] for sample in samples)) for name in MATCHING_COUNTERS}
     style = {name: sorted(set(sample["style"][name] for sample in samples)) for name in STYLE_COUNTERS}
     nonzero_graph = {
         name: values

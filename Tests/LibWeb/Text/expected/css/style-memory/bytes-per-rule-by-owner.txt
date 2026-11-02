@@ -1,0 +1,38 @@
+document:
+  ruleStore: within 1216
+  ruleIndex: within 2520
+  userAgentIndex: within 149568
+  sheetSegments: within 0
+  invalidation: within 880
+  specifiedValues: within 0
+  styleValues: within 4224
+class:
+  ruleStore: within 80
+  ruleIndex: within 24
+  userAgentIndex: within 0
+  sheetSegments: within 56
+  invalidation: within 8
+  specifiedValues: within 0
+  sharedDeclarations: within 40
+  styleValues: within 8
+  total: within 184
+descendant:
+  ruleStore: within 72
+  ruleIndex: within 24
+  userAgentIndex: within 0
+  sheetSegments: within 344
+  invalidation: within 8
+  specifiedValues: within 0
+  sharedDeclarations: within 40
+  styleValues: within 0
+  total: within 460
+selector list:
+  ruleStore: within 72
+  ruleIndex: within 24
+  userAgentIndex: within 0
+  sheetSegments: within 112
+  invalidation: within 8
+  specifiedValues: within 0
+  sharedDeclarations: within 40
+  styleValues: within 8
+  total: within 224

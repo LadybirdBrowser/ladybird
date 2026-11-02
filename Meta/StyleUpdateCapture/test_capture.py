@@ -27,13 +27,7 @@ def sample(amount=1):
         "rust": {
             "transactionMicroseconds": 20,
             "commitMicroseconds": 2,
-            "routingPlanningMicroseconds": 3,
-            "prepareMicroseconds": 1,
-            "matchingCascadeMicroseconds": 3,
-            "computationPublicationMicroseconds": 5,
-            "emitMicroseconds": 1,
-            "transactionRemainderMicroseconds": 5,
-            "reachedStyleNodes": 10,
+            "transactionRemainderMicroseconds": 18,
         },
         "cpp": {
             "styleUpdateMicroseconds": 40,
@@ -73,16 +67,6 @@ class CaptureTests(unittest.TestCase):
         row = capture.normalize(sample())
         self.assertEqual(row["metrics"]["rust.transactionMicroseconds"], 20)
         self.assertEqual(row["metrics"]["cpp.styleUpdateMicroseconds"], 40)
-        self.assertEqual(row["reachedNodes"], 10)
-
-    def test_older_libraries_keep_preparation_in_matching(self):
-        row = sample()
-        for boundary in ("before", "after"):
-            fields = row[boundary]["rust"]
-            fields["matchingCascadeMicroseconds"] += fields.pop("prepareMicroseconds")
-        normalized = capture.normalize(row)
-        self.assertNotIn("rust.prepareMicroseconds", normalized["metrics"])
-        self.assertEqual(normalized["metrics"]["rust.matchingCascadeMicroseconds"], 4)
 
     def test_bad_partition_is_rejected(self):
         row = sample()

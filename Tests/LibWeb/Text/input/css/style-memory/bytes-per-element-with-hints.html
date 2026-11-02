@@ -1,0 +1,88 @@
+<!doctype html>
+<body>
+<script src="../../include.js"></script>
+<script>
+    // The style memory each element with a presentational hint adds, by owner: the report on a page of 1000 elements,
+    // less the one on the same page of 500, over the 500 elements between.
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    function slopes(makeElement) {
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        const reports = [];
+        for (const count of [500, 1000]) {
+            while (container.childElementCount < count)
+                container.appendChild(makeElement(container.childElementCount));
+            reports.push(report());
+        }
+        const elements = reports[1].elements - reports[0].elements;
+        const slopes = {};
+        for (const owner in reports[1].owners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / elements;
+        return slopes;
+    }
+
+    // Bytes per element each owner may add, which a change that grows an owner past has to raise. Only the owners a
+    // hint can move are listed: bytes-per-element-by-owner bounds the rest.
+    const hintOwners = [
+        "specifiedValues",
+        "elementDeclarations",
+        "styleValues",
+        "records",
+        "payloads",
+        "cppHintProperties",
+    ];
+    // NB: The engine holds elements with equal hints on one row. What each holds of its own is the C++ list of the hints
+    //     it published, which only tells a republication that nothing moved.
+    const repeatedBudgets = {
+        specifiedValues: 4,
+        elementDeclarations: 12,
+        styleValues: 4,
+        records: 4,
+        payloads: 4,
+        cppHintProperties: 16,
+    };
+    const repeatedTwoBudgets = {
+        ...repeatedBudgets,
+        cppHintProperties: 32,
+    };
+    const uniqueBudgets = {
+        specifiedValues: 32,
+        elementDeclarations: 40,
+        styleValues: 92,
+        records: 160,
+        payloads: 320,
+        cppHintProperties: 16,
+    };
+
+    function check(name, slopes, budgets) {
+        println(`${name}:`);
+        for (const owner of hintOwners) {
+            const slope = slopes[owner];
+            const budget = budgets[owner];
+            println(`  ${owner}: ${slope.toFixed(1) <= budget ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+        }
+    }
+
+    test(() => {
+        check("repeated", slopes(() => {
+            const element = document.createElement("font");
+            element.setAttribute("color", "red");
+            return element;
+        }), repeatedBudgets);
+        check("repeated two", slopes(() => {
+            const element = document.createElement("table");
+            element.setAttribute("bgcolor", "green");
+            element.setAttribute("width", "50");
+            return element;
+        }), repeatedTwoBudgets);
+        check("unique", slopes(index => {
+            const element = document.createElement("font");
+            element.setAttribute("color", `#${(index + 0x100000).toString(16)}`);
+            return element;
+        }), uniqueBudgets);
+    });
+</script>

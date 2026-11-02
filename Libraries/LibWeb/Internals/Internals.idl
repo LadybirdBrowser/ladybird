@@ -343,7 +343,9 @@ interface Internals {
     undefined synchronizeCompositor();
     // Keeps the next recording that flies in flight, before it reads its frame, until releaseHeldFrame(), or until a
     // read waits for it. With "layout", only the next rendering update's layout that flies, or recording, is held,
-    // before it reads anything.
+    // before it reads anything. With "style", the next style update that flies is held, before it reads anything.
+    // With "claim", the Render thread does not begin the next style update that flies, which the read that waits for it
+    // takes back and runs itself, and the event loop treats its rendering update as it treats any other.
     undefined holdNextFrame(optional DOMString hold = "");
     // What presented the last frame of the document's navigable: "commit" for a frame a rendering update committed,
     // "clock" for a tick of the document's clock lane, or "none" before the first frame.
@@ -376,6 +378,12 @@ interface Internals {
     // operation, counting calls into the Rust style core and callbacks it makes into C++.
     object styleFfiCounters();
     object styleEngineCounters();
+    // What the document's style engine holds on the heap, by owner, with the C++ style state its elements hold:
+    // { owners: { name: bytes }, elements, styledElements }.
+    object styleMemoryReport();
+    // What the style engines of the document and the documents in its frames hold on the heap, each allocation counted
+    // once however many of them share it.
+    unsigned long long styleMemoryOfFrames();
     unsigned long long styleRecordIdentity(Element element);
     unsigned long long layoutStyleRecordIdentity(Element element);
     unsigned long long beforeStyleRecordIdentity(Element element);
@@ -388,10 +396,27 @@ interface Internals {
     // Makes the document's render state panic answering this call, which waits for it: the WebContent process crashes.
     undefined panicRenderStateForTesting();
     unsigned long long layoutArenaShellCount();
-    double styleEngineMatchDocument();
+    // Styles the whole document from scratch in a cold pass, without installing anything, and reports what it measured
+    // and how its answers compared with the records installed.
+    object styleColdPass(optional boolean verify = true, optional unsigned long threads = 0);
+    // Reports what live style measured since it started, checking the records it holds against the records installed
+    // when asked to.
+    object styleLiveReport(optional boolean verify = true);
+    // Reports what live style did since the counters were last reset, on the render state the
+    // host writes. Keys: passes, fullPasses, styledElements, changedElements, hintedElements,
+    // hintedSubtrees, invalidationVisits, invalidationTests, coldPasses, sharedElements,
+    // reusedElements, indexBuilds, indexedEntries, compiledSelectors, userAgentIndexBuilds (see
+    // StyleCounter in pipeline/counters.rs).
+    object styleCounters();
+    // Zeroes the counters styleCounters() reports and forgets the last pass.
+    undefined resetStyleCounters();
+    // Reports the most recent pass of live style, with the passes after it that restyled what it
+    // left waiting on fonts, as { fullPass, styled, changed }: whether it restyled every element,
+    // the elements it styled, and those whose records it changed, each as its id, or its tag name
+    // without one, in tree order.
+    object styleLastPass();
     // Reports a snapshot of StyleEngine's matched rules for the whole document.
     DOMString styleEngineMatchedRules();
-    object styleEngineTransactionReactions();
     undefined resetStyleFfiCounters();
     // Returns, for each ComputedValues style value group of the given element, whether the
     // group payload is shared with the parent element, whether it is the default payload,

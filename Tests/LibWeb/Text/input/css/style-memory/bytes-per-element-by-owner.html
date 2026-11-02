@@ -1,0 +1,210 @@
+<!doctype html>
+<style>
+    .item {
+        color: green;
+        margin: 1px;
+    }
+</style>
+<body>
+<script src="../../include.js"></script>
+<script>
+    // The style memory each element adds, by owner: the report on a flat page of 1000 elements, less the one on the
+    // same page of 500, over the 500 elements between. Per-document costs cancel out.
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    // NB: Each page's elements go in a container of their own, beside those of the pages before,
+    //     so that every element takes a slot no element held before.
+    function slopes(makeElement) {
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        const reports = [];
+        for (const count of [500, 1000]) {
+            while (container.childElementCount < count)
+                container.appendChild(makeElement(container.childElementCount));
+            reports.push(report());
+        }
+        const elements = reports[1].elements - reports[0].elements;
+        const slopes = {};
+        for (const owner in reports[1].owners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / elements;
+        return {
+            elements,
+            styledElements: reports[1].styledElements - reports[0].styledElements,
+            slopes,
+        };
+    }
+
+    // Bytes per element each owner may add, which a change that grows an owner past has to raise.
+    // - records, payloads, groupValueFacts: the computed style and its group data.
+    // - retainedSlots, recordCells, installed, heldRecordMaps: which style an element holds.
+    // - layoutStyleColumns: the layout object's style pointer.
+    // - styleValues, specifiedValues, elementDeclarations: the inline style property set.
+    // - customProperties: the inherited variables map.
+    // - projection: a row per element: tag, flags, host facts, states, interned fact lists pointer, dispatch bloom and
+    //   element links.
+    // - hostTree: the DOM child sequence (text nodes included) and unique node id of each node.
+    // - hostMemo: the atoms of the names the host interned, here each element's style attribute text, and the
+    //   environments the engine holds.
+    const sharedBudgets = {
+        records: 4,
+        payloads: 4,
+        groupValueFacts: 4,
+        retainedSlots: 36,
+        recordCells: 4,
+        installed: 20,
+        projection: 52,
+        hostTree: 24,
+        heldRecordMaps: 12,
+        layoutStyleColumns: 28,
+        styleValues: 4,
+        cppInstalledStyles: 8,
+    };
+    const customBudgets = {
+        records: 312,
+        payloads: 164,
+        groupValueFacts: 4,
+        customProperties: 280,
+        retainedSlots: 36,
+        installed: 48,
+        projection: 52,
+        hostTree: 24,
+        elementDeclarations: 80,
+        heldRecordMaps: 12,
+        styleValues: 108,
+        hostMemo: 36,
+        cppInstalledStyles: 8,
+    };
+    const substitutedBudgets = {
+        records: 312,
+        payloads: 164,
+        groupValueFacts: 4,
+        customProperties: 448,
+        retainedSlots: 36,
+        installed: 16,
+        projection: 44,
+        hostTree: 24,
+        elementDeclarations: 80,
+        heldRecordMaps: 12,
+        styleValues: 124,
+        hostMemo: 72,
+        cppInstalledStyles: 8,
+    };
+    const uniqueBudgets = {
+        specifiedValues: 32,
+        records: 92,
+        payloads: 164,
+        groupValueFacts: 4,
+        retainedSlots: 36,
+        installed: 40,
+        projection: 52,
+        hostTree: 24,
+        elementDeclarations: 40,
+        heldRecordMaps: 12,
+        cppInstalledStyles: 8,
+    };
+
+    const uniqueFontBudgets = {
+        specifiedValues: 68,
+        records: 160,
+        payloads: 340,
+        groupValueFacts: 4,
+        retainedSlots: 36,
+        installed: 20,
+        projection: 52,
+        hostTree: 24,
+        elementDeclarations: 40,
+        heldRecordMaps: 12,
+        // NB: The layout node arena's per-node columns double their capacity within this page's range of slots.
+        layoutStyleColumns: 208,
+        styleValues: 28,
+        // NB: A resolution per distinct font request, which another engine keys a font fallback list by a ~168 B
+        //     font description for: ours holds the request once, in a list that doubles its capacity.
+        fontResolutions: 244,
+        cppInstalledStyles: 8,
+    };
+
+    const uniqueVisualBudgets = {
+        records: 156,
+        payloads: 188,
+        groupValueFacts: 4,
+        retainedSlots: 36,
+        installed: 60,
+        projection: 52,
+        hostTree: 24,
+        elementDeclarations: 40,
+        heldRecordMaps: 12,
+        styleValues: 180,
+        cppInstalledStyles: 8,
+    };
+
+    // NB: The caches the style threads keep for the next pass hold a few hundred groups whatever the page holds, and
+    //     how many depends on which threads styled what last. The scratch the engine keeps between passes, a dirty
+    //     bit and an install mark per element slot among it, grows in vectors that double their capacity as the last
+    //     passes needed, which the timing of those passes decides.
+    const transientOwners = ["projectionGenerations", "workerCaches", "liveScratch"];
+
+    // NB: An attr() that can read the style attribute, in any document this process styled before this one, makes every
+    //     document keep each element's text of it, which bytes-per-element-reading-style-text covers. Where one ran, what
+    //     that text adds to these owners is not this page's to bound.
+
+    // NB: Elements styled on different threads can each make a value or record of the same style.
+    const slack = 1;
+
+    function check(name, result, budgets) {
+        println(`${name}: ${result.elements} elements, ${result.styledElements} styled`);
+        for (const owner in result.slopes) {
+            // NB: What a transaction in flight holds of earlier generations depends on when the report runs.
+            if (transientOwners.includes(owner))
+                continue;
+            const slope = result.slopes[owner];
+            const budget = budgets[owner] ?? 0;
+            println(`  ${owner}: ${slope.toFixed(1) <= budget + slack ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+        }
+    }
+
+    test(() => {
+        check("shared", slopes(() => {
+            const element = document.createElement("div");
+            element.className = "item";
+            return element;
+        }), sharedBudgets);
+        check("custom", slopes(index => {
+            const element = document.createElement("div");
+            element.className = "item";
+            element.style.setProperty("--size", `${index}px`);
+            element.style.setProperty("--name", "x");
+            element.style.width = "var(--size)";
+            return element;
+        }), customBudgets);
+        check("unique", slopes(index => {
+            const element = document.createElement("div");
+            element.className = "item";
+            element.style.width = `${index}px`;
+            return element;
+        }), uniqueBudgets);
+        check("uniqueFont", slopes(index => {
+            const element = document.createElement("div");
+            element.className = "item";
+            element.style.fontFamily = `f${index}`;
+            return element;
+        }), uniqueFontBudgets);
+        // NB: Each element owns a set of the groups of what it paints, which those of the other pages share.
+        check("uniqueVisual", slopes(index => {
+            const element = document.createElement("div");
+            element.className = "item";
+            element.style.backgroundColor = `rgb(${index % 256}, ${index >> 8}, 0)`;
+            return element;
+        }), uniqueVisualBudgets);
+        check("substituted", slopes(index => {
+            const element = document.createElement("div");
+            element.className = "item";
+            element.style.setProperty("--size", `${index}px`);
+            element.style.setProperty("--alias", "var(--size)");
+            element.style.width = "var(--alias)";
+            return element;
+        }), substitutedBudgets);
+    });
+</script>

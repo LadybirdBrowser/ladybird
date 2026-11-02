@@ -1,0 +1,103 @@
+<!doctype html>
+<style id="rules"></style>
+<body>
+<div class="a1"><span class="b1">x</span></div>
+<script src="../../include.js"></script>
+<script>
+    // The memory each selector shape adds to the document, by owner: the report with 1000 rules in the sheet, less
+    // the one with 500, over the 500 rules between. Every rule declares the same block, which the sheet shares between
+    // them, so what a rule adds is what its selector costs the rule store, the rule index and invalidation.
+    const owners = [
+        "ruleStore",
+        "ruleIndex",
+        "userAgentIndex",
+        "sheetSegments",
+        "invalidation",
+        "specifiedValues",
+        "sharedDeclarations",
+        "styleValues",
+    ];
+
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    function slopes(makeSelector, media = "all") {
+        const sheet = document.getElementById("rules");
+        sheet.media = media;
+        const reports = [];
+        for (const count of [500, 1000]) {
+            let text = "";
+            for (let index = 0; index < count; ++index)
+                text += `${makeSelector(index)} { color: green }\n`;
+            sheet.textContent = text;
+            reports.push(report());
+        }
+        const slopes = {};
+        for (const owner of owners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / 500;
+        return slopes;
+    }
+
+    function check(name, slopes, budgets) {
+        println(`${name}:`);
+        let total = 0;
+        for (const owner of owners) {
+            const slope = slopes[owner];
+            total += slope;
+            const budget = budgets[owner] ?? 0;
+            println(`  ${owner}: ${slope.toFixed(1) <= budget ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+        }
+        const budget = budgets.total ?? 0;
+        println(`  total: ${total <= budget ? "within" : `OVER (${total.toFixed(1)})`} ${budget}`);
+    }
+
+    // Bytes per selector each owner may add, which a change that grows an owner past has to raise.
+    const classBudgets = {
+        ruleStore: 80,
+        ruleIndex: 64,
+        invalidation: 8,
+        sheetSegments: 248,
+        sharedDeclarations: 8,
+        total: 392,
+    };
+    const descendantBudgets = {
+        ruleStore: 72,
+        ruleIndex: 64,
+        invalidation: 8,
+        sheetSegments: 424,
+        sharedDeclarations: 8,
+        total: 568,
+    };
+    const isBudgets = {
+        ruleStore: 72,
+        ruleIndex: 64,
+        invalidation: 8,
+        sheetSegments: 408,
+        sharedDeclarations: 8,
+        total: 544,
+    };
+    const printBudgets = {
+        ruleStore: 72,
+        sharedDeclarations: 8,
+        total: 80,
+    };
+    const listBudgets = {
+        ruleStore: 72,
+        ruleIndex: 104,
+        invalidation: 8,
+        sheetSegments: 488,
+        sharedDeclarations: 8,
+        total: 664,
+    };
+
+    test(() => {
+        check("class", slopes(index => `.c${index}`), classBudgets);
+        check("descendant", slopes(index => `.a${index} .b${index} > span`), descendantBudgets);
+        check("is", slopes(index => `:is(.x${index}, .y${index}) .z${index}`), isBudgets);
+        check("selector list", slopes(index => `.a${index}, .b${index}`), listBudgets);
+        // A sheet whose media does not apply indexes nothing, but its rules still hold what they compiled.
+        check("descendant, media print", slopes(index => `.a${index} .b${index} > span`, "print"), printBudgets);
+    });
+</script>

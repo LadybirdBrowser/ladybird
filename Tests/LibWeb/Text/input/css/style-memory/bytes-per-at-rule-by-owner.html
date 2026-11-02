@@ -1,0 +1,58 @@
+<!doctype html>
+<style id="rules"></style>
+<body>
+<div class="a1"><span class="b1">x</span></div>
+<script src="../../include.js"></script>
+<script>
+    // What the style engine holds per at-rule, by owner: the report with 1000 at-rules in the sheet, less the one with
+    // 500, over the 500 at-rules between. Each holds one style rule, or two keyframes, with values no other page declares.
+    const owners = ["ruleStore", "ruleIndex", "sheetSegments", "invalidation", "sharedDeclarations", "animationEffects"];
+
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    function slopes(makeRule) {
+        const sheet = document.getElementById("rules");
+        const reports = [];
+        for (const count of [500, 1000]) {
+            let text = "";
+            for (let index = 0; index < count; ++index)
+                text += makeRule(index) + "\n";
+            sheet.textContent = text;
+            reports.push(report());
+        }
+        const slopes = {};
+        for (const owner of owners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / 500;
+        return slopes;
+    }
+
+    function check(name, slopes, budgets) {
+        println(`${name}:`);
+        for (const owner of owners) {
+            const budget = budgets[owner] ?? 0;
+            const slope = slopes[owner];
+            println(`  ${owner}: ${slope.toFixed(1) <= budget ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+        }
+    }
+
+    // Bytes per at-rule each owner may add, which a change that grows an owner past has to raise.
+    const budgets = {
+        mediaHolds: { ruleStore: 76, ruleIndex: 56, sheetSegments: 240, sharedDeclarations: 40 },
+        // NB: A rule under a condition that fails takes no place in the index until the condition holds.
+        mediaFails: { ruleStore: 68, sharedDeclarations: 40 },
+        layer: { ruleStore: 84, ruleIndex: 60, sheetSegments: 240, sharedDeclarations: 40 },
+        container: { ruleStore: 60, ruleIndex: 196, sheetSegments: 240, sharedDeclarations: 40 },
+        keyframes: { ruleStore: 116 },
+    };
+
+    test(() => {
+        check("@media that holds", slopes(index => `@media (min-width: ${index + 1}px), screen { .m${index} { padding-top: ${index}.0625px; } }`), budgets.mediaHolds);
+        check("@media that fails", slopes(index => `@media print and (min-width: ${index + 1}px) { .p${index} { padding-top: ${index}.1875px; } }`), budgets.mediaFails);
+        check("@layer", slopes(index => `@layer l${index} { .l${index} { padding-top: ${index}.3125px; } }`), budgets.layer);
+        check("@container", slopes(index => `@container (min-width: ${index + 1}px) { .c${index} { padding-top: ${index}.4375px; } }`), budgets.container);
+        check("@keyframes", slopes(index => `@keyframes k${index} { from { padding-top: ${index}.5625px; } to { padding-top: ${index}.6875px; } }`), budgets.keyframes);
+    });
+</script>
