@@ -42,7 +42,7 @@ pub(crate) struct IDBFactory {
 }
 
 impl Wrappable for IDBFactory {
-    fn relevant_realm(&self, _: &Vm) -> Option<Gc<Realm>> {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
         Some(self.realm)
     }
 }

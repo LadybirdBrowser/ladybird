@@ -13,7 +13,7 @@ use core::marker::PhantomData;
 use core::ops::Deref;
 
 use ak::Utf16String;
-use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor, Vm};
+use libjs_rust::api::{DeferGc, ForeignCellSlot, Gc, GcRefCell, Realm, Trace, Visitor};
 
 use super::canvas::{
     Canvas, TexImageSourceFrame, TexImageSourceKind, read_tex_image_frame, read_tex_image_pixels, read_tex_image_source,
@@ -90,7 +90,7 @@ unsafe impl<V: Version> Trace for RenderingContext<V> {
 }
 
 impl<V: Version> Wrappable for RenderingContext<V> {
-    fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
         self.state.canvas().relevant_realm()
     }
 }

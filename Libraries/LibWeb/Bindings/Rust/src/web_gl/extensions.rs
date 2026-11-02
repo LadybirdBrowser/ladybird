@@ -301,7 +301,7 @@ macro_rules! modules_of_extension_interfaces_without_operations {
             }
 
             impl Wrappable for $interface {
-                fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
+                fn relevant_realm(&self) -> Option<Gc<Realm>> {
                     self.context.state().canvas().relevant_realm()
                 }
             }
