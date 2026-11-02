@@ -1485,7 +1485,7 @@ pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Op
 fn create_formatting_context_implementation<'pass>(
     run: &FormattingContextRun<'pass>,
     root_cells_in_own_frame: used_values::RootInputCells,
-    parent_grid: Option<&grid_formatting_context::GridFormattingContext<'pass>>,
+    subgrid_parent: Option<&grid_formatting_context::SubgridParent<'pass>>,
     fc_type: FormattingContextType,
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 ) -> FormattingContextImplementation<'pass> {
@@ -1497,7 +1497,7 @@ fn create_formatting_context_implementation<'pass>(
             flex_formatting_context::FlexFormattingContext::new(run, root_cells_in_own_frame),
         ),
         FormattingContextType::Grid => FormattingContextImplementation::Grid(
-            grid_formatting_context::GridFormattingContext::new(run, root_cells_in_own_frame, parent_grid),
+            grid_formatting_context::GridFormattingContext::new(run, root_cells_in_own_frame, subgrid_parent),
         ),
         FormattingContextType::Table => {
             FormattingContextImplementation::Table(table_formatting_context::TableFormattingContext::new(
@@ -1996,7 +1996,7 @@ pub(super) fn run_formatting_context(
     root_cells: used_values::RootInputCells,
     box_: Node,
     root_containing_block: Node,
-    parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
+    subgrid_parent: Option<&grid_formatting_context::SubgridParent>,
     fc_type: FormattingContextType,
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
@@ -2014,7 +2014,7 @@ pub(super) fn run_formatting_context(
             root_cells,
             box_,
             root_containing_block,
-            parent_grid,
+            subgrid_parent,
             fc_type,
             should_collect_devtools_layout_data,
             callbacks,
@@ -2036,7 +2036,7 @@ pub(super) fn run_formatting_context(
     let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         box_,
-        parent_grid.is_some(),
+        subgrid_parent.is_some(),
         builds_fragments,
         should_collect_devtools_layout_data,
         false,
@@ -2075,7 +2075,7 @@ pub(super) fn run_formatting_context(
             root_cells,
             box_,
             root_containing_block,
-            parent_grid,
+            subgrid_parent,
             fc_type,
             should_collect_devtools_layout_data,
             callbacks,
@@ -2090,7 +2090,7 @@ pub(super) fn run_formatting_context(
         root_cells,
         box_,
         root_containing_block,
-        parent_grid,
+        subgrid_parent,
         fc_type,
         should_collect_devtools_layout_data,
         callbacks,
@@ -2115,7 +2115,7 @@ pub(super) fn run_formatting_context(
                     other_root_cells,
                     box_,
                     root_containing_block,
-                    parent_grid,
+                    subgrid_parent,
                     fc_type,
                     should_collect_devtools_layout_data,
                     callbacks,
@@ -2165,7 +2165,7 @@ fn execute_formatting_context_run(
     root_cells: used_values::RootInputCells,
     box_: Node,
     root_containing_block: Node,
-    parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
+    subgrid_parent: Option<&grid_formatting_context::SubgridParent>,
     fc_type: FormattingContextType,
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
@@ -2209,7 +2209,7 @@ fn execute_formatting_context_run(
                 callbacks,
                 root_cells,
                 box_,
-                parent_grid,
+                subgrid_parent,
                 fc_type,
                 should_collect_devtools_layout_data,
                 input,
@@ -2262,7 +2262,7 @@ fn lay_out_run_root_and_contents<'pass>(
     callbacks: LayoutPass<'pass>,
     root_cells: used_values::RootInputCells,
     box_: Node,
-    parent_grid: Option<&grid_formatting_context::GridFormattingContext<'pass>>,
+    subgrid_parent: Option<&grid_formatting_context::SubgridParent<'pass>>,
     fc_type: FormattingContextType,
     should_collect_devtools_layout_data: bool,
     input: &LayoutInput,
@@ -2348,7 +2348,7 @@ fn lay_out_run_root_and_contents<'pass>(
         let context_implementation = implementation.insert(create_formatting_context_implementation(
             body_run,
             own_root.get(),
-            parent_grid,
+            subgrid_parent,
             fc_type,
             previous_line_data,
         ));
@@ -3073,12 +3073,15 @@ pub(crate) fn layout_inside_child_with_input_cells(
         force_independent_context_run,
         percentage_block_insets_of_containing_block_have_definite_basis,
     );
+    let subgrid_parent = parent_grid
+        .filter(|_| fc_type == FormattingContextType::Grid)
+        .and_then(|grid| grid.subgrid_parent_of(child));
     run_formatting_context(
         run.fragments.is_some(),
         child_input_cells,
         child,
         root_containing_block,
-        parent_grid,
+        subgrid_parent.as_ref(),
         fc_type,
         run.should_collect_devtools_layout_data,
         run.callbacks,

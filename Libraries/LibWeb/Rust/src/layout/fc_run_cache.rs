@@ -850,7 +850,7 @@ impl FcRunCacheAttempt {
     /// an entry whose run built them; any other probe reads the result of any matching entry.
     pub(super) fn probe(
         box_: Node,
-        parent_grid_is_present: bool,
+        runs_as_subgrid: bool,
         builds_fragments: bool,
         should_collect_devtools_layout_data: bool,
         measurement_root_keeps_its_result: bool,
@@ -859,7 +859,7 @@ impl FcRunCacheAttempt {
     ) -> Result<Self, FcRunCacheHit> {
         if !can_describe_run(
             box_,
-            parent_grid_is_present,
+            runs_as_subgrid,
             should_collect_devtools_layout_data,
             measurement_root_keeps_its_result,
             callbacks,
@@ -967,7 +967,7 @@ impl FcRunCacheAttempt {
 
 pub(super) fn can_describe_run(
     box_: Node,
-    parent_grid_is_present: bool,
+    runs_as_subgrid: bool,
     should_collect_devtools_layout_data: bool,
     measurement_root_keeps_its_result: bool,
     callbacks: &LayoutPass<'_>,
@@ -986,10 +986,7 @@ pub(super) fn can_describe_run(
     {
         return false;
     }
-    if fc_type == formatting_context::FormattingContextType::Grid
-        && parent_grid_is_present
-        && grid_formatting_context::grid_template_declares_a_subgrid_axis(callbacks, box_)
-    {
+    if runs_as_subgrid {
         return false;
     }
     // Structural invariants behind this root-flag check, to re-verify if it is ever

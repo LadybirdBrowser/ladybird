@@ -1431,6 +1431,14 @@ impl<'pass> ParentGridData<'pass> {
     }
 }
 
+/// What a subgrid takes from the grid it is an item of: that grid's lines and tracks as they are when the subgrid is
+/// laid out, and the block sizes measured for column subgrids in the run of the independent grid above both.
+#[derive(Clone)]
+pub(crate) struct SubgridParent<'pass> {
+    grid: ParentGridData<'pass>,
+    block_size_memo: SubgridBlockSizeMemo,
+}
+
 /// Conservative superset of is_subgridded() for callers outside a live grid run
 /// (the fc-run-cache probe): a declared subgrid axis counts regardless of the
 /// parent-grid placement check only a run in progress can make.
@@ -1443,10 +1451,9 @@ impl<'pass> GridFormattingContext<'pass> {
     pub(crate) fn new(
         run: &FormattingContextRun<'pass>,
         container_cells: used_values::RootInputCells,
-        parent_grid: Option<&GridFormattingContext<'pass>>,
+        subgrid_parent: Option<&SubgridParent<'pass>>,
     ) -> Self {
         let grid_container = run.box_;
-        let parent_grid = parent_grid.filter(|_| grid_template_declares_a_subgrid_axis(&run.callbacks, grid_container));
         let container_style = StyleValues::for_node(&run.callbacks, grid_container);
         Self {
             run: run.clone(),
@@ -1454,7 +1461,7 @@ impl<'pass> GridFormattingContext<'pass> {
             container_constraints_for_cells: Cell::new(None),
             derived_baselines_of_root_box: DerivedBaselines::default(),
             container_style,
-            parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
+            parent_grid: subgrid_parent.map(|parent| parent.grid.clone()),
             available_space: None,
             layout_input: None,
             column_lines: Vec::new(),
@@ -1472,8 +1479,8 @@ impl<'pass> GridFormattingContext<'pass> {
             subgridded_rows: false,
             inherits_resolved_parent_columns: false,
             subgrid_tracks_act_empty: false,
-            subgrid_block_size_memo: parent_grid
-                .map(|parent| std::cell::OnceCell::from(parent.subgrid_block_size_memo().clone()))
+            subgrid_block_size_memo: subgrid_parent
+                .map(|parent| std::cell::OnceCell::from(parent.block_size_memo.clone()))
                 .unwrap_or_default(),
             automatic_content_block_size: CssPixels::default(),
             row_alignment_container_size: CssPixels::default(),
@@ -1535,6 +1542,15 @@ impl<'pass> GridFormattingContext<'pass> {
 
     fn subgrid_block_size_memo(&self) -> &SubgridBlockSizeMemo {
         self.subgrid_block_size_memo.get_or_init(SubgridBlockSizeMemo::default)
+    }
+
+    /// What `child`, an item of this grid laid out in a grid formatting context of its own, takes from this grid as
+    /// its parent grid, where it declares a subgrid axis.
+    pub(crate) fn subgrid_parent_of(&self, child: Node) -> Option<SubgridParent<'pass>> {
+        grid_template_declares_a_subgrid_axis(&self.run.callbacks, child).then(|| SubgridParent {
+            grid: ParentGridData::for_child_container(self, child),
+            block_size_memo: self.subgrid_block_size_memo().clone(),
+        })
     }
 
     #[inline]
@@ -3541,7 +3557,8 @@ impl<'pass> GridFormattingContext<'pass> {
                     fragments: None,
                     fragmentainer: None,
                 };
-                let mut context = GridFormattingContext::new(&scratch_run, scratch_root, Some(self));
+                let subgrid_parent = self.subgrid_parent_of(subgrid.box_);
+                let mut context = GridFormattingContext::new(&scratch_run, scratch_root, subgrid_parent.as_ref());
                 context.subgrid_tracks_act_empty = true;
                 measure(&mut context, &scratch_run)
             },
