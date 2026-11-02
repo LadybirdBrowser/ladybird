@@ -11,6 +11,7 @@
 
 use core::cell::{Cell, RefCell};
 use core::ops::Deref;
+use std::alloc::{Layout, alloc, dealloc, handle_alloc_error};
 use std::collections::HashMap;
 
 use ak::Utf16FlyString;
@@ -23,10 +24,11 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::jit::dependencies::{CellId, Dependency};
 use crate::layout::buffer::InterpreterBuffer;
-use crate::layout::cell::Gc;
+use crate::layout::cell::{CellHeader, Gc};
 pub use crate::layout::environment::{
     DeclarativeEnvironment, DeclarativeEnvironmentRareData, GlobalDeclarativeEnvironment,
 };
+use crate::layout::member::NullableMember;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{DisposeCapability, add_disposable_resource};
 use crate::runtime::completion::ThrowCompletionOr;
@@ -171,6 +173,138 @@ unsafe impl Trace for DeclarativeEnvironmentRareData {
     }
 }
 
+define_cell!(DeclarativeEnvironmentRareData, Other);
+
+impl Drop for DeclarativeEnvironmentRareData {
+    fn drop(&mut self) {
+        self.binding_flags.clear();
+    }
+}
+
+/// Mirrors AK::Vector's growth policy.
+fn padded_binding_capacity(capacity: usize) -> usize {
+    4 + capacity + capacity / 4
+}
+
+fn owned_binding_values_layout(capacity: usize) -> Layout {
+    Layout::array::<u64>(capacity + 1).expect("the binding values fit in memory")
+}
+
+/// The binding values of an environment, which it keeps in its cell or in a malloc allocation.
+struct BindingValues<'a> {
+    environment: &'a DeclarativeEnvironment,
+}
+
+impl BindingValues<'_> {
+    fn size(&self) -> usize {
+        self.environment.binding_count.get() as usize
+    }
+
+    fn capacity(&self) -> usize {
+        if self.environment.binding_values_are_inline() {
+            return usize::from(self.environment.inline_binding_capacity.get());
+        }
+        let data = self.environment.binding_values.get();
+        if data.is_null() {
+            return 0;
+        }
+        // SAFETY: A malloc allocation has its capacity in front of the first value.
+        unsafe { data.cast::<u64>().sub(1).read() as usize }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.size() == 0
+    }
+
+    fn get(&self, index: usize) -> Value {
+        assert!(index < self.size(), "the binding exists");
+        // SAFETY: The first `size` values are initialized.
+        unsafe { self.environment.binding_values.get().add(index).read() }
+    }
+
+    fn set(&self, index: usize, value: Value) {
+        assert!(index < self.size(), "the binding exists");
+        // SAFETY: The value is in bounds, and nothing borrows the values.
+        unsafe { self.environment.binding_values.get().add(index).write(value) };
+    }
+
+    fn append(&self, value: Value) {
+        let size = self.size();
+        if size == self.capacity() {
+            self.reallocate(padded_binding_capacity(size + 1));
+        }
+        // SAFETY: There is room for one more value.
+        unsafe { self.environment.binding_values.get().add(size).write(value) };
+        self.environment
+            .binding_count
+            .set(u32::try_from(size + 1).expect("the binding count fits in u32"));
+    }
+
+    fn ensure_capacity(&self, needed_capacity: usize) {
+        if needed_capacity > self.capacity() {
+            self.reallocate(needed_capacity);
+        }
+    }
+
+    fn shrink_to_fit(&self) {
+        if self.size() != self.capacity() {
+            self.reallocate(self.size());
+        }
+    }
+
+    /// Removes every value and frees the malloc allocation, if there is one.
+    fn clear(&self) {
+        self.environment.binding_count.set(0);
+        self.reallocate(0);
+    }
+
+    /// Moves the values from the cell to a malloc allocation, with room for at least `needed_capacity` values and as
+    /// much more as append() would make.
+    fn move_to_owned_storage(&self, needed_capacity: usize) {
+        self.reallocate(needed_capacity.max(padded_binding_capacity(self.size())));
+    }
+
+    fn reallocate(&self, new_capacity: usize) {
+        let size = self.size();
+        assert!(new_capacity >= size);
+        let old_data = self.environment.binding_values.get();
+        let old_capacity = self.capacity();
+        let was_inline = self.environment.binding_values_are_inline();
+        let new_data = if new_capacity == 0 {
+            core::ptr::null_mut()
+        } else {
+            let layout = owned_binding_values_layout(new_capacity);
+            // SAFETY: The layout has a non-zero size.
+            let allocation = unsafe { alloc(layout) }.cast::<u64>();
+            if allocation.is_null() {
+                handle_alloc_error(layout);
+            }
+            // SAFETY: The allocation has room for the capacity and `new_capacity` values, of which `size` come from the
+            //         old storage, which is another one.
+            unsafe {
+                allocation.write(new_capacity as u64);
+                let new_data = allocation.add(1).cast::<Value>();
+                if size != 0 {
+                    core::ptr::copy_nonoverlapping(old_data, new_data, size);
+                }
+                new_data
+            }
+        };
+        if !old_data.is_null() && !was_inline {
+            // SAFETY: The old storage is a malloc allocation that this method made with this layout, with the capacity
+            //         in front of the first value.
+            unsafe {
+                dealloc(
+                    old_data.cast::<u64>().sub(1).cast(),
+                    owned_binding_values_layout(old_capacity),
+                );
+            }
+        }
+        self.environment.binding_values.set(new_data);
+        self.environment.inline_binding_capacity.set(0);
+    }
+}
+
 define_cell!(DeclarativeEnvironment, Other, extends: [Environment], finalize: finalize);
 
 // SAFETY: Visits the outer environment and the shape (in the Environment), the rare data's dispose capability and shape
@@ -178,21 +312,19 @@ define_cell!(DeclarativeEnvironment, Other, extends: [Environment], finalize: fi
 unsafe impl Trace for DeclarativeEnvironment {
     fn trace(&self, visitor: &mut Visitor) {
         self.base.trace(visitor);
-        if let Some(rare_data) = self.rare_data() {
-            rare_data.trace(visitor);
-        }
-        self.binding_values.trace(visitor);
+        self.rare_data.trace(visitor);
+        // SAFETY: The first `binding_count` values are initialized, and nothing writes them while they are visited.
+        visitor.visit_values(unsafe {
+            ak::slice_from_raw_parts(self.binding_values.get(), self.binding_count.get() as usize)
+        });
     }
 }
 
 impl Finalize for DeclarativeEnvironment {
     fn finalize(&self) {
-        if self.binding_values_are_inline.get() {
-            self.binding_values.forget_unowned_storage();
-        } else {
-            self.binding_values.clear();
+        if !self.binding_values_are_inline() {
+            self.binding_values().clear();
         }
-        self.free_rare_data();
     }
 }
 
@@ -243,13 +375,11 @@ pub fn allocate_environment<T: GcCell>(
     );
     let declarative_environment = declarative(&environment);
     // SAFETY: The cell has room for the size class's binding values after the fields of T, as long as it lives.
-    unsafe {
-        let inline_values = environment.as_ptr().cast::<u8>().add(size_of::<T>()).cast::<Value>();
-        declarative_environment
-            .binding_values
-            .use_unowned_storage(inline_values, usize::from(INLINE_BINDING_CAPACITIES[size_class]));
-    }
-    declarative_environment.binding_values_are_inline.set(true);
+    let inline_values = unsafe { environment.as_ptr().cast::<u8>().add(size_of::<T>()) }.cast::<Value>();
+    declarative_environment.binding_values.set(inline_values);
+    declarative_environment
+        .inline_binding_capacity
+        .set(INLINE_BINDING_CAPACITIES[size_class]);
     environment
 }
 
@@ -335,8 +465,9 @@ impl DeclarativeEnvironment {
     pub fn new(class: &'static Class, outer_environment: Option<Gc<Environment>>) -> Self {
         Self {
             base: Environment::new(class, outer_environment, true),
-            binding_values: InterpreterBuffer::new(),
-            rare_data: Cell::new(core::ptr::null_mut()),
+            binding_values: Cell::new(core::ptr::null_mut()),
+            binding_count: Cell::new(0),
+            rare_data: NullableMember::null(),
         }
     }
 
@@ -359,36 +490,39 @@ impl DeclarativeEnvironment {
         )
     }
 
-    fn rare_data(&self) -> Option<&DeclarativeEnvironmentRareData> {
-        // SAFETY: The rare data belongs to this environment. Only drop_rare_data_if_empty and finalize free it, and
-        // nothing keeps a reference to it across either.
-        unsafe { self.rare_data.get().as_ref() }
+    fn rare_data(&self) -> Option<Gc<DeclarativeEnvironmentRareData>> {
+        self.rare_data.get()
     }
 
-    fn ensure_rare_data(&self) -> &DeclarativeEnvironmentRareData {
-        if self.rare_data.get().is_null() {
-            self.rare_data
-                .set(Box::into_raw(Box::new(DeclarativeEnvironmentRareData {
-                    binding_flags: InterpreterBuffer::new(),
-                    storage: DeclarativeEnvironmentRareDataStorage::default(),
-                })));
+    fn ensure_rare_data(&self) -> Gc<DeclarativeEnvironmentRareData> {
+        if let Some(rare_data) = self.rare_data() {
+            return rare_data;
         }
-        self.rare_data().expect("the rare data was just allocated")
+        let rare_data = Vm::of_cell(self).heap().allocate(|_| DeclarativeEnvironmentRareData {
+            header: CellHeader::for_class(DeclarativeEnvironmentRareData::CLASS),
+            binding_flags: InterpreterBuffer::new(),
+            storage: DeclarativeEnvironmentRareDataStorage::default(),
+        });
+        self.rare_data.set(Some(rare_data));
+        rare_data
     }
 
     fn drop_rare_data_if_empty(&self) {
-        if self.rare_data().is_some_and(DeclarativeEnvironmentRareData::is_empty) {
+        if self.rare_data().is_some_and(|rare_data| rare_data.is_empty()) {
             self.free_rare_data();
         }
     }
 
     fn free_rare_data(&self) {
-        let rare_data = self.rare_data.replace(core::ptr::null_mut());
-        if rare_data.is_null() {
-            return;
-        }
-        // SAFETY: ensure_rare_data allocated the rare data as a Box, and nothing refers to it anymore.
-        unsafe { Box::from_raw(rare_data) }.binding_flags.clear();
+        self.rare_data.set(None);
+    }
+
+    pub fn binding_values_are_inline(&self) -> bool {
+        self.inline_binding_capacity.get() != 0
+    }
+
+    fn binding_values(&self) -> BindingValues<'_> {
+        BindingValues { environment: self }
     }
 
     fn increment_environment_serial_number(&self, vm: &Vm) {
@@ -499,11 +633,16 @@ impl DeclarativeEnvironment {
     }
 
     pub fn dispose_capability(&self) -> &GcRefCell<DisposeCapability> {
-        &self.ensure_rare_data().storage.dispose_capability
+        let rare_data = self.ensure_rare_data();
+        // SAFETY: The environment keeps its rare data alive, and only lets it go when it is empty, which having a
+        //         disposable resource stack keeps it from being.
+        &unsafe { &*rare_data.as_ptr() }.storage.dispose_capability
     }
 
     pub fn dispose_capability_if_exists(&self) -> Option<&GcRefCell<DisposeCapability>> {
-        let dispose_capability = &self.rare_data()?.storage.dispose_capability;
+        let rare_data = self.rare_data()?;
+        // SAFETY: As for dispose_capability().
+        let dispose_capability = &unsafe { &*rare_data.as_ptr() }.storage.dispose_capability;
         let exists = dispose_capability.borrow().disposable_resource_stack.is_some();
         exists.then_some(dispose_capability)
     }
@@ -513,7 +652,7 @@ impl DeclarativeEnvironment {
     }
 
     fn binding_count(&self) -> usize {
-        self.binding_values.size()
+        self.binding_values().size()
     }
 
     fn local_binding_index(&self, index: usize) -> usize {
@@ -521,7 +660,7 @@ impl DeclarativeEnvironment {
     }
 
     fn append_binding(&self, binding: Binding) {
-        let index = self.binding_values.size();
+        let index = self.binding_values().size();
 
         let mut flags = 0;
         if binding.strict {
@@ -550,10 +689,10 @@ impl DeclarativeEnvironment {
             rare_data.binding_flags.append(flags);
         }
 
-        if self.binding_values_are_inline.get() && index == self.binding_values.capacity() {
+        if self.binding_values_are_inline() && index == self.binding_values().capacity() {
             self.move_binding_values_out_of_cell(index + 1);
         }
-        self.binding_values.append(if binding.initialized {
+        self.binding_values().append(if binding.initialized {
             binding.value
         } else {
             Value::EMPTY
@@ -567,7 +706,7 @@ impl DeclarativeEnvironment {
                 .rare_data()
                 .expect("ensure_deleted_bindings_capacity allocates the rare data");
             rare_data.storage.deleted_bindings.borrow_mut().set(index, true);
-            self.binding_values.set(index, Value::EMPTY);
+            self.binding_values().set(index, Value::EMPTY);
             return;
         }
 
@@ -577,7 +716,7 @@ impl DeclarativeEnvironment {
         rare_data.storage.bindings_assoc.borrow_mut().remove(name);
         let local_index = self.local_binding_index(index);
         rare_data.storage.binding_names.borrow_mut()[local_index] = Utf16FlyString::default();
-        self.binding_values.set(index, Value::EMPTY);
+        self.binding_values().set(index, Value::EMPTY);
         rare_data.binding_flags.set(local_index, 0);
     }
 
@@ -593,7 +732,7 @@ impl DeclarativeEnvironment {
     fn binding_at(&self, index: usize) -> Binding {
         Binding {
             name: self.binding_name(index),
-            value: self.binding_values.get(index),
+            value: self.binding_values().get(index),
             strict: self.binding_is_strict(index),
             mutable: self.binding_is_mutable(index),
             can_be_deleted: self.binding_can_be_deleted(index),
@@ -652,7 +791,7 @@ impl DeclarativeEnvironment {
     }
 
     fn binding_is_initialized(&self, index: usize) -> bool {
-        !self.binding_values.get(index).is_empty()
+        !self.binding_values().get(index).is_empty()
     }
 
     fn binding_is_deleted(&self, index: usize) -> bool {
@@ -680,7 +819,7 @@ impl DeclarativeEnvironment {
 
     fn set_environment_shape(&self, shape: Gc<EnvironmentShape>) {
         assert!(self.shape.get().is_none());
-        assert!(self.binding_values.size() <= shape.size());
+        assert!(self.binding_values().size() <= shape.size());
 
         self.shape.set(Some(shape));
         if let Some(rare_data) = self.rare_data() {
@@ -852,7 +991,7 @@ impl DeclarativeEnvironment {
         }
 
         // 3. Set the bound value for N in envRec to V.
-        self.binding_values.set(index, value);
+        self.binding_values().set(index, value);
 
         // 5. Return unused.
         Ok(())
@@ -916,7 +1055,7 @@ impl DeclarativeEnvironment {
         }
 
         if self.binding_is_mutable(index) {
-            self.binding_values.set(index, value);
+            self.binding_values().set(index, value);
         } else if strict {
             return vm.throw_completion(ErrorKind::TypeError, ErrorType::InvalidAssignToConst, &[]);
         }
@@ -976,11 +1115,11 @@ impl DeclarativeEnvironment {
             );
         }
 
-        Ok(self.binding_values.get(index))
+        Ok(self.binding_values().get(index))
     }
 
     pub fn get_initialized_binding_value_direct(&self, index: usize) -> Value {
-        self.binding_values.get(index)
+        self.binding_values().get(index)
     }
 
     /// get_binding_value_direct for a binding found outside the environment's own storage.
@@ -1071,7 +1210,7 @@ impl DeclarativeEnvironment {
         let Some(shape) = self.shape.get() else {
             return false;
         };
-        let index = self.binding_values.size();
+        let index = self.binding_values().size();
         if !shape.has_unique_binding_names
             || index >= shape.size()
             || shape.binding_name(index) != name
@@ -1080,23 +1219,22 @@ impl DeclarativeEnvironment {
         {
             return false;
         }
-        if self.binding_values_are_inline.get() && index == self.binding_values.capacity() {
+        if self.binding_values_are_inline() && index == self.binding_values().capacity() {
             self.move_binding_values_out_of_cell(index + 1);
         }
-        self.binding_values.append(Value::EMPTY);
+        self.binding_values().append(Value::EMPTY);
         true
     }
 
     fn move_binding_values_out_of_cell(&self, needed_capacity: usize) {
-        self.binding_values.move_to_owned_storage(needed_capacity);
-        self.binding_values_are_inline.set(false);
+        self.binding_values().move_to_owned_storage(needed_capacity);
     }
 
     pub fn ensure_capacity(&self, needed_capacity: usize) {
-        if needed_capacity > self.binding_values.capacity() && self.binding_values_are_inline.get() {
+        if needed_capacity > self.binding_values().capacity() && self.binding_values_are_inline() {
             self.move_binding_values_out_of_cell(needed_capacity);
         }
-        self.binding_values.ensure_capacity(needed_capacity);
+        self.binding_values().ensure_capacity(needed_capacity);
         if self.shape.get().is_some() || needed_capacity == 0 {
             return;
         }
@@ -1111,8 +1249,8 @@ impl DeclarativeEnvironment {
     }
 
     pub fn shrink_to_fit(&self) {
-        if !self.binding_values_are_inline.get() {
-            self.binding_values.shrink_to_fit();
+        if !self.binding_values_are_inline() {
+            self.binding_values().shrink_to_fit();
         }
 
         let Some(rare_data) = self.rare_data() else {
@@ -1122,7 +1260,7 @@ impl DeclarativeEnvironment {
         rare_data.storage.binding_names.borrow_mut().shrink_to_fit();
         rare_data.binding_flags.shrink_to_fit();
 
-        if self.binding_values.is_empty() {
+        if self.binding_values().is_empty() {
             rare_data.storage.deleted_bindings.replace(Bitmap::default());
             self.drop_rare_data_if_empty();
             return;
@@ -1133,8 +1271,8 @@ impl DeclarativeEnvironment {
             return;
         }
 
-        let mut deleted_bindings = Bitmap::create(self.binding_values.size(), false);
-        for index in 0..self.binding_values.size() {
+        let mut deleted_bindings = Bitmap::create(self.binding_values().size(), false);
+        for index in 0..self.binding_values().size() {
             deleted_bindings.set(index, self.binding_is_deleted(index));
         }
         rare_data.storage.deleted_bindings.replace(deleted_bindings);

@@ -27,8 +27,9 @@ pub struct Environment {
     pub this_binding_status: Cell<u8>,
     pub permanently_screwed_by_eval: Cell<bool>,
     pub declarative: Cell<bool>,
-    /// Whether the binding values of a declarative environment are stored in its cell, after the fields of its class.
-    pub binding_values_are_inline: Cell<bool>,
+    /// How many binding values a declarative environment has room for in its cell, after the fields of its class. Zero
+    /// if it keeps them elsewhere.
+    pub inline_binding_capacity: Cell<u8>,
 }
 
 const _: () = assert!(size_of::<Environment>() == 16);
@@ -36,11 +37,14 @@ const _: () = assert!(size_of::<Environment>() == 16);
 #[repr(C)]
 pub struct DeclarativeEnvironment {
     pub base: Environment,
-    pub binding_values: InterpreterBuffer<Value>,
-    pub rare_data: Cell<*mut DeclarativeEnvironmentRareData>,
+    /// The first binding value, in the cell or in a malloc allocation that has its capacity in front of the first
+    /// value.
+    pub binding_values: Cell<*mut Value>,
+    pub binding_count: Cell<u32>,
+    pub rare_data: NullableMember<DeclarativeEnvironmentRareData>,
 }
 
-const _: () = assert!(size_of::<DeclarativeEnvironment>() == 40);
+const _: () = assert!(size_of::<DeclarativeEnvironment>() == 32);
 
 /// The declarative environment of a global environment. Caches of global variables hold on to its serial number, which
 /// changes when the bindings do.
@@ -52,6 +56,7 @@ pub struct GlobalDeclarativeEnvironment {
 
 #[repr(C)]
 pub struct DeclarativeEnvironmentRareData {
+    pub header: CellHeader,
     pub binding_flags: InterpreterBuffer<u8>,
     pub storage: DeclarativeEnvironmentRareDataStorage,
 }

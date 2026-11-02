@@ -33,6 +33,7 @@ define_class_ids! {
     Shape,
     WatchpointSet,
     SpecialPropertyCache,
+    DeclarativeEnvironmentRareData,
     DescriptorArray,
     DictionaryPropertyTable,
     ValueStorage,

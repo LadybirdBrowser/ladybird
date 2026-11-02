@@ -1822,20 +1822,20 @@ pub struct RuntimeLayout {
     /// `GeneratorObject::pending_completion_type` (u32): the type of that
     /// completion, as `GetCompletionFields` writes it.
     pub generator_object_pending_completion_type: u32,
-    /// `DeclarativeEnvironment::binding_values.size` (u32).
+    /// `DeclarativeEnvironment::binding_count` (u32).
     pub declarative_environment_binding_values_size: u32,
-    /// The capacity (u32) of `DeclarativeEnvironment::binding_values`.
-    pub declarative_environment_binding_values_capacity: u32,
+    /// `Environment::inline_binding_capacity` (u8), zero if the binding values are not in the cell.
+    pub declarative_environment_inline_binding_capacity: u32,
     /// The pointer to the first binding name (a `Utf16FlyString`, one
     /// word) of an `EnvironmentShape`.
     pub environment_shape_binding_names: u32,
     /// `EnvironmentShape::has_unique_binding_names` (bool).
     pub environment_shape_has_unique_binding_names: u32,
-    /// `DeclarativeEnvironment::binding_values.data`, the pointer to the first `Value`.
+    /// `DeclarativeEnvironment::binding_values`, the pointer to the first `Value`.
     pub declarative_environment_binding_values: u32,
     /// `DeclarativeEnvironment::shape` (cell pointer, may be null).
     pub declarative_environment_shape: u32,
-    /// `DeclarativeEnvironment::rare_data` (pointer).
+    /// `DeclarativeEnvironment::rare_data` (compressed pointer).
     pub declarative_environment_rare_data: u32,
     /// `DeclarativeEnvironmentRareData::binding_flags.data`, the pointer to the first flag byte.
     pub rare_data_binding_flags: u32,
