@@ -45,8 +45,10 @@ public:
     {
         if (index.value() >= m_node_count)
             return;
-        if (index.value() >= m_device_offsets.size())
+        if (index.value() >= m_device_offsets.size()) {
+            m_device_offsets.grow_capacity(index.value() + 1);
             m_device_offsets.resize(index.value() + 1);
+        }
         m_device_offsets[index.value()] = offset;
     }
 
