@@ -387,27 +387,15 @@ TEST_CASE(demuxer_seeks_into_unbuffered_data_with_few_requests)
     stream->set_expected_size(file_data.size());
     stream->add_chunk_at(0, file_data.bytes().trim(head_size));
 
-    // Serve the way a server does once asked: each request starts delivery at its offset, delivery goes on from
-    // there a slice at a time, and a stopped request ends it.
+    // Answer each request with everything from its offset to the end, so that only the seek's reads decide which
+    // requests are made.
     Vector<u64> requested_offsets;
-    // Where each request's delivery had got to when the next request took over.
-    Vector<size_t> delivery_ends;
-    Optional<size_t> serving_position;
     stream->set_data_request_callback([&](Optional<u64> offset) {
-        if (offset.has_value() && serving_position.has_value())
-            delivery_ends.append(*serving_position);
-        serving_position = offset.map([](u64 value) { return static_cast<size_t>(value); });
-        if (offset.has_value())
-            requested_offsets.append(*offset);
-    });
-    auto server = Core::Timer::create_repeating(AK::Duration::from_milliseconds(1), [&] {
-        if (!serving_position.has_value() || *serving_position >= file_data.size())
+        if (!offset.has_value())
             return;
-        auto slice_size = min<size_t>(2 * KiB, file_data.size() - *serving_position);
-        stream->add_chunk_at(*serving_position, file_data.bytes().slice(*serving_position, slice_size));
-        *serving_position += slice_size;
+        requested_offsets.append(offset.value());
+        stream->add_chunk_at(offset.value(), file_data.bytes().slice(offset.value()));
     });
-    server->start();
 
     IGNORE_USE_IN_ESCAPING_LAMBDA auto demuxer = MUST(Media::FLAC::FLACDemuxer::from_stream(stream));
     IGNORE_USE_IN_ESCAPING_LAMBDA auto track = audio_track(*demuxer);
@@ -421,10 +409,13 @@ TEST_CASE(demuxer_seeks_into_unbuffered_data_with_few_requests)
     IGNORE_USE_IN_ESCAPING_LAMBDA auto target = AK::Duration::from_milliseconds(2'500);
     IGNORE_USE_IN_ESCAPING_LAMBDA AK::Duration landed_timestamp;
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> seek_finished { false };
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto main_thread_event_loop = Core::EventLoop::current_weak();
     auto seeker_thread = Threading::Thread::construct("TestSeeker"sv, [&]() -> intptr_t {
         MUST(demuxer->seek_to_most_recent_keyframe(track, target));
         landed_timestamp = MUST(demuxer->get_next_sample_for_track(track)).presentation_timestamp();
         seek_finished = true;
+        if (auto event_loop = main_thread_event_loop->take())
+            event_loop->wake();
         return 0;
     });
     seeker_thread->start();
@@ -434,21 +425,14 @@ TEST_CASE(demuxer_seeks_into_unbuffered_data_with_few_requests)
     deadline_timer->start();
     loop.spin_until([&] { return seek_finished.load() || deadline_expired; });
     if (deadline_expired)
-        FAIL(ByteString::formatted("The seek did not finish: {} requests, serving at {}", requested_offsets.size(), serving_position));
-    server->stop();
+        FAIL(ByteString::formatted("The seek did not finish after requests at {}", requested_offsets));
     stream->set_data_request_callback(nullptr);
     if (!deadline_expired)
         MUST(seeker_thread->join());
 
     EXPECT_EQ(landed_timestamp, time_of_sample(4 * SEEKPOINTS_BLOCK_SIZE, SEEKPOINTS_SAMPLE_RATE));
-    // One probe overshoots into the noise, and one step back by the noise's byte rate lands at the head. If the seek is
-    // slow enough that the head's delivery reaches the bytes the first probe's delivery left buffered, the stream then
-    // skips to their end, so a third request may only be that skip.
-    EXPECT(requested_offsets.size() <= 3);
-    if (requested_offsets.size() == 3) {
-        EXPECT(requested_offsets[1] < requested_offsets[0]);
-        EXPECT(!delivery_ends.is_empty() && requested_offsets[2] == delivery_ends.first());
-    }
+    // One probe overshoots into the noise, and one step back by the noise's byte rate lands at the head.
+    EXPECT_EQ(requested_offsets.size(), 2u);
 }
 
 // A header that nothing follows within a frame's reach was not a header, so the stream ends rather than delivering
