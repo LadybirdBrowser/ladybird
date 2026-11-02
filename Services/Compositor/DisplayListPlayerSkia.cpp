@@ -16,6 +16,7 @@
 #include <core/SkColorSpace.h>
 #include <core/SkMaskFilter.h>
 #include <core/SkPath.h>
+#include <core/SkPathBuilder.h>
 #include <core/SkPathEffect.h>
 #include <core/SkPathUtils.h>
 #include <core/SkPicture.h>
@@ -997,7 +998,19 @@ void DisplayListPlayerSkia::play_command(FillRoundedRectRing const& command)
         inner_corner(command.corner_radii.bottom_right, right_width, bottom_width),
         inner_corner(command.corner_radii.bottom_left, left_width, bottom_width),
     };
-    canvas.drawDRRect(outer_rounded_rect, to_skia_rrect(inner_rect, inner_corner_radii), paint);
+    if (top_width > 0 && right_width > 0 && bottom_width > 0 && left_width > 0) {
+        canvas.drawDRRect(outer_rounded_rect, to_skia_rrect(inner_rect, inner_corner_radii), paint);
+        return;
+    }
+
+    // Skia's GPU drawDRRect leaves ghost edges where the outlines coincide. A single path cancels those edges.
+    auto path = SkPathBuilder(SkPathFillType::kEvenOdd)
+                    .addRRect(outer_rounded_rect)
+                    .addRRect(to_skia_rrect(inner_rect, inner_corner_radii))
+                    .setIsVolatile(true)
+                    .detach();
+
+    canvas.drawPath(path, paint);
 }
 
 static SkTileMode to_skia_tile_mode(DisplayListGradientSpreadMethod spread_method)

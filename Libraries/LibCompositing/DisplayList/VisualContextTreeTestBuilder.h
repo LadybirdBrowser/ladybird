@@ -52,6 +52,7 @@ public:
 
     EffectNodeIndex append_image_filter(u64 image_id, Gfx::IntRect);
     static NonnullRefPtr<DisplayList> filled_rect_display_list(AccumulatedVisualContextTree const&, ContextRef, Gfx::IntRect, Gfx::Color);
+    static NonnullRefPtr<DisplayList> rounded_rect_ring_display_list(AccumulatedVisualContextTree const&, ContextRef, FillRoundedRectRing const&);
 
     AccumulatedVisualContextTree finish();
 

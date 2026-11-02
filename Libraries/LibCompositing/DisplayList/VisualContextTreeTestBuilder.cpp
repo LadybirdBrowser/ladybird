@@ -65,6 +65,11 @@ NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::filled_rect_display_lis
     return DisplayList::adopt_rust_command_storage(tree, RustFFI::visual_context_tree_test_builder_filled_rect(rect, color, context));
 }
 
+NonnullRefPtr<DisplayList> VisualContextTreeTestBuilder::rounded_rect_ring_display_list(AccumulatedVisualContextTree const& tree, ContextRef context, FillRoundedRectRing const& ring)
+{
+    return DisplayList::adopt_rust_command_storage(tree, RustFFI::visual_context_tree_test_builder_rounded_rect_ring(ring, context));
+}
+
 AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish()
 {
     VERIFY(m_builder);
