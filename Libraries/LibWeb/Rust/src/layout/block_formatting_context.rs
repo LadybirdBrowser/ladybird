@@ -2940,25 +2940,28 @@ impl<'pass> BlockFormattingContext<'pass> {
                 available_space,
                 containing_block_constraints: input.containing_block_constraints,
                 sizing: RootSizingDirectives {
-                    forced_content_block_size: definite_content_block_size_of_fieldset_to_fill.map(
-                        |fieldset_content_block_size| {
+                    forced_content_block_size: geometry::PackedOptionalCssPixels::from(
+                        definite_content_block_size_of_fieldset_to_fill.map(|fieldset_content_block_size| {
                             let metrics = self.metrics_of(sized_child);
                             (fieldset_content_block_size
                                 - content_block_offset
                                 - metrics.border_box_bottom(false)
                                 - metrics.margin_bottom())
                             .max(CssPixels::default())
-                        },
+                        }),
                     ),
                     forced_min_border_box_block_size: if is_table_formatting_context {
                         input.sizing.forced_min_border_box_block_size
                     } else {
-                        None
+                        geometry::PackedOptionalCssPixels::from(None)
                     },
-                    block_parent_resolved_content_inline_size: probe.content_inline_size,
-                    table_box_content_block_offset_in_wrapper: is_table_formatting_context
-                        .then_some(content_block_offset),
-                    float_avoidance_inline_size,
+                    block_parent_resolved_content_inline_size: geometry::PackedOptionalCssPixels::from(
+                        probe.content_inline_size,
+                    ),
+                    table_box_content_block_offset_in_wrapper: geometry::PackedOptionalCssPixels::from(
+                        is_table_formatting_context.then_some(content_block_offset),
+                    ),
+                    float_avoidance_inline_size: geometry::PackedOptionalCssPixels::from(float_avoidance_inline_size),
                     outer_float_intrusion_before_list_item_children: inline_space_used_before_children_formatted,
                     ..RootSizingDirectives::default()
                 },
@@ -4109,8 +4112,8 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             containing_block_constraints: input.containing_block_constraints,
             sizing: RootSizingDirectives {
-                forced_content_inline_size: Some(geometry.inline_size),
-                forced_content_block_size: definite_block_size,
+                forced_content_inline_size: geometry::PackedOptionalCssPixels::from(Some(geometry.inline_size)),
+                forced_content_block_size: geometry::PackedOptionalCssPixels::from(definite_block_size),
                 ..RootSizingDirectives::default()
             },
             participation: ParticipationInParentFormattingContext::Root,
@@ -4772,7 +4775,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                         ..input
                     },
                 );
-                self.max_lines.set(measurement_result.automatic_line_clamp_max_lines);
+                self.max_lines.set(
+                    measurement_result
+                        .automatic_line_clamp_max_lines
+                        .map(|lines| lines as usize),
+                );
                 if self.max_lines.get() == Some(0) {
                     self.line_clamp_point_found.set(true);
                 }

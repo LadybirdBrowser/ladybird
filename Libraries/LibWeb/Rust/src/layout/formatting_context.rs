@@ -544,11 +544,11 @@ fn resolve_containing_line_box_index(
     callbacks: &LayoutPass<'_>,
     node: Node,
     coordinate: Option<used_values::LineBoxFragmentCoordinate>,
-) -> Option<usize> {
+) -> Option<u32> {
     let coordinate = coordinate?;
     NodeFacts::new(callbacks, node)
         .is_non_fragmented_box()
-        .then_some(coordinate.line_box_index)
+        .then(|| u32::try_from(coordinate.line_box_index).expect("a line box index fits in 32 bits"))
 }
 
 fn committed_offset_delta_at_placement(
@@ -984,7 +984,7 @@ pub struct BorderData {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ChildLayoutResult {
     pub automatic_content_block_size: CssPixels,
-    pub automatic_line_clamp_max_lines: Option<usize>,
+    pub automatic_line_clamp_max_lines: Option<u32>,
     pub baselines: DerivedBaselines,
     /// For a table wrapper, the inline size its table box gives it.
     pub table_wrapper_content_inline_size: Option<CssPixels>,
@@ -1675,10 +1675,10 @@ fn apply_root_sizing_directives(
             let directives = input.sizing;
             if directives.forced_content_inline_size.is_some() || directives.forced_content_block_size.is_some() {
                 let used = sized_root.cells;
-                if let Some(inline_size) = directives.forced_content_inline_size {
+                if let Some(inline_size) = directives.forced_content_inline_size.get() {
                     used.set_content_inline_size(inline_size);
                 }
-                if let Some(block_size) = directives.forced_content_block_size {
+                if let Some(block_size) = directives.forced_content_block_size.get() {
                     used.set_content_block_size(block_size);
                     used.update_cells(|cells| cells.has_definite_block_size = true);
                 }
@@ -1706,7 +1706,7 @@ fn dimension_block_level_root(
     let flex_self_resolution_space = size_block_level_root_ahead_of_its_contents(run, sized_root, input);
     let mut body_input = body_input_with_inner_available_space(sized_root.cells, input);
     body_input.sizing.flex_self_block_size_resolution_space = flex_self_resolution_space;
-    if let Some(block_size) = input.sizing.forced_content_block_size {
+    if let Some(block_size) = input.sizing.forced_content_block_size.get() {
         let used = sized_root.cells;
         used.set_content_block_size(block_size);
         used.update_cells(|cells| cells.has_definite_block_size = true);
@@ -1752,7 +1752,7 @@ fn size_block_level_root_ahead_of_its_contents(
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
     let facts = NodeFacts::new(&run.callbacks, node);
-    if let Some(content_inline_size) = input.sizing.block_parent_resolved_content_inline_size {
+    if let Some(content_inline_size) = input.sizing.block_parent_resolved_content_inline_size.get() {
         root.set_content_inline_size(content_inline_size);
     }
     let flex_self_resolution_space =
@@ -2306,7 +2306,9 @@ fn lay_out_run_root_and_contents<'pass>(
                 laid_out_content_block_size = Some(context.laid_out_content_block_size());
                 let mut result = ChildLayoutResult {
                     automatic_content_block_size: context.automatic_content_block_size(),
-                    automatic_line_clamp_max_lines: context.automatic_line_clamp_max_lines(),
+                    automatic_line_clamp_max_lines: context
+                        .automatic_line_clamp_max_lines()
+                        .map(|lines| u32::try_from(lines).unwrap_or(u32::MAX)),
                     baselines: context.derived_baselines_of_root_box(),
                     table_wrapper_content_inline_size: context.table_wrapper_content_inline_size(),
                     table_box_in_wrapper_border_box_block_size: context.table_box_in_wrapper_border_box_block_size(),
@@ -3340,7 +3342,7 @@ pub(super) fn content_block_size_adopted_after_run(
     if input.participation != ParticipationInParentFormattingContext::Item {
         return None;
     }
-    input.sizing.content_block_size_after_inside_layout.or(input
+    input.sizing.content_block_size_after_inside_layout.get().or(input
         .sizing
         .adopt_automatic_content_block_size
         .then_some(automatic_content_block_size))

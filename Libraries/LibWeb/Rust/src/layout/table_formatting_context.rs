@@ -3731,10 +3731,11 @@ impl<'pass> TableFormattingContext<'pass> {
         inline_layout: Option<TableInlineLayout>,
     ) {
         self.available_space = input.available_space;
-        self.min_border_box_block_size_from_flex_item = input.sizing.forced_min_border_box_block_size;
+        self.min_border_box_block_size_from_flex_item = input.sizing.forced_min_border_box_block_size.get();
         self.table_box_content_block_offset_in_wrapper = input
             .sizing
             .table_box_content_block_offset_in_wrapper
+            .get()
             .unwrap_or_default();
         if inline_layout.is_none_or(|layout| !self.reuse_inline_layout(input.clone(), layout)) {
             self.run_until_inline_size_calculation(input, false);

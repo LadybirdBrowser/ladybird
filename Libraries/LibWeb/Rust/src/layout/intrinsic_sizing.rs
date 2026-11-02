@@ -532,7 +532,7 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
                     ParticipationInParentFormattingContext::Root,
                 );
                 input.sizing.maximum_inline_size_resolved_by_caller =
-                    content_size_named_by_maximum.map(|content_size| {
+                    geometry::PackedOptionalCssPixels::from(content_size_named_by_maximum.map(|content_size| {
                         sizing.apply_transferred_limits_to_intrinsic_inline_size(
                             sizing_context::SizedBox::of_own_metrics(node, &scope.root_cells(), run.callbacks.frame),
                             clamp_to_max_dimension_value(content_size),
@@ -541,7 +541,7 @@ fn content_sizes_of_container_under_each_inline_size_constraint(
                             ),
                             constraints,
                         )
-                    });
+                    }));
                 let size = content_inline_size(run, scope.root_cells(), input);
                 let dependencies = IntrinsicMeasurementDependencies {
                     percentage_block_size: sizing.resolve_percentage_block_size_dependency(node),

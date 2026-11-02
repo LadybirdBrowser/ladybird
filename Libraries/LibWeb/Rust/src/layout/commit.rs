@@ -369,10 +369,11 @@ impl<'tree> Commit<'_, 'tree> {
         let link_with_merged_line_index;
         let link = if first.containing_block_line_index_offset != 0 && first.link.containing_line_box_index.is_some() {
             link_with_merged_line_index = FragmentLink {
-                containing_line_box_index: first
-                    .link
-                    .containing_line_box_index
-                    .map(|index| index + first.containing_block_line_index_offset),
+                containing_line_box_index: first.link.containing_line_box_index.map(|index| {
+                    index
+                        + u32::try_from(first.containing_block_line_index_offset)
+                            .expect("a line box index fits in 32 bits")
+                }),
                 ..first.link.clone()
             };
             &link_with_merged_line_index

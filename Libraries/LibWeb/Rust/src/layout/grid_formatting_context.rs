@@ -1512,7 +1512,7 @@ impl<'pass> GridFormattingContext<'pass> {
         }
         self.available_space = Some(input.available_space);
         self.layout_input = Some(input.clone());
-        self.maximum_inline_size_resolved_by_caller = input.sizing.maximum_inline_size_resolved_by_caller;
+        self.maximum_inline_size_resolved_by_caller = input.sizing.maximum_inline_size_resolved_by_caller.get();
         self.item_runs_offered_to_row_measurements = None;
         self.column_lines.clear();
         self.row_lines.clear();
@@ -4867,7 +4867,8 @@ impl<'pass> GridFormattingContext<'pass> {
             if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
                 // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
                 //     grows to its used block size afterwards.
-                sizing.content_block_size_after_inside_layout = Some(cells.content_block_size);
+                sizing.content_block_size_after_inside_layout =
+                    geometry::PackedOptionalCssPixels::from(Some(cells.content_block_size));
                 cells.set_content_block_size(transferred);
             }
             self.update_cells_of(item, |item_cells| *item_cells = cells);
@@ -4883,8 +4884,9 @@ impl<'pass> GridFormattingContext<'pass> {
                 );
                 let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
                 let stretched_table_box_block_size = cells.content_block_size - captions_block_size;
-                sizing.forced_min_border_box_block_size =
-                    Some(stretched_table_box_block_size.max(sizes.table_box_border_box_block_size));
+                sizing.forced_min_border_box_block_size = geometry::PackedOptionalCssPixels::from(Some(
+                    stretched_table_box_block_size.max(sizes.table_box_border_box_block_size),
+                ));
             }
             let mut input = self.item_layout_input(item, &cells, row_area);
             input.sizing = sizing;
