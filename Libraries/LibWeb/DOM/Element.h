@@ -805,6 +805,9 @@ public:
     void register_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
     void unregister_intersection_observer(Badge<IntersectionObserver::IntersectionObserver>, GC::Ref<IntersectionObserver::IntersectionObserver>);
 
+    void register_resize_observer(Badge<ResizeObserver::ResizeObserver>, GC::Ref<ResizeObserver::ResizeObserver>);
+    void unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, GC::Ref<ResizeObserver::ResizeObserver>);
+
     CSSPixelPoint scroll_offset(Optional<CSS::PseudoElement> type) const;
     void set_scroll_offset(Optional<CSS::PseudoElement> type, CSSPixelPoint offset);
     u8 last_relative_scroll_direction() const;

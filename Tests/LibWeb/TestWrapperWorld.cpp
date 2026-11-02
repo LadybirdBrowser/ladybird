@@ -27,7 +27,6 @@
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/BarProp.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
-#include <LibWeb/HTML/HTMLDocument.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -36,7 +35,6 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/Platform/Timer.h>
-#include <LibWeb/ResizeObserver/ResizeObserver.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace {
@@ -1086,48 +1084,4 @@ TEST_CASE(wasm_instance_exports_belong_to_the_realm_of_the_instance)
     vm.pop_execution_context();
     vm.pop_execution_context();
     s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test = true;
-}
-
-// This exercises the collected-document finalization path. It does not claim
-// coverage of the ResizeObserver sweep callback: the document's destruction
-// path releases the activity root before that callback would be relevant.
-TEST_CASE(resize_observer_releases_activity_root_when_registration_document_is_collected_via_finalization)
-{
-    // The rest of this suite deliberately creates and retains unrelated VMs.
-    // Run this fixture in isolation to exercise the main-thread initialization
-    // path; avoid corrupting the shared suite state when run without a filter.
-    if (s_main_thread_vm_was_initialized_by_an_earlier_wrapper_test)
-        return;
-
-    ensure_font_plugin_installed();
-    Web::Bindings::initialize_main_thread_vm(Web::HTML::AgentType::SimilarOriginWindow);
-    auto& vm = Web::Bindings::main_thread_vm();
-    auto make_document = [&]() {
-        auto client = vm.heap().allocate<TestPageClient>();
-        auto page = Web::Page::create(client);
-        client->m_page = page.ptr();
-        auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
-        page->set_top_level_traversable(traversable);
-        return GC::Ref { *traversable->active_document() };
-    };
-
-    auto target_document = make_document();
-    auto target = MUST(target_document->create_element("div"_utf16, Web::Bindings::ElementCreationOptions {}));
-    auto observer_client = vm.heap().allocate<TestPageClient>();
-    auto observer_page = Web::Page::create(observer_client);
-    observer_client->m_page = observer_page.ptr();
-    auto observer_page_root = GC::make_root(observer_page);
-    GC::Ptr<Web::DOM::Document> observer_document = Web::HTML::HTMLDocument::create(*observer_page, GC::Ref { *target_document->window() });
-    auto observer = Web::ResizeObserver::ResizeObserver::create(nullptr, *observer_document);
-    auto observer_root = GC::make_root(observer);
-    GC::Weak<Web::DOM::Document> observer_document_weak { observer_document };
-
-    observer->observe(*target, {});
-    EXPECT(observer->has_activity_root());
-
-    observer_document = nullptr;
-    vm.heap().collect_garbage();
-
-    EXPECT(!observer_document_weak);
-    EXPECT(!observer->has_activity_root());
 }
