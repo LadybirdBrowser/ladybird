@@ -765,18 +765,24 @@ TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
 
     // The server answers on one port over both UDP and TCP. A port the system picks for TCP may be one it won't let
     // UDP bind to, so take the port it picks for UDP, and listen for TCP on that one — trying again with a fresh port
-    // if another socket already holds it for TCP.
+    // if TCP can't have it. A UDP server whose port TCP turns down stays open for the rest of the test: Closing it
+    // would free the port for the next bind, so a port the system reserves against TCP could keep coming back.
     RefPtr<Core::TCPServer> tcp_server;
     RefPtr<Core::UDPServer> udp_server;
+    Vector<NonnullRefPtr<Core::UDPServer>> rejected_udp_servers;
+    Vector<u16> tried_ports;
     u16 server_port = 0;
     Optional<Error> listen_error;
     for (size_t attempt = 0; attempt < 10 && !tcp_server; ++attempt) {
+        if (udp_server)
+            rejected_udp_servers.append(udp_server.release_nonnull());
         udp_server = Core::UDPServer::construct();
         if (!udp_server->bind(IPv4Address { 127, 0, 0, 1 }, 0)) {
             FAIL("Couldn't bind UDP to a port the system picks");
             return;
         }
         server_port = udp_server->local_port().value();
+        tried_ports.append(server_port);
 
         auto candidate = MUST(Core::TCPServer::try_create());
         if (auto result = candidate->listen(IPv4Address { 127, 0, 0, 1 }, server_port); result.is_error())
@@ -785,7 +791,7 @@ TEST_CASE(test_truncated_udp_response_is_retried_over_tcp)
             tcp_server = move(candidate);
     }
     if (!tcp_server) {
-        FAIL(ByteString::formatted("Couldn't listen for TCP on the port of a UDP server: {}", listen_error.value()));
+        FAIL(ByteString::formatted("Couldn't listen for TCP on the port of a UDP server (tried {}): {}", ByteString::join(", "sv, tried_ports), listen_error.value()));
         return;
     }
 
