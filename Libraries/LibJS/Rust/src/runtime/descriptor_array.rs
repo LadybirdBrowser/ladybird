@@ -180,14 +180,21 @@ impl DescriptorArray {
     }
 
     /// Whether the property with the given enum index has the key and the attributes.
+    ///
+    /// OPTIMIZATION: Adding a property that some object of the shape already got comes through here, so it takes no
+    /// borrows of the cells.
+    #[inline(always)]
     pub fn has_property_at_enum_index(
         &self,
         enum_index: u32,
         property_key: &PropertyKey,
         attributes: PropertyAttributes,
     ) -> bool {
-        let entries = self.entries.borrow();
-        let entry = &entries[self.entry_indices_by_enum_index.borrow()[enum_index as usize] as usize];
+        // SAFETY: The borrows that change the entries and the indices end within the methods of this array, which run
+        // no other code that could get here.
+        let (entries, entry_indices) =
+            unsafe { (&*self.entries.as_ptr(), &*self.entry_indices_by_enum_index.as_ptr()) };
+        let entry = &entries[entry_indices[enum_index as usize] as usize];
         entry.property_key == *property_key && entry.metadata().attributes == attributes
     }
 

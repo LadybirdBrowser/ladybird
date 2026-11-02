@@ -25,6 +25,10 @@ impl<T> GcRefCell<T> {
         self.0.borrow()
     }
 
+    pub fn as_ptr(&self) -> *mut T {
+        self.0.as_ptr()
+    }
+
     pub fn borrow_mut<'a>(&'a self, vm: &'a Vm) -> GcRefMut<'a, T> {
         let defer_gc = DeferGc::new(vm);
         GcRefMut {

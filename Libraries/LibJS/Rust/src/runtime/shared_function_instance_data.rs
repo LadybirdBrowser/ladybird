@@ -922,9 +922,11 @@ impl SharedFunctionInstanceData {
     /// them through the environment. Otherwise a declarative environment does for the function's bindings, just as no
     /// environment at all does for a function without any.
     pub fn function_environment_has_this_binding(&self) -> bool {
-        self.contains_direct_call_to_eval()
-            || self.is_module_wrapper()
-            || (!self.is_arrow_function() && self.this_value_needs_environment_resolution())
+        let metadata = self.asm_call_metadata.get();
+        metadata & (asm_call_metadata::CONTAINS_DIRECT_CALL_TO_EVAL | asm_call_metadata::IS_MODULE_WRAPPER) != 0
+            || metadata
+                & (asm_call_metadata::IS_ARROW_FUNCTION | asm_call_metadata::THIS_VALUE_NEEDS_ENVIRONMENT_RESOLUTION)
+                == asm_call_metadata::THIS_VALUE_NEEDS_ENVIRONMENT_RESOLUTION
     }
 
     pub fn function_environment_needed(&self) -> bool {

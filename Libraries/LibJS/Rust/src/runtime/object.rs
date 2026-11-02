@@ -3728,9 +3728,14 @@ impl Object {
         }
     }
 
+    /// NB: Inline storage starts at one of two offsets, within the object. Other storage is outside of it.
+    #[inline(always)]
     pub(crate) fn named_storage_is_inline(&self) -> bool {
-        core::ptr::eq(self.named_properties.get(), self.inline_named_storage_pointer())
-            || self.named_storage_overlaps_indexed_elements()
+        self.named_properties
+            .get()
+            .addr()
+            .wrapping_sub(core::ptr::from_ref(self).addr())
+            <= core::mem::offset_of!(Object, inline_named_storage)
     }
 
     /// Whether the inline named storage of this plain object starts at the indexed elements word.
@@ -3796,6 +3801,7 @@ impl Object {
         }
     }
 
+    #[inline(always)]
     fn ensure_named_storage_capacity(&self, needed: u32) {
         let old_capacity = self.named_storage_capacity();
         if needed <= old_capacity {
@@ -3806,6 +3812,7 @@ impl Object {
 
     /// NB: The capacity of the storage never shrinks, which JIT code that added properties to an object it allocated
     ///     relies on.
+    #[inline(never)]
     fn move_named_storage_out_of_line(&self, old_capacity: u32, new_capacity: u32) {
         let overlapped_indexed_elements = self.named_storage_overlaps_indexed_elements();
 
