@@ -7410,7 +7410,7 @@ pub const SUBSTITUTION_MARK_CUSTOM_FUNCTION: u8 = 1 << 4;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FfiEffectTiming {
-    pub timeline_scroller: i64,
+    pub scroll_timeline: u64,
     pub minimum_timeline_time: f64,
     pub maximum_timeline_time: f64,
     pub timeline_time: f64,
@@ -7430,11 +7430,9 @@ pub struct FfiEffectTiming {
     /// The effect's animation runs on a document timeline, whose time is a timestamp less this origin
     /// time.
     pub has_timeline_origin_time: bool,
-    /// The effect's animation runs on a scroll timeline, whose time is the scroll progress, in percent, of
-    /// the scroll node `timeline_scroller` names, a unique node id (an element's, or a document's for its
-    /// viewport), along the vertical or the horizontal axis.
+    /// The effect's animation runs on the scroll timeline `scroll_timeline` names, whose time is its progress, in
+    /// percent, where the scroller it follows is scrolled to.
     pub has_timeline_scroller: bool,
-    pub timeline_scroller_is_vertical: bool,
     /// The effect's animation runs on a progress-based timeline, whose minimum and maximum timeline times
     /// `minimum_timeline_time` and `maximum_timeline_time` are.
     pub has_timeline_boundaries: bool,

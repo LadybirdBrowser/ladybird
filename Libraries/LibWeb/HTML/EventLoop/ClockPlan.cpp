@@ -36,8 +36,8 @@ static bool timing_is_in(Animations::KeyframeEffect const& effect, Animations::T
     return effect.start_delay().type == type && effect.iteration_duration().type == type && effect.active_duration().type == type;
 }
 
-// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`. Answers whether a
-// tick may sample it.
+// Adds the scroll timeline `timeline` that `effect` runs on, at `local_time`, to `scroll_timelines`, whose last entry is
+// the timeline's where an effect of it was planned before. Answers whether a tick may sample it.
 static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimeline>& scroll_timelines, Animations::ScrollTimeline const& timeline, Animations::KeyframeEffect const& effect, Optional<Animations::TimeValue> local_time)
 {
     auto const& scroller = timeline.followed_scroller();
@@ -46,10 +46,10 @@ static bool plan_scroll_timeline(Vector<Layout::RustFFI::FfiPlannedScrollTimelin
         || !local_time.has_value() || local_time->type != Animations::TimeValue::Type::Percentage
         || !timing_is_in(effect, Animations::TimeValue::Type::Percentage))
         return false;
-    auto scroller_id = scroller->scroll_node.node_id.value();
-    if (!scroll_timelines.find_first_index_if([&](auto const& planned) { return planned.scroller == scroller_id && planned.vertical == scroller->vertical; }).has_value()) {
+    if (scroll_timelines.is_empty() || scroll_timelines.last().timeline != timeline.clock_identity()) {
         scroll_timelines.append({
-            .scroller = scroller_id,
+            .timeline = timeline.clock_identity(),
+            .scroller = scroller->scroll_node.node_id.value(),
             .vertical = scroller->vertical,
             .max_scroll_offset = scroller->max_scroll_offset,
             .progress = progress->value,
