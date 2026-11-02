@@ -1,0 +1,48 @@
+<!doctype html>
+<script src="../include.js"></script>
+<iframe
+    id="frame"
+    srcdoc="
+        <input>
+            <iframe srcdoc='<input>'></iframe>
+    "
+></iframe>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+
+        const frame = document.getElementById("frame");
+        const middle = frame.contentDocument;
+        const field = middle.querySelector("iframe").contentDocument.querySelector("input");
+
+        let middleWindowBlurs = 0;
+        let fieldBlurs = 0;
+        frame.contentWindow.addEventListener("blur", () => ++middleWindowBlurs);
+        field.addEventListener("blur", () => ++fieldBlurs);
+
+        function clickBlankArea() {
+            const frameRect = frame.getBoundingClientRect();
+            const inputRect = middle.querySelector("input").getBoundingClientRect();
+
+            // Click halfway between the input and the right edge of the middle viewport.
+            const x = frameRect.left + frame.clientLeft + (inputRect.right + frame.contentWindow.innerWidth) / 2;
+            const y = frameRect.top + frame.clientTop + inputRect.top + inputRect.height / 2;
+
+            internals.click(x, y);
+        }
+
+        field.focus();
+        clickBlankArea();
+        println("After clicking blank space with the nested input focused:");
+        println(`  Top document active element is the iframe: ${document.activeElement === frame}`);
+        println(`  Middle document active element is the body: ${middle.activeElement === middle.body}`);
+        println(`  Nested input blur events: ${fieldBlurs}`);
+        println(`  Middle window blur events: ${middleWindowBlurs}`);
+
+        middle.querySelector("input").focus();
+        clickBlankArea();
+        println("After clicking blank space with the middle input focused:");
+        println(`  Top document active element is the iframe: ${document.activeElement === frame}`);
+        println(`  Middle document active element is the body: ${middle.activeElement === middle.body}`);
+    });
+</script>
