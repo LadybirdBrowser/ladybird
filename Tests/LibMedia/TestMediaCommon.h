@@ -105,7 +105,7 @@ static inline void decode_audio(StringView path, u32 sample_rate, u8 channel_cou
     });
     producer->start();
 
-    auto time_limit = AK::Duration::from_seconds(1);
+    auto time_limit = AK::Duration::from_seconds(10);
     auto start_time = MonotonicTime::now_coarse();
 
     i64 last_frame = 0;
