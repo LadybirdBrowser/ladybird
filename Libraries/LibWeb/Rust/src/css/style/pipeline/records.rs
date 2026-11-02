@@ -1707,6 +1707,13 @@ impl<'a> Records<'a> {
         if sets.holds_record(node, record) {
             return true;
         }
+        // NB: A cold pass builds its stores anew, chained differently from those an element kept across its updates. The
+        //     values are what it compares against the record the host sampled over, as it does for the composition.
+        if let Some(equal) = self.composes_over_equal_records
+            && sets.held_record(node).is_some_and(|held| equal(held, record))
+        {
+            return true;
+        }
         let same_store =
             |a: Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>,
              b: Option<&Arc<crate::css::custom_properties::CustomPropertyStore>>| match (a, b) {
