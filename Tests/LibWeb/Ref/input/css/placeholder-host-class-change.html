@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/placeholder-host-class-change-ref.html">
+<style>
+    input { font-size: 40px; }
+    input.x::placeholder { color: rgb(0, 150, 0); }
+</style>
+<input id="field" placeholder="placeholder">
+<script>
+    document.body.offsetWidth;
+    document.getElementById("field").classList.add("x");
+</script>

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 
 /// A directly indexed column whose missing rows all have the same value.
@@ -29,13 +28,6 @@ impl<T: Default> Default for Column<T> {
 }
 
 impl<T: Default> Column<T> {
-    pub(super) fn new(vacant: fn() -> T) -> Self {
-        Self {
-            entries: Vec::new(),
-            vacant: Some(vacant),
-        }
-    }
-
     /// Ensure that `index` is addressable and return newly allocated bytes.
     pub(super) fn ensure(&mut self, index: usize) -> u64 {
         if self.entries.len() > index {
@@ -56,11 +48,19 @@ impl<T: Default> Column<T> {
         self.entries[index] = value;
         growth
     }
+}
 
-    /// Return one mutable row, growing the column when it is absent.
-    pub(super) fn entry(&mut self, index: usize) -> &mut T {
-        self.ensure(index);
-        &mut self.entries[index]
+impl<T> Column<T> {
+    /// The bytes of the column's rows, which hold nothing on the heap.
+    pub(super) fn heap_size(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.entries)
+    }
+}
+
+impl<P: PagedColumnPage> PagedColumn<P> {
+    /// The bytes of the column's pages, which hold nothing on the heap.
+    pub(super) fn heap_size(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.pages) + self.pages.iter().flatten().count() * size_of::<P>()
     }
 }
 
@@ -87,123 +87,6 @@ impl<T> IntoIterator for Column<T> {
     }
 }
 
-/// A directly indexed side table whose rows are invalidated by advancing a stamp instead of being
-/// cleared, and whose storage is borrowed from a thread-local pool instead of allocated.
-///
-/// NB: A side table that one transaction fills and the next discards has two tempting shapes, and
-///     both charge for something other than the batch. A hash map pays one probe per access and
-///     rebuilds its table as the batch grows. A freshly allocated dense column pays to fill the
-///     identity space between the rows it holds, which one high identity widens across the whole
-///     element space. Keeping the storage between transactions removes both: growth is paid once
-///     at the high-water mark, reset is one increment, and a row is one array read.
-#[derive(Clone, Default)]
-pub(super) struct StampedIndex {
-    rows: Vec<StampedRow>,
-    stamp: u32,
-}
-
-#[derive(Clone, Copy, Default)]
-struct StampedRow {
-    /// The stamp this row was written under. Zero is never a live stamp, so rows grown into
-    /// existence and rows left by an earlier transaction both read as absent.
-    stamp: u32,
-    value: u32,
-}
-
-impl StampedIndex {
-    /// Abandon every row written under the previous stamp.
-    fn begin(&mut self) {
-        match self.stamp.checked_add(1) {
-            Some(stamp) => self.stamp = stamp,
-            // The stamp space is exhausted only after four billion transactions on one buffer.
-            // Dropping the rows makes every later row start from the unwritten stamp again.
-            None => {
-                self.rows.clear();
-                self.stamp = 1;
-            }
-        }
-    }
-
-    fn get(&self, index: usize) -> Option<u32> {
-        self.rows
-            .get(index)
-            .filter(|row| row.stamp == self.stamp)
-            .map(|row| row.value)
-    }
-
-    fn insert(&mut self, index: usize, value: u32) {
-        if self.rows.len() <= index {
-            self.rows.resize(index + 1, StampedRow::default());
-        }
-        self.rows[index] = StampedRow {
-            stamp: self.stamp,
-            value,
-        };
-    }
-
-    fn capacity_bytes(&self) -> usize {
-        self.rows.capacity() * size_of::<StampedRow>()
-    }
-}
-
-thread_local! {
-    static STAMPED_INDEX_POOL: RefCell<Vec<StampedIndex>> = const { RefCell::new(Vec::new()) };
-}
-
-/// How many buffers one thread keeps between transactions. Concurrently live effect tables are
-/// the contexts a single matching pass has open, not the nodes it visits.
-///
-/// NB: A buffer in the pool is memory the process holds while no owner leases it. These bounds
-///     are what keep that residency small: at most this many buffers, and at most this many bytes
-///     across all of them, since a buffer grows to the highest element identity it was ever asked
-///     for.
-const STAMPED_INDEX_POOL_LIMIT: usize = 8;
-const STAMPED_INDEX_POOL_BYTE_LIMIT: usize = 4 << 20;
-
-/// A [`StampedIndex`] taken from the thread's pool on first write and returned when dropped.
-///
-/// NB: Construction must stay free. Contexts that own one of these are created and discarded
-///     around individual nodes, and most of them never record a row.
-#[derive(Clone, Default)]
-pub(super) struct PooledStampedIndex(Option<StampedIndex>);
-
-impl PooledStampedIndex {
-    pub(super) fn get(&self, index: usize) -> Option<u32> {
-        self.0.as_ref()?.get(index)
-    }
-
-    pub(super) fn insert(&mut self, index: usize, value: u32) {
-        self.0
-            .get_or_insert_with(|| {
-                let mut borrowed = STAMPED_INDEX_POOL
-                    .try_with(|pool| pool.borrow_mut().pop())
-                    .ok()
-                    .flatten()
-                    .unwrap_or_default();
-                borrowed.begin();
-                borrowed
-            })
-            .insert(index, value);
-    }
-}
-
-impl Drop for PooledStampedIndex {
-    fn drop(&mut self) {
-        let Some(borrowed) = self.0.take() else {
-            return;
-        };
-        let _ = STAMPED_INDEX_POOL.try_with(|pool| {
-            let mut pool = pool.borrow_mut();
-            let pooled_bytes: usize = pool.iter().map(StampedIndex::capacity_bytes).sum();
-            if pool.len() < STAMPED_INDEX_POOL_LIMIT
-                && pooled_bytes + borrowed.capacity_bytes() <= STAMPED_INDEX_POOL_BYTE_LIMIT
-            {
-                pool.push(borrowed);
-            }
-        });
-    }
-}
-
 /// A directly indexed packed boolean column.
 #[derive(Clone, Default)]
 pub(super) struct BitColumn {
@@ -222,6 +105,10 @@ impl PartialEq for BitColumn {
 impl Eq for BitColumn {}
 
 impl BitColumn {
+    pub(super) fn heap_size(&self) -> usize {
+        crate::heap_size::vec_bytes(&self.words)
+    }
+
     /// Set one bit and return whether its value changed and newly allocated bytes.
     pub(super) fn set(&mut self, index: usize, value: bool) -> (bool, u64) {
         let word_index = index / u64::BITS as usize;
@@ -248,10 +135,6 @@ impl BitColumn {
         let mask = 1_u64 << (index % u64::BITS as usize);
         self.words.get(word).is_some_and(|word| word & mask != 0)
     }
-
-    pub(super) fn clear(&mut self) {
-        self.words.fill(0);
-    }
 }
 
 /// One specialized page stored by a [`PagedColumn`].
@@ -266,39 +149,6 @@ pub(super) trait PagedColumnPage: Default {
 
 pub(super) trait RemovablePagedColumnPage: PagedColumnPage {
     fn remove(&mut self, index: usize) -> Option<Self::Value>;
-}
-
-pub(super) const PAGED_VALUE_PAGE_SHIFT: usize = 6;
-const PAGED_VALUE_PAGE_SIZE: usize = 1 << PAGED_VALUE_PAGE_SHIFT;
-
-#[derive(Clone)]
-pub(super) struct PagedValuePage<T: Copy + Default> {
-    known: u64,
-    values: [T; PAGED_VALUE_PAGE_SIZE],
-}
-
-impl<T: Copy + Default> Default for PagedValuePage<T> {
-    fn default() -> Self {
-        Self {
-            known: 0,
-            values: [T::default(); PAGED_VALUE_PAGE_SIZE],
-        }
-    }
-}
-
-impl<T: Copy + Default> PagedColumnPage for PagedValuePage<T> {
-    type Value = T;
-
-    const SHIFT: usize = PAGED_VALUE_PAGE_SHIFT;
-
-    fn get(&self, index: usize) -> Option<T> {
-        (self.known & (1 << index) != 0).then_some(self.values[index])
-    }
-
-    fn insert(&mut self, index: usize, value: T) {
-        self.known |= 1 << index;
-        self.values[index] = value;
-    }
 }
 
 /// A sparse column whose directory and page accounting are shared across page layouts.
@@ -344,18 +194,9 @@ impl<P: PagedColumnPage> PagedColumn<P> {
         (page, page_was_absent)
     }
 
-    pub(super) fn pages_mut(&mut self) -> impl Iterator<Item = &mut P> {
-        self.pages.iter_mut().flatten().map(Box::as_mut)
-    }
-
     #[cfg(test)]
     pub(super) fn page_count(&self) -> usize {
         self.page_count
-    }
-
-    #[cfg(test)]
-    pub(super) fn directory_capacity(&self) -> usize {
-        self.pages.capacity()
     }
 }
 
@@ -368,88 +209,9 @@ impl<P: RemovablePagedColumnPage> PagedColumn<P> {
     }
 }
 
-/// Dense marks compared against an externally owned epoch.
-#[derive(Clone, Default)]
-pub(super) struct EpochColumn {
-    marks: Vec<u32>,
-}
-
-impl EpochColumn {
-    pub(super) fn ensure_len(&mut self, len: usize) {
-        if self.marks.len() < len {
-            self.marks.resize(len, 0);
-        }
-    }
-
-    pub(super) fn mark(&mut self, index: usize, epoch: u32) -> bool {
-        self.ensure_len(index + 1);
-        let was_marked = self.marks[index] == epoch;
-        self.marks[index] = epoch;
-        !was_marked
-    }
-
-    fn clear(&mut self) {
-        self.marks.fill(0);
-    }
-}
-
-impl Deref for EpochColumn {
-    type Target = Vec<u32>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.marks
-    }
-}
-
-impl DerefMut for EpochColumn {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.marks
-    }
-}
-
-/// Advance a shared epoch, clearing every participating column on wrap.
-pub(super) fn advance_epoch(epoch: &mut u32, step: u32, columns: &mut [&mut EpochColumn]) -> u32 {
-    if let Some(next) = epoch.checked_add(step) {
-        *epoch = next;
-    } else {
-        for column in columns {
-            column.clear();
-        }
-        *epoch = step;
-    }
-    *epoch
-}
-
 #[cfg(test)]
 mod tests {
     use super::BitColumn;
-    use super::PooledStampedIndex;
-
-    #[test]
-    fn stamped_index_rows_do_not_survive_their_owner() {
-        let mut first = PooledStampedIndex::default();
-        first.insert(4, 7);
-        first.insert(9, 11);
-        assert_eq!(first.get(4), Some(7));
-        assert_eq!(first.get(9), Some(11));
-        assert_eq!(first.get(5), None);
-        assert_eq!(first.get(4000), None);
-        drop(first);
-
-        // The pooled rows are still allocated; the advanced stamp is what hides them.
-        let mut second = PooledStampedIndex::default();
-        assert_eq!(second.get(4), None);
-        assert_eq!(second.get(9), None);
-        second.insert(9, 3);
-        assert_eq!(second.get(9), Some(3));
-        assert_eq!(second.get(4), None);
-    }
-
-    #[test]
-    fn stamped_index_costs_nothing_until_it_holds_a_row() {
-        let index = PooledStampedIndex::default();
-        assert_eq!(index.get(0), None);
-    }
 
     #[test]
     fn bit_column_equality_ignores_trailing_zero_words() {

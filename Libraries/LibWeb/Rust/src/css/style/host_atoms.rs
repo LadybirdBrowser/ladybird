@@ -11,9 +11,11 @@
 use super::atoms::{AtomLease, ReclaimedStyleAtom};
 use super::engine_calls::{EngineWrite, with_engine};
 use super::index::{AttributeNameForms, StyleAtomID};
+use crate::css::declaration_block::SharedDeclarationBlock;
 use crate::css::ffi_support::{FfiUtf16View, ascii_lowercase};
-use crate::css::parser::arbitrary_substitution::attr_may_read_name;
+use crate::css::parser::arbitrary_substitution::AttrNamesRead;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
+use crate::css::style_value::StyleValueData;
 use crate::fast_hash::{FastMap, FastSet};
 use crate::render_state::{ArenaChange, BegunRead, DocumentHost};
 
@@ -35,6 +37,22 @@ pub(crate) struct HostAtoms {
     /// `value_text_requirements`.
     names_with_unread_value_text: FastSet<StyleAtomID>,
     value_text_requirements: u64,
+    /// The values the host withheld the text of, by the attribute name they were published under, each by its atom with
+    /// the raw identity of what it spells, which `names` holds a reference to while the atom lives: what the host hands
+    /// the engine for exactly the names something comes to read, without asking the document again.
+    withheld_value_texts: FastMap<StyleAtomID, FastMap<StyleAtomID, usize>>,
+    /// The attribute names something reads the value text of. What selectors and `attr()`s read only grows, so this
+    /// holds until the engine reclaims a name.
+    names_with_read_value_text: FastSet<StyleAtomID>,
+    /// The attribute names something reads. What selectors and `attr()`s read only grows, so this holds until the
+    /// engine reclaims a name.
+    names_read: FastSet<StyleAtomID>,
+    /// The attribute names the host knows nothing reads, as of the selectors its last job left, which the host forgets
+    /// when they move, and as of the `attr()` names read generation `names_unread_attr_generation`.
+    names_known_unread: FastSet<StyleAtomID>,
+    names_unread_attr_generation: u64,
+    /// What the `attr()`s of the declarations the host handed the engine can read.
+    attr_names_read: AttrNamesRead,
 }
 
 /// The other names an attribute name answers to, and the local name an `attr()` reads it by where it is in no namespace.
@@ -44,16 +62,37 @@ struct PublishedAttributeName {
 }
 
 impl HostAtoms {
+    /// The bytes the atoms' tables hold on the heap, but for the names, which the host's strings hold.
+    pub(crate) fn heap_size(&self) -> usize {
+        use crate::heap_size::{map_bytes, set_bytes};
+        map_bytes(&self.names)
+            + self.attr_names_read.heap_size()
+            + set_bytes(&self.languages_with_text)
+            + map_bytes(&self.attribute_names)
+            + map_bytes(&self.published_attribute_names)
+            + self
+                .published_attribute_names
+                .values()
+                .filter_map(|name| name.substitution_name.as_deref())
+                .map(size_of_val::<[u16]>)
+                .sum::<usize>()
+            + set_bytes(&self.names_with_unread_value_text)
+            + map_bytes(&self.withheld_value_texts)
+            + self.withheld_value_texts.values().map(map_bytes).sum::<usize>()
+            + set_bytes(&self.names_with_read_value_text)
+            + set_bytes(&self.names_read)
+            + set_bytes(&self.names_known_unread)
+    }
+
     /// Forgets the atoms the engine reclaimed, whose numbers may name other names from now on.
     pub(crate) fn forget(&mut self, reclaimed: &[ReclaimedStyleAtom]) {
         if reclaimed.is_empty() {
             return;
         }
         for reclaimed in reclaimed {
-            // The engine names the raw identity of each name the host interned.
-            if reclaimed.raw != 0 {
-                let forgotten = self.names.remove(&reclaimed.raw);
-                debug_assert_eq!(forgotten.map(|(atom, _)| atom), Some(reclaimed.atom));
+            // NB: The engine names the raw identity of every name it reclaimed, whether or not the host interned it.
+            if let Some((atom, _)) = self.names.remove(&reclaimed.raw) {
+                debug_assert_eq!(atom, reclaimed.atom);
             }
         }
         let reclaimed: FastSet<StyleAtomID> = reclaimed.iter().map(|reclaimed| reclaimed.atom).collect();
@@ -65,6 +104,13 @@ impl HostAtoms {
             .retain(|name, _| !reclaimed.contains(name));
         self.names_with_unread_value_text
             .retain(|name| !reclaimed.contains(name));
+        self.names_with_read_value_text.retain(|name| !reclaimed.contains(name));
+        self.withheld_value_texts.retain(|name, values| {
+            values.retain(|value, _| !reclaimed.contains(value));
+            !reclaimed.contains(name) && !values.is_empty()
+        });
+        self.names_read.retain(|name| !reclaimed.contains(name));
+        self.names_known_unread.retain(|name| !reclaimed.contains(name));
         self.generation += 1;
     }
 }
@@ -82,7 +128,7 @@ pub(crate) unsafe fn intern(host: &DocumentHost, raw: usize) -> StyleAtomID {
     // SAFETY: Guaranteed by the caller.
     let (lease, name) = unsafe {
         (
-            AtomLease::acquire_raw(raw),
+            AtomLease::acquire_raw(host.style_atoms(), raw),
             RetainedUtf16FlyString::from_borrowed_raw(raw),
         )
     };
@@ -93,7 +139,7 @@ pub(crate) unsafe fn intern(host: &DocumentHost, raw: usize) -> StyleAtomID {
 
 /// The atom of `name` qualified by `namespace`, which the engine adopts as it does a name's.
 fn intern_qualified(host: &DocumentHost, namespace: StyleAtomID, name: StyleAtomID) -> StyleAtomID {
-    adopt(host, AtomLease::acquire_qualified(namespace, name))
+    adopt(host, AtomLease::acquire_qualified(host.style_atoms(), namespace, name))
 }
 
 /// Queues the engine's adoption of the atom `lease` holds, and answers the atom.
@@ -133,17 +179,15 @@ pub extern "C" fn style_engine_set_element_language(host: &DocumentHost, node: u
             .borrow_mut()
             .languages_with_text
             .insert(StyleAtomID(language));
-    let text: Box<[u16]> = if tag_is_new {
-        text.to_utf16().unwrap_or_default().into()
-    } else {
-        Box::default()
-    };
-    if node != 0 || !text.is_empty() {
-        host.queue_change(ArenaChange::Engine(EngineWrite::ElementLanguage {
-            node,
-            language,
-            text,
-        }));
+    let mut projection = host.engine_memo().projection.borrow_mut();
+    let mut writes = projection.writes();
+    if tag_is_new {
+        // A range is not a name, so `:lang()` compares against the tag itself. It is recorded once per language
+        // rather than once per element.
+        writes.set_language_text(StyleAtomID(language), &text.to_utf16().unwrap_or_default());
+    }
+    if let Some(node) = super::tree::StyleNodeID::from_raw(node) {
+        writes.set_element_language(node, StyleAtomID(language));
     }
 }
 
@@ -214,11 +258,13 @@ pub unsafe extern "C" fn document_host_intern_attribute_name(
     }
     // An attr() reads an attribute in no namespace by its local name.
     let substitution_name = namespace.is_none().then_some(local_name);
-    host.queue_change(ArenaChange::Engine(EngineWrite::AttributeNameForms {
-        name,
-        forms,
-        substitution_name: substitution_name.clone(),
-    }));
+    {
+        let mut projection = host.engine_memo().projection.borrow_mut();
+        projection.note_attribute_name_forms(name, forms);
+        if let Some(local_name) = &substitution_name {
+            projection.note_attribute_substitution_name(name, local_name);
+        }
+    }
     let mut atoms = host.engine_memo().atoms.borrow_mut();
     atoms.published_attribute_names.insert(
         name,
@@ -243,34 +289,38 @@ pub unsafe extern "C" fn document_host_intern_attribute_value(host: &DocumentHos
     // SAFETY: Guaranteed by the caller.
     let atom = unsafe { intern(host, value) };
     let name = StyleAtomID(name);
-    if !value_text_is_known_unread(host, name) {
+    if value_text_is_known_unread(host, name) {
+        // NB: The atom's entry in `names` holds what it spells for as long as the atom lives.
+        host.engine_memo()
+            .atoms
+            .borrow_mut()
+            .withheld_value_texts
+            .entry(name)
+            .or_default()
+            .insert(atom, value);
+    } else {
         // SAFETY: Guaranteed by the caller.
         let text = unsafe { RetainedUtf16FlyString::from_borrowed_raw(value) };
-        host.queue_change(ArenaChange::Engine(EngineWrite::AttributeValueText {
-            name,
-            value: atom,
-            text,
-        }));
+        host.engine_memo()
+            .projection
+            .borrow_mut()
+            .set_attribute_value_text(atom, text);
     }
     atom.0
 }
 
-/// Whether the host knows that nothing reads what the values of the attribute name `name` spell, which spares it the
-/// value's text.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_attribute_value_text_is_known_unread(host: &DocumentHost, name: u32) -> bool {
-    value_text_is_known_unread(host, StyleAtomID(name))
-}
-
 /// Whether the host knows that nothing reads what the values of the attribute name `name` spell: no selector of the
 /// engine, by `name` or the other forms the host published with it, and no `attr()`, by its local name if it has one.
-/// The host knows what the selectors read where it queued no rule since its last job; what `attr()`s read is the
-/// process's. Where it does not know, the host hands the engine each value's text, which the engine keeps only where
+/// The host knows what the selectors read where it queued no rule since its last job, and what `attr()`s read always,
+/// as it hands the engine every declaration. Where it does not know, the host hands the engine each value's text, which the engine keeps only where
 /// something reads it.
 fn value_text_is_known_unread(host: &DocumentHost, name: StyleAtomID) -> bool {
     let atoms = host.engine_memo().atoms.borrow();
     if atoms.names_with_unread_value_text.contains(&name) {
         return true;
+    }
+    if atoms.names_with_read_value_text.contains(&name) {
+        return false;
     }
     // The host interned every name it asks about, with its forms. Where it knows none, it hands the text over.
     let Some(PublishedAttributeName {
@@ -280,18 +330,38 @@ fn value_text_is_known_unread(host: &DocumentHost, name: StyleAtomID) -> bool {
     else {
         return false;
     };
-    let unread = !substitution_name.as_deref().is_some_and(attr_may_read_name)
-        && host.known_selectors_read_value_text_of(&[name, forms.local, forms.folded_name, forms.folded_local])
-            == Some(false);
+    let read_by_attr = substitution_name
+        .as_deref()
+        .is_some_and(|name| atoms.attr_names_read.may_read(name));
+    let read_by_selectors =
+        host.known_selectors_read_value_text_of(&[name, forms.local, forms.folded_name, forms.folded_local]);
     drop(atoms);
+    let mut atoms = host.engine_memo().atoms.borrow_mut();
+    if read_by_attr || read_by_selectors == Some(true) {
+        atoms.names_with_read_value_text.insert(name);
+        return false;
+    }
+    let unread = read_by_selectors == Some(false);
     if unread {
-        host.engine_memo()
-            .atoms
-            .borrow_mut()
-            .names_with_unread_value_text
-            .insert(name);
+        atoms.names_with_unread_value_text.insert(name);
     }
     unread
+}
+
+/// Brings what the host knows of the engine's selectors up to date with the writes it queued, where a rule it queued
+/// since its last job left it not knowing: the host asks the engine, which applies them first.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_learn_selector_requirements(host: &DocumentHost, read: &BegunRead) {
+    if host.known_selectors_test_local_link().is_none() {
+        host.ask(read, |_| ());
+    }
+}
+
+/// Whether the host knows that no selector of the engine tests `:local-link`, which spares it resolving the URL of each
+/// link that arrives.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_local_link_is_known_untested(host: &DocumentHost) -> bool {
+    host.known_selectors_test_local_link() == Some(false)
 }
 
 /// Whether the host knows that nothing of the engine reads the attribute name `name`: no selector tests it, by `name` or
@@ -299,36 +369,201 @@ fn value_text_is_known_unread(host: &DocumentHost, name: StyleAtomID) -> bool {
 /// not know, the host hands the engine each change to the attribute.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_attribute_is_known_unread(host: &DocumentHost, name: u32) -> bool {
-    let atoms = host.engine_memo().atoms.borrow();
+    let name = StyleAtomID(name);
+    // The host knows nothing of the selectors where it queued a rule since its last job.
+    if host
+        .known_selector_attribute_value_text_requirements_version()
+        .is_none()
+    {
+        return false;
+    }
+    let mut atoms = host.engine_memo().atoms.borrow_mut();
+    let attr_generation = atoms.attr_names_read.generation();
+    if atoms.names_read.contains(&name) {
+        return false;
+    }
+    if atoms.names_unread_attr_generation != attr_generation {
+        atoms.names_unread_attr_generation = attr_generation;
+        atoms.names_known_unread.clear();
+    } else if atoms.names_known_unread.contains(&name) {
+        return true;
+    }
     let Some(PublishedAttributeName {
         forms,
         substitution_name,
-    }) = atoms.published_attribute_names.get(&StyleAtomID(name))
+    }) = atoms.published_attribute_names.get(&name)
     else {
         return false;
     };
-    !substitution_name.as_deref().is_some_and(attr_may_read_name)
-        && host.known_selectors_test_attribute(&[StyleAtomID(name), forms.local, forms.folded_name, forms.folded_local])
-            == Some(false)
+    let read = substitution_name
+        .as_deref()
+        .is_some_and(|name| atoms.attr_names_read.may_read(name))
+        || host.known_selectors_test_attribute(&[name, forms.local, forms.folded_name, forms.folded_local])
+            != Some(false);
+    if read {
+        atoms.names_read.insert(name);
+    } else {
+        atoms.names_known_unread.insert(name);
+    }
+    !read
 }
 
-/// Whether the engine's requirements of attribute value text moved since the host last asked, which makes the host ask
-/// again about the names it knew nothing read.
-#[unsafe(no_mangle)]
-pub extern "C" fn document_host_refresh_attribute_value_text_requirements(
-    host: &DocumentHost,
-    read: &BegunRead,
-) -> bool {
-    // The host knows where the requirements are where it queued no rule since its last job.
-    let requirements = match host.known_selector_attribute_value_text_requirements_version() {
-        Some(version) => super::inputs::with_attr_names_read(version),
-        None => with_engine(read, host, |engine| engine.attribute_value_text_requirements_version()),
-    };
-    let mut atoms = host.engine_memo().atoms.borrow_mut();
-    if requirements == atoms.value_text_requirements {
-        return false;
+/// Notes what the `attr()`s of the declarations `change` hands the engine can read. Every write of the host goes through
+/// here on its way into the queue, and the matches name each write, so that a new write holding declarations has to say
+/// so: an `attr()` nothing noted reads an attribute the host never handed over, as if it were absent.
+pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &ArenaChange) {
+    use super::engine_calls::EngineWrite as Engine;
+    use super::rule_writes::RuleWrite as Rule;
+    match change {
+        ArenaChange::Rule(write) => match write {
+            Rule::PublishRules { rules, .. } => {
+                for declarations in rules.iter().filter_map(|rule| rule.declarations.as_ref()) {
+                    note_attr_names_read_by_block(host, declarations);
+                }
+            }
+            Rule::RuleDeclarations {
+                declarations: Some(declarations),
+                ..
+            } => note_attr_names_read_by_block(host, declarations),
+            Rule::RuleDeclarations { declarations: None, .. }
+            | Rule::AddSheet { .. }
+            | Rule::AddUserAgentSheet { .. }
+            | Rule::BeginSheetRulesReplacement(_)
+            | Rule::ReplaceSelectors { .. }
+            | Rule::RemoveRules(_)
+            | Rule::RuleConditions(_)
+            | Rule::LayerOrder { .. } => {}
+        },
+        ArenaChange::Engine(write) => match write {
+            Engine::InlineStyle { data: Some(data), .. } => note_attr_names_read_by_block(host, data),
+            Engine::PresentationalHints { properties, .. } => {
+                note_attr_names_read_by(host, properties.iter().map(|property| &*property.value));
+            }
+            Engine::AnimationEffectDescriptions { effects, .. } => {
+                for effect in effects {
+                    note_attr_names_read_by(host, effect.declared_values());
+                }
+            }
+            Engine::PositionTryRules { row, .. } => {
+                for rule in row.values() {
+                    note_attr_names_read_by_block(host, rule.declarations());
+                }
+            }
+            Engine::InlineStyle { data: None, .. }
+            | Engine::PublishFontFaces { .. }
+            | Engine::ElementCustomPropertyData { .. }
+            | Engine::PseudoElementCustomPropertyData { .. }
+            | Engine::MintStyleNodes(_)
+            | Engine::ElementUniqueNodeIds(_)
+            | Engine::TextArrivals(_)
+            | Engine::EndStyleUpdate { .. }
+            | Engine::Publish(_)
+            | Engine::MoveHover(_)
+            | Engine::ShadowRoot { .. }
+            | Engine::SlotAssignedNodes
+            | Engine::TopLayerMove { .. }
+            | Engine::BoxKindChange { .. }
+            | Engine::RetireTexts(_)
+            | Engine::TreeScopeRoot { .. }
+            | Engine::TextData { .. }
+            | Engine::AdoptAtom(_)
+            | Engine::ParkRandomBaseValues { .. }
+            | Engine::UnparkRandomBaseValues { .. }
+            | Engine::NoteCustomPropertyEnvironment { .. }
+            | Engine::AnimationKeyframes { .. }
+            | Engine::AnimationEffectTimings { .. } => {}
+        },
+        _ => {}
     }
-    atoms.value_text_requirements = requirements;
-    atoms.names_with_unread_value_text.clear();
-    true
+}
+
+/// Moves with every name an `attr()` the host handed the engine can newly read.
+pub(crate) fn attr_names_read_generation(host: &DocumentHost) -> u64 {
+    host.engine_memo().atoms.borrow().attr_names_read.generation()
+}
+
+/// Notes what the `attr()`s of `values`, which the host is handing the engine, can read.
+pub(crate) fn note_attr_names_read_by<'v>(host: &DocumentHost, values: impl Iterator<Item = &'v StyleValueData>) {
+    for value in values {
+        if let Some(unresolved) = super::custom_property_cascade::unresolved_reading_attributes(value) {
+            host.engine_memo()
+                .atoms
+                .borrow_mut()
+                .attr_names_read
+                .note(unresolved.components().as_ref());
+        }
+    }
+}
+
+/// Notes what the `attr()`s of the declarations of `block`, which the host is handing the engine, can read.
+pub(crate) fn note_attr_names_read_by_block(host: &DocumentHost, block: &SharedDeclarationBlock) {
+    note_attr_names_read_by(
+        host,
+        block
+            .properties()
+            .values()
+            .iter()
+            .chain(block.custom_properties().values())
+            .map(|value| &**value),
+    );
+}
+
+/// Notes what the `attr()`s of `values`, tokens the host is handing the engine, can read.
+pub(crate) fn note_attr_names_read_by_tokens(
+    host: &DocumentHost,
+    values: &[crate::css::parser::component_value::ComponentValue],
+) {
+    host.engine_memo().atoms.borrow_mut().attr_names_read.note(values);
+}
+
+/// Forgets which attribute names the host knew nothing reads, once the engine's selectors test other names.
+pub(crate) fn forget_attribute_names_known_unread(host: &DocumentHost) {
+    host.engine_memo().atoms.borrow_mut().names_known_unread.clear();
+}
+
+/// Brings what the host knows of the engine's requirements of attribute value text up to date, and hands the engine
+/// the text of every value the host withheld under a name something reads now: only those values, rather than every attribute
+/// of the document again.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_refresh_attribute_value_text_requirements(host: &DocumentHost, read: &BegunRead) {
+    // The host knows where the requirements are where it queued no rule since its last job.
+    let selector_requirements = match host.known_selector_attribute_value_text_requirements_version() {
+        Some(version) => version,
+        None => with_engine(read, host, |engine| {
+            engine.selector_attribute_value_text_requirements_version()
+        }),
+    };
+    let withheld_names: Vec<StyleAtomID> = {
+        let mut atoms = host.engine_memo().atoms.borrow_mut();
+        let requirements = selector_requirements.wrapping_add(atoms.attr_names_read.generation());
+        if requirements == atoms.value_text_requirements {
+            return;
+        }
+        atoms.value_text_requirements = requirements;
+        atoms.names_with_unread_value_text.clear();
+        atoms.withheld_value_texts.keys().copied().collect()
+    };
+    for name in withheld_names {
+        if value_text_is_known_unread(host, name) {
+            continue;
+        }
+        let texts: Vec<(StyleAtomID, RetainedUtf16FlyString)> = {
+            let mut atoms = host.engine_memo().atoms.borrow_mut();
+            let Some(values) = atoms.withheld_value_texts.remove(&name) else {
+                continue;
+            };
+            values
+                .into_iter()
+                .filter_map(|(value, raw)| {
+                    let (atom, text) = atoms.names.get(&raw)?;
+                    debug_assert_eq!(*atom, value, "a withheld value's atom lives as long as its name entry");
+                    Some((value, text.clone()))
+                })
+                .collect()
+        };
+        let mut projection = host.engine_memo().projection.borrow_mut();
+        for (value, text) in texts {
+            projection.set_attribute_value_text(value, text);
+        }
+    }
 }
