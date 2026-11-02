@@ -18,8 +18,8 @@ public:
         return adopt_ref(*new FunctionStyleValue(move(name), move(value)));
     }
 
-    Utf16FlyString name() const { return css_string_from_rust(&m_value->function.name); }
-    ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->function.value); }
+    Utf16FlyString name() const { return css_string_from_rust(&m_value->function._0->name); }
+    ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->function._0->value); }
 
 private:
     friend class StyleValue;

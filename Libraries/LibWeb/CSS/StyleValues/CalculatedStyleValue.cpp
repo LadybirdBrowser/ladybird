@@ -85,12 +85,12 @@ ValueComparingNonnullRefPtr<CalculatedStyleValue const> CalculatedStyleValue::cr
 
 NumericType CalculatedStyleValue::resolved_type() const
 {
-    return from_ffi_numeric_type(m_value->calculated.resolved_type).release_value();
+    return from_ffi_numeric_type(m_value->calculated._0->resolved_type).release_value();
 }
 
 CalculationContext CalculatedStyleValue::calculation_context() const
 {
-    auto const& data = m_value->calculated;
+    auto const& data = *m_value->calculated._0;
     CalculationContext context;
     if (data.has_percentages_resolve_as)
         context.percentages_resolve_as = static_cast<ValueType>(data.percentages_resolve_as);
@@ -285,7 +285,7 @@ Optional<i32> CalculatedStyleValue::resolve_integer(CalculationResolutionContext
 bool CalculatedStyleValue::contains_percentage() const
 {
     // The Rust mirror answers.
-    return StyleValueFFI::rust_calc_node_contains_percentage(m_value->calculated.rust_calculation.node);
+    return StyleValueFFI::rust_calc_node_contains_percentage(m_value->calculated._0->rust_calculation.node);
 }
 
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-a-math-expression

@@ -12,8 +12,8 @@ namespace Web::CSS {
 ShorthandStyleValue::ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> values)
     : StyleValueWithDefaultOperators(Type::Shorthand, make_shorthand_data(shorthand, sub_properties, values))
 {
-    if (m_value->shorthand.sub_properties.length != m_value->shorthand.values.length) {
-        dbgln("ShorthandStyleValue: sub_properties and values must be the same size! {} != {}", m_value->shorthand.sub_properties.length, m_value->shorthand.values.length);
+    if (m_value->shorthand._0->sub_properties.length != m_value->shorthand._0->values.length()) {
+        dbgln("ShorthandStyleValue: sub_properties and values must be the same size! {} != {}", m_value->shorthand._0->sub_properties.length, m_value->shorthand._0->values.length());
         VERIFY_NOT_REACHED();
     }
 }

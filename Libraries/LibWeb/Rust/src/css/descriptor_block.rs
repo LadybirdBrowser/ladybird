@@ -11,6 +11,7 @@ use crate::css::serialize::{
     SerializationMode, StringUnits, TextSink, serialize_an_identifier, serialize_style_value, sink_into_raw,
 };
 use crate::css::style_value::StyleValueData;
+use crate::css::style_value_arc::StyleValueArc;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::rc::Rc;
@@ -20,12 +21,12 @@ use std::sync::Arc;
 pub(crate) struct DescriptorData {
     pub(crate) name: CssString,
     pub(crate) id: u8,
-    pub(crate) value: Arc<StyleValueData>,
+    pub(crate) value: StyleValueArc,
 }
 
 #[derive(Clone, Default)]
 pub(crate) struct DescriptorBlockData {
-    pub(crate) descriptors: Vec<DescriptorData>,
+    pub(crate) descriptors: crate::css::thin_slice::ThinSlice<DescriptorData>,
 }
 
 const _: () = {
@@ -64,7 +65,7 @@ impl DescriptorData {
         FfiDescriptor {
             name: FfiUtf16View::from_utf16(self.name.units()),
             id: self.id,
-            value: Arc::as_ptr(&self.value).cast(),
+            value: StyleValueArc::as_ptr(&self.value).cast(),
         }
     }
 }
@@ -108,8 +109,8 @@ unsafe fn descriptor_from_view(view: &FfiDescriptor) -> DescriptorData {
     assert!(!view.value.is_null());
     let value = view.value.cast::<StyleValueData>();
     let value = unsafe {
-        Arc::increment_strong_count(value);
-        Arc::from_raw(value)
+        StyleValueArc::increment_strong_count(value);
+        StyleValueArc::from_raw(value)
     };
     DescriptorData {
         name,
@@ -184,7 +185,7 @@ pub extern "C" fn rust_descriptor_block_get(
                             .enumerate()
                             .all(|(index, unit)| *unit == name.code_unit_at(index))))
         })
-        .map_or(std::ptr::null(), |descriptor| Arc::as_ptr(&descriptor.value))
+        .map_or(std::ptr::null(), |descriptor| StyleValueArc::as_ptr(&descriptor.value))
 }
 
 #[unsafe(no_mangle)]
@@ -264,7 +265,7 @@ pub extern "C" fn rust_descriptor_block_external_memory_size(block: &FfiDescript
     if matches!(*block.state.borrow(), DescriptorBlockState::Mutable(_)) {
         size = size.saturating_add(size_of::<DescriptorBlockOwner>());
     }
-    size = size.saturating_add(data.descriptors.capacity().saturating_mul(size_of::<DescriptorData>()));
+    size = size.saturating_add(data.descriptors.heap_bytes());
     for descriptor in &data.descriptors {
         size = size.saturating_add(descriptor.name.units().len().saturating_mul(size_of::<u16>()));
     }
@@ -283,21 +284,23 @@ mod tests {
         let descriptor = |name: &str, value| DescriptorData {
             name: CssString::from_utf16(&name.encode_utf16().collect::<Vec<_>>()),
             id: CUSTOM_DESCRIPTOR_ID,
-            value: Arc::new(StyleValueData::Number { value }),
+            value: StyleValueArc::new(StyleValueData::Number { value }),
         };
         let data = Arc::new(DescriptorBlockData {
-            descriptors: vec![descriptor("--first", 13.0), descriptor("--色", 29.0)],
+            descriptors: [descriptor("--first", 13.0), descriptor("--色", 29.0)]
+                .into_iter()
+                .collect(),
         });
         let snapshot = data.clone();
         std::thread::spawn(move || {
             let mut block = FfiDescriptorBlock::new(data.clone());
             let mut first = data.descriptors[0].view();
-            first.value = Arc::as_ptr(&data.descriptors[1].value).cast();
+            first.value = StyleValueArc::as_ptr(&data.descriptors[1].value).cast();
             assert!(unsafe { rust_descriptor_block_set(&mut block, &first) });
             let second = data.descriptors[1].view();
             assert!(rust_descriptor_block_remove(&mut block, second.id, second.name));
             assert_eq!(block.data().descriptors.len(), 1);
-            assert!(Arc::ptr_eq(
+            assert!(StyleValueArc::ptr_eq(
                 &block.data().descriptors[0].value,
                 &data.descriptors[1].value
             ));

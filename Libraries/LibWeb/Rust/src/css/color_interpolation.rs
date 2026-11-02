@@ -7,13 +7,13 @@
 //! CSS color interpolation over resolved color snapshots.
 
 // Color values use the same thread-confined shared graph as the rest of the style core.
-#![allow(clippy::arc_with_non_send_sync)]
 
-use std::sync::Arc;
+use crate::css::style_value::ColorFunctionPayload;
+use crate::css::style_value_arc::StyleValueArc;
 
 use crate::css::color_conversion;
 use crate::css::color_resolution::make_powerless_hue_missing;
-use crate::css::style_value::{ColorBase, RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::{ColorBase, RetainedStyleValueData, StyleValueBox, StyleValueData};
 use crate::css::value_codes::*;
 
 pub(crate) struct ResolvedColor {
@@ -197,11 +197,11 @@ fn substitute_missing_components(
 }
 
 fn retained_number(value: f32) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: value as f64 }))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value: value as f64 }))
 }
 
 fn retained_none() -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
         keyword: crate::css::style_compute::none_keyword(),
     }))
 }
@@ -239,7 +239,7 @@ fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> Styl
         ),
         _ => (color_type, components, missing),
     };
-    StyleValueData::ColorFunction {
+    StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
         color_base: ColorBase {
             has_color_type: true,
             color_type,
@@ -252,7 +252,7 @@ fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> Styl
         has_name: false,
         name: unsafe { crate::css::style_value::CssString::from_leaked_raw(0) },
         origin_color: RetainedStyleValueData::none(),
-    }
+    }))
 }
 
 // https://drafts.csswg.org/css-color-4/#interpolation

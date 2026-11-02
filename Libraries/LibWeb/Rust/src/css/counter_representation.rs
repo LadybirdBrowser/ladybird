@@ -14,6 +14,7 @@
 use crate::css::css_enums::symbols_type;
 use crate::css::css_string::CssString;
 use crate::css::ffi_support::OwnedArc;
+use crate::css::style_value::CounterStylePayload;
 use crate::css::style_value::StyleValueData;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -252,15 +253,15 @@ pub(crate) fn resolve_counter_style_value(
     tree_scope: u32,
     value: Option<&StyleValueData>,
 ) -> Option<Arc<CounterStyle>> {
-    let Some(StyleValueData::CounterStyle {
+    let Some(StyleValueData::CounterStyle(counter_style_payload)) = value else {
+        return None;
+    };
+    let CounterStylePayload {
         is_symbols,
         name,
         symbols_type,
         symbols,
-    }) = value
-    else {
-        return None;
-    };
+    } = &**counter_style_payload;
     if *is_symbols {
         return Some(symbols_function_counter_style(*symbols_type, symbols.as_slice()));
     }
@@ -1007,15 +1008,16 @@ pub unsafe extern "C" fn rust_list_style_type_depends_on_counter_value(
     match list_style_type {
         // `none`, and a string marker, are the same for every item.
         StyleValueData::Keyword { .. } | StyleValueData::String { .. } => false,
-        StyleValueData::CounterStyle {
-            is_symbols: true,
-            symbols_type,
-            symbols,
-            ..
-        } => symbols_function_counter_style(*symbols_type, symbols.as_slice()).representation_depends_on_value(),
+        StyleValueData::CounterStyle(counter_style) if counter_style.is_symbols => {
+            symbols_function_counter_style(counter_style.symbols_type, counter_style.symbols.as_slice())
+                .representation_depends_on_value()
+        }
         // A name no scope registers counts in decimal.
-        StyleValueData::CounterStyle { name, .. } => RegisteredCounterStyles::lookup(scopes, name.units())
-            .is_none_or(|style| style.representation_depends_on_value()),
+        StyleValueData::CounterStyle(counter_style) => {
+            RegisteredCounterStyles::lookup(scopes, counter_style.name.units())
+                .is_none_or(|style| style.representation_depends_on_value())
+        }
+
         _ => true,
     }
 }

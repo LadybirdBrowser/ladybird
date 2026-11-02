@@ -4,14 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::sync::Arc;
-
 pub use crate::css::ffi_support::FfiStringView;
-use crate::css::ffi_support::{OwnedBox, ascii_lowercase};
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
+use crate::css::ffi_support::OwnedBox;
+use crate::css::ffi_support::ascii_lowercase;
+use crate::css::style::index::StyleAtomID;
 
 pub type SelectorString = crate::css::css_string::CssString;
-pub type SelectorList = Box<[Arc<CompiledSelector>]>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -36,48 +34,51 @@ pub enum NamespaceType {
     Named,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A name with its namespace. The names are process style atoms, which the selector holding them
+/// leases; the atom table gives each its text and its ASCII-lowercase form.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QualifiedName {
     pub namespace_type: NamespaceType,
-    pub namespace: RetainedUtf16FlyString,
-    pub name: RetainedUtf16FlyString,
-    pub lowercase_name: RetainedUtf16FlyString,
+    /// The namespace prefix, for a `Named` namespace, and none otherwise.
+    pub namespace: StyleAtomID,
+    pub name: StyleAtomID,
+    /// Whether `name` is its own ASCII-lowercase form, which a match that folds the name compares as written.
+    pub name_is_ascii_lowercase: bool,
 }
 
 impl QualifiedName {
     #[must_use]
-    pub fn interned_name_identity(&self) -> Option<usize> {
-        self.name.optional_raw()
-    }
-
-    /// HTML elements in HTML documents match tag names case-insensitively, so the lowercase form is
-    /// the identity a tag atom is keyed by.
-    #[must_use]
-    pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
-        self.lowercase_name.optional_raw()
+    pub fn new(namespace_type: NamespaceType, namespace: StyleAtomID, name: StyleAtomID) -> Self {
+        Self {
+            namespace_type,
+            namespace,
+            name,
+            name_is_ascii_lowercase: is_ascii_lowercase_atom(name),
+        }
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// The name of an id or class selector, as a process style atom the selector holding it leases.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct NameSelector {
-    pub name: RetainedUtf16FlyString,
-    /// The ASCII-lowercase name used for quirks-mode id and class matching.
-    pub lowercase_name: RetainedUtf16FlyString,
+    pub name: StyleAtomID,
+    /// Whether `name` is its own ASCII-lowercase form, which a match that folds the name compares as written.
+    pub is_ascii_lowercase: bool,
 }
 
 impl NameSelector {
-    /// The interned identity of this name, for keying an atom table by the same word the DOM side
-    /// compares against.
     #[must_use]
-    pub fn interned_name_identity(&self) -> Option<usize> {
-        self.name.optional_raw()
+    pub fn new(name: StyleAtomID) -> Self {
+        Self {
+            name,
+            is_ascii_lowercase: is_ascii_lowercase_atom(name),
+        }
     }
+}
 
-    /// The interned identity of this name's ASCII-lowercase folding.
-    #[must_use]
-    pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
-        self.lowercase_name.optional_raw()
-    }
+/// Whether the name of `atom` is its own ASCII-lowercase form.
+fn is_ascii_lowercase_atom(atom: StyleAtomID) -> bool {
+    atom.is_none() || crate::css::style::process_atoms().ascii_lowercase(atom) == atom
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,15 +99,6 @@ pub enum AttributeCaseType {
     Default,
     Sensitive,
     Insensitive,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct AttributeSelector {
-    pub match_type: AttributeMatchType,
-    pub qualified_name: QualifiedName,
-    pub value: SelectorString,
-    pub value_identity: RetainedUtf16FlyString,
-    pub case_type: AttributeCaseType,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -169,95 +161,6 @@ fn equals_ascii_case_insensitive(value: &[u16], expected: &[u8]) -> bool {
 
 include!(concat!(env!("OUT_DIR"), "/selector_pseudo_generated.rs"));
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LanguageRange {
-    pub value: SelectorString,
-    pub is_string: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PseudoClassSelector {
-    pub pseudo_class: PseudoClassType,
-    pub an_plus_b_pattern: AnPlusBPattern,
-    pub argument_selector_list: SelectorList,
-    pub languages: Box<[LanguageRange]>,
-    pub direction: Option<Direction>,
-    pub identifier: Option<SelectorString>,
-    pub identifier_identity: RetainedUtf16FlyString,
-    pub identifier_lowercase_identity: RetainedUtf16FlyString,
-    pub levels: Box<[i64]>,
-    pub is_forgiving: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum PseudoElementValue {
-    None,
-    CompoundSelector(Arc<CompiledSelector>),
-    Identifiers(Box<[SelectorString]>),
-    TransitionName(Box<TransitionNameAndClassSelector>),
-}
-
-// https://drafts.csswg.org/css-view-transitions-1/#typedef-pt-name-selector
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum TransitionNameSelector {
-    Universal,
-    Name(SelectorString),
-}
-
-// https://drafts.csswg.org/css-view-transitions-2/#typedef-pt-name-and-class-selector
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TransitionNameAndClassSelector {
-    pub name: Option<TransitionNameSelector>,
-    pub classes: Box<[SelectorString]>,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct PseudoElementSelector {
-    pub pseudo_element: PseudoElementType,
-    pub serialized_name: Option<SelectorString>,
-    pub value: PseudoElementValue,
-    /// The interned identity of each name in `value`, when it holds identifiers, keyed by the same
-    /// word the DOM side compares against.
-    pub identifier_identities: Box<[RetainedUtf16FlyString]>,
-}
-
-// Keep the common ID and class selectors inline without reserving space for the larger payloads.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum SimpleSelector {
-    Universal(Box<QualifiedName>),
-    TagName(Box<QualifiedName>),
-    Id(NameSelector),
-    Class(NameSelector),
-    Attribute(Box<AttributeSelector>),
-    PseudoClass(Box<PseudoClassSelector>),
-    PseudoElement(Box<PseudoElementSelector>),
-    Nesting,
-    Invalid(SelectorString),
-}
-
-// Keep names to three words, plus the selector tag.
-const _: () = assert!(size_of::<SimpleSelector>() <= 4 * size_of::<usize>());
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct CompoundSelector {
-    /// The combinator relating this compound to the compound immediately to its left. The
-    /// leftmost compound therefore has `Combinator::None`.
-    pub combinator: Combinator,
-    pub is_implicit_universal_anchor: bool,
-    pub simple_selectors: Box<[SimpleSelector]>,
-}
-
-/// The immutable representation used by every matching path.
-///
-/// Compounds retain their parsed left-to-right order. Matching starts at the final compound and
-/// follows each compound's combinator toward the beginning of this slice.
-#[derive(Debug, PartialEq, Eq)]
-pub struct CompiledSelector {
-    pub compound_selectors: Box<[CompoundSelector]>,
-    /// The pseudo-element required on the initial match target, if this selector ends in one.
-    pub target_pseudo_element: Option<PseudoElementType>,
-}
-
 /// Selector specificity, compared component by component.
 #[derive(Clone, Copy, Debug, Default, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Specificity {
@@ -277,7 +180,7 @@ impl Specificity {
     }
 
     #[must_use]
-    fn packed(self) -> u32 {
+    pub(in crate::css) fn packed(self) -> u32 {
         (u32::from(self.ids.min(u16::from(u8::MAX))) << 16)
             | (u32::from(self.classes.min(u16::from(u8::MAX))) << 8)
             | u32::from(self.types.min(u16::from(u8::MAX)))
@@ -290,172 +193,22 @@ pub enum SearchTextMatchFilter {
     NotCurrent,
 }
 
-pub fn search_text_match_filter_of_pseudo_class(pseudo_class: &PseudoClassSelector) -> Option<SearchTextMatchFilter> {
-    match pseudo_class.pseudo_class {
-        PseudoClassType::Current => Some(SearchTextMatchFilter::Current),
-        PseudoClassType::Not => {
-            let [argument] = &*pseudo_class.argument_selector_list else {
-                return None;
-            };
-            let [compound] = &*argument.compound_selectors else {
-                return None;
-            };
-            matches!(
-                &*compound.simple_selectors,
-                [SimpleSelector::PseudoClass(inner)] if inner.pseudo_class == PseudoClassType::Current
-            )
-            .then_some(SearchTextMatchFilter::NotCurrent)
-        }
-        _ => None,
-    }
-}
+pub use crate::css::selector_arena::{
+    AttributeSelector, CompoundRef, PseudoClassSelector, PseudoElementSelector, PseudoElementValue, Selector,
+    SelectorListRef, SelectorListView, SelectorRef, SimpleSelector, TransitionNameSelector,
+    search_text_match_filter_of_pseudo_class,
+};
 
-pub fn search_text_match_filter(simple: &SimpleSelector) -> Option<SearchTextMatchFilter> {
-    match simple {
-        SimpleSelector::PseudoClass(pseudo_class) => search_text_match_filter_of_pseudo_class(pseudo_class),
-        _ => None,
-    }
-}
-
-impl CompiledSelector {
-    #[allow(clippy::arc_with_non_send_sync)] // Bound selectors retain document-thread atoms.
-    pub(crate) fn new(compound_selectors: Box<[CompoundSelector]>) -> Arc<Self> {
-        let target_pseudo_element = compound_selectors
-            .last()
-            .and_then(|compound| compound.simple_selectors.first())
-            .and_then(|simple_selector| match simple_selector {
-                SimpleSelector::PseudoElement(selector)
-                    if !matches!(
-                        selector.pseudo_element,
-                        PseudoElementType::Part | PseudoElementType::Slotted
-                    ) =>
-                {
-                    Some(selector.pseudo_element)
-                }
-                _ => None,
-            })
-            .map(|pseudo_element| {
-                let names_current_match = pseudo_element == PseudoElementType::SearchText
-                    && compound_selectors.last().is_some_and(|compound| {
-                        compound
-                            .simple_selectors
-                            .iter()
-                            .any(|simple| search_text_match_filter(simple) == Some(SearchTextMatchFilter::Current))
-                    });
-                if names_current_match {
-                    PseudoElementType::SearchTextCurrent
-                } else {
-                    pseudo_element
-                }
-            });
-
-        Arc::new(Self {
-            compound_selectors,
-            target_pseudo_element,
-        })
-    }
-
-    pub fn styles_every_search_text_match(&self) -> bool {
-        self.target_pseudo_element == Some(PseudoElementType::SearchText)
-            && self.compound_selectors.last().is_some_and(|compound| {
-                compound
-                    .simple_selectors
-                    .iter()
-                    .all(|simple| search_text_match_filter(simple).is_none())
-            })
-    }
-
-    /// https://www.w3.org/TR/selectors-4/#specificity-rules
-    #[must_use]
-    pub fn specificity(&self) -> Specificity {
-        fn greatest_specificity(selectors: &[Arc<CompiledSelector>]) -> Specificity {
-            selectors
-                .iter()
-                .map(|selector| selector.specificity())
-                .max()
-                .unwrap_or_default()
-        }
-
-        let mut specificity = Specificity::default();
-        for compound in &self.compound_selectors {
-            for simple_selector in &compound.simple_selectors {
-                let contribution = match simple_selector {
-                    SimpleSelector::Id(_) => Specificity {
-                        ids: 1,
-                        ..Specificity::default()
-                    },
-                    SimpleSelector::Class(_) | SimpleSelector::Attribute(_) => Specificity {
-                        classes: 1,
-                        ..Specificity::default()
-                    },
-                    SimpleSelector::TagName(_) => Specificity {
-                        types: 1,
-                        ..Specificity::default()
-                    },
-                    SimpleSelector::PseudoClass(pseudo_class) => match pseudo_class.pseudo_class {
-                        PseudoClassType::Has | PseudoClassType::Is | PseudoClassType::Not => {
-                            greatest_specificity(&pseudo_class.argument_selector_list)
-                        }
-                        PseudoClassType::NthChild | PseudoClassType::NthLastChild => Specificity {
-                            classes: 1,
-                            ..Specificity::default()
-                        }
-                        .saturating_add(greatest_specificity(&pseudo_class.argument_selector_list)),
-                        PseudoClassType::Where => Specificity::default(),
-                        PseudoClassType::Host => Specificity {
-                            classes: 1,
-                            ..Specificity::default()
-                        }
-                        .saturating_add(greatest_specificity(&pseudo_class.argument_selector_list)),
-                        _ => Specificity {
-                            classes: 1,
-                            ..Specificity::default()
-                        },
-                    },
-                    SimpleSelector::PseudoElement(pseudo_element) => {
-                        // https://drafts.csswg.org/css-view-transitions-2/#pseudo-element-class-additions
-                        // The specificity of a named view transition pseudo-element selector with a * argument and with
-                        // an empty <pt-class-selector> is zero.
-                        if let PseudoElementValue::TransitionName(argument) = &pseudo_element.value
-                            && argument.name == Some(TransitionNameSelector::Universal)
-                            && argument.classes.is_empty()
-                        {
-                            Specificity::default()
-                        } else {
-                            let pseudo_specificity = Specificity {
-                                types: 1,
-                                ..Specificity::default()
-                            };
-                            match &pseudo_element.value {
-                                PseudoElementValue::CompoundSelector(argument)
-                                    if pseudo_element.pseudo_element == PseudoElementType::Slotted =>
-                                {
-                                    pseudo_specificity.saturating_add(argument.specificity())
-                                }
-                                _ => pseudo_specificity,
-                            }
-                        }
-                    }
-                    SimpleSelector::Universal(_) | SimpleSelector::Nesting | SimpleSelector::Invalid(_) => {
-                        Specificity::default()
-                    }
-                };
-                specificity = specificity.saturating_add(contribution);
-            }
-        }
-        specificity
-    }
-}
-
+/// A parsed selector, as C++ holds one.
 pub struct RustSelector {
-    pub(crate) selector: Arc<CompiledSelector>,
+    pub(crate) selector: SelectorRef,
 }
 
 impl RustSelector {
-    /// The compiled selector, for consumers that translate it rather than match with it.
+    /// The selector, for consumers that translate it rather than match with it.
     #[must_use]
-    pub fn compiled(&self) -> &CompiledSelector {
-        &self.selector
+    pub fn compiled(&self) -> Selector<'_> {
+        self.selector.view()
     }
 }
 
@@ -585,8 +338,7 @@ pub fn language_range_matches_tag<T: Copy + Into<u16>>(language_range: &[u16], l
 // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
 // Attribute selectors on an HTML element in an HTML document must treat the values of attributes
 // with the following names as ASCII case-insensitive:
-pub fn is_ascii_case_insensitive_html_attribute(name: &RetainedUtf16FlyString) -> bool {
-    let name = super::css_tokenizer::TokenizerInput::from(name);
+pub fn is_ascii_case_insensitive_html_attribute(name: &[u16]) -> bool {
     const NAMES: &[&[u8]] = &[
         b"accept",
         b"accept-charset",
@@ -636,11 +388,7 @@ pub fn is_ascii_case_insensitive_html_attribute(name: &RetainedUtf16FlyString) -
         b"vlink",
     ];
     NAMES.iter().any(|candidate| {
-        name.len() == candidate.len()
-            && candidate
-                .iter()
-                .enumerate()
-                .all(|(index, &byte)| name.code_unit_at(index) == u16::from(byte))
+        name.len() == candidate.len() && candidate.iter().zip(name).all(|(&byte, &unit)| unit == u16::from(byte))
     })
 }
 
@@ -657,5 +405,5 @@ pub extern "C" fn rust_selector_destroy(selector: OwnedBox<RustSelector>) {
 pub unsafe extern "C" fn rust_selector_specificity(selector: *const RustSelector) -> u32 {
     assert!(!selector.is_null());
     // SAFETY: The caller guarantees that the selector handle remains valid for this call.
-    unsafe { &(*selector).selector }.specificity().packed()
+    unsafe { &(*selector).selector }.view().specificity().packed()
 }

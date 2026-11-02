@@ -27,7 +27,7 @@ fn visit_rule(
             visit_list(imported.rules(), imported, visit)?;
         }
     } else if rule.rule_type != NativeRuleType::Keyframes
-        && let Some(children) = &rule.children
+        && let Some(children) = rule.children.get()
     {
         visit_list(children, sheet, visit)?;
     }
@@ -133,8 +133,8 @@ mod tests {
         let sheet = sheet("@media all { .一 {} .二 {} } @layer 空; @supports (display: grid) { .三 {} } .四 {}");
         let rules = sheet.rules().materialized_rules();
         let first = &rules[0];
-        let inside = first.children.as_ref().unwrap().materialized_rules()[0].identity;
-        let next = rules[2].children.as_ref().unwrap().materialized_rules()[0].identity;
+        let inside = first.child_rules().unwrap().materialized_rules()[0].identity;
+        let next = rules[2].child_rules().unwrap().materialized_rules()[0].identity;
         let last = rules[3].identity;
         let published = |identity| [inside, next, last].contains(&identity);
         assert_eq!(successor(&sheet, first.identity, published), next);

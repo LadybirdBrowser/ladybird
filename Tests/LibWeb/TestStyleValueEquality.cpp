@@ -18,7 +18,6 @@
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
-#include <LibWeb/CSS/StyleValues/PendingSubstitutionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RustStyleValueHandle.h>
@@ -36,57 +35,6 @@
 // transitions.
 
 namespace Web::CSS {
-
-TEST_CASE(computed_longhand_table_publication_identity_includes_sidecars)
-{
-    auto value = NumberStyleValue::create(1);
-    auto* original = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_set(original, to_underlying(PropertyID::Color), value->rust_style_value_data(), -1);
-
-    auto* copy = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_copy_from(copy, original);
-    ComputedValuesFFI::rust_computed_longhand_table_clear_seeded_state(copy);
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(original);
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(copy);
-    EXPECT(!ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(original, copy));
-    ComputedValuesFFI::rust_computed_longhand_table_release(original);
-    ComputedValuesFFI::rust_computed_longhand_table_release(copy);
-
-    original = ComputedValuesFFI::rust_computed_longhand_table_create();
-    copy = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_metadata(copy)->display_before_box_type_transformation = 1;
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(original);
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(copy);
-    EXPECT(!ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(original, copy));
-    ComputedValuesFFI::rust_computed_longhand_table_release(original);
-    ComputedValuesFFI::rust_computed_longhand_table_release(copy);
-
-    original = ComputedValuesFFI::rust_computed_longhand_table_create();
-    copy = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_metadata(copy)->effective_color_scheme = 1;
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(original);
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(copy);
-    EXPECT(!ComputedValuesFFI::rust_computed_longhand_tables_equal_for_publication(original, copy));
-    ComputedValuesFFI::rust_computed_longhand_table_release(original);
-    ComputedValuesFFI::rust_computed_longhand_table_release(copy);
-}
-
-TEST_CASE(computed_longhand_table_inherited_copy_refreshes_effective_color_scheme)
-{
-    auto* child = ComputedValuesFFI::rust_computed_longhand_table_create();
-    auto* parent = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_metadata(child)->effective_color_scheme = 0;
-    ComputedValuesFFI::rust_computed_longhand_table_metadata(parent)->effective_color_scheme = 1;
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(child);
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(parent);
-
-    auto* inherited = ComputedValuesFFI::rust_computed_longhand_table_create_with_inherited_values(child, parent);
-    EXPECT_EQ(ComputedValuesFFI::rust_computed_longhand_table_metadata(inherited)->effective_color_scheme, 1);
-
-    ComputedValuesFFI::rust_computed_longhand_table_release(child);
-    ComputedValuesFFI::rust_computed_longhand_table_release(parent);
-    ComputedValuesFFI::rust_computed_longhand_table_release(inherited);
-}
 
 static StyleValueFFI::StyleValueData const* create_test_image(StringView url)
 {
@@ -361,20 +309,6 @@ TEST_CASE(rust_font_style_handles_retain_angle_data)
     EXPECT_EQ(angle->to_string(SerializationMode::Normal), "20deg"sv);
 }
 
-TEST_CASE(rust_pending_substitution_handles_retain_shorthand_data)
-{
-    auto shorthand = NumberStyleValue::create(1);
-    auto data = StyleValueFFI::rust_style_value_create_pending_substitution(
-        StyleValueFFI::rust_style_value_retain(shorthand->rust_style_value_data()));
-
-    shorthand = NumberStyleValue::create(2);
-    auto pending = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(pending->is_pending_substitution());
-    RefPtr<StyleValue const> retained_shorthand = pending->as_pending_substitution().original_shorthand_value();
-    pending = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_shorthand->to_string(SerializationMode::Normal), "1"sv);
-}
-
 TEST_CASE(rust_shadow_handles_retain_child_data)
 {
     auto offset_x = LengthStyleValue::create(Length::make_px(1));
@@ -499,7 +433,7 @@ TEST_CASE(rust_color_function_handles_retain_channel_data)
     auto color = StyleValue::adopt_rust_style_value_data(data);
     EXPECT(color->is_color_function());
     auto const* retained_channel_data = static_cast<StyleValueFFI::StyleValueData const*>(
-        color->rust_style_value_data()->color_function.channel_0.pointer);
+        color->rust_style_value_data()->color_function._0->channel_0.pointer);
     auto retained_channel = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(retained_channel_data));
     color = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(retained_channel->to_string(SerializationMode::Normal), "0.1"sv);

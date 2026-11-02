@@ -444,19 +444,20 @@ TEST_CASE(native_declaration_block_specified_order_and_mutation)
 TEST_CASE(native_declaration_block_merges_lists_without_expanding_again)
 {
     auto block = parse_native_declaration_block(u"margin: var(--gap); color: red !important; --色: first; @media all { width: 999px; } margin-left: 7px; color: blue; --色: last"sv);
-    EXPECT_EQ(block.properties().size(), 6u);
-    EXPECT_EQ(block.properties()[0].property_id, PropertyID::Margin);
-    EXPECT_EQ(block.properties()[4].property_id, PropertyID::Color);
-    EXPECT_EQ(block.properties()[4].important, Important::Yes);
-    EXPECT_EQ(block.properties()[5].property_id, PropertyID::MarginLeft);
-    EXPECT_EQ(block.properties()[5].value->to_utf16_string(SerializationMode::Normal), u"7px"sv);
+    // NB: margin-left no longer pends the margin shorthand, so the block drops that declaration.
+    EXPECT_EQ(block.properties().size(), 5u);
+    EXPECT_EQ(block.properties()[0].property_id, PropertyID::MarginTop);
+    EXPECT_EQ(block.properties()[3].property_id, PropertyID::Color);
+    EXPECT_EQ(block.properties()[3].important, Important::Yes);
+    EXPECT_EQ(block.properties()[4].property_id, PropertyID::MarginLeft);
+    EXPECT_EQ(block.properties()[4].value->to_utf16_string(SerializationMode::Normal), u"7px"sv);
     EXPECT_EQ(block.custom_properties().size(), 1u);
     EXPECT_EQ(block.custom_properties().begin()->value.value->to_utf16_string(SerializationMode::Normal), u"last"sv);
 
     auto shared = block.share();
     EXPECT(block.remove(PropertyID::MarginLeft));
-    EXPECT_EQ(block.properties().size(), 5u);
-    EXPECT_EQ(shared.properties()[5].value->to_utf16_string(SerializationMode::Normal), u"7px"sv);
+    EXPECT_EQ(block.properties().size(), 4u);
+    EXPECT_EQ(shared.properties()[4].value->to_utf16_string(SerializationMode::Normal), u"7px"sv);
     EXPECT(parse_native_declaration_block(u"@media all { width: 999px; }"sv).is_empty());
     EXPECT(parse_native_declaration_block(u""sv).is_empty());
 }

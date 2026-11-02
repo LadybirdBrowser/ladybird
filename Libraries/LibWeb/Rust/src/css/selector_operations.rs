@@ -9,12 +9,11 @@
 use std::sync::Arc;
 
 use super::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
-use super::retained_fly_string::RetainedUtf16FlyString;
-use super::selector::{
-    Combinator, CompiledSelector, CompoundSelector, PseudoClassSelector, PseudoClassType, PseudoElementType,
-    PseudoElementValue, RustSelector, SelectorList, SimpleSelector, pseudo_class_from_ffi,
-};
+use super::selector::{Combinator, PseudoClassType, PseudoElementType, RustSelector, pseudo_class_from_ffi};
 use super::selector_parser::StyleNestingParent;
+use super::selector_tree::{
+    CompiledSelector, CompoundSelector, PseudoClassSelector, PseudoElementValue, SelectorList, SimpleSelector,
+};
 
 fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> SimpleSelector {
     SimpleSelector::PseudoClass(Box::new(PseudoClassSelector {
@@ -24,8 +23,7 @@ fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> Simpl
         languages: Box::new([]),
         direction: None,
         identifier: None,
-        identifier_identity: RetainedUtf16FlyString::none(),
-        identifier_lowercase_identity: RetainedUtf16FlyString::none(),
+        identifier_identity: crate::css::style::index::StyleAtomID::NONE,
         levels: Box::new([]),
         is_forgiving: false,
     }))
@@ -39,16 +37,21 @@ fn scope_selector() -> Arc<CompiledSelector> {
     }]))
 }
 
+/// `:where(:scope)`, which matches the scoping root and adds no specificity.
+pub(crate) fn scope_root_anchor() -> SimpleSelector {
+    pseudo_class(PseudoClassType::Where, Box::new([scope_selector()]))
+}
+
 pub(crate) fn scope_root_selector_list() -> SelectorList {
     Box::new([CompiledSelector::new(Box::new([CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
-        simple_selectors: Box::new([pseudo_class(PseudoClassType::Where, Box::new([scope_selector()]))]),
+        simple_selectors: Box::new([scope_root_anchor()]),
     }]))])
 }
 
 pub(crate) fn contains_nesting(selector: &CompiledSelector) -> bool {
-    selector.compound_selectors.iter().any(|compound| {
+    selector.compound_selectors().iter().any(|compound| {
         compound.simple_selectors.iter().any(|simple| match simple {
             SimpleSelector::Nesting => true,
             SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
@@ -63,8 +66,8 @@ pub(crate) fn contains_nesting(selector: &CompiledSelector) -> bool {
     })
 }
 
-fn contains_pseudo_class(selector: &CompiledSelector, expected: PseudoClassType) -> bool {
-    selector.compound_selectors.iter().any(|compound| {
+pub(crate) fn contains_pseudo_class(selector: &CompiledSelector, expected: PseudoClassType) -> bool {
+    selector.compound_selectors().iter().any(|compound| {
         compound.simple_selectors.iter().any(|simple| {
             let SimpleSelector::PseudoClass(pseudo_class) = simple else {
                 return false;
@@ -80,7 +83,7 @@ fn contains_pseudo_class(selector: &CompiledSelector, expected: PseudoClassType)
 
 fn any_simple(selector: &CompiledSelector, predicate: &impl Fn(&SimpleSelector) -> bool) -> bool {
     selector
-        .compound_selectors
+        .compound_selectors()
         .iter()
         .any(|compound| compound.simple_selectors.iter().any(predicate))
 }
@@ -129,7 +132,7 @@ fn contains_named_namespace(selector: &CompiledSelector) -> bool {
     })
 }
 
-fn invalid_for_has(selector: &CompiledSelector) -> bool {
+pub(crate) fn invalid_for_has(selector: &CompiledSelector) -> bool {
     any_simple(selector, &|simple| match simple {
         SimpleSelector::PseudoElement(_) => true,
         SimpleSelector::PseudoClass(pseudo_class) => {
@@ -145,9 +148,9 @@ fn invalid_for_has(selector: &CompiledSelector) -> bool {
 
 fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Option<Arc<CompiledSelector>> {
     if !contains_nesting(selector) {
-        return Some(CompiledSelector::new(selector.compound_selectors.clone()));
+        return Some(CompiledSelector::new(selector.to_compounds()));
     }
-    let mut compounds = selector.compound_selectors.clone();
+    let mut compounds = selector.to_compounds();
     for compound in &mut compounds {
         let mut simples = Vec::with_capacity(compound.simple_selectors.len());
         for simple in &compound.simple_selectors {
@@ -183,13 +186,18 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
 }
 
 pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> Arc<CompiledSelector> {
-    let mut compounds = Vec::with_capacity(selector.compound_selectors.len() + 1);
+    let mut compounds = Vec::with_capacity(selector.compound_selectors().len() + 1);
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
         simple_selectors: Box::new([parent]),
     });
-    compounds.extend(selector.compound_selectors.iter().cloned());
+    compounds.extend(
+        selector
+            .compound_selectors()
+            .iter()
+            .map(|compound| compound.to_compound()),
+    );
     if let Some(second) = compounds.get_mut(1)
         && second.combinator == Combinator::None
     {
@@ -201,10 +209,11 @@ pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -
 /// Whether a selector is a lone universal selector, which every element matches. A query API has
 /// no default namespace, so `*` and `*|*` name the same elements there.
 fn matches_every_element(selector: &CompiledSelector) -> bool {
-    let [compound] = selector.compound_selectors.as_ref() else {
+    let compounds = selector.compound_selectors();
+    let [compound] = compounds.as_slice() else {
         return false;
     };
-    let [SimpleSelector::Universal(name)] = compound.simple_selectors.as_ref() else {
+    let [SimpleSelector::Universal(name)] = compound.simple_selectors else {
         return false;
     };
     matches!(
@@ -222,7 +231,7 @@ fn matches_every_element(selector: &CompiledSelector) -> bool {
 pub unsafe extern "C" fn rust_selector_matches_every_element(selector: *const RustSelector) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        matches_every_element((*selector).compiled())
+        matches_every_element(&(*selector).compiled().to_tree())
     }
 }
 
@@ -232,7 +241,7 @@ pub unsafe extern "C" fn rust_selector_matches_every_element(selector: *const Ru
 pub unsafe extern "C" fn rust_selector_contains_nesting(selector: *const RustSelector) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        contains_nesting((*selector).compiled())
+        contains_nesting(&(*selector).compiled().to_tree())
     }
 }
 
@@ -242,7 +251,7 @@ pub unsafe extern "C" fn rust_selector_contains_nesting(selector: *const RustSel
 pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const RustSelector, value: u8) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        contains_pseudo_class((*selector).compiled(), pseudo_class_from_ffi(value))
+        contains_pseudo_class(&(*selector).compiled().to_tree(), pseudo_class_from_ffi(value))
     }
 }
 
@@ -252,7 +261,7 @@ pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const Ru
 pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const RustSelector) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        contains_named_namespace((*selector).compiled())
+        contains_named_namespace(&(*selector).compiled().to_tree())
     }
 }
 
@@ -266,7 +275,7 @@ pub(crate) fn absolutize_selector_list(
             || (parent == StyleNestingParent::Scope
                 && !matches!(
                     selector
-                        .compound_selectors
+                        .compound_selectors()
                         .first()
                         .map_or(Combinator::None, |compound| compound.combinator),
                     Combinator::None | Combinator::Descendant
@@ -284,7 +293,7 @@ pub(crate) fn absolutize_selector_list(
             .iter()
             .filter_map(|selector| {
                 let first = selector
-                    .compound_selectors
+                    .compound_selectors()
                     .first()
                     .map_or(Combinator::None, |compound| compound.combinator);
                 if contains_nesting(selector) {
@@ -306,7 +315,7 @@ pub(crate) fn adapt_scope_end_selector_list(selectors: &SelectorList) -> Selecto
         .iter()
         .map(|selector| {
             let first = selector
-                .compound_selectors
+                .compound_selectors()
                 .first()
                 .map_or(Combinator::None, |compound| compound.combinator);
             if !matches!(first, Combinator::None | Combinator::Descendant)
@@ -317,7 +326,7 @@ pub(crate) fn adapt_scope_end_selector_list(selectors: &SelectorList) -> Selecto
                     pseudo_class(PseudoClassType::Where, Box::new([scope_selector()])),
                 )
             } else if first == Combinator::Descendant {
-                let mut compounds = selector.compound_selectors.clone();
+                let mut compounds = selector.to_compounds();
                 compounds[0].combinator = Combinator::None;
                 CompiledSelector::new(compounds)
             } else {
@@ -331,8 +340,8 @@ pub(crate) fn adapt_scope_end_selector_list(selectors: &SelectorList) -> Selecto
 mod tests {
     use super::super::css_tokenizer::{TokenizerInput, tokenize_for_parser};
     use super::super::parser::component_value::consume_a_list_of_component_values;
-    use super::super::selector::SelectorList;
     use super::super::selector_parser::{SelectorType, parse_selector_list_from_component_values};
+    use super::super::selector_tree::SelectorList;
     use super::contains_named_namespace;
 
     #[test]
@@ -341,18 +350,25 @@ mod tests {
         use crate::css::selector_parser::StyleNestingParent;
         use crate::css::selector_serialization::serialize_selector_without_namespaces;
 
-        fn parse(source: &str, kind: SelectorType) -> super::SelectorList {
+        // NB: The parsed trees keep their names live, which the results packed from them lease.
+        let trees = std::cell::RefCell::new(Vec::new());
+        let parse = |source: &str, kind: SelectorType| -> super::SelectorList {
             let units: Vec<_> = source.encode_utf16().collect();
             let values = consume_a_list_of_component_values(tokenize_for_parser(units.as_slice())).unwrap();
             let parsed = parse_selector_list_from_component_values(&values, &[], kind).unwrap();
-            parsed.selectors
-        }
+            let selectors = parsed.selectors.clone();
+            trees.borrow_mut().push(parsed);
+            selectors
+        };
         fn text(selectors: super::SelectorList) -> Vec<Vec<u16>> {
             selectors
                 .into_vec()
                 .into_iter()
                 .map(|selector| {
-                    let selector = super::RustSelector { selector };
+                    let list = crate::css::selector::SelectorListRef::pack(&[selector]);
+                    let selector = super::RustSelector {
+                        selector: list.owned().next().unwrap(),
+                    };
                     serialize_selector_without_namespaces(&selector)
                 })
                 .collect()
@@ -403,8 +419,7 @@ mod tests {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         parse_selector_list_from_component_values(&values, &[TokenizerInput::Latin1(b"foo")], SelectorType::Standalone)
             .unwrap()
-            .selectors()
-            .clone()
+            .selectors
     }
 
     #[test]

@@ -7,8 +7,9 @@
 //! CSS selector serialization.
 
 use super::selector::{
-    AnPlusBPattern, AttributeCaseType, AttributeMatchType, Combinator, CompiledSelector, FfiStringView, NamespaceType,
-    PseudoClassParameterType, PseudoElementValue, QualifiedName, RustSelector, SimpleSelector, TransitionNameSelector,
+    AnPlusBPattern, AttributeCaseType, AttributeMatchType, Combinator, FfiStringView, NamespaceType,
+    PseudoClassParameterType, PseudoElementValue, QualifiedName, RustSelector, Selector, SelectorListView,
+    SimpleSelector, TransitionNameSelector,
 };
 use super::serialize::{StringUnits, TextSink, serialize_a_string, serialize_an_identifier};
 
@@ -23,6 +24,13 @@ fn push_units(sink: &mut TextSink, units: &[u16]) {
     }
 }
 
+/// The name `atom` names, which the selector naming it leases.
+fn name_text(atom: crate::css::style::index::StyleAtomID) -> super::retained_fly_string::RetainedUtf16FlyString {
+    crate::css::style::process_atoms()
+        .text(atom)
+        .unwrap_or_else(super::retained_fly_string::RetainedUtf16FlyString::none)
+}
+
 fn serialize_identifier<'a>(sink: &mut TextSink, value: impl Into<super::css_tokenizer::TokenizerInput<'a>>) {
     super::serialize::with_fly_string_units(value, |units| serialize_an_identifier(sink, &units));
 }
@@ -31,7 +39,8 @@ fn maps_to_default(qualified_name: &QualifiedName, context: &NamespaceContext<'_
     context.has_default_namespace
         && qualified_name.namespace_type == NamespaceType::Named
         && context.prefixes_mapping_to_default.iter().any(|prefix| {
-            let namespace = super::css_tokenizer::TokenizerInput::from(&qualified_name.namespace);
+            let namespace = name_text(qualified_name.namespace);
+            let namespace = super::css_tokenizer::TokenizerInput::from(&namespace);
             prefix.len() == namespace.len()
                 && prefix
                     .iter()
@@ -53,7 +62,7 @@ fn serialize_qualified_name(
     context: &NamespaceContext<'_>,
 ) {
     if qualified_name.namespace_type == NamespaceType::Named && !maps_to_default(qualified_name, context) {
-        serialize_identifier(sink, &qualified_name.namespace);
+        serialize_identifier(sink, &name_text(qualified_name.namespace));
         sink.push_ascii("|");
     } else if qualified_name.namespace_type == NamespaceType::Any && context.has_default_namespace {
         sink.push_ascii("*|");
@@ -64,7 +73,7 @@ fn serialize_qualified_name(
     if is_universal {
         sink.push_ascii("*");
     } else {
-        serialize_identifier(sink, &qualified_name.name);
+        serialize_identifier(sink, &name_text(qualified_name.name));
     }
 }
 
@@ -89,11 +98,7 @@ fn serialize_an_plus_b(sink: &mut TextSink, pattern: AnPlusBPattern) {
     }
 }
 
-fn serialize_selector_list(
-    sink: &mut TextSink,
-    selectors: &[std::sync::Arc<CompiledSelector>],
-    context: &NamespaceContext<'_>,
-) {
+fn serialize_selector_list(sink: &mut TextSink, selectors: SelectorListView<'_>, context: &NamespaceContext<'_>) {
     for (index, selector) in selectors.iter().enumerate() {
         if index != 0 {
             sink.push_ascii(", ");
@@ -108,23 +113,23 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
         SimpleSelector::TagName(qualified_name) => serialize_qualified_name(sink, qualified_name, false, context),
         SimpleSelector::Id(name) => {
             sink.push_ascii("#");
-            serialize_identifier(sink, &name.name);
+            serialize_identifier(sink, &name_text(name.name));
         }
         SimpleSelector::Class(name) => {
             sink.push_ascii(".");
-            serialize_identifier(sink, &name.name);
+            serialize_identifier(sink, &name_text(name.name));
         }
         SimpleSelector::Attribute(attribute) => {
             sink.push_ascii("[");
             match attribute.qualified_name.namespace_type {
                 NamespaceType::Named => {
-                    serialize_identifier(sink, &attribute.qualified_name.namespace);
+                    serialize_identifier(sink, &name_text(attribute.qualified_name.namespace));
                     sink.push_ascii("|");
                 }
                 NamespaceType::Any => sink.push_ascii("*|"),
                 NamespaceType::Default | NamespaceType::None => {}
             }
-            serialize_identifier(sink, &attribute.qualified_name.name);
+            serialize_identifier(sink, &name_text(attribute.qualified_name.name));
             if attribute.match_type != AttributeMatchType::HasAttribute {
                 sink.push_ascii(match attribute.match_type {
                     AttributeMatchType::HasAttribute => unreachable!(),
@@ -135,7 +140,7 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                     AttributeMatchType::StartsWithString => "^=",
                     AttributeMatchType::EndsWithString => "$=",
                 });
-                serialize_a_string(sink, &StringUnits::Utf16(&attribute.value));
+                serialize_a_string(sink, &StringUnits::Utf16(attribute.value));
                 match attribute.case_type {
                     AttributeCaseType::Sensitive => sink.push_ascii(" s"),
                     AttributeCaseType::Insensitive => sink.push_ascii(" i"),
@@ -165,17 +170,17 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                     serialize_an_plus_b(sink, pseudo_class.an_plus_b_pattern);
                     if !pseudo_class.argument_selector_list.is_empty() {
                         sink.push_ascii(" of ");
-                        serialize_selector_list(sink, &pseudo_class.argument_selector_list, context);
+                        serialize_selector_list(sink, pseudo_class.argument_selector_list, context);
                     }
                 }
                 PseudoClassParameterType::CompoundSelector
                 | PseudoClassParameterType::ForgivingSelectorList
                 | PseudoClassParameterType::RelativeSelectorList
                 | PseudoClassParameterType::SelectorList => {
-                    serialize_selector_list(sink, &pseudo_class.argument_selector_list, context);
+                    serialize_selector_list(sink, pseudo_class.argument_selector_list, context);
                 }
                 PseudoClassParameterType::Ident => {
-                    serialize_identifier(sink, pseudo_class.identifier.as_ref().unwrap());
+                    serialize_identifier(sink, pseudo_class.identifier.unwrap());
                 }
                 PseudoClassParameterType::LanguageRanges => {
                     for (index, language) in pseudo_class.languages.iter().enumerate() {
@@ -183,9 +188,9 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                             sink.push_ascii(", ");
                         }
                         if language.is_string {
-                            serialize_a_string(sink, &StringUnits::Utf16(&language.value));
+                            serialize_a_string(sink, &StringUnits::Utf16(language.value));
                         } else {
-                            serialize_identifier(sink, &language.value);
+                            serialize_identifier(sink, language.value);
                         }
                     }
                 }
@@ -202,7 +207,7 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
         }
         SimpleSelector::PseudoElement(pseudo_element) => {
             sink.push_ascii("::");
-            if let Some(name) = &pseudo_element.serialized_name {
+            if let Some(name) = pseudo_element.serialized_name {
                 serialize_identifier(sink, name);
             } else {
                 sink.push_ascii(pseudo_element.pseudo_element.name());
@@ -211,7 +216,7 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                 PseudoElementValue::None => {}
                 PseudoElementValue::CompoundSelector(selector) => {
                     sink.push_ascii("(");
-                    serialize_selector(sink, selector, context);
+                    serialize_selector(sink, *selector, context);
                     sink.push_ascii(")");
                 }
                 PseudoElementValue::Identifiers(identifiers) => {
@@ -228,10 +233,10 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                     sink.push_ascii("(");
                     match &argument.name {
                         Some(TransitionNameSelector::Universal) => sink.push_ascii("*"),
-                        Some(TransitionNameSelector::Name(name)) => serialize_identifier(sink, name),
+                        Some(TransitionNameSelector::Name(name)) => serialize_identifier(sink, *name),
                         None => {}
                     }
-                    for class_name in &argument.classes {
+                    for class_name in argument.classes.iter() {
                         sink.push_ascii(".");
                         serialize_identifier(sink, class_name);
                     }
@@ -239,13 +244,13 @@ fn serialize_simple_selector(sink: &mut TextSink, selector: &SimpleSelector, con
                 }
             }
         }
-        SimpleSelector::Nesting => sink.push_ascii("&"),
+        SimpleSelector::Nesting(_) => sink.push_ascii("&"),
         SimpleSelector::Invalid(source) => push_units(sink, source),
     }
 }
 
-fn serialize_selector(sink: &mut TextSink, selector: &CompiledSelector, context: &NamespaceContext<'_>) {
-    if let Some(first) = selector.compound_selectors.first() {
+fn serialize_selector(sink: &mut TextSink, selector: Selector<'_>, context: &NamespaceContext<'_>) {
+    if let Some(first) = selector.compound_selectors().first() {
         sink.push_ascii(match first.combinator {
             Combinator::ImmediateChild => "> ",
             Combinator::NextSibling => "+ ",
@@ -254,21 +259,26 @@ fn serialize_selector(sink: &mut TextSink, selector: &CompiledSelector, context:
             Combinator::None | Combinator::Descendant | Combinator::PseudoElement => "",
         });
     }
-    for (index, compound) in selector.compound_selectors.iter().enumerate() {
+    for (index, compound) in selector.compound_selectors().iter().enumerate() {
         if compound.simple_selectors.len() == 1
-            && let SimpleSelector::Universal(qualified_name) = &compound.simple_selectors[0]
+            && let Some(SimpleSelector::Universal(qualified_name)) = compound.simple_selectors.first()
         {
             let followed_by_pseudo = selector
-                .compound_selectors
+                .compound_selectors()
                 .get(index + 1)
                 .is_some_and(|next| next.combinator == Combinator::PseudoElement);
             if !(compound.is_implicit_universal_anchor
-                || followed_by_pseudo && should_skip_universal(qualified_name, context))
+                || followed_by_pseudo && should_skip_universal(&qualified_name, context))
             {
-                serialize_simple_selector(sink, &compound.simple_selectors[0], context);
+                serialize_simple_selector(
+                    sink,
+                    &compound.simple_selectors.first().expect("one simple selector"),
+                    context,
+                );
             }
         } else {
-            for simple in &compound.simple_selectors {
+            for simple in compound.simple_selectors.iter() {
+                let simple = &simple;
                 if let SimpleSelector::Universal(qualified_name) = simple
                     && (compound.is_implicit_universal_anchor || should_skip_universal(qualified_name, context))
                 {
@@ -277,7 +287,7 @@ fn serialize_selector(sink: &mut TextSink, selector: &CompiledSelector, context:
                 serialize_simple_selector(sink, simple, context);
             }
         }
-        if let Some(next) = selector.compound_selectors.get(index + 1) {
+        if let Some(next) = selector.compound_selectors().get(index + 1) {
             sink.push_ascii(match next.combinator {
                 Combinator::Descendant => " ",
                 Combinator::ImmediateChild => " > ",

@@ -693,10 +693,24 @@ impl PartialEq for ParserSource {
 impl Eq for ParserSource {}
 
 pub(crate) fn tokenize_for_parser<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<ParserToken> {
-    let input = input.into();
+    tokenize_for_parser_with_comments(input.into(), Comments::AsWhitespace)
+}
+
+/// The tokens of `input`, whose comments tokenize as `comments` says.
+pub(crate) fn tokenize_for_parser_with_comments(input: TokenizerInput<'_>, comments: Comments) -> Vec<ParserToken> {
     let mut tokens = Vec::with_capacity(input.len() / 3);
-    ParserTokenFeed::new(input).fill(&mut tokens, usize::MAX);
+    ParserTokenFeed::with_comments(input, comments).fill(&mut tokens, usize::MAX);
     tokens
+}
+
+/// What a comment between two tokens tokenizes as.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Comments {
+    /// A whitespace token, as in text an author wrote, for serializing custom properties as written.
+    AsWhitespace,
+    /// Nothing: in text the engine serialized from tokens, a comment only keeps two tokens apart
+    /// that would otherwise tokenize as one.
+    Separating,
 }
 
 pub(crate) fn tokenize_for_parser_without_source<'a>(input: impl Into<TokenizerInput<'a>>) -> SmallParserTokenList {
@@ -847,8 +861,14 @@ pub(crate) struct ParserTokenFeed {
 
 impl ParserTokenFeed {
     pub(crate) fn new(input: TokenizerInput<'_>) -> Self {
+        Self::with_comments(input, Comments::AsWhitespace)
+    }
+
+    fn with_comments(input: TokenizerInput<'_>, comments: Comments) -> Self {
         let source = Arc::new(SourceStorage::from_input(filter_code_points(input).as_input()));
-        let cursor = Tokenizer::new(source.as_input()).cursor();
+        let mut tokenizer = Tokenizer::new(source.as_input());
+        tokenizer.comments = comments;
+        let cursor = tokenizer.cursor();
         Self {
             source,
             cursor: Some(cursor),
@@ -1028,6 +1048,7 @@ struct Tokenizer<'a> {
     current_code_point: u32,
     position: SourcePosition,
     prev_position: SourcePosition,
+    comments: Comments,
 }
 
 // The state a tokenizer resumes from, at the start of its next token.
@@ -1038,6 +1059,7 @@ struct TokenizerCursor {
     current_code_point: u32,
     position: SourcePosition,
     prev_position: SourcePosition,
+    comments: Comments,
 }
 
 impl<'a> Tokenizer<'a> {
@@ -1049,6 +1071,7 @@ impl<'a> Tokenizer<'a> {
             current_code_point: TOKENIZER_EOF,
             position: SourcePosition::default(),
             prev_position: SourcePosition::default(),
+            comments: Comments::AsWhitespace,
         }
     }
 
@@ -1060,6 +1083,7 @@ impl<'a> Tokenizer<'a> {
             current_code_point: cursor.current_code_point,
             position: cursor.position,
             prev_position: cursor.prev_position,
+            comments: cursor.comments,
         }
     }
 
@@ -1070,6 +1094,7 @@ impl<'a> Tokenizer<'a> {
             current_code_point: self.current_code_point,
             position: self.position,
             prev_position: self.prev_position,
+            comments: self.comments,
         }
     }
 
@@ -1712,7 +1737,7 @@ impl<'a> Tokenizer<'a> {
         // This section describes how to consume a token from a stream of code points.
         // It will return a single token of any type.
 
-        let start_byte_offset = self.current_byte_offset();
+        let mut start_byte_offset = self.current_byte_offset();
 
         // Consume comments.
         self.consume_comments();
@@ -1720,7 +1745,12 @@ impl<'a> Tokenizer<'a> {
         // AD-HOC: Preserve comments as whitespace tokens, for serializing custom properties.
         let after_comments_byte_offset = self.current_byte_offset();
         if after_comments_byte_offset != start_byte_offset {
-            return Token::create(TokenType::Whitespace, start_byte_offset..self.current_byte_offset());
+            match self.comments {
+                Comments::AsWhitespace => {
+                    return Token::create(TokenType::Whitespace, start_byte_offset..self.current_byte_offset());
+                }
+                Comments::Separating => start_byte_offset = after_comments_byte_offset,
+            }
         }
 
         // Consume the next input code point.

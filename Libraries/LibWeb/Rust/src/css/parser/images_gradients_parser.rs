@@ -6,9 +6,11 @@
 
 //! CSS image and gradient parsing, mirroring ValueParsing.cpp and GradientParsing.cpp.
 
-#![allow(clippy::arc_with_non_send_sync)]
-
-use std::sync::Arc;
+use crate::css::style_value::{
+    ConicGradientPayload, ImagePayload, ImageSetPayload, LightDarkPayload, LinearGradientPayload,
+    RadialGradientPayload, RadialSizePayload, StyleValueBox, UrlPayload,
+};
+use crate::css::style_value_arc::StyleValueArc;
 
 use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::ParserTokenKind;
@@ -53,29 +55,29 @@ fn image_resource_context() -> ImageResourceContext {
 }
 
 fn image_from_url(url: StyleValueData) -> Option<StyleValueData> {
-    let StyleValueData::Url {
+    let StyleValueData::Url(url_payload) = url else {
+        return None;
+    };
+    let UrlPayload {
         url,
         url_type,
         modifiers,
-    } = url
-    else {
-        return None;
-    };
-    Some(StyleValueData::Image {
+    } = url_payload.into_inner();
+    Some(StyleValueData::Image(StyleValueBox::new(ImagePayload {
         url,
         url_type,
         url_modifiers: modifiers,
         resource_context: image_resource_context(),
-    })
+    })))
 }
 
 fn image_from_string(string: &[u16]) -> Option<StyleValueData> {
-    Some(StyleValueData::Image {
+    Some(StyleValueData::Image(StyleValueBox::new(ImagePayload {
         url: RetainedString::from_utf16(string)?,
         url_type: 0,
         url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
         resource_context: image_resource_context(),
-    })
+    })))
 }
 
 fn parse_type(_context: &ParseContext, value: &ComponentValue) -> Option<CssString> {
@@ -138,8 +140,10 @@ fn parse_image_set(context: &ParseContext, property: u16, arguments: &[Component
             type_string,
         ));
     }
-    (!options.is_empty()).then(|| StyleValueData::ImageSet {
-        options: RetainedImageSetOptionList::from_retained_elements(options),
+    (!options.is_empty()).then(|| {
+        StyleValueData::ImageSet(StyleValueBox::new(ImageSetPayload {
+            options: RetainedImageSetOptionList::from_retained_elements(options),
+        }))
     })
 }
 
@@ -396,16 +400,18 @@ fn parse_linear_gradient(
         tokens.discard_a_token();
     }
     let (color_stop_list, color_syntax) = parse_color_stop_list(context, property, &mut tokens, false)?;
-    Some(StyleValueData::LinearGradient {
-        has_direction_value: direction_value.is_some(),
-        direction_value: optional_retained(direction_value),
-        side_or_corner,
-        color_stop_list,
-        gradient_type: u8::from(webkit.is_some()),
-        repeating: repeating.is_some(),
-        color_interpolation_method: optional_retained(interpolation_method),
-        color_syntax,
-    })
+    Some(StyleValueData::LinearGradient(StyleValueBox::new(
+        LinearGradientPayload {
+            has_direction_value: direction_value.is_some(),
+            direction_value: optional_retained(direction_value),
+            side_or_corner,
+            color_stop_list,
+            gradient_type: u8::from(webkit.is_some()),
+            repeating: repeating.is_some(),
+            color_interpolation_method: optional_retained(interpolation_method),
+            color_syntax,
+        },
+    )))
 }
 
 // https://drafts.csswg.org/css-images-4/#conic-gradients
@@ -472,18 +478,20 @@ fn parse_conic_gradient(
         tokens.discard_a_token();
     }
     let (color_stop_list, color_syntax) = parse_color_stop_list(context, property, &mut tokens, true)?;
-    Some(StyleValueData::ConicGradient {
-        from_angle: optional_retained(from_angle),
-        position: retained(position.unwrap_or_else(center_position)),
-        color_stop_list,
-        repeating,
-        color_interpolation_method: optional_retained(interpolation_method),
-        color_syntax,
-    })
+    Some(StyleValueData::ConicGradient(StyleValueBox::new(
+        ConicGradientPayload {
+            from_angle: optional_retained(from_angle),
+            position: retained(position.unwrap_or_else(center_position)),
+            color_stop_list,
+            repeating,
+            color_interpolation_method: optional_retained(interpolation_method),
+            color_syntax,
+        },
+    )))
 }
 
 fn default_radial_size() -> StyleValueData {
-    StyleValueData::RadialSize {
+    StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
         component_count: 1,
         is_extent_0: true,
         extent_0: 2,
@@ -491,7 +499,7 @@ fn default_radial_size() -> StyleValueData {
         is_extent_1: false,
         extent_1: 0,
         value_1: RetainedStyleValueData::none(),
-    }
+    }))
 }
 
 fn parse_ending_shape(tokens: &mut TokenStream<'_>) -> Option<u8> {
@@ -514,14 +522,14 @@ fn parse_ending_shape(tokens: &mut TokenStream<'_>) -> Option<u8> {
 }
 
 fn radial_size_shape(size: &StyleValueData) -> Option<(u8, bool)> {
-    let StyleValueData::RadialSize {
+    let StyleValueData::RadialSize(radial_size_payload) = size else {
+        return None;
+    };
+    let RadialSizePayload {
         component_count,
         is_extent_0,
         ..
-    } = size
-    else {
-        return None;
-    };
+    } = &**radial_size_payload;
     Some((*component_count, *is_extent_0))
 }
 
@@ -596,15 +604,17 @@ fn parse_radial_gradient(
         tokens.discard_a_token();
     }
     let (color_stop_list, color_syntax) = parse_color_stop_list(context, property, &mut tokens, false)?;
-    Some(StyleValueData::RadialGradient {
-        ending_shape,
-        size: retained(size),
-        position: retained(position.unwrap_or_else(center_position)),
-        color_stop_list,
-        repeating,
-        color_interpolation_method: optional_retained(interpolation_method),
-        color_syntax,
-    })
+    Some(StyleValueData::RadialGradient(StyleValueBox::new(
+        RadialGradientPayload {
+            ending_shape,
+            size: retained(size),
+            position: retained(position.unwrap_or_else(center_position)),
+            color_stop_list,
+            repeating,
+            color_interpolation_method: optional_retained(interpolation_method),
+            color_syntax,
+        },
+    )))
 }
 
 fn parse_gradient(
@@ -675,7 +685,7 @@ fn parse_light_dark_image(
     if tokens.has_next_token() {
         return None;
     }
-    Some(StyleValueData::LightDark {
+    Some(StyleValueData::LightDark(StyleValueBox::new(LightDarkPayload {
         color_base: crate::css::style_value::ColorBase {
             has_color_type: false,
             color_type: 0,
@@ -683,7 +693,7 @@ fn parse_light_dark_image(
         },
         light: retained(light),
         dark: retained(dark),
-    })
+    })))
 }
 
 pub(crate) fn is_image_function_name(name: &[u16]) -> bool {
@@ -719,7 +729,7 @@ fn parse_image_or_none(context: &ParseContext, property: u16, values: &[Componen
         && let Some(url) = parse_url_value(context, tokens.next_token())
     {
         tokens.discard_a_token();
-        if matches!(&url, StyleValueData::Url { url, .. } if url.is_fragment()) {
+        if matches!(&url, StyleValueData::Url(url) if url.url.is_fragment()) {
             // NB: Preserve the SVG resource path for local mask references.
             url
         } else {
@@ -752,7 +762,7 @@ pub(crate) fn parse_image_property(context: &ParseContext, property: u16, values
         parse_image_or_none(context, property, values)
     };
     parsed.map_or(ParseOutcome::NotHandled, |parsed| {
-        ParseOutcome::Parsed(Arc::new(parsed))
+        ParseOutcome::Parsed(StyleValueArc::new(parsed))
     })
 }
 

@@ -286,7 +286,7 @@ fn find_rule_path(
             find_rule_path(imported.rules(), &imported, identity, path)
         } else {
             rule.children
-                .as_ref()
+                .get()
                 .is_some_and(|children| find_rule_path(children, sheet, identity, path))
         };
         if found {
@@ -356,6 +356,39 @@ pub unsafe extern "C" fn rust_style_sheet_compile(
     publisher.finish();
 }
 
+/// Compile `sheet`, a user agent sheet, into the rules the process keeps, unless the process already did: the documents
+/// of the process read those rather than each recording them.
+///
+/// # Safety
+///
+/// As for rust_style_sheet_compile, which `source`, `environment` and `callbacks` are given to.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_user_agent_style_sheet_publish(
+    sheet: &NativeStyleSheet,
+    source: *const c_void,
+    environment: FfiMediaEnvironment<'_>,
+    callbacks: &NativeCompilationCallbacks,
+) {
+    if crate::render_state::process_style().has_user_agent_sheet(sheet.identity()) {
+        return;
+    }
+    let publisher = Publisher::of_user_agent_sheet();
+    // SAFETY: Guaranteed by the caller.
+    let (host, source) = unsafe { CompilationHost::new(callbacks, source) };
+    // SAFETY: Guaranteed by the caller.
+    let environment = environment.borrow();
+    visit_compilation(
+        sheet,
+        0,
+        NativeCompilationPurpose::Rules,
+        source,
+        environment,
+        host,
+        Some(&publisher),
+    );
+    crate::css::style::rule_writes::publish_user_agent_sheet(sheet.identity(), publisher.into_rules());
+}
+
 /// Update the selectors of a style rule and its native descendants without materializing CSSOM.
 ///
 /// # Safety
@@ -383,7 +416,6 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         purpose: NativeCompilationPurpose::Selectors,
         ..Default::default()
     };
-    let mut target_sheet = sheet;
     let mut target_source = source;
     for entry in &path {
         context = context.within(
@@ -396,7 +428,6 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
         );
         if let Some(imported) = &entry.imported {
             target_source = host.import_source(target_source, entry.rule.identity, imported);
-            target_sheet = imported;
         }
     }
     // Bind each ancestor and descendant once. Traversal inputs keep the new parent binding
@@ -406,7 +437,7 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     while let Some((rule, context)) = pending.pop() {
         let selectors = context.selectors.matching_selectors(RuleRef::Materialized(&rule));
         if has_compiled_children(RuleRef::Materialized(&rule))
-            && let Some(children) = &rule.children
+            && let Some(children) = rule.children.get()
         {
             let nested = context.within(
                 RuleRef::Materialized(&rule),
@@ -434,7 +465,7 @@ pub unsafe extern "C" fn rust_style_sheet_replace_selectors(
     let published = publisher.host().published_rules();
     for (rule, context, selectors) in affected {
         if published.contains(publisher.sheet(), rule.identity) {
-            publisher.replace_selectors(RuleRef::Materialized(&rule), target_sheet, &context, selectors);
+            publisher.replace_selectors(RuleRef::Materialized(&rule), &context, selectors);
             continue;
         }
         // A previously empty selector list may become matchable. Publish that newly active
@@ -569,7 +600,7 @@ mod tests {
         }
         fn materialize(rules: &NativeRuleList) {
             for rule in rules.materialized_rules().iter() {
-                if let Some(children) = &rule.children {
+                if let Some(children) = rule.children.get() {
                     materialize(children);
                 }
             }
@@ -630,7 +661,7 @@ mod tests {
     fn media_at(sheet: &NativeStyleSheet, path: &[usize]) -> MediaList {
         let mut rule = sheet.rules().rule_at(path[0]);
         for &index in &path[1..] {
-            rule = rule.children.as_ref().unwrap().rule_at(index);
+            rule = rule.child_rules().unwrap().rule_at(index);
         }
         match &rule.payload {
             RulePayload::Media { list, .. } | RulePayload::Import { media: list, .. } => list.clone(),
@@ -687,7 +718,7 @@ mod tests {
     fn media_changes_publish_only_affected_subtrees_with_document_local_baselines() {
         let source = sheet(".unaffected {} @media (min-width: 100px) { .affected {} }");
         let unaffected = source.rules().rule_at(0).identity;
-        let affected = source.rules().rule_at(1).children.as_ref().unwrap().rule_at(0).identity;
+        let affected = source.rules().rule_at(1).child_rules().unwrap().rule_at(0).identity;
         let mut first = crate::css::style_sheet::NativeMediaEvaluationState::default();
         let mut second = crate::css::style_sheet::NativeMediaEvaluationState::default();
         with_media_width(150.0, |environment| {
@@ -759,7 +790,7 @@ mod tests {
     fn newly_loaded_imports_publish_conditions_on_the_next_media_evaluation() {
         let source = sheet("@import 'child.css';");
         let child = sheet("@media (min-width: 100px) { .target {} }");
-        let target = child.rules().rule_at(0).children.as_ref().unwrap().rule_at(0).identity;
+        let target = child.rules().rule_at(0).child_rules().unwrap().rule_at(0).identity;
         let mut state = crate::css::style_sheet::NativeMediaEvaluationState::default();
         with_media_width(50.0, |environment| {
             assert!(
@@ -922,7 +953,7 @@ mod tests {
         assert_eq!(source.rules().materialized_rules().len(), 5);
         let imported = source.rules().rule_at(1);
         let outer = source.rules().rule_at(3);
-        let anonymous = outer.children.as_ref().unwrap().rule_at(1);
+        let anonymous = outer.child_rules().unwrap().rule_at(1);
         let name = |rule: &NativeRule| RuleRef::Materialized(rule).internal_layer_name().unwrap().into_owned();
         let imported_name = name(&imported);
         let anonymous_name = name(&anonymous);
@@ -972,23 +1003,39 @@ mod tests {
     }
 
     #[test]
-    fn native_binding_caches_follow_selector_mutation_without_rebinding_scope_limits() {
+    fn selector_edits_bind_nested_selectors_without_rebinding_scope_limits() {
+        use crate::css::selector_arena::{Nesting, NestingContext};
         let source = sheet(".親 { & > .子 {} @scope (& .根) to (.限) {} }");
         let parent = source.rules().rule_at(0);
-        let children = parent.children.as_ref().unwrap();
+        let children = parent.child_rules().unwrap();
         let child = children.rule_at(0);
         let scope = children.rule_at(1);
-        let matching = child.matching_selectors();
-        let start = scope.scope_start_selectors().unwrap();
-        let end = scope.scope_end_selectors().unwrap();
-        assert!(Rc::ptr_eq(&matching, &child.matching_selectors()));
-        assert!(Rc::ptr_eq(&start, &scope.scope_start_selectors().unwrap()));
-        assert!(Rc::ptr_eq(&end, &scope.scope_end_selectors().unwrap()));
+        let parsed_child = child.style_rule().selectors();
+        let parsed_scope = scope.scope();
+        // A parsed sheet's nested selectors name their parent's in the sheet's arena already.
+        let parent_selectors = parent.style_rule().selectors();
+        assert!(
+            parsed_child
+                .selectors
+                .is_nested_in(NestingContext::Rule(&parent_selectors.selectors))
+        );
         let units: Vec<_> = ".新".encode_utf16().collect();
         assert!(parent.set_selector_text(crate::css::css_tokenizer::TokenizerInput::Utf16(&units), None));
-        assert!(!Rc::ptr_eq(&matching, &child.matching_selectors()));
-        assert!(!Rc::ptr_eq(&start, &scope.scope_start_selectors().unwrap()));
-        assert!(Rc::ptr_eq(&end, &scope.scope_end_selectors().unwrap()));
+        let parent_selectors = parent.style_rule().selectors();
+        let edited = NestingContext::Rule(&parent_selectors.selectors);
+        let child_selectors = child.style_rule().selectors();
+        assert!(!std::sync::Arc::ptr_eq(&parsed_child, &child_selectors));
+        assert!(child_selectors.selectors.is_nested_in(edited));
+        let Some(Nesting::Rule(named)) = child_selectors.selectors.view().nesting() else {
+            panic!("the child's `&` names a style rule");
+        };
+        assert_eq!(named.iter().next().unwrap().specificity().classes, 1);
+        let bound_scope = scope.scope();
+        assert!(bound_scope.start.as_ref().unwrap().selectors.is_nested_in(edited));
+        assert!(std::sync::Arc::ptr_eq(
+            parsed_scope.end.as_ref().unwrap(),
+            bound_scope.end.as_ref().unwrap()
+        ));
     }
 
     #[test]
@@ -996,9 +1043,9 @@ mod tests {
         use crate::css::rule::rust_rule_list_clear;
         fn ancestors(rule: &NativeRule) -> Vec<Rc<NativeRule>> {
             let mut result = Vec::new();
-            let mut parent = rule.parent.borrow().upgrade();
+            let mut parent = rule.parent();
             while let Some(ancestor) = parent {
-                parent = ancestor.parent.borrow().upgrade();
+                parent = ancestor.parent();
                 result.push(ancestor);
             }
             result
@@ -1007,9 +1054,9 @@ mod tests {
         let roots = source.rules();
         let leaf = {
             let layer = roots.rule_at(0);
-            let media = layer.children.as_ref().unwrap().rule_at(0);
-            let scope = media.children.as_ref().unwrap().rule_at(0);
-            scope.children.as_ref().unwrap().rule_at(0)
+            let media = layer.child_rules().unwrap().rule_at(0);
+            let scope = media.child_rules().unwrap().rule_at(0);
+            scope.child_rules().unwrap().rule_at(0)
         };
         let destination = roots.rule_at(1);
         let retained = ancestors(&leaf);
@@ -1022,7 +1069,7 @@ mod tests {
         assert_eq!(ancestors(&leaf).len(), 3);
         drop(retained);
         assert!(ancestors(&leaf).is_empty());
-        let children = destination.children.as_ref().unwrap();
+        let children = destination.child_rules().unwrap();
         children.insert(0, leaf.clone());
         let reparented = ancestors(&leaf);
         assert_eq!(reparented.len(), 1);
@@ -1050,11 +1097,11 @@ mod tests {
 
         let media = list.rule_at(0);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before + 1);
-        let children = media.children.as_ref().unwrap();
+        let children = media.child_rules().unwrap();
         let second = children.rule_at(1);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before + 2);
         assert!(Rc::ptr_eq(&second, &children.rule_at(1)));
-        assert_eq!(second.parent.borrow().upgrade().unwrap().identity, media.identity);
+        assert_eq!(second.parent().unwrap().identity, media.identity);
         path.clear();
         assert!(list.find_path(second.identity, &mut path));
         assert_eq!(path, [0, 1]);
@@ -1062,7 +1109,7 @@ mod tests {
 
         let keyframes = list.rule_at(2);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before + 3);
-        let frames = keyframes.children.as_ref().unwrap();
+        let frames = keyframes.child_rules().unwrap();
         let frame = frames.rule_at(1);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before + 4);
         assert!(frames.rules.borrow().is_none());
@@ -1072,10 +1119,10 @@ mod tests {
 
         rust_rule_list_clear(list);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before + 4);
-        assert!(media.parent.borrow().upgrade().is_none());
-        assert!(keyframes.parent.borrow().upgrade().is_none());
-        assert_eq!(second.parent.borrow().upgrade().unwrap().identity, media.identity);
-        assert_eq!(frame.parent.borrow().upgrade().unwrap().identity, keyframes.identity);
+        assert!(media.parent().is_none());
+        assert!(keyframes.parent().is_none());
+        assert_eq!(second.parent().unwrap().identity, media.identity);
+        assert_eq!(frame.parent().unwrap().identity, keyframes.identity);
     }
 
     #[test]
@@ -1086,7 +1133,7 @@ mod tests {
 
         let old = sheet("@media all { .old { color: red; } .unread { color: blue; } } .other { width: 1px; }");
         let media = old.rules().rule_at(0);
-        let child = media.children.as_ref().unwrap().rule_at(0);
+        let child = media.child_rules().unwrap().rule_at(0);
         let replacement = sheet("@media all { .new { color: green; } } .last { width: 2px; }");
         let expected_identity = rust_rule_list_identity_at(replacement.rules(), 0);
         let before = RULE_OWNER_ALLOCATIONS.get();
@@ -1095,12 +1142,12 @@ mod tests {
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before);
         assert!(old.rules().rules.borrow().is_none());
         assert!(replacement.rules().rules.borrow().is_none());
-        assert!(media.parent.borrow().upgrade().is_none());
-        assert_eq!(child.parent.borrow().upgrade().unwrap().identity, media.identity);
+        assert!(media.parent().is_none());
+        assert_eq!(child.parent().unwrap().identity, media.identity);
         let new_media = old.rules().rule_at(0);
         assert_eq!(new_media.identity, expected_identity);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), before + 1);
-        assert!(new_media.children.as_ref().unwrap().rules.borrow().is_none());
+        assert!(new_media.child_rules().unwrap().rules.borrow().is_none());
     }
 
     #[test]
@@ -1264,7 +1311,6 @@ mod tests {
         let add_sheet = |host: &crate::render_state::TestHost| {
             crate::css::style::rule_writes::style_engine_add_sheet(
                 host.host(),
-                1,
                 crate::css::style::bridge::FfiCascadeOrigin::Author,
             )
         };
@@ -1340,7 +1386,10 @@ mod tests {
             .successor(compiled_sheet, &source, import_identity);
         // SAFETY: The test reaches the engine only between the host's calls.
         let engine = unsafe { host.engine().get() };
-        assert_eq!(engine.native_rule_id(next), Some(crate::css::style::program::RuleID(1)));
+        assert_eq!(
+            engine.native_rule_id(next),
+            Some(crate::css::style::pipeline::rule_store::RuleID(1))
+        );
         let imported_host = crate::render_state::TestHost::new();
         let imported_sheet = add_sheet(&imported_host);
         compiled.set(0);
@@ -1378,7 +1427,7 @@ mod tests {
             context: *const c_void,
             _: *const f64,
             count: usize,
-            _: *const crate::css::declaration_block::DeclarationBlockData,
+            _: *const crate::css::declaration_block::DeclarationBlockHeader,
         ) {
             assert_eq!(count, 1);
             let definitions = unsafe { &*context.cast::<Definitions>() };
@@ -1467,11 +1516,11 @@ mod tests {
         // Exposing one nested style rule must not replace the shared compilation path
         // with a document-local graph for its siblings or descendants.
         let layer = source.rules().rule_at(1);
-        let style = layer.children.as_ref().unwrap().rule_at(0);
+        let style = layer.child_rules().unwrap().rule_at(0);
         assert_eq!(RULE_OWNER_ALLOCATIONS.get(), rule_owners + 2);
         assert!(source.rules().rules.borrow().is_none());
-        assert!(layer.children.as_ref().unwrap().rules.borrow().is_none());
-        assert!(style.children.as_ref().unwrap().rules.borrow().is_none());
+        assert!(layer.child_rules().unwrap().rules.borrow().is_none());
+        assert!(style.child_rules().unwrap().rules.borrow().is_none());
         let exposed_host = crate::render_state::TestHost::new();
         let exposed_sheet = add_sheet(&exposed_host);
         let exposed_publication = NativeStylePublication {
@@ -1513,21 +1562,23 @@ mod tests {
     fn traversal_binds_selectors_without_native_parents_or_caches() {
         use crate::css::selector_parser::RustParsedSelectorList;
 
-        fn visit(rule: &NativeRule, inputs: &SelectorInputs, bound: &mut Vec<std::sync::Arc<RustParsedSelectorList>>) {
+        type Bound = (
+            std::sync::Arc<RustParsedSelectorList>,
+            std::sync::Arc<crate::css::style::bridge::BoundScopeChain>,
+        );
+        fn visit(rule: &NativeRule, inputs: &SelectorInputs, bound: &mut Vec<Bound>) {
             // The traversal must supply nesting even when no parent owner can be consulted.
-            *rule.parent.borrow_mut() = Default::default();
+            rule.set_parent(Default::default());
             let selectors = inputs.matching_selectors(RuleRef::Materialized(rule));
             if let Some(selectors) = &selectors {
-                bound.push(selectors.clone());
+                bound.push((selectors.clone(), inputs.scope()));
             }
             let nested = inputs.within(RuleRef::Materialized(rule), selectors, u32::MAX);
-            if let Some(children) = &rule.children {
+            if let Some(children) = rule.children.get() {
                 for child in children.materialized_rules().iter() {
                     visit(child, &nested, bound);
                 }
             }
-            assert!(rule.matching_selectors.borrow().is_none());
-            assert!(rule.scope_end_selectors.borrow().is_none());
         }
 
         let sheet = sheet(
@@ -1543,14 +1594,13 @@ mod tests {
         drop(sheet);
         let specificities: Vec<_> = bound
             .iter()
-            .map(|list| list.selectors[0].specificity().classes)
+            .map(|(list, _)| list.selectors.iter().next().unwrap().specificity().classes)
             .collect();
         assert_eq!(specificities, [1, 1, 0, 0]);
-        assert!(bound.iter().all(|list| {
-            list.selectors
-                .iter()
-                .all(|selector| !crate::css::selector_operations::contains_nesting(selector))
-        }));
+        // A nested rule keeps its `&` as written, naming its parent's selectors in the sheet's arena.
+        assert!(crate::css::selector_operations::contains_nesting(
+            &bound[1].0.selectors.iter().next().unwrap().to_tree()
+        ));
     }
 
     #[test]
@@ -1626,14 +1676,14 @@ mod tests {
         use crate::css::rule::{rust_rule_containing_function, rust_rule_list_clear};
         let sheet = sheet("@function --f() { @media all { result: 1px; } }");
         let function = sheet.rules().materialized_rules()[0].clone();
-        let body = function.children.as_ref().unwrap();
+        let body = function.child_rules().unwrap();
         let group = body
             .materialized_rules()
             .iter()
             .find(|rule| rule.rule_type == NativeRuleType::Media)
             .unwrap()
             .clone();
-        let declarations = group.children.as_ref().unwrap().materialized_rules()[0].clone();
+        let declarations = group.child_rules().unwrap().materialized_rules()[0].clone();
         assert_eq!(rust_rule_containing_function(&function), Rc::as_ptr(&function));
         assert_eq!(rust_rule_containing_function(&group), Rc::as_ptr(&function));
         assert_eq!(rust_rule_containing_function(&declarations), Rc::as_ptr(&function));
@@ -1747,8 +1797,8 @@ mod tests {
     fn selector_replacement_does_not_change_media_match_state() {
         let sheet = sheet("@media all { @scope (.root) { .target { color: red; } } }");
         let media = sheet.rules().materialized_rules()[0].clone();
-        let scope = media.children.as_ref().unwrap().materialized_rules()[0].clone();
-        let target = scope.children.as_ref().unwrap().materialized_rules()[0].identity;
+        let scope = media.child_rules().unwrap().materialized_rules()[0].clone();
+        let target = scope.child_rules().unwrap().materialized_rules()[0].identity;
         let RulePayload::Media { list, .. } = &media.payload else {
             unreachable!()
         };
@@ -1766,7 +1816,7 @@ mod tests {
     fn selector_traversal_preserves_descendant_media_state() {
         let sheet = sheet(".parent { @media all { & .nested { color: red; } } }");
         let parent = sheet.rules().materialized_rules()[0].clone();
-        let media = parent.children.as_ref().unwrap().materialized_rules()[0].clone();
+        let media = parent.child_rules().unwrap().materialized_rules()[0].clone();
         let RulePayload::Media { list, .. } = &media.payload else {
             unreachable!()
         };
@@ -1785,7 +1835,7 @@ mod tests {
         use crate::css::rule::{rust_rule_declarations, rust_rule_list_clear, rust_rule_list_remove};
         let sheet = sheet("@keyframes 色 { from { opacity: 0.25; } to { opacity: 0.75; } }");
         let rule = sheet.rules().materialized_rules()[0].clone();
-        let children = rule.children.as_ref().unwrap();
+        let children = rule.child_rules().unwrap();
         let first = children.materialized_rules()[0].clone();
         assert_eq!(first.declaration_owner_identity(), Some(rule.identity));
         let native = unsafe { Box::from_raw(rust_rule_declarations(&first)) };
@@ -1818,9 +1868,9 @@ mod tests {
         let rules = first.rules();
         let other = second.rules();
         let media = rules.materialized_rules()[1].clone();
-        let children = media.children.as_ref().unwrap();
+        let children = media.child_rules().unwrap();
         let supports = children.materialized_rules()[1].clone();
-        let descendants = supports.children.as_ref().unwrap();
+        let descendants = supports.child_rules().unwrap();
         let target = descendants.materialized_rules()[0].clone();
         let path = |list: &NativeRuleList, identity| {
             let mut path = Vec::new();

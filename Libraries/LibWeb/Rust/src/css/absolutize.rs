@@ -15,10 +15,17 @@
 //! allocations based on pointer equality.
 
 // Style value data allocations are thread-confined, like style_value.rs.
-#![allow(clippy::arc_with_non_send_sync)]
 
+use crate::css::style_value::{
+    BackgroundSizePayload, BorderImageSlicePayload, BorderRadiusPayload, BorderRadiusRectPayload, ColorFunctionPayload,
+    ColorMixPayload, ConicGradientPayload, ContentPayload, CounterDefinitionsPayload, CounterStyleSystemPayload,
+    CursorPayload, EasingPayload, FunctionPayload, GridTrackPlacementPayload, GridTrackSizeListPayload, ImagePayload,
+    ImageSetPayload, LightDarkPayload, LinearGradientPayload, OpenTypeTaggedPayload, PositionPayload,
+    RadialGradientPayload, RadialSizePayload, RandomValueSharingPayload, RatioPayload, RayPayload, RectPayload,
+    ScrollbarColorPayload, ShadowPayload, StyleValueBox, TransformationPayload, UrlPayload,
+};
+use crate::css::style_value_arc::StyleValueArc;
 use std::cell::Cell;
-use std::sync::Arc;
 
 #[cfg(test)]
 mod grid_tests {
@@ -30,7 +37,7 @@ mod grid_tests {
 
     /// Absolutizes against a zeroed length context, handing back the value itself when it is
     /// unchanged.
-    fn absolutize_for_test(value: &StyleValueData) -> Arc<StyleValueData> {
+    fn absolutize_for_test(value: &StyleValueData) -> StyleValueArc {
         // All fields are scalars or nullable pointers.
         let length = FfiLengthResolutionContext::default();
         let context = AbsolutizationContext {
@@ -45,14 +52,14 @@ mod grid_tests {
         };
         match absolutize(value, &context).unwrap() {
             Absolutized::Unchanged => unsafe {
-                Arc::increment_strong_count(value);
-                Arc::from_raw(value)
+                StyleValueArc::increment_strong_count(value);
+                StyleValueArc::from_raw(value)
             },
             Absolutized::Changed(value) => value.into_arc(),
         }
     }
 
-    fn parse(property: u16, source: &str) -> Arc<StyleValueData> {
+    fn parse(property: u16, source: &str) -> StyleValueArc {
         let units: Vec<_> = source.encode_utf16().collect();
         let values = consume_a_list_of_component_values(tokenize_for_parser(TokenizerInput::Utf16(&units))).unwrap();
         // All fields are scalars or nullable pointers.
@@ -130,9 +137,10 @@ mod grid_tests {
             unreachable!();
         };
         let resolved = absolutize_for_test(values.as_slice()[0].data());
-        let StyleValueData::Easing { linear_stops, .. } = &*resolved else {
+        let StyleValueData::Easing(easing_payload) = &*resolved else {
             unreachable!();
         };
+        let EasingPayload { linear_stops, .. } = &**easing_payload;
         let inputs = linear_stops
             .as_slice()
             .iter()
@@ -158,7 +166,7 @@ mod grid_tests {
             let value = parse(property, source);
             let original = crate::css::serialize::serialize_style_value_to_utf16(&value);
             let same = absolutize_for_test(&value);
-            assert!(Arc::ptr_eq(&value, &same));
+            assert!(StyleValueArc::ptr_eq(&value, &same));
             let mut retained = Vec::new();
             let mapped = map_grid_values(&value, &mut |child| {
                 if child.optional_data().is_some() {
@@ -184,7 +192,7 @@ mod grid_tests {
             property_id::GRID_TEMPLATE_COLUMNS,
             "[雪] repeat(2, minmax(10px, 1fr)) [雨]",
         );
-        let resolved = Arc::new(
+        let resolved = StyleValueArc::new(
             map_grid_values(&value, &mut |child| {
                 Some(match child.optional_data() {
                     Some(StyleValueData::Length { value, unit }) => retain_new(StyleValueData::Length {
@@ -196,7 +204,7 @@ mod grid_tests {
             })
             .unwrap(),
         );
-        assert!(!Arc::ptr_eq(&value, &resolved));
+        assert!(!StyleValueArc::ptr_eq(&value, &resolved));
         for (value, expected) in [
             (&value, "[雪] repeat(2, minmax(10px, 1fr)) [雨]"),
             (&resolved, "[雪] repeat(2, minmax(20px, 1fr)) [雨]"),
@@ -258,7 +266,7 @@ pub(crate) enum Absolutized {
 }
 
 fn retain_new(value: StyleValueData) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(value))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(value))
 }
 
 /// Absolutizes one retained child slot. Returns the child for the rebuilt parent, whether any
@@ -292,6 +300,34 @@ fn absolutize_list(
         .collect()
 }
 
+/// The absolutized children of a list, or none where every child is unchanged, allocating only once
+/// one changes.
+fn absolutize_list_if_changed(
+    values: &RetainedStyleValueDataList,
+    context: &AbsolutizationContext,
+) -> Option<Option<Vec<RetainedStyleValueData>>> {
+    let values = values.as_slice();
+    let mut changed: Option<Vec<RetainedStyleValueData>> = None;
+    for (index, child) in values.iter().enumerate() {
+        let absolutized = match child.optional_data() {
+            Some(data) => absolutize(data, context)?,
+            None => Absolutized::Unchanged,
+        };
+        match (absolutized, &mut changed) {
+            (Absolutized::Unchanged, None) => {}
+            (Absolutized::Unchanged, Some(changed)) => changed.push(child.clone_retained()),
+            (Absolutized::Changed(new_child), Some(changed)) => changed.push(new_child),
+            (Absolutized::Changed(new_child), None) => {
+                let mut list = Vec::with_capacity(values.len());
+                list.extend(values[..index].iter().map(RetainedStyleValueData::clone_retained));
+                list.push(new_child);
+                changed = Some(list);
+            }
+        }
+    }
+    Some(changed)
+}
+
 fn zero_px_length() -> StyleValueData {
     StyleValueData::Length {
         value: 0.0,
@@ -312,15 +348,15 @@ fn retained_null() -> RetainedStyleValueData {
 }
 
 fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
-    let StyleValueData::Image {
+    let StyleValueData::Image(image_payload) = value else {
+        return None;
+    };
+    let ImagePayload {
         url,
         url_type,
         url_modifiers,
         resource_context,
-    } = value
-    else {
-        return None;
-    };
+    } = &**image_payload;
     // https://drafts.csswg.org/css-values-4/#local-urls
     // When serializing a url() with the local url flag set, it must serialize as just the fragment.
     if url.is_empty() || url.is_fragment() {
@@ -371,18 +407,20 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
             resource_context.parent_style_sheet_origin_clean,
         ));
 
-    Some(Absolutized::Changed(retain_new(StyleValueData::Image {
-        url: absolutized_url,
-        url_type: *url_type,
-        url_modifiers: url_modifiers.clone(),
-        resource_context: crate::css::style_value::ImageResourceContext {
-            base_url,
-            has_base_url: true,
-            has_parent_style_sheet_origin_clean,
-            parent_style_sheet_origin_clean,
-            should_absolutize_url_for_computed_value,
-        },
-    })))
+    Some(Absolutized::Changed(retain_new(StyleValueData::Image(
+        StyleValueBox::new(ImagePayload {
+            url: absolutized_url,
+            url_type: *url_type,
+            url_modifiers: url_modifiers.clone(),
+            resource_context: crate::css::style_value::ImageResourceContext {
+                base_url,
+                has_base_url: true,
+                has_parent_style_sheet_origin_clean,
+                parent_style_sheet_origin_clean,
+                should_absolutize_url_for_computed_value,
+            },
+        }),
+    ))))
 }
 
 /// The color-resolution input the C++ absolutizers build from a computation context: the
@@ -405,7 +443,7 @@ fn color_resolution_input<'a>(context: &'a AbsolutizationContext) -> ColorResolu
 /// The rgb() function form ColorFunctionStyleValue::create builds for an already-resolved
 /// color: number channels, a number alpha, no name and no origin.
 fn rgb_color_function(r: f64, g: f64, b: f64, alpha: f64, color_syntax: u8) -> StyleValueData {
-    StyleValueData::ColorFunction {
+    StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
         color_base: ColorBase {
             has_color_type: true,
             color_type: crate::css::color_conversion::RGB,
@@ -418,7 +456,7 @@ fn rgb_color_function(r: f64, g: f64, b: f64, alpha: f64, color_syntax: u8) -> S
         has_name: false,
         name: CssString::none(),
         origin_color: retained_null(),
-    }
+    }))
 }
 
 /// The canonical computed form of a fully-resolved legacy sRGB color.
@@ -489,7 +527,7 @@ fn hwb_to_absolutized_rgb(
         let gray = retain_new(StyleValueData::Number {
             value: f64::from((whiteness / (whiteness + blackness) * 255.0).clamp(0.0, 255.0)),
         });
-        return StyleValueData::ColorFunction {
+        return StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
             color_base: ColorBase {
                 has_color_type: true,
                 color_type: crate::css::color_conversion::RGB,
@@ -504,7 +542,7 @@ fn hwb_to_absolutized_rgb(
             has_name: false,
             name: CssString::none(),
             origin_color: retained_null(),
-        };
+        }));
     }
 
     let mut hue = (hue_degrees as f32) % 360.0;
@@ -535,17 +573,17 @@ fn hwb_to_absolutized_rgb(
 /// function with every present component resolved to a number (hues in degrees, other hsl() and hwb()
 /// components in percent, rgb() components from 0 to 255) and alpha clamped to [0, 1].
 fn resolved_srgb_function_components(value: &StyleValueData) -> Option<StyleValueData> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
         channel_2,
         alpha,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     let descriptor = descriptor_for_color_type(color_base.color_type);
     let resolve_channel = |channel: &RetainedStyleValueData, index: usize| -> Option<RetainedStyleValueData> {
         let value = channel.data();
@@ -576,30 +614,32 @@ fn resolved_srgb_function_components(value: &StyleValueData) -> Option<StyleValu
             value: resolve_alpha(value, &EMPTY_INPUT)?,
         }),
     };
-    Some(StyleValueData::ColorFunction {
-        color_base: ColorBase {
-            color_syntax: COLOR_SYNTAX_MODERN,
-            ..*color_base
+    Some(StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: ColorBase {
+                color_syntax: COLOR_SYNTAX_MODERN,
+                ..*color_base
+            },
+            channel_0: resolve_channel(channel_0, 0)?,
+            channel_1: resolve_channel(channel_1, 1)?,
+            channel_2: resolve_channel(channel_2, 2)?,
+            alpha,
+            has_name: false,
+            name: CssString::none(),
+            origin_color: retained_null(),
         },
-        channel_0: resolve_channel(channel_0, 0)?,
-        channel_1: resolve_channel(channel_1, 1)?,
-        channel_2: resolve_channel(channel_2, 2)?,
-        alpha,
-        has_name: false,
-        name: CssString::none(),
-        origin_color: retained_null(),
-    })
+    )))
 }
 
 /// Whether a value is an rgb(), hsl() or hwb() function that is not a relative color.
 fn is_absolute_srgb_function(value: &StyleValueData) -> bool {
-    matches!(value, StyleValueData::ColorFunction { color_base, origin_color, .. }
-        if color_base.has_color_type
+    matches!(value, StyleValueData::ColorFunction(color_function)
+        if color_function.color_base.has_color_type
             && matches!(
-                color_base.color_type,
+                color_function.color_base.color_type,
                 crate::css::color_conversion::RGB | crate::css::color_conversion::HSL | crate::css::color_conversion::HWB
             )
-            && origin_color.optional_data().is_none())
+            && color_function.origin_color.optional_data().is_none())
 }
 
 /// Absolutizes an absolute rgb(), hsl() or hwb() function into the same function with resolved components.
@@ -607,35 +647,40 @@ fn absolutize_srgb_function_keeping_form(
     value: &StyleValueData,
     context: &AbsolutizationContext,
 ) -> Option<StyleValueData> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
         channel_2,
         alpha,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     let mut changed = false;
-    resolved_srgb_function_components(&StyleValueData::ColorFunction {
-        color_base: *color_base,
-        channel_0: absolutize_child(channel_0, context, &mut changed)?,
-        channel_1: absolutize_child(channel_1, context, &mut changed)?,
-        channel_2: absolutize_child(channel_2, context, &mut changed)?,
-        alpha: absolutize_child(alpha, context, &mut changed)?,
-        has_name: false,
-        name: CssString::none(),
-        origin_color: retained_null(),
-    })
+    resolved_srgb_function_components(&StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: *color_base,
+            channel_0: absolutize_child(channel_0, context, &mut changed)?,
+            channel_1: absolutize_child(channel_1, context, &mut changed)?,
+            channel_2: absolutize_child(channel_2, context, &mut changed)?,
+            alpha: absolutize_child(alpha, context, &mut changed)?,
+            has_name: false,
+            name: CssString::none(),
+            origin_color: retained_null(),
+        },
+    )))
 }
 
 /// Port of ColorFunctionStyleValue::absolutized: relative forms recurse their channels, alpha
 /// and origin; HSL and HWB resolve and convert to a legacy rgb() form; every other color
 /// function recurses its channels and alpha.
 fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
@@ -644,10 +689,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         has_name,
         name,
         origin_color,
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     // The C++ absolutization reads the descriptor through the unconditional color type.
     if !color_base.has_color_type {
         return None;
@@ -668,7 +710,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         } else {
             absolutize_child(origin_color, context, &mut changed)?
         };
-        let rebuilt = StyleValueData::ColorFunction {
+        let rebuilt = StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
             color_base: *color_base,
             channel_0: absolutized_c1,
             channel_1: absolutized_c2,
@@ -677,7 +719,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
             has_name: *has_name,
             name: name.clone(),
             origin_color: absolutized_origin,
-        };
+        }));
         // NB: Other properties keep currentcolor unresolved until the element's own color is available.
         if !(context.current_color.is_none() && value_depends_on_current_color(&rebuilt))
             && let Some(resolved) = resolve_relative_form(&rebuilt, &color_resolution_input(context))
@@ -694,7 +736,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
     }
 
     let descriptor = descriptor_for_color_type(color_base.color_type);
-    let rebuilt = StyleValueData::ColorFunction {
+    let rebuilt = StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
         color_base: *color_base,
         channel_0: absolutized_c1,
         channel_1: absolutized_c2,
@@ -703,7 +745,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
         has_name: *has_name,
         name: name.clone(),
         origin_color: retained_null(),
-    };
+    }));
 
     // https://drafts.csswg.org/css-color-4/#css-serialization-of-srgb
     // An sRGB value with missing components keeps its color function, so that those components serialize as
@@ -717,16 +759,16 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
             &rebuilt,
         )?)));
     }
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = &rebuilt else {
+        unreachable!();
+    };
+    let ColorFunctionPayload {
         channel_0: absolutized_c1,
         channel_1: absolutized_c2,
         channel_2: absolutized_c3,
         alpha: absolutized_alpha,
         ..
-    } = &rebuilt
-    else {
-        unreachable!();
-    };
+    } = &**color_function_payload;
 
     if descriptor.absolutizes_to_rgb {
         // https://drafts.csswg.org/css-color-4/#resolving-sRGB-values
@@ -781,15 +823,15 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
 /// When mixing cannot complete, rebuild the color mix around its absolutized parts.
 // https://drafts.csswg.org/css-color-5/#color-mix-result
 fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
-    let StyleValueData::ColorMix {
+    let StyleValueData::ColorMix(color_mix_payload) = value else {
+        return None;
+    };
+    let ColorMixPayload {
         color_interpolation_method,
         colors,
         percentages,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_mix_payload;
 
     let mut percentages_changed = false;
     let absolutized_percentages = absolutize_list(percentages, context, &mut percentages_changed)?;
@@ -820,8 +862,8 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
         .as_slice()
         .iter()
         .map(|color| {
-            if let StyleValueData::ColorFunction { origin_color, .. } = color.data()
-                && origin_color.optional_data().is_some()
+            if let StyleValueData::ColorFunction(color_function_payload) = color.data()
+                && color_function_payload.origin_color.optional_data().is_some()
             {
                 return resolve_relative_form(color.data(), &input);
             }
@@ -866,24 +908,26 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
     if !colors_changed && percentages_match {
         return Some(Absolutized::Unchanged);
     }
-    Some(Absolutized::Changed(retain_new(StyleValueData::ColorMix {
-        color_base: ColorBase {
-            has_color_type: false,
-            color_type: 0,
-            color_syntax: COLOR_SYNTAX_MODERN,
-        },
-        color_interpolation_method: absolutized_method,
-        colors: RetainedStyleValueDataList::from_retained_values(absolutized_colors),
-        percentages: RetainedStyleValueDataList::from_retained_values(
-            specified_percentages
-                .into_iter()
-                .map(|percentage| match percentage {
-                    Some(value) => retain_new(StyleValueData::Percentage { value }),
-                    None => retained_null(),
-                })
-                .collect(),
-        ),
-    })))
+    Some(Absolutized::Changed(retain_new(StyleValueData::ColorMix(
+        StyleValueBox::new(ColorMixPayload {
+            color_base: ColorBase {
+                has_color_type: false,
+                color_type: 0,
+                color_syntax: COLOR_SYNTAX_MODERN,
+            },
+            color_interpolation_method: absolutized_method,
+            colors: RetainedStyleValueDataList::from_retained_values(absolutized_colors),
+            percentages: RetainedStyleValueDataList::from_retained_values(
+                specified_percentages
+                    .into_iter()
+                    .map(|percentage| match percentage {
+                        Some(value) => retain_new(StyleValueData::Percentage { value }),
+                        None => retained_null(),
+                    })
+                    .collect(),
+            ),
+        }),
+    ))))
 }
 
 /// The gradient absolutizers recurse their Rust-owned children and rebuild the retained stop
@@ -912,82 +956,91 @@ fn absolutize_gradient(value: &StyleValueData, context: &AbsolutizationContext) 
         ))
     };
     match value {
-        StyleValueData::LinearGradient {
-            has_direction_value,
-            direction_value,
-            side_or_corner,
-            color_stop_list,
-            gradient_type,
-            repeating,
-            color_interpolation_method,
-            color_syntax,
-        } => {
+        StyleValueData::LinearGradient(linear_gradient_payload) => {
+            let LinearGradientPayload {
+                has_direction_value,
+                direction_value,
+                side_or_corner,
+                color_stop_list,
+                gradient_type,
+                repeating,
+                color_interpolation_method,
+                color_syntax,
+            } = &**linear_gradient_payload;
             let direction_value = absolutize_child(direction_value, context, &mut changed)?;
             let color_stop_list = absolutize_stops(color_stop_list, &mut changed)?;
             let color_interpolation_method = absolutize_child(color_interpolation_method, context, &mut changed)?;
             if changed {
-                Some(Absolutized::Changed(retain_new(StyleValueData::LinearGradient {
-                    has_direction_value: *has_direction_value,
-                    direction_value,
-                    side_or_corner: *side_or_corner,
-                    color_stop_list,
-                    gradient_type: *gradient_type,
-                    repeating: *repeating,
-                    color_interpolation_method,
-                    color_syntax: *color_syntax,
-                })))
+                Some(Absolutized::Changed(retain_new(StyleValueData::LinearGradient(
+                    StyleValueBox::new(LinearGradientPayload {
+                        has_direction_value: *has_direction_value,
+                        direction_value,
+                        side_or_corner: *side_or_corner,
+                        color_stop_list,
+                        gradient_type: *gradient_type,
+                        repeating: *repeating,
+                        color_interpolation_method,
+                        color_syntax: *color_syntax,
+                    }),
+                ))))
             } else {
                 Some(Absolutized::Unchanged)
             }
         }
-        StyleValueData::RadialGradient {
-            ending_shape,
-            size,
-            position,
-            color_stop_list,
-            repeating,
-            color_interpolation_method,
-            color_syntax,
-        } => {
+        StyleValueData::RadialGradient(radial_gradient_payload) => {
+            let RadialGradientPayload {
+                ending_shape,
+                size,
+                position,
+                color_stop_list,
+                repeating,
+                color_interpolation_method,
+                color_syntax,
+            } = &**radial_gradient_payload;
             let size = absolutize_child(size, context, &mut changed)?;
             let position = absolutize_child(position, context, &mut changed)?;
             let color_stop_list = absolutize_stops(color_stop_list, &mut changed)?;
             let color_interpolation_method = absolutize_child(color_interpolation_method, context, &mut changed)?;
             if changed {
-                Some(Absolutized::Changed(retain_new(StyleValueData::RadialGradient {
-                    ending_shape: *ending_shape,
-                    size,
-                    position,
-                    color_stop_list,
-                    repeating: *repeating,
-                    color_interpolation_method,
-                    color_syntax: *color_syntax,
-                })))
+                Some(Absolutized::Changed(retain_new(StyleValueData::RadialGradient(
+                    StyleValueBox::new(RadialGradientPayload {
+                        ending_shape: *ending_shape,
+                        size,
+                        position,
+                        color_stop_list,
+                        repeating: *repeating,
+                        color_interpolation_method,
+                        color_syntax: *color_syntax,
+                    }),
+                ))))
             } else {
                 Some(Absolutized::Unchanged)
             }
         }
-        StyleValueData::ConicGradient {
-            from_angle,
-            position,
-            color_stop_list,
-            repeating,
-            color_interpolation_method,
-            color_syntax,
-        } => {
+        StyleValueData::ConicGradient(conic_gradient_payload) => {
+            let ConicGradientPayload {
+                from_angle,
+                position,
+                color_stop_list,
+                repeating,
+                color_interpolation_method,
+                color_syntax,
+            } = &**conic_gradient_payload;
             let from_angle = absolutize_child(from_angle, context, &mut changed)?;
             let position = absolutize_child(position, context, &mut changed)?;
             let color_stop_list = absolutize_stops(color_stop_list, &mut changed)?;
             let color_interpolation_method = absolutize_child(color_interpolation_method, context, &mut changed)?;
             if changed {
-                Some(Absolutized::Changed(retain_new(StyleValueData::ConicGradient {
-                    from_angle,
-                    position,
-                    color_stop_list,
-                    repeating: *repeating,
-                    color_interpolation_method,
-                    color_syntax: *color_syntax,
-                })))
+                Some(Absolutized::Changed(retain_new(StyleValueData::ConicGradient(
+                    StyleValueBox::new(ConicGradientPayload {
+                        from_angle,
+                        position,
+                        color_stop_list,
+                        repeating: *repeating,
+                        color_interpolation_method,
+                        color_syntax: *color_syntax,
+                    }),
+                ))))
             } else {
                 Some(Absolutized::Unchanged)
             }
@@ -1362,7 +1415,10 @@ fn absolutize_easing(
     value: &StyleValueData,
     resolve: &mut impl FnMut(&RetainedStyleValueData, &mut bool) -> Option<RetainedStyleValueData>,
 ) -> Option<Absolutized> {
-    let StyleValueData::Easing {
+    let StyleValueData::Easing(easing_payload) = value else {
+        return None;
+    };
+    let EasingPayload {
         kind,
         linear_stops,
         x1,
@@ -1372,10 +1428,7 @@ fn absolutize_easing(
         number_of_intervals,
         step_position,
         is_keyword,
-    } = value
-    else {
-        return None;
-    };
+    } = &**easing_payload;
     let mut changed = *is_keyword;
     let mut stops = Vec::with_capacity(linear_stops.as_slice().len());
     for stop in linear_stops.as_slice() {
@@ -1399,17 +1452,19 @@ fn absolutize_easing(
     if !changed {
         return Some(Absolutized::Unchanged);
     }
-    Some(Absolutized::Changed(retain_new(StyleValueData::Easing {
-        kind: *kind,
-        linear_stops: crate::css::style_value::RetainedLinearEasingStopList::from_retained_elements(stops),
-        x1,
-        y1,
-        x2,
-        y2,
-        number_of_intervals,
-        step_position: *step_position,
-        is_keyword: false,
-    })))
+    Some(Absolutized::Changed(retain_new(StyleValueData::Easing(
+        StyleValueBox::new(EasingPayload {
+            kind: *kind,
+            linear_stops: crate::css::style_value::RetainedLinearEasingStopList::from_retained_elements(stops),
+            x1,
+            y1,
+            x2,
+            y2,
+            number_of_intervals,
+            step_position: *step_position,
+            is_keyword: false,
+        }),
+    ))))
 }
 
 /// Absolutizes a grid track entry list, recursing through repeat() entries.
@@ -1445,33 +1500,39 @@ fn map_grid_values(
     map: &mut impl FnMut(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
 ) -> Option<StyleValueData> {
     Some(match value {
-        StyleValueData::GridTrackPlacement {
-            kind,
-            value,
-            has_name,
-            name,
-            implicit_start_name,
-            implicit_end_name,
-        } => StyleValueData::GridTrackPlacement {
-            kind: *kind,
-            value: map(value)?,
-            has_name: *has_name,
-            name: name.clone(),
-            implicit_start_name: implicit_start_name.clone(),
-            implicit_end_name: implicit_end_name.clone(),
-        },
-        StyleValueData::GridTrackSizeList {
-            is_subgrid,
-            preserve_line_name_sets,
-            entries,
-        } => StyleValueData::GridTrackSizeList {
-            is_subgrid: *is_subgrid,
-            preserve_line_name_sets: *preserve_line_name_sets,
-            entries: RetainedGridTrackEntryList::from_retained_entries(map_grid_track_entries(
-                entries.as_slice(),
-                map,
-            )?),
-        },
+        StyleValueData::GridTrackPlacement(grid_track_placement_payload) => {
+            let GridTrackPlacementPayload {
+                kind,
+                value,
+                has_name,
+                name,
+                implicit_start_name,
+                implicit_end_name,
+            } = &**grid_track_placement_payload;
+            StyleValueData::GridTrackPlacement(StyleValueBox::new(GridTrackPlacementPayload {
+                kind: *kind,
+                value: map(value)?,
+                has_name: *has_name,
+                name: name.clone(),
+                implicit_start_name: implicit_start_name.clone(),
+                implicit_end_name: implicit_end_name.clone(),
+            }))
+        }
+        StyleValueData::GridTrackSizeList(grid_track_size_list_payload) => {
+            let GridTrackSizeListPayload {
+                is_subgrid,
+                preserve_line_name_sets,
+                entries,
+            } = &**grid_track_size_list_payload;
+            StyleValueData::GridTrackSizeList(StyleValueBox::new(GridTrackSizeListPayload {
+                is_subgrid: *is_subgrid,
+                preserve_line_name_sets: *preserve_line_name_sets,
+                entries: RetainedGridTrackEntryList::from_retained_entries(map_grid_track_entries(
+                    entries.as_slice(),
+                    map,
+                )?),
+            }))
+        }
         _ => unreachable!(),
     })
 }
@@ -1585,84 +1646,87 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
         }
 
         // Structural values: recurse and rebuild only on change.
-        StyleValueData::Ratio { numerator, denominator } => {
+        StyleValueData::Ratio(ratio_payload) => {
+            let RatioPayload { numerator, denominator } = &**ratio_payload;
             let mut changed = false;
             let numerator = absolutize_child(numerator, context, &mut changed)?;
             let denominator = absolutize_child(denominator, context, &mut changed)?;
-            rebuild!(changed, StyleValueData::Ratio { numerator, denominator })
+            rebuild!(
+                changed,
+                StyleValueData::Ratio(StyleValueBox::new(RatioPayload { numerator, denominator }))
+            )
         }
         StyleValueData::Superellipse { parameter } => {
             let mut changed = false;
             let parameter = absolutize_child(parameter, context, &mut changed)?;
             rebuild!(changed, StyleValueData::Superellipse { parameter })
         }
-        StyleValueData::OpenTypeTagged {
-            mode,
-            tag_name: tag,
-            packed_tag,
-            value,
-        } => {
+        StyleValueData::OpenTypeTagged(open_type_tagged_payload) => {
+            let OpenTypeTaggedPayload {
+                mode,
+                tag_name: tag,
+                packed_tag,
+                value,
+            } = &**open_type_tagged_payload;
             let mut changed = false;
             let value = absolutize_child(value, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::OpenTypeTagged {
+                StyleValueData::OpenTypeTagged(StyleValueBox::new(OpenTypeTaggedPayload {
                     mode: *mode,
                     tag_name: tag.clone(),
                     packed_tag: *packed_tag,
                     value,
-                }
+                }))
             )
         }
-        StyleValueData::Function { name, value } => {
+        StyleValueData::Function(function_payload) => {
+            let FunctionPayload { name, value } = &**function_payload;
             let mut changed = false;
             let value = absolutize_child(value, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::Function {
+                StyleValueData::Function(StyleValueBox::new(FunctionPayload {
                     name: name.clone(),
                     value,
-                }
+                }))
             )
         }
-        StyleValueData::Tuple { values } => {
-            let mut changed = false;
-            let values = absolutize_list(values, context, &mut changed)?;
-            rebuild!(
-                changed,
-                StyleValueData::Tuple {
-                    values: RetainedStyleValueDataList::from_retained_values(values),
-                }
-            )
-        }
+        StyleValueData::Tuple { values } => Some(match absolutize_list_if_changed(values, context)? {
+            None => Absolutized::Unchanged,
+            Some(values) => Absolutized::Changed(retain_new(StyleValueData::Tuple {
+                values: RetainedStyleValueDataList::from_retained_values(values),
+            })),
+        }),
         StyleValueData::ValueList {
             values,
             separator,
             collapsible,
-        } => {
-            let mut changed = false;
-            let values = absolutize_list(values, context, &mut changed)?;
-            rebuild!(
-                changed,
-                StyleValueData::ValueList {
-                    values: RetainedStyleValueDataList::from_retained_values(values),
-                    separator: *separator,
-                    collapsible: *collapsible,
-                }
-            )
-        }
-        StyleValueData::Content { content, alt_text } => {
+        } => Some(match absolutize_list_if_changed(values, context)? {
+            None => Absolutized::Unchanged,
+            Some(values) => Absolutized::Changed(retain_new(StyleValueData::ValueList {
+                values: RetainedStyleValueDataList::from_retained_values(values),
+                separator: *separator,
+                collapsible: *collapsible,
+            })),
+        }),
+        StyleValueData::Content(content_payload) => {
+            let ContentPayload { content, alt_text } = &**content_payload;
             let mut changed = false;
             let content = absolutize_child(content, context, &mut changed)?;
             let alt_text = absolutize_child(alt_text, context, &mut changed)?;
-            rebuild!(changed, StyleValueData::Content { content, alt_text })
+            rebuild!(
+                changed,
+                StyleValueData::Content(StyleValueBox::new(ContentPayload { content, alt_text }))
+            )
         }
-        StyleValueData::Rect {
-            top,
-            right,
-            bottom,
-            left,
-        } => {
+        StyleValueData::Rect(rect_payload) => {
+            let RectPayload {
+                top,
+                right,
+                bottom,
+                left,
+            } = &**rect_payload;
             let mut changed = false;
             let top = absolutize_child(top, context, &mut changed)?;
             let right = absolutize_child(right, context, &mut changed)?;
@@ -1670,21 +1734,22 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             let left = absolutize_child(left, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::Rect {
+                StyleValueData::Rect(StyleValueBox::new(RectPayload {
                     top,
                     right,
                     bottom,
                     left
-                }
+                }))
             )
         }
-        StyleValueData::BorderImageSlice {
-            top,
-            right,
-            bottom,
-            left,
-            fill,
-        } => {
+        StyleValueData::BorderImageSlice(border_image_slice_payload) => {
+            let BorderImageSlicePayload {
+                top,
+                right,
+                bottom,
+                left,
+                fill,
+            } = &**border_image_slice_payload;
             let mut changed = false;
             let top = absolutize_child(top, context, &mut changed)?;
             let right = absolutize_child(right, context, &mut changed)?;
@@ -1692,38 +1757,40 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             let left = absolutize_child(left, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::BorderImageSlice {
+                StyleValueData::BorderImageSlice(StyleValueBox::new(BorderImageSlicePayload {
                     top,
                     right,
                     bottom,
                     left,
                     fill: *fill,
-                }
+                }))
             )
         }
-        StyleValueData::BorderRadius {
-            is_elliptical,
-            horizontal_radius,
-            vertical_radius,
-        } => {
+        StyleValueData::BorderRadius(border_radius_payload) => {
+            let BorderRadiusPayload {
+                is_elliptical,
+                horizontal_radius,
+                vertical_radius,
+            } = &**border_radius_payload;
             let mut changed = false;
             let horizontal_radius = absolutize_child(horizontal_radius, context, &mut changed)?;
             let vertical_radius = absolutize_child(vertical_radius, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::BorderRadius {
+                StyleValueData::BorderRadius(StyleValueBox::new(BorderRadiusPayload {
                     is_elliptical: *is_elliptical,
                     horizontal_radius,
                     vertical_radius,
-                }
+                }))
             )
         }
-        StyleValueData::BorderRadiusRect {
-            top_left,
-            top_right,
-            bottom_right,
-            bottom_left,
-        } => {
+        StyleValueData::BorderRadiusRect(border_radius_rect_payload) => {
+            let BorderRadiusRectPayload {
+                top_left,
+                top_right,
+                bottom_right,
+                bottom_left,
+            } = &**border_radius_rect_payload;
             let mut changed = false;
             let top_left = absolutize_child(top_left, context, &mut changed)?;
             let top_right = absolutize_child(top_right, context, &mut changed)?;
@@ -1731,44 +1798,50 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             let bottom_left = absolutize_child(bottom_left, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::BorderRadiusRect {
+                StyleValueData::BorderRadiusRect(StyleValueBox::new(BorderRadiusRectPayload {
                     top_left,
                     top_right,
                     bottom_right,
                     bottom_left,
-                }
+                }))
             )
         }
-        StyleValueData::BackgroundSize { size_x, size_y } => {
+        StyleValueData::BackgroundSize(background_size_payload) => {
+            let BackgroundSizePayload { size_x, size_y } = &**background_size_payload;
             let mut changed = false;
             let size_x = absolutize_child(size_x, context, &mut changed)?;
             let size_y = absolutize_child(size_y, context, &mut changed)?;
-            rebuild!(changed, StyleValueData::BackgroundSize { size_x, size_y })
+            rebuild!(
+                changed,
+                StyleValueData::BackgroundSize(StyleValueBox::new(BackgroundSizePayload { size_x, size_y }))
+            )
         }
-        StyleValueData::ScrollbarColor {
-            thumb_color,
-            track_color,
-        } => {
+        StyleValueData::ScrollbarColor(scrollbar_color_payload) => {
+            let ScrollbarColorPayload {
+                thumb_color,
+                track_color,
+            } = &**scrollbar_color_payload;
             let mut changed = false;
             let thumb_color = absolutize_child(thumb_color, context, &mut changed)?;
             let track_color = absolutize_child(track_color, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::ScrollbarColor {
+                StyleValueData::ScrollbarColor(StyleValueBox::new(ScrollbarColorPayload {
                     thumb_color,
                     track_color
-                }
+                }))
             )
         }
-        StyleValueData::Shadow {
-            shadow_type,
-            color,
-            offset_x,
-            offset_y,
-            blur_radius,
-            spread_distance,
-            placement,
-        } => {
+        StyleValueData::Shadow(shadow_payload) => {
+            let ShadowPayload {
+                shadow_type,
+                color,
+                offset_x,
+                offset_y,
+                blur_radius,
+                spread_distance,
+                placement,
+            } = &**shadow_payload;
             // The C++ absolutization reads through the defaulting accessors, so absent color,
             // blur and spread slots materialize as currentcolor and zero lengths.
             let mut changed = false;
@@ -1779,7 +1852,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             let spread_distance = absolutize_defaulted_child(spread_distance, zero_px_length, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::Shadow {
+                StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
                     shadow_type: *shadow_type,
                     color,
                     offset_x,
@@ -1787,7 +1860,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                     blur_radius,
                     spread_distance,
                     placement: *placement,
-                }
+                }))
             )
         }
         StyleValueData::FontStyle {
@@ -1836,21 +1909,22 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             )
         }
-        StyleValueData::RadialSize {
-            component_count,
-            is_extent_0,
-            extent_0,
-            value_0,
-            is_extent_1,
-            extent_1,
-            value_1,
-        } => {
+        StyleValueData::RadialSize(radial_size_payload) => {
+            let RadialSizePayload {
+                component_count,
+                is_extent_0,
+                extent_0,
+                value_0,
+                is_extent_1,
+                extent_1,
+                value_1,
+            } = &**radial_size_payload;
             let mut changed = false;
             let value_0 = absolutize_child(value_0, context, &mut changed)?;
             let value_1 = absolutize_child(value_1, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::RadialSize {
+                StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
                     component_count: *component_count,
                     is_extent_0: *is_extent_0,
                     extent_0: *extent_0,
@@ -1858,16 +1932,17 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                     is_extent_1: *is_extent_1,
                     extent_1: *extent_1,
                     value_1,
-                }
+                }))
             )
         }
-        StyleValueData::Transformation {
-            property,
-            transform_function,
-            values: original_values,
-            matrix_values,
-            ..
-        } => {
+        StyleValueData::Transformation(transformation_payload) => {
+            let TransformationPayload {
+                property,
+                transform_function,
+                values: original_values,
+                matrix_values,
+                ..
+            } = &**transformation_payload;
             let mut changed = false;
             let mut values = absolutize_list(original_values, context, &mut changed)?;
             // https://drafts.csswg.org/css-viewport/#zoom-property
@@ -1917,12 +1992,12 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             changed |= retained_matrix_values != *matrix_values;
             rebuild!(
                 changed,
-                StyleValueData::Transformation {
+                StyleValueData::Transformation(StyleValueBox::new(TransformationPayload {
                     property: *property,
                     transform_function: *transform_function,
                     values: RetainedStyleValueDataList::from_retained_values(values),
                     matrix_values: retained_matrix_values,
-                }
+                }))
             )
         }
         StyleValueData::Filter {
@@ -1953,7 +2028,10 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             // drop-shadow hand-rolls its shadow absolutization in C++: color and blur
             // materialize their defaults, but spread stays absent.
             let value = if *kind == 1 {
-                let Some(StyleValueData::Shadow {
+                let Some(StyleValueData::Shadow(shadow_payload)) = value.optional_data() else {
+                    return None;
+                };
+                let ShadowPayload {
                     shadow_type,
                     color,
                     offset_x,
@@ -1961,16 +2039,13 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                     blur_radius,
                     spread_distance,
                     placement,
-                }) = value.optional_data()
-                else {
-                    return None;
-                };
+                } = &**shadow_payload;
                 let color = absolutize_defaulted_child(color, currentcolor_keyword, context, &mut changed)?;
                 let offset_x = absolutize_child(offset_x, context, &mut changed)?;
                 let offset_y = absolutize_child(offset_y, context, &mut changed)?;
                 let blur_radius = absolutize_defaulted_child(blur_radius, zero_px_length, context, &mut changed)?;
                 if changed {
-                    retain_new(StyleValueData::Shadow {
+                    retain_new(StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
                         shadow_type: *shadow_type,
                         color,
                         offset_x,
@@ -1978,7 +2053,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                         blur_radius,
                         spread_distance: spread_distance.clone_retained(),
                         placement: *placement,
-                    })
+                    })))
                 } else {
                     value.clone_retained()
                 }
@@ -2041,47 +2116,57 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 Some(absolutized) => Some(Absolutized::Changed(retain_new(absolutized))),
             }
         }
-        StyleValueData::Position { edge_x, edge_y } => {
+        StyleValueData::Position(position_payload) => {
+            let PositionPayload { edge_x, edge_y } = &**position_payload;
             let mut changed = false;
             let edge_x = absolutize_child(edge_x, context, &mut changed)?;
             let edge_y = absolutize_child(edge_y, context, &mut changed)?;
-            rebuild!(changed, StyleValueData::Position { edge_x, edge_y })
+            rebuild!(
+                changed,
+                StyleValueData::Position(StyleValueBox::new(PositionPayload { edge_x, edge_y }))
+            )
         }
 
         StyleValueData::BasicShape { .. } => {
             absolutize_basic_shape(value, &mut |child, changed| absolutize_child(child, context, changed))
         }
-        StyleValueData::Ray {
-            size,
-            contain,
-            angle,
-            position,
-        } => {
+        StyleValueData::Ray(ray_payload) => {
+            let RayPayload {
+                size,
+                contain,
+                angle,
+                position,
+            } = &**ray_payload;
             let mut changed = false;
             let angle = absolutize_child(angle, context, &mut changed)?;
             let position = absolutize_child(position, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::Ray {
+                StyleValueData::Ray(StyleValueBox::new(RayPayload {
                     size: *size,
                     contain: *contain,
                     angle,
                     position,
-                }
+                }))
             )
         }
 
-        StyleValueData::Cursor { image, x, y } => {
+        StyleValueData::Cursor(cursor_payload) => {
+            let CursorPayload { image, x, y } = &**cursor_payload;
             let mut changed = false;
             let image = absolutize_child(image, context, &mut changed)?;
             let x = absolutize_child(x, context, &mut changed)?;
             let y = absolutize_child(y, context, &mut changed)?;
-            rebuild!(changed, StyleValueData::Cursor { image, x, y })
+            rebuild!(
+                changed,
+                StyleValueData::Cursor(StyleValueBox::new(CursorPayload { image, x, y }))
+            )
         }
         StyleValueData::Easing { .. } => {
             absolutize_easing(value, &mut |child, changed| absolutize_child(child, context, changed))
         }
-        StyleValueData::ImageSet { options } => {
+        StyleValueData::ImageSet(image_set_payload) => {
+            let ImageSetPayload { options } = &**image_set_payload;
             let mut changed = false;
             let mut absolutized_options = Vec::with_capacity(options.as_slice().len());
             for option in options.as_slice() {
@@ -2092,14 +2177,15 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             }
             rebuild!(
                 changed,
-                StyleValueData::ImageSet {
+                StyleValueData::ImageSet(StyleValueBox::new(ImageSetPayload {
                     options: crate::css::style_value::RetainedImageSetOptionList::from_retained_elements(
                         absolutized_options
                     ),
-                }
+                }))
             )
         }
-        StyleValueData::CounterDefinitions { counter_definitions } => {
+        StyleValueData::CounterDefinitions(counter_definitions_payload) => {
+            let CounterDefinitionsPayload { counter_definitions } = &**counter_definitions_payload;
             let mut changed = false;
             let mut definitions = Vec::with_capacity(counter_definitions.as_slice().len());
             for definition in counter_definitions.as_slice() {
@@ -2108,29 +2194,30 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             }
             rebuild!(
                 changed,
-                StyleValueData::CounterDefinitions {
+                StyleValueData::CounterDefinitions(StyleValueBox::new(CounterDefinitionsPayload {
                     counter_definitions: crate::css::style_value::RetainedCounterDefinitionList::from_retained_elements(
                         definitions
                     ),
-                }
+                }))
             )
         }
-        StyleValueData::CounterStyleSystem {
-            kind,
-            system,
-            first_symbol,
-            name,
-        } => {
+        StyleValueData::CounterStyleSystem(counter_style_system_payload) => {
+            let CounterStyleSystemPayload {
+                kind,
+                system,
+                first_symbol,
+                name,
+            } = &**counter_style_system_payload;
             let mut changed = false;
             let first_symbol = absolutize_child(first_symbol, context, &mut changed)?;
             rebuild!(
                 changed,
-                StyleValueData::CounterStyleSystem {
+                StyleValueData::CounterStyleSystem(StyleValueBox::new(CounterStyleSystemPayload {
                     kind: *kind,
                     system: *system,
                     first_symbol,
                     name: name.clone(),
-                }
+                }))
             )
         }
         StyleValueData::GridTrackPlacement { .. } | StyleValueData::GridTrackSizeList { .. } => {
@@ -2155,11 +2242,12 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             })))
         }
-        StyleValueData::Url {
-            url,
-            url_type,
-            modifiers,
-        } => {
+        StyleValueData::Url(url_payload) => {
+            let UrlPayload {
+                url,
+                url_type,
+                modifiers,
+            } = &**url_payload;
             // https://drafts.csswg.org/css-values-4/#local-urls
             // When serializing a url() with the local url flag set, it must serialize as just the fragment.
             if url.is_empty() || url.is_fragment() {
@@ -2186,35 +2274,38 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             let Some(resolved_url) = resolved_url else {
                 return Some(Absolutized::Unchanged);
             };
-            Some(Absolutized::Changed(retain_new(StyleValueData::Url {
-                url: crate::css::style_value::RetainedString::from_ascii(resolved_url.into()),
-                url_type: *url_type,
-                modifiers: modifiers.clone(),
-            })))
+            Some(Absolutized::Changed(retain_new(StyleValueData::Url(
+                StyleValueBox::new(UrlPayload {
+                    url: crate::css::style_value::RetainedString::from_ascii(resolved_url.into()),
+                    url_type: *url_type,
+                    modifiers: modifiers.clone(),
+                }),
+            ))))
         }
         StyleValueData::Image { .. } => absolutize_image(value, context),
         // https://drafts.csswg.org/css-values-5/#random-caching
         // If the random function's <random-value-sharing> is fixed <number>, the random base value is that number.
         // Otherwise, it is the base value drawn for the function's random caching key.
-        StyleValueData::RandomValueSharing {
-            fixed_value,
-            is_auto,
-            has_name,
-            name,
-            element_shared,
-        } => {
+        StyleValueData::RandomValueSharing(random_value_sharing_payload) => {
+            let RandomValueSharingPayload {
+                fixed_value,
+                is_auto,
+                has_name,
+                name,
+                element_shared,
+            } = &**random_value_sharing_payload;
             if fixed_value.optional_data().is_some() {
                 let mut changed = false;
                 let fixed_value = absolutize_child(fixed_value, context, &mut changed)?;
                 return rebuild!(
                     changed,
-                    StyleValueData::RandomValueSharing {
+                    StyleValueData::RandomValueSharing(StyleValueBox::new(RandomValueSharingPayload {
                         fixed_value,
                         is_auto: *is_auto,
                         has_name: *has_name,
                         name: name.clone(),
                         element_shared: *element_shared,
-                    }
+                    }))
                 );
             }
             let base_value = context
@@ -2222,13 +2313,15 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 .iter()
                 .find(|base_value| std::ptr::eq(base_value.source.cast(), value))?
                 .value;
-            Some(Absolutized::Changed(retain_new(StyleValueData::RandomValueSharing {
-                fixed_value: retain_new(StyleValueData::Number { value: base_value }),
-                is_auto: false,
-                has_name: false,
-                name: CssString::none(),
-                element_shared: false,
-            })))
+            Some(Absolutized::Changed(retain_new(StyleValueData::RandomValueSharing(
+                StyleValueBox::new(RandomValueSharingPayload {
+                    fixed_value: retain_new(StyleValueData::Number { value: base_value }),
+                    is_auto: false,
+                    has_name: false,
+                    name: CssString::none(),
+                    element_shared: false,
+                }),
+            ))))
         }
 
         StyleValueData::ColorFunction { .. } => absolutize_color_function(value, context),
@@ -2269,7 +2362,8 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
         // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
         // With no scheme the value computes to itself; otherwise it collapses to the matching
         // branch's absolutized value.
-        StyleValueData::LightDark { light, dark, .. } => {
+        StyleValueData::LightDark(light_dark_payload) => {
+            let LightDarkPayload { light, dark, .. } = &**light_dark_payload;
             let Some(scheme) = context.scheme else {
                 return Some(Absolutized::Unchanged);
             };

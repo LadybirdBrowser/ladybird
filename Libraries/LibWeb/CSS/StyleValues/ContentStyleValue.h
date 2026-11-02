@@ -27,9 +27,9 @@ private:
 
     explicit ContentStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Content, data)
-        , m_content(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->content.content.pointer)))->as_value_list())
+        , m_content(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data->content._0->content.pointer)))->as_value_list())
     {
-        auto const* alt_text_data = static_cast<StyleValueFFI::StyleValueData const*>(data->content.alt_text.pointer);
+        auto const* alt_text_data = static_cast<StyleValueFFI::StyleValueData const*>(data->content._0->alt_text.pointer);
         if (alt_text_data)
             m_alt_text = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(alt_text_data))->as_value_list();
     }

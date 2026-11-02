@@ -22,13 +22,15 @@ use crate::css::parser::query_parser::{FfiQueryHandle, MatchResult};
 use crate::css::parser::syntax_parser::{PageSelectorList, ParsedRuleList, ParsedStyleSheet};
 use crate::css::property_rule::PropertyRuleData;
 use crate::css::scope_selectors::ScopeSelectors;
+use crate::css::selector::{SelectorListRef, SelectorListView};
+use crate::css::selector_arena::{Nesting, NestingContext};
 use crate::css::selector_operations::{
     absolutize_selector_list, adapt_scope_end_selector_list, scope_root_selector_list,
 };
 use crate::css::selector_parser::{RustParsedSelectorList, StyleNestingParent};
 use crate::css::style_rule::StyleRule;
 use std::borrow::Cow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Cell, OnceCell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::ffi::c_void;
 use std::rc::{Rc, Weak};
@@ -133,7 +135,8 @@ pub(crate) enum RulePayload {
     Function(Arc<FunctionSignature>),
     FunctionDeclarations(Box<FfiDescriptorBlock>),
     Container(Arc<ContainerConditionsData>),
-    Scope(Arc<ScopeSelectors>),
+    /// The scope's selectors, which binding the rule's `&` to what encloses it replaces.
+    Scope(RefCell<Arc<ScopeSelectors>>),
 }
 
 // Parsed data remains immutable and thread-shareable. These records are
@@ -142,11 +145,44 @@ pub struct NativeRule {
     identity: u64,
     rule_type: NativeRuleType,
     pub(crate) payload: RulePayload,
-    children: Option<Rc<NativeRuleList>>,
-    source_position: Option<(usize, usize)>,
-    parent: RefCell<Weak<NativeRule>>,
-    matching_selectors: RefCell<Option<MatchingSelectorCache>>,
-    scope_end_selectors: RefCell<Option<Rc<RustParsedSelectorList>>>,
+    /// The rule's child rules: set as it is made for a group rule, and made empty when first asked
+    /// for, for a style rule without nested rules, as most are.
+    children: OnceCell<Rc<NativeRuleList>>,
+    /// The line and column the rule starts at, when it was parsed from text.
+    source_position: Option<(u32, u32)>,
+    parent: Cell<Weak<NativeRule>>,
+}
+
+/// `list` with each `&` replaced by what it names, and a selector relative to a scoping root
+/// prefixed with it, or `list` itself where nothing is.
+fn absolutized(list: &SelectorListRef) -> SelectorListRef {
+    fn tree(list: SelectorListView<'_>) -> Option<crate::css::selector_tree::SelectorList> {
+        let (kind, parents) = match list.nesting() {
+            Some(Nesting::Rule(parent)) => (
+                StyleNestingParent::Style,
+                tree(parent).unwrap_or_else(|| parent.to_tree()),
+            ),
+            Some(Nesting::Scope) => (StyleNestingParent::Scope, Default::default()),
+            // NB: A `&` outside any style rule or `@scope` names the scoping root.
+            Some(Nesting::Root) => (StyleNestingParent::None, Default::default()),
+            // NB: Only the selectors of a rule directly in `@scope` start with a combinator.
+            _ if list.iter().any(|selector| {
+                selector.compound_selectors().first().is_some_and(|first| {
+                    !matches!(
+                        first.combinator,
+                        crate::css::selector::Combinator::None | crate::css::selector::Combinator::Descendant
+                    )
+                })
+            }) =>
+            {
+                (StyleNestingParent::Scope, Default::default())
+            }
+            _ => return None,
+        };
+        absolutize_selector_list(&list.to_tree(), kind, &parents)
+    }
+    // NB: The trees name the atoms of the arenas they came from, which are live while it is packed.
+    tree(list.view()).map_or_else(|| list.clone(), |tree| SelectorListRef::pack(&tree))
 }
 
 #[cfg(test)]
@@ -154,16 +190,9 @@ thread_local! {
     pub(crate) static RULE_OWNER_ALLOCATIONS: Cell<u64> = const { Cell::new(0) };
 }
 
-struct MatchingSelectorCache {
-    source: Arc<RustParsedSelectorList>,
-    parent_kind: StyleNestingParent,
-    parents: Option<Rc<RustParsedSelectorList>>,
-    selectors: Rc<RustParsedSelectorList>,
-}
-
 pub struct NativeRuleList {
     rules: RefCell<Option<Vec<Rc<NativeRule>>>>,
-    exposed_rules: RefCell<HashMap<usize, Rc<NativeRule>>>,
+    exposed_rules: RefCell<ExposedRules>,
     identity_base: Cell<u64>,
     // Document media results, never rule or declaration owners in the shared parsed graph.
     media_results: Rc<RefCell<HashMap<u64, RuleMediaResults>>>,
@@ -172,6 +201,48 @@ pub struct NativeRuleList {
     owner: RefCell<Weak<NativeRule>>,
     // Keep the immutable cached parse alive independently of CSSOM mutations.
     parsed_source: RefCell<Option<ParsedRuleList>>,
+}
+
+/// The rules of a list the CSSOM has materialized one by one, by their index, before it
+/// materializes the whole list. Boxed, as most lists, those of the style rules among them, never
+/// expose one.
+#[derive(Clone, Default)]
+#[allow(clippy::box_collection, reason = "a box is one word where a map is six")]
+struct ExposedRules(Option<Box<HashMap<usize, Rc<NativeRule>>>>);
+
+impl ExposedRules {
+    fn get(&self, index: &usize) -> Option<&Rc<NativeRule>> {
+        self.0.as_ref()?.get(index)
+    }
+
+    fn insert(&mut self, index: usize, rule: Rc<NativeRule>) {
+        self.0.get_or_insert_default().insert(index, rule);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.as_ref().is_none_or(|rules| rules.is_empty())
+    }
+
+    #[cfg(test)]
+    fn len(&self) -> usize {
+        self.0.as_ref().map_or(0, |rules| rules.len())
+    }
+
+    fn capacity(&self) -> usize {
+        self.0.as_ref().map_or(0, |rules| rules.capacity())
+    }
+
+    fn clear(&mut self) {
+        self.0 = None;
+    }
+
+    fn values(&self) -> impl Iterator<Item = &Rc<NativeRule>> {
+        self.0.iter().flat_map(|rules| rules.values())
+    }
+
+    fn drain(&mut self) -> impl Iterator<Item = Rc<NativeRule>> {
+        self.0.take().into_iter().flat_map(|rules| rules.into_values())
+    }
 }
 
 #[derive(Clone, Default)]
@@ -195,22 +266,22 @@ impl NativeRule {
         // Keyframe blocks contribute through their enclosing keyframes definition. Function
         // declaration blocks can be nested in conditional groups, but belong to the function.
         if self.rule_type == NativeRuleType::Keyframe {
-            return self.parent.borrow().upgrade().map(|parent| parent.identity);
+            return self.parent().map(|parent| parent.identity);
         }
         if self.rule_type == NativeRuleType::FunctionDeclarations {
-            let mut parent = self.parent.borrow().upgrade();
+            let mut parent = self.parent();
             while let Some(rule) = parent {
                 if rule.rule_type == NativeRuleType::Function {
                     return Some(rule.identity);
                 }
-                parent = rule.parent.borrow().upgrade();
+                parent = rule.parent();
             }
             return None;
         }
         Some(self.identity)
     }
 
-    pub(crate) fn cascade_declarations(&self) -> Option<Arc<crate::css::declaration_block::DeclarationBlockData>> {
+    pub(crate) fn cascade_declarations(&self) -> Option<crate::css::declaration_block::SharedDeclarationBlock> {
         match &self.payload {
             RulePayload::Style(style) => Some(style.declarations.data()),
             RulePayload::NestedDeclarations(declarations) => Some(declarations.data()),
@@ -226,16 +297,96 @@ impl NativeRule {
     }
 
     pub(crate) fn set_selector_text(&self, input: TokenizerInput<'_>, sheet_rules: Option<&NativeRuleList>) -> bool {
-        let mut prefixes = Vec::new();
+        let mut declared = Vec::new();
         if let Some(sheet_rules) = sheet_rules {
-            sheet_rules.for_each_namespace(|namespace| prefixes.push(namespace.prefix.clone()));
+            sheet_rules
+                .for_each_namespace(|namespace| declared.push((namespace.prefix.clone(), namespace.uri.clone())));
         }
-        let namespaces: Vec<_> = prefixes
+        let namespaces: Vec<_> = declared
             .iter()
-            .map(|prefix| TokenizerInput::Utf16(prefix.units()))
+            .map(|(prefix, _)| TokenizerInput::Utf16(prefix.units()))
             .collect();
-        self.style_rule()
-            .set_selector_text(input, &namespaces, self.nesting_parent_kind())
+        let declarations = crate::css::selector_arena::NamespaceDeclarations::of_texts(
+            declared.iter().map(|(prefix, uri)| (prefix.units(), uri.units())),
+        );
+        if !self
+            .style_rule()
+            .set_selector_text(input, &namespaces, declarations, self.nesting_parent_kind())
+        {
+            return false;
+        }
+        // NB: The new selectors name the parent with `&`, and the nested rules' name these.
+        self.bind_nesting();
+        true
+    }
+
+    /// Binds each `&` in the selectors of the rule, and of the rules nested in it, to what encloses
+    /// it, as placing the rule or changing what encloses it does. Selectors already naming that
+    /// stay as they are.
+    pub(crate) fn bind_nesting(&self) {
+        let parent = self.parent();
+        let parent_selectors = parent
+            .as_ref()
+            .filter(|parent| parent.rule_type == NativeRuleType::Style)
+            .map(|parent| parent.style_rule().selectors());
+        let parent = match (&parent, &parent_selectors) {
+            (_, Some(selectors)) => NestingContext::Rule(&selectors.selectors),
+            (Some(parent), None) if parent.rule_type == NativeRuleType::Scope => NestingContext::Scope,
+            _ => NestingContext::Root,
+        };
+        let nesting = self.nesting_parent();
+        let nesting_selectors = nesting
+            .as_ref()
+            .filter(|rule| rule.rule_type == NativeRuleType::Style)
+            .map(|rule| rule.style_rule().selectors());
+        let context = match (&nesting, &nesting_selectors) {
+            (_, Some(selectors)) => NestingContext::Rule(&selectors.selectors),
+            (Some(_), None) => NestingContext::Scope,
+            (None, _) => NestingContext::Root,
+        };
+        self.bind_nesting_in(context, parent);
+    }
+
+    /// Binds as [`Self::bind_nesting`] does, where a `&` names `context`, and one in a
+    /// `<scope-start>` names `parent`, what the rule is directly in.
+    fn bind_nesting_in(&self, context: NestingContext<'_>, parent: NestingContext<'_>) {
+        match &self.payload {
+            RulePayload::Style(style) => {
+                let selectors = style.selectors();
+                if !selectors.selectors.is_nested_in(context) {
+                    style.replace_selectors(Arc::new(RustParsedSelectorList {
+                        selectors: selectors.selectors.nested_in(context),
+                    }));
+                }
+                let selectors = style.selectors();
+                let own = NestingContext::Rule(&selectors.selectors);
+                self.bind_children(own, own);
+            }
+            RulePayload::Scope(scope) => {
+                let current = scope.borrow().clone();
+                if let Some(start) = &current.start
+                    && !start.selectors.is_nested_in(parent)
+                {
+                    *scope.borrow_mut() = Arc::new(ScopeSelectors {
+                        start: Some(Arc::new(RustParsedSelectorList {
+                            selectors: start.selectors.nested_in(parent),
+                        })),
+                        end: current.end.clone(),
+                    });
+                }
+                self.bind_children(NestingContext::Scope, NestingContext::Scope);
+            }
+            _ => self.bind_children(context, NestingContext::Root),
+        }
+    }
+
+    fn bind_children(&self, context: NestingContext<'_>, parent: NestingContext<'_>) {
+        let Some(children) = self.children.get() else {
+            return;
+        };
+        for index in 0..children.len() {
+            children.rule_at(index).bind_nesting_in(context, parent);
+        }
     }
 
     fn nesting_parent_kind(&self) -> StyleNestingParent {
@@ -249,126 +400,85 @@ impl NativeRule {
     }
 
     fn nesting_parent(&self) -> Option<Rc<NativeRule>> {
-        let mut parent = self.parent.borrow().upgrade();
+        let mut parent = self.parent();
         while let Some(rule) = parent {
             if matches!(rule.rule_type, NativeRuleType::Style | NativeRuleType::Scope) {
                 return Some(rule);
             }
-            parent = rule.parent.borrow().upgrade();
+            parent = rule.parent();
         }
         None
     }
 
-    /// The rule's child rules, for a grouping rule.
-    pub(crate) fn child_rules(&self) -> Option<&Rc<NativeRuleList>> {
-        self.children.as_ref()
+    /// The rule that holds this one, while it is held.
+    pub(crate) fn parent(&self) -> Option<Rc<NativeRule>> {
+        let parent = self.parent.take();
+        let upgraded = parent.upgrade();
+        self.parent.set(parent);
+        upgraded
     }
 
-    pub(crate) fn matching_selectors(&self) -> Rc<RustParsedSelectorList> {
-        let parent = self.nesting_parent();
-        let parent_kind = parent.as_ref().map_or(StyleNestingParent::None, |parent| {
-            if parent.rule_type == NativeRuleType::Style {
-                StyleNestingParent::Style
-            } else {
-                StyleNestingParent::Scope
-            }
-        });
-        let parents = if parent_kind == StyleNestingParent::Style {
-            Some(parent.as_ref().unwrap().matching_selectors())
-        } else {
-            None
-        };
+    pub(crate) fn set_parent(&self, parent: Weak<NativeRule>) {
+        self.parent.set(parent);
+    }
+
+    /// The rule's child rules, for a grouping rule.
+    pub(crate) fn child_rules(&self) -> Option<&Rc<NativeRuleList>> {
+        if self.rule_type != NativeRuleType::Style {
+            return self.children.get();
+        }
+        Some(self.children.get_or_init(|| {
+            let children = NativeRuleList::new(Vec::new(), None);
+            // SAFETY: Every rule lives in the Rc `with_identity` made it in.
+            let this = unsafe {
+                Rc::increment_strong_count(std::ptr::from_ref(self));
+                Rc::from_raw(std::ptr::from_ref(self))
+            };
+            *children.owner.borrow_mut() = Rc::downgrade(&this);
+            children
+        }))
+    }
+
+    /// The selectors the rule matches by with each `&` replaced by what it names, as DevTools and
+    /// rule dumps show them. Nested declarations match by their parent's.
+    pub(crate) fn absolutized_selectors(&self) -> SelectorListRef {
         if self.rule_type == NativeRuleType::NestedDeclarations {
-            if let Some(parents) = parents {
-                return parents;
+            let parent = self
+                .nesting_parent()
+                .expect("nested declarations are inside a style rule or `@scope`");
+            if parent.rule_type == NativeRuleType::Style {
+                return parent.absolutized_selectors();
             }
-            assert_eq!(parent_kind, StyleNestingParent::Scope);
             // https://drafts.csswg.org/css-cascade-6/#scoped-declarations
             // Declarations may be used directly with the body of a @scope rule. Contiguous runs of declarations are
             // wrapped in nested declarations rules, which match the scoping root with zero specificity.
-            return Rc::new(RustParsedSelectorList {
-                selectors: scope_root_selector_list(),
-            });
+            return SelectorListRef::pack(&scope_root_selector_list());
         }
-        let RulePayload::Style(style) = &self.payload else {
-            unreachable!()
-        };
-        let source = style.selectors();
-        self.cached_matching_selectors(source, parent_kind, parents)
+        absolutized(&self.style_rule().selectors().selectors)
     }
 
-    fn cached_matching_selectors(
-        &self,
-        source: Arc<RustParsedSelectorList>,
-        parent_kind: StyleNestingParent,
-        parents: Option<Rc<RustParsedSelectorList>>,
-    ) -> Rc<RustParsedSelectorList> {
-        if let Some(cached) = self.matching_selectors.borrow().as_ref()
-            && Arc::ptr_eq(&source, &cached.source)
-            && parent_kind == cached.parent_kind
-            && match (&parents, &cached.parents) {
-                (Some(parents), Some(cached)) => Rc::ptr_eq(parents, cached),
-                (None, None) => true,
-                _ => false,
-            }
-        {
-            return cached.selectors.clone();
-        }
-        let empty: crate::css::selector::SelectorList = Box::new([]);
-        let parent_selectors = parents.as_ref().map_or(&empty, |parents| &parents.selectors);
-        let selectors = Rc::new(RustParsedSelectorList {
-            selectors: absolutize_selector_list(&source.selectors, parent_kind, parent_selectors)
-                .unwrap_or_else(|| source.selectors.clone()),
-        });
-        *self.matching_selectors.borrow_mut() = Some(MatchingSelectorCache {
-            source,
-            parent_kind,
-            parents,
-            selectors: selectors.clone(),
-        });
-        selectors
-    }
-
-    fn scope(&self) -> &ScopeSelectors {
+    fn scope(&self) -> Arc<ScopeSelectors> {
         match &self.payload {
-            RulePayload::Scope(scope) | RulePayload::Import { scope: Some(scope), .. } => scope,
+            RulePayload::Scope(scope) => scope.borrow().clone(),
+            RulePayload::Import { scope: Some(scope), .. } => scope.clone(),
             _ => unreachable!(),
         }
     }
 
-    pub(crate) fn scope_start_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
-        let source = self.scope().start.as_ref()?.clone();
-        // Imports start a new sheet. A scope prelude uses its immediate enclosing rule's context.
-        let parent = if self.rule_type == NativeRuleType::Scope {
-            self.parent.borrow().upgrade()
-        } else {
-            None
-        };
-        let parent_kind = parent
-            .as_ref()
-            .map_or(StyleNestingParent::None, |parent| match parent.rule_type {
-                NativeRuleType::Style => StyleNestingParent::Style,
-                NativeRuleType::Scope => StyleNestingParent::Scope,
-                _ => StyleNestingParent::None,
-            });
-        let parents = if parent_kind == StyleNestingParent::Style {
-            Some(parent.as_ref().unwrap().matching_selectors())
-        } else {
-            None
-        };
-        Some(self.cached_matching_selectors(source, parent_kind, parents))
+    /// The `<scope-start>` of a scope rule or scoped import, absolutized as
+    /// [`Self::absolutized_selectors`] are.
+    pub(crate) fn absolutized_scope_start(&self) -> Option<SelectorListRef> {
+        Some(absolutized(&self.scope().start.as_ref()?.selectors))
     }
 
-    pub(crate) fn scope_end_selectors(&self) -> Option<Rc<RustParsedSelectorList>> {
-        let source = self.scope().end.as_ref()?;
-        if let Some(cached) = self.scope_end_selectors.borrow().as_ref() {
-            return Some(cached.clone());
-        }
-        let selectors = Rc::new(RustParsedSelectorList {
-            selectors: adapt_scope_end_selector_list(&source.selectors),
-        });
-        *self.scope_end_selectors.borrow_mut() = Some(selectors.clone());
-        Some(selectors)
+    /// The `<scope-end>` of a scope rule or scoped import, relative to its scoping root.
+    pub(crate) fn absolutized_scope_end(&self) -> Option<SelectorListRef> {
+        let scope = self.scope();
+        let end = scope.end.as_ref()?;
+        // NB: The tree names the atoms of the end's arena, which is live while it is packed again.
+        Some(SelectorListRef::pack(&adapt_scope_end_selector_list(
+            &end.selectors.view().to_tree(),
+        )))
     }
 
     fn internal_layer_name(&self) -> Option<Cow<'_, [u16]>> {
@@ -403,17 +513,18 @@ impl NativeRule {
             identity,
             rule_type,
             payload,
-            children,
-            source_position,
-            parent: RefCell::new(Weak::new()),
-            matching_selectors: RefCell::new(None),
-            scope_end_selectors: RefCell::new(None),
+            children: children.map_or_else(OnceCell::new, OnceCell::from),
+            source_position: source_position.map(|(line, column)| {
+                let narrow = |value: usize| u32::try_from(value).expect("style sheet text exceeds u32");
+                (narrow(line), narrow(column))
+            }),
+            parent: Cell::new(Weak::new()),
         });
-        if let Some(children) = &rule.children {
+        if let Some(children) = rule.children.get() {
             *children.owner.borrow_mut() = Rc::downgrade(&rule);
             if let Some(materialized) = children.rules.borrow().as_ref() {
                 for child in materialized {
-                    *child.parent.borrow_mut() = Rc::downgrade(&rule);
+                    child.set_parent(Rc::downgrade(&rule));
                 }
             }
         }
@@ -440,7 +551,7 @@ impl NativeRuleList {
         let import_media = source.import_media.borrow().clone();
         self.clear();
         for rule in rules.iter().flatten().chain(exposed.values()) {
-            *rule.parent.borrow_mut() = self.owner.borrow().clone();
+            rule.set_parent(self.owner.borrow().clone());
         }
         self.rules.replace(rules);
         self.exposed_rules.replace(exposed);
@@ -465,7 +576,7 @@ impl NativeRuleList {
         }
         self.materialized_rules_mut().retain(|rule| {
             if rule.rule_type == NativeRuleType::Import {
-                *rule.parent.borrow_mut() = Weak::new();
+                rule.set_parent(Weak::new());
                 false
             } else {
                 true
@@ -481,7 +592,12 @@ impl NativeRuleList {
     }
 
     pub(crate) fn insert(&self, index: usize, rule: Rc<NativeRule>) {
-        *rule.parent.borrow_mut() = self.owner.borrow().clone();
+        rule.set_parent(self.owner.borrow().clone());
+        // NB: A rule parsed for a place inside a style rule or `@scope` names it with `&` once
+        //     placed there.
+        if rule.nesting_parent().is_some() {
+            rule.bind_nesting();
+        }
         self.materialized_rules_mut().insert(index, rule);
     }
 
@@ -533,7 +649,12 @@ impl NativeRuleList {
 
     pub(crate) fn remove(&self, index: usize) {
         let rule = self.materialized_rules_mut().remove(index);
-        *rule.parent.borrow_mut() = Weak::new();
+        let was_nested = rule.nesting_parent().is_some();
+        rule.set_parent(Weak::new());
+        // NB: A rule taken out of a style rule or `@scope` names neither with `&` any more.
+        if was_nested {
+            rule.bind_nesting();
+        }
     }
 
     pub(crate) fn validate_removal(&self, index: usize) -> RuleRemovalResult {
@@ -557,11 +678,11 @@ impl NativeRuleList {
     pub(crate) fn clear(&self) {
         if let Some(rules) = self.rules.replace(Some(Vec::new())) {
             for rule in rules {
-                *rule.parent.borrow_mut() = Weak::new();
+                rule.set_parent(Weak::new());
             }
         } else {
-            for rule in self.exposed_rules.borrow_mut().drain().map(|(_, rule)| rule) {
-                *rule.parent.borrow_mut() = Weak::new();
+            for rule in self.exposed_rules.borrow_mut().drain() {
+                rule.set_parent(Weak::new());
             }
         }
     }
@@ -611,7 +732,7 @@ impl NativeRuleList {
             .as_ref()
             .unwrap()
             .materialize_at(index, self);
-        *rule.parent.borrow_mut() = self.owner.borrow().clone();
+        rule.set_parent(self.owner.borrow().clone());
         if let Some(result) = self.media_results.borrow_mut().remove(&rule.identity) {
             match &rule.payload {
                 RulePayload::Media { list } => {
@@ -702,17 +823,35 @@ impl NativeRuleList {
 /// Immutable parsing input that can outlive edits to the document-local rule graph.
 pub struct NativeNamespaceContext {
     pub(crate) prefixes: Box<[crate::css::css_string::CssString]>,
+    /// The namespace each prefix names, in the order of `prefixes`.
+    pub(crate) uris: Box<[crate::css::css_string::CssString]>,
+}
+
+impl NativeNamespaceContext {
+    /// The declarations, as the selectors of a sheet carry them.
+    pub(crate) fn declarations(&self) -> crate::css::selector_arena::NamespaceDeclarations {
+        crate::css::selector_arena::NamespaceDeclarations::of_texts(
+            self.prefixes
+                .iter()
+                .zip(&self.uris)
+                .map(|(prefix, uri)| (prefix.units(), uri.units())),
+        )
+    }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_list_namespace_context(list: &NativeRuleList) -> *const NativeNamespaceContext {
-    let mut prefixes = Vec::new();
-    list.for_each_namespace(|namespace| prefixes.push(namespace.prefix.clone()));
+    let (mut prefixes, mut uris) = (Vec::new(), Vec::new());
+    list.for_each_namespace(|namespace| {
+        prefixes.push(namespace.prefix.clone());
+        uris.push(namespace.uri.clone());
+    });
     if prefixes.is_empty() {
         return std::ptr::null();
     }
     Arc::into_raw(Arc::new(NativeNamespaceContext {
         prefixes: prefixes.into(),
+        uris: uris.into(),
     }))
 }
 
@@ -755,7 +894,7 @@ pub extern "C" fn rust_keyframes_find_rule(rule: &NativeRule, selector: FfiUtf16
         };
         frame.keys() == selectors
     };
-    let children = rule.children.as_ref().unwrap();
+    let children = rule.child_rules().unwrap();
     if let Some(rules) = children.rules.borrow().as_ref() {
         return rules.iter().rposition(|frame| matches(frame)).unwrap_or(usize::MAX);
     }
@@ -814,12 +953,12 @@ pub extern "C" fn rust_rule_containing_function(rule: &NativeRule) -> *const Nat
     if rule.rule_type == NativeRuleType::Function {
         return rule;
     }
-    let mut parent = rule.parent.borrow().upgrade();
+    let mut parent = rule.parent();
     while let Some(rule) = parent {
         if rule.rule_type == NativeRuleType::Function {
             return Rc::as_ptr(&rule);
         }
-        parent = rule.parent.borrow().upgrade();
+        parent = rule.parent();
     }
     std::ptr::null()
 }
@@ -848,9 +987,8 @@ pub extern "C" fn rust_rule_selectors(rule: &NativeRule) -> *const c_void {
 /// `rust_parsed_selector_list_destroy` on the same thread.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_matching_selectors(rule: &NativeRule) -> *mut c_void {
-    let selectors = rule.matching_selectors();
     Box::into_raw(Box::new(RustParsedSelectorList {
-        selectors: selectors.selectors.clone(),
+        selectors: rule.absolutized_selectors(),
     }))
     .cast()
 }
@@ -859,26 +997,17 @@ pub extern "C" fn rust_rule_matching_selectors(rule: &NativeRule) -> *mut c_void
 /// `rust_parsed_selector_list_destroy`; null means the start is omitted.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_scope_start_selectors(rule: &NativeRule) -> *mut c_void {
-    rule.scope_start_selectors()
-        .map(|selectors| {
-            Box::into_raw(Box::new(RustParsedSelectorList {
-                selectors: selectors.selectors.clone(),
-            }))
-            .cast()
+    rule.absolutized_scope_start()
+        .map_or(std::ptr::null_mut(), |selectors| {
+            Box::into_raw(Box::new(RustParsedSelectorList { selectors })).cast()
         })
-        .unwrap_or(std::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_scope_end_selectors(rule: &NativeRule) -> *mut c_void {
-    rule.scope_end_selectors()
-        .map(|selectors| {
-            Box::into_raw(Box::new(RustParsedSelectorList {
-                selectors: selectors.selectors.clone(),
-            }))
-            .cast()
-        })
-        .unwrap_or(std::ptr::null_mut())
+    rule.absolutized_scope_end().map_or(std::ptr::null_mut(), |selectors| {
+        Box::into_raw(Box::new(RustParsedSelectorList { selectors })).cast()
+    })
 }
 
 /// # Safety
@@ -957,12 +1086,12 @@ pub extern "C" fn rust_rule_external_memory_size(rule: &NativeRule) -> usize {
         }
         RulePayload::Keyframes(name) => {
             let mut size = size_of_val(name.borrow().units());
-            let _ = rule.children.as_ref().unwrap().visit_rules(&mut |frame| {
+            let _ = rule.child_rules().unwrap().visit_rules(&mut |frame| {
                 let (keys, declarations) = frame.keyframe();
                 size = size
                     .saturating_add(size_of::<crate::css::keyframes::KeyframeData>())
                     .saturating_add(size_of_val(keys))
-                    .saturating_add(declarations.external_memory_size());
+                    .saturating_add(declarations.heap_bytes());
                 std::ops::ControlFlow::Continue(())
             });
             size
@@ -987,8 +1116,8 @@ pub unsafe extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload<
     let mut result = FfiRulePayload::default();
     if let Some((line, column)) = rule.source_position {
         result.has_source_position = true;
-        result.start_line = line;
-        result.start_column = column;
+        result.start_line = line as usize;
+        result.start_column = column as usize;
     }
     match &rule.payload {
         RulePayload::Style(_) => {}
@@ -1022,7 +1151,7 @@ pub unsafe extern "C" fn rust_rule_payload(rule: &NativeRule) -> FfiRulePayload<
         RulePayload::Property(data) => result.property = Arc::as_ptr(data),
         RulePayload::Function(data) => result.function_signature = Arc::as_ptr(data),
         RulePayload::Container(data) => result.container = Arc::as_ptr(data),
-        RulePayload::Scope(data) => result.scope = Arc::as_ptr(data),
+        RulePayload::Scope(data) => result.scope = Arc::as_ptr(&data.borrow()),
     }
     result
 }
@@ -1033,6 +1162,22 @@ pub extern "C" fn rust_rule_set_page_selectors(rule: &NativeRule, selectors: Arc
         unreachable!()
     };
     *current.borrow_mut() = selectors.to_arc();
+}
+
+/// The text the list's sheet was parsed from, when the list holds a parsed sheet, which the parse
+/// shares between the documents it was parsed for.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_list_source_text(list: &NativeRuleList, has_text: &mut bool) -> usize {
+    let parsed = list.parsed_source.borrow();
+    let Some(sheet) = parsed.as_ref().and_then(|parsed| parsed.root_sheet()) else {
+        *has_text = false;
+        return ak::Utf16String::from_utf16(&[]).into_raw();
+    };
+    *has_text = true;
+    match sheet.source_text().units() {
+        crate::css::css_tokenizer::TokenizerInput::Latin1(bytes) => ak::Utf16String::from_latin1(bytes).into_raw(),
+        crate::css::css_tokenizer::TokenizerInput::Utf16(units) => ak::Utf16String::from_utf16(units).into_raw(),
+    }
 }
 
 #[unsafe(no_mangle)]

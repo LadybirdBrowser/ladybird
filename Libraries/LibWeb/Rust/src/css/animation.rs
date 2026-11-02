@@ -9,6 +9,13 @@
 // Animation values use the same thread-confined shared graph as the rest of the style core.
 #![allow(clippy::arc_with_non_send_sync)]
 
+use crate::css::style_value::{
+    BackgroundSizePayload, BorderImageSlicePayload, BorderRadiusPayload, BorderRadiusRectPayload, CalculatedPayload,
+    ColorFunctionPayload, FunctionPayload, GridTrackSizeListPayload, OpenTypeTaggedPayload, PositionPayload,
+    RadialSizePayload, RandomValueSharingPayload, RatioPayload, RayPayload, RectPayload, ScrollbarColorPayload,
+    ShadowPayload, StyleValueBox, TransformationPayload, UnresolvedPayload,
+};
+use crate::css::style_value_arc::StyleValueArc;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -144,7 +151,7 @@ impl AnimationValueResult {
         FfiAnimationValueResult {
             value: self
                 .value
-                .map_or(std::ptr::null(), |value| Arc::into_raw(value.into_arc())),
+                .map_or(std::ptr::null(), |value| StyleValueArc::into_raw(value.into_arc())),
             handled: self.handled,
         }
     }
@@ -158,7 +165,7 @@ impl AnimationValueResult {
 pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -> *const StyleValueData {
     use crate::css::easing::FfiEasingKind;
     use crate::css::style_value::{RetainedLinearEasingStop, RetainedLinearEasingStopList};
-    let retain = |value| RetainedStyleValueData::from_arc(Arc::new(value));
+    let retain = |value| RetainedStyleValueData::from_arc(StyleValueArc::new(value));
     let mut stops = Vec::new();
     let mut x1 = empty_retained_style_value();
     let mut y1 = empty_retained_style_value();
@@ -193,17 +200,19 @@ pub(crate) unsafe fn style_value_from_easing(descriptor: &FfiEasingDescriptor) -
             });
         }
     }
-    Arc::into_raw(Arc::new(StyleValueData::Easing {
-        kind: descriptor.kind as u8,
-        linear_stops: RetainedLinearEasingStopList::from_retained_elements(stops),
-        x1,
-        y1,
-        x2,
-        y2,
-        number_of_intervals,
-        step_position: descriptor.step_position,
-        is_keyword: false,
-    }))
+    StyleValueArc::into_raw(StyleValueArc::new(StyleValueData::Easing(StyleValueBox::new(
+        crate::css::style_value::EasingPayload {
+            kind: descriptor.kind as u8,
+            linear_stops: RetainedLinearEasingStopList::from_retained_elements(stops),
+            x1,
+            y1,
+            x2,
+            y2,
+            number_of_intervals,
+            step_position: descriptor.step_position,
+            is_keyword: false,
+        },
+    ))))
 }
 
 /// Evaluate a resolved easing descriptor without consulting C++.
@@ -294,17 +303,12 @@ pub struct FfiAnimationContext<'a> {
 /// Whether the computed interpolate-size of a style lets sizing keywords interpolate with lengths.
 /// https://drafts.csswg.org/css-values-5/#valdef-interpolate-size-allow-keywords
 pub(crate) fn allows_keyword_size_interpolation(
-    table: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    longhands: crate::css::style::ViewLonghands<'_>,
     overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
 ) -> bool {
     matches!(
-        table
-            .effective_value_handle(
-                overlay,
-                crate::css::property_metadata::property_id::INTERPOLATE_SIZE,
-                true
-            )
-            .0
+        longhands
+            .effective_value(overlay, crate::css::property_metadata::property_id::INTERPOLATE_SIZE)
             .optional_data(),
         Some(StyleValueData::Keyword {
             keyword: crate::css::css_enums::keyword::ALLOW_KEYWORDS
@@ -384,7 +388,7 @@ pub(crate) struct ComputedAnimationBatch<'a> {
     pub(crate) preparation_reads_custom_property_environments: bool,
     /// What a preparation is made from where the overlay holds none for the sampled effects.
     pub(crate) preparation_inputs: Option<AnimationPreparationInputs>,
-    pub(crate) underlying_longhand_table: &'a crate::css::computed_longhand_table::ComputedLonghandTable,
+    pub(crate) underlying_longhands: crate::css::style::ViewLonghands<'a>,
     pub(crate) overlay: &'a mut crate::css::animated_overlay::AnimatedOverlay,
     /// What an animation of each custom property composes over, and what a keyframe saying
     /// `initial` takes, indexed by the number the property animates under, less one.
@@ -582,17 +586,15 @@ fn substitution_marks_of(written: &StyleValueData) -> u8 {
         SUBSTITUTION_MARK_ATTR, SUBSTITUTION_MARK_CUSTOM_FUNCTION, SUBSTITUTION_MARK_IF, SUBSTITUTION_MARK_INHERIT,
         SUBSTITUTION_MARK_VAR,
     };
-    let StyleValueData::Unresolved {
-        presence_var,
-        presence_attr,
-        presence_if,
-        presence_inherit,
-        presence_dashed_function,
-        ..
-    } = written
-    else {
+    let StyleValueData::Unresolved(unresolved_payload) = written else {
         return 0;
     };
+    let unresolved_payload: &UnresolvedPayload = unresolved_payload;
+    let presence_var = &unresolved_payload.presence().var;
+    let presence_attr = &unresolved_payload.presence().attr;
+    let presence_if = &unresolved_payload.presence().if_;
+    let presence_inherit = &unresolved_payload.presence().inherit;
+    let presence_dashed_function = &unresolved_payload.presence().dashed_function;
     [
         (*presence_var, SUBSTITUTION_MARK_VAR),
         (*presence_attr, SUBSTITUTION_MARK_ATTR),
@@ -759,9 +761,10 @@ fn resolve_animation_declarations(
         .into_iter()
         .map(|source| {
             let sharing = unsafe { &*source };
-            let StyleValueData::RandomValueSharing { has_name, name, .. } = sharing else {
+            let StyleValueData::RandomValueSharing(random_value_sharing_payload) = sharing else {
                 unreachable!();
             };
+            let RandomValueSharingPayload { has_name, name, .. } = &**random_value_sharing_payload;
             AnimationUnfixedRandomSharing {
                 source,
                 name: if *has_name { name.units().to_vec() } else { Vec::new() },
@@ -951,7 +954,7 @@ fn angle_to_degrees(value: f64, unit: u8) -> Option<f64> {
 }
 
 fn owned(value: StyleValueData) -> AnimationValueResult {
-    handled_retained_value(RetainedStyleValueData::from_arc(Arc::new(value)))
+    handled_retained_value(RetainedStyleValueData::from_arc(StyleValueArc::new(value)))
 }
 
 fn not_handled() -> AnimationValueResult {
@@ -1122,9 +1125,10 @@ fn decode_scale_components(value: &StyleValueData) -> Option<Vec<f64>> {
     if matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword()) {
         return Some(vec![1.0, 1.0]);
     }
-    let StyleValueData::Transformation { values, .. } = value else {
+    let StyleValueData::Transformation(transformation_payload) = value else {
         return None;
     };
+    let TransformationPayload { values, .. } = &**transformation_payload;
     if !matches!(values.as_slice().len(), 2 | 3) {
         return None;
     }
@@ -1175,16 +1179,18 @@ fn interpolate_scale(from: &StyleValueData, to: &StyleValueData, delta: f32) -> 
         .zip(to)
         .map(|(from, to)| retained_number(interpolate_f64(from, to, delta, None)))
         .collect();
-    owned(StyleValueData::Transformation {
-        property: crate::css::property_metadata::property_id::SCALE,
-        transform_function: if is_3d {
-            TRANSFORM_FUNCTION_SCALE_3D
-        } else {
-            TRANSFORM_FUNCTION_SCALE
+    owned(StyleValueData::Transformation(StyleValueBox::new(
+        TransformationPayload {
+            property: crate::css::property_metadata::property_id::SCALE,
+            transform_function: if is_3d {
+                TRANSFORM_FUNCTION_SCALE_3D
+            } else {
+                TRANSFORM_FUNCTION_SCALE
+            },
+            values: RetainedStyleValueDataList::from_retained_values(values),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
         },
-        values: RetainedStyleValueDataList::from_retained_values(values),
-        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    })
+    )))
 }
 
 /// https://drafts.csswg.org/css-values-5/#sizing-property
@@ -1329,7 +1335,10 @@ fn length_percentage_calculation_node(value: &StyleValueData) -> Option<Arc<crat
         StyleValueData::Percentage { value } => Some(Arc::new(crate::css::calc::CalcNode::Numeric(
             crate::css::calc::CalcNumericValue::Percentage(*value),
         ))),
-        StyleValueData::Calculated { rust_calculation, .. } => Some(rust_calculation.node_arc()),
+        StyleValueData::Calculated(calculated_payload) => {
+            let CalculatedPayload { rust_calculation, .. } = &**calculated_payload;
+            Some(rust_calculation.node_arc())
+        }
         _ => None,
     }
 }
@@ -1369,7 +1378,10 @@ fn numeric_calculation_node(value: &StyleValueData) -> Option<Arc<crate::css::ca
             value: *value,
             unit: *unit,
         },
-        StyleValueData::Calculated { rust_calculation, .. } => return Some(rust_calculation.node_arc()),
+        StyleValueData::Calculated(calculated_payload) => {
+            let CalculatedPayload { rust_calculation, .. } = &**calculated_payload;
+            return Some(rust_calculation.node_arc());
+        }
         _ => return None,
     };
     Some(Arc::new(crate::css::calc::CalcNode::Numeric(numeric)))
@@ -1385,7 +1397,10 @@ struct AnimationCalculationContext<'a> {
 }
 
 fn animation_calculation_context(value: &StyleValueData) -> Option<AnimationCalculationContext<'_>> {
-    let StyleValueData::Calculated {
+    let StyleValueData::Calculated(calculated_payload) = value else {
+        return None;
+    };
+    let CalculatedPayload {
         resolve_as_is_number,
         resolve_as_base,
         has_percentages_resolve_as,
@@ -1393,10 +1408,7 @@ fn animation_calculation_context(value: &StyleValueData) -> Option<AnimationCalc
         resolve_numbers_as_integers,
         accepted_ranges,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**calculated_payload;
     Some(AnimationCalculationContext {
         resolve_as_is_number: *resolve_as_is_number,
         resolve_as_base: *resolve_as_base,
@@ -1412,16 +1424,18 @@ fn retained_calculation(
     resolved_type: crate::css::calc::FfiNumericType,
     context: &AnimationCalculationContext<'_>,
 ) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Calculated {
-        rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(calculation),
-        resolve_as_is_number: context.resolve_as_is_number,
-        resolve_as_base: context.resolve_as_base,
-        resolved_type,
-        has_percentages_resolve_as: context.has_percentages_resolve_as,
-        percentages_resolve_as: context.percentages_resolve_as,
-        resolve_numbers_as_integers: context.resolve_numbers_as_integers,
-        accepted_ranges: context.accepted_ranges.clone_owned(),
-    }))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Calculated(StyleValueBox::new(
+        CalculatedPayload {
+            rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(calculation),
+            resolve_as_is_number: context.resolve_as_is_number,
+            resolve_as_base: context.resolve_as_base,
+            resolved_type,
+            has_percentages_resolve_as: context.has_percentages_resolve_as,
+            percentages_resolve_as: context.percentages_resolve_as,
+            resolve_numbers_as_integers: context.resolve_numbers_as_integers,
+            accepted_ranges: context.accepted_ranges.clone_owned(),
+        },
+    ))))
 }
 
 fn retained_length_percentage_calculation(
@@ -1449,7 +1463,8 @@ fn retained_length_percentage_calculation(
         }
         _ => {
             let mut value = crate::css::calc::length_percentage_calculated_style_value(calculation, resolved_type);
-            if let StyleValueData::Calculated { accepted_ranges, .. } = &mut value {
+            if let StyleValueData::Calculated(calculated_payload) = &mut value {
+                let CalculatedPayload { accepted_ranges, .. } = &mut **calculated_payload;
                 *accepted_ranges = crate::css::style_value::RetainedNumericRangeList::from_numeric_ranges(
                     [VALUE_TYPE_LENGTH, VALUE_TYPE_PERCENTAGE]
                         .into_iter()
@@ -1459,7 +1474,7 @@ fn retained_length_percentage_calculation(
             value
         }
     };
-    RetainedStyleValueData::from_arc(Arc::new(value))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(value))
 }
 
 fn interpolate_translate_component(
@@ -1489,7 +1504,8 @@ fn interpolate_translate_component(
             (StyleValueData::Percentage { value }, StyleValueData::Length { .. }) => *value * (1.0 - delta as f64),
             _ => unreachable!(),
         };
-        let value = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Percentage { value: percentage }));
+        let value =
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Percentage { value: percentage }));
         return Some(value);
     }
 
@@ -1503,9 +1519,10 @@ fn decode_translate_components(value: &StyleValueData) -> Option<Vec<RetainedSty
     if matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword()) {
         return Some(vec![retained_zero_px(), retained_zero_px()]);
     }
-    let StyleValueData::Transformation { values, .. } = value else {
+    let StyleValueData::Transformation(transformation_payload) = value else {
         return None;
     };
+    let TransformationPayload { values, .. } = &**transformation_payload;
     if !matches!(values.as_slice().len(), 2 | 3) {
         return None;
     }
@@ -1539,7 +1556,7 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     };
     let is_3d = from.len() == 3 || to.len() == 3;
     let zero = || {
-        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
+        RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Length {
             value: 0.0,
             unit: crate::css::calc::canonical_pixel_unit(),
         }))
@@ -1563,21 +1580,26 @@ fn interpolate_translate(from: &StyleValueData, to: &StyleValueData, delta: f32)
     let Some(values) = values else {
         return not_handled();
     };
-    owned(StyleValueData::Transformation {
-        property: crate::css::property_metadata::property_id::TRANSLATE,
-        transform_function: if is_3d {
-            TRANSFORM_FUNCTION_TRANSLATE_3D
-        } else {
-            TRANSFORM_FUNCTION_TRANSLATE
+    owned(StyleValueData::Transformation(StyleValueBox::new(
+        TransformationPayload {
+            property: crate::css::property_metadata::property_id::TRANSLATE,
+            transform_function: if is_3d {
+                TRANSFORM_FUNCTION_TRANSLATE_3D
+            } else {
+                TRANSFORM_FUNCTION_TRANSLATE
+            },
+            values: RetainedStyleValueDataList::from_retained_values(values),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
         },
-        values: RetainedStyleValueDataList::from_retained_values(values),
-        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    })
+    )))
 }
 
 fn has_transform_matrix_values(value: &StyleValueData) -> bool {
     match value {
-        StyleValueData::Transformation { matrix_values, .. } => !matrix_values.as_slice().is_empty(),
+        StyleValueData::Transformation(transformation_payload) => {
+            let TransformationPayload { matrix_values, .. } = &**transformation_payload;
+            !matrix_values.as_slice().is_empty()
+        }
         StyleValueData::ValueList { values, .. } => values
             .as_slice()
             .iter()
@@ -1593,9 +1615,10 @@ fn preserve_transform_matrix_values(mut result: StyleValueData, sources: &[&Styl
         return result;
     }
     match &mut result {
-        StyleValueData::Transformation {
-            values, matrix_values, ..
-        } => {
+        StyleValueData::Transformation(transformation_payload) => {
+            let TransformationPayload {
+                values, matrix_values, ..
+            } = &mut **transformation_payload;
             let mut mapped = Vec::new();
             for (ordinal, (index, value)) in values
                 .as_slice()
@@ -1608,14 +1631,14 @@ fn preserve_transform_matrix_values(mut result: StyleValueData, sources: &[&Styl
                 let mut phase: Option<f32> = None;
                 let mut compatible = true;
                 for source in sources {
-                    let StyleValueData::Transformation {
+                    let StyleValueData::Transformation(transformation_payload) = source else {
+                        continue;
+                    };
+                    let TransformationPayload {
                         values: source_values,
                         matrix_values: source_matrix,
                         ..
-                    } = source
-                    else {
-                        continue;
-                    };
+                    } = &**transformation_payload;
                     let Some((source_index, source_value)) = source_values
                         .as_slice()
                         .iter()
@@ -1664,7 +1687,7 @@ fn preserve_transform_matrix_values(mut result: StyleValueData, sources: &[&Styl
                             values.as_slice().get(index).map(RetainedStyleValueData::data)
                         })
                         .collect();
-                    RetainedStyleValueData::from_arc(Arc::new(preserve_transform_matrix_values(
+                    RetainedStyleValueData::from_arc(StyleValueArc::new(preserve_transform_matrix_values(
                         value.data().clone(),
                         &sources,
                     )))
@@ -1678,12 +1701,12 @@ fn preserve_transform_matrix_values(mut result: StyleValueData, sources: &[&Styl
 }
 
 fn effective_rotation_radians(value: &StyleValueData) -> Option<f64> {
-    let StyleValueData::Transformation {
-        values, matrix_values, ..
-    } = value
-    else {
+    let StyleValueData::Transformation(transformation_payload) = value else {
         return None;
     };
+    let TransformationPayload {
+        values, matrix_values, ..
+    } = &**transformation_payload;
     let (index, angle) = values
         .as_slice()
         .iter()
@@ -1711,7 +1734,7 @@ fn interpolate_individual_rotate(
             &endpoints[..]
         };
         result.value = result.value.map(|value| {
-            RetainedStyleValueData::from_arc(Arc::new(preserve_transform_matrix_values(
+            RetainedStyleValueData::from_arc(StyleValueArc::new(preserve_transform_matrix_values(
                 value.data().clone(),
                 sources,
             )))
@@ -1741,18 +1764,19 @@ fn interpolate_individual_rotate_impl(
     let is_none = |value: &StyleValueData| matches!(value, StyleValueData::Keyword { keyword } if *keyword == none);
     let is_2d = |value: &StyleValueData| {
         is_none(value)
-            || matches!(value, StyleValueData::Transformation { transform_function, values, .. }
-                if matches!(*transform_function, TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z)
-                    && values.as_slice().len() == 1)
+            || matches!(value, StyleValueData::Transformation(transformation)
+                if matches!(transformation.transform_function, TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z)
+                    && transformation.values.as_slice().len() == 1)
     };
     if is_2d(from) && is_2d(to) {
         let angle = |value: &StyleValueData| {
             if is_none(value) {
                 return Some(0.0);
             }
-            let StyleValueData::Transformation { values, .. } = value else {
+            let StyleValueData::Transformation(transformation_payload) = value else {
                 return None;
             };
+            let TransformationPayload { values, .. } = &**transformation_payload;
             let [angle] = values.as_slice() else {
                 return None;
             };
@@ -1761,16 +1785,18 @@ fn interpolate_individual_rotate_impl(
         let (Some(from), Some(to)) = (angle(from), angle(to)) else {
             return not_handled();
         };
-        let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+        let angle = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle {
             value: interpolate_f64(from, to, delta, None),
             unit: 0,
         }));
-        return owned(StyleValueData::Transformation {
-            property: crate::css::property_metadata::property_id::ROTATE,
-            transform_function: TRANSFORM_FUNCTION_ROTATE,
-            values: RetainedStyleValueDataList::from_retained_values(vec![angle]),
-            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-        });
+        return owned(StyleValueData::Transformation(StyleValueBox::new(
+            TransformationPayload {
+                property: crate::css::property_metadata::property_id::ROTATE,
+                transform_function: TRANSFORM_FUNCTION_ROTATE,
+                values: RetainedStyleValueDataList::from_retained_values(vec![angle]),
+                matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+            },
+        )));
     }
 
     let axis_rotation = |x: f64, y: f64, z: f64, angle: &RetainedStyleValueData| {
@@ -1783,7 +1809,8 @@ fn interpolate_individual_rotate_impl(
     };
     let normalize = |value: &StyleValueData| {
         if is_none(value) {
-            let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
+            let angle =
+                RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
             return Some(RetainedStyleValueDataList::from_retained_values(vec![
                 retained_number(0.0),
                 retained_number(0.0),
@@ -1791,14 +1818,14 @@ fn interpolate_individual_rotate_impl(
                 angle,
             ]));
         }
-        let StyleValueData::Transformation {
+        let StyleValueData::Transformation(transformation_payload) = value else {
+            return None;
+        };
+        let TransformationPayload {
             transform_function,
             values,
             ..
-        } = value
-        else {
-            return None;
-        };
+        } = &**transformation_payload;
         match (*transform_function, values.as_slice()) {
             (TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z, [angle]) => axis_rotation(0.0, 0.0, 1.0, angle),
             (TRANSFORM_FUNCTION_ROTATE_X, [angle]) => axis_rotation(1.0, 0.0, 0.0, angle),
@@ -2195,21 +2222,23 @@ fn composite_grid_track_entries(
 }
 
 fn retained_percentage(value: f64) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Percentage { value }))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Percentage { value }))
 }
 
 fn retained_computed_center_position() -> RetainedStyleValueData {
     let edge = || {
-        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Edge {
+        RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Edge {
             has_edge: false,
             edge: 0,
             offset: retained_percentage(50.0),
         }))
     };
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Position {
-        edge_x: edge(),
-        edge_y: edge(),
-    }))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Position(StyleValueBox::new(
+        PositionPayload {
+            edge_x: edge(),
+            edge_y: edge(),
+        },
+    ))))
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -2244,7 +2273,10 @@ fn resolve_color_component(value: &StyleValueData, reference_value: f32) -> Opti
 }
 
 fn native_color_components(value: &StyleValueData) -> Option<NativeColor> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
@@ -2252,10 +2284,7 @@ fn native_color_components(value: &StyleValueData) -> Option<NativeColor> {
         alpha,
         origin_color,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     if !color_base.has_color_type || origin_color.optional_data().is_some() {
         return None;
     }
@@ -2545,20 +2574,22 @@ fn combine_modern_color(
             retained_number(value as f64)
         }
     };
-    Some(StyleValueData::ColorFunction {
-        color_base: ColorBase {
-            has_color_type: true,
-            color_type: COLOR_TYPE_OKLAB,
-            color_syntax: COLOR_SYNTAX_MODERN,
+    Some(StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: ColorBase {
+                has_color_type: true,
+                color_type: COLOR_TYPE_OKLAB,
+                color_syntax: COLOR_SYNTAX_MODERN,
+            },
+            channel_0: number_or_none(result[0], result_missing[0]),
+            channel_1: number_or_none(result[1], result_missing[1]),
+            channel_2: number_or_none(result[2], result_missing[2]),
+            alpha: number_or_none(result[3], result_missing[3]),
+            has_name: false,
+            name: empty_retained_fly_string(),
+            origin_color: empty_retained_style_value(),
         },
-        channel_0: number_or_none(result[0], result_missing[0]),
-        channel_1: number_or_none(result[1], result_missing[1]),
-        channel_2: number_or_none(result[2], result_missing[2]),
-        alpha: number_or_none(result[3], result_missing[3]),
-        has_name: false,
-        name: empty_retained_fly_string(),
-        origin_color: empty_retained_style_value(),
-    })
+    )))
 }
 
 fn combine_legacy_rgb(
@@ -2606,20 +2637,22 @@ fn combine_legacy_rgb(
     // NB: Legacy sRGB content interpolates in sRGB and produces a legacy rgb() result.
     let to_byte = |value: f32| (value * 255.0).round().clamp(0.0, 255.0) as u8;
     let alpha = to_byte(result[3]);
-    Some(StyleValueData::ColorFunction {
-        color_base: ColorBase {
-            has_color_type: true,
-            color_type: COLOR_TYPE_RGB,
-            color_syntax: COLOR_SYNTAX_LEGACY,
+    Some(StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: ColorBase {
+                has_color_type: true,
+                color_type: COLOR_TYPE_RGB,
+                color_syntax: COLOR_SYNTAX_LEGACY,
+            },
+            channel_0: retained_number(to_byte(result[0]) as f64),
+            channel_1: retained_number(to_byte(result[1]) as f64),
+            channel_2: retained_number(to_byte(result[2]) as f64),
+            alpha: retained_number(alpha as f64 / 255.0),
+            has_name: false,
+            name: empty_retained_fly_string(),
+            origin_color: empty_retained_style_value(),
         },
-        channel_0: retained_number(to_byte(result[0]) as f64),
-        channel_1: retained_number(to_byte(result[1]) as f64),
-        channel_2: retained_number(to_byte(result[2]) as f64),
-        alpha: retained_number(alpha as f64 / 255.0),
-        has_name: false,
-        name: empty_retained_fly_string(),
-        origin_color: empty_retained_style_value(),
-    })
+    )))
 }
 
 fn empty_shape_points() -> RetainedShapePointList {
@@ -2679,7 +2712,7 @@ fn interpolate_radial_size(
         interpolate_translate_component(property_id, from.data(), to.data(), delta)
     };
     if from.component_count == 1 && to.component_count == 1 {
-        return Some(StyleValueData::RadialSize {
+        return Some(StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
             component_count: 1,
             is_extent_0: false,
             extent_0: 0,
@@ -2687,7 +2720,7 @@ fn interpolate_radial_size(
             is_extent_1: false,
             extent_1: 0,
             value_1: empty_retained_style_value(),
-        });
+        })));
     }
 
     let from_vertical = if from.component_count == 2 {
@@ -2700,7 +2733,7 @@ fn interpolate_radial_size(
     } else {
         to.value_0
     };
-    Some(StyleValueData::RadialSize {
+    Some(StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
         component_count: 2,
         is_extent_0: false,
         extent_0: 0,
@@ -2708,7 +2741,7 @@ fn interpolate_radial_size(
         is_extent_1: false,
         extent_1: 0,
         value_1: interpolate(from_vertical, to_vertical)?,
-    })
+    })))
 }
 
 fn interpolate_basic_shape(
@@ -3026,7 +3059,7 @@ fn composite_radial_size(
         composite_retained_value(underlying, animated, operation)
     };
     if underlying.component_count == 1 && animated.component_count == 1 {
-        return Some(StyleValueData::RadialSize {
+        return Some(StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
             component_count: 1,
             is_extent_0: false,
             extent_0: 0,
@@ -3034,7 +3067,7 @@ fn composite_radial_size(
             is_extent_1: false,
             extent_1: 0,
             value_1: empty_retained_style_value(),
-        });
+        })));
     }
 
     let underlying_vertical = if underlying.component_count == 2 {
@@ -3047,7 +3080,7 @@ fn composite_radial_size(
     } else {
         animated.value_0
     };
-    Some(StyleValueData::RadialSize {
+    Some(StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
         component_count: 2,
         is_extent_0: false,
         extent_0: 0,
@@ -3055,7 +3088,7 @@ fn composite_radial_size(
         is_extent_1: false,
         extent_1: 0,
         value_1: composite(underlying_vertical, animated_vertical)?,
-    })
+    })))
 }
 
 fn composite_basic_shape(
@@ -3207,8 +3240,8 @@ fn join_offset_path(path: StyleValueData, coord_box: u16) -> StyleValueData {
     }
     StyleValueData::ValueList {
         values: RetainedStyleValueDataList::from_retained_values(vec![
-            RetainedStyleValueData::from_arc(Arc::new(path)),
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword { keyword: coord_box })),
+            RetainedStyleValueData::from_arc(StyleValueArc::new(path)),
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword { keyword: coord_box })),
         ]),
         separator: 0,
         collapsible: false,
@@ -3247,23 +3280,21 @@ fn interpolate_offset_path(
 /// https://drafts.csswg.org/motion-1/#ray-function
 /// NB: Rays interpolate their angles and positions when they have the same size and containment.
 fn interpolate_ray(property_id: u16, from: &StyleValueData, to: &StyleValueData, delta: f32) -> Option<StyleValueData> {
-    let (
-        StyleValueData::Ray {
-            size: from_size,
-            contain: from_contain,
-            angle: from_angle,
-            position: from_position,
-        },
-        StyleValueData::Ray {
-            size: to_size,
-            contain: to_contain,
-            angle: to_angle,
-            position: to_position,
-        },
-    ) = (from, to)
-    else {
+    let (StyleValueData::Ray(ray_payload_1), StyleValueData::Ray(ray_payload_2)) = (from, to) else {
         return None;
     };
+    let RayPayload {
+        size: from_size,
+        contain: from_contain,
+        angle: from_angle,
+        position: from_position,
+    } = &**ray_payload_1;
+    let RayPayload {
+        size: to_size,
+        contain: to_contain,
+        angle: to_angle,
+        position: to_position,
+    } = &**ray_payload_2;
     if from_size != to_size || from_contain != to_contain {
         return None;
     }
@@ -3275,12 +3306,12 @@ fn interpolate_ray(property_id: u16, from: &StyleValueData, to: &StyleValueData,
         }
         _ => return None,
     };
-    Some(StyleValueData::Ray {
+    Some(StyleValueData::Ray(StyleValueBox::new(RayPayload {
         size: *from_size,
         contain: *from_contain,
         angle,
         position,
-    })
+    })))
 }
 
 fn composite_offset_path(
@@ -3297,20 +3328,19 @@ fn composite_offset_path(
         return None;
     }
     let path = match (underlying_path, animated_path) {
-        (
-            StyleValueData::Ray {
+        (StyleValueData::Ray(ray_payload_1), StyleValueData::Ray(ray_payload_2)) => {
+            let RayPayload {
                 size: underlying_size,
                 contain: underlying_contain,
                 angle: underlying_angle,
                 position: underlying_position,
-            },
-            StyleValueData::Ray {
+            } = &**ray_payload_1;
+            let RayPayload {
                 size,
                 contain,
                 angle,
                 position,
-            },
-        ) => {
+            } = &**ray_payload_2;
             if underlying_size != size || underlying_contain != contain {
                 return None;
             }
@@ -3319,12 +3349,12 @@ fn composite_offset_path(
                 (Some(_), Some(_)) => composite_retained_value(underlying_position, position, operation)?,
                 _ => return None,
             };
-            StyleValueData::Ray {
+            StyleValueData::Ray(StyleValueBox::new(RayPayload {
                 size: *size,
                 contain: *contain,
                 angle: composite_retained_value(underlying_angle, angle, operation)?,
                 position,
-            }
+            }))
         }
         (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
             composite_basic_shape(underlying_path, animated_path, operation)?
@@ -3363,10 +3393,10 @@ fn join_offset_rotate(auto: bool, degrees: f64) -> StyleValueData {
     }
     StyleValueData::ValueList {
         values: RetainedStyleValueDataList::from_retained_values(vec![
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
                 keyword: crate::css::css_enums::keyword::AUTO,
             })),
-            RetainedStyleValueData::from_arc(Arc::new(angle)),
+            RetainedStyleValueData::from_arc(StyleValueArc::new(angle)),
         ]),
         separator: 0,
         collapsible: false,
@@ -3410,14 +3440,14 @@ fn decode_rotation(value: &StyleValueData) -> Option<([f64; 3], f64)> {
     if matches!(value, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::none_keyword()) {
         return Some(([0.0, 0.0, 1.0], 0.0));
     }
-    let StyleValueData::Transformation {
+    let StyleValueData::Transformation(transformation_payload) = value else {
+        return None;
+    };
+    let TransformationPayload {
         transform_function,
         values,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**transformation_payload;
     match (*transform_function, values.as_slice()) {
         (TRANSFORM_FUNCTION_ROTATE | TRANSFORM_FUNCTION_ROTATE_Z, [angle]) => {
             Some(([0.0, 0.0, 1.0], resolve_animation_angle(None, angle.data())?))
@@ -3481,19 +3511,19 @@ fn common_rotation_axis(
 }
 
 fn individual_rotation_value(axis: [f64; 3], angle_degrees: f64) -> StyleValueData {
-    let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+    let angle = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle {
         value: angle_degrees,
         unit: 0,
     }));
     if axis == [0.0, 0.0, 1.0] {
-        return StyleValueData::Transformation {
+        return StyleValueData::Transformation(StyleValueBox::new(TransformationPayload {
             property: crate::css::property_metadata::property_id::ROTATE,
             transform_function: TRANSFORM_FUNCTION_ROTATE,
             values: RetainedStyleValueDataList::from_retained_values(vec![angle]),
             matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-        };
+        }));
     }
-    StyleValueData::Transformation {
+    StyleValueData::Transformation(StyleValueBox::new(TransformationPayload {
         property: crate::css::property_metadata::property_id::ROTATE,
         transform_function: TRANSFORM_FUNCTION_ROTATE_3D,
         values: RetainedStyleValueDataList::from_retained_values(vec![
@@ -3503,7 +3533,7 @@ fn individual_rotation_value(axis: [f64; 3], angle_degrees: f64) -> StyleValueDa
             angle,
         ]),
         matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    }
+    }))
 }
 
 fn composite_rotate(underlying: &StyleValueData, animated: &StyleValueData) -> Option<StyleValueData> {
@@ -3594,16 +3624,18 @@ fn composite_scale(
             retained_number(value)
         })
         .collect();
-    Some(StyleValueData::Transformation {
-        property: crate::css::property_metadata::property_id::SCALE,
-        transform_function: if is_3d {
-            TRANSFORM_FUNCTION_SCALE_3D
-        } else {
-            TRANSFORM_FUNCTION_SCALE
+    Some(StyleValueData::Transformation(StyleValueBox::new(
+        TransformationPayload {
+            property: crate::css::property_metadata::property_id::SCALE,
+            transform_function: if is_3d {
+                TRANSFORM_FUNCTION_SCALE_3D
+            } else {
+                TRANSFORM_FUNCTION_SCALE
+            },
+            values: RetainedStyleValueDataList::from_retained_values(values),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
         },
-        values: RetainedStyleValueDataList::from_retained_values(values),
-        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    })
+    )))
 }
 
 fn composite_translate(
@@ -3629,16 +3661,18 @@ fn composite_translate(
             composite_scalar_value(underlying.data(), animated.data(), operation).into_value()
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(StyleValueData::Transformation {
-        property: crate::css::property_metadata::property_id::TRANSLATE,
-        transform_function: if is_3d {
-            TRANSFORM_FUNCTION_TRANSLATE_3D
-        } else {
-            TRANSFORM_FUNCTION_TRANSLATE
+    Some(StyleValueData::Transformation(StyleValueBox::new(
+        TransformationPayload {
+            property: crate::css::property_metadata::property_id::TRANSLATE,
+            transform_function: if is_3d {
+                TRANSFORM_FUNCTION_TRANSLATE_3D
+            } else {
+                TRANSFORM_FUNCTION_TRANSLATE
+            },
+            values: RetainedStyleValueDataList::from_retained_values(values),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
         },
-        values: RetainedStyleValueDataList::from_retained_values(values),
-        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    })
+    )))
 }
 
 fn composite_individual_transform(
@@ -3743,41 +3777,42 @@ fn composite_scalar_value(
         (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
             composite_basic_shape(underlying, animated, operation).map_or_else(handled_without_value, owned)
         }
-        (
-            StyleValueData::RadialSize {
+        (StyleValueData::RadialSize(radial_size_payload_1), StyleValueData::RadialSize(radial_size_payload_2)) => {
+            let RadialSizePayload {
                 component_count: underlying_component_count,
                 is_extent_0: underlying_is_extent_0,
                 value_0: underlying_value_0,
                 is_extent_1: underlying_is_extent_1,
                 value_1: underlying_value_1,
                 ..
-            },
-            StyleValueData::RadialSize {
+            } = &**radial_size_payload_1;
+            let RadialSizePayload {
                 component_count: animated_component_count,
                 is_extent_0: animated_is_extent_0,
                 value_0: animated_value_0,
                 is_extent_1: animated_is_extent_1,
                 value_1: animated_value_1,
                 ..
-            },
-        ) => composite_radial_size(
-            RadialSizeComponents {
-                component_count: *underlying_component_count,
-                is_extent_0: *underlying_is_extent_0,
-                value_0: underlying_value_0,
-                is_extent_1: *underlying_is_extent_1,
-                value_1: underlying_value_1,
-            },
-            RadialSizeComponents {
-                component_count: *animated_component_count,
-                is_extent_0: *animated_is_extent_0,
-                value_0: animated_value_0,
-                is_extent_1: *animated_is_extent_1,
-                value_1: animated_value_1,
-            },
-            operation,
-        )
-        .map_or_else(handled_without_value, owned),
+            } = &**radial_size_payload_2;
+            composite_radial_size(
+                RadialSizeComponents {
+                    component_count: *underlying_component_count,
+                    is_extent_0: *underlying_is_extent_0,
+                    value_0: underlying_value_0,
+                    is_extent_1: *underlying_is_extent_1,
+                    value_1: underlying_value_1,
+                },
+                RadialSizeComponents {
+                    component_count: *animated_component_count,
+                    is_extent_0: *animated_is_extent_0,
+                    value_0: animated_value_0,
+                    is_extent_1: *animated_is_extent_1,
+                    value_1: animated_value_1,
+                },
+                operation,
+            )
+            .map_or_else(handled_without_value, owned)
+        }
         (StyleValueData::Number { value: underlying }, StyleValueData::Number { value: animated }) => {
             // https://drafts.csswg.org/css-values-4/#combine-numbers
             // Addition of <number> is defined as Vresult = VA + VB.
@@ -3890,21 +3925,23 @@ fn composite_scalar_value(
 
             // https://drafts.csswg.org/css-color-4/#propdef-opacity
             // Computed value: specified number, clamped to the range [0,1]
-            let number = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number {
+            let number = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number {
                 value: (underlying + animated).clamp(0.0, 1.0),
             }));
             owned(StyleValueData::OpacityValue { value: number })
         }
         (
-            StyleValueData::BackgroundSize {
+            StyleValueData::BackgroundSize(background_size_payload_1),
+            StyleValueData::BackgroundSize(background_size_payload_2),
+        ) => {
+            let BackgroundSizePayload {
                 size_x: underlying_x,
                 size_y: underlying_y,
-            },
-            StyleValueData::BackgroundSize {
+            } = &**background_size_payload_1;
+            let BackgroundSizePayload {
                 size_x: animated_x,
                 size_y: animated_y,
-            },
-        ) => {
+            } = &**background_size_payload_2;
             let x = composite_scalar_value(underlying_x.data(), animated_x.data(), operation);
             let y = composite_scalar_value(underlying_y.data(), animated_y.data(), operation);
             if !x.handled || !y.handled {
@@ -3913,10 +3950,12 @@ fn composite_scalar_value(
             let (Some(x_value), Some(y_value)) = (x.value, y.value) else {
                 return handled_without_value();
             };
-            owned(StyleValueData::BackgroundSize {
-                size_x: x_value,
-                size_y: y_value,
-            })
+            owned(StyleValueData::BackgroundSize(StyleValueBox::new(
+                BackgroundSizePayload {
+                    size_x: x_value,
+                    size_y: y_value,
+                },
+            )))
         }
         (StyleValueData::Edge { offset: underlying, .. }, StyleValueData::Edge { offset: animated, .. }) => {
             let (Some(underlying), Some(animated)) = (underlying.optional_data(), animated.optional_data()) else {
@@ -3932,16 +3971,15 @@ fn composite_scalar_value(
                 offset: result_value,
             })
         }
-        (
-            StyleValueData::Position {
+        (StyleValueData::Position(position_payload_1), StyleValueData::Position(position_payload_2)) => {
+            let PositionPayload {
                 edge_x: underlying_x,
                 edge_y: underlying_y,
-            },
-            StyleValueData::Position {
+            } = &**position_payload_1;
+            let PositionPayload {
                 edge_x: animated_x,
                 edge_y: animated_y,
-            },
-        ) => {
+            } = &**position_payload_2;
             let x = composite_scalar_value(underlying_x.data(), animated_x.data(), operation);
             let y = composite_scalar_value(underlying_y.data(), animated_y.data(), operation);
             if !x.handled || !y.handled {
@@ -3950,25 +3988,24 @@ fn composite_scalar_value(
             let (Some(x_value), Some(y_value)) = (x.value, y.value) else {
                 return handled_without_value();
             };
-            owned(StyleValueData::Position {
+            owned(StyleValueData::Position(StyleValueBox::new(PositionPayload {
                 edge_x: x_value,
                 edge_y: y_value,
-            })
+            })))
         }
-        (
-            StyleValueData::Rect {
+        (StyleValueData::Rect(rect_payload_1), StyleValueData::Rect(rect_payload_2)) => {
+            let RectPayload {
                 top: underlying_top,
                 right: underlying_right,
                 bottom: underlying_bottom,
                 left: underlying_left,
-            },
-            StyleValueData::Rect {
+            } = &**rect_payload_1;
+            let RectPayload {
                 top: animated_top,
                 right: animated_right,
                 bottom: animated_bottom,
                 left: animated_left,
-            },
-        ) => {
+            } = &**rect_payload_2;
             let combine = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
                 // NB: An auto offset has no amount to add, so combining it with another auto keeps it auto.
                 if let (
@@ -4005,12 +4042,12 @@ fn composite_scalar_value(
                 let Some(left) = combine(underlying_left, animated_left)? else {
                     return Ok(None);
                 };
-                Ok(Some(StyleValueData::Rect {
+                Ok(Some(StyleValueData::Rect(StyleValueBox::new(RectPayload {
                     top,
                     right,
                     bottom,
                     left,
-                }))
+                }))))
             })();
             match value {
                 Err(()) => handled_without_value(),
@@ -4019,17 +4056,20 @@ fn composite_scalar_value(
             }
         }
         (
-            StyleValueData::BorderRadius {
+            StyleValueData::BorderRadius(border_radius_payload_1),
+            StyleValueData::BorderRadius(border_radius_payload_2),
+        ) => {
+            let BorderRadiusPayload {
                 horizontal_radius: underlying_horizontal,
                 vertical_radius: underlying_vertical,
                 ..
-            },
-            StyleValueData::BorderRadius {
+            } = &**border_radius_payload_1;
+            let BorderRadiusPayload {
                 horizontal_radius: animated_horizontal,
                 vertical_radius: animated_vertical,
                 ..
-            },
-        ) => {
+            } = &**border_radius_payload_2;
+
             let horizontal =
                 composite_scalar_value(underlying_horizontal.data(), animated_horizontal.data(), operation);
             let Some(horizontal) = horizontal.into_value() else {
@@ -4039,26 +4079,28 @@ fn composite_scalar_value(
             let Some(vertical) = vertical.into_value() else {
                 return handled_without_value();
             };
-            owned(StyleValueData::BorderRadius {
+            owned(StyleValueData::BorderRadius(StyleValueBox::new(BorderRadiusPayload {
                 is_elliptical: !radius_components_equal(horizontal.data(), vertical.data()),
                 horizontal_radius: horizontal,
                 vertical_radius: vertical,
-            })
+            })))
         }
         (
-            StyleValueData::BorderRadiusRect {
+            StyleValueData::BorderRadiusRect(border_radius_rect_payload_1),
+            StyleValueData::BorderRadiusRect(border_radius_rect_payload_2),
+        ) => {
+            let BorderRadiusRectPayload {
                 top_left: underlying_top_left,
                 top_right: underlying_top_right,
                 bottom_right: underlying_bottom_right,
                 bottom_left: underlying_bottom_left,
-            },
-            StyleValueData::BorderRadiusRect {
+            } = &**border_radius_rect_payload_1;
+            let BorderRadiusRectPayload {
                 top_left: animated_top_left,
                 top_right: animated_top_right,
                 bottom_right: animated_bottom_right,
                 bottom_left: animated_bottom_left,
-            },
-        ) => {
+            } = &**border_radius_rect_payload_2;
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4085,12 +4127,14 @@ fn composite_scalar_value(
                 let Some(bottom_left) = combine(underlying_bottom_left, animated_bottom_left)? else {
                     return Ok(None);
                 };
-                Ok(Some(StyleValueData::BorderRadiusRect {
-                    top_left,
-                    top_right,
-                    bottom_right,
-                    bottom_left,
-                }))
+                Ok(Some(StyleValueData::BorderRadiusRect(StyleValueBox::new(
+                    BorderRadiusRectPayload {
+                        top_left,
+                        top_right,
+                        bottom_right,
+                        bottom_left,
+                    },
+                ))))
             })();
             match value {
                 Err(()) => handled_without_value(),
@@ -4099,21 +4143,23 @@ fn composite_scalar_value(
             }
         }
         (
-            StyleValueData::BorderImageSlice {
+            StyleValueData::BorderImageSlice(border_image_slice_payload_1),
+            StyleValueData::BorderImageSlice(border_image_slice_payload_2),
+        ) => {
+            let BorderImageSlicePayload {
                 top: underlying_top,
                 right: underlying_right,
                 bottom: underlying_bottom,
                 left: underlying_left,
                 fill: underlying_fill,
-            },
-            StyleValueData::BorderImageSlice {
+            } = &**border_image_slice_payload_1;
+            let BorderImageSlicePayload {
                 top: animated_top,
                 right: animated_right,
                 bottom: animated_bottom,
                 left: animated_left,
                 fill: animated_fill,
-            },
-        ) => {
+            } = &**border_image_slice_payload_2;
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4143,13 +4189,15 @@ fn composite_scalar_value(
                 let Some(left) = combine(underlying_left, animated_left)? else {
                     return Ok(None);
                 };
-                Ok(Some(StyleValueData::BorderImageSlice {
-                    top,
-                    right,
-                    bottom,
-                    left,
-                    fill: *underlying_fill,
-                }))
+                Ok(Some(StyleValueData::BorderImageSlice(StyleValueBox::new(
+                    BorderImageSlicePayload {
+                        top,
+                        right,
+                        bottom,
+                        left,
+                        fill: *underlying_fill,
+                    },
+                ))))
             })();
             match value {
                 Err(()) => handled_without_value(),
@@ -4158,18 +4206,21 @@ fn composite_scalar_value(
             }
         }
         (
-            StyleValueData::OpenTypeTagged {
+            StyleValueData::OpenTypeTagged(open_type_tagged_payload_1),
+            StyleValueData::OpenTypeTagged(open_type_tagged_payload_2),
+        ) => {
+            let OpenTypeTaggedPayload {
                 tag_name: underlying_tag,
                 packed_tag: underlying_packed_tag,
                 value: underlying_value,
                 ..
-            },
-            StyleValueData::OpenTypeTagged {
+            } = &**open_type_tagged_payload_1;
+            let OpenTypeTaggedPayload {
                 tag_name: animated_tag,
                 value: animated_value,
                 ..
-            },
-        ) => {
+            } = &**open_type_tagged_payload_2;
+
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4180,23 +4231,24 @@ fn composite_scalar_value(
             let Some(retained_value) = value.into_value() else {
                 return handled_without_value();
             };
-            owned(StyleValueData::OpenTypeTagged {
-                mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
-                tag_name: underlying_tag.clone(),
-                packed_tag: *underlying_packed_tag,
-                value: retained_value,
-            })
+            owned(StyleValueData::OpenTypeTagged(StyleValueBox::new(
+                OpenTypeTaggedPayload {
+                    mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
+                    tag_name: underlying_tag.clone(),
+                    packed_tag: *underlying_packed_tag,
+                    value: retained_value,
+                },
+            )))
         }
-        (
-            StyleValueData::Function {
+        (StyleValueData::Function(function_payload_1), StyleValueData::Function(function_payload_2)) => {
+            let FunctionPayload {
                 name: underlying_name,
                 value: underlying_value,
-            },
-            StyleValueData::Function {
+            } = &**function_payload_1;
+            let FunctionPayload {
                 name: animated_name,
                 value: animated_value,
-            },
-        ) => {
+            } = &**function_payload_2;
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4207,10 +4259,10 @@ fn composite_scalar_value(
             let Some(retained_value) = value.into_value() else {
                 return handled_without_value();
             };
-            owned(StyleValueData::Function {
+            owned(StyleValueData::Function(StyleValueBox::new(FunctionPayload {
                 name: underlying_name.clone(),
                 value: retained_value,
-            })
+            })))
         }
         (
             StyleValueData::TextIndent {
@@ -4291,17 +4343,20 @@ fn composite_scalar_value(
             })
         }
         (
-            StyleValueData::GridTrackSizeList {
+            StyleValueData::GridTrackSizeList(grid_track_size_list_payload_1),
+            StyleValueData::GridTrackSizeList(grid_track_size_list_payload_2),
+        ) => {
+            let GridTrackSizeListPayload {
                 is_subgrid: underlying_is_subgrid,
                 entries: underlying_entries,
                 ..
-            },
-            StyleValueData::GridTrackSizeList {
+            } = &**grid_track_size_list_payload_1;
+            let GridTrackSizeListPayload {
                 is_subgrid: animated_is_subgrid,
                 entries: animated_entries,
                 ..
-            },
-        ) => {
+            } = &**grid_track_size_list_payload_2;
+
             let Some(entries) = composite_grid_track_entries(
                 *underlying_is_subgrid,
                 underlying_entries.as_slice(),
@@ -4311,32 +4366,32 @@ fn composite_scalar_value(
             ) else {
                 return handled_without_value();
             };
-            owned(StyleValueData::GridTrackSizeList {
-                is_subgrid: false,
-                preserve_line_name_sets: false,
-                entries: RetainedGridTrackEntryList::from_retained_entries(entries),
-            })
+            owned(StyleValueData::GridTrackSizeList(StyleValueBox::new(
+                GridTrackSizeListPayload {
+                    is_subgrid: false,
+                    preserve_line_name_sets: false,
+                    entries: RetainedGridTrackEntryList::from_retained_entries(entries),
+                },
+            )))
         }
         (
-            StyleValueData::Transformation {
-                property: underlying_property,
-                ..
-            },
-            StyleValueData::Transformation {
-                property: animated_property,
-                ..
-            },
-        ) if underlying_property == animated_property && is_individual_transform_property(*underlying_property) => {
-            composite_individual_transform(*underlying_property, underlying, animated, operation)
+            StyleValueData::Transformation(underlying_transformation),
+            StyleValueData::Transformation(animated_transformation),
+        ) if underlying_transformation.property == animated_transformation.property
+            && is_individual_transform_property(underlying_transformation.property) =>
+        {
+            composite_individual_transform(underlying_transformation.property, underlying, animated, operation)
                 .map_or_else(handled_without_value, owned)
         }
         // none is the identity value of the individual transform properties, so composing onto or
         // with it yields the other value unchanged.
-        (StyleValueData::Keyword { keyword }, StyleValueData::Transformation { property, .. })
-            if *keyword == crate::css::style_compute::none_keyword() && is_individual_transform_property(*property) =>
+        (StyleValueData::Keyword { keyword }, StyleValueData::Transformation(transformation))
+            if *keyword == crate::css::style_compute::none_keyword()
+                && is_individual_transform_property(transformation.property) =>
         unsafe { handled_borrowed_value(animated) },
-        (StyleValueData::Transformation { property, .. }, StyleValueData::Keyword { keyword })
-            if *keyword == crate::css::style_compute::none_keyword() && is_individual_transform_property(*property) =>
+        (StyleValueData::Transformation(transformation), StyleValueData::Keyword { keyword })
+            if *keyword == crate::css::style_compute::none_keyword()
+                && is_individual_transform_property(transformation.property) =>
         unsafe { handled_borrowed_value(underlying) },
         _ => handled_without_value(),
     }
@@ -4413,42 +4468,43 @@ fn interpolate_scalar_value(
         (StyleValueData::BasicShape { .. }, StyleValueData::BasicShape { .. }) => {
             interpolate_basic_shape(property_id, from, to, delta).map_or_else(handled_without_value, owned)
         }
-        (
-            StyleValueData::RadialSize {
+        (StyleValueData::RadialSize(radial_size_payload_1), StyleValueData::RadialSize(radial_size_payload_2)) => {
+            let RadialSizePayload {
                 component_count: from_component_count,
                 is_extent_0: from_is_extent_0,
                 value_0: from_value_0,
                 is_extent_1: from_is_extent_1,
                 value_1: from_value_1,
                 ..
-            },
-            StyleValueData::RadialSize {
+            } = &**radial_size_payload_1;
+            let RadialSizePayload {
                 component_count: to_component_count,
                 is_extent_0: to_is_extent_0,
                 value_0: to_value_0,
                 is_extent_1: to_is_extent_1,
                 value_1: to_value_1,
                 ..
-            },
-        ) => interpolate_radial_size(
-            property_id,
-            RadialSizeComponents {
-                component_count: *from_component_count,
-                is_extent_0: *from_is_extent_0,
-                value_0: from_value_0,
-                is_extent_1: *from_is_extent_1,
-                value_1: from_value_1,
-            },
-            RadialSizeComponents {
-                component_count: *to_component_count,
-                is_extent_0: *to_is_extent_0,
-                value_0: to_value_0,
-                is_extent_1: *to_is_extent_1,
-                value_1: to_value_1,
-            },
-            delta,
-        )
-        .map_or_else(handled_without_value, owned),
+            } = &**radial_size_payload_2;
+            interpolate_radial_size(
+                property_id,
+                RadialSizeComponents {
+                    component_count: *from_component_count,
+                    is_extent_0: *from_is_extent_0,
+                    value_0: from_value_0,
+                    is_extent_1: *from_is_extent_1,
+                    value_1: from_value_1,
+                },
+                RadialSizeComponents {
+                    component_count: *to_component_count,
+                    is_extent_0: *to_is_extent_0,
+                    value_0: to_value_0,
+                    is_extent_1: *to_is_extent_1,
+                    value_1: to_value_1,
+                },
+                delta,
+            )
+            .map_or_else(handled_without_value, owned)
+        }
         (from_value @ StyleValueData::Keyword { keyword: from }, StyleValueData::Keyword { keyword: to })
             if from == to =>
         unsafe { handled_borrowed_value(from_value) },
@@ -4610,7 +4666,7 @@ fn interpolate_scalar_value(
             else {
                 return not_handled();
             };
-            let number = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number {
+            let number = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number {
                 value: interpolate_f64(*from, *to, delta, Some((0.0, 1.0))),
             }));
             owned(StyleValueData::OpacityValue { value: number })
@@ -4627,21 +4683,23 @@ fn interpolate_scalar_value(
             let to_normalized_value = normalized_super_ellipse_half_corner(*to);
             let interpolated_value =
                 interpolate_f64(from_normalized_value, to_normalized_value, delta, Some((0.0, 1.0)));
-            let parameter = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number {
+            let parameter = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number {
                 value: interpolation_value_to_super_ellipse_parameter(interpolated_value),
             }));
             owned(StyleValueData::Superellipse { parameter })
         }
         (
-            StyleValueData::BackgroundSize {
+            StyleValueData::BackgroundSize(background_size_payload_1),
+            StyleValueData::BackgroundSize(background_size_payload_2),
+        ) => {
+            let BackgroundSizePayload {
                 size_x: from_x,
                 size_y: from_y,
-            },
-            StyleValueData::BackgroundSize {
+            } = &**background_size_payload_1;
+            let BackgroundSizePayload {
                 size_x: to_x,
                 size_y: to_y,
-            },
-        ) => {
+            } = &**background_size_payload_2;
             let x = interpolate_scalar_value(property_id, from_x.data(), to_x.data(), delta, range_overrides);
             let y = interpolate_scalar_value(property_id, from_y.data(), to_y.data(), delta, range_overrides);
             if !x.handled || !y.handled {
@@ -4650,10 +4708,12 @@ fn interpolate_scalar_value(
             let (Some(x_value), Some(y_value)) = (x.value, y.value) else {
                 return handled_without_value();
             };
-            owned(StyleValueData::BackgroundSize {
-                size_x: x_value,
-                size_y: y_value,
-            })
+            owned(StyleValueData::BackgroundSize(StyleValueBox::new(
+                BackgroundSizePayload {
+                    size_x: x_value,
+                    size_y: y_value,
+                },
+            )))
         }
         (StyleValueData::Edge { offset: from, .. }, StyleValueData::Edge { offset: to, .. }) => {
             let (Some(from), Some(to)) = (from.optional_data(), to.optional_data()) else {
@@ -4668,16 +4728,15 @@ fn interpolate_scalar_value(
                 offset,
             })
         }
-        (
-            StyleValueData::Position {
+        (StyleValueData::Position(position_payload_1), StyleValueData::Position(position_payload_2)) => {
+            let PositionPayload {
                 edge_x: from_x,
                 edge_y: from_y,
-            },
-            StyleValueData::Position {
+            } = &**position_payload_1;
+            let PositionPayload {
                 edge_x: to_x,
                 edge_y: to_y,
-            },
-        ) => {
+            } = &**position_payload_2;
             // https://www.w3.org/TR/css-values-4/#combine-positions
             // FIXME: Interpolation of <position> is defined as the independent interpolation of each component (x, y) normalized as an offset from the top left corner as a <length-percentage>.
             let x = interpolate_scalar_value(property_id, from_x.data(), to_x.data(), delta, range_overrides);
@@ -4688,25 +4747,24 @@ fn interpolate_scalar_value(
             let (Some(x_value), Some(y_value)) = (x.value, y.value) else {
                 return handled_without_value();
             };
-            owned(StyleValueData::Position {
+            owned(StyleValueData::Position(StyleValueBox::new(PositionPayload {
                 edge_x: x_value,
                 edge_y: y_value,
-            })
+            })))
         }
-        (
-            StyleValueData::Rect {
+        (StyleValueData::Rect(rect_payload_1), StyleValueData::Rect(rect_payload_2)) => {
+            let RectPayload {
                 top: from_top,
                 right: from_right,
                 bottom: from_bottom,
                 left: from_left,
-            },
-            StyleValueData::Rect {
+            } = &**rect_payload_1;
+            let RectPayload {
                 top: to_top,
                 right: to_right,
                 bottom: to_bottom,
                 left: to_left,
-            },
-        ) => {
+            } = &**rect_payload_2;
             let combine = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
                 let result = interpolate_scalar_value(property_id, from.data(), to.data(), delta, range_overrides);
                 if !result.handled {
@@ -4730,12 +4788,12 @@ fn interpolate_scalar_value(
                 let Some(left) = combine(from_left, to_left)? else {
                     return Ok(None);
                 };
-                Ok(Some(StyleValueData::Rect {
+                Ok(Some(StyleValueData::Rect(StyleValueBox::new(RectPayload {
                     top,
                     right,
                     bottom,
                     left,
-                }))
+                }))))
             })();
             match value {
                 Err(()) => not_handled(),
@@ -4744,17 +4802,20 @@ fn interpolate_scalar_value(
             }
         }
         (
-            StyleValueData::BorderRadius {
+            StyleValueData::BorderRadius(border_radius_payload_1),
+            StyleValueData::BorderRadius(border_radius_payload_2),
+        ) => {
+            let BorderRadiusPayload {
                 horizontal_radius: from_horizontal,
                 vertical_radius: from_vertical,
                 ..
-            },
-            StyleValueData::BorderRadius {
+            } = &**border_radius_payload_1;
+            let BorderRadiusPayload {
                 horizontal_radius: to_horizontal,
                 vertical_radius: to_vertical,
                 ..
-            },
-        ) => {
+            } = &**border_radius_payload_2;
+
             let horizontal = interpolate_scalar_value(
                 property_id,
                 from_horizontal.data(),
@@ -4781,26 +4842,28 @@ fn interpolate_scalar_value(
             let Some(vertical) = vertical.value else {
                 return handled_without_value();
             };
-            owned(StyleValueData::BorderRadius {
+            owned(StyleValueData::BorderRadius(StyleValueBox::new(BorderRadiusPayload {
                 is_elliptical: !radius_components_equal(horizontal.data(), vertical.data()),
                 horizontal_radius: horizontal,
                 vertical_radius: vertical,
-            })
+            })))
         }
         (
-            StyleValueData::BorderRadiusRect {
+            StyleValueData::BorderRadiusRect(border_radius_rect_payload_1),
+            StyleValueData::BorderRadiusRect(border_radius_rect_payload_2),
+        ) => {
+            let BorderRadiusRectPayload {
                 top_left: from_top_left,
                 top_right: from_top_right,
                 bottom_right: from_bottom_right,
                 bottom_left: from_bottom_left,
-            },
-            StyleValueData::BorderRadiusRect {
+            } = &**border_radius_rect_payload_1;
+            let BorderRadiusRectPayload {
                 top_left: to_top_left,
                 top_right: to_top_right,
                 bottom_right: to_bottom_right,
                 bottom_left: to_bottom_left,
-            },
-        ) => {
+            } = &**border_radius_rect_payload_2;
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4828,12 +4891,14 @@ fn interpolate_scalar_value(
                 let Some(bottom_left) = combine(from_bottom_left, to_bottom_left)? else {
                     return Ok(None);
                 };
-                Ok(Some(StyleValueData::BorderRadiusRect {
-                    top_left,
-                    top_right,
-                    bottom_right,
-                    bottom_left,
-                }))
+                Ok(Some(StyleValueData::BorderRadiusRect(StyleValueBox::new(
+                    BorderRadiusRectPayload {
+                        top_left,
+                        top_right,
+                        bottom_right,
+                        bottom_left,
+                    },
+                ))))
             })();
             match value {
                 Err(()) => not_handled(),
@@ -4842,21 +4907,23 @@ fn interpolate_scalar_value(
             }
         }
         (
-            StyleValueData::BorderImageSlice {
+            StyleValueData::BorderImageSlice(border_image_slice_payload_1),
+            StyleValueData::BorderImageSlice(border_image_slice_payload_2),
+        ) => {
+            let BorderImageSlicePayload {
                 top: from_top,
                 right: from_right,
                 bottom: from_bottom,
                 left: from_left,
                 fill: from_fill,
-            },
-            StyleValueData::BorderImageSlice {
+            } = &**border_image_slice_payload_1;
+            let BorderImageSlicePayload {
                 top: to_top,
                 right: to_right,
                 bottom: to_bottom,
                 left: to_left,
                 fill: to_fill,
-            },
-        ) => {
+            } = &**border_image_slice_payload_2;
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4886,13 +4953,15 @@ fn interpolate_scalar_value(
                 let Some(left) = combine(from_left, to_left)? else {
                     return Ok(None);
                 };
-                Ok(Some(StyleValueData::BorderImageSlice {
-                    top,
-                    right,
-                    bottom,
-                    left,
-                    fill: *from_fill,
-                }))
+                Ok(Some(StyleValueData::BorderImageSlice(StyleValueBox::new(
+                    BorderImageSlicePayload {
+                        top,
+                        right,
+                        bottom,
+                        left,
+                        fill: *from_fill,
+                    },
+                ))))
             })();
             match value {
                 Err(()) => not_handled(),
@@ -4901,18 +4970,21 @@ fn interpolate_scalar_value(
             }
         }
         (
-            StyleValueData::OpenTypeTagged {
+            StyleValueData::OpenTypeTagged(open_type_tagged_payload_1),
+            StyleValueData::OpenTypeTagged(open_type_tagged_payload_2),
+        ) => {
+            let OpenTypeTaggedPayload {
                 tag_name: from_tag,
                 packed_tag: from_packed_tag,
                 value: from_value,
                 ..
-            },
-            StyleValueData::OpenTypeTagged {
+            } = &**open_type_tagged_payload_1;
+            let OpenTypeTaggedPayload {
                 tag_name: to_tag,
                 value: to_value,
                 ..
-            },
-        ) => {
+            } = &**open_type_tagged_payload_2;
+
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4927,23 +4999,24 @@ fn interpolate_scalar_value(
             let Some(retained_value) = value.value else {
                 return handled_without_value();
             };
-            owned(StyleValueData::OpenTypeTagged {
-                mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
-                tag_name: from_tag.clone(),
-                packed_tag: *from_packed_tag,
-                value: retained_value,
-            })
+            owned(StyleValueData::OpenTypeTagged(StyleValueBox::new(
+                OpenTypeTaggedPayload {
+                    mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
+                    tag_name: from_tag.clone(),
+                    packed_tag: *from_packed_tag,
+                    value: retained_value,
+                },
+            )))
         }
-        (
-            StyleValueData::Function {
+        (StyleValueData::Function(function_payload_1), StyleValueData::Function(function_payload_2)) => {
+            let FunctionPayload {
                 name: from_name,
                 value: from_value,
-            },
-            StyleValueData::Function {
+            } = &**function_payload_1;
+            let FunctionPayload {
                 name: to_name,
                 value: to_value,
-            },
-        ) => {
+            } = &**function_payload_2;
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
@@ -4958,10 +5031,10 @@ fn interpolate_scalar_value(
             let Some(retained_value) = value.value else {
                 return handled_without_value();
             };
-            owned(StyleValueData::Function {
+            owned(StyleValueData::Function(StyleValueBox::new(FunctionPayload {
                 name: from_name.clone(),
                 value: retained_value,
-            })
+            })))
         }
         (
             StyleValueData::TextIndent {
@@ -4991,16 +5064,15 @@ fn interpolate_scalar_value(
                 each_line: *from_each_line,
             })
         }
-        (
-            StyleValueData::Ratio {
+        (StyleValueData::Ratio(ratio_payload_1), StyleValueData::Ratio(ratio_payload_2)) => {
+            let RatioPayload {
                 numerator: from_numerator,
                 denominator: from_denominator,
-            },
-            StyleValueData::Ratio {
+            } = &**ratio_payload_1;
+            let RatioPayload {
                 numerator: to_numerator,
                 denominator: to_denominator,
-            },
-        ) => {
+            } = &**ratio_payload_2;
             let (
                 StyleValueData::Number { value: from_numerator },
                 StyleValueData::Number {
@@ -5046,10 +5118,12 @@ fn interpolate_scalar_value(
                 accepted_range(property_id, VALUE_TYPE_RATIO, range_overrides),
             )
             .exp();
-            owned(StyleValueData::Ratio {
-                numerator: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value })),
-                denominator: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: 1.0 })),
-            })
+            owned(StyleValueData::Ratio(StyleValueBox::new(RatioPayload {
+                numerator: RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value })),
+                denominator: RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number {
+                    value: 1.0,
+                })),
+            })))
         }
         (
             StyleValueData::ValueList {
@@ -5238,40 +5312,42 @@ fn interpolate_rotate_3d_with_phases(
 
     let mut arguments = Vec::with_capacity(4);
     for value in result_axis {
-        let argument = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }));
+        let argument = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value }));
         arguments.push(argument);
     }
-    let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+    let angle = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle {
         value: result_angle,
         unit: 0,
     }));
     arguments.push(angle);
 
-    Some(StyleValueData::Transformation {
-        property,
-        transform_function,
-        values: RetainedStyleValueDataList::from_retained_values(arguments),
-        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    })
+    Some(StyleValueData::Transformation(StyleValueBox::new(
+        TransformationPayload {
+            property,
+            transform_function,
+            values: RetainedStyleValueDataList::from_retained_values(arguments),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+        },
+    )))
 }
 
 fn retained_number(value: f64) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value }))
 }
 
 fn retained_zero_px() -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Length {
         value: 0.0,
         unit: crate::css::style_compute::px_length_unit(),
     }))
 }
 
 fn retained_length(value: f64, unit: u8) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length { value, unit }))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Length { value, unit }))
 }
 
 fn retained_none_keyword() -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Keyword {
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Keyword {
         keyword: crate::css::style_compute::none_keyword(),
     }))
 }
@@ -5518,14 +5594,15 @@ fn identity_transformation(property: u16, function: u8) -> Option<RetainedStyleV
         | TRANSFORM_FUNCTION_SKEW
         | TRANSFORM_FUNCTION_SKEW_X
         | TRANSFORM_FUNCTION_SKEW_Y => {
-            let angle = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
+            let angle =
+                RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle { value: 0.0, unit: 0 }));
             vec![angle]
         }
         TRANSFORM_FUNCTION_ROTATE_3D => vec![
             retained_number(1.0),
             retained_number(1.0),
             retained_number(1.0),
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 })),
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle { value: 0.0, unit: 0 })),
         ],
         TRANSFORM_FUNCTION_TRANSLATE
         | TRANSFORM_FUNCTION_TRANSLATE_X
@@ -5539,12 +5616,14 @@ fn identity_transformation(property: u16, function: u8) -> Option<RetainedStyleV
         TRANSFORM_FUNCTION_SCALE_3D => vec![retained_number(1.0), retained_number(1.0), retained_number(1.0)],
         _ => return None,
     };
-    let transformation = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
-        property,
-        transform_function: function,
-        values: RetainedStyleValueDataList::from_retained_values(arguments),
-        matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    }));
+    let transformation = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Transformation(
+        StyleValueBox::new(TransformationPayload {
+            property,
+            transform_function: function,
+            values: RetainedStyleValueDataList::from_retained_values(arguments),
+            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+        }),
+    )));
     Some(transformation)
 }
 
@@ -5994,12 +6073,12 @@ fn matrix_transformation(property: u16, matrix: Matrix4) -> StyleValueData {
     let arguments = (0..16)
         .map(|index| retained_number(matrix[index % 4][index / 4]))
         .collect();
-    StyleValueData::Transformation {
+    StyleValueData::Transformation(StyleValueBox::new(TransformationPayload {
         property,
         transform_function: TRANSFORM_FUNCTION_MATRIX_3D,
         values: RetainedStyleValueDataList::from_retained_values(arguments),
         matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    }
+    }))
 }
 
 enum TransformMatrixInterpolationError {
@@ -6017,7 +6096,7 @@ fn interpolate_transform_matrix_suffix(
     let from = post_multiply_transformations(context, from).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
     let to = post_multiply_transformations(context, to).ok_or(TransformMatrixInterpolationError::NotConvertible)?;
     let matrix = interpolate_matrices(from, to, delta).ok_or(TransformMatrixInterpolationError::NonInvertible)?;
-    let transformation = RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(property, matrix)));
+    let transformation = RetainedStyleValueData::from_arc(StyleValueArc::new(matrix_transformation(property, matrix)));
     Ok(transformation)
 }
 
@@ -6037,14 +6116,14 @@ fn pad_transform_lists(
             (to_values, &*from_values)
         };
         for transformation in &longer[shorter.len()..] {
-            let StyleValueData::Transformation {
+            let StyleValueData::Transformation(transformation_payload) = transformation.data() else {
+                return None;
+            };
+            let TransformationPayload {
                 property,
                 transform_function,
                 ..
-            } = transformation.data()
-            else {
-                return None;
-            };
+            } = &**transformation_payload;
             shorter.push(identity_transformation(*property, *transform_function)?);
         }
     }
@@ -6114,21 +6193,24 @@ fn interpolate_transform_list_impl(
     let mut transformations = Vec::with_capacity(from_values.len());
     for (index, (from, to)) in from_values.iter().zip(&to_values).enumerate() {
         let (
-            StyleValueData::Transformation {
-                property: from_property,
-                transform_function: from_function,
-                values: from_arguments,
-                ..
-            },
-            StyleValueData::Transformation {
-                transform_function: to_function,
-                values: to_arguments,
-                ..
-            },
+            StyleValueData::Transformation(transformation_payload_1),
+            StyleValueData::Transformation(transformation_payload_2),
         ) = (from.data(), to.data())
         else {
             return None;
         };
+        let TransformationPayload {
+            property: from_property,
+            transform_function: from_function,
+            values: from_arguments,
+            ..
+        } = &**transformation_payload_1;
+        let TransformationPayload {
+            transform_function: to_function,
+            values: to_arguments,
+            ..
+        } = &**transformation_payload_2;
+
         if from_function == to_function && *from_function == TRANSFORM_FUNCTION_PERSPECTIVE {
             let ([from_argument], [to_argument]) = (from_arguments.as_slice(), to_arguments.as_slice()) else {
                 return None;
@@ -6151,12 +6233,14 @@ fn interpolate_transform_list_impl(
             //               and decomposing two matrices.
             let reciprocal_depth = interpolate_f64(from_reciprocal_depth, to_reciprocal_depth, delta, None);
             let argument = perspective_from_reciprocal_depth(reciprocal_depth, from_unit.or(to_unit));
-            let transformation = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
-                property: *from_property,
-                transform_function: *from_function,
-                values: RetainedStyleValueDataList::from_retained_values(vec![argument]),
-                matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-            }));
+            let transformation = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Transformation(
+                StyleValueBox::new(TransformationPayload {
+                    property: *from_property,
+                    transform_function: *from_function,
+                    values: RetainedStyleValueDataList::from_retained_values(vec![argument]),
+                    matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+                }),
+            )));
             transformations.push(transformation);
             continue;
         }
@@ -6227,7 +6311,7 @@ fn interpolate_transform_list_impl(
                 delta,
                 effective_rotation_radians(from.data()).zip(effective_rotation_radians(to.data())),
             )?;
-            let transformation = RetainedStyleValueData::from_arc(Arc::new(transformation));
+            let transformation = RetainedStyleValueData::from_arc(StyleValueArc::new(transformation));
             transformations.push(transformation);
             continue;
         }
@@ -6248,12 +6332,14 @@ fn interpolate_transform_list_impl(
             }
             arguments.push(interpolate_scalar_value(property_id, from.data(), to.data(), delta, &[]).into_value()?);
         }
-        let transformation = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
-            property: *from_property,
-            transform_function,
-            values: RetainedStyleValueDataList::from_retained_values(arguments),
-            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-        }));
+        let transformation = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Transformation(
+            StyleValueBox::new(TransformationPayload {
+                property: *from_property,
+                transform_function,
+                values: RetainedStyleValueDataList::from_retained_values(arguments),
+                matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+            }),
+        )));
         transformations.push(transformation);
     }
 
@@ -6297,15 +6383,15 @@ fn post_multiply_transformations(
 ) -> Option<Matrix4> {
     let mut result = identity_matrix();
     for transformation in transformations {
-        let StyleValueData::Transformation {
+        let StyleValueData::Transformation(transformation_payload) = transformation.data() else {
+            return None;
+        };
+        let TransformationPayload {
             transform_function,
             values,
             matrix_values,
             ..
-        } = transformation.data()
-        else {
-            return None;
-        };
+        } = &**transformation_payload;
         result = multiply_matrices(
             result,
             transformation_to_matrix(
@@ -6406,10 +6492,9 @@ fn accumulate_rotate_3d(
     let (animated_axis, animated_angle) = decode(animated)?;
     let rotation = |axis: [f64; 3], angle: f64| {
         let mut arguments: Vec<_> = axis.into_iter().map(retained_number).collect();
-        arguments.push(RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
-            value: angle,
-            unit: 0,
-        })));
+        arguments.push(RetainedStyleValueData::from_arc(StyleValueArc::new(
+            StyleValueData::Angle { value: angle, unit: 0 },
+        )));
         arguments
     };
 
@@ -6468,7 +6553,7 @@ fn perspective_from_reciprocal_depth(reciprocal_depth: f64, unit: Option<u8>) ->
     if reciprocal_depth <= 0.0 {
         return retained_none_keyword();
     }
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Length {
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Length {
         value: 1.0 / reciprocal_depth,
         unit: unit.unwrap_or_else(crate::css::style_compute::px_length_unit),
     }))
@@ -6486,7 +6571,7 @@ fn accumulate_transform_functions(
     if !has_transform_matrix_values(underlying) && !has_transform_matrix_values(animated) {
         return Some(value);
     }
-    Some(RetainedStyleValueData::from_arc(Arc::new(
+    Some(RetainedStyleValueData::from_arc(StyleValueArc::new(
         preserve_transform_matrix_values(value.data().clone(), &[underlying, animated]),
     )))
 }
@@ -6498,27 +6583,32 @@ fn accumulate_transform_functions_impl(
     animated: &StyleValueData,
 ) -> Option<RetainedStyleValueData> {
     let (
-        StyleValueData::Transformation {
-            transform_function: underlying_function,
-            values: underlying_arguments,
-            ..
-        },
-        StyleValueData::Transformation {
-            transform_function: animated_function,
-            values: animated_arguments,
-            ..
-        },
+        StyleValueData::Transformation(transformation_payload_1),
+        StyleValueData::Transformation(transformation_payload_2),
     ) = (underlying, animated)
     else {
         return None;
     };
+    let TransformationPayload {
+        transform_function: underlying_function,
+        values: underlying_arguments,
+        ..
+    } = &**transformation_payload_1;
+    let TransformationPayload {
+        transform_function: animated_function,
+        values: animated_arguments,
+        ..
+    } = &**transformation_payload_2;
+
     let transformation = |transform_function: u8, arguments: Vec<RetainedStyleValueData>| {
-        RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Transformation {
-            property,
-            transform_function,
-            values: RetainedStyleValueDataList::from_retained_values(arguments),
-            matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-        }))
+        RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Transformation(StyleValueBox::new(
+            TransformationPayload {
+                property,
+                transform_function,
+                values: RetainedStyleValueDataList::from_retained_values(arguments),
+                matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
+            },
+        ))))
     };
 
     if underlying_function == animated_function && *underlying_function == TRANSFORM_FUNCTION_PERSPECTIVE {
@@ -6638,9 +6728,10 @@ fn composite_transform_list(
             for (index, (underlying_value, animated_value)) in
                 underlying_values.iter().zip(&animated_values).enumerate()
             {
-                let StyleValueData::Transformation { property, .. } = underlying_value.data() else {
+                let StyleValueData::Transformation(transformation_payload) = underlying_value.data() else {
                     return None;
                 };
+                let TransformationPayload { property, .. } = &**transformation_payload;
                 if let Some(value) = accumulate_transform_functions(
                     Some(context),
                     *property,
@@ -6653,10 +6744,10 @@ fn composite_transform_list(
                 let is_matrix_pair = matches!(
                     (underlying_value.data(), animated_value.data()),
                     (
-                        StyleValueData::Transformation { transform_function: underlying_function, .. },
-                        StyleValueData::Transformation { transform_function: animated_function, .. },
-                    ) if underlying_function == animated_function
-                        && matches!(*underlying_function, TRANSFORM_FUNCTION_MATRIX | TRANSFORM_FUNCTION_MATRIX_3D)
+                        StyleValueData::Transformation(underlying_function),
+                        StyleValueData::Transformation(animated_function),
+                    ) if underlying_function.transform_function == animated_function.transform_function
+                        && matches!(underlying_function.transform_function, TRANSFORM_FUNCTION_MATRIX | TRANSFORM_FUNCTION_MATRIX_3D)
                 );
                 let end = if is_matrix_pair {
                     index + 1
@@ -6667,9 +6758,9 @@ fn composite_transform_list(
                 let animated_matrix = post_multiply_transformations(Some(context), &animated_values[index..end])?;
                 // NB: Accumulating a non-invertible matrix falls back to replacing the underlying value.
                 let matrix = accumulate_matrices(underlying_matrix, animated_matrix)?;
-                values.push(RetainedStyleValueData::from_arc(Arc::new(matrix_transformation(
-                    *property, matrix,
-                ))));
+                values.push(RetainedStyleValueData::from_arc(StyleValueArc::new(
+                    matrix_transformation(*property, matrix),
+                )));
                 if !is_matrix_pair {
                     break;
                 }
@@ -6680,20 +6771,22 @@ fn composite_transform_list(
 }
 
 fn retained_legacy_color(red: u8, green: u8, blue: u8, alpha: u8) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::ColorFunction {
-        color_base: ColorBase {
-            has_color_type: true,
-            color_type: COLOR_TYPE_RGB,
-            color_syntax: COLOR_SYNTAX_LEGACY,
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: ColorBase {
+                has_color_type: true,
+                color_type: COLOR_TYPE_RGB,
+                color_syntax: COLOR_SYNTAX_LEGACY,
+            },
+            channel_0: retained_number(red as f64),
+            channel_1: retained_number(green as f64),
+            channel_2: retained_number(blue as f64),
+            alpha: retained_number(alpha as f64 / 255.0),
+            has_name: false,
+            name: empty_retained_fly_string(),
+            origin_color: empty_retained_style_value(),
         },
-        channel_0: retained_number(red as f64),
-        channel_1: retained_number(green as f64),
-        channel_2: retained_number(blue as f64),
-        alpha: retained_number(alpha as f64 / 255.0),
-        has_name: false,
-        name: empty_retained_fly_string(),
-        origin_color: empty_retained_style_value(),
-    }))
+    ))))
 }
 
 fn retained_transparent_legacy_color() -> RetainedStyleValueData {
@@ -6826,41 +6919,45 @@ fn resolve_root_animation_color<'a>(
             }
             let to_byte = |value: f32| (value * 255.0).round().clamp(0.0, 255.0) as u8;
             let alpha = to_byte(components[3]);
-            Some(RootAnimationColor::Owned(StyleValueData::ColorFunction {
-                color_base: ColorBase {
-                    has_color_type: true,
-                    color_type: COLOR_TYPE_RGB,
-                    color_syntax: COLOR_SYNTAX_LEGACY,
-                },
-                channel_0: retained_number(to_byte(components[0]) as f64),
-                channel_1: retained_number(to_byte(components[1]) as f64),
-                channel_2: retained_number(to_byte(components[2]) as f64),
-                alpha: retained_number(alpha as f64 / 255.0),
-                has_name: false,
-                name: empty_retained_fly_string(),
-                origin_color: empty_retained_style_value(),
-            }))
+            Some(RootAnimationColor::Owned(StyleValueData::ColorFunction(
+                StyleValueBox::new(ColorFunctionPayload {
+                    color_base: ColorBase {
+                        has_color_type: true,
+                        color_type: COLOR_TYPE_RGB,
+                        color_syntax: COLOR_SYNTAX_LEGACY,
+                    },
+                    channel_0: retained_number(to_byte(components[0]) as f64),
+                    channel_1: retained_number(to_byte(components[1]) as f64),
+                    channel_2: retained_number(to_byte(components[2]) as f64),
+                    alpha: retained_number(alpha as f64 / 255.0),
+                    has_name: false,
+                    name: empty_retained_fly_string(),
+                    origin_color: empty_retained_style_value(),
+                }),
+            )))
         }
         _ => None,
     }
 }
 
 fn blank_shadow(other: &StyleValueData) -> Option<RetainedStyleValueData> {
-    let StyleValueData::Shadow {
-        shadow_type, placement, ..
-    } = other
-    else {
+    let StyleValueData::Shadow(shadow_payload) = other else {
         return None;
     };
-    let value = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Shadow {
-        shadow_type: *shadow_type,
-        color: retained_transparent_legacy_color(),
-        offset_x: retained_zero_px(),
-        offset_y: retained_zero_px(),
-        blur_radius: retained_zero_px(),
-        spread_distance: retained_zero_px(),
-        placement: *placement,
-    }));
+    let ShadowPayload {
+        shadow_type, placement, ..
+    } = &**shadow_payload;
+    let value = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Shadow(StyleValueBox::new(
+        ShadowPayload {
+            shadow_type: *shadow_type,
+            color: retained_transparent_legacy_color(),
+            offset_x: retained_zero_px(),
+            offset_y: retained_zero_px(),
+            blur_radius: retained_zero_px(),
+            spread_distance: retained_zero_px(),
+            placement: *placement,
+        },
+    ))));
     Some(value)
 }
 
@@ -6871,29 +6968,27 @@ fn interpolate_shadow(
     to: &StyleValueData,
     delta: f32,
 ) -> Option<StyleValueData> {
-    let (
-        StyleValueData::Shadow {
-            shadow_type: from_shadow_type,
-            color: from_color,
-            offset_x: from_offset_x,
-            offset_y: from_offset_y,
-            blur_radius: from_blur_radius,
-            spread_distance: from_spread_distance,
-            placement: from_placement,
-        },
-        StyleValueData::Shadow {
-            shadow_type: to_shadow_type,
-            color: to_color,
-            offset_x: to_offset_x,
-            offset_y: to_offset_y,
-            blur_radius: to_blur_radius,
-            spread_distance: to_spread_distance,
-            placement: to_placement,
-        },
-    ) = (from, to)
-    else {
+    let (StyleValueData::Shadow(shadow_payload_1), StyleValueData::Shadow(shadow_payload_2)) = (from, to) else {
         return None;
     };
+    let ShadowPayload {
+        shadow_type: from_shadow_type,
+        color: from_color,
+        offset_x: from_offset_x,
+        offset_y: from_offset_y,
+        blur_radius: from_blur_radius,
+        spread_distance: from_spread_distance,
+        placement: from_placement,
+    } = &**shadow_payload_1;
+    let ShadowPayload {
+        shadow_type: to_shadow_type,
+        color: to_color,
+        offset_x: to_offset_x,
+        offset_y: to_offset_y,
+        blur_radius: to_blur_radius,
+        spread_distance: to_spread_distance,
+        placement: to_placement,
+    } = &**shadow_payload_2;
     // https://drafts.csswg.org/web-animations-1/#animating-shadow-lists
     // However, if both input shadows are inset or both input shadows are not inset, then the interpolated shadow must
     // match the input shadows in that regard. If any pair of input shadows has one inset and the other not inset, the
@@ -6954,7 +7049,7 @@ fn interpolate_shadow(
     )
     .or_else(|| interpolate(from_spread_distance, to_spread_distance, &[]))?;
 
-    Some(StyleValueData::Shadow {
+    Some(StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
         shadow_type: *from_shadow_type,
         color,
         offset_x,
@@ -6962,7 +7057,7 @@ fn interpolate_shadow(
         blur_radius,
         spread_distance,
         placement: *from_placement,
-    })
+    })))
 }
 
 fn shadow_list_entries(value: &StyleValueData) -> Option<(Vec<RetainedStyleValueData>, u8, bool)> {
@@ -7014,29 +7109,28 @@ fn accumulate_shadow(
     underlying: &StyleValueData,
     animated: &StyleValueData,
 ) -> Option<StyleValueData> {
-    let (
-        StyleValueData::Shadow {
-            shadow_type: underlying_shadow_type,
-            color: underlying_color,
-            offset_x: underlying_offset_x,
-            offset_y: underlying_offset_y,
-            blur_radius: underlying_blur_radius,
-            spread_distance: underlying_spread_distance,
-            placement: underlying_placement,
-        },
-        StyleValueData::Shadow {
-            shadow_type: animated_shadow_type,
-            color: animated_color,
-            offset_x: animated_offset_x,
-            offset_y: animated_offset_y,
-            blur_radius: animated_blur_radius,
-            spread_distance: animated_spread_distance,
-            placement: animated_placement,
-        },
-    ) = (underlying, animated)
+    let (StyleValueData::Shadow(shadow_payload_1), StyleValueData::Shadow(shadow_payload_2)) = (underlying, animated)
     else {
         return None;
     };
+    let ShadowPayload {
+        shadow_type: underlying_shadow_type,
+        color: underlying_color,
+        offset_x: underlying_offset_x,
+        offset_y: underlying_offset_y,
+        blur_radius: underlying_blur_radius,
+        spread_distance: underlying_spread_distance,
+        placement: underlying_placement,
+    } = &**shadow_payload_1;
+    let ShadowPayload {
+        shadow_type: animated_shadow_type,
+        color: animated_color,
+        offset_x: animated_offset_x,
+        offset_y: animated_offset_y,
+        blur_radius: animated_blur_radius,
+        spread_distance: animated_spread_distance,
+        placement: animated_placement,
+    } = &**shadow_payload_2;
     if underlying_shadow_type != animated_shadow_type || underlying_placement != animated_placement {
         return None;
     }
@@ -7060,7 +7154,7 @@ fn accumulate_shadow(
     )
     .into_value()?;
 
-    Some(StyleValueData::Shadow {
+    Some(StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
         shadow_type: *underlying_shadow_type,
         color,
         offset_x: add_lengths(underlying_offset_x, animated_offset_x)?,
@@ -7074,7 +7168,7 @@ fn accumulate_shadow(
             empty_retained_style_value()
         },
         placement: *underlying_placement,
-    })
+    })))
 }
 
 fn composite_shadow_list(
@@ -7118,7 +7212,7 @@ fn composite_shadow_list(
                 let Some(shadow) = accumulate_shadow(context, underlying_shadow.data(), animated_shadow.data()) else {
                     return handled_without_value();
                 };
-                shadows.push(RetainedStyleValueData::from_arc(Arc::new(shadow)));
+                shadows.push(RetainedStyleValueData::from_arc(StyleValueArc::new(shadow)));
             }
             shadows
         }
@@ -7161,7 +7255,7 @@ fn interpolate_shadow_list(
         let Some(shadow) = interpolate_shadow(context, property_id, from_shadow.data(), to_shadow.data(), delta) else {
             return discrete_value(context, from, to, delta);
         };
-        let shadow = RetainedStyleValueData::from_arc(Arc::new(shadow));
+        let shadow = RetainedStyleValueData::from_arc(StyleValueArc::new(shadow));
         shadows.push(shadow);
     }
 
@@ -7178,7 +7272,7 @@ fn interpolate_shadow_list(
 }
 
 fn retained_filter(kind: u8, color_operation: u8, value: RetainedStyleValueData) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Filter {
+    RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Filter {
         kind,
         color_operation,
         value,
@@ -7200,28 +7294,30 @@ fn initial_filter_value(
     let initial = match *kind {
         FILTER_KIND_BLUR => retained_zero_px(),
         FILTER_KIND_DROP_SHADOW => {
-            let StyleValueData::Shadow {
-                shadow_type, placement, ..
-            } = value.data()
-            else {
+            let StyleValueData::Shadow(shadow_payload) = value.data() else {
                 return None;
             };
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Shadow {
-                shadow_type: *shadow_type,
-                color: if use_transparent_drop_shadow_color {
-                    retained_transparent_legacy_color()
-                } else {
-                    empty_retained_style_value()
+            let ShadowPayload {
+                shadow_type, placement, ..
+            } = &**shadow_payload;
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Shadow(StyleValueBox::new(
+                ShadowPayload {
+                    shadow_type: *shadow_type,
+                    color: if use_transparent_drop_shadow_color {
+                        retained_transparent_legacy_color()
+                    } else {
+                        empty_retained_style_value()
+                    },
+                    offset_x: retained_zero_px(),
+                    offset_y: retained_zero_px(),
+                    blur_radius: retained_zero_px(),
+                    spread_distance: empty_retained_style_value(),
+                    placement: *placement,
                 },
-                offset_x: retained_zero_px(),
-                offset_y: retained_zero_px(),
-                blur_radius: retained_zero_px(),
-                spread_distance: empty_retained_style_value(),
-                placement: *placement,
-            }))
+            ))))
         }
         FILTER_KIND_HUE_ROTATE => {
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle { value: 0.0, unit: 0 }))
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle { value: 0.0, unit: 0 }))
         }
         FILTER_KIND_COLOR => retained_number(if matches!(*color_operation, 2 | 3 | 6) {
             0.0
@@ -7281,34 +7377,38 @@ fn interpolate_filter_function(
         FILTER_KIND_DROP_SHADOW => {
             let mut shadow = interpolate_shadow(context, property_id, from_value.data(), to_value.data(), delta)?;
             let (
-                StyleValueData::Shadow {
-                    blur_radius: from_blur_radius,
-                    ..
-                },
-                StyleValueData::Shadow {
-                    blur_radius: to_blur_radius,
-                    ..
-                },
-                StyleValueData::Shadow {
-                    blur_radius,
-                    spread_distance,
-                    ..
-                },
+                StyleValueData::Shadow(shadow_payload_1),
+                StyleValueData::Shadow(shadow_payload_2),
+                StyleValueData::Shadow(shadow_payload_3),
             ) = (from_value.data(), to_value.data(), &mut shadow)
             else {
                 return None;
             };
+            let ShadowPayload {
+                blur_radius: from_blur_radius,
+                ..
+            } = &**shadow_payload_1;
+            let ShadowPayload {
+                blur_radius: to_blur_radius,
+                ..
+            } = &**shadow_payload_2;
+            let ShadowPayload {
+                blur_radius,
+                spread_distance,
+                ..
+            } = &mut **shadow_payload_3;
+
             let selected_blur_radius = if delta >= 0.5 { to_blur_radius } else { from_blur_radius };
             if selected_blur_radius.optional_data().is_none() {
                 *blur_radius = empty_retained_style_value();
             }
             *spread_distance = empty_retained_style_value();
-            RetainedStyleValueData::from_arc(Arc::new(shadow))
+            RetainedStyleValueData::from_arc(StyleValueArc::new(shadow))
         }
         FILTER_KIND_HUE_ROTATE => {
             let from = resolve_animation_angle(context, from_value.data())?;
             let to = resolve_animation_angle(context, to_value.data())?;
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle {
                 value: interpolate_f64(from, to, delta, None),
                 unit: 0,
             }))
@@ -7364,7 +7464,7 @@ fn accumulate_filter_function(
                 + resolve_animation_length(Some(context), animated_value.data())?,
             crate::css::style_compute::px_length_unit(),
         ),
-        FILTER_KIND_HUE_ROTATE => RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+        FILTER_KIND_HUE_ROTATE => RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle {
             value: resolve_animation_angle(Some(context), underlying_value.data())?
                 + resolve_animation_angle(Some(context), animated_value.data())?,
             unit: 0,
@@ -7379,27 +7479,28 @@ fn accumulate_filter_function(
             })
         }
         FILTER_KIND_DROP_SHADOW => {
-            let (
-                StyleValueData::Shadow {
-                    shadow_type,
-                    color: underlying_color,
-                    offset_x: underlying_offset_x,
-                    offset_y: underlying_offset_y,
-                    blur_radius: underlying_blur_radius,
-                    placement,
-                    ..
-                },
-                StyleValueData::Shadow {
-                    color: animated_color,
-                    offset_x: animated_offset_x,
-                    offset_y: animated_offset_y,
-                    blur_radius: animated_blur_radius,
-                    ..
-                },
-            ) = (underlying_value.data(), animated_value.data())
+            let (StyleValueData::Shadow(shadow_payload), StyleValueData::Shadow(animated_shadow)) =
+                (underlying_value.data(), animated_value.data())
             else {
                 return None;
             };
+            let ShadowPayload {
+                color: animated_color,
+                offset_x: animated_offset_x,
+                offset_y: animated_offset_y,
+                blur_radius: animated_blur_radius,
+                ..
+            } = &**animated_shadow;
+
+            let ShadowPayload {
+                shadow_type,
+                color: underlying_color,
+                offset_x: underlying_offset_x,
+                offset_y: underlying_offset_y,
+                blur_radius: underlying_blur_radius,
+                placement,
+                ..
+            } = &**shadow_payload;
             let add_lengths = |underlying: &RetainedStyleValueData, animated: &RetainedStyleValueData| {
                 Some(retained_length(
                     resolve_animation_length(Some(context), underlying.data())?
@@ -7444,15 +7545,17 @@ fn accumulate_filter_function(
                 add_color_component(underlying_color[2], animated_color[2]),
                 add_color_component(underlying_color[3], animated_color[3]),
             );
-            RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Shadow {
-                shadow_type: *shadow_type,
-                color,
-                offset_x,
-                offset_y,
-                blur_radius,
-                spread_distance: empty_retained_style_value(),
-                placement: *placement,
-            }))
+            RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Shadow(StyleValueBox::new(
+                ShadowPayload {
+                    shadow_type: *shadow_type,
+                    color,
+                    offset_x,
+                    offset_y,
+                    blur_radius,
+                    spread_distance: empty_retained_style_value(),
+                    placement: *placement,
+                },
+            ))))
         }
         _ => return None,
     };
@@ -7684,7 +7787,7 @@ fn expand_four_sides(value: &StyleValueData) -> Option<[RetainedStyleValueData; 
         } => values.as_slice(),
         StyleValueData::ValueList { .. } => return None,
         _ => {
-            let side = RetainedStyleValueData::from_arc(Arc::new(value.clone()));
+            let side = RetainedStyleValueData::from_arc(StyleValueArc::new(value.clone()));
             return Some([side.clone(), side.clone(), side.clone(), side]);
         }
     };
@@ -7759,27 +7862,31 @@ fn combine_scrollbar_color(
     // Computed value: specified keyword or two computed colors
     // Animation type: by computed value
     let (
-        StyleValueData::ScrollbarColor {
-            thumb_color: from_thumb_color,
-            track_color: from_track_color,
-        },
-        StyleValueData::ScrollbarColor {
-            thumb_color: to_thumb_color,
-            track_color: to_track_color,
-        },
+        StyleValueData::ScrollbarColor(scrollbar_color_payload_1),
+        StyleValueData::ScrollbarColor(scrollbar_color_payload_2),
     ) = (from, to)
     else {
         return None;
     };
+    let ScrollbarColorPayload {
+        thumb_color: from_thumb_color,
+        track_color: from_track_color,
+    } = &**scrollbar_color_payload_1;
+    let ScrollbarColorPayload {
+        thumb_color: to_thumb_color,
+        track_color: to_track_color,
+    } = &**scrollbar_color_payload_2;
     let combine_colors = |from: &RetainedStyleValueData, to: &RetainedStyleValueData| {
         let from = resolve_animation_color(context, from)?;
         let to = resolve_animation_color(context, to)?;
         combine(from.data(), to.data()).into_value()
     };
-    Some(StyleValueData::ScrollbarColor {
-        thumb_color: combine_colors(from_thumb_color, to_thumb_color)?,
-        track_color: combine_colors(from_track_color, to_track_color)?,
-    })
+    Some(StyleValueData::ScrollbarColor(StyleValueBox::new(
+        ScrollbarColorPayload {
+            thumb_color: combine_colors(from_thumb_color, to_thumb_color)?,
+            track_color: combine_colors(from_track_color, to_track_color)?,
+        },
+    )))
 }
 
 pub(crate) fn interpolate_value(
@@ -7984,7 +8091,7 @@ pub(crate) fn interpolate_value(
                 ) else {
                     return discrete_value(context, from, to, delta);
                 };
-                RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle {
+                RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle {
                     value: interpolate_f64(from_value, to_value, delta, Some((-90.0, 90.0))),
                     unit: 0,
                 }))
@@ -8076,18 +8183,20 @@ pub(crate) fn interpolate_value(
                 | crate::css::property_metadata::property_id::GRID_TEMPLATE_ROWS
         )
         && let (
-            StyleValueData::GridTrackSizeList {
-                is_subgrid: from_is_subgrid,
-                entries: from_entries,
-                ..
-            },
-            StyleValueData::GridTrackSizeList {
-                is_subgrid: to_is_subgrid,
-                entries: to_entries,
-                ..
-            },
+            StyleValueData::GridTrackSizeList(grid_track_size_list_payload_1),
+            StyleValueData::GridTrackSizeList(grid_track_size_list_payload_2),
         ) = (from, to)
     {
+        let GridTrackSizeListPayload {
+            is_subgrid: from_is_subgrid,
+            entries: from_entries,
+            ..
+        } = &**grid_track_size_list_payload_1;
+        let GridTrackSizeListPayload {
+            is_subgrid: to_is_subgrid,
+            entries: to_entries,
+            ..
+        } = &**grid_track_size_list_payload_2;
         let Some(entries) = interpolate_grid_track_entries(
             property_id,
             *from_is_subgrid,
@@ -8098,11 +8207,13 @@ pub(crate) fn interpolate_value(
         ) else {
             return discrete_value(context, from, to, delta);
         };
-        return owned(StyleValueData::GridTrackSizeList {
-            is_subgrid: false,
-            preserve_line_name_sets: false,
-            entries: RetainedGridTrackEntryList::from_retained_entries(entries),
-        });
+        return owned(StyleValueData::GridTrackSizeList(StyleValueBox::new(
+            GridTrackSizeListPayload {
+                is_subgrid: false,
+                preserve_line_name_sets: false,
+                entries: RetainedGridTrackEntryList::from_retained_entries(entries),
+            },
+        )));
     }
     if animation_type == ANIMATION_TYPE_CUSTOM {
         // NB: C++ treats values declined by a property's specialized custom algorithm as discrete.
@@ -8134,7 +8245,7 @@ pub(crate) fn interpolate_value(
 
 enum BatchAnimationValue<'a> {
     Borrowed(&'a StyleValueData),
-    Owned(Arc<StyleValueData>),
+    Owned(StyleValueArc),
 }
 
 impl BatchAnimationValue<'_> {
@@ -8356,6 +8467,171 @@ impl KeyframeStores {
     }
 }
 
+/// What the substitution of a keyframe value against an element read: the custom-property stores the element holds
+/// and inherits from, held so that neither address names another store while a conversion made against them is kept,
+/// and the generation of the custom property registrations.
+struct KeyframeConversionInputs {
+    substitution: Option<Arc<crate::css::custom_properties::CustomPropertyStore>>,
+    inheritance: Option<Arc<crate::css::custom_properties::CustomPropertyStore>>,
+    registration_generation: u64,
+}
+
+impl KeyframeConversionInputs {
+    /// # Safety
+    /// Each store of `stores` must be null or a live custom-property store.
+    unsafe fn retain(stores: KeyframeStores, registration_generation: u64) -> Self {
+        let retain = |store: *const std::ffi::c_void| {
+            let store = store.cast::<crate::css::custom_properties::CustomPropertyStore>();
+            // SAFETY: Guaranteed by the caller: a store lives in the Arc its holders count.
+            (!store.is_null()).then(|| unsafe {
+                Arc::increment_strong_count(store);
+                Arc::from_raw(store)
+            })
+        };
+        Self {
+            substitution: retain(stores.substitution),
+            inheritance: retain(stores.inheritance),
+            registration_generation,
+        }
+    }
+
+    /// Whether these are the inputs `stores` and `registration_generation` name.
+    fn are(&self, stores: KeyframeStores, registration_generation: u64) -> bool {
+        let address = |store: &Option<Arc<crate::css::custom_properties::CustomPropertyStore>>| {
+            store
+                .as_ref()
+                .map_or(std::ptr::null(), Arc::as_ptr)
+                .cast::<std::ffi::c_void>()
+        };
+        address(&self.substitution) == stores.substitution
+            && address(&self.inheritance) == stores.inheritance
+            && self.registration_generation == registration_generation
+    }
+}
+
+/// A keyframe value an effect wrote, for the property it was written for, and the value it substituted to.
+struct KeyframeConversion {
+    written: RetainedStyleValueData,
+    property: u16,
+    root_custom_property_name: Box<[u16]>,
+    converted: RetainedStyleValueData,
+}
+
+impl KeyframeConversion {
+    fn converts(&self, property: u16, root_custom_property_name: &[u16], written: &RetainedStyleValueData) -> bool {
+        self.written.pointer() == written.pointer()
+            && self.property == property
+            && *self.root_custom_property_name == *root_custom_property_name
+    }
+}
+
+/// The keyframe values of the effects an element samples as they substituted against what the element held, which a
+/// later sample reuses while what they read stands.
+pub(crate) struct KeyframeConversions {
+    inputs: KeyframeConversionInputs,
+    conversions: Vec<KeyframeConversion>,
+}
+
+/// The conversions a sample reuses and those it makes.
+pub(crate) struct KeyframeConversionCache {
+    kept: Option<Arc<KeyframeConversions>>,
+    reused: Vec<bool>,
+    made: Vec<KeyframeConversion>,
+}
+
+impl KeyframeConversionCache {
+    /// The cache of a sample against `stores`, reusing what `kept` holds where it was made against the same inputs.
+    pub(crate) fn new(
+        kept: Option<&Arc<KeyframeConversions>>,
+        stores: KeyframeStores,
+        registration_generation: u64,
+    ) -> Self {
+        let kept = kept
+            .filter(|kept| kept.inputs.are(stores, registration_generation))
+            .cloned();
+        Self {
+            reused: vec![false; kept.as_ref().map_or(0, |kept| kept.conversions.len())],
+            kept,
+            made: Vec::new(),
+        }
+    }
+
+    /// What `written` substitutes to for `property`: what an earlier sample substituted it to where its substitution
+    /// reads only the element's custom-property stores, else what `substitute` makes of it.
+    fn convert(
+        &mut self,
+        property: u16,
+        root_custom_property_name: &[u16],
+        written: &RetainedStyleValueData,
+        substitute: impl FnOnce() -> RetainedStyleValueData,
+    ) -> RetainedStyleValueData {
+        if !crate::css::style::RetainedState::keyframe_substitution_reads_only_stores(written.data()) {
+            return substitute();
+        }
+        if let Some(kept) = &self.kept
+            && let Some(index) = kept
+                .conversions
+                .iter()
+                .position(|conversion| conversion.converts(property, root_custom_property_name, written))
+        {
+            self.reused[index] = true;
+            return kept.conversions[index].converted.clone();
+        }
+        if let Some(made) = self
+            .made
+            .iter()
+            .find(|conversion| conversion.converts(property, root_custom_property_name, written))
+        {
+            return made.converted.clone();
+        }
+        let converted = substitute();
+        self.made.push(KeyframeConversion {
+            written: written.clone(),
+            property,
+            root_custom_property_name: root_custom_property_name.into(),
+            converted: converted.clone(),
+        });
+        converted
+    }
+
+    /// The conversions the next sample may reuse: those this one reused and made.
+    ///
+    /// # Safety
+    /// Each store of `stores` must be null or a live custom-property store.
+    pub(crate) unsafe fn finish(
+        self,
+        stores: KeyframeStores,
+        registration_generation: u64,
+    ) -> Option<Arc<KeyframeConversions>> {
+        if self.made.is_empty() && self.reused.iter().all(|&reused| reused) {
+            return self.kept;
+        }
+        let mut conversions = self.made;
+        if let Some(kept) = &self.kept {
+            conversions.extend(
+                kept.conversions
+                    .iter()
+                    .zip(&self.reused)
+                    .filter(|&(_, &reused)| reused)
+                    .map(|(conversion, _)| KeyframeConversion {
+                        written: conversion.written.clone(),
+                        property: conversion.property,
+                        root_custom_property_name: conversion.root_custom_property_name.clone(),
+                        converted: conversion.converted.clone(),
+                    }),
+            );
+        }
+        if conversions.is_empty() {
+            return None;
+        }
+        Some(Arc::new(KeyframeConversions {
+            // SAFETY: Guaranteed by the caller.
+            inputs: unsafe { KeyframeConversionInputs::retain(stores, registration_generation) },
+            conversions,
+        }))
+    }
+}
+
 /// The custom properties the effects an element samples declare, each minted into the number the
 /// animation core keys it by, with what the element's environment and the document's registry say
 /// of it.
@@ -8405,8 +8681,10 @@ impl AnimatedCustomProperties {
         let name_raw = self.name(name_id).raw();
         self.stores.element_declares_custom_properties
             && unsafe { KeyframeStores::store(self.stores.base) }.is_some_and(|store| {
-                store.declared_names.contains(&name_raw)
-                    && store.own_values.get(&name_raw).is_some_and(|entry| entry.important)
+                store
+                    .own_values
+                    .get(&name_raw)
+                    .is_some_and(|entry| entry.declared.is_some() && entry.important)
             })
     }
 
@@ -8487,8 +8765,6 @@ pub(crate) struct PublishedAnimationDeclarations {
     /// The `SUBSTITUTION_MARK_*` bits of what the values and easings substituted against the
     /// element held.
     pub(crate) substitution_marks: u8,
-    /// The custom properties a substituted `style()` query read.
-    pub(crate) style_query_dependencies: Option<Box<crate::css::custom_properties::StyleQueryDependencies>>,
 }
 
 /// Substitute a keyframe value written as a token stream against an element, for the compositor,
@@ -8505,12 +8781,13 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
     host: &crate::render_state::DocumentHost,
     read: &crate::render_state::BegunRead,
     style_node: u32,
-    pseudo_kind: u8,
+    pseudo_kind: u32,
     custom_property_store: *const std::ffi::c_void,
     inheritance_custom_property_store: *const std::ffi::c_void,
     property_id: u16,
     value: *const StyleValueData,
 ) -> *const StyleValueData {
+    let pseudo_kind = pseudo_kind as u8;
     // SAFETY: Guaranteed by the caller.
     crate::css::style::engine_calls::with_engine(read, host, |engine| {
         let Some(node) = crate::css::style::tree::StyleNodeID::from_raw(style_node) else {
@@ -8520,7 +8797,7 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
         let written = unsafe {
             RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value))
         };
-        // What a `style()` query reads is recorded when the main thread samples the same value.
+        // Whether a `style()` query reads the sibling position is noted when the main thread samples the same value.
         let style_query_references = std::cell::RefCell::new(None);
         let substituted = engine.substitute_keyframe_value(
             node,
@@ -8532,7 +8809,7 @@ pub unsafe extern "C" fn rust_substitute_compositor_keyframe_value(
             &written,
             &style_query_references,
         );
-        std::sync::Arc::into_raw(substituted.into_arc())
+        StyleValueArc::into_raw(substituted.into_arc())
     })
 }
 
@@ -8549,7 +8826,7 @@ fn build_custom_property_keyframe_lookups(
 ) -> BTreeMap<u32, Vec<CustomPropertyKeyframeLookup>> {
     let mut property_lookups = BTreeMap::<_, Vec<_>>::new();
     let mut declaration_index = 0;
-    for (keyframe_index, keyframe) in effect.keyframes.iter().enumerate() {
+    for (keyframe_index, keyframe) in effect.keyframes().iter().enumerate() {
         for declaration in effect.custom_declarations_of(keyframe) {
             let name_id = custom_properties.mint(&declaration.name);
 
@@ -8573,12 +8850,12 @@ fn select_custom_property_interval_span(
     current_key: f64,
 ) -> [CustomPropertyKeyframeLookup; 2] {
     let first_lookup = keyframe_lookups[0];
-    let first_composite = effect.keyframes[first_lookup.keyframe_index].composite;
+    let first_composite = effect.keyframes()[first_lookup.keyframe_index].composite;
     let first_value = &effect.custom_declaration_at(first_lookup.declaration_index).value;
 
     let can_use_constant_interpolation = !matches!(first_value, PublishedValue::ElementValue)
         && keyframe_lookups.iter().all(|lookup| {
-            let composite = effect.keyframes[lookup.keyframe_index].composite;
+            let composite = effect.keyframes()[lookup.keyframe_index].composite;
             let value = &effect.custom_declaration_at(lookup.declaration_index).value;
             composite == first_composite && value == first_value
         });
@@ -8589,7 +8866,7 @@ fn select_custom_property_interval_span(
         (0, keyframe_lookups.len() - 1)
     } else {
         keyframe_interval(keyframe_lookups.len(), current_key, |index| {
-            effect.keyframes[keyframe_lookups[index].keyframe_index].key
+            effect.keyframes()[keyframe_lookups[index].keyframe_index].key
         })
     };
 
@@ -8606,11 +8883,12 @@ pub(crate) fn resolve_published_animation_declarations(
     node: crate::css::style::tree::StyleNodeID,
     pseudo: Option<u8>,
     selected: &[SelectedEffect<'_>],
-    table: &crate::css::computed_longhand_table::ComputedLonghandTable,
+    longhands: crate::css::style::ViewLonghands<'_>,
     stores: KeyframeStores,
     writing_mode: u8,
     direction: u8,
     important_property_bitmap: &[u8],
+    conversions: &std::cell::RefCell<KeyframeConversionCache>,
 ) -> PublishedAnimationDeclarations {
     use crate::css::style::effect_descriptions::{PublishedValue, easing_from_computed_timing_function};
     let registry = engine.custom_property_registry();
@@ -8624,16 +8902,18 @@ pub(crate) fn resolve_published_animation_declarations(
     let style_query_references = std::cell::RefCell::new(None);
     let substitute = |property, root_name: &[u16], written: &RetainedStyleValueData| {
         substitution_marks.set(substitution_marks.get() | substitution_marks_of(written.data()));
-        engine.substitute_keyframe_value(
-            node,
-            pseudo,
-            stores.substitution,
-            stores.inheritance,
-            property,
-            root_name,
-            written,
-            &style_query_references,
-        )
+        conversions.borrow_mut().convert(property, root_name, written, || {
+            engine.substitute_keyframe_value(
+                node,
+                pseudo,
+                stores.substitution,
+                stores.inheritance,
+                property,
+                root_name,
+                written,
+                &style_query_references,
+            )
+        })
     };
     let mut keyframes = Vec::new();
     let mut easings = Vec::new();
@@ -8643,7 +8923,7 @@ pub(crate) fn resolve_published_animation_declarations(
     for selection in selected {
         let effect = selection.effect;
         let is_transition = effect.is_transition;
-        let style_sheet_resource_context = match &effect.resource_context {
+        let style_sheet_resource_context = match effect.resource_context() {
             None => FfiAnimationStyleSheetResourceContext {
                 base_url: std::ptr::null(),
                 base_url_length: 0,
@@ -8661,7 +8941,7 @@ pub(crate) fn resolve_published_animation_declarations(
             }
         };
         let first_keyframe_index = keyframes.len();
-        for keyframe in &effect.keyframes {
+        for keyframe in effect.keyframes() {
             let keyframe_index = keyframes.len();
             keyframes.push((keyframe.key, keyframe.composite));
             // A keyframe's own easing written as a value substitutes against the element; one that
@@ -8690,7 +8970,7 @@ pub(crate) fn resolve_published_animation_declarations(
             for declaration in keyframe_declarations {
                 let (value, use_initial) = match &declaration.value {
                     PublishedValue::ElementValue => {
-                        let Some(value) = table.get(declaration.property_id) else {
+                        let Some(value) = longhands.handle(declaration.property_id) else {
                             continue;
                         };
                         (value.clone_retained(), true)
@@ -8706,6 +8986,7 @@ pub(crate) fn resolve_published_animation_declarations(
                                 match value.data() {
                                     StyleValueData::PendingSubstitution {
                                         original_shorthand_value,
+                                        ..
                                     } => written_shorthand_value(original_shorthand_value),
                                     _ => value,
                                 }
@@ -8850,8 +9131,8 @@ pub(crate) fn resolve_published_animation_declarations(
         direction,
         important_property_bitmap,
     );
-    let style_query_dependencies = style_query_references.into_inner();
-    resolved.uses_tree_counting_function |= style_query_dependencies
+    resolved.uses_tree_counting_function |= style_query_references
+        .into_inner()
         .as_ref()
         .is_some_and(|dependencies| dependencies.sibling_position);
     resolved._base_urls = base_urls;
@@ -8859,7 +9140,6 @@ pub(crate) fn resolve_published_animation_declarations(
         resolved: Box::new(resolved),
         custom_properties,
         substitution_marks: substitution_marks.get(),
-        style_query_dependencies,
     }
 }
 
@@ -8868,15 +9148,7 @@ pub(crate) fn resolve_published_animation_declarations(
 fn holds_arbitrary_substitution(value: &StyleValueData) -> bool {
     matches!(
         value,
-        StyleValueData::Unresolved {
-            presence_attr,
-            presence_dashed_function,
-            presence_env,
-            presence_if,
-            presence_inherit,
-            presence_var,
-            ..
-        } if *presence_attr || *presence_dashed_function || *presence_env || *presence_if || *presence_inherit || *presence_var
+        StyleValueData::Unresolved(unresolved) if unresolved.presence().has_any()
     )
 }
 
@@ -8981,7 +9253,7 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
         cache_preparation,
         preparation_reads_custom_property_environments,
         preparation_inputs,
-        underlying_longhand_table,
+        underlying_longhands,
         overlay,
         custom_underlying_values,
         custom_initial_values,
@@ -9059,8 +9331,8 @@ pub(crate) fn evaluate_animations(batch: ComputedAnimationBatch<'_>) -> Vec<(u32
                 custom_initial_values[custom_index].optional_data(),
             )
         } else {
-            let underlying = underlying_longhand_table
-                .get(plan.property_id)
+            let underlying = underlying_longhands
+                .handle(plan.property_id)
                 .expect("an animated longhand must have an underlying computed value");
             (
                 underlying.optional_data(),
@@ -9146,7 +9418,7 @@ mod tests {
     #[test]
     fn resolves_keyframe_property_conflicts_as_one_batch() {
         use crate::css::property_metadata::property_id;
-        let value = || RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: 1.0 }));
+        let value = || RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value: 1.0 }));
         let candidates = [
             AnimationPropertyConflictCandidate {
                 custom_name_id: 0,
@@ -9275,9 +9547,9 @@ mod tests {
         use crate::css::property_metadata::property_id;
 
         let values = [
-            Arc::new(StyleValueData::Number { value: 0.0 }),
-            Arc::new(StyleValueData::Number { value: 0.5 }),
-            Arc::new(StyleValueData::Number { value: 1.0 }),
+            StyleValueArc::new(StyleValueData::Number { value: 0.0 }),
+            StyleValueArc::new(StyleValueData::Number { value: 0.5 }),
+            StyleValueArc::new(StyleValueData::Number { value: 1.0 }),
         ];
         let declarations = [
             AnimationDeclaration {
@@ -9339,8 +9611,9 @@ mod tests {
 
     #[test]
     fn retains_synthesized_pending_substitution_values() {
-        let original = RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: 1.0 }));
-        let pending = Arc::new(StyleValueData::PendingSubstitution {
+        let original = RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value: 1.0 }));
+        let pending = StyleValueArc::new(StyleValueData::PendingSubstitution {
+            original_shorthand: crate::css::property_metadata::property_id::BORDER,
             original_shorthand_value: original,
         });
         let declaration = AnimationDeclaration {
@@ -9361,6 +9634,7 @@ mod tests {
             let value = property.value.data();
             if let StyleValueData::PendingSubstitution {
                 original_shorthand_value,
+                ..
             } = value
                 && matches!(
                     original_shorthand_value.data(),
@@ -9414,7 +9688,7 @@ mod tests {
     }
 
     fn calculated_number(value: f64) -> StyleValueData {
-        StyleValueData::Calculated {
+        StyleValueData::Calculated(StyleValueBox::new(CalculatedPayload {
             rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(Arc::new(
                 crate::css::calc::CalcNode::Numeric(crate::css::calc::CalcNumericValue::Number {
                     value,
@@ -9430,7 +9704,7 @@ mod tests {
             percentages_resolve_as: 0,
             resolve_numbers_as_integers: false,
             accepted_ranges: RetainedNumericRangeList::empty(),
-        }
+        }))
     }
 
     #[test]
@@ -9461,7 +9735,7 @@ mod tests {
                 interval_count: 4,
                 step_position: 1,
             };
-            let value = unsafe { Arc::from_raw(style_value_from_easing(&descriptor)) };
+            let value = unsafe { StyleValueArc::from_raw(style_value_from_easing(&descriptor)) };
             assert_eq!(
                 crate::css::serialize::serialize_style_value_to_utf16(&value),
                 expected.encode_utf16().collect::<Vec<_>>()
@@ -9472,7 +9746,7 @@ mod tests {
     #[test]
     fn evaluates_composited_animation_value() {
         let underlying = StyleValueData::Number { value: 2.0 };
-        let number = |value| RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value }));
+        let number = |value| RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value }));
         let linear_easing = || Easing::CubicBezier {
             x1: 0.0,
             y1: 0.0,
@@ -9525,7 +9799,7 @@ mod tests {
             .enumerate()
             .map(|(keyframe, value)| AnimationKeyframeValue {
                 keyframe,
-                value: RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value })),
+                value: RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value })),
                 is_implicit: false,
             })
             .collect::<Vec<_>>();
@@ -9559,8 +9833,8 @@ mod tests {
     fn evaluates_missing_keyframe_values() {
         let underlying = StyleValueData::Number { value: 2.0 };
         let initial = StyleValueData::Number { value: 1.0 };
-        let start = || RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: 3.0 }));
-        let end = || RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Number { value: 5.0 }));
+        let start = || RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value: 3.0 }));
+        let end = || RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value: 5.0 }));
         let easing = || Easing::CubicBezier {
             x1: 0.0,
             y1: 0.0,
@@ -9615,8 +9889,8 @@ mod tests {
 
     #[test]
     fn evaluates_discrete_animation_values() {
-        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
-        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let from = StyleValueArc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = StyleValueArc::new(StyleValueData::Keyword { keyword: 2 });
         let property_id = crate::css::property_metadata::property_id::ALIGN_CONTENT;
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.25);
@@ -9637,21 +9911,21 @@ mod tests {
     #[test]
     fn evaluates_incompatible_by_computed_values_as_discrete() {
         let property_id = crate::css::property_metadata::property_id::FLEX_GROW;
-        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
-        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let from = StyleValueArc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = StyleValueArc::new(StyleValueData::Keyword { keyword: 2 });
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.25);
         assert!(result.handled);
         assert_eq!(
             result.value.as_ref().map(RetainedStyleValueData::pointer),
-            Some(Arc::as_ptr(&from))
+            Some(StyleValueArc::as_ptr(&from))
         );
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
         assert!(result.handled);
         assert_eq!(
             result.value.as_ref().map(RetainedStyleValueData::pointer),
-            Some(Arc::as_ptr(&to))
+            Some(StyleValueArc::as_ptr(&to))
         );
 
         let result = interpolate_value(Some(&animation_context(false)), property_id, &from, &to, 0.75);
@@ -9661,8 +9935,8 @@ mod tests {
 
     #[test]
     fn preserves_not_animatable_endpoint_behavior() {
-        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
-        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let from = StyleValueArc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = StyleValueArc::new(StyleValueData::Keyword { keyword: 2 });
         let result = interpolate_value(
             Some(&animation_context(true)),
             crate::css::property_metadata::property_id::ANIMATION_DURATION,
@@ -9677,8 +9951,8 @@ mod tests {
 
     #[test]
     fn evaluates_declined_custom_animation_values_as_discrete() {
-        let from = Arc::new(StyleValueData::Keyword { keyword: 1 });
-        let to = Arc::new(StyleValueData::Keyword { keyword: 2 });
+        let from = StyleValueArc::new(StyleValueData::Keyword { keyword: 1 });
+        let to = StyleValueArc::new(StyleValueData::Keyword { keyword: 2 });
         let property_id = crate::css::property_metadata::property_id::SCALE;
 
         let result = interpolate_value(Some(&animation_context(true)), property_id, &from, &to, 0.75);
@@ -9694,8 +9968,8 @@ mod tests {
     #[test]
     fn normalizes_repeatable_scalar_and_list_values() {
         let property_id = crate::css::property_metadata::property_id::OBJECT_POSITION;
-        let from = Arc::new(StyleValueData::Number { value: 10.0 });
-        let to = Arc::new(StyleValueData::ValueList {
+        let from = StyleValueArc::new(StyleValueData::Number { value: 10.0 });
+        let to = StyleValueArc::new(StyleValueData::ValueList {
             values: RetainedStyleValueDataList::from_retained_values(vec![
                 retained_number(20.0),
                 retained_number(30.0),
@@ -9716,8 +9990,8 @@ mod tests {
 
     #[test]
     fn interpolates_repeatable_scalar_values() {
-        let from = Arc::new(StyleValueData::Number { value: 10.0 });
-        let to = Arc::new(StyleValueData::Number { value: 20.0 });
+        let from = StyleValueArc::new(StyleValueData::Number { value: 10.0 });
+        let to = StyleValueArc::new(StyleValueData::Number { value: 20.0 });
         let result = interpolate_value(
             Some(&animation_context(true)),
             crate::css::property_metadata::property_id::OBJECT_POSITION,
@@ -9732,8 +10006,8 @@ mod tests {
 
     #[test]
     fn interpolates_mixed_length_percentage_values() {
-        let from = Arc::new(StyleValueData::Length { value: 10.0, unit: 0 });
-        let to = Arc::new(StyleValueData::Percentage { value: 50.0 });
+        let from = StyleValueArc::new(StyleValueData::Length { value: 10.0, unit: 0 });
+        let to = StyleValueArc::new(StyleValueData::Percentage { value: 50.0 });
         let result = interpolate_value(
             Some(&animation_context(true)),
             crate::css::property_metadata::property_id::WIDTH,
@@ -9748,8 +10022,8 @@ mod tests {
 
     #[test]
     fn combines_lengths_with_different_units_discretely() {
-        let from = Arc::new(StyleValueData::Length { value: 10.0, unit: 0 });
-        let to = Arc::new(StyleValueData::Length { value: 20.0, unit: 1 });
+        let from = StyleValueArc::new(StyleValueData::Length { value: 10.0, unit: 0 });
+        let to = StyleValueArc::new(StyleValueData::Length { value: 20.0, unit: 1 });
         let result = interpolate_value(
             Some(&animation_context(true)),
             crate::css::property_metadata::property_id::WIDTH,
@@ -9765,7 +10039,7 @@ mod tests {
     #[test]
     fn interpolates_rotate_3d_with_a_zero_axis() {
         let retained_angle =
-            |value| RetainedStyleValueData::from_arc(Arc::new(StyleValueData::Angle { value, unit: 0 }));
+            |value| RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Angle { value, unit: 0 }));
         let from = RetainedStyleValueDataList::from_retained_values(vec![
             retained_number(0.0),
             retained_number(0.0),
@@ -9787,9 +10061,10 @@ mod tests {
             0.5,
         )
         .expect("rotate3d values should interpolate");
-        let StyleValueData::Transformation { values, .. } = result else {
+        let StyleValueData::Transformation(transformation_payload) = result else {
             panic!("expected a transform function");
         };
+        let TransformationPayload { values, .. } = &*transformation_payload;
         assert!(values.as_slice().iter().all(|value| match value.data() {
             StyleValueData::Number { value } | StyleValueData::Angle { value, .. } => value.is_finite(),
             _ => false,
@@ -9798,8 +10073,8 @@ mod tests {
 
     #[test]
     fn composes_mixed_length_percentage_values() {
-        let underlying = Arc::new(StyleValueData::Length { value: 10.0, unit: 0 });
-        let animated = Arc::new(StyleValueData::Percentage { value: 50.0 });
+        let underlying = StyleValueArc::new(StyleValueData::Length { value: 10.0, unit: 0 });
+        let animated = StyleValueArc::new(StyleValueData::Percentage { value: 50.0 });
         let result = composite_scalar_value(&underlying, &animated, FfiCompositeOperation::Add);
         assert!(result.handled);
         let value = result.value.unwrap().into_arc();
@@ -9808,10 +10083,10 @@ mod tests {
 
     #[test]
     fn owns_unsupported_composition_decisions() {
-        let underlying = Arc::new(StyleValueData::Keyword {
+        let underlying = StyleValueArc::new(StyleValueData::Keyword {
             keyword: crate::css::style_compute::none_keyword(),
         });
-        let animated = Arc::new(StyleValueData::Number { value: 4.0 });
+        let animated = StyleValueArc::new(StyleValueData::Number { value: 4.0 });
         let result = composite_scalar_value(&underlying, &animated, FfiCompositeOperation::Add);
         assert!(result.handled);
         assert!(result.value.is_none());
@@ -9819,8 +10094,8 @@ mod tests {
 
     #[test]
     fn combines_general_calculated_numeric_values() {
-        let from = Arc::new(calculated_number(2.0));
-        let to = Arc::new(StyleValueData::Number { value: 4.0 });
+        let from = StyleValueArc::new(calculated_number(2.0));
+        let to = StyleValueArc::new(StyleValueData::Number { value: 4.0 });
         let result = interpolate_value(
             Some(&animation_context(true)),
             crate::css::property_metadata::property_id::FLEX_GROW,
@@ -9838,7 +10113,7 @@ mod tests {
         assert!(matches!(&*value, StyleValueData::Calculated { .. }));
     }
 
-    fn parsed(property: u16, source: &str) -> Arc<StyleValueData> {
+    fn parsed(property: u16, source: &str) -> StyleValueArc {
         use crate::css::css_tokenizer::{TokenizerInput, tokenize_for_parser};
         use crate::css::parser::component_value::consume_a_list_of_component_values;
         use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
@@ -9872,7 +10147,7 @@ mod tests {
         let values = if let StyleValueData::ValueList { values, .. } = value {
             values.as_slice().to_vec()
         } else {
-            vec![RetainedStyleValueData::from_arc(Arc::new(value.clone()))]
+            vec![RetainedStyleValueData::from_arc(StyleValueArc::new(value.clone()))]
         };
         let matrix = post_multiply_transformations(None, &values).unwrap();
         for (actual, expected) in matrix
@@ -10071,7 +10346,7 @@ mod tests {
     }
 
     // Corner radii, horizontal and vertical, from the top left corner clockwise.
-    fn border_radius_rect(corners: [(f64, f64); 4]) -> Arc<StyleValueData> {
+    fn border_radius_rect(corners: [(f64, f64); 4]) -> StyleValueArc {
         let px = |value| {
             RetainedStyleValueData::from_owned(StyleValueData::Length {
                 value,
@@ -10079,18 +10354,20 @@ mod tests {
             })
         };
         let [top_left, top_right, bottom_right, bottom_left] = corners.map(|(horizontal, vertical)| {
-            RetainedStyleValueData::from_owned(StyleValueData::BorderRadius {
+            RetainedStyleValueData::from_owned(StyleValueData::BorderRadius(StyleValueBox::new(BorderRadiusPayload {
                 is_elliptical: horizontal != vertical,
                 horizontal_radius: px(horizontal),
                 vertical_radius: px(vertical),
-            })
+            })))
         });
-        Arc::new(StyleValueData::BorderRadiusRect {
-            top_left,
-            top_right,
-            bottom_right,
-            bottom_left,
-        })
+        StyleValueArc::new(StyleValueData::BorderRadiusRect(StyleValueBox::new(
+            BorderRadiusRectPayload {
+                top_left,
+                top_right,
+                bottom_right,
+                bottom_left,
+            },
+        )))
     }
 
     #[test]
@@ -10141,7 +10418,7 @@ mod tests {
     #[test]
     fn adds_opacities_up_to_one() {
         let opacity = || {
-            Arc::new(StyleValueData::OpacityValue {
+            StyleValueArc::new(StyleValueData::OpacityValue {
                 value: retained_number(0.75),
             })
         };

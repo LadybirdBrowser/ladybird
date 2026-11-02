@@ -8,6 +8,7 @@ use crate::css::css_string::CssString;
 use crate::css::ffi_support::{FfiUtf16View, OwnedArc};
 use crate::css::parser::value_parser::equals_ascii_case_insensitive;
 use crate::css::style_value::StyleValueData;
+use crate::css::style_value::{FunctionPayload, OpenTypeTaggedPayload};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
@@ -407,12 +408,13 @@ pub unsafe extern "C" fn rust_font_shape_features(
         _ => &[],
     };
     for alternate in alternates.iter().map(|alternate| alternate.data()) {
-        let StyleValueData::Function { name, value } = alternate else {
+        let StyleValueData::Function(function_payload) = alternate else {
             if keyword_of(Some(alternate)) == Some(HISTORICAL_FORMS) {
                 shape.set(b"hist", 1);
             }
             continue;
         };
+        let FunctionPayload { name, value } = &**function_payload;
         let Some(kind) = [
             ("stylistic", FontFeatureValuesRuleKind::Stylistic),
             ("styleset", FontFeatureValuesRuleKind::Styleset),
@@ -484,13 +486,10 @@ pub unsafe extern "C" fn rust_font_shape_features(
     // 13. Font features implied by the value of font-feature-settings property are applied.
     if let Some(StyleValueData::ValueList { values, .. }) = value(Input::FontFeatureSettings) {
         for setting in values.as_slice() {
-            if let StyleValueData::OpenTypeTagged {
-                packed_tag,
-                value: setting,
-                ..
-            } = setting.data()
-                && let Some(setting) = integer_of(setting.data())
+            if let StyleValueData::OpenTypeTagged(open_type_tagged) = setting.data()
+                && let Some(setting) = integer_of(open_type_tagged.value.data())
             {
+                let packed_tag = open_type_tagged.packed_tag;
                 // NB: A feature setting is kept as one byte.
                 shape.set(&packed_tag.to_be_bytes(), u32::from(setting as u8));
             }
@@ -530,9 +529,10 @@ pub unsafe extern "C" fn rust_font_variation_axes(
         return;
     };
     for setting in values.as_slice() {
-        let StyleValueData::OpenTypeTagged { packed_tag, value, .. } = setting.data() else {
+        let StyleValueData::OpenTypeTagged(open_type_tagged_payload) = setting.data() else {
             continue;
         };
+        let OpenTypeTaggedPayload { packed_tag, value, .. } = &**open_type_tagged_payload;
         let value = match value.data() {
             StyleValueData::Number { value } => Some(*value),
             calculated => crate::css::calc::resolve_calculated_number_without_context(calculated),

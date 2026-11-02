@@ -27,8 +27,8 @@ private:
 
     explicit CursorStyleValue(StyleValueFFI::StyleValueData const*);
 
-    ValueComparingRefPtr<StyleValue const> x() const { return wrap_rust_child_or_null(m_value->cursor.x); }
-    ValueComparingRefPtr<StyleValue const> y() const { return wrap_rust_child_or_null(m_value->cursor.y); }
+    ValueComparingRefPtr<StyleValue const> x() const { return wrap_rust_child_or_null(m_value->cursor._0->x); }
+    ValueComparingRefPtr<StyleValue const> y() const { return wrap_rust_child_or_null(m_value->cursor._0->y); }
 
     // NB: The image wrapper stays a member: image style values carry C++-side loading state
     // (clients, resource requests) keyed on wrapper identity.

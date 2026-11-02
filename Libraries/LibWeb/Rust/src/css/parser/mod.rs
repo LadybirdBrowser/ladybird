@@ -12,6 +12,8 @@ pub(crate) mod descriptor_parser;
 pub(crate) mod fonts_parser;
 pub(crate) mod grid_parser;
 pub(crate) mod images_gradients_parser;
+#[cfg(test)]
+mod memory_tests;
 pub(crate) mod positions_shapes_parser;
 pub(crate) mod query_parser;
 mod stylesheet_cache;

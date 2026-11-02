@@ -11,7 +11,7 @@ namespace Web::CSS {
 
 FontSourceStyleValue::Source FontSourceStyleValue::source() const
 {
-    auto const& data = m_value->font_source;
+    auto const& data = *m_value->font_source._0;
     if (data.is_local)
         return Local { wrap_rust_child(data.local_name) };
 

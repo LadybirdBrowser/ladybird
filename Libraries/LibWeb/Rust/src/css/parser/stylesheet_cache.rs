@@ -12,6 +12,7 @@ use crate::css::style_compute::{FfiFontMetrics, FfiLengthResolutionContext};
 use std::cell::Cell;
 use std::collections::{HashMap, HashSet, hash_map::RandomState};
 use std::hash::{BuildHasher, Hash, Hasher};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock, Weak};
 
 #[derive(PartialEq, Eq, Hash)]
@@ -318,10 +319,35 @@ impl StyleSheetKey {
     }
 }
 
+/// The scheme and host of a document's URL, keyed for each process, which a parse only the process still keeps is
+/// handed out to alone: a hit is about 20 ms faster than a parse, so a page must not be able to tell what the pages
+/// of another site parsed.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct SitePartition(u64);
+
+impl SitePartition {
+    fn of_document(context: Option<&ParseContext>) -> Self {
+        let url = context.map_or(&[][..], |context| context.document_url.as_slice());
+        let end_of_host = match url.windows(3).position(|bytes| bytes == b"://") {
+            Some(separator) => url[separator + 3..]
+                .iter()
+                .position(|&byte| matches!(byte, b'/' | b'?' | b'#'))
+                .map_or(url.len(), |end| separator + 3 + end),
+            None => url.iter().position(|&byte| byte == b':').unwrap_or(url.len()),
+        };
+        static HASHER: OnceLock<RandomState> = OnceLock::new();
+        Self(HASHER.get_or_init(RandomState::new).hash_one(&url[..end_of_host]))
+    }
+}
+
 pub(super) struct CachedParseMetadata {
     key: StyleSheetKey,
     dependencies: ParseDependencies,
     final_random_function_index: Option<usize>,
+    /// The partition of the document that last asked for the parse.
+    partition: AtomicU64,
+    /// Whether the process keeps the parse past its last document.
+    kept: AtomicBool,
 }
 
 type Entries = HashMap<u64, Vec<Weak<ParsedStyleSheet>>>;
@@ -368,13 +394,25 @@ impl Drop for InFlightParse {
     }
 }
 
-fn find(entries: &Entries, hash: u64, key: &StyleSheetKey) -> Option<Arc<ParsedStyleSheet>> {
+fn find(entries: &Entries, hash: u64, key: &StyleSheetKey, partition: SitePartition) -> Option<Arc<ParsedStyleSheet>> {
     entries.get(&hash)?.iter().filter_map(Weak::upgrade).find(|sheet| {
-        sheet
-            .cache_metadata
-            .as_ref()
-            .is_some_and(|metadata| metadata.key.matches(key, metadata.dependencies))
+        sheet.cache_metadata.as_ref().is_some_and(|metadata| {
+            // NB: Only the upgrade and what the process keeps hold a parse no document holds.
+            let only_kept = metadata.kept.load(Ordering::Relaxed) && Arc::strong_count(sheet) == 2;
+            metadata.key.matches(key, metadata.dependencies)
+                && (!only_kept || metadata.partition.load(Ordering::Relaxed) == partition.0)
+        })
     })
+}
+
+/// Have the process keep `sheet`, a parse just published, which holds about `bytes`.
+fn keep_past_release(sheet: &Arc<ParsedStyleSheet>, bytes: usize) {
+    let metadata = sheet
+        .cache_metadata
+        .as_ref()
+        .expect("a published parse has its metadata");
+    metadata.kept.store(true, Ordering::Relaxed);
+    crate::render_state::process_style().keep_parsed_sheet(sheet, bytes);
 }
 
 pub(super) fn parse_with_cache(
@@ -389,6 +427,7 @@ pub(super) fn parse_with_cache(
         },
         None => None,
     };
+    let partition = SitePartition::of_document(context);
     let key = StyleSheetKey {
         text: TextDigest::new(source),
         context: context_key,
@@ -410,7 +449,10 @@ pub(super) fn parse_with_cache(
     let cached = {
         let mut cache = shared.lock();
         loop {
-            if let Some(sheet) = hashes.iter().find_map(|&hash| find(&cache.entries, hash, &key)) {
+            if let Some(sheet) = hashes
+                .iter()
+                .find_map(|&hash| find(&cache.entries, hash, &key, partition))
+            {
                 break Some(sheet);
             }
             // The parse in flight may publish under a context-dependent hash that this key doesn't match; the
@@ -422,7 +464,10 @@ pub(super) fn parse_with_cache(
         }
     };
     if let Some(sheet) = cached {
-        sheet.cache_metadata.as_ref().unwrap().dependencies.record();
+        let metadata = sheet.cache_metadata.as_ref().unwrap();
+        metadata.partition.store(partition.0, Ordering::Relaxed);
+        crate::render_state::process_style().note_parsed_sheet_use(&sheet);
+        metadata.dependencies.record();
         if let Some(counter) = context.and_then(|context| context.random_function_index) {
             counter.set(
                 sheet
@@ -446,7 +491,7 @@ pub(super) fn parse_with_cache(
     let mut cache = shared.lock();
     let entries = &mut cache.entries;
     // A worker whose context matched this key under another dependency may have published while this one parsed.
-    if let Some(sheet) = find(entries, hash, &key) {
+    if let Some(sheet) = find(entries, hash, &key, partition) {
         drop(cache);
         drop(in_flight);
         return sheet;
@@ -461,17 +506,52 @@ pub(super) fn parse_with_cache(
         final_random_function_index: context
             .and_then(|context| context.random_function_index)
             .map(RandomFunctionIndex::get),
+        partition: AtomicU64::new(partition.0),
+        kept: AtomicBool::new(false),
     });
+    let bytes = source.len() + sheet.bytes_kept_past_release();
     let sheet = Arc::new(sheet);
     entries.entry(hash).or_default().push(Arc::downgrade(&sheet));
     drop(cache);
     drop(in_flight);
+    // NB: Unit tests of parsing count what a parse holds, and that it goes with its last holder.
+    #[cfg(not(test))]
+    keep_past_release(&sheet, bytes);
+    #[cfg(test)]
+    let _ = bytes;
     sheet
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn parsed_for_document(source: &str, document_url: &'static str) -> Arc<ParsedStyleSheet> {
+        let units: Vec<u16> = source.encode_utf16().collect();
+        let context = ParseContext {
+            document_url: ak::Span::new(document_url.as_bytes()),
+            ..Default::default()
+        };
+        crate::css::parser::syntax_parser::parse_shared_stylesheet(TokenizerInput::Utf16(&units), Some(&context))
+    }
+
+    #[test]
+    fn a_page_of_the_same_site_finds_a_parse_no_document_holds_and_another_sites_does_not() {
+        let source = ".kept-past-release { width: 11.75px }";
+        let first = parsed_for_document(source, "https://one.example/a");
+        keep_past_release(&first, 0);
+        let pointer = Arc::as_ptr(&first);
+        drop(first);
+        let second = parsed_for_document(source, "https://one.example/b");
+        assert_eq!(Arc::as_ptr(&second), pointer);
+        drop(second);
+        let other_site = parsed_for_document(source, "https://other.example/a");
+        assert_ne!(Arc::as_ptr(&other_site), pointer);
+
+        // While a document holds a parse, any document finds it, as a frame of another site does.
+        let frame = parsed_for_document(source, "https://third.example/a");
+        assert!(Arc::ptr_eq(&frame, &other_site));
+    }
 
     #[test]
     fn text_digests_agree_for_ascii_and_utf16_forms_of_one_text() {

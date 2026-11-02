@@ -17,6 +17,7 @@ use crate::css::ffi_support::{FfiUtf16View, ascii_lowercase};
 use crate::css::parser::descriptor_parser::resolve_descriptor_integer;
 use crate::css::parser::value_parser::equals_ascii_case_insensitive;
 use crate::css::style_compute::FfiLengthResolutionContext;
+use crate::css::style_value::CounterStyleSystemPayload;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -151,14 +152,14 @@ fn list(value: &StyleValueData) -> &[RetainedStyleValueData] {
 /// `extends`, which must have neither.
 /// https://drafts.csswg.org/css-counter-styles-3/#counter-style-symbols
 fn symbol_counts_needed(system: Option<&StyleValueData>) -> Option<(usize, usize)> {
-    match system {
-        Some(StyleValueData::CounterStyleSystem { kind: 2, .. }) => None,
-        Some(StyleValueData::CounterStyleSystem {
+    match system.and_then(StyleValueData::as_counter_style_system) {
+        Some(CounterStyleSystemPayload { kind: 2, .. }) => None,
+        Some(CounterStyleSystemPayload {
             kind: 0,
             system: counter_style_system::ADDITIVE,
             ..
         }) => Some((0, 1)),
-        Some(StyleValueData::CounterStyleSystem {
+        Some(CounterStyleSystemPayload {
             kind: 0,
             system: counter_style_system::ALPHABETIC | counter_style_system::NUMERIC,
             ..
@@ -199,10 +200,10 @@ impl Definition {
                 .collect::<Option<Vec<_>>>()?;
             (symbols.len() >= symbols_needed).then_some(symbols)
         };
-        let system = match descriptor("system") {
-            Some(StyleValueData::CounterStyleSystem { kind: 2, name, .. }) => System::Extends(name.units().into()),
+        let system = match descriptor("system").and_then(StyleValueData::as_counter_style_system) {
+            Some(CounterStyleSystemPayload { kind: 2, name, .. }) => System::Extends(name.units().into()),
             // https://drafts.csswg.org/css-counter-styles-3/#fixed-system
-            Some(StyleValueData::CounterStyleSystem {
+            Some(CounterStyleSystemPayload {
                 kind: 1, first_symbol, ..
             }) => System::Algorithm(Algorithm::Fixed {
                 // If it is omitted, the first symbol value is 1.
@@ -213,7 +214,7 @@ impl Definition {
                 symbols: symbols()?,
             }),
             // https://drafts.csswg.org/css-counter-styles-3/#additive-system
-            Some(StyleValueData::CounterStyleSystem {
+            Some(CounterStyleSystemPayload {
                 system: counter_style_system::ADDITIVE,
                 ..
             }) => System::Algorithm(Algorithm::Additive(
@@ -226,7 +227,7 @@ impl Definition {
             // The initial value of system is symbolic.
             system => {
                 let system = match system {
-                    Some(StyleValueData::CounterStyleSystem { system, .. }) => *system,
+                    Some(CounterStyleSystemPayload { system, .. }) => *system,
                     _ => counter_style_system::SYMBOLIC,
                 };
                 let system = match system {
@@ -558,19 +559,21 @@ pub extern "C" fn rust_counter_style_system_accepts_symbols(
 /// system itself, the first symbol of a fixed one or the style an extending one extends.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_counter_style_system_changes_algorithm(current: &StyleValueData, new: &StyleValueData) -> bool {
-    use StyleValueData::CounterStyleSystem;
+    let (Some(current), Some(new)) = (current.as_counter_style_system(), new.as_counter_style_system()) else {
+        return true;
+    };
     match (current, new) {
         (
-            CounterStyleSystem { kind: 0, system, .. },
-            CounterStyleSystem {
+            CounterStyleSystemPayload { kind: 0, system, .. },
+            CounterStyleSystemPayload {
                 kind: 0, system: new, ..
             },
         ) => system != new,
         (
-            CounterStyleSystem {
+            CounterStyleSystemPayload {
                 kind: 1, first_symbol, ..
             },
-            CounterStyleSystem {
+            CounterStyleSystemPayload {
                 kind: 1,
                 first_symbol: new,
                 ..
@@ -580,7 +583,9 @@ pub extern "C" fn rust_counter_style_system_changes_algorithm(current: &StyleVal
             let one = StyleValueData::Integer { value: 1 };
             first_symbol.optional_data().unwrap_or(&one) != new.optional_data().unwrap_or(&one)
         }
-        (CounterStyleSystem { kind: 2, name, .. }, CounterStyleSystem { kind: 2, name: new, .. }) => name != new,
+        (CounterStyleSystemPayload { kind: 2, name, .. }, CounterStyleSystemPayload { kind: 2, name: new, .. }) => {
+            name != new
+        }
         _ => true,
     }
 }

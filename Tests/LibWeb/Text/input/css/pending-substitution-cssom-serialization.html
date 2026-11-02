@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<div id="host"></div>
+<style>
+#rule-target {
+}
+</style>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+
+        function dump(name, element) {
+            const style = getComputedStyle(element);
+            const properties = ["background-color", "margin-top", "margin-left", "border-top-width", "border-right-width"];
+            println(`${name}:`);
+            println(`    attribute: ${element.getAttribute("style")}`);
+            println(`    cssText: ${element.style.cssText}`);
+            println(`    background: "${element.style.background}" margin: "${element.style.margin}" border: "${element.style.border}" border-width: "${element.style.borderWidth}"`);
+            println(`    computed: ${properties.map(property => style.getPropertyValue(property)).join(" | ")}`);
+            const clone = element.cloneNode();
+            host.append(clone);
+            const cloneStyle = getComputedStyle(clone);
+            println(`    clone attribute: ${clone.getAttribute("style")}`);
+            println(`    clone cssText: ${clone.style.cssText}`);
+            println(`    clone computed: ${properties.map(property => cloneStyle.getPropertyValue(property)).join(" | ")}`);
+            clone.remove();
+        }
+
+        function writes(name, ...steps) {
+            const element = document.createElement("div");
+            element.style.cssText = "--y: 7px; --z: rgb(0, 128, 0)";
+            host.append(element);
+            for (const step of steps) {
+                step(element.style);
+                getComputedStyle(element).color;
+            }
+            dump(name, element);
+            element.remove();
+        }
+
+        function attribute(name, text) {
+            const element = document.createElement("div");
+            element.setAttribute("style", `--y: 7px; ${text}`);
+            host.append(element);
+            // NB: The attribute's own text stands until a write through CSSOM serializes the declarations.
+            element.style.setProperty("--w", "1");
+            element.style.removeProperty("--w");
+            dump(name, element);
+            element.remove();
+        }
+
+        writes("background cleared", s => (s.background = "var(--z)"), s => (s.background = ""));
+        writes("background removed", s => (s.background = "var(--z)"), s => s.removeProperty("background"));
+        writes("a longhand removed", s => (s.margin = "var(--y)"), s => s.removeProperty("margin-top"));
+        writes("replaced by a value", s => (s.margin = "var(--y)"), s => (s.margin = "1px"));
+        writes("a longhand replaced", s => (s.margin = "var(--y)"), s => (s.marginLeft = "1px"));
+        writes("a longhand replaced and written again", s => (s.margin = "var(--y)"), s => (s.marginLeft = "1px"), s => (s.margin = "var(--y)"));
+        writes("written again after clearing", s => (s.margin = "var(--y)"), s => (s.margin = ""), s => (s.margin = "var(--y)"));
+        writes("written over an earlier longhand", s => (s.marginTop = "1px"), s => (s.color = "red"), s => (s.margin = "var(--y)"));
+        writes("nested shorthand replaced", s => (s.border = "var(--y) solid"), s => (s.borderWidth = "var(--y)"));
+        writes("nested shorthand removed", s => (s.border = "var(--y) solid"), s => s.removeProperty("border-width"));
+        writes("nested longhand replaced", s => (s.border = "var(--y) solid"), s => (s.borderTopWidth = "1px"));
+        writes("each side written the same", s => (s.borderTop = "var(--y)"), s => (s.borderRight = "var(--y)"), s => (s.borderBottom = "var(--y)"), s => (s.borderLeft = "var(--y)"));
+        writes("a side over the whole", s => (s.border = "var(--y)"), s => (s.borderTop = "var(--y)"));
+        writes("untouched", s => (s.margin = "var(--y)"));
+        writes("untouched nested", s => (s.border = "var(--y) solid"));
+        attribute("attribute with a later longhand", "margin: var(--y); margin-left: 1px");
+        attribute("attribute with an earlier important longhand", "margin-left: 1px !important; margin: var(--y)");
+        attribute("attribute untouched", "margin: var(--y)");
+
+        const typed = document.createElement("div");
+        typed.style.cssText = "--y: 7px; margin: var(--y)";
+        host.append(typed);
+        typed.attributeStyleMap.set("margin-top", CSS.px(1));
+        dump("typed OM write over a longhand", typed);
+        typed.remove();
+
+        const ruleElement = document.createElement("div");
+        ruleElement.id = "rule-target";
+        host.append(ruleElement);
+        const rule = document.styleSheets[0].cssRules[0];
+        rule.style.cssText = "--y: 7px";
+        rule.style.margin = "var(--y)";
+        rule.style.removeProperty("margin-top");
+        println(`rule: ${rule.style.cssText}`);
+        rule.style.margin = "var(--y)";
+        rule.style.margin = "";
+        println(`rule cleared: ${rule.style.cssText}`);
+        println(`rule computed: ${getComputedStyle(ruleElement).marginTop}`);
+    });
+</script>

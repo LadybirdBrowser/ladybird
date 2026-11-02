@@ -10,9 +10,11 @@
 
 // The FFI consumer of to_color() lands with the FFI flip.
 // Color values use the same thread-confined shared graph as the rest of the style core.
-#![allow(clippy::arc_with_non_send_sync)]
 
-use std::sync::Arc;
+use crate::css::style_value::{
+    CalculatedPayload, ColorFunctionPayload, ColorMixPayload, LightDarkPayload, StyleValueBox,
+};
+use crate::css::style_value_arc::StyleValueArc;
 
 use crate::css::calc::{
     ANGLE_UNIT_CANONICAL_RATIOS, ResolveAs, resolve_as_from_fields, resolve_calculated_angle_with_channels,
@@ -283,25 +285,6 @@ impl Rgba {
             let fraction = std::str::from_utf8(&digits[..length]).expect("digits are ASCII");
             sink.push_ascii(&format!("rgba({}, {}, {}, 0.{fraction})", self.r, self.g, self.b));
         }
-    }
-}
-
-pub(crate) fn resolved_srgb_style_value(color: Rgba) -> StyleValueData {
-    StyleValueData::ColorFunction {
-        color_base: ColorBase {
-            has_color_type: true,
-            color_type: color_conversion::RGB,
-            color_syntax: 0,
-        },
-        channel_0: retained_value(StyleValueData::Number { value: color.r.into() }),
-        channel_1: retained_value(StyleValueData::Number { value: color.g.into() }),
-        channel_2: retained_value(StyleValueData::Number { value: color.b.into() }),
-        alpha: retained_value(StyleValueData::Number {
-            value: f64::from(color.a) / 255.0,
-        }),
-        has_name: false,
-        name: CssString::none(),
-        origin_color: retained_null(),
     }
 }
 
@@ -764,15 +747,15 @@ const BASE_TYPE_ANGLE: usize = 1;
 
 /// The stored resolve-as target of a Calculated variant, or None for any other variant.
 fn calculated_resolve_as(value: &StyleValueData) -> Option<ResolveAs> {
-    let StyleValueData::Calculated {
+    let StyleValueData::Calculated(calculated_payload) = value else {
+        return None;
+    };
+    let CalculatedPayload {
         has_percentages_resolve_as,
         resolve_as_is_number,
         resolve_as_base,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**calculated_payload;
     resolve_as_from_fields(*has_percentages_resolve_as, *resolve_as_is_number, *resolve_as_base)
 }
 
@@ -813,7 +796,8 @@ pub(crate) fn resolve_hue(style_value: &StyleValueData, input: &ColorResolutionI
             }
             Some(0.0)
         }
-        StyleValueData::Calculated { resolved_type, .. } => {
+        StyleValueData::Calculated(calculated_payload) => {
+            let CalculatedPayload { resolved_type, .. } = &**calculated_payload;
             let resolve_as = calculated_resolve_as(style_value);
             let numeric_type = resolved_type.to_calc();
             if numeric_type.matches_number(resolve_as) {
@@ -849,7 +833,8 @@ pub(crate) fn resolve_with_reference_value(
             }
             Some(0.0)
         }
-        StyleValueData::Calculated { resolved_type, .. } => {
+        StyleValueData::Calculated(calculated_payload) => {
+            let CalculatedPayload { resolved_type, .. } = &**calculated_payload;
             let resolve_as = calculated_resolve_as(style_value);
             let numeric_type = resolved_type.to_calc();
             if numeric_type.matches_number(resolve_as) {
@@ -887,7 +872,8 @@ pub(crate) fn resolve_alpha(style_value: &StyleValueData, input: &ColorResolutio
             }
             Some(1.0)
         }
-        StyleValueData::Calculated { resolved_type, .. } => {
+        StyleValueData::Calculated(calculated_payload) => {
+            let CalculatedPayload { resolved_type, .. } = &**calculated_payload;
             let resolve_as = calculated_resolve_as(style_value);
             let numeric_type = resolved_type.to_calc();
             if numeric_type.matches_number(resolve_as) {
@@ -907,7 +893,7 @@ pub(crate) fn resolve_alpha(style_value: &StyleValueData, input: &ColorResolutio
 // Shared-graph retained-value constructors, mirroring make_result() in color_interpolation.rs.
 
 fn retained_value(value: StyleValueData) -> RetainedStyleValueData {
-    RetainedStyleValueData::from_arc(Arc::new(value))
+    RetainedStyleValueData::from_arc(StyleValueArc::new(value))
 }
 
 fn retained_null() -> RetainedStyleValueData {
@@ -1039,7 +1025,10 @@ fn construct_color(color_type: u8, c1: f64, c2: f64, c3: f64, alpha: f64) -> Opt
 }
 
 fn color_function_to_color(value: &StyleValueData, input: &ColorResolutionInput) -> Option<Rgba> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
@@ -1047,10 +1036,7 @@ fn color_function_to_color(value: &StyleValueData, input: &ColorResolutionInput)
         alpha,
         origin_color,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     if !color_base.has_color_type {
         return None;
     }
@@ -1202,7 +1188,10 @@ fn set_channels_for_target(
 /// color-function origin's channels without going through the u8 sRGB representation. The
 /// C++ empty CalculationResolutionContext maps to no channels and no length context.
 fn resolve_origin_native_channels(origin: &StyleValueData) -> Option<(u8, Components, [bool; 4])> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = origin else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
@@ -1210,10 +1199,7 @@ fn resolve_origin_native_channels(origin: &StyleValueData) -> Option<(u8, Compon
         alpha,
         origin_color,
         ..
-    } = origin
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     if origin_color.optional_data().is_some() {
         return None;
     }
@@ -1363,7 +1349,10 @@ fn make_powerless_target_hue_missing(
 /// function into an absolute one whose channels are plain numbers (or `none` keywords).
 // https://drafts.csswg.org/css-color-5/#resolving-rcs
 pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleValueData> {
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
@@ -1371,10 +1360,7 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
         alpha,
         origin_color,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     // The C++ code VERIFYs both of these.
     let origin = origin_color.optional_data()?;
     if !color_base.has_color_type {
@@ -1438,16 +1424,18 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
         }
     };
 
-    Some(StyleValueData::ColorFunction {
-        color_base: *color_base,
-        channel_0: retained_value(resolve_channel(channel_0, 0)),
-        channel_1: retained_value(resolve_channel(channel_1, 1)),
-        channel_2: retained_value(resolve_channel(channel_2, 2)),
-        alpha: retained_value(resolved_alpha),
-        has_name: false,
-        name: CssString::none(),
-        origin_color: retained_null(),
-    })
+    Some(StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: *color_base,
+            channel_0: retained_value(resolve_channel(channel_0, 0)),
+            channel_1: retained_value(resolve_channel(channel_1, 1)),
+            channel_2: retained_value(resolve_channel(channel_2, 2)),
+            alpha: retained_value(resolved_alpha),
+            has_name: false,
+            name: CssString::none(),
+            origin_color: retained_null(),
+        },
+    )))
 }
 
 /// Resolves alpha(from <color> / <alpha>) to an absolute color in the color space of its origin color.
@@ -1466,11 +1454,8 @@ fn resolve_relative_alpha(
         effective_origin = current_color_value;
     }
     let resolved_origin_storage;
-    if let StyleValueData::ColorFunction {
-        origin_color: nested_origin,
-        ..
-    } = effective_origin
-        && nested_origin.optional_data().is_some()
+    if let StyleValueData::ColorFunction(color_function_payload) = effective_origin
+        && color_function_payload.origin_color.optional_data().is_some()
     {
         resolved_origin_storage = resolve_relative_form(effective_origin, input)?;
         effective_origin = &resolved_origin_storage;
@@ -1521,20 +1506,22 @@ fn resolve_relative_alpha(
         }
     };
 
-    Some(StyleValueData::ColorFunction {
-        color_base: ColorBase {
-            has_color_type: true,
-            color_type,
-            color_syntax: crate::css::value_codes::COLOR_SYNTAX_MODERN,
+    Some(StyleValueData::ColorFunction(StyleValueBox::new(
+        ColorFunctionPayload {
+            color_base: ColorBase {
+                has_color_type: true,
+                color_type,
+                color_syntax: crate::css::value_codes::COLOR_SYNTAX_MODERN,
+            },
+            channel_0: retained_value(component(0)),
+            channel_1: retained_value(component(1)),
+            channel_2: retained_value(component(2)),
+            alpha: retained_value(resolved_alpha),
+            has_name: false,
+            name: CssString::none(),
+            origin_color: retained_null(),
         },
-        channel_0: retained_value(component(0)),
-        channel_1: retained_value(component(1)),
-        channel_2: retained_value(component(2)),
-        alpha: retained_value(resolved_alpha),
-        has_name: false,
-        name: CssString::none(),
-        origin_color: retained_null(),
-    })
+    )))
 }
 
 /// The computed value form of an absolute rgb(), hsl() or hwb() function: the same color as
@@ -1542,17 +1529,17 @@ fn resolve_relative_alpha(
 // https://drafts.csswg.org/css-color-4/#resolving-sRGB-values
 pub(crate) fn relative_color_computed_value_form(value: StyleValueData) -> StyleValueData {
     use color_conversion as ct;
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = &value else {
+        return value;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
         channel_2,
         alpha,
         ..
-    } = &value
-    else {
-        return value;
-    };
+    } = &**color_function_payload;
     let color_type = color_base.color_type;
     if !matches!(color_type, ct::RGB | ct::HSL | ct::HWB) {
         return value;
@@ -1600,7 +1587,7 @@ pub(crate) fn relative_color_computed_value_form(value: StyleValueData) -> Style
         })
     };
     let [channel_0, channel_1, channel_2] = channels;
-    StyleValueData::ColorFunction {
+    StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
         color_base: ColorBase {
             has_color_type: true,
             color_type: ct::SRGB,
@@ -1613,7 +1600,7 @@ pub(crate) fn relative_color_computed_value_form(value: StyleValueData) -> Style
         has_name: false,
         name: CssString::none(),
         origin_color: retained_null(),
-    }
+    }))
 }
 
 /// The resolved value of a relative color function against a style: its relative form in its
@@ -1630,7 +1617,7 @@ pub unsafe extern "C" fn rust_relative_color_resolved_value(
     // SAFETY: Guaranteed by the caller.
     let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match resolve_relative_form(value, &resolution_input) {
-        Some(resolved) => Arc::into_raw(Arc::new(relative_color_computed_value_form(resolved))),
+        Some(resolved) => StyleValueArc::into_raw(StyleValueArc::new(relative_color_computed_value_form(resolved))),
         None => core::ptr::null(),
     }
 }
@@ -1652,7 +1639,7 @@ pub unsafe extern "C" fn rust_color_mix_resolved_value(
     // SAFETY: Guaranteed by the caller.
     let resolution_input = unsafe { ColorResolutionInput::for_ffi_style(style) };
     match resolve_color_mix(value, &resolution_input) {
-        Some(resolved) => Arc::into_raw(Arc::new(resolved)),
+        Some(resolved) => StyleValueArc::into_raw(StyleValueArc::new(resolved)),
         None => core::ptr::null(),
     }
 }
@@ -1708,11 +1695,8 @@ fn extract_channels_and_missing_slots(
     }
 
     let resolved_origin_storage;
-    if let StyleValueData::ColorFunction {
-        origin_color: nested_origin,
-        ..
-    } = effective_origin
-        && nested_origin.optional_data().is_some()
+    if let StyleValueData::ColorFunction(color_function_payload) = effective_origin
+        && color_function_payload.origin_color.optional_data().is_some()
     {
         resolved_origin_storage = resolve_relative_form(effective_origin, input)?;
         effective_origin = &resolved_origin_storage;
@@ -1921,7 +1905,10 @@ fn resolve_native_color_components(
     input: &ColorResolutionInput,
 ) -> Option<(u8, Components)> {
     use color_conversion as ct;
-    let StyleValueData::ColorFunction {
+    let StyleValueData::ColorFunction(color_function_payload) = style_value else {
+        return None;
+    };
+    let ColorFunctionPayload {
         color_base,
         channel_0,
         channel_1,
@@ -1929,10 +1916,7 @@ fn resolve_native_color_components(
         alpha,
         origin_color,
         ..
-    } = style_value
-    else {
-        return None;
-    };
+    } = &**color_function_payload;
     if !color_base.has_color_type || origin_color.optional_data().is_some() {
         return None;
     }
@@ -2018,8 +2002,8 @@ pub(crate) fn resolve_color_for_interpolation(
 ) -> Option<ResolvedColor> {
     let resolved_relative_storage;
     let mut style_value = input_value;
-    if let StyleValueData::ColorFunction { origin_color, .. } = input_value
-        && origin_color.optional_data().is_some()
+    if let StyleValueData::ColorFunction(color_function_payload) = input_value
+        && color_function_payload.origin_color.optional_data().is_some()
     {
         resolved_relative_storage = resolve_relative_form(input_value, input)?;
         style_value = &resolved_relative_storage;
@@ -2040,17 +2024,17 @@ pub(crate) fn resolve_color_for_interpolation(
     }
 
     if let Some((color_type, components)) = resolve_native_color_components(style_value, input) {
-        let StyleValueData::ColorFunction {
+        let StyleValueData::ColorFunction(color_function_payload) = style_value else {
+            // resolve_native_color_components() only accepts color functions.
+            return None;
+        };
+        let ColorFunctionPayload {
             channel_0,
             channel_1,
             channel_2,
             alpha,
             ..
-        } = style_value
-        else {
-            // resolve_native_color_components() only accepts color functions.
-            return None;
-        };
+        } = &**color_function_payload;
         return Some(ResolvedColor {
             color_type,
             components,
@@ -2081,15 +2065,15 @@ pub(crate) fn resolve_color_for_interpolation(
 
 // https://drafts.csswg.org/css-color-5/#color-mix-result
 pub(crate) fn resolve_color_mix(value: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleValueData> {
-    let StyleValueData::ColorMix {
+    let StyleValueData::ColorMix(color_mix_payload) = value else {
+        return None;
+    };
+    let ColorMixPayload {
         color_interpolation_method,
         colors,
         percentages,
         ..
-    } = value
-    else {
-        return None;
-    };
+    } = &**color_mix_payload;
 
     // An absent method interpolates in the rectangular Oklab space.
     let default_method = StyleValueData::ColorInterpolationMethod {
@@ -2157,7 +2141,8 @@ pub(crate) fn to_color(value: &StyleValueData, input: &ColorResolutionInput) -> 
         }
         // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
         // A missing scheme takes the light branch.
-        StyleValueData::LightDark { light, dark, .. } => {
+        StyleValueData::LightDark(light_dark_payload) => {
+            let LightDarkPayload { light, dark, .. } = &**light_dark_payload;
             if input.scheme == Some(PREFERRED_COLOR_SCHEME_DARK) {
                 to_color(dark.data(), input)
             } else {
@@ -2327,7 +2312,7 @@ mod tests {
 
     fn color_function(color_type: u8, channels: [StyleValueData; 3], alpha: Option<StyleValueData>) -> StyleValueData {
         let [c0, c1, c2] = channels;
-        StyleValueData::ColorFunction {
+        StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
             color_base: ColorBase {
                 has_color_type: true,
                 color_type,
@@ -2340,7 +2325,7 @@ mod tests {
             has_name: false,
             name: CssString::none(),
             origin_color: retained_null(),
-        }
+        }))
     }
 
     #[test]
@@ -2472,7 +2457,7 @@ mod tests {
         );
         assert_eq!(to_color(&keyword_value(keyword::AUTO), &EMPTY_INPUT), None);
 
-        let light_dark = StyleValueData::LightDark {
+        let light_dark = StyleValueData::LightDark(StyleValueBox::new(LightDarkPayload {
             color_base: ColorBase {
                 has_color_type: false,
                 color_type: 0,
@@ -2488,14 +2473,14 @@ mod tests {
                 [number(0.0), number(0.0), number(0.0)],
                 None,
             )),
-        };
+        }));
         assert_eq!(to_color(&light_dark, &EMPTY_INPUT), Some(Rgba::WHITE));
         assert_eq!(to_color(&light_dark, &dark_input), Some(Rgba::BLACK));
     }
 
     #[test]
     fn to_color_mixes_srgb_endpoints() {
-        let mix = StyleValueData::ColorMix {
+        let mix = StyleValueData::ColorMix(StyleValueBox::new(ColorMixPayload {
             color_base: ColorBase {
                 has_color_type: false,
                 color_type: 0,
@@ -2520,7 +2505,7 @@ mod tests {
                 )),
             ]),
             percentages: RetainedStyleValueDataList::from_retained_values(vec![retained_null(), retained_null()]),
-        };
+        }));
         // A 50/50 sRGB mix of black and white; 127.5 rounds half-to-even to 128 through the
         // sRGB construction arm.
         assert_eq!(to_color(&mix, &EMPTY_INPUT), Some(rgb(128, 128, 128)));

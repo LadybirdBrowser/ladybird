@@ -21,6 +21,9 @@ use crate::css::parser::calc_parser::{CalcParseError, CalcParserContext, parse_a
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::token_stream::TokenStream;
 use crate::css::style_value::{
+    CalculatedPayload, ColorFunctionPayload, ColorMixPayload, LightDarkPayload, StyleValueBox,
+};
+use crate::css::style_value::{
     ColorBase, RetainedNumericRangeList, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 
@@ -65,7 +68,7 @@ fn make_color_function(
     origin_color: Option<StyleValueData>,
 ) -> StyleValueData {
     let [channel_0, channel_1, channel_2] = channels;
-    StyleValueData::ColorFunction {
+    StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
         color_base: color_base(Some(color_type), syntax),
         channel_0: retained(channel_0),
         channel_1: retained(channel_1),
@@ -74,7 +77,7 @@ fn make_color_function(
         has_name: name.is_some(),
         name: name.unwrap_or_else(CssString::none),
         origin_color: retained_optional(origin_color),
-    }
+    }))
 }
 
 fn make_legacy_color(rgba: [u8; 4], name: Option<&[u16]>) -> StyleValueData {
@@ -397,7 +400,7 @@ fn parse_calculated_numeric(
         NumericKind::Percentage => VALUE_TYPE_PERCENTAGE,
     };
     Some(ParsedNumeric {
-        value: StyleValueData::Calculated {
+        value: StyleValueData::Calculated(StyleValueBox::new(CalculatedPayload {
             rust_calculation: crate::css::calc::CalcNodeHandle::from_arc(root),
             resolve_as_is_number: false,
             resolve_as_base: 0,
@@ -410,7 +413,7 @@ fn parse_calculated_numeric(
                 accepted_range.0,
                 accepted_range.1,
             ),
-        },
+        })),
         kind,
     })
 }
@@ -902,7 +905,8 @@ fn parse_mix_percentage(context: &ParseContext, property: u16, stream: &mut Toke
             stream.position = start;
             return None;
         }
-        StyleValueData::Calculated { accepted_ranges, .. } => {
+        StyleValueData::Calculated(calculated_payload) => {
+            let CalculatedPayload { accepted_ranges, .. } = &mut **calculated_payload;
             *accepted_ranges = RetainedNumericRangeList::from_single_numeric_range(VALUE_TYPE_PERCENTAGE, 0.0, 100.0);
         }
         _ => {}
@@ -952,12 +956,12 @@ fn parse_color_mix(context: &ParseContext, property: u16, values: &[ComponentVal
         }
         stream.discard_a_token();
     }
-    Some(StyleValueData::ColorMix {
+    Some(StyleValueData::ColorMix(StyleValueBox::new(ColorMixPayload {
         color_base: color_base(None, COLOR_SYNTAX_MODERN),
         color_interpolation_method: retained_optional(method),
         colors: RetainedStyleValueDataList::from_retained_values(colors),
         percentages: RetainedStyleValueDataList::from_retained_values(percentages),
-    })
+    })))
 }
 
 fn parse_light_dark_or_contrast(
@@ -988,11 +992,11 @@ fn parse_light_dark_or_contrast(
     if stream.has_next_token() {
         return None;
     }
-    Some(StyleValueData::LightDark {
+    Some(StyleValueData::LightDark(StyleValueBox::new(LightDarkPayload {
         color_base: color_base(None, COLOR_SYNTAX_MODERN),
         light: retained(first),
         dark: retained(second),
-    })
+    })))
 }
 
 fn parse_color_function_component(
@@ -1105,13 +1109,9 @@ pub(crate) fn parse_color_value(
 }
 
 pub(crate) fn color_syntax(value: &StyleValueData) -> u8 {
-    match value {
-        StyleValueData::ContrastColor { color_base, .. }
-        | StyleValueData::ColorFunction { color_base, .. }
-        | StyleValueData::ColorMix { color_base, .. }
-        | StyleValueData::LightDark { color_base, .. } => color_base.color_syntax,
-        _ => COLOR_SYNTAX_LEGACY,
-    }
+    value
+        .color_base()
+        .map_or(COLOR_SYNTAX_LEGACY, |color_base| color_base.color_syntax)
 }
 
 #[cfg(test)]

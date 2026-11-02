@@ -451,12 +451,6 @@ pub extern "C" fn rust_syntax_release(syntax: OwnedArc<SyntaxNode>) {
     drop(syntax);
 }
 
-/// # Safety
-/// `syntax` must be null or a live parsed-syntax handle.
-pub(crate) unsafe fn clone_syntax_handle(syntax: *const c_void) -> Option<SyntaxNode> {
-    unsafe { syntax.cast::<SyntaxNode>().as_ref() }.cloned()
-}
-
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_syntax_is_universal(syntax: &SyntaxNode) -> bool {
     matches!(syntax, SyntaxNode::Universal)
@@ -521,13 +515,14 @@ pub unsafe extern "C" fn rust_parse_with_syntax(
         return std::ptr::null();
     };
     *out_status = FfiParseStatus::Parsed;
-    Arc::into_raw(Arc::new(parsed)).cast()
+    crate::css::style_value_arc::StyleValueArc::into_raw(crate::css::style_value_arc::StyleValueArc::new(parsed)).cast()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::css::parser::value_parser::RandomFunctionIndex;
+    use crate::css::style_value::UnresolvedPayload;
 
     fn context(random_function_index: &RandomFunctionIndex) -> ParseContext<'_> {
         ParseContext {
@@ -626,12 +621,21 @@ mod tests {
             crate::css::css_tokenizer::tokenize_for_parser_without_source(b"1.00px").into_vec(),
         )
         .unwrap();
-        let Some(StyleValueData::Unresolved { source_text, .. }) =
+        let Some(StyleValueData::Unresolved(unresolved_payload)) =
             parse_with_syntax_component_values(&context, &values, &SyntaxNode::Universal, Some(&source))
         else {
             panic!("expected an unresolved value");
         };
-        assert_eq!(source_text.units(), source);
+        let unresolved_payload: &UnresolvedPayload = &unresolved_payload;
+        let source_text = unresolved_payload.source_text();
+        assert_eq!(
+            {
+                let mut units = Vec::new();
+                source_text.append_to(&mut units);
+                units
+            },
+            source
+        );
     }
 
     #[test]
@@ -640,16 +644,24 @@ mod tests {
         let context = context(&random_function_index);
         let mut values = consume_a_list_of_component_values(tokenize_for_parser(b"a b".as_slice())).unwrap();
         values.remove(1);
-        let Some(StyleValueData::Unresolved {
-            source_text,
-            components,
-            ..
-        }) = parse_with_syntax_component_values(&context, &values, &SyntaxNode::Universal, None)
+        let Some(StyleValueData::Unresolved(unresolved_payload)) =
+            parse_with_syntax_component_values(&context, &values, &SyntaxNode::Universal, None)
         else {
             panic!("expected an unresolved value");
         };
-        assert_eq!(source_text.units(), utf16("a/**/b"));
-        assert_eq!(components.as_slice(), values.as_slice());
+        let source_text = unresolved_payload.source_text();
+        assert_eq!(
+            {
+                let mut units = Vec::new();
+                source_text.append_to(&mut units);
+                units
+            },
+            utf16("a/**/b")
+        );
+        assert!(crate::css::style_value::components_equal(
+            &unresolved_payload.components(),
+            &values
+        ));
     }
 
     #[test]

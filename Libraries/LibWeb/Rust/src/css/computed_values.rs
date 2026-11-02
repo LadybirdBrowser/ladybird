@@ -18,14 +18,12 @@
 //!
 //! The header occupies max(size_of::<usize>(), payload alignment) bytes so the
 //! payload stays properly aligned; the reference count lives in the first
-//! usize of the header. A reference count of STYLE_GROUP_STATIC_REFCOUNT marks
-//! an intentionally leaked payload (the per-group defaults) that must never be
-//! reference counted or freed.
+//! usize of the header.
 
+use crate::css::style_value::{ContentPayload, CounterDefinitionsPayload, FunctionPayload};
+use crate::css::style_value_arc::StyleValueArc;
 use std::alloc::{Layout, alloc, dealloc};
 use std::ffi::c_void;
-use std::hash::Hasher;
-use std::sync::OnceLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::abort_on_panic;
@@ -38,41 +36,18 @@ pub use crate::css::computed_value_types::{
     ComputedOverflowClipMarginSide, ComputedPositionTryFallback, ComputedResolvedTransform, ComputedSize,
     ComputedSizeKind, ComputedStyleValueHandle, ComputedSvgDash, ComputedSvgPaint, ComputedTextIndent,
     ComputedTextUnderlineOffset, ComputedTextUnderlinePosition, ComputedVerticalAlign, ContentValues, EffectsValues,
-    FontValues, GRID_NO_INDEX, GridValues, InheritedListValues, InheritedSVGValues, InheritedTextValues,
-    InheritedUIValues, MaskValues, MiscResetValues, RetainedComputedCursorList, RetainedComputedFilterOperationList,
-    RetainedComputedResolvedTransformList, RetainedComputedShadowList, RetainedComputedSvgDashList,
-    RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList, RetainedPositionAreaList,
-    RetainedPositionTryFallbackList, RetainedTextDecorationLineList, RetainedWillChangePropertyList, SVGResetValues,
-    SizingValues, SurroundValues, TextResetValues, TransformValues,
+    FontValues, GRID_NO_INDEX, GridValues, InheritedBits, InheritedListTableValues, InheritedSVGValues,
+    InheritedSetValues, InheritedTextValues, InheritedUIValues, MaskValues, MiscInteractionValues, MiscLayoutValues,
+    ResetBits, RetainedComputedCursorList, RetainedComputedFilterOperationList, RetainedComputedResolvedTransformList,
+    RetainedComputedShadowList, RetainedComputedSvgDashList, RetainedGridAreaList, RetainedGridNameIndexList,
+    RetainedGridTrackEntryList, RetainedPositionAreaList, RetainedPositionTryFallbackList,
+    RetainedTextDecorationLineList, RetainedWillChangePropertyList, SVGResetValues, SizingValues, StyleBits,
+    SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
-use crate::css::style::fast_hash::{FastHasher, fast_hasher};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 use crate::css::table_group_builder::group_index;
-
-/// Reference count value marking an intentionally leaked payload.
-pub const STYLE_GROUP_STATIC_REFCOUNT: usize = usize::MAX;
-
-/// Layout of the inherited box style value group.
-///
-/// This is the source of truth for the group's payload layout: C++ derives its
-/// group struct from the cbindgen mirror of this type, adding its C++ identity
-/// and typed accessors on top. The fields hold C++ `enum class : u8` values
-/// generated from CSS/Enums.json, the same source as the C++ enums.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InheritedBoxValues {
-    pub visibility: u8,
-    pub direction: u8,
-    pub writing_mode: u8,
-    pub content_visibility: u8,
-    pub image_rendering: u8,
-    pub text_orientation: u8,
-    /// https://drafts.csswg.org/css-viewport/#effective-zoom
-    /// The bits of the effective zoom, as an `f32`.
-    pub effective_zoom_bits: u32,
-}
 
 impl ComputedStyleValueHandle {
     pub(crate) fn empty() -> Self {
@@ -114,244 +89,6 @@ impl ComputedStyleValueHandle {
         unsafe { self.pointer.cast::<crate::css::style_value::StyleValueData>().as_ref() }
     }
 }
-
-/// Writes one value's content into `hasher` in a way consistent with its `PartialEq`: two values
-/// that compare equal always write the same bytes.
-///
-/// Consistency is what makes a content hash usable as an identity key. It holds by construction
-/// as long as every hashed field is hashed by the same notion of equality the comparison uses,
-/// and it survives omitting fields (the hash only gets coarser, and equality settles whatever
-/// shares a bucket). For the host-interned handles - fly strings, the font cascade list, the
-/// first available font - that notion *is* the address, because their `PartialEq` compares
-/// addresses. Floats hash by bit pattern with negative zero normalized; NaN never equals
-/// anything, so its hash is unconstrained.
-pub(crate) trait ContentHash {
-    fn write_content_hash(&self, hasher: &mut FastHasher);
-}
-
-macro_rules! impl_content_hash_by_field {
-    ($type:ty { $($field:ident),+ $(,)? }) => {
-        impl ContentHash for $type {
-            fn write_content_hash(&self, hasher: &mut FastHasher) {
-                $(self.$field.write_content_hash(hasher);)+
-            }
-        }
-    };
-}
-
-macro_rules! impl_content_hash_integers {
-    ($($type:ty => $write:ident),+ $(,)?) => {
-        $(impl ContentHash for $type {
-            fn write_content_hash(&self, hasher: &mut FastHasher) {
-                hasher.$write(*self);
-            }
-        })+
-    };
-}
-
-impl_content_hash_integers!(u8 => write_u8, u16 => write_u16, u32 => write_u32, i32 => write_i32, u64 => write_u64, usize => write_usize);
-
-impl ContentHash for bool {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_u8(u8::from(*self));
-    }
-}
-
-impl ContentHash for f32 {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_u32((if *self == 0.0 { 0.0_f32 } else { *self }).to_bits());
-    }
-}
-
-impl ContentHash for f64 {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_u64((if *self == 0.0 { 0.0_f64 } else { *self }).to_bits());
-    }
-}
-
-impl<T: ContentHash, const N: usize> ContentHash for [T; N] {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        for value in self {
-            value.write_content_hash(hasher);
-        }
-    }
-}
-
-impl ContentHash for *const c_void {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_usize(*self as usize);
-    }
-}
-
-impl ContentHash for crate::css::css_pixels::CssPixels {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_i32(self.raw_value());
-    }
-}
-
-impl ContentHash for libgfx_rust::font::FontCascadeListHandle {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_usize(self.as_raw() as usize);
-    }
-}
-
-impl ContentHash for libgfx_rust::font::FrozenFontListRef {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_usize(self.as_raw() as usize);
-    }
-}
-
-impl ContentHash for RetainedUtf16FlyString {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_usize(self.raw());
-    }
-}
-
-impl ContentHash for RetainedUtf16FlyStringList {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        let raws = self.raws();
-        hasher.write_usize(raws.len());
-        for &raw in raws {
-            hasher.write_usize(raw);
-        }
-    }
-}
-
-impl ContentHash for ComputedStyleValueHandle {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        match self.data() {
-            None => hasher.write_u8(0),
-            Some(data) => {
-                hasher.write_u8(1);
-                hasher.write_u64(data.content_hash());
-            }
-        }
-    }
-}
-
-impl ContentHash for ComputedSizeKind {
-    fn write_content_hash(&self, hasher: &mut FastHasher) {
-        hasher.write_u8(*self as u8);
-    }
-}
-
-/// Hashes a Rust-owned retained list beside the equality `retained_list_partial_eq!` gives it:
-/// the length and then every element.
-macro_rules! impl_retained_list_content_hash {
-    ($list:ty, $element:ty) => {
-        impl ContentHash for $list {
-            fn write_content_hash(&self, hasher: &mut FastHasher) {
-                let values: &[$element] = self.as_slice();
-                hasher.write_usize(values.len());
-                for value in values {
-                    value.write_content_hash(hasher);
-                }
-            }
-        }
-    };
-}
-
-impl_content_hash_by_field!(ComputedSize { kind, value });
-impl_content_hash_by_field!(crate::css::display::FfiDisplay {
-    tag,
-    outside,
-    inside,
-    list_item,
-    internal,
-    box_value,
-});
-impl_content_hash_by_field!(ComputedAspectRatio {
-    use_natural_aspect_ratio_if_available,
-    has_preferred_ratio,
-    preferred_ratio_numerator,
-    preferred_ratio_denominator,
-    computed_use_natural_aspect_ratio_if_available,
-    has_computed_ratio,
-    computed_ratio_numerator,
-    computed_ratio_denominator,
-});
-impl_content_hash_by_field!(ComputedContainIntrinsicSize {
-    has_auto,
-    has_length,
-    length_px,
-});
-impl_content_hash_by_field!(crate::css::computed_value_types::ComputedBorderSide {
-    color,
-    line_style,
-    width,
-});
-impl_content_hash_by_field!(ComputedTextUnderlinePosition { horizontal, vertical });
-impl_content_hash_by_field!(ComputedGridTrackList {
-    is_subgrid,
-    preserves_line_name_sets,
-    first_entry,
-});
-impl_content_hash_by_field!(ComputedGridPlacement {
-    kind,
-    has_line_number,
-    line_number,
-    has_name,
-    name_index,
-    implicit_start_name_index,
-    implicit_end_name_index,
-});
-impl_content_hash_by_field!(ComputedGridArea {
-    name_index,
-    implicit_start_name_index,
-    implicit_end_name_index,
-    row_start,
-    row_end,
-    column_start,
-    column_end,
-});
-impl_content_hash_by_field!(crate::css::computed_value_types::ComputedShadow {
-    offset_x,
-    offset_y,
-    blur_radius,
-    spread_distance,
-    color,
-    color_syntax,
-    placement,
-});
-impl_content_hash_by_field!(ComputedClipEdge { is_auto, value, unit });
-impl_content_hash_by_field!(ComputedColorOrAuto {
-    is_auto,
-    computed_color,
-    used_color,
-});
-impl_content_hash_by_field!(crate::css::computed_value_types::ComputedScrollbarColor {
-    thumb_color,
-    track_color,
-    is_auto,
-});
-impl_content_hash_by_field!(InheritedTableValues {
-    border_collapse,
-    caption_side,
-    empty_cells,
-    border_spacing_horizontal,
-    border_spacing_vertical,
-});
-impl_content_hash_by_field!(InheritedBoxValues {
-    visibility,
-    direction,
-    writing_mode,
-    content_visibility,
-    image_rendering,
-    text_orientation,
-    effective_zoom_bits,
-});
-// The anchor-inset wrappers are pure derivatives of the anchor-inset fields, so payload equality
-// excludes them and the hash follows it field for field.
-impl_content_hash_by_field!(SurroundValues {
-    inset,
-    top_anchor_inset,
-    right_anchor_inset,
-    bottom_anchor_inset,
-    left_anchor_inset,
-    position_anchor,
-    margin,
-    padding,
-});
 
 impl Clone for ComputedStyleValueHandle {
     fn clone(&self) -> Self {
@@ -407,8 +144,6 @@ macro_rules! impl_computed_payload_clone_and_eq {
                 true $(&& self.$field == other.$field)+
             }
         }
-
-        impl_content_hash_by_field!($type { $($field),+ });
     };
     // A style group whose payload holds values that layout does not read, each followed by `=> paint_only`, or values
     // that layout reads only in part, each followed by `=>` and the function that compares that part.
@@ -561,8 +296,6 @@ impl PartialEq for RetainedTextDecorationLineList {
     }
 }
 
-impl_retained_list_content_hash!(RetainedTextDecorationLineList, u8);
-
 impl_computed_payload_clone_and_eq!(TextResetValues {
     text_decoration_lines,
     text_decoration_thickness_kind,
@@ -619,7 +352,6 @@ macro_rules! impl_retained_computed_list {
 
         retained_list_drop!($list);
         retained_list_partial_eq!($list, $element);
-        impl_retained_list_content_hash!($list, $element);
     };
 }
 
@@ -640,7 +372,6 @@ impl_computed_payload_clone_and_eq!(ComputedSvgPaint {
     url,
     has_color,
     color,
-    color_is_currentcolor,
 });
 impl_computed_payload_clone_and_eq!(ComputedSvgDash {
     is_number,
@@ -659,11 +390,7 @@ impl_computed_payload_clone_and_eq!(ComputedTextUnderlineOffset {
     value,
 });
 impl_computed_payload_clone_and_eq!(InheritedTextValues {
-    text_align,
     text_justify,
-    white_space_collapse,
-    text_wrap_mode,
-    word_break,
     line_break,
     tab_size_is_number,
     letter_spacing,
@@ -776,11 +503,12 @@ impl_computed_payload_clone_and_eq!(ContentValues {
     counter_reset,
     counter_set,
 });
-impl_computed_payload_clone_and_eq!(InheritedListValues {
+impl_computed_payload_clone_and_eq!(InheritedListTableValues {
     list_style_type,
-    list_style_position,
     list_style_image,
     quotes,
+    border_spacing_horizontal,
+    border_spacing_vertical,
 });
 impl_computed_payload_clone_and_eq!(ComputedOverflowClipMarginSide {
     has_visual_box,
@@ -793,10 +521,8 @@ impl_computed_payload_clone_and_eq!(ComputedOverflowClipMargin {
     right,
     bottom,
 });
-impl_computed_payload_clone_and_eq!(MiscResetValues {
+impl_computed_payload_clone_and_eq!(MiscLayoutValues {
     outline_offset_style_value,
-    scroll_margin,
-    scroll_padding,
     overflow_clip_margin,
     column_span,
     break_before,
@@ -816,9 +542,17 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     column_rule_color => paint_only,
     column_rule_width,
     outline_offset,
-    user_select,
     object_position_x,
     object_position_y,
+    shape_image_threshold,
+    shape_margin,
+    shape_outside,
+    content_visibility,
+});
+impl_computed_payload_clone_and_eq!(MiscInteractionValues {
+    scroll_margin,
+    scroll_padding,
+    user_select,
     view_transition_name,
     scroll_behavior,
     scroll_snap_align_block,
@@ -830,48 +564,92 @@ impl_computed_payload_clone_and_eq!(MiscResetValues {
     scrollbar_width,
     overscroll_behavior_x,
     overscroll_behavior_y,
-    shape_image_threshold,
-    shape_margin,
-    shape_outside,
     will_change,
     implicit_will_change => implicit_will_change_layout_inputs_equal,
 });
-impl_computed_payload_clone_and_eq!(FontValues {
-    font_size,
-    line_height_used,
-    font_variant_emoji,
-    font_ascent,
-    font_descent,
-    font_x_height,
-    font_zero_advance,
-    first_available_font,
-    font_cascade_list,
-    frozen_font_list,
-    font_weight,
-    font_width,
-    math_shift,
-    math_style,
-    math_depth,
-    font_family,
-    font_style,
-    font_optical_sizing,
-    font_feature_settings,
-    font_kerning,
-    font_language_override,
-    font_variant_alternates,
-    font_variant_caps,
-    font_variant_east_asian,
-    font_variant_ligatures,
-    font_variant_numeric,
-    font_variant_position,
-    font_variation_settings,
-    text_rendering,
-    line_height,
-    math_shift_value,
-    math_style_value,
-    math_depth_value,
-    font_size_value,
-});
+impl Clone for FontValues {
+    fn clone(&self) -> Self {
+        Self {
+            font_size: self.font_size,
+            resolved_line_height_used: self.resolved_line_height_used,
+            font_variant_emoji: self.font_variant_emoji,
+            resolved_font_ascent: self.resolved_font_ascent,
+            resolved_font_descent: self.resolved_font_descent,
+            resolved_font_x_height: self.resolved_font_x_height,
+            resolved_font_zero_advance: self.resolved_font_zero_advance,
+            resolved_first_available_font: self.resolved_first_available_font,
+            font_cascade_list: self.font_cascade_list.clone(),
+            frozen_font_list: self.frozen_font_list.clone(),
+            font_weight: self.font_weight,
+            font_width: self.font_width,
+            math_shift: self.math_shift,
+            math_style: self.math_style,
+            math_depth: self.math_depth,
+            font_family: self.font_family.clone(),
+            font_style: self.font_style.clone(),
+            font_optical_sizing: self.font_optical_sizing.clone(),
+            font_feature_settings: self.font_feature_settings.clone(),
+            font_kerning: self.font_kerning.clone(),
+            font_language_override: self.font_language_override.clone(),
+            font_variant_alternates: self.font_variant_alternates.clone(),
+            font_variant_caps: self.font_variant_caps.clone(),
+            font_variant_east_asian: self.font_variant_east_asian.clone(),
+            font_variant_ligatures: self.font_variant_ligatures.clone(),
+            font_variant_numeric: self.font_variant_numeric.clone(),
+            font_variant_position: self.font_variant_position.clone(),
+            font_variation_settings: self.font_variation_settings.clone(),
+            text_rendering: self.text_rendering.clone(),
+            line_height: self.line_height.clone(),
+            math_shift_value: self.math_shift_value.clone(),
+            math_style_value: self.math_style_value.clone(),
+            math_depth_value: self.math_depth_value.clone(),
+            font_size_value: self.font_size_value.clone(),
+        }
+    }
+}
+
+impl PartialEq for FontValues {
+    fn eq(&self, other: &Self) -> bool {
+        // A cascade the font computer published answers its first available font itself, which a load filling one of
+        // its faces in moves past what the cascade was resolved with. Only a cascade nobody published answers that.
+        let first_available_fonts_equal = (!self.frozen_font_list.is_null() && !other.frozen_font_list.is_null())
+            || (self.resolved_font_ascent == other.resolved_font_ascent
+                && self.resolved_font_descent == other.resolved_font_descent
+                && self.resolved_font_x_height == other.resolved_font_x_height
+                && self.resolved_font_zero_advance == other.resolved_font_zero_advance
+                && self.resolved_first_available_font == other.resolved_first_available_font);
+        first_available_fonts_equal
+            && self.font_size == other.font_size
+            && self.line_height_used() == other.line_height_used()
+            && self.font_variant_emoji == other.font_variant_emoji
+            && self.font_cascade_list == other.font_cascade_list
+            && self.frozen_font_list == other.frozen_font_list
+            && self.font_weight == other.font_weight
+            && self.font_width == other.font_width
+            && self.math_shift == other.math_shift
+            && self.math_style == other.math_style
+            && self.math_depth == other.math_depth
+            && self.font_family == other.font_family
+            && self.font_style == other.font_style
+            && self.font_optical_sizing == other.font_optical_sizing
+            && self.font_feature_settings == other.font_feature_settings
+            && self.font_kerning == other.font_kerning
+            && self.font_language_override == other.font_language_override
+            && self.font_variant_alternates == other.font_variant_alternates
+            && self.font_variant_caps == other.font_variant_caps
+            && self.font_variant_east_asian == other.font_variant_east_asian
+            && self.font_variant_ligatures == other.font_variant_ligatures
+            && self.font_variant_numeric == other.font_variant_numeric
+            && self.font_variant_position == other.font_variant_position
+            && self.font_variation_settings == other.font_variation_settings
+            && self.text_rendering == other.text_rendering
+            && self.line_height == other.line_height
+            && self.math_shift_value == other.math_shift_value
+            && self.math_style_value == other.math_style_value
+            && self.math_depth_value == other.math_depth_value
+            && self.font_size_value == other.font_size_value
+    }
+}
 impl_computed_payload_clone_and_eq!(InheritedSVGValues {
     fill,
     stroke,
@@ -944,13 +722,13 @@ impl_computed_payload_clone_and_eq!(InheritedUIValues {
     caret_color => paint_only,
     accent_color => paint_only,
     cursor,
-    pointer_events,
     forced_color_adjust,
     interpolate_size,
     scrollbar_color => paint_only,
     color_scheme,
     color_schemes,
     color_scheme_only,
+    image_rendering,
 });
 
 impl RetainedComputedResolvedTransformList {
@@ -979,7 +757,6 @@ impl Clone for RetainedComputedResolvedTransformList {
 
 retained_list_drop!(RetainedComputedResolvedTransformList);
 retained_list_partial_eq!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
-impl_retained_list_content_hash!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
 
 impl_computed_payload_clone_and_eq!(TransformValues {
     transformations,
@@ -1012,18 +789,10 @@ impl_computed_payload_clone_and_eq!(ComputedVerticalAlign {
 impl_computed_payload_clone_and_eq!(BoxValues {
     display,
     display_before_box_type_transformation,
-    float_,
-    clear,
-    position,
-    overflow_x,
-    overflow_y,
-    box_sizing,
     field_sizing,
     baseline_source,
     resize,
     text_overflow,
-    unicode_bidi,
-    table_layout,
     grid_auto_flow_row,
     grid_auto_flow_dense,
     column_width,
@@ -1118,7 +887,6 @@ macro_rules! impl_retained_grid_list {
 
         retained_list_drop!($list);
         retained_list_partial_eq!($list, $element);
-        impl_retained_list_content_hash!($list, $element);
     };
 }
 
@@ -1222,8 +990,7 @@ impl GridValues {
 #[derive(Clone, Copy)]
 pub(crate) enum StyleGroup {
     Font,
-    InheritedTable,
-    InheritedBox,
+    InheritedListTable,
     Sizing,
     Alignment,
     SVGReset,
@@ -1242,33 +1009,32 @@ pub(crate) enum StyleGroup {
     Background,
     Border,
     Content,
-    InheritedList,
-    MiscReset,
+    MiscLayout,
+    MiscInteraction,
 }
 
 /// Every style group, in the order of the group indices both sides use (`group_index`, and
 /// LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS in C++).
 const STYLE_GROUPS: [StyleGroup; group_index::COUNT] = [
-    StyleGroup::InheritedTable,
-    StyleGroup::InheritedList,
+    StyleGroup::InheritedListTable,
     StyleGroup::InheritedUI,
     StyleGroup::InheritedSVG,
     StyleGroup::InheritedText,
-    StyleGroup::InheritedBox,
     StyleGroup::Font,
     StyleGroup::Animation,
     StyleGroup::SVGReset,
     StyleGroup::Grid,
     StyleGroup::Anchor,
+    StyleGroup::Content,
+    StyleGroup::Alignment,
+    StyleGroup::MiscLayout,
+    StyleGroup::MiscInteraction,
     StyleGroup::Effects,
     StyleGroup::Mask,
     StyleGroup::TextReset,
-    StyleGroup::Content,
     StyleGroup::Transform,
     StyleGroup::Background,
     StyleGroup::Border,
-    StyleGroup::Alignment,
-    StyleGroup::MiscReset,
     StyleGroup::Sizing,
     StyleGroup::Surround,
     StyleGroup::Box,
@@ -1282,12 +1048,8 @@ fn style_group(group_index: usize) -> StyleGroup {
 macro_rules! with_style_group_type {
     ($group:expr, $payload:ident => $body:expr) => {
         match $group {
-            StyleGroup::InheritedTable => {
-                type $payload = InheritedTableValues;
-                $body
-            }
-            StyleGroup::InheritedBox => {
-                type $payload = InheritedBoxValues;
+            StyleGroup::InheritedListTable => {
+                type $payload = InheritedListTableValues;
                 $body
             }
             StyleGroup::Sizing => {
@@ -1362,12 +1124,12 @@ macro_rules! with_style_group_type {
                 type $payload = ContentValues;
                 $body
             }
-            StyleGroup::InheritedList => {
-                type $payload = InheritedListValues;
+            StyleGroup::MiscLayout => {
+                type $payload = MiscLayoutValues;
                 $body
             }
-            StyleGroup::MiscReset => {
-                type $payload = MiscResetValues;
+            StyleGroup::MiscInteraction => {
+                type $payload = MiscInteractionValues;
                 $body
             }
             StyleGroup::Font => {
@@ -1421,11 +1183,6 @@ unsafe fn payloads_equal(group: StyleGroup, a: *const c_void, b: *const c_void) 
     with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(a) == payload_ref::<Payload>(b) })
 }
 
-/// The payload must be a live payload of the group's type.
-unsafe fn payload_content_hash(group: StyleGroup, payload: *const c_void, hasher: &mut FastHasher) {
-    with_style_group_type!(group, Payload => unsafe { payload_ref::<Payload>(payload) }.write_content_hash(hasher));
-}
-
 /// The values of a style group's payload that layout reads. A box whose style changes only the other values keeps the
 /// layout it cached, as only painting reads them.
 trait StyleGroupLayoutInputs: PartialEq {
@@ -1467,10 +1224,8 @@ macro_rules! impl_style_group_read_whole_by_layout {
 }
 
 impl_style_group_read_whole_by_layout!(
-    InheritedTableValues,
-    InheritedListValues,
+    InheritedListTableValues,
     InheritedSVGValues,
-    InheritedBoxValues,
     FontValues,
     AnimationValues,
     SVGResetValues,
@@ -1512,22 +1267,21 @@ unsafe fn payload_layout_inputs_equal(group: StyleGroup, a: *const c_void, b: *c
 /// Whether two records' group payloads hold the same values that layout reads (see [`StyleGroupLayoutInputs`]), so a
 /// box whose style moves from one record to the other keeps the layout it cached. The geometry of an SVG box can also
 /// depend on `color`, through `currentColor`.
-///
-/// # Safety
-/// Every payload must be a live payload of the group at its index.
-pub(crate) unsafe fn style_payloads_layout_inputs_equal(
-    a: &[*const c_void],
-    b: &[*const c_void],
+pub(crate) fn style_payloads_layout_inputs_equal(
+    a: crate::css::computed_value_views::ComputedValuesView<'_>,
+    b: crate::css::computed_value_views::ComputedValuesView<'_>,
     is_svg_box: bool,
 ) -> bool {
-    debug_assert_eq!(a.len(), group_index::COUNT);
-    debug_assert_eq!(b.len(), group_index::COUNT);
+    let (a, b) = (&a.record_groups().0, &b.record_groups().0);
+    if a.style_bits() != b.style_bits() {
+        return false;
+    }
     if is_svg_box {
-        // SAFETY: The caller guarantees live payloads of each group.
+        // SAFETY: Each style holds a live payload of each group.
         let (first, second) = unsafe {
             (
-                payload_ref::<InheritedTextValues>(a[group_index::INHERITED_TEXT]),
-                payload_ref::<InheritedTextValues>(b[group_index::INHERITED_TEXT]),
+                payload_ref::<InheritedTextValues>(a[group_index::INHERITED_TEXT].as_ptr()),
+                payload_ref::<InheritedTextValues>(b[group_index::INHERITED_TEXT].as_ptr()),
             )
         };
         if first.color != second.color {
@@ -1535,33 +1289,26 @@ pub(crate) unsafe fn style_payloads_layout_inputs_equal(
         }
     }
     (0..group_index::COUNT).all(|group| {
-        // SAFETY: The caller guarantees live payloads of each group.
-        a[group] == b[group] || unsafe { payload_layout_inputs_equal(style_group(group), a[group], b[group]) }
+        let (a, b) = (a[group].as_ptr(), b[group].as_ptr());
+        // SAFETY: Each style holds a live payload of each group.
+        a == b || unsafe { payload_layout_inputs_equal(style_group(group), a, b) }
     })
 }
 
-/// The style groups in `groups` whose payloads differ between two records, `[base, composed]` each: explicit
-/// inheritance reads both the base and the composition over it. `None` when a record holds fewer groups.
-///
-/// # Safety
-/// Every payload must be a live payload of the group at its index.
-pub(crate) unsafe fn changed_style_groups(
-    old: [&[crate::css::host_shared::SharedPayload]; 2],
-    new: [&[crate::css::host_shared::SharedPayload]; 2],
-    groups: std::ops::Range<usize>,
-) -> Option<u32> {
-    let mut changed = 0;
-    for group in groups {
-        for (before, after) in old.iter().zip(new.iter()) {
-            let (&before, &after) = (before.get(group)?, after.get(group)?);
-            // SAFETY: The caller guarantees live payloads of each group.
-            if before != after && !unsafe { style_group_payloads_equal(group, before.as_ptr(), after.as_ptr()) } {
-                changed |= 1 << group;
-                break;
-            }
-        }
-    }
-    Some(changed)
+/// Whether `a` and `b` hold equal payloads in each group `compares` answers true for.
+pub(crate) fn style_groups_equal_in(
+    a: crate::css::computed_value_views::ComputedValuesView<'_>,
+    b: crate::css::computed_value_views::ComputedValuesView<'_>,
+    compares: impl Fn(usize) -> bool,
+) -> bool {
+    let (a, b) = (&a.record_groups().0, &b.record_groups().0);
+    // NB: The inherited bits and zoom are beside the inherited groups, compared with them.
+    (!compares(INHERITED_SET_GROUPS[0]) || a.inherited_values() == b.inherited_values())
+        && (0..group_index::COUNT).all(|group| {
+            let (a, b) = (a[group].as_ptr(), b[group].as_ptr());
+            // SAFETY: Each style holds a live payload of each group.
+            !compares(group) || a == b || unsafe { style_group_payloads_equal(group, a, b) }
+        })
 }
 
 /// Whether two payloads of the group at `group_index` hold the same values.
@@ -1573,22 +1320,6 @@ pub(crate) unsafe fn style_group_payloads_equal(group_index: usize, a: *const c_
     assert!(!b.is_null());
     // SAFETY: The caller guarantees live payloads of the group.
     unsafe { payloads_equal(style_group(group_index), a, b) }
-}
-
-/// A content hash for one style-group payload, consistent with `style_group_payloads_equal`:
-/// two payloads that compare equal always hash equal, whoever built them and wherever they live.
-/// That is what lets a payload's identity be its content instead of its address. The group
-/// index is hashed with the content so payloads of different groups never share a bucket.
-///
-/// # Safety
-/// `payload` must be a live payload of the group at `group_index`.
-pub(crate) unsafe fn style_group_payloads_hash(group_index: usize, payload: *const c_void) -> u64 {
-    assert!(!payload.is_null());
-    let mut hasher = fast_hasher();
-    hasher.write_usize(group_index);
-    // SAFETY: The caller guarantees a live payload of the group.
-    unsafe { payload_content_hash(style_group(group_index), payload, &mut hasher) };
-    hasher.finish()
 }
 
 /// Whether a layered image property holds an `<image>` in any layer. The value is one layer or a
@@ -1612,7 +1343,7 @@ trait StyleGroupImageValues {
         false
     }
 
-    /// Whether `self` and `new` hold different images, by identity.
+    /// Whether `self` and `new` hold different images, by value.
     fn image_values_differ(&self, _new: &Self) -> bool {
         false
     }
@@ -1623,7 +1354,9 @@ fn image_handles_differ(
     new: &ComputedStyleValueHandle,
     holds_image: fn(&ComputedStyleValueHandle) -> bool,
 ) -> bool {
-    old.pointer != new.pointer && (holds_image(old) || holds_image(new))
+    // NB: A computation may give an <image> a value of its own each time, which loads the same
+    //     resources as an equal one.
+    old.pointer != new.pointer && (holds_image(old) || holds_image(new)) && old.data() != new.data()
 }
 
 fn handle_holds_image(handle: &ComputedStyleValueHandle) -> bool {
@@ -1660,7 +1393,7 @@ impl StyleGroupImageValues for BorderValues {
     }
 }
 
-impl StyleGroupImageValues for InheritedListValues {
+impl StyleGroupImageValues for InheritedListTableValues {
     fn holds_image_values(&self) -> bool {
         handle_holds_image(&self.list_style_image)
     }
@@ -1688,8 +1421,6 @@ macro_rules! impl_style_group_without_image_values {
 }
 
 impl_style_group_without_image_values!(
-    InheritedTableValues,
-    InheritedBoxValues,
     SizingValues,
     AlignmentValues,
     SVGResetValues,
@@ -1704,7 +1435,8 @@ impl_style_group_without_image_values!(
     InheritedTextValues,
     AnimationValues,
     ContentValues,
-    MiscResetValues,
+    MiscLayoutValues,
+    MiscInteractionValues,
     FontValues,
 );
 
@@ -1728,7 +1460,7 @@ pub(crate) unsafe fn style_group_payloads_hold_image_values(payloads: &[*const c
 }
 
 /// Whether the group payloads `old` and `new`, of two records, hold different `<image>` values in the properties whose
-/// images a layout node loads and observes, by identity. Where they hold the same ones, a box that moves from one
+/// images a layout node loads and observes, by value. Where they hold the same ones, a box that moves from one
 /// record to the other keeps the images it loads and the facts it paints them with.
 ///
 /// # Safety
@@ -1760,53 +1492,115 @@ unsafe fn payload_image_values_differ(group: StyleGroup, old: *const c_void, new
     })
 }
 
-/// The intentionally leaked per-group default payloads, for building groups without allocating when
-/// every field holds its initial value.
-struct DefaultPayloads([*const c_void; group_index::COUNT]);
-
-// SAFETY: The defaults are immortal, immutable payloads.
-unsafe impl Send for DefaultPayloads {}
-unsafe impl Sync for DefaultPayloads {}
-
-pub(crate) fn default_group_payload(group_index: usize) -> *const c_void {
-    static DEFAULTS: OnceLock<DefaultPayloads> = OnceLock::new();
-    DEFAULTS
-        .get_or_init(|| {
-            DefaultPayloads(STYLE_GROUPS.map(|group| {
-                let payload = allocate_payload(group, STYLE_GROUP_STATIC_REFCOUNT);
-                // SAFETY: The payload was just allocated for this group's layout.
-                unsafe { default_construct(group, payload) };
-                payload.cast_const()
-            }))
-        })
-        .0[group_index]
-}
-
-/// The default payload of a style group, which StyleStructRef shares instead of allocating.
+/// Whether `payload`, a live payload of the group at `group_index`, holds the group's default
+/// values.
+///
+/// # Safety
+/// `payload` must be a live payload of the group.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_group_default_payload(group_index: usize) -> *const c_void {
-    default_group_payload(group_index)
+pub unsafe extern "C" fn rust_style_group_holds_default_values(group_index: usize, payload: *const c_void) -> bool {
+    // SAFETY: The caller passes a live payload of the group.
+    unsafe { GroupPayloadRef::new(group_index, payload) }.is_some_and(GroupPayloadRef::holds_the_defaults)
 }
 
-/// Retains one reference to a payload, mirroring StyleStructRef::ref():
-/// intentionally leaked payloads are never counted.
-pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
-    let refcount = refcount_of(payload, payload_align(style_group(group_index)));
-    if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
-        return;
+/// A new payload of the group at `group_index` holding the group's default values, with one
+/// reference for the caller.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_group_create_default(group_index: usize) -> *mut c_void {
+    let group = style_group(group_index);
+    let payload = allocate_payload(group, 1);
+    // SAFETY: The payload was just allocated with the layout of the group's type.
+    unsafe { default_construct(group, payload) };
+    payload
+}
+
+/// The bytes of the allocation of `payload`, a payload of the group at `group_index`. What the
+/// payload holds beyond its own size is not counted.
+pub(crate) fn group_payload_allocation_bytes(group_index: usize, payload: *const c_void) -> usize {
+    if payload.is_null() {
+        return 0;
     }
-    refcount.fetch_add(1, Ordering::Relaxed);
+    allocation_layout(style_group(group_index)).size()
+}
+
+/// Retains one reference to a payload, mirroring StyleStructRef::ref().
+pub(crate) fn retain_group_payload(group_index: usize, payload: *const c_void) {
+    refcount_of(payload, payload_align(style_group(group_index))).fetch_add(1, Ordering::Relaxed);
 }
 
 fn header_size(align: usize) -> usize {
     align.max(size_of::<usize>())
 }
 
+/// Where a group's computed values start in its allocation: after its payload.
+fn values_offset(group: StyleGroup) -> usize {
+    (header_size(payload_align(group)) + payload_size(group)).next_multiple_of(align_of::<RetainedStyleValueData>())
+}
+
+/// How many computed values the allocation of `group` holds.
+fn value_count(group: StyleGroup) -> usize {
+    usize::from(GROUP_VALUE_LAYOUT.counts[group_index_of(group)])
+}
+
+fn group_index_of(group: StyleGroup) -> usize {
+    with_style_group_type!(group, Payload => <Payload as StyleGroupPayload>::GROUP_INDEX)
+}
+
 fn allocation_layout(group: StyleGroup) -> Layout {
     let payload_align = payload_align(group);
-    let align = payload_align.max(align_of::<usize>());
-    Layout::from_size_align(header_size(payload_align) + payload_size(group), align)
-        .expect("style group layout overflow")
+    let align = payload_align
+        .max(align_of::<usize>())
+        .max(align_of::<RetainedStyleValueData>());
+    Layout::from_size_align(
+        values_offset(group) + value_count(group) * size_of::<RetainedStyleValueData>(),
+        align,
+    )
+    .expect("style group layout overflow")
+}
+
+/// The computed values the allocation of `payload`, a payload of `group`, holds after it.
+///
+/// # Safety
+/// `payload` must be a live payload of the group, allocated by `allocate_payload`.
+unsafe fn values_of<'a>(group: StyleGroup, payload: *const c_void) -> &'a [RetainedStyleValueData] {
+    // SAFETY: The allocation holds `value_count` initialized values at `values_offset`.
+    unsafe {
+        let start = (payload as *const u8)
+            .sub(header_size(payload_align(group)))
+            .add(values_offset(group))
+            .cast::<RetainedStyleValueData>();
+        ak::slice_from_raw_parts(start, value_count(group))
+    }
+}
+
+/// The computed values of a payload nothing else references yet, to write.
+///
+/// # Safety
+/// `payload` must be a live payload of the group, allocated by `allocate_payload`, that only the
+/// caller references.
+unsafe fn values_of_mut<'a>(group: StyleGroup, payload: *mut c_void) -> &'a mut [RetainedStyleValueData] {
+    // SAFETY: As in `values_of`, and the caller holds the only reference.
+    unsafe {
+        let start = (payload as *mut u8)
+            .sub(header_size(payload_align(group)))
+            .add(values_offset(group))
+            .cast::<RetainedStyleValueData>();
+        ak::slice_from_raw_parts_mut(start, value_count(group))
+    }
+}
+
+/// Destroys the payload and the values of an allocation nothing references, and frees it.
+///
+/// # Safety
+/// `payload` must be a payload of the group, allocated by `allocate_payload`, with no remaining
+/// references.
+unsafe fn destroy_allocation(group: StyleGroup, payload: *mut c_void) {
+    unsafe {
+        std::ptr::drop_in_place(values_of_mut(group, payload));
+        destruct(group, payload);
+        let allocation = (payload as *mut u8).sub(header_size(payload_align(group)));
+        dealloc(allocation, allocation_layout(group));
+    }
 }
 
 fn refcount_of(payload: *const c_void, align: usize) -> &'static AtomicUsize {
@@ -1818,13 +1612,6 @@ fn refcount_of(payload: *const c_void, align: usize) -> &'static AtomicUsize {
     }
 }
 
-/// One payload's live reference count, for tests that check which side of a publication ends up
-/// owning the reference it handed over.
-#[cfg(test)]
-pub(crate) fn group_payload_refcount(group_index: usize, payload: *const c_void) -> usize {
-    refcount_of(payload, payload_align(style_group(group_index))).load(Ordering::Relaxed)
-}
-
 fn allocate_payload(group: StyleGroup, initial_refcount: usize) -> *mut c_void {
     // SAFETY: The layout is never zero-sized (the header is at least a usize).
     unsafe {
@@ -1834,6 +1621,10 @@ fn allocate_payload(group: StyleGroup, initial_refcount: usize) -> *mut c_void {
         }
         let header = allocation as *mut AtomicUsize;
         (*header).store(initial_refcount, Ordering::Relaxed);
+        let values = allocation.add(values_offset(group)).cast::<RetainedStyleValueData>();
+        for index in 0..value_count(group) {
+            values.add(index).write(RetainedStyleValueData::none());
+        }
         allocation.add(header_size(payload_align(group))) as *mut c_void
     }
 }
@@ -1852,12 +1643,10 @@ macro_rules! impl_style_group_payload {
 }
 
 impl_style_group_payload!(
-    InheritedTableValues => INHERITED_TABLE,
-    InheritedListValues => INHERITED_LIST,
+    InheritedListTableValues => INHERITED_LIST_TABLE,
     InheritedUIValues => INHERITED_UI,
     InheritedSVGValues => INHERITED_SVG,
     InheritedTextValues => INHERITED_TEXT,
-    InheritedBoxValues => INHERITED_BOX,
     FontValues => FONT,
     AnimationValues => ANIMATION,
     SVGResetValues => SVG_RESET,
@@ -1871,7 +1660,8 @@ impl_style_group_payload!(
     BackgroundValues => BACKGROUND,
     BorderValues => BORDER,
     AlignmentValues => ALIGNMENT,
-    MiscResetValues => MISC_RESET,
+    MiscLayoutValues => MISC_LAYOUT,
+    MiscInteractionValues => MISC_INTERACTION,
     SizingValues => SIZING,
     SurroundValues => SURROUND,
     BoxValues => BOX,
@@ -1881,6 +1671,914 @@ impl_style_group_payload!(
 /// default and freshly allocated payloads are sound.
 fn assert_group_payload_type<T: StyleGroupPayload>(group_index: usize) {
     assert_eq!(group_index, T::GROUP_INDEX, "style group payload type mismatch");
+}
+
+/// The index of a computed-value style group, in the order both sides use (`group_index`,
+/// LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[repr(transparent)]
+pub(crate) struct StyleGroupIndex(u8);
+
+impl StyleGroupIndex {
+    pub(crate) const fn new(index: usize) -> Self {
+        assert!(index < group_index::COUNT);
+        Self(index as u8)
+    }
+
+    pub(crate) const fn usize(self) -> usize {
+        self.0 as usize
+    }
+
+    /// Every group's index, in group order.
+    pub(crate) fn all() -> impl Iterator<Item = Self> {
+        (0..group_index::COUNT).map(Self::new)
+    }
+}
+
+/// A pointer to a live style group, which a [`StyleGroups`] holds a reference to.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(transparent)]
+pub(crate) struct GroupPointer(std::ptr::NonNull<c_void>);
+
+impl GroupPointer {
+    pub(crate) fn as_ptr(self) -> *const c_void {
+        self.0.as_ptr().cast_const()
+    }
+
+    /// The group, as its payload type `T`, borrowed.
+    pub(crate) fn cast<T>(self) -> crate::css::host_shared::HostShared<T> {
+        crate::css::host_shared::HostShared::new(self.as_ptr().cast())
+    }
+}
+
+/// Where a style keeps one of its groups: in its root, or in one of the group sets it may share
+/// with other styles.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum GroupPlace {
+    Root(u8),
+    Inherited(u8),
+    Rare(u8),
+    Visual(u8),
+}
+
+/// The groups a style keeps in its root, which elements styled apart differ in most often.
+pub(crate) const ROOT_GROUPS: [usize; 3] = [group_index::SIZING, group_index::SURROUND, group_index::BOX];
+
+/// The groups of the properties that inherit, which a child writing none of them holds as its
+/// parent's set.
+pub(crate) const INHERITED_SET_GROUPS: [usize; 5] = [
+    group_index::INHERITED_LIST_TABLE,
+    group_index::INHERITED_UI,
+    group_index::INHERITED_SVG,
+    group_index::INHERITED_TEXT,
+    group_index::FONT,
+];
+
+/// The groups of the properties few elements write.
+pub(crate) const RARE_SET_GROUPS: [usize; 8] = [
+    group_index::ANIMATION,
+    group_index::SVG_RESET,
+    group_index::GRID,
+    group_index::ANCHOR,
+    group_index::CONTENT,
+    group_index::ALIGNMENT,
+    group_index::MISC_LAYOUT,
+    group_index::MISC_INTERACTION,
+];
+
+/// The groups of the properties that paint a box.
+pub(crate) const VISUAL_SET_GROUPS: [usize; 6] = [
+    group_index::EFFECTS,
+    group_index::MASK,
+    group_index::TEXT_RESET,
+    group_index::TRANSFORM,
+    group_index::BACKGROUND,
+    group_index::BORDER,
+];
+
+// NB: Each place is a run of group indices, so that the host finds a group's place from its index
+//     alone: the inherited set, then the rare set, the visual set and the root.
+const _: () = {
+    let runs: [&[usize]; 4] = [
+        &INHERITED_SET_GROUPS,
+        &RARE_SET_GROUPS,
+        &VISUAL_SET_GROUPS,
+        &ROOT_GROUPS,
+    ];
+    let mut next = 0;
+    let mut run = 0;
+    while run < runs.len() {
+        let mut slot = 0;
+        while slot < runs[run].len() {
+            assert!(runs[run][slot] == next);
+            next += 1;
+            slot += 1;
+        }
+        run += 1;
+    }
+    assert!(next == group_index::COUNT);
+    assert!(crate::css::computed_value_types::STYLE_GROUP_RARE_SET_START == RARE_SET_GROUPS[0]);
+    assert!(crate::css::computed_value_types::STYLE_GROUP_VISUAL_SET_START == VISUAL_SET_GROUPS[0]);
+    assert!(crate::css::computed_value_types::STYLE_GROUP_ROOT_START == ROOT_GROUPS[0]);
+};
+
+/// The place of each group, by group index.
+pub(crate) const GROUP_PLACES: [GroupPlace; group_index::COUNT] = {
+    let mut places = [GroupPlace::Root(u8::MAX); group_index::COUNT];
+    let mut slot = 0;
+    while slot < ROOT_GROUPS.len() {
+        places[ROOT_GROUPS[slot]] = GroupPlace::Root(slot as u8);
+        slot += 1;
+    }
+    let mut slot = 0;
+    while slot < INHERITED_SET_GROUPS.len() {
+        places[INHERITED_SET_GROUPS[slot]] = GroupPlace::Inherited(slot as u8);
+        slot += 1;
+    }
+    let mut slot = 0;
+    while slot < RARE_SET_GROUPS.len() {
+        places[RARE_SET_GROUPS[slot]] = GroupPlace::Rare(slot as u8);
+        slot += 1;
+    }
+    let mut slot = 0;
+    while slot < VISUAL_SET_GROUPS.len() {
+        places[VISUAL_SET_GROUPS[slot]] = GroupPlace::Visual(slot as u8);
+        slot += 1;
+    }
+    let mut group = 0;
+    while group < group_index::COUNT {
+        assert!(
+            !matches!(places[group], GroupPlace::Root(u8::MAX)),
+            "every group has a place"
+        );
+        group += 1;
+    }
+    places
+};
+
+macro_rules! group_sets {
+    ($($(#[$meta:meta])* $set:ident => $groups:ident, $(#[$beside_meta:meta])* beside: $beside:ty,)+) => {$(
+        $(#[$meta])*
+        #[repr(C)]
+        pub(crate) struct $set {
+            // NB: First, so that the host reads the set's address as the address of its groups.
+            groups: [GroupPointer; $groups.len()],
+            $(#[$beside_meta])*
+            beside: $beside,
+        }
+
+        impl $set {
+            /// Takes over one reference to each group of the set, out of a style's groups in group order.
+            fn adopt(pointers: &[GroupPointer; group_index::COUNT]) -> Self {
+                Self {
+                    groups: std::array::from_fn(|slot| pointers[$groups[slot]]),
+                    beside: Default::default(),
+                }
+            }
+
+            /// Whether `pointers` holds this set's groups.
+            fn holds(&self, pointers: &[GroupPointer; group_index::COUNT]) -> bool {
+                self.groups.iter().zip($groups).all(|(pointer, group)| *pointer == pointers[group])
+            }
+        }
+
+        impl Clone for $set {
+            fn clone(&self) -> Self {
+                for (pointer, group) in self.groups.iter().zip($groups) {
+                    retain_group_payload(group, pointer.as_ptr());
+                }
+                Self {
+                    groups: self.groups,
+                    beside: self.beside.clone(),
+                }
+            }
+        }
+
+        impl Drop for $set {
+            fn drop(&mut self) {
+                for (pointer, group) in self.groups.iter().zip($groups) {
+                    release_group_payload(group, pointer.as_ptr());
+                }
+            }
+        }
+    )+};
+}
+
+/// What a style's inherited set holds beside its groups.
+#[derive(Clone)]
+#[repr(C)]
+pub(crate) struct InheritedSetBeside {
+    /// NB: First, so that the host reads them right after the set's groups.
+    values: InheritedSetValues,
+    /// The custom properties the element holds, which its children holding the same share.
+    custom_properties: Option<std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
+}
+
+impl Default for InheritedSetBeside {
+    fn default() -> Self {
+        Self {
+            values: InheritedSetValues::INITIAL,
+            custom_properties: None,
+        }
+    }
+}
+
+group_sets! {
+    /// The inherited groups of a style, which its children writing none of them hold too.
+    InheritedSet => INHERITED_SET_GROUPS,
+    /// The inherited longhands held as bits, the effective zoom and the custom properties, which
+    /// the children of an element holding the same share.
+    beside: InheritedSetBeside,
+    /// The groups of a style few elements write.
+    RareSet => RARE_SET_GROUPS,
+    /// What the computation of a record holding the set recorded beside its values, and the
+    /// element's own custom declarations.
+    beside: crate::css::style::pipeline::RareSetFacts,
+    /// The groups of a style painting a box, and its other reset groups.
+    VisualSet => VISUAL_SET_GROUPS,
+    beside: (),
+}
+
+/// One counted reference to a group set, which styles holding the same groups there share.
+#[repr(transparent)]
+pub(crate) struct SharedGroupSet<T>(std::ptr::NonNull<T>);
+
+impl<T> SharedGroupSet<T> {
+    fn new(set: T) -> Self {
+        // SAFETY: `Arc::into_raw` never answers null.
+        Self(unsafe { std::ptr::NonNull::new_unchecked(std::sync::Arc::into_raw(std::sync::Arc::new(set)).cast_mut()) })
+    }
+
+    fn get(&self) -> &T {
+        // SAFETY: The reference keeps the set alive.
+        unsafe { self.0.as_ref() }
+    }
+
+    fn ptr_eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
+    /// The set, to write, copied first where another style shares it.
+    fn make_mut(&mut self) -> &mut T
+    where
+        T: Clone,
+    {
+        // SAFETY: The pointer came from `Arc::into_raw`, and this handle owns one reference.
+        let mut arc = unsafe { std::sync::Arc::from_raw(self.0.as_ptr().cast_const()) };
+        std::sync::Arc::make_mut(&mut arc);
+        // SAFETY: As above.
+        self.0 = unsafe { std::ptr::NonNull::new_unchecked(std::sync::Arc::into_raw(arc).cast_mut()) };
+        // SAFETY: `make_mut` left this handle the set's only reference.
+        unsafe { self.0.as_mut() }
+    }
+}
+
+impl<T> Clone for SharedGroupSet<T> {
+    fn clone(&self) -> Self {
+        // SAFETY: The pointer came from `Arc::into_raw`, and this handle keeps it alive.
+        unsafe { std::sync::Arc::increment_strong_count(self.0.as_ptr().cast_const()) };
+        Self(self.0)
+    }
+}
+
+impl<T> Drop for SharedGroupSet<T> {
+    fn drop(&mut self) {
+        // SAFETY: The pointer came from `Arc::into_raw`, and this handle owns one reference.
+        unsafe { std::sync::Arc::decrement_strong_count(self.0.as_ptr().cast_const()) };
+    }
+}
+
+/// One counted reference to the rare set of a style, which the next style recording the same rare
+/// facts and holding the same rare groups shares.
+#[derive(Clone)]
+#[repr(transparent)]
+pub(crate) struct RareSetRef(SharedGroupSet<RareSet>);
+
+impl RareSetRef {
+    /// The rare facts the set holds beside its groups.
+    pub(crate) fn facts(&self) -> &std::sync::Arc<crate::css::style::pipeline::RareStyleFacts> {
+        self.0
+            .get()
+            .beside
+            .facts
+            .as_ref()
+            .expect("a kept rare set holds its facts")
+    }
+
+    /// The custom declarations the set holds beside its groups.
+    pub(crate) fn custom_declarations(&self) -> Option<&crate::css::style::pipeline::CustomDeclarations> {
+        self.0.get().beside.custom_declarations.as_ref()
+    }
+
+    pub(crate) fn ptr_eq(&self, other: &Self) -> bool {
+        self.0.ptr_eq(&other.0)
+    }
+}
+
+/// One counted reference to each group of an element's style: the groups elements styled apart
+/// differ in most often in the root, and the others in sets the style shares with the styles that
+/// hold the same groups there, such as its parent's inherited groups.
+#[repr(C)]
+pub(crate) struct StyleGroups {
+    root: [GroupPointer; ROOT_GROUPS.len()],
+    inherited: SharedGroupSet<InheritedSet>,
+    rare: SharedGroupSet<RareSet>,
+    visual: SharedGroupSet<VisualSet>,
+    /// The properties that do not inherit held as bits, after the set pointers.
+    reset: ResetBits,
+    /// The element's color, resolved, which `currentcolor` in its groups resolves to.
+    current_color: u32,
+}
+
+// NB: The host reads groups through this layout (`CSS::style_record_group`): the root's groups,
+//     then a pointer to the first group of each set.
+const _: () = assert!(size_of::<StyleGroups>() == 56);
+const _: () = assert!(std::mem::offset_of!(StyleGroups, reset) == 48);
+const _: () = assert!(std::mem::offset_of!(StyleGroups, current_color) == 52);
+const _: () = assert!(std::mem::offset_of!(StyleGroups, root) == 0);
+const _: () = assert!(std::mem::offset_of!(StyleGroups, inherited) == 24);
+const _: () = assert!(std::mem::offset_of!(StyleGroups, rare) == 32);
+const _: () = assert!(std::mem::offset_of!(StyleGroups, visual) == 40);
+
+// SAFETY: A group is immutable once published, and its reference count is atomic, so the
+//         references may move to and be read from any thread, as `HeldGroup`'s groups are. A set
+//         is immutable while shared and its count is an `Arc`'s.
+unsafe impl Send for StyleGroups {}
+unsafe impl Sync for StyleGroups {}
+
+/// The groups of a style's group pointers that hold no reference of their own: each one of a set
+/// another style holds, which the style is to share, as an element sharing its parent's inherited
+/// set takes those groups without counting a reference to each.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub(crate) struct BorrowedGroups(u32);
+
+impl BorrowedGroups {
+    pub(crate) const NONE: Self = Self(0);
+
+    /// Every group of a set that `takes_as_it_is` answers true for.
+    pub(crate) fn of_groups_where(takes_as_it_is: impl Fn(usize) -> bool) -> Self {
+        let set_groups = INHERITED_SET_GROUPS
+            .iter()
+            .chain(&RARE_SET_GROUPS)
+            .chain(&VISUAL_SET_GROUPS);
+        Self(
+            set_groups
+                .filter(|&&group| takes_as_it_is(group))
+                .fold(0_u32, |mask, group| mask | 1 << group),
+        )
+    }
+
+    pub(crate) fn contains(self, group: usize) -> bool {
+        self.0 & (1 << group) != 0
+    }
+}
+
+/// The groups one computation of a style made, holding a reference to each but the borrowed ones
+/// until a style adopts them: a computation whose result is thrown away, as one computed again,
+/// releases them as it drops.
+pub(crate) struct ComputedGroups {
+    pointers: [*const c_void; group_index::COUNT],
+    bits: StyleBits,
+    current_color: u32,
+    borrowed: BorrowedGroups,
+}
+
+impl ComputedGroups {
+    /// Takes over one reference to each of `pointers` but the `borrowed` ones, with `inherited`
+    /// beside the inherited groups.
+    ///
+    /// # Safety
+    /// Each of `pointers` must be a live group of its index, with a reference the caller hands over
+    /// unless `borrowed` names it, and a borrowed one must stay live while these groups do.
+    pub(crate) unsafe fn new(
+        pointers: [*const c_void; group_index::COUNT],
+        bits: StyleBits,
+        current_color: u32,
+        borrowed: BorrowedGroups,
+    ) -> Self {
+        Self {
+            pointers,
+            bits,
+            current_color,
+            borrowed,
+        }
+    }
+
+    /// What the groups hold as bits beside them.
+    pub(crate) fn style_bits(&self) -> StyleBits {
+        self.bits
+    }
+
+    /// The groups, one live group of each index.
+    pub(crate) fn pointers(&self) -> &[*const c_void; group_index::COUNT] {
+        &self.pointers
+    }
+
+    /// The computed value of `property` these groups hold.
+    pub(crate) fn value(&self, property: u16) -> &RetainedStyleValueData {
+        // SAFETY: These groups hold a reference to each of their groups, or borrow it from a set
+        //         that outlives them.
+        unsafe { value_in_groups_of(|group| self.pointers[group], &self.bits, property) }
+    }
+
+    /// The groups as a style's, sharing the sets of `shares` that hold the same groups.
+    pub(crate) fn adopt_sharing(self, shares: &[Option<&StyleGroups>]) -> StyleGroups {
+        let this = std::mem::ManuallyDrop::new(self);
+        // SAFETY: The groups hold the references `new` took over, which the style takes.
+        unsafe { StyleGroups::adopt_sharing(this.pointers, this.bits, this.borrowed, shares) }
+            .with_current_color(this.current_color)
+    }
+}
+
+impl Drop for ComputedGroups {
+    fn drop(&mut self) {
+        for (group, &pointer) in self.pointers.iter().enumerate() {
+            if !self.borrowed.contains(group) {
+                release_group_payload(group, pointer);
+            }
+        }
+    }
+}
+
+impl StyleGroups {
+    /// Takes over one reference to each of `pointers` but the `borrowed` ones, with `bits` beside
+    /// them, sharing the sets of `shares` that hold the same.
+    ///
+    /// # Safety
+    /// Each of `pointers` must be a live group of its index, with a reference the caller hands over
+    /// unless `borrowed` names it, and a borrowed one must stay live for this call.
+    pub(crate) unsafe fn adopt_sharing(
+        pointers: [*const c_void; group_index::COUNT],
+        bits: StyleBits,
+        borrowed: BorrowedGroups,
+        shares: &[Option<&StyleGroups>],
+    ) -> Self {
+        assert!(
+            ROOT_GROUPS.iter().all(|&group| !borrowed.contains(group)),
+            "a root group is never borrowed"
+        );
+        let pointers = pointers.map(|pointer| {
+            GroupPointer(std::ptr::NonNull::new(pointer.cast_mut()).expect("a style group is never null"))
+        });
+        fn set<T: Clone>(
+            pointers: &[GroupPointer; group_index::COUNT],
+            borrowed: BorrowedGroups,
+            shares: &[Option<&StyleGroups>],
+            of: impl Fn(&StyleGroups) -> &SharedGroupSet<T>,
+            holds: impl Fn(&T, &[GroupPointer; group_index::COUNT]) -> bool,
+            adopt: impl Fn(&[GroupPointer; group_index::COUNT]) -> T,
+            groups: &[usize],
+        ) -> SharedGroupSet<T> {
+            match shares
+                .iter()
+                .flatten()
+                .map(|share| of(share))
+                .find(|set| holds(set.get(), pointers))
+            {
+                Some(shared) => {
+                    // The shared set holds references of its own.
+                    for &group in groups.iter().filter(|&&group| !borrowed.contains(group)) {
+                        release_group_payload(group, pointers[group].as_ptr());
+                    }
+                    shared.clone()
+                }
+                None => {
+                    // A set of its own counts a reference to each of its groups.
+                    for &group in groups.iter().filter(|&&group| borrowed.contains(group)) {
+                        retain_group_payload(group, pointers[group].as_ptr());
+                    }
+                    SharedGroupSet::new(adopt(pointers))
+                }
+            }
+        }
+        Self {
+            root: std::array::from_fn(|slot| pointers[ROOT_GROUPS[slot]]),
+            inherited: set(
+                &pointers,
+                borrowed,
+                shares,
+                |groups| &groups.inherited,
+                |set, pointers| set.holds(pointers) && set.beside.values == bits.inherited,
+                |pointers| {
+                    let mut set = InheritedSet::adopt(pointers);
+                    set.beside.values = bits.inherited;
+                    set
+                },
+                &INHERITED_SET_GROUPS,
+            ),
+            rare: set(
+                &pointers,
+                borrowed,
+                shares,
+                |groups| &groups.rare,
+                RareSet::holds,
+                RareSet::adopt,
+                &RARE_SET_GROUPS,
+            ),
+            visual: set(
+                &pointers,
+                borrowed,
+                shares,
+                |groups| &groups.visual,
+                VisualSet::holds,
+                VisualSet::adopt,
+                &VISUAL_SET_GROUPS,
+            ),
+            reset: bits.reset,
+            current_color: 0,
+        }
+    }
+
+    /// Takes over one reference to each of `pointers`, with `inherited` beside the inherited
+    /// groups.
+    ///
+    /// # Safety
+    /// Each of `pointers` must be a live group of its index, with a reference the caller hands over.
+    pub(crate) unsafe fn adopt(pointers: [*const c_void; group_index::COUNT], bits: StyleBits) -> Self {
+        // SAFETY: As the caller guarantees.
+        unsafe { Self::adopt_sharing(pointers, bits, BorrowedGroups::NONE, &[]) }
+    }
+
+    /// Takes one more reference to each of `pointers`, with `inherited` beside the inherited
+    /// groups.
+    ///
+    /// # Safety
+    /// `pointers` must hold one live group of each index, in group order.
+    pub(crate) unsafe fn retained(pointers: &[*const c_void], bits: StyleBits) -> Self {
+        // SAFETY: As the caller guarantees.
+        unsafe { Self::retained_sharing(pointers, bits, &[]) }
+    }
+
+    /// Takes one more reference to each of `pointers`, with `inherited` beside the inherited
+    /// groups, sharing the sets of `shares` that hold the same.
+    ///
+    /// # Safety
+    /// `pointers` must hold one live group of each index, in group order.
+    pub(crate) unsafe fn retained_sharing(
+        pointers: &[*const c_void],
+        bits: StyleBits,
+        shares: &[Option<&StyleGroups>],
+    ) -> Self {
+        let pointers: &[*const c_void; group_index::COUNT] =
+            pointers.try_into().expect("an element's style has every group");
+        for (group, pointer) in pointers.iter().enumerate() {
+            retain_group_payload(group, *pointer);
+        }
+        // SAFETY: Each pointer is live, with the reference just taken.
+        unsafe { Self::adopt_sharing(*pointers, bits, BorrowedGroups::NONE, shares) }
+    }
+
+    /// The address and allocation size of each group set the style holds, which a memory report
+    /// counts once however many styles share it.
+    pub(crate) fn set_allocations(&self) -> [(*const c_void, usize); 3] {
+        fn allocation<T>(set: &SharedGroupSet<T>) -> (*const c_void, usize) {
+            (
+                set.0.as_ptr().cast_const().cast(),
+                crate::heap_size::ARC_HEADER_BYTES + size_of::<T>(),
+            )
+        }
+        [
+            allocation(&self.inherited),
+            allocation(&self.rare),
+            allocation(&self.visual),
+        ]
+    }
+
+    /// The computed value of `property` these groups hold.
+    pub(crate) fn value(&self, property: u16) -> &RetainedStyleValueData {
+        // SAFETY: The style holds a reference to each of its groups.
+        unsafe { value_in_groups_of(|group| self[group].as_ptr(), &self.style_bits(), property) }
+    }
+
+    /// The groups, in group order.
+    pub(crate) fn pointers(&self) -> [*const c_void; group_index::COUNT] {
+        std::array::from_fn(|group| self[group].as_ptr())
+    }
+
+    /// The custom properties the element holds.
+    pub(crate) fn custom_properties(
+        &self,
+    ) -> Option<&std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>> {
+        self.inherited.get().beside.custom_properties.as_ref()
+    }
+
+    /// The inherited longhands these groups hold as bits, and the effective zoom.
+    #[inline]
+    pub(crate) fn inherited_values(&self) -> InheritedSetValues {
+        self.inherited.get().beside.values
+    }
+
+    /// The inherited longhands these groups hold as bits.
+    #[inline]
+    pub(crate) fn inherited_bits(&self) -> InheritedBits {
+        self.inherited.get().beside.values.bits
+    }
+
+    /// The properties that do not inherit these groups hold as bits.
+    #[inline]
+    pub(crate) fn reset_bits(&self) -> ResetBits {
+        self.reset
+    }
+
+    /// What these groups hold as bits beside them.
+    #[inline]
+    pub(crate) fn style_bits(&self) -> StyleBits {
+        StyleBits {
+            inherited: self.inherited_values(),
+            reset: self.reset,
+        }
+    }
+
+    /// These groups, with `bits` beside them: in a copy of the inherited set where it holds other
+    /// inherited bits.
+    pub(crate) fn with_style_bits(mut self, bits: StyleBits) -> Self {
+        self.set_inherited_values(bits.inherited);
+        self.reset = bits.reset;
+        self
+    }
+
+    /// Puts `reset` in place of the reset bits.
+    pub(crate) fn set_reset_bits(&mut self, reset: ResetBits) {
+        self.reset = reset;
+    }
+
+    /// The element's color, resolved, which `currentcolor` in its groups resolves to.
+    #[inline]
+    pub(crate) fn current_color(&self) -> u32 {
+        self.current_color
+    }
+
+    /// These groups, with `current_color` as the element's resolved color.
+    pub(crate) fn with_current_color(mut self, current_color: u32) -> Self {
+        self.current_color = current_color;
+        self
+    }
+
+    /// Puts `values` beside the inherited groups, in a copy of the inherited set where it holds
+    /// others.
+    pub(crate) fn set_inherited_values(&mut self, values: InheritedSetValues) {
+        if self.inherited.get().beside.values != values {
+            self.inherited.make_mut().beside.values = values;
+        }
+    }
+
+    /// These groups, holding `store` as the element's custom properties: in the inherited set they
+    /// share where it holds `store` already, otherwise in a copy of it.
+    pub(crate) fn with_custom_properties(
+        mut self,
+        store: Option<&std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
+    ) -> Self {
+        let holds_store = match (&self.inherited.get().beside.custom_properties, store) {
+            (None, None) => true,
+            (Some(held), Some(store)) => std::sync::Arc::ptr_eq(held, store),
+            _ => false,
+        };
+        if !holds_store {
+            self.inherited.make_mut().beside.custom_properties = store.cloned();
+        }
+        self
+    }
+
+    /// What the computation of the record holding these groups recorded beside its values.
+    pub(crate) fn rare_facts(&self) -> Option<&std::sync::Arc<crate::css::style::pipeline::RareStyleFacts>> {
+        self.rare.get().beside.facts.as_ref()
+    }
+
+    /// The custom declarations the cascade of the element holding these groups decided.
+    pub(crate) fn custom_declarations(&self) -> Option<&crate::css::style::pipeline::CustomDeclarations> {
+        self.rare.get().beside.custom_declarations.as_ref()
+    }
+
+    /// The rare set of these groups.
+    pub(crate) fn rare_set(&self) -> &RareSetRef {
+        // SAFETY: `RareSetRef` is a transparent wrapper of the set's handle.
+        unsafe { &*std::ptr::from_ref(&self.rare).cast::<RareSetRef>() }
+    }
+
+    /// These groups, holding `facts` and `custom_declarations` beside their rare groups: in the
+    /// one of `shares` that holds all three, where one does, otherwise in their own set, copied
+    /// first where it is shared.
+    pub(crate) fn with_rare_facts(
+        mut self,
+        facts: std::sync::Arc<crate::css::style::pipeline::RareStyleFacts>,
+        custom_declarations: Option<crate::css::style::pipeline::CustomDeclarations>,
+        shares: &[Option<&RareSetRef>],
+    ) -> Self {
+        let beside = crate::css::style::pipeline::RareSetFacts {
+            facts: Some(facts),
+            custom_declarations,
+        };
+        let holds_facts = |set: &RareSet| set.beside.is(&beside);
+        if holds_facts(self.rare.get()) {
+            return self;
+        }
+        if let Some(shared) = shares
+            .iter()
+            .flatten()
+            .map(|share| &share.0)
+            .find(|set| set.get().groups == self.rare.get().groups && holds_facts(set.get()))
+        {
+            self.rare = shared.clone();
+            return self;
+        }
+        self.rare.make_mut().beside = beside;
+        self
+    }
+
+    /// Whether `other` holds this style's inherited set itself, and so its inherited groups.
+    pub(crate) fn shares_inherited_groups_with(&self, other: &StyleGroups) -> bool {
+        self.inherited.ptr_eq(&other.inherited)
+    }
+
+    /// Whether `other` holds this style's root groups and its other sets themselves, and so its
+    /// groups of the properties that do not inherit.
+    pub(crate) fn shares_reset_groups_with(&self, other: &StyleGroups) -> bool {
+        self.root == other.root && self.rare.ptr_eq(&other.rare) && self.visual.ptr_eq(&other.visual)
+    }
+
+    /// The groups `other` holds the very same payload of, one bit per group: a set both hold
+    /// itself holds the same payloads, so only the groups of sets they hold apart are compared.
+    pub(crate) fn shared_group_mask(&self, other: &StyleGroups) -> u32 {
+        fn set_mask(groups: &[usize], mine: &[GroupPointer], theirs: &[GroupPointer], same_set: bool) -> u32 {
+            groups
+                .iter()
+                .zip(mine.iter().zip(theirs))
+                .filter(|(_, (mine, theirs))| same_set || mine == theirs)
+                .fold(0, |mask, (&group, _)| mask | 1 << group)
+        }
+        let (inherited, rare, visual) = (
+            self.inherited.ptr_eq(&other.inherited),
+            self.rare.ptr_eq(&other.rare),
+            self.visual.ptr_eq(&other.visual),
+        );
+        set_mask(&ROOT_GROUPS, &self.root, &other.root, false)
+            | set_mask(
+                &INHERITED_SET_GROUPS,
+                &self.inherited.get().groups,
+                &other.inherited.get().groups,
+                inherited,
+            )
+            | set_mask(
+                &RARE_SET_GROUPS,
+                &self.rare.get().groups,
+                &other.rare.get().groups,
+                rare,
+            )
+            | set_mask(
+                &VISUAL_SET_GROUPS,
+                &self.visual.get().groups,
+                &other.visual.get().groups,
+                visual,
+            )
+    }
+
+    /// Whether `other` holds equal payloads of every group, and the same inherited bits and
+    /// zoom: the very same ones where it holds a set itself, and else each group's very same
+    /// payload or an equal one.
+    pub(crate) fn holds_equal_payloads_as(&self, other: &StyleGroups) -> bool {
+        fn equal(groups: &[usize], mine: &[GroupPointer], theirs: &[GroupPointer]) -> bool {
+            groups
+                .iter()
+                .zip(mine.iter().zip(theirs))
+                .all(|(&group, (mine, theirs))| {
+                    // SAFETY: Both styles hold a reference to each of their groups.
+                    mine == theirs || unsafe { style_group_payloads_equal(group, mine.as_ptr(), theirs.as_ptr()) }
+                })
+        }
+        self.reset == other.reset
+            && equal(&ROOT_GROUPS, &self.root, &other.root)
+            && (self.inherited.ptr_eq(&other.inherited)
+                || (self.inherited_values() == other.inherited_values()
+                    && equal(
+                        &INHERITED_SET_GROUPS,
+                        &self.inherited.get().groups,
+                        &other.inherited.get().groups,
+                    )))
+            && (self.rare.ptr_eq(&other.rare)
+                || equal(&RARE_SET_GROUPS, &self.rare.get().groups, &other.rare.get().groups))
+            && (self.visual.ptr_eq(&other.visual)
+                || equal(
+                    &VISUAL_SET_GROUPS,
+                    &self.visual.get().groups,
+                    &other.visual.get().groups,
+                ))
+    }
+
+    /// Whether `other` holds the same groups.
+    pub(crate) fn holds_the_same_groups_as(&self, other: &StyleGroups) -> bool {
+        self.root == other.root
+            && self.reset == other.reset
+            && (self.inherited.ptr_eq(&other.inherited)
+                || (self.inherited.get().groups == other.inherited.get().groups
+                    && self.inherited_values() == other.inherited_values()))
+            && (self.visual.ptr_eq(&other.visual) || self.visual.get().groups == other.visual.get().groups)
+            && (self.rare.ptr_eq(&other.rare) || self.rare.get().groups == other.rare.get().groups)
+    }
+
+    pub(crate) fn group(&self, index: StyleGroupIndex) -> GroupPayloadRef<'_> {
+        GroupPayloadRef {
+            group_index: index.usize(),
+            pointer: self[index.usize()].0,
+            payload: std::marker::PhantomData,
+        }
+    }
+
+    fn slot_mut(&mut self, group: usize) -> &mut GroupPointer {
+        match GROUP_PLACES[group] {
+            GroupPlace::Root(slot) => &mut self.root[slot as usize],
+            GroupPlace::Inherited(slot) => &mut self.inherited.make_mut().groups[slot as usize],
+            GroupPlace::Visual(slot) => &mut self.visual.make_mut().groups[slot as usize],
+            GroupPlace::Rare(slot) => &mut self.rare.make_mut().groups[slot as usize],
+        }
+    }
+
+    /// Puts `group` in place of the group at its index, answering the one it held.
+    pub(crate) fn replace(&mut self, group: HeldGroup) -> HeldGroup {
+        let index = group.group;
+        let new = GroupPointer(std::ptr::NonNull::new(group.payload.cast_mut()).expect("a style group is never null"));
+        std::mem::forget(group);
+        if self[index] == new {
+            // A set another style shares stays shared where its group does not change.
+            return HeldGroup {
+                group: index,
+                payload: new.as_ptr(),
+            };
+        }
+        let pointer = std::mem::replace(self.slot_mut(index), new);
+        HeldGroup {
+            group: index,
+            payload: pointer.as_ptr(),
+        }
+    }
+
+    /// Puts `other`'s group at `index` in place of this one's.
+    pub(crate) fn share_group(&mut self, other: &StyleGroups, index: StyleGroupIndex) {
+        drop(self.replace(other.group(index).held()));
+    }
+
+    /// Puts a copy of the group of `T`, written by `write`, in place of it.
+    ///
+    /// # Safety
+    /// The group at `index` must be a `T`.
+    pub(crate) unsafe fn write_group<T>(&mut self, index: usize, write: impl FnOnce(&mut T)) {
+        // SAFETY: The style holds a reference to its group, and the copy is uniquely owned.
+        let copy = unsafe { clone_group_payload(index, self[index].as_ptr()) };
+        // SAFETY: As the caller guarantees, the copy is a `T`.
+        write(unsafe { &mut *copy.cast::<T>() });
+        drop(self.replace(HeldGroup {
+            group: index,
+            payload: copy.cast_const(),
+        }));
+    }
+
+    /// The groups, in group order.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = GroupPointer> + '_ {
+        (0..group_index::COUNT).map(|group| self[group])
+    }
+}
+
+impl std::ops::Index<usize> for StyleGroups {
+    type Output = GroupPointer;
+
+    #[inline]
+    fn index(&self, group: usize) -> &GroupPointer {
+        match GROUP_PLACES[group] {
+            GroupPlace::Root(slot) => &self.root[slot as usize],
+            GroupPlace::Inherited(slot) => &self.inherited.get().groups[slot as usize],
+            GroupPlace::Visual(slot) => &self.visual.get().groups[slot as usize],
+            GroupPlace::Rare(slot) => &self.rare.get().groups[slot as usize],
+        }
+    }
+}
+
+impl Clone for StyleGroups {
+    fn clone(&self) -> Self {
+        for (pointer, group) in self.root.iter().zip(ROOT_GROUPS) {
+            retain_group_payload(group, pointer.as_ptr());
+        }
+        Self {
+            root: self.root,
+            inherited: self.inherited.clone(),
+            rare: self.rare.clone(),
+            visual: self.visual.clone(),
+            reset: self.reset,
+            current_color: self.current_color,
+        }
+    }
+}
+
+impl Drop for StyleGroups {
+    fn drop(&mut self) {
+        for (pointer, group) in self.root.iter().zip(ROOT_GROUPS) {
+            release_group_payload(group, pointer.as_ptr());
+        }
+    }
+}
+
+impl std::fmt::Debug for StyleGroups {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_list().entries(self.pointers()).finish()
+    }
 }
 
 /// A live payload of the style group at `group_index`, borrowed for `'a`.
@@ -1906,11 +2604,10 @@ impl<'a> GroupPayloadRef<'a> {
         })
     }
 
-    /// The group's immortal default payload.
-    pub(crate) fn default_payload(group_index: usize) -> GroupPayloadRef<'static> {
-        // SAFETY: Default payloads are leaked, so they stay live and unmodified forever.
-        unsafe { GroupPayloadRef::new(group_index, default_group_payload(group_index)) }
-            .expect("a style group has a default payload")
+    /// The computed values the payload's group holds.
+    pub(crate) fn group_values(self) -> &'a [RetainedStyleValueData] {
+        // SAFETY: The payload is live for 'a.
+        unsafe { values_of(style_group(self.group_index), self.as_ptr()) }
     }
 
     pub(crate) fn as_ptr(self) -> *const c_void {
@@ -1924,11 +2621,24 @@ impl<'a> GroupPayloadRef<'a> {
         unsafe { payload_ref::<T>(self.as_ptr()) }
     }
 
+    /// Whether the payload holds the group's initial values, as a default-constructed payload does.
+    pub(crate) fn holds_the_defaults(self) -> bool {
+        self.equals(ScratchPayload::new_default(self.group_index).as_ref())
+    }
+
     /// Whether `other`, a payload of the same group, holds the same values.
     fn equals(self, other: GroupPayloadRef<'_>) -> bool {
         assert_eq!(self.group_index, other.group_index);
         // SAFETY: Both payloads are live payloads of the group.
         unsafe { payloads_equal(style_group(self.group_index), self.as_ptr(), other.as_ptr()) }
+    }
+
+    /// The group, with one more reference to it.
+    pub(crate) fn held(self) -> HeldGroup {
+        HeldGroup {
+            group: self.group_index,
+            payload: self.retained(),
+        }
     }
 
     /// The payload, with one more reference for the caller.
@@ -1990,21 +2700,43 @@ impl Drop for ScratchPayload {
 /// retained for the caller, or the group's default payload, whichever `matches` first.
 fn share_matching_group_payload(
     group_index: usize,
-    parent: Option<GroupPayloadRef<'_>>,
+    shares: GroupShares<'_>,
     matches: impl Fn(GroupPayloadRef<'_>) -> bool,
 ) -> Option<*const c_void> {
-    if let Some(parent) = parent {
+    if let Some(parent) = shares.parent {
         assert_eq!(parent.group_index, group_index);
         if matches(parent) {
             return Some(parent.retained());
         }
     }
-    let default_payload = GroupPayloadRef::default_payload(group_index);
-    matches(default_payload).then(|| default_payload.as_ptr())
+    assert_eq!(shares.default.group_index, group_index);
+    matches(shares.default).then(|| shares.default.retained())
+}
+
+/// The payloads a group being built may share instead of holding its own: the parent's payload of
+/// the group, if any, and else the process's default payload.
+#[derive(Clone, Copy)]
+pub(crate) struct GroupShares<'a> {
+    pub(crate) parent: Option<GroupPayloadRef<'a>>,
+    pub(crate) default: GroupPayloadRef<'a>,
+}
+
+impl<'a> GroupShares<'a> {
+    pub(crate) fn new(defaults: &'a DefaultGroups, group: usize, parent: Option<GroupPayloadRef<'a>>) -> Self {
+        Self {
+            parent,
+            default: defaults.groups().group(StyleGroupIndex::new(group)),
+        }
+    }
+
+    /// The default payload, with one more reference to it.
+    pub(crate) fn default_retained(self) -> *const c_void {
+        self.default.retained()
+    }
 }
 
 /// The payload `built` can share instead of being published.
-fn share_equal_group_payload(built: GroupPayloadRef<'_>, parent: Option<GroupPayloadRef<'_>>) -> Option<*const c_void> {
+fn share_equal_group_payload(built: GroupPayloadRef<'_>, parent: GroupShares<'_>) -> Option<*const c_void> {
     share_matching_group_payload(built.group_index, parent, |candidate| built.equals(candidate))
 }
 
@@ -2012,7 +2744,7 @@ fn share_equal_group_payload(built: GroupPayloadRef<'_>, parent: Option<GroupPay
 fn share_group_payload<T: StyleGroupPayload + PartialEq>(
     group_index: usize,
     built: &T,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> Option<*const c_void> {
     assert_group_payload_type::<T>(group_index);
     share_matching_group_payload(group_index, parent, |candidate| built == candidate.values::<T>())
@@ -2023,9 +2755,28 @@ fn share_group_payload<T: StyleGroupPayload + PartialEq>(
 fn share_or_publish_group_payload<T: StyleGroupPayload + PartialEq>(
     group_index: usize,
     built: T,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     share_group_payload(group_index, &built, parent).unwrap_or_else(|| publish_group_payload(group_index, built))
+}
+
+/// The payload of a group holding the values `source` holds but for what `patch` changes: a
+/// shared payload where one equals it, or else a fresh one. Either carries one reference for the
+/// caller.
+///
+/// # Safety
+/// `source` must be a live payload of the group at `group_index`, whose type is `T`.
+pub(crate) unsafe fn patch_group_payload<T: StyleGroupPayload + PartialEq + Clone>(
+    group_index: usize,
+    source: *const c_void,
+    patch: impl FnOnce(&mut T),
+    parent: GroupShares<'_>,
+) -> *const c_void {
+    assert_group_payload_type::<T>(group_index);
+    // SAFETY: The caller passes a live payload of the group, whose type was just asserted.
+    let mut built = unsafe { payload_ref::<T>(source) }.clone();
+    patch(&mut built);
+    share_or_publish_group_payload(group_index, built, parent)
 }
 
 /// Moves a built group value into a fresh payload that carries one reference for the caller.
@@ -2051,7 +2802,10 @@ pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *con
 pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_void) -> *mut c_void {
     let group = style_group(group_index);
     let payload = allocate_payload(group, 1);
-    unsafe { copy_construct(group, payload, source) };
+    unsafe {
+        copy_construct(group, payload, source);
+        values_of_mut(group, payload).clone_from_slice(values_of(group, source));
+    }
     payload
 }
 
@@ -2065,25 +2819,144 @@ pub unsafe extern "C" fn rust_style_group_free(group_index: usize, payload: *mut
     unsafe {
         let group = style_group(group_index);
         debug_assert!(refcount_of(payload, payload_align(group)).load(Ordering::Relaxed) == 0);
-        destruct(group, payload);
-        let allocation = (payload as *mut u8).sub(header_size(payload_align(group)));
-        dealloc(allocation, allocation_layout(group));
+        destroy_allocation(group, payload);
     };
 }
 
 pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) {
     let group = style_group(group_index);
     let refcount = refcount_of(payload, payload_align(group));
-    if refcount.load(Ordering::Relaxed) == STYLE_GROUP_STATIC_REFCOUNT {
-        return;
-    }
     if refcount.fetch_sub(1, Ordering::AcqRel) == 1 {
         // SAFETY: The count reached zero, so this reference was the last one.
-        unsafe {
-            destruct(group, payload.cast_mut());
-            let allocation = (payload as *mut u8).sub(header_size(payload_align(group)));
-            dealloc(allocation, allocation_layout(group));
+        unsafe { destroy_allocation(group, payload.cast_mut()) }
+    }
+}
+
+/// The computed values the group of `payload`, a payload of the group at `group_index`, holds, in
+/// the order of the group's longhands.
+///
+/// # Safety
+/// `payload` must be a live payload of the group that stays live for `'a`.
+pub(crate) unsafe fn group_values<'a>(group_index: usize, payload: *const c_void) -> &'a [RetainedStyleValueData] {
+    unsafe { values_of(style_group(group_index), payload) }
+}
+
+/// The computed value of `property` in the groups `group_of` answers by group index, with
+/// `inherited` beside the inherited groups.
+///
+/// # Safety
+/// The groups `group_of` answers must be live payloads of the group at their index, which stay
+/// live for `'a`.
+unsafe fn value_in_groups_of<'a>(
+    group_of: impl Fn(usize) -> *const c_void + Copy,
+    bits: &StyleBits,
+    property: u16,
+) -> &'a RetainedStyleValueData {
+    // SAFETY: As the caller guarantees.
+    let property = GROUP_VALUE_LAYOUT.resolved(property, |property| unsafe {
+        value_in_groups_of(group_of, bits, property)
+    });
+    let place = GROUP_VALUE_LAYOUT.place_of(property);
+    if let Some(field) = place.bit_field() {
+        return bits.value(field);
+    }
+    // SAFETY: As the caller guarantees.
+    unsafe {
+        let payload = group_of(place.group());
+        place.value_in(payload, group_values(place.group(), payload))
+    }
+}
+
+/// The computed value at `place` of `group`, a payload of the place's group.
+pub(crate) fn value_at(group: GroupPayloadRef<'_>, place: LonghandPlace) -> &RetainedStyleValueData {
+    // SAFETY: The payload is live for as long as `group` is borrowed and holds its group's values.
+    unsafe { place.value_in(group.as_ptr(), group.group_values()) }
+}
+
+/// Whether the groups `first` and `second`, payloads of the group at `group_index`, hold the same
+/// computed values, each by identity or else by value, in their values and their payload handles.
+///
+/// # Safety
+/// Both must be live payloads of the group.
+pub(crate) unsafe fn hold_the_same_values(group_index: usize, first: *const c_void, second: *const c_void) -> bool {
+    let (first_values, second_values) =
+        unsafe { (group_values(group_index, first), group_values(group_index, second)) };
+    same_group_values(first_values, second_values)
+        && GroupValueLayout::handles_of(group_index).all(|(_, place)| {
+            // SAFETY: As the caller guarantees.
+            let (first, second) = unsafe {
+                (
+                    place.value_in(first, first_values),
+                    place.value_in(second, second_values),
+                )
+            };
+            first.pointer() == second.pointer() || first == second
+        })
+}
+
+/// Whether `first` and `second` hold the same computed values, each by identity or else by value.
+pub(crate) fn same_group_values(first: &[RetainedStyleValueData], second: &[RetainedStyleValueData]) -> bool {
+    first.len() == second.len()
+        && first
+            .iter()
+            .zip(second)
+            .all(|(first, second)| first.pointer() == second.pointer() || first == second)
+}
+
+/// Whether the groups `first` and `second`, payloads of the group at `group_index`, hold the same
+/// payload and the same computed values.
+///
+/// # Safety
+/// Both must be live payloads of the group.
+pub(crate) unsafe fn groups_hold_the_same(group_index: usize, first: *const c_void, second: *const c_void) -> bool {
+    let group = style_group(group_index);
+    first == second
+        || unsafe {
+            payloads_equal(group, first, second) && same_group_values(values_of(group, first), values_of(group, second))
         }
+}
+
+/// The group holding the payload of `payload` and the computed values `values`, which takes over
+/// the caller's reference to `payload` and carries one for the caller: `payload` itself where it
+/// holds those values already, else the first of `candidates` holding the same payload and values,
+/// else `payload` with the values written into it where only the caller references it, else a copy
+/// of it holding them.
+///
+/// # Safety
+/// `payload` and every non-null candidate must be live payloads of the group at `group_index`.
+pub(crate) unsafe fn group_with_values(
+    group_index: usize,
+    payload: *const c_void,
+    values: &[RetainedStyleValueData],
+    candidates: &[*const c_void],
+) -> *const c_void {
+    let group = style_group(group_index);
+    assert_eq!(values.len(), value_count(group));
+    // SAFETY: The caller passes live payloads of the group.
+    unsafe {
+        if same_group_values(values_of(group, payload), values) {
+            return payload;
+        }
+        if let Some(&shared) = candidates.iter().find(|&&candidate| {
+            !candidate.is_null()
+                && candidate != payload
+                && payloads_equal(group, candidate, payload)
+                && same_group_values(values_of(group, candidate), values)
+        }) {
+            retain_group_payload(group_index, shared);
+            release_group_payload(group_index, payload);
+            return shared;
+        }
+        let refcount = refcount_of(payload, payload_align(group));
+        if refcount.load(Ordering::Acquire) == 1 {
+            values_of_mut(group, payload.cast_mut()).clone_from_slice(values);
+            return payload;
+        }
+        let copy = allocate_payload(group, 1);
+        copy_construct(group, copy, payload);
+        values_of_mut(group, copy).clone_from_slice(values);
+        release_group_payload(group_index, payload);
+        copy.cast_const()
     }
 }
 
@@ -2111,6 +2984,12 @@ pub extern "C" fn rust_sizing_values_clamp_size(
     };
     *width = clamp(*width, basis_width, &values.min_width, &values.max_width);
     *height = clamp(*height, basis_height, &values.min_height, &values.max_height);
+}
+
+/// The used line height of a font group, as [`FontValues::line_height_used`] reads it.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_font_values_line_height_used_raw(values: &FontValues) -> i32 {
+    values.line_height_used().raw_value()
 }
 
 /// The pixels of a computed size given as an absolute length, written to `pixels`. Returns false for any other size.
@@ -2156,9 +3035,12 @@ pub(crate) enum GroupFieldKind {
     /// A color stored as the C++ Color's raw 32-bit value, resolved by the gather loop, which owns
     /// the color resolution context.
     Color,
-    /// A color like `Color`, except that this keyword leaves the initial value standing, for fields
-    /// like outline-color whose auto keyword is not a resolvable color.
-    ColorOrKeyword(u16),
+    /// A color stored as a [`crate::css::computed_value_types::StyleColor`]: plain `currentcolor`
+    /// stays for the reader to resolve, any other color is resolved by the gather loop.
+    HeldColor,
+    /// A color like `HeldColor`, except that this keyword leaves the initial value standing, for
+    /// fields like outline-color whose auto keyword is not a resolvable color.
+    HeldColorOrKeyword(u16),
     /// A number resolved by the gather loop, for values whose normalization has not moved into the
     /// core, like opacity: stored as f32, as f64, or as one byte for derived enum fields like the
     /// used color-scheme.
@@ -2213,7 +3095,7 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             TEXT_DECORATION_LINE => RequireKeyword(k::NONE),
             TEXT_DECORATION_THICKNESS => RequireKeyword(k::AUTO),
             TEXT_DECORATION_STYLE @ text_decoration_style => EnumKeyword(enums::keyword_to_text_decoration_style),
-            TEXT_DECORATION_COLOR @ text_decoration_color => Color,
+            TEXT_DECORATION_COLOR @ text_decoration_color => HeldColor,
             WHITE_SPACE_TRIM => RequireKeyword(k::NONE),
         },
         group_index::EFFECTS => fields! { EffectsValues:
@@ -2225,15 +3107,7 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             BOX_SHADOW => RequireKeyword(k::NONE),
             CLIP => RequireKeyword(k::AUTO),
         },
-        group_index::MISC_RESET => fields! { MiscResetValues:
-            SCROLL_MARGIN_TOP => RequireZeroPx,
-            SCROLL_MARGIN_RIGHT => RequireZeroPx,
-            SCROLL_MARGIN_BOTTOM => RequireZeroPx,
-            SCROLL_MARGIN_LEFT => RequireZeroPx,
-            SCROLL_PADDING_TOP => RequireKeyword(k::AUTO),
-            SCROLL_PADDING_RIGHT => RequireKeyword(k::AUTO),
-            SCROLL_PADDING_BOTTOM => RequireKeyword(k::AUTO),
-            SCROLL_PADDING_LEFT => RequireKeyword(k::AUTO),
+        group_index::MISC_LAYOUT => fields! { MiscLayoutValues:
             OVERFLOW_CLIP_MARGIN_TOP => RequireInitialValue,
             OVERFLOW_CLIP_MARGIN_RIGHT => RequireInitialValue,
             OVERFLOW_CLIP_MARGIN_BOTTOM => RequireInitialValue,
@@ -2250,13 +3124,27 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             OUTLINE_STYLE @ outline_style => EnumKeyword(enums::keyword_to_outline_style),
             OBJECT_FIT @ object_fit => EnumKeyword(enums::keyword_to_object_fit),
             COLUMN_HEIGHT => RequireKeyword(k::AUTO),
-            OUTLINE_COLOR @ outline_color => ColorOrKeyword(k::AUTO),
+            OUTLINE_COLOR @ outline_color => HeldColorOrKeyword(k::AUTO),
             OUTLINE_OFFSET => RequireZeroPx,
             OUTLINE_WIDTH @ outline_width => CssPixelsNonNegative,
-            COLUMN_RULE_COLOR @ column_rule_color => Color,
+            COLUMN_RULE_COLOR @ column_rule_color => HeldColor,
             COLUMN_RULE_WIDTH @ column_rule_width => CssPixelsNonNegative,
-            USER_SELECT @ user_select => EnumKeyword(enums::keyword_to_user_select),
             OBJECT_POSITION => RequireInitialValue,
+            SHAPE_IMAGE_THRESHOLD @ shape_image_threshold => ResolvedF64,
+            SHAPE_MARGIN => RequireZeroPx,
+            SHAPE_OUTSIDE => RequireKeyword(k::NONE),
+            CONTENT_VISIBILITY @ content_visibility => EnumKeyword(enums::keyword_to_content_visibility),
+        },
+        group_index::MISC_INTERACTION => fields! { MiscInteractionValues:
+            SCROLL_MARGIN_TOP => RequireZeroPx,
+            SCROLL_MARGIN_RIGHT => RequireZeroPx,
+            SCROLL_MARGIN_BOTTOM => RequireZeroPx,
+            SCROLL_MARGIN_LEFT => RequireZeroPx,
+            SCROLL_PADDING_TOP => RequireKeyword(k::AUTO),
+            SCROLL_PADDING_RIGHT => RequireKeyword(k::AUTO),
+            SCROLL_PADDING_BOTTOM => RequireKeyword(k::AUTO),
+            SCROLL_PADDING_LEFT => RequireKeyword(k::AUTO),
+            USER_SELECT @ user_select => EnumKeyword(enums::keyword_to_user_select),
             VIEW_TRANSITION_CLASS => RequireKeyword(k::NONE),
             VIEW_TRANSITION_NAME => RequireKeyword(k::NONE),
             TOUCH_ACTION => RequireInitialValue,
@@ -2268,9 +3156,6 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             SCROLLBAR_WIDTH @ scrollbar_width => EnumKeyword(enums::keyword_to_scrollbar_width),
             OVERSCROLL_BEHAVIOR_X @ overscroll_behavior_x => EnumKeyword(enums::keyword_to_overscroll_behavior),
             OVERSCROLL_BEHAVIOR_Y @ overscroll_behavior_y => EnumKeyword(enums::keyword_to_overscroll_behavior),
-            SHAPE_IMAGE_THRESHOLD @ shape_image_threshold => ResolvedF64,
-            SHAPE_MARGIN => RequireZeroPx,
-            SHAPE_OUTSIDE => RequireKeyword(k::NONE),
             WILL_CHANGE => RequireKeyword(k::AUTO),
         },
         group_index::INHERITED_TEXT => fields! { InheritedTextValues:
@@ -2280,18 +3165,14 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             _WEBKIT_TEXT_FILL_COLOR @ webkit_text_fill_color => Color,
             _WEBKIT_TEXT_FILL_COLOR @ webkit_text_fill_color_is_current_color => KeywordEqualsBool(k::CURRENTCOLOR),
             TEXT_SHADOW => RequireKeyword(k::NONE),
-            TEXT_ALIGN @ text_align => EnumKeyword(enums::keyword_to_text_align),
             TEXT_JUSTIFY @ text_justify => EnumKeyword(enums::keyword_to_text_justify),
             TEXT_TRANSFORM @ text_transform => EnumKeyword(enums::keyword_to_text_transform),
-            TEXT_WRAP_MODE @ text_wrap_mode => EnumKeyword(enums::keyword_to_text_wrap_mode),
             TEXT_WRAP_STYLE @ text_wrap_style => EnumKeyword(enums::keyword_to_text_wrap_style),
             TEXT_DECORATION_SKIP_INK @ text_decoration_skip_ink => EnumKeyword(enums::keyword_to_text_decoration_skip_ink),
             TEXT_UNDERLINE_POSITION => RequireKeyword(k::AUTO),
             TEXT_UNDERLINE_OFFSET => RequireKeyword(k::AUTO),
             TEXT_INDENT => RequireInitialValue,
             TAB_SIZE => RequireInitialValue,
-            WHITE_SPACE_COLLAPSE @ white_space_collapse => EnumKeyword(enums::keyword_to_white_space_collapse),
-            WORD_BREAK @ word_break => EnumKeyword(enums::keyword_to_word_break),
             LINE_BREAK @ line_break => EnumKeyword(enums::keyword_to_line_break),
             OVERFLOW_WRAP @ overflow_wrap => EnumKeyword(enums::keyword_to_overflow_wrap),
             BLOCK_ELLIPSIS @ block_ellipsis => RetainedData,
@@ -2303,17 +3184,16 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             WIDOWS @ widows => U64,
         },
         group_index::INHERITED_UI => fields! { InheritedUIValues:
-            CARET_COLOR @ caret_color.used_color => Color,
             CARET_COLOR => RequireKeyword(k::AUTO),
-            ACCENT_COLOR @ accent_color.used_color => Color,
+            ACCENT_COLOR @ accent_color.color => HeldColor,
             ACCENT_COLOR => RequireKeyword(k::AUTO),
             CURSOR => RequireKeyword(k::AUTO),
-            POINTER_EVENTS @ pointer_events => EnumKeyword(enums::keyword_to_pointer_events),
             FORCED_COLOR_ADJUST @ forced_color_adjust => EnumKeyword(enums::keyword_to_forced_color_adjust),
             INTERPOLATE_SIZE @ interpolate_size => EnumKeyword(enums::keyword_to_interpolate_size),
             SCROLLBAR_COLOR => RequireKeyword(k::AUTO),
             COLOR_SCHEME @ color_scheme => ResolvedU8,
             COLOR_SCHEME => RequireInitialValue,
+            IMAGE_RENDERING @ image_rendering => EnumKeyword(enums::keyword_to_image_rendering),
         },
         group_index::TRANSFORM => fields! { TransformValues:
             TRANSFORM => RequireKeyword(k::NONE),
@@ -2390,11 +3270,11 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             DOMINANT_BASELINE => RequireKeyword(k::AUTO),
             SHAPE_RENDERING @ shape_rendering => EnumKeyword(enums::keyword_to_shape_rendering),
         },
-        group_index::INHERITED_LIST => fields! { InheritedListValues:
+        group_index::INHERITED_LIST_TABLE => fields! { InheritedListTableValues:
             LIST_STYLE_TYPE => RequireInitialValue,
-            LIST_STYLE_POSITION @ list_style_position => EnumKeyword(enums::keyword_to_list_style_position),
             LIST_STYLE_IMAGE => RequireKeyword(k::NONE),
             QUOTES => RequireKeyword(k::AUTO),
+            BORDER_SPACING => RequireInitialValue,
         },
         group_index::CONTENT => fields! { ContentValues:
             CONTENT => RequireKeyword(k::NORMAL),
@@ -2414,19 +3294,19 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
         // A none border-style keeps the used width at zero; the Rust group builder completes styled
         // borders.
         group_index::BORDER => fields! { BorderValues:
-            BORDER_LEFT_COLOR @ border_left.color => Color,
+            BORDER_LEFT_COLOR @ border_left.color => HeldColor,
             BORDER_LEFT_COLOR => RequireInitialValue,
             BORDER_LEFT_STYLE => RequireKeyword(k::NONE),
             BORDER_LEFT_WIDTH @ border_left_computed_width => CssPixelsNonNegative,
-            BORDER_TOP_COLOR @ border_top.color => Color,
+            BORDER_TOP_COLOR @ border_top.color => HeldColor,
             BORDER_TOP_COLOR => RequireInitialValue,
             BORDER_TOP_STYLE => RequireKeyword(k::NONE),
             BORDER_TOP_WIDTH @ border_top_computed_width => CssPixelsNonNegative,
-            BORDER_RIGHT_COLOR @ border_right.color => Color,
+            BORDER_RIGHT_COLOR @ border_right.color => HeldColor,
             BORDER_RIGHT_COLOR => RequireInitialValue,
             BORDER_RIGHT_STYLE => RequireKeyword(k::NONE),
             BORDER_RIGHT_WIDTH @ border_right_computed_width => CssPixelsNonNegative,
-            BORDER_BOTTOM_COLOR @ border_bottom.color => Color,
+            BORDER_BOTTOM_COLOR @ border_bottom.color => HeldColor,
             BORDER_BOTTOM_COLOR => RequireInitialValue,
             BORDER_BOTTOM_STYLE => RequireKeyword(k::NONE),
             BORDER_BOTTOM_WIDTH @ border_bottom_computed_width => CssPixelsNonNegative,
@@ -2446,7 +3326,7 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
             BORDER_IMAGE_WIDTH => RequireInitialValue,
         },
         group_index::BACKGROUND => fields! { BackgroundValues:
-            BACKGROUND_COLOR @ background_color => Color,
+            BACKGROUND_COLOR @ background_color => HeldColor,
             BACKGROUND_COLOR => RequireInitialValue,
             BACKGROUND_IMAGE => RequireInitialValue,
             BACKGROUND_CLIP => RequireInitialValue,
@@ -2462,72 +3342,262 @@ pub(crate) fn group_field_descriptors(group: usize) -> &'static [GroupFieldDescr
     }
 }
 
-/// The computed style groups each longhand reaches.
+/// How many longhands there are, logical aliases included.
+const LONGHAND_COUNT: usize = (crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID
+    - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+    + 1) as usize;
+
+const fn longhand_index_of(property: u16) -> usize {
+    (property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID) as usize
+}
+
+const fn is_logical_alias(property: u16) -> bool {
+    use crate::css::property_metadata::{FIRST_SHORTHAND_PROPERTY_ID, PROPERTY_IS_LOGICAL_ALIAS};
+    PROPERTY_IS_LOGICAL_ALIAS[(property - FIRST_SHORTHAND_PROPERTY_ID) as usize]
+}
+
+/// Whether `property` is a logical alias that maps to a physical longhand in every flow, which it
+/// then computes as.
+const fn maps_in_every_flow(property: u16) -> bool {
+    use crate::css::style_compute::{DIRECTION_COUNT, WRITING_MODE_COUNT};
+    if !is_logical_alias(property) {
+        return false;
+    }
+    let mut writing_mode = 0;
+    while writing_mode < WRITING_MODE_COUNT {
+        let mut direction = 0;
+        while direction < DIRECTION_COUNT {
+            if physical_longhand(property, writing_mode, direction) == property {
+                return false;
+            }
+            direction += 1;
+        }
+        writing_mode += 1;
+    }
+    true
+}
+
+/// As `map_logical_alias_to_physical`, for a longhand.
+const fn physical_longhand(property: u16, writing_mode: usize, direction: usize) -> u16 {
+    use crate::css::property_metadata::LOGICAL_ALIAS_TO_PHYSICAL;
+    use crate::css::style_compute::{DIRECTION_COUNT, WRITING_MODE_COUNT};
+    match LOGICAL_ALIAS_TO_PHYSICAL
+        [(longhand_index_of(property) * WRITING_MODE_COUNT + writing_mode) * DIRECTION_COUNT + direction]
+    {
+        0 => property,
+        physical => physical,
+    }
+}
+
+/// The physical longhands `transition-property: all` names, per writing mode and direction, in the
+/// order the recursive expansion of `all` lists them, logical aliases mapped: a table the compiler
+/// computes from the property metadata.
+struct AllTransitionLonghands {
+    longhands: [[u16; ALL_TRANSITION_LONGHAND_COUNT];
+        crate::css::style_compute::WRITING_MODE_COUNT * crate::css::style_compute::DIRECTION_COUNT],
+}
+
+/// How many longhands the recursive expansion of `all` lists, a logical pair's longhands each once.
+const ALL_TRANSITION_LONGHAND_COUNT: usize =
+    all_transition_longhand_count(crate::css::property_metadata::property_id::ALL);
+
+const fn all_transition_longhand_count(property: u16) -> usize {
+    use crate::css::property_metadata::{
+        FIRST_SHORTHAND_PROPERTY_ID, LAST_SHORTHAND_PROPERTY_ID, SHORTHAND_EXPANSIONS, property_id,
+    };
+    if property >= FIRST_SHORTHAND_PROPERTY_ID && property <= LAST_SHORTHAND_PROPERTY_ID {
+        let longhands = SHORTHAND_EXPANSIONS[(property - FIRST_SHORTHAND_PROPERTY_ID) as usize];
+        let mut count = 0;
+        let mut index = 0;
+        while index < longhands.len() {
+            count += all_transition_longhand_count(longhands[index]);
+            index += 1;
+        }
+        return count;
+    }
+    (property != property_id::CUSTOM) as usize
+}
+
+impl AllTransitionLonghands {
+    const fn compute() -> Self {
+        use crate::css::style_compute::{DIRECTION_COUNT, WRITING_MODE_COUNT};
+        let mut longhands = [[0; ALL_TRANSITION_LONGHAND_COUNT]; WRITING_MODE_COUNT * DIRECTION_COUNT];
+        let mut writing_mode = 0;
+        while writing_mode < WRITING_MODE_COUNT {
+            let mut direction = 0;
+            while direction < DIRECTION_COUNT {
+                let row = &mut longhands[writing_mode * DIRECTION_COUNT + direction];
+                let written = Self::expand(
+                    crate::css::property_metadata::property_id::ALL,
+                    writing_mode,
+                    direction,
+                    row,
+                    0,
+                );
+                assert!(written == ALL_TRANSITION_LONGHAND_COUNT);
+                direction += 1;
+            }
+            writing_mode += 1;
+        }
+        Self { longhands }
+    }
+
+    /// Writes the physical longhands `property` names from `at` on, answering where it stopped.
+    const fn expand(
+        property: u16,
+        writing_mode: usize,
+        direction: usize,
+        row: &mut [u16; ALL_TRANSITION_LONGHAND_COUNT],
+        at: usize,
+    ) -> usize {
+        use crate::css::property_metadata::{
+            FIRST_SHORTHAND_PROPERTY_ID, LAST_SHORTHAND_PROPERTY_ID, SHORTHAND_EXPANSIONS, property_id,
+        };
+        if property >= FIRST_SHORTHAND_PROPERTY_ID && property <= LAST_SHORTHAND_PROPERTY_ID {
+            let longhands = SHORTHAND_EXPANSIONS[(property - FIRST_SHORTHAND_PROPERTY_ID) as usize];
+            let mut at = at;
+            let mut index = 0;
+            while index < longhands.len() {
+                at = Self::expand(longhands[index], writing_mode, direction, row, at);
+                index += 1;
+            }
+            return at;
+        }
+        if property == property_id::CUSTOM {
+            return at;
+        }
+        row[at] = physical_longhand(property, writing_mode, direction);
+        at + 1
+    }
+}
+
+const ALL_TRANSITION_LONGHANDS: AllTransitionLonghands = AllTransitionLonghands::compute();
+
+/// The physical longhands `transition-property: all` names under `writing_mode` and `direction`.
+pub(crate) fn all_transition_longhands(writing_mode: u8, direction: u8) -> &'static [u16] {
+    const TABLE: &AllTransitionLonghands = &ALL_TRANSITION_LONGHANDS;
+    &TABLE.longhands[usize::from(writing_mode) * crate::css::style_compute::DIRECTION_COUNT + usize::from(direction)]
+}
+
+/// The computed style groups each longhand reaches, a table the compiler computes from the property metadata.
 pub(crate) struct StyleGroupMasks {
     /// Per longhand, the groups a change of its specified winner may change.
-    masks: Box<[u32]>,
+    masks: [u32; LONGHAND_COUNT],
     /// Per longhand, the group that owns its output.
-    output_masks: Box<[u32]>,
+    output_masks: [u32; LONGHAND_COUNT],
+    /// The inherited longhands no group holds, which a child reads from its parent's table alone, in the first
+    /// `ungrouped_inherited_count` entries.
+    ungrouped_inherited: [u16; LONGHAND_COUNT],
+    ungrouped_inherited_count: usize,
 }
+
+/// The style groups each longhand reaches, computed as the engine is compiled.
+const STYLE_GROUP_MASKS: StyleGroupMasks = StyleGroupMasks::compute();
 
 impl StyleGroupMasks {
     pub(crate) fn get() -> &'static Self {
-        static MASKS: OnceLock<StyleGroupMasks> = OnceLock::new();
-        MASKS.get_or_init(Self::compute)
+        &STYLE_GROUP_MASKS
     }
 
-    fn compute() -> Self {
-        use crate::css::property_metadata::property_id::{DIRECTION, WRITING_MODE};
-        use crate::css::property_metadata::{
-            FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, longhand_is_logical_alias,
-            property_style_group_index,
+    const fn compute() -> Self {
+        use crate::css::property_metadata::property_id::{
+            CONTENT_VISIBILITY, DIRECTION, POSITION_ANCHOR, WRITING_MODE,
         };
-        use crate::css::style_compute::{DIRECTION_COUNT, WRITING_MODE_COUNT, map_logical_alias_to_physical};
+        use crate::css::property_metadata::{
+            FIRST_INHERITED_PROPERTY_ID, FIRST_LONGHAND_PROPERTY_ID, LAST_INHERITED_PROPERTY_ID,
+            PROPERTY_STYLE_GROUP_INDICES,
+        };
+        use crate::css::style_compute::{DIRECTION_COUNT, WRITING_MODE_COUNT};
 
-        let group_mask = |property| property_style_group_index(property).map_or(0, |group| 1u32 << group);
-        let index = |property: u16| usize::from(property - FIRST_LONGHAND_PROPERTY_ID);
-        let longhands = FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID;
+        const fn group_mask(property: u16) -> u32 {
+            match PROPERTY_STYLE_GROUP_INDICES[(property - FIRST_LONGHAND_PROPERTY_ID) as usize] {
+                u8::MAX => 0,
+                group => 1 << group,
+            }
+        }
+        const fn physical(property: u16, writing_mode: usize, direction: usize) -> u16 {
+            physical_longhand(property, writing_mode, direction)
+        }
+        const fn index(property: u16) -> usize {
+            longhand_index_of(property)
+        }
+
+        let mut output_masks = [0; LONGHAND_COUNT];
+        let mut longhand = 0;
+        while longhand < LONGHAND_COUNT {
+            let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
+            if !is_logical_alias(property) {
+                output_masks[longhand] = group_mask(property);
+            }
+            longhand += 1;
+        }
+        let mut masks = output_masks;
+
         // Direction and writing-mode select the physical winners for every logical property group.
         // Those aliases own no payload, so they reach the groups of every physical property they
         // map to.
-        let output_masks: Box<[u32]> = longhands
-            .clone()
-            .map(|property| {
-                if longhand_is_logical_alias(property) {
-                    0
-                } else {
-                    group_mask(property)
-                }
-            })
-            .collect();
-        let mut masks = output_masks.clone();
-
         let mut logical_mapping_mask = 0;
-        for property in longhands.filter(|&property| longhand_is_logical_alias(property)) {
-            let mut alias_mask = 0;
-            for writing_mode in 0..WRITING_MODE_COUNT as u8 {
-                for direction in 0..DIRECTION_COUNT as u8 {
-                    alias_mask |= group_mask(map_logical_alias_to_physical(property, writing_mode, direction));
+        let mut longhand = 0;
+        while longhand < LONGHAND_COUNT {
+            let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
+            if is_logical_alias(property) {
+                let mut alias_mask = 0;
+                let mut writing_mode = 0;
+                while writing_mode < WRITING_MODE_COUNT {
+                    let mut direction = 0;
+                    while direction < DIRECTION_COUNT {
+                        alias_mask |= group_mask(physical(property, writing_mode, direction));
+                        direction += 1;
+                    }
+                    writing_mode += 1;
                 }
+                masks[longhand] |= alias_mask;
+                logical_mapping_mask |= alias_mask;
             }
-            masks[index(property)] |= alias_mask;
-            logical_mapping_mask |= alias_mask;
+            longhand += 1;
         }
         masks[index(DIRECTION)] |= logical_mapping_mask;
         masks[index(WRITING_MODE)] |= logical_mapping_mask;
-        // NB: The inherited UI group holds the used caret color, which `caret-color: auto` resolves against the
-        //     element's own color.
-        masks[index(crate::css::property_metadata::property_id::COLOR)] |=
-            1 << crate::css::table_group_builder::group_index::INHERITED_UI;
         // NB: The box group holds the used containment flags implied by hidden content visibility.
-        masks[index(crate::css::property_metadata::property_id::CONTENT_VISIBILITY)] |=
-            1 << crate::css::table_group_builder::group_index::BOX;
-        // NB: The misc reset group holds whether an author declaration disables native appearance, which these
+        masks[index(CONTENT_VISIBILITY)] |= 1 << crate::css::table_group_builder::group_index::BOX;
+        // NB: The surround group holds whether the element names a default anchor, which layout reads beside the
+        //     anchor group's name.
+        masks[index(POSITION_ANCHOR)] |= 1 << crate::css::table_group_builder::group_index::SURROUND;
+        // NB: The misc layout group holds whether an author declaration disables native appearance, which these
         //     properties' winners decide.
-        for &property in crate::css::style_compute::PROPERTIES_DISABLING_NATIVE_APPEARANCE {
-            masks[index(property)] |= 1 << crate::css::table_group_builder::group_index::MISC_RESET;
+        let disabling = crate::css::style_compute::PROPERTIES_DISABLING_NATIVE_APPEARANCE;
+        let mut disabling_index = 0;
+        while disabling_index < disabling.len() {
+            masks[index(disabling[disabling_index])] |= 1 << crate::css::table_group_builder::group_index::MISC_LAYOUT;
+            disabling_index += 1;
         }
-        Self { masks, output_masks }
+
+        let mut ungrouped_inherited = [0; LONGHAND_COUNT];
+        let mut ungrouped_inherited_count = 0;
+        let mut longhand = 0;
+        while longhand < LONGHAND_COUNT {
+            let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
+            if property >= FIRST_INHERITED_PROPERTY_ID
+                && property <= LAST_INHERITED_PROPERTY_ID
+                && !is_logical_alias(property)
+                && (masks[longhand] == 0 || StyleBitField::of(property).is_some())
+            {
+                ungrouped_inherited[ungrouped_inherited_count] = property;
+                ungrouped_inherited_count += 1;
+            }
+            longhand += 1;
+        }
+        Self {
+            masks,
+            output_masks,
+            ungrouped_inherited,
+            ungrouped_inherited_count,
+        }
+    }
+
+    /// The inherited longhands no group holds, which a child reads from its parent's table alone.
+    pub(crate) fn ungrouped_inherited(&self) -> &[u16] {
+        &self.ungrouped_inherited[..self.ungrouped_inherited_count]
     }
 
     fn longhand_index(property: u16) -> Option<usize> {
@@ -2554,6 +3624,1720 @@ pub(crate) fn computed_group_output_mask(property: u16) -> Option<u32> {
         .filter(|mask| *mask != 0)
 }
 
+/// The most computed values one group holds, so that a read names each of a group's values by one bit.
+pub(crate) const MAX_GROUP_VALUES: usize = 64;
+
+/// A longhand property, by its id.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub(crate) struct LonghandID(u16);
+
+impl LonghandID {
+    pub(crate) const fn new(property: u16) -> Self {
+        use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID};
+        assert!(property >= FIRST_LONGHAND_PROPERTY_ID && property <= LAST_LONGHAND_PROPERTY_ID);
+        Self(property)
+    }
+
+    pub(crate) const fn property(self) -> u16 {
+        self.0
+    }
+
+    const fn index(self) -> usize {
+        (self.0 - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID) as usize
+    }
+}
+
+/// The words of bits a style holds beside its groups.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum BitWord {
+    /// The inherited bits beside the inherited set's groups.
+    Inherited,
+    /// The reset bits in the style's root.
+    Reset,
+}
+
+/// Declares the fields of the bits a style holds beside its groups: each field's word, its
+/// longhand, the CSS enum its codes are of, the code of its initial value, the mapping of keywords
+/// to codes, and the shift and width the C++ readers read it at.
+macro_rules! style_bit_fields {
+    ($($word:ident $field:ident: $property:ident, $enumeration:ident::$initial:ident, $code_of:ident, $shift:ident, $width:ident;)+) => {
+        /// One field of the bits a style holds beside its groups.
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        pub(crate) enum StyleBitField {
+            $($field,)+
+        }
+
+        impl StyleBitField {
+            const ALL: &[Self] = &[$(Self::$field,)+];
+
+            /// The word of bits holding the field.
+            const fn word(self) -> BitWord {
+                match self {
+                    $(Self::$field => BitWord::$word,)+
+                }
+            }
+
+            /// The field holding `property`'s value, where the bits hold it.
+            pub(crate) const fn of(property: u16) -> Option<Self> {
+                match property {
+                    $(crate::css::property_metadata::property_id::$property => Some(Self::$field),)+
+                    _ => None,
+                }
+            }
+
+            /// The longhand the field holds.
+            const fn property(self) -> u16 {
+                match self {
+                    $(Self::$field => crate::css::property_metadata::property_id::$property,)+
+                }
+            }
+
+            const fn shift(self) -> u32 {
+                match self {
+                    $(Self::$field => crate::css::computed_value_types::$shift,)+
+                }
+            }
+
+            const fn width(self) -> u32 {
+                match self {
+                    $(Self::$field => crate::css::computed_value_types::$width,)+
+                }
+            }
+
+            /// The code of the field's initial value.
+            const fn initial(self) -> u8 {
+                match self {
+                    $(Self::$field => crate::css::css_enums::$enumeration::$initial,)+
+                }
+            }
+
+            /// The keyword of each code the field holds, by code.
+            const fn keywords(self) -> &'static [u16] {
+                match self {
+                    $(Self::$field => &crate::css::css_enums::$enumeration::KEYWORDS,)+
+                }
+            }
+
+            /// The code of `keyword` in the field's enum.
+            fn code_of(self, keyword: u16) -> Option<u8> {
+                match self {
+                    $(Self::$field => crate::css::css_enums::$code_of(keyword),)+
+                }
+            }
+        }
+    };
+}
+
+style_bit_fields! {
+    Inherited WritingMode: WRITING_MODE, writing_mode::HORIZONTAL_TB, keyword_to_writing_mode,
+        INHERITED_BITS_WRITING_MODE_SHIFT, INHERITED_BITS_WRITING_MODE_WIDTH;
+    Inherited Direction: DIRECTION, direction::LTR, keyword_to_direction,
+        INHERITED_BITS_DIRECTION_SHIFT, INHERITED_BITS_DIRECTION_WIDTH;
+    Inherited Visibility: VISIBILITY, visibility::VISIBLE, keyword_to_visibility,
+        INHERITED_BITS_VISIBILITY_SHIFT, INHERITED_BITS_VISIBILITY_WIDTH;
+    Inherited TextOrientation: TEXT_ORIENTATION, text_orientation::MIXED, keyword_to_text_orientation,
+        INHERITED_BITS_TEXT_ORIENTATION_SHIFT, INHERITED_BITS_TEXT_ORIENTATION_WIDTH;
+    Inherited PointerEvents: POINTER_EVENTS, pointer_events::AUTO, keyword_to_pointer_events,
+        INHERITED_BITS_POINTER_EVENTS_SHIFT, INHERITED_BITS_POINTER_EVENTS_WIDTH;
+    Inherited ListStylePosition: LIST_STYLE_POSITION, list_style_position::OUTSIDE, keyword_to_list_style_position,
+        INHERITED_BITS_LIST_STYLE_POSITION_SHIFT, INHERITED_BITS_LIST_STYLE_POSITION_WIDTH;
+    Inherited BorderCollapse: BORDER_COLLAPSE, border_collapse::SEPARATE, keyword_to_border_collapse,
+        INHERITED_BITS_BORDER_COLLAPSE_SHIFT, INHERITED_BITS_BORDER_COLLAPSE_WIDTH;
+    Inherited CaptionSide: CAPTION_SIDE, caption_side::TOP, keyword_to_caption_side,
+        INHERITED_BITS_CAPTION_SIDE_SHIFT, INHERITED_BITS_CAPTION_SIDE_WIDTH;
+    Inherited EmptyCells: EMPTY_CELLS, empty_cells::SHOW, keyword_to_empty_cells,
+        INHERITED_BITS_EMPTY_CELLS_SHIFT, INHERITED_BITS_EMPTY_CELLS_WIDTH;
+    Inherited TextAlign: TEXT_ALIGN, text_align::START, keyword_to_text_align,
+        INHERITED_BITS_TEXT_ALIGN_SHIFT, INHERITED_BITS_TEXT_ALIGN_WIDTH;
+    Inherited WhiteSpaceCollapse: WHITE_SPACE_COLLAPSE, white_space_collapse::COLLAPSE, keyword_to_white_space_collapse,
+        INHERITED_BITS_WHITE_SPACE_COLLAPSE_SHIFT, INHERITED_BITS_WHITE_SPACE_COLLAPSE_WIDTH;
+    Inherited TextWrapMode: TEXT_WRAP_MODE, text_wrap_mode::WRAP, keyword_to_text_wrap_mode,
+        INHERITED_BITS_TEXT_WRAP_MODE_SHIFT, INHERITED_BITS_TEXT_WRAP_MODE_WIDTH;
+    Inherited WordBreak: WORD_BREAK, word_break::NORMAL, keyword_to_word_break,
+        INHERITED_BITS_WORD_BREAK_SHIFT, INHERITED_BITS_WORD_BREAK_WIDTH;
+    Reset Position: POSITION, positioning::STATIC, keyword_to_positioning,
+        RESET_BITS_POSITION_SHIFT, RESET_BITS_POSITION_WIDTH;
+    Reset Float: FLOAT, float::NONE, keyword_to_float,
+        RESET_BITS_FLOAT_SHIFT, RESET_BITS_FLOAT_WIDTH;
+    Reset Clear: CLEAR, clear::NONE, keyword_to_clear,
+        RESET_BITS_CLEAR_SHIFT, RESET_BITS_CLEAR_WIDTH;
+    Reset OverflowX: OVERFLOW_X, overflow::VISIBLE, keyword_to_overflow,
+        RESET_BITS_OVERFLOW_X_SHIFT, RESET_BITS_OVERFLOW_X_WIDTH;
+    Reset OverflowY: OVERFLOW_Y, overflow::VISIBLE, keyword_to_overflow,
+        RESET_BITS_OVERFLOW_Y_SHIFT, RESET_BITS_OVERFLOW_Y_WIDTH;
+    Reset BoxSizing: BOX_SIZING, box_sizing::CONTENT_BOX, keyword_to_box_sizing,
+        RESET_BITS_BOX_SIZING_SHIFT, RESET_BITS_BOX_SIZING_WIDTH;
+    Reset UnicodeBidi: UNICODE_BIDI, unicode_bidi::NORMAL, keyword_to_unicode_bidi,
+        RESET_BITS_UNICODE_BIDI_SHIFT, RESET_BITS_UNICODE_BIDI_WIDTH;
+    Reset TableLayout: TABLE_LAYOUT, table_layout::AUTO, keyword_to_table_layout,
+        RESET_BITS_TABLE_LAYOUT_SHIFT, RESET_BITS_TABLE_LAYOUT_WIDTH;
+}
+
+impl StyleBitField {
+    const fn from_index(index: u8) -> Self {
+        Self::ALL[index as usize]
+    }
+}
+
+// NB: Each field's codes fit its width, and the fields of a word do not overlap.
+const _: () = {
+    let mut field = 0;
+    let mut taken = [0_u32; 2];
+    while field < StyleBitField::ALL.len() {
+        let bits = StyleBitField::ALL[field];
+        assert!(bits.keywords().len() <= 1 << bits.width());
+        let mask = ((1 << bits.width()) - 1) << bits.shift();
+        let word = bits.word() as usize;
+        assert!(taken[word] & mask == 0);
+        taken[word] |= mask;
+        field += 1;
+    }
+};
+
+/// The codes of one word of bits a style holds beside its groups, by field.
+macro_rules! impl_bit_word {
+    ($bits:ident, $word:ident) => {
+        impl crate::css::computed_value_types::$bits {
+            /// The bits of the initial values.
+            pub(crate) const INITIAL: Self = {
+                let mut bits = Self(0);
+                let mut field = 0;
+                while field < StyleBitField::ALL.len() {
+                    let field_at = StyleBitField::ALL[field];
+                    if matches!(field_at.word(), BitWord::$word) {
+                        bits = bits.with(field_at, field_at.initial());
+                    }
+                    field += 1;
+                }
+                bits
+            };
+
+            /// The code `field`, a field of these bits, holds.
+            pub(crate) const fn get(self, field: StyleBitField) -> u8 {
+                assert!(matches!(field.word(), BitWord::$word));
+                ((self.0 >> field.shift()) & ((1 << field.width()) - 1)) as u8
+            }
+
+            /// These bits, with `code` in `field`, a field of them.
+            pub(crate) const fn with(self, field: StyleBitField, code: u8) -> Self {
+                assert!(matches!(field.word(), BitWord::$word));
+                let mask = ((1 << field.width()) - 1) << field.shift();
+                Self((self.0 & !mask) | ((code as u32) << field.shift() & mask))
+            }
+        }
+    };
+}
+
+impl_bit_word!(InheritedBits, Inherited);
+impl_bit_word!(ResetBits, Reset);
+
+impl crate::css::computed_value_types::InheritedBits {
+    pub(crate) fn writing_mode(self) -> u8 {
+        self.get(StyleBitField::WritingMode)
+    }
+
+    pub(crate) fn direction(self) -> u8 {
+        self.get(StyleBitField::Direction)
+    }
+}
+
+impl crate::css::computed_value_types::InheritedSetValues {
+    /// The values of the initial style.
+    pub(crate) const INITIAL: Self = Self {
+        bits: crate::css::computed_value_types::InheritedBits::INITIAL,
+        effective_zoom_bits: 0x3f80_0000,
+    };
+
+    /// https://drafts.csswg.org/css-viewport/#effective-zoom
+    pub(crate) fn effective_zoom(&self) -> f32 {
+        f32::from_bits(self.effective_zoom_bits)
+    }
+}
+
+impl crate::css::computed_value_types::StyleBits {
+    /// The bits of the initial style.
+    pub(crate) const INITIAL: Self = Self {
+        inherited: InheritedSetValues::INITIAL,
+        reset: crate::css::computed_value_types::ResetBits::INITIAL,
+    };
+
+    /// The code `field` holds.
+    pub(crate) const fn get(&self, field: StyleBitField) -> u8 {
+        match field.word() {
+            BitWord::Inherited => self.inherited.bits.get(field),
+            BitWord::Reset => self.reset.get(field),
+        }
+    }
+
+    /// These bits, with `code` in `field`.
+    pub(crate) const fn with(mut self, field: StyleBitField, code: u8) -> Self {
+        match field.word() {
+            BitWord::Inherited => self.inherited.bits = self.inherited.bits.with(field, code),
+            BitWord::Reset => self.reset = self.reset.with(field, code),
+        }
+        self
+    }
+
+    /// The computed value `field` holds: its keyword, as the shared keyword values hold it.
+    pub(crate) fn value(&self, field: StyleBitField) -> &'static RetainedStyleValueData {
+        RetainedStyleValueData::shared_keyword(field.keywords()[usize::from(self.get(field))])
+    }
+
+    /// These bits, with the code of `value`, a computed keyword of `field`'s enum, in `field`.
+    pub(crate) fn with_value(self, field: StyleBitField, value: &RetainedStyleValueData) -> Self {
+        match value.optional_data() {
+            Some(StyleValueData::Keyword { keyword }) => self.with(
+                field,
+                field.code_of(*keyword).expect("a computed keyword of the field's enum"),
+            ),
+            _ => panic!("a computed value held as bits is a keyword"),
+        }
+    }
+
+    /// The bits of a style whose longhands `value_of` answers, with `effective_zoom`.
+    pub(crate) fn of_values<'v>(value_of: impl Fn(u16) -> &'v RetainedStyleValueData, effective_zoom: f32) -> Self {
+        let bits = StyleBitField::ALL.iter().fold(Self::INITIAL, |bits, &field| {
+            let value = value_of(field.property());
+            match value.optional_data() {
+                Some(_) => bits.with_value(field, value),
+                None => bits,
+            }
+        });
+        Self {
+            inherited: InheritedSetValues {
+                effective_zoom_bits: effective_zoom.to_bits(),
+                ..bits.inherited
+            },
+            ..bits
+        }
+    }
+}
+
+/// Where one longhand's computed value lives: in the allocation of the computed-value group
+/// holding it, at its index among the group's values, in a handle of the group's payload that
+/// holds the computed value itself, or in the inherited bits beside the style's inherited groups.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) struct LonghandPlace {
+    group: u8,
+    index: u8,
+    /// The offset of the payload handle holding the value, or zero where the group's values hold
+    /// it.
+    handle: u16,
+}
+
+const _: () = assert!(size_of::<LonghandPlace>() == 4);
+
+impl LonghandPlace {
+    /// The place of a longhand holding no value of its own.
+    const NONE: Self = Self {
+        group: u8::MAX,
+        index: 0,
+        handle: 0,
+    };
+
+    /// The offset of the payload handle holding the value, where one does.
+    pub(crate) fn handle_offset(self) -> Option<usize> {
+        (self.handle != 0).then_some(usize::from(self.handle))
+    }
+
+    /// The value at this place of `payload`, a live payload of the group whose values are
+    /// `values`.
+    ///
+    /// # Safety
+    /// `payload` must be a live payload of the place's group, holding `values`, live for `'a`.
+    unsafe fn value_in(self, payload: *const c_void, values: &[RetainedStyleValueData]) -> &RetainedStyleValueData {
+        match self.handle_offset() {
+            // SAFETY: The handle is a `ComputedStyleValueHandle`, a single retained pointer laid out
+            //         as a `RetainedStyleValueData` is, which the payload keeps live.
+            Some(offset) => unsafe { &*payload.byte_add(offset).cast::<RetainedStyleValueData>() },
+            None => &values[self.index()],
+        }
+    }
+
+    /// The place of a longhand the inherited bits hold, in `field`.
+    const fn bits(field: StyleBitField) -> Self {
+        Self {
+            group: Self::BITS_GROUP,
+            index: field as u8,
+            handle: 0,
+        }
+    }
+
+    /// The `group` of a place in the inherited bits.
+    const BITS_GROUP: u8 = u8::MAX - 1;
+
+    /// The field of the inherited bits holding the value, where those hold it.
+    pub(crate) fn bit_field(self) -> Option<StyleBitField> {
+        (self.group == Self::BITS_GROUP).then(|| StyleBitField::from_index(self.index))
+    }
+
+    /// The group holding the value, which a place in the inherited bits has none of.
+    pub(crate) fn group(self) -> usize {
+        assert!(self.group != Self::BITS_GROUP, "the inherited bits are in no group");
+        usize::from(self.group)
+    }
+
+    pub(crate) fn index(self) -> usize {
+        usize::from(self.index)
+    }
+}
+
+/// The values a group's build reads, of each group, one bit per value index.
+pub(crate) type GroupReads = [u64; group_index::COUNT];
+
+/// The longhands whose computed value a handle of their group's payload holds as it is, by the
+/// handle's offset: the group's values keep no second copy of them.
+const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 19] = {
+    use crate::css::computed_value_types::FontValues;
+    use crate::css::property_metadata::property_id as p;
+    use std::mem::offset_of;
+    let font = group_index::FONT;
+    [
+        (p::FONT_FAMILY, font, offset_of!(FontValues, font_family)),
+        (p::FONT_STYLE, font, offset_of!(FontValues, font_style)),
+        (
+            p::FONT_OPTICAL_SIZING,
+            font,
+            offset_of!(FontValues, font_optical_sizing),
+        ),
+        (
+            p::FONT_FEATURE_SETTINGS,
+            font,
+            offset_of!(FontValues, font_feature_settings),
+        ),
+        (p::FONT_KERNING, font, offset_of!(FontValues, font_kerning)),
+        (
+            p::FONT_LANGUAGE_OVERRIDE,
+            font,
+            offset_of!(FontValues, font_language_override),
+        ),
+        (
+            p::FONT_VARIANT_ALTERNATES,
+            font,
+            offset_of!(FontValues, font_variant_alternates),
+        ),
+        (p::FONT_VARIANT_CAPS, font, offset_of!(FontValues, font_variant_caps)),
+        (
+            p::FONT_VARIANT_EAST_ASIAN,
+            font,
+            offset_of!(FontValues, font_variant_east_asian),
+        ),
+        (
+            p::FONT_VARIANT_LIGATURES,
+            font,
+            offset_of!(FontValues, font_variant_ligatures),
+        ),
+        (
+            p::FONT_VARIANT_NUMERIC,
+            font,
+            offset_of!(FontValues, font_variant_numeric),
+        ),
+        (
+            p::FONT_VARIANT_POSITION,
+            font,
+            offset_of!(FontValues, font_variant_position),
+        ),
+        (
+            p::FONT_VARIATION_SETTINGS,
+            font,
+            offset_of!(FontValues, font_variation_settings),
+        ),
+        (p::TEXT_RENDERING, font, offset_of!(FontValues, text_rendering)),
+        (p::LINE_HEIGHT, font, offset_of!(FontValues, line_height)),
+        (p::MATH_SHIFT, font, offset_of!(FontValues, math_shift_value)),
+        (p::MATH_STYLE, font, offset_of!(FontValues, math_style_value)),
+        (p::MATH_DEPTH, font, offset_of!(FontValues, math_depth_value)),
+        (p::FONT_SIZE, font, offset_of!(FontValues, font_size_value)),
+    ]
+};
+
+const _: () = assert!(
+    size_of::<crate::css::computed_value_types::ComputedStyleValueHandle>() == size_of::<RetainedStyleValueData>()
+);
+
+/// Where each longhand's computed value lives among an element's groups, and which of them each
+/// group's build reads, computed as the engine is compiled.
+///
+/// A longhand's value lives in the group owning its output. A logical alias's lives in the group
+/// of the physical longhand it maps to in a horizontal, left-to-right flow, and the value of a
+/// longhand no group owns lives in the font group where it inherits, as the font longhands do, or
+/// in the box group where it does not. A group's values then inherit or not as its payload does.
+pub(crate) struct GroupValueLayout {
+    places: [LonghandPlace; LONGHAND_COUNT],
+    counts: [u8; group_index::COUNT],
+    longhands: [[u16; MAX_GROUP_VALUES]; group_index::COUNT],
+    /// Per group, the values its build reads: those of the longhands whose changes may change it,
+    /// but for logical aliases, and all of its own. The longhands whose changes feed no group are
+    /// read by the font group's build.
+    reads: [GroupReads; group_index::COUNT],
+}
+
+const GROUP_VALUE_LAYOUT: GroupValueLayout = GroupValueLayout::compute();
+
+impl GroupValueLayout {
+    pub(crate) fn get() -> &'static Self {
+        &GROUP_VALUE_LAYOUT
+    }
+
+    const fn compute() -> Self {
+        use crate::css::property_metadata::{
+            FIRST_INHERITED_PROPERTY_ID, FIRST_LONGHAND_PROPERTY_ID, LAST_INHERITED_PROPERTY_ID,
+        };
+        const fn home(property: u16) -> usize {
+            let masks = &STYLE_GROUP_MASKS;
+            let output = masks.output_masks[longhand_index_of(property)];
+            if output != 0 {
+                return output.trailing_zeros() as usize;
+            }
+            if is_logical_alias(property) {
+                let physical = masks.output_masks[longhand_index_of(physical_longhand(property, 0, 0))];
+                if physical != 0 {
+                    return physical.trailing_zeros() as usize;
+                }
+            }
+            match property >= FIRST_INHERITED_PROPERTY_ID && property <= LAST_INHERITED_PROPERTY_ID {
+                true => group_index::FONT,
+                false => group_index::BOX,
+            }
+        }
+
+        let mut places = [LonghandPlace {
+            group: 0,
+            index: 0,
+            handle: 0,
+        }; LONGHAND_COUNT];
+        let mut counts = [0_u8; group_index::COUNT];
+        let mut longhands = [[0_u16; MAX_GROUP_VALUES]; group_index::COUNT];
+        let mut longhand = 0;
+        while longhand < LONGHAND_COUNT {
+            let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
+            if maps_in_every_flow(property) {
+                places[longhand] = LonghandPlace::NONE;
+                longhand += 1;
+                continue;
+            }
+            if let Some(field) = StyleBitField::of(property) {
+                places[longhand] = LonghandPlace::bits(field);
+                longhand += 1;
+                continue;
+            }
+            let group = home(property);
+            let mut handle = 0;
+            while handle < PAYLOAD_HANDLE_LONGHANDS.len() {
+                let (handle_property, handle_group, offset) = PAYLOAD_HANDLE_LONGHANDS[handle];
+                if handle_property == property {
+                    assert!(handle_group == group, "a payload handle holds a longhand of its group");
+                    assert!(offset != 0 && offset <= u16::MAX as usize);
+                    break;
+                }
+                handle += 1;
+            }
+            if handle < PAYLOAD_HANDLE_LONGHANDS.len() {
+                places[longhand] = LonghandPlace {
+                    group: group as u8,
+                    index: u8::MAX,
+                    handle: PAYLOAD_HANDLE_LONGHANDS[handle].2 as u16,
+                };
+                longhand += 1;
+                continue;
+            }
+            let index = counts[group] as usize;
+            assert!(
+                index < MAX_GROUP_VALUES,
+                "a group holds no more values than a read names"
+            );
+            longhands[group][index] = property;
+            places[longhand] = LonghandPlace {
+                group: group as u8,
+                index: index as u8,
+                handle: 0,
+            };
+            counts[group] += 1;
+            longhand += 1;
+        }
+
+        let mut reads = [[0_u64; group_index::COUNT]; group_index::COUNT];
+        let mut longhand = 0;
+        while longhand < LONGHAND_COUNT {
+            let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
+            let place = places[longhand];
+            // NB: No group's build reads the inherited bits: they are no group's values.
+            if place.group == LonghandPlace::NONE.group || place.group == LonghandPlace::BITS_GROUP {
+                longhand += 1;
+                continue;
+            }
+            // NB: A build reading a value a payload handle holds keys on the group holding it, as
+            //     a build reading the group's values does: see `GroupValues::read_hash`.
+            if place.handle != 0 {
+                longhand += 1;
+                continue;
+            }
+            let read_by = match STYLE_GROUP_MASKS.masks[longhand] {
+                _ if is_logical_alias(property) => 0,
+                0 => 1 << group_index::FONT,
+                groups => groups,
+            } | (1 << place.group);
+            let mut group = 0;
+            while group < group_index::COUNT {
+                if read_by & (1 << group) != 0 {
+                    reads[group][place.group as usize] |= 1 << place.index;
+                }
+                group += 1;
+            }
+            longhand += 1;
+        }
+        let mut handle = 0;
+        while handle < PAYLOAD_HANDLE_LONGHANDS.len() {
+            let (property, group, _) = PAYLOAD_HANDLE_LONGHANDS[handle];
+            let read_by = match STYLE_GROUP_MASKS.masks[longhand_index_of(property)] {
+                0 => 1 << group_index::FONT,
+                groups => groups,
+            } | (1 << group);
+            let mut reader = 0;
+            while reader < group_index::COUNT {
+                assert!(
+                    read_by & (1 << reader) == 0 || reads[reader][group] != 0,
+                    "a build reading a payload handle's value reads a value of its group"
+                );
+                reader += 1;
+            }
+            handle += 1;
+        }
+        Self {
+            places,
+            counts,
+            longhands,
+            reads,
+        }
+    }
+
+    /// The longhands that inherit by default.
+    pub(crate) fn inherited_longhands() -> impl Iterator<Item = u16> {
+        use crate::css::property_metadata::{FIRST_INHERITED_PROPERTY_ID, LAST_INHERITED_PROPERTY_ID};
+        (FIRST_INHERITED_PROPERTY_ID..=LAST_INHERITED_PROPERTY_ID).filter(|&property| !is_logical_alias(property))
+    }
+
+    /// Where the computed value of `longhand` lives. A logical alias mapping to a physical
+    /// longhand in every flow holds no value of its own: see [`Self::resolved`].
+    pub(crate) fn place(&self, longhand: LonghandID) -> LonghandPlace {
+        self.places[longhand.index()]
+    }
+
+    /// Whether `longhand` holds a value of its own, which a logical alias mapping to a physical
+    /// longhand in every flow does not.
+    pub(crate) fn holds_value(&self, longhand: LonghandID) -> bool {
+        self.places[longhand.index()] != LonghandPlace::NONE
+    }
+
+    /// The longhand whose value is the computed value of `property`, among values `value_of`
+    /// answers: `property` itself, or for a logical alias holding no value of its own, the
+    /// physical longhand it maps to in the flow of the writing mode and direction those values
+    /// hold. https://drafts.csswg.org/css-logical/#box
+    /// NB: A logical alias computes as the physical longhand it maps to, so its value is that
+    ///     longhand's, held once.
+    pub(crate) fn resolved<'v>(&self, property: u16, value_of: impl Fn(u16) -> &'v RetainedStyleValueData) -> u16 {
+        use crate::css::property_metadata::property_id;
+        if self.holds_value(LonghandID::new(property)) {
+            return property;
+        }
+        let (writing_mode, direction) = match (
+            value_of(property_id::WRITING_MODE).optional_data(),
+            value_of(property_id::DIRECTION).optional_data(),
+        ) {
+            (Some(_), Some(_)) => crate::css::style_compute::writing_mode_and_direction_of(
+                Some(value_of(property_id::WRITING_MODE)),
+                Some(value_of(property_id::DIRECTION)),
+            ),
+            _ => (0, 0),
+        };
+        crate::css::style_compute::map_logical_alias_to_physical(property, writing_mode, direction)
+    }
+
+    fn place_of(&self, property: u16) -> LonghandPlace {
+        self.place(LonghandID::new(property))
+    }
+
+    /// The longhands whose values `group` holds, in order.
+    pub(crate) fn longhands_of(&self, group: usize) -> &[u16] {
+        &self.longhands[group][..usize::from(self.counts[group])]
+    }
+
+    /// The values the build of `group` may read.
+    pub(crate) fn reads_of(&self, group: usize) -> &GroupReads {
+        &self.reads[group]
+    }
+
+    /// Whether a build reading `reads` reads the value at `place`.
+    pub(crate) fn reads(reads: &GroupReads, place: LonghandPlace) -> bool {
+        place != LonghandPlace::NONE
+            && place.bit_field().is_none()
+            && match place.handle_offset() {
+                Some(_) => reads[place.group()] != 0,
+                None => reads[place.group()] & (1 << place.index) != 0,
+            }
+    }
+
+    /// The places of the payload handles holding values of `group`.
+    pub(crate) fn handles_of(group: usize) -> impl Iterator<Item = (u16, LonghandPlace)> {
+        PAYLOAD_HANDLE_LONGHANDS
+            .iter()
+            .filter(move |(_, handle_group, _)| *handle_group == group)
+            .map(|&(property, _, _)| (property, GROUP_VALUE_LAYOUT.place_of(property)))
+    }
+}
+
+/// The recorded specified value of a longhand whose computed value depends on what the element
+/// inherits.
+#[derive(Clone)]
+pub(crate) struct InheritanceDependentValue {
+    property: u16,
+    value: RetainedStyleValueData,
+    /// Whether a group build reads the value in place of the computed value, as it does for a
+    /// currentcolor-dependent value of a longhand a drive did not evaluate.
+    read_by_groups: bool,
+}
+
+impl crate::heap_size::HeapSize for InheritanceDependentValue {
+    fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        self.value.heap_size(sizer)
+    }
+}
+
+/// What an element's groups are built from beside their computed values: the recorded specified
+/// values of the longhands whose computed values depend on what the element inherits, its zoom,
+/// its display before the box type transformation, and its color scheme.
+#[derive(Clone)]
+pub(crate) struct GroupValueFacts {
+    inheritance_dependent_values: Option<std::sync::Arc<[InheritanceDependentValue]>>,
+    effective_zoom: f32,
+    display_before_box_type_transformation: u32,
+    effective_color_scheme: i16,
+    /// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
+    /// Whether an author declaration disables the element's native appearance.
+    native_appearance_disabled: bool,
+}
+
+impl crate::heap_size::HeapSize for GroupValueFacts {
+    fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        self.inheritance_dependent_values.heap_size(sizer)
+    }
+}
+
+impl GroupValueFacts {
+    /// The facts of no values: no recorded specified values, no zoom, no display before the box
+    /// type transformation and no color scheme.
+    pub(crate) fn empty() -> Self {
+        Self {
+            inheritance_dependent_values: None,
+            effective_zoom: 1.0,
+            display_before_box_type_transformation: 0,
+            effective_color_scheme: -1,
+            native_appearance_disabled: false,
+        }
+    }
+
+    /// The recorded specified values of the longhands whose computed values depend on what the
+    /// element inherits.
+    pub(crate) fn inheritance_dependent_values(&self) -> impl Iterator<Item = (u16, &RetainedStyleValueData)> + Clone {
+        self.inheritance_dependent_values
+            .iter()
+            .flat_map(|values| values.iter())
+            .map(|held| (held.property, &held.value))
+    }
+
+    /// The recorded value a group build reads for `property` in place of its computed value: its
+    /// currentcolor-dependent specified value where a drive did not evaluate it.
+    pub(crate) fn value_read_in_place(&self, property: u16) -> Option<&RetainedStyleValueData> {
+        self.inheritance_dependent_values
+            .as_deref()?
+            .iter()
+            .find(|held| held.property == property && held.read_by_groups)
+            .map(|held| &held.value)
+    }
+
+    /// The recorded values a group build reading `reads` reads in place of computed values.
+    pub(crate) fn values_read_in_place<'a>(
+        &'a self,
+        reads: &'a GroupReads,
+    ) -> impl Iterator<Item = (u16, &'a RetainedStyleValueData)> + 'a {
+        self.inheritance_dependent_values
+            .iter()
+            .flat_map(|values| values.iter())
+            .filter(move |held| {
+                held.read_by_groups && GroupValueLayout::reads(reads, GROUP_VALUE_LAYOUT.place_of(held.property))
+            })
+            .map(|held| (held.property, &held.value))
+    }
+
+    pub(crate) fn effective_zoom(&self) -> f32 {
+        self.effective_zoom
+    }
+
+    pub(crate) fn display_before_box_type_transformation(&self) -> u32 {
+        self.display_before_box_type_transformation
+    }
+
+    pub(crate) fn effective_color_scheme(&self) -> i16 {
+        self.effective_color_scheme
+    }
+
+    pub(crate) fn native_appearance_disabled(&self) -> bool {
+        self.native_appearance_disabled
+    }
+
+    /// Whether these and `other` publish the same recorded specified values, zoom, box display
+    /// and color scheme.
+    pub(crate) fn publication_equals(&self, other: &Self) -> bool {
+        use crate::css::style_value::retained_style_values_equal;
+        let (mine, theirs) = (
+            self.inheritance_dependent_values.as_deref().unwrap_or_default(),
+            other.inheritance_dependent_values.as_deref().unwrap_or_default(),
+        );
+        self.effective_zoom.to_bits() == other.effective_zoom.to_bits()
+            && self.display_before_box_type_transformation == other.display_before_box_type_transformation
+            && self.effective_color_scheme == other.effective_color_scheme
+            && self.native_appearance_disabled == other.native_appearance_disabled
+            && mine.len() == theirs.len()
+            && mine.iter().all(|held| {
+                theirs
+                    .iter()
+                    .find(|other| other.property == held.property)
+                    .is_some_and(|other| retained_style_values_equal(&held.value, &other.value))
+            })
+    }
+
+    /// What these and `other` hold differently, if anything.
+    pub(crate) fn difference(&self, other: &Self) -> Option<String> {
+        let recorded = |facts: &Self| {
+            let mut values: Vec<_> = facts
+                .inheritance_dependent_values
+                .iter()
+                .flat_map(|values| values.iter())
+                .map(|held| (held.property, held.value.pointer() as usize, held.read_by_groups))
+                .collect();
+            values.sort_unstable();
+            values
+        };
+        if recorded(self) != recorded(other) {
+            return Some("the recorded specified values".into());
+        }
+        if self.effective_zoom.to_bits() != other.effective_zoom.to_bits()
+            || self.display_before_box_type_transformation != other.display_before_box_type_transformation
+            || self.effective_color_scheme != other.effective_color_scheme
+            || self.native_appearance_disabled != other.native_appearance_disabled
+        {
+            return Some("the zoom, box display, color scheme or native appearance".into());
+        }
+        None
+    }
+}
+
+/// The groups an element's values start from: those of its parent's style or of the initial
+/// style, with what those were built from beside their values.
+#[derive(Clone, Copy)]
+pub(crate) struct GroupSeed<'a> {
+    groups: &'a StyleGroups,
+    facts: &'a GroupValueFacts,
+}
+
+impl<'a> GroupSeed<'a> {
+    pub(crate) fn new(groups: &'a StyleGroups, facts: &'a GroupValueFacts) -> Self {
+        Self { groups, facts }
+    }
+
+    fn group(&self, group: usize) -> GroupPayloadRef<'a> {
+        self.groups.group(StyleGroupIndex::new(group))
+    }
+
+    fn values(&self, group: usize) -> &'a [RetainedStyleValueData] {
+        self.group(group).group_values()
+    }
+
+    fn style_bits(&self) -> StyleBits {
+        self.groups.style_bits()
+    }
+}
+
+/// One payload of each group holding the group's defaults and no values: what a computation
+/// starting from nothing starts from. The process style holds them.
+pub(crate) struct DefaultGroups(StyleGroups);
+
+impl Default for DefaultGroups {
+    fn default() -> Self {
+        // SAFETY: Each payload is a default-constructed payload of its group with one reference,
+        //         which the groups take over.
+        Self(unsafe {
+            StyleGroups::adopt(
+                STYLE_GROUPS.map(|group| {
+                    let payload = allocate_payload(group, 1);
+                    default_construct(group, payload);
+                    payload.cast_const()
+                }),
+                StyleBits::INITIAL,
+            )
+        })
+    }
+}
+
+impl DefaultGroups {
+    pub(crate) fn groups(&self) -> &StyleGroups {
+        &self.0
+    }
+}
+
+/// Calls `compute` with a seed of `defaults`, which hold no values, and the facts of no values:
+/// what a computation starting from nothing starts from.
+pub(crate) fn with_default_seed<R>(defaults: &DefaultGroups, compute: impl FnOnce(GroupSeed<'_>) -> R) -> R {
+    let facts = GroupValueFacts::empty();
+    compute(GroupSeed::new(defaults.groups(), &facts))
+}
+
+/// One group's computed values while an element's style is computed: a seed group's, or a group
+/// of its own, which holds a copy of a seed group's payload until its own is built.
+enum DraftValues<'a> {
+    Seed(GroupPayloadRef<'a>),
+    Own(HeldGroup),
+}
+
+/// A group, with a reference to it.
+pub(crate) struct HeldGroup {
+    group: usize,
+    payload: *const c_void,
+}
+
+// SAFETY: As for `StyleGroups`.
+unsafe impl Send for HeldGroup {}
+unsafe impl Sync for HeldGroup {}
+
+impl HeldGroup {
+    /// The group `payload`, a payload of the group at `group`, taking over the caller's
+    /// reference to it.
+    ///
+    /// # Safety
+    /// `payload` must be a live payload of the group, with a reference the caller hands over.
+    pub(crate) unsafe fn adopt(group: usize, payload: *const c_void) -> Self {
+        assert!(!payload.is_null());
+        Self { group, payload }
+    }
+
+    pub(crate) fn as_ptr(&self) -> *const c_void {
+        self.payload
+    }
+
+    /// A new group holding a copy of the payload of `base` and the values `values` yields.
+    fn new_copy<'v>(base: GroupPayloadRef<'_>, values: impl Iterator<Item = &'v RetainedStyleValueData>) -> Self {
+        let group = style_group(base.group_index);
+        let payload = allocate_payload(group, 1);
+        // SAFETY: The payload was just allocated for the group, which `base` is a live payload of,
+        //         and nothing else references it yet.
+        unsafe {
+            copy_construct(group, payload, base.as_ptr());
+            for (slot, value) in values_of_mut(group, payload).iter_mut().zip(values) {
+                *slot = value.clone();
+            }
+        }
+        Self {
+            group: base.group_index,
+            payload: payload.cast_const(),
+        }
+    }
+
+    pub(crate) fn values(&self) -> &[RetainedStyleValueData] {
+        // SAFETY: The held reference keeps the group live.
+        unsafe { group_values(self.group, self.payload) }
+    }
+
+    /// The values to write, where this is the only reference to the group.
+    fn values_mut(&mut self) -> Option<&mut [RetainedStyleValueData]> {
+        let group = style_group(self.group);
+        (refcount_of(self.payload, payload_align(group)).load(Ordering::Acquire) == 1)
+            // SAFETY: The group is live, and this is its only reference.
+            .then(|| unsafe { values_of_mut(group, self.payload.cast_mut()) })
+    }
+
+    /// Puts `value` in the payload handle at `place`, where this is the only reference to the group.
+    fn set_handle(&mut self, place: LonghandPlace, value: &RetainedStyleValueData) {
+        let group = style_group(self.group);
+        let offset = place.handle_offset().expect("a payload handle place");
+        assert_eq!(
+            refcount_of(self.payload, payload_align(group)).load(Ordering::Acquire),
+            1
+        );
+        // SAFETY: The handle is a single retained pointer laid out as a `RetainedStyleValueData`
+        //         is, and this is the only reference to the group.
+        unsafe {
+            *self
+                .payload
+                .cast_mut()
+                .byte_add(offset)
+                .cast::<RetainedStyleValueData>() = value.clone();
+        };
+    }
+
+    /// The group, with another reference to it.
+    fn held(&self) -> Self {
+        retain_group_payload(self.group, self.payload);
+        Self {
+            group: self.group,
+            payload: self.payload,
+        }
+    }
+}
+
+impl Drop for HeldGroup {
+    fn drop(&mut self) {
+        release_group_payload(self.group, self.payload);
+    }
+}
+
+impl Clone for DraftValues<'_> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Seed(group) => Self::Seed(*group),
+            Self::Own(own) => Self::Own(own.held()),
+        }
+    }
+}
+
+impl<'a> DraftValues<'a> {
+    /// The value at `place`, a place of this group.
+    fn value(&self, place: LonghandPlace) -> &RetainedStyleValueData {
+        // SAFETY: The draft's group is live while the draft is, and holds these values.
+        unsafe { place.value_in(self.group(), self.values()) }
+    }
+
+    fn values(&self) -> &[RetainedStyleValueData] {
+        match self {
+            Self::Seed(group) => group.group_values(),
+            Self::Own(group) => group.values(),
+        }
+    }
+
+    /// The group whose values these are.
+    fn group(&self) -> *const c_void {
+        match self {
+            Self::Seed(group) => group.as_ptr(),
+            Self::Own(group) => group.payload,
+        }
+    }
+
+    #[cfg(test)]
+    fn seed(&self) -> Option<*const c_void> {
+        match self {
+            Self::Seed(group) => Some(group.as_ptr()),
+            Self::Own(_) => None,
+        }
+    }
+
+    /// The group of the first of `seeds` holding the very values `values` yields, or else a group
+    /// of the element's own holding them, with a copy of the payload of `base`.
+    fn shared_or_own<'v>(
+        seeds: &[GroupSeed<'a>],
+        base: GroupPayloadRef<'_>,
+        values: impl ExactSizeIterator<Item = &'v RetainedStyleValueData> + Clone,
+    ) -> Self {
+        let group = base.group_index;
+        match seeds.iter().find(|seed| {
+            values
+                .clone()
+                .zip(seed.values(group))
+                .all(|(value, held)| value.pointer() == held.pointer())
+                && GroupValueLayout::handles_of(group)
+                    .all(|(_, place)| value_at(seed.group(group), place).pointer() == value_at(base, place).pointer())
+        }) {
+            Some(seed) => Self::Seed(seed.group(group)),
+            None => Self::Own(HeldGroup::new_copy(base, values)),
+        }
+    }
+}
+
+/// An element's computed values by group while its style is computed, before its groups are
+/// built: each group's values are those of a seed group, its parent's or the initial style's, or
+/// its own. Building the groups then puts each group's values into the group's allocation.
+pub(crate) struct GroupValues<'a> {
+    groups: [DraftValues<'a>; group_index::COUNT],
+    /// The values of the longhands held as bits.
+    bits: StyleBits,
+    facts: GroupValueFacts,
+}
+
+impl GroupValues<'_> {
+    /// Whether the values of `group` are those of `payload` itself, a seed the element holds as it
+    /// is, which taking the values into it leaves.
+    pub(crate) fn hold_the_seed(&self, group: usize, payload: *const c_void) -> bool {
+        matches!(&self.groups[group], DraftValues::Seed(seed) if seed.as_ptr() == payload)
+    }
+
+    /// The computed value of `property`.
+    pub(crate) fn value(&self, property: u16) -> &RetainedStyleValueData {
+        let property = GROUP_VALUE_LAYOUT.resolved(property, |property| self.value(property));
+        let place = GROUP_VALUE_LAYOUT.place_of(property);
+        if let Some(field) = place.bit_field() {
+            return self.bits.value(field);
+        }
+        self.groups[place.group()].value(place)
+    }
+
+    /// What the groups holding these values hold as bits beside them.
+    pub(crate) fn style_bits(&self) -> StyleBits {
+        StyleBits {
+            inherited: InheritedSetValues {
+                bits: self.bits.inherited.bits,
+                effective_zoom_bits: self.facts.effective_zoom.to_bits(),
+            },
+            reset: self.bits.reset,
+        }
+    }
+
+    /// The value a group build reads for `property`: its recorded currentcolor-dependent specified
+    /// value where a drive did not evaluate it, else its computed value.
+    pub(crate) fn effective_value(&self, property: u16) -> &RetainedStyleValueData {
+        self.facts
+            .value_read_in_place(property)
+            .unwrap_or_else(|| self.value(property))
+    }
+
+    pub(crate) fn facts(&self) -> &GroupValueFacts {
+        &self.facts
+    }
+
+    /// A hash of the values `reads` names, by their contents.
+    pub(crate) fn read_hash(&self, reads: &GroupReads, hasher: &mut impl std::hash::Hasher) {
+        for (group, &indices) in reads.iter().enumerate() {
+            let values = self.groups[group].values();
+            let mut remaining = indices;
+            while remaining != 0 {
+                let at = remaining.trailing_zeros() as usize;
+                remaining &= remaining - 1;
+                hasher.write_u64(crate::css::style_value::style_value_content_hash(
+                    values[at].optional_data(),
+                ));
+            }
+            // NB: A build reading any of a group's values may read the ones its payload handles
+            //     hold, which no read bit names.
+            if indices != 0 {
+                for (_, place) in GroupValueLayout::handles_of(group) {
+                    hasher.write_u64(crate::css::style_value::style_value_content_hash(
+                        self.groups[group].value(place).optional_data(),
+                    ));
+                }
+            }
+        }
+    }
+
+    /// The values of each group `reads` reads any of, held, in group order.
+    pub(crate) fn held_read_groups(&self, reads: &GroupReads) -> impl Iterator<Item = HeldGroup> + '_ {
+        let reads = *reads;
+        (0..group_index::COUNT)
+            .filter(move |&group| reads[group] != 0)
+            .map(|group| match &self.groups[group] {
+                DraftValues::Seed(seed) => HeldGroup {
+                    group,
+                    payload: seed.retained(),
+                },
+                DraftValues::Own(own) => own.held(),
+            })
+    }
+
+    /// Whether these hold the values `held`, the values of each group `reads` reads any of in group
+    /// order, hold at the indices `reads` names, each by identity or else by value.
+    pub(crate) fn holds_read_values(&self, reads: &GroupReads, held: &[HeldGroup]) -> bool {
+        let mut held = held.iter();
+        reads
+            .iter()
+            .enumerate()
+            .filter(|(_, indices)| **indices != 0)
+            .all(|(group, &indices)| {
+                let Some(held) = held.next() else {
+                    return false;
+                };
+                if self.groups[group].group() == held.as_ptr() {
+                    return true;
+                }
+                // SAFETY: The held group is live while it is held.
+                let held_group = unsafe { GroupPayloadRef::new(group, held.as_ptr()) }.expect("a held group");
+                if !GroupValueLayout::handles_of(group).all(|(_, place)| {
+                    let (value, held) = (self.groups[group].value(place), value_at(held_group, place));
+                    value.pointer() == held.pointer() || value == held
+                }) {
+                    return false;
+                }
+                let (values, held) = (self.groups[group].values(), held.values());
+                let mut remaining = indices;
+                while remaining != 0 {
+                    let at = remaining.trailing_zeros() as usize;
+                    remaining &= remaining - 1;
+                    if values[at].pointer() != held[at].pointer() && values[at] != held[at] {
+                        return false;
+                    }
+                }
+                true
+            })
+    }
+
+    /// Puts the values of each group into the group `groups` holds for it, built from them,
+    /// taking over the reference `groups` holds: the very group where it holds them already, or
+    /// the draft's group, a seed's or the element's own, where it holds the same payload, or else
+    /// the built group with the values in it.
+    ///
+    /// # Safety
+    /// `groups` must hold one live payload of each group, each with a reference the caller holds.
+    pub(crate) unsafe fn put_into(&self, groups: &mut [*const c_void; group_index::COUNT]) {
+        for (group, (payload, values)) in groups.iter_mut().zip(&self.groups).enumerate() {
+            // SAFETY: The caller passes live payloads, and the drafts' groups are live while they are.
+            *payload = unsafe { group_with_values(group, *payload, values.values(), &[values.group()]) };
+        }
+    }
+
+    /// The groups holding these values, a seed group or one of the element's own each, with a
+    /// reference to each: groups of values, whose payloads are not built from them.
+    pub(crate) fn into_groups(self) -> StyleGroups {
+        let bits = self.style_bits();
+        let pointers = self.groups.map(|draft| match draft {
+            DraftValues::Seed(seed) => seed.retained(),
+            DraftValues::Own(own) => std::mem::ManuallyDrop::new(own).payload,
+        });
+        // SAFETY: Each pointer is a live group of its index, with a reference handed over.
+        unsafe { StyleGroups::adopt(pointers, bits) }
+    }
+
+    /// What the groups are built from beside their values.
+    pub(crate) fn into_facts(self) -> GroupValueFacts {
+        self.facts
+    }
+}
+
+/// An element's computed values as the engine computes them, directly or through the longhand drive,
+/// over the values the element holds before its own declarations, with the flags its record keeps
+/// beside them. The writes are kept beside those values, which the writer only borrows where its
+/// parent or the initial style holds them: a group's values are copied only as the writer finishes,
+/// for the groups whose written values no seed holds: a copy-on-write style builder, at the
+/// granularity of groups.
+#[derive(Clone)]
+pub(crate) struct GroupValuesWriter<'a> {
+    /// The values the element holds before its own declarations, which no write changes.
+    seeded: [DraftValues<'a>; group_index::COUNT],
+    /// The values written over the seeded ones, one per longhand whose value differs from the
+    /// seeded one where it was written.
+    writes: smallvec::SmallVec<[ValueWrite; WRITES_INLINE]>,
+    /// The groups `writes` writes into, one bit per group.
+    written_groups: u32,
+    /// The values of the longhands held as bits, as written so far. The zoom beside them is
+    /// `effective_zoom`'s.
+    bits: StyleBits,
+    /// The recorded specified values of the longhands whose computed values depend on what the
+    /// element inherits, as the initial style records them.
+    seeded_inheritance_dependent_values: Option<std::sync::Arc<[InheritanceDependentValue]>>,
+    /// The recorded specified values of the longhands whose computed values depend on what the
+    /// element inherits, once the computation records others than the seeded ones.
+    inheritance_dependent_values: Option<Vec<(u16, RetainedStyleValueData)>>,
+    effective_zoom: f32,
+    display_before_box_type_transformation: u32,
+    effective_color_scheme: i16,
+    /// Whether each longhand's value is important, inherited and evaluated by the computation,
+    /// and what the box adjustments and the font computation settled.
+    flags: crate::css::computed_longhand_table::LonghandTableFlags,
+    /// What the computed values depend on, as `DEPENDS_ON_VIEWPORT_METRICS` and the like.
+    dependency_flags: u8,
+}
+
+/// A value written over an element's seeded values, at its place among them.
+#[derive(Clone)]
+struct ValueWrite {
+    place: LonghandPlace,
+    value: RetainedStyleValueData,
+}
+
+/// How many written values a [`GroupValuesWriter`] holds before they go to an allocation of their
+/// own.
+const WRITES_INLINE: usize = 16;
+
+impl<'a> GroupValuesWriter<'a> {
+    /// The values a child of the element whose groups are `parent` holds before its own
+    /// declarations: the initial values, with the parent's values of the longhands that inherit in
+    /// place of the ones they are not equal to, and then likewise the values `inherited_overrides`
+    /// hands down in place of those. The child starts with the parent's zoom and color scheme and
+    /// the initial recorded specified values.
+    ///
+    /// The writer starts with the flags `flags` and the dependency flags `dependency_flags`.
+    pub(crate) fn seeded_for_child(
+        parent: GroupSeed<'a>,
+        initial: GroupSeed<'a>,
+        inherited_overrides: impl Iterator<Item = (u16, RetainedStyleValueData)>,
+        flags: crate::css::computed_longhand_table::LonghandTableFlags,
+        dependency_flags: u8,
+    ) -> Self {
+        use crate::css::property_metadata::property_is_inherited;
+        let seeded = std::array::from_fn(|group| {
+            let (parent_group, initial_group) = (parent.group(group), initial.group(group));
+            let longhands = GROUP_VALUE_LAYOUT.longhands_of(group);
+            if parent_group.as_ptr() == initial_group.as_ptr()
+                || !longhands.iter().any(|&property| property_is_inherited(property))
+            {
+                return DraftValues::Seed(initial_group);
+            }
+            let (parent_values, initial_values) = (parent_group.group_values(), initial_group.group_values());
+            // NB: An inherited value equal to the initial one keeps the initial one, as the seed
+            //     of a longhand table does.
+            let inherited_value = |(index, &property): (usize, &u16)| {
+                let (value, initial_value) = (&parent_values[index], &initial_values[index]);
+                match property_is_inherited(property)
+                    && !value.pointer().is_null()
+                    && value.pointer() != initial_value.pointer()
+                    && (initial_value.pointer().is_null() || value != initial_value)
+                {
+                    true => value,
+                    false => initial_value,
+                }
+            };
+            DraftValues::shared_or_own(
+                &[parent, initial],
+                parent_group,
+                longhands.iter().enumerate().map(inherited_value),
+            )
+        });
+        let mut writer = Self {
+            seeded,
+            writes: smallvec::SmallVec::new(),
+            written_groups: 0,
+            // NB: A child inherits its parent's inherited bits, and starts from the initial reset ones.
+            bits: StyleBits {
+                inherited: parent.style_bits().inherited,
+                reset: initial.style_bits().reset,
+            },
+            seeded_inheritance_dependent_values: initial.facts.inheritance_dependent_values.clone(),
+            inheritance_dependent_values: None,
+            effective_zoom: parent.facts.effective_zoom,
+            display_before_box_type_transformation: initial.facts.display_before_box_type_transformation,
+            effective_color_scheme: parent.facts.effective_color_scheme,
+            flags,
+            dependency_flags,
+        };
+        // NB: What the parent hands down is not the child's computation, so it is not evaluated.
+        for (property, value) in inherited_overrides {
+            let held = writer.value(property);
+            if held.pointer().is_null() || *held != value {
+                writer.put(property, std::borrow::Cow::Owned(value));
+            }
+        }
+        // NB: An initial recorded value is that of the initial value. A longhand that inherits another one holds none,
+        //     or a group build would read the initial `currentcolor` in place of what the parent hands down.
+        for held in initial
+            .facts
+            .inheritance_dependent_values
+            .as_deref()
+            .unwrap_or_default()
+        {
+            if property_is_inherited(held.property)
+                && crate::css::style_value::retained_value_depends_on_current_color(&held.value)
+                && *writer.value(held.property) != held.value
+            {
+                writer.set_inheritance_dependent_value(held.property, None);
+            }
+        }
+        writer
+    }
+
+    /// This writer, holding a reference to each group it borrowed, so that it outlives the
+    /// groups it was seeded with, as a drive waiting on a font does.
+    pub(crate) fn detached(self) -> GroupValuesWriter<'static> {
+        let Self {
+            seeded,
+            writes,
+            written_groups,
+            bits,
+            seeded_inheritance_dependent_values,
+            inheritance_dependent_values,
+            effective_zoom,
+            display_before_box_type_transformation,
+            effective_color_scheme,
+            flags,
+            dependency_flags,
+        } = self;
+        GroupValuesWriter {
+            seeded: seeded.map(|draft| match draft {
+                DraftValues::Seed(seed) => DraftValues::Own(HeldGroup {
+                    group: seed.group_index,
+                    payload: seed.retained(),
+                }),
+                DraftValues::Own(own) => DraftValues::Own(own),
+            }),
+            writes,
+            written_groups,
+            bits,
+            seeded_inheritance_dependent_values,
+            inheritance_dependent_values,
+            effective_zoom,
+            display_before_box_type_transformation,
+            effective_color_scheme,
+            flags,
+            dependency_flags,
+        }
+    }
+
+    fn was_written(&self, property: u16) -> bool {
+        self.flags.is_evaluated(property)
+    }
+
+    /// The recorded specified values the initial style holds of the longhands whose computed
+    /// values depend on what the element inherits.
+    fn seeded_inheritance_dependent_values(&self) -> &[InheritanceDependentValue] {
+        self.seeded_inheritance_dependent_values.as_deref().unwrap_or_default()
+    }
+
+    /// The write at `place`, if there is one.
+    fn write_at(&self, place: LonghandPlace) -> Option<&ValueWrite> {
+        if self.written_groups & (1 << place.group()) == 0 {
+            return None;
+        }
+        self.writes.iter().find(|write| write.place == place)
+    }
+
+    /// The computed value of `property` written so far.
+    pub(crate) fn value(&self, property: u16) -> &RetainedStyleValueData {
+        let property = GROUP_VALUE_LAYOUT.resolved(property, |property| self.value(property));
+        let place = GROUP_VALUE_LAYOUT.place_of(property);
+        if let Some(field) = place.bit_field() {
+            return self.bits.value(field);
+        }
+        match self.write_at(place) {
+            Some(write) => &write.value,
+            None => self.seeded[place.group()].value(place),
+        }
+    }
+
+    /// The values of the longhands held as bits, as written so far.
+    pub(crate) fn bits(&self) -> StyleBits {
+        self.bits
+    }
+
+    /// Whether the value of `property` differs from what the writer was seeded with, the bits
+    /// standing as `seeded_bits`.
+    pub(crate) fn moved_from_seed(&self, property: u16, seeded_bits: StyleBits) -> bool {
+        let property = GROUP_VALUE_LAYOUT.resolved(property, |property| self.value(property));
+        let place = GROUP_VALUE_LAYOUT.place_of(property);
+        if let Some(field) = place.bit_field() {
+            return self.bits.get(field) != seeded_bits.get(field);
+        }
+        self.write_at(place)
+            .is_some_and(|write| write.value != *self.seeded[place.group()].value(place))
+    }
+
+    /// The computed value of `property` written so far, where it has one.
+    pub(crate) fn get(&self, property: u16) -> Option<&RetainedStyleValueData> {
+        Some(self.value(property)).filter(|value| !value.pointer().is_null())
+    }
+
+    /// The value a group build reads for `property`: its recorded currentcolor-dependent specified
+    /// value where the computation did not evaluate it, else its computed value.
+    pub(crate) fn effective_value(&self, property: u16) -> &RetainedStyleValueData {
+        if !self.was_written(property) {
+            let recorded = match &self.inheritance_dependent_values {
+                Some(values) => values
+                    .iter()
+                    .find(|(held, _)| *held == property)
+                    .map(|(_, value)| value),
+                None => self
+                    .seeded_inheritance_dependent_values()
+                    .iter()
+                    .find(|held| held.property == property)
+                    .map(|held| &held.value),
+            };
+            if let Some(recorded) = recorded
+                && crate::css::style_value::retained_value_depends_on_current_color(recorded)
+            {
+                return recorded;
+            }
+        }
+        self.value(property)
+    }
+
+    /// Writes `value` as the computed value of `property`, which the computation evaluated.
+    pub(crate) fn set(&mut self, property: u16, value: RetainedStyleValueData) {
+        self.flags.mark_evaluated(property);
+        self.put(property, std::borrow::Cow::Owned(value));
+    }
+
+    /// Writes `value` as the computed value of `property`, which the computation evaluated,
+    /// holding a reference to it only where it stays as a write.
+    pub(crate) fn set_borrowed(&mut self, property: u16, value: &RetainedStyleValueData) {
+        self.flags.mark_evaluated(property);
+        self.put(property, std::borrow::Cow::Borrowed(value));
+    }
+
+    /// Writes `value` as the computed value of `property`, keeping the value held where it is
+    /// equal, which the computation evaluated.
+    pub(crate) fn set_or_keep_equal(&mut self, property: u16, value: &RetainedStyleValueData) {
+        let held = self.value(property);
+        if held.pointer().is_null() || held != value {
+            self.put(property, std::borrow::Cow::Borrowed(value));
+        }
+        self.flags.mark_evaluated(property);
+    }
+
+    fn put(&mut self, property: u16, value: std::borrow::Cow<'_, RetainedStyleValueData>) {
+        // NB: A logical alias holding no value of its own computes as the physical longhand it
+        //     maps to, which the computation writes.
+        if !GROUP_VALUE_LAYOUT.holds_value(LonghandID::new(property)) {
+            return;
+        }
+        let place = GROUP_VALUE_LAYOUT.place_of(property);
+        if let Some(field) = place.bit_field() {
+            self.bits = self.bits.with_value(field, &value);
+            return;
+        }
+        if let Some(write) = self.writes.iter_mut().find(|write| write.place == place) {
+            write.value = value.into_owned();
+            return;
+        }
+        if self.seeded[place.group()].value(place).pointer() == value.pointer() {
+            return;
+        }
+        self.written_groups |= 1 << place.group();
+        self.writes.push(ValueWrite {
+            place,
+            value: value.into_owned(),
+        });
+    }
+
+    /// Records `value` as the specified value of `property` where its computed value depends on
+    /// what the element inherits, or that it does not depend on it for none.
+    pub(crate) fn set_inheritance_dependent_value(&mut self, property: u16, value: Option<RetainedStyleValueData>) {
+        if self.inheritance_dependent_values.is_none() {
+            let seeded = self.seeded_inheritance_dependent_values();
+            match (seeded.iter().find(|held| held.property == property), &value) {
+                (None, None) => return,
+                (Some(held), Some(value)) if held.value.pointer() == value.pointer() => return,
+                _ => {}
+            }
+            self.inheritance_dependent_values =
+                Some(seeded.iter().map(|held| (held.property, held.value.clone())).collect());
+        }
+        let values = self
+            .inheritance_dependent_values
+            .as_mut()
+            .expect("the seeded values were just copied");
+        let existing = values.iter().position(|(held, _)| *held == property);
+        match (existing, value) {
+            (Some(index), Some(value)) => {
+                if values[index].1.pointer() != value.pointer() {
+                    values[index].1 = value;
+                }
+            }
+            (Some(index), None) => {
+                values.swap_remove(index);
+            }
+            (None, Some(value)) => values.push((property, value)),
+            (None, None) => {}
+        }
+    }
+
+    /// The recorded specified values of the longhands whose computed values depend on what the
+    /// element inherits, each with whether a group build reads it: those of the first of `seeds`
+    /// holding the very same ones, shared, as the parent of an element writing none of them does.
+    fn finished_inheritance_dependent_values(
+        &self,
+        seeds: &[GroupSeed<'_>],
+    ) -> Option<std::sync::Arc<[InheritanceDependentValue]>> {
+        let read_by_groups = |property: u16, value: &RetainedStyleValueData| {
+            !self.was_written(property) && crate::css::style_value::retained_value_depends_on_current_color(value)
+        };
+        let seeded = self.seeded_inheritance_dependent_values();
+        let edited = self.inheritance_dependent_values.as_deref();
+        let length = edited.map_or(seeded.len(), <[_]>::len);
+        if length == 0 {
+            return None;
+        }
+        let entry = |index: usize| match edited {
+            Some(values) => (values[index].0, &values[index].1),
+            None => (seeded[index].property, &seeded[index].value),
+        };
+        let same = |held: &[InheritanceDependentValue]| {
+            held.len() == length
+                && held.iter().enumerate().all(|(index, held)| {
+                    let (property, value) = entry(index);
+                    held.property == property
+                        && held.value.pointer() == value.pointer()
+                        && held.read_by_groups == read_by_groups(property, value)
+                })
+        };
+        if let Some(shared) = seeds
+            .iter()
+            .filter_map(|seed| seed.facts.inheritance_dependent_values.as_ref())
+            .find(|held| same(held))
+        {
+            return Some(shared.clone());
+        }
+        Some(
+            (0..length)
+                .map(|index| {
+                    let (property, value) = entry(index);
+                    InheritanceDependentValue {
+                        property,
+                        value: value.clone(),
+                        read_by_groups: read_by_groups(property, value),
+                    }
+                })
+                .collect(),
+        )
+    }
+
+    pub(crate) fn set_display_before_box_type_transformation(&mut self, display: u32) {
+        self.display_before_box_type_transformation = display;
+    }
+
+    pub(crate) fn effective_color_scheme(&self) -> i16 {
+        self.effective_color_scheme
+    }
+
+    pub(crate) fn set_effective_color_scheme(&mut self, scheme: i16) {
+        self.effective_color_scheme = scheme;
+    }
+
+    pub(crate) fn set_effective_zoom(&mut self, zoom: f32) {
+        self.effective_zoom = zoom;
+    }
+
+    /// Writes `value` as the computed value of `property`, keeping the value held where it is
+    /// equal.
+    pub(crate) fn set_computed(&mut self, property: u16, value: StyleValueData) {
+        if self.value(property).optional_data() == Some(&value) {
+            self.flags.mark_evaluated(property);
+            return;
+        }
+        self.set(property, RetainedStyleValueData::from_owned(value));
+    }
+
+    pub(crate) fn note_viewport_dependency(&mut self) {
+        self.dependency_flags |= crate::css::computed_longhand_table::DEPENDS_ON_VIEWPORT_METRICS;
+    }
+
+    /// Adds `flags` to what the computed values depend on.
+    pub(crate) fn merge_dependency_flags(&mut self, flags: u8) {
+        self.dependency_flags |= flags;
+    }
+
+    /// Records whether an author declaration disables the element's native appearance.
+    pub(crate) fn set_native_appearance_disabled(&mut self, disabled: bool) {
+        use crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED;
+        if disabled {
+            self.dependency_flags |= NATIVE_APPEARANCE_DISABLED;
+        } else {
+            self.dependency_flags &= !NATIVE_APPEARANCE_DISABLED;
+        }
+    }
+
+    pub(crate) fn flags_mut(&mut self) -> &mut crate::css::computed_longhand_table::LonghandTableFlags {
+        &mut self.flags
+    }
+
+    pub(crate) fn set_overflow_before_adjustment(&mut self, overflow: [u16; 2]) {
+        self.flags.set_overflow_before_adjustment(overflow);
+    }
+
+    /// Records that the computed value of `property` is no longer important or inherited.
+    pub(crate) fn clear_flags(&mut self, property: u16) {
+        self.flags.set_important(property, false);
+        self.flags.set_inherited(property, false);
+    }
+
+    /// The values written, sharing each group of `seeds` that holds the same values. A group build
+    /// reads the recorded currentcolor-dependent specified value of a longhand the computation
+    /// did not write in place of its computed value. Also answers the flags and dependency flags
+    /// the computation settled beside the values.
+    pub(crate) fn finish(
+        self,
+        seeds: &[GroupSeed<'a>],
+    ) -> (
+        GroupValues<'a>,
+        crate::css::computed_longhand_table::LonghandTableFlags,
+        u8,
+    ) {
+        let inheritance_dependent_values = self.finished_inheritance_dependent_values(seeds);
+        let Self {
+            seeded,
+            writes,
+            written_groups,
+            bits,
+            effective_zoom,
+            display_before_box_type_transformation,
+            effective_color_scheme,
+            flags,
+            dependency_flags,
+            ..
+        } = self;
+        let mut seeded = seeded.map(Some);
+        let groups = std::array::from_fn(|group| {
+            let mut seeded = seeded[group].take().expect("each group is finished once");
+            if written_groups & (1 << group) == 0 {
+                return seeded;
+            }
+            let handle_writes: smallvec::SmallVec<[&ValueWrite; WRITES_INLINE]> = writes
+                .iter()
+                .filter(|write| write.place.group() == group && write.place.handle_offset().is_some())
+                .filter(|write| {
+                    let held = seeded.value(write.place);
+                    held.pointer() != write.value.pointer() && *held != write.value
+                })
+                .collect();
+            let base = seeded.values();
+            let group_writes: smallvec::SmallVec<[(usize, &RetainedStyleValueData); WRITES_INLINE]> = writes
+                .iter()
+                .filter(|write| write.place.group() == group && write.place.handle_offset().is_none())
+                .map(|write| (write.place.index(), &write.value))
+                .filter(|&(at, value)| base[at].pointer() != value.pointer() && base[at] != *value)
+                .collect();
+            if group_writes.is_empty() && handle_writes.is_empty() {
+                return seeded;
+            }
+            // NB: A group of the element's own takes the writes in place.
+            if let DraftValues::Own(own) = &mut seeded
+                && let Some(values) = own.values_mut()
+            {
+                for (at, value) in group_writes {
+                    values[at] = value.clone();
+                }
+                for write in handle_writes {
+                    own.set_handle(write.place, &write.value);
+                }
+                return seeded;
+            }
+            let base = seeded.values();
+            let written_value = |at: usize| {
+                group_writes
+                    .iter()
+                    .find(|&&(written, _)| written == at)
+                    .map_or(&base[at], |&(_, value)| value)
+            };
+            // SAFETY: The seeded group is live while the draft is.
+            let base_group = unsafe { GroupPayloadRef::new(group, seeded.group()) }.expect("a draft has a group");
+            if handle_writes.is_empty() {
+                return DraftValues::shared_or_own(seeds, base_group, (0..base.len()).map(written_value));
+            }
+            // NB: A write to a payload handle gives the element a group of its own.
+            let mut own = HeldGroup::new_copy(base_group, (0..base.len()).map(written_value));
+            for write in handle_writes {
+                own.set_handle(write.place, &write.value);
+            }
+            DraftValues::Own(own)
+        });
+        let native_appearance_disabled =
+            dependency_flags & crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED != 0;
+        let values = GroupValues {
+            groups,
+            bits,
+            facts: GroupValueFacts {
+                inheritance_dependent_values,
+                effective_zoom,
+                display_before_box_type_transformation,
+                effective_color_scheme,
+                native_appearance_disabled,
+            },
+        };
+        (values, flags, dependency_flags)
+    }
+}
+
 /// One gathered value for the generic group builder: the computed value's
 /// data, plus the resolved raw color for color-kind fields.
 pub(crate) struct GroupValueEntry<'a> {
@@ -2573,6 +5357,7 @@ enum GroupFieldPoke<'a> {
     I32(usize, i32),
     U64(usize, u64),
     U32(usize, u32),
+    HeldColor(usize, crate::css::computed_value_types::StyleColor),
     Data(usize, &'a RetainedStyleValueData),
 }
 
@@ -2664,14 +5449,19 @@ fn decode_group_field_pokes<'a>(
                 // Otherwise a color the generic decoder cannot resolve stays at the payload
                 // default; the Rust group builder owns the field.
             }
-            Kind::ColorOrKeyword(keyword) => match data {
-                StyleValueData::Keyword { keyword: value_keyword } if *value_keyword == keyword => {}
-                _ if value.has_resolved_color => pokes.push(Poke::U32(offset, value.resolved_color)),
-                // As for Color, the Rust group builder owns colors the generic decoder cannot
-                // resolve.
-                _ if enforce_constraints => return None,
-                _ => {}
-            },
+            Kind::HeldColorOrKeyword(keyword) if matches!(data, StyleValueData::Keyword { keyword: value_keyword } if *value_keyword == keyword) =>
+                {}
+            Kind::HeldColor | Kind::HeldColorOrKeyword(_) => {
+                use crate::css::computed_value_types::StyleColor;
+                if matches!(data, StyleValueData::Keyword { keyword } if *keyword == crate::css::css_enums::keyword::CURRENTCOLOR)
+                {
+                    pokes.push(Poke::HeldColor(offset, StyleColor::CURRENT_COLOR));
+                } else if value.has_resolved_color {
+                    pokes.push(Poke::HeldColor(offset, StyleColor::rgba(value.resolved_color)));
+                } else if enforce_constraints {
+                    return None;
+                }
+            }
             Kind::ResolvedF32 => pokes.push(Poke::F32(offset, resolved_number()? as f32)),
             Kind::ResolvedF64 => pokes.push(Poke::F64(offset, resolved_number()?)),
             Kind::ResolvedU8 => pokes.push(Poke::U8(offset, resolved_number()? as u8)),
@@ -2730,6 +5520,9 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
                 Poke::I32(offset, value) => *(base.add(offset) as *mut i32) = value,
                 Poke::U64(offset, value) => *(base.add(offset) as *mut u64) = value,
                 Poke::U32(offset, value) => *(base.add(offset) as *mut u32) = value,
+                Poke::HeldColor(offset, value) => {
+                    *(base.add(offset) as *mut crate::css::computed_value_types::StyleColor) = value;
+                }
                 Poke::Data(offset, data) => {
                     // The slot's constructor default is null, so nothing is released.
                     *(base.add(offset) as *mut *const StyleValueData) = data.clone().into_pointer();
@@ -2745,11 +5538,7 @@ unsafe fn apply_group_field_pokes(scratch: *mut c_void, pokes: &[GroupFieldPoke]
 /// `scratch` must be a payload of the group, allocated by
 /// `allocate_payload` and not shared.
 unsafe fn free_scratch_payload(group: StyleGroup, scratch: *mut c_void) {
-    unsafe {
-        destruct(group, scratch);
-        let allocation = (scratch as *mut u8).sub(header_size(payload_align(group)));
-        dealloc(allocation, allocation_layout(group));
-    }
+    unsafe { destroy_allocation(group, scratch) }
 }
 
 /// Builds a style group payload generically from its registered field
@@ -2760,7 +5549,7 @@ unsafe fn free_scratch_payload(group: StyleGroup, scratch: *mut c_void) {
 pub(crate) fn build_style_group(
     group_index: usize,
     values: &[GroupValueEntry<'_>],
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     let build_or_reuse_group_payload = || {
         let descriptors = group_field_descriptors(group_index);
@@ -2783,12 +5572,11 @@ pub(crate) fn build_style_group(
     build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
 
-/// Shares one group's immortal default payload - or the parent payload when
+/// Shares one group's default payload - or the parent payload when
 /// it equals the default, keeping the identity - for a build whose inputs are
 /// all initial values.
-pub(crate) fn share_default_group_payload(group_index: usize, parent: Option<GroupPayloadRef<'_>>) -> *const c_void {
-    let default_payload = GroupPayloadRef::default_payload(group_index);
-    share_matching_group_payload(group_index, parent, |candidate| candidate.equals(default_payload))
+pub(crate) fn share_default_group_payload(group_index: usize, shares: GroupShares<'_>) -> *const c_void {
+    share_matching_group_payload(group_index, shares, |candidate| candidate.equals(shares.default))
         .expect("the default payload equals itself")
 }
 
@@ -2798,7 +5586,7 @@ pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
     group_index: usize,
     values: &[GroupValueEntry<'_>],
     fill: impl FnOnce(&mut T),
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     let descriptors = group_field_descriptors(group_index);
     assert_eq!(descriptors.len(), values.len());
@@ -2809,51 +5597,6 @@ pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
     scratch.apply_pokes(&pokes);
     fill(scratch.values_mut::<T>());
     share_equal_group_payload(scratch.as_ref(), parent).unwrap_or_else(|| scratch.publish())
-}
-
-/// Builds an inherited box group payload from the six computed keyword
-/// values, sharing instead of allocating whenever it can: the parent's
-/// payload when every field matches it, or the immortal default payload when
-/// every field holds its initial value. Every input is a canonical computed
-/// keyword.
-///
-/// The returned payload carries one reference for the caller; fresh payloads
-/// start at one, shared payloads are retained, and default payloads are
-/// intentionally leaked and never counted.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn build_inherited_box_group(
-    group_index: usize,
-    visibility: &RetainedStyleValueData,
-    direction: &RetainedStyleValueData,
-    writing_mode: &RetainedStyleValueData,
-    content_visibility: &RetainedStyleValueData,
-    image_rendering: &RetainedStyleValueData,
-    text_orientation: &RetainedStyleValueData,
-    effective_zoom: f32,
-    parent: Option<GroupPayloadRef<'_>>,
-) -> *const c_void {
-    use crate::css::style_value::StyleValueData;
-
-    let keyword_code = |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>| -> u8 {
-        match data.optional_data() {
-            Some(StyleValueData::Keyword { keyword }) => map(*keyword).expect("computed keyword has a supported value"),
-            _ => panic!("computed inherited box value is not a keyword"),
-        }
-    };
-    let built = InheritedBoxValues {
-        visibility: keyword_code(visibility, crate::css::style_compute::keyword_to_visibility),
-        direction: keyword_code(direction, crate::css::style_compute::keyword_to_direction),
-        writing_mode: keyword_code(writing_mode, crate::css::style_compute::keyword_to_writing_mode),
-        content_visibility: keyword_code(
-            content_visibility,
-            crate::css::style_compute::keyword_to_content_visibility,
-        ),
-        image_rendering: keyword_code(image_rendering, crate::css::style_compute::keyword_to_image_rendering),
-        text_orientation: keyword_code(text_orientation, crate::css::style_compute::keyword_to_text_orientation),
-        effective_zoom_bits: effective_zoom.to_bits(),
-    };
-
-    share_or_publish_group_payload::<InheritedBoxValues>(group_index, built, parent)
 }
 
 impl ComputedSize {
@@ -2912,7 +5655,10 @@ impl ComputedSize {
                 };
                 Self::retained(kind, data)
             }
-            Some(StyleValueData::Function { value, .. }) => Self::retained(ComputedSizeKind::FitContent, value),
+            Some(StyleValueData::Function(function_payload)) => {
+                let FunctionPayload { value, .. } = &**function_payload;
+                Self::retained(ComputedSizeKind::FitContent, value)
+            }
             Some(StyleValueData::Calculated { .. }) => Self::retained(ComputedSizeKind::Calculated, data),
             Some(StyleValueData::Percentage { .. }) => Self::retained(ComputedSizeKind::Percentage, data),
             Some(StyleValueData::Length { .. }) => Self::retained(ComputedSizeKind::Length, data),
@@ -3035,7 +5781,7 @@ fn anchor_function_calculated_handle(data: &RetainedStyleValueData) -> ComputedS
     // SAFETY: The caller matched `data` as live anchor() or anchor-size() style value data.
     let calculated = unsafe { crate::css::calc::create_anchor_function_calculated(data.pointer().cast()) };
     ComputedStyleValueHandle {
-        pointer: std::sync::Arc::into_raw(calculated).cast(),
+        pointer: StyleValueArc::into_raw(calculated).cast(),
     }
 }
 
@@ -3172,27 +5918,16 @@ impl ComputedAspectRatio {
 
 impl BoxValues {
     fn initial() -> Self {
-        use crate::css::css_enums::{
-            baseline_source, box_sizing, clear, field_sizing, float, overflow, positioning, resize, table_layout,
-            text_overflow, unicode_bidi, vertical_align,
-        };
+        use crate::css::css_enums::{baseline_source, field_sizing, resize, text_overflow, vertical_align};
         use crate::css::display::FfiDisplay;
 
         Self {
             display: FfiDisplay::inline(),
             display_before_box_type_transformation: FfiDisplay::inline(),
-            float_: float::NONE,
-            clear: clear::NONE,
-            position: positioning::STATIC,
-            overflow_x: overflow::VISIBLE,
-            overflow_y: overflow::VISIBLE,
-            box_sizing: box_sizing::CONTENT_BOX,
             field_sizing: field_sizing::FIXED,
             baseline_source: baseline_source::AUTO,
             resize: resize::NONE,
             text_overflow: text_overflow::CLIP,
-            unicode_bidi: unicode_bidi::NORMAL,
-            table_layout: table_layout::AUTO,
             grid_auto_flow_row: true,
             grid_auto_flow_dense: false,
             column_width: ComputedSize::keyword(ComputedSizeKind::Auto),
@@ -3245,9 +5980,9 @@ impl SVGResetValues {
             },
             x: zero.clone(),
             y: zero,
-            stop_color: OPAQUE_BLACK_BGRA,
+            stop_color: crate::css::computed_value_types::StyleColor::rgba(OPAQUE_BLACK_BGRA),
             stop_opacity: 1.0,
-            flood_color: OPAQUE_BLACK_BGRA,
+            flood_color: crate::css::computed_value_types::StyleColor::rgba(OPAQUE_BLACK_BGRA),
             flood_opacity: 1.0,
             vector_effect: vector_effect::NONE,
         }
@@ -3264,7 +5999,7 @@ impl TextResetValues {
             text_decoration_thickness: ComputedStyleValueHandle::empty(),
             text_decoration_style: keyword_to_text_decoration_style(keyword::SOLID)
                 .expect("solid maps to TextDecorationStyle"),
-            text_decoration_color: 0xff00_0000,
+            text_decoration_color: crate::css::computed_value_types::StyleColor::CURRENT_COLOR,
             white_space_trim_discard_before: false,
             white_space_trim_discard_after: false,
             white_space_trim_discard_inner: false,
@@ -3374,20 +6109,17 @@ impl InheritedUIValues {
         Self {
             caret_color: ComputedColorOrAuto {
                 is_auto: true,
-                computed_color: 0xff00_0000,
-                used_color: 0xff00_0000,
+                color: crate::css::computed_value_types::StyleColor::CURRENT_COLOR,
             },
             accent_color: ComputedColorOrAuto {
                 is_auto: true,
-                computed_color: 0xff00_0000,
-                used_color: 0xff00_0000,
+                color: crate::css::computed_value_types::StyleColor::rgba(0xff00_0000),
             },
             cursor: RetainedComputedCursorList::from_vec(vec![ComputedCursor {
                 is_cursor_value: false,
                 cursor: ComputedStyleValueHandle::empty(),
                 predefined: crate::css::css_enums::cursor_predefined::AUTO,
             }]),
-            pointer_events: crate::css::css_enums::pointer_events::AUTO,
             forced_color_adjust: crate::css::css_enums::forced_color_adjust::AUTO,
             interpolate_size: crate::css::css_enums::interpolate_size::NUMERIC_ONLY,
             scrollbar_color: crate::css::computed_value_types::ComputedScrollbarColor {
@@ -3397,6 +6129,7 @@ impl InheritedUIValues {
             },
             color_scheme: 0,
             color_schemes: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            image_rendering: crate::css::css_enums::image_rendering::AUTO,
             color_scheme_only: false,
         }
     }
@@ -3408,8 +6141,7 @@ impl InheritedSVGValues {
             kind,
             url: ComputedStyleValueHandle::empty(),
             has_color: kind == crate::css::computed_value_types::SVG_PAINT_COLOR,
-            color,
-            color_is_currentcolor: false,
+            color: crate::css::computed_value_types::StyleColor::rgba(color),
         }
     }
 
@@ -3457,11 +6189,7 @@ impl InheritedTextValues {
 
         let enum_value = |value: Option<u8>| value.expect("an initial inherited-text keyword maps to its enum");
         Self {
-            text_align: enum_value(css_enums::keyword_to_text_align(css_enums::keyword::START)),
             text_justify: enum_value(css_enums::keyword_to_text_justify(css_enums::keyword::AUTO)),
-            white_space_collapse: enum_value(css_enums::keyword_to_white_space_collapse(css_enums::keyword::COLLAPSE)),
-            text_wrap_mode: enum_value(css_enums::keyword_to_text_wrap_mode(css_enums::keyword::WRAP)),
-            word_break: enum_value(css_enums::keyword_to_word_break(css_enums::keyword::NORMAL)),
             line_break: enum_value(css_enums::keyword_to_line_break(css_enums::keyword::AUTO)),
             tab_size_is_number: true,
             letter_spacing: CssPixels::default(),
@@ -3569,7 +6297,7 @@ impl BackgroundValues {
             ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
         };
         Self {
-            background_color: 0,
+            background_color: crate::css::computed_value_types::StyleColor::rgba(0),
             background_color_style_value: initial(property_id::BACKGROUND_COLOR),
             // BackgroundBox::BorderBox.
             background_color_clip: 0,
@@ -3596,7 +6324,7 @@ impl BorderValues {
             ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
         };
         let side = || ComputedBorderSide {
-            color: 0,
+            color: crate::css::computed_value_types::StyleColor::rgba(0),
             line_style: 0,
             width: CssPixels::default(),
         };
@@ -3653,9 +6381,10 @@ impl ContentValues {
 
         let mut facts = 0;
         for counters in [&self.counter_increment, &self.counter_reset, &self.counter_set] {
-            let Some(StyleValueData::CounterDefinitions { counter_definitions }) = counters.data() else {
+            let Some(StyleValueData::CounterDefinitions(counter_definitions_payload)) = counters.data() else {
                 continue;
             };
+            let CounterDefinitionsPayload { counter_definitions } = &**counter_definitions_payload;
             let definitions = counter_definitions.as_slice();
             if !definitions.is_empty() {
                 facts |= GENERATED_CONTENT_DEFINES_COUNTERS;
@@ -3667,9 +6396,10 @@ impl ContentValues {
                 facts |= GENERATED_CONTENT_DEFINES_LIST_ITEM_COUNTER;
             }
         }
-        let Some(StyleValueData::Content { content, alt_text }) = self.content.data() else {
+        let Some(StyleValueData::Content(content_payload)) = self.content.data() else {
             return facts;
         };
+        let ContentPayload { content, alt_text } = &**content_payload;
         fn items(
             list: &crate::css::style_value::RetainedStyleValueData,
         ) -> &[crate::css::style_value::RetainedStyleValueData] {
@@ -3689,7 +6419,7 @@ impl ContentValues {
             }
         }
         if items(content).iter().chain(items(alt_text)).any(|item| {
-            matches!(item.data(), StyleValueData::Counter { counter_name, .. } if counter_name.units() == LIST_ITEM_COUNTER_NAME)
+            matches!(item.data(), StyleValueData::Counter(counter) if counter.counter_name.units() == LIST_ITEM_COUNTER_NAME)
         }) {
             facts |= GENERATED_CONTENT_SHOWS_LIST_ITEM_COUNTER;
         }
@@ -3711,7 +6441,7 @@ pub extern "C" fn rust_content_group_generated_content_facts(content: &ContentVa
     content.generated_content_facts()
 }
 
-impl InheritedListValues {
+impl InheritedListTableValues {
     fn initial() -> Self {
         use crate::css::property_metadata::property_id;
 
@@ -3720,9 +6450,10 @@ impl InheritedListValues {
         };
         Self {
             list_style_type: initial(property_id::LIST_STYLE_TYPE),
-            list_style_position: 1,
             list_style_image: initial(property_id::LIST_STYLE_IMAGE),
             quotes: initial(property_id::QUOTES),
+            border_spacing_horizontal: 0,
+            border_spacing_vertical: 0,
         }
     }
 }
@@ -3748,7 +6479,7 @@ impl ComputedOverflowClipMargin {
     }
 }
 
-impl MiscResetValues {
+impl MiscLayoutValues {
     fn initial() -> Self {
         use crate::css::css_pixels::CssPixels;
         use crate::css::property_metadata::property_id;
@@ -3758,8 +6489,6 @@ impl MiscResetValues {
         };
         Self {
             outline_offset_style_value: initial(property_id::OUTLINE_OFFSET),
-            scroll_margin: ComputedLengthBox::zero(),
-            scroll_padding: ComputedLengthBox::auto(),
             overflow_clip_margin: ComputedOverflowClipMargin::initial(),
             column_span: 0,
             break_before: crate::css::css_enums::break_between::AUTO,
@@ -3774,14 +6503,32 @@ impl MiscResetValues {
             outline_style: 1,
             object_fit: 0,
             column_height: ComputedSize::keyword(ComputedSizeKind::Auto),
-            outline_color: 0xff000000,
+            outline_color: crate::css::computed_value_types::StyleColor::CURRENT_COLOR,
             outline_width: CssPixels::from_integer(3),
-            column_rule_color: 0xff000000,
+            column_rule_color: crate::css::computed_value_types::StyleColor::CURRENT_COLOR,
             column_rule_width: CssPixels::from_integer(3),
             outline_offset: CssPixels::from_raw(0),
-            user_select: 1,
             object_position_x: ComputedStyleValueHandle::percentage(50.0),
             object_position_y: ComputedStyleValueHandle::percentage(50.0),
+            shape_image_threshold: 0.0,
+            shape_margin: initial(property_id::SHAPE_MARGIN),
+            shape_outside: initial(property_id::SHAPE_OUTSIDE),
+            content_visibility: crate::css::css_enums::content_visibility::VISIBLE,
+        }
+    }
+}
+
+impl MiscInteractionValues {
+    fn initial() -> Self {
+        use crate::css::property_metadata::property_id;
+
+        let initial = |property| {
+            ComputedStyleValueHandle::from_retained(crate::css::style_compute::initial_value_handle(property))
+        };
+        Self {
+            scroll_margin: ComputedLengthBox::zero(),
+            scroll_padding: ComputedLengthBox::auto(),
+            user_select: 1,
             view_transition_name: initial(property_id::VIEW_TRANSITION_NAME),
             scroll_behavior: 0,
             scroll_snap_align_block: crate::css::css_enums::scroll_snap_align::NONE,
@@ -3793,9 +6540,6 @@ impl MiscResetValues {
             scrollbar_width: 0,
             overscroll_behavior_x: crate::css::css_enums::overscroll_behavior::AUTO,
             overscroll_behavior_y: crate::css::css_enums::overscroll_behavior::AUTO,
-            shape_image_threshold: 0.0,
-            shape_margin: initial(property_id::SHAPE_MARGIN),
-            shape_outside: initial(property_id::SHAPE_OUTSIDE),
             will_change: initial(property_id::WILL_CHANGE),
             implicit_will_change: RetainedWillChangePropertyList::from_vec(Vec::new()),
         }
@@ -3812,13 +6556,13 @@ impl FontValues {
         };
         Self {
             font_size: CssPixels::from_integer(16),
-            line_height_used: CssPixels::from_raw(0),
+            resolved_line_height_used: CssPixels::from_raw(0),
             font_variant_emoji: 0,
-            font_ascent: 0.0,
-            font_descent: 0.0,
-            font_x_height: 0.0,
-            font_zero_advance: 0.0,
-            first_available_font: std::ptr::null(),
+            resolved_font_ascent: 0.0,
+            resolved_font_descent: 0.0,
+            resolved_font_x_height: 0.0,
+            resolved_font_zero_advance: 0.0,
+            resolved_first_available_font: std::ptr::null(),
             font_cascade_list: libgfx_rust::font::FontCascadeListHandle::null(),
             frozen_font_list: libgfx_rust::font::FrozenFontListRef::null(),
             font_weight: 400.0,
@@ -3907,8 +6651,7 @@ fn alignment_overflow(data: &RetainedStyleValueData) -> u8 {
 /// Builds the complete alignment group from its computed property values.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
-/// start at one, shared payloads are retained, and default payloads are
-/// intentionally leaked and never counted.
+/// start at one, and shared payloads are retained.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn rust_build_alignment_group(
     group_index: usize,
@@ -3927,7 +6670,7 @@ pub(crate) fn rust_build_alignment_group(
     justify_self: &RetainedStyleValueData,
     column_gap: &RetainedStyleValueData,
     row_gap: &RetainedStyleValueData,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     use crate::css::css_enums;
     use crate::css::style_value::StyleValueData;
@@ -3980,12 +6723,11 @@ pub(crate) fn rust_build_alignment_group(
 /// Interns a complete non-inherited SVG geometry and painting group.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
-/// start at one, shared payloads are retained, and default payloads are
-/// intentionally leaked and never counted.
+/// start at one, and shared payloads are retained.
 pub(crate) fn build_svg_reset_group_payload(
     group_index: usize,
     built: SVGResetValues,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     abort_on_panic(|| share_or_publish_group_payload::<SVGResetValues>(group_index, built, parent))
 }
@@ -3998,11 +6740,11 @@ pub(crate) fn rust_build_text_reset_group(
     text_decoration_thickness_kind: u8,
     text_decoration_thickness: &RetainedStyleValueData,
     text_decoration_style: u8,
-    text_decoration_color: u32,
+    text_decoration_color: crate::css::computed_value_types::StyleColor,
     white_space_trim_discard_before: bool,
     white_space_trim_discard_after: bool,
     white_space_trim_discard_inner: bool,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     let built = TextResetValues {
         text_decoration_lines: RetainedTextDecorationLineList::from_vec(lines.to_vec()),
@@ -4042,7 +6784,7 @@ pub(crate) fn rust_build_surround_group(
     padding_bottom: &RetainedStyleValueData,
     padding_left: &RetainedStyleValueData,
     position_anchor: Option<&RetainedStyleValueData>,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     use crate::css::style_value::StyleValueData;
 
@@ -4086,7 +6828,7 @@ pub(crate) fn rust_build_surround_group(
             // SAFETY: The handle retains anchor style value data.
             let calculated = unsafe { crate::css::calc::create_anchor_function_calculated(handle.pointer.cast()) };
             ComputedStyleValueHandle {
-                pointer: std::sync::Arc::into_raw(calculated).cast(),
+                pointer: StyleValueArc::into_raw(calculated).cast(),
             }
         };
         built.top_anchor_inset_wrapper = wrapper(&built.top_anchor_inset);
@@ -4106,23 +6848,14 @@ pub(crate) fn rust_build_surround_group(
 /// every outcome.
 ///
 /// The returned payload carries one reference for the caller; fresh payloads
-/// start at one, shared payloads are retained, and default payloads are
-/// intentionally leaked and never counted.
+/// start at one, and shared payloads are retained.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn rust_build_box_group(
-    group_index: usize,
-    built: BoxValues,
-    parent: Option<GroupPayloadRef<'_>>,
-) -> *const c_void {
+pub(crate) fn rust_build_box_group(group_index: usize, built: BoxValues, parent: GroupShares<'_>) -> *const c_void {
     share_or_publish_group_payload::<BoxValues>(group_index, built, parent)
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn rust_build_grid_group(
-    group_index: usize,
-    built: GridValues,
-    parent: Option<GroupPayloadRef<'_>>,
-) -> *const c_void {
+pub(crate) fn rust_build_grid_group(group_index: usize, built: GridValues, parent: GroupShares<'_>) -> *const c_void {
     share_or_publish_group_payload::<GridValues>(group_index, built, parent)
 }
 
@@ -4168,7 +6901,7 @@ pub(crate) fn build_sizing_group(
     height: &RetainedStyleValueData,
     min_height: &RetainedStyleValueData,
     max_height: &RetainedStyleValueData,
-    parent: Option<GroupPayloadRef<'_>>,
+    parent: GroupShares<'_>,
 ) -> *const c_void {
     let built = SizingValues {
         width: ComputedSize::from_data(width),
@@ -4180,99 +6913,6 @@ pub(crate) fn build_sizing_group(
     };
 
     share_or_publish_group_payload::<SizingValues>(group_index, built, parent)
-}
-
-/// Builds an inherited table group payload from the computed values, with the
-/// same sharing rules as the inherited box builder. Computed border-spacing
-/// is a pair of absolute pixel lengths.
-pub(crate) fn build_inherited_table_group(
-    group_index: usize,
-    border_collapse: &RetainedStyleValueData,
-    caption_side: &RetainedStyleValueData,
-    empty_cells: &RetainedStyleValueData,
-    border_spacing: &RetainedStyleValueData,
-    parent: Option<GroupPayloadRef<'_>>,
-) -> *const c_void {
-    use crate::css::style_value::StyleValueData;
-
-    let keyword_code = |data: &RetainedStyleValueData, map: fn(u16) -> Option<u8>| -> u8 {
-        match data.optional_data() {
-            Some(StyleValueData::Keyword { keyword }) => map(*keyword).expect("computed keyword has a supported value"),
-            _ => panic!("computed inherited table value is not a keyword"),
-        }
-    };
-    let spacing_component = |data: &StyleValueData| -> i32 {
-        match data {
-            StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
-                crate::css::css_pixels::CssPixels::nearest_value_for(*value).raw_value()
-            }
-            _ => panic!("computed border-spacing component is not an absolute pixel length"),
-        }
-    };
-    let components = match border_spacing.optional_data() {
-        Some(StyleValueData::ValueList { values, .. }) if values.as_slice().len() == 2 => values.as_slice(),
-        _ => panic!("computed border-spacing is not a pair"),
-    };
-    let built = InheritedTableValues {
-        border_collapse: keyword_code(border_collapse, crate::css::style_compute::keyword_to_border_collapse),
-        caption_side: keyword_code(caption_side, crate::css::style_compute::keyword_to_caption_side),
-        empty_cells: keyword_code(empty_cells, crate::css::style_compute::keyword_to_empty_cells),
-        border_spacing_horizontal: spacing_component(components[0].data()),
-        border_spacing_vertical: spacing_component(components[1].data()),
-    };
-
-    share_or_publish_group_payload::<InheritedTableValues>(group_index, built, parent)
-}
-
-/// Layout of the inherited table style value group.
-///
-/// The enum fields follow the opaque-byte convention; the border spacings are
-/// raw CSSPixels fixed-point values.
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct InheritedTableValues {
-    pub border_collapse: u8,
-    pub caption_side: u8,
-    pub empty_cells: u8,
-    pub border_spacing_horizontal: i32,
-    pub border_spacing_vertical: i32,
-}
-
-impl InheritedTableValues {
-    fn initial() -> Self {
-        use crate::css::css_enums::{border_collapse, caption_side, empty_cells};
-
-        Self {
-            border_collapse: border_collapse::SEPARATE,
-            caption_side: caption_side::TOP,
-            empty_cells: empty_cells::SHOW,
-            border_spacing_horizontal: 0,
-            border_spacing_vertical: 0,
-        }
-    }
-}
-
-impl InheritedBoxValues {
-    fn initial() -> Self {
-        use crate::css::css_enums::{
-            content_visibility, direction, image_rendering, text_orientation, visibility, writing_mode,
-        };
-
-        Self {
-            visibility: visibility::VISIBLE,
-            direction: direction::LTR,
-            writing_mode: writing_mode::HORIZONTAL_TB,
-            content_visibility: content_visibility::VISIBLE,
-            image_rendering: image_rendering::AUTO,
-            text_orientation: text_orientation::MIXED,
-            effective_zoom_bits: 1.0f32.to_bits(),
-        }
-    }
-
-    /// https://drafts.csswg.org/css-viewport/#effective-zoom
-    pub(crate) fn effective_zoom(&self) -> f32 {
-        f32::from_bits(self.effective_zoom_bits)
-    }
 }
 
 #[cfg(test)]
@@ -4297,43 +6937,202 @@ mod tests {
     }
 
     #[test]
+    fn every_longhand_has_one_place_among_the_group_values() {
+        use crate::css::computed_longhand_table::LONGHAND_COUNT;
+        use crate::css::property_metadata::property_id;
+
+        let layout = GroupValueLayout::get();
+        let mut held = 0;
+        for group in 0..group_index::COUNT {
+            for (index, &property) in layout.longhands_of(group).iter().enumerate() {
+                let place = layout.place(LonghandID::new(property));
+                assert_eq!((place.group(), place.index()), (group, index));
+                assert!(GroupValueLayout::reads(layout.reads_of(group), place));
+                held += 1;
+            }
+            for (_, place) in GroupValueLayout::handles_of(group) {
+                assert_eq!(place.group(), group);
+                assert!(GroupValueLayout::reads(layout.reads_of(group), place));
+                held += 1;
+            }
+        }
+        let slotless = (crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+            ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+            .filter(|&property| !layout.holds_value(LonghandID::new(property)))
+            .count();
+        assert!(slotless > 0);
+        let bits = StyleBitField::ALL
+            .iter()
+            .filter(|field| layout.place(LonghandID::new(field.property())).bit_field() == Some(**field))
+            .count();
+        assert_eq!(bits, StyleBitField::ALL.len());
+        assert_eq!(held + slotless + bits, LONGHAND_COUNT);
+        assert_eq!(
+            layout.place(LonghandID::new(property_id::WIDTH)).group(),
+            group_index::SIZING
+        );
+        assert_eq!(
+            layout.place(LonghandID::new(property_id::ZOOM)).group(),
+            group_index::BOX
+        );
+    }
+
+    #[test]
+    fn group_values_share_the_seed_groups_holding_the_same_values() {
+        use crate::css::computed_longhand_table::LonghandTableFlags;
+        use crate::css::property_metadata::property_id;
+
+        let number = |value| RetainedStyleValueData::from_owned(StyleValueData::Number { value });
+        let (color, initial_width) = (number(1.0), number(2.0));
+        let defaults = DefaultGroups::default();
+        let mut initial_groups: [*const c_void; group_index::COUNT] = std::array::from_fn(|group| {
+            // SAFETY: The default payload is a live payload of its group.
+            unsafe { clone_group_payload(group, defaults.groups()[group].as_ptr()) }.cast_const()
+        });
+        let initial_facts = with_default_seed(&defaults, |nothing| {
+            let mut writer = GroupValuesWriter::seeded_for_child(
+                nothing,
+                nothing,
+                std::iter::empty(),
+                LonghandTableFlags::empty(),
+                0,
+            );
+            writer.set(property_id::COLOR, color.clone());
+            writer.set(property_id::WIDTH, initial_width.clone());
+            let (initial_values, ..) = writer.finish(&[]);
+            // SAFETY: Each group holds one reference to a fresh payload of its group.
+            unsafe { initial_values.put_into(&mut initial_groups) };
+            initial_values.into_facts()
+        });
+        // SAFETY: The groups stay live until the end of the test.
+        let initial_style_groups = unsafe { StyleGroups::retained(&initial_groups, StyleBits::INITIAL) };
+        let seed = GroupSeed::new(&initial_style_groups, &initial_facts);
+        let sizing = group_index::SIZING;
+
+        // Only the group whose values the element changes holds its own.
+        let width = number(3.0);
+        let mut writer =
+            GroupValuesWriter::seeded_for_child(seed, seed, std::iter::empty(), LonghandTableFlags::empty(), 0);
+        writer.set(property_id::COLOR, color.clone());
+        writer.set(property_id::WIDTH, width.clone());
+        let (values, ..) = writer.finish(&[seed]);
+        for group in 0..group_index::COUNT {
+            assert_eq!(values.groups[group].seed().is_some(), group != sizing);
+        }
+        assert_eq!(values.value(property_id::WIDTH).pointer(), width.pointer());
+
+        // A writer writing the same value holds the same values, and one writing the seed's value
+        // back shares the seed's group again.
+        let mut writer = GroupValuesWriter::seeded_for_child(
+            seed,
+            seed,
+            std::iter::empty(),
+            crate::css::computed_longhand_table::LonghandTableFlags::empty(),
+            0,
+        );
+        writer.set(property_id::WIDTH, width.clone());
+        let (written, ..) = writer.finish(&[seed]);
+        assert!(written.groups[sizing].seed().is_none());
+        assert_eq!(written.value(property_id::WIDTH).pointer(), width.pointer());
+        let mut writer = GroupValuesWriter::seeded_for_child(
+            seed,
+            seed,
+            std::iter::empty(),
+            crate::css::computed_longhand_table::LonghandTableFlags::empty(),
+            0,
+        );
+        writer.set(property_id::WIDTH, number(7.0));
+        writer.set(property_id::WIDTH, initial_width.clone());
+        let (restored, ..) = writer.finish(&[seed]);
+        assert_eq!(restored.groups[sizing].seed(), Some(initial_groups[sizing]));
+
+        for (group, payload) in initial_groups.into_iter().enumerate() {
+            release_group_payload(group, payload);
+        }
+    }
+
+    #[test]
+    fn computed_groups_release_what_no_style_adopted() {
+        let defaults = DefaultGroups::default();
+        let references = |pointers: &[*const c_void; group_index::COUNT]| -> Vec<usize> {
+            pointers
+                .iter()
+                .enumerate()
+                .map(|(group, &pointer)| {
+                    refcount_of(pointer, payload_align(style_group(group))).load(Ordering::Relaxed)
+                })
+                .collect()
+        };
+        // SAFETY: Each default payload is a live payload of its group.
+        let held: [*const c_void; group_index::COUNT] = std::array::from_fn(|group| {
+            unsafe { clone_group_payload(group, defaults.groups()[group].as_ptr()) }.cast_const()
+        });
+        let before = references(&held);
+        let borrowed = BorrowedGroups::of_groups_where(|group| INHERITED_SET_GROUPS.contains(&group));
+
+        // A computation thrown away releases the references it took, and none of the groups it
+        // borrowed.
+        for (group, &pointer) in held.iter().enumerate() {
+            if !borrowed.contains(group) {
+                retain_group_payload(group, pointer);
+            }
+        }
+        // SAFETY: Each group holds a reference for these groups but the borrowed ones.
+        drop(unsafe { ComputedGroups::new(held, StyleBits::INITIAL, 0, borrowed) });
+        assert_eq!(references(&held), before);
+
+        // A computation a style adopts hands its references to the style.
+        for (group, &pointer) in held.iter().enumerate() {
+            if !borrowed.contains(group) {
+                retain_group_payload(group, pointer);
+            }
+        }
+        // SAFETY: Each group holds a reference for these groups but the borrowed ones.
+        let adopted = unsafe { ComputedGroups::new(held, StyleBits::INITIAL, 0, borrowed) }.adopt_sharing(&[]);
+        assert!(
+            references(&held)
+                .iter()
+                .zip(&before)
+                .all(|(after, before)| after == &(before + 1))
+        );
+        drop(adopted);
+        assert_eq!(references(&held), before);
+
+        for (group, payload) in held.into_iter().enumerate() {
+            release_group_payload(group, payload);
+        }
+    }
+
+    #[test]
     fn payload_lifecycle() {
-        // The contract a payload's content hash owes its equality: two payloads that compare
-        // equal hash equal, whoever built them and wherever they live. That is what lets a
-        // group's identity be its content instead of the address of the first payload to
-        // carry it.
+        let defaults = DefaultGroups::default();
         for group_index in 0..group_index::COUNT {
-            let default = default_group_payload(group_index);
+            let default = defaults.groups()[group_index].as_ptr();
             // SAFETY: The default payload is a live payload of its group.
             let clone = unsafe { rust_style_group_clone(group_index, default) };
             // SAFETY: The payloads are live defaults and clones of this group.
             assert!(unsafe { style_group_payloads_equal(group_index, default, clone) });
-            assert_eq!(
-                // SAFETY: The payloads are live defaults and clones of this group.
-                unsafe { style_group_payloads_hash(group_index, default) },
-                // SAFETY: The payloads are live defaults and clones of this group.
-                unsafe { style_group_payloads_hash(group_index, clone) },
-                "a clone must hash like the payload it was copied from"
-            );
             refcount_of(clone, payload_align(style_group(group_index))).store(0, Ordering::Relaxed);
             // SAFETY: The clone holds the last reference and is a payload of this group.
             unsafe { rust_style_group_free(group_index, clone) };
         }
 
-        // A field the hash skipped would be a difference equality has to separate every time,
-        // so every field equality reads is a field the hash reads too.
-        let mut changed = InheritedTableValues::initial();
-        changed.border_spacing_horizontal = 17;
-        let changed_payload = (&raw const changed).cast::<c_void>();
-        let table_default = default_group_payload(group_index::INHERITED_TABLE);
-        // SAFETY: The payloads are live defaults and clones of this group.
-        assert!(!unsafe { style_group_payloads_equal(group_index::INHERITED_TABLE, table_default, changed_payload) });
-        assert_ne!(
-            // SAFETY: The payloads are live defaults and clones of this group.
-            unsafe { style_group_payloads_hash(group_index::INHERITED_TABLE, table_default) },
-            // SAFETY: The payloads are live defaults and clones of this group.
-            unsafe { style_group_payloads_hash(group_index::INHERITED_TABLE, changed_payload) }
-        );
+        let table_default = defaults.groups()[group_index::INHERITED_LIST_TABLE].as_ptr();
+        // SAFETY: The default payload is a live payload of its group.
+        let changed_payload = unsafe { rust_style_group_clone(group_index::INHERITED_LIST_TABLE, table_default) };
+        // SAFETY: The clone is uniquely owned and a list and table group.
+        unsafe { &mut *changed_payload.cast::<InheritedListTableValues>() }.border_spacing_horizontal = 17;
+        // SAFETY: The payloads are live payloads of this group.
+        assert!(!unsafe {
+            style_group_payloads_equal(group_index::INHERITED_LIST_TABLE, table_default, changed_payload)
+        });
+        refcount_of(
+            changed_payload,
+            payload_align(style_group(group_index::INHERITED_LIST_TABLE)),
+        )
+        .store(0, Ordering::Relaxed);
+        // SAFETY: The clone holds the last reference and is a payload of this group.
+        unsafe { rust_style_group_free(group_index::INHERITED_LIST_TABLE, changed_payload) };
     }
 }
 

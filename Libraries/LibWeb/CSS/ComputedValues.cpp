@@ -45,10 +45,8 @@ namespace Web::CSS {
 
 // Groups whose layout is defined in Rust must not change size or alignment when the C++
 // side layers initial values and accessors on top of the mirrored layout.
-static_assert(sizeof(ComputedValues::InheritedBoxValues) == sizeof(ComputedValuesFFI::InheritedBoxValues));
-static_assert(alignof(ComputedValues::InheritedBoxValues) == alignof(ComputedValuesFFI::InheritedBoxValues));
-static_assert(sizeof(ComputedValues::InheritedTableValues) == sizeof(ComputedValuesFFI::InheritedTableValues));
-static_assert(alignof(ComputedValues::InheritedTableValues) == alignof(ComputedValuesFFI::InheritedTableValues));
+static_assert(sizeof(ComputedValues::InheritedListTableValues) == sizeof(ComputedValuesFFI::InheritedListTableValues));
+static_assert(alignof(ComputedValues::InheritedListTableValues) == alignof(ComputedValuesFFI::InheritedListTableValues));
 static_assert(sizeof(ComputedValues::SizingValues) == sizeof(ComputedValuesFFI::SizingValues));
 static_assert(alignof(ComputedValues::SizingValues) == alignof(ComputedValuesFFI::SizingValues));
 static_assert(sizeof(ComputedValues::AlignmentValues) == sizeof(ComputedValuesFFI::AlignmentValues));
@@ -100,10 +98,6 @@ static_assert(to_underlying(ShadowPlacement::Inner) == 1);
 static_assert(to_underlying(MixBlendMode::Normal) == 0);
 static_assert(to_underlying(Isolation::Auto) == 0);
 static_assert(sizeof(LineStyle) == sizeof(u8));
-static_assert(sizeof(BorderData) == sizeof(ComputedValuesFFI::ComputedBorderSide));
-static_assert(offsetof(BorderData, color) == offsetof(ComputedValuesFFI::ComputedBorderSide, color));
-static_assert(offsetof(BorderData, line_style) == offsetof(ComputedValuesFFI::ComputedBorderSide, line_style));
-static_assert(offsetof(BorderData, width) == offsetof(ComputedValuesFFI::ComputedBorderSide, width));
 static_assert(offsetof(ComputedValues::BorderValues, border_left) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_left));
 static_assert(offsetof(ComputedValues::BorderValues, border_top) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_top));
 static_assert(offsetof(ComputedValues::BorderValues, border_right) == offsetof(ComputedValuesFFI::BorderLayoutFacts, border_right));
@@ -113,10 +107,10 @@ static_assert(sizeof(ComputedValues::BorderValues) == sizeof(ComputedValuesFFI::
 static_assert(alignof(ComputedValues::BorderValues) == alignof(ComputedValuesFFI::BorderValues));
 static_assert(sizeof(ComputedValues::ContentValues) == sizeof(ComputedValuesFFI::ContentValues));
 static_assert(alignof(ComputedValues::ContentValues) == alignof(ComputedValuesFFI::ContentValues));
-static_assert(sizeof(ComputedValues::InheritedListValues) == sizeof(ComputedValuesFFI::InheritedListValues));
-static_assert(alignof(ComputedValues::InheritedListValues) == alignof(ComputedValuesFFI::InheritedListValues));
-static_assert(sizeof(ComputedValues::MiscResetValues) == sizeof(ComputedValuesFFI::MiscResetValues));
-static_assert(alignof(ComputedValues::MiscResetValues) == alignof(ComputedValuesFFI::MiscResetValues));
+static_assert(sizeof(ComputedValues::MiscLayoutValues) == sizeof(ComputedValuesFFI::MiscLayoutValues));
+static_assert(alignof(ComputedValues::MiscLayoutValues) == alignof(ComputedValuesFFI::MiscLayoutValues));
+static_assert(sizeof(ComputedValues::MiscInteractionValues) == sizeof(ComputedValuesFFI::MiscInteractionValues));
+static_assert(alignof(ComputedValues::MiscInteractionValues) == alignof(ComputedValuesFFI::MiscInteractionValues));
 static_assert(to_underlying(ListStylePosition::Outside) == 1);
 
 static_assert(sizeof(TextIndentData) == sizeof(ComputedValuesFFI::ComputedTextIndent));
@@ -153,126 +147,86 @@ void const* ComputedValues::style_group_payload(StyleGroupIndex group) const
     VERIFY_NOT_REACHED();
 }
 
-void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payloads)
+void ComputedValues::borrow_style_record_groups(void const* groups)
 {
-    VERIFY(payloads.size() == to_underlying(StyleGroupIndex::Count));
-    size_t index = 0;
-#define LIBWEB_BORROW_STYLE_GROUP(path) path.borrow(payloads[index++]);
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.table)
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.list)
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.ui)
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.svg)
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.text)
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.box)
-    LIBWEB_BORROW_STYLE_GROUP(m_inherited.font)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.animation)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.svg_reset)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.grid)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.anchor)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.effects)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.mask_data)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.text_reset)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.content_data)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.transform)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.background)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.border)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.alignment)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.misc)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.sizing)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.surround)
-    LIBWEB_BORROW_STYLE_GROUP(m_noninherited.box)
+    VERIFY(groups);
+#define LIBWEB_BORROW_STYLE_GROUP(name, path, sharing_name) \
+    path.borrow(style_record_group_payload<to_underlying(StyleGroupIndex::name)>(groups));
+    LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_BORROW_STYLE_GROUP)
 #undef LIBWEB_BORROW_STYLE_GROUP
-    VERIFY(index == payloads.size());
+    m_inherited.values = style_record_inherited_values(groups);
+    m_noninherited.reset_bits = style_record_reset_bits(groups);
 }
 
 bool InstalledStyle::display_is_none() const
 {
-    if (!m_view.present)
+    if (!m_record)
         return false;
     // The record's base payloads are the ones an animation overlay was layered on top of, matching
     // what ComputedValues::base_values() exposes.
-    auto const* payloads = m_view.base_payloads ? m_view.base_payloads : m_view.payloads;
-    if (!payloads)
+    auto view = this->view();
+    auto const* groups = StyleEngineFFI::style_engine_view_base_groups(&view);
+    if (!groups)
         return false;
-    auto const* box = static_cast<ComputedValuesFFI::BoxValues const*>(payloads[to_underlying(StyleGroupIndex::BoxValues)]);
-    if (!box)
-        return false;
-    return display_from_ffi_display(box->display).is_none();
+    return display_from_ffi_display(style_record_group<ComputedValues::BoxValues>(groups).display).is_none();
 }
 
-ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const& view, StyleComputer const& style_computer, StyleRecordID style_record_identity, bool owns_style_record_pin)
-    : m_style_computer(&style_computer)
-    , m_style_record_identity(style_record_identity)
-    , m_owns_style_record_pin(owns_style_record_pin)
+// NB: Out of line, as what other libraries link against does not include the engine's calls the destructor makes.
+ComputedStyleRecordView::~ComputedStyleRecordView() = default;
+
+ComputedStyleRecordView::ComputedStyleRecordView(InstalledStyle style)
+    : m_style(move(style))
 {
-    VERIFY(view.present);
-    VERIFY(style_record_identity);
-    VERIFY(view.payload_count == to_underlying(StyleGroupIndex::Count));
-    VERIFY(view.payloads);
-    VERIFY(view.base_payloads);
-    auto payloads = ReadonlySpan<void const*> { view.payloads, view.payload_count };
-    auto base_payloads = ReadonlySpan<void const*> { view.base_payloads, view.payload_count };
+    VERIFY(m_style);
+    auto view = m_style.view();
+    VERIFY(view.groups);
     m_values.emplace(ComputedValues::BorrowedStyleRecord::Yes);
-    m_values->borrow_style_record_payloads(payloads);
-    if (view.animation_overlay_identity != 0) {
+    m_values->borrow_style_record_groups(view.groups);
+    if (view.animated_overlay) {
+        auto const* base_groups = StyleEngineFFI::style_engine_view_base_groups(&view);
+        VERIFY(base_groups);
         m_base_values.emplace(ComputedValues::BorrowedStyleRecord::Yes);
-        m_base_values->borrow_style_record_payloads(base_payloads);
+        m_base_values->borrow_style_record_groups(base_groups);
         m_values->m_borrowed_base_values = &*m_base_values;
     }
 
-    m_values->m_pseudo_element_styles = view.pseudo_element_styles;
     auto dependency_flags = static_cast<StyleRecordDependencyFlag>(view.dependency_flags);
     m_values->m_depends_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::DependsOnViewportMetrics);
     m_values->m_font_metrics_depend_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
     m_values->m_in_display_none_subtree = has_flag(dependency_flags, StyleRecordDependencyFlag::InDisplayNoneSubtree);
-    m_values->m_computed_longhand_table = view.longhand_table;
-    if (m_values->m_computed_longhand_table)
-        m_values->refresh_computed_longhand_table_views();
+    m_values->m_record = StyleRecordRef { view.longhand_table_record };
     if (view.animated_overlay)
         m_values->m_animated_properties = adopt_ref(*new AnimatedProperties(static_cast<ComputedValuesFFI::AnimatedOverlay const*>(view.animated_overlay)));
-    if (view.animation_overlay_identity != 0) {
-        m_base_values->m_property_important = m_values->m_property_important;
-        m_base_values->m_property_inherited = m_values->m_property_inherited;
-        m_base_values->m_pseudo_element_styles = m_values->m_pseudo_element_styles;
+    if (view.animated_overlay) {
         m_base_values->m_depends_on_viewport_metrics = m_values->m_depends_on_viewport_metrics;
         m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values->m_font_metrics_depend_on_viewport_metrics;
         m_base_values->m_in_display_none_subtree = m_values->m_in_display_none_subtree;
-        m_base_values->m_inheritance_dependent_specified_values = m_values->m_inheritance_dependent_specified_values;
-        m_base_values->m_computed_longhand_table = m_values->m_computed_longhand_table;
-        if (m_base_values->m_computed_longhand_table)
-            m_base_values->refresh_computed_longhand_table_views();
+        m_base_values->m_record = m_values->m_record;
     }
-}
-
-ComputedStyleRecordView::~ComputedStyleRecordView()
-{
-    if (m_style_computer && m_owns_style_record_pin)
-        m_style_computer->unpin_style_record(m_style_record_identity);
 }
 
 // The table-driven build and the marshalled build must stay on one numbering with the Rust
 // mirror in table_group_builder.rs.
-static_assert(to_underlying(StyleGroupIndex::InheritedTableValues) == 0);
-static_assert(to_underlying(StyleGroupIndex::InheritedListValues) == 1);
-static_assert(to_underlying(StyleGroupIndex::InheritedUIValues) == 2);
-static_assert(to_underlying(StyleGroupIndex::InheritedSVGValues) == 3);
-static_assert(to_underlying(StyleGroupIndex::InheritedTextValues) == 4);
-static_assert(to_underlying(StyleGroupIndex::InheritedBoxValues) == 5);
-static_assert(to_underlying(StyleGroupIndex::FontValues) == 6);
-static_assert(to_underlying(StyleGroupIndex::SVGResetValues) == 8);
-static_assert(to_underlying(StyleGroupIndex::GridValues) == 9);
-static_assert(to_underlying(StyleGroupIndex::EffectsValues) == 11);
-static_assert(to_underlying(StyleGroupIndex::MaskValues) == 12);
-static_assert(to_underlying(StyleGroupIndex::ContentValues) == 14);
-static_assert(to_underlying(StyleGroupIndex::TransformValues) == 15);
-static_assert(to_underlying(StyleGroupIndex::MiscResetValues) == 19);
-static_assert(to_underlying(StyleGroupIndex::BackgroundValues) == 16);
-static_assert(to_underlying(StyleGroupIndex::BorderValues) == 17);
-static_assert(to_underlying(StyleGroupIndex::AlignmentValues) == 18);
-static_assert(to_underlying(StyleGroupIndex::SizingValues) == 20);
-static_assert(to_underlying(StyleGroupIndex::SurroundValues) == 21);
-static_assert(to_underlying(StyleGroupIndex::BoxValues) == 22);
-static_assert(to_underlying(StyleGroupIndex::Count) == 23);
+static_assert(to_underlying(StyleGroupIndex::InheritedListTableValues) == 0);
+static_assert(to_underlying(StyleGroupIndex::InheritedUIValues) == 1);
+static_assert(to_underlying(StyleGroupIndex::InheritedSVGValues) == 2);
+static_assert(to_underlying(StyleGroupIndex::InheritedTextValues) == 3);
+static_assert(to_underlying(StyleGroupIndex::FontValues) == 4);
+static_assert(to_underlying(StyleGroupIndex::SVGResetValues) == 6);
+static_assert(to_underlying(StyleGroupIndex::GridValues) == 7);
+static_assert(to_underlying(StyleGroupIndex::EffectsValues) == 13);
+static_assert(to_underlying(StyleGroupIndex::MaskValues) == 14);
+static_assert(to_underlying(StyleGroupIndex::ContentValues) == 9);
+static_assert(to_underlying(StyleGroupIndex::TransformValues) == 16);
+static_assert(to_underlying(StyleGroupIndex::MiscLayoutValues) == 11);
+static_assert(to_underlying(StyleGroupIndex::MiscInteractionValues) == 12);
+static_assert(to_underlying(StyleGroupIndex::BackgroundValues) == 17);
+static_assert(to_underlying(StyleGroupIndex::BorderValues) == 18);
+static_assert(to_underlying(StyleGroupIndex::AlignmentValues) == 10);
+static_assert(to_underlying(StyleGroupIndex::SizingValues) == 19);
+static_assert(to_underlying(StyleGroupIndex::SurroundValues) == 20);
+static_assert(to_underlying(StyleGroupIndex::BoxValues) == 21);
+static_assert(to_underlying(StyleGroupIndex::Count) == 22);
 
 // The enum codes the core's transform and effects lowering mirrors.
 static_assert(to_underlying(TransformBox::ViewBox) == 4);
@@ -315,7 +269,7 @@ FontStyleKeyword ComputedValues::FontValues::font_style_keyword() const
     return animation_style_value(font_style)->as_font_style().font_style();
 }
 
-Optional<Utf16FlyString> ComputedValues::MiscResetValues::view_transition_name_value() const
+Optional<Utf16FlyString> ComputedValues::MiscInteractionValues::view_transition_name_value() const
 {
     auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(view_transition_name.pointer);
     VERIFY(value);
@@ -330,7 +284,7 @@ static StyleValueFFI::StyleValueData const* first_animation_item_data(ComputedVa
     VERIFY(value);
     if (value->tag == StyleValueFFI::StyleValueData::Tag::ValueList
         && value->value_list.separator == to_underlying(StyleValueList::Separator::Comma)) {
-        VERIFY(value->value_list.values.length > 0);
+        VERIFY(value->value_list.values.length() > 0);
         return static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[0].pointer);
     }
     return value;
@@ -358,13 +312,13 @@ static Vector<RefPtr<AbstractImageStyleValue const>> abstract_image_items(Comput
         || value->value_list.separator != to_underlying(StyleValueList::Separator::Comma))
         return { abstract_image_value(value) };
     Vector<RefPtr<AbstractImageStyleValue const>> images;
-    images.ensure_capacity(value->value_list.values.length);
-    for (size_t i = 0; i < value->value_list.values.length; ++i)
+    images.ensure_capacity(value->value_list.values.length());
+    for (size_t i = 0; i < value->value_list.values.length(); ++i)
         images.unchecked_append(abstract_image_value(static_cast<StyleValueFFI::StyleValueData const*>(value->value_list.values.pointer[i].pointer)));
     return images;
 }
 
-RefPtr<AbstractImageStyleValue const> ComputedValues::InheritedListValues::list_style_image_value() const
+RefPtr<AbstractImageStyleValue const> ComputedValues::InheritedListTableValues::list_style_image_value() const
 {
     auto value = animation_style_value(list_style_image);
     if (!value->is_abstract_image())
@@ -397,13 +351,8 @@ Optional<URL> ComputedValues::MaskValues::mask_url_value() const
 {
     auto const* image = first_animation_item_data(mask_image);
     if (image->tag == StyleValueFFI::StyleValueData::Tag::Url)
-        return url_from_rust_data(image->url.url, image->url.url_type, image->url.modifiers);
+        return url_from_rust_data(image->url._0->url, image->url._0->url_type, image->url._0->modifiers);
     return {};
-}
-
-MaskType ComputedValues::MaskValues::mask_type_value() const
-{
-    return keyword_to_mask_type(animation_style_value(mask_type)->to_keyword()).release_value();
 }
 
 Optional<URL> ComputedValues::MaskValues::clip_path_value() const
@@ -411,38 +360,13 @@ Optional<URL> ComputedValues::MaskValues::clip_path_value() const
     auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(clip_path.pointer);
     VERIFY(value_data);
     if (value_data->tag == StyleValueFFI::StyleValueData::Tag::Url)
-        return url_from_rust_data(value_data->url.url, value_data->url.url_type, value_data->url.modifiers);
+        return url_from_rust_data(value_data->url._0->url, value_data->url._0->url_type, value_data->url._0->modifiers);
     return {};
 }
 
 Vector<RefPtr<AbstractImageStyleValue const>> ComputedValues::MaskValues::mask_images_value() const
 {
     return abstract_image_items(mask_image);
-}
-
-Vector<Utf16FlyString> ComputedValues::AnimationValues::animation_names_value() const
-{
-    auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(animation_name.pointer);
-    VERIFY(value && value->tag == StyleValueFFI::StyleValueData::Tag::ValueList);
-    auto const& items = value->value_list.values;
-    Vector<Utf16FlyString> names;
-    for (size_t i = 0; i < items.length; ++i) {
-        auto const* item = static_cast<StyleValueFFI::StyleValueData const*>(items.pointer[i].pointer);
-        switch (item->tag) {
-        case StyleValueFFI::StyleValueData::Tag::Keyword:
-            VERIFY(static_cast<Keyword>(item->keyword.keyword) == Keyword::None);
-            break;
-        case StyleValueFFI::StyleValueData::Tag::String:
-            names.append(css_string_from_rust(&item->string.string));
-            break;
-        case StyleValueFFI::StyleValueData::Tag::CustomIdent:
-            names.append(css_string_from_rust(&item->custom_ident.custom_ident));
-            break;
-        default:
-            VERIFY_NOT_REACHED();
-        }
-    }
-    return names;
 }
 
 ComputedValues::Statistics ComputedValues::s_statistics;
@@ -453,75 +377,37 @@ ComputedValues::ComputedValues()
     ++s_statistics.total_instances_created;
 }
 
+StyleRecordRef::StyleRecordRef(void const* record)
+    : m_record(record)
+{
+    if (m_record)
+        StyleEngineFFI::style_engine_record_retain(m_record);
+}
+
+StyleRecordRef::~StyleRecordRef()
+{
+    if (m_record)
+        StyleEngineFFI::style_engine_record_release(m_record);
+}
+
 ComputedValues::ComputedValues(BorrowedStyleRecord)
-    : m_inherited(StyleGroupInitialization::Empty)
-    , m_noninherited(StyleGroupInitialization::Empty)
-    , m_is_style_record_view(true)
+    : m_is_style_record_view(true)
 {
     m_ref_count = 0;
 }
 
 ComputedValues::~ComputedValues()
 {
-    if (m_is_style_record_view)
-        m_computed_longhand_table = nullptr;
-    else {
-        clear_computed_longhand_table();
+    if (!m_is_style_record_view)
         --s_statistics.live_instance_count;
-    }
 }
 
-void ComputedValues::adopt_computed_longhand_table(void const* table)
+bool ComputedValues::is_property_important(PropertyID property_id) const
 {
-    if (!table) {
-        clear_computed_longhand_table();
-        return;
-    }
-    // NB: Retain before releasing, so adopting the table this style already holds stays safe.
-    auto const* typed_table = ComputedValuesFFI::rust_computed_longhand_table_retain(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(table));
-    clear_computed_longhand_table();
-    m_computed_longhand_table = typed_table;
-    refresh_computed_longhand_table_views();
-}
-
-void ComputedValues::refresh_computed_longhand_table_views()
-{
-    VERIFY(m_computed_longhand_table);
-    auto const* table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table);
-    m_longhand_values = { ComputedValuesFFI::rust_computed_longhand_table_values(table), number_of_longhand_properties };
-    m_property_important.copy_from({ ComputedValuesFFI::rust_computed_longhand_table_importance_bits(table), m_property_important.size_in_bytes() });
-    m_property_inherited.copy_from({ ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(table), m_property_inherited.size_in_bytes() });
-    size_t inheritance_dependent_value_count = 0;
-    auto const* inheritance_dependent_values = ComputedValuesFFI::rust_computed_longhand_table_inheritance_dependent_values(table, &inheritance_dependent_value_count);
-    m_inheritance_dependent_specified_values = { inheritance_dependent_values, inheritance_dependent_value_count };
-}
-
-void ComputedValues::clear_computed_longhand_table()
-{
-    if (m_computed_longhand_table)
-        ComputedValuesFFI::rust_computed_longhand_table_release(const_cast<ComputedValuesFFI::ComputedLonghandTable*>(static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(m_computed_longhand_table)));
-    m_computed_longhand_table = nullptr;
-    m_longhand_values = {};
-    m_inheritance_dependent_specified_values = {};
-}
-
-void ComputedValues::copy_computed_longhand_table_from(ComputedValues const& other)
-{
-    if (other.m_computed_longhand_table) {
-        adopt_computed_longhand_table(other.m_computed_longhand_table);
-        return;
-    }
-    clear_computed_longhand_table();
-    if (other.m_longhand_values.is_empty())
-        return;
-    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create();
-    ComputedValuesFFI::rust_computed_longhand_table_copy_from_values(table, other.m_longhand_values.data(), other.m_longhand_values.size());
-    for (auto const& entry : other.m_inheritance_dependent_specified_values)
-        ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(table, entry.property, entry.value);
-    ComputedValuesFFI::rust_computed_longhand_table_freeze(table);
-    // The freshly created table already carries the one reference this style owns.
-    m_computed_longhand_table = table;
-    refresh_computed_longhand_table_views();
+    if (!m_record.get())
+        return false;
+    auto index = property_bitmap_index(property_id);
+    return ComputedValuesFFI::rust_style_record_importance_bits(m_record.get())[index / 8] & (1 << (index % 8));
 }
 
 void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
@@ -632,9 +518,9 @@ RefPtr<StyleValue const> ComputedValues::computed_style_value(PropertyID propert
         && ComputedValuesFFI::rust_animated_overlay_effective_value(m_animated_properties->overlay(), to_underlying(property_id), is_property_important(property_id)))
         return m_animated_properties->property(property_id);
 
-    if (m_longhand_values.is_empty())
+    if (!m_record.get())
         return {};
-    auto const* stored = m_longhand_values[to_underlying(property_id) - to_underlying(first_longhand_property_id)];
+    auto const* stored = ComputedValuesFFI::rust_style_record_longhand(m_record.get(), to_underlying(property_id));
     if (!stored)
         return {};
     if (m_style_value_cache) {

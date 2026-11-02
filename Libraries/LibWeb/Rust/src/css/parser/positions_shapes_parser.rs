@@ -5,7 +5,6 @@
  */
 
 // Parsed values use the thread-confined shared graph owned by the C++ style objects.
-#![allow(clippy::arc_with_non_send_sync)]
 
 use super::component_value::{ComponentKind, ComponentValue, trim_whitespace};
 use super::token_stream::TokenStream;
@@ -21,11 +20,15 @@ use crate::css::property_metadata::{
 };
 use crate::css::style_compute::px_length_unit;
 use crate::css::style_value::{
+    AnchorPayload, AnchorSizePayload, BorderRadiusPayload, BorderRadiusRectPayload, FunctionPayload, PositionPayload,
+    RadialSizePayload, RayPayload, RectPayload, ShorthandPayload, StyleValueBox,
+};
+use crate::css::style_value::{
     BasicShapeData, CssString, OwnedBasicShapeData, RetainedPropertyIdList, RetainedShapePoint, RetainedShapePointList,
     RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
+use crate::css::style_value_arc::StyleValueArc;
 use crate::css::value_codes::*;
-use std::sync::Arc;
 
 // NB: These are the generated C++ PositionEdge enum values.
 const EDGE_CENTER: u8 = 0;
@@ -47,10 +50,10 @@ fn edge(edge: Option<u8>, offset: Option<StyleValueData>) -> StyleValueData {
 }
 
 fn position(edge_x: StyleValueData, edge_y: StyleValueData) -> StyleValueData {
-    StyleValueData::Position {
+    StyleValueData::Position(StyleValueBox::new(PositionPayload {
         edge_x: retained(edge_x),
         edge_y: retained(edge_y),
-    }
+    }))
 }
 
 pub(crate) fn center_position() -> StyleValueData {
@@ -290,13 +293,14 @@ fn parse_background_position(
     let mut x_values = Vec::with_capacity(positions.len());
     let mut y_values = Vec::with_capacity(positions.len());
     for position in positions {
-        let StyleValueData::Position { edge_x, edge_y } = position else {
+        let StyleValueData::Position(position_payload) = position else {
             unreachable!();
         };
+        let PositionPayload { edge_x, edge_y } = &*position_payload;
         x_values.push(edge_x.data().clone());
         y_values.push(edge_y.data().clone());
     }
-    Some(StyleValueData::Shorthand {
+    Some(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property_id::BACKGROUND_POSITION,
         sub_properties: RetainedPropertyIdList::from_property_ids(vec![
             property_id::BACKGROUND_POSITION_X,
@@ -306,7 +310,7 @@ fn parse_background_position(
             retained(value_list(x_values)),
             retained(value_list(y_values)),
         ]),
-    })
+    })))
 }
 
 fn parse_background_position_axis(
@@ -377,11 +381,11 @@ fn keyword_value(value: &ComponentValue, accepted: &[u16]) -> Option<StyleValueD
 
 fn border_radius(horizontal: StyleValueData, vertical: StyleValueData) -> StyleValueData {
     let is_elliptical = horizontal != vertical;
-    StyleValueData::BorderRadius {
+    StyleValueData::BorderRadius(StyleValueBox::new(BorderRadiusPayload {
         is_elliptical,
         horizontal_radius: retained(horizontal),
         vertical_radius: retained(vertical),
-    }
+    }))
 }
 
 fn expanded_four(values: &[StyleValueData]) -> Option<[StyleValueData; 4]> {
@@ -439,12 +443,14 @@ fn parse_border_radius_rect(
     };
     let corners: [StyleValueData; 4] =
         std::array::from_fn(|index| border_radius(horizontal[index].clone(), vertical[index].clone()));
-    Some(StyleValueData::BorderRadiusRect {
-        top_left: retained(corners[0].clone()),
-        top_right: retained(corners[1].clone()),
-        bottom_right: retained(corners[2].clone()),
-        bottom_left: retained(corners[3].clone()),
-    })
+    Some(StyleValueData::BorderRadiusRect(StyleValueBox::new(
+        BorderRadiusRectPayload {
+            top_left: retained(corners[0].clone()),
+            top_right: retained(corners[1].clone()),
+            bottom_right: retained(corners[2].clone()),
+            bottom_left: retained(corners[3].clone()),
+        },
+    )))
 }
 
 fn zero_border_radius_rect() -> StyleValueData {
@@ -453,12 +459,12 @@ fn zero_border_radius_rect() -> StyleValueData {
         unit: px_length_unit(),
     };
     let corner = border_radius(zero.clone(), zero);
-    StyleValueData::BorderRadiusRect {
+    StyleValueData::BorderRadiusRect(StyleValueBox::new(BorderRadiusRectPayload {
         top_left: retained(corner.clone()),
         top_right: retained(corner.clone()),
         bottom_right: retained(corner.clone()),
         bottom_left: retained(corner),
-    }
+    }))
 }
 
 fn parse_single_border_radius(
@@ -497,16 +503,16 @@ fn parse_border_radius_shorthand(
 ) -> Option<StyleValueData> {
     let mut tokens = TokenStream::new(values);
     let rect = parse_border_radius_rect(context, property, &mut tokens)?;
-    let StyleValueData::BorderRadiusRect {
+    let StyleValueData::BorderRadiusRect(border_radius_rect_payload) = rect else {
+        unreachable!();
+    };
+    let BorderRadiusRectPayload {
         top_left,
         top_right,
         bottom_right,
         bottom_left,
-    } = rect
-    else {
-        unreachable!();
-    };
-    Some(StyleValueData::Shorthand {
+    } = border_radius_rect_payload.into_inner();
+    Some(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property_id::BORDER_RADIUS,
         sub_properties: RetainedPropertyIdList::from_property_ids(vec![
             property_id::BORDER_TOP_LEFT_RADIUS,
@@ -515,7 +521,7 @@ fn parse_border_radius_shorthand(
             property_id::BORDER_BOTTOM_LEFT_RADIUS,
         ]),
         values: RetainedStyleValueDataList::from_retained_values(vec![top_left, top_right, bottom_right, bottom_left]),
-    })
+    })))
 }
 
 fn parse_legacy_rect(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {
@@ -554,12 +560,12 @@ fn parse_legacy_rect(context: &ParseContext, property: u16, values: &[ComponentV
     if tokens.has_next_token() {
         return None;
     }
-    Some(StyleValueData::Rect {
+    Some(StyleValueData::Rect(StyleValueBox::new(RectPayload {
         top: retained(sides[0].clone()),
         right: retained(sides[1].clone()),
         bottom: retained(sides[2].clone()),
         left: retained(sides[3].clone()),
-    })
+    })))
 }
 
 fn parse_corner_shape(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
@@ -618,11 +624,11 @@ fn positional_shorthand(property: u16, values: Vec<StyleValueData>) -> Option<St
         4 => expanded_four(&values)?.into_iter().collect(),
         _ => return None,
     };
-    Some(StyleValueData::Shorthand {
+    Some(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
         shorthand_property: property,
         sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
         values: RetainedStyleValueDataList::from_retained_values(expanded.into_iter().map(retained).collect()),
-    })
+    })))
 }
 
 fn parse_corner_shape_property(
@@ -685,7 +691,7 @@ fn radial_size(components: Vec<RadialComponent>) -> Option<StyleValueData> {
             RadialComponent::Value(parsed) => value[index] = retained(parsed),
         }
     }
-    Some(StyleValueData::RadialSize {
+    Some(StyleValueData::RadialSize(StyleValueBox::new(RadialSizePayload {
         component_count: u8::from(is_extent[1] || value[1].optional_data().is_some()) + 1,
         is_extent_0: is_extent[0],
         extent_0: extent[0],
@@ -693,7 +699,7 @@ fn radial_size(components: Vec<RadialComponent>) -> Option<StyleValueData> {
         is_extent_1: is_extent[1],
         extent_1: extent[1],
         value_1: std::mem::replace(&mut value[1], RetainedStyleValueData::none()),
-    })
+    })))
 }
 
 pub(crate) fn parse_radial_size(
@@ -896,7 +902,7 @@ fn parse_circle_or_ellipse(
     let mut tokens = TokenStream::new(arguments);
     let mut radius = parse_radial_size(context, property, &mut tokens);
     if radius.as_ref().is_some_and(|radius| {
-        matches!(radius, StyleValueData::RadialSize { component_count, .. } if *component_count != if ellipse { 2 } else { 1 })
+        matches!(radius, StyleValueData::RadialSize(radial_size) if radial_size.component_count != if ellipse { 2 } else { 1 })
     }) {
         return None;
     }
@@ -1072,9 +1078,10 @@ fn parse_shape_position(
     property: u16,
     values: &[ComponentValue],
 ) -> Option<RetainedShapePoint> {
-    let StyleValueData::Position { edge_x, edge_y } = parse_position_value(context, property, values, false)? else {
+    let StyleValueData::Position(position_payload) = parse_position_value(context, property, values, false)? else {
         return None;
     };
+    let PositionPayload { edge_x, edge_y } = position_payload.into_inner();
     Some(RetainedShapePoint::from_retained_values(edge_x, edge_y))
 }
 
@@ -1557,12 +1564,12 @@ fn parse_ray(context: &ParseContext, property: u16, arguments: &[ComponentValue]
             NumericRange::INFINITE,
         )?);
     }
-    Some(StyleValueData::Ray {
+    Some(StyleValueData::Ray(StyleValueBox::new(RayPayload {
         size: size.unwrap_or(keyword::CLOSEST_SIDE),
         contain,
         angle: retained(angle?),
         position: position.map_or_else(RetainedStyleValueData::none, retained),
-    })
+    })))
 }
 
 /// Whether this component value starts an <'offset-path'> value.
@@ -1953,12 +1960,12 @@ pub(crate) fn parse_anchor_function(
     } else {
         None
     };
-    Some(StyleValueData::Anchor {
+    Some(StyleValueData::Anchor(StyleValueBox::new(AnchorPayload {
         has_anchor_name: anchor_name.is_some(),
         anchor_name: anchor_name.unwrap_or_else(CssString::none),
         anchor_side: retained(side?),
         fallback_value: fallback.map_or_else(RetainedStyleValueData::none, retained),
-    })
+    })))
 }
 
 fn anchor_size_keyword(value: &ComponentValue) -> Option<u8> {
@@ -2081,13 +2088,13 @@ pub(crate) fn parse_anchor_size_function(
     if fallback.is_some() && !comma_present && has_name_or_size {
         return None;
     }
-    Some(StyleValueData::AnchorSize {
+    Some(StyleValueData::AnchorSize(StyleValueBox::new(AnchorSizePayload {
         has_anchor_name: anchor_name.is_some(),
         anchor_name: anchor_name.unwrap_or_else(CssString::none),
         has_anchor_size: anchor_size.is_some(),
         anchor_size: anchor_size.unwrap_or(0),
         fallback_value: fallback.map_or_else(RetainedStyleValueData::none, retained),
-    })
+    })))
 }
 
 fn contains_anchor_in_math_function(values: &[ComponentValue], inside_math_function: bool) -> bool {
@@ -2133,10 +2140,10 @@ fn parse_fit_content(context: &ParseContext, property: u16, values: &[ComponentV
     if tokens.has_next_token() {
         return None;
     }
-    Some(StyleValueData::Function {
+    Some(StyleValueData::Function(StyleValueBox::new(FunctionPayload {
         name: CssString::from_utf16(&"fit-content".encode_utf16().collect::<Vec<_>>()),
         value: retained(argument),
-    })
+    })))
 }
 
 fn parse_inset_leaf(context: &ParseContext, property: u16, tokens: &mut TokenStream<'_>) -> Option<StyleValueData> {
@@ -2256,7 +2263,9 @@ pub(crate) fn parse_anchor_fit_property(
     } else {
         return ParseOutcome::NotHandled;
     };
-    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(StyleValueArc::new(parsed))
+    })
 }
 
 pub(crate) fn parse_geometry_property(
@@ -2349,7 +2358,9 @@ pub(crate) fn parse_geometry_property(
     } else {
         return ParseOutcome::NotHandled;
     };
-    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(StyleValueArc::new(parsed))
+    })
 }
 
 pub(crate) fn parse_position_property(
@@ -2380,7 +2391,9 @@ pub(crate) fn parse_position_property(
             }
         })
     };
-    parsed.map_or(ParseOutcome::Invalid, |parsed| ParseOutcome::Parsed(Arc::new(parsed)))
+    parsed.map_or(ParseOutcome::Invalid, |parsed| {
+        ParseOutcome::Parsed(StyleValueArc::new(parsed))
+    })
 }
 
 #[cfg(test)]
@@ -2434,12 +2447,12 @@ mod tests {
         else {
             panic!("background-position should parse");
         };
-        let StyleValueData::Shorthand {
-            sub_properties, values, ..
-        } = &*value
-        else {
+        let StyleValueData::Shorthand(shorthand_payload) = &*value else {
             panic!("background-position should expand to its axes");
         };
+        let ShorthandPayload {
+            sub_properties, values, ..
+        } = &**shorthand_payload;
         assert_eq!(
             sub_properties.as_slice(),
             [property_id::BACKGROUND_POSITION_X, property_id::BACKGROUND_POSITION_Y]
@@ -2480,7 +2493,7 @@ mod tests {
         let ParseOutcome::Parsed(value) = parse_geometry(property_id::BORDER_RADIUS, "1px 2px 3px / 4px 5px") else {
             panic!("border-radius should parse");
         };
-        assert!(matches!(&*value, StyleValueData::Shorthand { values, .. } if values.as_slice().len() == 4));
+        assert!(matches!(&*value, StyleValueData::Shorthand(shorthand) if shorthand.values.as_slice().len() == 4));
         assert!(matches!(
             parse_geometry(property_id::BORDER_RADIUS, "-1px"),
             ParseOutcome::Invalid

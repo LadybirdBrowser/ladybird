@@ -5,7 +5,6 @@
  */
 
 // Parsed values use the thread-confined shared graph owned by the C++ style objects.
-#![allow(clippy::arc_with_non_send_sync)]
 
 use super::component_value::{ComponentKind, ComponentValue};
 use super::token_stream::TokenStream;
@@ -21,12 +20,13 @@ use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::color_parser::parse_color_value;
 use crate::css::property_metadata::{property_accepted_keywords, property_id};
 use crate::css::style_compute::px_length_unit;
+use crate::css::style_value::{EasingPayload, ShadowPayload, StyleValueBox, TransformationPayload};
 use crate::css::style_value::{
     RetainedLinearEasingStop, RetainedLinearEasingStopList, RetainedStyleValueData, RetainedStyleValueDataList,
     StyleValueData,
 };
+use crate::css::style_value_arc::StyleValueArc;
 use crate::css::value_codes::{VALUE_TYPE_ANGLE, VALUE_TYPE_INTEGER, VALUE_TYPE_NUMBER, VALUE_TYPE_PERCENTAGE};
-use std::sync::Arc;
 
 pub(crate) use crate::css::transform_functions::*;
 
@@ -42,12 +42,12 @@ fn retained(value: StyleValueData) -> RetainedStyleValueData {
 }
 
 fn transformation(property: u16, transform_function: u8, values: Vec<StyleValueData>) -> StyleValueData {
-    StyleValueData::Transformation {
+    StyleValueData::Transformation(StyleValueBox::new(TransformationPayload {
         property,
         transform_function,
         values: RetainedStyleValueDataList::from_retained_values(values.into_iter().map(retained).collect()),
         matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-    }
+    }))
 }
 
 fn value_list(values: Vec<StyleValueData>, separator: u8, collapsible: bool) -> StyleValueData {
@@ -364,7 +364,7 @@ fn easing(
     is_keyword: bool,
 ) -> StyleValueData {
     let [x1, y1, x2, y2] = coordinates.map(|value| value.map_or_else(RetainedStyleValueData::none, retained));
-    StyleValueData::Easing {
+    StyleValueData::Easing(StyleValueBox::new(EasingPayload {
         kind,
         linear_stops: RetainedLinearEasingStopList::from_retained_elements(linear_stops),
         x1,
@@ -374,7 +374,7 @@ fn easing(
         number_of_intervals: number_of_intervals.map_or_else(RetainedStyleValueData::none, retained),
         step_position,
         is_keyword,
-    }
+    }))
 }
 
 fn parse_numeric_component(
@@ -661,7 +661,7 @@ fn parse_drop_shadow(context: &ParseContext, property: u16, values: &[ComponentV
     Some(filter(
         1,
         0,
-        StyleValueData::Shadow {
+        StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
             shadow_type: 1,
             color: color.map_or_else(RetainedStyleValueData::none, retained),
             offset_x: retained(offset_x),
@@ -669,7 +669,7 @@ fn parse_drop_shadow(context: &ParseContext, property: u16, values: &[ComponentV
             blur_radius: blur_radius.map_or_else(RetainedStyleValueData::none, retained),
             spread_distance: RetainedStyleValueData::none(),
             placement: 0,
-        },
+        })),
     ))
 }
 
@@ -818,7 +818,9 @@ pub(crate) fn parse_transform_effect_property(
         //     this parser does not have the context needed to parse it.
         return ParseOutcome::NotHandled;
     }
-    parsed.map_or(ParseOutcome::Invalid, |value| ParseOutcome::Parsed(Arc::new(value)))
+    parsed.map_or(ParseOutcome::Invalid, |value| {
+        ParseOutcome::Parsed(StyleValueArc::new(value))
+    })
 }
 
 #[cfg(test)]

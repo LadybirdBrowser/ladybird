@@ -7,7 +7,9 @@
 use super::*;
 use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
 use crate::css::property_metadata::{longhands_for_shorthand, property_id};
+use crate::css::style_value::{GridTemplateAreaPayload, GridTrackSizeListPayload, ShorthandPayload, StyleValueBox};
 use crate::css::style_value::{RetainedPropertyIdList, RetainedStyleValueData, RetainedStyleValueDataList};
+use crate::css::style_value_arc::StyleValueArc;
 use std::borrow::Cow;
 
 #[cfg(test)]
@@ -193,19 +195,19 @@ mod tests {
 }
 
 fn longhand(value: &StyleValueData, property: u16) -> Option<&StyleValueData> {
-    let StyleValueData::Shorthand {
-        sub_properties, values, ..
-    } = value
-    else {
+    let StyleValueData::Shorthand(shorthand_payload) = value else {
         return None;
     };
+    let ShorthandPayload {
+        sub_properties, values, ..
+    } = &**shorthand_payload;
     values
         .as_slice()
         .get(sub_properties.as_slice().iter().position(|id| *id == property)?)
         .map(|value| value.data())
 }
 
-fn parse(property: u16, source: TokenizerInput<'_>) -> Option<std::sync::Arc<StyleValueData>> {
+fn parse(property: u16, source: TokenizerInput<'_>) -> Option<StyleValueArc> {
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
     let values = consume_a_list_of_component_values(tokenize_for_parser(source)).ok()?;
@@ -220,7 +222,7 @@ fn parse(property: u16, source: TokenizerInput<'_>) -> Option<std::sync::Arc<Sty
 pub(super) fn initial(property: u16) -> Cow<'static, StyleValueData> {
     let longhands = longhands_for_shorthand(property);
     if !longhands.is_empty() {
-        return Cow::Owned(StyleValueData::Shorthand {
+        return Cow::Owned(StyleValueData::Shorthand(StyleValueBox::new(ShorthandPayload {
             shorthand_property: property,
             sub_properties: RetainedPropertyIdList::from_property_ids(longhands.to_vec()),
             values: RetainedStyleValueDataList::from_retained_values(
@@ -229,7 +231,7 @@ pub(super) fn initial(property: u16) -> Cow<'static, StyleValueData> {
                     .map(|id| RetainedStyleValueData::from_owned(initial(*id).into_owned()))
                     .collect(),
             ),
-        });
+        })));
     }
     // Every longhand's initial value parses, which value_parser's tests check.
     crate::css::style_compute::initial_value(property).map_or(
@@ -282,9 +284,10 @@ pub(super) fn serialize(
         | property_id::TRANSITION
         | property_id::SCROLL_TIMELINE
         | property_id::VIEW_TIMELINE => {
-            let StyleValueData::Shorthand { sub_properties, .. } = whole else {
+            let StyleValueData::Shorthand(shorthand_payload) = whole else {
                 unreachable!("Shorthand style values retain values of the expected type");
             };
+            let ShorthandPayload { sub_properties, .. } = &**shorthand_payload;
             let reset_only = |id| {
                 property == property_id::ANIMATION
                     && matches!(
@@ -530,9 +533,10 @@ pub(super) fn serialize(
                 property_id::BORDER_STYLE,
                 property_id::BORDER_COLOR,
             ] {
-                let StyleValueData::Shorthand { values, .. } = get(id) else {
+                let StyleValueData::Shorthand(shorthand_payload) = get(id) else {
                     unreachable!("Shorthand style values retain values of the expected type");
                 };
+                let ShorthandPayload { values, .. } = &**shorthand_payload;
                 if !values
                     .as_slice()
                     .iter()
@@ -737,7 +741,7 @@ pub(super) fn serialize(
                 get(property_id::GRID_ROW_END),
                 get(property_id::GRID_COLUMN_END),
             ];
-            let auto = |value: &StyleValueData| matches!(value, StyleValueData::GridTrackPlacement { kind: 0, .. });
+            let auto = |value: &StyleValueData| matches!(value, StyleValueData::GridTrackPlacement(placement) if placement.kind == 0);
             let ident = |value: &StyleValueData| matches!(value, StyleValueData::CustomIdent { .. });
             if auto(values[3]) && ident(values[1]) {
                 values[3] = values[1];
@@ -819,21 +823,9 @@ pub(super) fn serialize(
                 }
             }
             let (
-                StyleValueData::GridTemplateArea {
-                    grid_areas,
-                    row_count,
-                    column_count,
-                },
-                StyleValueData::GridTrackSizeList {
-                    is_subgrid: rows_subgrid,
-                    entries: rows,
-                    ..
-                },
-                StyleValueData::GridTrackSizeList {
-                    is_subgrid: columns_subgrid,
-                    entries: columns,
-                    ..
-                },
+                StyleValueData::GridTemplateArea(grid_template_area_payload_1),
+                StyleValueData::GridTrackSizeList(grid_track_size_list_payload_1),
+                StyleValueData::GridTrackSizeList(grid_track_size_list_payload_2),
             ) = (
                 get(property_id::GRID_TEMPLATE_AREAS),
                 get(property_id::GRID_TEMPLATE_ROWS),
@@ -843,6 +835,22 @@ pub(super) fn serialize(
                 default(sink);
                 return;
             };
+            let GridTemplateAreaPayload {
+                grid_areas,
+                row_count,
+                column_count,
+            } = &**grid_template_area_payload_1;
+            let GridTrackSizeListPayload {
+                is_subgrid: rows_subgrid,
+                entries: rows,
+                ..
+            } = &**grid_track_size_list_payload_1;
+            let GridTrackSizeListPayload {
+                is_subgrid: columns_subgrid,
+                entries: columns,
+                ..
+            } = &**grid_track_size_list_payload_2;
+
             let rows = rows.as_slice();
             let columns = columns.as_slice();
             if *row_count == 0 {

@@ -48,22 +48,30 @@ CSSRule::CSSRule(RustRule rule)
     : m_type(rule.type())
     , m_native_rule(move(rule))
 {
+}
+
+// NB: Read from the native rule when asked, as only DevTools asks.
+Optional<SourcePosition> CSSRule::source_location() const
+{
     auto payload = m_native_rule.payload();
-    if (payload.has_source_position) {
-        VERIFY(payload.start_line <= NumericLimits<u32>::max());
-        VERIFY(payload.start_column <= NumericLimits<u32>::max());
-        m_source_position = SourcePosition { static_cast<u32>(payload.start_line), static_cast<u32>(payload.start_column) };
-    }
+    if (!payload.has_source_position)
+        return {};
+    VERIFY(payload.start_line <= NumericLimits<u32>::max());
+    VERIFY(payload.start_column <= NumericLimits<u32>::max());
+    return SourcePosition { static_cast<u32>(payload.start_line), static_cast<u32>(payload.start_column) };
 }
 
 GC::Ref<CSSRule> CSSRule::create(RustRule rule, GC::Ptr<DOM::Document> document)
 {
+    // NB: A style rule makes its list of nested rules when it is first read, as most style rules nest none.
+    if (rule.type() == Type::Style)
+        return CSSStyleRule::create(move(rule));
     GC::Ptr<CSSRuleList> children;
     if (auto* native_children = Parser::ValueParserFFI::rust_rule_children(rule.handle()); native_children && rule.type() != Type::Keyframes)
         children = CSSRuleList::create(RustRuleList { Parser::ValueParserFFI::rust_rule_list_retain(native_children) }, document);
     switch (rule.type()) {
     case Type::Style:
-        return CSSStyleRule::create(move(rule), *children);
+        VERIFY_NOT_REACHED();
     case Type::Media:
         return CSSMediaRule::create(move(rule), *children);
     case Type::Supports:

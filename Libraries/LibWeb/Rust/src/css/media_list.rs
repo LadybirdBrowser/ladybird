@@ -7,23 +7,33 @@
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::ffi_support::{FfiUtf16View, OwnedBox};
 use crate::css::parser::query_parser::{
-    FfiMediaEnvironment, FfiQueryHandle, MediaEnvironment, VisitQuerySerialization, invalid_media_query,
+    FfiMediaEnvironment, FfiQueryHandle, MediaEnvironment, MediaQuery, VisitQuerySerialization, invalid_media_query,
     media_query_handle, parse_media_query_list, resolve_query_feature,
 };
+use crate::css::thin_slice::ThinSlice;
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::rc::Rc;
 use std::sync::Arc;
 
+/// A media list's queries, held by one pointer with their count before them.
 #[derive(Clone, Default)]
 pub struct MediaListData {
-    pub(crate) queries: Vec<Arc<FfiQueryHandle>>,
+    pub(crate) queries: ThinSlice<Arc<FfiQueryHandle>>,
 }
 
 const _: () = {
     const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<MediaListData>();
 };
+
+impl MediaListData {
+    pub(crate) fn from_queries(queries: Vec<MediaQuery>) -> Self {
+        Self {
+            queries: queries.into_iter().map(media_query_handle).collect(),
+        }
+    }
+}
 
 struct MediaListState {
     data: Arc<MediaListData>,
@@ -80,20 +90,16 @@ impl MediaList {
 }
 
 fn parse(source: TokenizerInput<'_>) -> MediaListData {
-    MediaListData {
-        queries: parse_media_query_list(source, &resolve_query_feature)
-            .unwrap_or_else(|| vec![invalid_media_query()])
-            .into_iter()
-            .map(media_query_handle)
-            .collect(),
-    }
+    MediaListData::from_queries(
+        parse_media_query_list(source, &resolve_query_feature).unwrap_or_else(|| vec![invalid_media_query()]),
+    )
 }
 
 fn parse_medium(source: TokenizerInput<'_>) -> Option<Arc<FfiQueryHandle>> {
     let mut data = parse(source);
     match data.queries.len() {
         0 => Some(media_query_handle(invalid_media_query())),
-        1 => data.queries.pop(),
+        1 => Some(data.queries.remove(0)),
         _ => None,
     }
 }

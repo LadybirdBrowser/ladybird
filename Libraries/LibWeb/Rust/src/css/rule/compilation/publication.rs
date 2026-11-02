@@ -6,14 +6,13 @@
 
 use super::{CompilationContext, NativeRuleType, NativeStyleSheet};
 use crate::css::rule::read::RuleRef;
-use crate::css::selector_operations::{
-    absolutize_selector_list, adapt_scope_end_selector_list, scope_root_selector_list,
-};
-use crate::css::selector_parser::{RustParsedSelectorList, StyleNestingParent};
+use crate::css::selector::SelectorListRef;
+use crate::css::selector_operations::scope_root_selector_list;
+use crate::css::selector_parser::RustParsedSelectorList;
 use crate::css::style::bridge::{BoundScopeChain, declares_transitions};
 use crate::css::style::engine_calls::document_host;
-use crate::css::style::program::RuleKind;
-use crate::css::style::rule_writes::{BoundSelectors, CompiledRule, CompiledRuleKind, NamespaceTexts, RuleWrite};
+use crate::css::style::pipeline::rule_store::RuleKind;
+use crate::css::style::rule_writes::{BoundSelectors, CompiledRule, CompiledRuleKind, RuleWrite};
 use crate::render_state::DocumentHost;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -37,54 +36,43 @@ pub struct NativeStylePublication {
     pub before: u64,
 }
 
+/// What the rules a traversal reaches are directly inside, as their nested declarations see it.
+#[derive(Clone, Default)]
+enum Enclosing {
+    #[default]
+    None,
+    Scope,
+    /// A style rule, with its selectors.
+    Style(Arc<RustParsedSelectorList>),
+}
+
 // Binding belongs to this document-thread traversal, not to the shared rule graph.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(super) struct SelectorInputs {
-    parent_kind: StyleNestingParent,
-    immediate_parent_kind: StyleNestingParent,
-    parents: Option<Arc<RustParsedSelectorList>>,
+    enclosing: Enclosing,
+    /// The scopes the rules are inside.
     scope: Arc<BoundScopeChain>,
 }
 
-impl Default for SelectorInputs {
-    fn default() -> Self {
-        Self {
-            parent_kind: StyleNestingParent::None,
-            immediate_parent_kind: StyleNestingParent::None,
-            parents: None,
-            scope: Arc::default(),
-        }
-    }
-}
-
 impl SelectorInputs {
-    fn bind(&self, source: &RustParsedSelectorList, parent_kind: StyleNestingParent) -> Arc<RustParsedSelectorList> {
-        let empty: crate::css::selector::SelectorList = Box::new([]);
-        let parents = if parent_kind == StyleNestingParent::Style {
-            self.parents.as_ref().map_or(&empty, |parents| &parents.selectors)
-        } else {
-            &empty
-        };
-        Arc::new(RustParsedSelectorList {
-            selectors: absolutize_selector_list(&source.selectors, parent_kind, parents)
-                .unwrap_or_else(|| source.selectors.clone()),
-        })
-    }
-
+    /// The selectors the engine matches `rule` by, whose `&` names what the sheet's arena says.
     pub(super) fn matching_selectors(&self, rule: RuleRef<'_>) -> Option<Arc<RustParsedSelectorList>> {
         match rule.rule_type() {
-            NativeRuleType::Style => Some(self.bind(&rule.selectors().unwrap(), self.parent_kind)),
-            NativeRuleType::NestedDeclarations => {
-                if let Some(parents) = &self.parents {
-                    return Some(parents.clone());
-                }
-                assert_eq!(self.parent_kind, StyleNestingParent::Scope);
-                Some(Arc::new(RustParsedSelectorList {
-                    selectors: scope_root_selector_list(),
-                }))
-            }
+            NativeRuleType::Style => rule.selectors(),
+            NativeRuleType::NestedDeclarations => match &self.enclosing {
+                Enclosing::Style(selectors) => Some(selectors.clone()),
+                Enclosing::Scope => Some(Arc::new(RustParsedSelectorList {
+                    selectors: SelectorListRef::pack(&scope_root_selector_list()),
+                })),
+                Enclosing::None => unreachable!("nested declarations are inside a style rule or `@scope`"),
+            },
             _ => None,
         }
+    }
+
+    /// The scopes the rules are inside.
+    pub(super) fn scope(&self) -> Arc<BoundScopeChain> {
+        self.scope.clone()
     }
 
     pub(super) fn within(
@@ -94,34 +82,17 @@ impl SelectorInputs {
         implicit_root: u32,
     ) -> Self {
         let mut nested = self.clone();
-        nested.immediate_parent_kind = StyleNestingParent::None;
-        if rule.rule_type() == NativeRuleType::Style {
-            nested.parents = matching.or_else(|| self.matching_selectors(rule));
-            nested.parent_kind = StyleNestingParent::Style;
-            nested.immediate_parent_kind = StyleNestingParent::Style;
+        if rule.rule_type() == NativeRuleType::Style
+            && let Some(selectors) = matching.or_else(|| self.matching_selectors(rule))
+        {
+            nested.enclosing = Enclosing::Style(selectors);
         }
         if let Some(scope) = rule.scope() {
-            let parent_kind = if rule.rule_type() == NativeRuleType::Import {
-                StyleNestingParent::None
-            } else {
-                self.immediate_parent_kind
-            };
-            let start = scope.start.as_ref().map(|start| self.bind(start, parent_kind));
-            let end = scope.end.as_ref().map(|end| RustParsedSelectorList {
-                selectors: adapt_scope_end_selector_list(&end.selectors),
-            });
-            Arc::make_mut(&mut nested.scope).push(start.as_deref(), end.as_ref(), implicit_root);
+            Arc::make_mut(&mut nested.scope).push(scope.start.as_deref(), scope.end.as_deref(), implicit_root);
         }
         match rule.rule_type() {
-            NativeRuleType::Scope => {
-                nested.parent_kind = StyleNestingParent::Scope;
-                nested.immediate_parent_kind = StyleNestingParent::Scope;
-                nested.parents = None;
-            }
-            NativeRuleType::Import => {
-                nested.parent_kind = StyleNestingParent::None;
-                nested.parents = None;
-            }
+            NativeRuleType::Scope => nested.enclosing = Enclosing::Scope,
+            NativeRuleType::Import => nested.enclosing = Enclosing::None,
             _ => {}
         }
         nested
@@ -131,12 +102,11 @@ impl SelectorInputs {
 /// The rules one compilation publishes to a sheet of a document's style engine, ahead of one rule, which it writes
 /// as one write as it ends. The host notes each rule it publishes as it compiles it.
 pub(super) struct Publisher<'a> {
-    host: &'a DocumentHost,
+    /// The document whose engine the rules go to, or none where the process keeps them.
+    host: Option<&'a DocumentHost>,
     sheet: u32,
     before: u64,
     rules: RefCell<Vec<CompiledRule>>,
-    /// The native sheet the last rule came from, by identity, and the namespaces it declares.
-    namespaces: RefCell<Option<(u64, Option<Arc<NamespaceTexts>>)>>,
 }
 
 impl<'a> Publisher<'a> {
@@ -146,16 +116,31 @@ impl<'a> Publisher<'a> {
     pub(super) unsafe fn new(publication: &NativeStylePublication) -> Self {
         Self {
             // SAFETY: Guaranteed by the caller.
-            host: unsafe { document_host(publication.host) },
+            host: Some(unsafe { document_host(publication.host) }),
             sheet: publication.sheet,
             before: publication.before,
             rules: RefCell::default(),
-            namespaces: RefCell::default(),
         }
     }
 
+    /// A publisher of a user agent sheet, whose rules the process keeps, once: no document notes them.
+    pub(super) fn of_user_agent_sheet() -> Self {
+        Self {
+            host: None,
+            sheet: 0,
+            before: 0,
+            rules: RefCell::default(),
+        }
+    }
+
+    /// The rules the compilation published, of a publisher of a user agent sheet.
+    pub(super) fn into_rules(self) -> Vec<CompiledRule> {
+        debug_assert!(self.host.is_none());
+        self.rules.into_inner()
+    }
+
     pub(super) fn host(&self) -> &'a DocumentHost {
-        self.host
+        self.host.expect("only the rules of a document's sheet are edited")
     }
 
     pub(super) fn sheet(&self) -> u32 {
@@ -169,50 +154,35 @@ impl<'a> Publisher<'a> {
             sheet: self.sheet,
             before,
             rules: RefCell::default(),
-            namespaces: RefCell::default(),
         }
     }
 
     /// Writes the rules the compilation published, as one write.
     pub(super) fn finish(self) {
+        let host = self.host();
         let rules = self.rules.into_inner();
         if rules.is_empty() {
             return;
         }
-        self.host.write_rules(RuleWrite::PublishRules {
+        host.write_rules(RuleWrite::PublishRules {
             sheet: self.sheet,
             before: self.before,
             rules,
         });
     }
 
-    /// The namespaces `source` declares, which the rules that come from it share.
-    fn namespaces_of(&self, source: &NativeStyleSheet) -> Option<Arc<NamespaceTexts>> {
-        let mut cached = self.namespaces.borrow_mut();
-        if let Some((identity, texts)) = &*cached
-            && *identity == source.identity()
-        {
-            return texts.clone();
-        }
-        let texts = NamespaceTexts::of(source);
-        *cached = Some((source.identity(), texts.clone()));
-        texts
-    }
-
     /// Writes the selectors `selectors` for the published style rule `rule`, which keeps its place and declarations.
     pub(super) fn replace_selectors(
         &self,
         rule: RuleRef<'_>,
-        source: &NativeStyleSheet,
         context: &CompilationContext,
         selectors: Arc<RustParsedSelectorList>,
     ) {
-        self.host.write_rules(RuleWrite::ReplaceSelectors {
+        self.host().write_rules(RuleWrite::ReplaceSelectors {
             identity: rule.identity(),
             selectors: BoundSelectors {
                 selectors,
-                scope: context.selectors.scope.clone(),
-                namespaces: self.namespaces_of(source),
+                scope: context.selectors.scope(),
             },
         });
     }
@@ -235,8 +205,7 @@ impl<'a> Publisher<'a> {
                 CompiledRuleKind::Style {
                     selectors: BoundSelectors {
                         selectors: selectors.clone(),
-                        scope: context.selectors.scope.clone(),
-                        namespaces: self.namespaces_of(source),
+                        scope: context.selectors.scope(),
                     },
                     gated_by_container_query: context.gated_by_container_query,
                 }
@@ -258,13 +227,27 @@ impl<'a> Publisher<'a> {
         let declares_transitions = matches!(kind, CompiledRuleKind::Style { .. })
             && declarations
                 .as_ref()
-                .is_some_and(|declarations| declares_transitions(&declarations.properties));
+                .is_some_and(|declarations| declares_transitions(declarations.properties()));
         let in_a_layer = context.in_a_layer
             && matches!(
                 rule.rule_type(),
                 NativeRuleType::Style | NativeRuleType::NestedDeclarations | NativeRuleType::CounterStyle
             );
-        self.host.published_rules().insert(self.sheet, rule.identity());
+        if let Some(host) = self.host {
+            host.published_rules().insert(self.sheet, rule.identity());
+            // NB: These rules hand over declarations the rule write does not hold.
+            match rule.rule_type() {
+                NativeRuleType::Function => super::super::function::note_attr_names_read_by_function(host, rule),
+                NativeRuleType::Keyframes => {
+                    let _ = rule.visit_children(&mut |keyframe| {
+                        let (_, declarations) = keyframe.keyframe();
+                        crate::css::style::host_atoms::note_attr_names_read_by_block(host, &declarations);
+                        std::ops::ControlFlow::Continue(())
+                    });
+                }
+                _ => {}
+            }
+        }
         self.rules.borrow_mut().push(CompiledRule {
             identity: rule.identity(),
             kind,

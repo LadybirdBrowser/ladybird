@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#![allow(clippy::arc_with_non_send_sync)]
-
 use crate::css::css_enums::{
     keyword, keyword_from_ascii_case_insensitive, keyword_to_counter_style_name_keyword,
     keyword_to_counter_style_system, keyword_to_page_size,
@@ -26,14 +24,16 @@ use crate::css::parser::value_parser::{
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_compute::FfiLengthResolutionContext;
+use crate::css::style_value::CounterStyleSystemPayload;
+use crate::css::style_value::StyleValueBox;
 use crate::css::style_value::{CssString, RetainedStyleValueData, StyleValueData};
+use crate::css::style_value_arc::StyleValueArc;
 use std::ffi::c_void;
-use std::sync::Arc;
 
 #[derive(Clone)]
 pub(crate) struct ParsedDescriptor {
     pub id: u8,
-    pub value: Arc<StyleValueData>,
+    pub value: StyleValueArc,
 }
 
 fn non_whitespace(values: &[ComponentValue]) -> Vec<&ComponentValue> {
@@ -153,12 +153,16 @@ fn parse_counter_style_system(context: &ParseContext, values: &[ComponentValue])
     let parsed_keyword = keyword_from_ascii_case_insensitive(identifier)?;
     if let Some(system) = keyword_to_counter_style_system(parsed_keyword) {
         stream.discard_whitespace();
-        return stream.is_empty().then_some(StyleValueData::CounterStyleSystem {
-            kind: 0,
-            system,
-            first_symbol: RetainedStyleValueData::none(),
-            name: CssString::none(),
-        });
+        return stream
+            .is_empty()
+            .then_some(StyleValueData::CounterStyleSystem(StyleValueBox::new(
+                CounterStyleSystemPayload {
+                    kind: 0,
+                    system,
+                    first_symbol: RetainedStyleValueData::none(),
+                    name: CssString::none(),
+                },
+            )));
     }
     if parsed_keyword == keyword::FIXED {
         stream.discard_whitespace();
@@ -173,12 +177,16 @@ fn parse_counter_style_system(context: &ParseContext, values: &[ComponentValue])
             )?)
         };
         stream.discard_whitespace();
-        return stream.is_empty().then_some(StyleValueData::CounterStyleSystem {
-            kind: 1,
-            system: 0,
-            first_symbol,
-            name: CssString::none(),
-        });
+        return stream
+            .is_empty()
+            .then_some(StyleValueData::CounterStyleSystem(StyleValueBox::new(
+                CounterStyleSystemPayload {
+                    kind: 1,
+                    system: 0,
+                    first_symbol,
+                    name: CssString::none(),
+                },
+            )));
     }
     if parsed_keyword == keyword::EXTENDS {
         stream.discard_whitespace();
@@ -187,12 +195,16 @@ fn parse_counter_style_system(context: &ParseContext, values: &[ComponentValue])
             unreachable!();
         };
         stream.discard_whitespace();
-        return stream.is_empty().then_some(StyleValueData::CounterStyleSystem {
-            kind: 2,
-            system: 0,
-            first_symbol: RetainedStyleValueData::none(),
-            name: custom_ident,
-        });
+        return stream
+            .is_empty()
+            .then_some(StyleValueData::CounterStyleSystem(StyleValueBox::new(
+                CounterStyleSystemPayload {
+                    kind: 2,
+                    system: 0,
+                    first_symbol: RetainedStyleValueData::none(),
+                    name: custom_ident,
+                },
+            )));
     }
     None
 }
@@ -300,19 +312,19 @@ fn parse_value_type(
     match value_type {
         DescriptorValueType::FamilyName => {
             match parse_font_descriptor(context, FontDescriptorKind::FamilyName, values) {
-                ParseOutcome::Parsed(value) => Some(Arc::unwrap_or_clone(value)),
+                ParseOutcome::Parsed(value) => Some(StyleValueArc::unwrap_or_clone(value)),
                 _ => None,
             }
         }
         DescriptorValueType::FontSrcList => {
             match parse_font_descriptor(context, FontDescriptorKind::SourceList, values) {
-                ParseOutcome::Parsed(value) => Some(Arc::unwrap_or_clone(value)),
+                ParseOutcome::Parsed(value) => Some(StyleValueArc::unwrap_or_clone(value)),
                 _ => None,
             }
         }
         DescriptorValueType::UnicodeRangeTokens => {
             match parse_font_descriptor(context, FontDescriptorKind::UnicodeRangeList, values) {
-                ParseOutcome::Parsed(value) => Some(Arc::unwrap_or_clone(value)),
+                ParseOutcome::Parsed(value) => Some(StyleValueArc::unwrap_or_clone(value)),
                 _ => None,
             }
         }
@@ -418,7 +430,7 @@ fn parse_value_type(
                                     }
                                 ) =>
                         {
-                            Some(Arc::unwrap_or_clone(value))
+                            Some(StyleValueArc::unwrap_or_clone(value))
                         }
                         _ => None,
                     },
@@ -459,7 +471,7 @@ fn parse_with_metadata(
             DescriptorSyntax::Keyword(keyword) => parse_keyword(values, keyword),
             DescriptorSyntax::Property(property) => match parse_css_value(context, *property, values) {
                 ParseOutcome::Parsed(value) if metadata.allow_css_wide_keywords || !is_css_wide_keyword(&value) => {
-                    Some(Arc::unwrap_or_clone(value))
+                    Some(StyleValueArc::unwrap_or_clone(value))
                 }
                 _ => None,
             },
@@ -503,7 +515,7 @@ pub(crate) fn parse_descriptor(
     };
     Some(ParsedDescriptor {
         id: metadata.id,
-        value: Arc::new(value),
+        value: StyleValueArc::new(value),
     })
 }
 
@@ -532,7 +544,7 @@ pub extern "C" fn rust_parse_css_descriptor(
     let mut source_units = Vec::with_capacity(source.len());
     source.append_to(&mut source_units);
     parse_descriptor(context, at_rule, &name_units, &values, &source_units)
-        .map(|descriptor| Arc::into_raw(descriptor.value).cast::<c_void>())
+        .map(|descriptor| StyleValueArc::into_raw(descriptor.value).cast::<c_void>())
         .unwrap_or(std::ptr::null())
 }
 
@@ -541,7 +553,7 @@ mod tests {
     use super::{consume_a_list_of_component_values, parse_descriptor, tokenize_for_parser};
     use crate::css::parser::value_parser::ParseContext;
     use crate::css::style_value::StyleValueData;
-    use std::sync::Arc;
+    use crate::css::style_value_arc::StyleValueArc;
 
     fn context() -> ParseContext<'static> {
         ParseContext::default()
@@ -550,7 +562,7 @@ mod tests {
     fn parse(at_rule: u8, name: &str, source: &str) -> Option<StyleValueData> {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
         let source = source.encode_utf16().collect::<Vec<_>>();
-        Arc::into_inner(
+        StyleValueArc::into_inner(
             parse_descriptor(
                 &context(),
                 at_rule,

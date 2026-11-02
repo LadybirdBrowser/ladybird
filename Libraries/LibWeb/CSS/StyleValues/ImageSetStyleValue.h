@@ -47,7 +47,7 @@ private:
     {
         if (m_options.has_value())
             return *m_options;
-        auto const& list = m_value->image_set.options;
+        auto const& list = m_value->image_set._0->options;
         Vector<Option> options;
         options.ensure_capacity(list.length);
         for (size_t i = 0; i < list.length; ++i) {

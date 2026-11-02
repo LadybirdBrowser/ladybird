@@ -15,7 +15,8 @@ use crate::css::parser::value_parser::{
 };
 use crate::css::property_metadata::{property_accepted_keywords, property_accepted_value_types};
 use crate::css::serialize::{StringUnits, with_fly_string_units};
-use crate::css::style_value::{CssString, RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::FunctionPayload;
+use crate::css::style_value::{CssString, RetainedStyleValueData, StyleValueBox, StyleValueData};
 use crate::css::value_codes::{VALUE_TYPE_FIT_CONTENT, VALUE_TYPE_LENGTH};
 
 const COMMA: u8 = 1;
@@ -49,10 +50,10 @@ pub(crate) fn parse_calc_size(context: &ParseContext, property: u16, value: &Com
 
 /// The calc-size() function value with the given basis and calculation.
 pub(crate) fn calc_size_function(basis: StyleValueData, calculation: StyleValueData) -> StyleValueData {
-    StyleValueData::Function {
+    StyleValueData::Function(StyleValueBox::new(FunctionPayload {
         name: CssString::from_utf16(&"calc-size".encode_utf16().collect::<Vec<_>>()),
         value: RetainedStyleValueData::from_owned(value_list(vec![basis, calculation], COMMA, false)),
-    }
+    }))
 }
 
 // <calc-size-basis> = [ <size-keyword> | <calc-sum> | <calc-size()> | any ]
@@ -103,9 +104,10 @@ fn parse_calc_sum(
 
 /// The basis and calculation of a calc-size() function value.
 pub(crate) fn calc_size_arguments(value: &StyleValueData) -> Option<(&StyleValueData, &StyleValueData)> {
-    let StyleValueData::Function { name, value } = value else {
+    let StyleValueData::Function(function_payload) = value else {
         return None;
     };
+    let FunctionPayload { name, value } = &**function_payload;
     if !is_calc_size_function_name(name) {
         return None;
     }
