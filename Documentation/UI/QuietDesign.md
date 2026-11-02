@@ -97,9 +97,9 @@ All sizes are in logical pixels.
 | Active tab | 30 px tall | 8 px top radius plus an 8 px inverted "foot" on each side where it joins the toolbar. 5 px of strip shows above it. Its contents are vertically centered in it, which puts them on the shared center line. |
 | End insets | Favicon 7 px from the left edge; × glyph 11 px from the right edge | Rule: each end item is as far from the tab's side as it is from the tab's top (the 16 px favicon sits 7 px down, the 8 px × glyph 11 px down). Padding: active 0 6 px 0 7 px; inactive 3 px inset + 0 3 px 0 4 px, so favicons and × never move when a tab becomes active. |
 | Favicon to title | 8 px | |
-| Close button | 18 px hover square, 7 px × (14 px glyph box); click area extends to the full tab height | The × is always visible on every tab except pinned tabs, in `muted`; its hover square appears on hover. Indicators like the speaker sit to its left. |
+| Close button | 18 px hover square, 7 px × (14 px glyph box); click area extends to the full tab height | The × is always visible on every tab except pinned tabs, in `muted`; its hover square appears on hover. Indicators like the speaker and the microphone sit to its left. |
 | Tab width | 20 to 232 px | Tabs shrink until only the favicon is left, giving up their padding below 32 px, then the strip scrolls. A tab too narrow for its favicon beside its × shows only the favicon; the active one shows its × in the favicon's place. |
-| Pinned tab | 44 px wide | Favicon only, always first |
+| Pinned tab | 44 px wide | Favicon only, always first. While the tab plays audio or uses the microphone, those indicators take the favicon's place. |
 | New tab (+) | 26 px button, 14 px glyph | Follows the last tab directly, 8 px after it (just clear of the active tab's foot), centered on the tab row; with few tabs it does not move to the end of the strip. Click area at least 32 px. |
 | Separators | 1 × 16 px | Between inactive tabs only, hidden next to hovered or active tabs |
 
@@ -131,7 +131,7 @@ All sizes are in logical pixels.
 |---|---|
 | Sidebar width | 236 px |
 | Tab rows | 30 px, 6 px radius. Selected: toolbar color with a soft shadow in light; white 15% fill only in dark and private, with no ring: on the dark sidebar the fill is enough, and stacked outlines (Ladybird button, focused field, row) make the column busy. The × on each row is lighter at rest (`#9C9CA3` light, `#7A7A81` dark) and takes the `muted` color on the hovered and selected rows, so a full list does not draw a dark stripe down the sidebar. It is always there; only its tone changes. |
-| Collapsed rail | 52 px. Tiles are 36 × 32 with the favicon centered. Badges sit on the favicon's corners, 18 px round on a toolbar-colored backing with a hairline ring: × top left (on hover only), speaker bottom right (while playing or muted). Both are buttons, and opposite corners keep them apart. |
+| Collapsed rail | 52 px. Tiles are 36 × 32 with the favicon centered. Badges sit on the favicon's corners, 18 px round on a toolbar-colored backing with a hairline ring: × top left (on hover only), speaker bottom right (while playing or muted), microphone bottom left (while in use). The × and the speaker are buttons, and opposite corners keep them apart. The microphone is not a button; it sits 2 px from the speaker and touches the × while that shows on hover. |
 | Header | Traffic lights, Ladybird button, all tabs, then empty space, then the hide-sidebar toggle at the sidebar's right edge. With the sidebar collapsed, the toolbar starts the same way: traffic lights, Ladybird button, all tabs, show-sidebar toggle. |
 | Background | `sidebar` token: the strip color in light, the toolbar color in dark and private. The page must never sit directly against near-black chrome. |
 | Sidebar on the right | Only the sidebar moves: tab list, rail and the hide/show toggle, which sits at the sidebar's inner edge (facing the page). The traffic lights, Ladybird button and All tabs button stay top left, at the start of the toolbar row, exactly as in collapsed mode. Rail badges keep their corners (× top left, speaker bottom right). Dragging a tab out of the sidebar goes sideways toward the page. On Windows, the sidebar header holds the minimize, maximize and close buttons, with the toggle to their left. Settings → Appearance → Layout shows "Sidebar on: Left / Right" below the layout cards, only while Tabs on the side is selected. |
@@ -421,6 +421,7 @@ Don't invent new shadows. Pick a level.
 - Warning pills ("Not secure", "Not wikipedia.org") use `warning-fill` with `warning-ink`
   text and icon.
 - The zoom chip is a neutral chip shown only while the zoom isn't 100%.
+- The location and microphone chips are neutral chips with a 16 px icon before their words.
 
 ### Focus
 
@@ -440,9 +441,10 @@ Don't invent new shadows. Pick a level.
 | Active | Joins the toolbar; title in full `text` color, weight 400 |
 | Dragging | Stays in the strip with a Lift shadow, flat (no tilt), slides sideways only |
 | Loading | Accent ring (20 px, 1.5 px line) around the favicon, reaching only 2 px past the favicon slot so the title keeps about 6 px of room and nothing moves. The favicon shrinks to 10 px inside the ring so square icons never touch it. |
-| Playing audio / muted | 20 px speaker button left of the close slot; click to mute. Muted keeps the struck speaker. In sidebar rows (13 px titles) the speaker is a 16 px glyph in a 22 px button, in the `icon` color, so it matches the × in weight. In the collapsed sidebar rail, the speaker is an 18 px round badge with a 13 px glyph, overlapping the favicon's bottom-right corner by about 7 px, on an opaque toolbar-colored backing with a hairline ring; it is clickable. |
+| Playing audio / muted | 20 px speaker button left of the close slot, shown while the tab was heard in the last 3.5 s; click to mute. Muted keeps the struck speaker. In sidebar rows (13 px titles) the speaker is a 16 px glyph in a 22 px button, in the `icon` color, so it matches the × in weight. In the collapsed sidebar rail, the speaker is an 18 px round badge with a 13 px glyph, overlapping the favicon's bottom-right corner by about 7 px, on an opaque toolbar-colored backing with a hairline ring; it is clickable. |
+| Using the microphone | A 14 px microphone glyph left of the speaker, or in the speaker's slot without it, in the speaker's color, shown while the page holds a capture stream and for 3 s after, whether or not the stream carries sound. It is not a button: a click on it goes to the tab, and its tooltip says "Using your microphone". In sidebar rows it is a 16 px glyph like the speaker. A tab too narrow for both shows only the microphone, so it never hides which tabs use the microphone. |
 | Needs attention | A 7 px accent dot on the favicon's corner; clears on visit |
-| Pinned | Favicon only, 44 px wide |
+| Pinned | Favicon only, 44 px wide. The microphone and the speaker take the favicon's place, side by side and centered (14 + 20 px). |
 | Crashed | Warning glyph replaces the favicon |
 
 ### Address field
@@ -458,6 +460,7 @@ Don't invent new shadows. Pick a level.
 | Bookmarked | Filled star in the `icon` color |
 | Permission requested | The permission's icon replaces the site settings icon, on the accent tint |
 | Zoomed | Zoom chip before the star |
+| Using location / microphone | "Using your location" chip before the zoom chip, and "Using your microphone" chip before that. Each says its words for 4 s after it appears, on its own timer, then shrinks to its 30 px icon. While the field has no room for a chip's words, it shows only its icon, keeping its tooltip and accessible name; resizing never restarts the timers. The field asks for room for the icons only, so a chip's words never widen the window. A click opens site settings. |
 | Blank tab | Empty and focused, placeholder "Search or enter address", no site settings icon or star |
 
 There is no content-blocker shield in the field. Content blocking is controlled from site

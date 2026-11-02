@@ -599,7 +599,7 @@ QToolButton#LadybirdLocationZoomIndicator:pressed {{
     background: {16};
 }}
 
-QToolButton#LadybirdLocationInUse {{
+QToolButton#LadybirdInUseChip {{
     color: {13};
     background: {14};
     border: 0;
@@ -608,11 +608,11 @@ QToolButton#LadybirdLocationInUse {{
     font-size: 12px;
 }}
 
-QToolButton#LadybirdLocationInUse:hover {{
+QToolButton#LadybirdInUseChip:hover {{
     background: {15};
 }}
 
-QToolButton#LadybirdLocationInUse:pressed {{
+QToolButton#LadybirdInUseChip:pressed {{
     background: {16};
 }}
 
@@ -2265,6 +2265,12 @@ void paint_control_frame(QPainter& painter, QAbstractButton const& button, Contr
     painter.setBrush(colors->background);
     painter.drawRoundedRect(QRectF(button.rect()), CONTROL_FRAME_RADIUS, CONTROL_FRAME_RADIUS);
     painter.restore();
+}
+
+void paint_tab_badge_frame(QPainter& painter, QWidget const& badge)
+{
+    auto const& palette = badge.window()->palette();
+    paint_circular_control_frame(painter, badge.rect(), badge.devicePixelRatioF(), chrome_active_tab_surface(palette), Theme::chrome(palette).separator);
 }
 
 // A ring around a favicon, with an arc in the accent color going around it, to show that the page is loading. Every

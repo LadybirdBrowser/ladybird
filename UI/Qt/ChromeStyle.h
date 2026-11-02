@@ -127,6 +127,8 @@ constexpr inline qreal CONTROL_FRAME_RADIUS = 6;
 // The colors of a button's frame in the button's current state, or nothing while it shows no frame.
 Optional<ControlFrameColors> control_frame_colors(QAbstractButton const&, ControlFrameStyle = ControlFrameStyle::InteractionOnly);
 void paint_control_frame(QPainter&, QAbstractButton const&, ControlFrameStyle = ControlFrameStyle::InteractionOnly);
+// The frame of a badge over a collapsed sidebar's tab that is not a button, as a button's frame looks at rest.
+void paint_tab_badge_frame(QPainter&, QWidget const&);
 void paint_focus_ring(QPainter&, QRectF const&, qreal radius);
 
 void paint_loading_ring(QPainter&, QPalette const&, QPointF center, LoadingRingSize, LoadingPhase = LoadingPhase::Receiving);

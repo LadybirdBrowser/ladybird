@@ -593,6 +593,8 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
             m_location_edit->set_location_in_use(visible);
             break;
         case WebView::TabIndicator::UsingMicrophone:
+            m_location_edit->set_microphone_in_use(visible);
+            emit microphone_in_use_changed();
             break;
         }
     };

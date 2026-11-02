@@ -24,13 +24,13 @@ class QGraphicsOpacityEffect;
 class QLabel;
 class QMouseEvent;
 class QResizeEvent;
-class QTimer;
 class QToolButton;
 class QVariantAnimation;
 
 namespace Ladybird {
 
 class Autocomplete;
+class InUseChip;
 
 class LocationEdit final
     : public NativeTextEditingLineEdit
@@ -58,8 +58,9 @@ public:
     // The translate button stands in the field, before the bookmark star, while the page can be translated.
     void set_translate_action(QAction*);
     QWidget& translate_button() const;
-    // Shows, while the page uses the user's location, a chip that says so.
+    // Shows, while the page uses the user's location or microphone, a chip that says so.
     void set_location_in_use(bool);
+    void set_microphone_in_use(bool);
 
     Optional<URL::URL const&> url() const { return m_url; }
     void set_url(Optional<URL::URL>);
@@ -102,19 +103,23 @@ private:
     virtual void native_text_editing_command_will_execute(Web::TextEditingCommand const&) override;
     virtual void mouseReleaseEvent(QMouseEvent* event) override;
     virtual void resizeEvent(QResizeEvent* event) override;
+    virtual QSize sizeHint() const override;
+    virtual QSize minimumSizeHint() const override;
 
     virtual void search_engine_settings_changed() override;
 
     void show_full_url_preserving_display_selection();
     int serialized_url_position_for_display_position(int) const;
     void update_text_margins();
+    void fit_in_use_chips();
+    int in_use_chips_width_beyond_icons() const;
     int trailing_text_margin() const;
     void update_trailing_item_positions();
     void update_chrome_style();
     void update_location_icon();
     void update_zoom_indicator();
     void update_translate_button();
-    void update_location_in_use_chip();
+    void update_in_use_chip_icons();
     void update_focus_ring(qreal opacity);
     void set_field_hovered(bool);
     void schedule_chrome_style_update();
@@ -145,8 +150,8 @@ private:
     QToolButton* m_zoom_indicator_button { nullptr };
     QGraphicsOpacityEffect* m_zoom_indicator_opacity { nullptr };
     QVariantAnimation* m_zoom_indicator_fade { nullptr };
-    QToolButton* m_location_in_use_button { nullptr };
-    QTimer* m_location_in_use_collapse_timer { nullptr };
+    InUseChip* m_location_in_use_chip { nullptr };
+    InUseChip* m_microphone_in_use_chip { nullptr };
     QLabel* m_completion_title { nullptr };
     QVariantAnimation* m_focus_ring_animation { nullptr };
     QGraphicsEffect* m_focus_ring_effect { nullptr };
