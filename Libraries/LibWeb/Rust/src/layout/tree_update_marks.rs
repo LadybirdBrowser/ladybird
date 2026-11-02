@@ -83,9 +83,9 @@ impl LayoutTreeUpdateMarks {
         node.text_index().is_none() && self.get(node) & CHILD_NEEDS != 0
     }
 
-    /// Fold one mark into the node's, answering whether its own bit changed. That answer is what
-    /// tells the mark site it has a transition to widen from. Once a reason that forbids reuse
-    /// arrives, a later one cannot narrow it back.
+    /// Fold one mark into the node's, answering whether its own bit changed, or the box it marked for a narrower rebuild
+    /// no longer stays. That answer is what tells the mark site it has a transition to widen from. Once a reason that
+    /// forbids reuse arrives, a later one cannot narrow it back.
     pub(crate) fn merge(&mut self, node: StyleNodeID, value: bool, reuse_reason: u8) -> bool {
         let reuse_reason = reuse_reason & layout_tree_update_reuse_reason::ALL;
         let mut changed = false;
@@ -94,6 +94,7 @@ impl LayoutTreeUpdateMarks {
             let rest = marks & !(NEEDS | layout_tree_update_reuse_reason::ALL);
             if (marks & NEEDS != 0) == value {
                 let merged = if reuse_reason == 0 || reasons == 0 {
+                    changed = value && reasons != 0;
                     0
                 } else {
                     reasons | reuse_reason
@@ -733,8 +734,10 @@ mod tests {
             marks.reuse_reasons(element),
             CHILD_LIST_INSERTION | PSEUDO_ELEMENT_CHANGE
         );
-        assert!(!marks.merge(element, true, 0));
+        // NB: The box the marks kept goes now, which what the mark site widens from has to hear of.
+        assert!(marks.merge(element, true, 0));
         assert_eq!(marks.reuse_reasons(element), 0);
+        assert!(!marks.merge(element, true, 0));
         assert!(!marks.merge(element, true, CHILD_LIST_INSERTION));
         assert_eq!(marks.reuse_reasons(element), 0);
         assert!(marks.needs(element));

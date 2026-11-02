@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    @media (prefers-color-scheme: dark) {
+        :nth-child(2n+1) { display: block; background-color: rgb(0, 1, 0); margin-right: 7px; }
+    }
+</style>
+<script src="../include.js"></script>
+<body>
+<div id="first"></div>
+<div id="deep"><div><a><h1></h1></a></div></div>
+<option></option>
+<script>
+    asyncTest(async done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const moved = document.createElement("table");
+        document.querySelector("h1").append(moved);
+        const table = document.createElement("table");
+        const child = document.createElement("summary");
+        table.append(child);
+        first.after(table);
+        internals.setPreferredColorScheme("light");
+        await frame();
+        await frame();
+        println(`before: ${getComputedStyle(table).display}`);
+        document.body.moveBefore(moved, table);
+        await frame();
+        // The reinserted child asks only to build the children of the table again, and the display change to replace
+        // the table's box, whose wrapper goes with it.
+        internals.setPreferredColorScheme("dark");
+        const next = child.nextSibling;
+        child.remove();
+        table.insertBefore(child, next);
+        await frame();
+        await frame();
+        println(`after: ${getComputedStyle(table).display}, ${table.offsetWidth > 0}`);
+        internals.setPreferredColorScheme("auto");
+        done();
+    });
+</script>
