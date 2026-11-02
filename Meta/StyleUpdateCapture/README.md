@@ -18,9 +18,7 @@ Meta/StyleUpdateCapture/test_capture.py
 Two ledgers, each additive on its own and never to be summed with the other.
 
 `internals.styleEngineCounters()` reports cumulative microseconds at the transaction
-boundary: `transactionMicroseconds` is exactly the sum of `commitMicroseconds`,
-`routingPlanningMicroseconds`, `matchingCascadeMicroseconds`,
-`computationPublicationMicroseconds`, `emitMicroseconds` and
+boundary: `transactionMicroseconds` is exactly the sum of `commitMicroseconds` and
 `transactionRemainderMicroseconds`.
 
 `internals.getStyleInvalidationCounters()` reports the C++ side, where
@@ -38,14 +36,7 @@ by the FFI diagnostics counters `longhandTableCopiedSlots` and `longhandTableCop
 These are counts of work performed, not of output kept, and they do not depend on how fast
 the machine is.
 
-A finer set of pass clocks splits each phase into the passes a transaction actually runs
-(routing setup, the routing input loop, sequence routing, the pending-route flush, batch
-compilation, the winner-group version advance, the retained-answer patch, completion and the
-computation loop). Reading a monotonic clock twice per pass is itself measurable on a
-document that flushes often, so those are off unless `LIBWEB_STYLE_PASS_CLOCKS` is set in the
-browser's environment. The phase clocks and the work counters are always on.
-
-Documentation/Style/StyleEngine.md describes each counter and the boundary it measures.
+`internals.styleCounters()` lists the counters, and `StyleCounter` in `css/style/pipeline/counters.rs` describes each.
 
 ## Reading a capture
 

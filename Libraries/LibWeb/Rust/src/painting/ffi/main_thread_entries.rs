@@ -691,6 +691,13 @@ pub extern "C" fn render_state_hold_next_recording_for_testing() {
     crate::painting::recording_slot::hold_next_recording_for_testing();
 }
 
+/// Keeps the Render thread from claiming the next style update that flies, until the test releases it or the host waits
+/// for it, which then takes it back.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_hold_next_style_flight_claim_for_testing() {
+    crate::painting::recording_slot::hold_next_style_flight_claim_for_testing();
+}
+
 /// Holds the next style update that flies before it reads anything, until the test releases it or the host waits
 /// for it.
 #[unsafe(no_mangle)]

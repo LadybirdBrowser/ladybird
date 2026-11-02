@@ -1,0 +1,128 @@
+<!doctype html>
+<style id="rules"></style>
+<body>
+<div class="a1"><span class="b1">x</span></div>
+<script src="../../include.js"></script>
+<script>
+    // The rule memory each style rule adds, by owner: the report with 1000 rules in the sheet, less the one with 500,
+    // over the 500 rules between. Per-document costs cancel out. The rules declare values no other test declares, which
+    // the process interns for this page alone whatever ran before it.
+    const ruleOwners = [
+        "ruleStore",
+        "ruleIndex",
+        "userAgentIndex",
+        "sheetSegments",
+        "invalidation",
+        "specifiedValues",
+        "sharedDeclarations",
+        "styleValues",
+    ];
+
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    function slopes(makeRule) {
+        const sheet = document.getElementById("rules");
+        const reports = [];
+        for (const count of [500, 1000]) {
+            let text = "";
+            for (let index = 0; index < count; ++index)
+                text += makeRule(index) + "\n";
+            sheet.textContent = text;
+            reports.push(report());
+        }
+        const slopes = {};
+        for (const owner of ruleOwners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / 500;
+        return slopes;
+    }
+
+    // The rule memory of a document with no rules of its own, by owner: what every document pays for the user agent's.
+    function checkDocument(budgets) {
+        document.getElementById("rules").textContent = "";
+        const owners = report().owners;
+        println("document:");
+        for (const owner of ruleOwners) {
+            // NB: The declarations of the documents the process styled before are not this one.
+            if (owner === "sharedDeclarations")
+                continue;
+            const bytes = owners[owner];
+            const budget = budgets[owner] ?? 0;
+            println(`  ${owner}: ${bytes <= budget ? "within" : `OVER (${bytes})`} ${budget}`);
+        }
+    }
+
+    function check(name, slopes, budgets) {
+        println(`${name}:`);
+        let total = 0;
+        for (const owner of ruleOwners) {
+            const slope = slopes[owner];
+            total += slope;
+            const budget = budgets[owner] ?? 0;
+            println(`  ${owner}: ${slope.toFixed(1) <= budget ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+        }
+        const budget = budgets.total ?? 0;
+        println(`  total: ${total <= budget ? "within" : `OVER (${total.toFixed(1)})`} ${budget}`);
+    }
+
+    // Bytes per rule each owner may add, which a change that grows an owner past has to raise.
+    // The declarations are the process's, which every document reaching the same sheet shares, and which the
+    // documents a process styled before can only lower, where they interned some of the same values.
+    const classBudgets = {
+        ruleStore: 80,
+        ruleIndex: 24,
+        invalidation: 8,
+        sheetSegments: 56,
+        sharedDeclarations: 40,
+        styleValues: 8,
+        total: 184,
+    };
+    const descendantBudgets = {
+        ruleStore: 72,
+        ruleIndex: 24,
+        invalidation: 8,
+        sheetSegments: 344,
+        sharedDeclarations: 40,
+        total: 460,
+    };
+    const listBudgets = {
+        styleValues: 8,
+        ruleStore: 72,
+        ruleIndex: 24,
+        invalidation: 8,
+        sheetSegments: 112,
+        sharedDeclarations: 40,
+        total: 224,
+    };
+    // Bytes of a document with no rules of its own each owner may hold.
+    // NB: The user agent index owner counts the rules of every user agent sheet the process published so far, which
+    //     depends on what ran in the process before: the budget is for all of them.
+    const documentBudgets = {
+        ruleStore: 1216,
+        ruleIndex: 2520,
+        userAgentIndex: 149568,
+        invalidation: 880,
+        styleValues: 4224,
+    };
+
+    test(() => {
+        checkDocument(documentBudgets);
+        check(
+            "class",
+            slopes(index => `.c${index} { color: rgb(${index % 256}, 3, 7); margin-left: ${index}.375px; }`),
+            classBudgets
+        );
+        check(
+            "descendant",
+            slopes(index => `.a${index} .b${index} > span { padding-top: ${index}.625px; }`),
+            descendantBudgets
+        );
+        check(
+            "selector list",
+            slopes(index => `.a${index}, .b${index} { padding-bottom: ${index}.125px; }`),
+            listBudgets
+        );
+    });
+</script>

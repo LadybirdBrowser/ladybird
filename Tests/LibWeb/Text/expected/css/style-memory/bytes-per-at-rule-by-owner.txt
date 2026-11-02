@@ -1,0 +1,35 @@
+@media that holds:
+  ruleStore: within 76
+  ruleIndex: within 56
+  sheetSegments: within 240
+  invalidation: within 0
+  sharedDeclarations: within 40
+  animationEffects: within 0
+@media that fails:
+  ruleStore: within 68
+  ruleIndex: within 0
+  sheetSegments: within 0
+  invalidation: within 0
+  sharedDeclarations: within 40
+  animationEffects: within 0
+@layer:
+  ruleStore: within 84
+  ruleIndex: within 60
+  sheetSegments: within 240
+  invalidation: within 0
+  sharedDeclarations: within 40
+  animationEffects: within 0
+@container:
+  ruleStore: within 60
+  ruleIndex: within 196
+  sheetSegments: within 240
+  invalidation: within 0
+  sharedDeclarations: within 40
+  animationEffects: within 0
+@keyframes:
+  ruleStore: within 116
+  ruleIndex: within 0
+  sheetSegments: within 0
+  invalidation: within 0
+  sharedDeclarations: within 0
+  animationEffects: within 0

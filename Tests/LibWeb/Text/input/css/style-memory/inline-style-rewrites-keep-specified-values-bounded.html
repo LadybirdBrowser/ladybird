@@ -1,0 +1,26 @@
+<!doctype html>
+<body>
+<div id="target"></div>
+<script src="../../include.js"></script>
+<script>
+    // Every write of an inline style interns its value. Once no declaration names a value, the table lets go of it,
+    // so a script rewriting one inline style holds the table to what the document declares: the most it holds while
+    // the script writes its last values is no more than the most it held while it wrote its first.
+    test(() => {
+        let written = 0;
+        const peakWhileRewriting = count => {
+            let peak = 0;
+            for (let i = 0; i < count; ++i) {
+                target.style.width = `${++written}px`;
+                target.offsetWidth;
+                if (i % 250 === 0)
+                    peak = Math.max(peak, internals.styleMemoryReport().owners.specifiedValues);
+            }
+            return peak;
+        };
+        const first = peakWhileRewriting(3000);
+        peakWhileRewriting(3000);
+        const last = peakWhileRewriting(3000);
+        println(`bounded: ${last <= first * 1.25}`);
+    });
+</script>

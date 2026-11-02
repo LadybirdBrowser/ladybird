@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<iframe id="frame" srcdoc="<div id=inner>child</div>"></iframe>
+<script>
+    // A task of the container runs beside the child's style update in flight, ahead of the next rendering task, which
+    // waits behind the update until it has finished. The task's read takes the style update back from the Render thread,
+    // which has not begun it, so that no thread lands it. Nothing else follows that would bring the event loop around to
+    // finish the update, which has to happen for the animation frame callback to run.
+    asyncTest(async done => {
+        if (!frame.contentDocument?.getElementById("inner"))
+            await new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        const inner = frame.contentDocument.getElementById("inner");
+        await twoFramesLanded();
+
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("claim");
+            internals.setManualRenderingOpportunities(true);
+            inner.style.color = "rgb(0, 128, 0)";
+            setTimeout(() => {
+                println(`state beside the frame: ${internals.frameSchedulerState()}`);
+                window.onmessage = () => println(`color the read sees: ${frame.contentWindow.getComputedStyle(inner).color}`);
+                window.postMessage(null, "*");
+                requestAnimationFrame(() => {
+                    internals.setManualRenderingOpportunities(false);
+                    println("the animation frame callback ran");
+                    done();
+                });
+                internals.injectRenderingOpportunity(performance.now());
+            }, 0);
+        });
+    });
+</script>

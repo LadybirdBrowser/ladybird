@@ -63,7 +63,6 @@ IN_ONE_LIBRARY = {
 # libweb_rust: `file:name` -> why the state is fine on a thread other than the document's.
 RENDER_STATE_CRATE = "Libraries/LibWeb/Rust"
 
-STYLE_POOL = "style interning pool behind a mutex; becomes per-engine state before style runs on another thread"
 SCRATCH = "per-thread allocation pool; a thread without one only allocates more"
 DIAGNOSTIC = "counter diagnostics; off unless an environment variable turns them on"
 ENVIRONMENT_SWITCH = "read-once environment switch; every thread sees the same answer"
@@ -79,22 +78,9 @@ def render_state_entries(reason, entries):
 
 RENDER_STATE_ALLOWED = {
     **render_state_entries(
-        STYLE_POOL,
-        [
-            "css/style/matching.rs:DISPATCH_POOLS",
-            "css/style/native_rules/targets.rs:TARGET_PAGES",
-            "css/style/program.rs:RULE_DECLARATIONS",
-            "css/style/program/rule_records.rs:RULE_RECORD_PAGES",
-            "css/style/program/rule_versions.rs:RULE_VERSION_PAGES",
-            "css/style/selector.rs:ROUTING_POOLS",
-            "css/style/selector.rs:SELECTOR_PROGRAM_POOLS",
-        ],
-    ),
-    **render_state_entries(
         SCRATCH,
         [
             "css/cascaded_properties.rs:STORE_POOL",
-            "css/style/column.rs:STAMPED_INDEX_POOL",
         ],
     ),
     **render_state_entries(
@@ -111,13 +97,6 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         ENVIRONMENT_SWITCH,
         [
-            "css/style/flush.rs:ENABLED",
-            "css/style/mod.rs:CASCADE_WINNERS",
-            "css/style/mod.rs:PREFIX_RELATION",
-            "css/style/mod.rs:PUBLISHED_STYLE_TRANSACTION",
-            "css/style/mod.rs:SELECTOR_TRUTH_DERIVATION",
-            "css/style/mod.rs:STYLE_ANSWER_PATCH",
-            "css/style/mod.rs:STYLE_PLAN_PROVENANCE",
             "layout/run_repeatability.rs:ENABLED",
             "layout/run_repeatability.rs:VERIFICATION",
             "render_state/clock/hover.rs:LOGS",
@@ -128,9 +107,6 @@ RENDER_STATE_ALLOWED = {
         [
             "css/declaration_block.rs:NEXT_DECLARATION_BLOCK_IDENTITY",
             "css/rule.rs:NEXT_RULE_IDENTITY",
-            "css/style/index.rs:NEXT",
-            "css/style/prefix.rs:NEXT",
-            "css/style/selector.rs:NEXT",
             "css/style_sheet.rs:NEXT_SHEET_IDENTITY",
             "layout/fragment_tree.rs:NEXT_IDENTITY",
             "render_state/owner.rs:NEXT",
@@ -153,20 +129,19 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         BUILT_ONCE,
         [
-            "css/computed_values.rs:DEFAULTS",
-            "css/computed_values.rs:MASKS",
             "css/counter_representation.rs:DECIMAL",
             "css/css_string.rs:EMPTY",
             "css/custom_properties.rs:EMPTY",
             "css/parser/stylesheet_cache.rs:HASHER",
             "css/parser/stylesheet_cache.rs:KEYS",
             "css/property_metadata.rs:SHORTHAND_LEAVES",
-            "css/style/publication.rs:REMAINING",
+            "css/style_compute.rs:DIRECT",
             "css/style_compute.rs:FONT_ORDER",
+            "css/style_compute.rs:FONT_PHASES",
             "css/style_compute.rs:KINDS",
-            "css/style_compute.rs:LONGHANDS",
             "css/style_compute.rs:PHASE_BOUNDARIES",
             "css/style_compute.rs:PX",
+            "css/style_compute.rs:RANKS",
             "css/style_compute.rs:REMAINING_ORDER",
             "css/style_compute.rs:TABLE",
         ],
@@ -174,12 +149,7 @@ RENDER_STATE_ALLOWED = {
     **render_state_entries(
         LOCKED,
         [
-            "css/parser/arbitrary_substitution.rs:ATTR_NAMES_READ",
-            "css/parser/arbitrary_substitution.rs:ATTR_NAMES_READ_GENERATION",
             "css/parser/stylesheet_cache.rs:CACHE",
-            "css/style/atoms.rs:GLOBAL_ATOMS",
-            "css/style/inputs.rs:CUSTOM_PROPERTY_DATA_LET_GO_BESIDE_THE_HOST",
-            "css/style/user_agent_selectors.rs:PROGRAMS",
         ],
     ),
     **render_state_entries(
@@ -189,12 +159,18 @@ RENDER_STATE_ALLOWED = {
             "css/declaration_block.rs:DECLARATION_OWNER_ALLOCATIONS",
             "css/descriptor_block.rs:DESCRIPTOR_OWNER_ALLOCATIONS",
             "css/rule.rs:RULE_OWNER_ALLOCATIONS",
-            "css/style/atoms.rs:GLOBAL_ATOM_TEST_LOCK",
             "css/style/font_resolution.rs:RESOLVES",
-            "css/style/mod.rs:SELECTOR_TRUTH_DERIVATION_OVERRIDE",
-            "css/style_compute.rs:FLY_STRINGS",
-            "css/style_compute.rs:FONT_CASCADE_LIST_UNREFS",
-            "css/style_compute.rs:NEXT",
+            "css/style/pipeline/allocation_count.rs:ALLOCATIONS",
+            "css/style/pipeline/allocation_count.rs:COUNTING",
+            "css/style/pipeline/allocation_count.rs:LIVE_BYTES",
+            "css/style/pipeline/allocation_count.rs:PRINTS_BACKTRACES",
+            "css/style/pipeline/allocation_count.rs:PRINTS_BACKTRACES_CACHE",
+            "css/style/pipeline/allocation_count.rs:STYLE_ALLOCATIONS",
+            "css/style/pipeline/allocation_count.rs:STYLE_SECTION_DEPTH",
+            "css/style/pipeline/test_support.rs:NAMES",
+            "css/style_compute/ffi_test_stubs.rs:FLY_STRINGS",
+            "css/style_compute/ffi_test_stubs.rs:FONT_CASCADE_LIST_UNREFS",
+            "css/style_compute/ffi_test_stubs.rs:NEXT",
         ],
     ),
     f"{RENDER_STATE_CRATE}/src/css/parser/stylesheet_cache.rs:PARSE_DEPENDENCIES": "per-thread record of the parse running on this thread; scoped to that parse",
@@ -204,7 +180,7 @@ RENDER_STATE_ALLOWED = {
     f"{RENDER_STATE_CRATE}/src/painting/recording_slot.rs:RECORDING_HOLD_RELEASED": "wakes the recording a test held once it lets it go",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD_SETUP": "set once before the first stage thread starts, which runs it; read-only after",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:FLIGHT_FINISHED": "set once before the first job is submitted, which a stage thread calls when one finishes; read-only after",
-    f"{RENDER_STATE_CRATE}/src/stage_thread.rs:STYLE_LAYOUT_THREAD": "the process's one StyleLayout thread, which every thread hands its jobs to",
+    f"{RENDER_STATE_CRATE}/src/stage_thread.rs:RENDER_THREAD": "the process's one Render thread, which every thread hands its jobs to",
     f"{RENDER_STATE_CRATE}/src/paint_stage.rs:PAINT_THREAD": "the process's one Paint thread, which every thread hands its jobs to, and the stage only its own jobs reach",
     f"{RENDER_STATE_CRATE}/src/stage_thread.rs:THREAD": "test only",
 }

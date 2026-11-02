@@ -314,6 +314,8 @@ public:
     GC::Ref<JS::Object> computed_values_stats();
     GC::Ref<JS::Object> style_ffi_counters();
     GC::Ref<JS::Object> style_engine_counters();
+    GC::Ref<JS::Object> style_memory_report();
+    u64 style_memory_of_frames();
     u64 style_record_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
     u64 before_style_record_identity(DOM::Element&);
@@ -323,9 +325,12 @@ public:
     u64 layout_arena_live_slot_count();
     void panic_render_state_for_testing();
     u64 layout_arena_shell_count();
-    double style_engine_match_document();
+    GC::Ref<JS::Object> style_cold_pass(bool verify, u32 threads);
+    GC::Ref<JS::Object> style_live_report(bool verify);
+    GC::Ref<JS::Object> style_counters();
+    void reset_style_counters();
+    GC::Ref<JS::Object> style_last_pass();
     Utf16String style_engine_matched_rules();
-    GC::Ref<JS::Object> style_engine_transaction_reactions();
     void reset_style_ffi_counters();
     GC::Ref<JS::Object> style_group_sharing_info(DOM::Element&);
     void update_style();

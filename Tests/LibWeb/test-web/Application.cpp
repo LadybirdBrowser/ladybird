@@ -85,15 +85,10 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
 void Application::create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions& request_server_options, WebView::WebContentOptions& web_content_options)
 {
     if (verify_style) {
-        static constexpr Array verification_variables {
-            "LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE"sv,
-            "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION"sv,
-            "LIBWEB_VERIFY_STYLE_ANSWER_PATCH"sv,
-            "LIBWEB_VERIFY_CASCADE_WINNERS"sv,
-            "LIBWEB_VERIFY_PREFIX_RELATION"sv,
-        };
-        for (auto variable : verification_variables)
-            MUST(Core::Environment::set(variable, "1"sv, Core::Environment::Overwrite::Yes));
+        // NB: The style engine checks what it installed against a cold computation of the document.
+        MUST(Core::Environment::set("LIBWEB_STYLE_SELFCHECK"sv, "1"sv, Core::Environment::Overwrite::Yes));
+        // NB: A cold computation per update takes a large document's test past the usual timeout.
+        per_test_timeout_in_seconds = max(per_test_timeout_in_seconds, 180);
     }
     browser_options.headless_mode = WebView::HeadlessMode::Test;
     browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;

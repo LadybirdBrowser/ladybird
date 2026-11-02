@@ -1,0 +1,3 @@
+state beside the frame: in-flight
+color the read sees: rgb(0, 128, 0)
+the animation frame callback ran

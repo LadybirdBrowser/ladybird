@@ -1,0 +1,38 @@
+<!doctype html>
+<style>
+    /* NB: A selector reading what the style attribute spells keeps a reference to each element's text of it. */
+    [style*="never-written"] {
+        color: red;
+    }
+</style>
+<body>
+<script src="../../include.js"></script>
+<script>
+    // What it costs an element that something reads its style attribute's text, by the owners holding that text: the
+    // report on a page of 1000 elements, less the one on the same page of 500, over the 500 elements between.
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    const budgets = {
+        projection: 148,
+        hostMemo: 52,
+    };
+
+    test(() => {
+        const reports = [];
+        for (const count of [500, 1000]) {
+            while (document.body.childElementCount < count + 1) {
+                const element = document.createElement("div");
+                element.style.width = `${document.body.childElementCount}px`;
+                document.body.appendChild(element);
+            }
+            reports.push(report());
+        }
+        for (const owner in budgets) {
+            const slope = (reports[1].owners[owner] - reports[0].owners[owner]) / 500;
+            println(`${owner}: ${slope.toFixed(1) <= budgets[owner] ? "within" : `OVER (${slope.toFixed(1)})`} ${budgets[owner]}`);
+        }
+    });
+</script>

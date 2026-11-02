@@ -1,0 +1,116 @@
+<!doctype html>
+<style>
+    @keyframes fade {
+        from { opacity: 0.25; }
+        to { opacity: 0.75; }
+    }
+    .animated {
+        animation: fade 10s linear infinite paused;
+    }
+    .transitioning {
+        transition: opacity 1000s linear;
+    }
+    .transitioning.faded {
+        opacity: 0.5;
+    }
+</style>
+<body>
+<script src="../../include.js"></script>
+<script>
+    // The style memory each animated element adds, by owner: the report on a page of 1000 elements running one paused
+    // CSS animation of one @keyframes rule, or one CSS transition, less the one on the same page of 500, over the 500
+    // elements between.
+    function report() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport();
+    }
+
+    // NB: Each page's elements go in a container of their own, beside those of the pages before, so that every
+    //     element takes a slot no element held before.
+    function slopes(makeElements) {
+        const container = document.createElement("div");
+        document.body.appendChild(container);
+        const reports = [];
+        for (const count of [500, 1000]) {
+            makeElements(container, count);
+            reports.push(report());
+        }
+        const elements = reports[1].elements - reports[0].elements;
+        const slopes = {};
+        for (const owner in reports[1].owners)
+            slopes[owner] = (reports[1].owners[owner] - reports[0].owners[owner]) / elements;
+        return { elements, slopes };
+    }
+
+    // Bytes per animated element each owner may add, which a change that grows an owner past has to raise.
+    // - animationEffects: describes each running animation for sampling (its effect, beside the keyframes it shares
+    //   with every element running the same @keyframes rule).
+    // - cssAnimations: each CSS animation's name and applied definition.
+    // - hostMemo: the versions of the effects the host described to the engine.
+    const animationBudgets = {
+        records: 456,
+        payloads: 656,
+        retainedSlots: 36,
+        recordCells: 4,
+        installed: 100,
+        projection: 52,
+        hostTree: 24,
+        heldRecordMaps: 12,
+        layoutStyleColumns: 28,
+        animationEffects: 388,
+        cssAnimations: 320,
+        hostMemo: 180,
+        cppInstalledStyles: 8,
+    };
+    const transitionBudgets = {
+        records: 456,
+        payloads: 352,
+        retainedSlots: 36,
+        recordCells: 4,
+        installed: 88,
+        projection: 52,
+        hostTree: 24,
+        heldRecordMaps: 12,
+        animationEffects: 456,
+        hostMemo: 248,
+        cppInstalledStyles: 8,
+    };
+
+    // NB: What a transaction in flight holds of earlier generations, and what the style threads keep for the next
+    //     pass, depend on when the report runs and on which passes ran last, which running transitions decide.
+    const transientOwners = ["projectionGenerations", "workerCaches", "liveScratch"];
+
+    function check(name, result, budgets) {
+        println(`${name}: ${result.elements} elements`);
+        for (const owner in result.slopes) {
+            if (transientOwners.includes(owner))
+                continue;
+            const slope = result.slopes[owner];
+            const budget = budgets[owner] ?? 0;
+            println(`  ${owner}: ${slope.toFixed(1) <= budget ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+        }
+    }
+
+    test(() => {
+        check("animation", slopes((container, count) => {
+            while (container.childElementCount < count) {
+                const element = document.createElement("div");
+                element.className = "animated";
+                container.appendChild(element);
+            }
+        }), animationBudgets);
+        // Each element is styled once before it fades, so that the fade starts a transition.
+        check("transition", slopes((container, count) => {
+            const added = [];
+            while (container.childElementCount < count) {
+                const element = document.createElement("div");
+                element.className = "transitioning";
+                container.appendChild(element);
+                added.push(element);
+            }
+            document.body.offsetWidth;
+            for (const element of added)
+                element.classList.add("faded");
+        }), transitionBudgets);
+    });
+</script>

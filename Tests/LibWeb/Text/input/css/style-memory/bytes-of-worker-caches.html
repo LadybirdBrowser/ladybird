@@ -1,0 +1,35 @@
+<!doctype html>
+<body>
+<script src="../../include.js"></script>
+<script>
+    // What the caches of the style threads keep from one pass to the next, which the other style memory tests leave out
+    // as depending on which thread styled what last: it has to stay bounded however many groups a page makes.
+    function workerCaches() {
+        document.body.offsetWidth;
+        return internals.styleMemoryReport().owners.workerCaches;
+    }
+
+    function addElements(count) {
+        const container = document.createElement("div");
+        for (let index = 0; index < count; ++index) {
+            const element = document.createElement("div");
+            element.style.width = `${document.body.childElementCount}.${index}px`;
+            element.style.color = `rgb(${index % 256}, ${index >> 8}, 7)`;
+            container.appendChild(element);
+        }
+        document.body.appendChild(container);
+    }
+
+    // Bytes a thread may keep, and the threads a pass runs on at most.
+    const budgetPerThread = 65536;
+    const maxThreads = 16;
+
+    test(() => {
+        addElements(2000);
+        const small = workerCaches();
+        addElements(8000);
+        const large = workerCaches();
+        for (const [name, bytes] of [["2000 elements", small], ["10000 elements", large]])
+            println(`${name}: ${bytes <= budgetPerThread * maxThreads ? "within" : `OVER (${bytes})`} ${budgetPerThread} per thread`);
+    });
+</script>
