@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<style id="stays">
+    /* NB: The first rule of the document, which no case matches. */
+    .first-rule { color: rgb(9, 9, 9); }
+    #sentinel.on { color: rgb(9, 9, 9); }
+    .stays.stays { color: rgb(1, 1, 1); }
+    #cases { container-type: inline-size; width: 400px; }
+</style>
+<div id="sentinel"></div>
+<div id="cases"></div>
+<script src="../include.js"></script>
+<script>
+// NB: Each case's element holds `stays`, whose rule above declares what the first rule does, and
+//     matches one rule of the sheet that moves as a whole.
+const cases = {
+    "decides": "background-color: rgb(2, 2, 2);",
+    "loses": "color: rgb(2, 2, 2);",
+    "decides-and-loses": "color: rgb(2, 2, 2); background-color: rgb(2, 2, 2);",
+    "important": "color: rgb(2, 2, 2) !important;",
+    "custom": "--custom: rgb(2, 2, 2);",
+};
+const filler = Array.from({ length: 64 }, (_, index) => `.filler-${index} { width: 1px; }`).join("\n");
+const rulesOf = prefix => [
+    ...Object.entries(cases).map(([name, declarations]) => `.${prefix}${name} { ${declarations} }`),
+    `.${prefix}pseudo::before { content: "x"; color: rgb(2, 2, 2); }`,
+].join("\n");
+
+const properties = ["color", "background-color", "--custom"];
+const describeStyle = (view, element, pseudo) => {
+    const style = view.getComputedStyle(element, pseudo);
+    return properties.map(property => style.getPropertyValue(property)).join("|");
+};
+
+function compareWithCold(title, sheetTexts) {
+    // NB: A self-check runs where an update installs styles, which keeping every style does not.
+    document.getElementById("sentinel").classList.toggle("on");
+    internals.updateStyle();
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    const copy = frame.contentDocument;
+    copy.open();
+    copy.write(`<!DOCTYPE html>${sheetTexts.map(text => `<style>${text}</style>`).join("")}${document.getElementById("cases").outerHTML}`);
+    copy.close();
+    for (const element of document.getElementById("cases").children) {
+        const coldElement = copy.getElementById(element.id);
+        for (const pseudo of [undefined, "::before"]) {
+            const live = describeStyle(window, element, pseudo);
+            const cold = describeStyle(frame.contentWindow, coldElement, pseudo);
+            if (live === cold)
+                println(`${title}: ${element.id} ${pseudo ?? ""} as a cold copy, ${live}`);
+            else
+                println(`${title}: ${element.id} ${pseudo ?? ""} differs: live ${live}, cold ${cold}`);
+        }
+    }
+    frame.remove();
+}
+
+test(() => {
+    const container = document.getElementById("cases");
+    for (const name of [...Object.keys(cases), "pseudo", "container"]) {
+        const element = document.createElement("div");
+        element.id = name;
+        element.className = `stays ${name} replaced-${name}`;
+        container.append(element);
+    }
+    const stays = document.getElementById("stays").textContent;
+
+    // A sheet whose rules all sit in one block of a flipping media query, which holds enough
+    // selectors for the process to index it in a segment.
+    internals.setPreferredColorScheme("light");
+    const rules = `${rulesOf("")}\n@container (min-width: 1px) { .container { background-color: rgb(2, 2, 2); } }\n${filler}`;
+    const block = `@media (prefers-color-scheme: dark) { ${rules} }`;
+    const flipping = document.createElement("style");
+    flipping.textContent = block;
+    document.head.append(flipping);
+    compareWithCold("Light", [stays, block]);
+    internals.setPreferredColorScheme("dark");
+    compareWithCold("Dark", [stays, block]);
+    internals.setPreferredColorScheme("light");
+    compareWithCold("Light again", [stays, block]);
+    internals.setPreferredColorScheme("dark");
+    compareWithCold("Dark again", [stays, block]);
+    internals.setPreferredColorScheme("auto");
+    flipping.remove();
+
+    // A sheet whose text is replaced, whose rules keep their identities by position.
+    const sheet = new CSSStyleSheet();
+    const before = `${rulesOf("replaced-")}\n${filler}`;
+    sheet.replaceSync(before);
+    document.adoptedStyleSheets = [sheet];
+    compareWithCold("Adopted", [stays, before]);
+    // NB: No case matches what arrives in place of the rules it matched.
+    const after = `${rulesOf("gone-")}\n${filler}`;
+    sheet.replaceSync(after);
+    compareWithCold("Replaced", [stays, after]);
+});
+</script>

@@ -1464,6 +1464,13 @@ impl RetainedRecords {
         }
     }
 
+    /// Have `node` hold `matches` in place of the entries it matched, where it holds a record.
+    pub(super) fn replace_matches(&mut self, node: StyleNodeID, matches: MatchList) {
+        if let Some(held) = self.slot_mut(node.element_slot()).and_then(|slot| slot.held.as_mut()) {
+            held.matches = Some(matches);
+        }
+    }
+
     /// Have `node` hold `installed` in place of its record at the address `own`, which holds what
     /// `installed` does, where it still holds that record.
     pub(super) fn adopt(&mut self, node: StyleNodeID, own: usize, installed: Arc<Record>) {

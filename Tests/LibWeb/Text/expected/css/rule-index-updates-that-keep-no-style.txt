@@ -1,0 +1,6 @@
+Sheets in order: rgb(2, 2, 2)
+Sheets swapped: rgb(1, 1, 1)
+Sheets swapped back: rgb(2, 2, 2)
+Dark: rgb(1, 1, 1)
+Light: rgb(2, 2, 2)
+Dark again: rgb(1, 1, 1)

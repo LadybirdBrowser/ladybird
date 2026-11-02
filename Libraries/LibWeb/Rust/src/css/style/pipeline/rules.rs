@@ -348,7 +348,7 @@ impl EntryView<'_> {
         self.flags().has(EntryFlags::LIVE)
     }
 
-    fn gated(&self) -> bool {
+    pub(super) fn gated(&self) -> bool {
         self.flags().has(EntryFlags::GATED)
     }
 
@@ -1127,6 +1127,20 @@ impl IndexEntries {
         }
     }
 
+    /// The entry numbered `id`, if any has the number, as it was before the update that let go of
+    /// the segments `let_go`, which took what their entries were with them.
+    pub(super) fn try_view_before<'a>(&'a self, let_go: &'a [BoundSegment], id: usize) -> Option<EntryView<'a>> {
+        let number = u32::try_from(id).expect("rule entry space exhausted");
+        match let_go.iter().find(|bound| bound.holds(number)) {
+            Some(bound) => Some(EntryView::Bound {
+                bound,
+                entry: &bound.segment.entries[(number - bound.first) as usize],
+                dead: true,
+            }),
+            None => self.try_view(id),
+        }
+    }
+
     /// How many entries the user agent index the document shares has.
     fn user_agent_count(&self) -> usize {
         self.user_agent
@@ -1227,7 +1241,7 @@ impl UserAgentIndex {
 /// The fewest entries a sheet has for its entries to be bucketed in a segment the process shares.
 /// Matching probes the buckets of each segment apart, which costs more than a few entries of the
 /// document's own buckets save.
-const SEGMENT_MIN_ENTRIES: usize = 64;
+pub(super) const SEGMENT_MIN_ENTRIES: usize = 64;
 
 /// One entry of a sheet segment, which every document binding the segment shares: what the entry
 /// is relative to its sheet. The binding says the rest: the rule the offsets count from, and the
@@ -1720,6 +1734,8 @@ struct Indexed {
 pub(super) struct IndexChanges<'a> {
     /// The rules whose contents, conditions, layering or existence moved.
     pub(super) rules: &'a HashSet<RuleID>,
+    /// Those of `rules` where more than their conditions moved.
+    pub(super) rule_contents: &'a HashSet<RuleID>,
     /// The sheets attached to or detached from a scope, or whose activation moved.
     pub(super) sheets: &'a HashSet<SheetID>,
     /// The scopes whose sheets or layers were reordered.
@@ -2578,8 +2594,10 @@ impl RuleIndex {
 
     /// Let go of the segment of the entries of `sheet` deciding in `group`, or of every sheet
     /// deciding in it where `sheet` is none, whose entries die, noting each in `died`. Their numbers
-    /// keep only where they decided, which what changed tells the trees of.
-    fn drop_segments(&mut self, sheet: Option<SheetID>, group: ScopeGroupID, died: &mut Vec<u32>) {
+    /// keep only where they decided, which what changed tells the trees of. Answers the segments,
+    /// which alone still tell the rest of what their entries were.
+    fn drop_segments(&mut self, sheet: Option<SheetID>, group: ScopeGroupID, died: &mut Vec<u32>) -> Vec<BoundSegment> {
+        let mut dropped = Vec::new();
         for place in (0..self.entries.segments.len()).rev() {
             let bound = &self.entries.segments[place];
             if bound.group != group || sheet.is_some_and(|sheet| bound.sheet != sheet) {
@@ -2598,7 +2616,9 @@ impl RuleIndex {
                     died.push(id);
                 }
             }
+            dropped.push(bound);
         }
+        dropped
     }
 
     /// Index the entries of `rule` deciding in `group`, appending their numbers to `added`, which
@@ -2845,11 +2865,12 @@ impl RuleIndex {
             let live = program.rules_in_sheet(*sheet);
             !live.is_empty() && live.iter().all(|rule| rules.binary_search(rule).is_ok())
         });
+        let mut let_go: Vec<BoundSegment> = Vec::new();
         for &sheet in &replaced {
             let groups: SmallVec<[ScopeGroupID; 4]> =
                 self.indexed.sheets[&sheet].iter().map(|&(group, _)| group).collect();
             for group in groups {
-                self.drop_segments(Some(sheet), group, &mut died);
+                let_go.extend(self.drop_segments(Some(sheet), group, &mut died));
             }
         }
         for &rule in &rules {
@@ -3016,11 +3037,13 @@ impl RuleIndex {
         let mut relabeled: Vec<SheetID> = rules.iter().map(|&rule| program.rule_sheet(rule)).collect();
         relabeled.sort_unstable();
         relabeled.dedup();
+        let mut any_relabeled = false;
         for sheet in relabeled {
             let relabels = program.rule_order_relabels(sheet);
             if self.indexed.rule_order_relabels.insert(sheet, relabels) == Some(relabels) {
                 continue;
             }
+            any_relabeled = true;
             // NB: The documents sharing a segment share the rule order its entries hold.
             for place in (0..self.entries.segments.len()).rev() {
                 let bound = &self.entries.segments[place];
@@ -3110,7 +3133,38 @@ impl RuleIndex {
         }
         self.share_entries(process_indexes);
 
-        RuleIndexChanges::new(self, died, &moved, &added, user_agent_moved, regrouped)
+        // NB: An entry that died where only the conditions of its rule moved declared what the rule
+        //     declares now. So nothing but those conditions moved the entries of an update where the
+        //     rule of each is one of them, and no sheet or layer moved. A rule order relabeled gives
+        //     new ranks to the entries that stayed alone, which those that died no longer compare to.
+        let contents_moved: HashSet<RuleID> = changes
+            .rule_contents
+            .iter()
+            .flat_map(|&rule| program.rule_subtree(rule))
+            .collect();
+        let conditions_moved_alone = changes.sheets.is_empty()
+            && changes.reordered_scopes.is_empty()
+            && changes.layered_scopes.is_empty()
+            && !user_agent_moved
+            && !any_relabeled
+            && moved.is_empty()
+            && regrouped.is_empty()
+            && died.iter().all(|&id| {
+                self.entries
+                    .try_view_before(&let_go, id as usize)
+                    .is_some_and(|view| !contents_moved.contains(&self.rule_of_view(view)))
+            });
+        let mut rule_index_changes = RuleIndexChanges::new(
+            self,
+            died,
+            &moved,
+            &added,
+            user_agent_moved,
+            regrouped,
+            conditions_moved_alone,
+        );
+        rule_index_changes.let_go = let_go;
+        rule_index_changes
     }
 
     /// The buckets holding the entries `entries` alone, where they are live.
@@ -3453,6 +3507,7 @@ mod tests {
                 None,
                 &IndexChanges {
                     rules: &HashSet::default(),
+                    rule_contents: &HashSet::default(),
                     sheets: &[sheet].into_iter().collect(),
                     reordered_scopes: &HashSet::default(),
                     layered_scopes: &HashSet::default(),
@@ -3639,6 +3694,7 @@ mod tests {
             Some(&indexes),
             &IndexChanges {
                 rules: &moved,
+                rule_contents: &moved,
                 sheets: &HashSet::default(),
                 reordered_scopes: &HashSet::default(),
                 layered_scopes: &HashSet::default(),

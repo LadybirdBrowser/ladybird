@@ -11,6 +11,7 @@
 use super::super::bridge::element_adjustment_fact;
 use super::super::*;
 use super::counters::StyleCounter;
+use super::rules::SEGMENT_MIN_ENTRIES;
 use super::test_support::{
     add_class, add_feature, add_rules, add_sheet, add_user_agent_sheet, allocate_nodes, assert_live_matches_cold, atom,
     attach_shadow_tree, describe, document_with_children, hosted_engine, linear_document, nested_document, relations,
@@ -89,6 +90,36 @@ fn declaration_of(index: usize) -> String {
     };
     let important = if index % 7 == 0 { " !important" } else { "" };
     format!("{declaration}{important}")
+}
+
+/// The style rule of `index` for the workload of rules that mostly lose to one another: selectors reaching
+/// across siblings, over a few properties, written as longhands, logically, as shorthands and to roll back.
+fn losing_rule_source(index: usize) -> String {
+    let a = class_name(index % CLASSES);
+    let b = class_name((index + 3) % CLASSES);
+    let selector = match index % 7 {
+        0 => format!(".{a}"),
+        1 => format!(".{a}.{b}"),
+        2 => format!(".{a} + .{b}"),
+        3 => format!(".{a} ~ .{b}"),
+        4 => format!(".{a} .{b}"),
+        5 => format!(".{a}:not(.{b})"),
+        _ => "div".to_owned(),
+    };
+    let value = index + 1;
+    let declaration = match index % 11 {
+        0 | 1 => format!("color: rgb({value}, 0, 0)"),
+        2 => format!("color: rgb({value}, 0, 0) !important"),
+        3 => "color: revert-layer".to_owned(),
+        4 => "color: var(--undefined, revert)".to_owned(),
+        5 => format!("margin-left: {value}px"),
+        6 => format!("margin-inline-start: {value}px"),
+        7 => format!("margin: {value}px"),
+        8 => format!("color: rgb({value}, 0, 0); margin-left: {value}px"),
+        9 => "all: unset".to_owned(),
+        _ => format!("font-size: {value}px; width: 2em"),
+    };
+    format!("{selector} {{ {declaration}; }}")
 }
 
 /// The style rule of `index` for the `:has()` workload: one of twelve shapes of `:has()` over
@@ -502,6 +533,13 @@ fn seeded_transactions_restyle_live_as_a_cold_pass_does() {
 }
 
 #[test]
+fn seeded_transactions_restyle_rules_that_lose_as_a_cold_pass_does() {
+    for seed_index in 0..seeds() {
+        run_seed(seed_index, losing_rule_source);
+    }
+}
+
+#[test]
 fn seeded_transactions_restyle_has_anchors_as_a_cold_pass_does() {
     for seed_index in 0..seeds() {
         run_seed(seed_index, has_rule_source);
@@ -620,6 +658,77 @@ fn seeded_transactions_restyle_compounds_with_no_key_as_a_cold_pass_does() {
 fn seeded_transactions_restyle_nested_combinators_alike_on_one_thread_and_on_several() {
     for seed_index in 0..THREAD_SEEDS {
         run_seed_on_one_thread_and_on_several(seed_index, nested_rule_source);
+    }
+}
+
+#[test]
+fn a_media_flip_keeps_styles_by_what_the_rules_that_flipped_declare_however_many_of_their_sheet_flipped() {
+    // NB: The sheet has enough selectors for a segment. Where every rule of it flips the segment is let
+    //     go of, and where a few do its entries die in place.
+    for flipped_rules in [SEGMENT_MIN_ENTRIES, 2] {
+        let (mut engine, nodes) = linear_document();
+        let staying = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        // NB: The first rule of the document matches nothing, and declares what the rule that stays does.
+        add_rules(
+            &mut engine,
+            staying,
+            ".first-rule { color: rgb(9, 9, 9); }\n.stays.stays { color: rgb(1, 1, 1); }",
+        );
+        let flipping = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        let mut source =
+            String::from(".loses { color: rgb(2, 2, 2); }\n.decides { background-color: rgb(2, 2, 2); }\n");
+        for index in 2..SEGMENT_MIN_ENTRIES {
+            source += &format!(".filler-{index} {{ width: 1px; }}\n");
+        }
+        let rules = add_rules(&mut engine, flipping, &source);
+        for (node, class) in [(nodes[1], "loses"), (nodes[2], "decides")] {
+            add_class(&mut engine, node, "stays");
+            add_class(&mut engine, node, class);
+        }
+        start_live(&mut engine, nodes[0]);
+        assert_live_matches_cold(&mut engine, nodes[0]);
+
+        for &rule in &rules[..flipped_rules] {
+            engine.set_rule_conditions_hold(rule, false);
+        }
+        run_style_update(&mut engine, nodes[0]);
+        let styled = styled_by_a_targeted_pass(&mut engine, nodes[0]);
+        assert!(!styled.contains(&nodes[1]), "with {flipped_rules} rules flipping");
+        assert!(styled.contains(&nodes[2]), "with {flipped_rules} rules flipping");
+        assert_live_matches_cold(&mut engine, nodes[0]);
+    }
+}
+
+#[test]
+fn a_media_flip_keeps_styles_only_as_far_as_what_decides_them_is_worth_reading() {
+    // NB: Each rule that flips is looked for among the rules that stay, from the last down to its winner.
+    for (flipped_rules, keeps) in [(4, true), (256, false)] {
+        let (mut engine, nodes) = linear_document();
+        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        let mut source = String::new();
+        for index in 0..flipped_rules {
+            source += &format!(".target {{ color: rgb({}, 0, 0); }}\n", index % 256);
+        }
+        source += ".target { color: rgb(1, 1, 1); }\n";
+        for index in 0..flipped_rules {
+            source += &format!(".target {{ margin-left: {index}px; }}\n");
+        }
+        let rules = add_rules(&mut engine, sheet, &source);
+        add_class(&mut engine, nodes[1], "target");
+        start_live(&mut engine, nodes[0]);
+        assert_live_matches_cold(&mut engine, nodes[0]);
+
+        for &rule in &rules[..flipped_rules] {
+            engine.set_rule_conditions_hold(rule, false);
+        }
+        run_style_update(&mut engine, nodes[0]);
+        let styled = styled_by_a_targeted_pass(&mut engine, nodes[0]);
+        assert_eq!(
+            styled.contains(&nodes[1]),
+            !keeps,
+            "with {flipped_rules} rules flipping"
+        );
+        assert_live_matches_cold(&mut engine, nodes[0]);
     }
 }
 

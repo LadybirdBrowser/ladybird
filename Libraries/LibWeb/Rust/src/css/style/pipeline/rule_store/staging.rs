@@ -216,6 +216,9 @@ pub(crate) struct RuleChanges {
     /// The rules whose contents, conditions, layering or existence moved. A rule of a sheet that was
     /// attached nowhere before the transaction is left out: what it decides arrives with the sheet.
     pub(crate) rules: Vec<RuleID>,
+    /// Those of `rules` where more than their conditions moved, whose declarations and gates may
+    /// not be the ones their entries were indexed with.
+    pub(crate) rules_with_moved_contents: Vec<RuleID>,
     /// The sheets that were attached to or detached from a scope, or whose activation moved.
     pub(crate) sheets: Vec<SheetID>,
     /// The scopes whose sheet order or layer order moved, which reorders declarations that already
@@ -548,16 +551,22 @@ impl StyleEngine {
         let program = &self.retained.rules;
         let mut changes = RuleChanges::default();
 
-        let mut rules: Vec<RuleID> = moved(staging.rule_conditions.pairs())
-            .chain(moved(staging.rule_declarations.pairs()))
+        let attached = |rule: &RuleID| !program.sheet_scopes(program.rule_sheet(*rule)).is_empty();
+        changes.rules_with_moved_contents = moved(staging.rule_declarations.pairs())
             .chain(moved(staging.rule_versions.pairs()))
             .chain(moved(staging.rule_in_a_layer.pairs()))
             .chain(moved(staging.rule_gated_by_container_query.pairs()))
             .chain(moved(staging.rule_liveness.pairs()))
+            .filter(attached)
+            .collect();
+        changes.rules_with_moved_contents.sort_unstable();
+        changes.rules_with_moved_contents.dedup();
+        let mut rules: Vec<RuleID> = moved(staging.rule_conditions.pairs())
+            .filter(attached)
+            .chain(changes.rules_with_moved_contents.iter().copied())
             .collect();
         rules.sort_unstable();
         rules.dedup();
-        rules.retain(|&rule| !program.sheet_scopes(program.rule_sheet(rule)).is_empty());
         changes.rules = rules;
 
         changes.sheets = moved(staging.sheet_conditions.pairs())
