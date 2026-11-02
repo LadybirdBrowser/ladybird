@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    .scroller { width: 200px; height: 100px; overflow: auto; }
+    .sticky { position: sticky; top: 0; height: 20px; }
+    .filler { height: 300px; }
+</style>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const cases = [
+            ["inline", '<div style="display: inline"><header class="sticky"></header></div>'],
+            ["unset", '<div style="display: unset"><header class="sticky"></header></div>'],
+            ["nested inline", '<span><span><header class="sticky"></header></span></span>'],
+            ["inline text before and after", '<span style="line-height: 20px">Before<header class="sticky"></header>After</span>'],
+            ["sticky inline-block", '<span><span class="sticky" style="display: inline-block; width: 20px"></span></span>'],
+            ["real containing block", '<div><span><header class="sticky"></header></span></div>'],
+            ["tall containing block", '<div style="height: 100px"><span><header class="sticky"></header></span><div></div></div>'],
+            ["padded containing block", '<div style="height: 100px; padding: 20px; border: 5px solid"><span><header class="sticky" style="margin-bottom: 10px"></header></span><div></div></div>'],
+            ["fieldset without legend", '<fieldset style="margin: 0; border: 0; padding: 0; height: 100px"><span><header class="sticky"></header></span><div></div></fieldset>'],
+            ["fieldset content", '<fieldset style="margin: 0; border: 0; padding: 0; height: 100px"><legend style="padding: 0; height: 30px">Legend</legend><header class="sticky" style="top: auto; bottom: 90px"></header></fieldset>'],
+        ];
+        const results = [];
+        for (const [name, content] of cases) {
+            const scroller = document.createElement("div");
+            scroller.className = "scroller";
+            scroller.innerHTML = `${content}<div class="filler"></div>`;
+            document.body.append(scroller);
+            const sticky = scroller.querySelector(".sticky");
+            const positions = [];
+            for (const offset of [0, 50, 150]) {
+                scroller.scrollTop = offset;
+                positions.push(sticky.getBoundingClientRect().top - scroller.getBoundingClientRect().top);
+            }
+            results.push(`${name}: ${positions.join(", ")}`);
+            scroller.remove();
+        }
+        const horizontal = document.createElement("div");
+        horizontal.className = "scroller";
+        horizontal.style.width = "100px";
+        horizontal.innerHTML = '<span><header class="sticky" style="top: auto; left: 0; width: 20px"></header></span><div style="width: 300px; height: 20px"></div>';
+        document.body.append(horizontal);
+        const sticky = horizontal.querySelector(".sticky");
+        const positions = [];
+        for (const offset of [0, 50, 150, 200]) {
+            horizontal.scrollLeft = offset;
+            positions.push(sticky.getBoundingClientRect().left - horizontal.getBoundingClientRect().left);
+        }
+        results.push(`horizontal: ${positions.join(", ")}`);
+        horizontal.remove();
+        results.forEach(println);
+    });
+</script>

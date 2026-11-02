@@ -1,0 +1,11 @@
+inline: 0, 0, 0
+unset: 0, 0, 0
+nested inline: 0, 0, 0
+inline text before and after: 20, 0, 0
+sticky inline-block: 0, 0, 0
+real containing block: 0, -50, -150
+tall containing block: 0, 0, -70
+padded containing block: 25, 0, -55
+fieldset without legend: 0, 0, -70
+fieldset content: 30, -20, -120
+horizontal: 0, 0, 0, 0
