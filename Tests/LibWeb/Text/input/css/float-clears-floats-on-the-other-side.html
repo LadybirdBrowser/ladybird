@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .container { display: flow-root; width: 200px; }
+    .container > div { width: 50px; height: 50px; }
+</style>
+<!-- No white space between the floats, so they are block-level siblings. -->
+<div class="container"><div style="float: left"></div><div id="clears-left" style="float: right; clear: left"></div></div>
+<div class="container"><div style="float: right"></div><div id="clears-right" style="float: left; clear: right"></div></div>
+<div class="container"><div style="float: left"></div><div id="clears-both" style="float: right; clear: both"></div></div>
+<script>
+    test(() => {
+        for (const id of ["clears-left", "clears-right", "clears-both"]) {
+            const float = document.getElementById(id);
+            const offset = float.getBoundingClientRect().top - float.parentElement.getBoundingClientRect().top;
+            println(`${id}: ${offset}px below the top of its container`);
+        }
+    });
+</script>

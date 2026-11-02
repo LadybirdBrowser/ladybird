@@ -5277,11 +5277,13 @@ impl<'pass> BlockFormattingContext<'pass> {
         } else {
             block_offset
         };
-        if side == FloatSide::Left && matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
+        // https://www.w3.org/TR/CSS2/visuren.html#flow-control
+        // A float clears the floats of the sides its 'clear' names, whichever side it floats to itself.
+        if matches!(style.clear(), clear::LEFT | clear::BOTH | clear::INLINE_START) {
             margin_box_ceiling =
                 margin_box_ceiling.max(self.lowest_left_margin_edge.get() - containing_block_rect_now.y);
         }
-        if side == FloatSide::Right && matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
+        if matches!(style.clear(), clear::RIGHT | clear::BOTH | clear::INLINE_END) {
             margin_box_ceiling =
                 margin_box_ceiling.max(self.lowest_right_margin_edge.get() - containing_block_rect_now.y);
         }
