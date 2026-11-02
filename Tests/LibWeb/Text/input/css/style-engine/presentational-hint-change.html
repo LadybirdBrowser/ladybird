@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="target" align="left">text</div>
+<font id="font" color="red">text</font>
+<script>
+    // A presentational hint follows its attribute when it moves.
+    test(() => {
+        internals.updateStyle();
+        document.getElementById("target").setAttribute("align", "right");
+        document.getElementById("font").setAttribute("color", "green");
+        internals.updateStyle();
+        println(`text-align: ${getComputedStyle(document.getElementById("target")).textAlign}`);
+        println(`color: ${getComputedStyle(document.getElementById("font")).color}`);
+    });
+</script>

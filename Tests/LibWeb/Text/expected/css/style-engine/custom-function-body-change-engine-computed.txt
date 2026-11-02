@@ -1,4 +1,0 @@
-engine records: 1
-C++ recomputations: 0
-element width: 20px
-::before width: 20px

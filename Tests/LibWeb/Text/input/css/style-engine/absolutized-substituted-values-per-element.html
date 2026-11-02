@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    @function --passed(--value <length>) returns <length> { result: var(--value); }
+    .attr { width: attr(data-w type(<length>)); }
+    .function { width: --passed(attr(data-w type(<length>))); }
+    .condition { width: if(media(width > 1px): attr(data-w type(<length>)); else: 0px); }
+</style>
+<div id="holder"></div>
+<script src="../../include.js"></script>
+<script>
+    // Each element here substitutes a value of its own, freed once it is computed, which the next element's can land on
+    // the address of. What the first absolutized to must not then answer for the second.
+    test(() => {
+        const holder = document.getElementById("holder");
+        for (const name of ["attr", "function", "condition"]) {
+            const expected = [];
+            const children = [];
+            for (let i = 0; i < 600; ++i) {
+                const inches = (i * i + i) % 5 + 1;
+                const child = document.createElement("div");
+                child.className = name;
+                child.setAttribute("data-w", `${inches}in`);
+                holder.append(child);
+                children.push(child);
+                expected.push(`${inches * 96}px`);
+            }
+            internals.updateStyle();
+            const wrong = children.filter((child, index) => getComputedStyle(child).width !== expected[index]).length;
+            println(`${name}: ${wrong} of ${children.length} with the width of another`);
+            holder.textContent = "";
+        }
+    });
+</script>

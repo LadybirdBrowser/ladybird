@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="visible-parent">
+    <div id="visible-child" style="overflow-x: inherit; overflow-y: hidden"></div>
+</div>
+<div id="clip-parent" style="overflow: clip">
+    <div id="clip-child" style="overflow-x: inherit; overflow-y: scroll"></div>
+    <div id="clip-sibling" style="overflow-x: inherit"></div>
+</div>
+<script>
+    test(() => {
+        for (const id of ["visible-parent", "visible-child", "clip-parent", "clip-child", "clip-sibling"]) {
+            const style = getComputedStyle(document.getElementById(id));
+            println(`${id}: ${style.overflowX} ${style.overflowY}`);
+        }
+    });
+</script>

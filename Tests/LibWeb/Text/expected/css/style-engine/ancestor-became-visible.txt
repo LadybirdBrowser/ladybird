@@ -1,0 +1,4 @@
+grandchild color: rgb(0, 128, 0)
+hit test finds the child: true
+child::before width: 16px
+grandchild font-weight: 700

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<style>
+    .item { color: rgb(1, 2, 3); padding: 2px; }
+    .item[data-on] { color: rgb(200, 0, 0); }
+    .item:nth-child(3n) { margin-left: 5px; }
+    .item + .item { border-top: 1px solid black; }
+    .item:first-child { font-weight: bold; }
+    #named { background-color: rgb(0, 100, 0); }
+    .group[data-wide] .item { width: 50px; }
+    .group:has(.marker) .item { height: 7px; }
+    .item:empty { display: inline-block; }
+    li { list-style-type: square; }
+    li:nth-child(2n + 1 of .odd) { text-indent: 3px; }
+    li:hover { outline: 1px solid red; }
+</style>
+<div class="group">
+    <span class="item">a</span><span class="item">b</span><span class="item" data-on>c</span>
+    <span class="item">d</span><span class="item" id="named">e</span><span class="item" id="untested">f</span>
+    <span class="item" style="padding: 9px">g</span><span class="item"></span><span class="item">h</span>
+</div>
+<div class="group" data-wide>
+    <span class="item">a</span><span class="item">b</span><span class="item">c</span>
+</div>
+<div class="group">
+    <span class="item">a</span><span class="item">b</span><span class="marker"></span>
+</div>
+<ul>
+    <li class="odd">1</li><li>2</li><li class="odd">3</li><li class="odd">4</li><li>5</li><li class="odd">6</li>
+</ul>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const report = internals.styleColdPass();
+        println(`computed every styled element: ${report.computedElements == report.elements}`);
+        println(`shared some elements: ${report.sharedElements > 0}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

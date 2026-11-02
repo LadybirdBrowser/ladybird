@@ -297,15 +297,13 @@ fn shorthand_leaf_longhands() -> &'static [(u16, Box<[u16]>)] {
     })
 }
 
-/// The shorthand whose longhands, through any shorthand nested in it, are exactly `longhands`: the one a value pending
-/// substitution in each of them was written for.
-pub(crate) fn shorthand_with_leaf_longhands(mut longhands: Vec<u16>) -> Option<u16> {
-    longhands.sort_unstable();
-    longhands.dedup();
-    shorthand_leaf_longhands()
-        .iter()
-        .find(|(_, leaves)| **leaves == *longhands)
-        .map(|(shorthand, _)| *shorthand)
+/// Whether `longhand` is one of the longhands of `shorthand`, through any shorthand nested in it.
+pub(crate) fn shorthand_has_leaf_longhand(shorthand: u16, longhand: u16) -> bool {
+    property_is_shorthand(shorthand)
+        && shorthand_leaf_longhands()[usize::from(shorthand - FIRST_SHORTHAND_PROPERTY_ID)]
+            .1
+            .binary_search(&longhand)
+            .is_ok()
 }
 
 /// The shorthands whose longhands, through any shorthand nested in it, include all of `longhands`, with the fewest

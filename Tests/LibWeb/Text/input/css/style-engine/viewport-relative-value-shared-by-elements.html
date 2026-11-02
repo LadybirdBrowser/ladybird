@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    function animationFrame() {
+        return new Promise(resolve => requestAnimationFrame(resolve));
+    }
+
+    promiseTest(async () => {
+        const iframe = document.createElement("iframe");
+        iframe.style.border = "0";
+        iframe.style.width = "300px";
+        iframe.style.height = "200px";
+
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.srcdoc = `
+            <!DOCTYPE html>
+            <style>
+                .sized {
+                    width: 10vw;
+                    height: 1px;
+                }
+
+                #second {
+                    color: rgb(0, 128, 0);
+                }
+
+                #third {
+                    color: rgb(0, 0, 255);
+                }
+            </style>
+            <div class="sized" id="first"></div>
+            <div class="sized" id="second"></div>
+            <div class="sized" id="third"></div>
+        `;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        const child = iframe.contentWindow;
+        child.internals.updateStyle();
+        child.document.body.offsetWidth;
+
+        iframe.style.width = "500px";
+        document.body.offsetWidth;
+        await animationFrame();
+        child.document.body.offsetWidth;
+
+        for (const id of ["first", "second", "third"])
+            println(`${id}: ${child.getComputedStyle(child.document.getElementById(id)).width}`);
+    });
+</script>

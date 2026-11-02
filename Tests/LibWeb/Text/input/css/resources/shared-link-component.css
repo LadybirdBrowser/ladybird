@@ -1,0 +1,3 @@
+.target { color: rgb(0, 128, 0); }
+.target.wide { width: 10px; }
+.other { color: rgb(255, 0, 0); }

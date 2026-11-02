@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+@property --not-inherited {
+    syntax: "*";
+    inherits: false;
+    initial-value: start;
+}
+.pseudo-element-declares::before, .element-declares {
+    --not-inherited: declared;
+}
+.pseudo-element-declares::before {
+    content: "";
+}
+</style>
+<div id="first"></div>
+<div id="second"><div id="child"></div></div>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const child = document.getElementById("child");
+        requestAnimationFrame(() => {
+            // NB: A ::before and an element holding the same custom properties, with a child of the element restyled
+            //     along with them.
+            document.getElementById("first").classList.add("pseudo-element-declares");
+            document.getElementById("second").classList.add("element-declares");
+            child.style.color = "green";
+            requestAnimationFrame(() => {
+                println(`--not-inherited of the child: ${getComputedStyle(child).getPropertyValue("--not-inherited")}`);
+                done();
+            });
+        });
+    });
+</script>

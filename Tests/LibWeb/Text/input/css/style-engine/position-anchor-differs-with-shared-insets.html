@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .cb { position: fixed; inset: 0; }
+    #a1 { anchor-name: --a1; position: absolute; top: 0; left: 0; width: 100px; height: 50px; }
+    #a2 { anchor-name: --a2; position: absolute; top: 200px; left: 300px; width: 100px; height: 50px; }
+    .target { position: absolute; width: 20px; height: 20px; top: anchor(bottom); left: anchor(left); }
+    #t2 { position-anchor: --a2; }
+</style>
+<div class="cb">
+    <div id="a1"></div>
+    <div id="a2"></div>
+    <div id="t1" class="target"></div>
+    <div id="t2" class="target"></div>
+</div>
+<script>
+    test(() => {
+        for (const id of ["t1", "t2"]) {
+            const t = document.getElementById(id).getBoundingClientRect();
+            println(`${id}: top: ${t.top} left: ${t.left}`);
+        }
+    });
+</script>

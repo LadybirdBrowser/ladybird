@@ -1,0 +1,7 @@
+outer: 20px
+own-size: 40px
+mono-parent: 13px
+inherits-mono: 26px
+keyword: 18px
+mono-under-keyword: 16px
+recoloured mono-under-keyword: 16px

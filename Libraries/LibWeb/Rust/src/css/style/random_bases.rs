@@ -19,11 +19,11 @@ use std::sync::{Arc, Mutex};
 /// sharing.
 #[derive(Clone, Default)]
 pub(crate) struct RandomBaseValues {
-    /// The keys whose element is null, by name.
-    document: HashMap<Box<[u16]>, f64>,
+    /// The keys whose element is null, by name, shared with a fork until either side writes it.
+    document: crate::fork::ForkShared<HashMap<Box<[u16]>, f64>>,
     /// The keys that name an element. Few elements draw, and those draw few names, so only they
-    /// have a row and a row is searched in order.
-    elements: HashMap<StyleNodeID, Vec<NamedBaseValue>>,
+    /// have a row and a row is searched in order. Shared with a fork until either side writes it.
+    elements: crate::fork::ForkShared<HashMap<StyleNodeID, Vec<NamedBaseValue>>>,
     /// Raised once any element has a row, and never lowered. The host watches it so that an element losing its
     /// identity asks for keys only once some element can have any.
     element_rows_exist: Arc<AtomicBool>,
@@ -97,6 +97,9 @@ impl RandomBaseValues {
 
     /// Takes the keys that name an element, with their values, as the element loses its identity.
     pub(crate) fn take_element_values(&mut self, node: StyleNodeID) -> Vec<NamedBaseValue> {
+        if !self.elements.contains_key(&node) {
+            return Vec::new();
+        }
         self.elements.remove(&node).unwrap_or_default()
     }
 
@@ -104,11 +107,33 @@ impl RandomBaseValues {
     /// element, which must not see this one's values; the element itself took its own along when
     /// it lost the identity.
     pub(crate) fn retire(&mut self, node: StyleNodeID) {
-        self.elements.remove(&node);
+        if self.elements.contains_key(&node) {
+            self.elements.remove(&node);
+        }
     }
 }
 
+/// A random caching key a style computation of `node` needs the base value of, which has not
+/// been drawn. A pass draws none itself: the key is drawn between passes, as a font is resolved,
+/// and the element is styled again.
+pub(crate) struct RandomBaseRequest {
+    pub(crate) node: StyleNodeID,
+    pub(crate) name: Box<[u16]>,
+    pub(crate) element_shared: bool,
+}
+
 impl RetainedState {
+    /// Draw the base value of the random caching key `request` names.
+    pub(crate) fn draw_random_base_value(&mut self, request: RandomBaseRequest) {
+        self.random_base_values
+            .ensure(Some(request.node), &request.name, request.element_shared);
+    }
+
+    /// The base value of a random caching key, if it has been drawn.
+    pub(crate) fn drawn_random_base_value(&self, node: StyleNodeID, name: &[u16], element_shared: bool) -> Option<f64> {
+        self.random_base_values.get(node, name, element_shared)
+    }
+
     /// Give an element's new style node the keys the element kept while it had none.
     pub(crate) fn set_element_random_base_values(&mut self, node: StyleNodeID, row: Vec<NamedBaseValue>) {
         if !row.is_empty() {
@@ -122,11 +147,8 @@ impl RetainedState {
         let exist = self.random_base_values.element_rows_exist.load(Ordering::Relaxed);
         self.random_base_values.element_rows_exist = Arc::new(AtomicBool::new(exist));
         self.detach_container_effects_held_for_fork();
-        // The prefix caches hold the answers of the engine's own match answer catalog, which the fork copies as either
-        // writes it: the fork starts with caches of its own.
-        self.prefix_caches = Default::default();
         if let Some(font_resolution) = self.font_resolution.as_mut() {
-            font_resolution.start_over_for_fork();
+            font_resolution.hold_cascades_for_fork();
         }
     }
 

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+    :root {
+        color: rgb(10, 10, 10);
+        scrollbar-color: color-mix(in srgb, currentColor 50%, #0000) #0000;
+        caret-color: color-mix(in srgb, currentColor 50%, #0000);
+        accent-color: color-mix(in srgb, currentColor 50%, #0000);
+        fill: color-mix(in srgb, currentColor 50%, #0000);
+        stroke: color-mix(in srgb, currentColor 50%, #0000);
+    }
+    .same { cursor: pointer; stroke-width: 2px; }
+    #first { color: rgb(200, 0, 0); }
+    #second { color: rgb(0, 200, 0); }
+    #third { color: rgb(0, 0, 200); }
+    .moved { cursor: help; stroke-width: 3px; }
+</style>
+<div class="same" id="first">first</div>
+<div class="same" id="second">second</div>
+<div id="third">third</div>
+<script src="../../include.js"></script>
+<script>
+    // Each elements scrollbar, caret, accent, fill and stroke colors read that elements own color, although none of
+    // them declares those colors. The elements hold groups no other element of a different color may share.
+    asyncTest(async done => {
+        const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const report = label => println(`${label}: differences from a cold pass: ${internals.styleColdPass().differences}`);
+        await frames();
+        report("start");
+        third.classList.add("moved");
+        await frames();
+        report("third moved");
+        first.classList.add("moved");
+        await frames();
+        report("first moved");
+        third.classList.remove("moved");
+        await frames();
+        report("third back");
+        done();
+    });
+</script>

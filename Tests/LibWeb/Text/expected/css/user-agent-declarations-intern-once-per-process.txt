@@ -1,0 +1,2 @@
+margin-top from the user-agent sheet: 16px
+declarations the frame published: 0

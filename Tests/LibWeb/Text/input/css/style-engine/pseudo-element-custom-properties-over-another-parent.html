@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes angle {
+        0% { content: var(--text); --angle: 0deg; }
+        to { content: var(--text); --angle: 360deg; }
+    }
+    *, :before, :after { --text: ""; --stops: red, blue; }
+    .item { display: block; position: relative; background: white; border: 2px solid; --own: 1; }
+    .item.moved { border-color: transparent; color: red; --own: 2; }
+    .item:after {
+        content: var(--text);
+        display: block;
+        height: 10px;
+        background-image: linear-gradient(var(--angle, 90deg), var(--stops));
+        animation: angle 1000s infinite paused;
+    }
+    .item.moved:after { opacity: 1; }
+</style>
+<div id="list"><a class="item" id="first"></a><a class="item" id="second"></a></div>
+<script>
+    asyncTest(async done => {
+        // The two ::after share a store of custom properties, which the engine names as resolved over the environment it
+        // saw last. A pseudo-element whose inherited environment is another one still holds its declarations, or its
+        // animation samples over nothing and its content goes with --text.
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        for (let i = 0; i < 5; ++i)
+            await nextFrame();
+        const animations = list.getAnimations({ subtree: true });
+        const heights = new Set();
+        for (let i = 0; i < 120; ++i) {
+            await nextFrame();
+            if (i % 5 === 0)
+                first.classList.toggle("moved");
+            if (i % 11 === 0)
+                document.documentElement.style.setProperty("--root", i);
+            if (i % 23 === 0)
+                first.style.color = i % 2 ? "blue" : "";
+            if (i % 4 === 0) {
+                for (const animation of animations)
+                    animation.currentTime = i % 8 === 0 ? 100000 : 900000;
+            }
+            await nextFrame();
+            heights.add(`${first.offsetHeight}/${second.offsetHeight}`);
+        }
+        println(`animations: ${animations.length}`);
+        println(`heights: ${[...heights].join(", ")}`);
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+first color: rgb(255, 0, 0)
+second color: rgb(255, 0, 0)

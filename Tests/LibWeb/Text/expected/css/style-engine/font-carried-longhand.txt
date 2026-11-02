@@ -1,0 +1,2 @@
+font-feature-settings: value "liga" 0
+text-rendering: value optimizelegibility

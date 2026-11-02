@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .unsupported { list-style-type: square; }
+    .variable { width: var(--retried, 10px); }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        // The parent needs C++ computation before its child can get an engine record.
+        host.innerHTML = '<div class="unsupported"><div class="variable"></div></div>';
+        internals.updateStyle();
+        const child = host.querySelector(".variable");
+        println(`retried width: ${getComputedStyle(child).width}`);
+        CSS.registerProperty({ name: "--retried", syntax: "<length>", inherits: false, initialValue: "20px" });
+        println(`registered width: ${getComputedStyle(child).width}`);
+    });
+</script>

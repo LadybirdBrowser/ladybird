@@ -4,114 +4,139 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-//! Canonical specified-value identities retained as a dense table.
+//! The canonical values of elements' own declarations, and the entries those declarations take.
 
+use crate::css::declaration_block;
+use crate::css::declaration_block::DeclarationEntry;
 use crate::css::style_value::RetainedStyleValueData;
 use crate::css::style_value::StyleValueData;
-use std::sync::Arc;
+use crate::css::style_value_arc::StyleValueArc;
 
-use super::cascade::SpecifiedValueID;
-use super::fast_hash::FastMap as HashMap;
+use super::RetainedState;
+use super::instrumentation::Counter;
 
-#[derive(Clone)]
+define_id! { struct CanonicalValueIndex(); }
 
-struct SpecifiedValueEntry {
-    id: SpecifiedValueID,
-    value: RetainedStyleValueData,
-}
-
-define_id! { struct SpecifiedValueEntryIndex(); }
-
-impl super::intern_table::InternIdentity for SpecifiedValueEntryIndex {
+impl super::intern_table::InternIdentity for CanonicalValueIndex {
     fn index(self) -> usize {
         self.0 as usize
     }
+
+    fn from_index(index: usize) -> Self {
+        Self(u32::try_from(index).expect("canonical value set exceeds u32 indexing"))
+    }
 }
 
-/// An identity is never reused, so rule and winner rows can compare their opaque identities.
+/// How many values the set holds before its first sweep.
+const MINIMUM_SWEEP_THRESHOLD: usize = 1024;
+
+/// The values elements' own declarations were written with, one per content, so that elements
+/// declaring equal values share one, which the caches over computed values key by. A value the set
+/// alone holds is no element's any more, and a sweep drops it.
 #[derive(Clone)]
-pub(super) struct SpecifiedValues {
-    entries: super::intern_table::InternTable<SpecifiedValueEntryIndex, SpecifiedValueEntry>,
-    entries_by_pointer: HashMap<usize, SpecifiedValueID>,
-    entries_by_id: HashMap<SpecifiedValueID, u32>,
-    next_id: u64,
+pub(super) struct CanonicalValues {
+    entries: super::intern_table::InternTable<CanonicalValueIndex, RetainedStyleValueData>,
+    /// How many values the set holds before it sweeps the ones only it holds: twice as many as the
+    /// last sweep kept, so sweeping costs a constant per value entered.
+    sweep_threshold: usize,
 }
 
-impl SpecifiedValues {
-    pub(super) fn new() -> Self {
+impl Default for CanonicalValues {
+    fn default() -> Self {
         Self {
             entries: super::intern_table::InternTable::default(),
-            entries_by_pointer: HashMap::default(),
-            entries_by_id: HashMap::default(),
-            next_id: 1,
+            sweep_threshold: MINIMUM_SWEEP_THRESHOLD,
         }
     }
+}
 
-    #[must_use]
-    fn lookup(&self, value: &StyleValueData) -> Option<SpecifiedValueID> {
-        if let Some(id) = self.entries_by_pointer.get(&(std::ptr::from_ref(value) as usize)) {
-            return Some(*id);
+impl CanonicalValues {
+    /// The bytes of the set and its index, with the values it holds counted aside.
+    pub(super) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        use crate::heap_size::HeapSize;
+        self.entries.heap_size(sizer, |value, sizer| value.heap_size(sizer))
+    }
+
+    /// Whether the set grew enough since its last sweep to sweep it again.
+    pub(super) fn should_sweep(&self) -> bool {
+        self.entries.len() >= self.sweep_threshold
+    }
+
+    /// Drop the values only the set holds, which no element declares any more.
+    ///
+    /// NB: A fork's copy of the set holds a second reference to each of its values, so a sweep
+    ///     while a fork lives keeps them all.
+    pub(super) fn sweep(&mut self) {
+        self.entries.retain(|value| !value.is_unique());
+        self.sweep_threshold = (self.entries.len() * 2).max(MINIMUM_SWEEP_THRESHOLD);
+    }
+
+    /// The value equal to `value` elements share, entering `value` as that one where none is, and
+    /// whether one was. A value whose content cannot name it, as an image's resource context is
+    /// not part of its content, is its own.
+    fn canonical(&mut self, value: &StyleValueArc) -> (RetainedStyleValueData, bool) {
+        if crate::css::style_compute::value_may_need_style_sheet_resource_context(value) {
+            return (RetainedStyleValueData::from_arc(value.clone()), false);
         }
-        // Equal URL text can refer to different resources in different declarations. The native
-        // image keeps its stylesheet context outside StyleValueData, so only an existing pointer
-        // identity can prove equality for values containing resource-dependent images.
-        if !crate::css::style_compute::value_may_need_style_sheet_resource_context(value)
-            && let Some(index) = self
-                .entries
-                .find(value.content_hash(), |_index, entry| entry.value.data() == value)
+        let content_hash = value.content_hash();
+        let data: &StyleValueData = value;
+        if let Some(index) = self.entries.find(content_hash, |_index, entry| entry.data() == data) {
+            return (self.entries.get(index).clone(), true);
+        }
+        let index =
+            CanonicalValueIndex(u32::try_from(self.entries.len()).expect("canonical value set exceeds u32 indexing"));
+        let canonical = RetainedStyleValueData::from_arc(value.clone());
+        self.entries.insert(content_hash, index, canonical.clone());
+        (canonical, false)
+    }
+}
+
+/// The entries of the longhands `declarations` declare, each with the value an element declaring
+/// it is written with, a shorthand's longhands taking its value.
+pub(crate) fn element_declared_properties<'a>(
+    declarations: impl ExactSizeIterator<Item = declaration_block::DeclarationRef<'a>>,
+) -> Vec<(DeclarationEntry, RetainedStyleValueData)> {
+    fn append(
+        property: u16,
+        declaration: declaration_block::DeclarationRef<'_>,
+        declarations: &mut Vec<(DeclarationEntry, RetainedStyleValueData)>,
+    ) {
+        use crate::css::property_metadata::{longhands_for_shorthand, property_is_shorthand};
+        // Element declarations decide longhands. Presentation attributes can name shorthands
+        // whose children are themselves shorthands, so expand the complete property inventory.
+        // The longhands of a shorthand awaiting substitution have declarations of their own, which
+        // a later change to the block may have replaced or removed.
+        if property_is_shorthand(property)
+            && !matches!(
+                &**declaration.value,
+                StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. }
+            )
         {
-            return Some(self.entries[index].id);
+            for &longhand in longhands_for_shorthand(property) {
+                append(longhand, declaration, declarations);
+            }
+        } else {
+            declarations.push((
+                DeclarationEntry::new(property, declaration.important, declaration.operator),
+                RetainedStyleValueData::from_arc(declaration.value.clone()),
+            ));
         }
-        None
     }
-
-    /// Return the retained payload behind one maintained declaration identity.
-    #[must_use]
-    pub(super) fn value(&self, id: SpecifiedValueID) -> Option<&StyleValueData> {
-        let index = self.entries_by_id.get(&id)?;
-        Some(self.entries[*index as usize].value.data())
+    let mut entries = Vec::with_capacity(declarations.len());
+    for declaration in declarations {
+        append(declaration.property_id, declaration, &mut entries);
     }
+    entries
+}
 
-    /// Return an owned reference to one maintained declaration payload.
-    #[must_use]
-    #[cfg(test)]
-    pub(super) fn retained_value(&self, id: SpecifiedValueID) -> Option<RetainedStyleValueData> {
-        let index = self.entries_by_id.get(&id)?;
-        Some(self.entries[*index as usize].value.clone_retained())
-    }
-
-    /// The identity of `value`, and whether it already had one.
-    pub(super) fn intern(&mut self, value: &Arc<StyleValueData>) -> (SpecifiedValueID, bool) {
-        if let Some(id) = self.lookup(value) {
-            return (id, true);
+impl RetainedState {
+    /// The value equal to `value` the elements of the document share.
+    pub(super) fn canonical_value(&mut self, value: &StyleValueArc) -> RetainedStyleValueData {
+        let (canonical, reused) = self.canonical_values.canonical(value);
+        if reused {
+            self.counters.bump(Counter::SpecifiedValuesReused);
         }
-        let id = SpecifiedValueID(self.next_id);
-        self.next_id = self
-            .next_id
-            .checked_add(1)
-            .expect("specified value identity space exhausted");
-        self.push_entry(id, RetainedStyleValueData::from_arc(Arc::clone(value)));
-        (id, false)
-    }
-
-    /// Associate another immutable spelling with an existing canonical identity.
-    pub(super) fn alias(&mut self, value: &Arc<StyleValueData>, id: SpecifiedValueID) {
-        if let Some(existing) = self.lookup(value) {
-            debug_assert_eq!(existing, id);
-            return;
-        }
-        self.push_entry(id, RetainedStyleValueData::from_arc(Arc::clone(value)));
-    }
-
-    fn push_entry(&mut self, id: SpecifiedValueID, value: RetainedStyleValueData) {
-        let pointer = value.pointer() as usize;
-        let index = SpecifiedValueEntryIndex(
-            u32::try_from(self.entries.len()).expect("specified value table exceeds u32 indexing"),
-        );
-        self.entries
-            .insert(value.data().content_hash(), index, SpecifiedValueEntry { id, value });
-        self.entries_by_pointer.insert(pointer, id);
-        self.entries_by_id.entry(id).or_insert(index.0);
+        canonical
     }
 }
 
@@ -121,36 +146,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn equal_content_dedups_across_distinct_spellings() {
-        let mut values = SpecifiedValues::new();
+    fn equal_content_shares_one_value() {
+        let mut values = CanonicalValues::default();
         let originals: Vec<_> = (0..64)
-            .map(|i| std::sync::Arc::new(StyleValueData::Number { value: f64::from(i) }))
+            .map(|i| StyleValueArc::new(StyleValueData::Number { value: f64::from(i) }))
             .collect();
-        let ids: Vec<_> = originals.iter().map(|value| values.intern(value).0).collect();
-        for (left, right) in ids.iter().zip(ids.iter().skip(1)) {
-            assert_ne!(left, right);
-        }
+        let canonical: Vec<_> = originals.iter().map(|value| values.canonical(value).0).collect();
         let respellings: Vec<_> = (0..64)
-            .map(|i| std::sync::Arc::new(StyleValueData::Number { value: f64::from(i) }))
+            .map(|i| StyleValueArc::new(StyleValueData::Number { value: f64::from(i) }))
             .collect();
-        for (respelling, id) in respellings.iter().zip(ids.iter()) {
-            let (reused, _) = values.intern(respelling);
-            assert_eq!(reused, *id);
+        for (respelling, canonical) in respellings.iter().zip(&canonical) {
+            let (shared, reused) = values.canonical(respelling);
+            assert!(reused);
+            assert_eq!(shared.pointer(), canonical.pointer());
         }
     }
 
     #[test]
-    fn authored_spellings_can_alias_a_canonical_identity() {
-        let mut values = SpecifiedValues::new();
-        let canonical = std::sync::Arc::new(StyleValueData::Number { value: 42.0 });
-        let authored = std::sync::Arc::new(StyleValueData::Number { value: 43.0 });
-
-        let (canonical_id, _) = values.intern(&canonical);
-        values.alias(&authored, canonical_id);
-        assert_eq!(values.entries_by_pointer.len(), 2);
-        assert_eq!(values.lookup(&authored), Some(canonical_id));
-        let (authored_id, reused) = values.intern(&authored);
-        assert_eq!(authored_id, canonical_id);
-        assert!(reused);
+    fn a_sweep_drops_the_values_only_the_set_holds() {
+        let mut values = CanonicalValues::default();
+        let kept = values
+            .canonical(&StyleValueArc::new(StyleValueData::Number { value: 1.0 }))
+            .0;
+        drop(values.canonical(&StyleValueArc::new(StyleValueData::Number { value: 2.0 })));
+        values.sweep();
+        assert_eq!(values.entries.len(), 1);
+        assert!(
+            values
+                .canonical(&StyleValueArc::new(StyleValueData::Number { value: 1.0 }))
+                .1
+        );
+        drop(kept);
     }
 }

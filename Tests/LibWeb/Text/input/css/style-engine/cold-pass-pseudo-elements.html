@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    .quoted::before { content: "\201C"; color: rgb(100, 0, 0); margin-right: 2px; }
+    .quoted::after { content: "\201D"; font-weight: bold; }
+    .empty::before { content: none; color: red; }
+    .normal::after { content: normal; color: red; }
+    .themed { --accent: rgb(0, 90, 0); }
+    .themed::before { --gap: 3px; content: "*"; color: var(--accent); padding-left: var(--gap); }
+    li::marker { color: rgb(0, 0, 120); width: 100px; padding-left: 7px; }
+    .not-a-list-item::marker { color: red; }
+    .no-marker::marker { content: none; color: red; }
+</style>
+<p class="quoted">quoted</p>
+<p class="quoted">quoted again</p>
+<p class="empty normal">no generated content</p>
+<p class="themed">themed</p>
+<ul><li>one</li><li>two</li><li class="no-marker">three</li></ul>
+<div class="not-a-list-item">not a list item</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const report = internals.styleColdPass();
+        println(`computed every styled element: ${report.computedElements == report.elements}`);
+        println(`pseudo-elements: ${report.pseudoElements}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

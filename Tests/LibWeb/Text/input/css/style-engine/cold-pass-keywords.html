@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    .parent { color: rgb(10, 20, 30); padding: 3px; scrollbar-width: thin; text-transform: uppercase; }
+    .initial { color: initial; padding: initial; scrollbar-width: initial; text-transform: initial; }
+    .inherit { color: inherit; padding: inherit; scrollbar-width: inherit; margin-inline-start: inherit; }
+    .unset { color: unset; padding: unset; text-transform: unset; border-top-style: unset; }
+</style>
+<div class="parent" style="margin-inline-start: 7px">
+    <span class="initial">initial</span><span class="inherit">inherit</span><span class="unset">unset</span>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const report = internals.styleColdPass();
+        println(`computed every styled element: ${report.computedElements == report.elements}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/scrollbar-color-inherited-mix-reads-own-color-ref.html" />
+<style>
+    :root { scrollbar-color: color-mix(in srgb, currentColor 50%, #0000) #0000; }
+    .scroller { width: 100px; height: 100px; overflow: scroll; scrollbar-gutter: stable; cursor: pointer; }
+    .scroller > div { width: 300px; height: 300px; }
+    #first { color: rgb(200, 0, 0); }
+    #second { color: rgb(0, 200, 0); }
+</style>
+<div class="scroller" id="first"><div></div></div>
+<div class="scroller" id="second"><div></div></div>

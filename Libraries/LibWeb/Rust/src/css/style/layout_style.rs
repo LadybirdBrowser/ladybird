@@ -8,16 +8,11 @@
 //! affected groups, and publishes final animated payloads as an independent base record.
 
 use super::StyleEngine;
-use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::computed_value_types::*;
-use crate::css::computed_values::{
-    InheritedBoxValues, clone_group_payload, default_group_payload, release_group_payload, retain_group_payload,
-};
 use crate::css::css_enums::{
     display_inside, display_internal, display_outside, flex_direction, justify_content, vertical_align,
 };
 use crate::css::display::FfiDisplay;
-use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::table_group_builder::group_index;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,10 +39,19 @@ pub(crate) struct AnonymousStyleOverrides {
     pub columns_from_parent: bool,
 }
 
+/// What an anonymous box derives its record from as it is styled again: the record it held, its parent's, and the one
+/// it takes its column properties from, if any.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct Reinheritance {
+    record: u64,
+    parent: u64,
+    column_source: Option<u64>,
+}
+
 #[derive(Clone, Copy)]
 pub(crate) struct DerivedStyleRecord {
     pub record: u64,
-    pub payloads: crate::layout::node_data::StylePayloadsRef,
+    pub payloads: crate::layout::node_data::LayoutStyleRef,
 }
 
 impl DerivedStyleRecord {
@@ -59,7 +63,7 @@ impl DerivedStyleRecord {
             .expect("a layout style record is live");
         Self {
             record,
-            payloads: crate::layout::node_data::StylePayloadsRef::new(payloads.as_ptr().cast()),
+            payloads: crate::layout::node_data::LayoutStyleRef::of_groups(payloads),
         }
     }
 }
@@ -76,38 +80,126 @@ macro_rules! groups {
 
 groups! {
     BoxValues => BOX,
-    InheritedBoxValues => INHERITED_BOX,
     AlignmentValues => ALIGNMENT,
     SurroundValues => SURROUND,
     SizingValues => SIZING,
     GridValues => GRID,
-    MiscResetValues => MISC_RESET,
+    MiscLayoutValues => MISC_LAYOUT,
+    MiscInteractionValues => MISC_INTERACTION,
     EffectsValues => EFFECTS,
     AnchorValues => ANCHOR,
+    BorderValues => BORDER,
+    InheritedTextValues => INHERITED_TEXT,
+}
+
+/// A style for layout's own use, which no record holds: a base style's groups, with those an edit
+/// wrote replaced by copies. It is never interned or installed.
+#[cfg(test)]
+pub(crate) struct LayoutScratchStyle(crate::css::computed_values::StyleGroups);
+
+#[cfg(test)]
+impl LayoutScratchStyle {
+    /// `base`, with the groups `edit` writes replaced, the rest shared.
+    pub(crate) fn over(
+        base: crate::css::computed_value_views::ComputedValuesView<'_>,
+        edit: impl FnOnce(&mut ScratchGroups),
+    ) -> Self {
+        let mut groups = ScratchGroups {
+            groups: base.record_groups().0.clone(),
+            written: [false; group_index::COUNT],
+        };
+        edit(&mut groups);
+        Self(groups.groups)
+    }
+
+    /// The default groups, with the groups `edit` writes replaced.
+    pub(crate) fn over_defaults(edit: impl FnOnce(&mut ScratchGroups)) -> Self {
+        let defaults = crate::css::computed_values::DefaultGroups::default();
+        Self::over(
+            crate::css::computed_value_views::ComputedValuesView::of(defaults.groups()),
+            edit,
+        )
+    }
+
+    /// The style, for a row to read while this stays in place.
+    pub(crate) fn style(&self) -> crate::layout::node_data::LayoutStyleRef {
+        crate::layout::node_data::LayoutStyleRef::of_groups(&self.0)
+    }
+}
+
+/// The groups of a [`LayoutScratchStyle`] being written: each group is copied the first time it is
+/// written, and the copy is the scratch style's own.
+#[cfg(test)]
+pub(crate) struct ScratchGroups {
+    groups: crate::css::computed_values::StyleGroups,
+    written: [bool; group_index::COUNT],
+}
+
+#[cfg(test)]
+impl ScratchGroups {
+    fn group_mut<T: LayoutStyleGroup>(&mut self) -> &mut T {
+        if !self.written[T::INDEX] {
+            // SAFETY: The private trait pairs each type with its registered group index.
+            unsafe { self.groups.write_group::<T>(T::INDEX, |_| {}) };
+            self.written[T::INDEX] = true;
+        }
+        // SAFETY: The group is a copy only these groups hold, written through `&mut self` alone, and
+        //         the private trait pairs each type with its registered group index.
+        unsafe { &mut *self.groups[T::INDEX].as_ptr().cast_mut().cast::<T>() }
+    }
+
+    pub(crate) fn box_mut(&mut self) -> &mut BoxValues {
+        self.group_mut()
+    }
+
+    pub(crate) fn sizing_mut(&mut self) -> &mut SizingValues {
+        self.group_mut()
+    }
+
+    pub(crate) fn surround_mut(&mut self) -> &mut SurroundValues {
+        self.group_mut()
+    }
+
+    pub(crate) fn alignment_mut(&mut self) -> &mut AlignmentValues {
+        self.group_mut()
+    }
+
+    pub(crate) fn border_mut(&mut self) -> &mut BorderValues {
+        self.group_mut()
+    }
+
+    pub(crate) fn set_white_space_collapse(&mut self, collapse: u8) {
+        let mut values = self.groups.inherited_values();
+        values.bits = values
+            .bits
+            .with(crate::css::computed_values::StyleBitField::WhiteSpaceCollapse, collapse);
+        self.groups.set_inherited_values(values);
+    }
+
+    pub(crate) fn set_writing_mode(&mut self, writing_mode: u8) {
+        let mut values = self.groups.inherited_values();
+        values.bits = values
+            .bits
+            .with(crate::css::computed_values::StyleBitField::WritingMode, writing_mode);
+        self.groups.set_inherited_values(values);
+    }
+
+    pub(crate) fn set_overflow(&mut self, x: u8, y: u8) {
+        use crate::css::computed_values::StyleBitField;
+        let reset = self
+            .groups
+            .reset_bits()
+            .with(StyleBitField::OverflowX, x)
+            .with(StyleBitField::OverflowY, y);
+        self.groups.set_reset_bits(reset);
+    }
 }
 
 pub(crate) struct LayoutStyle {
-    payloads: [SharedPayload; group_index::COUNT],
-    longhand_table: HostShared<ComputedLonghandTable>,
+    payloads: crate::css::computed_values::StyleGroups,
+    /// The record whose longhands the style carries, which is read only once the style is interned.
+    longhand_source: Option<u64>,
     changed: bool,
-}
-
-const _: () = assert!(group_index::COUNT == crate::layout::node_data::STYLE_GROUP_COUNT);
-
-impl Drop for LayoutStyle {
-    fn drop(&mut self) {
-        for (index, payload) in self.payloads.iter().copied().enumerate() {
-            release_group_payload(index, payload.as_ptr());
-        }
-        if !self.longhand_table.is_null() {
-            // SAFETY: The constructor retained this frozen table for the builder.
-            unsafe {
-                crate::css::computed_longhand_table::rust_computed_longhand_table_release(
-                    self.longhand_table.cast_mut(),
-                );
-            };
-        }
-    }
 }
 
 impl LayoutStyle {
@@ -115,45 +207,27 @@ impl LayoutStyle {
         let view = engine
             .style_record_view(record)
             .expect("layout style record must be live");
-        let payloads = view
-            .payloads
-            .try_into()
-            .expect("layout styles have every computed group");
-        let mut style = Self {
-            payloads,
-            longhand_table: HostShared::from_option(view.longhand_table),
+        Self {
+            payloads: view.payloads.clone(),
+            longhand_source: Some(record),
             changed: false,
-        };
-        for (index, payload) in style.payloads.iter().copied().enumerate() {
-            retain_group_payload(index, payload.as_ptr());
         }
-        if !style.longhand_table.is_null() {
-            // SAFETY: The record owns a live, frozen table.
-            style.longhand_table = HostShared::new(unsafe {
-                crate::css::computed_longhand_table::rust_computed_longhand_table_retain(
-                    style.longhand_table.cast_mut(),
-                )
-            });
-        }
-        style
     }
 
     fn inherited(engine: &StyleEngine, parent: u64) -> Self {
         let parent = engine
             .style_record_payloads(parent)
             .expect("anonymous box parent style must be live");
-        let payloads = std::array::from_fn(|index| {
-            let payload = if index < super::computed::ENGINE_INHERITED_GROUP_COUNT {
-                parent[index]
-            } else {
-                SharedPayload::new(default_group_payload(index))
-            };
-            retain_group_payload(index, payload.as_ptr());
-            payload
-        });
+        let mut payloads = engine.default_groups().groups().clone();
+        for index in
+            crate::css::computed_values::StyleGroupIndex::all().take(super::computed::ENGINE_INHERITED_GROUP_COUNT)
+        {
+            payloads.share_group(parent, index);
+        }
+        payloads.set_inherited_values(parent.inherited_values());
         Self {
             payloads,
-            longhand_table: HostShared::null(),
+            longhand_source: None,
             changed: false,
         }
     }
@@ -162,20 +236,17 @@ impl LayoutStyle {
         let parent = engine
             .style_record_payloads(parent)
             .expect("anonymous box parent style must be live");
-        for (index, payload) in parent
-            .iter()
-            .copied()
-            .enumerate()
-            .take(super::computed::ENGINE_INHERITED_GROUP_COUNT)
+        for index in
+            crate::css::computed_values::StyleGroupIndex::all().take(super::computed::ENGINE_INHERITED_GROUP_COUNT)
         {
-            retain_group_payload(index, payload.as_ptr());
-            release_group_payload(index, std::mem::replace(&mut self.payloads[index], payload).as_ptr());
+            self.payloads.share_group(parent, index);
         }
+        self.payloads.set_inherited_values(parent.inherited_values());
     }
 
     fn group<T: LayoutStyleGroup>(&self) -> &T {
         // SAFETY: The private trait pairs each type with its registered group index.
-        unsafe { self.payloads[T::INDEX].cast::<T>().deref() }
+        unsafe { &*self.payloads[T::INDEX].as_ptr().cast::<T>() }
     }
 
     fn edit<T: LayoutStyleGroup>(&mut self, update: impl FnOnce(&mut T)) {
@@ -185,13 +256,8 @@ impl LayoutStyle {
             return;
         }
         self.changed = true;
-        // SAFETY: The clone is uniquely owned and has the group type named by T.
-        let payload = SharedPayload::new(unsafe { clone_group_payload(T::INDEX, self.payloads[T::INDEX].as_ptr()) });
-        unsafe { *payload.cast::<T>().cast_mut() = value };
-        release_group_payload(
-            T::INDEX,
-            std::mem::replace(&mut self.payloads[T::INDEX], payload).as_ptr(),
-        );
+        // SAFETY: The private trait pairs each type with its registered group index.
+        unsafe { self.payloads.write_group::<T>(T::INDEX, |payload| *payload = value) };
     }
 
     /// Draws text in its color at half its alpha, i.e. `color-mix(in srgb, currentColor 50%, transparent)`, which
@@ -199,15 +265,13 @@ impl LayoutStyle {
     fn fade_text_color(&mut self) {
         let fade = |color: u32| (color >> 24).div_ceil(2) << 24 | (color & 0x00ff_ffff);
         let index = group_index::INHERITED_TEXT;
-        // SAFETY: The clone is uniquely owned and is the inherited text group.
-        let payload = SharedPayload::new(unsafe { clone_group_payload(index, self.payloads[index].as_ptr()) });
-        // SAFETY: As above; the colors are plain values the payload doesn't retain.
+        // SAFETY: The group is the inherited text group.
         unsafe {
-            let values = &mut *payload.cast::<InheritedTextValues>().cast_mut();
-            values.color = fade(values.color);
-            values.webkit_text_fill_color = fade(values.webkit_text_fill_color);
-        }
-        release_group_payload(index, std::mem::replace(&mut self.payloads[index], payload).as_ptr());
+            self.payloads.write_group::<InheritedTextValues>(index, |values| {
+                values.color = fade(values.color);
+                values.webkit_text_fill_color = fade(values.webkit_text_fill_color);
+            });
+        };
         self.changed = true;
     }
 
@@ -217,42 +281,40 @@ impl LayoutStyle {
 
     /// The group payloads of this style, for a row's style reads to see in place of its record's, as a record's
     /// payloads are named. They address the style where it is, so the caller keeps it in place while reads see them.
-    pub(crate) fn payloads_for_style_reads(&self) -> crate::layout::node_data::StylePayloadsRef {
-        crate::layout::node_data::StylePayloadsRef::new(self.payloads.as_ptr().cast())
+    pub(crate) fn payloads_for_style_reads(&self) -> crate::layout::node_data::LayoutStyleRef {
+        crate::layout::node_data::LayoutStyleRef::of_groups(&self.payloads)
     }
 
     /// Builds the payloads of `groups` again from `table`, a longhand table holding the style's computed values with
     /// some of them replaced.
     /// The values `animated_overlay` samples over the table win over it where they do over the style's own table.
-    pub(crate) fn replace_groups_from_table(
+    pub(crate) fn replace_groups_from_values(
         &mut self,
-        table: &ComputedLonghandTable,
-        animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
+        values: &crate::css::computed_values::GroupValues<'_>,
         groups: &[usize],
+        defaults: &crate::css::computed_values::DefaultGroups,
     ) {
+        let source = crate::css::table_group_builder::LonghandSource::Values { values, reads: None };
         for &group in groups {
             let current = self.payloads[group].as_ptr();
             // SAFETY: The style holds a reference to its payload of every group.
             let parent = unsafe { crate::css::computed_values::GroupPayloadRef::new(group, current) };
-            let payload = crate::css::table_group_builder::rebuild_group_from_table_and_overlay(
-                table,
-                animated_overlay,
+            let payload = crate::css::table_group_builder::rebuild_group_from_source(
+                &source,
                 group,
-                parent,
+                crate::css::computed_values::GroupShares::new(defaults, group, parent),
                 0,
                 0,
                 None,
             )
-            .expect("a group of the accepted @position-try properties builds from a longhand table");
-            if payload == current {
-                release_group_payload(group, payload);
+            .expect("a group of the accepted @position-try properties builds from its values");
+            // SAFETY: The rebuild hands over a reference to a payload of the group.
+            let payload = unsafe { crate::css::computed_values::HeldGroup::adopt(group, payload) };
+            if payload.as_ptr() == current {
                 continue;
             }
             self.changed = true;
-            release_group_payload(
-                group,
-                std::mem::replace(&mut self.payloads[group], SharedPayload::new(payload)).as_ptr(),
-            );
+            drop(self.payloads.replace(payload));
         }
     }
 
@@ -269,25 +331,55 @@ impl LayoutStyle {
     }
 
     pub(crate) fn set_overflow(&mut self, x: u8, y: u8) {
-        self.edit::<BoxValues>(|values| {
-            values.overflow_x = x;
-            values.overflow_y = y;
-        });
+        use crate::css::computed_values::StyleBitField;
+        let reset = self
+            .payloads
+            .reset_bits()
+            .with(StyleBitField::OverflowX, x)
+            .with(StyleBitField::OverflowY, y);
+        self.set_reset_bits(reset);
+    }
+
+    /// Puts `reset` in place of the style's reset bits.
+    fn set_reset_bits(&mut self, reset: crate::css::computed_value_types::ResetBits) {
+        if reset != self.payloads.reset_bits() {
+            self.changed = true;
+            self.payloads.set_reset_bits(reset);
+        }
+    }
+
+    /// The style's reset bits, with the codes of `source`'s position, float and clear.
+    fn with_position_float_clear_of(
+        &self,
+        source: crate::css::computed_value_types::ResetBits,
+    ) -> crate::css::computed_value_types::ResetBits {
+        use crate::css::computed_values::StyleBitField;
+        [StyleBitField::Position, StyleBitField::Float, StyleBitField::Clear]
+            .into_iter()
+            .fold(self.payloads.reset_bits(), |bits, field| {
+                bits.with(field, source.get(field))
+            })
     }
 
     pub(crate) fn set_writing_mode_and_direction(&mut self, writing_mode: u8, direction: u8) {
-        self.edit::<InheritedBoxValues>(|values| {
-            values.writing_mode = writing_mode;
-            values.direction = direction;
-        });
+        use crate::css::computed_values::StyleBitField;
+        let mut values = self.payloads.inherited_values();
+        values.bits = values
+            .bits
+            .with(StyleBitField::WritingMode, writing_mode)
+            .with(StyleBitField::Direction, direction);
+        if values != self.payloads.inherited_values() {
+            self.changed = true;
+            self.payloads.set_inherited_values(values);
+        }
     }
 
     pub(crate) fn set_scrollbar_width(&mut self, width: u8) {
-        self.edit::<MiscResetValues>(|values| values.scrollbar_width = width);
+        self.edit::<MiscInteractionValues>(|values| values.scrollbar_width = width);
     }
 
     pub(crate) fn set_overscroll_behavior(&mut self, x: u8, y: u8) {
-        self.edit::<MiscResetValues>(|values| {
+        self.edit::<MiscInteractionValues>(|values| {
             values.overscroll_behavior_x = x;
             values.overscroll_behavior_y = y;
         });
@@ -311,20 +403,18 @@ impl LayoutStyle {
             // NB: The wrapper is the box that gets positioned, so it keeps the display the table was given, which
             //     decides where an absolutely positioned table's static position is.
             target.display_before_box_type_transformation = box_values.display_before_box_type_transformation;
-            target.position = box_values.position;
-            target.float_ = box_values.float_;
-            target.clear = box_values.clear;
             target.has_z_index = box_values.has_z_index;
             target.z_index = box_values.z_index;
             target.vertical_align = box_values.vertical_align.clone();
             target.baseline_source = box_values.baseline_source;
         });
-        let misc_reset = source.group::<MiscResetValues>();
-        self.edit::<MiscResetValues>(|target| {
-            target.column_span = misc_reset.column_span;
-            target.break_before = misc_reset.break_before;
-            target.break_after = misc_reset.break_after;
-            target.break_inside = misc_reset.break_inside;
+        self.set_reset_bits(self.with_position_float_clear_of(source.payloads.reset_bits()));
+        let misc_layout = source.group::<MiscLayoutValues>();
+        self.edit::<MiscLayoutValues>(|target| {
+            target.column_span = misc_layout.column_span;
+            target.break_before = misc_layout.break_before;
+            target.break_after = misc_layout.break_after;
+            target.break_inside = misc_layout.break_inside;
         });
         self.copy_table_properties(source);
     }
@@ -336,12 +426,12 @@ impl LayoutStyle {
             target.column_count_has_value = box_values.column_count_has_value;
             target.column_width = box_values.column_width.clone();
         });
-        let misc_reset = source.group::<MiscResetValues>();
-        self.edit::<MiscResetValues>(|target| {
-            target.column_fill = misc_reset.column_fill;
-            target.column_rule_style = misc_reset.column_rule_style;
-            target.column_rule_width = misc_reset.column_rule_width;
-            target.column_rule_color = misc_reset.column_rule_color;
+        let misc_layout = source.group::<MiscLayoutValues>();
+        self.edit::<MiscLayoutValues>(|target| {
+            target.column_fill = misc_layout.column_fill;
+            target.column_rule_style = misc_layout.column_rule_style;
+            target.column_rule_width = misc_layout.column_rule_width;
+            target.column_rule_color = misc_layout.column_rule_color;
         });
         let alignment = source.group::<AlignmentValues>();
         self.edit::<AlignmentValues>(|target| target.column_gap = alignment.column_gap.clone());
@@ -379,21 +469,15 @@ impl LayoutStyle {
         });
     }
 
-    pub(crate) fn reset_table_properties(&mut self) {
+    pub(crate) fn reset_table_properties(&mut self, defaults: &crate::css::computed_values::DefaultGroups) {
         let defaults = Self {
-            payloads: std::array::from_fn(|index| {
-                let payload = SharedPayload::new(default_group_payload(index));
-                retain_group_payload(index, payload.as_ptr());
-                payload
-            }),
-            longhand_table: HostShared::null(),
+            payloads: defaults.groups().clone(),
+            longhand_source: None,
             changed: false,
         };
+        self.set_reset_bits(self.with_position_float_clear_of(crate::css::computed_value_types::ResetBits::INITIAL));
         let initial = defaults.group::<BoxValues>();
         self.edit::<BoxValues>(|target| {
-            target.position = initial.position;
-            target.float_ = initial.float_;
-            target.clear = initial.clear;
             target.has_z_index = initial.has_z_index;
             target.z_index = initial.z_index;
             target.vertical_align = initial.vertical_align.clone();
@@ -498,29 +582,72 @@ impl LayoutStyle {
     }
 
     pub(crate) fn intern(self, engine: &mut StyleEngine) -> DerivedStyleRecord {
-        // SAFETY: The builder retains its table until publication has retained it in the record.
-        let table = unsafe { self.longhand_table.as_ref() };
-        let record = super::bridge::publish_computed_groups_from_inputs(
-            engine,
-            0,
-            u8::MAX,
-            &self.payloads,
-            super::computed::ENGINE_INHERITED_GROUP_COUNT,
-            0,
-            false,
-            0,
-            0,
-            std::ptr::null(),
-            &[],
-            table,
-            std::ptr::null(),
-        )
-        .new_style_record;
-        DerivedStyleRecord::pin(engine, record)
+        // A layout style holds the longhands of the record it was made from, or the initial ones
+        // where it only inherits its parent's groups.
+        let record = match self.longhand_source {
+            Some(source) => engine
+                .install_record_derived_from(
+                    super::computed::FinalStyleRecordID::from_raw(source).expect("a layout style's source is a record"),
+                    &self.payloads,
+                )
+                .expect("a layout style's source record is one the engine installed"),
+            None => engine.install_initial_derived_record(&self.payloads, 0),
+        };
+        DerivedStyleRecord::pin(engine, record.raw())
     }
 }
 
 impl StyleEngine {
+    /// Has the installation of a style update's rows in the boxes of their elements remember the record each
+    /// anonymous box it styles again derives, until [`Self::end_reinheriting_for_install`]: the anonymous boxes under
+    /// elements styled alike derive the same record, which is then found rather than built and interned again.
+    pub(crate) fn begin_reinheriting_for_install(&mut self) {
+        debug_assert!(self.host.reinherited_records.is_none());
+        self.host.reinherited_records = Some(Default::default());
+    }
+
+    /// Ends what [`Self::begin_reinheriting_for_install`] began, letting go of the records it remembered.
+    pub(crate) fn end_reinheriting_for_install(&mut self) {
+        for (_, record) in self.host.reinherited_records.take().unwrap_or_default() {
+            self.unpin_layout_style_record(record);
+        }
+    }
+
+    /// The record an anonymous box holding `record` derives from `parent`, its parent's, taking the column properties
+    /// of `column_source` where it has one, pinned for the box.
+    pub(crate) fn reinherited_anonymous_style_record(
+        &mut self,
+        record: u64,
+        parent: u64,
+        column_source: Option<u64>,
+    ) -> DerivedStyleRecord {
+        let key = Reinheritance {
+            record,
+            parent,
+            column_source,
+        };
+        if let Some(&derived) = self
+            .host
+            .reinherited_records
+            .as_ref()
+            .and_then(|records| records.get(&key))
+        {
+            return DerivedStyleRecord::pin(self, derived);
+        }
+        let mut style = LayoutStyle::from_record(self, record);
+        style.inherit_from(self, parent);
+        if let Some(column_source) = column_source {
+            style.copy_column_properties(&LayoutStyle::from_record(self, column_source));
+        }
+        let derived = style.intern(self);
+        // NB: What is remembered stays pinned until the installation ends, as a box that took it may let go of it.
+        if let Some(records) = self.host.reinherited_records.as_mut() {
+            records.insert(key, derived.record);
+            self.pin_layout_style_record(derived.record);
+        }
+        derived
+    }
+
     pub(crate) fn pin_layout_style_record(&mut self, record: u64) {
         self.pin_style_record(record);
     }

@@ -1,0 +1,3 @@
+em color: rgb(255, 0, 0)
+p font size: 20px
+::before content: "x"

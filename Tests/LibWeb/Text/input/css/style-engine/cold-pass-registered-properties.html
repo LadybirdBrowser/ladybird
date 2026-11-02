@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<style>
+    @property --kept { syntax: "*"; inherits: false; initial-value: 3px; }
+    @property --passed { syntax: "*"; inherits: true; initial-value: 5px; }
+    .outer { --kept: 11px; --passed: 13px; padding-left: var(--kept); padding-right: var(--passed); }
+    .inner { margin-left: var(--kept); margin-right: var(--passed); }
+    .declares { --kept: 17px; border-left: var(--kept) solid; }
+</style>
+<div class="outer"><div class="inner">inner</div><div class="inner declares">declares</div></div>
+<div class="inner">top level</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const report = internals.styleColdPass();
+        println(`computed every styled element: ${report.computedElements == report.elements}`);
+        println(`differences: ${report.differences}`);
+    });
+</script>

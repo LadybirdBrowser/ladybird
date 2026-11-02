@@ -1,0 +1,20 @@
+attribute: border then border-top-width: border-top-style: solid; border-top-width: 3px; border-right-style: solid; border-right-width: 1px
+attribute: border then border-top: border-top-style: dashed; border-top-width: 3px; border-right-style: solid; border-right-width: 1px
+attribute: border-block then a width: border-top-style: solid; border-top-width: 3px
+attribute: background then a position: background-color: rgb(0, 128, 0); background-position-x: 9px
+attribute: font then a variant: font-size: 12px; font-variant-caps: small-caps
+attribute: border alone: border-top-style: solid; border-top-width: 1px; border-right-style: solid; border-right-width: 1px
+attribute: an undefined variable: 
+attribute: important: border-top-style: solid; border-top-width: 1px; border-right-style: solid; border-right-width: 1px
+inline: background cleared: 
+inline: background cleared and written again: background-color: rgb(0, 128, 0); background-position-x: 5px
+inline: background removed and written again: background-color: rgb(0, 128, 0); background-position-x: 5px
+inline: margin replaced and written again: margin-left: 7px
+inline: margin-left replaced and margin written again: margin-left: 7px; margin-top: 7px
+inline: border-top-width removed: border-top-style: solid; border-top-width: 3px; border-right-style: solid; border-right-width: 1px
+inline: border-width removed: border-top-style: solid; border-top-width: 3px; border-right-style: solid; border-right-width: 3px
+inline: border-width replaced: border-top-style: solid; border-top-width: 7px; border-right-style: solid; border-right-width: 7px
+rule: background cleared and written again: background-color: rgb(0, 128, 0); background-position-x: 5px
+rule: margin replaced and written again: margin-left: 7px
+rule: margin-left replaced and margin written again: margin-left: 7px; margin-top: 7px
+rule: border-top-width removed: border-top-style: solid; border-top-width: 3px; border-right-style: solid; border-right-width: 1px

@@ -115,21 +115,33 @@ public:
     // authoritative shared record rather than layout-owned complete computed values.
     [[nodiscard]] StyleRecordID intern_anonymous_layout_style(Layout::BegunRead const& read, ComputedValues const&) const;
 
-    [[nodiscard]] ComputedStyleRecordView computed_style_record_view(Layout::BegunRead const& read, StyleRecordID) const;
     [[nodiscard]] ComputedStyleRecordView computed_style_record_view(InstalledStyle const&) const;
     // The style an element or a pseudo-element installs as `style_record`, which a style update answered.
     [[nodiscard]] InstalledStyle install_style(Layout::BegunRead const& read, StyleRecordID style_record) const;
-    void pin_style_record(StyleRecordID) const;
-    void unpin_style_record(StyleRecordID) const;
+    // A style installation swaps in the styles the render side noted the elements hold as it published them, so it
+    // tells the render side only of the elements whose styles the installation cleared before swapping theirs in.
+    void begin_style_installation();
+    void end_style_installation();
+    // The generation an element and its ancestors take as a style below them moves: one per installation, so that a
+    // walk up from an element stops at the first ancestor another element's walk reached, and a fresh one otherwise.
+    [[nodiscard]] u64 subtree_style_generation_for_move();
+    // Whether the render side is to be told of the custom-property environment `identity`, which it was not yet in this
+    // installation. Outside of one, it always is.
+    [[nodiscard]] bool custom_property_environment_needs_note(CustomPropertyData const&) const;
     void begin_style_record_view_epoch() const;
     void end_style_record_view_epoch() const;
-    [[nodiscard]] u64 computed_style_record_view_pin_count() const { return m_computed_style_record_view_pin_count; }
 
     void sweep_custom_property_environments() const;
     // The environment the style engine resolved under `identity`, materialized over the data the
     // element inherits, which must be the environment the engine resolved it over. Nothing when
     // the identity is no engine environment or was resolved over another.
     [[nodiscard]] RefPtr<CustomPropertyData const> engine_custom_property_environment(Layout::BegunRead const& read, u64 identity, RefPtr<CustomPropertyData const> const& inherited) const;
+    // The environment `environment` was built over: the one the engine resolved it over, or the node its chain lies over.
+    // What a child of an element holding `environment` inherits of it, under the registrations as they are now.
+    [[nodiscard]] RefPtr<CustomPropertyData const> inheritable_custom_property_environment(Layout::BegunRead const& read, CustomPropertyData const& environment) const;
+    // The custom properties the engine's environment `identity` declares of its own, over `inherited` rather than the
+    // environment the engine resolved them over. Nothing where `identity` is not an environment the engine resolved.
+    [[nodiscard]] RefPtr<CustomPropertyData const> engine_custom_property_declarations_over(Layout::BegunRead const& read, u64 identity, RefPtr<CustomPropertyData const> const& inherited) const;
 
     // Refreshes a previously published style outside the drive: re-runs the animated element style
     // adjustments and leaves the non-inherited-property inheritance invalidation mark itself.
@@ -149,7 +161,9 @@ public:
     void apply_settled_animation_plan(Layout::BegunRead const& read, DOM::AbstractElement&) const;
     // Starts the CSS animations of an element or pseudo-element and composes its animations over the record the style
     // engine settled for it, once the host has installed it.
-    void compose_installed_engine_record(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    void compose_installed_engine_record(Layout::BegunRead const& read, DOM::AbstractElement, InstalledStyle const& before_change_style) const;
+    [[nodiscard]] bool has_animations_to_compose(DOM::AbstractElement) const;
+    void stop_publishing_animated_custom_properties(DOM::AbstractElement) const;
 
     static NonnullRefPtr<StyleValue const> compute_font_size(NonnullRefPtr<StyleValue const> const& absolutized_value, int computed_math_depth, Optional<DOM::AbstractElement> const& inheritance_parent, CSSPixels initial_font_size = InitialValues::font_size());
     static NonnullRefPtr<StyleValue const> compute_font_style(NonnullRefPtr<StyleValue const> const& absolutized_value);
@@ -158,19 +172,19 @@ public:
 
     [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties(ComputedValues const&) const;
     void apply_animated_properties_to_reconstruction(ComputedStyleWorkingSet&, ComputedValues const&) const;
-    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(Layout::BegunRead const& read, StyleRecordID) const;
+    [[nodiscard]] NonnullRefPtr<ComputedStyleWorkingSet> reconstruct_computed_properties_for_animation(InstalledStyle const&) const;
 
     void begin_transition_stabilization_epoch();
     // https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
-    // Keeps `before_change_style_record` as the style a later pass of the stabilization epoch decides the element's
+    // Keeps `before_change_style` as the style a later pass of the stabilization epoch decides the element's
     // transitions against, unless a pass already kept one.
-    void record_transition_stabilization_baseline(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
-    // Keeps `before_change_style_record` that way where the element's style scope can run a later pass at all.
-    void record_transition_baseline_for_later_passes(DOM::AbstractElement, StyleRecordID before_change_style_record) const;
-    // Runs the whole transition step for an installed record, against the record the element moved away from, which
-    // the caller keeps alive. Returns what publishing a started transition's values invalidates, which the caller
-    // reacts to like to the rest of the style change.
-    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    void record_transition_stabilization_baseline(DOM::AbstractElement, InstalledStyle const& before_change_style) const;
+    // Keeps `before_change_style` that way where the element's style scope can run a later pass at all.
+    void record_transition_baseline_for_later_passes(DOM::AbstractElement, InstalledStyle const& before_change_style) const;
+    // Runs the whole transition step for an installed record, against the record the element moved away from.
+    // Returns what publishing a started transition's values invalidates, which the caller reacts to like to the rest
+    // of the style change.
+    [[nodiscard]] RequiredInvalidationAfterStyleChange run_transition_step_for_installed_record(Layout::BegunRead const& read, DOM::AbstractElement, InstalledStyle const& before_change_style) const;
     void commit_transition_stabilization_epoch();
     void for_each_provisional_transition_effect(DOM::AbstractElement const&, Function<void(Animations::KeyframeEffect&)> const&) const;
 
@@ -180,18 +194,19 @@ public:
 private:
     virtual void visit_edges(Visitor&) override;
 
-    [[nodiscard]] StyleEngine::StyleRecordDelta record_computed_style_inputs(Layout::BegunRead const& read, Optional<DOM::AbstractElement>, ComputedValues const&, StyleNodeID style_node_id) const;
+    [[nodiscard]] StyleRecordID install_computed_style_inputs(Layout::BegunRead const& read, Optional<DOM::AbstractElement>, ComputedValues const&) const;
 
 private:
-    // `sampled_style_record` names the record the working set was reconstructed from, where it was.
-    void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
+    // Samples over the record the element holds, which the working set was reconstructed from.
+    void collect_animation_effects_into(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
     struct AnimationSample;
-    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&, StyleRecordID sampled_style_record) const;
+    [[nodiscard]] NonnullOwnPtr<AnimationSample> begin_animation_sample(Layout::BegunRead const& read, DOM::AbstractElement, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>, ComputedStyleWorkingSet&) const;
     void finish_animation_sample(AnimationSample&, ComputedValuesFFI::FfiHostAnimationSampleResult const&) const;
     void finish_animation_refresh(Layout::BegunRead const& read, DOM::AbstractElement, ComputedStyleWorkingSet&) const;
-    void publish_animated_custom_properties(Layout::BegunRead const&, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
-    void invalidate_animated_custom_property_readers(Layout::BegunRead const&, DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values, RefPtr<CustomPropertyData const> old_data, bool recompute_style) const;
-    RefPtr<ComputedStyleWorkingSet> start_needed_transitions(Layout::BegunRead const& read, DOM::AbstractElement, StyleRecordID before_change_style_record) const;
+    void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    [[nodiscard]] bool animated_custom_properties_may_move(DOM::AbstractElement, size_t animated_value_count) const;
+    void invalidate_animated_custom_property_readers(DOM::AbstractElement, bool recompute_style) const;
+    RefPtr<ComputedStyleWorkingSet> start_needed_transitions(Layout::BegunRead const& read, DOM::AbstractElement, InstalledStyle const& before_change_style) const;
     [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
     void finalize_animated_box_type(Layout::BegunRead const& read, ComputedStyleWorkingSet&, DOM::AbstractElement) const;
 
@@ -209,6 +224,16 @@ public:
         SheetID sheet_id;
     };
     [[nodiscard]] Vector<NonAuthorStyleSheet>& non_author_style_sheets() { return m_non_author_style_sheets; }
+    // What decides which user-agent and user sheets a document holds, and the namespace its HTML elements are in.
+    struct NonAuthorStyleSheetsKey {
+        bool in_quirks_mode { false };
+        bool needs_mathml_and_svg_user_agent_style_sheets { false };
+        bool is_html_document { false };
+        StyleSheetState const* user_style_sheet { nullptr };
+        bool operator==(NonAuthorStyleSheetsKey const&) const = default;
+    };
+    // The key the recorded sheets were collected under, if any were.
+    [[nodiscard]] Optional<NonAuthorStyleSheetsKey>& non_author_style_sheets_key() { return m_non_author_style_sheets_key; }
 
     [[nodiscard]] StyleEngineRuleID style_engine_rule_id_for(Layout::BegunRead const& read, RustRule const&) const;
     [[nodiscard]] SheetID style_engine_sheet_id_for(StyleSheetState const&) const;
@@ -235,7 +260,6 @@ public:
     // Forgets the style node ids that left their nodes, once a rendering update took in what the lanes reported.
     void forget_style_nodes_retired_beside_lanes() { m_style_nodes_retired_beside_lanes.clear(); }
     void prepare_elements_for_style_computation();
-    void for_each_style_node(Function<void(DOM::Element&)>) const;
 
     // Style scopes are numbered per document, with zero naming the document's own scope. A scope is
     // never reused, so a sheet detached with an identity that has been retired detaches nothing
@@ -265,8 +289,14 @@ private:
     mutable Optional<MediaEnvironmentSnapshot> m_style_update_media_environment;
     mutable Optional<Parser::ValueParserFFI::FfiMediaEnvironment> m_style_update_ffi_media_environment;
     u64 m_viewport_environment_version { 0 };
-    // The environments the style engine resolved, by the identity it minted, materialized once.
-    mutable HashMap<u64, NonnullRefPtr<CustomPropertyData const>> m_engine_custom_property_environments;
+    // What each environment built here hands down, by its identity, under the registrations of the generation below.
+    struct InheritableCustomPropertyEnvironment {
+        NonnullRefPtr<CustomPropertyData const> environment;
+        RefPtr<CustomPropertyData const> inheritable;
+        bool hands_down_itself { false };
+    };
+    mutable HashMap<u64, InheritableCustomPropertyEnvironment> m_inheritable_custom_property_environments;
+    mutable u64 m_inheritable_custom_property_environments_generation { 0 };
 
     struct ProvisionalTransitionState {
         GC::Ptr<DOM::Element> element;
@@ -279,19 +309,21 @@ private:
     };
     // Whether the animation collection of the computation in progress resolved a keyframe-borne
     // `inherit` for a non-inherited property; folded into the explicit-inheritance bookkeeping.
-    mutable u32 m_keyframes_inherited_non_inherited_style_groups { 0 };
     mutable Vector<ProvisionalTransitionState> m_provisional_transition_states;
     mutable HashMap<u64, size_t> m_provisional_transition_state_indices;
     mutable HashMap<u64, Vector<size_t>> m_provisional_transition_state_indices_by_target;
     // Whether the engine keeps a before-change style the current stabilization epoch recorded.
     mutable bool m_transition_baselines_recorded { false };
 
-    ComputationContext make_computation_context_for_property(Layout::BegunRead const& read, PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
+    ComputationContext make_computation_context_for_property(PropertyID, ComputedStyleWorkingSet const&, Optional<DOM::AbstractElement>) const;
     CSSPixelRect m_viewport_rect;
 
     mutable StyleEngine m_style_engine;
-    mutable u64 m_computed_style_record_view_pin_count { 0 };
     mutable u32 m_style_record_view_epoch_depth { 0 };
+    u32 m_style_installation_depth { 0 };
+    u64 m_subtree_style_generation { 0 };
+    u64 m_installation_subtree_style_generation { 0 };
+    mutable HashMap<u64, NonnullRefPtr<CustomPropertyData const>> m_custom_property_environments_noted_during_installation;
     // Indexed by each kind's dense index; see style_node_is_text(). The element-kind table also
     // holds shadow roots: a root gets no style, but it has a StyleNodeID of its own.
     Vector<GC::Ptr<DOM::Node>> m_element_style_nodes;
@@ -300,43 +332,12 @@ private:
     // The root each scope numbers, by scope minus one.
     Vector<GC::Weak<DOM::ShadowRoot>> m_shadow_roots_by_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;
+    Optional<NonAuthorStyleSheetsKey> m_non_author_style_sheets_key;
     HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
     HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>> m_shared_compiled_style_sheets;
     // The shared compiled sheets that no tree scope holds any longer, least recently detached first.
     Vector<SharedCompiledStyleSheetKey> m_detached_shared_compiled_style_sheets;
     HashMap<u64, WeakPtr<StyleSheetState const>> m_style_engine_sheet_sources;
 };
-
-// Keeps a style record alive for as long as it is held, as a transition step that reads the record an element moved
-// away from needs. A null record pins nothing.
-class StyleRecordPin {
-    AK_MAKE_NONCOPYABLE(StyleRecordPin);
-    AK_MAKE_NONMOVABLE(StyleRecordPin);
-
-public:
-    StyleRecordPin(StyleComputer const& style_computer, StyleRecordID style_record)
-        : m_style_computer(style_computer)
-        , m_style_record(style_record)
-    {
-        if (!!m_style_record)
-            m_style_computer->pin_style_record(m_style_record);
-    }
-
-    ~StyleRecordPin()
-    {
-        if (!!m_style_record)
-            m_style_computer->unpin_style_record(m_style_record);
-    }
-
-    StyleRecordID style_record() const { return m_style_record; }
-
-private:
-    GC::Ref<StyleComputer const> m_style_computer;
-    StyleRecordID m_style_record;
-};
-
-// The custom properties an element's animations sample moved from `old_data`: its descendants take what it hands down
-// now, as they take an environment that a style reaction moved.
-void move_custom_property_environment_below_animated_element(Layout::BegunRead const&, DOM::Element&, RefPtr<CustomPropertyData const> old_data);
 
 }

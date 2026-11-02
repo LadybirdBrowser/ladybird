@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { color: red; }
+    .after { color: blue; }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+
+        target.className = "after";
+        internals.updateStyle();
+
+        println(`color: ${getComputedStyle(target).color}`);
+    });
+</script>

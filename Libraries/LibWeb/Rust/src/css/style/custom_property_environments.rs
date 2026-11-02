@@ -21,76 +21,42 @@ use super::fast_hash::FastSet as HashSet;
 use super::index::StyleAtomID;
 use crate::css::custom_properties::{CustomPropertyRegistry, CustomPropertyStore};
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
-use crate::css::style_value::RetainedStyleValueData;
 
-/// How many substituted values the engine keeps before starting over.
-const SUBSTITUTION_MEMO_LIMIT: usize = 1 << 16;
-
-/// The bit that marks an environment identity as one the engine minted. C++ mints its own from a
-/// counter; the two never collide.
-pub(super) const ENGINE_ENVIRONMENT_IDENTITY_BIT: u64 = 1 << 62;
-
-/// One custom property an element's cascade decided: its name, its importance, and the value it
-/// was written with, by identity. Two spellings of one value can serialize differently, so the
-/// written value is what an environment resolves from and what names it.
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
-pub(super) struct CascadedCustomProperty {
-    pub(super) name: StyleAtomID,
-    pub(super) important: bool,
-    pub(super) written_value: usize,
+/// The identity of the environment `store` is: its address. A store names one environment, and the catalogs keep it
+/// alive while they name it, so no other store takes its address while the identity is in use.
+pub(super) fn environment_identity(store: &Arc<CustomPropertyStore>) -> u64 {
+    Arc::as_ptr(store) as usize as u64
 }
 
-/// What decides an engine-computed environment: the environment inherited, the registrations in
-/// force, and the custom properties the element's cascade decided, in cascade order. Two elements
-/// alike in these resolve alike.
-#[derive(Clone, PartialEq, Eq, Hash)]
-pub(super) struct EnvironmentInputs {
-    pub(super) parent: u64,
-    pub(super) registration_generation: u64,
-    pub(super) cascaded: Box<[CascadedCustomProperty]>,
-}
-
-/// An environment the engine resolved: its store, and the environment it was resolved over.
+/// The store behind an environment, and for one the engine resolved, the environment it was resolved over.
 #[derive(Clone)]
-struct EngineEnvironment {
-    store: RetainedCustomPropertyStore,
-    parent: u64,
+struct Environment {
+    store: Arc<CustomPropertyStore>,
+    /// `None` for an environment C++ published.
+    parent: Option<ResolvedOver>,
 }
 
-/// An environment memo entry and the written values whose addresses name its key. Keeping those
-/// values alive prevents later declarations from being allocated at the same addresses.
+/// The environment one the engine resolved was resolved over, whose store it holds, so that no other store takes the
+/// address that identifies it for as long as this names it.
 #[derive(Clone)]
-struct MemoizedEnvironment {
+struct ResolvedOver {
     identity: u64,
-    _written_values: Box<[RetainedStyleValueData]>,
+    _store: Option<Arc<CustomPropertyStore>>,
 }
 
-/// One substituted value and the written value whose identity names it. Keeping the written value
-/// alive prevents a later declaration from being allocated at the same address as the key.
-#[derive(Clone)]
-struct MemoizedSubstitution {
-    written_value: RetainedStyleValueData,
-    value: RetainedStyleValueData,
-}
-
-/// One strong reference to a custom-property store, released with the handle.
-#[derive(Clone)]
-pub(crate) struct RetainedCustomPropertyStore(Arc<CustomPropertyStore>);
-
-impl RetainedCustomPropertyStore {
-    /// # Safety
-    /// `store` must be a live raw `Arc` pointer to a `CustomPropertyStore`.
-    pub(super) unsafe fn from_borrowed(store: *const c_void) -> Self {
-        let store = store.cast::<CustomPropertyStore>();
-        // SAFETY: Guaranteed by the caller.
-        unsafe {
-            Arc::increment_strong_count(store);
-            Self(Arc::from_raw(store))
-        }
+/// A strong reference to the custom-property store `store` names, if it names one.
+///
+/// # Safety
+/// `store` must be null or a live raw `Arc` pointer to a `CustomPropertyStore`.
+pub(super) unsafe fn retained_store(store: *const c_void) -> Option<Arc<CustomPropertyStore>> {
+    if store.is_null() {
+        return None;
     }
-
-    pub(super) fn store(&self) -> &Arc<CustomPropertyStore> {
-        &self.0
+    let store = store.cast::<CustomPropertyStore>();
+    // SAFETY: Guaranteed by the caller.
+    unsafe {
+        Arc::increment_strong_count(store);
+        Some(Arc::from_raw(store))
     }
 }
 
@@ -114,59 +80,69 @@ impl SharedUtf16FlyString {
     pub(super) fn raw(&self) -> usize {
         self.0.raw()
     }
+
+    /// What the name spells. The catalog's reference keeps the string alive and its text never changes, so a worker
+    /// may read it.
+    pub(super) fn to_utf16(&self) -> std::borrow::Cow<'_, [u16]> {
+        self.0.to_utf16()
+    }
+
+    /// Answers `read` of the fly string the handle holds, borrowed: no reference is taken or given up.
+    pub(super) fn with_fly_string<R>(&self, read: impl FnOnce(&ak::Utf16FlyString) -> R) -> R {
+        // SAFETY: The handle's reference keeps the string alive for the call, and the borrowed owner is never
+        //         dropped, so it gives up no reference.
+        let string = std::mem::ManuallyDrop::new(unsafe { ak::Utf16FlyString::from_raw_owned(self.0.raw()) });
+        read(&string)
+    }
 }
 
-/// What a custom property's name atom spells, and the fly string it is: a store names its entries
-/// by the fly string, and a `var()` reference names one by its text.
-#[derive(Clone)]
-pub(super) struct CustomPropertyName {
-    pub(super) raw: SharedUtf16FlyString,
-    pub(super) text: Arc<[u16]>,
-}
+/// The fly string a custom property's name atom is: a store names its entries by the fly string, and a `var()`
+/// reference names one by its text, which the fly string spells.
+pub(super) type CustomPropertyName = SharedUtf16FlyString;
 
 #[derive(Clone, Default)]
 pub(super) struct CustomPropertyEnvironments {
-    stores: HashMap<u64, RetainedCustomPropertyStore>,
+    /// Every environment a record names, whether C++ published it or the engine resolved it.
+    environments: HashMap<u64, Environment>,
     names: HashMap<StyleAtomID, CustomPropertyName>,
-    engine: HashMap<u64, EngineEnvironment>,
     /// The environment a child inherits from one holding custom properties a registration keeps
     /// from inheriting, for each such environment; any other environment hands itself down.
     inheritable: HashMap<u64, u64>,
     /// The environments `inheritable` hands down, gathered by `retain_only`, which keeps the set to
     /// reuse its allocation.
     handed_down: HashSet<u64>,
-    /// The environments holding a registered value resolved against the viewport.
-    reads_viewport: HashSet<u64>,
-    /// What inputs resolved to which environment, so an element alike in its inputs takes the
-    /// environment an earlier one got.
-    memo: HashMap<EnvironmentInputs, MemoizedEnvironment>,
-    /// The environment an animation overlay's values laid over another base make, by the overlay
-    /// and that base.
-    overlays_moved: HashMap<(u64, u64), u64>,
-    minted: u64,
-    /// What a written value substitutes to for a property under an environment, by the written
-    /// value's identity: the same declaration under the same environment substitutes alike.
-    substitutions: HashMap<(usize, u16, u64), MemoizedSubstitution>,
 }
 
 impl CustomPropertyEnvironments {
+    /// The bytes of the catalogs and the stores they hold, each store counted once.
+    pub(super) fn heap_size(&self, sizer: &mut crate::heap_size::HeapSizer) -> usize {
+        use crate::heap_size::{HeapSize, map_bytes, set_bytes};
+        map_bytes(&self.environments)
+            + self
+                .environments
+                .values()
+                .map(|environment| environment.store.heap_size(sizer))
+                .sum::<usize>()
+            + map_bytes(&self.names)
+            + map_bytes(&self.inheritable)
+            + set_bytes(&self.handed_down)
+    }
+
     /// Record what a custom property's name atom spells. A name is noted once; the text of an
     /// atom never changes.
     ///
     /// # Safety
     /// `raw` must be zero or a live `AK::Utf16FlyString` raw representation.
-    pub(super) unsafe fn note_name(&mut self, name: StyleAtomID, raw: usize, text: &[u16]) -> bool {
+    pub(super) unsafe fn note_name(&mut self, name: StyleAtomID, raw: usize) -> bool {
         if name.is_none() {
             return false;
         }
         let Entry::Vacant(entry) = self.names.entry(name) else {
             return false;
         };
-        let text: Arc<[u16]> = text.into();
-        entry.insert(CustomPropertyName {
-            raw: SharedUtf16FlyString(unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) }),
-            text,
-        });
+        entry.insert(SharedUtf16FlyString(unsafe {
+            RetainedUtf16FlyString::from_borrowed_raw(raw)
+        }));
         true
     }
 
@@ -187,9 +163,10 @@ impl CustomPropertyEnvironments {
         let Some(store) = store.filter(|_| identity != 0) else {
             return;
         };
-        self.stores
-            .entry(identity)
-            .or_insert_with(|| RetainedCustomPropertyStore(Arc::clone(store)));
+        self.environments.entry(identity).or_insert_with(|| Environment {
+            store: Arc::clone(store),
+            parent: None,
+        });
     }
 
     /// [`Self::retain`], for a store C++ names by its raw `Arc` pointer.
@@ -200,9 +177,10 @@ impl CustomPropertyEnvironments {
         if identity == 0 || store.is_null() {
             return;
         }
-        self.stores
-            .entry(identity)
-            .or_insert_with(|| unsafe { RetainedCustomPropertyStore::from_borrowed(store) });
+        self.environments.entry(identity).or_insert_with(|| Environment {
+            store: unsafe { retained_store(store) }.expect("an environment names a store"),
+            parent: None,
+        });
     }
 
     /// The store behind an environment, whether C++ published it or the engine resolved it.
@@ -210,10 +188,7 @@ impl CustomPropertyEnvironments {
         if identity == 0 {
             return None;
         }
-        self.stores
-            .get(&identity)
-            .map(RetainedCustomPropertyStore::store)
-            .or_else(|| self.engine.get(&identity).map(|environment| environment.store.store()))
+        self.environments.get(&identity).map(|environment| &environment.store)
     }
 
     /// Keep the environment a child inherits from `identity`, which C++ made without the custom
@@ -236,87 +211,45 @@ impl CustomPropertyEnvironments {
         self.inheritable.insert(identity, inheritable);
     }
 
-    /// The values `overlay`, an element's animation overlay, sampled over another environment, laid
-    /// over `base`, which the element's declarations resolve to now.
-    pub(super) fn overlay_moved_over(&mut self, overlay: u64, base: u64) -> u64 {
-        if let Some(&identity) = self.overlays_moved.get(&(overlay, base)) {
-            return identity;
-        }
-        let overlay_store = self.store(overlay);
-        debug_assert!(overlay_store.is_some(), "an element's overlay was noted with its store");
-        let Some(overlay_store) = overlay_store else {
-            return base;
-        };
-        let store = CustomPropertyStore::animated_values_over(overlay_store, self.store(base).map(Arc::as_ref));
-        let identity = self.mint(Arc::new(store), base);
-        self.overlays_moved.insert((overlay, base), identity);
-        identity
-    }
-
     /// The environment a child inherits from `identity`.
     pub(super) fn inheritable(&self, identity: u64) -> u64 {
         self.inheritable.get(&identity).copied().unwrap_or(identity)
     }
 
-    /// Note that an environment holds a registered value resolved against the viewport.
-    pub(super) fn note_reads_viewport(&mut self, identity: u64) {
-        if identity != 0 {
-            self.reads_viewport.insert(identity);
-        }
-    }
-
-    /// Whether an environment holds a registered value resolved against the viewport.
-    pub(super) fn reads_viewport(&self, identity: u64) -> bool {
-        self.reads_viewport.contains(&identity)
+    /// Whether the engine resolved the environment `identity` names, rather than C++.
+    pub(super) fn is_engine_made(&self, identity: u64) -> bool {
+        self.environments
+            .get(&identity)
+            .is_some_and(|environment| environment.parent.is_some())
     }
 
     /// An engine-resolved environment's store and the environment it was resolved over.
     pub(super) fn engine_environment(&self, identity: u64) -> Option<(&Arc<CustomPropertyStore>, u64)> {
-        self.engine
-            .get(&identity)
-            .map(|environment| (environment.store.store(), environment.parent))
-    }
-
-    pub(super) fn memoized(&self, inputs: &EnvironmentInputs) -> Option<u64> {
-        self.memo.get(inputs).map(|environment| environment.identity)
-    }
-
-    /// Remember what inputs resolved to, which may be the inherited environment itself.
-    pub(super) fn remember(
-        &mut self,
-        inputs: EnvironmentInputs,
-        identity: u64,
-        written_values: Vec<RetainedStyleValueData>,
-    ) {
-        let environment = MemoizedEnvironment {
-            identity,
-            _written_values: written_values.into_boxed_slice(),
-        };
-        match self.memo.entry(inputs) {
-            Entry::Occupied(mut entry) => {
-                entry.insert(environment);
-            }
-            Entry::Vacant(entry) => {
-                entry.insert(environment);
-            }
-        }
+        let environment = self.environments.get(&identity)?;
+        Some((&environment.store, environment.parent.as_ref()?.identity))
     }
 
     /// Take over a store the engine resolved over `parent`, an environment children inherit, and
-    /// give it an identity of the engine's own. What its children inherit is the store without
-    /// the custom properties `registry` keeps from inheriting: `parent` again when nothing else
-    /// is left that `parent` does not hold.
+    /// give it an identity of the engine's own. What its children inherit is `handed_down`, the
+    /// store without the custom properties `registry` keeps from inheriting, which the record
+    /// holding `store` holds where it holds one: `parent` again when nothing else is left that
+    /// `parent` does not hold.
     pub(super) fn adopt_engine_environment(
         &mut self,
         store: Arc<CustomPropertyStore>,
+        handed_down: Option<&Arc<CustomPropertyStore>>,
         parent: u64,
         parent_store: Option<&CustomPropertyStore>,
         registry: &CustomPropertyRegistry,
     ) -> u64 {
-        let inheritable = store.inheritable(registry);
+        let inheritable = match handed_down {
+            Some(handed_down) if Arc::ptr_eq(handed_down, &store) => None,
+            Some(handed_down) => Some(handed_down.clone()),
+            None => store.inheritable(registry),
+        };
         let identity = self.mint(store, parent);
         if let Some(inheritable) = inheritable {
-            let parent_holds_every_value = inheritable.own_values.iter().all(|(&name, entry)| {
+            let parent_holds_every_value = inheritable.own_values.iter().all(|(name, entry)| {
                 parent_store.is_some_and(|parent| parent.value_is_identical(name, entry.value.pointer().cast()))
             });
             let inheritable = if parent_holds_every_value {
@@ -329,62 +262,27 @@ impl CustomPropertyEnvironments {
         identity
     }
 
+    /// NB: A store resolved again over another environment, as one an element keeps where what
+    ///     its parent hands down moved but its values did not, names the environment it was
+    ///     resolved over last.
     fn mint(&mut self, store: Arc<CustomPropertyStore>, parent: u64) -> u64 {
-        self.minted += 1;
-        let identity = ENGINE_ENVIRONMENT_IDENTITY_BIT | self.minted;
-        self.engine.insert(
+        let identity = environment_identity(&store);
+        let parent_store = self.environments.get(&parent).map(|parent| parent.store.clone());
+        self.environments.insert(
             identity,
-            EngineEnvironment {
-                store: RetainedCustomPropertyStore(store),
-                parent,
+            Environment {
+                store,
+                parent: Some(ResolvedOver {
+                    identity: parent,
+                    _store: parent_store,
+                }),
             },
         );
         identity
     }
 
-    pub(super) fn substitution(
-        &self,
-        written: &RetainedStyleValueData,
-        property: u16,
-        environment: u64,
-    ) -> Option<RetainedStyleValueData> {
-        self.substitutions
-            .get(&(written.pointer() as usize, property, environment))
-            .map(|substitution| {
-                debug_assert_eq!(substitution.written_value.pointer(), written.pointer());
-                substitution.value.clone_retained()
-            })
-    }
-
-    /// The registrations changed. What a written value substitutes to under an environment depends
-    /// on them: forget those. So does what an environment C++ published hands down, which C++
-    /// names again for every environment an element holds as the registrations change, and as it
-    /// hands any environment over.
-    pub(super) fn registrations_changed(&mut self) {
-        self.substitutions.clear();
-    }
-
-    pub(super) fn remember_substitution(
-        &mut self,
-        written: RetainedStyleValueData,
-        property: u16,
-        environment: u64,
-        value: RetainedStyleValueData,
-    ) {
-        if self.substitutions.len() >= SUBSTITUTION_MEMO_LIMIT {
-            self.substitutions.clear();
-        }
-        self.substitutions.insert(
-            (written.pointer() as usize, property, environment),
-            MemoizedSubstitution {
-                written_value: written,
-                value,
-            },
-        );
-    }
-
     /// Release the stores of environments no record names any more, and forget what resolved to
-    /// them and what substituted under them.
+    /// them.
     /// What a live environment hands its children stays as long as it does.
     pub(super) fn retain_only(&mut self, is_live: impl Fn(u64) -> bool) {
         self.inheritable.retain(|&identity, _| is_live(identity));
@@ -392,16 +290,7 @@ impl CustomPropertyEnvironments {
         handed_down.clear();
         handed_down.extend(self.inheritable.values());
         let is_live = |identity| is_live(identity) || handed_down.contains(&identity);
-        self.stores.retain(|&identity, _| is_live(identity));
-        self.engine.retain(|&identity, _| is_live(identity));
-        self.reads_viewport.retain(|&identity| is_live(identity));
-        self.memo.retain(|inputs, environment| {
-            is_live(environment.identity) && (inputs.parent == 0 || is_live(inputs.parent))
-        });
-        self.substitutions
-            .retain(|&(_, _, environment), _| environment == 0 || is_live(environment));
-        self.overlays_moved
-            .retain(|&(overlay, base), &mut moved| is_live(overlay) && (base == 0 || is_live(base)) && is_live(moved));
+        self.environments.retain(|&identity, _| is_live(identity));
         self.handed_down = handed_down;
     }
 }
@@ -411,25 +300,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn nested_capacity_tracks_names_and_replaced_environment_entries() {
+    fn nested_capacity_tracks_names() {
         let mut environments = CustomPropertyEnvironments::default();
         // SAFETY: A zero raw representation carries no borrowed fly string.
         unsafe {
-            assert!(environments.note_name(StyleAtomID(1), 0, &[45, 45, 120]));
-            assert!(!environments.note_name(StyleAtomID(1), 0, &[45, 45, 120]));
+            assert!(environments.note_name(StyleAtomID(1), 0));
+            assert!(!environments.note_name(StyleAtomID(1), 0));
         }
-        let inputs = || EnvironmentInputs {
-            parent: 0,
-            registration_generation: 1,
-            cascaded: Box::new([CascadedCustomProperty {
-                name: StyleAtomID(1),
-                important: false,
-                written_value: 0,
-            }]),
-        };
-        environments.remember(inputs(), 1, Vec::with_capacity(2));
-        // Equal keys retain the original key's allocation when replacing the value.
-        environments.remember(inputs(), 2, Vec::with_capacity(5));
         environments.forget_names(&[StyleAtomID(1), StyleAtomID(1)]);
         environments.retain_only(|_| false);
     }
