@@ -406,10 +406,47 @@ const EARLIER_ENTRIES_PER_BOX: usize = 3;
 
 const LAYOUT_COMMITS_AN_UNCOMMITTED_ENTRY_SURVIVES_UNUSED: u64 = 2;
 
+#[derive(Clone, Copy, Default)]
+struct StoredEntrySummary {
+    fragment_cache_epoch: u32,
+    slot_generation: u8,
+    is_stored: bool,
+    holds_fragments: bool,
+}
+
+impl StoredEntrySummary {
+    fn of(entry: Option<&FcRunCacheEntry>) -> Self {
+        entry.map_or_else(Self::default, |entry| Self {
+            fragment_cache_epoch: entry.validity.fragment_cache_epoch,
+            slot_generation: entry.validity.slot_generation,
+            is_stored: true,
+            holds_fragments: entry.holds_fragments(),
+        })
+    }
+
+    fn may_answer_probe(self, validity: FcRunCacheValidity, needs_fragments: bool) -> bool {
+        self.is_stored
+            && self.slot_generation == validity.slot_generation
+            && self.fragment_cache_epoch == validity.fragment_cache_epoch
+            && (self.holds_fragments || !needs_fragments)
+    }
+}
+
 #[derive(Clone, Default)]
 struct FcRunCacheSlot {
     latest: Option<std::sync::Arc<FcRunCacheEntry>>,
     committed: Option<std::sync::Arc<FcRunCacheEntry>>,
+    committed_summary: StoredEntrySummary,
+    latest_summary: StoredEntrySummary,
+    has_earlier_entries: bool,
+}
+
+impl FcRunCacheSlot {
+    fn refresh_summaries(&mut self, has_earlier_entries: bool) {
+        self.committed_summary = StoredEntrySummary::of(self.committed.as_deref());
+        self.latest_summary = StoredEntrySummary::of(self.latest.as_deref());
+        self.has_earlier_entries = has_earlier_entries;
+    }
 }
 
 type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; EARLIER_ENTRIES_PER_BOX]>;
@@ -456,23 +493,40 @@ impl FcRunCacheStore {
     fn first_entry_where(
         &self,
         slot: u32,
+        answers: impl FnMut(&FcRunCacheEntry) -> bool,
+    ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
+        self.first_entry_where_summary_allows(slot, |_| true, answers)
+    }
+
+    fn first_entry_where_summary_allows(
+        &self,
+        slot: u32,
+        summary_allows: impl Fn(StoredEntrySummary) -> bool,
         mut answers: impl FnMut(&FcRunCacheEntry) -> bool,
     ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
         {
             let slots = self.slots.borrow();
             let entries = slots.get(slot as usize)?;
-            if let Some(entry) = [&entries.committed, &entries.latest]
-                .into_iter()
-                .flatten()
-                .find(|entry| answers(entry))
+            if let Some(entry) = [
+                (&entries.committed, entries.committed_summary),
+                (&entries.latest, entries.latest_summary),
+            ]
+            .into_iter()
+            .filter(|(_, summary)| summary_allows(*summary))
+            .filter_map(|(entry, _)| entry.as_ref())
+            .find(|entry| answers(entry))
             {
                 return Some(entry.clone());
+            }
+            if !entries.has_earlier_entries {
+                return None;
             }
         }
         self.earlier_entries
             .borrow()
             .get(&slot)?
             .iter()
+            .filter(|entry| summary_allows(StoredEntrySummary::of(Some(entry))))
             .find(|entry| answers(entry))
             .cloned()
     }
@@ -529,7 +583,7 @@ impl FcRunCacheStore {
         key: &FcRunCacheKey,
     ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
         let structural_epoch_bumps = self.structural_epoch_bumps_of(box_);
-        self.first_entry_where(box_.slot_index(), |entry| {
+        let entry_was_damaged_since_stored = |entry: &FcRunCacheEntry| {
             let structural_epoch_bumps_since_stored =
                 structural_epoch_bumps.wrapping_sub(entry.structural_epoch_bumps_when_stored);
             entry.outputs.root.is_some()
@@ -550,7 +604,19 @@ impl FcRunCacheStore {
                     == structural_epoch_bumps_since_stored
                         .checked_mul(2)
                         .expect("inline layout damage epoch delta overflowed")
-        })
+        };
+        if structural_epoch_bumps == 0 {
+            debug_assert!(
+                self.first_entry_where(box_.slot_index(), entry_was_damaged_since_stored)
+                    .is_none()
+            );
+            return None;
+        }
+        self.first_entry_where_summary_allows(
+            box_.slot_index(),
+            |summary| summary.holds_fragments && summary.slot_generation == validity.slot_generation,
+            entry_was_damaged_since_stored,
+        )
     }
 
     /// Stores `entry` as the latest entry of `box_`, keeping the latest one beside it where `is_committed` finds the box
@@ -596,6 +662,7 @@ impl FcRunCacheStore {
         }
         let stored = shared_entry_in_allocation_of(displaced, entry);
         entries.latest = Some(stored.clone());
+        entries.refresh_summaries(earlier_entries.contains_key(&slot));
         drop(earlier_entries);
         drop(slots);
         // NB: Invalidation can occur between probing a run and storing its result.
@@ -658,6 +725,7 @@ impl FcRunCacheStore {
             if !earlier.is_empty() {
                 earlier_entries.insert(slot, earlier);
             }
+            entries.refresh_summaries(earlier_entries.contains_key(&slot));
             if entries.latest.is_none() && entries.committed.is_none() {
                 self.forget_inline_layout_damage(slot);
             }
@@ -752,17 +820,21 @@ impl FcRunCacheAttempt {
         let store = callbacks.fc_run_cache_store();
         let validity = run_root_validity(callbacks, box_);
         if !builds_fragments {
-            if let Some(entry) = store.first_entry_where(box_.slot_index(), |entry| {
-                entry.validity == validity && entry.answers_probe_for(key)
-            }) {
+            if let Some(entry) = store.first_entry_where_summary_allows(
+                box_.slot_index(),
+                |summary| summary.may_answer_probe(validity, false),
+                |entry| entry.validity == validity && entry.answers_probe_for(key),
+            ) {
                 entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
                 return Err(FcRunCacheHit { entry });
             }
             return Ok(Self::StoreResultOnly { validity });
         }
-        if let Some(entry) = store.first_entry_where(box_.slot_index(), |entry| {
-            entry.validity == validity && entry.outputs.root.is_some() && entry.answers_probe_for(key)
-        }) {
+        if let Some(entry) = store.first_entry_where_summary_allows(
+            box_.slot_index(),
+            |summary| summary.may_answer_probe(validity, true),
+            |entry| entry.validity == validity && entry.outputs.root.is_some() && entry.answers_probe_for(key),
+        ) {
             // NB: Once the replayed fragments are committed, the sweep keeps the entry beside later ones.
             store.enqueue_for_sweep(box_.slot_index());
             entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
