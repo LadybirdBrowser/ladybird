@@ -30,7 +30,7 @@ public:
 
     void update_chrome_style(QPalette const&);
 
-    // Hides the prompt while its tab isn't the selected one, without answering it.
+    // Hides the prompt while its tab isn't shown in the active window, without answering it.
     void suspend();
     void resume();
 

@@ -560,9 +560,8 @@ void Tab::initialize(Optional<WebView::CanonicalTraversable&> traversable)
     };
 
     view().on_request_permission = [this](WebView::PermissionPromptRequest const& request, WebView::PermissionPromptCallback on_outcome) {
-        // A tab opened in the background has never been shown, so no hideEvent has suspended its prompts yet.
-        if (!isVisible())
-            m_permission_prompts.suspend();
+        // A tab opened in the background, or in a window that was never active, has had nothing hold its prompts yet.
+        update_permission_prompts();
         m_permission_prompts.enqueue(request, AK::move(on_outcome));
     };
 
@@ -1241,15 +1240,23 @@ void Tab::hideEvent(QHideEvent* event)
         return;
 
     hide_hover_label();
-
-    // A tab's permission prompt waits, unanswered, while another tab is shown.
-    m_permission_prompts.suspend();
+    update_permission_prompts();
 }
 
 void Tab::showEvent(QShowEvent* event)
 {
     QWidget::showEvent(event);
-    m_permission_prompts.resume();
+    update_permission_prompts();
+}
+
+// A tab's permission prompt waits, unanswered, while another tab is shown or another window is active. A popup that
+// comes up over an inactive window is closed by the next click or activation anywhere else.
+void Tab::update_permission_prompts()
+{
+    if (isVisible() && isActiveWindow())
+        m_permission_prompts.resume();
+    else
+        m_permission_prompts.suspend();
 }
 
 void Tab::update_hover_label()
@@ -1342,9 +1349,11 @@ QImage Tab::render_hover_text(QString const& text) const
 
 bool Tab::event(QEvent* event)
 {
-    // An inactive window's toolbar icons drop to the muted color.
-    if ((event->type() == QEvent::WindowActivate || event->type() == QEvent::WindowDeactivate) && is_loaded())
+    if ((event->type() == QEvent::WindowActivate || event->type() == QEvent::WindowDeactivate) && is_loaded()) {
+        // An inactive window's toolbar icons drop to the muted color.
         recreate_location_edit_icons();
+        update_permission_prompts();
+    }
 
     if (event->type() == QEvent::PaletteChange && is_loaded()) {
         update_chrome_style();

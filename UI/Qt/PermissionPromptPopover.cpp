@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QShowEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace Ladybird {
@@ -192,9 +193,14 @@ void PermissionPromptPopover::hideEvent(QHideEvent* event)
 {
     Popover::hideEvent(event);
 
-    // A popover hides itself when the user clicks outside it, which dismisses the prompt.
-    if (!m_suspended)
-        finish(Web::Permissions::PromptOutcome::Dismissed);
+    // A popover hides itself when the user clicks outside it, which dismisses the prompt. Qt also closes a popup as its
+    // window goes inactive, before it says so, so the prompt waits a turn to see whether it was suspended instead.
+    if (m_suspended || m_finished)
+        return;
+    QTimer::singleShot(0, this, [this] {
+        if (!m_suspended && !isVisible())
+            finish(Web::Permissions::PromptOutcome::Dismissed);
+    });
 }
 
 void PermissionPromptPopover::finish(Web::Permissions::PromptOutcome outcome)

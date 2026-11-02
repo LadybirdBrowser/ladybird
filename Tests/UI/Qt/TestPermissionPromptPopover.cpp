@@ -187,6 +187,25 @@ TEST_CASE(suspending_hides_without_an_answer)
     EXPECT(recorder.outcomes[0] == PromptOutcome::Ignored);
 }
 
+TEST_CASE(a_prompt_closed_as_its_window_goes_inactive_waits)
+{
+    PermissionPromptPopover popover(nullptr, request_for("https://maps.example.com/"sv));
+    Recorder recorder;
+    recorder.attach(popover);
+    popover.show();
+
+    // Qt closes a popup as its window goes inactive, and says so afterwards, which is when the prompt is suspended.
+    popover.close();
+    popover.suspend();
+    let_time_pass();
+    EXPECT(recorder.outcomes.is_empty());
+
+    popover.resume();
+    EXPECT(popover.isVisible());
+    child<QPushButton>(popover, "LadybirdPermissionPromptAllowOnce").click();
+    EXPECT(recorder.outcomes == Vector { PromptOutcome::AllowOnce });
+}
+
 TEST_CASE(queued_requests_show_one_at_a_time)
 {
     PermissionPromptQueue queue;
