@@ -1280,8 +1280,6 @@ pub(crate) struct GridFormattingContext<'pass> {
     items: Vec<GridItem>,
     /// Every grid item in document order, which a GridItem indexes with its collected index.
     collected_items: Vec<CollectedGridItem<'pass>>,
-    /// Whether the container has an in-flow child box that is not a grid item, as a skipped anonymous text run.
-    has_in_flow_child_box_that_is_not_an_item: bool,
     in_flow_items_margin_box_block_extent: Option<CssPixels>,
     explicit_column_line_count: usize,
     explicit_row_line_count: usize,
@@ -1498,7 +1496,6 @@ impl<'pass> GridFormattingContext<'pass> {
             item_runs_offered_to_row_measurements: None,
             next_item_lookup_start: Cell::new(0),
             collected_items: Vec::new(),
-            has_in_flow_child_box_that_is_not_an_item: false,
             table_inline_layout_of_item: Cell::new(None),
             in_flow_items_margin_box_block_extent: None,
             lanes: None,
@@ -2118,80 +2115,74 @@ impl<'pass> GridFormattingContext<'pass> {
     /// against the explicit grid, whose ids are the items' collected indices.
     fn collect_grid_items(&mut self) -> Vec<PlacementInput> {
         self.collected_items.clear();
-        self.has_in_flow_child_box_that_is_not_an_item = false;
         let mut inputs = Vec::new();
         for child in self.run.callbacks.children(self.run.box_) {
             let box_facts = self.facts(child);
-            if box_facts.is_box() && !box_facts.is_absolutely_positioned() {
-                let skip = self.run.callbacks.can_skip_is_anonymous_text_run(child);
-                if skip {
-                    self.has_in_flow_child_box_that_is_not_an_item = true;
-                } else {
-                    debug_assert!(
-                        node_facts::has_flag(box_facts.data(), NodeFlag::IsGridItem),
-                        "the facts of a grid item are derived before layout"
-                    );
-                    let child_grid_style = self.grid_style(child);
-                    let source = TrackListSource::from_grid_style(child_grid_style);
-                    let child_columns = self.select_item_grid_axis(
-                        child,
-                        Axis::Column,
-                        child_grid_style.template_columns,
-                        child_grid_style.template_rows,
-                    );
-                    let child_rows = self.select_item_grid_axis(
-                        child,
+            if box_facts.is_box()
+                && !box_facts.is_absolutely_positioned()
+                && !self.run.callbacks.can_skip_is_anonymous_text_run(child)
+            {
+                debug_assert!(
+                    node_facts::has_flag(box_facts.data(), NodeFlag::IsGridItem),
+                    "the facts of a grid item are derived before layout"
+                );
+                let child_grid_style = self.grid_style(child);
+                let source = TrackListSource::from_grid_style(child_grid_style);
+                let child_columns = self.select_item_grid_axis(
+                    child,
+                    Axis::Column,
+                    child_grid_style.template_columns,
+                    child_grid_style.template_rows,
+                );
+                let child_rows = self.select_item_grid_axis(
+                    child,
+                    Axis::Row,
+                    child_grid_style.template_columns,
+                    child_grid_style.template_rows,
+                );
+                let column_subgrid_span = child_columns
+                    .is_subgrid
+                    .then(|| automatic_subgrid_span(source, child_columns));
+                let row_subgrid_span = child_rows
+                    .is_subgrid
+                    .then(|| automatic_subgrid_span(source, child_rows));
+                let (row_start, row_end) = self.select_grid_axis(
+                    Axis::Row,
+                    (child_grid_style.column_start, child_grid_style.column_end),
+                    (child_grid_style.row_start, child_grid_style.row_end),
+                );
+                let (column_start, column_end) = self.select_grid_axis(
+                    Axis::Column,
+                    (child_grid_style.column_start, child_grid_style.column_end),
+                    (child_grid_style.row_start, child_grid_style.row_end),
+                );
+                let item_inputs = self.resolve_item_inputs(child);
+                inputs.push(PlacementInput {
+                    id: self.collected_items.len(),
+                    order: item_inputs.style.order(),
+                    row: self.axis_placements(
+                        row_start,
+                        row_end,
                         Axis::Row,
-                        child_grid_style.template_columns,
-                        child_grid_style.template_rows,
-                    );
-                    let column_subgrid_span = child_columns
-                        .is_subgrid
-                        .then(|| automatic_subgrid_span(source, child_columns));
-                    let row_subgrid_span = child_rows
-                        .is_subgrid
-                        .then(|| automatic_subgrid_span(source, child_rows));
-                    let (row_start, row_end) = self.select_grid_axis(
-                        Axis::Row,
-                        (child_grid_style.column_start, child_grid_style.column_end),
-                        (child_grid_style.row_start, child_grid_style.row_end),
-                    );
-                    let (column_start, column_end) = self.select_grid_axis(
+                        row_subgrid_span,
+                        child_grid_style.names.raws(),
+                    ),
+                    column: self.axis_placements(
+                        column_start,
+                        column_end,
                         Axis::Column,
-                        (child_grid_style.column_start, child_grid_style.column_end),
-                        (child_grid_style.row_start, child_grid_style.row_end),
-                    );
-                    let item_inputs = self.resolve_item_inputs(child);
-                    inputs.push(PlacementInput {
-                        id: self.collected_items.len(),
-                        order: item_inputs.style.order(),
-                        row: self.axis_placements(
-                            row_start,
-                            row_end,
-                            Axis::Row,
-                            row_subgrid_span,
-                            child_grid_style.names.raws(),
-                        ),
-                        column: self.axis_placements(
-                            column_start,
-                            column_end,
-                            Axis::Column,
-                            column_subgrid_span,
-                            child_grid_style.names.raws(),
-                        ),
-                    });
-                    let cells = used_values::cells_before_sizing(
-                        &self.run.callbacks,
-                        child,
-                        ContainingBlockConstraints::default(),
-                    );
-                    self.collected_items.push(CollectedGridItem {
-                        box_: child,
-                        inputs: item_inputs,
-                        cells: Cell::new(cells),
-                        laid_out: Cell::new(None),
-                    });
-                }
+                        column_subgrid_span,
+                        child_grid_style.names.raws(),
+                    ),
+                });
+                let cells =
+                    used_values::cells_before_sizing(&self.run.callbacks, child, ContainingBlockConstraints::default());
+                self.collected_items.push(CollectedGridItem {
+                    box_: child,
+                    inputs: item_inputs,
+                    cells: Cell::new(cells),
+                    laid_out: Cell::new(None),
+                });
             }
         }
         inputs
@@ -5162,12 +5153,9 @@ impl<'pass> GridFormattingContext<'pass> {
         )
     }
 
-    /// The block size of the margin boxes of the container's in-flow children, once its items are placed, unless a box
-    /// among them is not an item.
+    /// The block size of the margin boxes of the container's in-flow children, once its items are placed. A run of
+    /// collapsible white space is no item and renders nothing.
     fn margin_box_block_extent_of_placed_in_flow_items(&self) -> Option<CssPixels> {
-        if self.has_in_flow_child_box_that_is_not_an_item {
-            return None;
-        }
         let mut block_start = CssPixels::default();
         let mut block_end = CssPixels::default();
         for collected in &self.collected_items {
