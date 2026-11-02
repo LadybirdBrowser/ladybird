@@ -92,6 +92,14 @@ describe("correct behavior", () => {
         expect(plainDateTime.millisecond).toBe(999);
         expect(plainDateTime.microsecond).toBe(999);
         expect(plainDateTime.nanosecond).toBe(999);
+
+        const farOutOfRange = Temporal.PlainDateTime.from(
+            { year: 0, month: 1, day: 1, hour: 256, minute: -300, nanosecond: 65536 },
+            { overflow: "constrain" }
+        );
+        expect(farOutOfRange.hour).toBe(23);
+        expect(farOutOfRange.minute).toBe(0);
+        expect(farOutOfRange.nanosecond).toBe(999);
     });
 
     test("PlainDateTime string argument", () => {
@@ -127,7 +135,10 @@ describe("errors", () => {
             [{ year: 0, month: 13, day: 1 }, "Invalid ISO date"],
             [{ year: 0, month: 1, day: 32 }, "Invalid ISO date"],
             [{ year: 0, month: 1, day: 1, hour: 24 }, "Invalid plain time"],
+            [{ year: 0, month: 1, day: 1, hour: 256 }, "Invalid plain time"],
+            [{ year: 0, month: 1, day: 1, hour: -256 }, "Invalid plain time"],
             [{ year: 0, month: 1, day: 1, hour: 0, minute: 60 }, "Invalid plain time"],
+            [{ year: 0, month: 1, day: 1, hour: 0, minute: 300 }, "Invalid plain time"],
             [{ year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 60 }, "Invalid plain time"],
             [{ year: 0, month: 1, day: 1, hour: 0, minute: 0, second: 0, millisecond: 1000 }, "Invalid plain time"],
             [
@@ -154,6 +165,20 @@ describe("errors", () => {
                     millisecond: 0,
                     microsecond: 0,
                     nanosecond: 1000,
+                },
+                "Invalid plain time",
+            ],
+            [
+                {
+                    year: 0,
+                    month: 1,
+                    day: 1,
+                    hour: 0,
+                    minute: 0,
+                    second: 0,
+                    millisecond: 0,
+                    microsecond: 0,
+                    nanosecond: 65536,
                 },
                 "Invalid plain time",
             ],

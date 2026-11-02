@@ -176,12 +176,12 @@ pub fn interpret_temporal_date_time_fields(
     let iso_date = calendar_date_from_fields(vm, calendar, fields, overflow)?;
 
     // 2. Let time be ? RegulateTime(fields.[[Hour]], fields.[[Minute]], fields.[[Second]], fields.[[Millisecond]], fields.[[Microsecond]], fields.[[Nanosecond]], overflow).
-    let field = |value: Option<u16>| f64::from(value.expect("the time fields have defaults"));
+    let field = |value: Option<f64>| value.expect("the time fields have defaults");
     let time = regulate_time(
         vm,
-        field(fields.hour.map(u16::from)),
-        field(fields.minute.map(u16::from)),
-        field(fields.second.map(u16::from)),
+        field(fields.hour),
+        field(fields.minute),
+        field(fields.second),
         field(fields.millisecond),
         field(fields.microsecond),
         field(fields.nanosecond),
