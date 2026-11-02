@@ -283,7 +283,6 @@ private:
     void set_current_tab(Tab* tab);
     Qt::Edges resize_edges_for_position(QPoint const&) const;
     Optional<Qt::CursorShape> resize_cursor_for_edges(Qt::Edges) const;
-    bool filter_native_window_event(QWindow&, QEvent&);
     void update_resize_cursor(QPoint const&);
     void refresh_resize_cursor_at_current_position(bool force_reapply = false);
     void clear_resize_cursor();
