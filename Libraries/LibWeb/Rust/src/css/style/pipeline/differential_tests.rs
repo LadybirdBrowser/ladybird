@@ -733,6 +733,38 @@ fn a_media_flip_keeps_styles_only_as_far_as_what_decides_them_is_worth_reading()
 }
 
 #[test]
+fn elements_alike_hold_one_match_list_across_the_walks_of_a_rule_index_update() {
+    fn every_element_rule(index: usize) -> String {
+        format!("* {{ color: rgb({index}, 0, 0); }}")
+    }
+    let mut workload = Workload::with_shape(0x5EED_7500_0000_0000, every_element_rule, 8, 256);
+    start_live_on(&mut workload.engine, workload.root, OTHER_THREADS);
+
+    // NB: The rule loses to the ones after it, so every element takes a new list and keeps its style.
+    let flipped = workload.rules[3];
+    workload.engine.set_rule_conditions_hold(flipped, false);
+    run_style_update(&mut workload.engine, workload.root);
+    assert_eq!(
+        assert_live_matches_cold(&mut workload.engine, workload.root),
+        workload.nodes.len()
+    );
+
+    let records = workload
+        .engine
+        .retained
+        .live_style
+        .as_ref()
+        .expect("the engine is live")
+        .records();
+    let list = records.matches_of(workload.nodes[0]).expect("a match list is kept");
+    assert_eq!(list.len(), RULES - 1);
+    for &node in &workload.nodes {
+        let held = records.matches_of(node).expect("a match list is kept");
+        assert!(std::sync::Arc::ptr_eq(held, list));
+    }
+}
+
+#[test]
 fn a_move_within_a_parent_after_a_matching_sibling_restyles_it_as_a_cold_pass_does() {
     let (mut engine, nodes) = linear_document();
     let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
