@@ -76,6 +76,11 @@ impl AncestorHashes {
         }
     }
 
+    /// Whether no key is required of the ancestors.
+    pub(super) fn is_empty(&self) -> bool {
+        self.hashes().next().is_none()
+    }
+
     /// The words the hashes are packed in, for a holder to keep those not zero.
     pub(super) fn packed_words(&self) -> [u32; 3] {
         self.packed

@@ -1088,14 +1088,18 @@ impl InvalidationMap {
         name_key_of(*trigger).is_some_and(|key| self.segments.iter().any(|part| part.segment.buckets_hold(key)))
     }
 
-    /// The dependencies of `trigger` whose combinator right of them is a sibling combinator's.
-    pub(super) fn sibling_effects(&self, trigger: &Trigger) -> impl Iterator<Item = Dependency> + Clone + '_ {
+    /// The dependencies of `trigger` whose combinator right of them is a sibling combinator's, with
+    /// the ancestor keys each holds.
+    pub(super) fn held_sibling_effects(&self, trigger: &Trigger) -> impl Iterator<Item = HeldDependency> + Clone + '_ {
         let trigger = *trigger;
         self.parts().flat_map(move |(part, map, first_entry)| {
             local_trigger(trigger, part)
                 .into_iter()
                 .flat_map(move |local| map.sibling_by_trigger.values(&local))
-                .map(move |held| rebased(&held.dependency, part, first_entry))
+                .map(move |held| HeldDependency {
+                    dependency: rebased(&held.dependency, part, first_entry),
+                    ancestor_hashes: held.ancestor_hashes,
+                })
         })
     }
 

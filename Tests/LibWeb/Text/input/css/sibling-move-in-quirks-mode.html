@@ -1,0 +1,70 @@
+<!DOCTYPE quirks>
+<style>
+    p { color: rgb(0, 0, 0); }
+
+    .a + .B { color: rgb(1, 1, 1); }
+    .a ~ .C { color: rgb(2, 2, 2); }
+    .a + #Id { color: rgb(3, 3, 3); }
+    .a + .lower { color: rgb(4, 4, 4); }
+    .a ~ .later { color: rgb(5, 5, 5); }
+    .A + .capital { color: rgb(6, 6, 6); }
+    .a + P.tag { color: rgb(7, 7, 7); }
+    .a + [DATA-Name] { color: rgb(8, 8, 8); }
+    .X .a + .ancestor-class { color: rgb(9, 9, 9); }
+    #Y .a + .ancestor-id { color: rgb(10, 10, 10); }
+    DIV .a + .ancestor-tag { color: rgb(11, 11, 11); }
+    [DATA-Z] .a + .ancestor-attribute { color: rgb(12, 12, 12); }
+    .x .a + .ancestor-lower { color: rgb(13, 13, 13); }
+</style>
+<div id="parent" class="x" data-z>
+    <p id="b" class="b"></p>
+    <p id="c" class="c"></p>
+    <p id="id"></p>
+    <p id="LOWER" class="LOWER"></p>
+    <p id="LATER" class="LATER"></p>
+    <p id="capital" class="capital"></p>
+    <p id="tag" class="tag"></p>
+    <p id="attribute" data-name></p>
+</div>
+<div id="y" class="x" data-z>
+    <p id="ancestor-class" class="ancestor-class"></p>
+    <p id="ancestor-id" class="ancestor-id"></p>
+    <p id="ancestor-tag" class="ancestor-tag"></p>
+    <p id="ancestor-attribute" class="ancestor-attribute"></p>
+    <p id="ancestor-lower" class="ancestor-lower"></p>
+</div>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    // NB: In quirks mode, ids and classes compare case-insensitively, whichever way round the two are written.
+    const report = (title, ids) => {
+        internals.updateStyle();
+        println(`${title}:`);
+        for (const id of ids)
+            println(`  ${id}: ${getComputedStyle(document.getElementById(id)).color}`);
+    };
+    const newA = () => {
+        const a = document.createElement("p");
+        a.className = "a";
+        return a;
+    };
+
+    for (const id of ["b", "c", "id", "LOWER", "LATER", "capital", "tag", "attribute", "ancestor-class", "ancestor-id", "ancestor-tag", "ancestor-attribute", "ancestor-lower"]) {
+        const a = newA();
+        report(`${id}, alone`, [id]);
+        document.getElementById(id).before(a);
+        report(`${id}, with a sibling before it`, [id]);
+        a.remove();
+        report(`${id}, without it`, [id]);
+
+        // The element comes to stand right after the sibling as the one between them leaves.
+        const between = document.createElement("p");
+        document.getElementById(id).before(a, between);
+        report(`${id}, with another sibling between`, [id]);
+        between.remove();
+        report(`${id}, without the one between`, [id]);
+        a.remove();
+        report(`${id}, finally alone`, [id]);
+    }
+});
+</script>

@@ -1,0 +1,156 @@
+b, alone:
+  b: rgb(0, 0, 0)
+b, with a sibling before it:
+  b: rgb(1, 1, 1)
+b, without it:
+  b: rgb(0, 0, 0)
+b, with another sibling between:
+  b: rgb(0, 0, 0)
+b, without the one between:
+  b: rgb(1, 1, 1)
+b, finally alone:
+  b: rgb(0, 0, 0)
+c, alone:
+  c: rgb(0, 0, 0)
+c, with a sibling before it:
+  c: rgb(2, 2, 2)
+c, without it:
+  c: rgb(0, 0, 0)
+c, with another sibling between:
+  c: rgb(2, 2, 2)
+c, without the one between:
+  c: rgb(2, 2, 2)
+c, finally alone:
+  c: rgb(0, 0, 0)
+id, alone:
+  id: rgb(0, 0, 0)
+id, with a sibling before it:
+  id: rgb(3, 3, 3)
+id, without it:
+  id: rgb(0, 0, 0)
+id, with another sibling between:
+  id: rgb(0, 0, 0)
+id, without the one between:
+  id: rgb(3, 3, 3)
+id, finally alone:
+  id: rgb(0, 0, 0)
+LOWER, alone:
+  LOWER: rgb(0, 0, 0)
+LOWER, with a sibling before it:
+  LOWER: rgb(4, 4, 4)
+LOWER, without it:
+  LOWER: rgb(0, 0, 0)
+LOWER, with another sibling between:
+  LOWER: rgb(0, 0, 0)
+LOWER, without the one between:
+  LOWER: rgb(4, 4, 4)
+LOWER, finally alone:
+  LOWER: rgb(0, 0, 0)
+LATER, alone:
+  LATER: rgb(0, 0, 0)
+LATER, with a sibling before it:
+  LATER: rgb(5, 5, 5)
+LATER, without it:
+  LATER: rgb(0, 0, 0)
+LATER, with another sibling between:
+  LATER: rgb(5, 5, 5)
+LATER, without the one between:
+  LATER: rgb(5, 5, 5)
+LATER, finally alone:
+  LATER: rgb(0, 0, 0)
+capital, alone:
+  capital: rgb(0, 0, 0)
+capital, with a sibling before it:
+  capital: rgb(6, 6, 6)
+capital, without it:
+  capital: rgb(0, 0, 0)
+capital, with another sibling between:
+  capital: rgb(0, 0, 0)
+capital, without the one between:
+  capital: rgb(6, 6, 6)
+capital, finally alone:
+  capital: rgb(0, 0, 0)
+tag, alone:
+  tag: rgb(0, 0, 0)
+tag, with a sibling before it:
+  tag: rgb(7, 7, 7)
+tag, without it:
+  tag: rgb(0, 0, 0)
+tag, with another sibling between:
+  tag: rgb(0, 0, 0)
+tag, without the one between:
+  tag: rgb(7, 7, 7)
+tag, finally alone:
+  tag: rgb(0, 0, 0)
+attribute, alone:
+  attribute: rgb(0, 0, 0)
+attribute, with a sibling before it:
+  attribute: rgb(8, 8, 8)
+attribute, without it:
+  attribute: rgb(0, 0, 0)
+attribute, with another sibling between:
+  attribute: rgb(0, 0, 0)
+attribute, without the one between:
+  attribute: rgb(8, 8, 8)
+attribute, finally alone:
+  attribute: rgb(0, 0, 0)
+ancestor-class, alone:
+  ancestor-class: rgb(0, 0, 0)
+ancestor-class, with a sibling before it:
+  ancestor-class: rgb(9, 9, 9)
+ancestor-class, without it:
+  ancestor-class: rgb(0, 0, 0)
+ancestor-class, with another sibling between:
+  ancestor-class: rgb(0, 0, 0)
+ancestor-class, without the one between:
+  ancestor-class: rgb(9, 9, 9)
+ancestor-class, finally alone:
+  ancestor-class: rgb(0, 0, 0)
+ancestor-id, alone:
+  ancestor-id: rgb(0, 0, 0)
+ancestor-id, with a sibling before it:
+  ancestor-id: rgb(10, 10, 10)
+ancestor-id, without it:
+  ancestor-id: rgb(0, 0, 0)
+ancestor-id, with another sibling between:
+  ancestor-id: rgb(0, 0, 0)
+ancestor-id, without the one between:
+  ancestor-id: rgb(10, 10, 10)
+ancestor-id, finally alone:
+  ancestor-id: rgb(0, 0, 0)
+ancestor-tag, alone:
+  ancestor-tag: rgb(0, 0, 0)
+ancestor-tag, with a sibling before it:
+  ancestor-tag: rgb(11, 11, 11)
+ancestor-tag, without it:
+  ancestor-tag: rgb(0, 0, 0)
+ancestor-tag, with another sibling between:
+  ancestor-tag: rgb(0, 0, 0)
+ancestor-tag, without the one between:
+  ancestor-tag: rgb(11, 11, 11)
+ancestor-tag, finally alone:
+  ancestor-tag: rgb(0, 0, 0)
+ancestor-attribute, alone:
+  ancestor-attribute: rgb(0, 0, 0)
+ancestor-attribute, with a sibling before it:
+  ancestor-attribute: rgb(12, 12, 12)
+ancestor-attribute, without it:
+  ancestor-attribute: rgb(0, 0, 0)
+ancestor-attribute, with another sibling between:
+  ancestor-attribute: rgb(0, 0, 0)
+ancestor-attribute, without the one between:
+  ancestor-attribute: rgb(12, 12, 12)
+ancestor-attribute, finally alone:
+  ancestor-attribute: rgb(0, 0, 0)
+ancestor-lower, alone:
+  ancestor-lower: rgb(0, 0, 0)
+ancestor-lower, with a sibling before it:
+  ancestor-lower: rgb(13, 13, 13)
+ancestor-lower, without it:
+  ancestor-lower: rgb(0, 0, 0)
+ancestor-lower, with another sibling between:
+  ancestor-lower: rgb(0, 0, 0)
+ancestor-lower, without the one between:
+  ancestor-lower: rgb(13, 13, 13)
+ancestor-lower, finally alone:
+  ancestor-lower: rgb(0, 0, 0)
