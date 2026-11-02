@@ -107,7 +107,7 @@ pub struct FfiAnimationEffectVersion {
 pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
     host: &DocumentHost,
     node: u32,
-    slot: u8,
+    slot: u32,
     effects: *const FfiPublishedAnimationEffect,
     effect_count: usize,
     keyframes: *const FfiPublishedAnimationKeyframe,
@@ -121,6 +121,8 @@ pub unsafe extern "C" fn style_engine_set_element_animation_effect_descriptions(
     base_url_bytes: *const u8,
     base_url_byte_count: usize,
 ) {
+    // NB: The slot of an element's own animations is u8::MAX, whose upper bits a u8 parameter could not promise.
+    let slot = slot as u8;
     let Some(node) = StyleNodeID::from_raw(node) else {
         return;
     };
@@ -163,14 +165,14 @@ pub unsafe extern "C" fn style_engine_note_attr_names_read_by_value(host: &Docum
 pub extern "C" fn style_engine_describes_animation_effects(
     host: &DocumentHost,
     node: u32,
-    slot: u8,
+    slot: u32,
     versions: ak::Span<'_, FfiAnimationEffectVersion>,
 ) -> bool {
     StyleNodeID::from_raw(node).is_some_and(|node| {
         host.engine_memo()
             .described
             .borrow()
-            .describe(node, slot, versions.as_slice())
+            .describe(node, slot as u8, versions.as_slice())
     })
 }
 
