@@ -1,0 +1,2 @@
+Window blur handler restores system focus: window.blur, window.focus, original.focus, original.focusin; original input still active=true; document.hasFocus()=true
+Window focus handler redirects focus without duplicate events: window.focus, redirected.focus, redirected.focusin; redirected input active=true

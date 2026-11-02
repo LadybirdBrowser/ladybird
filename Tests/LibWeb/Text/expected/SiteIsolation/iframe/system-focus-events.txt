@@ -1,0 +1,2 @@
+System focus loss with an isolated iframe focused: input.blur, input.focusout, window.blur; active focus chain preserved=true; ancestor and sibling window events=none
+System focus gain with an isolated iframe focused: window.focus, input.focus, input.focusin; active focus chain preserved=true; ancestor and sibling window events=none

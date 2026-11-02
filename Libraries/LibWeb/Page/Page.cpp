@@ -232,6 +232,11 @@ void Page::system_focus_changed()
                 media_devices->system_focus_changed();
         }
     }
+
+    if (auto focused_navigable = hosted_focused_navigable()) {
+        if (auto focused_document = focused_navigable->active_document())
+            HTML::dispatch_system_focus_events(*focused_document, client().has_focus());
+    }
 }
 
 void Page::set_focused_navigable(HTML::Navigable& navigable)

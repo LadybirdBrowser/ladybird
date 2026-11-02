@@ -67,6 +67,36 @@ static void fire_a_focus_event(GC::Ptr<DOM::EventTarget> focus_event_target, GC:
     focus_event_target->dispatch_event(focus_event);
 }
 
+void dispatch_system_focus_events(DOM::Document& document, bool has_focus)
+{
+    TemporaryExecutionContext execution_context { document.relevant_settings_object() };
+
+    GC::Ptr<DOM::Element> element = as_if<DOM::Element>(document.focused_area().ptr());
+
+    auto dispatch_element_events = [&] {
+        if (!element || document.focused_area() != element)
+            return;
+
+        fire_a_focus_event(element, nullptr, has_focus ? EventNames::focus : EventNames::blur, false);
+
+        if (document.focused_area() == element && document.page().client().has_focus() == has_focus)
+            fire_a_focus_event(element, nullptr, has_focus ? EventNames::focusin : EventNames::focusout, true);
+    };
+
+    if (!has_focus)
+        dispatch_element_events();
+
+    if (document.page().client().has_focus() != has_focus)
+        return;
+
+    fire_a_focus_event(document.window(), nullptr, has_focus ? EventNames::focus : EventNames::blur, false);
+
+    auto navigable = document.page().hosted_focused_navigable();
+
+    if (has_focus && document.page().client().has_focus() && navigable && navigable->active_document().ptr() == &document)
+        dispatch_element_events();
+}
+
 static void designate_document_viewport_as_focused_area(DOM::Document& document)
 {
     if (document.focused_area() == nullptr)

@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../include.js"></script>
+<input id="original" />
+<input id="redirected" />
+<script>
+    test(() => {
+        const originalInput = document.getElementById("original");
+        const redirectedInput = document.getElementById("redirected");
+        const events = [];
+        for (const type of ["focus", "focusin"])
+            document.addEventListener(type, event => events.push(`${event.target.id}.${type}`), true);
+        for (const type of ["blur", "focus"]) window.addEventListener(type, () => events.push(`window.${type}`));
+
+        originalInput.focus();
+        events.length = 0;
+        window.addEventListener("blur", () => internals.setPageFocus(true), { once: true });
+        internals.setPageFocus(false);
+        println(
+            `Window blur handler restores system focus: ${events.splice(0).join(", ")}; original input still active=${document.activeElement === originalInput}; document.hasFocus()=${document.hasFocus()}`
+        );
+
+        internals.setPageFocus(false);
+        events.length = 0;
+        window.addEventListener("focus", () => redirectedInput.focus(), { once: true });
+        internals.setPageFocus(true);
+        println(
+            `Window focus handler redirects focus without duplicate events: ${events.join(", ")}; redirected input active=${document.activeElement === redirectedInput}`
+        );
+    });
+</script>
