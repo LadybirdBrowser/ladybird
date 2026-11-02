@@ -99,6 +99,9 @@ TEST_CASE(focus_already_focused_area_without_system_focus)
     Core::EventLoop::current().spin_until([&]() { return title == "frame ready"sv; });
 
     auto focus_and_report = [&](StringView focus) {
+        // Reset the page title so identical reports still notify the view.
+        view->run_javascript("document.title = 'pending'"_string);
+        Core::EventLoop::current().spin_until([&]() { return title == "pending"sv; });
         title.clear();
         view->run_javascript(MUST(String::formatted("focus_and_report(() => {})", focus)));
         Core::EventLoop::current().spin_until([&]() { return title.has_value(); });
@@ -124,16 +127,16 @@ TEST_CASE(focus_already_focused_area_without_system_focus)
     // Without system focus, focusing the target that keeps focus fires nothing.
     VERIFY(focus_and_report("first.focus()"sv) == "none false"sv);
 
-    // Moving focus to another target fires its focus event once, and its handler's focus() does nothing.
-    VERIFY(focus_and_report("second.focus()"sv) == "second:1 false"sv);
+    // Moving focus to another target updates the focused area without firing focus events.
+    VERIFY(focus_and_report("second.focus()"sv) == "none false"sv);
     VERIFY(focus_and_report("second.focus()"sv) == "none false"sv);
 
-    // The same holds in a same-process iframe, whose window gets focus along with the element.
-    VERIFY(focus_and_report("frame.contentDocument.getElementById('inner').focus()"sv) == "inner:1 window:1 false"sv);
+    // The same holds in a same-process iframe, without firing events on its window or element.
+    VERIFY(focus_and_report("frame.contentDocument.getElementById('inner').focus()"sv) == "none false"sv);
     VERIFY(focus_and_report("frame.contentDocument.getElementById('inner').focus()"sv) == "none false"sv);
 
-    // And for the iframe's viewport: Moving focus to it fires its window's focus once, and focusing it again fires nothing.
-    VERIFY(focus_and_report("frame.contentWindow.focus()"sv) == "window:1 false"sv);
+    // Moving focus to the iframe's viewport also fires no events without system focus.
+    VERIFY(focus_and_report("frame.contentWindow.focus()"sv) == "none false"sv);
     VERIFY(focus_and_report("frame.contentWindow.focus()"sv) == "none false"sv);
 
     // A shadow host that delegates focus keeps the delegate that has focus.
