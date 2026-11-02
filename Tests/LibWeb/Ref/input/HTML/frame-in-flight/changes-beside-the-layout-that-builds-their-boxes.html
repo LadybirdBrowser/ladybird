@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../../expected/HTML/frame-in-flight/changes-beside-the-layout-that-builds-their-boxes-ref.html" />
+<style>
+    iframe { width: 100px; height: 30px; border: 0; display: block; }
+    .box { width: 100px; min-height: 5px; background: rgb(200, 200, 255); margin: 2px; }
+    img { display: block; }
+</style>
+<script src="../../../../Text/input/include.js"></script>
+<script src="../../../../Text/input/HTML/frame-in-flight/frame-in-flight.js"></script>
+<div id="text1" class="box"><span>a</span></div>
+<div id="text2" class="box"><span>a</span></div>
+<div id="text3" class="box"><span>a</span></div>
+<div id="edit" class="box"></div>
+<div id="controls"></div>
+<div id="frame-place"></div>
+<div id="images"></div>
+<script>
+    const PIXEL = "data:image/gif;base64,R0lGODlhAQABAIAAAAD/AP///ywAAAAAAQABAAACAkQBADs=";
+    // The harness reads document.fonts.ready once the document has loaded, which lays it out. A layout held below has to
+    // come after that, or the read leaves it nothing to lay out and the hold takes the recording instead.
+    const testRendered = new Promise(resolve => document.documentElement.addEventListener("TestRendered", resolve, { once: true }));
+    (async () => {
+        const toSpace = document.createTextNode("x");
+        const fromSpace = document.createTextNode("   ");
+        const tail = document.createTextNode("b ");
+        const after = document.createTextNode("  ");
+        const space = document.createTextNode("   ");
+        const check = document.createElement("input");
+        check.type = "checkbox";
+        const range = document.createElement("input");
+        range.type = "radio";
+        const canvas = document.createElement("canvas");
+        canvas.width = 20;
+        canvas.height = 20;
+        const image = document.createElement("img");
+        image.width = 10;
+        image.height = 10;
+        await testRendered;
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            text1.append(toSpace);
+            text2.append(fromSpace);
+            text3.append(tail, after);
+            edit.append(space);
+            controls.append(check, range, canvas);
+            images.append(image);
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        toSpace.data = "   ";
+        fromSpace.data = "y";
+        tail.data = "b";
+        edit.contentEditable = "true";
+        check.checked = true;
+        range.disabled = true;
+        const context = canvas.getContext("2d");
+        context.fillStyle = "rgb(0, 200, 0)";
+        context.fillRect(0, 0, 20, 20);
+        image.src = PIXEL;
+        const iframe = document.createElement("iframe");
+        document.getElementById("frame-place").append(iframe);
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        await image.decode();
+        iframe.contentDocument.body.style.margin = "0";
+        iframe.contentDocument.body.style.background = "rgb(255, 0, 0)";
+        await twoFramesLanded();
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>
