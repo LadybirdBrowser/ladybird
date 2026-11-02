@@ -357,6 +357,30 @@ impl VisualContextTree {
         }
     }
 
+    pub fn can_snap_composited_context_origin(&self, mut spatial_node_index: SpatialNodeIndex) -> bool {
+        loop {
+            let Some(node) = self.spatial_nodes.get(spatial_node_index.0 as usize) else {
+                return false;
+            };
+
+            if !node.data.is_live() {
+                return false;
+            }
+
+            if spatial_node_index == VISUAL_VIEWPORT_NODE_INDEX {
+                return true;
+            }
+
+            match &node.data {
+                SpatialData::Transform(transform) if transform.matrix != FloatMatrix4x4::identity() => return false,
+                SpatialData::Perspective(_) => return false,
+                _ => {}
+            }
+
+            spatial_node_index = node.parent;
+        }
+    }
+
     pub fn transform_point_for_hit_test(
         &self,
         context: ContextRef,

@@ -168,6 +168,11 @@ Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(Effe
     return color;
 }
 
+bool AccumulatedVisualContextTree::can_snap_composited_context_origin(SpatialNodeIndex spatial_node_index) const
+{
+    return Compositing::RustFFI::visual_context_tree_can_snap_composited_context_origin(m_rust_tree, spatial_node_index);
+}
+
 Optional<Gfx::FloatPoint> AccumulatedVisualContextTree::transform_point_for_hit_test(ContextRef context, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state, ClipBehavior clip_behavior) const
 {
     auto scroll_offsets = scroll_state.device_offsets();

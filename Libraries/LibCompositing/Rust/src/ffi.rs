@@ -501,6 +501,17 @@ pub unsafe extern "C" fn visual_context_tree_has_visual_animations(tree: *const 
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_can_snap_composited_context_origin(
+    tree: *const c_void,
+    spatial_node_index: SpatialNodeIndex,
+) -> bool {
+    unsafe { tree_from_handle(tree) }.can_snap_composited_context_origin(spatial_node_index)
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_has_active_visual_animation_at(
     tree: *const c_void,
     sample_time_ns: i64,

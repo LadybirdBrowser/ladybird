@@ -300,7 +300,16 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
     if (!m_composited_context_resolver)
         return;
 
-    auto composited_context = (*m_composited_context_resolver)(command.child_context_id, command.dst_rect, canvas_matrix());
+    auto destination_rect = command.dst_rect;
+
+    // Snap iframe origins to device pixels for browser compatibility when transforms are absent or identity.
+    // Preserve fractional placement under other transforms to retain the raster phase of surrounding content.
+    if (command.snap_origin_if_untransformed && active_visual_context_tree().can_snap_composited_context_origin(command.spatial_node_index)) {
+        destination_rect.set_x(roundf(destination_rect.x()));
+        destination_rect.set_y(roundf(destination_rect.y()));
+    }
+
+    auto composited_context = (*m_composited_context_resolver)(command.child_context_id, destination_rect, canvas_matrix());
     if (!composited_context.surface || composited_context.content_rect.is_empty())
         return;
 
@@ -308,7 +317,7 @@ void DisplayListPlayerSkia::play_command(DrawCompositedContext const& command)
     if (!image)
         return;
 
-    auto dst_rect = to_skia_rect(command.dst_rect);
+    auto dst_rect = to_skia_rect(destination_rect);
     auto src_rect = to_skia_rect(composited_context.content_rect);
     auto& canvas = surface().canvas();
     SkPaint paint;

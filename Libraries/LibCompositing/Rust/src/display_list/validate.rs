@@ -434,7 +434,10 @@ fn validate_command_fields(
             )?;
             p.bool_at(offset_of!(DrawTiledDecodedImageFrame, apply_force_dark))?;
         }
-        T::DrawCompositedContext => p.enum_at::<ScalingMode>(offset_of!(DrawCompositedContext, scaling_mode))?,
+        T::DrawCompositedContext => {
+            p.enum_at::<ScalingMode>(offset_of!(DrawCompositedContext, scaling_mode))?;
+            p.bool_at(offset_of!(DrawCompositedContext, snap_origin_if_untransformed))?;
+        }
         T::DrawCanvas => p.enum_at::<ScalingMode>(offset_of!(DrawCanvas, scaling_mode))?,
         T::DrawVideoFrame => p.enum_at::<ScalingMode>(offset_of!(DrawVideoFrame, scaling_mode))?,
         T::PaintLinearGradient => {
