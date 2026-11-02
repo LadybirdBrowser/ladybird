@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 28 tests
 
-21 Pass
-7 Fail
+24 Pass
+4 Fail
 Pass	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface SubtleCrypto: original interface defined
@@ -15,7 +15,7 @@ Pass	SubtleCrypto interface: operation encapsulateKey(AlgorithmIdentifier, Crypt
 Pass	SubtleCrypto interface: operation encapsulateBits(AlgorithmIdentifier, CryptoKey)
 Pass	SubtleCrypto interface: operation decapsulateKey(AlgorithmIdentifier, CryptoKey, BufferSource, AlgorithmIdentifier, boolean, sequence<KeyUsage>)
 Pass	SubtleCrypto interface: operation decapsulateBits(AlgorithmIdentifier, CryptoKey, BufferSource)
-Fail	SubtleCrypto interface: operation getPublicKey(CryptoKey, sequence<KeyUsage>)
+Pass	SubtleCrypto interface: operation getPublicKey(CryptoKey, sequence<KeyUsage>)
 Fail	SubtleCrypto interface: operation supports(DOMString, AlgorithmIdentifier, optional unsigned long?)
 Fail	SubtleCrypto interface: operation supports(DOMString, AlgorithmIdentifier, AlgorithmIdentifier)
 Pass	SubtleCrypto interface: crypto.subtle must inherit property "encapsulateKey(AlgorithmIdentifier, CryptoKey, AlgorithmIdentifier, boolean, sequence<KeyUsage>)" with the proper type
@@ -26,8 +26,8 @@ Pass	SubtleCrypto interface: crypto.subtle must inherit property "decapsulateKey
 Pass	SubtleCrypto interface: calling decapsulateKey(AlgorithmIdentifier, CryptoKey, BufferSource, AlgorithmIdentifier, boolean, sequence<KeyUsage>) on crypto.subtle with too few arguments must throw TypeError
 Pass	SubtleCrypto interface: crypto.subtle must inherit property "decapsulateBits(AlgorithmIdentifier, CryptoKey, BufferSource)" with the proper type
 Pass	SubtleCrypto interface: calling decapsulateBits(AlgorithmIdentifier, CryptoKey, BufferSource) on crypto.subtle with too few arguments must throw TypeError
-Fail	SubtleCrypto interface: crypto.subtle must inherit property "getPublicKey(CryptoKey, sequence<KeyUsage>)" with the proper type
-Fail	SubtleCrypto interface: calling getPublicKey(CryptoKey, sequence<KeyUsage>) on crypto.subtle with too few arguments must throw TypeError
+Pass	SubtleCrypto interface: crypto.subtle must inherit property "getPublicKey(CryptoKey, sequence<KeyUsage>)" with the proper type
+Pass	SubtleCrypto interface: calling getPublicKey(CryptoKey, sequence<KeyUsage>) on crypto.subtle with too few arguments must throw TypeError
 Pass	SubtleCrypto interface: crypto.subtle must inherit property "supports(DOMString, AlgorithmIdentifier, optional unsigned long?)" with the proper type
 Fail	SubtleCrypto interface: calling supports(DOMString, AlgorithmIdentifier, optional unsigned long?) on crypto.subtle with too few arguments must throw TypeError
 Pass	SubtleCrypto interface: crypto.subtle must inherit property "supports(DOMString, AlgorithmIdentifier, AlgorithmIdentifier)" with the proper type
