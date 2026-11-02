@@ -102,7 +102,7 @@ fn root_inputs_at_other_own_block_sizes(
                 has_definite_block_size: definite_own_block_size.is_some(),
                 ..root_cells
             };
-            let mut input = input;
+            let mut input = input.clone();
             input.available_space.block_size =
                 definite_own_block_size.map_or(AvailableSize::Indefinite, AvailableSize::definite);
             (cells, input)
@@ -140,7 +140,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
     let own_block_size = outputs.inputs_never_observed.own_block_size;
     let mut reference_inputs = root_inputs_at_other_own_block_sizes(
         root_cells,
-        input,
+        input.clone(),
         own_block_size,
         outputs.result.automatic_content_block_size,
     )

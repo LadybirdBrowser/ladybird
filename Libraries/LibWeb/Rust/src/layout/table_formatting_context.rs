@@ -3736,7 +3736,7 @@ impl<'pass> TableFormattingContext<'pass> {
             .sizing
             .table_box_content_block_offset_in_wrapper
             .unwrap_or_default();
-        if inline_layout.is_none_or(|layout| !self.reuse_inline_layout(input, layout)) {
+        if inline_layout.is_none_or(|layout| !self.reuse_inline_layout(input.clone(), layout)) {
             self.run_until_inline_size_calculation(input, false);
         }
         if matches!(

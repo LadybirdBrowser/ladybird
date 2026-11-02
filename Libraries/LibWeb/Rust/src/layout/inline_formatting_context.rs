@@ -1832,7 +1832,7 @@ impl<'context> InlineFormattingContext<'context> {
             self.run,
             block_formatting_context::ChildSizedHere::ahead_of_its_run(node, &cells_of_float_ahead_of_its_layout),
             self.block_container,
-            self.input,
+            self.input.clone(),
             self.containing_block_position_in_bfc_root,
         )
     }
@@ -2138,7 +2138,7 @@ impl<'context> InlineFormattingContext<'context> {
                         self.run,
                         item.node,
                         self.block_container,
-                        self.input,
+                        self.input.clone(),
                         self.containing_block_position_in_bfc_root,
                         line_builder,
                         state_at_clamp_point.is_some(),
@@ -2187,7 +2187,7 @@ impl<'context> InlineFormattingContext<'context> {
                             item.node,
                             &cells,
                             self.block_container,
-                            self.input,
+                            self.input.clone(),
                             self.containing_block_position_in_bfc_root,
                             line_builder,
                         );
@@ -2204,7 +2204,7 @@ impl<'context> InlineFormattingContext<'context> {
                         self.run,
                         laid_out_float,
                         self.block_container,
-                        self.input,
+                        self.input.clone(),
                         self.containing_block_position_in_bfc_root,
                         CssPixels::default(),
                         Some(&mut *line_builder),

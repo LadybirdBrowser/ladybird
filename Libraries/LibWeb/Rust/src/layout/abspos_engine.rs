@@ -78,7 +78,7 @@ fn static_position_rect_for_sizing(inputs: &abspos_inputs::AbsposLayoutInputs) -
     )
 }
 
-fn out_of_flow_root_space(inputs: abspos_inputs::AbsposLayoutInputs) -> (AvailableSpace, ContainingBlockConstraints) {
+fn out_of_flow_root_space(inputs: &abspos_inputs::AbsposLayoutInputs) -> (AvailableSpace, ContainingBlockConstraints) {
     let containing_block_size = geometry::LogicalSize {
         inline_size: clamp_to_max_dimension_value(inputs.containing_block_info.rect.size.inline_size),
         block_size: clamp_to_max_dimension_value(inputs.containing_block_info.rect.size.block_size),
@@ -2885,7 +2885,7 @@ impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn dimension_out_of_flow_root(
         &self,
         sized: OutOfFlowBox<'_>,
-        inputs: abspos_inputs::AbsposLayoutInputs,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
         inside_layout_follows: bool,
     ) -> Option<AvailableSpace> {
         let node = sized.node;
@@ -2916,7 +2916,7 @@ impl<'pass> AbsposEngine<'pass> {
             sized,
             available_space,
             constraints,
-            static_position_rect_for_sizing(&inputs),
+            static_position_rect_for_sizing(inputs),
             resolved,
             self.auto_margin_overflow(inputs.containing_block, SizingAxis::Inline),
         );
@@ -2938,7 +2938,7 @@ impl<'pass> AbsposEngine<'pass> {
             sized,
             available_space,
             constraints,
-            static_position_rect_for_sizing(&inputs),
+            static_position_rect_for_sizing(inputs),
             BlockSizePass::BeforeInsideLayout {
                 inside_layout_resolves_automatic_block_size,
             },
@@ -3038,7 +3038,7 @@ impl<'pass> AbsposEngine<'pass> {
     pub(crate) fn finalize_out_of_flow_root_after_inside_layout(
         &self,
         sized: OutOfFlowBox<'_>,
-        inputs: abspos_inputs::AbsposLayoutInputs,
+        inputs: &abspos_inputs::AbsposLayoutInputs,
         inside_layout: Option<InsideLayoutBlockSizes>,
     ) {
         let (available_space, constraints) = out_of_flow_root_space(inputs);
@@ -3053,7 +3053,7 @@ impl<'pass> AbsposEngine<'pass> {
                 sized,
                 available_space,
                 constraints,
-                static_position_rect_for_sizing(&inputs),
+                static_position_rect_for_sizing(inputs),
                 BlockSizePass::AfterInsideLayout { inside_layout },
                 resolved,
                 self.auto_margin_overflow(inputs.containing_block, SizingAxis::Block),
@@ -3305,7 +3305,8 @@ impl<'pass> AbsposEngine<'pass> {
         default_scroll_shift: Option<abspos_inputs::DefaultScrollShift>,
     ) -> CssPixels {
         assert!(!self.facts(node).is_svg_box());
-        let (available_space, constraints) = out_of_flow_root_space(inputs);
+        let (available_space, constraints) = out_of_flow_root_space(&inputs);
+        let inputs = std::sync::Arc::new(inputs);
 
         let formatting_context::ChildLayout {
             outcome,
@@ -3319,7 +3320,7 @@ impl<'pass> AbsposEngine<'pass> {
             LayoutInput::new(
                 available_space,
                 constraints,
-                ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
+                ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs.clone()),
             ),
             cells,
             false,
@@ -3662,9 +3663,10 @@ impl<'pass> AbsposEngine<'pass> {
         let mut child = *child;
         let (mut inputs, _) = self.pending_child_layout_inputs(&mut child);
         inputs.position_option = Some(choice);
+        let inputs = std::sync::Arc::new(inputs);
         // 3. Let el rect be the size and position of abspos's margin box, and cb rect be the size and position of
         //    abspos's inset-modified containing block, when laid out with adjusted styles.
-        let (available_space, constraints) = out_of_flow_root_space(inputs);
+        let (available_space, constraints) = out_of_flow_root_space(&inputs);
         let laid_out = formatting_context::run_root_without_parent_fragments(
             self.callbacks,
             node,
@@ -3672,7 +3674,7 @@ impl<'pass> AbsposEngine<'pass> {
             LayoutInput::new(
                 available_space,
                 constraints,
-                ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs),
+                ParticipationInParentFormattingContext::AbsolutelyPositioned(inputs.clone()),
             ),
         );
         let used = laid_out.root_cells_left_by_run;

@@ -367,7 +367,7 @@ pub(crate) enum MathStretchSizeConstraint {
     BlockCoveringContent { ascent: CssPixels, descent: CssPixels },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ParticipationInParentFormattingContext {
     BlockLevel,
     /// A float, which its parent block formatting context sizes against the floats beside the content box of its
@@ -376,12 +376,12 @@ pub(crate) enum ParticipationInParentFormattingContext {
         containing_block_position_in_bfc_root: FfiCssPixelPoint,
     },
     AtomicInline,
-    AbsolutelyPositioned(abspos_inputs::AbsposLayoutInputs),
+    AbsolutelyPositioned(std::sync::Arc<abspos_inputs::AbsposLayoutInputs>),
     Item,
     Root,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct LayoutInput {
     pub(crate) available_space: AvailableSpace,
     pub(crate) containing_block_constraints: ContainingBlockConstraints,

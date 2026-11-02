@@ -2676,7 +2676,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             node,
             block_container.node,
             block_container_inline_size,
-            input,
+            input.clone(),
             containing_line_box_fragment,
         ) {
             InFlowReuse::Hit { entry, fragment } => {
@@ -3034,7 +3034,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.layout_inline_children(
                     run,
                     node_as_block_container,
-                    input,
+                    input.clone(),
                     content_box_position_in_root,
                     space_available_for_children,
                 )
@@ -3042,7 +3042,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 self.layout_block_level_children(
                     run,
                     node_as_block_container,
-                    input,
+                    input.clone(),
                     content_box_position_in_root,
                     space_available_for_children,
                 )
@@ -3620,7 +3620,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 run,
                 child,
                 block_container,
-                child_input,
+                child_input.clone(),
                 containing_block_position_in_root,
                 None,
             );
@@ -4115,7 +4115,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             },
             participation: ParticipationInParentFormattingContext::Root,
         };
-        let spanner_input = self.child_layout_input(self.root_block_container(), input, input.available_space);
+        let spanner_input = self.child_layout_input(self.root_block_container(), input.clone(), input.available_space);
         let is_right_to_left = style.direction() == direction::RTL;
         let column_origin = |index: usize, row_block_offset: CssPixels| FfiCssPixelPoint {
             x: geometry.column_inline_offset(index, content_inline_size, is_right_to_left),
@@ -4153,9 +4153,19 @@ impl<'pass> BlockFormattingContext<'pass> {
             let remaining_block_size_limit =
                 block_size_limit.map(|block_size| (block_size - row_block_offset).max(CssPixels::default()));
             let column_block_size = if next_spanner.is_some() {
-                self.balanced_column_block_size(column_input, geometry, incoming.clone(), remaining_block_size_limit)
+                self.balanced_column_block_size(
+                    column_input.clone(),
+                    geometry,
+                    incoming.clone(),
+                    remaining_block_size_limit,
+                )
             } else {
-                self.column_block_size(column_input, geometry, remaining_block_size_limit, incoming.clone())
+                self.column_block_size(
+                    column_input.clone(),
+                    geometry,
+                    remaining_block_size_limit,
+                    incoming.clone(),
+                )
             };
             let mut content_block_size = CssPixels::default();
             let mut column_index = 0;
@@ -4170,7 +4180,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     contents,
                 } = self.layout_column(
                     ColumnLayoutUse::ContainerContent,
-                    column_input,
+                    column_input.clone(),
                     if is_last_allowed_column {
                         ColumnExtent::AllRemainingContent
                     } else {
@@ -4237,7 +4247,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 run,
                 spanner,
                 self.root_block_container(),
-                spanner_input,
+                spanner_input.clone(),
                 FfiCssPixelPoint::default(),
                 None,
             );
@@ -4368,7 +4378,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let clamp = |block_size: CssPixels| maximum_block_size.map_or(block_size, |maximum| block_size.min(maximum));
 
         let (runs, tallest_unbreakable_block_size) =
-            self.measure_runs_between_forced_breaks(column_input, row_incoming.clone());
+            self.measure_runs_between_forced_breaks(column_input.clone(), row_incoming.clone());
 
         let mut implicit_breaks = vec![0usize; runs.len()];
         for _ in runs.len()..geometry.count {
@@ -4398,7 +4408,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             let finished = loop {
                 let ColumnLayout { outcome, .. } = self.layout_column(
                     ColumnLayoutUse::BalancingProbe,
-                    column_input,
+                    column_input.clone(),
                     ColumnExtent::BlockSize(block_size),
                     incoming,
                     column_count,
@@ -4446,7 +4456,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 ..
             } = self.layout_column(
                 ColumnLayoutUse::BalancingProbe,
-                column_input,
+                column_input.clone(),
                 ColumnExtent::UntilForcedBreak,
                 incoming,
                 runs.len(),
@@ -4499,7 +4509,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 &self.run,
                 self.root_cells,
                 builds_fragments,
-                input,
+                input.clone(),
                 fragmentainer.clone(),
             );
             if outputs.result.depends_on_percentage_block_size {
@@ -4564,7 +4574,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         // through to the table box unchanged.
         let table_box_input = LayoutInput {
             available_space: available_space_for_children,
-            ..input
+            ..input.clone()
         };
         let caption_input = self.child_layout_input(wrapper_block_container, input, available_space_for_children);
         let saved = self
@@ -4574,9 +4584,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut summary = ChildrenSummary::default();
         for child in table_wrapper_flow_children(self.run.callbacks, wrapper) {
             let child_input = if self.style(child).display().is_table_inside() {
-                table_box_input
+                table_box_input.clone()
             } else {
-                caption_input
+                caption_input.clone()
             };
             let invisible = self.line_clamp_reached() && !self.facts(child).is_absolutely_positioned();
             if invisible {
@@ -4621,7 +4631,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 run,
                 legend,
                 fieldset_block_container,
-                child_input,
+                child_input.clone(),
                 FfiCssPixelPoint::default(),
                 None,
             );
@@ -4671,7 +4681,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                         run,
                         child,
                         fieldset_block_container,
-                        child_input,
+                        child_input.clone(),
                         FfiCssPixelPoint::default(),
                         None,
                     );
@@ -4745,7 +4755,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn lay_out_root_contents(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available_space = input.available_space;
         if self.is_line_clamp_container && self.style(self.run.box_).max_lines() == 0 {
-            let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input);
+            let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input.clone());
             if input.sizing.finds_automatic_line_clamp_lines || run.fragments.is_none() {
                 self.automatic_line_clamp_block_size.set(automatic_block_size);
             } else if automatic_block_size.is_some() {
@@ -4769,7 +4779,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             }
         }
         if self.lays_out_multicol_container() {
-            self.layout_multicol_container_rows(run, input);
+            self.layout_multicol_container_rows(run, input.clone());
             if self.facts(self.run.box_).is_list_item_box() {
                 self.layout_list_item_marker(
                     run,
@@ -4781,7 +4791,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             return;
         }
 
-        let root_input = input;
+        let root_input = input.clone();
         let root_facts = self.facts(self.run.box_);
         if root_facts.is_fieldset_box() && !root_facts.rendered_legend().is_invalid() {
             let baselines = self
@@ -5026,7 +5036,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             run,
             sized_float,
             block_container,
-            input,
+            input.clone(),
             containing_block_position_in_root,
         );
         self.position_laid_out_float(
