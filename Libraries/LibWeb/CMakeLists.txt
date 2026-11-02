@@ -998,7 +998,6 @@ set(SOURCES
     WebGL/EventNames.cpp
     WebGL/RemoteWebGLTransportFFI.cpp
     WebGL/WebGLContextAttributes.cpp
-    WebGL/WebGLContextEvent.cpp
     WebGL/WebGLRenderingContextBase.cpp
     WebIDL/AbstractOperations.cpp
     WebIDL/AsyncIterator.cpp

@@ -16,3 +16,9 @@ isTrusted descriptor is not undefined: true
 isTrusted enumerable: true
 isTrusted configurable: false
 isTrusted writable: undefined
+isTrusted exists on WebGLContextEvent instance itself: true
+isTrusted does not exist on LocationPrototype: true
+isTrusted descriptor is not undefined: true
+isTrusted enumerable: true
+isTrusted configurable: false
+isTrusted writable: undefined
