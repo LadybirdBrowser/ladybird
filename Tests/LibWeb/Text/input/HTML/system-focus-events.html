@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<input id="top-input" />
+<iframe id="frame" srcdoc="<input>"></iframe>
+<script>
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", resolve, { once: true }));
+
+        const frame = document.getElementById("frame");
+        const topInput = document.getElementById("top-input");
+        const frameInput = frame.contentDocument.querySelector("input");
+        const events = [];
+        for (const [name, target] of [
+            ["top input", topInput],
+            ["iframe input", frameInput],
+            ["top window", window],
+            ["iframe window", frame.contentWindow],
+        ]) {
+            for (const type of ["blur", "focusout", "focus", "focusin"])
+                target.addEventListener(type, event => {
+                    if (event.target === target) events.push(`${name}.${type}`);
+                });
+        }
+
+        for (const [name, input] of [
+            ["top-level", topInput],
+            ["iframe", frameInput],
+        ]) {
+            input.focus();
+            events.length = 0;
+            for (const [phase, focused] of [
+                ["System focus loss", false],
+                ["Repeated system focus loss", false],
+                ["System focus gain", true],
+                ["Repeated system focus gain", true],
+            ]) {
+                internals.setPageFocus(focused);
+                const active =
+                    input.ownerDocument.activeElement === input &&
+                    (input === topInput || document.activeElement === frame);
+                println(
+                    `${phase} with the ${name} input focused: ${events.splice(0).join(", ") || "none"}; active focus chain preserved=${active}`
+                );
+            }
+        }
+    });
+</script>

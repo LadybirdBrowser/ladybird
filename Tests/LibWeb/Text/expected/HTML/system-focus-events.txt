@@ -1,0 +1,8 @@
+System focus loss with the top-level input focused: top input.blur, top input.focusout, top window.blur; active focus chain preserved=true
+Repeated system focus loss with the top-level input focused: none; active focus chain preserved=true
+System focus gain with the top-level input focused: top window.focus, top input.focus, top input.focusin; active focus chain preserved=true
+Repeated system focus gain with the top-level input focused: none; active focus chain preserved=true
+System focus loss with the iframe input focused: iframe input.blur, iframe input.focusout, iframe window.blur; active focus chain preserved=true
+Repeated system focus loss with the iframe input focused: none; active focus chain preserved=true
+System focus gain with the iframe input focused: iframe window.focus, iframe input.focus, iframe input.focusin; active focus chain preserved=true
+Repeated system focus gain with the iframe input focused: none; active focus chain preserved=true

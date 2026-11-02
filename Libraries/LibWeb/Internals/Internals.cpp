@@ -3237,8 +3237,9 @@ void Internals::set_preferred_color_scheme(Utf16String const& color_scheme)
 
 void Internals::set_page_focus(bool has_focus)
 {
-    page().client().set_has_focus(has_focus);
+    // Publish before dispatching events so a handler's later focus change supersedes this one.
     page().client().page_did_request_set_system_focus(has_focus);
+    page().client().set_has_focus(has_focus);
 }
 
 void Internals::set_system_visibility_state(Utf16String const& state)

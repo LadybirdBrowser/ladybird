@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<iframe id="child"></iframe>
+<iframe id="sibling"></iframe>
+<script>
+    promiseTest(async () => {
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", "/system-focus-events", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><input id="input"><script>
+                const events = [];
+                for (const type of ["blur", "focusout", "focus", "focusin"])
+                    addEventListener(type, event => {
+                        events.push((event.target === window ? "window" : "input") + "." + type);
+                    }, true);
+                addEventListener("message", event => {
+                    if (event.data === "focus")
+                        input.focus();
+                    parent.postMessage({ events: events.splice(0), active: document.activeElement === input }, "*");
+                });
+                parent.postMessage("ready", "*");
+            <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("system-focus-events");
+
+        const nextMessage = () =>
+            new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        function ask(child, message) {
+            const reply = nextMessage();
+            child.contentWindow.postMessage(message, "*");
+            return reply;
+        }
+
+        const child = document.getElementById("child");
+        const sibling = document.getElementById("sibling");
+        for (const frame of [child, sibling]) {
+            const ready = nextMessage();
+            frame.src = remoteUrl;
+            await ready;
+        }
+        const otherEvents = [];
+        for (const type of ["blur", "focus"]) window.addEventListener(type, () => otherEvents.push(`top.${type}`));
+
+        await ask(child, "focus");
+        otherEvents.length = 0;
+        for (const [phase, focused] of [
+            ["System focus loss", false],
+            ["System focus gain", true],
+        ]) {
+            internals.setPageFocus(focused);
+            const report = await ask(child, "report");
+            const siblingReport = await ask(sibling, "report");
+            const active = document.activeElement === child && report.active;
+            const other = [...otherEvents.splice(0), ...siblingReport.events].join(", ") || "none";
+            println(
+                `${phase} with an isolated iframe focused: ${report.events.join(", ") || "none"}; active focus chain preserved=${active}; ancestor and sibling window events=${other}`
+            );
+        }
+    });
+</script>
