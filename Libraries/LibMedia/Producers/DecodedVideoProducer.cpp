@@ -486,6 +486,22 @@ void DecodedVideoProducer::ThreadData::re_emit_last_frame_if_at_end_of_stream_wh
     queue_frame(*m_last_queued_frame);
 }
 
+void DecodedVideoProducer::ThreadData::note_frame_passed_by_decoder(AK::Duration timestamp, AK::Duration earliest_target_reachable_without_moving_demuxer)
+{
+    VERIFY(m_decode_thread_id.is_current_thread());
+    if (m_latest_frame_passed_by_decoder.has_value() && timestamp < m_latest_frame_passed_by_decoder->timestamp)
+        return;
+    m_latest_frame_passed_by_decoder = FramePassedByDecoder { timestamp, earliest_target_reachable_without_moving_demuxer };
+}
+
+bool DecodedVideoProducer::ThreadData::decoder_has_passed_a_frame_needed_for(AK::Duration target) const
+{
+    VERIFY(m_decode_thread_id.is_current_thread());
+    if (!m_latest_frame_passed_by_decoder.has_value())
+        return false;
+    return target < m_latest_frame_passed_by_decoder->earliest_target_reachable_without_moving_demuxer;
+}
+
 void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id)
 {
     m_last_processed_seek_id = seek_id;
@@ -553,6 +569,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
 
     auto has_clamped_target = false;
     while (true) {
+        auto decoder_has_passed_the_target = false;
         {
             auto locker = take_lock();
             seek_id = m_seek_id.load(MemoryOrder::memory_order_relaxed);
@@ -580,6 +597,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
                 if (m_last_queued_frame != nullptr)
                     timestamp = m_last_queued_frame->end();
             } else {
+                decoder_has_passed_the_target = decoder_has_passed_a_frame_needed_for(timestamp);
                 // If the demuxer keeps its position, the decoder won't output this frame again.
                 if (!m_decoder_needs_keyframe_next_seek && m_last_queued_frame != nullptr && m_last_queued_frame->timestamp() <= timestamp)
                     last_frame = m_last_queued_frame;
@@ -598,7 +616,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
         auto seek_options = DemuxerSeekOptions::None;
         if (m_decoder == nullptr)
             seek_options |= DemuxerSeekOptions::NeedCodecConfiguration | DemuxerSeekOptions::Force;
-        if (m_decoder_needs_keyframe_next_seek)
+        if (m_decoder_needs_keyframe_next_seek || decoder_has_passed_the_target)
             seek_options |= DemuxerSeekOptions::Force;
         auto demuxer_seek_result_or_error = m_demuxer->seek_to_most_recent_keyframe(m_track, timestamp, seek_options);
         if (demuxer_seek_result_or_error.is_error() && demuxer_seek_result_or_error.error().category() != DecoderErrorCategory::EndOfStream) {
@@ -619,6 +637,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
         if (demuxer_seek_result == DemuxerSeekResult::MovedPosition) {
             if (m_decoder != nullptr)
                 m_decoder->flush();
+            m_latest_frame_passed_by_decoder.clear();
             last_frame.clear();
         }
 
@@ -701,6 +720,7 @@ void DecodedVideoProducer::ThreadData::handle_seek()
                 }
 
                 auto current_frame = frame_result.release_value();
+                note_frame_passed_by_decoder(current_frame->timestamp(), current_frame->timestamp());
 
                 if (current_frame->contains_timestamp(timestamp)) {
                     auto locker = take_lock();
@@ -760,6 +780,9 @@ void DecodedVideoProducer::ThreadData::handle_seek()
             auto conservative_end_of_coded_frame = VideoFrame::conservative_end_of(coded_frame.presentation_timestamp(), coded_frame.duration());
             if (conservative_end_of_coded_frame >= timestamp)
                 decoding_for_output = true;
+            // Frames decoded for reference aren't output, so we need to ensure that we re-decode when seeking back into them.
+            if (!decoding_for_output)
+                note_frame_passed_by_decoder(coded_frame.presentation_timestamp(), conservative_end_of_coded_frame);
             greatest_coded_timestamp = max(greatest_coded_timestamp, coded_frame.presentation_timestamp());
 
             auto decode_result = receive_coded_frame(coded_frame, decoding_for_output ? DecodeIntent::Output : DecodeIntent::Reference);
@@ -855,6 +878,7 @@ void DecodedVideoProducer::ThreadData::push_data_and_decode_some_frames()
             return;
         }
         auto frame = frame_result.release_value();
+        note_frame_passed_by_decoder(frame->timestamp(), frame->timestamp());
 
         auto locker = take_lock();
         queue_frame(frame);
