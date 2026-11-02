@@ -258,7 +258,7 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
     //         focused. The specification does not distinguish this from focus in the container's contents:
     //         https://github.com/whatwg/html/issues/11873
     auto dispatch_explicit_container_focus_events = [&]() {
-        if (!container_has_explicit_focus(explicitly_focused_container))
+        if (!container_has_explicit_focus(explicitly_focused_container) || !explicitly_focused_container->document().page().client().has_focus())
             return;
 
         GC::Ptr<DOM::EventTarget> related_focus_target;
@@ -267,7 +267,7 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
 
         fire_a_focus_event(explicitly_focused_container, related_focus_target, HTML::EventNames::focus, false);
 
-        if (!container_has_explicit_focus(explicitly_focused_container))
+        if (!container_has_explicit_focus(explicitly_focused_container) || !explicitly_focused_container->document().page().client().has_focus())
             return;
 
         fire_a_focus_event(explicitly_focused_container, related_focus_target, HTML::EventNames::focusin, true);
@@ -423,7 +423,10 @@ void run_focus_update_steps(Vector<GC::Root<DOM::Node>> old_chain, Vector<GC::Ro
         //    focus target as the related target.
         // FIXME: NOTE: In some cases, e.g. if entry is an area element's shape, a scrollable region, or a viewport, no event
         //       is fired.
-        if (focus_event_target) {
+        // AD-HOC: Script can change the designated focus chain without system focus. Match other browsers by
+        //         deferring focus events until system focus returns:
+        //         https://w3c.github.io/uievents/#events-focusevent-doc-focus
+        if (focus_event_target && entry->document().page().client().has_focus()) {
             auto focused_before_dispatch = currently_focused_area();
             fire_a_focus_event(focus_event_target, related_focus_target, HTML::EventNames::focus, false);
 

@@ -2,14 +2,19 @@
 <script src="../include.js"></script>
 <input id="original" />
 <input id="redirected" />
+<iframe id="frame"></iframe>
 <script>
     test(() => {
         const originalInput = document.getElementById("original");
         const redirectedInput = document.getElementById("redirected");
+        const frame = document.getElementById("frame");
         const events = [];
         for (const type of ["focus", "focusin"])
             document.addEventListener(type, event => events.push(`${event.target.id}.${type}`), true);
-        for (const type of ["blur", "focus"]) window.addEventListener(type, () => events.push(`window.${type}`));
+        for (const type of ["blur", "focus"]) {
+            window.addEventListener(type, () => events.push(`window.${type}`));
+            frame.contentWindow.addEventListener(type, () => events.push(`iframe window.${type}`));
+        }
 
         originalInput.focus();
         events.length = 0;
@@ -26,5 +31,24 @@
         println(
             `Window focus handler redirects focus without duplicate events: ${events.join(", ")}; redirected input active=${document.activeElement === redirectedInput}`
         );
+
+        originalInput.focus();
+        events.length = 0;
+        originalInput.addEventListener("blur", () => frame.focus(), { once: true });
+        internals.setPageFocus(false);
+        println(
+            `Input blur handler focuses iframe without system focus: ${events.splice(0).join(", ")}; iframe remains active=${document.activeElement === frame}; document.hasFocus()=${document.hasFocus()}`
+        );
+        internals.setPageFocus(true);
+        println(`System focus returns to iframe: ${events.splice(0).join(", ")}`);
+
+        originalInput.focus();
+        events.length = 0;
+        frame.addEventListener("focus", () => internals.setPageFocus(false), { once: true });
+        frame.focus();
+        println(
+            `Iframe focus handler loses system focus without focusin: ${events.join(", ")}; document.hasFocus()=${document.hasFocus()}`
+        );
+        internals.setPageFocus(true);
     });
 </script>
