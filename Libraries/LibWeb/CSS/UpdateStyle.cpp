@@ -117,6 +117,10 @@ static void apply_element_style_invalidation_after_style_change(Layout::BegunRea
     // The render state installed the element's record in its box ahead of this install, and marked the relayout, or the
     // layout tree rebuild, the move asks for, which a frame's layout round, or the host's next one, runs.
     bool const installed_by_render_state = StyleEngineFFI::style_engine_render_state_installed(element.document().style_computer().style_engine().host(), element.style_node_id().value(), element.style_record_identity().value());
+    // NB: A read of the style of an element below one that is not displayed installs it with no box to move, and leaves
+    //     layout as it was for what reads it next.
+    if (auto parent = element.element_to_inherit_style_from({}); !installed_by_render_state && parent && has_flag(parent->installed_style().dependency_flags(), StyleRecordDependencyFlag::InDisplayNoneSubtree) && !element.unsafe_layout_node(read))
+        return;
     bool const needs_relayout = invalidation.needs_relayout() && !installed_by_render_state;
 
     // Only a full layout pass applies viewport propagation again, so a relayout of an element the viewport takes its
