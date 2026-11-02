@@ -462,7 +462,7 @@ void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> con
 {
     m_queue.enqueue({ frame });
     m_last_queued_frame = frame;
-    m_latest_available_timestamp = max(m_latest_available_timestamp, frame->conservative_end());
+    m_latest_available_timestamp = max(m_latest_available_timestamp, frame->end());
     dispatch_wake_if_needed_while_locked();
 }
 
