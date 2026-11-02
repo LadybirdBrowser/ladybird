@@ -1,0 +1,14 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 36 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 20 0+0+8] children: not-inline
+      BlockContainer <div> at [8,8] [0+0+0 100 0+0+684] [0+0+0 20 0+0+0] children: inline
+        frag 0 from TextNode start: 0, length: 5, rect: [8,18 50x10] baseline: 8
+            "bcabe"
+        InlineNode <span> at [8,8] [0+0+0 80 0+0+0] [0+0+0 10 0+0+0]
+          frag 0 from TextNode start: 0, length: 8, rect: [8,8 80x10] baseline: 8
+              "dcedde -"
+          TextNode <#text> (not painted)
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)

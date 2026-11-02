@@ -643,6 +643,8 @@ struct InlineContentPreparer<'pass> {
     /// The text of the text node before the current one, when nothing but inline box boundaries and out-of-flow
     /// boxes lies between them.
     previous_text: Option<&'pass [u16]>,
+    /// Whether the previous text wraps with `word-break: break-all`.
+    previous_text_breaks_all: bool,
     /// The number of regional indicators that end the previous text, including any in the text nodes before it.
     previous_text_regional_indicators: usize,
     /// The number of regional indicators that end the text before the current text node.
@@ -698,6 +700,7 @@ impl<'pass> InlineContentPreparer<'pass> {
             walks_within_item: false,
             previous_chunk_can_break_after: false,
             previous_text: None,
+            previous_text_breaks_all: false,
             previous_text_regional_indicators: 0,
             regional_indicators_before_text: 0,
             code_unit_before_previous_text: None,
@@ -971,6 +974,8 @@ impl<'pass> InlineContentPreparer<'pass> {
                 };
                 self.code_unit_before_previous_text = self.code_unit_before_text;
                 self.previous_text = Some(text_context.text);
+                self.previous_text_breaks_all =
+                    text_context.should_wrap_lines && text_context.style.word_break() == word_break::BREAK_ALL;
             }
             self.text_node_context = None;
             self.previous_chunk_can_break_after = false;
@@ -1061,7 +1066,8 @@ impl<'pass> InlineContentPreparer<'pass> {
         }
         let mut can_break_before = self.previous_chunk_can_break_after;
         // NB: Look for a soft wrap opportunity between the texts of two text nodes, which the chunker of either text
-        //     cannot see. This uses the line breaking properties of the text after it.
+        //     cannot see. This uses the line breaking properties of the text after it, and `word-break: break-all` text
+        //     before it also breaks there.
         if is_first_chunk {
             self.regional_indicators_before_text = if self.previous_text.is_some() {
                 self.previous_text_regional_indicators
@@ -1081,15 +1087,19 @@ impl<'pass> InlineContentPreparer<'pass> {
             } else {
                 text_chunker::LineBreakLanguage::Other
             };
-            can_break_before = text_chunker::soft_wrap_opportunity_between(
-                previous_text,
-                &full_text[chunk.start..],
-                self.code_unit_before_previous_text,
-                self.regional_indicators_before_text,
-                style.word_break(),
-                style.line_break(),
-                line_break_language,
-            );
+            let opportunity_with = |word_break| {
+                text_chunker::soft_wrap_opportunity_between(
+                    previous_text,
+                    &full_text[chunk.start..],
+                    self.code_unit_before_previous_text,
+                    self.regional_indicators_before_text,
+                    word_break,
+                    style.line_break(),
+                    line_break_language,
+                )
+            };
+            can_break_before = opportunity_with(style.word_break())
+                || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL));
         }
         self.previous_text = None;
         self.previous_chunk_can_break_after = chunk.can_break_after;
