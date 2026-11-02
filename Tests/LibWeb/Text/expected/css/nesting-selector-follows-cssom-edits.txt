@@ -1,0 +1,6 @@
+initial: 11px/1px/rgb(0, 0, 0) | 1px/1px/rgb(0, 0, 0)
+grandparent edited: 1px/1px/rgb(0, 0, 0) | 11px/1px/rgb(0, 0, 0)
+child inserted: 1px/1px/rgb(0, 0, 0) | 11px/7px/rgb(0, 0, 0)
+scope inserted: 1px/1px/rgb(0, 0, 0) | 11px/7px/rgb(0, 128, 0)
+grandparent restored: 11px/7px/rgb(0, 128, 0) | 1px/1px/rgb(0, 0, 0)
+specificity through &: 11px/7px/rgb(0, 128, 0) | 1px/1px/rgb(0, 0, 0)

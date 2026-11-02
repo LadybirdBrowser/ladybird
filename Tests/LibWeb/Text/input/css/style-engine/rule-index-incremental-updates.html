@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .base { color: red; }
+</style>
+<div id="container"></div>
+<script>
+    function color(element) {
+        return getComputedStyle(element).color;
+    }
+
+    function step(label, change) {
+        internals.resetStyleCounters();
+        change();
+        internals.updateStyle();
+        const counters = internals.styleCounters();
+        println(`${label}: index builds ${counters.indexBuilds}, entries indexed ${counters.indexedEntries}, full passes ${counters.fullPasses}, hinted <= 2 ${counters.hintedElements <= 2}`);
+    }
+
+    test(() => {
+        for (let i = 0; i < 50; ++i) {
+            const div = document.createElement("div");
+            div.className = "base";
+            container.appendChild(div);
+        }
+        const target = document.createElement("div");
+        target.id = "target";
+        container.appendChild(target);
+        const other = document.createElement("div");
+        other.className = "other";
+        container.appendChild(other);
+        internals.updateStyle();
+
+        // An appended sheet indexes its own rules alone, and restyles what they match.
+        const style = document.createElement("style");
+        step("appended sheet", () => {
+            style.textContent = "#target { color: green; }";
+            document.head.appendChild(style);
+        });
+        println(`target: ${color(target)}`);
+
+        // A rule inserted into a sheet indexes that rule alone.
+        step("inserted rule", () => style.sheet.insertRule(".other { color: blue; }", 1));
+        println(`other: ${color(other)}`);
+
+        // A rule edited in place indexes that rule again alone.
+        step("edited rule", () => (style.sheet.cssRules[1].style.color = "orange"));
+        println(`other: ${color(other)}`);
+
+        // A deleted rule restyles what it matched.
+        step("deleted rule", () => style.sheet.deleteRule(1));
+        println(`other: ${color(other)}`);
+
+        // A sheet whose media stops matching takes its rules out, and back in.
+        step("media off", () => (style.media = "print"));
+        println(`target: ${color(target)}`);
+        step("media on", () => (style.media = "all"));
+        println(`target: ${color(target)}`);
+
+        // A removed sheet restyles what its rules matched.
+        step("removed sheet", () => style.remove());
+        println(`target: ${color(target)}`);
+
+        // A sheet inserted before another ranks below it.
+        const first = document.createElement("style");
+        first.textContent = "#target { color: green; }";
+        document.head.appendChild(first);
+        internals.updateStyle();
+        const second = document.createElement("style");
+        step("sheet inserted before", () => {
+            second.textContent = "#target { color: purple; }";
+            document.head.insertBefore(second, first);
+        });
+        println(`target: ${color(target)}`);
+    });
+</script>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    :host {
+        display: block;
+        --from-host: "matched";
+    }
+</style>
+<svg>
+    <defs>
+        <symbol id="symbol"><rect id="rect" width="10" height="10"></rect></symbol>
+    </defs>
+    <use id="use" href="#symbol"></use>
+</svg>
+<script src="../include.js"></script>
+<script>
+    function report(label) {
+        const style = getComputedStyle(document.getElementById("use"));
+        println(`${label}: display ${style.display}, z-index ${style.zIndex}, --from-host "${style.getPropertyValue("--from-host")}"`);
+    }
+
+    test(() => {
+        report("at load");
+        const sheet = document.createElement("style");
+        sheet.textContent = ":host { z-index: 1; }";
+        document.head.append(sheet);
+        report("a later sheet");
+    });
+</script>

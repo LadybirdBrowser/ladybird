@@ -1,0 +1,23 @@
+from the parser: .early: b1
+from the parser: section .early: b1
+before any: .late: 
+class added deep in a subtree: .late: a2
+class added deep in a subtree: #root .late: a2
+class added deep in a subtree: .late span, section .late: a2
+class replaced: .late: 
+class replaced: .other: a2
+class removed: .other: 
+before insertion: .carried: 
+subtree inserted: .carried: moved2
+subtree inserted: section .carried: moved2
+clone: .cloned: clone2
+innerHTML: .parsed: html1
+toggled on: .toggled: a1
+toggled off: .toggled: 
+left of the subject: .missing span: 
+left of the subject: .early ~ span, .missing span: 
+left of the subject: .parsed, .missing span: html1
+attribute left of the subject: [nope] span: 
+attribute left of the subject: [nope] span: a2
+disconnected: moved2
+shadow: shadow1

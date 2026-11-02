@@ -1,0 +1,11 @@
+a: rgb(0, 0, 255) 3.5px
+a cssText: color: blue; margin-left: 3.5px;
+a attribute: color: blue; margin-left: 3.5px;
+b: rgb(255, 0, 0) 3.5px
+b cssText: color: red; margin-left: 3.5px;
+b attribute: color: red; margin-left: 3.5px
+c: rgb(255, 0, 0) 3.5px
+c cssText: color: red; margin-left: 3.5px;
+c attribute: color: red; margin-left: 3.5px
+b: rgb(0, 128, 0) 0px color: green;
+c: rgb(0, 128, 0) 3.5px color: green; margin-left: 3.5px;

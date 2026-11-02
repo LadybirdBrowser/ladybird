@@ -50,6 +50,12 @@ WEB_API bool element_matches_state(DOM::Element const&, CSS::PseudoClass);
 // Asking `element_matches_state` once per pseudo-class recomputes what several of them share - an
 // element's validity is the answer to four of them, its required state to two - and does it for
 // every element that connects. This asks each shared question once and is the same answers.
-WEB_API CSS::PseudoClassBitmap element_states(DOM::Element const&);
+//
+// Whether a link is a local link is answered by parsing its URL, which is asked only where something reads it.
+enum class AskLocalLink : u8 {
+    No,
+    Yes,
+};
+WEB_API CSS::PseudoClassBitmap element_states(DOM::Element const&, AskLocalLink);
 
 }

@@ -5,6 +5,8 @@
  */
 
 #include <AK/Array.h>
+#include <AK/QuickSort.h>
+#include <LibGC/RootVector.h>
 #include <LibGC/WeakInlines.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/DOM/Document.h>
@@ -204,25 +206,37 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
             return subject.child_index_from_end(SiblingsOfType);
         }
         VERIFY_NOT_REACHED(); },
-    .next_element_in_subtree = [](void const* node, void const* root, uintptr_t local_name, u64 attribute_names) -> void const* {
+    .next_element_in_subtree = [](void const* node, void const* root, uintptr_t local_name, uintptr_t class_name, u64 names) -> void const* {
         auto const& stay_within = node_from_ffi(root);
         auto const* next = node_from_ffi(node).next_in_pre_order(&stay_within);
         while (next) {
             auto const* element = as_if<Element>(*next);
-            if (element && (element->subtree_attribute_name_filter() & attribute_names) != attribute_names) {
-                // No element of this subtree has every attribute name, so skip past it.
+            if (element && (element->subtree_name_filter() & names) != names) {
+                // No element of this subtree has every name, so skip past it.
                 while (next != &stay_within && !next->next_sibling())
                     next = next->parent();
                 next = next == &stay_within ? nullptr : next->next_sibling();
                 continue;
             }
-            if (element && (!local_name || element->local_name().raw_identity() == local_name))
+            if (element && (!local_name || element->local_name().raw_identity() == local_name)
+                && (!class_name || any_of(element->class_names(), [&](auto const& name) { return name.raw_identity() == class_name; })))
                 return node_to_ffi(element);
             next = next->next_in_pre_order(&stay_within);
         }
         return nullptr;
     },
-    .attribute_name_filter_bit = [](uintptr_t local_name) { return Element::attribute_name_filter_bit(Utf16FlyString::from_raw(local_name)); },
+    .name_filter_bit = [](uintptr_t local_name) { return Element::name_filter_bit(Utf16FlyString::from_raw(local_name)); },
+    .tree_name_filter = [](void const* node) -> u64 {
+        // The filter of a document's one element child holds every name of the document's tree.
+        auto const& root = node_from_ffi(node).root();
+        if (auto const* document = as_if<Document>(root)) {
+            auto const* document_element = document->document_element();
+            return document_element ? document_element->subtree_name_filter() : 0;
+        }
+        if (auto const* element = as_if<Element>(root))
+            return element->subtree_name_filter();
+        return NumericLimits<u64>::max();
+    },
     .shadow_root = [](void const* element) { return node_to_ffi(element_from_ffi(element).shadow_root().ptr()); },
     .host = [](void const* shadow_root) { return node_to_ffi(static_cast<ShadowRoot const&>(node_from_ffi(shadow_root)).host()); },
     .id_or_class_equals_ignoring_ascii_case = [](void const* pointer, bool is_class, uintptr_t name_identity) {
@@ -293,7 +307,7 @@ public:
     GC::Ptr<Element> first(ParentNode& root) const
     {
         GC::Ptr<Element> result;
-        for_each_in_subtree(root, [&](Element& element) {
+        for_each_match(root, [&](Element& element) {
             result = element;
             return true;
         });
@@ -302,13 +316,69 @@ public:
 
     void collect(ParentNode& root, Vector<GC::RawPtr<Element>>& elements) const
     {
-        for_each_in_subtree(root, [&](Element& element) {
+        for_each_match(root, [&](Element& element) {
             elements.append(element);
             return false;
         });
     }
 
 private:
+    // Calls `callback` with each element under `root` that matches the query, in tree order, until it returns true.
+    template<typename Callback>
+    void for_each_match(ParentNode& root, Callback callback) const
+    {
+        using enum CSS::SelectorFFI::FfiDomIdLookupKind;
+        auto lookup = CSS::SelectorFFI::rust_dom_selector_program_id_lookup(m_query.program);
+        // NB: An id the query names is looked up in the id map of the tree the query is made in, which holds the
+        //     elements of a connected tree. A quirks-mode document compares ids ignoring case, which the map does not.
+        auto const& document = root.document();
+        if (lookup.kind == None || !root.is_connected() || document.in_quirks_mode()) {
+            for_each_in_subtree(root, callback);
+            return;
+        }
+        auto const& tree_root = root.root();
+        auto const* shadow_root = as_if<ShadowRoot>(tree_root);
+        auto const& element_by_id = shadow_root ? shadow_root->element_by_id() : document.element_by_id();
+        auto elements = element_by_id.elements_with_id(Utf16FlyString::from_raw(lookup.id));
+        auto is_under_root = [&](Node const& node) {
+            return &tree_root == &root ? &node != &root : node.is_descendant_of(root);
+        };
+
+        if (lookup.kind == Subject) {
+            // Only the elements with the id can match.
+            GC::RootVector<GC::Ref<Element>, 1> candidates;
+            for (auto const& element : elements) {
+                if (element && is_under_root(*element))
+                    candidates.append(*element);
+            }
+            if (candidates.size() > 1)
+                quick_sort(candidates, [](auto const& a, auto const& b) { return a->is_before(*b); });
+            for (auto& element : candidates) {
+                if (matches(*element) && callback(*element))
+                    return;
+            }
+            return;
+        }
+
+        // No element without the id holds a match.
+        if (elements.is_empty())
+            return;
+        // NB: The subtrees of several elements with the id can nest, which only a walk of the whole tree visits once.
+        if (elements.size() > 1 || !elements[0]) {
+            for_each_in_subtree(root, callback);
+            return;
+        }
+        // Every match is under the element with the id, or under its parent past a sibling combinator.
+        Node* search_root = elements[0].ptr().ptr();
+        if (lookup.kind == AncestorsParent)
+            search_root = search_root->parent();
+        if (!search_root || !(search_root == &root || is_under_root(*search_root))) {
+            for_each_in_subtree(root, callback);
+            return;
+        }
+        for_each_in_subtree(as<ParentNode>(*search_root), callback);
+    }
+
     template<typename Callback>
     void for_each_in_subtree(ParentNode& root, Callback callback) const
     {

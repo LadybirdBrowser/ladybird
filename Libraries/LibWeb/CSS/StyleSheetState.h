@@ -143,12 +143,13 @@ public:
     bool constructed() const { return m_native_sheet.flag(RustStyleSheet::Flag::Constructed); }
 
     GC::Ptr<DOM::Document const> constructor_document() const { return m_constructor_document; }
+    GC::Ptr<DOM::Document> parsing_document() const { return m_parsing_document; }
     void set_constructor_document(GC::Ptr<DOM::Document const> constructor_document) { m_constructor_document = constructor_document; }
 
     bool disallow_modification() const { return m_native_sheet.flag(RustStyleSheet::Flag::DisallowModification); }
 
-    void set_source_text(Utf16String source) { m_source_text = move(source); }
-    Optional<Utf16String> source_text() const { return m_source_text; }
+    // The text the sheet was parsed from, which its parse shares between the documents it serves.
+    Optional<Utf16String> source_text() const;
 
     void add_critical_subresource(StyleSheetImport&);
     void remove_critical_subresource(StyleSheetImport&);
@@ -232,8 +233,6 @@ private:
     Optional<::URL::URL> m_location;
     Optional<ReferrerPolicy::ReferrerPolicy> m_fetched_referrer_policy;
     Utf16String m_title;
-
-    Optional<Utf16String> m_source_text;
 
     mutable GC::Weak<CSSRuleList> m_rules;
     GC::Ptr<DOM::Document> m_parsing_document;

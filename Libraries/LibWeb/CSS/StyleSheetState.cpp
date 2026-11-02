@@ -173,6 +173,15 @@ void StyleSheetState::set_rules(RustRuleList rules)
         m_native_sheet.rules().replace(rules);
 }
 
+Optional<Utf16String> StyleSheetState::source_text() const
+{
+    bool has_text = false;
+    auto text = Utf16String::adopt_raw(Parser::ValueParserFFI::rust_rule_list_source_text(m_native_sheet.rules().handle(), &has_text));
+    if (!has_text)
+        return {};
+    return text;
+}
+
 CSSRuleList const& StyleSheetState::rules() const
 {
     if (!m_rules) {
@@ -240,8 +249,6 @@ size_t StyleSheetState::external_memory_size() const
     size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(m_title));
     if (!m_rules)
         size = JS::saturating_add_external_memory_size(size, m_native_sheet.rules().external_memory_size());
-    if (m_source_text.has_value())
-        size = JS::saturating_add_external_memory_size(size, JS::utf16_string_external_memory_size(*m_source_text));
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_css_connected_font_faces));
     size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_import_rules));
     size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_imports));
@@ -645,15 +652,20 @@ void StyleSheetState::load_pending_image_resources(DOM::Document& document)
 
     // Keep image-bearing values alive only until the pending requests below have been started.
     // Their parsed data stays in the native rules; CSSOM wrappers do not own resource bindings.
+    // NB: The process interns equal values, so a sheet repeating one image across its rules names
+    //     one value many times. Each is registered once, rather than with a wrapper per use.
     struct Context {
         StyleSheetState& sheet;
+        HashTable<void const*> seen;
         Vector<NonnullRefPtr<StyleValue const>> images;
-    } context { *this, {} };
+    } context { *this, {}, {} };
     // A constructed sheet can be adopted by many shadow roots in the same document. Discover
     // its images once, unless a rule-list mutation gives it new resources to register.
     if (exchange(m_needs_image_resource_registration, false)) {
         Parser::ValueParserFFI::rust_rule_list_visit_images(m_native_sheet.rules().handle(), &context, [](void* data, void const* value) {
             auto& context = *static_cast<Context*>(data);
+            if (context.seen.set(value) != HashSetResult::InsertedNewEntry)
+                return;
             auto image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value)));
             const_cast<StyleValue&>(*image).set_style_sheet(&context.sheet);
             context.images.append(move(image));

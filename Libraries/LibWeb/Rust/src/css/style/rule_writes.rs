@@ -13,14 +13,12 @@
 use super::StyleEngine;
 use super::bridge::{
     BoundScopeChain, FfiCascadeOrigin, intern_native_text, publish_rule_declarations, publish_style_rule,
-    publish_style_rule_selectors, publish_user_agent_style_rule,
+    publish_style_rule_selectors,
 };
-use super::compiler::NamespaceScope;
-use super::program::{CascadeLayerID, RuleID, RuleKind, SheetID, StyleSheetObjectID};
+use super::pipeline::rule_store::{CascadeLayerID, RuleDeclarations, RuleID, RuleKind, SheetID};
 use super::tree::TreeScopeID;
 use crate::css::container_conditions::ContainerConditionsData;
-use crate::css::declaration_block::DeclarationBlockData;
-use crate::css::selector::CompiledSelector;
+use crate::css::declaration_block::SharedDeclarationBlock;
 use crate::css::selector_parser::RustParsedSelectorList;
 use crate::css::style_sheet::NativeStyleSheet;
 use crate::fast_hash::FastMap;
@@ -102,82 +100,10 @@ fn bit(identity: u64) -> u128 {
     1 << (identity % IDENTITIES_PER_WORD)
 }
 
-/// The namespaces a sheet declares, as text, which the engine interns as it compiles the sheet's selectors.
-pub(crate) struct NamespaceTexts {
-    declared: Box<[DeclaredNamespace]>,
-}
-
-/// A declared namespace prefix, empty for the default namespace, and the namespace it names.
-struct DeclaredNamespace {
-    prefix: Box<[u16]>,
-    uri: Box<[u16]>,
-}
-
-impl NamespaceTexts {
-    /// The namespaces `native` declares, or none where it declares none.
-    pub(crate) fn of(native: &NativeStyleSheet) -> Option<Arc<Self>> {
-        let mut declared = Vec::new();
-        native.rules().for_each_namespace(|namespace| {
-            declared.push(DeclaredNamespace {
-                prefix: namespace.prefix.units().into(),
-                uri: namespace.uri.units().into(),
-            });
-        });
-        (!declared.is_empty()).then(|| {
-            Arc::new(Self {
-                declared: declared.into(),
-            })
-        })
-    }
-
-    /// The namespaces `texts` declares, as the atoms `intern` interns their texts as.
-    pub(super) fn scope(texts: Option<&Self>, mut intern: impl FnMut(&[u16]) -> super::StyleAtomID) -> NamespaceScope {
-        let mut scope = NamespaceScope::default();
-        for DeclaredNamespace { prefix, uri } in texts.map_or(&[][..], |texts| &texts.declared) {
-            let uri = if uri.is_empty() {
-                super::StyleAtomID::NONE
-            } else {
-                intern(uri)
-            };
-            if prefix.is_empty() {
-                scope.default = Some(uri);
-            } else {
-                scope.by_prefix.push((intern(prefix), uri));
-            }
-        }
-        scope
-    }
-}
-
-/// A style rule's bound selectors, the scopes it is inside, and the namespaces its sheet declares.
+/// A style rule's bound selectors and the scopes it is inside.
 pub(crate) struct BoundSelectors {
     pub(crate) selectors: Arc<RustParsedSelectorList>,
     pub(crate) scope: Arc<BoundScopeChain>,
-    pub(crate) namespaces: Option<Arc<NamespaceTexts>>,
-}
-
-impl BoundSelectors {
-    /// Lends `publish` the selectors and the scopes they are inside, with the namespaces their sheet declares, which
-    /// the engine interns first.
-    fn compile<R>(
-        &self,
-        engine: &mut StyleEngine,
-        publish: impl FnOnce(&mut StyleEngine, &[&CompiledSelector], NamespaceScope, &BoundScopeChain) -> R,
-    ) -> R {
-        let namespaces = NamespaceTexts::scope(self.namespaces.as_deref(), |text| intern_native_text(engine, text));
-        publish(engine, &self.compiled(), namespaces, &self.scope)
-    }
-
-    /// Publishes the selectors of `rule`, a rule of a user-agent sheet, with the program the process compiled for them,
-    /// or answers `None` where the rule is not one or the engine compiles its own.
-    fn publish_user_agent(&self, engine: &mut StyleEngine, sheet: u32, before: u32, rule: u64) -> Option<u32> {
-        let namespaces = self.namespaces.as_deref();
-        publish_user_agent_style_rule(engine, sheet, before, rule, &self.compiled(), namespaces, &self.scope)
-    }
-
-    fn compiled(&self) -> Vec<&CompiledSelector> {
-        self.selectors.selectors.iter().map(AsRef::as_ref).collect()
-    }
 }
 
 /// What a compiled rule is to the engine.
@@ -197,7 +123,7 @@ pub(crate) enum CompiledRuleKind {
 pub(crate) struct CompiledRule {
     pub(crate) identity: u64,
     pub(crate) kind: CompiledRuleKind,
-    pub(crate) declarations: Option<Arc<DeclarationBlockData>>,
+    pub(crate) declarations: Option<SharedDeclarationBlock>,
     /// The native sheet the rule comes from, which may be a sheet the rule's sheet imports.
     pub(crate) source_identity: u64,
     pub(crate) conditions_hold: bool,
@@ -215,13 +141,7 @@ impl CompiledRule {
             .map(|sheet| (SheetID(sheet), before.checked_sub(1).map(RuleID)));
         let rule = match &self.kind {
             CompiledRuleKind::Style { selectors, .. } => {
-                let id = selectors
-                    .publish_user_agent(engine, sheet, before, self.identity)
-                    .unwrap_or_else(|| {
-                        selectors.compile(engine, |engine, compiled, namespaces, scope| {
-                            publish_style_rule(engine, sheet, before, compiled, namespaces, scope)
-                        })
-                    });
+                let id = publish_style_rule(engine, sheet, before, &selectors.selectors.selectors, &selectors.scope);
                 if let Some(declarations) = &self.declarations {
                     publish_rule_declarations(engine, id, declarations);
                 }
@@ -269,9 +189,8 @@ impl CompiledRule {
         engine.register_native_rule(
             rule,
             self.identity,
-            self.declarations,
             self.source_identity,
-            &self.layer_name,
+            self.layer_name,
             self.containers,
         );
     }
@@ -280,11 +199,10 @@ impl CompiledRule {
 /// A write to a document's style sheets, which the engine applies in the order the host made it.
 pub(crate) enum RuleWrite {
     /// The engine adds the sheet the host numbered `sheet`, which cascades in `origin`.
-    AddSheet {
-        sheet: u32,
-        object: u32,
-        origin: FfiCascadeOrigin,
-    },
+    AddSheet { sheet: u32, origin: FfiCascadeOrigin },
+    /// The engine adds the sheet the host numbered `sheet`, which stands for the user agent sheet the process published
+    /// from the native sheet `source_identity`.
+    AddUserAgentSheet { sheet: u32, source_identity: u64 },
     /// The engine begins to replace the rules of `sheet`, keeping the identities of those the replacement keeps.
     BeginSheetRulesReplacement(u32),
     /// Rules the host compiled into `sheet`, in order, ahead of the rule `before` names, or at the sheet's end.
@@ -300,7 +218,7 @@ pub(crate) enum RuleWrite {
     /// The rule `identity` declares `declarations`.
     RuleDeclarations {
         identity: u64,
-        declarations: Option<Arc<DeclarationBlockData>>,
+        declarations: Option<SharedDeclarationBlock>,
     },
     /// Whether the conditions of each rule hold.
     RuleConditions(Box<[(u64, bool)]>),
@@ -311,8 +229,12 @@ pub(crate) enum RuleWrite {
 impl RuleWrite {
     pub(crate) fn apply(self, engine: &mut StyleEngine) {
         match self {
-            Self::AddSheet { sheet, object, origin } => {
-                let added = engine.add_sheet(StyleSheetObjectID(object), origin.decode());
+            Self::AddSheet { sheet, origin } => {
+                let added = engine.add_sheet(origin.decode());
+                assert_eq!(added.0 + 1, sheet, "the engine numbers a sheet as its host did");
+            }
+            Self::AddUserAgentSheet { sheet, source_identity } => {
+                let added = engine.add_user_agent_sheet(source_identity);
                 assert_eq!(added.0 + 1, sheet, "the engine numbers a sheet as its host did");
             }
             Self::BeginSheetRulesReplacement(sheet) => {
@@ -322,17 +244,13 @@ impl RuleWrite {
             }
             Self::PublishRules { sheet, before, rules } => {
                 let before = rule_number(engine, before);
-                engine.publish_sheet_rules(sheet, |engine| {
-                    for rule in rules {
-                        rule.publish(engine, sheet, before);
-                    }
-                });
+                for rule in rules {
+                    rule.publish(engine, sheet, before);
+                }
             }
             Self::ReplaceSelectors { identity, selectors } => {
                 let rule = rule_number(engine, identity);
-                selectors.compile(engine, |engine, compiled, namespaces, scope| {
-                    publish_style_rule_selectors(engine, rule, compiled, namespaces, scope);
-                });
+                publish_style_rule_selectors(engine, rule, &selectors.selectors.selectors, &selectors.scope);
             }
             Self::RemoveRules(identities) => {
                 for identity in identities {
@@ -378,27 +296,55 @@ fn rule_number(engine: &StyleEngine, identity: u64) -> u32 {
 /// Publishes `declarations` as what the engine's rule `rule` declares.
 pub(crate) fn publish_native_rule_declarations(
     engine: &mut StyleEngine,
-    declarations: Option<Arc<DeclarationBlockData>>,
+    declarations: Option<SharedDeclarationBlock>,
     rule: RuleID,
 ) {
-    engine.native_rules.targets.get_mut(&rule).unwrap().declarations = declarations.clone();
     let version = engine.next_declaration_block_version();
     engine.record_rule_declarations_changed(rule, version);
-    if let Some(declarations) = &declarations {
-        publish_rule_declarations(engine, rule.0 + 1, declarations);
+    match &declarations {
+        Some(declarations) => {
+            publish_rule_declarations(engine, rule.0 + 1, declarations);
+        }
+        None => engine.stage_rule_declarations(rule, RuleDeclarations::default()),
     }
 }
 
 /// Adds a sheet to the document's style engine, which cascades in `origin`, and answers the number the host gave it.
 #[unsafe(no_mangle)]
-pub extern "C" fn style_engine_add_sheet(
+pub extern "C" fn style_engine_add_sheet(host: &crate::render_state::DocumentHost, origin: FfiCascadeOrigin) -> u32 {
+    let sheet = host.published_rules().mint_sheet();
+    host.write_rules(RuleWrite::AddSheet { sheet, origin });
+    sheet
+}
+
+/// Publishes `rules`, compiled from the native user agent sheet `source_identity`, as the process's. Each rule's
+/// conditions are its document's, which the document notes where they do not hold.
+pub(crate) fn publish_user_agent_sheet(source_identity: u64, rules: Vec<CompiledRule>) {
+    crate::render_state::process_style().publish_user_agent_sheet(source_identity, |engine, sheet| {
+        for mut rule in rules {
+            assert!(!rule.in_a_layer, "no user agent rule cascades in a layer");
+            rule.conditions_hold = true;
+            rule.publish(engine, sheet.0 + 1, 0);
+        }
+    });
+}
+
+/// Adds a sheet to the document's style engine standing for the user agent sheet the process published from the native
+/// sheet `source_identity`, and answers the number the host gave it.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_add_user_agent_sheet(
     host: &crate::render_state::DocumentHost,
-    object: u32,
-    origin: FfiCascadeOrigin,
+    source_identity: u64,
 ) -> u32 {
     let sheet = host.published_rules().mint_sheet();
-    host.write_rules(RuleWrite::AddSheet { sheet, object, origin });
+    host.write_rules(RuleWrite::AddUserAgentSheet { sheet, source_identity });
     sheet
+}
+
+/// Has the render owner apply the rule writes the host queued now, beside the host's task rather than in its next job.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_stream_rule_writes(host: &crate::render_state::DocumentHost) {
+    host.stream_writes_now();
 }
 
 /// Begins to replace the rules of the sheet `sheet`, whose rules the host compiles again, or none.

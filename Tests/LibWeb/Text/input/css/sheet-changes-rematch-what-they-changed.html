@@ -1,0 +1,110 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style id="one" media="not all">
+    .a { color: rgb(255, 0, 0); }
+    .only-one { color: rgb(0, 0, 255); }
+</style>
+<style id="two" media="not all">
+    .a { color: rgb(0, 128, 0); }
+    .a .below { color: rgb(0, 128, 0); }
+    .a::before { color: rgb(0, 128, 0); }
+    .a + .next { color: rgb(0, 128, 0); }
+</style>
+<style>
+    .base { color: rgb(1, 1, 1); background-color: rgb(1, 1, 1); }
+    @layer low, high;
+</style>
+<div id="root"></div>
+<script>
+    // Each change here moves what elements match, in ways that must reach them, while they keep what they matched of
+    // the rules that did not change: a sheet leaving, one arriving, both at once, a layer order moving, rules inserted
+    // and deleted, enough rules dying that the index is built again, and elements in a shadow tree and with its host.
+    test(() => {
+        const root = document.getElementById("root");
+        root.innerHTML = `
+            <div class="base a" id="main"><p class="below"></p></div>
+            <div class="base next"></div>
+            <div class="base a"><p class="below"></p></div>
+            <div class="base a only-one"></div>
+            <div class="base layered"></div>
+            <div class="base inserted"></div>
+            <div class="base other"></div>`;
+        const host = document.createElement("div");
+        host.className = "base a";
+        root.append(host);
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = "<style id=inner media='not all'>.inside { color: rgb(0, 128, 0); }</style><slot></slot><div class=inside></div><div part=p></div>";
+        const slotted = document.createElement("div");
+        slotted.className = "a";
+        host.append(slotted);
+
+        const report = title => {
+            println(title);
+            for (const element of [...root.querySelectorAll("*"), ...shadow.querySelectorAll("div")]) {
+                const style = getComputedStyle(element);
+                println(`  ${element.localName} ${element.className} ${style.color} ${style.backgroundColor} ${getComputedStyle(element, "::before").color}`);
+            }
+        };
+        const one = document.getElementById("one");
+        const two = document.getElementById("two");
+        report("start");
+        one.media = "all";
+        report("first arrived");
+        two.media = "all";
+        report("second arrived, over the first");
+        one.media = "not all";
+        report("first left, under the second");
+        one.media = "all";
+        two.media = "not all";
+        report("swapped");
+        one.media = "not all";
+        report("both left");
+        one.media = "all";
+        two.media = "all";
+        one.media = "not all";
+        report("all at once");
+        two.media = "not all";
+
+        const layers = document.createElement("style");
+        layers.textContent = "@layer low { .layered { color: rgb(255, 0, 0); } } @layer high { .layered { color: rgb(0, 128, 0); } }";
+        document.head.append(layers);
+        report("layers");
+        const order = document.createElement("style");
+        order.textContent = "@layer high, low;";
+        document.head.prepend(order);
+        report("layer order moved");
+        order.remove();
+        report("layer order back");
+        layers.remove();
+        report("layers left");
+
+        const sheet = new CSSStyleSheet();
+        document.adoptedStyleSheets = [sheet];
+        sheet.insertRule(".inserted { color: rgb(0, 128, 0); }");
+        report("inserted");
+        sheet.insertRule(".inserted { color: rgb(255, 0, 0); }");
+        report("inserted over");
+        sheet.deleteRule(0);
+        report("deleted the one over");
+        sheet.deleteRule(0);
+        report("deleted");
+
+        shadow.getElementById("inner").media = "all";
+        report("shadow sheet arrived");
+        shadow.getElementById("inner").media = "not all";
+        report("shadow sheet left");
+
+        const many = document.createElement("style");
+        let text = "";
+        for (let i = 0; i < 700; ++i)
+            text += `.rule-${i} { color: rgb(255, 0, 0); }\n`;
+        many.textContent = text + ".other { color: rgb(0, 128, 0); }";
+        document.head.append(many);
+        report("many arrived");
+        many.remove();
+        two.media = "all";
+        report("many left, with one arriving");
+        two.media = "not all";
+        report("end");
+    });
+</script>

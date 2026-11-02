@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<div id="a" style="color: red; margin-left: 3.5px"></div>
+<div id="b" style="color: red; margin-left: 3.5px"></div>
+<div id="c" style="color: red; margin-left: 3.5px"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        a.style.setProperty("color", "blue");
+        for (const element of [a, b, c]) {
+            println(`${element.id}: ${getComputedStyle(element).color} ${getComputedStyle(element).marginLeft}`);
+            println(`${element.id} cssText: ${element.style.cssText}`);
+            println(`${element.id} attribute: ${element.getAttribute("style")}`);
+        }
+        b.setAttribute("style", "color: green; margin-left: 3.5px");
+        c.setAttribute("style", "color: green; margin-left: 3.5px");
+        b.style.removeProperty("margin-left");
+        println(`b: ${getComputedStyle(b).color} ${getComputedStyle(b).marginLeft} ${b.style.cssText}`);
+        println(`c: ${getComputedStyle(c).color} ${getComputedStyle(c).marginLeft} ${c.style.cssText}`);
+    });
+</script>

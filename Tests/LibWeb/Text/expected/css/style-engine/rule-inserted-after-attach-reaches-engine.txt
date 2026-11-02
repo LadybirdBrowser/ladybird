@@ -1,0 +1,5 @@
+full pass: false
+changed: [target, item]
+styled only what changed: true
+item color: rgb(0, 128, 0)
+after delete: rgb(0, 0, 0)

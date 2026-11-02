@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<div id="root"><p id="p1" class="x"></p><p id="p2"></p><b id="b1" class="x"></b><span id="only"></span></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        // A selector no element can match leaves what the other selectors of the list need in charge.
+        for (const selector of [
+            ":is(:unknown)",
+            ":is(:unknown), :where(:unknown)",
+            "p, :is(:unknown)",
+            ":is(:unknown), .x",
+            ".x, b:where(:unknown), p:is(:unknown)",
+            "#only, :is(:unknown)",
+            ":is(:unknown) #only, #root > span",
+            ":is(:unknown) > p, b",
+            ":not(:is(:unknown)) ~ b",
+            ":is(:unknown) ~ b, [id=p2]",
+            ":where(:unknown) span, span",
+        ]) {
+            try {
+                root.querySelector(selector);
+            } catch (error) {
+                println(`${selector}: ${error.name}`);
+                continue;
+            }
+            const ids = Array.from(root.querySelectorAll(selector), element => element.id);
+            const first = root.querySelector(selector);
+            const p1 = document.getElementById("p1");
+            println(`${selector}: ${ids.join(" ")} (first: ${first ? first.id : "none"}) (p1 matches: ${p1.matches(selector)}, closest: ${p1.closest(selector)?.id ?? "none"})`);
+        }
+    });
+</script>

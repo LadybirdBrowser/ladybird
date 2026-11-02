@@ -1,0 +1,12 @@
+.x: p1 p2 d1 s2 (first: p1)
+.X: s1 (first: s1)
+.x.y: p2 (first: p2)
+p.x, div.x: p1 p2 d1 (first: p1)
+.x, .y: p1 p2 d1 s1 s2 (first: p1)
+.y.x, .x.z: p2 s2 (first: p2)
+div .x: p1 p2 d1 s2 (first: p1)
+.x:not(.y): p1 d1 s2 (first: p1)
+.z .x: s2 (first: s2)
+:is(.x): p1 p2 d1 s2 (first: p1)
+.x, :not(.x): p1 p2 d1 s1 d2 s2 (first: p1)
+after class change: d1 d2

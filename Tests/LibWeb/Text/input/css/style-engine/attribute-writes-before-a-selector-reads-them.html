@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="changed" data-x="a"></div>
+<div id="added"></div>
+<div id="removed" data-x="a"></div>
+<div id="set-then-removed"></div>
+<script>
+    // Attributes written while no selector reads them are published once one comes to.
+    test(() => {
+        const elements = ["changed", "added", "removed", "set-then-removed"].map(id => document.getElementById(id));
+        const report = label => {
+            for (const element of elements)
+                println(`${label}: ${element.id}: ${getComputedStyle(element).color}`);
+        };
+        report("no rules");
+
+        elements[0].setAttribute("data-x", "b");
+        elements[1].setAttribute("data-x", "b");
+        elements[2].removeAttribute("data-x");
+        elements[3].setAttribute("data-x", "b");
+        elements[3].removeAttribute("data-x");
+        report("written, no rules");
+
+        const style = document.createElement("style");
+        style.textContent = `[data-x="a"] { color: rgb(255, 0, 0); } [data-x="b"] { color: rgb(0, 128, 0); } [data-x] { background-color: rgb(1, 2, 3); }`;
+        document.head.appendChild(style);
+        report("read");
+        for (const element of elements)
+            println(`read: ${element.id}: ${getComputedStyle(element).backgroundColor}`);
+
+        elements[0].setAttribute("data-x", "a");
+        elements[3].setAttribute("data-x", "a");
+        report("written, read");
+    });
+</script>

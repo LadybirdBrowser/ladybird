@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .toggle:has(.witness), #target { color: blue }
+</style>
+<div class="toggle" id="target"><span id="witness"></span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const witness = document.getElementById("witness");
+        internals.updateStyle();
+
+        witness.classList.add("witness");
+        internals.updateStyle();
+        witness.classList.remove("witness");
+        internals.updateStyle();
+
+        println(`color: ${getComputedStyle(target).color}`);
+    });
+</script>

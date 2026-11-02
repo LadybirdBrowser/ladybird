@@ -120,7 +120,6 @@ public:
     // leaves its document, with the keyframe sets the row names: they stay alive until the row is given up.
     struct DepartedAnimationKeyframes {
         TreeScopeID tree_scope;
-        FlatPtr shadow_root_identity { 0 };
         Vector<NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet const>> keyframe_sets;
         // NB: Whether the scope published a `@position-try` row too, which is given up along with this one.
         bool has_position_try_rules { false };
@@ -128,6 +127,11 @@ public:
     [[nodiscard]] Optional<DepartedAnimationKeyframes> take_published_animation_keyframes();
 
     void for_each_stylesheet(CascadeOrigin, Function<void(CSS::StyleSheetState&)> const&) const;
+    // Has the process keep the rules of the default user agent sheet and index them on a thread of their own, before the
+    // first document needing them does, once a task after this one runs.
+    static void prepare_user_agent_rules(DOM::Document&);
+    // Lets go of the parsed sheets and sheet segments only the process keeps, past the documents that used them.
+    static WEB_API void release_kept_data();
     static WEB_API void for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const&);
     void build_user_style_sheet_if_needed();
 

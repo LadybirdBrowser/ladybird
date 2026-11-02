@@ -20,18 +20,23 @@ define_id! {
     pub struct OrderToken();
 }
 
-impl OrderToken {}
-
 /// One totally ordered axis: stylesheet order within a tree context, nested rule order within a
 /// sheet, or layer order within an origin.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq, Hash)]
 pub struct OrderMaintenance {
     labels: Vec<u64>,
     free_entries: Vec<u32>,
     order: Vec<OrderToken>,
+    /// How many times the labels were spread evenly again.
+    relabels: u64,
 }
 
 impl OrderMaintenance {
+    pub(super) fn heap_size(&self) -> usize {
+        use crate::heap_size::vec_bytes;
+        vec_bytes(&self.labels) + vec_bytes(&self.free_entries) + vec_bytes(&self.order)
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -53,6 +58,13 @@ impl OrderMaintenance {
     #[must_use]
     pub fn rank(&self, token: OrderToken) -> u64 {
         self.labels[token.0 as usize]
+    }
+
+    /// How many times the order was relabeled, which moves the ranks of its positions without
+    /// moving their order.
+    #[must_use]
+    pub fn relabels(&self) -> u64 {
+        self.relabels
     }
 
     /// Insert at the end of the order.
@@ -119,6 +131,7 @@ impl OrderMaintenance {
         let length = u64::try_from(self.order.len()).expect("order length exceeds label space");
         let step = u64::MAX / (length + 1);
         assert!(step >= 2, "order label space exhausted");
+        self.relabels += 1;
         for (index, token) in self.order.iter().enumerate() {
             self.labels[token.0 as usize] = step * (index as u64 + 1);
         }

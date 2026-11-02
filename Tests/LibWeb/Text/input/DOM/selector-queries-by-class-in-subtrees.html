@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<div id="root"><section id="a"><div id="a1"><span id="a2"></span></div></section><section id="b"><div id="b1" class="early"></div></section></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        const show = (label, selector) => println(`${label}: ${selector}: ${Array.from(document.querySelectorAll(selector), element => element.id).join(" ")}`);
+
+        show("from the parser", ".early");
+        show("from the parser", "section .early");
+        show("before any", ".late");
+
+        document.getElementById("a2").classList.add("late");
+        show("class added deep in a subtree", ".late");
+        show("class added deep in a subtree", "#root .late");
+        show("class added deep in a subtree", ".late span, section .late");
+
+        document.getElementById("a2").setAttribute("class", "other");
+        show("class replaced", ".late");
+        show("class replaced", ".other");
+        document.getElementById("a2").removeAttribute("class");
+        show("class removed", ".other");
+
+        const detached = document.createElement("div");
+        detached.id = "moved";
+        detached.innerHTML = `<p id="moved1"><i id="moved2" class="carried"></i></p>`;
+        show("before insertion", ".carried");
+        document.getElementById("b1").append(detached);
+        show("subtree inserted", ".carried");
+        show("subtree inserted", "section .carried");
+
+        const clone = document.getElementById("a").cloneNode(true);
+        clone.id = "clone";
+        clone.querySelector("span").id = "clone2";
+        clone.querySelector("span").className = "cloned";
+        root.append(clone);
+        show("clone", ".cloned");
+
+        const html = document.createElement("div");
+        html.id = "html";
+        root.append(html);
+        html.innerHTML = `<b id="html1" class="parsed"></b>`;
+        show("innerHTML", ".parsed");
+
+        const list = document.getElementById("a1").classList;
+        list.toggle("toggled");
+        show("toggled on", ".toggled");
+        list.toggle("toggled");
+        show("toggled off", ".toggled");
+
+        // A class left of the subject has to be in the tree as well.
+        show("left of the subject", ".missing span");
+        show("left of the subject", ".early ~ span, .missing span");
+        show("left of the subject", ".parsed, .missing span");
+        show("attribute left of the subject", "[nope] span");
+        document.getElementById("a").setAttribute("nope", "");
+        show("attribute left of the subject", "[nope] span");
+        println(`disconnected: ${Array.from(detached.cloneNode(true).querySelectorAll(".carried"), element => element.id).join(" ")}`);
+        const shadow = document.createElement("div").attachShadow({ mode: "open" });
+        shadow.innerHTML = `<p class="in-shadow"><span id="shadow1"></span></p>`;
+        println(`shadow: ${Array.from(shadow.querySelectorAll(".in-shadow span"), element => element.id).join(" ")}`);
+    });
+</script>

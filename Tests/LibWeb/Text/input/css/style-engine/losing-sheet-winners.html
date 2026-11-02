@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { color: black !important }
+</style>
+<div id="root"></div>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 100; ++index) {
+            const item = document.createElement("div");
+            item.className = "item";
+            root.appendChild(item);
+        }
+        root.lastElementChild.id = "sentinel";
+
+        internals.updateStyle();
+        const sheet = document.createElement("style");
+        sheet.textContent = `
+            .item { color: red }
+            #sentinel { outline-color: green }
+        `;
+        document.head.appendChild(sheet);
+        internals.updateStyle();
+
+        println(`ordinary item: ${getComputedStyle(root.firstElementChild).color}`);
+        println(`sentinel: ${getComputedStyle(root.lastElementChild).outlineColor}`);
+    });
+</script>

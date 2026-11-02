@@ -1,0 +1,46 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<div class="a"><div class="b"><span class="c" id="first"></span></div></div>
+<div class="x"><div class="b"><span class="c" id="second"></span></div></div>
+<script>
+test(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(`.a {
+        .b {
+            & .c { width: 11px; }
+        }
+    }
+    span { display: block; height: 1px; width: 1px; }`);
+    document.adoptedStyleSheets = [sheet];
+    const snapshot = label => println(`${label}: ${["first", "second"].map(id => {
+        const style = getComputedStyle(document.getElementById(id));
+        return `${style.width}/${style.height}/${style.color}`;
+    }).join(" | ")}`);
+    snapshot("initial");
+
+    // A grandparent's selectors are what the grandchild's & reaches through its parent.
+    const outer = sheet.cssRules[0];
+    outer.selectorText = ".x";
+    snapshot("grandparent edited");
+
+    // A rule inserted under a nested rule names it with &.
+    const middle = outer.cssRules[0];
+    middle.insertRule("& > .c { height: 7px; }", 1);
+    snapshot("child inserted");
+
+    // An @scope inserted under a style rule roots at what its & names.
+    outer.insertRule("@scope (&) { .c { color: rgb(0, 128, 0); } }", 1);
+    snapshot("scope inserted");
+
+    // Editing the outer rule again moves every one of them.
+    outer.selectorText = ".a";
+    snapshot("grandparent restored");
+
+    // A more specific & wins over an equally written rule declared later.
+    sheet.insertRule("#first.c { width: 3px; }", 1);
+    outer.selectorText = "#nothing, .a";
+    snapshot("specificity through &");
+    document.adoptedStyleSheets = [];
+});
+</script>

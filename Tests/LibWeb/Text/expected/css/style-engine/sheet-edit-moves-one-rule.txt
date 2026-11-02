@@ -1,0 +1,4 @@
+target colour: rgb(0, 128, 0)
+rule index 1: #target:focus
+target colour after edit: rgb(0, 128, 0)
+target colour after delete: rgb(0, 0, 0)

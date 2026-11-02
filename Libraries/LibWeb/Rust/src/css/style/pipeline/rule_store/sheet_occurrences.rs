@@ -1,0 +1,164 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+use super::super::super::*;
+
+#[derive(Clone)]
+
+struct SheetOccurrence {
+    identity: u64,
+    sheet: SheetID,
+    conditions_hold: bool,
+}
+
+#[derive(Clone, Default)]
+pub(in crate::css::style) struct ScopeSheetOccurrences {
+    occurrences: Vec<SheetOccurrence>,
+    published: Vec<SheetID>,
+}
+
+impl StyleEngine {
+    pub(in crate::css::style) fn attach_sheet_occurrence(
+        &mut self,
+        sheet: SheetID,
+        scope: TreeScopeID,
+        identity: u64,
+        before: u64,
+        conditions_hold: bool,
+    ) {
+        let entries = &mut self.host.sheet_occurrences.entry(scope).or_default().occurrences;
+        entries.retain(|entry| entry.identity != identity);
+        let position = entries
+            .iter()
+            .position(|entry| entry.identity == before)
+            .unwrap_or(entries.len());
+        entries.insert(
+            position,
+            SheetOccurrence {
+                identity,
+                sheet,
+                conditions_hold,
+            },
+        );
+        self.publish_sheet_occurrences(scope);
+    }
+
+    pub(in crate::css::style) fn detach_sheet_occurrence(&mut self, scope: TreeScopeID, identity: u64) {
+        let Some(state) = self.host.sheet_occurrences.get_mut(&scope) else {
+            return;
+        };
+        state.occurrences.retain(|entry| entry.identity != identity);
+        self.publish_sheet_occurrences(scope);
+    }
+
+    pub(in crate::css::style) fn set_sheet_occurrence_conditions(
+        &mut self,
+        scope: TreeScopeID,
+        identity: u64,
+        conditions_hold: bool,
+    ) {
+        let Some(entry) = self
+            .host
+            .sheet_occurrences
+            .get_mut(&scope)
+            .and_then(|state| state.occurrences.iter_mut().find(|entry| entry.identity == identity))
+        else {
+            return;
+        };
+        if entry.conditions_hold == conditions_hold {
+            return;
+        }
+        entry.conditions_hold = conditions_hold;
+        self.publish_sheet_occurrences(scope);
+    }
+
+    fn publish_sheet_occurrences(&mut self, scope: TreeScopeID) {
+        let state = self.host.sheet_occurrences.get_mut(&scope).unwrap();
+        let mut seen = HashSet::default();
+        let mut active: Vec<_> = state
+            .occurrences
+            .iter()
+            .rev()
+            .filter(|entry| entry.conditions_hold && seen.insert(entry.sheet))
+            .map(|entry| entry.sheet)
+            .collect();
+        active.reverse();
+        let old = std::mem::replace(&mut state.published, active);
+        let active = state.published.clone();
+
+        if state.occurrences.is_empty() {
+            self.host.sheet_occurrences.remove(&scope);
+            if self.host.sheet_occurrences.is_empty() {
+                self.host.sheet_occurrences.shrink_to_fit();
+            }
+        }
+
+        if old == active {
+            return;
+        }
+
+        let old_set: HashSet<_> = old.iter().copied().collect();
+        // Preserve legacy attachments, including the document's user and user-agent sheets.
+        let mut sheets: Vec<_> = self
+            .current_sheets_in_scope(scope)
+            .iter()
+            .copied()
+            .filter(|sheet| !old_set.contains(sheet))
+            .collect();
+        sheets.extend_from_slice(&active);
+        self.stage_sheets_in_scope(scope, sheets);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn duplicate_occurrences_preserve_positions_while_inactive() {
+        let mut engine = StyleEngine::new();
+        let shared = engine.add_sheet(CascadeOrigin::Author);
+        let other = engine.add_sheet(CascadeOrigin::Author);
+        let scope = TreeScopeID::DOCUMENT;
+        engine.attach_sheet_occurrence(shared, scope, 1, 0, true);
+        engine.attach_sheet_occurrence(other, scope, 2, 0, true);
+        engine.attach_sheet_occurrence(shared, scope, 3, 0, true);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[other, shared]);
+
+        engine.set_sheet_occurrence_conditions(scope, 3, false);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[shared, other]);
+        engine.set_sheet_occurrence_conditions(scope, 1, false);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[other]);
+        engine.set_sheet_occurrence_conditions(scope, 3, true);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[other, shared]);
+        engine.set_sheet_occurrence_conditions(scope, 1, true);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[other, shared]);
+        engine.detach_sheet_occurrence(scope, 3);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[shared, other]);
+        engine.attach_sheet_occurrence(shared, scope, 1, 0, true);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[other, shared]);
+        engine.attach_sheet_occurrence(shared, scope, 1, 2, true);
+        assert_eq!(engine.current_sheets_in_scope(scope), &[shared, other]);
+    }
+
+    #[test]
+    fn occurrence_conditions_are_local_to_their_scope_and_storage_is_released() {
+        let mut engine = StyleEngine::new();
+        let shared = engine.add_sheet(CascadeOrigin::Author);
+        let first = TreeScopeID(1);
+        let second = TreeScopeID(2);
+        engine.attach_sheet_occurrence(shared, first, 1, 0, true);
+        engine.attach_sheet_occurrence(shared, second, 2, 0, true);
+        engine.set_sheet_occurrence_conditions(first, 1, false);
+        assert!(engine.current_sheets_in_scope(first).is_empty());
+        assert_eq!(engine.current_sheets_in_scope(second), &[shared]);
+        assert!(engine.rules.sheet_conditions_hold(shared));
+        engine.detach_sheet_occurrence(first, 1);
+        engine.detach_sheet_occurrence(second, 2);
+        assert!(engine.host.sheet_occurrences.is_empty());
+        assert_eq!(engine.host.sheet_occurrences.capacity(), 0);
+    }
+}

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<div id="root">
+    <p id="p1" class="x"></p>
+    <p id="p2" class="x y"></p>
+    <div id="d1" class="x"><span id="s1" class="y X"></span></div>
+    <div id="d2" class="z"><span id="s2" class="x z"></span></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const root = document.getElementById("root");
+        // The class every selector's subject requires decides which elements are matched at all.
+        for (const selector of [".x", ".X", ".x.y", "p.x, div.x", ".x, .y", ".y.x, .x.z", "div .x", ".x:not(.y)", ".z .x", ":is(.x)", ".x, :not(.x)"]) {
+            const ids = Array.from(root.querySelectorAll(selector), element => element.id);
+            const first = root.querySelector(selector);
+            println(`${selector}: ${ids.join(" ")} (first: ${first ? first.id : "none"})`);
+        }
+        // A class added after a query is found by the next one.
+        document.getElementById("d2").classList.add("x");
+        println(`after class change: ${Array.from(root.querySelectorAll("div.x"), element => element.id).join(" ")}`);
+    });
+</script>

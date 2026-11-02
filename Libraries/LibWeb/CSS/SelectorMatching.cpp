@@ -182,7 +182,7 @@ static bool element_popover_is_open(DOM::Element const& element)
     X(OptimalValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::Optimal)           \
     X(SuboptimalValue, meter->value_state() == HTML::HTMLMeterElement::ValueState::Suboptimal)
 
-CSS::PseudoClassBitmap element_states(DOM::Element const& element)
+CSS::PseudoClassBitmap element_states(DOM::Element const& element, AskLocalLink ask_local_link)
 {
     CSS::PseudoClassBitmap states;
     auto set = [&](CSS::PseudoClass pseudo_class, bool holds) {
@@ -204,7 +204,7 @@ CSS::PseudoClassBitmap element_states(DOM::Element const& element)
     set(CSS::PseudoClass::Link, is_link);
     set(CSS::PseudoClass::Visited, is_visited);
     set(CSS::PseudoClass::AnyLink, is_link || is_visited);
-    if (is_link || is_visited)
+    if ((is_link || is_visited) && ask_local_link == AskLocalLink::Yes)
         set(CSS::PseudoClass::LocalLink, element.matches_local_link_pseudo_class());
 
     // The rest belong to kinds of element, and asking a `<div>` about them costs one type check
