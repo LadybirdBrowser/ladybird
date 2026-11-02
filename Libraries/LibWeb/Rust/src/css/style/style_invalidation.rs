@@ -548,6 +548,16 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     if matches!(property, property_id::CONTAINER_NAME | property_id::CONTAINER_TYPE) {
         result.recompute_descendants = true;
     }
+    // The clip that `overflow: clip` gives a box's visual context reaches out by the box's overflow-clip-margin.
+    if matches!(
+        property,
+        property_id::OVERFLOW_CLIP_MARGIN_TOP
+            | property_id::OVERFLOW_CLIP_MARGIN_RIGHT
+            | property_id::OVERFLOW_CLIP_MARGIN_BOTTOM
+            | property_id::OVERFLOW_CLIP_MARGIN_LEFT
+    ) {
+        result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
+    }
     if property == property_id::TEXT_DECORATION_LINE {
         result.repaint_text_decorations = true;
     } else if matches!(
