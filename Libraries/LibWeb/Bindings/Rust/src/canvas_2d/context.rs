@@ -74,7 +74,7 @@ unsafe impl<K: CanvasKind> Trace for RenderingContext2D<K> {
 }
 
 impl<K: CanvasKind> Wrappable for RenderingContext2D<K> {
-    fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
         self.state.canvas.relevant_realm()
     }
 

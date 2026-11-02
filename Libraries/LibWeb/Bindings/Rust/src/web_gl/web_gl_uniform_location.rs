@@ -21,8 +21,8 @@ pub(crate) struct WebGLUniformLocation {
 }
 
 impl Wrappable for WebGLUniformLocation {
-    fn relevant_realm(&self, vm: &Vm) -> Option<Gc<Realm>> {
-        self.program.relevant_realm(vm)
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
+        self.program.relevant_realm()
     }
 }
 

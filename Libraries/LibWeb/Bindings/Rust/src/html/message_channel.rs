@@ -7,7 +7,7 @@
 
 //! MessageChannel, https://html.spec.whatwg.org/multipage/web-messaging.html#message-channels
 
-use libjs_rust::api::{Gc, Realm, Trace, Vm};
+use libjs_rust::api::{Gc, Realm, Trace};
 
 use crate::bindings::interface::{Ref, Wrappable};
 use crate::bindings::{CallContext, WebIdlResult};
@@ -24,7 +24,7 @@ pub(crate) struct MessageChannel {
 }
 
 impl Wrappable for MessageChannel {
-    fn relevant_realm(&self, _: &Vm) -> Option<Gc<Realm>> {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
         Some(self.realm)
     }
 }

@@ -42,7 +42,7 @@ pub(crate) trait Wrappable {
     /// The realm of the relevant global object of the object, which the wrapper of the object in the main world is
     /// created in, as Wrappable::relevant_global_impl() decides for a C++ implementation object. Without one, the
     /// wrapper is created in the realm that first asks for it.
-    fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
         None
     }
 
@@ -272,7 +272,7 @@ pub(crate) fn wrap<T: Interface>(cx: &CallContext, object: Ref<T>) -> Gc<Object>
             return wrapper.upcast();
         }
         let wrapper_realm = object
-            .relevant_realm(vm)
+            .relevant_realm()
             .filter(|relevant_realm| wrapper_world_of(vm, *relevant_realm) == wrapper_world)
             .unwrap_or(realm);
         let wrapper = create_wrapper(

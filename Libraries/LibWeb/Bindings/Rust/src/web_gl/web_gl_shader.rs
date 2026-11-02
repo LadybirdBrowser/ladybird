@@ -21,8 +21,8 @@ pub(crate) struct WebGLShader {
 }
 
 impl Wrappable for WebGLShader {
-    fn relevant_realm(&self, vm: &Vm) -> Option<Gc<Realm>> {
-        self.object.relevant_realm(vm)
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
+        self.object.relevant_realm()
     }
 }
 

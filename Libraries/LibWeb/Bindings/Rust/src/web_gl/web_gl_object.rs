@@ -8,7 +8,7 @@
 
 use core::cell::{Cell, RefCell};
 
-use libjs_rust::api::{Gc, Realm, Trace, Vm};
+use libjs_rust::api::{Gc, Realm, Trace};
 
 use super::state::{ContextRef, ContextState};
 use crate::bindings::conversions::UsvString;
@@ -33,7 +33,7 @@ pub(crate) struct WebGLObject {
 }
 
 impl Wrappable for WebGLObject {
-    fn relevant_realm(&self, _vm: &Vm) -> Option<Gc<Realm>> {
+    fn relevant_realm(&self) -> Option<Gc<Realm>> {
         self.context.state().canvas().relevant_realm()
     }
 }
@@ -113,8 +113,8 @@ macro_rules! modules_of_interfaces_that_only_inherit_from_web_gl_object {
             }
 
             impl Wrappable for $interface {
-                fn relevant_realm(&self, vm: &Vm) -> Option<Gc<Realm>> {
-                    self.object.relevant_realm(vm)
+                fn relevant_realm(&self) -> Option<Gc<Realm>> {
+                    self.object.relevant_realm()
                 }
             }
 
