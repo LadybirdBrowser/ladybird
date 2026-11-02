@@ -169,7 +169,7 @@ impl BytecodeDumper<'_> {
         } else if raw < self.executable.registers_and_locals_count() {
             let index = raw - self.executable.local_index_base();
             self.append("\x1b[34m");
-            Utf16View::of_fly_string(&self.executable.local_variable_names[index as usize])
+            Utf16View::of_fly_string(&self.executable.local_variable_names()[index as usize])
                 .append_as_wtf8_to(self.output);
             self.append("~");
             self.append(&index.to_string());

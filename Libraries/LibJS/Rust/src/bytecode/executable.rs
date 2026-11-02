@@ -1223,16 +1223,48 @@ impl ObjectPropertyIteratorCacheData {
 
 /// Where the bytecode of an executable lives: in memory of its own, or in place in the bytecode cache blob it was
 /// materialized from, which it keeps alive.
-pub enum ExecutableBytecode {
-    Owned(ThinSlice<u8>),
-    InBytecodeCacheBlob(Box<DecodedBytecodeBytes>),
-}
+///
+/// One word: the data of a ThinSlice<u8> of its own, or a Box<DecodedBytecodeBytes> with the lowest bit set.
+pub struct ExecutableBytecode(usize);
+
+const _: () = assert!(align_of::<DecodedBytecodeBytes>() > 1);
 
 impl ExecutableBytecode {
+    const IN_BYTECODE_CACHE_BLOB: usize = 1;
+
+    fn owned(bytecode: ThinSlice<u8>) -> Self {
+        let bytecode = core::mem::ManuallyDrop::new(bytecode);
+        let data = bytecode.data as usize;
+        assert!(data & Self::IN_BYTECODE_CACHE_BLOB == 0);
+        Self(data)
+    }
+
+    fn in_bytecode_cache_blob(bytecode: DecodedBytecodeBytes) -> Self {
+        Self(Box::into_raw(Box::new(bytecode)) as usize | Self::IN_BYTECODE_CACHE_BLOB)
+    }
+
+    fn is_in_bytecode_cache_blob(&self) -> bool {
+        self.0 & Self::IN_BYTECODE_CACHE_BLOB != 0
+    }
+
     pub fn as_slice(&self) -> &[u8] {
-        match self {
-            Self::Owned(bytecode) => bytecode,
-            Self::InBytecodeCacheBlob(bytecode) => bytecode.as_slice(),
+        if self.is_in_bytecode_cache_blob() {
+            // SAFETY: The tagged word came from Box::into_raw() in in_bytecode_cache_blob(), and is dropped with self.
+            return unsafe { &*((self.0 & !Self::IN_BYTECODE_CACHE_BLOB) as *const DecodedBytecodeBytes) }.as_slice();
+        }
+        let bytecode = core::mem::ManuallyDrop::new(ThinSlice::<u8>::from_data(self.0 as *mut u8));
+        // SAFETY: The thin slice this word came from lives as long as self, as does the memory of the bytes.
+        unsafe { ak::slice_from_raw_parts(bytecode.as_ptr(), bytecode.len()) }
+    }
+}
+
+impl Drop for ExecutableBytecode {
+    fn drop(&mut self) {
+        if self.is_in_bytecode_cache_blob() {
+            // SAFETY: The tagged word came from Box::into_raw() in in_bytecode_cache_blob().
+            drop(unsafe { Box::from_raw((self.0 & !Self::IN_BYTECODE_CACHE_BLOB) as *mut DecodedBytecodeBytes) });
+        } else {
+            drop(ThinSlice::<u8>::from_data(self.0 as *mut u8));
         }
     }
 }
@@ -1245,6 +1277,9 @@ struct ExecutableRareData {
     dynamic_global_variable_caches: OnceCell<Box<[GlobalVariableCache]>>,
     /// The breakpoints of the debugger at the offsets of the instructions it pauses before.
     debugger_breakpoint_sites: RefCell<HashMap<u32, DebuggerBreakpointSite, foldhash::fast::RandomState>>,
+    template_object_caches: ThinSlice<Gc<TemplateObjectCache>>,
+    object_property_iterator_caches: ThinSlice<ObjectPropertyIteratorCache>,
+    class_blueprints: ThinSlice<ClassBlueprint>,
 }
 
 /// A unit of bytecode: a script, a module, a function body or an eval, with what the interpreter needs to run it.
@@ -1253,9 +1288,7 @@ pub struct Executable {
     pub head: ExecutableHead,
     bytecode: ExecutableBytecode,
     environment_shape_caches: ThinSlice<NullableMember<EnvironmentShape>>,
-    template_object_caches: ThinSlice<Gc<TemplateObjectCache>>,
     object_shape_caches: ThinSlice<ObjectShapeCache>,
-    object_property_iterator_caches: ThinSlice<ObjectPropertyIteratorCache>,
     /// How many feedback slots of each kind the bytecode indexes into.
     feedback_slot_counts: FeedbackSlotCounts,
     /// What the interpreter observed running the bytecode, for the optimizing JIT. Only executables that left the
@@ -1266,7 +1299,8 @@ pub struct Executable {
     rare_data: OnceCell<Box<ExecutableRareData>>,
     pub number_of_registers: u32,
     pub number_of_arguments: u32,
-    pub length_identifier: Option<PropertyKeyTableIndex>,
+    /// The index of the length in the property key table, plus one.
+    length_identifier: Option<core::num::NonZeroU32>,
     /// Which interpreter handlers the executable's frames run with, see `head.dispatch_table_index`.
     interpreter_tier: Cell<InterpreterTier>,
     /// Whether LIBJS_JIT=dump-feedback printed the executable's feedback already.
@@ -1280,21 +1314,20 @@ pub struct Executable {
     pub exception_handlers: ThinSlice<ExceptionHandler>,
     /// The functions the bytecode creates, which NewFunction and NewClass refer to by index.
     shared_function_data: ThinSlice<Gc<SharedFunctionInstanceData>>,
-    class_blueprints: ThinSlice<ClassBlueprint>,
     /// The name of the function the executable is the body of, given when the function is first compiled. Empty for
     /// other code.
     name: FlyStringSlot,
     /// Sorted by bytecode offset: where in the source code the instructions from each offset on came from.
     pub source_map: ThinSlice<SourceMapEntry>,
-    pub local_variable_names: ThinSlice<Utf16FlyString>,
-    pub argument_variable_names: ThinSlice<Utf16FlyString>,
+    /// The names of the local variables, then the names of the arguments.
+    variable_names: ThinSlice<Utf16FlyString>,
     /// One for each of the local variables.
     pub local_variable_metadata: ThinSlice<LocalVariableMetadata>,
     pub source_code: Option<Rc<SourceCode>>,
 }
 
 // NB: Every function that was called has these bytes.
-const _: () = assert!(size_of::<Executable>() <= 304);
+const _: () = assert!(size_of::<Executable>() <= 256);
 
 define_cell!(Executable, Other);
 
@@ -1352,7 +1385,7 @@ impl Executable {
     }
 
     pub fn template_object_cache(&self, index: u32) -> Gc<TemplateObjectCache> {
-        self.template_object_caches[index as usize]
+        self.template_object_caches()[index as usize]
     }
 
     pub fn property_lookup_caches(&self) -> &[PropertyLookupCache] {
@@ -1372,7 +1405,7 @@ impl Executable {
     }
 
     pub fn object_property_iterator_cache(&self, index: u32) -> &ObjectPropertyIteratorCache {
-        &self.object_property_iterator_caches[index as usize]
+        &self.object_property_iterator_caches()[index as usize]
     }
 
     pub fn get_identifier(&self, index: IdentifierTableIndex) -> &Utf16FlyString {
@@ -1465,9 +1498,7 @@ impl Executable {
             head,
             bytecode,
             environment_shape_caches,
-            template_object_caches: ThinSlice::empty(),
             object_shape_caches: ThinSlice::empty(),
-            object_property_iterator_caches: ThinSlice::empty(),
             feedback_slot_counts: FeedbackSlotCounts::default(),
             feedback: OnceCell::new(),
             jit: OnceCell::new(),
@@ -1483,11 +1514,9 @@ impl Executable {
             string_table: ThinSlice::empty(),
             exception_handlers: ThinSlice::empty(),
             shared_function_data: ThinSlice::empty(),
-            class_blueprints: ThinSlice::empty(),
             name: FlyStringSlot::new(None),
             source_map: ThinSlice::empty(),
-            local_variable_names: ThinSlice::empty(),
-            argument_variable_names: ThinSlice::empty(),
+            variable_names: ThinSlice::empty(),
             local_variable_metadata: ThinSlice::empty(),
             source_code: None,
         }
@@ -1496,9 +1525,11 @@ impl Executable {
     /// Gives the executable the object literal shape caches and for-in key snapshot caches its bytecode refers to.
     pub fn allocate_object_caches(&mut self, object_shape_caches: u32, object_property_iterator_caches: u32) {
         self.object_shape_caches = (0..object_shape_caches).map(|_| ObjectShapeCache::default()).collect();
-        self.object_property_iterator_caches = (0..object_property_iterator_caches)
-            .map(|_| ObjectPropertyIteratorCache { data: Cell::new(None) })
-            .collect();
+        if object_property_iterator_caches != 0 {
+            self.rare_data_mut().object_property_iterator_caches = (0..object_property_iterator_caches)
+                .map(|_| ObjectPropertyIteratorCache { data: Cell::new(None) })
+                .collect();
+        }
     }
 
     /// Creates the executable for what the frontend compiled from code it does not know the source of.
@@ -1526,7 +1557,7 @@ impl Executable {
         }
 
         let parts = ExecutableParts {
-            bytecode: ExecutableBytecode::Owned(data.bytecode.into()),
+            bytecode: ExecutableBytecode::owned(data.bytecode.into()),
             number_of_registers: data.number_of_registers,
             number_of_arguments: data.number_of_arguments,
             is_strict: data.is_strict,
@@ -1557,7 +1588,7 @@ impl Executable {
         replaced_executable: Option<Gc<Executable>>,
     ) -> Option<Gc<Executable>> {
         let parts = ExecutableParts {
-            bytecode: ExecutableBytecode::InBytecodeCacheBlob(Box::new(record.bytecode().clone())),
+            bytecode: ExecutableBytecode::in_bytecode_cache_blob(record.bytecode().clone()),
             number_of_registers: record.number_of_registers(),
             number_of_arguments: record.number_of_arguments(),
             is_strict: record.is_strict(),
@@ -1636,9 +1667,10 @@ impl Executable {
         // objects.
         let template_object_caches: ThinSlice<Gc<TemplateObjectCache>> = match replaced_executable {
             Some(replaced_executable)
-                if replaced_executable.template_object_caches.len() == parts.cache_counts.template_object as usize =>
+                if replaced_executable.template_object_caches().len()
+                    == parts.cache_counts.template_object as usize =>
             {
-                replaced_executable.template_object_caches.clone()
+                replaced_executable.template_object_caches().iter().copied().collect()
             }
             _ => (0..parts.cache_counts.template_object)
                 .map(|_| TemplateObjectCache::create(vm))
@@ -1666,8 +1698,12 @@ impl Executable {
         executable.string_table = parts.string_table.into();
         executable.exception_handlers = parts.exception_handlers.into();
         executable.shared_function_data = shared_function_data;
-        executable.class_blueprints = class_blueprints;
-        executable.template_object_caches = template_object_caches;
+        if !class_blueprints.is_empty() {
+            executable.rare_data_mut().class_blueprints = class_blueprints;
+        }
+        if !template_object_caches.is_empty() {
+            executable.rare_data_mut().template_object_caches = template_object_caches;
+        }
         executable.allocate_object_caches(
             parts.cache_counts.object_shape,
             parts.cache_counts.object_property_iterator,
@@ -1678,7 +1714,9 @@ impl Executable {
             call: parts.cache_counts.call_feedback,
             keyed: parts.cache_counts.keyed_feedback,
         };
-        executable.length_identifier = parts.length_identifier.map(PropertyKeyTableIndex);
+        executable.length_identifier = parts
+            .length_identifier
+            .map(|index| core::num::NonZeroU32::new(index + 1).expect("the index plus one is not zero"));
         executable.source_map = parts.source_map.into();
         executable.local_variable_metadata = parts
             .local_variables
@@ -1697,12 +1735,12 @@ impl Executable {
                 }),
             })
             .collect();
-        executable.local_variable_names = parts
+        executable.variable_names = parts
             .local_variables
             .into_iter()
             .map(|local_variable| local_variable.name)
+            .chain(parts.argument_variable_names)
             .collect();
-        executable.argument_variable_names = parts.argument_variable_names.into();
         executable.source_code = source_code.cloned();
         executable
     }
@@ -1726,7 +1764,7 @@ impl Executable {
     }
 
     pub fn class_blueprint(&self, index: u32) -> &ClassBlueprint {
-        &self.class_blueprints[index as usize]
+        &self.class_blueprints()[index as usize]
     }
 
     /// The handler whose range holds the instruction at `offset`.
@@ -1775,6 +1813,42 @@ impl Executable {
             code: SourceCode::create(ak::Utf16String::default(), ak::Utf16String::default()),
             start: Position::default(),
         })
+    }
+
+    fn template_object_caches(&self) -> &[Gc<TemplateObjectCache>] {
+        self.rare_data
+            .get()
+            .map_or(&[], |rare_data| &rare_data.template_object_caches)
+    }
+
+    fn object_property_iterator_caches(&self) -> &[ObjectPropertyIteratorCache] {
+        self.rare_data
+            .get()
+            .map_or(&[], |rare_data| &rare_data.object_property_iterator_caches)
+    }
+
+    fn class_blueprints(&self) -> &[ClassBlueprint] {
+        self.rare_data
+            .get()
+            .map_or(&[], |rare_data| &rare_data.class_blueprints)
+    }
+
+    pub fn local_variable_names(&self) -> &[Utf16FlyString] {
+        &self.variable_names[..self.local_variable_metadata.len()]
+    }
+
+    pub fn argument_variable_names(&self) -> &[Utf16FlyString] {
+        &self.variable_names[self.local_variable_metadata.len()..]
+    }
+
+    pub fn length_identifier(&self) -> Option<PropertyKeyTableIndex> {
+        self.length_identifier
+            .map(|index| PropertyKeyTableIndex(index.get() - 1))
+    }
+
+    fn rare_data_mut(&mut self) -> &mut ExecutableRareData {
+        self.rare_data.get_or_init(Box::default);
+        self.rare_data.get_mut().expect("the rare data was just made")
     }
 
     fn rare_data(&self) -> &ExecutableRareData {
@@ -1849,7 +1923,7 @@ impl Executable {
 
     /// Whether the bytecode runs in place in the bytecode cache blob it was materialized from.
     pub fn runs_in_place_in_bytecode_cache_blob(&self) -> bool {
-        matches!(self.bytecode, ExecutableBytecode::InBytecodeCacheBlob(_))
+        self.bytecode.is_in_bytecode_cache_blob()
     }
 
     /// Takes over the feedback, the tier and the tier-up budget of `other`, an executable with the same bytecode that
@@ -1923,11 +1997,11 @@ impl Executable {
                     .replace(other_cache.property_offsets.borrow().clone());
             }
         }
-        if this.object_property_iterator_caches.len() == other.object_property_iterator_caches.len() {
+        if this.object_property_iterator_caches().len() == other.object_property_iterator_caches().len() {
             for (cache, other_cache) in this
-                .object_property_iterator_caches
+                .object_property_iterator_caches()
                 .iter()
-                .zip(&other.object_property_iterator_caches)
+                .zip(other.object_property_iterator_caches())
             {
                 cache.data.set(other_cache.data.get());
             }
@@ -2173,9 +2247,9 @@ fn dump_metadata(output: &mut Vec<u8>, executable: &Executable) {
     let _ = writeln!(output, "  {GREEN}Registers{RESET}: {}", executable.number_of_registers);
     let _ = writeln!(output, "  {GREEN}Blocks{RESET}:    {}", count_basic_blocks(executable));
 
-    if !executable.local_variable_names.is_empty() {
+    if !executable.local_variable_names().is_empty() {
         let _ = write!(output, "  {GREEN}Locals{RESET}:    ");
-        for (i, local_variable_name) in executable.local_variable_names.iter().enumerate() {
+        for (i, local_variable_name) in executable.local_variable_names().iter().enumerate() {
             if i != 0 {
                 output.extend_from_slice(b", ");
             }
@@ -2318,6 +2392,18 @@ unsafe impl Trace for ExecutableHead {
     }
 }
 
+// SAFETY: Visits the template object caches, the for-in key snapshots and the literal values of classes. The dynamic
+// global variable caches do not keep what they remember alive, and the breakpoint sites hold no cells.
+unsafe impl Trace for ExecutableRareData {
+    fn trace(&self, visitor: &mut Visitor) {
+        self.template_object_caches.trace(visitor);
+        for cache in &self.object_property_iterator_caches {
+            cache.data.trace(visitor);
+        }
+        self.class_blueprints.trace(visitor);
+    }
+}
+
 // SAFETY: Visits the constants, the for-in key snapshots, the environment shapes, the template object caches, the
 // functions the bytecode creates and the literal values of its classes, which are all the cells an executable keeps
 // alive so far. The inline caches do not keep the shapes and objects they remember alive.
@@ -2325,13 +2411,9 @@ unsafe impl Trace for Executable {
     fn trace(&self, visitor: &mut Visitor) {
         self.head.trace(visitor);
         self.property_keys.trace(visitor);
-        for cache in &self.object_property_iterator_caches {
-            cache.data.trace(visitor);
-        }
         self.environment_shape_caches.trace(visitor);
-        self.template_object_caches.trace(visitor);
         self.shared_function_data.trace(visitor);
-        self.class_blueprints.trace(visitor);
+        self.rare_data.trace(visitor);
         self.trace_jit_code(visitor);
     }
 }

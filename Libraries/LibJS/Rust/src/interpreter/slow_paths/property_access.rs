@@ -390,7 +390,7 @@ pub fn get_by_value_with_this(vm: &Vm, pc: u32, values: &mut op::GetByValueWithT
 fn length_property_key(executable: &Executable) -> &PropertyKey {
     executable.get_property_key(
         executable
-            .length_identifier
+            .length_identifier()
             .expect("an executable that reads a length has the length in its property key table"),
     )
 }
