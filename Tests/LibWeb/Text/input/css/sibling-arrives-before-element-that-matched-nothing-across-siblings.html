@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    :first-child ~ .later { margin-left: 2px; }
+    :first-child + .next { margin-left: 2px; }
+    .first ~ .named-later { margin-left: 2px; }
+    .first + .named-next { margin-left: 2px; }
+</style>
+<script src="../include.js"></script>
+<script>
+    // An element that takes a class with no sibling before it matches nothing, which leaves no selector to read its
+    // siblings. A sibling arriving before it still reaches it.
+    asyncTest(async done => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        for (const className of ["later", "next", "named-later", "named-next"]) {
+            const parent = document.createElement("div");
+            const target = document.createElement("div");
+            parent.append(target);
+            document.body.append(parent);
+            await frame();
+            target.classList.add(className);
+            println(`${className}, alone: ${getComputedStyle(target).marginLeft}`);
+            await frame();
+            const sibling = document.createElement("div");
+            sibling.className = "first";
+            parent.prepend(sibling);
+            println(`${className}, with a sibling before it: ${getComputedStyle(target).marginLeft}`);
+            await frame();
+            sibling.remove();
+            println(`${className}, alone again: ${getComputedStyle(target).marginLeft}`);
+        }
+        done();
+    });
+</script>
