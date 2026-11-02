@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A slottable inherits from its slot. A slot moved back into its shadow tree takes the slottable in again, and where
+    // the slot is hidden no style update reaches the slottable, so a read has to answer for it. The slot is not among
+    // the slottable's ancestors in the DOM.
+    asyncTest(async done => {
+        const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        for (const [hidden, into] of [[false, "the root"], [false, "a child"], [true, "the root"], [true, "a child"]]) {
+            const host = document.createElement("div");
+            const slottable = document.createElement("div");
+            host.append(slottable);
+            document.body.append(host);
+            const root = host.attachShadow({ mode: "open" });
+            const slot = document.createElement("slot");
+            const style = document.createElement("style");
+            const child = document.createElement("div");
+            style.textContent = "* { --inherited: 1; color: rgb(1, 2, 3); }";
+            root.append(style, slot, child);
+            const report = label => {
+                const computed = getComputedStyle(slottable);
+                println(`${hidden ? "hidden" : "shown"} slot into ${into}, ${label}: --inherited "${computed.getPropertyValue("--inherited")}", color ${computed.color}`);
+            };
+
+            await frames();
+            report("assigned");
+            slot.hidden = hidden;
+            await frames();
+            slottable.before(slot);
+            internals.updateStyle();
+            await frames();
+            report("moved away");
+            (into === "the root" ? root : child).append(slot);
+            await frames();
+            report("moved back");
+            host.remove();
+        }
+        done();
+    });
+</script>
