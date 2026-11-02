@@ -167,9 +167,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .load64(object, &self.growth_save_address(0, return_address_bytes));
         self.masm.load64(storage, &at(object, offsets.object_named_properties));
-        self.masm
-            .load_effective_address(scratch, &at(object, objects.inline_storage_offset));
-        self.masm.branch64(Condition::NotEqual, storage, scratch, heap_storage);
+        // NB: Inline storage starts at one of two offsets, within the object. Heap storage is outside of it.
+        self.masm.sub64(scratch, storage, object);
+        self.masm.branch64_imm(
+            Condition::Above,
+            scratch,
+            i64::from(objects.inline_storage_offset),
+            heap_storage,
+        );
         self.masm
             .load8(old_capacity, &at(object, objects.inline_capacity_offset));
         self.masm.jump(have_capacity);
@@ -248,6 +253,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.store64(&values(cell, old_capacity), scratch);
         self.masm.jump(copy);
         self.masm.bind(copied);
+        // NB: The inline storage of a plain object overlaps the indexed elements word, which is free again now.
+        let no_overlap = self.masm.new_label();
+        self.masm
+            .load_effective_address(scratch, &at(object, objects.plain_inline_storage_offset));
+        self.masm.branch64(Condition::NotEqual, storage, scratch, no_overlap);
+        self.masm
+            .store_imm64(&at(object, self.runtime.layout.object_indexed_elements), 0);
+        self.masm.bind(no_overlap);
         self.masm
             .load_effective_address(storage, &at(cell, info.storage_values_offset));
         self.masm.store64(&at(object, offsets.object_named_properties), storage);

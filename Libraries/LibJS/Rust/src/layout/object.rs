@@ -70,8 +70,11 @@ pub struct Object {
     /// ecmascript_function_flags for an ECMAScript function object, which have the highest bit set, or array_flags for
     /// an array. Zero for other objects.
     pub class_bits: Cell<u8>,
-    /// Points at `inline_named_storage` until the object needs more room.
+    /// Points at the inline storage until the object needs more room.
     pub named_properties: Cell<*mut Value>,
+    /// The packed or holey elements. A plain object has its inline storage start here instead, as long as
+    /// `named_properties` points at this word, and moves it out of the way for its first indexed property. Nothing may
+    /// read this word without knowing that the object has packed, holey or dictionary indexed storage.
     pub indexed_elements: Cell<*mut Value>,
     pub inline_named_storage: [Cell<Value>; 0],
 }

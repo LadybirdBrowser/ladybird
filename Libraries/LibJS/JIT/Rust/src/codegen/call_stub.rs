@@ -113,6 +113,7 @@ pub fn generate_call_stub<M: PortableMacroAssembler>(runtime: &RuntimeInfo) -> R
         deferred_allocations: Vec::new(),
         deferred_storage_growths: Vec::new(),
         absorbed_initializations: Vec::new(),
+        inline_initializations: Default::default(),
     };
     codegen.emit_call_stub()?;
     let (code, _) = codegen

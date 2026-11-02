@@ -1687,7 +1687,7 @@ pub fn create_unmapped_arguments_object(vm: &Vm, arguments: &[Cell<Value>]) -> G
 
     // 2. Let obj be OrdinaryObjectCreate(%Object.prototype%, « [[ParameterMap]] »).
     // 3. Set obj.[[ParameterMap]] to undefined.
-    let object = Object::create_with_premade_shape(vm, realm.unmapped_arguments_object_shape());
+    let object = Object::create_with_premade_shape_for_indexed_elements(vm, realm.unmapped_arguments_object_shape());
 
     // 4. Perform ! DefinePropertyOrThrow(obj, "length", PropertyDescriptor { [[Value]]: 𝔽(len), [[Writable]]: true, [[Enumerable]]: false, [[Configurable]]: true }).
     object.initialize_direct(

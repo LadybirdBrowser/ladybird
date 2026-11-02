@@ -484,9 +484,9 @@ const PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES: [u32; PLAIN_OBJECT_INLINE_CAPACITIES.l
     let mut cell_sizes = [0; PLAIN_OBJECT_INLINE_CAPACITIES.len()];
     let mut index = 0;
     while index < cell_sizes.len() {
-        // NB: The inline named storage ends the object.
-        cell_sizes[index] =
-            (size_of::<Object>() + PLAIN_OBJECT_INLINE_CAPACITIES[index] as usize * size_of::<Value>()) as u32;
+        // NB: The inline named storage starts at the indexed elements word, which it shares.
+        cell_sizes[index] = (core::mem::offset_of!(Object, indexed_elements)
+            + PLAIN_OBJECT_INLINE_CAPACITIES[index] as usize * size_of::<Value>()) as u32;
         index += 1;
     }
     cell_sizes
@@ -646,10 +646,20 @@ impl Object {
     // 10.1.12 OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinaryobjectcreate
     pub fn create(vm: &Vm, realm: Gc<Realm>, prototype: Option<Gc<Object>>) -> Gc<Object> {
         let Some(prototype) = prototype else {
-            return Self::create_in_size_class(vm, realm.empty_object_shape(), 0);
+            let object = Self::new_with_shape(
+                Self::CLASS,
+                realm.empty_object_shape(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            );
+            return Self::allocate_plain_object(vm, object, 0);
         };
         if prototype == realm.object_prototype() {
-            return Self::create_in_size_class(vm, realm.new_object_shape(), 0);
+            let object = Self::new_with_shape(
+                Self::CLASS,
+                realm.new_object_shape(),
+                MayInterfereWithIndexedPropertyAccess::No,
+            );
+            return Self::allocate_plain_object(vm, object, 0);
         }
         let object = Self::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No);
         Self::allocate_plain_object(vm, object, 0)
@@ -664,7 +674,13 @@ impl Object {
     }
 
     pub fn create_with_premade_shape(vm: &Vm, shape: Gc<Shape>) -> Gc<Object> {
-        Self::create_in_size_class(vm, shape, shape.property_count())
+        let property_count = shape.property_count();
+        // OPTIMIZATION: Objects with up to two properties, the most common ones, are in the first size class.
+        if property_count <= u32::from(EMPTY_PLAIN_OBJECT_INLINE_CAPACITY) {
+            let object = Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
+            return Self::allocate_plain_object(vm, object, 0);
+        }
+        Self::create_in_size_class(vm, shape, property_count)
     }
 
     /// OrdinaryObjectCreate(prototype) for the `this` of a construction of the function with `shared_data`, with
@@ -689,6 +705,27 @@ impl Object {
         Self::create_in_size_class(vm, shape, shape.property_count().max(reserve))
     }
 
+    /// A plain object of the shape that gets indexed elements right away.
+    /// OPTIMIZATION: Its inline storage starts after the word that holds the elements, so that the first element does
+    ///               not have to move the properties out of the cell.
+    pub fn create_with_premade_shape_for_indexed_elements(vm: &Vm, shape: Gc<Shape>) -> Gc<Object> {
+        let property_count = shape.property_count();
+        let size_class = plain_object_size_class(property_count + 1);
+        let object = Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
+        object
+            .inline_named_capacity
+            .set(PLAIN_OBJECT_INLINE_CAPACITIES[size_class] - 1);
+        let size_class_allocator = plain_object_size_classes(vm.heap())[size_class];
+        let cell = vm
+            .heap()
+            .allocate_with_size_class(size_class_allocator, |_| object, Value::UNDEFINED);
+        cell.named_properties.set(cell.inline_named_storage_pointer());
+        if property_count > 0 {
+            cell.ensure_named_storage_capacity(property_count);
+        }
+        cell
+    }
+
     /// A plain object of the shape, in the size class for that many properties.
     fn create_in_size_class(vm: &Vm, shape: Gc<Shape>, property_count: u32) -> Gc<Object> {
         let object = Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
@@ -700,11 +737,22 @@ impl Object {
         object
             .inline_named_capacity
             .set(PLAIN_OBJECT_INLINE_CAPACITIES[size_class]);
+        // OPTIMIZATION: Most plain objects never get indexed properties, so their inline storage starts at the word
+        // that would hold the indexed elements.
+        object
+            .indexed_elements
+            .set(core::ptr::without_provenance_mut(Value::UNDEFINED.to_raw() as usize));
         let size_class_allocator = plain_object_size_classes(vm.heap())[size_class];
-        set_up_named_storage(
-            vm.heap()
-                .allocate_with_size_class(size_class_allocator, |_| object, Value::UNDEFINED),
-        )
+        let cell = vm
+            .heap()
+            .allocate_with_size_class(size_class_allocator, |_| object, Value::UNDEFINED);
+        debug_assert!(cell.named_properties.get().is_null());
+        cell.named_properties.set(cell.indexed_elements.as_ptr().cast());
+        let property_count = cell.shape().property_count();
+        if property_count > 0 {
+            cell.ensure_named_storage_capacity(property_count);
+        }
+        cell
     }
 
     pub(crate) fn as_gc(&self) -> Gc<Object> {
@@ -3682,6 +3730,12 @@ impl Object {
 
     pub(crate) fn named_storage_is_inline(&self) -> bool {
         core::ptr::eq(self.named_properties.get(), self.inline_named_storage_pointer())
+            || self.named_storage_overlaps_indexed_elements()
+    }
+
+    /// Whether the inline named storage of this plain object starts at the indexed elements word.
+    fn named_storage_overlaps_indexed_elements(&self) -> bool {
+        core::ptr::eq(self.named_properties.get(), self.indexed_elements.as_ptr().cast())
     }
 
     fn named_storage_external_memory_size(&self) -> usize {
@@ -3747,7 +3801,13 @@ impl Object {
         if needed <= old_capacity {
             return;
         }
-        let new_capacity = needed.max(old_capacity.saturating_mul(2));
+        self.move_named_storage_out_of_line(old_capacity, needed.max(old_capacity.saturating_mul(2)));
+    }
+
+    /// NB: The capacity of the storage never shrinks, which JIT code that added properties to an object it allocated
+    ///     relies on.
+    fn move_named_storage_out_of_line(&self, old_capacity: u32, new_capacity: u32) {
+        let overlapped_indexed_elements = self.named_storage_overlaps_indexed_elements();
 
         // NB: Callers may have given the object a shape with more properties than its storage has room for already, so
         //     nothing may visit it before the new storage is in place, and cached property additions read their cache
@@ -3762,6 +3822,23 @@ impl Object {
             object_flag::HAS_MALLOC_NAMED_STORAGE,
             new_storage,
         );
+        if overlapped_indexed_elements {
+            self.indexed_elements.set(core::ptr::null_mut());
+        }
+    }
+
+    /// Frees up the indexed elements word, ahead of anything that reads or writes it.
+    #[inline(always)]
+    fn make_room_for_indexed_storage(&self) {
+        if self.named_storage_overlaps_indexed_elements() {
+            self.move_overlapping_named_storage_out_of_line();
+        }
+    }
+
+    #[cold]
+    fn move_overlapping_named_storage_out_of_line(&self) {
+        let capacity = self.named_storage_capacity();
+        self.move_named_storage_out_of_line(capacity, capacity);
     }
 
     // Indexed property storage
@@ -3800,6 +3877,7 @@ impl Object {
                 .borrow_mut()
                 .insert(core::ptr::from_ref(self).addr(), dictionary);
         } else {
+            self.make_room_for_indexed_storage();
             self.indexed_elements.set(dictionary.cast());
         }
     }
@@ -3813,14 +3891,16 @@ impl Object {
     }
 
     fn indexed_elements_capacity(&self) -> u32 {
+        if !matches!(
+            self.indexed_storage_kind(),
+            IndexedStorageKind::Packed | IndexedStorageKind::Holey
+        ) {
+            return 0;
+        }
         let elements = self.indexed_elements.get();
         if elements.is_null() {
             return 0;
         }
-        assert!(matches!(
-            self.indexed_storage_kind(),
-            IndexedStorageKind::Packed | IndexedStorageKind::Holey
-        ));
         // SAFETY: Packed and holey indexed storage is storage value_storage::allocate() returned.
         unsafe { value_storage::capacity(elements) }
     }
@@ -3862,6 +3942,7 @@ impl Object {
 
     fn adopt_indexed_elements(&self, elements: *mut Value) {
         assert!(!self.is_ecmascript_function_object());
+        self.make_room_for_indexed_storage();
         debug_assert!(self.indexed_elements.get().is_null() && !self.has_flag(object_flag::HAS_MALLOC_INDEXED_STORAGE));
         self.replace_storage(
             &self.indexed_elements,
@@ -3872,6 +3953,9 @@ impl Object {
 
     fn free_indexed_elements(&self) {
         assert!(!self.is_ecmascript_function_object());
+        if self.indexed_storage_kind() == IndexedStorageKind::None {
+            return;
+        }
         if self.indexed_storage_kind() == IndexedStorageKind::Dictionary {
             self.free_indexed_elements_dictionary();
         } else {
@@ -3904,6 +3988,7 @@ impl Object {
 
     fn ensure_indexed_elements(&self, needed_capacity: u32) {
         assert!(!self.is_ecmascript_function_object());
+        self.make_room_for_indexed_storage();
         if !self.indexed_elements.get().is_null() && self.indexed_elements_capacity() >= needed_capacity {
             return;
         }
@@ -4213,6 +4298,7 @@ impl Object {
             if new_size == 0 {
                 return true;
             }
+            self.make_room_for_indexed_storage();
             self.indexed_storage_kind.set(IndexedStorageKind::Holey);
             self.indexed_array_like_size.set(new_size);
             return true;

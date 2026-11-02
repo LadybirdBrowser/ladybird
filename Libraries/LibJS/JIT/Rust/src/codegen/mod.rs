@@ -91,7 +91,7 @@ use crate::code::Repr;
 use crate::code::Site;
 use crate::code::SiteKind;
 use crate::code::ValueLocation;
-use crate::fast_hash::HashMap;
+use crate::fast_hash::{HashMap, HashSet};
 use crate::ir;
 use crate::ir::BlockId;
 use crate::ir::BranchCondition;
@@ -298,6 +298,8 @@ struct Codegen<'a, M: PortableMacroAssembler> {
     /// `InitializeNamed` nodes whose constant the allocation of their object
     /// stored already.
     absorbed_initializations: Vec<NodeId>,
+    /// `InitializeNamed` nodes right after the allocation of their object, which still has its properties inline.
+    inline_initializations: HashSet<NodeId>,
     /// The slots of the compiled function's frame that hold its arguments
     /// object, which the code never created, when the node being emitted
     /// (in the compiled function or an inlined callee) leaves the code after
@@ -443,6 +445,7 @@ pub fn generate<M: PortableMacroAssembler>(
         deferred_allocations: Vec::new(),
         deferred_storage_growths: Vec::new(),
         absorbed_initializations: Vec::new(),
+        inline_initializations: HashSet::default(),
         leave_arguments: Vec::new(),
         leave_stubs: Vec::new(),
         leave_frame: None,
