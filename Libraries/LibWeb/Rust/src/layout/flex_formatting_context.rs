@@ -4369,13 +4369,16 @@ impl<'pass> FlexFormattingContext<'pass> {
     }
 
     /// The block size of the margin boxes of the container's in-flow children, once its items are placed, unless a box
-    /// among them is not an item.
+    /// among them is not an item. A run of collapsible white space is no item and renders nothing.
     fn margin_box_block_extent_of_placed_in_flow_items(&self) -> Option<CssPixels> {
         let mut block_start = CssPixels::default();
         let mut block_end = CssPixels::default();
         for child in self.run.callbacks.children(self.run.box_) {
             let facts = self.facts(child);
-            if facts.is_box() && !facts.is_absolutely_positioned() {
+            if facts.is_box()
+                && !facts.is_absolutely_positioned()
+                && !self.run.callbacks.can_skip_is_anonymous_text_run(child)
+            {
                 let index = self.index_of_flex_item(child)?;
                 let metrics = &self.flex_item_details[index].cells;
                 let content_block_offset = self.item_content_offset(index).y;
