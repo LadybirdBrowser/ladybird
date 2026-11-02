@@ -228,7 +228,17 @@ RefPtr<Typeface> SharedFontProvider::load_brokered_font(BrokeredFont brokered_fo
     if (auto cached = m_typeface_cache.get(brokered_font.face_id); cached.has_value())
         return *cached;
     return brokered_font.source.visit(
-        [](Empty) -> RefPtr<Typeface> { return nullptr; },
+        [&](Empty) -> RefPtr<Typeface> {
+            // A match names a face the provider does not hold yet, which it opens.
+            if (m_failed_face_ids.contains(brokered_font.face_id) || !m_callbacks.open_font)
+                return nullptr;
+            auto opened = m_callbacks.open_font(m_catalog->generation(), brokered_font.face_id);
+            if (opened.face_id != brokered_font.face_id || opened.source.has<Empty>()) {
+                m_failed_face_ids.set(brokered_font.face_id);
+                return nullptr;
+            }
+            return load_brokered_font(move(opened));
+        },
         [&](BrokeredFontFile& font_file) { return load_font_file(brokered_font.face_id, font_file.ttc_index, font_file.format, move(font_file.file)); },
         [&](PlatformFontName const& name) { return load_platform_font(brokered_font.face_id, name); });
 }

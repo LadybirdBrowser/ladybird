@@ -587,7 +587,7 @@ TEST_CASE(system_fallback_does_not_depend_on_earlier_lookups)
     auto second_font = load_text_font(24);
     auto cascade = Gfx::FontCascadeList::create();
     cascade->set_last_resort_font(first_font);
-    cascade->set_system_font_fallback_callback([first_font, second_font](u32 code_point, Gfx::EmojiPresentation, Gfx::Font const&) -> RefPtr<Gfx::Font const> {
+    cascade->set_system_font_fallback_callback({}, [first_font, second_font](u32 code_point, Gfx::EmojiPresentation, Gfx::FontCascadeList::SystemFallbackRequest const&) -> RefPtr<Gfx::Font const> {
         return code_point == 'a' ? first_font : second_font;
     });
 

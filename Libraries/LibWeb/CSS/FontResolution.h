@@ -75,15 +75,16 @@ public:
     // NB: A memo of a pure function, so filling it does not change what it answers.
     [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
     // Resolves as resolve() does for a fork of a document's render state, which holds a reference to every cascade it
-    // names: an answer against an older table than the memo's is the fork's alone, which neither the retired cascades
-    // nor the bookkeeping of answers against older tables take in.
+    // names: an answer against an older table than the memo's that the memo does not keep is the fork's alone, which
+    // neither the retired cascades nor the bookkeeping of answers against older tables take in.
     [[nodiscard]] NonnullRefPtr<Gfx::FontCascadeList const> resolve_for_fork(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
     // NB: Only under a font environment generation newer than any resolved against: the style engine names the memo's
     //     cascades without holding a reference to them for as long as a generation stands, so the forgotten ones are
-    //     retired, not released, as a style transaction that flew may still name them.
+    //     retired, not released, as a style update that flew may still name them.
     void forget_matching(u64 environment_generation, Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const&);
     // Releases the retired cascades, on the document thread, where the engine is about to resolve against the newest
-    // table: what it named from older ones is never read again.
+    // table: what it named from older ones is never read again. An element holding one keeps it alive, and the answers
+    // against older tables stay to be taken in.
     void release_retired() const;
 
     struct ResolutionAgainstOlderTable {
@@ -92,14 +93,30 @@ public:
     };
     // The cascades resolved against an older table since last taken, which may answer their requests differently now.
     [[nodiscard]] Vector<ResolutionAgainstOlderTable> take_resolutions_against_older_tables() const;
+    // Whether the memo answers the request of a resolution against an older table with its very cascade, against the
+    // newest table: where the memo holds no cascade for the request and that one resolves the same under the newest
+    // table, the memo takes it in. Elements holding a cascade the memo does not answer with resolve again.
+    [[nodiscard]] bool adopt_resolution_against_older_table(FontFaceSnapshot const&, ResolutionAgainstOlderTable const&, FontFeatureValuesProvider const&) const;
 
 private:
     FontCascadeMemo() = default;
 
+    // Resolves against the newest table, through the memo. Called with m_mutex held.
+    NonnullRefPtr<Gfx::FontCascadeList const> resolve_into_memo(FontFaceSnapshot const&, ComputedFontCacheKey const&, FontFeatureValuesProvider const&) const;
+    // The memo's cascade for the request where it also answers for the table of the generation, or null. Called with
+    // m_mutex held.
+    RefPtr<Gfx::FontCascadeList const> cascade_resolved_by(u64 generation, ComputedFontCacheKey const&) const;
+
+    struct MemoizedCascade {
+        NonnullRefPtr<Gfx::FontCascadeList const> font_list;
+        // The generation of the table the cascade was resolved against.
+        u64 resolved_at_generation { 0 };
+    };
+
     // Guards the four members below. A resolution runs under it, so a cascade is resolved once however many threads
     // want it.
     mutable Mutex m_mutex;
-    mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_cascades;
+    mutable HashMap<ComputedFontCacheKey, MemoizedCascade> m_cascades;
     // The newest snapshot generation resolved against or forgotten under. An older one would write a stale cascade
     // where every later request reads it.
     mutable u64 m_generation { 0 };

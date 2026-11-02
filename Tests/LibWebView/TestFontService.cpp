@@ -63,10 +63,15 @@ TEST_CASE(dynamic_matches_of_one_face_share_its_id)
     EXPECT_NE(platform_font.face_id, 0u);
     EXPECT_EQ(platform_font.face_id, repeated_platform_font.face_id);
     EXPECT_NE(platform_font.face_id, first.face_id);
-    EXPECT(platform_font.source.has<Gfx::PlatformFontName>());
+
+    // A match names the face, which the renderer opens where it does not hold it yet.
+    auto generation = MUST(service->clone_catalog()).generation;
+    EXPECT(first.source.has<Empty>());
+    EXPECT(service->open_font(generation, platform_font.face_id).source.has<Gfx::PlatformFontName>());
 
     // The renderer gets the file itself, not a copy of its data.
-    auto* font_file = first.source.get_pointer<Gfx::BrokeredFontFile>();
+    auto opened = service->open_font(generation, first.face_id);
+    auto* font_file = opened.source.get_pointer<Gfx::BrokeredFontFile>();
     EXPECT(font_file);
     auto mapped_file = MUST(Core::MappedFile::map_from_fd_and_close(font_file->file.take_fd(), "brokered font"sv));
     auto original_file = MUST(Core::MappedFile::map("../LibGfx/test-inputs/fonts/text.ttf"sv));

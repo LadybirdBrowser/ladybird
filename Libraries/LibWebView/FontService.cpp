@@ -241,6 +241,8 @@ Gfx::BrokeredFont FontService::materialize_file(Gfx::SystemFontFile file, String
 {
     // Every code point that a fallback font covers matches it under a key of its own, but the face is one face for all
     // of them. A face of the catalog keeps its catalog id.
+    // NB: A match names the face, which the renderer opens only where it does not hold it yet: most matches are of
+    //     faces it matched before, for another code point or style.
     FontSource source { .path = move(file.path), .ttc_index = file.ttc_index, .format = file.format };
     auto face_id = m_face_id_by_source.ensure(source, [&] {
         auto new_face_id = m_next_dynamic_face_id++;
@@ -248,7 +250,7 @@ Gfx::BrokeredFont FontService::materialize_file(Gfx::SystemFontFile file, String
         return new_face_id;
     });
     m_dynamic_match_cache.set(move(cache_key), face_id);
-    return open_font_without_lock(m_generation, face_id);
+    return { .face_id = face_id, .source = Empty {} };
 }
 
 Gfx::BrokeredFont FontService::materialize_platform_font(Gfx::PlatformFontName name, String cache_key)
@@ -259,7 +261,7 @@ Gfx::BrokeredFont FontService::materialize_platform_font(Gfx::PlatformFontName n
         return new_face_id;
     });
     m_dynamic_match_cache.set(move(cache_key), face_id);
-    return open_font_without_lock(m_generation, face_id);
+    return { .face_id = face_id, .source = Empty {} };
 }
 
 Gfx::BrokeredFont FontService::match_local_font(String const& name)
@@ -275,7 +277,7 @@ Gfx::BrokeredFont FontService::match_local_font(String const& name)
         return {};
     // https://drafts.csswg.org/css-fonts-4/#local-font-fallback
     // Platform substitutions for a given font name must not be used.
-    return open_font_without_lock(m_generation, *face_id);
+    return { .face_id = *face_id, .source = Empty {} };
 }
 
 Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 width, u8 slope)
@@ -285,7 +287,7 @@ Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 
         return {};
     auto cache_key = MUST(String::formatted("family:{}:{}:{}:{}", family, weight, width, slope));
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
-        return open_font_without_lock(m_generation, *face_id);
+        return { .face_id = *face_id, .source = Empty {} };
 
     auto match = Gfx::SystemFontMatcher::match_family_style(family, weight, width, slope);
     if (!match.has_value())
@@ -300,7 +302,7 @@ Gfx::BrokeredFont FontService::match_font_for_code_point(u32 code_point, u16 wei
         return {};
     auto cache_key = MUST(String::formatted("character:{}:{}:{}:{}:{}", code_point, weight, width, slope, prefer_color_emoji));
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
-        return open_font_without_lock(m_generation, *face_id);
+        return { .face_id = *face_id, .source = Empty {} };
 
     auto match = Gfx::SystemFontMatcher::match_code_point(code_point, weight, width, slope, prefer_color_emoji);
     if (!match.has_value())

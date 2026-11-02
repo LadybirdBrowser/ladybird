@@ -521,17 +521,25 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_cascade(FontFaceSnapshot 
                 font_list->extend_fallback(*other_font_list);
         }
     } else {
+        // NB: The system fallback is asked for the style the cascade requests, not that of whichever font comes first,
+        //     so a face finishing its load leaves it as it was.
         // FIXME: Normalize the size of each system fallback font by font-size-adjust as well, rather than giving it
-        //        the size of the cascade's first font.
-        font_list->set_system_font_fallback_callback([](u32 code_point, Gfx::EmojiPresentation presentation, Gfx::Font const& reference_font) -> RefPtr<Gfx::Font const> {
+        //        the requested size.
+        Gfx::FontCascadeList::SystemFallbackRequest request {
+            .point_size = font_size_in_pt,
+            .weight = static_cast<u16>(clamp(weight, 1, 1000)),
+            .width = static_cast<u16>(font_width_bucket_from_percentage(font_width.value())),
+            .slope = static_cast<u8>(slope),
+        };
+        font_list->set_system_font_fallback_callback(request, [](u32 code_point, Gfx::EmojiPresentation presentation, Gfx::FontCascadeList::SystemFallbackRequest const& request) -> RefPtr<Gfx::Font const> {
             Gfx::SystemFallbackFontKey key {
                 .code_point = code_point,
-                .weight = static_cast<u16>(reference_font.weight()),
-                .width = reference_font.width(),
-                .slope = static_cast<u8>(reference_font.slope()),
+                .weight = request.weight,
+                .width = request.width,
+                .slope = request.slope,
                 .prefer_color_emoji = presentation == Gfx::EmojiPresentation::Emoji,
             };
-            return Gfx::system_fallback_font(key, reference_font.point_size());
+            return Gfx::system_fallback_font(key, request.point_size);
         });
     }
 
@@ -577,30 +585,51 @@ NonnullRefPtr<Gfx::FontCascadeList const> resolve_font_for_style_values(FontComp
 NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
 {
     MutexLocker locker(m_mutex);
-    // A style transaction that flew resolves against the snapshot it was sealed with, which a change to the
-    // @font-face table beside it leaves older than the memo: its answers are its own, and stay out of the memo, retired
+    // A style update that flew resolves against the snapshot it was sealed with, which a change to the
+    // @font-face table beside it leaves older than the memo. Where the memo keeps a cascade that answers for that
+    // table as well, it is the answer; any other answer is the transaction's own, and stays out of the memo, retired
     // with the cascades the change forgot.
     if (snapshot.generation() < m_generation) {
+        if (auto font_list = cascade_resolved_by(snapshot.generation(), key))
+            return font_list.release_nonnull();
         auto font_list = resolve_font_cascade(snapshot, key, font_feature_values_for_family);
         m_retired.append(font_list);
         m_resolutions_against_older_tables.append({ key, font_list });
         return font_list;
     }
-    m_generation = snapshot.generation();
-    return m_cascades.ensure(key, [&] {
-        return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
-    });
+    return resolve_into_memo(snapshot, key, font_feature_values_for_family);
 }
 
 NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve_for_fork(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
 {
     MutexLocker locker(m_mutex);
-    if (snapshot.generation() < m_generation)
+    if (snapshot.generation() < m_generation) {
+        if (auto font_list = cascade_resolved_by(snapshot.generation(), key))
+            return font_list.release_nonnull();
         return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
+    }
+    return resolve_into_memo(snapshot, key, font_feature_values_for_family);
+}
+
+NonnullRefPtr<Gfx::FontCascadeList const> FontCascadeMemo::resolve_into_memo(FontFaceSnapshot const& snapshot, ComputedFontCacheKey const& key, FontFeatureValuesProvider const& font_feature_values_for_family) const
+{
+    VERIFY(snapshot.generation() >= m_generation);
     m_generation = snapshot.generation();
-    return m_cascades.ensure(key, [&] {
-        return resolve_font_cascade(snapshot, key, font_feature_values_for_family);
+    auto const& cascade = m_cascades.ensure(key, [&] {
+        return MemoizedCascade { resolve_font_cascade(snapshot, key, font_feature_values_for_family), m_generation };
     });
+    return cascade.font_list;
+}
+
+RefPtr<Gfx::FontCascadeList const> FontCascadeMemo::cascade_resolved_by(u64 generation, ComputedFontCacheKey const& key) const
+{
+    // NB: Each change to the @font-face table since a cascade was resolved forgot it unless it resolves the same under
+    //     the changed table, so a cascade the memo keeps answers for every table from the one it was resolved against
+    //     on. A transaction that flew, or a fork of the render state, then names the same cascade as the memo.
+    auto it = m_cascades.find(key);
+    if (it == m_cascades.end() || it->value.resolved_at_generation > generation)
+        return {};
+    return it->value.font_list;
 }
 
 void FontCascadeMemo::forget_matching(u64 environment_generation, Function<bool(ComputedFontCacheKey const&, NonnullRefPtr<Gfx::FontCascadeList const> const&)> const& predicate)
@@ -608,10 +637,10 @@ void FontCascadeMemo::forget_matching(u64 environment_generation, Function<bool(
     MutexLocker locker(m_mutex);
     VERIFY(environment_generation > m_generation);
     m_generation = environment_generation;
-    m_cascades.remove_all_matching([&](auto const& key, auto const& font_list) {
-        if (!predicate(key, font_list))
+    m_cascades.remove_all_matching([&](auto const& key, auto const& cascade) {
+        if (!predicate(key, cascade.font_list))
             return false;
-        m_retired.append(font_list);
+        m_retired.append(cascade.font_list);
         return true;
     });
 }
@@ -620,11 +649,9 @@ void FontCascadeMemo::release_retired() const
 {
     // NB: A cascade's destructor releases fonts into the document thread's caches, so it runs outside the lock.
     Vector<NonnullRefPtr<Gfx::FontCascadeList const>> retired;
-    Vector<ResolutionAgainstOlderTable> resolutions_against_older_tables;
     {
         MutexLocker locker(m_mutex);
         retired = move(m_retired);
-        resolutions_against_older_tables = move(m_resolutions_against_older_tables);
     }
 }
 
@@ -632,6 +659,22 @@ Vector<FontCascadeMemo::ResolutionAgainstOlderTable> FontCascadeMemo::take_resol
 {
     MutexLocker locker(m_mutex);
     return exchange(m_resolutions_against_older_tables, {});
+}
+
+bool FontCascadeMemo::adopt_resolution_against_older_table(FontFaceSnapshot const& snapshot, ResolutionAgainstOlderTable const& resolution, FontFeatureValuesProvider const& font_feature_values_for_family) const
+{
+    MutexLocker locker(m_mutex);
+    VERIFY(snapshot.generation() >= m_generation);
+    if (auto it = m_cascades.find(resolution.key); it != m_cascades.end())
+        return it->value.font_list.ptr() == resolution.font_list.ptr();
+    // NB: No element holds a cascade of the memo for the request yet, so the one the transaction resolved, where it
+    //     answers the same under the newest table, is the memo's answer from here on, and the elements holding it keep
+    //     it.
+    m_generation = snapshot.generation();
+    auto font_list = resolve_font_cascade(snapshot, resolution.key, font_feature_values_for_family);
+    auto adopted = font_list->equals(*resolution.font_list);
+    m_cascades.set(resolution.key, MemoizedCascade { adopted ? resolution.font_list : move(font_list), m_generation });
+    return adopted;
 }
 
 }

@@ -18,6 +18,7 @@ void ladybird_gfx_frozen_font_list_release(void const* frozen);
 void const* ladybird_gfx_frozen_font_list_font_for_code_point(void const* frozen, u32 code_point, bool is_emoji, bool forced);
 size_t ladybird_gfx_request_wanted_pending_faces();
 bool ladybird_gfx_frozen_font_lists_equal(void const*, void const*);
+bool ladybird_gfx_font_cascade_list_fills_toward(void const*, void const*);
 }
 
 namespace Gfx {
@@ -308,7 +309,7 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
     }
 
     if (m_system_font_fallback_callback) {
-        if (auto fallback = m_system_font_fallback_callback(code_point, emoji_presentation.presentation, first())) {
+        if (auto fallback = m_system_font_fallback_callback(code_point, emoji_presentation.presentation, m_system_fallback_request)) {
             if (presentation_matches(*fallback) || (!author_glyph_match && !fallback_glyph_match)) {
                 auto const& fallback_font = *fallback;
                 m_retained_system_fallback_fonts.set(fallback.release_nonnull());
@@ -401,6 +402,12 @@ bool FontCascadeList::equals(FontCascadeList const& other) const
             return false;
     }
     return true;
+}
+
+bool FontCascadeList::fills_toward(FontCascadeList const& resolved) const
+{
+    VERIFY(m_frozen_list && resolved.m_frozen_list);
+    return ladybird_gfx_font_cascade_list_fills_toward(this, &resolved);
 }
 
 }
@@ -540,13 +547,13 @@ extern "C" void const* ladybird_gfx_cascade_snapshot_begin(void const* list)
         .last_resort_font = cascade_list.last_resort_font(),
         .has_system_fallback = cascade_list.has_system_font_fallback_callback(),
     };
-    if (snapshot->has_system_fallback && !cascade_list.is_empty()) {
-        // The system fallback matches against the cascade's first font, exactly as the lookup does.
-        auto const& reference_font = cascade_list.first();
-        snapshot->system_fallback_point_size = reference_font.point_size();
-        snapshot->system_fallback_weight = static_cast<u16>(reference_font.weight());
-        snapshot->system_fallback_width = reference_font.width();
-        snapshot->system_fallback_slope = static_cast<u8>(reference_font.slope());
+    if (snapshot->has_system_fallback) {
+        // The system fallback matches against the cascade's request, exactly as the lookup does.
+        auto const& request = cascade_list.system_fallback_request();
+        snapshot->system_fallback_point_size = request.point_size;
+        snapshot->system_fallback_weight = request.weight;
+        snapshot->system_fallback_width = request.width;
+        snapshot->system_fallback_slope = request.slope;
     }
     return snapshot;
 }
