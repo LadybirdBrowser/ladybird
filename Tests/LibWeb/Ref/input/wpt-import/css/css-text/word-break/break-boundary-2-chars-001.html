@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Text Test: soft wrap opportunity at boundary between two characters</title>
+
+  <!--
+
+  CSS3 Text, §5.1 Line breaking details, 7th bullet, 2nd sentence
+  https://www.w3.org/TR/css-text-3/#line-break-details
+
+  "
+  For soft wrap opportunities defined by the boundary between
+  two characters, the white-space property on the nearest
+  common ancestor of the two characters controls breaking
+  "
+
+  -->
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#word-break-property">
+  <link rel="help" href="https://www.w3.org/TR/css-text-3/#line-break-details">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-text/word-break/reference/break-boundary-2-chars-001-ref.html">
+
+  <meta content="This test checks that the word-break property does not apply to a run of text that is styled with 'white-space: pre' because the word-break property has no rendering effect in cases where lines of text are not allowed to break. Between the 'c' and 'x' and between the 'z' and 'd', there must be a line break because the 'white-space' declaration in effect in the nearest common ancestor of each of these pairs of two characters allows text wrapping." name="assert">
+
+  <style>
+  div
+    {
+      display: inline-block;
+      font-size: 32px;
+      margin-right: 5ch;
+      width: 0;
+      word-break: break-all;
+    }
+
+  span
+    {
+      white-space: pre;
+    }
+
+  div#first-sub-test
+    {
+      white-space: normal;
+    }
+
+  div#second-sub-test
+    {
+      white-space: pre-wrap;
+    }
+
+  div#third-sub-test
+    {
+      white-space: break-spaces;
+    }
+
+  div#fourth-sub-test
+    {
+      white-space: pre-line;
+    }
+  </style>
+
+  <div id="first-sub-test">abc<span>xyz</span>def</div><div id="second-sub-test">abc<span>xyz</span>def</div><div id="third-sub-test">abc<span>xyz</span>def</div><div id="fourth-sub-test">abc<span>xyz</span>def</div>
