@@ -207,17 +207,14 @@ test("complex v-mode lookbehind with negated emoji class finds the V8 match", ()
     expect(subject.match(new RegExp(regex.source, "gv"))).toEqual([expected]);
 });
 
-test("unicode lastIndex retries the original low-surrogate position after a failed snap-back", () => {
+test("unicode lastIndex does not retry a failed lookbehind inside a surrogate pair", () => {
     const regex = /\p{Script=Cyrillic}?(?<!\D)/vy;
     regex.lastIndex = 2;
 
-    const result = regex.exec("A😘");
-    expect(result).not.toBeNull();
-    expect(result.index).toBe(2);
-    expect(result[0]).toBe("");
-    expect(regex.lastIndex).toBe(2);
+    expect(regex.exec("A😘")).toBeNull();
+    expect(regex.lastIndex).toBe(0);
 
-    expect("A😘".match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(["", ""]);
+    expect("A😘".match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual([""]);
 });
 
 test("unicode lastIndex still snaps to the start of a surrogate pair when that matches", () => {
@@ -242,15 +239,15 @@ test("unicode lastIndex does not retry consuming matches at low surrogates", () 
     expect("😀".replace(regex, "x")).toBe("😀");
 });
 
-test("global unicode matches keep low-surrogate empty matches that V8 finds", () => {
+test("negative non-digit lookbehind matches only at the start or after digits", () => {
     const subject =
         "سلام 카차가≠ -YA😘🙂🤔 ذذذ/8️⃣ бшгА884 жЕ 🌟🎀🎀🎈✨🚀\n✨тест( \n\t \t },{ `:कगवचचजय mmmmm\t999\n⚡💢💥❤️💧;人बई÷{{😊😊🔢🔢🔢_";
-    expect(subject.match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(new Array(24).fill(""));
+    expect(subject.match(/\p{Script=Cyrillic}?(?<!\D)/gv)).toEqual(new Array(8).fill(""));
 });
 
-test("lookahead inside surrogate pair does not match paired low surrogate as a character", () => {
-    expect("💦💦".match(/(?!\W)/gv)).toEqual(["", "", ""]);
-    expect("💦💦".match(/\p{Emoji_Presentation}?(?!\W)/gv)).toEqual(["", "💦", ""]);
+test("negative non-word lookahead does not match inside surrogate pairs", () => {
+    expect("💦💦".match(/(?!\W)/gv)).toEqual([""]);
+    expect("💦💦".match(/\p{Emoji_Presentation}?(?!\W)/gv)).toEqual(["💦", ""]);
 });
 
 test("backward v-mode class-set operations inspect the consumed code point", () => {

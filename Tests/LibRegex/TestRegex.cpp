@@ -241,6 +241,28 @@ TEST_CASE(find_all_returns_non_overlapping_matches)
     EXPECT_EQ(regex.find_all_match(1).end, 7);
 }
 
+TEST_CASE(unicode_find_all_skips_surrogate_interiors_after_empty_matches)
+{
+    for (auto flags : { regex::ECMAScriptCompileFlags { .unicode = true }, regex::ECMAScriptCompileFlags { .unicode_sets = true } }) {
+        auto empty = compile_regex("(?<a>)\\k<a>"sv, flags);
+        EXPECT_EQ(empty.find_all(u"😀😀"sv, 0), 3);
+        for (size_t i = 0; i < 3; ++i) {
+            EXPECT_EQ(empty.find_all_match(i).start, static_cast<i32>(i * 2));
+            EXPECT_EQ(empty.find_all_match(i).end, static_cast<i32>(i * 2));
+        }
+
+        auto lookbehind = compile_regex("(?<!.)"sv, flags);
+        EXPECT_EQ(lookbehind.find_all(u"😀😀"sv, 0), 1);
+        EXPECT_EQ(lookbehind.find_all_match(0).start, 0);
+        EXPECT_EQ(lookbehind.find_all_match(0).end, 0);
+
+        auto lookahead = compile_regex("(?!\\W)"sv, flags);
+        EXPECT_EQ(lookahead.find_all(u"😀😀"sv, 0), 1);
+        EXPECT_EQ(lookahead.find_all_match(0).start, 4);
+        EXPECT_EQ(lookahead.find_all_match(0).end, 4);
+    }
+}
+
 TEST_CASE(unicode_property_matching_works)
 {
     auto regex = MUST(compile_regex_result("\\p{ASCII}+"sv, { .unicode = true }));

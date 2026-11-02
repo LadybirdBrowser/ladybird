@@ -288,7 +288,7 @@ struct ExecWithLastIndexResult {
     effective_last_index: usize,
 }
 
-fn exec_with_unicode_last_index_retry(
+fn exec_with_unicode_last_index(
     compiled_regex: &EcmaScriptRegex,
     utf16_view: Utf16View<'_>,
     last_index: usize,
@@ -314,31 +314,9 @@ fn exec_with_unicode_last_index_retry(
         return exec_at(last_index);
     }
 
-    // NB: V8/SpiderMonkey first try the code point that starts at the
-    // surrogate pair boundary, but zero-width patterns can still match at the
-    // original low-surrogate index when that earlier retry fails. Consuming
-    // retries must still be rejected so /u and /v regexes never split the
-    // surrogate pair.
-    let snapped_result = exec_at(last_index - 1);
-    if snapped_result.result != MatchResult::NoMatch {
-        return snapped_result;
-    }
-
-    let retried_result = exec_at(last_index);
-    if retried_result.result != MatchResult::Match {
-        return retried_result;
-    }
-
-    let match_start = compiled_regex.capture_slot(0);
-    let match_end = compiled_regex.capture_slot(1);
-    if match_start >= 0 && match_end >= 0 && match_start as usize == last_index && match_end as usize == last_index {
-        return retried_result;
-    }
-
-    ExecWithLastIndexResult {
-        result: MatchResult::NoMatch,
-        effective_last_index: last_index,
-    }
+    // https://tc39.es/ecma262/#sec-regexpbuiltinexec
+    // 13.b. Let inputIndex be the index into input of the character that was obtained from element lastIndex of string.
+    exec_at(last_index - 1)
 }
 
 fn legacy_capture_slots(compiled_regex: &EcmaScriptRegex, n_capture_groups: u32) -> LegacyCaptureSlots {
@@ -436,7 +414,7 @@ fn regexp_builtin_exec(
 
     let unicode_mode = flag_bits.has(RegExpFlags::UNICODE) || flag_bits.has(RegExpFlags::UNICODE_SETS);
     let utf16_view = string.utf16_string_view();
-    let exec_result = exec_with_unicode_last_index_retry(&compiled_regex, utf16_view, last_index, unicode_mode, sticky);
+    let exec_result = exec_with_unicode_last_index(&compiled_regex, utf16_view, last_index, unicode_mode, sticky);
     if exec_result.result == MatchResult::LimitExceeded {
         return throw_backtrack_limit_exceeded(vm);
     }
@@ -1359,7 +1337,7 @@ impl RegExpPrototype {
                     break;
                 }
 
-                let exec_result = exec_with_unicode_last_index_retry(
+                let exec_result = exec_with_unicode_last_index(
                     &compiled_regex,
                     utf16_view,
                     last_index as usize,
@@ -1532,7 +1510,7 @@ impl RegExpPrototype {
         let mut last_index = 0;
         while last_index <= length {
             let exec_result =
-                exec_with_unicode_last_index_retry(&compiled_regex, string_view, last_index, full_unicode, false);
+                exec_with_unicode_last_index(&compiled_regex, string_view, last_index, full_unicode, false);
             if exec_result.result == MatchResult::LimitExceeded {
                 return throw_backtrack_limit_exceeded(vm);
             }
