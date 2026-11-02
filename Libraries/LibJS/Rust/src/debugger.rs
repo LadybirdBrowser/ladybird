@@ -356,7 +356,7 @@ impl Debugger {
         let executable = Executable::from_head(context.executable.get().expect("a frame runs an executable"));
 
         let mut binding_locations = IndexMap::new();
-        for (index, name) in executable.argument_variable_names.iter().enumerate() {
+        for (index, name) in executable.argument_variable_names().iter().enumerate() {
             if !name.is_empty() {
                 binding_locations.insert(
                     name.clone(),
@@ -383,7 +383,7 @@ impl Debugger {
             scope_range.start <= position && position < scope_range.end
         };
 
-        for (index, name) in executable.local_variable_names.iter().enumerate() {
+        for (index, name) in executable.local_variable_names().iter().enumerate() {
             if name.is_empty() {
                 continue;
             }
@@ -766,7 +766,7 @@ unsafe impl Trace for Debugger {
 /// ExecutionContext::local_variables()
 fn local_variables<'context>(context: &'context ExecutionContext, executable: &Executable) -> &'context [Cell<Value>] {
     let local_index_base = executable.local_index_base() as usize;
-    &context.slots()[local_index_base..local_index_base + executable.local_variable_names.len()]
+    &context.slots()[local_index_base..local_index_base + executable.local_variable_names().len()]
 }
 
 fn source_code_pointer(executable: &Executable) -> *const SourceCode {
