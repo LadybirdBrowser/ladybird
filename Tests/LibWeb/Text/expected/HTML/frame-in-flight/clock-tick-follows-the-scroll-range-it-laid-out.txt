@@ -1,0 +1,3 @@
+the ticks grew the page: true
+the ticks settled: true
+the bar shows the progress in the scroll range the ticks laid out: true
