@@ -178,6 +178,7 @@ public:
     Optional<AsyncScrollOffset> apply_scroll_delta(Compositing::SpatialNodeIndex, Gfx::FloatPoint delta, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot&, ScrollChaining);
     Optional<WheelScrollTarget> select_wheel_scroll_target(Compositing::SpatialNodeIndex, Gfx::FloatPoint delta, Compositing::ScrollStateSnapshot const&, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for, ScrollChaining scroll_chaining) const;
     Optional<Gfx::FloatPoint> set_scroll_offset(Compositing::SpatialNodeIndex, Gfx::FloatPoint, Compositing::AccumulatedVisualContextTree const&, Compositing::ScrollStateSnapshot&);
+    Gfx::FloatPoint set_scroll_offset_leaving_sticky_offsets_unresolved(AsyncScrollNode const&, Gfx::FloatPoint, Compositing::ScrollStateSnapshot&);
 
 private:
     static Gfx::FloatPoint clamp_scroll_offset_to_node(AsyncScrollNode const&, Gfx::FloatPoint);
