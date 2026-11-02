@@ -20,12 +20,14 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(CheckUnloadingCanceledState);
 
 CheckUnloadingCanceledState::CheckUnloadingCanceledState(
+    GC::Ref<Page> page,
     GC::Ptr<LocalTraversableNavigable> owner,
     GC::Ptr<LocalTraversableNavigable> traversable,
     Optional<UserNavigationInvolvement> user_involvement,
     UnloadPromptShown unload_prompt_shown,
     GC::Ref<GC::Function<void(Result, UnloadPromptShown)>> callback)
     : m_unload_prompt_shown(unload_prompt_shown)
+    , m_page(page)
     , m_owner(owner)
     , m_traversable(traversable)
     , m_user_involvement(user_involvement)
@@ -41,12 +43,14 @@ CheckUnloadingCanceledState::CheckUnloadingCanceledState(
         }
     })))
 {
+    m_page->add_unloading_canceled_check({}, *this);
     m_timeout->start();
 }
 
 void CheckUnloadingCanceledState::visit_edges(Visitor& visitor)
 {
     Base::visit_edges(visitor);
+    visitor.visit(m_page);
     visitor.visit(m_phase2_documents);
     visitor.visit(m_documents_already_fired);
     visitor.visit(m_traversable);
@@ -298,6 +302,7 @@ void CheckUnloadingCanceledState::finish(Result final_result)
         return;
     m_completed = true;
     m_timeout->stop();
+    m_page->remove_unloading_canceled_check({}, *this);
     if (m_adopted_for_close) {
         m_callback->function()(final_result == Result::CanceledByBeforeUnload ? Result::CanceledByBeforeUnload : Result::CanceledByNavigate, m_unload_prompt_shown);
         VERIFY(m_close_preflight_callback);
