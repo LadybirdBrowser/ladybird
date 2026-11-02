@@ -69,6 +69,19 @@ static JS::ThrowCompletionOr<HashAlgorithmIdentifier> hash_algorithm_identifier_
     return HashAlgorithmIdentifier { maybe_normalized_algorithm.value().parameter->name };
 }
 
+static WebIDL::ExceptionOr<::Crypto::Hash::HashKind> sha_hash_kind(Utf16String const& hash_algorithm)
+{
+    if (hash_algorithm == "SHA-1"sv)
+        return ::Crypto::Hash::HashKind::SHA1;
+    if (hash_algorithm == "SHA-256"sv)
+        return ::Crypto::Hash::HashKind::SHA256;
+    if (hash_algorithm == "SHA-384"sv)
+        return ::Crypto::Hash::HashKind::SHA384;
+    if (hash_algorithm == "SHA-512"sv)
+        return ::Crypto::Hash::HashKind::SHA512;
+    return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
+}
+
 static WebIDL::ExceptionOr<ByteBuffer> export_public_exponent(JS::VM& vm, ::Crypto::UnsignedBigInteger const& exponent)
 {
     auto bytes = TRY_OR_THROW_OOM(vm, ByteBuffer::create_uninitialized(exponent.byte_length()));
@@ -112,6 +125,10 @@ static WebIDL::ExceptionOr<void> validate_rsa_key_generation_parameters(RsaKeyGe
         || !public_exponent.is_odd()
         || public_exponent.plus(1).one_based_index_of_highest_set_bit() > modulus_length)
         return WebIDL::OperationError::create("Invalid RSA key generation parameters"_utf16);
+
+    // NB: Generating the key pair fails for the moduli that our RSA does not support.
+    if (::Crypto::PK::RSA::validate_key_generation_parameters(modulus_length).is_error())
+        return WebIDL::OperationError::create("RSA modulus length must be at least 512 bits"_utf16);
 
     return {};
 }
@@ -967,6 +984,13 @@ WebIDL::ExceptionOr<ByteBuffer> RSAOAEP::decrypt(JS::Realm&, AlgorithmParams con
 }
 
 // https://w3c.github.io/webcrypto/#rsa-oaep-operations-generate-key
+WebIDL::ExceptionOr<void> RSAOAEP::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+    return validate_rsa_key_generation_parameters(static_cast<RsaHashedKeyGenParams const&>(params));
+}
+
+// https://w3c.github.io/webcrypto/#rsa-oaep-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAOAEP::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -1471,6 +1495,13 @@ Optional<ReadonlySpan<KeyUsage>> RSAOAEP::public_key_usages() const
 {
     static constexpr Array usages { KeyUsage::Encrypt, KeyUsage::WrapKey };
     return usages.span();
+}
+
+// https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
+WebIDL::ExceptionOr<void> RSAPSS::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+    return validate_rsa_key_generation_parameters(static_cast<RsaHashedKeyGenParams const&>(params));
 }
 
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
@@ -2061,6 +2092,13 @@ Optional<ReadonlySpan<KeyUsage>> RSAPSS::public_key_usages() const
 }
 
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
+WebIDL::ExceptionOr<void> RSASSAPKCS1::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. Perform the validate RSA key generation parameters algorithm with normalizedAlgorithm.
+    return validate_rsa_key_generation_parameters(static_cast<RsaHashedKeyGenParams const&>(params));
+}
+
+// https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSASSAPKCS1::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains a value which is not one of "sign" or "verify", then throw a SyntaxError.
@@ -2642,13 +2680,24 @@ Optional<ReadonlySpan<KeyUsage>> RSASSAPKCS1::public_key_usages() const
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
-WebIDL::ExceptionOr<ByteBuffer> AesCbc::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<void> AesCbc::validate_encrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 16)
         return WebIDL::OperationError::create("IV to AES-CBC must be exactly 16 bytes"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
+WebIDL::ExceptionOr<ByteBuffer> AesCbc::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
+
+    // NB: Step 1 is performed by validate_encrypt_parameters().
+    TRY(validate_encrypt_parameters(params));
 
     // 2. Let paddedPlaintext be the result of adding padding octets to the contents of plaintext according to the procedure defined in Section 10.3 of [RFC2315], step 2, with a value of k of 16.
     // 3. Let ciphertext be the result of performing the CBC Encryption operation described in Section 6.2 of [NIST-SP800-38A] using AES as the block cipher, the contents of the iv member of normalizedAlgorithm as the IV input parameter and paddedPlaintext as the input plaintext.
@@ -2664,13 +2713,24 @@ WebIDL::ExceptionOr<ByteBuffer> AesCbc::encrypt(JS::Realm&, AlgorithmParams cons
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-decrypt
-WebIDL::ExceptionOr<ByteBuffer> AesCbc::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<void> AesCbc::validate_decrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
 
     // 1. If the iv member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     if (normalized_algorithm.iv.size() != 16)
         return WebIDL::OperationError::create("IV to AES-CBC must be exactly 16 bytes"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-decrypt
+WebIDL::ExceptionOr<ByteBuffer> AesCbc::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    auto const& normalized_algorithm = static_cast<AesCbcParams const&>(params);
+
+    // NB: Step 1 is performed by validate_decrypt_parameters().
+    TRY(validate_decrypt_parameters(params));
 
     // 2. If the length of ciphertext is zero or is not a multiple of 16 bytes, then throw an OperationError.
     if (ciphertext.is_empty() || ciphertext.size() % 16 != 0)
@@ -2795,6 +2855,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> AesCbc::import_key(JS::Realm& realm, Alg
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
+WebIDL::ExceptionOr<void> AesCbc::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    auto const bits = static_cast<AesKeyGenParams const&>(params).length;
+    if (bits != 128 && bits != 192 && bits != 256)
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-CBC key with unusual amount of {} bits", bits));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-cbc-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCbc::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -2806,11 +2877,9 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCbc::generate
 
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
 
-    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    // NB: Step 2 is performed by validate_generate_key_parameters().
+    TRY(validate_generate_key_parameters(params));
     auto const bits = normalized_algorithm.length;
-    if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-CBC key with unusual amount of {} bits", bits));
-    }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     auto key_buffer = TRY(generate_random_key(realm.vm(), bits));
@@ -3123,6 +3192,17 @@ WebIDL::ExceptionOr<Optional<u32>> AesCtr::get_key_length(JS::Realm&, AlgorithmP
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
+WebIDL::ExceptionOr<void> AesCtr::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    auto const bits = static_cast<AesKeyGenParams const&>(params).length;
+    if (bits != 128 && bits != 192 && bits != 256)
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", bits));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCtr::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3132,12 +3212,10 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCtr::generate
         }
     }
 
-    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    // NB: Step 2 is performed by validate_generate_key_parameters().
+    TRY(validate_generate_key_parameters(params));
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
-    if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-CTR key with unusual amount of {} bits", bits));
-    }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
@@ -3166,18 +3244,27 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesCtr::generate
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
-WebIDL::ExceptionOr<ByteBuffer> AesCtr::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<void> AesCtr::validate_encrypt_parameters(AlgorithmParams const& params) const
 {
-    // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesCtrParams const&>(params);
-    auto const& counter = normalized_algorithm.counter;
-    if (counter.size() != 16)
+
+    // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+    if (normalized_algorithm.counter.size() != 16)
         return WebIDL::OperationError::create("Invalid counter length"_utf16);
 
     // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
-    auto const& length = normalized_algorithm.length;
-    if (length == 0 || length > 128)
+    if (normalized_algorithm.length == 0 || normalized_algorithm.length > 128)
         return WebIDL::OperationError::create("Invalid length"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-encrypt
+WebIDL::ExceptionOr<ByteBuffer> AesCtr::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    // NB: Steps 1 and 2 are performed by validate_encrypt_parameters().
+    TRY(validate_encrypt_parameters(params));
+    auto const& counter = static_cast<AesCtrParams const&>(params).counter;
 
     // 3. Let ciphertext be the result of performing the CTR Encryption operation described in Section 6.5 of [NIST-SP800-38A] using
     //    AES as the block cipher,
@@ -3194,18 +3281,27 @@ WebIDL::ExceptionOr<ByteBuffer> AesCtr::encrypt(JS::Realm&, AlgorithmParams cons
 }
 
 // https://w3c.github.io/webcrypto/#aes-ctr-operations-decrypt
-WebIDL::ExceptionOr<ByteBuffer> AesCtr::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<void> AesCtr::validate_decrypt_parameters(AlgorithmParams const& params) const
 {
-    // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
     auto const& normalized_algorithm = static_cast<AesCtrParams const&>(params);
-    auto const& counter = normalized_algorithm.counter;
-    if (counter.size() != 16)
+
+    // 1. If the counter member of normalizedAlgorithm does not have length 16 bytes, then throw an OperationError.
+    if (normalized_algorithm.counter.size() != 16)
         return WebIDL::OperationError::create("Invalid counter length"_utf16);
 
     // 2. If the length member of normalizedAlgorithm is zero or is greater than 128, then throw an OperationError.
-    auto const& length = normalized_algorithm.length;
-    if (length == 0 || length > 128)
+    if (normalized_algorithm.length == 0 || normalized_algorithm.length > 128)
         return WebIDL::OperationError::create("Invalid length"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-ctr-operations-decrypt
+WebIDL::ExceptionOr<ByteBuffer> AesCtr::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    // NB: Steps 1 and 2 are performed by validate_decrypt_parameters().
+    TRY(validate_decrypt_parameters(params));
+    auto const& counter = static_cast<AesCtrParams const&>(params).counter;
 
     // 3. Let plaintext be the result of performing the CTR Decryption operation described in Section 6.5 of [NIST-SP800-38A] using
     //    AES as the block cipher,
@@ -3420,9 +3516,13 @@ WebIDL::ExceptionOr<ExportKeyResult> AesGcm::export_key(JS::Realm& realm, KeyFor
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-encrypt
-WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<void> AesGcm::validate_encrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
+
+    // NB: Our AES-GCM rejects an empty IV.
+    if (normalized_algorithm.iv.is_empty())
+        return WebIDL::OperationError::create("IV must not be empty"_utf16);
 
     // 1. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
     // NOTE: This is not possible
@@ -3431,18 +3531,24 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParam
     // NOTE: This is not possible
 
     // 3. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
-    auto tag_length = 0;
+    //    If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+    //    Otherwise: throw an OperationError.
     auto constexpr valid_tag_lengths = Array { 32, 64, 96, 104, 112, 120, 128 };
-    if (!normalized_algorithm.tag_length.has_value())
-        tag_length = 128;
-
-    // If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
-    else if (valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
-        tag_length = normalized_algorithm.tag_length.value();
-
-    // Otherwise: throw an OperationError.
-    else
+    if (normalized_algorithm.tag_length.has_value() && !valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
         return WebIDL::OperationError::create("Invalid tag length"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-encrypt
+WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
+
+    // NB: Steps 1 to 3 are performed by validate_encrypt_parameters(), which leaves tagLength as the tagLength member
+    //     of normalizedAlgorithm if present, or 128 otherwise.
+    TRY(validate_encrypt_parameters(params));
+    auto tag_length = normalized_algorithm.tag_length.value_or(128);
 
     // 4. If plaintext has a length greater than 2^39 - 256 bytes, then throw an OperationError.
     if (plaintext.size() > (1ULL << 39) - 256)
@@ -3473,22 +3579,19 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::encrypt(JS::Realm& realm, AlgorithmParam
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-decrypt
-WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<void> AesGcm::validate_decrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
 
+    // NB: Our AES-GCM rejects an empty IV.
+    if (normalized_algorithm.iv.is_empty())
+        return WebIDL::OperationError::create("IV must not be empty"_utf16);
+
     // 1. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
-    u32 tag_length = 0;
+    //    If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+    //    Otherwise: throw an OperationError.
     auto constexpr valid_tag_lengths = Array { 32, 64, 96, 104, 112, 120, 128 };
-    if (!normalized_algorithm.tag_length.has_value())
-        tag_length = 128;
-
-    // If the tagLength member of normalizedAlgorithm is one of 32, 64, 96, 104, 112, 120 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
-    else if (valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
-        tag_length = normalized_algorithm.tag_length.value();
-
-    // Otherwise: throw an OperationError.
-    else
+    if (normalized_algorithm.tag_length.has_value() && !valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
         return WebIDL::OperationError::create("Invalid tag length"_utf16);
 
     // 2. If the iv member of normalizedAlgorithm has a length greater than 2^64 - 1 bytes, then throw an OperationError.
@@ -3496,6 +3599,19 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParam
 
     // 3. If the additionalData member of normalizedAlgorithm is present and has a length greater than 2^64 - 1 bytes, then throw an OperationError.
     // NOTE: This is not possible
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-decrypt
+WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    auto const& normalized_algorithm = static_cast<AesGcmParams const&>(params);
+
+    // NB: Steps 1 to 3 are performed by validate_decrypt_parameters(), which leaves tagLength as the tagLength member
+    //     of normalizedAlgorithm if present, or 128 otherwise.
+    TRY(validate_decrypt_parameters(params));
+    u32 tag_length = normalized_algorithm.tag_length.value_or(128);
 
     // 4. If ciphertext has a length in bits less than tagLength, then throw an OperationError.
     if (ciphertext.size() < tag_length / 8)
@@ -3532,6 +3648,17 @@ WebIDL::ExceptionOr<ByteBuffer> AesGcm::decrypt(JS::Realm& realm, AlgorithmParam
 }
 
 // https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
+WebIDL::ExceptionOr<void> AesGcm::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    auto const bits = static_cast<AesKeyGenParams const&>(params).length;
+    if (bits != 128 && bits != 192 && bits != 256)
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-GCM key with unusual amount of {} bits", bits));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-gcm-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesGcm::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3541,12 +3668,10 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesGcm::generate
         }
     }
 
-    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    // NB: Step 2 is performed by validate_generate_key_parameters().
+    TRY(validate_generate_key_parameters(params));
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
-    if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-GCM key with unusual amount of {} bits", bits));
-    }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
@@ -3771,6 +3896,17 @@ WebIDL::ExceptionOr<Optional<u32>> AesKw::get_key_length(JS::Realm&, AlgorithmPa
 }
 
 // https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
+WebIDL::ExceptionOr<void> AesKw::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. If the length property of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    auto const bits = static_cast<AesKeyGenParams const&>(params).length;
+    if (bits != 128 && bits != 192 && bits != 256)
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-KW key with unusual amount of {} bits", bits));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#aes-kw-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesKw::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -3780,12 +3916,10 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesKw::generate_
         }
     }
 
-    // 2. If the length property of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    // NB: Step 2 is performed by validate_generate_key_parameters().
+    TRY(validate_generate_key_parameters(params));
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
-    if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-KW key with unusual amount of {} bits", bits));
-    }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
@@ -3927,6 +4061,18 @@ WebIDL::ExceptionOr<ByteBuffer> SHA::digest(JS::Realm&, AlgorithmParams const& a
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
+WebIDL::ExceptionOr<void> ECDSA::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 2 throws a NotSupportedError when the namedCurve member of normalizedAlgorithm is not "P-256", "P-384" or
+    //     "P-521".
+    auto const& normalized_algorithm = static_cast<EcKeyGenParams const&>(params);
+    if (!normalized_algorithm.named_curve.is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16))
+        return WebIDL::NotSupportedError::create("Only 'P-256', 'P-384' and 'P-521' is supported"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdsa-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDSA::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "sign" or "verify", then throw a SyntaxError.
@@ -4023,6 +4169,15 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDSA::generate_
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-sign
+WebIDL::ExceptionOr<void> ECDSA::validate_sign_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 3 fails for the hash functions that our ECDSA does not support.
+    TRY(sha_hash_kind(static_cast<EcdsaParams const&>(params).hash.name));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdsa-operations-sign
 WebIDL::ExceptionOr<ByteBuffer> ECDSA::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto& vm = realm.vm();
@@ -4036,18 +4191,7 @@ WebIDL::ExceptionOr<ByteBuffer> ECDSA::sign(JS::Realm& realm, AlgorithmParams co
     auto const& hash_algorithm = normalized_algorithm.hash.name;
 
     // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
-    ::Crypto::Hash::HashKind hash_kind;
-    if (hash_algorithm == "SHA-1"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA1;
-    } else if (hash_algorithm == "SHA-256"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA256;
-    } else if (hash_algorithm == "SHA-384"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA384;
-    } else if (hash_algorithm == "SHA-512"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA512;
-    } else {
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
-    }
+    auto hash_kind = TRY(sha_hash_kind(hash_algorithm));
     ::Crypto::Hash::Manager hash { hash_kind };
     hash.update(message);
     auto digest = hash.digest();
@@ -4118,6 +4262,15 @@ WebIDL::ExceptionOr<ByteBuffer> ECDSA::sign(JS::Realm& realm, AlgorithmParams co
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-verify
+WebIDL::ExceptionOr<void> ECDSA::validate_verify_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 3 fails for the hash functions that our ECDSA does not support.
+    TRY(sha_hash_kind(static_cast<EcdsaParams const&>(params).hash.name));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdsa-operations-verify
 WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto const& normalized_algorithm = static_cast<EcdsaParams const&>(params);
@@ -4127,21 +4280,10 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
         return WebIDL::InvalidAccessError::create("Key is not a public key"_utf16);
 
     // 2. Let hashAlgorithm be the hash member of normalizedAlgorithm.
-    [[maybe_unused]] auto const& hash_algorithm = normalized_algorithm.hash.name;
+    auto const& hash_algorithm = normalized_algorithm.hash.name;
 
     // 3. Let M be the result of performing the digest operation specified by hashAlgorithm using message.
-    ::Crypto::Hash::HashKind hash_kind;
-    if (hash_algorithm == "SHA-1"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA1;
-    } else if (hash_algorithm == "SHA-256"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA256;
-    } else if (hash_algorithm == "SHA-384"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA384;
-    } else if (hash_algorithm == "SHA-512"sv) {
-        hash_kind = ::Crypto::Hash::HashKind::SHA512;
-    } else {
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
-    }
+    auto hash_kind = TRY(sha_hash_kind(hash_algorithm));
     ::Crypto::Hash::Manager hash { hash_kind };
     hash.update(message);
     auto digest = hash.digest();
@@ -4206,7 +4348,7 @@ WebIDL::ExceptionOr<bool> ECDSA::verify(JS::Realm& realm, AlgorithmParams const&
 }
 
 // https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+WebIDL::ExceptionOr<void> ECDSA::validate_import_key_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
 
@@ -4215,6 +4357,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, Algo
     //    NotSupportedError.
     if (!normalized_algorithm.named_curve.is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16))
         return WebIDL::NotSupportedError::create(Utf16String::formatted("Unsupported named curve '{}'", normalized_algorithm.named_curve));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdsa-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDSA::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+{
+    auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
+
+    // NB: Step 1 is performed by validate_import_key_parameters().
+    TRY(validate_import_key_parameters(params));
 
     // NOTE: This is a parameter to the function
     // 2. Let keyData be the key data to be imported.
@@ -4985,6 +5138,18 @@ Optional<ReadonlySpan<KeyUsage>> ECDSA::public_key_usages() const
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
+WebIDL::ExceptionOr<void> ECDH::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 2 throws a NotSupportedError when the namedCurve member of normalizedAlgorithm is not "P-256", "P-384" or
+    //     "P-521".
+    auto const& normalized_algorithm = static_cast<EcKeyGenParams const&>(params);
+    if (!normalized_algorithm.named_curve.is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16))
+        return WebIDL::NotSupportedError::create("Only 'P-256', 'P-384' and 'P-521' is supported"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDH::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not "deriveKey" or "deriveBits" then throw a SyntaxError.
@@ -5081,7 +5246,7 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDH::generate_k
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<void> ECDH::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
 {
     auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
@@ -5104,6 +5269,18 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
     // 5. If length is not null and is greater than maximumLength, then throw an OperationError.
     if (length_optional.has_value() && *length_optional > maximum_length)
         return WebIDL::OperationError::create("Length is too large"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdh-operations-derive-bits
+WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
+
+    // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
+    TRY(validate_derive_bits_parameters(params, length_optional));
+    auto& public_key = normalized_algorithm.public_key;
 
     // 6. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != KeyType::Private)
@@ -5193,7 +5370,7 @@ WebIDL::ExceptionOr<ByteBuffer> ECDH::derive_bits(JS::Realm& realm, AlgorithmPar
 }
 
 // https://w3c.github.io/webcrypto/#ecdh-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+WebIDL::ExceptionOr<void> ECDH::validate_import_key_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
 
@@ -5202,6 +5379,17 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, Algor
     //    NotSupportedError.
     if (!normalized_algorithm.named_curve.is_one_of("P-256"_utf16, "P-384"_utf16, "P-521"_utf16))
         return WebIDL::NotSupportedError::create(Utf16String::formatted("Unsupported named curve '{}'", normalized_algorithm.named_curve));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#ecdh-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> ECDH::import_key(JS::Realm& realm, AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+{
+    auto const& normalized_algorithm = static_cast<EcKeyImportParams const&>(params);
+
+    // NB: Step 1 is performed by validate_import_key_parameters().
+    TRY(validate_import_key_parameters(params));
 
     // NOTE: This is a parameter to the function
     // 2. Let keyData be the key data to be imported.
@@ -6919,7 +7107,7 @@ WebIDL::ExceptionOr<bool> ED448::verify(JS::Realm&, AlgorithmParams const& param
 }
 
 // https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<void> HKDF::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
 {
     auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
 
@@ -6929,23 +7117,24 @@ WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm&, AlgorithmParams co
 
     // 2. Let hashLength be the length in bits of the output of the hash function identified by the hash member of
     //    normalizedAlgorithm.
-    auto const& hash_algorithm = normalized_algorithm.hash.name;
-    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
-        if (hash_algorithm == "SHA-1"sv)
-            return ::Crypto::Hash::HashKind::SHA1;
-        if (hash_algorithm == "SHA-256"sv)
-            return ::Crypto::Hash::HashKind::SHA256;
-        if (hash_algorithm == "SHA-384"sv)
-            return ::Crypto::Hash::HashKind::SHA384;
-        if (hash_algorithm == "SHA-512"sv)
-            return ::Crypto::Hash::HashKind::SHA512;
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
-    }());
+    auto hash_kind = TRY(sha_hash_kind(normalized_algorithm.hash.name));
     auto hash_length = ::Crypto::Hash::Manager { hash_kind }.digest_size() * 8;
 
     // 3. If length is greater than 255 * hashLength, then throw an OperationError.
     if (*length_optional > 255 * hash_length)
         return WebIDL::OperationError::create("Length is too large for the hash function"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#hkdf-operations-derive-bits
+WebIDL::ExceptionOr<ByteBuffer> HKDF::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto const& normalized_algorithm = static_cast<HKDFParams const&>(params);
+
+    // NB: Steps 1 to 3 are performed by validate_derive_bits_parameters().
+    TRY(validate_derive_bits_parameters(params, length_optional));
+    auto hash_kind = TRY(sha_hash_kind(normalized_algorithm.hash.name));
 
     // 4. Let keyDerivationKey be the secret represented by [[handle]] internal slot of key as the message.
     auto key_derivation_key = key->handle().get<ByteBuffer>();
@@ -6985,7 +7174,7 @@ WebIDL::ExceptionOr<Optional<u32>> HKDF::get_key_length(JS::Realm&, AlgorithmPar
 }
 
 // https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<void> PBKDF2::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
 {
     auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
 
@@ -6996,6 +7185,20 @@ WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm&, AlgorithmParams 
     // 2. If the iterations member of normalizedAlgorithm is zero, then throw an OperationError.
     if (normalized_algorithm.iterations == 0)
         return WebIDL::OperationError::create("Iterations must be greater than 0"_utf16);
+
+    // NB: Step 4 fails for the hash functions that our PBKDF2 does not support.
+    TRY(sha_hash_kind(normalized_algorithm.hash.name));
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#pbkdf2-operations-derive-bits
+WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto const& normalized_algorithm = static_cast<PBKDF2Params const&>(params);
+
+    // NB: Steps 1 and 2 are performed by validate_derive_bits_parameters().
+    TRY(validate_derive_bits_parameters(params, length_optional));
 
     // 3. Let prf be the MAC Generation function described in Section 4 of [FIPS-198-1] using the hash function described by the hash member of normalizedAlgorithm.
     auto const& hash_algorithm = normalized_algorithm.hash.name;
@@ -7011,17 +7214,7 @@ WebIDL::ExceptionOr<ByteBuffer> PBKDF2::derive_bits(JS::Realm&, AlgorithmParams 
     auto iterations = normalized_algorithm.iterations;
     auto derived_key_length_bytes = *length_optional / 8;
 
-    auto hash_kind = TRY([&] -> WebIDL::ExceptionOr<::Crypto::Hash::HashKind> {
-        if (hash_algorithm == "SHA-1"sv)
-            return ::Crypto::Hash::HashKind::SHA1;
-        if (hash_algorithm == "SHA-256"sv)
-            return ::Crypto::Hash::HashKind::SHA256;
-        if (hash_algorithm == "SHA-384"sv)
-            return ::Crypto::Hash::HashKind::SHA384;
-        if (hash_algorithm == "SHA-512"sv)
-            return ::Crypto::Hash::HashKind::SHA512;
-        return WebIDL::NotSupportedError::create(Utf16String::formatted("Invalid hash function '{}'", hash_algorithm));
-    }());
+    auto hash_kind = TRY(sha_hash_kind(hash_algorithm));
 
     ::Crypto::Hash::PBKDF2 pbkdf2(hash_kind);
     auto maybe_result = pbkdf2.derive_key(password, salt, iterations, derived_key_length_bytes);
@@ -7076,7 +7269,7 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> PBKDF2::import_key(JS::Realm&, Algorithm
 }
 
 // https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+WebIDL::ExceptionOr<void> X25519::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length_optional) const
 {
     auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
 
@@ -7095,6 +7288,18 @@ WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmP
     // 4. If length is not null and is greater than 256, then throw an OperationError.
     if (length_optional.has_value() && *length_optional > 256)
         return WebIDL::OperationError::create("Length is too large"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#x25519-operations-derive-bits
+WebIDL::ExceptionOr<ByteBuffer> X25519::derive_bits(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length_optional)
+{
+    auto const& normalized_algorithm = static_cast<EcdhKeyDeriveParams const&>(params);
+
+    // NB: Steps 1 to 4 are performed by validate_derive_bits_parameters().
+    TRY(validate_derive_bits_parameters(params, length_optional));
+    auto& public_key = normalized_algorithm.public_key;
 
     // 5. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != KeyType::Private)
@@ -8126,6 +8331,21 @@ WebIDL::ExceptionOr<bool> HMAC::verify(JS::Realm& realm, AlgorithmParams const&,
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-generate-key
+WebIDL::ExceptionOr<void> HMAC::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    auto const& normalized_algorithm = static_cast<HmacKeyGenParams const&>(params);
+
+    // NB: Step 2 throws an error when the length member of normalizedAlgorithm is not present and we do not know the
+    //     block size of the hash function, or when the length member is zero.
+    if (!normalized_algorithm.length.has_value())
+        TRY(hmac_hash_block_size(normalized_algorithm.hash));
+    else if (normalized_algorithm.length.value() == 0)
+        return WebIDL::OperationError::create("Invalid length"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
     // 1. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
@@ -8190,13 +8410,24 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> HMAC::generate_k
 }
 
 // https://w3c.github.io/webcrypto/#hmac-operations-import-key
-WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+WebIDL::ExceptionOr<void> HMAC::validate_import_key_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
 
     // 1. If the length member of normalizedAlgorithm is present and is zero, then throw a DataError.
     if (normalized_algorithm.length.has_value() && *normalized_algorithm.length == 0)
         return WebIDL::DataError::create("Invalid key length"_utf16);
+
+    return {};
+}
+
+// https://w3c.github.io/webcrypto/#hmac-operations-import-key
+WebIDL::ExceptionOr<GC::Ref<CryptoKey>> HMAC::import_key(JS::Realm& realm, Web::Crypto::AlgorithmParams const& params, KeyFormat key_format, CryptoKey::ImportKeyData key_data, bool extractable, Vector<KeyUsage> const& usages)
+{
+    auto const& normalized_algorithm = static_cast<HmacImportParams const&>(params);
+
+    // NB: Step 1 is performed by validate_import_key_parameters().
+    TRY(validate_import_key_parameters(params));
 
     // 2. Let keyData be the key data to be imported.
     // 3. If usages contains an entry which is not "sign" or "verify", then throw a SyntaxError.
@@ -8464,7 +8695,7 @@ WebIDL::ExceptionOr<Optional<u32>> HMAC::get_key_length(JS::Realm&, AlgorithmPar
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
-WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+WebIDL::ExceptionOr<void> MLDSA::validate_sign_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
 
@@ -8472,6 +8703,17 @@ WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& p
     //    an OperationError.
     if (normalized_algorithm.context.has_value() && normalized_algorithm.context->size() > 255)
         return WebIDL::OperationError::create("Context is too long"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-sign
+WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
+{
+    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
+
+    // NB: Step 1 is performed by validate_sign_parameters().
+    TRY(validate_sign_parameters(params));
 
     // 2. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
     if (key->type() != KeyType::Private)
@@ -8505,7 +8747,7 @@ WebIDL::ExceptionOr<ByteBuffer> MLDSA::sign(JS::Realm&, AlgorithmParams const& p
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
-WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+WebIDL::ExceptionOr<void> MLDSA::validate_verify_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
 
@@ -8513,6 +8755,17 @@ WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& param
     //    an OperationError.
     if (normalized_algorithm.context.has_value() && normalized_algorithm.context->size() > 255)
         return WebIDL::OperationError::create("Context is too long"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#ml-dsa-operations-verify
+WebIDL::ExceptionOr<bool> MLDSA::verify(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
+{
+    auto const& normalized_algorithm = static_cast<ContextParams const&>(params);
+
+    // NB: Step 1 is performed by validate_verify_parameters().
+    TRY(validate_verify_parameters(params));
 
     // 2. If the [[type]] internal slot of key is not "public", then throw an InvalidAccessError.
     if (key->type() != KeyType::Public)
@@ -9634,9 +9887,10 @@ WebIDL::ExceptionOr<GC::Ref<CryptoKey>> Argon2::import_key(JS::Realm&, Algorithm
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
-WebIDL::ExceptionOr<ByteBuffer> Argon2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length)
+WebIDL::ExceptionOr<void> Argon2::validate_derive_bits_parameters(AlgorithmParams const& params, Optional<u32> length) const
 {
     auto const& normalized_algorithm = static_cast<Argon2Params const&>(params);
+
     // 1. If length is null, or is less than 32 (4*8), or is not a multiple of 8, then throw an OperationError.
     if (!length.has_value() || length.value() < 32u || length.value() % 8 != 0)
         return WebIDL::OperationError::create("Length must be equal or greater than 32"_utf16);
@@ -9656,6 +9910,20 @@ WebIDL::ExceptionOr<ByteBuffer> Argon2::derive_bits(JS::Realm&, AlgorithmParams 
     // 5. If the passes member of normalizedAlgorithm is zero, then throw an OperationError.
     if (normalized_algorithm.passes == 0)
         return WebIDL::OperationError::create("Invalid passes"_utf16);
+
+    // NB: Our Argon2 rejects short nonces.
+    if (auto result = ::Crypto::Hash::Argon2::validate_parameters(normalized_algorithm.nonce); result.is_error())
+        return WebIDL::OperationError::create(Utf16String::formatted("Hashing function failed: {}", result.error()));
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#argon2-operations-derive-bits
+WebIDL::ExceptionOr<ByteBuffer> Argon2::derive_bits(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, Optional<u32> length)
+{
+    auto const& normalized_algorithm = static_cast<Argon2Params const&>(params);
+    // NB: Steps 1 to 5 are performed by validate_derive_bits_parameters().
+    TRY(validate_derive_bits_parameters(params, length));
 
     auto const algorithm = [&]() {
         // 6 => If the name member of normalizedAlgorithm is a case-sensitive string match for "Argon2d":
@@ -9711,6 +9979,21 @@ WebIDL::ExceptionOr<Optional<u32>> Argon2::get_key_length(JS::Realm&, AlgorithmP
 {
     // 1. Return null.
     return Optional<u32> {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
+WebIDL::ExceptionOr<void> CShake::validate_digest_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 5 throws an OperationError for the parameters that our cSHAKE does not support.
+    auto const& normalized_algorithm = static_cast<CShakeParams const&>(params);
+    auto result = ::Crypto::Hash::SHAKE::validate_parameters(
+        normalized_algorithm.output_length,
+        normalized_algorithm.customization.map([](auto const& value) { return value.span(); }),
+        normalized_algorithm.function_name.map([](auto const& value) { return value.span(); }));
+    if (result.is_error())
+        return WebIDL::OperationError::create(Utf16String::formatted("Hash function failed: {}", result.error()));
+
+    return {};
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#cshake-operations-digest
@@ -9786,7 +10069,7 @@ JS::ThrowCompletionOr<NonnullOwnPtr<AlgorithmParams>> AeadParams::from_value(JS:
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
-WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<void> ChaCha20Poly1305::validate_encrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
@@ -9797,6 +10080,17 @@ WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::encrypt(JS::Realm&, AlgorithmP
     // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
     if (normalized_algorithm.tag_length.has_value() && normalized_algorithm.tag_length.value() != 128)
         return WebIDL::OperationError::create("tagLength must be 128"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-encrypt
+WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
+
+    // NB: Steps 1 and 2 are performed by validate_encrypt_parameters().
+    TRY(validate_encrypt_parameters(params));
 
     // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -9820,7 +10114,7 @@ WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::encrypt(JS::Realm&, AlgorithmP
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
-WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<void> ChaCha20Poly1305::validate_decrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
@@ -9831,6 +10125,17 @@ WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::decrypt(JS::Realm&, AlgorithmP
     // 2. If the tagLength member of normalizedAlgorithm is present and is not 128, then throw an OperationError.
     if (normalized_algorithm.tag_length.has_value() && normalized_algorithm.tag_length.value() != 128)
         return WebIDL::OperationError::create("tagLength must be 128"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#chacha20-poly1305-operations-decrypt
+WebIDL::ExceptionOr<ByteBuffer> ChaCha20Poly1305::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
+
+    // NB: Steps 1 and 2 are performed by validate_decrypt_parameters().
+    TRY(validate_decrypt_parameters(params));
 
     // 3. If ciphertext has a length less than 128 bits, then throw an OperationError.
     if (ciphertext.size() < 16)
@@ -10044,7 +10349,7 @@ WebIDL::ExceptionOr<Optional<u32>> ChaCha20Poly1305::get_key_length(JS::Realm&, 
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-encrypt
-WebIDL::ExceptionOr<ByteBuffer> AesOcb::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+WebIDL::ExceptionOr<void> AesOcb::validate_encrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
@@ -10052,20 +10357,29 @@ WebIDL::ExceptionOr<ByteBuffer> AesOcb::encrypt(JS::Realm&, AlgorithmParams cons
     if (normalized_algorithm.iv.size() > 15)
         return WebIDL::OperationError::create("IV must have a length of 15 bytes"_utf16);
 
-    size_t tag_length = 0;
-    auto constexpr valid_tag_lengths = Array { 64, 96, 128 };
+    // NB: Our AES-OCB rejects an empty IV.
+    if (normalized_algorithm.iv.is_empty())
+        return WebIDL::OperationError::create("IV must not be empty"_utf16);
 
     // 2. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
-    if (!normalized_algorithm.tag_length.has_value())
-        tag_length = 128;
-
-    // 2. If the tagLength member of normalizedAlgorithm is one of 64, 96 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
-    else if (valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
-        tag_length = normalized_algorithm.tag_length.value();
-
-    // 2. Otherwise: throw an OperationError.
-    else
+    //    If the tagLength member of normalizedAlgorithm is one of 64, 96 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+    //    Otherwise: throw an OperationError.
+    auto constexpr valid_tag_lengths = Array { 64, 96, 128 };
+    if (normalized_algorithm.tag_length.has_value() && !valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
         return WebIDL::OperationError::create("Invalid tag length"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-encrypt
+WebIDL::ExceptionOr<ByteBuffer> AesOcb::encrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& plaintext)
+{
+    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
+
+    // NB: Steps 1 and 2 are performed by validate_encrypt_parameters(), which leaves tagLength as the tagLength member
+    //     of normalizedAlgorithm if present, or 128 otherwise.
+    TRY(validate_encrypt_parameters(params));
+    size_t tag_length = normalized_algorithm.tag_length.value_or(128);
 
     // 3. Let additionalData be the additionalData member of normalizedAlgorithm if present or the empty octet string otherwise.
     auto const& additional_data = normalized_algorithm.additional_data.value_or(ByteBuffer {});
@@ -10093,7 +10407,7 @@ WebIDL::ExceptionOr<ByteBuffer> AesOcb::encrypt(JS::Realm&, AlgorithmParams cons
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-decrypt
-WebIDL::ExceptionOr<ByteBuffer> AesOcb::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+WebIDL::ExceptionOr<void> AesOcb::validate_decrypt_parameters(AlgorithmParams const& params) const
 {
     auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
 
@@ -10101,20 +10415,29 @@ WebIDL::ExceptionOr<ByteBuffer> AesOcb::decrypt(JS::Realm&, AlgorithmParams cons
     if (normalized_algorithm.iv.size() > 15)
         return WebIDL::OperationError::create("IV must have a length of 15 bytes"_utf16);
 
-    size_t tag_length = 0;
-    auto constexpr valid_tag_lengths = Array { 64, 96, 128 };
+    // NB: Our AES-OCB rejects an empty IV.
+    if (normalized_algorithm.iv.is_empty())
+        return WebIDL::OperationError::create("IV must not be empty"_utf16);
 
     // 2. If the tagLength member of normalizedAlgorithm is not present: Let tagLength be 128.
-    if (!normalized_algorithm.tag_length.has_value())
-        tag_length = 128;
-
-    // 2. If the tagLength member of normalizedAlgorithm is one of 64, 96 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
-    else if (valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
-        tag_length = normalized_algorithm.tag_length.value();
-
-    // 2. Otherwise: throw an OperationError.
-    else
+    //    If the tagLength member of normalizedAlgorithm is one of 64, 96 or 128: Let tagLength be equal to the tagLength member of normalizedAlgorithm
+    //    Otherwise: throw an OperationError.
+    auto constexpr valid_tag_lengths = Array { 64, 96, 128 };
+    if (normalized_algorithm.tag_length.has_value() && !valid_tag_lengths.contains_slow(normalized_algorithm.tag_length.value()))
         return WebIDL::OperationError::create("Invalid tag length"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-decrypt
+WebIDL::ExceptionOr<ByteBuffer> AesOcb::decrypt(JS::Realm&, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& ciphertext)
+{
+    auto const& normalized_algorithm = static_cast<AeadParams const&>(params);
+
+    // NB: Steps 1 and 2 are performed by validate_decrypt_parameters(), which leaves tagLength as the tagLength member
+    //     of normalizedAlgorithm if present, or 128 otherwise.
+    TRY(validate_decrypt_parameters(params));
+    size_t tag_length = normalized_algorithm.tag_length.value_or(128);
 
     // 3. If ciphertext has a length less than tagLength bits, then throw an OperationError.
     if (ciphertext.size() < tag_length / 8)
@@ -10150,6 +10473,17 @@ WebIDL::ExceptionOr<ByteBuffer> AesOcb::decrypt(JS::Realm&, AlgorithmParams cons
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-generate-key
+WebIDL::ExceptionOr<void> AesOcb::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    auto const bits = static_cast<AesKeyGenParams const&>(params).length;
+    if (bits != 128 && bits != 192 && bits != 256)
+        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-OCB key with unusual amount of {} bits", bits));
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#aes-ocb-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesOcb::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
     // 1. If usages contains an entry which is not one of "encrypt", "decrypt", "wrapKey" or "unwrapKey", then throw a SyntaxError.
@@ -10159,12 +10493,10 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> AesOcb::generate
         }
     }
 
-    // 2. If the length member of normalizedAlgorithm is not equal to one of 128, 192 or 256, then throw an OperationError.
+    // NB: Step 2 is performed by validate_generate_key_parameters().
+    TRY(validate_generate_key_parameters(params));
     auto const& normalized_algorithm = static_cast<AesKeyGenParams const&>(params);
     auto const bits = normalized_algorithm.length;
-    if (bits != 128 && bits != 192 && bits != 256) {
-        return WebIDL::OperationError::create(Utf16String::formatted("Cannot create AES-OCB key with unusual amount of {} bits", bits));
-    }
 
     // 3. Generate an AES key of length equal to the length member of normalizedAlgorithm.
     // 4. If the key generation step fails, then throw an OperationError.
@@ -10412,6 +10744,19 @@ static WebIDL::ExceptionOr<ByteBuffer> kmac_calculate_mac(
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
+WebIDL::ExceptionOr<void> KMAC::validate_sign_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 2 fails for the output lengths and customizations that our KMAC does not support.
+    auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
+    auto result = ::Crypto::Authentication::KMAC::validate_parameters(normalized_algorithm.output_length,
+        normalized_algorithm.customization.map([](auto const& value) { return value.span(); }));
+    if (result.is_error())
+        return WebIDL::OperationError::create("KMAC operation failed"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
 WebIDL::ExceptionOr<ByteBuffer> KMAC::sign(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& message)
 {
     auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
@@ -10445,6 +10790,19 @@ WebIDL::ExceptionOr<ByteBuffer> KMAC::sign(JS::Realm& realm, AlgorithmParams con
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-verify
+WebIDL::ExceptionOr<void> KMAC::validate_verify_parameters(AlgorithmParams const& params) const
+{
+    // NB: Step 2 fails for the output lengths and customizations that our KMAC does not support.
+    auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
+    auto result = ::Crypto::Authentication::KMAC::validate_parameters(normalized_algorithm.output_length,
+        normalized_algorithm.customization.map([](auto const& value) { return value.span(); }));
+    if (result.is_error())
+        return WebIDL::OperationError::create("KMAC operation failed"_utf16);
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-verify
 WebIDL::ExceptionOr<bool> KMAC::verify(JS::Realm& realm, AlgorithmParams const& params, GC::Ref<CryptoKey> key, ByteBuffer const& signature, ByteBuffer const& message)
 {
     auto const& normalized_algorithm = static_cast<KmacParams const&>(params);
@@ -10475,6 +10833,17 @@ WebIDL::ExceptionOr<bool> KMAC::verify(JS::Realm& realm, AlgorithmParams const& 
     // 4. Return true if computedMac is equal to signature and false otherwise. This comparison must be performed in
     //    constant-time.
     return mac.size() == signature.size() && timing_safe_compare(mac.data(), signature.data(), mac.size());
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-generate-key
+WebIDL::ExceptionOr<void> KMAC::validate_generate_key_parameters(AlgorithmParams const& params) const
+{
+    // NB: Generating a key of a length that our KMAC does not support fails.
+    auto const& normalized_algorithm = static_cast<KmacKeyGenParams const&>(params);
+    if (normalized_algorithm.length.has_value())
+        TRY(validate_kmac_key_length(normalized_algorithm.length.value()));
+
+    return {};
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-generate-key
@@ -10533,6 +10902,17 @@ WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> KMAC::generate_k
 
     // 13. Return key.
     return Variant<GC::Ref<CryptoKey>, CryptoKeyPair> { key };
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-import-key
+WebIDL::ExceptionOr<void> KMAC::validate_import_key_parameters(AlgorithmParams const& params) const
+{
+    // NB: Importing a key of a length that our KMAC does not support fails.
+    auto const& normalized_algorithm = static_cast<KmacImportParams const&>(params);
+    if (normalized_algorithm.length.has_value())
+        TRY(validate_kmac_key_length(normalized_algorithm.length.value()));
+
+    return {};
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-import-key

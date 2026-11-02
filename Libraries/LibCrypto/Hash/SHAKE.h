@@ -26,6 +26,11 @@ public:
 
     ~SHAKE() = default;
 
+    static ErrorOr<void> validate_parameters(
+        u32 length,
+        Optional<ReadonlyBytes> customization,
+        Optional<ReadonlyBytes> function_name);
+
     ErrorOr<ByteBuffer> digest(
         ReadonlyBytes data,
         u32 length,

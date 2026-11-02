@@ -28,14 +28,31 @@ KMAC::KMAC(KMACKind kind)
 {
 }
 
-// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
-ErrorOr<ByteBuffer> KMAC::sign(ReadonlyBytes key, ReadonlyBytes message, u32 output_length_bits, Optional<ReadonlyBytes> customization) const
+ErrorOr<void> KMAC::validate_parameters(u32 output_length_bits, Optional<ReadonlyBytes> customization)
 {
+    // OpenSSL's KMAC implementation rejects longer outputs and customization strings.
+    static constexpr size_t maximum_output_length = 0xFFFFFF / 8;
+    static constexpr size_t maximum_customization_length = 512;
+
     if (output_length_bits == 0)
         return Error::from_string_literal("KMAC output length must be greater than zero");
 
     if ((output_length_bits % 8) != 0)
         return Error::from_string_literal("KMAC output length must be a multiple of 8");
+
+    if (output_length_bits / 8 > maximum_output_length)
+        return Error::from_string_literal("KMAC output length is too large");
+
+    if (customization.has_value() && customization->size() > maximum_customization_length)
+        return Error::from_string_literal("KMAC customization is too long");
+
+    return {};
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#kmac-operations-sign
+ErrorOr<ByteBuffer> KMAC::sign(ReadonlyBytes key, ReadonlyBytes message, u32 output_length_bits, Optional<ReadonlyBytes> customization) const
+{
+    TRY(validate_parameters(output_length_bits, customization));
 
     auto const* mac_name = (m_kind == KMACKind::KMAC128) ? OSSL_MAC_NAME_KMAC128 : OSSL_MAC_NAME_KMAC256;
 
