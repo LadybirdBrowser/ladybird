@@ -1,0 +1,12 @@
+later, alone: 0px
+later, with a sibling before it: 2px
+later, alone again: 0px
+next, alone: 0px
+next, with a sibling before it: 2px
+next, alone again: 0px
+named-later, alone: 0px
+named-later, with a sibling before it: 2px
+named-later, alone again: 0px
+named-next, alone: 0px
+named-next, with a sibling before it: 2px
+named-next, alone again: 0px

@@ -14,6 +14,7 @@ use super::super::input_types::{
     STYLE_REACTION_FONT_INPUTS_CHANGED, STYLE_REACTION_PUBLISHED_STYLE, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES,
     StyleEnvironment, StyleUpdate, TreeRelations,
 };
+use super::super::selector_evaluation::StructuralRead;
 use super::super::transaction_view::TransactionFactSide;
 use super::super::*;
 use super::drive::DriveRecords;
@@ -3676,6 +3677,15 @@ impl<'a> Follower<'a> {
             true => projection.previous_element_sibling_on(TransactionFactSide::Before, node),
             false => projection.previous_element_sibling(node),
         };
+        // NB: An element this answers does not match for may never be matched across its siblings, which is what has its
+        //     parent's later changes look at them.
+        let note_read = |read| {
+            let side = match before {
+                true => TransactionFactSide::Before,
+                false => TransactionFactSide::After,
+            };
+            projection.note_structural_read(side, element, read);
+        };
         // Whether any of the candidates matches, or might.
         let any = |follower: &mut Self, candidates: &mut dyn Iterator<Item = StyleNodeID>| {
             let mut answer = Some(false);
@@ -3690,12 +3700,18 @@ impl<'a> Follower<'a> {
         };
         match combinator {
             ReachCombinator::Child => any(self, &mut parent(element).into_iter()),
-            ReachCombinator::NextSibling => any(self, &mut previous_sibling(element).into_iter()),
+            ReachCombinator::NextSibling => {
+                note_read(StructuralRead::PreviousSibling);
+                any(self, &mut previous_sibling(element).into_iter())
+            }
             ReachCombinator::Descendant => any(self, &mut std::iter::successors(parent(element), |&node| parent(node))),
-            ReachCombinator::LaterSibling => any(
-                self,
-                &mut std::iter::successors(previous_sibling(element), |&node| previous_sibling(node)),
-            ),
+            ReachCombinator::LaterSibling => {
+                note_read(StructuralRead::EarlierSiblings);
+                any(
+                    self,
+                    &mut std::iter::successors(previous_sibling(element), |&node| previous_sibling(node)),
+                )
+            }
             // NB: An element that left stood below the host it had.
             ReachCombinator::ShadowChild => any(
                 self,
