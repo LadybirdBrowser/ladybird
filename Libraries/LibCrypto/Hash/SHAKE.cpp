@@ -16,11 +16,10 @@ SHAKE::SHAKE(SHAKEKind kind)
     m_md = (kind == SHAKEKind::CSHAKE128) ? EVP_shake128() : EVP_shake256();
 }
 
-ErrorOr<ByteBuffer> SHAKE::digest(
-    ReadonlyBytes data,
+ErrorOr<void> SHAKE::validate_parameters(
     u32 length,
     Optional<ReadonlyBytes> customization,
-    Optional<ReadonlyBytes> function_name) const
+    Optional<ReadonlyBytes> function_name)
 {
     bool wants_cshake = (customization.has_value() && !customization->is_empty()) || (function_name.has_value() && !function_name->is_empty());
 
@@ -32,6 +31,17 @@ ErrorOr<ByteBuffer> SHAKE::digest(
     if (length % 8 != 0) {
         return Error::from_string_literal("SHAKE output length must be a multiple of 8 bits");
     }
+
+    return {};
+}
+
+ErrorOr<ByteBuffer> SHAKE::digest(
+    ReadonlyBytes data,
+    u32 length,
+    Optional<ReadonlyBytes> customization,
+    Optional<ReadonlyBytes> function_name) const
+{
+    TRY(validate_parameters(length, customization, function_name));
 
     size_t output_bytes = length / 8;
     auto buf = TRY(ByteBuffer::create_uninitialized(output_bytes));

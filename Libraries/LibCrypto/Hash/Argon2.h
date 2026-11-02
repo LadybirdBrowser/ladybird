@@ -25,6 +25,8 @@ public:
 
     ~Argon2();
 
+    static ErrorOr<void> validate_parameters(ReadonlyBytes nonce);
+
     ErrorOr<ByteBuffer> derive_key(
         ReadonlyBytes message,
         ReadonlyBytes nonce,

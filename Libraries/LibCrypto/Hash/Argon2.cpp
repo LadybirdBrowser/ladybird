@@ -40,6 +40,17 @@ Argon2::~Argon2()
     EVP_KDF_free(m_kdf);
 }
 
+ErrorOr<void> Argon2::validate_parameters(ReadonlyBytes nonce)
+{
+    // OpenSSL's Argon2 implementation rejects shorter salts.
+    static constexpr size_t minimum_nonce_length = 8;
+
+    if (nonce.size() < minimum_nonce_length)
+        return Error::from_string_literal("Argon2 nonce must be at least 8 bytes");
+
+    return {};
+}
+
 ErrorOr<ByteBuffer> Argon2::derive_key(
     ReadonlyBytes message,
     ReadonlyBytes nonce,
@@ -51,6 +62,8 @@ ErrorOr<ByteBuffer> Argon2::derive_key(
     Optional<ReadonlyBytes> associated_data,
     u32 tag_length) const
 {
+    TRY(validate_parameters(nonce));
+
     auto ctx = TRY(OpenSSL_KDF_CTX::wrap(EVP_KDF_CTX_new(m_kdf)));
 
     auto threads = min(OSSL_get_max_threads(nullptr), parallelism);
