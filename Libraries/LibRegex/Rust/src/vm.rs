@@ -442,7 +442,6 @@ fn first_filter_matches<I: Input>(program: &Program, input: I, pos: usize, filte
 fn next_candidate_start<I: Input>(program: &Program, input: I, hints: &PatternHints, mut pos: usize) -> Option<usize> {
     while pos <= input.len() {
         if program.unicode
-            && !hints.can_match_empty
             && pos > 0
             && pos < input.len()
             && is_low_surrogate(input.code_unit(pos))
@@ -994,8 +993,6 @@ pub struct PatternHints {
     /// Simple pattern: just a single matcher (Save(0) + matcher + Save(1) + Match).
     /// Can be executed with a fast scan without the full VM.
     simple_scan: Option<SimpleScan>,
-    /// Whether the full pattern can match without consuming input.
-    can_match_empty: bool,
 }
 
 pub(crate) struct RequiredLiteralHint {
@@ -1150,11 +1147,7 @@ fn next_literal_start_from_hint<I: Input>(input: I, start: usize, hint: &StartPo
 }
 
 /// Analyze the program to extract optimization hints.
-pub(crate) fn analyze_pattern(
-    program: &Program,
-    can_match_empty: bool,
-    ast_required_literal: Option<RequiredLiteralHint>,
-) -> PatternHints {
+pub(crate) fn analyze_pattern(program: &Program, ast_required_literal: Option<RequiredLiteralHint>) -> PatternHints {
     // Pattern typically starts with Save(0), then the first real instruction.
     let skip = if matches!(program.instructions.first(), Some(Instruction::Save(0))) {
         1
@@ -1285,7 +1278,6 @@ pub(crate) fn analyze_pattern(
         trailing_literal,
         required_literal,
         simple_scan,
-        can_match_empty,
     }
 }
 

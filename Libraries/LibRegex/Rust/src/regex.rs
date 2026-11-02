@@ -55,7 +55,7 @@ impl Regex {
         let mut program = compiler::compile(&parsed);
         Self::resolve_properties(&mut program);
         let required_literal_hint = extract_required_literal_hint(&parsed, flags);
-        let hints = vm::analyze_pattern(&program, pattern_can_match_empty(&parsed), required_literal_hint);
+        let hints = vm::analyze_pattern(&program, required_literal_hint);
 
         let literal_u16 = extract_literal_u16(&parsed, flags);
         let word_boundary_literal_u16 = extract_word_boundary_literal_u16(&parsed, flags);
@@ -920,44 +920,6 @@ fn contains_literal_subslice(haystack: &[u16], needle: &[u16]) -> bool {
         return false;
     }
     haystack.windows(needle.len()).any(|window| window == needle)
-}
-
-fn pattern_can_match_empty(pattern: &Pattern) -> bool {
-    disjunction_can_match_empty(&pattern.disjunction)
-}
-
-fn disjunction_can_match_empty(disjunction: &Disjunction) -> bool {
-    disjunction.alternatives.iter().any(alternative_can_match_empty)
-}
-
-fn alternative_can_match_empty(alternative: &Alternative) -> bool {
-    alternative.terms.iter().all(term_can_match_empty)
-}
-
-fn term_can_match_empty(term: &Term) -> bool {
-    if let Some(quantifier) = &term.quantifier
-        && quantifier.min == 0
-    {
-        return true;
-    }
-
-    atom_can_match_empty(&term.atom)
-}
-
-fn atom_can_match_empty(atom: &Atom) -> bool {
-    match atom {
-        Atom::Literal(_)
-        | Atom::Dot
-        | Atom::CharacterClass(_)
-        | Atom::BuiltinCharacterClass(_)
-        | Atom::UnicodeProperty(_) => false,
-        Atom::Group(group) => disjunction_can_match_empty(&group.body),
-        Atom::NonCapturingGroup(group) => disjunction_can_match_empty(&group.body),
-        Atom::Lookaround(_) | Atom::Assertion(_) => true,
-        // Backreferences can match empty if their capture is unset or empty.
-        Atom::Backreference(_) => true,
-        Atom::ModifierGroup(group) => disjunction_can_match_empty(&group.body),
-    }
 }
 
 fn extract_literal_u16(pattern: &Pattern, flags: Flags) -> Option<Vec<u16>> {
