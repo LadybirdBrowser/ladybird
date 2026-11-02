@@ -1,0 +1,10 @@
+Against an opener policy, Ladybird now checks only the sandboxing flags
+a navigation brings, not the spec’s finalSandboxFlags, which also take
+in the response’s own CSP sandbox. Blink, WebKit and Gecko all do the
+same: Blink’s CrossOriginOpenerPolicyStatus::SanitizeResponse() checks
+frame_tree_node_->pending_frame_policy().sandbox_flags, WebKit’s
+doCrossOriginOpenerHandlingOfResponse() checks the frame’s own
+effectiveSandboxFlags(), and Gecko’s HttpBaseChannel::
+ComputeCrossOriginOpenerPolicyMismatch() checks mLoadInfo->
+GetSandboxFlags(). The WPT test coop-navigate-same-origin-csp-sandbox.
+html expects a page that sandboxes itself that way to load.
