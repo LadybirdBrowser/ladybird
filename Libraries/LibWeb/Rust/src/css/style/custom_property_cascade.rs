@@ -437,6 +437,63 @@ fn named_custom_property_reads(value: &StyleValueData) -> Option<Vec<&[u16]>> {
     all_references_visible.then_some(references)
 }
 
+/// Which nodes of the graph `edges` describes lie on a cycle of it, one with an edge to itself among them. Those are the
+/// nodes of a strongly connected component of more than one node, which Tarjan's algorithm finds in time linear in the
+/// nodes and edges. It walks with a stack of its own, as a chain may be as long as a page likes.
+fn nodes_on_a_cycle(edges: &[Vec<usize>]) -> Vec<bool> {
+    // The order each node was first seen in, from 1, and the earliest such order on the walk's stack that it reaches.
+    let mut order = vec![0usize; edges.len()];
+    let mut lowest = vec![0usize; edges.len()];
+    let mut on_stack = vec![false; edges.len()];
+    let mut on_a_cycle = vec![false; edges.len()];
+    let mut stack = Vec::new();
+    let mut walk: Vec<(usize, usize)> = Vec::new();
+    let mut nodes_seen = 0;
+    for root in 0..edges.len() {
+        if order[root] != 0 {
+            continue;
+        }
+        walk.push((root, 0));
+        while let Some((node, next_edge)) = walk.last_mut() {
+            let node = *node;
+            if order[node] == 0 {
+                nodes_seen += 1;
+                order[node] = nodes_seen;
+                lowest[node] = nodes_seen;
+                stack.push(node);
+                on_stack[node] = true;
+            }
+            if let Some(&target) = edges[node].get(*next_edge) {
+                *next_edge += 1;
+                if target == node {
+                    on_a_cycle[node] = true;
+                } else if order[target] == 0 {
+                    walk.push((target, 0));
+                } else if on_stack[target] {
+                    lowest[node] = lowest[node].min(order[target]);
+                }
+                continue;
+            }
+            walk.pop();
+            if let Some((parent, _)) = walk.last() {
+                lowest[*parent] = lowest[*parent].min(lowest[node]);
+            }
+            if lowest[node] == order[node] {
+                let start = stack
+                    .iter()
+                    .rposition(|member| *member == node)
+                    .expect("a node is on the stack");
+                let is_cycle = stack.len() - start > 1;
+                for member in stack.drain(start..) {
+                    on_stack[member] = false;
+                    on_a_cycle[member] |= is_cycle;
+                }
+            }
+        }
+    }
+    on_a_cycle
+}
+
 /// Whether a written value may read one of the custom properties `moved` holds.
 pub(super) fn value_reads_any_custom_property_of(value: &StyleValueData, moved: impl Fn(&[u16]) -> bool) -> bool {
     named_custom_property_reads(value).is_none_or(|names| names.into_iter().any(moved))
@@ -784,6 +841,7 @@ impl RetainedState {
             return Vec::new();
         }
         let animated_count = written.len();
+        let mut written_names: HashSet<usize> = written.iter().map(|(name, _)| name.raw()).collect();
         let declarations = self
             .live_style
             .as_ref()
@@ -797,11 +855,12 @@ impl RetainedState {
                     continue;
                 };
                 let name = Name::from_utf16(name.to_utf16().as_ref());
-                if written[..animated_count].iter().all(|(animated, _)| *animated != name) {
+                if !written_names.contains(&name.raw()) {
                     written.push((name, value.data()));
                 }
             }
         }
+        written_names.extend(written[animated_count..].iter().map(|(name, _)| name.raw()));
         // NB: A container condition the engine cannot decide leaves what a function reads unknown, as a read of no name.
         let functions = written
             .iter()
@@ -810,11 +869,12 @@ impl RetainedState {
             .flatten();
         let registry = self.document_style_computation_inputs.custom_property_registry();
         let holds_a_value = |name: &ak::Utf16FlyString| {
-            written.iter().any(|(written, _)| written.raw() == name.raw_identity())
+            written_names.contains(&name.raw_identity())
                 || registry.has_initial_value(name)
                 || inherited.is_some_and(|store| store.holds_name(name))
         };
-        let mut reads: Vec<(Name, Vec<Arc<[u16]>>)> = Vec::new();
+        let mut reads: Vec<(&Name, Vec<Arc<[u16]>>)> = Vec::new();
+        let mut reads_of_name: HashMap<usize, usize> = HashMap::default();
         for (name, value) in &written {
             let names: Vec<Arc<[u16]>> = match (&functions, substituted_tokens(value)) {
                 (Some(functions), StyleValueData::Unresolved(unresolved)) if value_calls_custom_functions(value) => {
@@ -830,35 +890,33 @@ impl RetainedState {
                     .map(Arc::from)
                     .collect(),
             };
-            match reads.iter_mut().find(|(read_name, _)| read_name == name) {
-                Some((_, read)) => read.extend(names),
-                None => reads.push((name.clone(), names)),
-            }
+            let index = *reads_of_name.entry(name.raw()).or_insert_with(|| {
+                reads.push((name, Vec::new()));
+                reads.len() - 1
+            });
+            reads[index].1.extend(names);
         }
-        let reads_of = |name: &[u16]| {
-            reads
-                .iter()
-                .find(|(candidate, _)| candidate.to_utf16().as_ref() == name)
-                .map(|(_, read)| read.as_slice())
-        };
+        let names: Vec<_> = reads.iter().map(|(name, _)| name.to_utf16()).collect();
+        let index_of_name: HashMap<&[u16], usize> = names
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (name.as_ref(), index))
+            .collect();
+        // NB: A name nothing writes reads nothing, so no cycle goes through it.
+        let edges: Vec<Vec<usize>> = reads
+            .iter()
+            .map(|(_, read)| {
+                read.iter()
+                    .filter_map(|read| index_of_name.get(&**read).copied())
+                    .collect()
+            })
+            .collect();
+        let on_a_cycle = nodes_on_a_cycle(&edges);
         reads
             .iter()
-            .filter(|(name, read)| {
-                let name = name.to_utf16();
-                let mut seen: Vec<&[u16]> = Vec::new();
-                let mut waiting: Vec<&[u16]> = read.iter().map(|read| &**read).collect();
-                while let Some(read) = waiting.pop() {
-                    if read == name.as_ref() {
-                        return true;
-                    }
-                    if !seen.contains(&read) {
-                        seen.push(read);
-                        waiting.extend(reads_of(read).unwrap_or_default().iter().map(|read| &**read));
-                    }
-                }
-                false
-            })
-            .map(|(name, _)| name.clone())
+            .zip(on_a_cycle)
+            .filter(|(_, on_a_cycle)| *on_a_cycle)
+            .map(|((name, _), _)| (*name).clone())
             .collect()
     }
 
@@ -1158,6 +1216,75 @@ pub(super) fn substitute_against_stores(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nodes_on_a_cycle_are_those_of_a_cycle_and_not_those_between_cycles() {
+        let on_a_cycle =
+            |edges: &[&[usize]]| nodes_on_a_cycle(&edges.iter().map(|edges| edges.to_vec()).collect::<Vec<_>>());
+        assert_eq!(on_a_cycle(&[]), Vec::<bool>::new());
+        assert_eq!(on_a_cycle(&[&[]]), [false]);
+        assert_eq!(on_a_cycle(&[&[0]]), [true]);
+        // A chain, and a chain that reads a name twice.
+        assert_eq!(on_a_cycle(&[&[], &[0], &[1, 1]]), [false, false, false]);
+        assert_eq!(on_a_cycle(&[&[1], &[0]]), [true, true]);
+        // A node reads into a cycle, and a cycle reads a node.
+        assert_eq!(on_a_cycle(&[&[1], &[2], &[1]]), [false, true, true]);
+        assert_eq!(on_a_cycle(&[&[1], &[0, 2], &[]]), [true, true, false]);
+        // A node between two cycles lies on neither.
+        assert_eq!(
+            on_a_cycle(&[&[1], &[0, 2], &[3], &[4], &[3]]),
+            [true, true, false, true, true]
+        );
+        // Two paths to one node, whose second finds it finished.
+        assert_eq!(on_a_cycle(&[&[1, 2], &[3], &[3], &[]]), [false, false, false, false]);
+        // A cycle reached back through a node the walk has finished with.
+        assert_eq!(on_a_cycle(&[&[1, 2], &[], &[0, 1]]), [true, false, true]);
+    }
+
+    #[test]
+    fn nodes_on_a_cycle_agrees_with_a_walk_from_each_node() {
+        let mut state = 0x2545_f491_4f6c_dd1d_u64;
+        let mut next = move |bound: usize| {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state as usize % bound
+        };
+        for _ in 0..2000 {
+            let nodes = 1 + next(12);
+            let edge_count = next(2 * nodes);
+            let mut edges = vec![Vec::new(); nodes];
+            for _ in 0..edge_count {
+                edges[next(nodes)].push(next(nodes));
+            }
+            let reaches_itself = |node: usize| {
+                let mut seen = vec![false; nodes];
+                let mut waiting = edges[node].clone();
+                while let Some(target) = waiting.pop() {
+                    if target == node {
+                        return true;
+                    }
+                    if !std::mem::replace(&mut seen[target], true) {
+                        waiting.extend(&edges[target]);
+                    }
+                }
+                false
+            };
+            let expected: Vec<bool> = (0..nodes).map(reaches_itself).collect();
+            assert_eq!(nodes_on_a_cycle(&edges), expected, "{edges:?}");
+        }
+    }
+
+    #[test]
+    fn nodes_on_a_cycle_walks_a_long_chain_and_ring_without_recursing() {
+        let length = 1_000_000;
+        let chain: Vec<Vec<usize>> = (0..length)
+            .map(|node| if node == 0 { vec![] } else { vec![node - 1] })
+            .collect();
+        assert!(nodes_on_a_cycle(&chain).iter().all(|on_a_cycle| !on_a_cycle));
+        let ring: Vec<Vec<usize>> = (0..length).map(|node| vec![(node + 1) % length]).collect();
+        assert!(nodes_on_a_cycle(&ring).iter().all(|on_a_cycle| *on_a_cycle));
+    }
 
     #[test]
     fn a_call_reaches_what_its_scope_and_the_scope_of_each_reached_definition_see() {
