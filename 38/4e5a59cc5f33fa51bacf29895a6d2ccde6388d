@@ -1,0 +1,17 @@
+Ladybird centers button content within its final flex-item height
+even when that height can’t resolve descendant percentages.
+
+Blink’s FlexLayoutAlgorithm::BuildSpaceForLayout() supplies a fixed
+block size independently of SetIsInitialBlockSizeIndefinite(). Its
+AlignBlockContent() centers within the final fragment block size,
+clamping negative free space to zero for buttons.
+
+Gecko’s nsFlexContainerFrame::ReflowFlexItem() supplies the final size
+separately from mTreatBSizeAsIndefinite. The button’s content gets
+safe centering through nsBlockFrame::EffectiveAlignContent(), and
+nsBlockFrame::AlignContent() centers it using the final metrics.
+
+WebKit’s RenderButton::updateAnonymousChildStyle() gives its inner
+renderer automatic block-axis margins to center its content safely.
+RenderFlexibleBox::canUseFlexItemForPercentageResolution() separately
+decides if a flex item’s height can resolve descendant percentages.
