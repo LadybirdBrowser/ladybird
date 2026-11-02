@@ -2486,6 +2486,17 @@ impl StyleEngine {
                 } else {
                     reaction
                 };
+                // The record the row's new record inherits from: the parent's as the engine has it
+                // assigned now, which the rows settle after.
+                let parent_style_record = if matches!(gap, FfiStyleDeltaGap::None | FfiStyleDeltaGap::Computed) {
+                    self.retained
+                        .tree
+                        .inheritance_parent(node)
+                        .and_then(|parent| self.retained.computed_group_sets.assigned_style_record(parent))
+                        .map_or(0, computed::FinalStyleRecordID::raw)
+                } else {
+                    0
+                };
                 let style_delta = PublishedStyleDeltaRecord {
                     style_node: node.raw(),
                     match_answer: answer_cascade_input.map_or(0, |cascade_input| cascade_input.0),
@@ -2534,6 +2545,7 @@ impl StyleEngine {
                         && self
                             .retained
                             .host_composes_row(node, old_style_record, new_style_record),
+                    parent_style_record,
                 };
                 if style_deltas.len() == style_deltas.capacity() {
                     style_deltas.reserve(1);
@@ -2576,6 +2588,7 @@ impl StyleEngine {
                             owes_an_animation_plan: false,
                             owes_a_transition_step: false,
                             composed_by_the_host: false,
+                            parent_style_record: 0,
                         });
                     }
                 }

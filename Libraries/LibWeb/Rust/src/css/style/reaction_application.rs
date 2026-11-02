@@ -13,13 +13,15 @@
 
 use super::StyleNodeID;
 use super::boundary::StyleChange;
+use super::bridge::style_engine_changed_style_groups;
 use super::bridge::{
     FfiEngineComputedRecord, FfiRecordDemand, FfiStyleDelta, FfiStyleDeltaDamage, FfiStyleDeltaGap,
     FfiStyleInvalidationField, PSEUDO_RECORD_SLOTS, close_style_reactions_over_inheritance,
     sort_style_deltas_for_direct_application,
 };
 use super::engine_calls::{
-    absorb_element_style_input, has_deferred_element_style_input, note_bound_failure_trace, with_engine,
+    absorb_element_style_input, has_deferred_element_style_input, known_style_record_view, note_bound_failure_trace,
+    with_engine,
 };
 use super::publication::RecordDemand;
 use super::transaction::{
@@ -199,6 +201,10 @@ unsafe extern "C" {
         application: *mut HostStyleReactionApplication,
         element: *mut HostElement,
     ) -> FfiReactionElement;
+    fn web_css_style_inheritance_parent_style_record(
+        application: *mut HostStyleReactionApplication,
+        element: *mut HostElement,
+    ) -> u64;
     fn web_css_apply_targeted_style_reaction(
         application: *mut HostStyleReactionApplication,
         element: *mut HostElement,
@@ -441,6 +447,7 @@ fn apply_style_reactions(
 ) {
     let Application { host, read, .. } = application;
     let _noting = host.engine_memo().note_declaration_changes_during_apply();
+    let mut parent_moves = ParentMoves::default();
     for (index, published) in reactions.iter().enumerate() {
         // A pseudo-element record installs with its element's, which leads it. An element the engine answered as
         // hidden needs no style until a read or its subtree's reveal asks for one.
@@ -467,6 +474,25 @@ fn apply_style_reactions(
         //     the reaction is
         //     answered from its demand, over the record the element holds now.
         if delta.gap == FfiStyleDeltaGap::None && element.has_style && delta.old_style_record != element.style_record {
+            delta.unsettle();
+        }
+
+        // A row settled in flight, or in an earlier wave, inherits from the parent's record as the engine had it then.
+        // An earlier reaction of this batch can have moved what the element inherits since: the host republished the
+        // parent's record over a moved environment and settled it again from its demand, or answered the parent's own
+        // row from a demand, whose record the computation of this row never read. The reaction that move derives for
+        // the element is one the settled record can't answer, and installing the record would consume the reaction as
+        // answered, leaving the record over the parent's old style for good. So the reaction is answered from its
+        // demand instead, over the record the parent holds as the row is applied; what the host moved beside a flown
+        // transaction reaches the demand with the next one.
+        if delta.gap != FfiStyleDeltaGap::Materialize
+            && application.parent_style_moved_since(
+                &element,
+                delta.parent_style_record,
+                delta.explicitly_inherited_groups,
+                &mut parent_moves,
+            )
+        {
             delta.unsettle();
         }
 
@@ -787,7 +813,64 @@ impl InheritanceChainScan {
     }
 }
 
+/// The style groups that moved between a parent record a row was settled over and the one the parent holds, for the
+/// last pair compared: siblings settled over the same parent record compare the same pair.
+#[derive(Default)]
+struct ParentMoves {
+    pair: Option<(u64, u64)>,
+    moved_groups: u32,
+}
+
 impl Application<'_> {
+    /// Whether what `element` inherits from its parent moved since the engine settled the element's row over
+    /// `parent_style_record`, the parent's record as the engine had it then: the parent holds another record now, whose
+    /// inherited groups differ from that one's, or whose non-inherited groups the row read through an explicit
+    /// `inherit`, `explicitly_inherited_groups`, do. A record neither the host nor the engine can view counts as moved.
+    fn parent_style_moved_since(
+        self,
+        element: &FfiReactionElement,
+        parent_style_record: u64,
+        explicitly_inherited_groups: u32,
+        moves: &mut ParentMoves,
+    ) -> bool {
+        if parent_style_record == 0 {
+            return false;
+        }
+        // SAFETY: The host lends its application for the call, and the element is live while it is read.
+        let held_record =
+            unsafe { web_css_style_inheritance_parent_style_record(self.host_application, element.element.0) };
+        if held_record == 0 || held_record == parent_style_record {
+            return false;
+        }
+        let moved_groups = if moves.pair == Some((parent_style_record, held_record)) {
+            moves.moved_groups
+        } else {
+            // The transaction carries the view of a base record a row was settled over; an overlay the parent's
+            // animations composed is still live in the engine, whose release is a write the host holds for as long as
+            // it applies the transaction's rows, so the engine views it on request.
+            let view = |record: u64| {
+                known_style_record_view(self.host, record).or_else(|| {
+                    let view = with_engine(self.read, self.host, |engine| {
+                        super::bridge::style_record_view(engine, record)
+                    });
+                    view.present.then_some(view)
+                })
+            };
+            let moved_groups = match (view(parent_style_record), view(held_record)) {
+                // SAFETY: Both records are live: the one the parent holds, and the one the transaction read.
+                (Some(settled_over), Some(held)) => unsafe {
+                    style_engine_changed_style_groups(&settled_over, &held, 0, held.payload_count)
+                },
+                _ => u32::MAX,
+            };
+            moves.pair = Some((parent_style_record, held_record));
+            moves.moved_groups = moved_groups;
+            moved_groups
+        };
+        const INHERITED_GROUPS: u32 = (1 << super::ENGINE_INHERITED_GROUP_COUNT) - 1;
+        moved_groups & (INHERITED_GROUPS | explicitly_inherited_groups) != 0
+    }
+
     /// The elements an element inherits its style through, from `first` up to the root.
     fn inheritance_chain(self, first: FfiReactionElement) -> impl Iterator<Item = FfiReactionElement> {
         let present = |element: FfiReactionElement| (!element.element.is_null()).then_some(element);
@@ -1072,5 +1155,239 @@ pub unsafe extern "C" fn style_engine_move_custom_property_environment(
                 ),
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod parent_record_tests {
+    use super::*;
+    use crate::css::computed_values::{
+        BoxValues, InheritedBoxValues, clone_group_payload, default_group_payload, release_group_payload,
+    };
+    use crate::css::css_enums::visibility;
+    use crate::css::display::FfiDisplay;
+    use crate::css::host_shared::HostShared;
+    use crate::css::style::computed::{ComputedMetadataInput, ComputedStyleTarget, ENGINE_INHERITED_GROUP_COUNT};
+    use crate::css::style::index::{FeatureValue, LocalFeatureKey, StyleAtomID};
+    use crate::css::style::instrumentation::Counter;
+    use crate::css::style::tests::{discard_transaction, linear_document};
+    use crate::css::style::transaction::{InputKey, InputValue};
+    use crate::css::style::{SharedPayload, StyleEngine};
+    use crate::css::style_compute::ffi_test_stubs::TestReactionApplication;
+    use crate::css::table_group_builder::group_index;
+    use crate::render_state::TestHost;
+
+    enum ParentChange {
+        None,
+        Visibility,
+        Display,
+    }
+
+    // As in container_query_tests::publish_box_with_types, publish real group payloads so the comparison reads values.
+    fn publish_record(engine: &mut StyleEngine, node: StyleNodeID, visible: bool, block: bool) -> u64 {
+        let payloads: Vec<_> = (0..group_index::COUNT)
+            .map(|group| {
+                // SAFETY: The source is the immutable default payload for this group.
+                SharedPayload::new(unsafe { clone_group_payload(group, default_group_payload(group)) }.cast_const())
+            })
+            .collect();
+        // SAFETY: These clones are privately owned, unpublished, and have the indicated group layouts.
+        unsafe {
+            (*payloads[group_index::INHERITED_BOX]
+                .as_ptr()
+                .cast_mut()
+                .cast::<InheritedBoxValues>())
+            .visibility = if visible {
+                visibility::VISIBLE
+            } else {
+                visibility::HIDDEN
+            };
+            if block {
+                (*payloads[group_index::BOX].as_ptr().cast_mut().cast::<BoxValues>()).display = FfiDisplay::block();
+            }
+        }
+        let record = engine
+            .publish_computed_groups(
+                ComputedStyleTarget::new(node, u8::MAX),
+                &payloads,
+                ENGINE_INHERITED_GROUP_COUNT,
+                0,
+                ComputedMetadataInput {
+                    pseudo_element_styles: 0,
+                    dependency_flags: 0,
+                    counter_style_environment_identity: 0,
+                    animation_overlay_identity: 0,
+                    animated_overlay: HostShared::null(),
+                    animation_overlay_payloads: &[],
+                    longhand_table: HostShared::null(),
+                },
+            )
+            .style_record_identity
+            .raw();
+        for (group, payload) in payloads.iter().enumerate() {
+            release_group_payload(group, payload.as_ptr());
+        }
+        record
+    }
+
+    struct Applied {
+        host: TestReactionApplication,
+        counts: FfiStyleReactionCounts,
+        settled: FfiStyleDelta,
+        refused_demands: u64,
+    }
+
+    fn apply(change: ParentChange, explicitly_inherited_groups: u32, pending: u8) -> Applied {
+        let owner = TestHost::new();
+        let host = owner.host();
+        let read = host.read_for_test();
+        let (settled, held_parent_record) = with_engine(read, host, |engine| {
+            let (setup, nodes) = linear_document();
+            *engine = setup;
+            for &node in &nodes {
+                engine.record_input(
+                    InputKey::LocalFeature(node, LocalFeatureKey::TagName),
+                    InputValue::Feature(FeatureValue::Absent),
+                    InputValue::Feature(FeatureValue::Atom(StyleAtomID(100))),
+                );
+            }
+            discard_transaction(engine);
+            let parent = nodes[0];
+            let child = nodes[1];
+            let first = publish_record(engine, parent, false, false);
+            engine.pin_style_record(first);
+            engine.assign_shared_style_record(
+                ComputedStyleTarget::new(child, u8::MAX),
+                first,
+                ENGINE_INHERITED_GROUP_COUNT,
+                true,
+            );
+            let (held, expected_groups) = match change {
+                ParentChange::None => (first, 0),
+                ParentChange::Visibility => (
+                    publish_record(engine, parent, true, false),
+                    1 << group_index::INHERITED_BOX,
+                ),
+                ParentChange::Display => (publish_record(engine, parent, false, true), 1 << group_index::BOX),
+            };
+            engine.set_held_style_record(parent, held);
+            let before = super::super::bridge::style_record_view(engine, first);
+            let after = super::super::bridge::style_record_view(engine, held);
+            assert!(before.present && after.present);
+            // SAFETY: Both records are live in this engine, and no mutation intervenes.
+            assert_eq!(
+                unsafe { style_engine_changed_style_groups(&before, &after, 0, group_index::COUNT) },
+                expected_groups,
+            );
+            discard_transaction(engine);
+
+            let mut delta = FfiStyleDelta::unsettled(child, STYLE_REACTION_PUBLISHED_STYLE);
+            delta.gap = FfiStyleDeltaGap::Computed;
+            delta.damage = FfiStyleDeltaDamage::Full;
+            delta.new_style_record = first;
+            delta.parent_style_record = first;
+            delta.explicitly_inherited_groups = explicitly_inherited_groups;
+            (delta, held)
+        });
+        let node = StyleNodeID::from_raw(settled.style_node).unwrap();
+        if pending != 0 {
+            host.queue_change(ArenaChange::Style(StyleChange::RecordDerivedElementStyleInput {
+                node: Some(node),
+                reaction: pending,
+                inherited_style_groups: 0,
+            }));
+            assert!(has_deferred_element_style_input(host, read, node));
+        }
+        let mut application = TestReactionApplication {
+            node: settled.style_node,
+            held_parent_record,
+            parent_checks: 0,
+            applied: Vec::new(),
+        };
+        let mut counts = FfiStyleReactionCounts::default();
+        apply_style_reactions(
+            Application {
+                host,
+                read,
+                host_application: (&raw mut application).cast(),
+            },
+            &[settled],
+            &mut counts,
+        );
+        let refused_demands = with_engine(read, host, |engine| {
+            assert!(!engine.has_deferred_element_style_input(node));
+            engine.counters().get(Counter::EngineComputedRecordBailUnhosted)
+        });
+        assert_eq!(application.applied.len(), 1);
+        Applied {
+            host: application,
+            counts,
+            settled,
+            refused_demands,
+        }
+    }
+
+    fn assert_demanded(result: &Applied) {
+        // The standalone engine refuses record computation without a font resolver. A real demand must reach that
+        // refusal; the host must receive no installation of the stale record.
+        assert!(
+            result.host.applied[0].1.is_none(),
+            "a stale settled record must not install"
+        );
+        assert_eq!(
+            result.refused_demands, 1,
+            "the reaction must attempt one real record demand"
+        );
+        assert_eq!(result.counts.materialized_gaps, 1);
+        assert_eq!(result.counts.record_deltas_applied, 0);
+        assert_eq!(result.host.parent_checks, 1);
+    }
+
+    fn assert_installed(result: &Applied) {
+        let installation = result.host.applied[0]
+            .1
+            .as_ref()
+            .expect("the settled record must install");
+        assert_eq!(installation.delta, result.settled);
+        assert_eq!(
+            result.refused_demands, 0,
+            "a settled row must not demand another record"
+        );
+        assert_eq!(result.counts.materialized_gaps, 0);
+        assert_eq!(result.counts.record_deltas_applied, 1);
+        assert_eq!(
+            result.host.parent_checks, 1,
+            "the unchanged outcome must still inspect the parent"
+        );
+    }
+
+    #[test]
+    fn inherited_parent_move_rejects_the_settled_record() {
+        assert_demanded(&apply(ParentChange::Visibility, 0, 0));
+    }
+
+    #[test]
+    fn unchanged_parent_installs_without_a_demand() {
+        assert_installed(&apply(ParentChange::None, 0, 0));
+    }
+
+    #[test]
+    fn unread_non_inherited_parent_move_installs_without_a_demand() {
+        assert_installed(&apply(ParentChange::Display, 0, 0));
+    }
+
+    #[test]
+    fn explicitly_inherited_parent_group_move_rejects_the_settled_record() {
+        assert_demanded(&apply(ParentChange::Display, 1 << group_index::BOX, 0));
+    }
+
+    #[test]
+    fn parent_move_preserves_the_pending_descendant_recompute() {
+        let result = apply(ParentChange::Visibility, 0, STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES);
+        assert_eq!(
+            result.host.applied[0].0,
+            STYLE_REACTION_PUBLISHED_STYLE | STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES,
+        );
+        assert_demanded(&result);
     }
 }

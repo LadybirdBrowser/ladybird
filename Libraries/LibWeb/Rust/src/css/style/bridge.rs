@@ -157,6 +157,10 @@ pub struct FfiStyleDelta {
     /// animations over it, and only then asks the engine for the element's pseudo-elements, which
     /// the row leaves out.
     pub composed_by_the_host: bool,
+    /// The record of the parent the element inherits from, as the engine had it assigned when it
+    /// settled the row: what the new record inherits from. Zero for a row the engine left to the
+    /// host, a pseudo-element's row, or an element that inherits from no parent.
+    pub parent_style_record: u64,
 }
 
 impl FfiStyleDelta {
@@ -179,6 +183,7 @@ impl FfiStyleDelta {
             owes_an_animation_plan: false,
             owes_a_transition_step: false,
             composed_by_the_host: false,
+            parent_style_record: 0,
         }
     }
 }

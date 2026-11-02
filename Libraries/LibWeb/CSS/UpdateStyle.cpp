@@ -578,6 +578,13 @@ StyleEngineFFI::FfiReactionElement StyleEngineFFI::web_css_style_inheritance_par
     return describe_reaction_element(*application->document, const_cast<DOM::Element*>(element->element_to_inherit_style_from({}).ptr()));
 }
 
+// The record the element the given one inherits its style from holds now, or zero without one.
+u64 StyleEngineFFI::web_css_style_inheritance_parent_style_record(StyleReactionApplication*, DOM::Element* element)
+{
+    auto parent = element->element_to_inherit_style_from({});
+    return parent ? parent->style_record_identity().value() : 0;
+}
+
 void StyleEngineFFI::web_css_record_derived_element_style_input(StyleReactionApplication* application, u32 style_node, u8 reaction, u8 inherited_style_groups)
 {
     application->document->style_computer().style_engine().record_derived_element_style_input_change(StyleNodeID { style_node }, reaction, inherited_style_groups);

@@ -286,15 +286,17 @@ impl StyleJob {
             )
         };
         engine.defer_atom_sweep(false);
-        // The host reads the record each row replaces as well, as it compares a box's old style with its new one. Only a
-        // live base record comes along: the host asks about a replaced overlay record itself.
+        // The host reads the record each row replaces as well, as it compares a box's old style with its new one, and
+        // the parent's record a row's new record inherits from, which it compares with the one the parent holds as it
+        // applies the row. Only a live base record comes along: the host asks about a replaced overlay record itself.
         let mut records: Vec<u64> = output
             .answers()
             .iter()
             .flat_map(|row| {
-                let old = Some(row.old_style_record)
-                    .filter(|&old| engine.computed_group_sets.final_style_record_is_live(old));
-                [old, Some(row.new_style_record)]
+                let live = |record: u64| engine.computed_group_sets.final_style_record_is_live(record);
+                let old = Some(row.old_style_record).filter(|&old| live(old));
+                let parent = Some(row.parent_style_record).filter(|&parent| live(parent));
+                [old, Some(row.new_style_record), parent]
             })
             .flatten()
             .filter(|&record| record != 0)

@@ -187,6 +187,7 @@ mod tests {
             owes_an_animation_plan: false,
             owes_a_transition_step: false,
             composed_by_the_host: false,
+            parent_style_record: 0,
         }
     }
 

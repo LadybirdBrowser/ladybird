@@ -8275,7 +8275,17 @@ pub(crate) mod ffi_test_stubs {
     use std::cell::Cell;
     use std::ffi::c_void;
 
-    use crate::css::style::reaction_application::{HostElement, HostStyleReactionApplication};
+    use crate::css::style::reaction_application::{
+        FfiReactionElement, FfiRecordEnvironment, FfiRecordInstallation, HostElement, HostElementPtr,
+        HostStyleReactionApplication,
+    };
+
+    pub(crate) struct TestReactionApplication {
+        pub node: u32,
+        pub held_parent_record: u64,
+        pub parent_checks: usize,
+        pub applied: Vec<(u8, Option<FfiRecordInstallation>)>,
+    }
 
     thread_local! {
         static FONT_CASCADE_LIST_UNREFS: Cell<usize> = const { Cell::new(0) };
@@ -8317,10 +8327,31 @@ pub(crate) mod ffi_test_stubs {
     extern "C" fn web_css_custom_property_data_unreference(_data: *const c_void) {}
     #[unsafe(no_mangle)]
     extern "C" fn web_css_style_reaction_element(
-        _application: *mut HostStyleReactionApplication,
-        _node: u32,
-    ) -> crate::css::style::reaction_application::FfiReactionElement {
-        unreachable!("no unit test applies style reactions");
+        application: *mut HostStyleReactionApplication,
+        node: u32,
+    ) -> FfiReactionElement {
+        // SAFETY: The application tests lend a TestReactionApplication for the duration of the batch.
+        let state = unsafe { &*application.cast::<TestReactionApplication>() };
+        assert_eq!(node, state.node);
+        FfiReactionElement {
+            element: HostElementPtr(application.cast()),
+            style_node: node,
+            connected: true,
+            has_style: false,
+            style_record: 0,
+            reads_environment: false,
+            display_none: false,
+        }
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn web_css_style_inheritance_parent_style_record(
+        application: *mut HostStyleReactionApplication,
+        _element: *mut HostElement,
+    ) -> u64 {
+        // SAFETY: The application tests lend a TestReactionApplication for the duration of the batch.
+        let state = unsafe { &mut *application.cast::<TestReactionApplication>() };
+        state.parent_checks += 1;
+        state.held_parent_record
     }
     #[unsafe(no_mangle)]
     extern "C" fn web_css_parent_style_has_animated_values(_element: *mut HostElement) -> bool {
@@ -8331,8 +8362,8 @@ pub(crate) mod ffi_test_stubs {
         _application: *mut HostStyleReactionApplication,
         _element: *mut HostElement,
         _style_record: u64,
-    ) -> crate::css::style::reaction_application::FfiRecordEnvironment {
-        unreachable!("no unit test applies style reactions");
+    ) -> FfiRecordEnvironment {
+        FfiRecordEnvironment::Inherited
     }
     #[unsafe(no_mangle)]
     extern "C" fn web_css_record_derived_element_style_input(
@@ -8402,12 +8433,16 @@ pub(crate) mod ffi_test_stubs {
     }
     #[unsafe(no_mangle)]
     extern "C" fn web_css_apply_style_reaction(
-        _application: *mut HostStyleReactionApplication,
+        application: *mut HostStyleReactionApplication,
         _element: *mut HostElement,
-        _reaction: u8,
-        _installation: *const crate::css::style::reaction_application::FfiRecordInstallation,
+        reaction: u8,
+        installation: *const FfiRecordInstallation,
     ) {
-        unreachable!("no unit test applies style reactions");
+        // SAFETY: The application tests lend the state for the batch; the installation is null or live for this call.
+        let state = unsafe { &mut *application.cast::<TestReactionApplication>() };
+        state
+            .applied
+            .push((reaction, unsafe { installation.as_ref().copied() }));
     }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}

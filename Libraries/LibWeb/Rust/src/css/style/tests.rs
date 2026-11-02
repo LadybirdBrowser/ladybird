@@ -12002,6 +12002,7 @@ fn reaction_batches_close_over_unstyled_ancestors_and_the_gaps_between_reactions
         owes_an_animation_plan: false,
         owes_a_transition_step: false,
         composed_by_the_host: false,
+        parent_style_record: 0,
     };
     let closure =
         |engine: &StyleEngine, reactions: &[PublishedStyleDeltaRecord], beside: Option<&HashSet<StyleNodeID>>| {
