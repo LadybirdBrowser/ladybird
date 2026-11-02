@@ -14,7 +14,7 @@ use crate::layout::cell::Gc;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{get_prototype_from_constructor, length_of_array_like};
-use crate::runtime::completion::{Must, ThrowCompletionOr};
+use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::FunctionObject;
@@ -184,10 +184,9 @@ impl StringConstructor {
                 return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidCodePoint, &[&next_code_point]);
             }
 
-            let code_point = next_code_point.to_i32(vm).must();
-
             // c. If ℝ(nextCP) < 0 or ℝ(nextCP) > 0x10FFFF, throw a RangeError exception.
-            if !(0..=0x10FFFF).contains(&code_point) {
+            let code_point = next_code_point.as_f64();
+            if !(0.0..=f64::from(0x10FFFF)).contains(&code_point) {
                 return vm.throw_completion(ErrorKind::RangeError, ErrorType::InvalidCodePoint, &[&next_code_point]);
             }
 

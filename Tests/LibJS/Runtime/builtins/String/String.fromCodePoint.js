@@ -25,4 +25,8 @@ test("errors", () => {
     expect(() => {
         String.fromCodePoint(0x123ffff);
     }).toThrowWithMessage(RangeError, "must be an integer no less than 0 and no greater than 0x10FFFF");
+
+    expect(() => {
+        String.fromCodePoint(2 ** 32 + 65);
+    }).toThrowWithMessage(RangeError, "must be an integer no less than 0 and no greater than 0x10FFFF");
 });
