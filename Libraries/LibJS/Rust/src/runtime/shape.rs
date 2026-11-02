@@ -699,6 +699,17 @@ impl Shape {
         attributes: PropertyAttributes,
     ) -> Gc<Shape> {
         self.mark_unstable(vm);
+        // OPTIMIZATION: Most shapes have one transition, which most additions of a property take, and which needs no
+        // key to look at.
+        if !self.is_prototype_shape()
+            && let ShapeStorageState::PutTransition(Some(target)) = self.storage.state()
+            && target
+                .descriptors()
+                .expect("the target of a transition has descriptors")
+                .has_property_at_enum_index(self.property_count(), property_key, attributes)
+        {
+            return target;
+        }
         let key = TransitionKey {
             property_key: property_key.clone(),
             attributes,
