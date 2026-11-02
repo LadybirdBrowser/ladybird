@@ -7,33 +7,35 @@
 //! Shared hash index and dense payload storage for style-engine interners.
 
 use hashbrown::HashTable;
-use std::hash::Hash;
-use std::hash::Hasher;
 use std::ops::Index;
 use std::ops::IndexMut;
 
-use super::fast_hash::fast_hasher;
-
-pub(super) fn content_hash(content: impl Hash) -> u64 {
-    let mut hasher = fast_hasher();
-    content.hash(&mut hasher);
-    hasher.finish()
-}
-
 pub(super) trait InternIdentity: Copy {
     fn index(self) -> usize;
+    fn from_index(index: usize) -> Self;
 }
 
+/// An entry's identity and 32 bits of its hash, which with a 32-bit identity fit in 8 bytes.
 #[derive(Clone, Copy)]
 struct HashedIdentity<Identity> {
-    hash: u64,
+    hash: u32,
     identity: Identity,
+}
+
+/// The 32 bits of `hash` an entry keeps.
+fn short_hash(hash: u64) -> u32 {
+    (hash ^ (hash >> 32)) as u32
+}
+
+/// The hash the table places an entry by, spread from the 32 bits it keeps over all 64, as the
+/// table reads its top bits.
+fn table_hash(short_hash: u32) -> u64 {
+    u64::from(short_hash).wrapping_mul(0x9e37_79b9_7f4a_7c15)
 }
 
 pub(super) struct InternTable<Identity, Payload> {
     entries: Vec<Payload>,
     identities: HashTable<HashedIdentity<Identity>>,
-    free_identities: Vec<Identity>,
 }
 
 impl<Identity, Payload> Default for InternTable<Identity, Payload> {
@@ -41,15 +43,31 @@ impl<Identity, Payload> Default for InternTable<Identity, Payload> {
         Self {
             entries: Vec::new(),
             identities: HashTable::new(),
-            free_identities: Vec::new(),
         }
     }
 }
 
 impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
+    /// The bytes of the payload column and the hash index, with what `payload_heap` says each
+    /// payload holds.
+    pub(super) fn heap_size(
+        &self,
+        sizer: &mut crate::heap_size::HeapSizer,
+        mut payload_heap: impl FnMut(&Payload, &mut crate::heap_size::HeapSizer) -> usize,
+    ) -> usize {
+        crate::heap_size::vec_bytes(&self.entries)
+            + self.identities.allocation_size()
+            + self
+                .entries
+                .iter()
+                .map(|payload| payload_heap(payload, sizer))
+                .sum::<usize>()
+    }
+
     pub(super) fn find(&self, hash: u64, mut matches: impl FnMut(Identity, &Payload) -> bool) -> Option<Identity> {
+        let hash = short_hash(hash);
         self.identities
-            .find(hash, |candidate| {
+            .find(table_hash(hash), |candidate| {
                 candidate.hash == hash && matches(candidate.identity, &self.entries[candidate.identity.index()])
             })
             .map(|candidate| candidate.identity)
@@ -61,8 +79,14 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
         } else {
             self.entries[identity.index()] = payload;
         }
-        self.identities
-            .insert_unique(hash, HashedIdentity { hash, identity }, |candidate| candidate.hash);
+        self.identities.insert_unique(
+            table_hash(short_hash(hash)),
+            HashedIdentity {
+                hash: short_hash(hash),
+                identity,
+            },
+            |candidate| table_hash(candidate.hash),
+        );
     }
 
     pub(super) fn get(&self, identity: Identity) -> &Payload {
@@ -73,92 +97,48 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
         &mut self.entries[identity.index()]
     }
 
-    pub(super) fn get_index(&self, index: usize) -> Option<&Payload> {
-        self.entries.get(index)
-    }
-
     pub(super) fn len(&self) -> usize {
         self.entries.len()
     }
 
-    pub(super) fn is_empty(&self) -> bool {
-        self.entries.is_empty()
-    }
-
-    pub(super) fn iter(&self) -> impl Iterator<Item = &Payload> {
-        self.entries.iter()
-    }
-
-    pub(super) fn iter_mut(&mut self) -> impl Iterator<Item = &mut Payload> {
-        self.entries.iter_mut()
-    }
-
-    pub(super) fn live_identities(&self) -> impl ExactSizeIterator<Item = Identity> + '_ {
-        self.identities.iter().map(|candidate| candidate.identity)
-    }
-
-    pub(super) fn take_free_identity(&mut self) -> Option<Identity> {
-        self.free_identities.pop()
-    }
-
-    pub(super) fn shrink_excess_capacity(&mut self) {
-        // Retain growth headroom so a batch of removals does not force the next
-        // insertion to allocate and copy the table again.
-        self.entries.shrink_to(self.entries.len().saturating_mul(2));
-        self.identities
-            .shrink_to(self.identities.len().saturating_mul(2), |candidate| candidate.hash);
-    }
-
-    #[cfg(test)]
-    pub(super) fn live_len(&self) -> usize {
-        self.identities.len()
-    }
-
-    #[cfg(test)]
-    pub(super) fn live_is_empty(&self) -> bool {
-        self.identities.is_empty()
-    }
-}
-
-impl<Identity: InternIdentity> InternTable<Identity, ()> {
-    pub(super) fn insert_identity(&mut self, hash: u64, identity: Identity) {
-        if identity.index() >= self.entries.len() {
-            self.entries.resize(identity.index() + 1, ());
+    /// Keep only the payloads `keep` says to, packing the ones kept in their order: each keeps
+    /// its hash, and the identity of its new index.
+    pub(super) fn retain(&mut self, mut keep: impl FnMut(&Payload) -> bool) {
+        let mut new_index = Vec::with_capacity(self.entries.len());
+        let mut kept = 0_usize;
+        let entries = std::mem::take(&mut self.entries);
+        for payload in entries {
+            if keep(&payload) {
+                new_index.push(Some(kept));
+                self.entries.push(payload);
+                kept += 1;
+            } else {
+                new_index.push(None);
+            }
         }
+        self.entries.shrink_to_fit();
         self.identities
-            .insert_unique(hash, HashedIdentity { hash, identity }, |candidate| candidate.hash);
-    }
-}
-
-impl<Identity: InternIdentity + PartialEq, Payload> InternTable<Identity, Payload> {
-    pub(super) fn remove_identity(&mut self, hash: u64, identity: Identity) {
-        let Ok(entry) = self.identities.find_entry(hash, |candidate| {
-            candidate.hash == hash && candidate.identity == identity
-        }) else {
-            panic!("interned identity must have an index entry");
-        };
-        entry.remove();
-    }
-
-    pub(super) fn retire_identity(&mut self, hash: u64, identity: Identity) {
-        self.remove_identity(hash, identity);
-        self.free_identities.push(identity);
+            .retain(|candidate| match new_index[candidate.identity.index()] {
+                Some(index) => {
+                    candidate.identity = Identity::from_index(index);
+                    true
+                }
+                None => false,
+            });
+        self.identities.shrink_to_fit(|candidate| table_hash(candidate.hash));
     }
 }
 
 impl<Identity: InternIdentity, Payload: Clone> Clone for InternTable<Identity, Payload> {
     fn clone(&self) -> Self {
         let entries = self.entries.clone();
-        let free_identities = self.free_identities.clone();
         let mut identities = HashTable::with_capacity(self.identities.len());
         for candidate in &self.identities {
-            identities.insert_unique(candidate.hash, *candidate, |candidate| candidate.hash);
+            identities.insert_unique(table_hash(candidate.hash), *candidate, |candidate| {
+                table_hash(candidate.hash)
+            });
         }
-        Self {
-            entries,
-            identities,
-            free_identities,
-        }
+        Self { entries, identities }
     }
 }
 
@@ -210,6 +190,10 @@ mod tests {
         fn index(self) -> usize {
             self.0 as usize
         }
+
+        fn from_index(index: usize) -> Self {
+            Self(u32::try_from(index).unwrap())
+        }
     }
 
     #[test]
@@ -226,19 +210,17 @@ mod tests {
     }
 
     #[test]
-    fn retired_identities_can_replace_their_dense_payload() {
+    fn retained_payloads_are_found_under_their_new_identities() {
         let mut table = InternTable::default();
-        let identity = TestIdentity(0);
-        table.insert(7, identity, "first");
+        table.insert(1, TestIdentity(0), "dropped");
+        table.insert(2, TestIdentity(1), "kept");
+        table.retain(|payload| *payload == "kept");
 
-        table.retire_identity(7, identity);
-        assert_eq!(table.find(7, |_identity, _payload| true), None);
-        let recycled = table.take_free_identity().unwrap();
-        assert_eq!(recycled, identity);
-
-        table.insert(9, recycled, "second");
         assert_eq!(table.len(), 1);
-        assert_eq!(table.find(9, |_identity, payload| *payload == "second"), Some(identity));
-        assert_eq!(table.live_identities().collect::<Vec<_>>(), vec![identity]);
+        assert_eq!(
+            table.find(2, |_identity, payload| *payload == "kept"),
+            Some(TestIdentity(0))
+        );
+        assert_eq!(table.find(1, |_identity, _payload| true), None);
     }
 }

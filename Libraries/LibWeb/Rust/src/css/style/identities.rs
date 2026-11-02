@@ -13,7 +13,6 @@
 //! reused in is the one the engine kept when it owned the space.
 
 use super::tree::StyleNodeID;
-use crate::css::ffi_support::OwnedBox;
 
 /// The identities of one document's style nodes, in two spaces: elements (with shadow roots and the document), and
 /// text nodes.
@@ -68,6 +67,13 @@ impl StyleNodeIdAllocator {
         StyleNodeID::text(self.texts.mint())
     }
 
+    /// Mints an identity into each slot of `out`: text identities where `text`, otherwise element ones.
+    pub fn mint(&mut self, text: bool, out: &mut [u32]) {
+        for slot in out {
+            *slot = if text { self.mint_text() } else { self.mint_element() }.raw();
+        }
+    }
+
     /// Takes back the identities a transaction's finish released, in the order it released them.
     pub fn release(&mut self, released: &[u32]) {
         for node in released.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
@@ -76,34 +82,6 @@ impl StyleNodeIdAllocator {
                 None => self.elements.released.push(node.raw()),
             }
         }
-    }
-}
-
-/// Creates the identity space of a new document.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_node_id_allocator_create() -> *mut StyleNodeIdAllocator {
-    Box::into_raw(Box::default())
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn style_node_id_allocator_destroy(allocator: OwnedBox<StyleNodeIdAllocator>) {
-    drop(allocator);
-}
-
-/// Mints an identity into each slot of `out`: text identities where `text`, otherwise element ones.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_node_id_allocator_mint(
-    allocator: &mut StyleNodeIdAllocator,
-    text: bool,
-    out: ak::SpanMut<'_, u32>,
-) {
-    for slot in out.into_slice() {
-        *slot = if text {
-            allocator.mint_text()
-        } else {
-            allocator.mint_element()
-        }
-        .raw();
     }
 }
 

@@ -86,15 +86,15 @@ WEB_API void record_waiting_element_classes_changed(DOM::Element&);
 // Called whenever a text node's data is replaced. The mirror carries the characters, which the layout tree build
 // renders, and whether they are nothing but ASCII whitespace.
 WEB_API void record_text_data_changed(DOM::Text&);
-WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&);
-WEB_API void publish_required_attribute_value_texts(StyleEngine&, StyleComputer&);
+WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&, Layout::BegunRead const&);
+WEB_API void publish_withheld_element_features(StyleEngine&, StyleComputer&, Layout::BegunRead const&);
 
 // Called while the subtree is still linked, so its old relations are still readable.
 WEB_API void record_subtree_disconnecting(DOM::Node&);
 
 // Report that an element moved without leaving the tree. `moveBefore()` keeps the element's state
 // and its identity, so nothing disconnects and nothing connects, and only its relations move.
-WEB_API void record_element_moved(DOM::Element&, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling);
+WEB_API void record_element_moved(DOM::Element&, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling, DOM::Element* old_assigned_slot);
 
 // Report that an element or text node moved without leaving the tree, which moves its place in the
 // DOM child sequence even where its element relations stay the same.
@@ -150,15 +150,11 @@ WEB_API void record_element_replaced_content_input(DOM::Element&);
 WEB_API bool record_element_presentational_hint_properties(DOM::Element&, ReadonlySpan<StyleProperty>);
 // Publish the element's hints again, after something they are mapped from beside its own attributes moved.
 WEB_API void republish_presentational_hints(DOM::Element&);
-WEB_API void record_element_animation_names(DOM::Element&, ReadonlySpan<Utf16FlyString>);
 WEB_API void record_element_css_defined_animations(DOM::Element&, u8 slot, ReadonlySpan<Utf16FlyString> names, ReadonlySpan<StyleEngineFFI::FfiAppliedAnimationDefinition> definitions);
+// Called where an effect takes keyframes or a target: ahead of the read that samples it, as an attr() in the keyframes
+// needs the attributes it names handed over before then.
+WEB_API void record_attr_names_read_by_keyframes(DOM::Element&, Animations::KeyframeEffect const&);
 WEB_API void record_element_animation_effect_descriptions(DOM::Element&, u8 slot, ReadonlySpan<GC::Ref<Animations::KeyframeEffect>>);
-
-// The same index, from the environments the element and its pseudo-elements resolved to, plus
-// names read outside substitution (for example by style queries). The names each environment
-// declares are interned into engine identities once for that environment. The references must hold
-// no duplicates.
-WEB_API void record_element_custom_property_names(DOM::Element&, CustomPropertyData const*, ReadonlySpan<RefPtr<CustomPropertyData const>> pseudo_element_data, ReadonlySpan<Utf16FlyString> references, bool uses_unnamed, bool uses_custom_functions);
 
 // Report that a child of an element arrived, left, or changed in a way that can move whether the
 // element is empty. `counted_before` and `counts_after` say whether that child is one `:empty` counts:
@@ -175,6 +171,11 @@ WEB_API void record_element_state_changed(DOM::Element&, PseudoClass, bool new_v
 // Called before each style flush. The user-agent and user origins have no sheet list to announce
 // themselves from, so the engine is told about them from here.
 WEB_API void record_non_author_stylesheets(DOM::Document&);
+WEB_API bool non_author_stylesheets_are_recorded(DOM::Document const&);
+
+// Called once a document knows its mode, ahead of its first style flush: records its user-agent and user sheets, and
+// has the render owner take their rules in beside the caller.
+WEB_API void prepare_non_author_stylesheets(DOM::Document&);
 
 // Called once a sheet has taken its place in the sheet list, so its successor is known.
 WEB_API void record_stylesheet_attached(StyleSheetState&, DOM::Node& document_or_shadow_root, StyleSheetState* before);
@@ -202,10 +203,11 @@ WEB_API bool stop_sharing_compiled_style_sheet(StyleSheetState&);
 
 // Called once a sheet's media queries have been evaluated.
 WEB_API void record_stylesheet_conditions(StyleSheetState&, DOM::Node& document_or_shadow_root, bool conditions_hold);
+void publish_user_agent_sheet(StyleSheetState const&, DOM::Document const&);
 WEB_API void record_stylesheet_rule_conditions(StyleSheetState&);
 WEB_API void record_stylesheet_rule_conditions(StyleSheetState&, DOM::Document&);
 
-WEB_API void record_element_id_changed(DOM::Element&, Optional<Utf16FlyString> const& old_value, Optional<Utf16FlyString> const& new_value);
+WEB_API void record_element_id_changed(DOM::Element&, Optional<Utf16FlyString> const& new_value);
 WEB_API void record_element_class_list_changed(DOM::Element&, ReadonlySpan<Utf16FlyString> old_classes, ReadonlySpan<Utf16FlyString> new_classes);
 WEB_API void record_element_attribute_changed(DOM::Element&, Utf16FlyString const& name, Optional<Utf16FlyString> const& namespace_uri, Optional<Utf16String> const& old_value, Optional<Utf16String> const& new_value);
 
