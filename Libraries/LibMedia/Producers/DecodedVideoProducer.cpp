@@ -111,7 +111,6 @@ void DecodedVideoProducer::ThreadData::consume()
     if (m_queue.is_empty())
         return;
     frame = m_queue.dequeue().frame;
-    m_earliest_available_timestamp = max(m_earliest_available_timestamp, frame->timestamp() + frame->duration());
     wake();
 }
 
@@ -438,7 +437,6 @@ bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
 
     m_queue.clear();
     m_last_queued_frame = nullptr;
-    m_latest_available_timestamp = m_earliest_available_timestamp;
     m_decoder.clear();
     m_auto_suspend_requested = false;
     m_current_halting_status = PipelineStatus::Suspended;
@@ -462,7 +460,6 @@ void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> con
 {
     m_queue.enqueue({ frame });
     m_last_queued_frame = frame;
-    m_latest_available_timestamp = max(m_latest_available_timestamp, frame->end());
     dispatch_wake_if_needed_while_locked();
 }
 
@@ -474,8 +471,12 @@ void DecodedVideoProducer::ThreadData::dispatch_error(DecoderError&& error)
 
 bool DecodedVideoProducer::ThreadData::is_within_available_range_while_locked(AK::Duration timestamp) const
 {
-    return timestamp >= m_earliest_available_timestamp
-        && (timestamp < m_latest_available_timestamp || m_current_halting_status == PipelineStatus::EndOfStream);
+    auto is_at_end_of_stream = m_current_halting_status == PipelineStatus::EndOfStream;
+    if (m_queue.is_empty())
+        return is_at_end_of_stream && m_last_queued_frame != nullptr && timestamp >= m_last_queued_frame->timestamp();
+    if (timestamp < m_queue.head().frame->timestamp())
+        return false;
+    return is_at_end_of_stream || timestamp < m_queue.tail().frame->end();
 }
 
 void DecodedVideoProducer::ThreadData::re_emit_last_frame_if_at_end_of_stream_while_locked()
@@ -576,7 +577,6 @@ void DecodedVideoProducer::ThreadData::handle_seek()
             }
 
             if (seek_reason == SeekReason::DecoderResetNeeded && !seek_was_externally_requested && !has_clamped_target) {
-                timestamp = m_latest_available_timestamp;
                 if (m_last_queued_frame != nullptr)
                     timestamp = m_last_queued_frame->end();
             } else {
@@ -586,8 +586,6 @@ void DecodedVideoProducer::ThreadData::handle_seek()
 
                 m_queue.clear();
                 m_last_queued_frame = nullptr;
-                m_earliest_available_timestamp = timestamp;
-                m_latest_available_timestamp = timestamp;
             }
 
             m_current_halting_status = PipelineStatus::Pending;
