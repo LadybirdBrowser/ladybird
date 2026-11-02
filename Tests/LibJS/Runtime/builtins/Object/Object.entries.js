@@ -77,6 +77,32 @@ describe("basic functionality", () => {
 
         expect(Object.entries(obj)).toEqual([["a", 1]]);
     });
+
+    test("indexed property changed by a getter", () => {
+        const deleted = {};
+        Object.defineProperty(deleted, 0, {
+            get() {
+                delete deleted[1];
+                return "a";
+            },
+            enumerable: true,
+            configurable: true,
+        });
+        deleted[1] = "b";
+        expect(Object.entries(deleted)).toEqual([["0", "a"]]);
+
+        const hidden = {};
+        Object.defineProperty(hidden, 0, {
+            get() {
+                Object.defineProperty(hidden, 1, { enumerable: false });
+                return "a";
+            },
+            enumerable: true,
+            configurable: true,
+        });
+        hidden[1] = "b";
+        expect(Object.entries(hidden)).toEqual([["0", "a"]]);
+    });
 });
 
 describe("errors", () => {
