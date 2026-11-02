@@ -956,19 +956,26 @@ pub fn new_function(
         FunctionKind::AsyncGenerator => realm.async_generator_function_prototype(),
     };
 
-    let function = EcmascriptFunctionObject::create_from_function_data_with_prototype(
-        vm,
-        realm,
-        shared_data,
-        vm.lexical_environment(),
-        running_execution_context(vm).private_environment.get(),
-        prototype,
-    );
-
-    if instruction.home_object.get().is_some() {
-        let home_object_value = values.home_object;
-        function.make_method(home_object_value.as_object());
-    }
+    let function = if instruction.home_object.get().is_some() {
+        EcmascriptFunctionObject::create_method(
+            vm,
+            realm,
+            shared_data,
+            vm.lexical_environment(),
+            running_execution_context(vm).private_environment.get(),
+            values.home_object.as_object(),
+            prototype,
+        )
+    } else {
+        EcmascriptFunctionObject::create_from_function_data_with_prototype(
+            vm,
+            realm,
+            shared_data,
+            vm.lexical_environment(),
+            running_execution_context(vm).private_environment.get(),
+            prototype,
+        )
+    };
 
     values.dst = Value::from_object(function);
     SlowPathControl::continue_at(pc + op::NewFunction::LENGTH)

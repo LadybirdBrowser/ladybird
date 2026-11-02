@@ -1231,8 +1231,7 @@ fn fake_object_layout() -> RuntimeLayout {
         utf16_string_data_has_utf16_storage: 1,
         utf16_string_data_storage: 24,
         single_ascii_character_strings: 0,
-        function_object_builtin: 24,
-        function_object_has_builtin: 25,
+        function_object_builtin: 15,
         builtin_string_prototype_char_code_at: 7,
         builtin_string_prototype_char_at: 8,
         builtin_math_abs: 9,
@@ -3490,12 +3489,11 @@ fn saw_builtin(snapshot: &mut Snapshot, builtin: u8) {
     }];
 }
 
-/// Fake function memory: its flags at byte 8, and the builtin it is (if
-/// any) at bytes 24 and 25, see `function_object_builtin` in the test
-/// layout.
+/// Fake function memory: its flags at byte 8, and the builtin it is plus one
+/// (if any) at byte 15, see `function_object_builtin` in the test layout.
 fn fake_function(builtin: Option<u8>) -> u64 {
-    let builtin = builtin.map_or(0, |builtin| u64::from(builtin) | 1 << 8);
-    let memory: &'static mut [u64; 4] = Box::leak(Box::new([0, u64::from(FUNCTION_FLAG), 0, builtin]));
+    let builtin = builtin.map_or(0, |builtin| u64::from(builtin) + 1);
+    let memory: &'static mut [u64; 2] = Box::leak(Box::new([0, u64::from(FUNCTION_FLAG) | builtin << 56]));
     u64::from(value::OBJECT_TAG) << 48 | memory.as_ptr() as u64
 }
 

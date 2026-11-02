@@ -145,6 +145,7 @@ pub fn construct_class(
 
     // FIXME: Step 14.a is done in the parser. By using a synthetic super(...args) which does not call @@iterator of %Array.prototype%
     let constructor_shared_data = executable.shared_function_data(blueprint.constructor_shared_function_data_index);
+    constructor_shared_data.set_is_class_constructor();
     let class_constructor = EcmascriptFunctionObject::create_from_function_data(
         vm,
         realm,
@@ -154,8 +155,7 @@ pub fn construct_class(
     );
 
     class_constructor.set_name(vm, class_name);
-    class_constructor.set_home_object(Some(prototype));
-    class_constructor.set_is_class_constructor();
+    class_constructor.set_home_object_of_class_constructor(prototype);
     class_constructor.define_direct_property(
         vm,
         &vm.names.prototype,
@@ -196,16 +196,17 @@ pub fn construct_class(
                         .shared_function_data_index
                         .expect("a method has shared function data"),
                 );
-                let method_function = EcmascriptFunctionObject::create_from_function_data(
+                let method_function = EcmascriptFunctionObject::create_method(
                     vm,
                     realm,
                     shared_data,
                     vm.lexical_environment(),
                     running_execution_context(vm).private_environment.get(),
+                    home_object,
+                    realm.function_prototype(),
                 );
 
                 let method_value = Value::from_object(method_function);
-                method_function.make_method(home_object);
 
                 match &element_name {
                     ClassElementName::PropertyKey(property_key) => match descriptor.kind {
@@ -342,14 +343,15 @@ pub fn construct_class(
                             });
                         }
 
-                        let function = EcmascriptFunctionObject::create_from_function_data(
+                        let function = EcmascriptFunctionObject::create_method(
                             vm,
                             realm,
                             shared_data,
                             vm.lexical_environment(),
                             running_execution_context(vm).private_environment.get(),
+                            home_object,
+                            realm.function_prototype(),
                         );
-                        function.make_method(home_object);
                         initializer = ClassFieldInitializer::Function(function);
                     }
                 }
@@ -372,14 +374,15 @@ pub fn construct_class(
                         .shared_function_data_index
                         .expect("a static initializer has shared function data"),
                 );
-                let body_function = EcmascriptFunctionObject::create_from_function_data(
+                let body_function = EcmascriptFunctionObject::create_method(
                     vm,
                     realm,
                     shared_data,
                     vm.lexical_environment(),
                     running_execution_context(vm).private_environment.get(),
+                    home_object,
+                    realm.function_prototype(),
                 );
-                body_function.make_method(home_object);
                 static_elements.push(StaticElement::Block(body_function));
             }
         }

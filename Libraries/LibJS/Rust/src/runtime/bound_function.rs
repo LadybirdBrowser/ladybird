@@ -14,6 +14,7 @@ use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
+use crate::layout::function_object::FUNCTION_LENGTH_AND_NAME_SLOTS;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::ThrowCompletionOr;
@@ -25,6 +26,9 @@ use crate::runtime::realm::Realm;
 #[derive(Trace)]
 pub struct BoundFunction {
     base: FunctionObject,
+    /// OPTIMIZATION: The named properties of bound functions are "length" and "name".
+    #[gc(untraced = "the object traces its inline named storage")]
+    inline_named_storage: [Cell<Value>; FUNCTION_LENGTH_AND_NAME_SLOTS],
     bound_target_function: Cell<Gc<FunctionObject>>, // [[BoundTargetFunction]]
     bound_this: Cell<Value>,                         // [[BoundThis]]
     bound_arguments: OnceCell<Box<[Value]>>,         // [[BoundArguments]]
@@ -120,8 +124,10 @@ impl BoundFunction {
         // 7. Set obj.[[BoundTargetFunction]] to targetFunction.
         // 8. Set obj.[[BoundThis]] to boundThis.
         // 9. Set obj.[[BoundArguments]] to boundArgs.
+        base.inline_named_capacity.set(FUNCTION_LENGTH_AND_NAME_SLOTS as u8);
         let object = allocate_object(vm, |_| BoundFunction {
             base,
+            inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; FUNCTION_LENGTH_AND_NAME_SLOTS],
             bound_target_function: Cell::new(target_function),
             bound_this: Cell::new(bound_this),
             bound_arguments: OnceCell::new(),

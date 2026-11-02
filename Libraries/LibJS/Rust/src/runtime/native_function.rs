@@ -17,6 +17,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
+use crate::layout::function_object::FUNCTION_LENGTH_AND_NAME_SLOTS;
 pub use crate::layout::function_object::{
     DirectGetterFunction, NativeFunction, NativeFunctionTableEntry, NativeFunctionType, RawNativeFunction,
 };
@@ -132,8 +133,10 @@ impl NativeFunction {
     }
 
     fn from_function_object(base: FunctionObject, name: Option<Utf16FlyString>, realm: Gc<Realm>) -> NativeFunction {
+        base.inline_named_capacity.set(FUNCTION_LENGTH_AND_NAME_SLOTS as u8);
         NativeFunction {
             base,
+            inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; FUNCTION_LENGTH_AND_NAME_SLOTS],
             name: FlyStringSlot::new(name),
             initial_name: FlyStringSlot::new(None),
             realm: Member::new(realm),

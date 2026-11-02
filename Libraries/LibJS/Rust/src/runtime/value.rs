@@ -1766,7 +1766,7 @@ pub fn r#in(vm: &Vm, lhs: Value, rhs: Value) -> ThrowCompletionOr<Value> {
 /// Whether a function is the native function the realm installs as %Function.prototype%[@@hasInstance]. Only
 /// NativeFunction gives a function a builtin, so the builtin alone identifies it.
 fn is_ordinary_has_instance_builtin(function: Gc<FunctionObject>) -> bool {
-    function.has_builtin.get() && Builtin::from_u8(function.builtin.get()) == Some(Builtin::OrdinaryHasInstance)
+    function.builtin() == Some(Builtin::OrdinaryHasInstance)
 }
 
 /// BoundFunction::bound_target_function() of a function that is a bound function exotic object.

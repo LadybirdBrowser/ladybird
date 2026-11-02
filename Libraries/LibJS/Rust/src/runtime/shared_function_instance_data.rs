@@ -26,6 +26,7 @@ use crate::gc::visitor::{Trace, Visitor};
 use crate::interpreter::run::should_dump_bytecode;
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::{CellHeader, Gc};
+use crate::layout::execution_context::ScriptOrModule;
 use crate::layout::function_object::CallEnvironmentTemplate;
 pub use crate::layout::function_object::{SharedFunctionInstanceData, asm_call_metadata};
 use crate::layout::member::NullableMember;
@@ -143,7 +144,7 @@ pub struct SharedFunctionInstanceDataStorage {
 }
 
 // NB: Every function has these bytes.
-const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 264);
+const _: () = assert!(size_of::<SharedFunctionInstanceData>() == 280);
 
 /// The most properties that constructions make room for ahead (the largest inline capacity of plain objects).
 const MAX_CONSTRUCT_RESERVE: u32 = 16;
@@ -158,6 +159,11 @@ unsafe impl Trace for SharedFunctionInstanceData {
     fn trace(&self, visitor: &mut Visitor) {
         self.executable.trace(visitor);
         self.call_environment_template.trace(visitor);
+        match self.script_or_module.get() {
+            ScriptOrModule::Empty => {}
+            ScriptOrModule::Script(script) => script.trace(visitor),
+            ScriptOrModule::Module(module) => module.trace(visitor),
+        }
         self.storage.trace(visitor);
     }
 }
@@ -231,6 +237,7 @@ impl SharedFunctionInstanceData {
             uses_this: Cell::new(false),
             can_inline_call: Cell::new(false),
             call_environment_template: NullableMember::null(),
+            script_or_module: Cell::new(ScriptOrModule::Empty),
             storage: SharedFunctionInstanceDataStorage {
                 name,
                 source_code: RefCell::new(None),

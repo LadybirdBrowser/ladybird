@@ -619,7 +619,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let stored = [
             (objects.named_properties_offset, 8),
             (offsets.ecmascript_function_environment, 4),
-            (offsets.ecmascript_function_private_environment, 4),
         ];
         let template_bytes = 8 * closure.words.len() as u64;
         let fits = info.allocator != 0
@@ -637,6 +636,9 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let (function, temp) = (self.allocation_temp(node, 0), self.allocation_temp(node, 1));
         let at = |base: Gpr, offset: u32| Address::new(base, offset as i32);
 
+        // NB: Functions with a private environment have rare data, unlike the template.
+        self.masm
+            .branch_test64(Condition::NonZero, private_environment, u64::MAX, entry);
         self.emit_check_heap_threshold(info.cell_size, function, temp, entry);
         self.emit_pop_free_list(info.allocator, function, temp, entry);
         self.emit_count_allocation(info.cell_size, info.cell_size, temp, false);
@@ -649,11 +651,6 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.emit_store_compressed_cell(
             &at(function, offsets.ecmascript_function_environment),
             environment,
-            temp,
-        );
-        self.emit_store_compressed_cell(
-            &at(function, offsets.ecmascript_function_private_environment),
-            private_environment,
             temp,
         );
         self.box_cell_with_tag(output, function, value::OBJECT_TAG);

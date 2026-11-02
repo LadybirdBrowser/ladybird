@@ -13,6 +13,7 @@ use super::execution_context::ScriptOrModule;
 use super::member::{Member, NullableMember};
 use super::object::Object;
 use super::realm::Realm;
+use super::value::Value;
 use crate::layout_forward::{
     EcmascriptFunctionObjectStorage, FlyStringSlot, RawNativeFunctionPointer, SharedFunctionInstanceDataStorage,
 };
@@ -20,22 +21,18 @@ use crate::layout_forward::{
 #[repr(C)]
 pub struct FunctionObject {
     pub base: Object,
-    /// The interpreter reads the builtin and whether there is one as two separate bytes, like Optional<Builtin>.
-    pub builtin: Cell<u8>,
-    pub has_builtin: Cell<bool>,
-    /// Flags of the classes extending FunctionObject, in what would otherwise be padding (see
-    /// ecmascript_function_flags).
-    pub flags: Cell<u8>,
-    /// The shared data of an ECMAScript function object, in what would otherwise be padding (null for other
-    /// functions). See EcmascriptFunctionObject::shared_data().
-    pub ecmascript_shared_data: NullableMember<SharedFunctionInstanceData>,
 }
 
-const _: () = assert!(size_of::<FunctionObject>() == 56);
+const _: () = assert!(size_of::<FunctionObject>() == size_of::<Object>());
+
+/// The property values of a function that are its "length" and "name".
+pub const FUNCTION_LENGTH_AND_NAME_SLOTS: usize = 2;
 
 #[repr(C)]
 pub struct NativeFunction {
     pub base: FunctionObject,
+    /// OPTIMIZATION: The named properties of most native functions are "length" and "name".
+    pub inline_named_storage: [Cell<Value>; FUNCTION_LENGTH_AND_NAME_SLOTS],
     /// The name call stacks show, which only some native functions have.
     pub name: FlyStringSlot,
     pub initial_name: FlyStringSlot,
@@ -45,14 +42,15 @@ pub struct NativeFunction {
     pub raw_native_function_index: Cell<u32>,
 }
 
-const _: () = assert!(size_of::<NativeFunction>() == 80);
+const _: () = assert!(size_of::<NativeFunction>() == 72);
+const _: () = assert!(core::mem::offset_of!(NativeFunction, inline_named_storage) == size_of::<Object>());
 
 #[repr(C)]
 pub struct RawNativeFunction {
     pub base: NativeFunction,
 }
 
-const _: () = assert!(size_of::<RawNativeFunction>() == 80);
+const _: () = assert!(size_of::<RawNativeFunction>() == 72);
 
 /// A raw native getter that reads a wrapped value straight out of a platform object, at offsets the embedder provides:
 /// word offsets of pointer-sized fields, and the byte offset of the implementation value, which is a compressed cell
@@ -87,17 +85,34 @@ pub struct NativeFunctionTableEntry {
 #[repr(C)]
 pub struct EcmascriptFunctionObject {
     pub base: FunctionObject,
+    pub shared_data: NullableMember<SharedFunctionInstanceData>,
     pub environment: NullableMember<Environment>,
+}
+
+/// An ECMAScript function object that needs more than most: a method or a class constructor, or a function of code
+/// with private names (see ecmascript_function_flags::HAS_RARE_DATA).
+#[repr(C)]
+pub struct EcmascriptFunctionObjectWithRareData {
+    pub base: EcmascriptFunctionObject,
     pub private_environment: NullableMember<PrivateEnvironment>,
-    pub name: FlyStringSlot,
-    pub script_or_module: Cell<ScriptOrModule>,
+    pub home_object: NullableMember<Object>,
     pub storage: EcmascriptFunctionObjectStorage,
 }
 
 /// The bits of FunctionObject::flags of an ECMAScript function object.
 pub mod ecmascript_function_flags {
+    /// Set on all ECMAScript function objects, which keeps their flags from reading as a builtin.
+    pub const IS_ECMASCRIPT_FUNCTION: u8 = 1 << 7;
     pub const MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION: u8 = 1 << 0;
     pub const IS_METHOD: u8 = 1 << 1;
+    /// The function does not have its "length" and "name" properties yet, and acts as if it had them, in front of the
+    /// properties it has. Functions with this flag have shapes of their own: descendants of the premade shape of their
+    /// kind, whose first property is not "length".
+    pub const HAS_LAZY_LENGTH_AND_NAME: u8 = 1 << 2;
+    /// The function is an EcmascriptFunctionObjectWithRareData.
+    pub const HAS_RARE_DATA: u8 = 1 << 3;
+    /// The function was given a name other than the one of its shared data, which is the value of its "name" property.
+    pub const HAS_CUSTOM_NAME: u8 = 1 << 4;
 }
 
 /// Bits of SharedFunctionInstanceData::asm_call_metadata above the formal parameter count in its low 32 bits.
@@ -120,6 +135,8 @@ pub struct SharedFunctionInstanceData {
     pub can_inline_call: Cell<bool>,
     /// How JIT code allocates the function environments of calls of the functions, once the runtime made one.
     pub call_environment_template: NullableMember<CallEnvironmentTemplate>,
+    /// The [[ScriptOrModule]] of the functions, which is the same for all of them.
+    pub script_or_module: Cell<ScriptOrModule>,
     pub storage: SharedFunctionInstanceDataStorage,
 }
 
