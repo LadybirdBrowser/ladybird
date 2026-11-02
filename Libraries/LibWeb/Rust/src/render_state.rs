@@ -168,6 +168,9 @@ impl RenderState {
     /// host learns of the engine's deferred element style inputs, where they moved, and the facts of the state as the
     /// job leaves it.
     fn take_owed(&mut self) -> Owed {
+        for work in &mut self.owed {
+            work.follow_rows(self.arena.arena());
+        }
         self.engine_mut().resolve_relational_arrival_keys();
         let engine = self.engine_ref();
         let arena = self.arena.arena();
@@ -269,9 +272,13 @@ impl RenderState {
         &mut self,
         round: crate::layout::SealedRound,
     ) -> Option<(crate::layout::FlownRound, crate::layout::row_reads::RowSnapshot)> {
-        round
-            .run(&mut self.arena)
-            .map(|round| (round, self.arena.arena_mut().publish_row_snapshot(false)))
+        let mut round = round.run(&mut self.arena)?;
+        let shell_style_changes = round.take_shell_style_changes();
+        if !shell_style_changes.is_empty() {
+            self.owed.push(shell_style_changes);
+        }
+        let rows = self.arena.arena_mut().publish_row_snapshot(false);
+        Some((round, rows))
     }
 }
 

@@ -619,6 +619,12 @@ pub(crate) struct FlownRound {
 }
 
 impl FlownRound {
+    /// Takes what the round owes layout nodes of their rows' styles, which the host pays as the frame lands: a layout
+    /// node hears of its row's style with the row, not once the host comes to take the round in.
+    pub(crate) fn take_shell_style_changes(&mut self) -> HostWorkDue {
+        self.answer.work.take_shell_style_changes()
+    }
+
     /// Pays what the round owes `host` in `read`, where no layout update goes on from it.
     pub(crate) fn pay(mut self, main_thread: &MainThread, host: &DocumentHost, read: &BegunRead) {
         self.answer.pay(main_thread, host, read);

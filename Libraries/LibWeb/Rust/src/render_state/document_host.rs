@@ -643,14 +643,6 @@ impl DocumentHost {
     ) {
         self.changes.give_back(changes);
         self.take_marks_back(marks);
-        self.pay(owed);
-        if let Some(style) = style {
-            let previous = self
-                .flown_style
-                .borrow_mut()
-                .replace(FlownStyle::Landed(Box::new(style)));
-            debug_assert!(previous.is_none(), "one style update of a document flies at a time");
-        }
         if let Some((round, rows)) = round {
             // The layout round that flew with the frame wrote the render state the paint properties are prepared from.
             self.note_render_state_write();
@@ -661,6 +653,14 @@ impl DocumentHost {
             );
             // The frame's job ended with the rows, so they read as the arena unless the host wrote it since.
             *self.rows.borrow_mut() = Some(Rc::new(rows));
+        }
+        self.pay(owed);
+        if let Some(style) = style {
+            let previous = self
+                .flown_style
+                .borrow_mut()
+                .replace(FlownStyle::Landed(Box::new(style)));
+            debug_assert!(previous.is_none(), "one style update of a document flies at a time");
         }
         self.note_frame_wait();
     }

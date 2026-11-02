@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="test-wait">
+<body></body>
+<script>
+    // A frame's layout round derives a style for the table's box, and a style read moves the box on from it before the
+    // host takes the round in. The table's layout node must not hear of the style the box has let go of.
+    window.addEventListener("load", () => setTimeout(async () => {
+        const frame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const make = (tag, parent) => parent.appendChild(document.createElement(tag));
+        make("select", document.body);
+        const summary = make("summary", make("table", document.body));
+        const cell = make("td", summary);
+        cell.hidden = true;
+        for (const text of [
+            "@layer reset { * { --read: 0; --moved: 0; } }",
+            ".never { --read: 1; border: 1px solid; }",
+            "",
+            "@media (prefers-color-scheme: light) { :nth-child(2n+1) + * ~ * { --moved: 1; margin-right: 7px; } }",
+        ])
+            make("style", document.head).textContent = text;
+        const read = () => {
+            for (const element of document.querySelectorAll("*"))
+                getComputedStyle(element).getPropertyValue("--read");
+        };
+        internals.setPreferredColorScheme("light");
+        await frame();
+        read();
+        await frame();
+        internals.setPreferredColorScheme("dark");
+        read();
+        await frame();
+        cell.append("text");
+        await frame();
+        await frame();
+        internals.setPreferredColorScheme("auto");
+        document.documentElement.classList.remove("test-wait");
+    }, 50));
+</script>
+</html>
