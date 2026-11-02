@@ -126,6 +126,7 @@ static bool svg_has_rendered_descendants(Layout::Node const& svg_box)
 // NB: This answers the question for the box of an element, or for a text node's box, which stands for the element
 //     the text node is a child of. Generated content has boxes of its own, so a pseudo-element's content is found
 //     the same way as an element's.
+// NB: A box this can answer yes for must also make layout_rows_may_be_contentful() answer yes.
 static bool is_contentful(Layout::Node const& node)
 {
     // An element target is contentful when one or more of the following apply:
@@ -345,6 +346,11 @@ static PaintedContent find_painted_content(PaintableChecker const& checker, Pain
 
     auto const* viewport = checker.viewport();
     if (!viewport)
+        return result;
+
+    // OPTIMIZATION: This runs every frame until first contentful paint is reported, which a document with nothing that
+    //               can be contentful never does, so its boxes are not walked.
+    if (result.has_non_default_content && !Layout::RustFFI::layout_rows_may_be_contentful(viewport->document_host(), &checker.read()))
         return result;
 
     viewport->for_each_in_inclusive_subtree([&](Layout::Node const& node) {

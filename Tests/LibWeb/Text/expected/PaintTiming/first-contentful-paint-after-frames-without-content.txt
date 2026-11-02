@@ -1,0 +1,12 @@
+text: reported once contentful
+generated text: reported once contentful
+image: reported once contentful
+background image: reported once contentful
+border image: reported once contentful
+canvas: reported once contentful
+svg: reported once contentful
+video poster: reported once contentful
+input value: reported once contentful
+text in a kept white space box: reported once contentful
+background image on a kept box: reported once contentful
+border image on a kept box: reported once contentful

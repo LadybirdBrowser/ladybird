@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const image = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
+    const contentfulThings = {
+        "text": document => {
+            document.body.append("text");
+        },
+        "generated text": document => {
+            const style = document.createElement("style");
+            style.textContent = "body::before { content: 'text'; }";
+            document.head.append(style);
+        },
+        "image": document => {
+            document.body.innerHTML = `<img src="${image}" width="10" height="10">`;
+        },
+        "background image": document => {
+            document.body.innerHTML = `<div style="width: 10px; height: 10px; background-image: url(${image})"></div>`;
+        },
+        "border image": document => {
+            document.body.innerHTML = `<div style="width: 10px; height: 10px; border: 10px solid; border-image-source: url(${image})"></div>`;
+        },
+        "canvas": document => {
+            document.body.innerHTML = `<canvas width="10" height="10"></canvas>`;
+            document.querySelector("canvas").getContext("2d");
+        },
+        "svg": document => {
+            document.body.innerHTML = `<svg width="10" height="10"><rect width="10" height="10"></rect></svg>`;
+        },
+        "video poster": document => {
+            document.body.innerHTML = `<video width="10" height="10" poster="${image}"></video>`;
+        },
+        "input value": document => {
+            document.body.innerHTML = `<input value="text">`;
+        },
+        "text in a kept white space box": document => {
+            document.querySelector("#white-space").firstChild.data = "text";
+        },
+        "background image on a kept box": document => {
+            document.querySelector("#box").style.backgroundImage = `url(${image})`;
+        },
+        "border image on a kept box": document => {
+            const box = document.querySelector("#box");
+            box.style.border = "10px solid";
+            box.style.borderImageSource = `url(${image})`;
+        },
+    };
+
+    function nextPaintEntry(window, name) {
+        return new Promise(resolve => {
+            const observer = new window.PerformanceObserver(list => {
+                if (!list.getEntries().some(entry => entry.name === name))
+                    return;
+                observer.disconnect();
+                resolve();
+            });
+            observer.observe({ type: "paint", buffered: true });
+        });
+    }
+
+    function nextAnimationFrame(window) {
+        return new Promise(resolve => window.requestAnimationFrame(resolve));
+    }
+
+    asyncTest(async done => {
+        for (const [name, addContentfulThing] of Object.entries(contentfulThings)) {
+            const iframe = document.createElement("iframe");
+            document.body.append(iframe);
+            const frameWindow = iframe.contentWindow;
+            const frameDocument = iframe.contentDocument;
+
+            // A background paints, so first paint is reported, while nothing is contentful for a few frames. White space
+            // that has a box of its own is not contentful either.
+            frameDocument.body.innerHTML = `<div id="box" style="width: 10px; height: 10px; background-color: green"></div><span id="white-space" style="white-space: pre">   </span>`;
+            await nextPaintEntry(frameWindow, "first-paint");
+            await nextAnimationFrame(frameWindow);
+            await nextAnimationFrame(frameWindow);
+            const reportedEarly = frameWindow.performance.getEntriesByName("first-contentful-paint").length !== 0;
+
+            addContentfulThing(frameDocument);
+            await nextPaintEntry(frameWindow, "first-contentful-paint");
+            println(`${name}: ${reportedEarly ? "reported too early" : "reported once contentful"}`);
+            iframe.remove();
+        }
+        done();
+    });
+</script>
