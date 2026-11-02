@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    div {
+        font: 10px/10px Ahem;
+        width: 30px;
+        margin-bottom: 10px;
+        display: flow-root;
+    }
+    .nowrap {
+        white-space: nowrap;
+    }
+    .min-content {
+        width: min-content;
+    }
+</style>
+<div><span class="nowrap">a </span><span>b</span>c</div>
+<div><span class="nowrap">a </span><span>bb</span></div>
+<div><span class="nowrap">a </span>bb</div>
+<div><span style="white-space: pre">a </span>bb</div>
+<div>a<span class="nowrap"> </span>bb</div>
+<div><span class="nowrap">a</span> bb</div>
+<div class="min-content"><span class="nowrap">a </span>bb</div>
+<div class="min-content"><span style="white-space: pre">a </span>bb</div>
+<div class="min-content"><span class="nowrap">a</span> bb</div>
