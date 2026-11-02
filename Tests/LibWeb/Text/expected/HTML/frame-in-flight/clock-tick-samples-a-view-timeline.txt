@@ -1,0 +1,7 @@
+presented width a quarter through the cover range: none
+presented width half through the cover range: none
+presented width past the cover range: none
+presented width scrolled back to half: none
+render clock: ticking
+last frame presented by: clock
+the page holds at the top: true

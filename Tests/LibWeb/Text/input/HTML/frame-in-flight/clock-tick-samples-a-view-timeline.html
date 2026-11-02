@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink {
+        from { height: 50px; }
+        to { height: 50px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #header {
+        height: 50px;
+        animation: shrink linear both;
+        animation-timeline: scroll(root);
+    }
+    #before {
+        height: 950px;
+    }
+    #subject {
+        height: 100px;
+        animation: widen linear both;
+        animation-timeline: view();
+    }
+    #after {
+        height: 2000px;
+    }
+</style>
+<div id="header"></div>
+<div id="before"></div>
+<div id="subject"></div>
+<div id="after"></div>
+<script>
+    // While a task runs, the render clock samples a view timeline where the compositor has scrolled its subject to. The
+    // subject enters at the bottom of the viewport and leaves at the top, each at its own progress.
+    asyncTest(async done => {
+        const presentedWidth = () => {
+            const box = internals.presentedBorderBox(subject);
+            return box === null ? "none" : box.width.toFixed(1);
+        };
+        const result = await whileLaneAnimates(() => subject.getAnimations()[0], frameTime => {
+            const coverStart = 1000 - window.innerHeight;
+            const coverEnd = 1100;
+            const quarter = coverStart + (coverEnd - coverStart) / 4;
+            const half = coverStart + (coverEnd - coverStart) / 2;
+            internals.injectClockTick(frameTime + 16, quarter);
+            const atAQuarter = presentedWidth();
+            internals.injectClockTick(frameTime + 32, half);
+            const atHalf = presentedWidth();
+            internals.injectClockTick(frameTime + 48, coverEnd + 100);
+            const past = presentedWidth();
+            internals.injectClockTick(frameTime + 64, half);
+            const back = presentedWidth();
+            return {
+                atAQuarter,
+                atHalf,
+                past,
+                back,
+                lane: internals.clockLaneState(document),
+                presentedBy: internals.lastFramePresentedBy(document),
+            };
+        });
+        println(`presented width a quarter through the cover range: ${result.atAQuarter}`);
+        println(`presented width half through the cover range: ${result.atHalf}`);
+        println(`presented width past the cover range: ${result.past}`);
+        println(`presented width scrolled back to half: ${result.back}`);
+        println(`render clock: ${result.lane}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`the page holds at the top: ${window.scrollY === 0 && subject.getBoundingClientRect().width === 100}`);
+        done();
+    });
+</script>
