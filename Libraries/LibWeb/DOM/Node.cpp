@@ -1500,7 +1500,21 @@ bool Node::schedule_list_item_renumber_for_removal()
         element->schedule_list_item_renumber_for_list_owner();
         return true;
     }
-    return false;
+    // An element in a list that holds list items renumbers the list as removing each of them would.
+    bool is_in_list = false;
+    for (auto ancestor = parent_element(); ancestor && !is_in_list; ancestor = ancestor->parent_element())
+        is_in_list = ancestor->is_html_ol_ul_menu_element();
+    if (!is_in_list)
+        return false;
+    bool holds_list_item = false;
+    element->for_each_in_subtree_of_type<Element>([&](Element const& descendant) {
+        auto descendant_style = descendant.computed_style();
+        holds_list_item = descendant.is_html_li_element() || (descendant_style && descendant_style->display().is_list_item());
+        return holds_list_item ? TraversalDecision::Break : TraversalDecision::Continue;
+    });
+    if (holds_list_item)
+        element->schedule_list_item_renumber_for_list_owner();
+    return holds_list_item;
 }
 
 void Node::report_removal_to_style_engine(Node& parent)
