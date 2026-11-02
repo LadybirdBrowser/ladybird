@@ -106,11 +106,11 @@ impl MemoInvalidations {
     /// Applies the notes to the memos, in the order the boxes were first noted.
     pub(crate) fn apply_to(
         self,
-        run_cache: &FcRunCacheStore,
-        in_flow_block_cache: &InFlowBlockCacheStore,
-        text_memos: &TextMemos,
-        prepared_inline_content: &PreparedInlineContentMemos,
-        intrinsic_size_caches: &IntrinsicSizeCaches,
+        run_cache: &mut FcRunCacheStore,
+        in_flow_block_cache: &mut InFlowBlockCacheStore,
+        text_memos: &mut TextMemos,
+        prepared_inline_content: &mut PreparedInlineContentMemos,
+        intrinsic_size_caches: &mut IntrinsicSizeCaches,
     ) {
         for slot in self.noted_slots {
             let notes = self.slots[slot as usize];

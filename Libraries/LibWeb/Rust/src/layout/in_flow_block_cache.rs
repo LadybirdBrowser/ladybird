@@ -140,8 +140,8 @@ impl InFlowBlockCacheStore {
         slot.latest = Some(std::sync::Arc::new(entry));
     }
 
-    pub(crate) fn remove_entry(&self, slot: u32) {
-        let mut entries = self.entries.borrow_mut();
+    pub(crate) fn remove_entry(&mut self, slot: u32) {
+        let entries = self.entries.get_mut();
         if entries
             .get(slot as usize)
             .is_some_and(|entries| entries.latest.is_some() || entries.committed.is_some())

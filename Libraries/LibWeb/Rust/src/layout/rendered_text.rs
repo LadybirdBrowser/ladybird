@@ -318,12 +318,12 @@ impl TextMemos {
     }
 
     /// Lets go of what the memos keep for the row in `slot`, which the arena freed.
-    pub(crate) fn forget(&self, slot: u32) {
-        let mut chunks = self.chunks.borrow_mut();
+    pub(crate) fn forget(&mut self, slot: u32) {
+        let chunks = self.chunks.get_mut();
         if chunks.get(slot as usize).is_some_and(Option::is_some) {
             chunks[slot as usize] = None;
         }
-        if let Some(segmenter) = self.grapheme_segmenters.borrow_mut().get_mut(slot as usize) {
+        if let Some(segmenter) = self.grapheme_segmenters.get_mut().get_mut(slot as usize) {
             *segmenter = None;
         }
     }
@@ -561,11 +561,14 @@ mod tests {
         use std::sync::Arc;
 
         let mut arena = LayoutNodeArena::new();
-        let scratch = crate::layout::run_state::LayoutScratch::default();
+        let mut scratch = crate::layout::run_state::LayoutScratch::default();
         let node = arena.allocate_for_test().slot;
         arena.set_text_content(node, content("hello", 0, 5, Vec::new()));
         scratch.apply_memo_invalidations(&mut arena);
-        let text_chunks = |arena: &LayoutNodeArena, key: &TextChunkCacheKey, compute: &dyn Fn() -> Vec<TextChunk>| {
+        let text_chunks = |scratch: &crate::layout::run_state::LayoutScratch,
+                           arena: &LayoutNodeArena,
+                           key: &TextChunkCacheKey,
+                           compute: &dyn Fn() -> Vec<TextChunk>| {
             scratch
                 .text_memos()
                 .text_chunks(node, arena.text_content(node).unwrap().rendered(), key, compute)
@@ -593,12 +596,13 @@ mod tests {
             can_break_after: true,
             text_type: 0,
         };
-        let original = text_chunks(&arena, &key, &|| vec![chunk.clone()]);
-        let hit = text_chunks(&arena, &key, &|| panic!("matching chunks should be cached"));
+        let original = text_chunks(&scratch, &arena, &key, &|| vec![chunk.clone()]);
+        let hit = text_chunks(&scratch, &arena, &key, &|| panic!("matching chunks should be cached"));
         assert!(Arc::ptr_eq(&original, &hit));
         drop(hit);
         let original_weak = Arc::downgrade(&original);
         let replacement = text_chunks(
+            &scratch,
             &arena,
             &TextChunkCacheKey {
                 should_wrap_lines: false,
@@ -643,7 +647,7 @@ mod tests {
             published_text(&arena.publish_paint_facts().text).text,
             "goodbye".encode_utf16().collect::<Vec<_>>()
         );
-        let new_chunks = text_chunks(&arena, &key, &|| vec![chunk.clone()]);
+        let new_chunks = text_chunks(&scratch, &arena, &key, &|| vec![chunk.clone()]);
         assert_eq!(&**new_chunks, std::slice::from_ref(&chunk));
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());
@@ -661,7 +665,7 @@ mod tests {
         use std::sync::Arc;
 
         let mut arena = LayoutNodeArena::new();
-        let scratch = LayoutScratch::default();
+        let mut scratch = LayoutScratch::default();
         let block = arena.allocate_for_test().slot;
         scratch.apply_memo_invalidations(&mut arena);
         let keep = |arena: &LayoutNodeArena, scratch: &LayoutScratch| {

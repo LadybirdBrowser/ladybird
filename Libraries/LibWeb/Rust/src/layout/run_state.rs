@@ -130,20 +130,20 @@ impl LayoutScratch {
     }
 
     /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.
-    pub(super) fn apply_memo_invalidations(&self, arena: &mut LayoutNodeArena) {
+    pub(super) fn apply_memo_invalidations(&mut self, arena: &mut LayoutNodeArena) {
         arena.take_memo_invalidations().apply_to(
-            &self.fc_run_cache_store,
-            &self.in_flow_block_cache_store,
-            &self.text_memos,
-            &self.prepared_inline_content_memos,
-            &self.intrinsic_size_caches,
+            &mut self.fc_run_cache_store,
+            &mut self.in_flow_block_cache_store,
+            &mut self.text_memos,
+            &mut self.prepared_inline_content_memos,
+            &mut self.intrinsic_size_caches,
         );
     }
 
     /// Brings the run memos up to date with what the commit into `arena` did to their boxes, and sweeps the run cache.
-    pub(crate) fn end_layout_pass(&self, arena: &mut LayoutNodeArena) {
+    pub(crate) fn end_layout_pass(&mut self, arena: &mut LayoutNodeArena) {
         self.apply_memo_invalidations(arena);
-        arena.sweep_stale_fc_run_cache_entries(&self.fc_run_cache_store);
+        arena.sweep_stale_fc_run_cache_entries(&mut self.fc_run_cache_store);
     }
 }
 

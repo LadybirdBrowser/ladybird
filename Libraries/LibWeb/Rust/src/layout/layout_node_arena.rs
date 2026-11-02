@@ -259,8 +259,8 @@ pub(crate) struct IntrinsicSizeCaches {
 }
 
 impl IntrinsicSizeCaches {
-    pub(crate) fn drop_entries_of_slot(&self, slot: u32) {
-        if let Some(slot) = self.slots.borrow_mut().get_mut(slot as usize) {
+    pub(crate) fn drop_entries_of_slot(&mut self, slot: u32) {
+        if let Some(slot) = self.slots.get_mut().get_mut(slot as usize) {
             *slot = IntrinsicSizeCacheSlot::default();
         }
     }
@@ -1388,7 +1388,7 @@ impl LayoutNodeArena {
     /// committed and ages the others. Checks only boxes whose entries were invalidated, stored or used since the
     /// previous sweep, or can still age out. Stale entries survive until commit so inline layout can reuse their
     /// undamaged line prefixes.
-    pub(crate) fn sweep_stale_fc_run_cache_entries(&self, store: &super::fc_run_cache::FcRunCacheStore) {
+    pub(crate) fn sweep_stale_fc_run_cache_entries(&self, store: &mut super::fc_run_cache::FcRunCacheStore) {
         store.sweep_pending_entries(
             |slot, validity| {
                 let Some(metadata) = self.slot_metadata.get(slot as usize) else {
@@ -7542,8 +7542,7 @@ mod tests {
     #[test]
     fn intrinsic_size_cache_entries_go_with_noted_resets_and_slot_reuse() {
         let mut arena = LayoutNodeArena::new();
-        let scratch = crate::layout::run_state::LayoutScratch::default();
-        let caches = &scratch.intrinsic_size_caches;
+        let mut scratch = crate::layout::run_state::LayoutScratch::default();
         let first = arena.allocate_for_test();
         scratch.apply_memo_invalidations(&mut arena);
         let key = IntrinsicSizeCacheKey {
@@ -7563,28 +7562,50 @@ mod tests {
             depends_on_percentage_inline_basis: false,
             depends_on_block_size: false,
         };
-        caches.max_content_block_size_cache_put(first.slot, key, value);
-        caches.intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
-        assert_eq!(caches.max_content_block_size_cache_get(first.slot, key), Some(value));
+        scratch
+            .intrinsic_size_caches
+            .max_content_block_size_cache_put(first.slot, key, value);
+        scratch
+            .intrinsic_size_caches
+            .intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
         assert_eq!(
-            caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
+            scratch
+                .intrinsic_size_caches
+                .max_content_block_size_cache_get(first.slot, key),
+            Some(value)
+        );
+        assert_eq!(
+            scratch
+                .intrinsic_size_caches
+                .intrinsic_inline_size_measurement_cache_get(first.slot, key),
             Some(inline_measurement)
         );
 
         arena.reset_cached_intrinsic_sizes(first.slot);
         assert_eq!(
-            caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
+            scratch
+                .intrinsic_size_caches
+                .intrinsic_inline_size_measurement_cache_get(first.slot, key),
             Some(inline_measurement),
             "a reset reaches the cache when the stage applies the arena's notes"
         );
         scratch.apply_memo_invalidations(&mut arena);
-        assert_eq!(caches.max_content_block_size_cache_get(first.slot, key), None);
         assert_eq!(
-            caches.intrinsic_inline_size_measurement_cache_get(first.slot, key),
+            scratch
+                .intrinsic_size_caches
+                .max_content_block_size_cache_get(first.slot, key),
+            None
+        );
+        assert_eq!(
+            scratch
+                .intrinsic_size_caches
+                .intrinsic_inline_size_measurement_cache_get(first.slot, key),
             None
         );
 
-        caches.intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
+        scratch
+            .intrinsic_size_caches
+            .intrinsic_inline_size_measurement_cache_put(first.slot, key, inline_measurement);
         arena
             .free_subtree(first.slot)
             .destroy_shells_and_invoke_callbacks(&crate::stage::MainThread::for_test());
@@ -7592,13 +7613,17 @@ mod tests {
         assert_eq!(second.slot.slot_index(), first.slot.slot_index());
         assert_ne!(second.slot, first.slot);
         assert_eq!(
-            caches.intrinsic_inline_size_measurement_cache_get(second.slot, key),
+            scratch
+                .intrinsic_size_caches
+                .intrinsic_inline_size_measurement_cache_get(second.slot, key),
             None,
             "a reused slot misses by its generation before the stage applies the freeing note"
         );
         scratch.apply_memo_invalidations(&mut arena);
         assert_eq!(
-            caches.intrinsic_inline_size_measurement_cache_get(second.slot, key),
+            scratch
+                .intrinsic_size_caches
+                .intrinsic_inline_size_measurement_cache_get(second.slot, key),
             None
         );
         arena

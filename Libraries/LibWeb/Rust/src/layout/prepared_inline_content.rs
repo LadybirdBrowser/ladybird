@@ -272,8 +272,8 @@ impl PreparedInlineContentMemos {
         by_slot[index] = Some(prepared);
     }
 
-    pub(crate) fn forget(&self, slot: u32) {
-        if let Some(kept) = self.by_slot.borrow_mut().get_mut(slot as usize) {
+    pub(crate) fn forget(&mut self, slot: u32) {
+        if let Some(kept) = self.by_slot.get_mut().get_mut(slot as usize) {
             *kept = None;
         }
     }
