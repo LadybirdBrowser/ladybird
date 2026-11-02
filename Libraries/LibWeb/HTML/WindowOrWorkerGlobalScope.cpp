@@ -142,6 +142,7 @@ void WindowOrWorkerGlobalScopeMixin::visit_edges(JS::Cell::Visitor& visitor)
         entry.value.visit_edges(visitor);
     visitor.visit(m_registered_event_sources);
     visitor.visit(m_strongly_referenced_broadcast_channels);
+    visitor.visit(m_objects_with_pending_activity);
 
     // A PermissionStatus with a change listener must stay alive while its global does, so the listener can hear of a
     // change even when nothing else refers to the status.
@@ -1467,6 +1468,19 @@ void WindowOrWorkerGlobalScopeMixin::register_web_socket(Badge<WebSockets::WebSo
 void WindowOrWorkerGlobalScopeMixin::unregister_web_socket(Badge<WebSockets::WebSocket>, GC::Ref<WebSockets::WebSocket> web_socket)
 {
     m_registered_web_sockets.remove(web_socket);
+}
+
+void WindowOrWorkerGlobalScopeMixin::set_has_pending_activity(DOM::EventTarget& object, bool has_pending_activity)
+{
+    if (has_pending_activity)
+        m_objects_with_pending_activity.set(object);
+    else
+        m_objects_with_pending_activity.remove(object);
+}
+
+bool WindowOrWorkerGlobalScopeMixin::has_pending_activity(DOM::EventTarget const& object) const
+{
+    return m_objects_with_pending_activity.contains(const_cast<DOM::EventTarget&>(object));
 }
 
 WindowOrWorkerGlobalScopeMixin::AffectedAnyWebSockets WindowOrWorkerGlobalScopeMixin::make_disappear_all_web_sockets()

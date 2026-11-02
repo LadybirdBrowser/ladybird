@@ -123,7 +123,6 @@
 #include <LibWeb/WebDriver/InputState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 #include <LibWeb/WebIDL/Promise.h>
-#include <LibWeb/WebSockets/WebSocket.h>
 #include <LibWeb/XHR/XMLHttpRequest.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
 #include <LibWebCommon/Clipboard/SystemClipboard.h>
@@ -496,13 +495,10 @@ bool Internals::wrapper_is_preserved(JS::Object& object)
     return Bindings::wrapper_is_preserved(*platform_object);
 }
 
-bool Internals::has_activity_root(JS::Object& object)
+bool Internals::has_pending_activity(JS::Object& object)
 {
-    if (auto* xhr = Bindings::impl_from<XHR::XMLHttpRequest>(&object))
-        return xhr->has_activity_root();
-    if (auto* web_socket = Bindings::impl_from<WebSockets::WebSocket>(&object))
-        return web_socket->has_activity_root();
-    return false;
+    auto* target = Bindings::impl_from<DOM::EventTarget>(&object);
+    return target && HTML::relevant_window_or_worker_global_scope(object).has_pending_activity(*target);
 }
 
 WebIDL::UnsignedLongLong Internals::message_port_pending_outgoing_message_count(HTML::MessagePort& port)

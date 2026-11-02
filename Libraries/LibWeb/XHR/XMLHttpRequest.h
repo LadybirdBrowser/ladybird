@@ -14,7 +14,6 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <AK/Weakable.h>
-#include <LibGC/ActivityRoot.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
@@ -109,9 +108,6 @@ public:
     void set_blob_response_object(GC::Ref<FileAPI::Blob>);
     void set_document_response();
     MimeSniff::MimeType get_final_mime_type() const;
-    bool has_activity_root() const { return m_activity_root.is_taken(); }
-
-    static void release_activity_roots_for_relevant_global_object(DOM::EventTarget const&);
 
 private:
     virtual void visit_edges(Cell::Visitor&) override;
@@ -133,7 +129,7 @@ private:
     void restart_timeout_timer();
     void stop_timeout_timer();
     bool should_be_kept_alive() const;
-    void update_activity_root();
+    void update_pending_activity();
 
     XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object, XMLHttpRequestUpload&, NonnullRefPtr<HTTP::HeaderList>, Fetch::Infrastructure::ResponseView&, Fetch::Infrastructure::FetchController&);
 
@@ -252,7 +248,6 @@ private:
     RefPtr<Fetch::Infrastructure::Request> m_async_request;
     MonotonicTime m_async_send_start_time;
     GC::Ptr<Platform::Timer> m_timeout_timer;
-    GC::ActivityRoot m_activity_root;
 };
 
 }

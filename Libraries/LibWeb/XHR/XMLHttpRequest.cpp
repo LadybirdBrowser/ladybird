@@ -11,7 +11,6 @@
 #include <AK/ByteBuffer.h>
 #include <AK/Debug.h>
 #include <AK/GenericLexer.h>
-#include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
 #include <LibGC/Heap.h>
 #include <LibHTTP/Method.h>
@@ -73,19 +72,6 @@ namespace Web::XHR {
 
 GC_DEFINE_ALLOCATOR(XMLHttpRequest);
 
-static Vector<GC::Weak<XMLHttpRequest>>& live_xml_http_requests()
-{
-    static NeverDestroyed<Vector<GC::Weak<XMLHttpRequest>>> requests;
-    return *requests;
-}
-
-static void prune_live_xml_http_requests()
-{
-    live_xml_http_requests().remove_all_matching([](auto const& request) {
-        return !request;
-    });
-}
-
 GC::Ref<XMLHttpRequest> XMLHttpRequest::create(GC::Ref<DOM::EventTarget> relevant_global_object)
 {
     auto upload_object = GC::Heap::the().allocate<XMLHttpRequestUpload>();
@@ -94,10 +80,7 @@ GC::Ref<XMLHttpRequest> XMLHttpRequest::create(GC::Ref<DOM::EventTarget> relevan
     auto& global_scope = HTML::relevant_window_or_worker_global_scope(*relevant_global_object);
     auto& relevant_agent = HTML::relevant_agent(HTML::relevant_global_object(global_scope));
     auto fetch_controller = Fetch::Infrastructure::FetchController::create(relevant_agent.fetch_controller_registry);
-    auto xhr = GC::Heap::the().allocate<XMLHttpRequest>(relevant_global_object, *upload_object, move(author_request_headers), *response, *fetch_controller);
-    live_xml_http_requests().append(xhr);
-    prune_live_xml_http_requests();
-    return xhr;
+    return GC::Heap::the().allocate<XMLHttpRequest>(relevant_global_object, *upload_object, move(author_request_headers), *response, *fetch_controller);
 }
 
 GC::Ptr<Bindings::Wrappable> XMLHttpRequest::relevant_global_impl() const
@@ -123,15 +106,6 @@ XMLHttpRequest::XMLHttpRequest(GC::Ref<DOM::EventTarget> relevant_global_object,
 }
 
 XMLHttpRequest::~XMLHttpRequest() = default;
-
-void XMLHttpRequest::release_activity_roots_for_relevant_global_object(DOM::EventTarget const& relevant_global_object)
-{
-    prune_live_xml_http_requests();
-    for (auto const& xhr : live_xml_http_requests()) {
-        if (xhr && xhr->m_global_object.ptr() == &relevant_global_object)
-            xhr->m_activity_root.release();
-    }
-}
 
 JS::Object& XMLHttpRequest::relevant_global_object() const
 {
@@ -669,7 +643,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::open(String const& method, Utf16String
     m_fetch_controller->terminate();
     stop_timeout_timer();
     m_async_request = nullptr;
-    m_activity_root.release();
+    HTML::relevant_window_or_worker_global_scope(*m_global_object).set_has_pending_activity(*this, false);
 
     // 11. Set variables associated with the object as follows:
     // Unset this’s send() flag.
@@ -868,7 +842,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
     // 10. Set this’s send() flag.
     m_send = true;
-    update_activity_root();
+    update_pending_activity();
 
     dbgln_if(SPAM_DEBUG, "{}XHR send from {} to {}", m_synchronous ? "\033[33;1mSynchronous\033[0m " : "", relevant_settings_object().creation_url, m_request_url);
 
@@ -975,7 +949,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
 
             // 4. Set this’s state to headers received.
             m_state = State::HeadersReceived;
-            update_activity_root();
+            update_pending_activity();
 
             // 5. Fire an event named readystatechange at this.
             dispatch_event(create_associated_event(EventNames::readystatechange));
@@ -1017,7 +991,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::send(NullableDocumentOrXMLHttpRequestB
                 // 3. If this’s state is headers received, then set this’s state to loading.
                 if (m_state == State::HeadersReceived)
                     m_state = State::Loading;
-                update_activity_root();
+                update_pending_activity();
 
                 // 4. Fire an event named readystatechange at this.
                 // Spec Note: Web compatibility is the reason readystatechange fires more often than this’s state changes.
@@ -1305,7 +1279,7 @@ void XMLHttpRequest::abort()
     if (m_state == State::Done) {
         m_state = State::Unsent;
         m_response = Fetch::Infrastructure::ResponseView::network_error("Not yet sent"_string);
-        update_activity_root();
+        update_pending_activity();
     }
 }
 
@@ -1365,7 +1339,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::handle_response_end_of_body()
 
     // 8. Unset xhr’s send() flag.
     m_send = false;
-    update_activity_root();
+    update_pending_activity();
 
     // 9. Fire an event named readystatechange at xhr.
     dispatch_event(create_associated_event(EventNames::readystatechange));
@@ -1413,7 +1387,7 @@ WebIDL::ExceptionOr<void> XMLHttpRequest::request_error_steps(Utf16FlyString con
 
     // 2. Unset xhr’s send() flag.
     m_send = false;
-    update_activity_root();
+    update_pending_activity();
 
     // 3. Set xhr’s response to a network error.
     m_response = Fetch::Infrastructure::ResponseView::network_error("Failed to load"_string);
@@ -1471,17 +1445,14 @@ bool XMLHttpRequest::should_be_kept_alive() const
         || has_event_listener(EventNames::loadend);
 }
 
-void XMLHttpRequest::update_activity_root()
+void XMLHttpRequest::update_pending_activity()
 {
-    if (should_be_kept_alive())
-        m_activity_root.take(*this);
-    else
-        m_activity_root.release();
+    HTML::relevant_window_or_worker_global_scope(*m_global_object).set_has_pending_activity(*this, should_be_kept_alive());
 }
 
 void XMLHttpRequest::event_listener_list_changed()
 {
-    update_activity_root();
+    update_pending_activity();
 }
 
 // https://xhr.spec.whatwg.org/#the-responseurl-attribute

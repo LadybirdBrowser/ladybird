@@ -36,7 +36,7 @@ interface Internals {
     // This does not work for values stored only in optimized locals or registers.
     undefined markAsGarbage(DOMString variableName);
     boolean wrapperIsPreserved(object object);
-    boolean hasActivityRoot(object object);
+    boolean hasPendingActivity(object object);
     unsigned long long messagePortPendingOutgoingMessageCount(MessagePort port);
     unsigned long long htmlCollectionCacheGeneration(HTMLCollection collection);
     undefined failNextMessagePortTransfer(MessagePort port);
