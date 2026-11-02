@@ -1026,6 +1026,8 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
         GC::create_function(navigable->heap(), [navigable, history_entry, history_handling = request.history_handling, navigation_id = request.navigation_id, user_involvement = request.user_involvement](GC::Ptr<PopulateSessionHistoryEntryDocumentOutput> output) mutable {
             // AD-HOC: This check is not in the spec but we should not continue navigation if ongoing navigation id has changed.
             if (navigable->ongoing_navigation() != navigation_id) {
+                if (output && output->document)
+                    output->document->destroy_if_dropped_before_activation();
                 navigable->stop_delaying_load_events_for_navigation(navigation_id);
                 navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
                 return;
@@ -4422,6 +4424,8 @@ void finalize_a_cross_document_navigation(GC::Ref<LocalNavigable> navigable, His
 {
     // NOTE: This is not in the spec but we should not navigate destroyed navigable.
     if (navigable->has_been_destroyed()) {
+        if (pending_document)
+            pending_document->destroy_if_dropped_before_activation();
         navigable->set_delaying_load_events(false);
         navigable->page().client().navigation_population_failed(navigable->id(), navigation_id);
         return;

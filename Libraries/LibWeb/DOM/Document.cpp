@@ -6132,6 +6132,18 @@ void Document::decrement_number_of_pending_style_sheet_requests(Badge<DocumentLo
     page().client().request_frame();
 }
 
+// AD-HOC: A navigation can drop the document it created before activating it. Its parser and fetch go on queueing
+//         tasks for it that can never run, and keep it alive. A document reusing an initial about:blank's window
+//         shares that window with the active document, so it is left alone.
+void Document::destroy_if_dropped_before_activation()
+{
+    if (m_has_been_destroyed || is_active())
+        return;
+    if (m_browsing_context && m_browsing_context->active_window() == window().ptr())
+        return;
+    destroy();
+}
+
 void Document::set_html_parser_end_state(GC::Ptr<HTML::HTMLParserEndState> state)
 {
     m_html_parser_end_state = state;
