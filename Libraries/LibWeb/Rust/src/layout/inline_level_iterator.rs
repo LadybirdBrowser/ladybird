@@ -1129,7 +1129,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         if is_first_chunk
             && !can_break_before
             && let Some(previous_text) = self.previous_text.take()
-            && text_context.should_wrap_lines
+            && (text_context.should_wrap_lines || self.previous_text_breaks_all)
         {
             let style = text_context.style;
             let line_break_language = if style.line_break() == line_break::LOOSE {
@@ -1148,7 +1148,7 @@ impl<'pass> InlineContentPreparer<'pass> {
                     line_break_language,
                 )
             };
-            can_break_before = opportunity_with(style.word_break())
+            can_break_before = (text_context.should_wrap_lines && opportunity_with(style.word_break()))
                 || (self.previous_text_breaks_all && opportunity_with(word_break::BREAK_ALL));
         }
         self.previous_text = None;
@@ -1982,13 +1982,13 @@ fn sequence_length<'item>(
             ItemType::BlockLevelBox => break,
             _ => {}
         }
+        // NB: The sequence ends at its next soft wrap opportunity, such as the one after a hyphen.
+        if length > 0 && item.can_break_before {
+            break;
+        }
         let style = context.style(context.style_source(item.node));
         if style.text_wrap_mode() == text_wrap_mode::WRAP {
             if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
-                break;
-            }
-            // NB: The sequence ends at its next soft wrap opportunity, such as the one after a hyphen.
-            if length > 0 && item.can_break_before {
                 break;
             }
             if item.is_ascii_whitespace(context) {

@@ -2315,6 +2315,13 @@ impl<'context> InlineFormattingContext<'context> {
                             }
                             previous_text_item_allows_overflow_break_after = true;
                         }
+                    } else if item.can_break_before || can_break_after_previous_overflow_item {
+                        line_builder.break_if_needed(iterator.unbreakable_run_inline_size(
+                            self,
+                            &item,
+                            !item.can_break_before,
+                        ));
+                        line_builder.note_soft_wrap_opportunity();
                     }
                     if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
                         break;
@@ -3449,6 +3456,10 @@ impl ContentSizingLines {
                     if opportunity == TextItemWrapOpportunity::BeforeText {
                         self.lines.finish();
                     }
+                } else if self.lines.breaks_before_next_fragment()
+                    && (item.can_break_before || previous_text_item_breaks_between_graphemes)
+                {
+                    self.lines.finish();
                 }
                 self.lines.append(
                     border_box_inline_size,

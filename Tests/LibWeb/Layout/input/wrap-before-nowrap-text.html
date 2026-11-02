@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+    @font-face {
+        font-family: Ahem;
+        src: url("../../Ref/data/fonts/Ahem.ttf");
+    }
+    div {
+        font: 10px/10px Ahem;
+        width: 100px;
+        margin-bottom: 10px;
+        display: flow-root;
+    }
+    .float {
+        float: left;
+        width: 50px;
+        height: 30px;
+    }
+    .nowrap {
+        white-space: nowrap;
+    }
+</style>
+<div style="overflow-wrap: anywhere">aaaaaaaa<span class="nowrap">dddddd</span></div>
+<div><span style="overflow-wrap: anywhere">aaaaaaaa</span><span class="nowrap">dddddd</span></div>
+<div style="overflow-wrap: anywhere"><span class="float"></span>cc<span class="nowrap">dddddd</span></div>
+<div style="overflow-wrap: anywhere"><span class="float"></span>x<br>cc<span class="nowrap">dddddd</span></div>
+<div>aaaaaaaa<span class="nowrap">dddddd</span></div>
+<div style="width: 40px; word-break: break-all">dddd<span class="nowrap">bbbb</span></div>
+<div style="width: 40px"><span style="word-break: break-all">dddd</span><span class="nowrap">bbbb</span></div>
+<div style="width: 90px; overflow-wrap: anywhere">aaaaaa<span class="nowrap">ccc </span></div>
+<div style="width: min-content"><span style="word-break: break-all">dddd</span><span class="nowrap">bbbb</span></div>
+<div style="width: min-content; overflow-wrap: anywhere">aaaa<span class="nowrap">bbbb</span></div>
