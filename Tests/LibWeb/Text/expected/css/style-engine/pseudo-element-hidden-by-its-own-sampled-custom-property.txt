@@ -1,0 +1,8 @@
+hidden: pseudo-element 1 animations, display none, opacity 1
+hidden: element 1 animations, display none, opacity 1
+fading added: pseudo-element 2 animations, display none, opacity 0
+fading added: element 2 animations, display none, opacity 0
+fading sought: pseudo-element 2 animations, display none, opacity 0.25
+fading sought: element 2 animations, display none, opacity 0.25
+before the animation shows them: pseudo-element none, element none
+after the animation shows them: pseudo-element block, element block

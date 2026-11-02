@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    @keyframes hide { from, to { --hidden: none; } }
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes hide-at-first { from { --hidden: none; } 50%, to { --hidden: block; } }
+    #pseudo::after, #revealed-pseudo::after { content: "x"; }
+    #pseudo::after, #element { display: var(--hidden, block); }
+    #pseudo.hiding::after, #element.hiding { animation: hide 100s paused; }
+    #pseudo.fading::after, #element.fading { animation: hide 100s paused, fade 100s linear paused; }
+    #revealed-pseudo::after, #revealed-element { display: var(--hidden, block); animation: hide-at-first 100s paused; }
+</style>
+<div id="pseudo" class="hiding"></div>
+<div id="element" class="hiding"></div>
+<div id="revealed-pseudo"></div>
+<div id="revealed-element"></div>
+<script src="../../include.js"></script>
+<script>
+    // An animation of a custom property its display reads hides a pseudo-element, as it does an element, without its
+    // display being none ignoring animations. An animation added beside it starts and samples, and the animation goes
+    // on sampling, so that it can show what it hid.
+    asyncTest(async done => {
+        const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const report = label => {
+            const pseudoStyle = getComputedStyle(pseudo, "::after");
+            const elementStyle = getComputedStyle(element);
+            println(`${label}: pseudo-element ${pseudo.getAnimations({ subtree: true }).length} animations, display ${pseudoStyle.display}, opacity ${pseudoStyle.opacity}`);
+            println(`${label}: element ${element.getAnimations().length} animations, display ${elementStyle.display}, opacity ${elementStyle.opacity}`);
+        };
+        await frames();
+        report("hidden");
+        for (const target of [pseudo, element])
+            target.classList.replace("hiding", "fading");
+        await frames();
+        report("fading added");
+        for (const animation of [...pseudo.getAnimations({ subtree: true }), ...element.getAnimations()]) {
+            if (animation.animationName === "fade")
+                animation.currentTime = 25000;
+        }
+        await frames();
+        report("fading sought");
+
+        const revealed = document.getElementById("revealed-pseudo");
+        const revealedElement = document.getElementById("revealed-element");
+        const display = () => `pseudo-element ${getComputedStyle(revealed, "::after").display}, element ${getComputedStyle(revealedElement).display}`;
+        println(`before the animation shows them: ${display()}`);
+        for (const animation of [...revealed.getAnimations({ subtree: true }), ...revealedElement.getAnimations()])
+            animation.currentTime = 75000;
+        await frames();
+        println(`after the animation shows them: ${display()}`);
+        done();
+    });
+</script>

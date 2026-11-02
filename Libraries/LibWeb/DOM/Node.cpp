@@ -4972,7 +4972,7 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
             ancestor = ancestor->parent_or_shadow_host();
             continue;
         }
-        if (ancestor_element->installed_style().display_is_none())
+        if (ancestor_element->installed_style().display_is_none_ignoring_animations())
             return true;
         ancestor = ancestor_element->element_to_inherit_style_from({}).ptr();
     }
