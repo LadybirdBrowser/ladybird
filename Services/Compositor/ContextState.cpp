@@ -2174,6 +2174,7 @@ Optional<Gfx::FloatPoint> ContextState::keep_scroll_offsets_of_known_nodes(HashM
 {
     Optional<Gfx::FloatPoint> viewport_scroll_offset;
     Vector<Compositing::AsyncScrollOffset> clamped_scroll_offsets;
+    bool kept_any_scroll_offset = false;
     m_scroll_offsets_differ_from_last_frame = false;
     m_scroll_nodes_seeded_by_last_frame.clear();
     for (auto const& node : m_async_scroll_tree.scroll_nodes()) {
@@ -2184,17 +2185,16 @@ Optional<Gfx::FloatPoint> ContextState::keep_scroll_offsets_of_known_nodes(HashM
         }
         if (m_async_scroll_tree.scroll_offset_for_node(node.scroll_node_index, m_scroll_state_snapshot) != known_scroll_offset)
             m_scroll_offsets_differ_from_last_frame = true;
-        auto kept_scroll_offset = m_async_scroll_tree.set_scroll_offset(node.scroll_node_index, known_scroll_offset.value(), m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
-        if (!kept_scroll_offset.has_value())
-            continue;
+        auto kept_scroll_offset = m_async_scroll_tree.set_scroll_offset_leaving_sticky_offsets_unresolved(node, known_scroll_offset.value(), m_scroll_state_snapshot);
+        kept_any_scroll_offset = true;
         if (node.is_viewport)
             viewport_scroll_offset = kept_scroll_offset;
         // A box whose scroll range shrank past its offset is told where it ended up.
-        if (kept_scroll_offset.value() != known_scroll_offset.value()) {
+        if (kept_scroll_offset != known_scroll_offset.value()) {
             clamped_scroll_offsets.append({
                 .stable_node_id = node.stable_node_id,
-                .compositor_scroll_offset = kept_scroll_offset.value(),
-                .unadopted_scroll_delta = kept_scroll_offset.value() - known_scroll_offset.value(),
+                .compositor_scroll_offset = kept_scroll_offset,
+                .unadopted_scroll_delta = kept_scroll_offset - known_scroll_offset.value(),
                 .last_relative_scroll_delta = {},
                 .visual_viewport_scale = {},
                 .applied_scroll_request_id = 0,
@@ -2202,6 +2202,9 @@ Optional<Gfx::FloatPoint> ContextState::keep_scroll_offsets_of_known_nodes(HashM
             });
         }
     }
+    // Resolving sticky offsets walks the whole visual context tree, so it runs once, after every offset is kept.
+    if (kept_any_scroll_offset)
+        Compositing::resolve_sticky_offsets(m_scene.current_visual_context_tree(), m_scroll_state_snapshot);
     if (!clamped_scroll_offsets.is_empty())
         store_pending_async_scroll_offsets(clamped_scroll_offsets);
     return viewport_scroll_offset;

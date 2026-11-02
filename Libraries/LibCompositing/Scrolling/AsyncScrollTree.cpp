@@ -631,9 +631,15 @@ Optional<Gfx::FloatPoint> AsyncScrollTree::set_scroll_offset(Compositing::Spatia
     if (!node)
         return {};
 
-    auto new_scroll_offset = clamp_scroll_offset_to_node(*node, scroll_offset);
-    scroll_state_snapshot.set_device_offset_for_index(node->scroll_node_index, { -new_scroll_offset.x(), -new_scroll_offset.y() });
+    auto new_scroll_offset = set_scroll_offset_leaving_sticky_offsets_unresolved(*node, scroll_offset, scroll_state_snapshot);
     Compositing::resolve_sticky_offsets(visual_context_tree, scroll_state_snapshot);
+    return new_scroll_offset;
+}
+
+Gfx::FloatPoint AsyncScrollTree::set_scroll_offset_leaving_sticky_offsets_unresolved(AsyncScrollNode const& node, Gfx::FloatPoint scroll_offset, Compositing::ScrollStateSnapshot& scroll_state_snapshot)
+{
+    auto new_scroll_offset = clamp_scroll_offset_to_node(node, scroll_offset);
+    scroll_state_snapshot.set_device_offset_for_index(node.scroll_node_index, { -new_scroll_offset.x(), -new_scroll_offset.y() });
     return new_scroll_offset;
 }
 
