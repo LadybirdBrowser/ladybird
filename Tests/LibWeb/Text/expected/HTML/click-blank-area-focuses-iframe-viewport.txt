@@ -1,0 +1,8 @@
+After clicking blank space with the nested input focused:
+  Top document active element is the iframe: true
+  Middle document active element is the body: true
+  Nested input blur events: 1
+  Middle window blur events: 0
+After clicking blank space with the middle input focused:
+  Top document active element is the iframe: true
+  Middle document active element is the body: true

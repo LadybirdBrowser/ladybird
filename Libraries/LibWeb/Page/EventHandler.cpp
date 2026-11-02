@@ -3581,10 +3581,13 @@ Optional<Painting::CaretPosition> EventHandler::prepare_mouse_selection(DOM::Doc
             return {};
         focus_candidate = focus_candidate_for_position(read, visual_viewport_position);
     }
-    if (focus_candidate)
+
+    if (focus_candidate) {
         HTML::run_focusing_steps(focus_candidate, nullptr, HTML::FocusTrigger::Click);
-    else if (auto focused_area = document.focused_area())
-        HTML::run_unfocusing_steps(focused_area);
+    } else {
+        // INTEROP: For clicks without a focusable target, focus the clicked document's viewport.
+        HTML::run_focusing_steps(&document);
+    }
 
     // NB: Focusing may have invalidated layout.
     document.update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseDown);
