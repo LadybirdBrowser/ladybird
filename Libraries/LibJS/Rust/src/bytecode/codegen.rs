@@ -6562,6 +6562,7 @@ fn generate_optional_chain_inner(
                 );
                 generator.emit_mov(current_base, &this_value);
             } else if member_data.computed {
+                let obj = generator.copy_if_needed_to_preserve_evaluation_order(&obj);
                 let property = generate_expression(&member_data.property, generator, None)?;
                 emit_get_by_value(generator, &val, &obj, &property, None);
                 generator.emit_mov(current_base, &obj);
@@ -6709,6 +6710,7 @@ fn generate_optional_chain_start(
                 );
                 generator.emit_mov(current_base, &this_value);
             } else if member_data.computed {
+                let obj = generator.copy_if_needed_to_preserve_evaluation_order(&obj);
                 let property = generate_expression(&member_data.property, generator, None)?;
                 emit_get_by_value(generator, &val, &obj, &property, None);
                 generator.emit_mov(current_base, &obj);
