@@ -52,7 +52,7 @@ use crate::runtime::property_attributes::{Attribute, DEFAULT_ATTRIBUTES, Propert
 use crate::runtime::property_descriptor::{PropertyDescriptor, to_property_descriptor};
 use crate::runtime::property_key::{NonSymbolPropertyKey, PropertyKey};
 use crate::runtime::realm::Realm;
-use crate::runtime::shape::{AssignCopy, Shape, ShapeKey};
+use crate::runtime::shape::{AssignCopy, Shape};
 use crate::runtime::special_property_cache::{self, SpecialPropertyKey};
 use crate::runtime::symbol::Symbol;
 use crate::runtime::value::{PreferredType, is_strictly_equal, same_value};
@@ -1317,15 +1317,14 @@ impl Object {
         // 2. Let properties be a new empty List.
         let properties = MarkedVec::with_capacity(vm, self.own_properties_count());
 
-        let pre_iteration_shape = ShapeKey::of(self.shape());
+        let enumerability_is_snapshot = self.eligible_for_own_property_enumeration_fast_path();
         self.for_each_own_property_with_enumerability(vm, |property_key, enumerable| {
             // a. If Type(key) is String, then
             // i. Let desc be ? O.[[GetOwnProperty]](key).
             // ii. If desc is not undefined and desc.[[Enumerable]] is true, then
-            // NOTE: If the object's shape has been mutated during iteration through own properties
-            //       by executing a getter, we can no longer assume that subsequent properties
-            //       are still present and enumerable.
-            if ShapeKey::of(self.shape()) == pre_iteration_shape {
+            // NB: On the fast path, `enumerable` was read for every property before the loop, and a getter run by Get
+            //     can make it stale. Otherwise it was read for this property just now.
+            if kind == PropertyKind::Key || !enumerability_is_snapshot {
                 if !enumerable {
                     return Ok(());
                 }

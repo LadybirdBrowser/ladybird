@@ -53,6 +53,21 @@ describe("correct behavior", () => {
         expect(exposesProtectedValue(63)).toBeFalse();
         expect(exposesProtectedValue(62)).toBeFalse();
     });
+
+    test("rechecks indexed properties after getter side effects", () => {
+        const array = [];
+        Object.defineProperty(array, 0, {
+            get() {
+                Object.defineProperty(array, 1, { enumerable: false });
+                return "a";
+            },
+            enumerable: true,
+            configurable: true,
+        });
+        array[1] = "b";
+        array[2] = "c";
+        expect(Object.values(array)).toEqual(["a", "c"]);
+    });
 });
 
 describe("errors", () => {
