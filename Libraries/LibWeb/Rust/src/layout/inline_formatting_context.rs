@@ -1695,6 +1695,12 @@ impl<'context> InlineFormattingContext<'context> {
         }
     }
 
+    fn line_is_empty_or_ends_in_whitespace_that_wraps(&self, line: &line_box::LineBoxData) -> bool {
+        line.fragments.last().is_none_or(|fragment| {
+            fragment.ends_in_whitespace() && self.style(fragment.style_source).text_wrap_mode() == text_wrap_mode::WRAP
+        })
+    }
+
     pub(crate) fn overflow_break_applies(&self, text_node: Node) -> bool {
         self.overflow_break_applies_to_style(self.style(self.parent_node(text_node)))
     }
@@ -2241,7 +2247,7 @@ impl<'context> InlineFormattingContext<'context> {
                             .line_data()
                             .line_boxes
                             .last()
-                            .is_some_and(line_box::LineBoxData::is_empty_or_ends_in_whitespace);
+                            .is_some_and(|line| self.line_is_empty_or_ends_in_whitespace_that_wraps(line));
                         let opportunity = self.text_item_wrap_opportunity(
                             &item,
                             style,
@@ -3145,6 +3151,7 @@ pub(super) struct LinesWithoutLineBoxes {
     inline_size: CssPixels,
     has_fragments: bool,
     ends_in_whitespace: bool,
+    trailing_whitespace_wraps: bool,
     trailing_whitespace_inline_size: CssPixels,
     follows_forced_break: bool,
     floats_beside_line: FloatsBesideLine,
@@ -3180,6 +3187,14 @@ impl LinesWithoutLineBoxes {
         !self.has_fragments || self.ends_in_whitespace
     }
 
+    fn is_empty_or_ends_in_whitespace_that_wraps(&self) -> bool {
+        !self.has_fragments || (self.ends_in_whitespace && self.trailing_whitespace_wraps)
+    }
+
+    fn prevent_wrap_after_trailing_whitespace(&mut self) {
+        self.trailing_whitespace_wraps = false;
+    }
+
     fn breaks_before_next_fragment(&self) -> bool {
         self.breaks_at_every_opportunity && self.has_fragments
     }
@@ -3202,6 +3217,7 @@ impl LinesWithoutLineBoxes {
         self.inline_size += border_box_inline_size;
         self.has_fragments = true;
         self.ends_in_whitespace = ends_in_whitespace;
+        self.trailing_whitespace_wraps = true;
         // NB: Adjacent all-space chunks form one trailing sequence, including across inline boundaries.
         if ends_in_whitespace && border_box_inline_size == trailing_whitespace_inline_size {
             self.trailing_whitespace_inline_size += trailing_whitespace_inline_size;
@@ -3384,7 +3400,8 @@ impl ContentSizingLines {
                             style,
                             is_whitespace,
                             remaining_items,
-                            line_is_empty_or_ends_in_whitespace || can_break_after_previous_grapheme_broken_item,
+                            self.lines.is_empty_or_ends_in_whitespace_that_wraps()
+                                || can_break_after_previous_grapheme_broken_item,
                             false,
                         )
                     } else {
@@ -3424,6 +3441,9 @@ impl ContentSizingLines {
                     item.ends_in_ascii_space(context),
                     trailing_whitespace_inline_size,
                 );
+                if style.text_wrap_mode() != text_wrap_mode::WRAP {
+                    self.lines.prevent_wrap_after_trailing_whitespace();
+                }
             }
         }
     }
