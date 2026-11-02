@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The server holds the first response until the last request arrives, and it only speaks HTTP/1 over TLS. So the
+    // requests can't wait for the first one's connection to turn out to be multiplexed. Requests waiting for a connection
+    // to another origin, which never finishes its TLS handshake, must not get in the way either.
+    asyncTest(async done => {
+        const stalledConfig = async () => (await fetch(`${httpTestServer().baseURL}/stalled-tls/config`)).json();
+        const { port: stalledPort, connections: connectionsBefore } = await stalledConfig();
+
+        const stalledRequests = new AbortController();
+        for (let i = 0; i < 64; ++i)
+            fetch(`https://localhost:${stalledPort}/${uniqueID()}`, { signal: stalledRequests.signal }).catch(() => {});
+        while ((await stalledConfig()).connections <= connectionsBefore) await timeout(10);
+
+        const token = `https-request-does-not-wait-${uniqueID()}`;
+        const echoHeaders = { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" };
+        const heldURL = await httpTestServer().createEcho("GET", "/held-response", {
+            status: 200,
+            headers: echoHeaders,
+            body: "released",
+            wait_for_unblock: token,
+        });
+        const otherURL = await httpTestServer().createEcho("GET", "/other-response", {
+            status: 200,
+            headers: echoHeaders,
+            body: "other",
+        });
+
+        const httpsOrigin = `https://localhost:${internals.getHttpsEchoServerPort()}`;
+        const heldResponse = fetch(`${httpsOrigin}${new URL(heldURL).pathname}`);
+        const otherResponses = [];
+        for (let i = 0; i < 8; ++i) otherResponses.push(fetch(`${httpsOrigin}${new URL(otherURL).pathname}`));
+        const unblockResponse = fetch(`${httpsOrigin}/unblock/${token}`);
+
+        println(`Unblock status: ${(await unblockResponse).status}`);
+        println(`Held response: ${await (await heldResponse).text()}`);
+        for (const response of otherResponses) println(`Other response: ${await (await response).text()}`);
+
+        stalledRequests.abort();
+        done();
+    });
+</script>
