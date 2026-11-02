@@ -1545,9 +1545,9 @@ pub struct RuntimeOffsets {
     pub ecmascript_function_private_environment: u32,
     /// `SharedFunctionInstanceData::script_or_module` (8 bytes, as in `ExecutionContext`).
     pub shared_function_script_or_module: u32,
-    /// `Object::function_bits` (u8).
-    pub object_function_bits: u32,
-    /// The bit of `Object::function_bits` of an ECMAScript function that has
+    /// `Object::class_bits` (u8).
+    pub object_class_bits: u32,
+    /// The bit of `Object::class_bits` of an ECMAScript function that has
     /// a private environment field.
     pub ecmascript_function_flag_has_rare_data: u32,
     /// `VmHead::execution_generation` (u32).
@@ -1673,9 +1673,11 @@ pub struct RuntimeLayout {
     pub string_prototype_class: u64,
     /// `Object::Flag::MayInterfereWithIndexedPropertyAccess`.
     pub object_flag_may_interfere: u16,
-    /// `Array::length_writable` and `Array::is_proxy_target` (bools).
-    pub array_length_writable: u32,
-    pub array_is_proxy_target: u32,
+    /// Where an array keeps its flags (u8), and the bits of them that say that its length is not writable and that it
+    /// is the target of a proxy.
+    pub array_flags: u32,
+    pub array_flag_length_not_writable: u8,
+    pub array_flag_is_proxy_target: u8,
     /// `Shape::prototype`.
     pub shape_prototype: u32,
     /// `Object::Flag::IsTypedArray`.
@@ -1748,7 +1750,7 @@ pub struct RuntimeLayout {
     /// The address of the VM's array of the strings of the 128 ASCII
     /// characters (cell pointers), or 0 for code without one.
     pub single_ascii_character_strings: u64,
-    /// `Object::function_bits` (u8): the builtin a function is plus one, if
+    /// `Object::class_bits` (u8): the builtin a function is plus one, if
     /// it is one.
     pub function_object_builtin: u32,
     /// `Builtin` values.

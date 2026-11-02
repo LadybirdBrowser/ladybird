@@ -56,8 +56,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.unbox_object_or_branch(array, receiver, exit);
         self.branch_unless_plain_array(array, prototype, exit);
         self.masm
-            .load8(scratch, &Address::new(array, layout.array_length_writable as i32));
-        self.masm.branch_test32(Condition::Zero, scratch, 0xFF, exit);
+            .load8(scratch, &Address::new(array, layout.array_flags as i32));
+        self.masm.branch_test32(
+            Condition::NonZero,
+            scratch,
+            u32::from(layout.array_flag_length_not_writable),
+            exit,
+        );
         // Packed indexed storage, or none yet.
         let known_kind = self.masm.new_label();
         self.masm
@@ -94,8 +99,13 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .branch32_imm(Condition::NotEqual, scratch, i32::from(flags), fail);
         self.masm
-            .load8(scratch, &Address::new(array, layout.array_is_proxy_target as i32));
-        self.masm.branch_test32(Condition::NonZero, scratch, 0xFF, fail);
+            .load8(scratch, &Address::new(array, layout.array_flags as i32));
+        self.masm.branch_test32(
+            Condition::NonZero,
+            scratch,
+            u32::from(layout.array_flag_is_proxy_target),
+            fail,
+        );
 
         // NB: %Object.prototype% is an immutable prototype exotic object,
         //     so the chain ends there.

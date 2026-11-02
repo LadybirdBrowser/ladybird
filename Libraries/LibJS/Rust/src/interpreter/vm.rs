@@ -75,7 +75,7 @@ use crate::runtime::module::{Module, finish_loading_imported_module};
 use crate::runtime::module_loading::{ImportedModulePayload, ImportedModuleReferrer};
 use crate::runtime::module_request::ModuleRequest;
 use crate::runtime::native_javascript_backed_function::NativeJavaScriptBackedFunction;
-use crate::runtime::object::IntrinsicAccessor;
+use crate::runtime::object::{IndexedDictionary, IntrinsicAccessor};
 use crate::runtime::primitive_string::PrimitiveString;
 use crate::runtime::promise::{Promise, PromiseState, RejectionOperation};
 use crate::runtime::property_key::PropertyKey;
@@ -520,6 +520,11 @@ pub struct Vm {
     native_function_count: Cell<u32>,
     /// The index of each function in the native function table, by its address and type.
     native_function_indices: RefCell<HashMap<(usize, u32), u32>>,
+    /// The indexed property dictionaries of the ECMAScript function objects that have one, by address. Those objects
+    /// have no pointer to their indexed elements (see `EcmascriptFunctionFields`), and hardly any of them has indexed
+    /// properties. The objects trace and free their dictionaries.
+    pub(crate) function_indexed_dictionaries:
+        RefCell<HashMap<usize, *mut IndexedDictionary, foldhash::fast::RandomState>>,
     roots: RootSet,
 
     pub names: CommonPropertyNames,
@@ -679,6 +684,7 @@ impl Vm {
             native_function_table: RefCell::new(native_function_table),
             native_function_count: Cell::new(0),
             native_function_indices: RefCell::new(HashMap::new()),
+            function_indexed_dictionaries: RefCell::default(),
             roots: RootSet::default(),
             names: CommonPropertyNames::new(),
             no_parameter_names: Rc::from([]),

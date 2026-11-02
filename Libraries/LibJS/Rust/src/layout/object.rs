@@ -43,6 +43,12 @@ pub enum IndexedStorageKind {
     Dictionary,
 }
 
+/// The bits of Object::class_bits of an array.
+pub mod array_flags {
+    pub const LENGTH_NOT_WRITABLE: u8 = 1 << 0;
+    pub const IS_PROXY_TARGET: u8 = 1 << 1;
+}
+
 /// Packed and holey indexed storage keeps its capacity in a header right in front of the first element.
 pub const INDEXED_ELEMENTS_HEADER_SIZE: usize = 8;
 
@@ -60,9 +66,10 @@ pub struct Object {
     /// How many named property values the inline storage holds. It comes right after the object, in the cells of the
     /// classes that make room for it.
     pub inline_named_capacity: Cell<u8>,
-    /// What a function object keeps in the object: its builtin plus one (zero for none), or ecmascript_function_flags
-    /// for an ECMAScript function object, which have the highest bit set. Zero for other objects.
-    pub function_bits: Cell<u8>,
+    /// What a class keeps in the object: the builtin of a function object plus one (zero for none),
+    /// ecmascript_function_flags for an ECMAScript function object, which have the highest bit set, or array_flags for
+    /// an array. Zero for other objects.
+    pub class_bits: Cell<u8>,
     /// Points at `inline_named_storage` until the object needs more room.
     pub named_properties: Cell<*mut Value>,
     pub indexed_elements: Cell<*mut Value>,

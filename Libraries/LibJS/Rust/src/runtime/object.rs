@@ -349,6 +349,8 @@ unsafe impl Trace for Object {
     }
 }
 
+pub(crate) type IndexedDictionary = GcRefCell<GenericIndexedPropertyStorage>;
+
 /// Object::~Object(), which LibGC runs as it sweeps the object, rather than in a finalizer every dead object would
 /// have to visit while the world is stopped. Property storage in ValueStorage cells is collected with the object, and
 /// may be swept before it, so only the flags tell what else the object owns.
@@ -573,7 +575,7 @@ impl Object {
             indexed_storage_kind: Cell::new(IndexedStorageKind::None),
             flags: Cell::new(object_flag::IS_EXTENSIBLE),
             inline_named_capacity: Cell::new(0),
-            function_bits: Cell::new(0),
+            class_bits: Cell::new(0),
             named_properties: Cell::new(core::ptr::null_mut()),
             indexed_elements: Cell::new(core::ptr::null_mut()),
             inline_named_storage: [],
@@ -3772,15 +3774,33 @@ impl Object {
         self.indexed_array_like_size.get()
     }
 
-    fn indexed_dictionary(&self) -> &GcRefCell<GenericIndexedPropertyStorage> {
+    fn indexed_dictionary(&self) -> &IndexedDictionary {
         assert!(self.indexed_storage_kind() == IndexedStorageKind::Dictionary);
-        // SAFETY: In dictionary mode the indexed elements pointer is the boxed storage, which the object owns until it
-        // leaves dictionary mode.
-        unsafe {
-            &*self
-                .indexed_elements
-                .get()
-                .cast::<GcRefCell<GenericIndexedPropertyStorage>>()
+        // SAFETY: In dictionary mode the pointer is the boxed storage, which the object owns until it leaves dictionary
+        // mode.
+        unsafe { &*self.indexed_dictionary_pointer() }
+    }
+
+    fn indexed_dictionary_pointer(&self) -> *mut IndexedDictionary {
+        if self.is_ecmascript_function_object() {
+            return *self
+                .vm()
+                .function_indexed_dictionaries
+                .borrow()
+                .get(&core::ptr::from_ref(self).addr())
+                .expect("a function in dictionary mode has a dictionary");
+        }
+        self.indexed_elements.get().cast()
+    }
+
+    fn set_indexed_dictionary_pointer(&self, dictionary: *mut IndexedDictionary) {
+        if self.is_ecmascript_function_object() {
+            self.vm()
+                .function_indexed_dictionaries
+                .borrow_mut()
+                .insert(core::ptr::from_ref(self).addr(), dictionary);
+        } else {
+            self.indexed_elements.set(dictionary.cast());
         }
     }
 
@@ -3841,6 +3861,7 @@ impl Object {
     }
 
     fn adopt_indexed_elements(&self, elements: *mut Value) {
+        assert!(!self.is_ecmascript_function_object());
         debug_assert!(self.indexed_elements.get().is_null() && !self.has_flag(object_flag::HAS_MALLOC_INDEXED_STORAGE));
         self.replace_storage(
             &self.indexed_elements,
@@ -3850,15 +3871,9 @@ impl Object {
     }
 
     fn free_indexed_elements(&self) {
+        assert!(!self.is_ecmascript_function_object());
         if self.indexed_storage_kind() == IndexedStorageKind::Dictionary {
-            // SAFETY: In dictionary mode the indexed elements pointer came from Box::into_raw in transition_to_dictionary().
-            drop(unsafe {
-                Box::from_raw(
-                    self.indexed_elements
-                        .get()
-                        .cast::<GcRefCell<GenericIndexedPropertyStorage>>(),
-                )
-            });
+            self.free_indexed_elements_dictionary();
         } else {
             self.release_indexed_elements();
         }
@@ -3888,6 +3903,7 @@ impl Object {
     }
 
     fn ensure_indexed_elements(&self, needed_capacity: u32) {
+        assert!(!self.is_ecmascript_function_object());
         if !self.indexed_elements.get().is_null() && self.indexed_elements_capacity() >= needed_capacity {
             return;
         }
@@ -3937,8 +3953,7 @@ impl Object {
             // Set the array_like_size on the dictionary
             dictionary.set_array_like_size(self.indexed_array_like_size() as usize);
 
-            let dictionary = Box::into_raw(Box::new(GcRefCell::new(dictionary)));
-            self.indexed_elements.set(dictionary.cast::<Value>());
+            self.set_indexed_dictionary_pointer(Box::into_raw(Box::new(GcRefCell::new(dictionary))));
             self.indexed_storage_kind.set(IndexedStorageKind::Dictionary);
         });
     }
@@ -3958,15 +3973,19 @@ impl Object {
     }
 
     fn free_indexed_elements_dictionary(&self) {
-        // SAFETY: In dictionary mode the indexed elements pointer came from Box::into_raw in transition_to_dictionary().
-        drop(unsafe {
-            Box::from_raw(
-                self.indexed_elements
-                    .get()
-                    .cast::<GcRefCell<GenericIndexedPropertyStorage>>(),
-            )
-        });
-        self.indexed_elements.set(core::ptr::null_mut());
+        let dictionary = if self.is_ecmascript_function_object() {
+            self.vm()
+                .function_indexed_dictionaries
+                .borrow_mut()
+                .remove(&core::ptr::from_ref(self).addr())
+                .unwrap_or(core::ptr::null_mut())
+        } else {
+            self.indexed_elements.replace(core::ptr::null_mut()).cast()
+        };
+        if !dictionary.is_null() {
+            // SAFETY: The pointer came from Box::into_raw in transition_to_dictionary(), and is gone from the object.
+            drop(unsafe { Box::from_raw(dictionary) });
+        }
     }
 
     pub fn indexed_get(&self, index: u32) -> Option<ValueAndAttributes> {
@@ -4009,7 +4028,8 @@ impl Object {
             //     that has non-default attributes.
             let becoming_dense = !are_dense_enough(old_size, length) && are_dense_enough(dictionary.size(), length);
             let becoming_packed = old_size < length && dictionary.size() == length;
-            if (becoming_dense || becoming_packed)
+            if !self.is_ecmascript_function_object()
+                && (becoming_dense || becoming_packed)
                 && dictionary
                     .sparse_elements()
                     .values()
@@ -4072,8 +4092,8 @@ impl Object {
             return;
         }
 
-        // Non-default attributes require Dictionary mode
-        if attributes != DEFAULT_ATTRIBUTES {
+        // Non-default attributes require Dictionary mode, and functions have nowhere else to keep their elements.
+        if attributes != DEFAULT_ATTRIBUTES || self.is_ecmascript_function_object() {
             self.transition_to_dictionary();
             self.indexed_put_dictionary_and_update_size(index, value, attributes);
             return;
@@ -4189,6 +4209,7 @@ impl Object {
         let new_size = u32::try_from(new_size).expect("an array-like size fits in u32");
 
         if self.indexed_storage_kind() == IndexedStorageKind::None {
+            assert!(!self.is_ecmascript_function_object());
             if new_size == 0 {
                 return true;
             }

@@ -72,7 +72,7 @@ fn offsets() -> RuntimeOffsets {
         ecmascript_function_environment: 0,
         ecmascript_function_private_environment: 8,
         shared_function_script_or_module: 24,
-        object_function_bits: 40,
+        object_class_bits: 40,
         ecmascript_function_flag_has_rare_data: 8,
         vm_execution_generation: 8 * VM_EXECUTION_GENERATION_WORD as u32,
     }
@@ -2503,7 +2503,7 @@ mod property_access {
 
     /// `Array.prototype.push` against fake arrays: `[shape, flags, named
     /// property storage, elements, storage kind (byte 0) and size (bytes
-    /// 4-7), length writable (byte 0) and proxy target (byte 1)]`, with
+    /// 4-7), array flags (length not writable: 1, proxy target: 2)]`, with
     /// shapes `[dictionary generation, compressed prototype]`.
     mod array_push {
         use super::*;
@@ -2532,7 +2532,7 @@ mod property_access {
                     0,
                     elements.as_ptr() as u64,
                     PACKED | u64::from(size) << 32,
-                    1,
+                    0,
                 ]))
             }
 
@@ -2617,8 +2617,9 @@ mod property_access {
                         object_flag_is_extensible: EXTENSIBLE as u16,
                         object_flag_has_magical_length: MAGICAL_LENGTH as u16,
                         object_flag_may_interfere: MAY_INTERFERE,
-                        array_length_writable: 40,
-                        array_is_proxy_target: 41,
+                        array_flags: 40,
+                        array_flag_length_not_writable: 1,
+                        array_flag_is_proxy_target: 2,
                         shape_prototype: 8,
                         ..runtime.layout
                     };
@@ -2681,8 +2682,8 @@ mod property_access {
                 &|array| array.0[1] = EXTENSIBLE,
                 &|array| array.0[1] |= u64::from(MAY_INTERFERE),
                 &|array| array.0[4] = 2 | 1 << 32,
-                &|array| array.0[5] = 0,
-                &|array| array.0[5] = 1 | 1 << 8,
+                &|array| array.0[5] = 1,
+                &|array| array.0[5] = 2,
             ] {
                 assert_eq!(exits(&world, change), [ExitKind::SlowPath]);
             }
@@ -3802,7 +3803,7 @@ mod direct_calls {
             fake_heap::use_in(runtime);
             runtime.offsets.ecmascript_function_environment = 24;
             runtime.offsets.ecmascript_function_private_environment = 32;
-            runtime.offsets.object_function_bits = 15;
+            runtime.offsets.object_class_bits = 15;
             runtime.dynamic_calls = crate::snapshot::DynamicCallLayout {
                 object_flag_is_ecmascript_function: ECMASCRIPT_FUNCTION_FLAG,
                 ecmascript_function_shared_data: 16,

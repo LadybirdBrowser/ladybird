@@ -3908,8 +3908,8 @@ handler Call(
     frame.lexical_environment = lexical_environment;
     frame.variable_environment = lexical_environment;
     frame.private_environment = null;
-    let function_bits = function.function_bits;
-    if function_bits has ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA {
+    let class_bits = function.class_bits;
+    if class_bits has ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA {
         frame.private_environment = ecmascript_function.private_environment;
     }
     frame.this_value = receiver;

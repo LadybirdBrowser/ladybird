@@ -68,7 +68,7 @@ pub struct EcmascriptFunctionObjectStorage {
 }
 
 // NB: Every ECMAScript function has these bytes, so keep what only some functions need in the rare data.
-const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 40);
+const _: () = assert!(size_of::<EcmascriptFunctionObject>() == 32);
 
 // SAFETY: Visits the cells of the class data, if there is any.
 unsafe impl Trace for EcmascriptFunctionObjectStorage {
@@ -117,8 +117,8 @@ define_cell!(
 unsafe impl Trace for EcmascriptFunctionObject {
     fn trace(&self, visitor: &mut Visitor) {
         self.base.trace(visitor);
-        self.environment.trace(visitor);
-        visitor.visit_nullable_member(&self.shared_data);
+        self.fields().environment.trace(visitor);
+        visitor.visit_nullable_member(&self.fields().shared_data);
     }
 }
 
@@ -298,8 +298,7 @@ impl EcmascriptFunctionObject {
         let base =
             FunctionObject::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No);
         base.set_is_ecmascript_function_object();
-        base.function_bits
-            .set(ecmascript_function_flags::IS_ECMASCRIPT_FUNCTION);
+        base.class_bits.set(ecmascript_function_flags::IS_ECMASCRIPT_FUNCTION);
 
         // OPTIMIZATION: Start from a premade shape: normal and async functions create their properties lazily, and
         //               the other kinds already have theirs in spec order. Arrow functions use the same shape as other
@@ -319,11 +318,10 @@ impl EcmascriptFunctionObject {
                 .set(function_shape.create_prototype_transition(vm, Some(prototype)));
         }
 
-        Self {
-            base,
-            shared_data: NullableMember::new(Some(shared_data)),
-            environment: NullableMember::new(parent_environment),
-        }
+        let function = Self { base };
+        function.fields().shared_data.set(Some(shared_data));
+        function.fields().environment.set(parent_environment);
+        function
     }
 
     fn initialize(&self, vm: &Vm, realm: Gc<Realm>) {
@@ -888,12 +886,12 @@ impl EcmascriptFunctionObject {
     }
 
     fn has_flag(&self, flag: u8) -> bool {
-        self.function_bits.get() & flag != 0
+        self.class_bits.get() & flag != 0
     }
 
     fn set_flag(&self, flag: u8, value: bool) {
-        let flags = self.function_bits.get();
-        self.function_bits.set(if value { flags | flag } else { flags & !flag });
+        let flags = self.class_bits.get();
+        self.class_bits.set(if value { flags | flag } else { flags & !flag });
     }
 
     fn class_data(&self) -> Option<&GcRefCell<ClassData>> {
@@ -949,7 +947,7 @@ impl EcmascriptFunctionObject {
 
     pub fn shared_data(&self) -> Gc<SharedFunctionInstanceData> {
         // SAFETY: An ECMAScript function object gets its shared data when it is created, and keeps it.
-        unsafe { self.shared_data.get_unchecked() }
+        unsafe { self.fields().shared_data.get_unchecked() }
     }
 
     pub fn is_module_wrapper(&self) -> bool {
@@ -989,7 +987,7 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn environment(&self) -> Option<Gc<Environment>> {
-        self.environment.get()
+        self.fields().environment.get()
     }
 
     pub fn private_environment(&self) -> Option<Gc<PrivateEnvironment>> {
