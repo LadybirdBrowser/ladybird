@@ -96,6 +96,19 @@ TEST_CASE(basic)
     }
 }
 
+TEST_CASE(set_port_of_every_magnitude)
+{
+    auto url = URL::Parser::basic_parse("http://example.com/"sv);
+    VERIFY(url.has_value());
+    for (auto port : { 8080, 32767, 32768, 40000, 65535 }) {
+        url->set_port(port);
+        EXPECT_EQ(url->port_or_default(), port);
+        EXPECT_EQ(url->serialize(), MUST(String::formatted("http://example.com:{}/", port)));
+    }
+    url->set_port({});
+    EXPECT_EQ(url->serialize(), "http://example.com/"sv);
+}
+
 TEST_CASE(some_bad_urls)
 {
     EXPECT_EQ(URL::Parser::basic_parse("http//serenityos.org"sv).has_value(), false);
