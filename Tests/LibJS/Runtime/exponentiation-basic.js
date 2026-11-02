@@ -52,6 +52,9 @@ test("exponentiation that produces NaN", () => {
     expect(null ** undefined).toBeNaN();
     expect(2 ** "foo").toBeNaN();
     expect("foo" ** 2).toBeNaN();
+    expect(1 ** NaN).toBeNaN();
+    expect(1 ** undefined).toBeNaN();
+    expect(1 ** "foo").toBeNaN();
 });
 
 test("exponentiation with infinities", () => {
