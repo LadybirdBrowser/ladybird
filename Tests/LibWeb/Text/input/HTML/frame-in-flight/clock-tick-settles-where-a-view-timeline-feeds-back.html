@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes narrow {
+        from { width: 300px; }
+        to { width: 100px; }
+    }
+    body {
+        margin: 0;
+    }
+    #before {
+        height: 1000px;
+    }
+    #subject {
+        animation: narrow linear both;
+        animation-timeline: view();
+    }
+    #subject div {
+        display: inline-block;
+        width: 100px;
+        height: 100px;
+    }
+    #after {
+        height: 2000px;
+    }
+</style>
+<div id="before"></div>
+<div id="subject"><div></div><div></div></div>
+<div id="after"></div>
+<script>
+    // The subject's boxes fit on one line while it is at least 200px wide. One line leaves its progress where it is too
+    // narrow for them, and two lines where it is wide enough, so no layout agrees with the progress it decides. A stopped
+    // scroll must not have the ticks go back and forth between the two forever.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => subject.getAnimations()[0], frameTime => {
+            const position = 400 + 375;
+            const heights = [];
+            for (let tick = 1; tick <= 30; tick++) {
+                internals.injectClockTick(frameTime + 16 * tick, position);
+                heights.push(internals.presentedBorderBox(subject).height);
+            }
+            return { heights, lane: internals.clockLaneState(document) };
+        });
+        println(`the ticks tried both layouts: ${new Set(result.heights).size === 2}`);
+        println(`the ticks settled on one: ${new Set(result.heights.slice(10)).size === 1}`);
+        println(`render clock: ${result.lane}`);
+        done();
+    });
+</script>

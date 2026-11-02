@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes shrink-page {
+        from { height: 1000px; }
+        to { height: 0px; }
+    }
+    @keyframes widen {
+        from { width: 100px; }
+        to { width: 300px; }
+    }
+    body {
+        margin: 0;
+    }
+    #bar {
+        height: 10px;
+        width: 50px;
+        animation: widen linear;
+        animation-timeline: scroll(root);
+    }
+    #spacer {
+        height: 1000px;
+    }
+    #shrinking {
+        height: 1000px;
+        animation: shrink-page linear both;
+        animation-timeline: scroll(root);
+    }
+</style>
+<div id="bar"></div>
+<div id="spacer"></div>
+<div id="shrinking"></div>
+<script>
+    // A tick at the end of the page shrinks the page, past the offset the compositor still says it is scrolled to. The
+    // next tick is at the end of the range it laid out, as a host's scroll offset is, and not past it, which would end
+    // an animation that does not fill forwards.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => bar.getAnimations()[0], frameTime => {
+            const position = document.documentElement.scrollHeight - window.innerHeight;
+            const widths = [];
+            for (let tick = 1; tick <= 6; tick++) {
+                internals.injectClockTick(frameTime + 16 * tick, position);
+                widths.push(internals.presentedBorderBox(bar).width);
+            }
+            return { widths, height: internals.presentedBorderBox(shrinking).height };
+        });
+        println(`the ticks shrank the page: ${result.height < 1000}`);
+        println(`the bar stays at the end of its animation: ${result.widths.every(width => width === 300)}`);
+        done();
+    });
+</script>

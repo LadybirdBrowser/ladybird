@@ -1,0 +1,2 @@
+the ticks moved the subject up: true
+the subject shows the progress where the ticks laid it out: true

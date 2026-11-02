@@ -305,6 +305,8 @@ interface Internals {
     // Hands the clock lanes of the current document a tick at the given time, and waits until it has run.
     // With a viewport scroll offset, the compositor had scrolled the viewport down to it at the tick.
     undefined injectClockTick(double frameTimeMs, optional double viewportScrollY);
+    // As injectClockTick(), with the compositor having scrolled the given element to the given offset, in CSS pixels.
+    undefined injectClockTickScrollingElement(double frameTimeMs, Element scroller, double x, double y);
     // Hands the clock lanes of the current document a pointer move to the given point in CSS pixels as the compositor
     // would, beside the mouse event with the given input event id, if any, and waits until the tick that hovers what is
     // under it has run, at the given frame time, or now.

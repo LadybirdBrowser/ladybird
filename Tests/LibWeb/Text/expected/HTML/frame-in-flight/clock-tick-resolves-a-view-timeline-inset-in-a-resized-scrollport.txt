@@ -1,0 +1,2 @@
+the ticks resized the scrollport: true
+the subject shows the progress with its insets in that scrollport: true

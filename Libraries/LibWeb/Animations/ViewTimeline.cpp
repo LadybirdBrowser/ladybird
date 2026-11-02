@@ -175,10 +175,13 @@ Optional<ViewTimeline::Metrics> ViewTimeline::compute_metrics() const
     // 100% progress represents the earliest position at which the end border edge of the element’s principal box
     // coincides with the start edge of its view progress visibility range.
     return Metrics {
+        .followed_scroller = followed_scroller_from(*scroller),
         .scroll_offset = scroller->scroll_offset,
         .max_scroll_offset = scroller->max_scroll_offset,
-        .cover_start = subject_offset - (scroller->scrollport_size - inset_end),
-        .cover_end = subject_offset + subject_size - inset_start,
+        .scrollport_size = scroller->scrollport_size,
+        .inset_start = inset_start,
+        .inset_end = inset_end,
+        .subject_offset = subject_offset,
         .subject_size = subject_size,
     };
 }
@@ -192,6 +195,7 @@ bool ViewTimeline::is_stale() const
 void ViewTimeline::update_current_time(double)
 {
     m_last_metrics = compute_metrics();
+    set_followed_scroller({});
 
     if (!m_last_metrics.has_value()) {
         set_current_time({});
@@ -203,8 +207,8 @@ void ViewTimeline::update_current_time(double)
     // - distance is the current scroll offset minus the scroll offset corresponding to the start of the cover range
     // - range is the scroll offset corresponding to the end of the cover range minus the scroll offset corresponding
     //   to the start of the cover range
-    auto distance = m_last_metrics->scroll_offset - m_last_metrics->cover_start;
-    auto range = m_last_metrics->cover_end - m_last_metrics->cover_start;
+    auto distance = m_last_metrics->scroll_offset - m_last_metrics->cover_start();
+    auto range = m_last_metrics->cover_end() - m_last_metrics->cover_start();
 
     // If the 0% position and 100% position coincide (i.e. the denominator in the current time formula is zero), the
     // timeline is inactive.
@@ -216,6 +220,7 @@ void ViewTimeline::update_current_time(double)
     // FIXME: In paged media, view progress timelines that would otherwise reference the document viewport are also
     //        inactive.
 
+    set_followed_scroller(m_last_metrics->followed_scroller);
     set_current_time(TimeValue { TimeValue::Type::Percentage, distance / range * 100 });
 }
 
@@ -232,29 +237,29 @@ ViewTimeline::ScrollOffsetInterval ViewTimeline::interval_for_range_name(Metrics
     case TimelineRangeName::None:
     case TimelineRangeName::Cover:
         // Represents the full range of the view progress timeline.
-        return { metrics.cover_start, metrics.cover_end };
+        return { metrics.cover_start(), metrics.cover_end() };
     case TimelineRangeName::Contain:
         // Represents the range during which the principal box is either fully contained by, or fully covers, its view
         // progress visibility range within the scrollport.
-        return sorted(metrics.cover_start + metrics.subject_size, metrics.cover_end - metrics.subject_size);
+        return sorted(metrics.cover_start() + metrics.subject_size, metrics.cover_end() - metrics.subject_size);
     case TimelineRangeName::Entry: {
         // 0% is equivalent to 0% of the cover range.
         // 100% is equivalent to 0% of the contain range.
         auto contain = interval_for_range_name(metrics, TimelineRangeName::Contain);
-        return sorted(metrics.cover_start, contain.start);
+        return sorted(metrics.cover_start(), contain.start);
     }
     case TimelineRangeName::Exit: {
         // 0% is equivalent to 100% of the contain range.
         // 100% is equivalent to 100% of the cover range.
         auto contain = interval_for_range_name(metrics, TimelineRangeName::Contain);
-        return sorted(contain.end, metrics.cover_end);
+        return sorted(contain.end, metrics.cover_end());
     }
     case TimelineRangeName::EntryCrossing:
         // Represents the range during which the principal box crosses the end border edge.
-        return sorted(metrics.cover_start, metrics.cover_start + metrics.subject_size);
+        return sorted(metrics.cover_start(), metrics.cover_start() + metrics.subject_size);
     case TimelineRangeName::ExitCrossing:
         // Represents the range during which the principal box crosses the start border edge.
-        return sorted(metrics.cover_end - metrics.subject_size, metrics.cover_end);
+        return sorted(metrics.cover_end() - metrics.subject_size, metrics.cover_end());
     case TimelineRangeName::Scroll:
         // Represents the full range of the scroll container on which the view progress timeline is defined.
         return { 0, metrics.max_scroll_offset };
@@ -264,7 +269,7 @@ ViewTimeline::ScrollOffsetInterval ViewTimeline::interval_for_range_name(Metrics
 
 AttachmentInterval ViewTimeline::interval_for_attachment_range(AnimationAttachmentRange const& range) const
 {
-    auto cover_length = m_last_metrics.has_value() ? m_last_metrics->cover_end - m_last_metrics->cover_start : 0;
+    auto cover_length = m_last_metrics.has_value() ? m_last_metrics->cover_end() - m_last_metrics->cover_start() : 0;
     if (cover_length == 0)
         return ScrollTimeline::interval_for_attachment_range(range);
 
@@ -273,7 +278,7 @@ AttachmentInterval ViewTimeline::interval_for_attachment_range(AnimationAttachme
     auto time_of = [&](TimelineRangeEdge const& edge) {
         auto named_range = interval_for_range_name(*m_last_metrics, edge.name);
         auto position = named_range.start + edge.offset_along(named_range.end - named_range.start);
-        return TimeValue { TimeValue::Type::Percentage, (position - m_last_metrics->cover_start) / cover_length * 100 };
+        return TimeValue { TimeValue::Type::Percentage, (position - m_last_metrics->cover_start()) / cover_length * 100 };
     };
     return { time_of(range.start), time_of(range.end) };
 }
@@ -281,30 +286,30 @@ AttachmentInterval ViewTimeline::interval_for_attachment_range(AnimationAttachme
 // NB: The timeline times at the minimum and the maximum scroll offsets, which need not be 0% and 100%.
 Optional<TimeValue> ViewTimeline::minimum_timeline_time() const
 {
-    if (!m_last_metrics.has_value() || m_last_metrics->cover_end == m_last_metrics->cover_start)
+    if (!m_last_metrics.has_value() || m_last_metrics->cover_end() == m_last_metrics->cover_start())
         return {};
-    return TimeValue { TimeValue::Type::Percentage, (0 - m_last_metrics->cover_start) / (m_last_metrics->cover_end - m_last_metrics->cover_start) * 100 };
+    return TimeValue { TimeValue::Type::Percentage, (0 - m_last_metrics->cover_start()) / (m_last_metrics->cover_end() - m_last_metrics->cover_start()) * 100 };
 }
 
 Optional<TimeValue> ViewTimeline::maximum_timeline_time() const
 {
-    if (!m_last_metrics.has_value() || m_last_metrics->cover_end == m_last_metrics->cover_start)
+    if (!m_last_metrics.has_value() || m_last_metrics->cover_end() == m_last_metrics->cover_start())
         return {};
-    return TimeValue { TimeValue::Type::Percentage, (m_last_metrics->max_scroll_offset - m_last_metrics->cover_start) / (m_last_metrics->cover_end - m_last_metrics->cover_start) * 100 };
+    return TimeValue { TimeValue::Type::Percentage, (m_last_metrics->max_scroll_offset - m_last_metrics->cover_start()) / (m_last_metrics->cover_end() - m_last_metrics->cover_start()) * 100 };
 }
 
 GC::Ref<CSS::CSSNumericValue> ViewTimeline::start_offset() const
 {
     // Represents the starting (0% progress) scroll position of the view progress timeline as a length offset (in px)
     // from the scroll origin.
-    return CSS::CSSUnitValue::create(m_last_metrics.has_value() ? m_last_metrics->cover_start : 0, "px"_utf16_fly_string);
+    return CSS::CSSUnitValue::create(m_last_metrics.has_value() ? m_last_metrics->cover_start() : 0, "px"_utf16_fly_string);
 }
 
 GC::Ref<CSS::CSSNumericValue> ViewTimeline::end_offset() const
 {
     // Represents the ending (100% progress) scroll position of the view progress timeline as a length offset (in px)
     // from the scroll origin.
-    return CSS::CSSUnitValue::create(m_last_metrics.has_value() ? m_last_metrics->cover_end : 0, "px"_utf16_fly_string);
+    return CSS::CSSUnitValue::create(m_last_metrics.has_value() ? m_last_metrics->cover_end() : 0, "px"_utf16_fly_string);
 }
 
 }

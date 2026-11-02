@@ -45,6 +45,27 @@ public:
     virtual Optional<TimeValue> minimum_timeline_time() const override;
     virtual Optional<TimeValue> maximum_timeline_time() const override;
 
+    // What decides the progress of the timeline, along its axis, in CSS pixels.
+    struct Metrics {
+        Optional<FollowedScroller> followed_scroller;
+        double scroll_offset { 0 };
+        double max_scroll_offset { 0 };
+        double scrollport_size { 0 };
+        // The insets of the view progress visibility range, at the start and at the end of the scrollport.
+        double inset_start { 0 };
+        double inset_end { 0 };
+        // Where the subject's border box starts, from the start of the scrollport, and its size.
+        double subject_offset { 0 };
+        double subject_size { 0 };
+        // The start and the end of the cover range.
+        double cover_start() const { return subject_offset - (scrollport_size - inset_end); }
+        double cover_end() const { return subject_offset + subject_size - inset_start; }
+
+        bool operator==(Metrics const&) const = default;
+    };
+    // What the timeline's progress was last calculated from: empty while it was inactive.
+    Optional<Metrics> const& last_metrics() const { return m_last_metrics; }
+
 private:
     // The scroll offsets at the start and at the end of a named timeline range, in CSS pixels.
     struct ScrollOffsetInterval {
@@ -55,17 +76,6 @@ private:
     ViewTimeline(DOM::Document&, DOM::AbstractElement subject, ScrollAxis, Inset);
     virtual ~ViewTimeline() override = default;
 
-    // What decides the progress of the timeline, along its axis, in CSS pixels.
-    struct Metrics {
-        double scroll_offset { 0 };
-        double max_scroll_offset { 0 };
-        // The start and the end of the cover range.
-        double cover_start { 0 };
-        double cover_end { 0 };
-        double subject_size { 0 };
-
-        bool operator==(Metrics const&) const = default;
-    };
     Optional<Metrics> compute_metrics() const;
 
     ScrollOffsetInterval interval_for_range_name(Metrics const&, TimelineRangeName) const;

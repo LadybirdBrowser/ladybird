@@ -1,0 +1,3 @@
+the ticks resized the scrollport: true
+the subject shows the progress with its insets in that scrollport: true
+the host computes that progress in its own scrollport: true

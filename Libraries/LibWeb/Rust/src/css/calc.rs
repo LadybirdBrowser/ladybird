@@ -864,12 +864,47 @@ impl CalcNode {
         });
         found
     }
+
+    /// Whether the node resolves to a length plus a percentage of whatever its percentages are of, as `calc(1% + 1px)`
+    /// does and `min(50%, 10px)` does not.
+    pub(crate) fn is_linear_in_percentages(&self) -> bool {
+        if !self.contains_percentage() {
+            return true;
+        }
+        match self {
+            CalcNode::Numeric(_) => true,
+            CalcNode::Negate(child) => child.is_linear_in_percentages(),
+            CalcNode::Sum(children) => children.iter().all(|child| child.is_linear_in_percentages()),
+            CalcNode::Product(children) => {
+                children.iter().filter(|child| child.contains_percentage()).count() == 1
+                    && children.iter().all(|child| child.is_linear_in_percentages())
+            }
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::arc_with_non_send_sync)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn is_linear_in_percentages_looks_at_what_holds_a_percentage() {
+        let percent = Arc::new(CalcNode::Numeric(CalcNumericValue::Percentage(50.0)));
+        let number = Arc::new(CalcNode::Numeric(CalcNumericValue::Number {
+            value: 2.0,
+            number_type: 0,
+        }));
+        let sum = Arc::new(CalcNode::Sum(vec![number.clone(), percent.clone()]));
+        assert!(sum.is_linear_in_percentages());
+        assert!(CalcNode::Negate(sum.clone()).is_linear_in_percentages());
+        assert!(CalcNode::Product(vec![number.clone(), sum.clone()]).is_linear_in_percentages());
+        assert!(!CalcNode::Product(vec![percent.clone(), sum]).is_linear_in_percentages());
+        assert!(!CalcNode::Min(vec![number.clone(), percent.clone()]).is_linear_in_percentages());
+        assert!(!CalcNode::Sum(vec![number.clone(), Arc::new(CalcNode::Invert(percent))]).is_linear_in_percentages());
+        assert!(CalcNode::Min(vec![number.clone(), number]).is_linear_in_percentages());
+    }
 
     #[test]
     fn contains_percentage_walks_the_tree() {
