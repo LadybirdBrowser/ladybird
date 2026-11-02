@@ -20,6 +20,34 @@ use crate::runtime::value::same_value;
 
 const PAREN_COUNT: usize = 9;
 
+/// The captured ranges of a match that the legacy static properties record: those of $1 through $9, and that of the
+/// last capture group, which can be past $9.
+pub struct LegacyCaptureSlots {
+    starts: [i32; PAREN_COUNT],
+    ends: [i32; PAREN_COUNT],
+    last_paren: (i32, i32),
+}
+
+impl LegacyCaptureSlots {
+    /// `slot(2 * group)` and `slot(2 * group + 1)` are the start and end of each of the `group_count` capture groups, or
+    /// -1 for a group that did not participate.
+    pub fn new(group_count: usize, slot: impl Fn(usize) -> i32) -> Self {
+        let mut captures = Self {
+            starts: [-1; PAREN_COUNT],
+            ends: [-1; PAREN_COUNT],
+            last_paren: (-1, -1),
+        };
+        for index in 0..group_count.min(PAREN_COUNT) {
+            captures.starts[index] = slot((index + 1) * 2);
+            captures.ends[index] = slot((index + 1) * 2 + 1);
+        }
+        if group_count > 0 {
+            captures.last_paren = (slot(group_count * 2), slot(group_count * 2 + 1));
+        }
+        captures
+    }
+}
+
 // https://github.com/tc39/proposal-regexp-legacy-features#regexp
 // The %RegExp% intrinsic object, which is the builtin RegExp constructor, has the following additional internal slots:
 // [[RegExpInput]]
@@ -256,16 +284,10 @@ impl RegExpLegacyStaticProperties {
 
     // Lazy update: store capture indices without materializing strings.
     // Strings are created on demand when $1-$9 are accessed.
-    pub fn set_captures_lazy(&self, vm: &Vm, capture_starts: &[i32], capture_ends: &[i32]) {
-        let num_captures = capture_starts.len();
+    pub fn set_captures_lazy(&self, vm: &Vm, captures: &LegacyCaptureSlots) {
         for index in 0..PAREN_COUNT {
-            if index < num_captures {
-                self.paren_starts[index].set(capture_starts[index]);
-                self.paren_ends[index].set(capture_ends[index]);
-            } else {
-                self.paren_starts[index].set(-1);
-                self.paren_ends[index].set(-1);
-            }
+            self.paren_starts[index].set(captures.starts[index]);
+            self.paren_ends[index].set(captures.ends[index]);
         }
         // Clear any previously materialized strings.
         for paren in &self.parens {
@@ -274,10 +296,11 @@ impl RegExpLegacyStaticProperties {
         self.parens_materialized.set(false);
 
         // Set last_paren to the last captured value.
-        if num_captures > 0 && capture_starts[num_captures - 1] >= 0 && capture_ends[num_captures - 1] >= 0 {
+        let (last_paren_start, last_paren_end) = captures.last_paren;
+        if last_paren_start >= 0 && last_paren_end >= 0 {
             self.last_paren.set(None);
-            self.last_paren_start.set(capture_starts[num_captures - 1]);
-            self.last_paren_end.set(capture_ends[num_captures - 1]);
+            self.last_paren_start.set(last_paren_start);
+            self.last_paren_end.set(last_paren_end);
         } else {
             self.last_paren.set(Some(self.empty_string(vm)));
             self.last_paren_start.set(-1);
@@ -377,8 +400,7 @@ pub fn update_legacy_regexp_static_properties_lazy(
     string: Gc<PrimitiveString>,
     start_index: usize,
     end_index: usize,
-    capture_starts: &[i32],
-    capture_ends: &[i32],
+    captures: &LegacyCaptureSlots,
 ) {
     let legacy_static_properties = constructor.legacy_static_properties();
 
@@ -395,7 +417,7 @@ pub fn update_legacy_regexp_static_properties_lazy(
 
     legacy_static_properties.set_right_context(end_index, length - end_index);
 
-    legacy_static_properties.set_captures_lazy(vm, capture_starts, capture_ends);
+    legacy_static_properties.set_captures_lazy(vm, captures);
 }
 
 // InvalidateLegacyRegExpStaticProperties ( C ), https://github.com/tc39/proposal-regexp-legacy-features#invalidatelegacyregexpstaticproperties--c
