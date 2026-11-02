@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<style>
+    @property --spin {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @keyframes spin {
+        to {
+            --spin: 360deg;
+        }
+    }
+    #animated {
+        animation: spin 100s linear infinite paused -10s;
+    }
+</style>
+<div id="hidden">
+    <div id="animated"><div id="reader"></div></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        println(getComputedStyle(reader).getPropertyValue("--spin"));
+        hidden.style.display = "none";
+        println(getComputedStyle(reader).getPropertyValue("--spin"));
+        hidden.style.display = "";
+        println(getComputedStyle(reader).getPropertyValue("--spin"));
+    });
+</script>
