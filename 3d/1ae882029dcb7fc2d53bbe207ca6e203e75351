@@ -1,0 +1,10 @@
+Ladybird now decides whether to include an SVG element in the
+accessibility tree from its role token alone, without computing
+its accessible name. None of the other engines computes a name for
+that either. Blink’s AXNodeObject::ShouldIncludeBasedOnSemantics()
+includes an element with role region whatever its name. WebKit’s
+AccessibilityNodeObject::determineAriaRoleAttribute() treats an
+unnamed region or form as having no role, but decides “unnamed” with
+hasAccNameAttribute(), an attribute check. And Gecko’s ARIAMap.cpp maps
+region to roles::REGION with no name check; only an HTML section’s role
+depends on NameIsEmpty().
