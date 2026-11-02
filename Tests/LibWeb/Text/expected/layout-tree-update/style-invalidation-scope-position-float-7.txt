@@ -1966,16 +1966,16 @@ RECREATED: float none -> inline-start on table-column-group in flex | following 
 RECREATED: float none -> inline-start on table-column-group in flex | following sibling descendant
 STATS: float none -> inline-start on table-column-group in flex | rebuilt subtree roots=1, escaped=false
 PASS: float none -> inline-start on table-column-group in flex | incremental tree matches full rebuild
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | fixture ancestor
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | distant sibling
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | distant sibling descendant
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | DOM parent
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | preceding sibling
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | preceding sibling descendant
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | fixture ancestor
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | distant sibling
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | distant sibling descendant
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | DOM parent
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | preceding sibling
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | preceding sibling descendant
 RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | target
 RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | target descendant
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | following sibling
-RECREATED: float right -> inline-start on table-column-group in -webkit-inline-box | following sibling descendant
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | following sibling
+PRESERVED: float right -> inline-start on table-column-group in -webkit-inline-box | following sibling descendant
 STATS: float right -> inline-start on table-column-group in -webkit-inline-box | rebuilt subtree roots=1, escaped=false
 PASS: float right -> inline-start on table-column-group in -webkit-inline-box | incremental tree matches full rebuild
 RECREATED: float inline-end -> right on table-column-group in table-caption | fixture ancestor

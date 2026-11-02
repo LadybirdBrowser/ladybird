@@ -473,21 +473,20 @@ impl LayoutNodeArena {
     pub(crate) fn defer_child_list_insertion_layout_update(&mut self, parent: NodeSlotId) {
         let grandparent = self.data(parent).parent.get();
         self.deferred_child_list_insertion_parents.push((parent, grandparent));
+        self.deferred_child_list_insertion_parent_slots.insert(parent);
     }
 
-    /// Invalidate what the children attached by a layout tree build reach. `attached_roots` are the
-    /// roots of every subtree the build attached.
+    /// Invalidate what the children attached by a layout tree build reach. `inserted_children` are
+    /// the children the build attached to the deferred parents, each with the parent it was attached to.
     ///
     /// A child that is absolutely positioned against the box it was inserted into, with both axes
     /// placed by insets, changes neither that box nor anything around it: its containing block
     /// is the box's committed padding box, and it is laid out on its own from there. Only the
     /// cached runs above it have to forget their children. Any other insertion invalidates the
     /// box as the mutation did before the build.
-    pub(crate) fn resolve_deferred_child_list_insertions(
-        &mut self,
-        attached_roots: &crate::css::style::fast_hash::FastSet<NodeSlotId>,
-    ) {
+    pub(crate) fn resolve_deferred_child_list_insertions(&mut self, inserted_children: &[(NodeSlotId, NodeSlotId)]) {
         self.confined_abspos_layout_inputs.clear();
+        self.deferred_child_list_insertion_parent_slots.clear();
         let mut parents = std::mem::take(&mut self.deferred_child_list_insertion_parents);
         parents.sort_unstable_by_key(|(parent, _)| parent.index);
         parents.dedup_by_key(|(parent, _)| *parent);
@@ -504,11 +503,15 @@ impl LayoutNodeArena {
                 }
                 continue;
             }
-            let inserted: Vec<NodeSlotId> = attached_roots
+            let mut inserted: Vec<NodeSlotId> = inserted_children
                 .iter()
-                .copied()
-                .filter(|&root| self.slot_is_live(root) && self.data(root).parent.get() == parent)
+                .filter(|&&(inserted_parent, child)| {
+                    inserted_parent == parent && self.slot_is_live(child) && self.data(child).parent.get() == parent
+                })
+                .map(|&(_, child)| child)
                 .collect();
+            inserted.sort_unstable_by_key(|child| child.index);
+            inserted.dedup();
             let confined_inputs: Option<Vec<(NodeSlotId, AbsposLayoutInputs)>> = (!inserted.is_empty()
                 && !self.node_needs_layout_update(parent))
             .then(|| {
