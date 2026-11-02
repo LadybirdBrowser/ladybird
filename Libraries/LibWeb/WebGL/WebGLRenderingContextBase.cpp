@@ -15,9 +15,10 @@
 #include <LibJS/HostClassBuilder.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/Realm.h>
-#include <LibWeb/Bindings/WebGLContextEvent.h>
+#include <LibJS/Runtime/VM.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/Compositor/CompositorHost.h>
+#include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/HTML/Canvas/CanvasHost.h>
 #include <LibWeb/HTML/EventLoop/Task.h>
@@ -26,13 +27,11 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/OffscreenCanvas.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
-#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/WebGL/EventNames.h>
 #include <LibWeb/WebGL/RemoteWebGLTransport.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
 #include <LibWeb/WebGL/WebGLContextAttributes.h>
-#include <LibWeb/WebGL/WebGLContextEvent.h>
 #include <LibWeb/WebGL/WebGLRenderingContext.h>
 #include <LibWeb/WebGL/WebGLRenderingContextBase.h>
 
@@ -111,6 +110,7 @@ void web_webgl_context_set_restore_requested(void* context, bool requested);
 bool web_webgl_context_wants_restoring(void* context);
 void web_webgl_context_actual_context_parameters(void* context, RustContextAttributes* out_context_attributes);
 void web_webgl_context_restore(void* context, void* transport, ReadonlySpan<ReadonlyBytes> supported_extensions);
+void* web_webgl_context_event_create(JSVM*, void* realm, FlatPtr type);
 
 // What the Rust implementation asks of LibWeb, declared in Bindings/Rust/src/web_gl/canvas.rs.
 void web_webgl_canvas_did_change_content(void* canvas_host);
@@ -169,10 +169,8 @@ static bool fire_webgl_context_event(HTML::CanvasHost& canvas, Utf16FlyString co
 {
     // To fire a WebGL context event named e means that an event using the WebGLContextEvent interface, with its type attribute [DOM4] initialized to e, its cancelable attribute initialized to true, and its isTrusted attribute [DOM4] initialized to true, is to be dispatched at the given object.
     // FIXME: Consider setting a status message.
-    auto event = WebGLContextEvent::create(type, Bindings::WebGLContextEventInit {}, HighResolutionTime::current_high_resolution_time(canvas.canvas_relevant_global_object()));
-    event->set_is_trusted(true);
-    event->set_cancelable(true);
-    return canvas.canvas_event_target().dispatch_event(*event);
+    auto& event = *static_cast<DOM::Event*>(web_webgl_context_event_create(JS::HostABI::vm_to_abi(JS::VM::the()), web_webgl_canvas_relevant_realm(&canvas), type.to_utf16_string().into_raw()));
+    return canvas.canvas_event_target().dispatch_event(event);
 }
 
 // https://www.khronos.org/registry/webgl/specs/latest/1.0/#fire-a-webgl-context-creation-error

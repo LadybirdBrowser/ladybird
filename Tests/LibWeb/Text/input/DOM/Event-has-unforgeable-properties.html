@@ -6,7 +6,7 @@
             "isTrusted",
         ];
 
-        for (const eventType of [Event, UIEvent, CustomEvent]) {
+        for (const eventType of [Event, UIEvent, CustomEvent, WebGLContextEvent]) {
             const event = new eventType("test");
             const eventPrototype = Object.getPrototypeOf(event);
 

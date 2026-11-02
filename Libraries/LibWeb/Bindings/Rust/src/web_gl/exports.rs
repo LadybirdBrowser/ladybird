@@ -11,6 +11,8 @@ use core::ffi::c_void;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
+use ak::Utf16String;
+
 use super::canvas::Canvas;
 use super::fingerprint::verify_that_rust_and_cpp_agree_on_layouts_and_constants;
 use super::host::CppTransport;
@@ -19,9 +21,11 @@ use super::state::{
     ContextParameters, ContextRef, ContextState, MAX_WEBGL_DRAWING_BUFFER_DIMENSION, RenderingContext, WebGL1, WebGL2,
     WebGLVersion,
 };
+use super::web_gl_context_event::{WebGLContextEvent, WebGLContextEventInit};
 use super::web_gl_rendering_context::WebGLPowerPreference;
 use super::web_gl_rendering_context_base::WebGLContextAttributes;
 use crate::bindings::interface::{Interface, allocate, cell_into_abi, realm_arguments};
+use crate::dom::event::EventInit;
 
 /// The bytes of the names of the extensions C++ lends.
 fn extension_names(names: ak::Span<'_, ak::Span<'_, u8>>) -> Vec<Vec<u8>> {
@@ -278,4 +282,30 @@ pub unsafe extern "C" fn web_webgl_context_restore(
     with_context(context, |context| {
         context.restore(transport, supported_opengl_extensions);
     });
+}
+
+/// # Safety
+///
+/// `vm` must be the live VM, `realm` a live realm, and `type` a raw AK::Utf16String that the call takes over.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn web_webgl_context_event_create(
+    vm: *mut c_void,
+    realm: *mut c_void,
+    r#type: usize,
+) -> *mut c_void {
+    // SAFETY: The caller passes the live VM and a live realm.
+    let (vm, realm) = unsafe { realm_arguments(vm, realm) };
+    // SAFETY: The caller hands over the type.
+    let r#type = unsafe { Utf16String::from_raw_owned(r#type) };
+    let event_init = WebGLContextEventInit {
+        parent: EventInit {
+            bubbles: false,
+            cancelable: true,
+            composed: false,
+        },
+        status_message: Utf16String::from_utf8(""),
+    };
+    let event = WebGLContextEvent::create(vm, realm, &r#type, &event_init);
+    event.event().set_is_trusted(true);
+    event.event().as_ptr()
 }

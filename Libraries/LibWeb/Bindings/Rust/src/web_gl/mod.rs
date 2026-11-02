@@ -51,6 +51,8 @@ pub(crate) mod web_gl_active_info;
 #[cfg(not(test))]
 pub(crate) mod web_gl_buffer;
 #[cfg(not(test))]
+pub(crate) mod web_gl_context_event;
+#[cfg(not(test))]
 pub(crate) mod web_gl_draw_buffers;
 #[cfg(not(test))]
 pub(crate) mod web_gl_framebuffer;
