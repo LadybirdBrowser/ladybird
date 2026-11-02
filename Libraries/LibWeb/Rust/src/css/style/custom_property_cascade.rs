@@ -755,15 +755,17 @@ impl RetainedState {
 
     /// The custom properties in a dependency cycle through what an element's animations declare, as
     /// `--p: var(--q)` in a keyframe beside `--q: var(--p)` on the element. An animated value wins
-    /// the cascade over a declared one, so a name it animates reads as its keyframes do.
+    /// the cascade over a declared one, so a name it animates reads as its keyframes do. `inherited`
+    /// is the environment the element inherits.
     pub(crate) fn custom_properties_in_an_animated_cycle(
         &self,
         node: StyleNodeID,
         pseudo: Option<u8>,
+        inherited: Option<&CustomPropertyStore>,
     ) -> Vec<crate::css::retained_fly_string::RetainedUtf16FlyString> {
         type Name = crate::css::retained_fly_string::RetainedUtf16FlyString;
         let slot = pseudo.map_or(0, |kind| kind + 1);
-        let mut reads: Vec<(Name, Vec<Arc<[u16]>>)> = Vec::new();
+        let mut written: Vec<(Name, &StyleValueData)> = Vec::new();
         for effect in self.element_animation_effects(node, slot) {
             for keyframe in effect.keyframes() {
                 for declaration in effect.custom_declarations_of(keyframe) {
@@ -771,23 +773,22 @@ impl RetainedState {
                     else {
                         continue;
                     };
-                    let names = named_custom_property_reads(value.data()).unwrap_or_default();
-                    let names = names.into_iter().map(Arc::from);
-                    match reads.iter_mut().find(|(name, _)| *name == declaration.name) {
-                        Some((_, read)) => read.extend(names),
-                        None => reads.push((declaration.name.clone(), names.collect())),
-                    }
+                    written.push((declaration.name.clone(), value.data()));
                 }
             }
         }
-        if reads.iter().all(|(_, read)| read.is_empty()) {
+        if written.iter().all(|(_, value)| {
+            !value_calls_custom_functions(value)
+                && named_custom_property_reads(value).is_none_or(|names| names.is_empty())
+        }) {
             return Vec::new();
         }
-        if let Some(declarations) = self
+        let animated_count = written.len();
+        let declarations = self
             .live_style
             .as_ref()
-            .and_then(|live| live.custom_declarations_of(node, pseudo))
-        {
+            .and_then(|live| live.custom_declarations_of(node, pseudo));
+        if let Some(declarations) = &declarations {
             for (declared, value) in declarations
                 .iter()
                 .filter(|(declared, _)| declared.operator() == CascadeOperator::Declared)
@@ -796,10 +797,42 @@ impl RetainedState {
                     continue;
                 };
                 let name = Name::from_utf16(name.to_utf16().as_ref());
-                if reads.iter().all(|(animated, _)| *animated != name) {
-                    let names = named_custom_property_reads(value.data()).unwrap_or_default();
-                    reads.push((name, names.into_iter().map(Arc::from).collect()));
+                if written[..animated_count].iter().all(|(animated, _)| *animated != name) {
+                    written.push((name, value.data()));
                 }
+            }
+        }
+        // NB: A container condition the engine cannot decide leaves what a function reads unknown, as a read of no name.
+        let functions = written
+            .iter()
+            .any(|(_, value)| value_calls_custom_functions(value))
+            .then(|| self.prepare_custom_functions(&self.document_functions, node, pseudo))
+            .flatten();
+        let registry = self.document_style_computation_inputs.custom_property_registry();
+        let holds_a_value = |name: &ak::Utf16FlyString| {
+            written.iter().any(|(written, _)| written.raw() == name.raw_identity())
+                || registry.has_initial_value(name)
+                || inherited.is_some_and(|store| store.holds_name(name))
+        };
+        let mut reads: Vec<(Name, Vec<Arc<[u16]>>)> = Vec::new();
+        for (name, value) in &written {
+            let names: Vec<Arc<[u16]>> = match (&functions, substituted_tokens(value)) {
+                (Some(functions), StyleValueData::Unresolved(unresolved)) if value_calls_custom_functions(value) => {
+                    crate::css::custom_properties::custom_property_reads_through_functions(
+                        unresolved.components().as_ref(),
+                        &functions.registry,
+                        &holds_a_value,
+                    )
+                }
+                _ => named_custom_property_reads(value)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(Arc::from)
+                    .collect(),
+            };
+            match reads.iter_mut().find(|(read_name, _)| read_name == name) {
+                Some((_, read)) => read.extend(names),
+                None => reads.push((name.clone(), names)),
             }
         }
         let reads_of = |name: &[u16]| {

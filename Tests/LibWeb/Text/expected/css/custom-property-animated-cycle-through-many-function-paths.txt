@@ -1,0 +1,7 @@
+every path through a chain leads to it: --p: 0px, --q: 0px
+each call's local shadows it: --p: 2px, --q: 2px
+a local shadows it, then a call reads it: --p: 0px, --q: 0px
+a call reads it, then a local shadows it: --p: 0px, --q: 0px
+each call passes the parameter: --p: 11px, --q: 11px
+a call passes the parameter, then one leaves it out: --p: 0px, --q: 0px
+a call leaves the parameter out, then one passes it: --p: 0px, --q: 0px

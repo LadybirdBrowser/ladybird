@@ -1,0 +1,12 @@
+a function reads the other property: --p: 0px, --q: 0px
+a function reads it through another: --p: 0px, --q: 0px
+a local shadows it: --p: 2px, --q: 2px
+a parameter shadows it: --p: 3px, --q: 3px
+an argument reads it: --p: 0px, --q: 0px
+a local nothing reads reads it: --p: 0px, --q: 0px
+a fallback that is not used reads it: --p: 5px, --q: 5px
+a fallback that is used reads it: --p: 0px, --q: 0px
+a parameter's default reads it: --p: 0px, --q: 0px
+a passed parameter's default reads it: --p: 6px, --q: 6px
+a caller's local shadows it: --p: 4px, --q: 4px
+a function calls itself: --p: 0px, --q: 0px
