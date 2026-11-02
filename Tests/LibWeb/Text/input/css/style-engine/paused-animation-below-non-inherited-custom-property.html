@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<style>
+    @property --spin {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @property --not-inherited {
+        syntax: "<length>";
+        inherits: false;
+        initial-value: 0px;
+    }
+    @keyframes spin {
+        to {
+            --spin: 360deg;
+        }
+    }
+    #animated {
+        animation: spin 100s linear infinite paused -10s;
+    }
+    #ancestor {
+        --declared: 1;
+    }
+    #reader {
+        rotate: calc(-1 * var(--spin));
+    }
+</style>
+<div id="ancestor">
+    <div id="declarer">
+        <div>
+            <div id="animated"><div><div id="reader"></div></div></div>
+        </div>
+    </div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    // Under the style self-check, a cold pass must read the sampled value on the animated element, however
+    // differently from the live one it built the stores above it.
+    asyncTest(async done => {
+        const read = () => `${getComputedStyle(reader).getPropertyValue("--spin")} ${getComputedStyle(reader).rotate}`;
+        println(read());
+
+        await animationFrame();
+        declarer.style.setProperty("--not-inherited", "9px");
+        println(read());
+
+        await animationFrame();
+        println(read());
+        done();
+    });
+</script>
