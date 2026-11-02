@@ -23,6 +23,7 @@
 #include <LibWeb/Editing/SpellingMarkers.h>
 #include <LibWeb/Editing/WritingSuggestionController.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/CheckUnloadingCanceledState.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/Focus.h>
@@ -163,6 +164,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
         visitor.visit(request.value.callback);
     visitor.visit(m_pending_permission_requests);
     visitor.visit(m_notifications_list);
+    visitor.visit(m_unloading_canceled_checks);
     m_pending_fullscreen_operations.for_each([&](auto const& operation) {
         operation.visit([&](PendingFullscreenEnter const& enter_operation) {
                 visitor.visit(enter_operation.element);
@@ -1635,6 +1637,16 @@ void Page::permission_request_completed(u64 request_id, Web::Permissions::Effect
 {
     if (auto callback = m_pending_permission_requests.take(request_id); callback.has_value())
         callback.value()->function()(state);
+}
+
+void Page::add_unloading_canceled_check(Badge<HTML::CheckUnloadingCanceledState>, GC::Ref<HTML::CheckUnloadingCanceledState> check)
+{
+    m_unloading_canceled_checks.set(check);
+}
+
+void Page::remove_unloading_canceled_check(Badge<HTML::CheckUnloadingCanceledState>, GC::Ref<HTML::CheckUnloadingCanceledState> check)
+{
+    m_unloading_canceled_checks.remove(check);
 }
 
 void Page::register_showing_notification(u64 notification_id, GC::Ref<NotificationsAPI::Notification> notification)

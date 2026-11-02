@@ -27,6 +27,7 @@ public:
     static constexpr int TIMEOUT_MS = 15000;
 
     CheckUnloadingCanceledState(
+        GC::Ref<Page>,
         GC::Ptr<LocalTraversableNavigable> owner,
         GC::Ptr<LocalTraversableNavigable> traversable,
         Optional<UserNavigationInvolvement> user_involvement,
@@ -52,6 +53,7 @@ private:
     Result m_final_status { Result::Continue };
     UnloadPromptShown m_unload_prompt_shown { UnloadPromptShown::No };
     bool m_completed { false };
+    GC::Ref<Page> m_page;
     GC::Ptr<LocalTraversableNavigable> m_owner;
     bool m_needs_beforeunload { false };
     size_t m_remaining_phase2_tasks { 0 };
