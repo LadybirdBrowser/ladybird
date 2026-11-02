@@ -1,0 +1,2 @@
+true
+<p id="paragraph">he</p><div style="display: none"><span>hidden</span></div><p id="paragraph">llo</p>

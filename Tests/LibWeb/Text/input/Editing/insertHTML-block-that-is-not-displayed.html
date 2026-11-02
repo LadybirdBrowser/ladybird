@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="editor" contenteditable="true"><p id="paragraph">hello</p></div>
+<script>
+    test(() => {
+        // Planning the insertion reads the style of what it inserts below the element that is not displayed, and goes on
+        // to read the layout of the text around it.
+        editor.focus();
+        getSelection().collapse(paragraph.firstChild, 2);
+        println(document.execCommand("insertHTML", false, `<div style="display: none"><span>hidden</span></div>`));
+        println(editor.innerHTML);
+    });
+</script>
