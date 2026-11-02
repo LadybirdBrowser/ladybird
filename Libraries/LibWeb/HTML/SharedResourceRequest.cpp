@@ -296,14 +296,20 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     // FIXME: Bring this closer to spec.
 
     if (is_svg_image == IsSVGImage::Yes) {
+        // NB: The decode waits for the image's document to load completely, which it may never do, and its promise keeps
+        //     both handlers. So they hold this request weakly: its document keeps it alive for as long as it is needed.
         SVG::SVGDecodedImageData::decode(m_page, url_string, data)
-            ->when_resolved([self = GC::Root { *this }, image_data_is_cors_cross_origin](auto& image_data) {
+            ->when_resolved([weak_this = GC::Weak { *this }, image_data_is_cors_cross_origin](auto& image_data) {
+                auto self = weak_this.ptr();
+                if (!self)
+                    return;
                 self->m_image_data = image_data.ptr();
                 self->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
                 self->handle_successful_resource_load();
             })
-            .when_rejected([self = GC::Root { *this }](Error&) {
-                self->handle_failed_fetch();
+            .when_rejected([weak_this = GC::Weak { *this }](Error&) {
+                if (auto self = weak_this.ptr())
+                    self->handle_failed_fetch();
             });
         return;
     }
