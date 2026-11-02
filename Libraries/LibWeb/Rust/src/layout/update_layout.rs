@@ -68,7 +68,6 @@ fn read_arena<A, R>(host: &DocumentHost, read: &BegunRead, args: A, answer: fn(&
 pub struct FfiLayoutUpdateHostCallbacks {
     context: *mut c_void,
     connected_element_count: extern "C" fn(*mut c_void, &BegunRead) -> u32,
-    animated_custom_property_moves: extern "C" fn(*mut c_void, &BegunRead) -> u64,
     update_style: extern "C" fn(*mut c_void, &BegunRead),
     process_pending_list_item_renumbers: extern "C" fn(*mut c_void, &BegunRead),
     process_pending_top_layer_layout_changes: extern "C" fn(*mut c_void, &BegunRead),
@@ -175,10 +174,6 @@ pub struct FfiLayoutTreeBuildStats {
 impl FfiLayoutUpdateHostCallbacks {
     fn connected_element_count(&self, _: &MainThread, read: &BegunRead) -> u32 {
         (self.connected_element_count)(self.context, read)
-    }
-
-    fn animated_custom_property_moves(&self, _: &MainThread, read: &BegunRead) -> u64 {
-        (self.animated_custom_property_moves)(self.context, read)
     }
 
     fn update_style(&self, _: &MainThread, read: &BegunRead) {
@@ -1097,8 +1092,7 @@ fn update_layout(
 
     // Size-query dependencies point from a descendant to an ancestor query container. They are
     // therefore acyclic, and a coherent style/layout pass can settle at least one more level of
-    // a nested dependency chain. One pass per connected element is a conservative exact bound, with
-    // one more per move of an animated custom property, as a chain of them moves one value per style pass.
+    // a nested dependency chain. One pass per connected element is a conservative exact bound.
     // Recompute it after each pass because an initial style update can enroll the elements of a
     // freshly parsed document after the layout update has already started. The bound is at least
     // the ordinary limit, so the passes within it do not ask for the count.
@@ -1112,10 +1106,7 @@ fn update_layout(
     let mut trace = StabilizationTrace::default();
     while layout_pass <= ORDINARY_STABILIZATION_ROUND_LIMIT
         || layout_pass
-            < ORDINARY_STABILIZATION_ROUND_LIMIT
-                + u64::from(host.connected_element_count(main_thread, read))
-                + host.animated_custom_property_moves(main_thread, read)
-                + 1
+            < ORDINARY_STABILIZATION_ROUND_LIMIT + u64::from(host.connected_element_count(main_thread, read)) + 1
     {
         layout_pass += 1;
 

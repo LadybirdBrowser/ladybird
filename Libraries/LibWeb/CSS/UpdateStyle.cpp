@@ -857,7 +857,23 @@ void Document::update_style()
 {
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
     drain_flown_style_update(read);
+    auto const stopped_passes = [&] { return style_invalidation_counters().style_update_pass_guard_hits; };
+    auto stopped_before = stopped_passes();
     CSS::update_style(read, *this);
+    if (stopped_passes() == stopped_before)
+        return;
+
+    // NB: A style update stops after a number of passes with what they fed back still pending, as a chain of custom
+    //     property animations does that moves one level per pass. What reads the style next wants them all, such as a
+    //     tree build demanding a record, which reads current input only.
+    begin_style_stabilization_epoch();
+    ScopeGuard end_stabilization_epoch = [&] { end_style_stabilization_epoch(); };
+    stopped_before = stopped_passes();
+    while (style_computer().style_engine().has_pending_transaction(read) && !is_at_style_stabilization_bound(read)) {
+        CSS::update_style(read, *this);
+        if (stopped_passes() == exchange(stopped_before, stopped_passes()))
+            break;
+    }
 }
 
 bool Document::let_style_update_fly(Layout::RustFFI::FfiFlightBlocker blocker)
