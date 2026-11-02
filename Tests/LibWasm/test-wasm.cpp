@@ -245,6 +245,9 @@ HashMap<ImportName, Wasm::Runtime::Extern> WebAssemblyModule::s_spec_test_namesp
 TESTJS_RUN_FILE_FUNCTION(ByteString const&, JS::Realm&, JS::ExecutionContext&)
 {
     WebAssemblyModule::reset_store();
+    // NB: The memories of the last file hold on to their address space until they are collected, and running out of it
+    //     is not something that makes the heap collect them.
+    GC::Heap::the().collect_garbage();
     return Test::JS::RunFileHookResult::RunAsNormal;
 }
 
