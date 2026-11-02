@@ -252,7 +252,6 @@ private:
 
     void update_viewport_size();
     void update_cursor(Gfx::Cursor cursor);
-    void apply_web_content_cursor(QCursor const&);
     void schedule_repaint();
 #ifdef LADYBIRD_QT_USE_RHI_WIDGET
     void schedule_frame_damage_repaint();
@@ -420,9 +419,6 @@ private:
     bool current_paintable_can_use_vulkan_window() const;
     void schedule_vulkan_window_update();
     void update_vulkan_window_geometry();
-    void set_vulkan_window_cursor(QCursor const&);
-    bool handle_vulkan_window_event(QEvent*);
-    bool vulkan_window_has_native_focus() const;
     void set_vulkan_window_container_visible(bool);
     void fall_back_to_bitmap_rendering();
     void vulkan_window_exposure_changed();

@@ -1042,8 +1042,6 @@ struct WebContentView::VulkanWindow final : public QVulkanWindow {
 
     virtual bool event(QEvent* event) override
     {
-        if (m_view && m_view->handle_vulkan_window_event(event))
-            return true;
         // NB: Every step of a resize asks to present again, which recreates the swap chain at the new size only to show
         //     the same frame in it. Until the page has a frame for the new size, keep the last one on screen. Its
         //     surface keeps its size until it presents again, and the view paints the edge it leaves bare.
@@ -1089,23 +1087,13 @@ void WebContentView::create_vulkan_window()
         VK_FORMAT_R8G8B8A8_UNORM,
     });
 
-    m_vulkan_window_container = QWidget::createWindowContainer(m_vulkan_window, this);
-    m_vulkan_window_container->setAcceptDrops(true);
-    m_vulkan_window_container->setFocusPolicy(Qt::FocusPolicy::StrongFocus);
-    m_vulkan_window_container->setMouseTracking(true);
+    m_vulkan_window_container = create_native_window_container(*m_vulkan_window, *this);
     m_vulkan_window_container->setGeometry(rect());
     m_vulkan_window_container->hide();
-
-    install_native_window_container_event_forwarding(*this, *m_vulkan_window, *m_vulkan_window_container);
 
     m_unexposed_vulkan_window_timer.setSingleShot(true);
     m_unexposed_vulkan_window_timer.setInterval(500);
     QObject::connect(&m_unexposed_vulkan_window_timer, &QTimer::timeout, this, [this] { remap_unexposed_vulkan_window(); });
-}
-
-bool WebContentView::vulkan_window_has_native_focus() const
-{
-    return m_vulkan_window && QGuiApplication::focusWindow() == m_vulkan_window;
 }
 
 void WebContentView::set_vulkan_window_container_visible(bool visible)
@@ -1113,7 +1101,7 @@ void WebContentView::set_vulkan_window_container_visible(bool visible)
     if (!visible)
         m_presented_page_window_size = {};
     if (m_vulkan_window_container)
-        set_native_window_container_visible(*this, *m_vulkan_window_container, visible);
+        m_vulkan_window_container->setVisible(visible);
 }
 
 bool WebContentView::vulkan_window_update_would_only_resize() const
@@ -1195,7 +1183,6 @@ void WebContentView::fall_back_to_bitmap_rendering()
 
 void WebContentView::destroy_vulkan_window()
 {
-    setFocusProxy(nullptr);
     if (m_vulkan_window)
         m_vulkan_window->clear_view();
 
@@ -1535,12 +1522,13 @@ void WebContentView::update_vulkan_window_mask()
     if (!m_vulkan_window || !m_vulkan_window_container)
         return;
 
-    // On X11, the native window's bounding shape exposes the regions painted transparent for hover-expanded chrome.
-    // Wayland instead uses the renderer's alpha output and empties the native window's input region separately.
+    // On X11, the native window's bounding shape exposes the regions of hover-expanded chrome, with or without alpha
+    // blending. Wayland instead uses the renderer's alpha output and empties the native window's input region
+    // separately.
     auto size = m_vulkan_window_container->size();
     QRegion window_mask { QRect { QPoint { 0, 0 }, size } };
 
-    if (m_vulkan_window_supports_alpha_blending.value_or(false)) {
+    if (QGuiApplication::platformName() == "xcb" || m_vulkan_window_supports_alpha_blending.value_or(false)) {
         if (m_vertical_tab_overlay_left > 0)
             window_mask -= QRect { 0, 0, m_vertical_tab_overlay_left, size.height() };
         if (m_vertical_tab_overlay_right > 0)
@@ -1589,20 +1577,8 @@ void WebContentView::update_vulkan_alpha_blending_support()
 
     m_vulkan_window_supports_alpha_blending = color_format_has_alpha && (capabilities.supportedCompositeAlpha & blending_modes) != 0;
 
-    // Route pointer input through QWidget when it can also display widgets beneath the Vulkan surface. QWidget's
-    // implicit mouse capture then preserves move and release events while the pointer is outside the browser window.
-    m_vulkan_window->setFlag(Qt::WindowTransparentForInput, *m_vulkan_window_supports_alpha_blending);
-
     // The window mask was computed while support was still unknown; refresh it now that any stored insets can apply.
     update_vulkan_window_mask();
-}
-
-void WebContentView::set_vulkan_window_cursor(QCursor const& cursor)
-{
-    if (m_vulkan_window_container)
-        m_vulkan_window_container->setCursor(cursor);
-    if (m_vulkan_window)
-        m_vulkan_window->setCursor(cursor);
 }
 
 }
