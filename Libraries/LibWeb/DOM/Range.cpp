@@ -1378,11 +1378,10 @@ Vector<Gfx::DoubleRect> Range::client_rects()
             if (selection_state == Painting::SelectionState::None)
                 continue;
 
+            // A text node without a box renders nothing, so it has no rects.
             auto const* layout_node = text.layout_node(read);
-            if (!layout_node) {
-                dbgln("FIXME: Failed to get client rects for node {}", node->debug_description());
+            if (!layout_node)
                 continue;
-            }
 
             if (!visual_context_tree.has_value() && !document.can_compute_client_rects_without_accumulated_visual_contexts_update(*layout_node)) {
                 document.update_paint_and_hit_testing_properties_if_needed();

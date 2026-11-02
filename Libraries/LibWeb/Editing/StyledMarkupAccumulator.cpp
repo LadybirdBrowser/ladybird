@@ -27,6 +27,13 @@ static bool should_serialize_node(DOM::Node const& node)
     if (node.has_layout_box())
         return true;
 
+    // White space that renders nothing has no box, but it is part of the markup of the element around it like the
+    // rest of the element's text. Text that renders nothing is dropped once the fragment is built.
+    if (auto const* text = as_if<DOM::Text>(node); text && text->data().is_ascii_whitespace()) {
+        auto parent = text->parent_element();
+        return parent && should_serialize_node(*parent);
+    }
+
     auto const* element = as_if<DOM::Element>(node);
     auto const* box_values = element ? element->style_group<CSS::ComputedValues::BoxValues>() : nullptr;
     return box_values && CSS::display_from_ffi_display(box_values->display).is_contents();
