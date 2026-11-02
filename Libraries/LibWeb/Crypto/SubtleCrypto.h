@@ -50,6 +50,8 @@ public:
     GC::Ref<WebIDL::Promise> decapsulate_key(JS::Realm&, AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSourceVariant const& ciphertext, AlgorithmIdentifier shared_key_algorithm, bool extractable, Vector<KeyUsage> const& usages);
     GC::Ref<WebIDL::Promise> decapsulate_bits(JS::Realm&, AlgorithmIdentifier decapsulation_algorithm, GC::Ref<CryptoKey> decapsulation_key, WebIDL::BufferSourceVariant const& ciphertext);
 
+    GC::Ref<WebIDL::Promise> get_public_key(JS::Realm&, GC::Ref<CryptoKey> key, Vector<KeyUsage> key_usages);
+
 private:
     SubtleCrypto();
 };

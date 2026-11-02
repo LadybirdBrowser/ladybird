@@ -2,47 +2,48 @@ Harness status: OK
 
 Found 43 tests
 
-43 Fail
-Fail	getPublicKey works for ECDH
-Fail	getPublicKey works for ECDSA
-Fail	getPublicKey works for Ed25519
-Fail	getPublicKey works for Ed448
-Fail	getPublicKey works for RSA-OAEP
-Fail	getPublicKey works for RSA-PSS
-Fail	getPublicKey works for RSASSA-PKCS1-v1_5
-Fail	getPublicKey works for X25519
-Fail	getPublicKey works for X448
-Fail	getPublicKey works for ML-DSA-44
-Fail	getPublicKey works for ML-DSA-65
-Fail	getPublicKey works for ML-DSA-87
-Fail	getPublicKey works for ML-KEM-512
-Fail	getPublicKey works for ML-KEM-768
-Fail	getPublicKey works for ML-KEM-1024
+37 Pass
+6 Fail
+Pass	getPublicKey works for ECDH
+Pass	getPublicKey works for ECDSA
+Pass	getPublicKey works for Ed25519
+Pass	getPublicKey works for Ed448
+Pass	getPublicKey works for RSA-OAEP
+Pass	getPublicKey works for RSA-PSS
+Pass	getPublicKey works for RSASSA-PKCS1-v1_5
+Pass	getPublicKey works for X25519
+Pass	getPublicKey works for X448
+Pass	getPublicKey works for ML-DSA-44
+Pass	getPublicKey works for ML-DSA-65
+Pass	getPublicKey works for ML-DSA-87
+Pass	getPublicKey works for ML-KEM-512
+Pass	getPublicKey works for ML-KEM-768
+Pass	getPublicKey works for ML-KEM-1024
 Fail	getPublicKey works for MLKEM768-P256
 Fail	getPublicKey works for MLKEM768-X25519
 Fail	getPublicKey works for MLKEM1024-P384
-Fail	Derived public key is functionally equivalent to original public key
-Fail	getPublicKey works with empty usages for ECDH
-Fail	getPublicKey works with empty usages for ECDSA
-Fail	getPublicKey works with empty usages for Ed25519
-Fail	getPublicKey works with empty usages for Ed448
-Fail	getPublicKey works with empty usages for RSA-OAEP
-Fail	getPublicKey works with empty usages for RSA-PSS
-Fail	getPublicKey works with empty usages for RSASSA-PKCS1-v1_5
-Fail	getPublicKey works with empty usages for X25519
-Fail	getPublicKey works with empty usages for X448
-Fail	getPublicKey works with empty usages for ML-DSA-44
-Fail	getPublicKey works with empty usages for ML-DSA-65
-Fail	getPublicKey works with empty usages for ML-DSA-87
-Fail	getPublicKey works with empty usages for ML-KEM-512
-Fail	getPublicKey works with empty usages for ML-KEM-768
-Fail	getPublicKey works with empty usages for ML-KEM-1024
+Pass	Derived public key is functionally equivalent to original public key
+Pass	getPublicKey works with empty usages for ECDH
+Pass	getPublicKey works with empty usages for ECDSA
+Pass	getPublicKey works with empty usages for Ed25519
+Pass	getPublicKey works with empty usages for Ed448
+Pass	getPublicKey works with empty usages for RSA-OAEP
+Pass	getPublicKey works with empty usages for RSA-PSS
+Pass	getPublicKey works with empty usages for RSASSA-PKCS1-v1_5
+Pass	getPublicKey works with empty usages for X25519
+Pass	getPublicKey works with empty usages for X448
+Pass	getPublicKey works with empty usages for ML-DSA-44
+Pass	getPublicKey works with empty usages for ML-DSA-65
+Pass	getPublicKey works with empty usages for ML-DSA-87
+Pass	getPublicKey works with empty usages for ML-KEM-512
+Pass	getPublicKey works with empty usages for ML-KEM-768
+Pass	getPublicKey works with empty usages for ML-KEM-1024
 Fail	getPublicKey works with empty usages for MLKEM768-P256
 Fail	getPublicKey works with empty usages for MLKEM768-X25519
 Fail	getPublicKey works with empty usages for MLKEM1024-P384
-Fail	getPublicKey rejects with InvalidAccessError when given a public key
-Fail	getPublicKey rejects with NotSupportedError for AES-GCM symmetric keys
-Fail	getPublicKey rejects with NotSupportedError for HMAC symmetric keys
-Fail	getPublicKey rejects with SyntaxError for invalid usages
-Fail	getPublicKey rejects with SyntaxError when any usage is invalid for the algorithm
-Fail	getPublicKey method is available
+Pass	getPublicKey rejects with InvalidAccessError when given a public key
+Pass	getPublicKey rejects with NotSupportedError for AES-GCM symmetric keys
+Pass	getPublicKey rejects with NotSupportedError for HMAC symmetric keys
+Pass	getPublicKey rejects with SyntaxError for invalid usages
+Pass	getPublicKey rejects with SyntaxError when any usage is invalid for the algorithm
+Pass	getPublicKey method is available

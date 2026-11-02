@@ -1467,6 +1467,12 @@ WebIDL::ExceptionOr<ExportKeyResult> RSAOAEP::export_key(JS::Realm& realm, KeyFo
     return result.release_value();
 }
 
+Optional<ReadonlySpan<KeyUsage>> RSAOAEP::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Encrypt, KeyUsage::WrapKey };
+    return usages.span();
+}
+
 // https://w3c.github.io/webcrypto/#rsa-pss-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSAPSS::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
@@ -2048,6 +2054,12 @@ WebIDL::ExceptionOr<ExportKeyResult> RSAPSS::export_key(JS::Realm& realm, KeyFor
     return result.release_value();
 }
 
+Optional<ReadonlySpan<KeyUsage>> RSAPSS::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Verify };
+    return usages.span();
+}
+
 // https://w3c.github.io/webcrypto/#rsassa-pkcs1-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> RSASSAPKCS1::generate_key(JS::Realm& realm, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
@@ -2621,6 +2633,12 @@ WebIDL::ExceptionOr<ExportKeyResult> RSASSAPKCS1::export_key(JS::Realm& realm, K
 
     // 8. Return result
     return result.release_value();
+}
+
+Optional<ReadonlySpan<KeyUsage>> RSASSAPKCS1::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Verify };
+    return usages.span();
 }
 
 // https://w3c.github.io/webcrypto/#aes-cbc-operations-encrypt
@@ -4960,6 +4978,12 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDSA::export_key(JS::Realm&, KeyFormat for
     return result.release_value();
 }
 
+Optional<ReadonlySpan<KeyUsage>> ECDSA::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Verify };
+    return usages.span();
+}
+
 // https://w3c.github.io/webcrypto/#ecdh-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ECDH::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
@@ -5892,6 +5916,11 @@ WebIDL::ExceptionOr<ExportKeyResult> ECDH::export_key(JS::Realm&, KeyFormat form
     return result.release_value();
 }
 
+Optional<ReadonlySpan<KeyUsage>> ECDH::public_key_usages() const
+{
+    return ReadonlySpan<KeyUsage> {};
+}
+
 // https://w3c.github.io/webcrypto/#ed25519-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> ED25519::generate_key(JS::Realm&, [[maybe_unused]] AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& key_usages)
 {
@@ -6323,6 +6352,12 @@ WebIDL::ExceptionOr<ExportKeyResult> ED25519::export_key(JS::Realm& realm, KeyFo
     // 2. Otherwise:
     //    throw a NotSupportedError.
     return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
+}
+
+Optional<ReadonlySpan<KeyUsage>> ED25519::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Verify };
+    return usages.span();
 }
 
 // https://w3c.github.io/webcrypto/#ed25519-operations-sign
@@ -6808,6 +6843,12 @@ WebIDL::ExceptionOr<ExportKeyResult> ED448::export_key(JS::Realm& realm, KeyForm
     // 2. Otherwise:
     //    throw a NotSupportedError.
     return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
+}
+
+Optional<ReadonlySpan<KeyUsage>> ED448::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Verify };
+    return usages.span();
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#ed448-operations
@@ -7533,6 +7574,11 @@ WebIDL::ExceptionOr<ExportKeyResult> X25519::export_key(JS::Realm& realm, KeyFor
     return result.release_value();
 }
 
+Optional<ReadonlySpan<KeyUsage>> X25519::public_key_usages() const
+{
+    return ReadonlySpan<KeyUsage> {};
+}
+
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
 WebIDL::ExceptionOr<ByteBuffer> X448::derive_bits(JS::Realm& realm,
     AlgorithmParams const& params,
@@ -7764,6 +7810,11 @@ WebIDL::ExceptionOr<ExportKeyResult> X448::export_key(JS::Realm& realm, KeyForma
     // 3. Otherwise:
     //    throw a NotSupportedError.
     return WebIDL::NotSupportedError::create("Invalid key format"_utf16);
+}
+
+Optional<ReadonlySpan<KeyUsage>> X448::public_key_usages() const
+{
+    return ReadonlySpan<KeyUsage> {};
 }
 
 // https://wicg.github.io/webcrypto-secure-curves/#x448-operations
@@ -9028,6 +9079,12 @@ WebIDL::ExceptionOr<ExportKeyResult> MLDSA::export_key(JS::Realm& realm, KeyForm
     return result.release_value();
 }
 
+Optional<ReadonlySpan<KeyUsage>> MLDSA::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::Verify };
+    return usages.span();
+}
+
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-generate-key
 WebIDL::ExceptionOr<Variant<GC::Ref<CryptoKey>, CryptoKeyPair>> MLKEM::generate_key(JS::Realm&, AlgorithmParams const& params, bool extractable, Vector<KeyUsage> const& usages)
 {
@@ -9450,6 +9507,12 @@ WebIDL::ExceptionOr<ExportKeyResult> MLKEM::export_key(JS::Realm& realm, KeyForm
 
     // 4. Return result.
     return result.release_value();
+}
+
+Optional<ReadonlySpan<KeyUsage>> MLKEM::public_key_usages() const
+{
+    static constexpr Array usages { KeyUsage::EncapsulateKey, KeyUsage::EncapsulateBits };
+    return usages.span();
 }
 
 // https://wicg.github.io/webcrypto-modern-algos/#ml-kem-operations-encapsulate

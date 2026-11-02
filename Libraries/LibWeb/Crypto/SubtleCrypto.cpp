@@ -8,6 +8,8 @@
 
 #include <AK/ByteBuffer.h>
 #include <AK/NeverDestroyed.h>
+#include <LibCrypto/Curves/EdwardsCurve.h>
+#include <LibCrypto/Curves/SECPxxxr1.h>
 #include <LibCrypto/Hash/HashManager.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -1494,6 +1496,149 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::decapsulate_bits(JS::Realm& realm, Algori
             // 13. Let result be the result of creating an ArrayBuffer in realm, containing decapsulatedBits.
             // 14. Resolve promise with result.
             WebIDL::resolve_promise(promise, JS::ArrayBuffer::create(realm, decapsulated_bits));
+        }));
+    }));
+
+    return promise;
+}
+
+static ErrorOr<CryptoKey::InternalKeyData> public_key_for_private_key(CryptoKey const& key)
+{
+    return key.handle().visit(
+        [](::Crypto::PK::RSAPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return ::Crypto::PK::RSAPublicKey { private_key.modulus(), private_key.public_exponent() };
+        },
+        [&](::Crypto::PK::ECPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            if (private_key.public_key().has_value())
+                return *private_key.public_key();
+
+            auto const& named_curve = key.ec_algorithm().named_curve();
+            auto point = TRY([&] -> ErrorOr<::Crypto::Curves::SECPxxxr1Point> {
+                if (named_curve == "P-256"_utf16)
+                    return ::Crypto::Curves::SECP256r1 {}.generate_public_key(private_key.d());
+                if (named_curve == "P-384"_utf16)
+                    return ::Crypto::Curves::SECP384r1 {}.generate_public_key(private_key.d());
+                if (named_curve == "P-521"_utf16)
+                    return ::Crypto::Curves::SECP521r1 {}.generate_public_key(private_key.d());
+                return Error::from_string_literal("Unsupported named curve");
+            }());
+            return ::Crypto::PK::ECPublicKey { move(point) };
+        },
+        [](::Crypto::PK::MLDSAPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return ::Crypto::PK::MLDSAPublicKey { private_key.public_key() };
+        },
+        [](::Crypto::PK::MLKEMPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return ::Crypto::PK::MLKEMPublicKey { private_key.public_key() };
+        },
+        [&](OKPPrivateKey const& private_key) -> ErrorOr<CryptoKey::InternalKeyData> {
+            auto const& name = key.algorithm_name();
+            auto public_key = TRY([&] -> ErrorOr<ByteBuffer> {
+                if (name == "Ed25519"_utf16)
+                    return ::Crypto::Curves::Ed25519 {}.generate_public_key(private_key.bytes);
+                if (name == "Ed448"_utf16)
+                    return ::Crypto::Curves::Ed448 {}.generate_public_key(private_key.bytes);
+                if (name == "X25519"_utf16)
+                    return ::Crypto::Curves::X25519 {}.generate_public_key(private_key.bytes);
+                if (name == "X448"_utf16)
+                    return ::Crypto::Curves::X448 {}.generate_public_key(private_key.bytes);
+                return Error::from_string_literal("Unsupported algorithm");
+            }());
+            return OKPPublicKey { move(public_key) };
+        },
+        [](auto const&) -> ErrorOr<CryptoKey::InternalKeyData> {
+            return Error::from_string_literal("Key is not a private key");
+        });
+}
+
+// https://wicg.github.io/webcrypto-modern-algos/#dfn-SubtleCrypto-method-getPublicKey
+GC::Ref<WebIDL::Promise> SubtleCrypto::get_public_key(JS::Realm& realm, GC::Ref<CryptoKey> key, Vector<KeyUsage> key_usages)
+{
+    auto& global = realm.global_object();
+    auto& heap = GC::Heap::the();
+
+    // 1. Let key and usages be the key and keyUsages parameters passed to the getPublicKey() method, respectively.
+
+    // 2. Let algorithm be the [[algorithm]] internal slot of key.
+    // NB: Every algorithm that supports deriving a public key registers an export key operation, which lets us find
+    //     the algorithm's methods.
+    auto normalized_algorithm = normalize_an_algorithm(realm, key->algorithm_name(), "exportKey"_string);
+
+    // 3. If the cryptographic algorithm identified by algorithm does not support deriving a public key from a private
+    //    key, then return a Promise rejected with a NotSupportedError.
+    Optional<ReadonlySpan<KeyUsage>> public_key_usages;
+    if (!normalized_algorithm.is_error())
+        public_key_usages = normalized_algorithm.value().methods->public_key_usages();
+    if (!public_key_usages.has_value()) {
+        auto error = WebIDL::NotSupportedError::create(Utf16String::formatted("Algorithm '{}' does not support deriving a public key", key->algorithm_name()));
+        return WebIDL::create_rejected_promise_from_exception(realm, error);
+    }
+
+    // 4. Let realm be the relevant realm of this.
+
+    // 5. Let promise be a new Promise.
+    auto promise = WebIDL::create_promise(realm);
+
+    // 6. Return promise and perform the remaining steps in parallel.
+    Platform::EventLoopPlugin::the().deferred_invoke(GC::create_function(heap, [&realm, &global, &heap, promise, key, key_usages = move(key_usages), public_key_usages = *public_key_usages]() -> void {
+        HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::No);
+
+        // 7. If the following steps or referenced procedures say to throw an error, queue a global task on the crypto
+        //    task source, given realm's global object, to reject promise with the returned error; and then terminate
+        //    the algorithm.
+        auto const throw_in_this_context = [&realm, &global, &heap, &promise](JS::Completion completion) {
+            HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, value = completion.value()] {
+                HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+                WebIDL::reject_promise(promise, value);
+            }));
+        };
+
+        // 8. If the [[type]] internal slot of key is not "private", then throw an InvalidAccessError.
+        if (key->type() != KeyType::Private) {
+            throw_in_this_context(throw_completion(realm, WebIDL::InvalidAccessError::create("Key is not a private key"_utf16)));
+            return;
+        }
+
+        // 9. If usages contains an entry which is not supported for a public key by the algorithm identified by
+        //    algorithm, then throw a SyntaxError.
+        for (auto usage : key_usages) {
+            if (!public_key_usages.contains_slow(usage)) {
+                throw_in_this_context(throw_completion(realm, WebIDL::SyntaxError::create("Invalid key usage for a public key"_utf16)));
+                return;
+            }
+        }
+
+        // 10. Let publicKey be a new CryptoKey representing the public key corresponding to the private key represented
+        //     by the [[handle]] internal slot of key.
+        auto public_key_data = public_key_for_private_key(key);
+
+        // 11. If an error occurred, then throw a OperationError.
+        if (public_key_data.is_error()) {
+            throw_in_this_context(throw_completion(realm, WebIDL::OperationError::create("Failed to derive the public key"_utf16)));
+            return;
+        }
+        auto public_key = CryptoKey::create(public_key_data.release_value());
+
+        // 12. Set the [[type]] internal slot of publicKey to "public".
+        public_key->set_type(KeyType::Public);
+
+        // 13. Set the [[algorithm]] internal slot of publicKey to algorithm.
+        public_key->set_algorithm(key->internal_algorithm());
+
+        // 14. Set the [[extractable]] internal slot of publicKey to true.
+        public_key->set_extractable(true);
+
+        // 15. Set the [[usages]] internal slot of publicKey to the normalized value of usages.
+        public_key->set_usages(normalized_key_usages(key_usages));
+
+        // 16. Queue a global task on the crypto task source, given realm's global object, to perform the remaining
+        //     steps.
+        HTML::queue_global_task(HTML::Task::Source::Crypto, global, GC::create_function(heap, [&realm, promise, public_key] {
+            HTML::TemporaryExecutionContext context(realm, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
+
+            // 17. Let result be the result of converting publicKey to an ECMAScript Object in realm, as defined by
+            //     [WebIDL].
+            // 18. Resolve promise with result.
+            resolve_crypto_key_promise(realm, promise, public_key);
         }));
     }));
 
