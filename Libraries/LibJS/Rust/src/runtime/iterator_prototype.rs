@@ -1440,13 +1440,67 @@ impl FlatMapIterator {
         iterator: &IteratorHelper,
         mapper: Gc<FunctionObject>,
     ) -> ThrowCompletionOr<HelperIterationResult> {
-        if self.inner_iterator.get().is_some() {
-            return self.next_inner_iterator(vm, iterated, iterator, mapper);
+        // b. Repeat,
+        loop {
+            // viii. Repeat, while innerAlive is true,
+            if let Some(inner_iterator) = self.inner_iterator.get() {
+                // 1. Let innerValue be Completion(IteratorStepValue(innerIterator)).
+                // 2. IfAbruptCloseIterator(innerValue, iterated).
+                let inner_value = try_or_close_iterator!(vm, &iterated, iterator_step_value(vm, &inner_iterator));
+
+                // 3. If innerValue is DONE, then
+                let Some(inner_value) = inner_value else {
+                    // a. Set innerAlive to false.
+                    self.inner_iterator.set(None);
+                    continue;
+                };
+
+                // 4. Else,
+                // a. Let completion be Completion(Yield(innerValue)).
+                // NB: Step b is implemented via on_abrupt_completion.
+                return Ok(yield_value(inner_value));
+            }
+
+            // i. Let value be ? IteratorStepValue(iterated).
+            let value = iterator_step_value(vm, &iterated)?;
+
+            // ii. If value is DONE, return ReturnCompletion(undefined).
+            let Some(value) = value else {
+                return Ok(return_undefined());
+            };
+
+            // iii. Let mapped be Completion(Call(mapper, undefined, « value, counter »)).
+            // iv. IfAbruptCloseIterator(mapped, iterated).
+            let mapped = try_or_close_iterator!(
+                vm,
+                &iterated,
+                call_function_object(
+                    vm,
+                    mapper,
+                    Value::UNDEFINED,
+                    &[value, Value::from_f64(iterator.counter())]
+                )
+            );
+
+            // v. Let innerIterator be Completion(GetIteratorFlattenable(mapped, REJECT-PRIMITIVES)).
+            // vi. IfAbruptCloseIterator(innerIterator, iterated).
+            let inner_iterator = try_or_close_iterator!(
+                vm,
+                &iterated,
+                get_iterator_flattenable(vm, mapped, PrimitiveHandling::RejectPrimitives)
+            );
+
+            // vii. Let innerAlive be true.
+            self.inner_iterator.set(Some(inner_iterator));
+
+            // ix. NOTE: The following step will not change counter once it reaches 2**53𝔽.
+            // x. Set counter to counter + 1𝔽.
+            // NB: We do this step early to ensure it occurs before returning.
+            iterator.increment_counter();
         }
-        self.next_outer_iterator(vm, iterated, iterator, mapper)
     }
 
-    // NB: This implements step 6.b.vii.4.b of Iterator.prototype.flatMap.
+    // NB: This implements step 6.b.viii.4.b of Iterator.prototype.flatMap.
     pub fn on_abrupt_completion(
         &self,
         vm: &Vm,
@@ -1469,83 +1523,5 @@ impl FlatMapIterator {
 
         //     iii. Return ? IteratorClose(iterated, completion).
         iterator_close(vm, &iterated, completion).into_throw_completion_or()
-    }
-
-    fn next_outer_iterator(
-        &self,
-        vm: &Vm,
-        iterated: Gc<IteratorRecord>,
-        iterator: &IteratorHelper,
-        mapper: Gc<FunctionObject>,
-    ) -> ThrowCompletionOr<HelperIterationResult> {
-        // i. Let value be ? IteratorStepValue(iterated).
-        let value = iterator_step_value(vm, &iterated)?;
-
-        // ii. If value is DONE, return ReturnCompletion(undefined).
-        let Some(value) = value else {
-            return Ok(return_undefined());
-        };
-
-        // iii. Let mapped be Completion(Call(mapper, undefined, « value, counter »)).
-        // iv. IfAbruptCloseIterator(mapped, iterated).
-        let mapped = try_or_close_iterator!(
-            vm,
-            &iterated,
-            call_function_object(
-                vm,
-                mapper,
-                Value::UNDEFINED,
-                &[value, Value::from_f64(iterator.counter())]
-            )
-        );
-
-        // v. Let innerIterator be Completion(GetIteratorFlattenable(mapped, REJECT-PRIMITIVES)).
-        // vi. IfAbruptCloseIterator(innerIterator, iterated).
-        let inner_iterator = try_or_close_iterator!(
-            vm,
-            &iterated,
-            get_iterator_flattenable(vm, mapped, PrimitiveHandling::RejectPrimitives)
-        );
-
-        // vii. Let innerAlive be true.
-        self.inner_iterator.set(Some(inner_iterator));
-
-        // ix. NOTE: The following step will not change counter once it reaches 2**53𝔽.
-        // x. Set counter to counter + 1𝔽.
-        // NB: We do this step early to ensure it occurs before returning.
-        iterator.increment_counter();
-
-        // viii. Repeat, while innerAlive is true,
-        self.next_inner_iterator(vm, iterated, iterator, mapper)
-    }
-
-    fn next_inner_iterator(
-        &self,
-        vm: &Vm,
-        iterated: Gc<IteratorRecord>,
-        iterator: &IteratorHelper,
-        mapper: Gc<FunctionObject>,
-    ) -> ThrowCompletionOr<HelperIterationResult> {
-        let inner_iterator = self
-            .inner_iterator
-            .get()
-            .expect("the flatMap helper is flattening an inner iterator");
-
-        // 1. Let innerValue be Completion(IteratorStepValue(innerIterator)).
-        // 2. IfAbruptCloseIterator(innerValue, iterated).
-        let inner_value = try_or_close_iterator!(vm, &iterated, iterator_step_value(vm, &inner_iterator));
-
-        // 3. If innerValue is DONE, then
-        let Some(inner_value) = inner_value else {
-            // a. Set innerAlive to false.
-            self.inner_iterator.set(None);
-
-            return self.next_outer_iterator(vm, iterated, iterator, mapper);
-        };
-
-        // 4. Else,
-        // a. Let completion be Completion(Yield(innerValue)).
-        // NB: Step b is implemented via on_abrupt_completion.
-        Ok(yield_value(inner_value))
     }
 }
