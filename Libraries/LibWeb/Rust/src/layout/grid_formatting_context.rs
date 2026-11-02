@@ -5,6 +5,8 @@
  */
 
 use super::*;
+use crate::css::style_value::GridTrackSizeListPayload;
+use crate::css::style_value::StyleValueBox;
 use std::ops::Range;
 
 mod grid_lanes;
@@ -382,11 +384,11 @@ impl OwnedUsedGridTrackList {
                 }));
             }
         }
-        StyleValueData::GridTrackSizeList {
+        StyleValueData::GridTrackSizeList(StyleValueBox::new(GridTrackSizeListPayload {
             is_subgrid: self.is_subgrid,
             preserve_line_name_sets: self.is_subgrid,
             entries: RetainedGridTrackEntryList::from_retained_entries(entries),
-        }
+        }))
     }
 }
 
@@ -1433,7 +1435,7 @@ impl<'pass> ParentGridData<'pass> {
 /// (the fc-run-cache probe): a declared subgrid axis counts regardless of the
 /// parent-grid placement check only a run in progress can make.
 pub(super) fn grid_template_declares_a_subgrid_axis(callbacks: &LayoutPass<'_>, box_: Node) -> bool {
-    let grid_style = ComputedValuesView::new(&callbacks.style_payloads(box_).groups).grid_values();
+    let grid_style = callbacks.style_view(box_).grid_values();
     grid_style.template_columns.is_subgrid || grid_style.template_rows.is_subgrid
 }
 
@@ -1614,7 +1616,7 @@ impl<'pass> GridFormattingContext<'pass> {
     /// outlives the pass because the node's ComputedValues keep it alive and
     /// style containers are only replaced between passes.
     fn grid_style(&self, node: Node) -> &'pass GridValues {
-        ComputedValuesView::new(&self.run.callbacks.style_payloads(node).groups).grid_values()
+        self.run.callbacks.style_view(node).grid_values()
     }
 
     /// Picks whichever of the per-grid-axis values (as in grid-template-columns and grid-template-rows) belongs to the

@@ -20,6 +20,7 @@ use crate::css::style_value::{
     FILTER_KIND_BLUR, FILTER_KIND_COLOR, FILTER_KIND_DROP_SHADOW, FILTER_KIND_HUE_ROTATE, RetainedStyleValueData,
     StyleValueData, is_none_keyword,
 };
+use crate::css::style_value::{ShadowPayload, TransformationPayload};
 use crate::css::table_group_builder::{
     TRANSFORM_PARAMETER_ANGLE, TRANSFORM_PARAMETER_LENGTH, TRANSFORM_PARAMETER_LENGTH_NONE,
     TRANSFORM_PARAMETER_LENGTH_PERCENTAGE, TRANSFORM_PARAMETER_NUMBER, TRANSFORM_PARAMETER_NUMBER_PERCENTAGE,
@@ -222,7 +223,7 @@ fn opacity_from_style_value(value: &StyleValueData) -> Option<f32> {
 }
 
 fn is_legacy_color_function(value: &StyleValueData) -> bool {
-    matches!(value, StyleValueData::ColorFunction { color_base, .. } if color_base.color_syntax == COLOR_SYNTAX_LEGACY)
+    matches!(value, StyleValueData::ColorFunction(color_function) if color_function.color_base.color_syntax == COLOR_SYNTAX_LEGACY)
 }
 
 /// Legacy sRGB colors interpolate in gamma-encoded sRGB, which the compositor sampler matches. Modern
@@ -274,16 +275,16 @@ fn filter_functions_from_style_value(value: &StyleValueData, request: &Request) 
                 )
             }
             FILTER_KIND_DROP_SHADOW => {
-                let StyleValueData::Shadow {
+                let StyleValueData::Shadow(shadow_payload) = value.data() else {
+                    return None;
+                };
+                let ShadowPayload {
                     color,
                     offset_x,
                     offset_y,
                     blur_radius,
                     ..
-                } = value.data()
-                else {
-                    return None;
-                };
+                } = &**shadow_payload;
                 // Gfx filters hold 8-bit sRGB colors. Modern color syntaxes and currentcolor stay on the
                 // main thread until compositor filter values can retain their color space and syntax.
                 let color = color.optional_data().filter(|color| is_legacy_color_function(color))?;
@@ -471,15 +472,15 @@ fn transform_operations_from_style_value(
     }
 
     let lower = |transformation: &StyleValueData| {
-        let StyleValueData::Transformation {
+        let StyleValueData::Transformation(transformation_payload) = transformation else {
+            return None;
+        };
+        let TransformationPayload {
             transform_function,
             values,
             matrix_values,
             ..
-        } = transformation
-        else {
-            return None;
-        };
+        } = &**transformation_payload;
         // Matrix-only precision inputs must not replace unwrapped animation interpolation arguments.
         if !matrix_values.as_slice().is_empty() {
             return None;
@@ -871,6 +872,8 @@ mod tests {
     use super::*;
     use crate::css::easing::{FfiEasingDescriptor, FfiEasingKind, FfiLinearEasingPoint};
     use crate::css::style_value::{ColorBase, CssString, RetainedStyleValueDataList};
+    use crate::css::style_value::{ColorFunctionPayload, StyleValueBox};
+    use crate::css::style_value_arc::StyleValueArc;
     use crate::css::table_group_builder::angle_unit_index;
     use crate::painting::host::{FfiVisualAnimationFillMode, FfiVisualAnimationPlaybackDirection};
     use crate::painting::visual_context::publish_compositor_animations;
@@ -918,12 +921,12 @@ mod tests {
     }
 
     fn transformation(function: u8, values: Vec<StyleValueData>) -> StyleValueData {
-        StyleValueData::Transformation {
+        StyleValueData::Transformation(StyleValueBox::new(TransformationPayload {
             property: property_id::TRANSFORM,
             transform_function: function,
             values: RetainedStyleValueDataList::from_retained_values(values.into_iter().map(retained).collect()),
             matrix_values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(Vec::new()),
-        }
+        }))
     }
 
     fn value_list(values: Vec<StyleValueData>) -> StyleValueData {
@@ -935,7 +938,7 @@ mod tests {
     }
 
     fn color_function(syntax: u8) -> StyleValueData {
-        StyleValueData::ColorFunction {
+        StyleValueData::ColorFunction(StyleValueBox::new(ColorFunctionPayload {
             color_base: ColorBase {
                 has_color_type: true,
                 color_type: crate::css::color_conversion::RGB,
@@ -948,7 +951,7 @@ mod tests {
             has_name: false,
             name: CssString::default(),
             origin_color: RetainedStyleValueData::none(),
-        }
+        }))
     }
 
     fn filter(kind: u8, color_operation: u8, value: StyleValueData) -> StyleValueData {
@@ -960,7 +963,7 @@ mod tests {
     }
 
     fn shadow(color: Option<StyleValueData>, offset_x: f64, offset_y: f64, blur_radius: Option<f64>) -> StyleValueData {
-        StyleValueData::Shadow {
+        StyleValueData::Shadow(StyleValueBox::new(ShadowPayload {
             shadow_type: 0,
             color: color.map_or_else(RetainedStyleValueData::none, retained),
             offset_x: retained(px(offset_x)),
@@ -968,20 +971,22 @@ mod tests {
             blur_radius: blur_radius.map_or_else(RetainedStyleValueData::none, |radius| retained(px(radius))),
             spread_distance: RetainedStyleValueData::none(),
             placement: 0,
-        }
+        }))
     }
 
     /// A main thread whose keyframe values are given up front, counting what the builder asks for.
     #[derive(Default)]
     struct TestHost {
-        values: HashMap<(usize, u16, bool), Arc<StyleValueData>>,
+        values: HashMap<(usize, u16, bool), StyleValueArc>,
         resolutions: RefCell<usize>,
     }
 
     impl TestHost {
         fn with_value(mut self, keyframe_index: usize, property: AnimatedProperty, value: StyleValueData) -> Self {
-            self.values
-                .insert((keyframe_index, property.property_id(), false), Arc::new(value));
+            self.values.insert(
+                (keyframe_index, property.property_id(), false),
+                StyleValueArc::new(value),
+            );
             self
         }
 
@@ -991,8 +996,10 @@ mod tests {
             property: AnimatedProperty,
             value: StyleValueData,
         ) -> Self {
-            self.values
-                .insert((keyframe_index, property.property_id(), true), Arc::new(value));
+            self.values.insert(
+                (keyframe_index, property.property_id(), true),
+                StyleValueArc::new(value),
+            );
             self
         }
 
@@ -1014,7 +1021,9 @@ mod tests {
         *host.resolutions.borrow_mut() += 1;
         host.values
             .get(&(keyframe_index, property_id, uses_underlying_style))
-            .map_or(std::ptr::null(), |value| Arc::into_raw(Arc::clone(value)).cast())
+            .map_or(std::ptr::null(), |value| {
+                StyleValueArc::into_raw(StyleValueArc::clone(value)).cast()
+            })
     }
 
     fn linear_easing() -> FfiEasingDescriptor {
@@ -1223,9 +1232,10 @@ mod tests {
             )
             .is_some()
         );
-        let StyleValueData::Transformation { matrix_values, .. } = &mut value else {
+        let StyleValueData::Transformation(transformation_payload) = &mut value else {
             unreachable!()
         };
+        let TransformationPayload { matrix_values, .. } = &mut **transformation_payload;
         *matrix_values = RetainedStyleValueDataList::from_retained_values(vec![retained(StyleValueData::Angle {
             value: 1e30,
             unit: crate::css::calc::ANGLE_UNIT_NAMES

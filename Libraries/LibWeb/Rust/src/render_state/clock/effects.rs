@@ -503,17 +503,23 @@ impl Lane {
             if row.is_invalid() {
                 continue;
             }
-            let host_record = self.host_record(state, row);
+            let Some(host_record) = state.engine_ref().host_record(self.host_record(state, row)).cloned() else {
+                composed = Err(NeedsHost);
+                break;
+            };
             let mut inherited = AnimatedOverlay::default();
             for &property in properties {
                 if let Some(entry) = overlay.get(property) {
                     inherited.set_owned(property, entry.clone_value(), true, false);
                 }
             }
-            match state
-                .engine_mut()
-                .compose_overlay_over_record(*descendant, host_record, &inherited, bounds)
-            {
+            match state.engine_mut().compose_overlay_over_record(
+                *descendant,
+                crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+                &host_record,
+                &inherited,
+                bounds,
+            ) {
                 Ok(sample) => samples.push((row, *descendant, sample, &properties[..])),
                 Err(needs_host) => {
                     composed = Err(needs_host);
@@ -616,10 +622,11 @@ impl Lane {
                         inherited.set_owned(property, entry.clone_value(), true, false);
                     }
                 }
-                let sample = state.engine_mut().compose_overlay_over_pseudo_element_record(
+                let host_record = state.engine_ref().host_record(host_record).ok_or(NeedsHost)?.clone();
+                let sample = state.engine_mut().compose_overlay_over_record(
                     *node,
                     pseudo_kind_of(generated_for),
-                    host_record,
+                    &host_record,
                     &inherited,
                     bounds,
                 )?;

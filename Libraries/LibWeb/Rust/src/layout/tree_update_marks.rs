@@ -404,10 +404,7 @@ impl LayoutNodeArena {
                         return Some(current);
                     }
                 }
-                ancestor = engine
-                    .tree()
-                    .parent(current)
-                    .map(|parent| engine.tree().host_of(parent).unwrap_or(parent));
+                ancestor = engine.parent_element_or_host(current);
             }
             None
         })
@@ -664,7 +661,7 @@ fn repaint_subtree(arena: &mut LayoutNodeArena, row: NodeSlotId) {
 }
 
 /// The row paints again, and the root's with it where the root paints the body's propagated background.
-fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: bool) {
+pub(crate) fn repaint(arena: &mut LayoutNodeArena, row: NodeSlotId, includes_hit_testing: bool) {
     if !arena.paintable_row_is_populated(row) {
         return;
     }

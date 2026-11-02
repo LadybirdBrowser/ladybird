@@ -1,38 +1,38 @@
 PRESERVED: ::before change display inline list-item on none in flex | fixture ancestor
 PRESERVED: ::before change display inline list-item on none in flex | distant sibling
 PRESERVED: ::before change display inline list-item on none in flex | distant sibling descendant
-RECREATED: ::before change display inline list-item on none in flex | DOM parent
-RECREATED: ::before change display inline list-item on none in flex | preceding sibling
-RECREATED: ::before change display inline list-item on none in flex | preceding sibling descendant
+PRESERVED: ::before change display inline list-item on none in flex | DOM parent
+PRESERVED: ::before change display inline list-item on none in flex | preceding sibling
+PRESERVED: ::before change display inline list-item on none in flex | preceding sibling descendant
 ABSENT: ::before change display inline list-item on none in flex | target
 ABSENT: ::before change display inline list-item on none in flex | target descendant
-RECREATED: ::before change display inline list-item on none in flex | following sibling
-RECREATED: ::before change display inline list-item on none in flex | following sibling descendant
-STATS: ::before change display inline list-item on none in flex | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change display inline list-item on none in flex | following sibling
+PRESERVED: ::before change display inline list-item on none in flex | following sibling descendant
+STATS: ::before change display inline list-item on none in flex | no layout tree build
 PASS: ::before change display inline list-item on none in flex | incremental tree matches full rebuild
-RECREATED: ::before change display table-footer-group on none in table-row | fixture ancestor
-RECREATED: ::before change display table-footer-group on none in table-row | distant sibling
-RECREATED: ::before change display table-footer-group on none in table-row | distant sibling descendant
-RECREATED: ::before change display table-footer-group on none in table-row | DOM parent
-RECREATED: ::before change display table-footer-group on none in table-row | preceding sibling
-RECREATED: ::before change display table-footer-group on none in table-row | preceding sibling descendant
+PRESERVED: ::before change display table-footer-group on none in table-row | fixture ancestor
+PRESERVED: ::before change display table-footer-group on none in table-row | distant sibling
+PRESERVED: ::before change display table-footer-group on none in table-row | distant sibling descendant
+PRESERVED: ::before change display table-footer-group on none in table-row | DOM parent
+PRESERVED: ::before change display table-footer-group on none in table-row | preceding sibling
+PRESERVED: ::before change display table-footer-group on none in table-row | preceding sibling descendant
 ABSENT: ::before change display table-footer-group on none in table-row | target
 ABSENT: ::before change display table-footer-group on none in table-row | target descendant
-RECREATED: ::before change display table-footer-group on none in table-row | following sibling
-RECREATED: ::before change display table-footer-group on none in table-row | following sibling descendant
-STATS: ::before change display table-footer-group on none in table-row | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change display table-footer-group on none in table-row | following sibling
+PRESERVED: ::before change display table-footer-group on none in table-row | following sibling descendant
+STATS: ::before change display table-footer-group on none in table-row | no layout tree build
 PASS: ::before change display table-footer-group on none in table-row | incremental tree matches full rebuild
-RECREATED: ::before change display block grid on none in inline grid | fixture ancestor
-RECREATED: ::before change display block grid on none in inline grid | distant sibling
-RECREATED: ::before change display block grid on none in inline grid | distant sibling descendant
-RECREATED: ::before change display block grid on none in inline grid | DOM parent
-RECREATED: ::before change display block grid on none in inline grid | preceding sibling
-RECREATED: ::before change display block grid on none in inline grid | preceding sibling descendant
+PRESERVED: ::before change display block grid on none in inline grid | fixture ancestor
+PRESERVED: ::before change display block grid on none in inline grid | distant sibling
+PRESERVED: ::before change display block grid on none in inline grid | distant sibling descendant
+PRESERVED: ::before change display block grid on none in inline grid | DOM parent
+PRESERVED: ::before change display block grid on none in inline grid | preceding sibling
+PRESERVED: ::before change display block grid on none in inline grid | preceding sibling descendant
 ABSENT: ::before change display block grid on none in inline grid | target
 ABSENT: ::before change display block grid on none in inline grid | target descendant
-RECREATED: ::before change display block grid on none in inline grid | following sibling
-RECREATED: ::before change display block grid on none in inline grid | following sibling descendant
-STATS: ::before change display block grid on none in inline grid | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change display block grid on none in inline grid | following sibling
+PRESERVED: ::before change display block grid on none in inline grid | following sibling descendant
+STATS: ::before change display block grid on none in inline grid | no layout tree build
 PASS: ::before change display block grid on none in inline grid | incremental tree matches full rebuild
 PRESERVED: ::after remove run-in on none in inline list-item | fixture ancestor
 PRESERVED: ::after remove run-in on none in inline list-item | distant sibling
@@ -44,7 +44,7 @@ ABSENT: ::after remove run-in on none in inline list-item | target
 ABSENT: ::after remove run-in on none in inline list-item | target descendant
 PRESERVED: ::after remove run-in on none in inline list-item | following sibling
 PRESERVED: ::after remove run-in on none in inline list-item | following sibling descendant
-STATS: ::after remove run-in on none in inline list-item | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove run-in on none in inline list-item | no layout tree build
 PASS: ::after remove run-in on none in inline list-item | incremental tree matches full rebuild
 PRESERVED: ::after remove table-row-group on none in table-footer-group | fixture ancestor
 PRESERVED: ::after remove table-row-group on none in table-footer-group | distant sibling
@@ -56,7 +56,7 @@ ABSENT: ::after remove table-row-group on none in table-footer-group | target
 ABSENT: ::after remove table-row-group on none in table-footer-group | target descendant
 PRESERVED: ::after remove table-row-group on none in table-footer-group | following sibling
 PRESERVED: ::after remove table-row-group on none in table-footer-group | following sibling descendant
-STATS: ::after remove table-row-group on none in table-footer-group | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove table-row-group on none in table-footer-group | no layout tree build
 PASS: ::after remove table-row-group on none in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::after remove block flex on none in block grid | fixture ancestor
 PRESERVED: ::after remove block flex on none in block grid | distant sibling
@@ -68,7 +68,7 @@ ABSENT: ::after remove block flex on none in block grid | target
 ABSENT: ::after remove block flex on none in block grid | target descendant
 PRESERVED: ::after remove block flex on none in block grid | following sibling
 PRESERVED: ::after remove block flex on none in block grid | following sibling descendant
-STATS: ::after remove block flex on none in block grid | rebuilt subtree roots=0, escaped=false
+STATS: ::after remove block flex on none in block grid | no layout tree build
 PASS: ::after remove block flex on none in block grid | incremental tree matches full rebuild
 PRESERVED: ::before change position flow-root on contents in run-in | fixture ancestor
 PRESERVED: ::before change position flow-root on contents in run-in | distant sibling

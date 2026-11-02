@@ -345,13 +345,8 @@ fn auto_content_size(
 /// The node's own computed style, read off the style container the node data points at. Callers inside a layout pass go
 /// through the pass callbacks instead; this is for the node-data entry points the C++ side calls directly.
 pub(crate) fn node_style_view(data: &NodeData) -> Option<ComputedValuesView<'_>> {
-    if data.style.get().is_null() {
-        return None;
-    }
-    // SAFETY: A non-null style pointer addresses the container's group
-    // pointer array, which FfiStylePayloads mirrors exactly.
-    let payloads = unsafe { data.style.get().deref() };
-    Some(ComputedValuesView::new(&payloads.groups))
+    // SAFETY: The arena pins the style of each of its rows while the row holds it.
+    data.style.get().map(|style| unsafe { style.view() })
 }
 
 pub(crate) fn style_insets_use_anchor_functions(style: ComputedValuesView<'_>) -> bool {
@@ -400,14 +395,11 @@ pub(crate) fn node_is_positioned(data: &impl NodeShape, style: Option<ComputedVa
     };
     let box_values = style.box_values();
     let is_flex_or_grid_item = has_flag(data, NodeFlag::IsFlexItem) || has_flag(data, NodeFlag::IsGridItem);
-    box_values.position != crate::css::css_enums::positioning::STATIC
-        || (is_flex_or_grid_item && box_values.has_z_index)
+    style.position() != crate::css::css_enums::positioning::STATIC || (is_flex_or_grid_item && box_values.has_z_index)
 }
 
 pub(crate) fn node_position(style: Option<ComputedValuesView<'_>>) -> u8 {
-    style.map_or(crate::css::css_enums::positioning::STATIC, |style| {
-        style.box_values().position
-    })
+    style.map_or(crate::css::css_enums::positioning::STATIC, |style| style.position())
 }
 
 /// Flex items never float, whatever their computed float value says.
@@ -819,19 +811,19 @@ pub(crate) struct NodeFacts<'pass> {
     callbacks: LayoutPass<'pass>,
     node: Node,
     data: &'pass NodeData,
-    style_payloads: Option<&'pass FfiStylePayloads>,
+    style: Option<ComputedValuesView<'pass>>,
 }
 
 impl<'pass> NodeFacts<'pass> {
     #[inline]
     pub(crate) fn new(callbacks: &LayoutPass<'pass>, node: Node) -> Self {
         let data = callbacks.node_data(node);
-        let style_payloads = callbacks.style_payloads_if_styled(node);
+        let style = callbacks.computed_values_view_if_styled(node);
         Self {
             callbacks: *callbacks,
             node,
             data,
-            style_payloads,
+            style,
         }
     }
 
@@ -841,13 +833,13 @@ impl<'pass> NodeFacts<'pass> {
         callbacks: &LayoutPass<'pass>,
         node: Node,
         data: &'pass NodeData,
-        style_payloads: Option<&'pass FfiStylePayloads>,
+        style: Option<ComputedValuesView<'pass>>,
     ) -> Self {
         Self {
             callbacks: *callbacks,
             node,
             data,
-            style_payloads,
+            style,
         }
     }
 
@@ -855,8 +847,8 @@ impl<'pass> NodeFacts<'pass> {
         self.data
     }
 
-    pub(super) fn style_payloads(&self) -> Option<&'pass FfiStylePayloads> {
-        self.style_payloads
+    pub(super) fn style_view(&self) -> Option<ComputedValuesView<'pass>> {
+        self.style
     }
 
     /// The writing mode of the box's parent box, which it lays out its contents in if it has another one.
@@ -873,7 +865,7 @@ impl<'pass> NodeFacts<'pass> {
 
     pub(super) fn style(&self) -> StyleValues<'pass> {
         StyleValues::new(
-            self.style_payloads
+            self.style
                 .expect("styled node must publish its style container before layout"),
         )
         .for_kind(self.data().kind.get())
@@ -881,8 +873,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(super) fn computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
-        self.style_payloads
-            .map(|payloads| ComputedValuesView::new(&payloads.groups))
+        self.style
     }
 
     pub(super) fn parent_computed_values_view_if_styled(&self) -> Option<ComputedValuesView<'pass>> {
@@ -1430,7 +1421,7 @@ impl<'pass> NodeFacts<'pass> {
     }
 
     pub(crate) fn display(&self) -> crate::layout::FfiDisplay {
-        if self.data().style.get().is_null() {
+        if self.data().style.get().is_none() {
             return crate::layout::FfiDisplay::block();
         }
         self.style().display()

@@ -94,8 +94,7 @@ pub struct FfiLayoutUpdateHostCallbacks {
     /// Records that a layout update ran out of its exact bound, and answers what the document still has pending, for
     /// the panic that reports the failure, describing the elements the last unstyled-element report and the last
     /// rebuild request named, or 0 for none.
-    record_stabilization_bound_failure:
-        extern "C" fn(*mut c_void, &BegunRead, u32, u32) -> FfiStabilizationBoundFailureHostFacts,
+    record_stabilization_bound_failure: extern "C" fn(*mut c_void, &BegunRead) -> FfiStabilizationBoundFailureHostFacts,
     /// Attaches the image resources a box's style asks for. The flag says the box replaces its
     /// element's contents with a single image, whose provider it owns.
     attach_style_resources: extern "C" fn(*mut c_void, &BegunRead, NodeSlotId, bool, FfiStyleImageFacts),
@@ -143,25 +142,14 @@ pub struct FfiLayoutUpdateDocumentFacts {
 pub struct FfiStabilizationBoundFailureHostFacts {
     pub document_is_top_level: bool,
     pub needs_animated_style_update: bool,
-    pub has_pending_style_transaction: bool,
-    pub has_flown_style_transaction: bool,
+    pub has_pending_style_update: bool,
+    pub has_flown_style_update: bool,
     pub size_containers_await_evaluation: bool,
     pub list_items_await_renumbering: bool,
     pub top_layer_zone_rebuild_pending: bool,
     pub top_layer_membership_changes_pending: bool,
     pub document_needs_layout_tree_update: bool,
     pub document_child_needs_layout_tree_update: bool,
-    /// The element the last unstyled-element report of the update named, with its flat tree ancestors, as the host
-    /// describes them: a NUL-terminated ASCII string.
-    pub last_unstyled_element: [u8; 2048],
-    /// As above, for the element the last rebuild request of the update named.
-    pub last_rebuild_request: [u8; 640],
-}
-
-/// The text of a NUL-terminated string the host wrote into `bytes`.
-fn host_text(bytes: &[u8]) -> String {
-    let end = bytes.iter().position(|&byte| byte == 0).unwrap_or(bytes.len());
-    String::from_utf8_lossy(&bytes[..end]).into_owned()
 }
 
 /// What one layout update was asked for.
@@ -259,10 +247,8 @@ impl FfiLayoutUpdateHostCallbacks {
         &self,
         _: &MainThread,
         read: &BegunRead,
-        last_unstyled_element: u32,
-        last_rebuild_request: u32,
     ) -> FfiStabilizationBoundFailureHostFacts {
-        (self.record_stabilization_bound_failure)(self.context, read, last_unstyled_element, last_rebuild_request)
+        (self.record_stabilization_bound_failure)(self.context, read)
     }
 
     /// Hands the boxes the tree builds of the update stamped the image resources they are owed,
@@ -366,12 +352,10 @@ struct StabilizationTrace {
     full_layouts_leaving_top_layer: u64,
     /// Full layouts that left layout to do.
     full_layouts_leaving_layout: u64,
-    /// Elements the builds reached without a style, and the style node of the last of them.
+    /// Elements the builds reached without a style.
     unstyled_elements_reached: u64,
-    last_unstyled_element: u32,
-    /// Rebuilds the builds requested for a box that escaped its rebuild root, and the style node of the last of them.
+    /// Rebuilds the builds requested for a box that escaped its rebuild root.
     rebuild_requests: u64,
-    last_rebuild_request: u32,
     /// The builds' other reports.
     other_build_reports: u64,
 }
@@ -384,14 +368,8 @@ impl StabilizationTrace {
         };
         for report in &built.reports {
             match report.kind {
-                FfiCommitMessageKind::UnstyledElementReached => {
-                    self.unstyled_elements_reached += 1;
-                    self.last_unstyled_element = report.style_node;
-                }
-                FfiCommitMessageKind::LayoutTreeRebuildRequested => {
-                    self.rebuild_requests += 1;
-                    self.last_rebuild_request = report.style_node;
-                }
+                FfiCommitMessageKind::UnstyledElementReached => self.unstyled_elements_reached += 1,
+                FfiCommitMessageKind::LayoutTreeRebuildRequested => self.rebuild_requests += 1,
                 _ => self.other_build_reports += 1,
             }
         }
@@ -432,8 +410,8 @@ impl StabilizationTrace {
             (needs_full_tree_update, "full tree update"),
             (updates_escaped, "updates escaped partial relayout"),
             (host_facts.needs_animated_style_update, "animated style"),
-            (host_facts.has_pending_style_transaction, "style transaction"),
-            (host_facts.has_flown_style_transaction, "flown style transaction"),
+            (host_facts.has_pending_style_update, "style update"),
+            (host_facts.has_flown_style_update, "flown style update"),
             (host_facts.size_containers_await_evaluation, "size containers"),
             (host_facts.list_items_await_renumbering, "list item renumbering"),
             (host_facts.top_layer_zone_rebuild_pending, "top layer zone rebuild"),
@@ -454,7 +432,7 @@ impl StabilizationTrace {
             "{passes} passes for {connected_elements} connected elements of a {} document: {} flown, {} builds asking \
              another pass, {} counter reconciles, partial layouts leaving style {}/layout {}, full layouts leaving \
              style {}/top layer {}/layout {}; {} boundary roots, {} deferred insertions; facts: {}; build reports: {} \
-             unstyled elements (last: {}), {} rebuild requests (last: {}), {} other",
+             unstyled elements, {} rebuild requests, {} other",
             if host_facts.document_is_top_level {
                 "top-level"
             } else {
@@ -476,9 +454,7 @@ impl StabilizationTrace {
                 facts_that_hold.join(", ")
             },
             self.unstyled_elements_reached,
-            host_text(&host_facts.last_unstyled_element),
             self.rebuild_requests,
-            host_text(&host_facts.last_rebuild_request),
             self.other_build_reports,
         )
     }
@@ -618,16 +594,16 @@ pub(crate) struct SealedRound {
 }
 
 impl SealedRound {
-    /// Runs the round over `state` in the frame's flight, where the frame's style left its layout to do, owing the host
-    /// `work` besides what the round owes it.
-    pub(crate) fn run(self, state: &mut ArenaHandle, work: OwedHostWork) -> Option<FlownRound> {
+    /// Runs the round over `state` in the frame's flight, where its layout is not up to date. The flight reaches nothing
+    /// of the host, so a length only the host resolves leaves the layout for the host to lay out again.
+    pub(crate) fn run(self, state: &mut ArenaHandle) -> Option<FlownRound> {
         if state
             .arena()
             .layout_is_up_to_date(self.job.facts.document_needs_layout_tree_build)
         {
             return None;
         }
-        let mut answer = self.job.run_owing(state, work);
+        let mut answer = self.job.run(state);
         answer.prepare_committed_layout_for_rendering(state.arena_mut());
         Some(FlownRound {
             answer,
@@ -673,6 +649,7 @@ impl ClockRound {
             build,
             layout: RoundLayout::PartialIfPlanned,
             container_query_evaluation_is_pending: false,
+            // NB: A clock round runs outside any layout update, which is what reports phase times.
         }
         .run(state);
         // A box the build gave an image has none until the host attaches it.
@@ -785,11 +762,7 @@ fn seal_clock_round(main_thread: &MainThread, document_host: &DocumentHost, read
 impl LayoutRoundJob {
     /// Runs the round over `state`, and resolves what it owes the host as it ends.
     pub(crate) fn run(self, state: &mut ArenaHandle) -> LayoutRoundAnswer {
-        self.run_owing(state, OwedHostWork::default())
-    }
-
-    /// Runs the round over `state`, and resolves what it owes the host as it ends, `work` among it.
-    fn run_owing(self, state: &mut ArenaHandle, work: OwedHostWork) -> LayoutRoundAnswer {
+        let work = OwedHostWork::default();
         let mut answer = self.run_with(state, &work);
         answer.work = work.resolve(state.arena_mut());
         answer.owed_images = OwedImage::take_from(state.arena_mut());
@@ -1043,41 +1016,9 @@ fn layout_update_host(document_host: &DocumentHost) -> FfiLayoutUpdateHostCallba
         .expect("the document has no layout update host")
 }
 
-/// The first round of a rendering update's layout of `document_host`'s document, sealed for a frame to run beside the
-/// host, where the document is active and `needs_round` says the round has something to do as of its facts.
-fn sealed_first_round(
-    main_thread: &MainThread,
-    document_host: &DocumentHost,
-    read: &BegunRead,
-    inputs: &FfiLayoutUpdateInputs,
-    needs_round: impl FnOnce(&FfiLayoutUpdateDocumentFacts) -> bool,
-) -> Option<SealedRound> {
-    let host = layout_update_host(document_host);
-    let facts = host.document_facts(main_thread, read);
-    if !facts.document_is_active || inputs.is_template_contents_document || !needs_round(&facts) {
-        return None;
-    }
-    Some(next_round(main_thread, document_host, read, &host, facts, false))
-}
-
-/// Seals the first round of a rendering update's layout of `document_host`'s document, which the frame the update lets
-/// fly next runs after its style.
-fn seal_first_round(
-    main_thread: &MainThread,
-    document_host: &DocumentHost,
-    read: &BegunRead,
-    inputs: &FfiLayoutUpdateInputs,
-) {
-    // A round is sealed for a document whose layout is up to date as well: the frame's style may leave it layout to
-    // do, which the round finds once the frame has applied the style.
-    if let Some(round) = sealed_first_round(main_thread, document_host, read, inputs, |_| true) {
-        document_host.seal_round(round);
-    }
-}
-
 /// Lets the first round of a rendering update's layout of `document_host`'s document fly beside the host, once the
-/// host's style is up to date, where the layout is not and no round that flew with the style waits to be taken in. The
-/// host's next layout update pays it first. Answers whether it flies.
+/// host's style is up to date, where the document is active, its layout is not up to date, and no round that flew
+/// before waits to be taken in. The host's next layout update pays it first. Answers whether it flies.
 fn fly_first_round(
     main_thread: &MainThread,
     document_host: &DocumentHost,
@@ -1085,7 +1026,7 @@ fn fly_first_round(
     inputs: &FfiLayoutUpdateInputs,
     license: &FlightLicense,
 ) -> bool {
-    // A round that flew with the style is the layout update's first: the update takes it in and goes on from it here.
+    // A round that flew before is the layout update's first: the update takes it in and goes on from it here.
     if document_host.has_flown_round() {
         return false;
     }
@@ -1094,15 +1035,15 @@ fn fly_first_round(
     let host = layout_update_host(document_host);
     host.process_pending_list_item_renumbers(main_thread, read);
     host.process_pending_top_layer_layout_changes(main_thread, read);
-    let round = {
-        sealed_first_round(main_thread, document_host, read, inputs, |facts| {
-            !host_layout_is_up_to_date(document_host, read, facts)
-        })
-    };
-    let Some(round) = round else {
+    let facts = host.document_facts(main_thread, read);
+    if !facts.document_is_active
+        || inputs.is_template_contents_document
+        || host_layout_is_up_to_date(document_host, read, &facts)
+    {
         return false;
-    };
-    crate::render_state::fly(document_host, None, Some(round), license);
+    }
+    let round = next_round(main_thread, document_host, read, &host, facts, false);
+    crate::render_state::fly(document_host, crate::render_state::FrameJob::Round(round), license);
     true
 }
 
@@ -1298,12 +1239,7 @@ fn update_layout(
     if host.needs_style_update_after_layout(main_thread, read)
         || !host_layout_is_up_to_date(document_host, read, &host.document_facts(main_thread, read))
     {
-        let host_facts = host.record_stabilization_bound_failure(
-            main_thread,
-            read,
-            trace.last_unstyled_element,
-            trace.last_rebuild_request,
-        );
+        let host_facts = host.record_stabilization_bound_failure(main_thread, read);
         unreachable!(
             "the layout update did not stabilize within its exact bound: {}",
             trace.describe(main_thread, document_host, read, &host, layout_pass, host_facts)

@@ -10,6 +10,7 @@ use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
+use crate::css::style_value::BorderRadiusPayload;
 use crate::css::style_value::StyleValueData;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts::{self, NodeShape};
@@ -417,14 +418,14 @@ fn border_radius_pair(handle: &ComputedStyleValueHandle) -> (LengthPercentageRef
 pub(crate) fn border_radius_pair_of_value(
     value: &StyleValueData,
 ) -> (LengthPercentageRef<'_>, LengthPercentageRef<'_>) {
-    let StyleValueData::BorderRadius {
+    let StyleValueData::BorderRadius(border_radius_payload) = value else {
+        unreachable!("computed border-radius is a border-radius value");
+    };
+    let BorderRadiusPayload {
         horizontal_radius,
         vertical_radius,
         ..
-    } = value
-    else {
-        unreachable!("computed border-radius is a border-radius value");
-    };
+    } = &**border_radius_payload;
     (
         LengthPercentageRef::over(horizontal_radius.data()),
         LengthPercentageRef::over(vertical_radius.data()),
@@ -432,14 +433,14 @@ pub(crate) fn border_radius_pair_of_value(
 }
 
 fn border_radius_is_initial(handle: &ComputedStyleValueHandle) -> bool {
-    let Some(StyleValueData::BorderRadius {
+    let Some(StyleValueData::BorderRadius(border_radius_payload)) = style_queries::handle_value(handle) else {
+        unreachable!("computed border-radius lost its style value");
+    };
+    let BorderRadiusPayload {
         horizontal_radius,
         vertical_radius,
         ..
-    }) = style_queries::handle_value(handle)
-    else {
-        unreachable!("computed border-radius lost its style value");
-    };
+    } = &**border_radius_payload;
     let is_zero_px = |value: &StyleValueData| {
         matches!(value, StyleValueData::Length { value, unit }
             if *value == 0.0 && *unit == crate::css::style_compute::px_length_unit())
@@ -609,7 +610,7 @@ fn overflow_clip_edge_rect(
     slot: NodeSlotId,
 ) -> CssPixelRect {
     use crate::css::css_enums::background_box::{BORDER_BOX, CONTENT_BOX};
-    let overflow_clip_margin = &style.misc_reset().overflow_clip_margin;
+    let overflow_clip_margin = &style.misc_layout().overflow_clip_margin;
     // https://drafts.csswg.org/css-overflow-4/#overflow-clip-margin
     // Values are defined as follows:
     // '<visual-box>'
@@ -952,8 +953,8 @@ pub(crate) fn may_have_clip(layout_arena: &impl PaintRead, node: NodeSlotId) -> 
         return false;
     };
     let box_values = style.box_values();
-    box_values.overflow_x != overflow::VISIBLE
-        || box_values.overflow_y != overflow::VISIBLE
+    style.overflow_x() != overflow::VISIBLE
+        || style.overflow_y() != overflow::VISIBLE
         || box_values.paint_containment
         || style.content_visibility() == content_visibility::AUTO
 }
@@ -976,8 +977,8 @@ fn used_overflow(
     use crate::css::css_enums::{content_visibility, overflow};
     let node = slot;
     let box_values = style.box_values();
-    let mut overflow_x = box_values.overflow_x;
-    let mut overflow_y = box_values.overflow_y;
+    let mut overflow_x = style.overflow_x();
+    let mut overflow_y = style.overflow_y();
 
     let style_has_paint_containment =
         box_values.paint_containment || style.content_visibility() == content_visibility::AUTO;

@@ -1,0 +1,3 @@
+a class change beside a flight took effect
+an arrival beside a flight took effect
+a change after other input took effect

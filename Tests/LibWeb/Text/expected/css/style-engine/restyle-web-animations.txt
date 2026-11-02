@@ -1,0 +1,3 @@
+animated: 150x10 150px
+restyled under the animation: 150x30 150px
+canceled: 10x30 10px

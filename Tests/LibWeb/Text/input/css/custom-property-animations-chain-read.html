@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const depth = 24;
+        const style = document.createElement("style");
+        let parent = document.body;
+        for (let level = 1; level <= depth; ++level) {
+            CSS.registerProperty({ name: `--level${level}`, syntax: "<length>", inherits: true, initialValue: "0px" });
+            const previous = level === 1 ? "0px" : `var(--level${level - 1})`;
+            const value = `--level${level}: calc(${previous} + 1px)`;
+            style.textContent += `@keyframes level${level} { from { ${value} } to { ${value} } }\n`;
+            const element = document.createElement("div");
+            element.style.animation = `level${level} 1000s linear both`;
+            parent.append(element);
+            parent = element;
+        }
+        document.head.append(style);
+        const last = document.createElement("div");
+        last.style.width = `var(--level${depth})`;
+        parent.append(last);
+        println(`read of the element below a chain of ${depth}: ${getComputedStyle(last).width}`);
+        println(`read of its ::before: ${getComputedStyle(last, "::before").getPropertyValue(`--level${depth}`)}`);
+    });
+</script>

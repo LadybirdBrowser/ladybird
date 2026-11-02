@@ -17,7 +17,7 @@
 namespace Web {
 
 // The cursor a page asks its client to show. The main thread asks for one as it handles the pointer, and so does a hover
-// of the render clock while a task runs, on the StyleLayout thread. Each asks under one lock, so the client is left
+// of the render clock while a task runs, on the Render thread. Each asks under one lock, so the client is left
 // showing the cursor asked for last.
 class WEB_API PageCursor final : public AtomicRefCounted<PageCursor> {
 public:

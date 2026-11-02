@@ -8,6 +8,7 @@ use super::*;
 use crate::css::style::layout_style::LayoutStyle;
 use crate::css::style::position_try::PositionOptionStyle;
 use crate::css::style::tree::StyleNodeID;
+use crate::css::style_value::{AnchorPayload, AnchorSizePayload};
 use crate::painting::paint_read::{GeometryRead, PaintRead};
 
 pub(super) fn axis_modes(style: StyleValues) -> (abspos_inputs::AbsposAxisMode, abspos_inputs::AbsposAxisMode) {
@@ -498,8 +499,9 @@ impl AbsposEngine<'_> {
         let arena = self.callbacks.arena();
         let mut candidate = Some(element);
         while let Some(current) = candidate {
-            if let Some(payloads) = arena.style_node_style_payloads(current) {
-                let anchor = ComputedValuesView::new(&payloads.groups).anchor();
+            if let Some(style) = arena.style_node_style(current) {
+                // SAFETY: The record the element published is retained for the pass.
+                let anchor = unsafe { style.view() }.anchor();
                 // The <anchor-name> represents a strictly matched tree-scoped name, i.e. it can only match against
                 // anchor names in the same shadow tree.
                 if (anchor.anchor_scope_all || anchor.anchor_scope_names.raws().contains(&anchor_name))
@@ -1559,21 +1561,12 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
     let engine = unsafe { &*context.engine };
     // SAFETY: `shell` is the live Rust style-value data retained by the CSS
     // calc core's non-math-function node for this synchronous resolution.
-    let (has_anchor_name, explicit_anchor_name, fallback_value) = match unsafe { &*shell.cast::<StyleValueData>() } {
-        StyleValueData::Anchor {
-            has_anchor_name,
-            anchor_name,
-            fallback_value,
-            ..
-        }
-        | StyleValueData::AnchorSize {
-            has_anchor_name,
-            anchor_name,
-            fallback_value,
-            ..
-        } => (*has_anchor_name, anchor_name, fallback_value),
-        _ => return std::ptr::null(),
+    let Some((has_anchor_name, explicit_anchor_name, fallback_value)) =
+        unsafe { &*shell.cast::<StyleValueData>() }.anchor_name_and_fallback()
+    else {
+        return std::ptr::null();
     };
+
     let style = engine.style(context.positioned_box);
     let bound_anchor_name = has_anchor_name.then(|| explicit_anchor_name.to_fly_string());
     let anchor_name = if let Some(name) = &bound_anchor_name {
@@ -1594,37 +1587,43 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
         );
         // SAFETY: As above.
         let resolved = match unsafe { &*shell.cast::<StyleValueData>() } {
-            StyleValueData::Anchor { anchor_side, .. } => engine
-                .anchor_side(
-                    anchor_side_from_style_value(anchor_side.data()),
+            StyleValueData::Anchor(anchor_payload) => {
+                let AnchorPayload { anchor_side, .. } = &**anchor_payload;
+                engine
+                    .anchor_side(
+                        anchor_side_from_style_value(anchor_side.data()),
+                        rect,
+                        context.positioned_box,
+                        context.containing_block,
+                        context.is_from_end,
+                        context.is_horizontal_axis,
+                    )
+                    .map(|side| {
+                        // SAFETY: The state pointer is live and uniquely used by this
+                        // synchronous resolver.
+                        let resolution_state = unsafe { &mut *context.resolution_state };
+                        engine.note_resolved_anchor_function(anchor_box, context.is_horizontal_axis, resolution_state);
+                        if context.is_from_end {
+                            context.containing_block_extent - side
+                        } else {
+                            side
+                        }
+                    })
+            }
+            StyleValueData::AnchorSize(anchor_size_payload) => {
+                let AnchorSizePayload {
+                    has_anchor_size,
+                    anchor_size,
+                    ..
+                } = &**anchor_size_payload;
+                Some(engine.anchor_size(
+                    has_anchor_size.then_some(*anchor_size),
                     rect,
                     context.positioned_box,
                     context.containing_block,
-                    context.is_from_end,
                     context.is_horizontal_axis,
-                )
-                .map(|side| {
-                    // SAFETY: The state pointer is live and uniquely used by this
-                    // synchronous resolver.
-                    let resolution_state = unsafe { &mut *context.resolution_state };
-                    engine.note_resolved_anchor_function(anchor_box, context.is_horizontal_axis, resolution_state);
-                    if context.is_from_end {
-                        context.containing_block_extent - side
-                    } else {
-                        side
-                    }
-                }),
-            StyleValueData::AnchorSize {
-                has_anchor_size,
-                anchor_size,
-                ..
-            } => Some(engine.anchor_size(
-                has_anchor_size.then_some(*anchor_size),
-                rect,
-                context.positioned_box,
-                context.containing_block,
-                context.is_horizontal_axis,
-            )),
+                ))
+            }
             _ => unreachable!("the shell was matched as an anchor function above"),
         };
         if let Some(resolved) = resolved {
@@ -3475,12 +3474,12 @@ impl<'pass> AbsposEngine<'pass> {
 
         // OPTIMIZATION: The styles of an option are made the first time it is tried, so that a box that fits with
         //               its current styles makes no other.
-        let made_styles: std::cell::RefCell<Vec<(u32, Option<Option<node_data::StylePayloadsRef>>)>> =
+        let made_styles: std::cell::RefCell<Vec<(u32, Option<Option<node_data::LayoutStyleRef>>)>> =
             std::cell::RefCell::new(Vec::new());
         let option_styles = std::cell::RefCell::new(Vec::new());
         // The styles the option applies: none where the entry makes no option, and no styles of its own for the base
         // styles or an option that changes none of them.
-        let option_style = |option: u32| -> Option<Option<node_data::StylePayloadsRef>> {
+        let option_style = |option: u32| -> Option<Option<node_data::LayoutStyleRef>> {
             let Some((index, _)) = entry_of(option) else {
                 return Some(None);
             };
@@ -3556,7 +3555,11 @@ impl<'pass> AbsposEngine<'pass> {
             .last_successful_position_option(node)
             .filter(|choice| {
                 choice.base_style_record == base_style_record
-                    && entry_of(choice.option).map_or(0, |(_, rule)| rule) == choice.rule
+                    && entry_of(choice.option)
+                        .map_or(crate::css::style::position_try::PositionTryRuleID::NONE, |(_, rule)| {
+                            rule
+                        })
+                        == choice.rule
             })
             .map_or(0, |choice| choice.option);
         let current = options
@@ -3567,7 +3570,9 @@ impl<'pass> AbsposEngine<'pass> {
         let choice_of = |option: u32| abspos_inputs::PositionOptionChoice {
             option,
             base_style_record,
-            rule: entry_of(option).map_or(0, |(_, rule)| rule),
+            rule: entry_of(option).map_or(crate::css::style::position_try::PositionTryRuleID::NONE, |(_, rule)| {
+                rule
+            }),
         };
         let fits = |index: usize| {
             let option = options[index];
@@ -3608,7 +3613,7 @@ impl<'pass> AbsposEngine<'pass> {
     fn with_position_option_style<T>(
         &self,
         node: Node,
-        style: Option<node_data::StylePayloadsRef>,
+        style: Option<node_data::LayoutStyleRef>,
         callback: impl for<'option> FnOnce(&AbsposEngine<'option>) -> T,
     ) -> T {
         let Some(style) = style else {
@@ -4062,7 +4067,7 @@ pub(crate) fn compute_inset_native(
 /// options, which the style reads of the box address while this lives.
 struct PositionOptionStyles {
     choice: Option<abspos_inputs::PositionOptionChoice>,
-    style: Option<node_data::StylePayloadsRef>,
+    style: Option<node_data::LayoutStyleRef>,
     /// Boxed so that the payloads the style reads address stay in place as the list grows.
     #[expect(clippy::vec_box)]
     option_styles: Vec<Box<LayoutStyle>>,

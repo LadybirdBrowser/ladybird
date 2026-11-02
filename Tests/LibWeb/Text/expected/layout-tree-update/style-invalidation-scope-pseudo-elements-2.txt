@@ -8,7 +8,7 @@ ABSENT: ::before remove contents on none in block | target
 ABSENT: ::before remove contents on none in block | target descendant
 PRESERVED: ::before remove contents on none in block | following sibling
 PRESERVED: ::before remove contents on none in block | following sibling descendant
-STATS: ::before remove contents on none in block | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove contents on none in block | no layout tree build
 PASS: ::before remove contents on none in block | incremental tree matches full rebuild
 PRESERVED: ::before remove table on none in inline-table | fixture ancestor
 PRESERVED: ::before remove table on none in inline-table | distant sibling
@@ -20,7 +20,7 @@ ABSENT: ::before remove table on none in inline-table | target
 ABSENT: ::before remove table on none in inline-table | target descendant
 PRESERVED: ::before remove table on none in inline-table | following sibling
 PRESERVED: ::before remove table on none in inline-table | following sibling descendant
-STATS: ::before remove table on none in inline-table | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove table on none in inline-table | no layout tree build
 PASS: ::before remove table on none in inline-table | incremental tree matches full rebuild
 PRESERVED: ::before remove table-caption on none in block flow | fixture ancestor
 PRESERVED: ::before remove table-caption on none in block flow | distant sibling
@@ -32,7 +32,7 @@ ABSENT: ::before remove table-caption on none in block flow | target
 ABSENT: ::before remove table-caption on none in block flow | target descendant
 PRESERVED: ::before remove table-caption on none in block flow | following sibling
 PRESERVED: ::before remove table-caption on none in block flow | following sibling descendant
-STATS: ::before remove table-caption on none in block flow | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove table-caption on none in block flow | no layout tree build
 PASS: ::before remove table-caption on none in block flow | incremental tree matches full rebuild
 PRESERVED: ::before remove inline flow list-item on none in contents | fixture ancestor
 PRESERVED: ::before remove inline flow list-item on none in contents | distant sibling
@@ -44,7 +44,7 @@ ABSENT: ::before remove inline flow list-item on none in contents | target
 ABSENT: ::before remove inline flow list-item on none in contents | target descendant
 PRESERVED: ::before remove inline flow list-item on none in contents | following sibling
 PRESERVED: ::before remove inline flow list-item on none in contents | following sibling descendant
-STATS: ::before remove inline flow list-item on none in contents | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove inline flow list-item on none in contents | no layout tree build
 PASS: ::before remove inline flow list-item on none in contents | incremental tree matches full rebuild
 PRESERVED: ::after create grid on none in table | fixture ancestor
 PRESERVED: ::after create grid on none in table | distant sibling
@@ -56,7 +56,7 @@ ABSENT: ::after create grid on none in table | target
 ABSENT: ::after create grid on none in table | target descendant
 PRESERVED: ::after create grid on none in table | following sibling
 PRESERVED: ::after create grid on none in table | following sibling descendant
-STATS: ::after create grid on none in table | rebuilt subtree roots=0, escaped=false
+STATS: ::after create grid on none in table | no layout tree build
 PASS: ::after create grid on none in table | incremental tree matches full rebuild
 PRESERVED: ::after create table-column-group on none in table-caption | fixture ancestor
 PRESERVED: ::after create table-column-group on none in table-caption | distant sibling
@@ -68,7 +68,7 @@ ABSENT: ::after create table-column-group on none in table-caption | target
 ABSENT: ::after create table-column-group on none in table-caption | target descendant
 PRESERVED: ::after create table-column-group on none in table-caption | following sibling
 PRESERVED: ::after create table-column-group on none in table-caption | following sibling descendant
-STATS: ::after create table-column-group on none in table-caption | rebuilt subtree roots=0, escaped=false
+STATS: ::after create table-column-group on none in table-caption | no layout tree build
 PASS: ::after create table-column-group on none in table-caption | incremental tree matches full rebuild
 PRESERVED: ::after create inline table on none in inline flow list-item | fixture ancestor
 PRESERVED: ::after create inline table on none in inline flow list-item | distant sibling
@@ -80,7 +80,7 @@ ABSENT: ::after create inline table on none in inline flow list-item | target
 ABSENT: ::after create inline table on none in inline flow list-item | target descendant
 PRESERVED: ::after create inline table on none in inline flow list-item | following sibling
 PRESERVED: ::after create inline table on none in inline flow list-item | following sibling descendant
-STATS: ::after create inline table on none in inline flow list-item | rebuilt subtree roots=0, escaped=false
+STATS: ::after create inline table on none in inline flow list-item | no layout tree build
 PASS: ::after create inline table on none in inline flow list-item | incremental tree matches full rebuild
 PRESERVED: ::before change clear flex on contents in grid | fixture ancestor
 PRESERVED: ::before change clear flex on contents in grid | distant sibling

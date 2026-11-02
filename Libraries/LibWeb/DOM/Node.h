@@ -465,6 +465,7 @@ public:
     // that only needs to know whether there is a box should ask these instead of reaching for the box. The layout
     // node arena writes both as it changes the boxes they describe, so asking reads the node, not the arena.
     [[nodiscard]] bool has_layout_box() const { return m_has_layout_box; }
+    [[nodiscard]] bool may_have_layout_box() const;
     [[nodiscard]] bool is_rendered() const { return m_has_committed_box; }
     void set_box_presence(Badge<Layout::NodeArena>, bool has_layout_box, bool has_committed_box)
     {

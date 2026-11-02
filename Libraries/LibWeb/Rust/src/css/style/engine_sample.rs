@@ -8,27 +8,23 @@
 //! published inputs, rather than from the host's working set.
 
 use super::bridge::element_adjustment_fact;
-use super::publication::drive_font_metric;
+use super::computed::{StyleRecordView, ViewLonghands};
+use super::pipeline::drive::drive_font_metric;
 use super::tree::{StyleNodeID, TreeScopeID};
 use super::{RetainedState, bridge};
 use crate::css::animated_overlay::AnimatedOverlay;
 use crate::css::color_resolution::{ColorResolutionInput, Rgba, to_color};
-use crate::css::computed_longhand_table::{ComputedLonghandTable, FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS};
-use crate::css::computed_value_types::{
-    FontValues, STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_INHERITED_BOX,
-    STYLE_GROUP_INDEX_SURROUND,
-};
-use crate::css::computed_values::InheritedBoxValues;
+use crate::css::computed_longhand_table::FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS;
+use crate::css::computed_value_types::FontValues;
 use crate::css::css_pixels::CssPixels;
-use crate::css::host_shared::{HostShared, SharedPayload};
 use crate::css::property_metadata::property_id as prop;
 use crate::css::style_compute::{
     AnimationSampleInput, FfiAnimationLengthContexts, FfiEffectiveColorSchemeInput, FfiFontMetrics,
     FfiLengthResolutionContext, FfiStyleComputationEnvironment, HostSampledEffects, keyword, px_length_unit,
     working_set_current_color,
 };
-use crate::css::style_value::StyleValueData;
-use crate::css::table_group_builder::{FfiFontGroupBuildInputs, TableGroupBuildInputs, group_index};
+use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::css::table_group_builder::{FfiFontGroupBuildInputs, group_index};
 
 /// One record's font, as a length resolves against it.
 struct RecordFont {
@@ -37,27 +33,30 @@ struct RecordFont {
     inline_axis_is_horizontal: bool,
 }
 
-impl RetainedState {
-    fn record_font(&self, style_record: u64) -> Option<RecordFont> {
-        let view = self.computed_group_sets.style_record_view(style_record)?;
-        let font = unsafe { view.payloads[STYLE_GROUP_INDEX_FONT].cast::<FontValues>().deref() };
-        let inherited_box = unsafe {
-            view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX]
-                .cast::<InheritedBoxValues>()
-                .deref()
-        };
-        Some(RecordFont {
+impl RecordFont {
+    fn of(view: &super::StyleRecordView<'_>) -> Self {
+        let font = unsafe { view.payloads[group_index::FONT].cast::<FontValues>().deref() };
+        let first_available = font.first_available_font_metrics();
+        Self {
             metrics: FfiFontMetrics {
                 font_size: font.font_size.to_double(),
-                x_height: drive_font_metric(font.font_x_height),
+                x_height: drive_font_metric(first_available.x_height),
                 // The host's metrics approximate the cap height with the ascent.
-                cap_height: drive_font_metric(font.font_ascent),
-                zero_advance: drive_font_metric(font.font_zero_advance),
-                line_height: font.line_height_used.to_double(),
+                cap_height: drive_font_metric(first_available.ascent),
+                zero_advance: drive_font_metric(first_available.zero_advance),
+                line_height: font.line_height_used().to_double(),
             },
             depends_on_viewport_metrics: view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
-            inline_axis_is_horizontal: inherited_box.writing_mode == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
-        })
+            inline_axis_is_horizontal: view.payloads.inherited_bits().writing_mode()
+                == crate::css::css_enums::writing_mode::HORIZONTAL_TB,
+        }
+    }
+}
+
+impl RetainedState {
+    /// The record the host holds for the element `node`, as the engine notes it.
+    fn held_record(&self, node: StyleNodeID) -> Option<&std::sync::Arc<super::pipeline::Record>> {
+        self.held_style_records.get(node)
     }
 
     /// https://drafts.csswg.org/css-viewport/#effective-zoom
@@ -65,7 +64,7 @@ impl RetainedState {
     fn root_effective_zoom(&self) -> f64 {
         self.held_root_font_inputs
             .unwrap_or_else(|| {
-                super::publication::RootFontInputs::from_document(&self.document_style_computation_inputs)
+                super::pipeline::compute::RootFontInputs::from_document(&self.document_style_computation_inputs)
             })
             .effective_zoom()
     }
@@ -76,38 +75,36 @@ impl RetainedState {
     fn root_font_metrics(&self) -> (FfiFontMetrics, bool) {
         self.held_root_font_inputs
             .unwrap_or_else(|| {
-                super::publication::RootFontInputs::from_document(&self.document_style_computation_inputs)
+                super::pipeline::compute::RootFontInputs::from_document(&self.document_style_computation_inputs)
             })
             .font_metrics()
     }
 
     /// The three length-resolution contexts a sample of an element's animations computes keyframe
-    /// values in over `style_record`, the record the host holds for it: the font context, which
+    /// values in over `record`, the record the host holds for it: the font context, which
     /// reads the record its inheritance parent holds; the line-height context, the element's own
     /// font with the line height it inherits; and the one everything else resolves against, the
     /// element's own font. A mirror of the host's `make_computation_context_for_property(FontFamily /
     /// LineHeight / Color)` over the working set it reconstructs from that record, without the
     /// container bases only the host resolves.
-    ///
-    /// `None` where the engine cannot read the record.
     pub(crate) fn animation_sample_length_contexts(
         &self,
         node: StyleNodeID,
         pseudo_kind: Option<u8>,
-        style_record: u64,
-    ) -> Option<FfiAnimationLengthContexts> {
+        record: &std::sync::Arc<super::pipeline::Record>,
+    ) -> FfiAnimationLengthContexts {
         let inputs = &self.document_style_computation_inputs;
-        let own = self.record_font(style_record)?;
+        let own = RecordFont::of(&super::StyleRecordView::of_host_record(record));
         // A pseudo-element inherits from its originating element.
         let parent = match pseudo_kind {
             Some(_) => Some(node),
-            None => self.tree.inheritance_parent(node),
+            None => self.projection.inheritance_parent(node),
         };
         let parent_font = parent
-            .and_then(|parent| self.held_style_records.get(&parent).copied())
-            .and_then(|record| self.record_font(record));
+            .and_then(|parent| self.held_record(parent))
+            .map(|record| RecordFont::of(&super::StyleRecordView::of_host_record(record)));
         let is_document_element =
-            self.computed_group_sets.adjustment_facts(node) & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0;
+            self.projection.adjustment_facts(node) & element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0;
         let document_root = self.root_font_metrics();
         let own_font = (own.metrics, own.depends_on_viewport_metrics);
         let length_context = |font, root| length_resolution_context(inputs, font, root, own.inline_axis_is_horizontal);
@@ -160,29 +157,26 @@ impl RetainedState {
                 document_root
             },
         );
-        Some(FfiAnimationLengthContexts {
+        FfiAnimationLengthContexts {
             font,
             line_height,
             remaining,
-        })
+        }
     }
 
-    /// What a transition on an element resolves its lengths against: the font of the record the
-    /// element has installed, a sampled animated font included, the root's font and the viewport.
-    /// A mirror of the host's computation context for `color` over that record. `None` where the
-    /// engine cannot read the record.
+    /// What a transition on an element resolves its lengths against: the font of `record`, the
+    /// record the element has installed, a sampled animated font included, the root's font and the
+    /// viewport. A mirror of the host's computation context for `color` over that record.
     pub(crate) fn transition_length_resolution_context(
         &self,
-        style_record: u64,
-    ) -> Option<crate::css::animation::FfiAnimationLengthResolutionContext> {
-        let record = self.record_font(style_record)?;
-        Some(crate::css::style_compute::animation_length_resolution_context(
-            &length_resolution_context(
-                &self.document_style_computation_inputs,
-                (record.metrics, record.depends_on_viewport_metrics),
-                self.root_font_metrics(),
-                record.inline_axis_is_horizontal,
-            ),
+        record: &std::sync::Arc<super::pipeline::Record>,
+    ) -> crate::css::animation::FfiAnimationLengthResolutionContext {
+        let record = RecordFont::of(&super::StyleRecordView::of_host_record(record));
+        crate::css::style_compute::animation_length_resolution_context(&length_resolution_context(
+            &self.document_style_computation_inputs,
+            (record.metrics, record.depends_on_viewport_metrics),
+            self.root_font_metrics(),
+            record.inline_axis_is_horizontal,
         ))
     }
 
@@ -201,27 +195,31 @@ impl RetainedState {
         &self,
         node: StyleNodeID,
         pseudo_kind: u8,
-        style_record: u64,
-        table: &ComputedLonghandTable,
+        view: StyleRecordView<'_>,
+        longhands: ViewLonghands<'_>,
         overlay: Option<&AnimatedOverlay>,
         used_color_scheme: u8,
         display_before_box_type_transformation_raw: u32,
         font: Option<&FfiFontGroupBuildInputs>,
         payloads: &mut [*const std::ffi::c_void; group_index::COUNT],
-    ) -> Option<Result<RebuiltOverlayGroups, NeedsHostFont>> {
-        let view = self.computed_group_sets.style_record_view(style_record)?;
-        payloads.copy_from_slice(SharedPayload::as_pointer_slice(view.base_payloads));
+    ) -> Result<RebuiltOverlayGroups, NeedsHostFont> {
+        payloads.copy_from_slice(&view.base_payloads.pointers());
         // An overlay with no sampled values or additional properties to treat as included in will-change leaves the
         // base as it is: publishing it releases the element's overlay record.
         let Some(overlay) = overlay.filter(|overlay| !overlay.is_empty()) else {
-            return Some(Ok(RebuiltOverlayGroups {
+            return Ok(RebuiltOverlayGroups {
                 groups: 0,
                 every_group: true,
-            }));
+                bits: view.base_payloads.style_bits(),
+            });
         };
         // A value no group is known to hold, or an animated `color` whose readers the engine cannot
         // name, rebuilds every group.
         let named_groups = overlay.entries().iter().try_fold(0u32, |groups, entry| {
+            // NB: A value the inherited bits hold is in no group: the sample holds it beside them.
+            if crate::css::computed_values::StyleBitField::of(entry.property).is_some() {
+                return Some(groups);
+            }
             let group = crate::css::property_metadata::property_style_group_index(entry.property)?;
             let readers = match entry.property {
                 prop::COLOR => self.current_color_dependent_group_mask(node, pseudo_kind)?,
@@ -232,20 +230,20 @@ impl RetainedState {
         let rebuilds_every_group = named_groups.is_none();
         let mut groups = named_groups.unwrap_or((1 << group_index::COUNT) - 1);
         if !overlay.implicit_will_change.is_empty() {
-            groups |= 1 << group_index::MISC_RESET;
+            groups |= 1 << group_index::MISC_INTERACTION;
         }
         // The surround group duplicates `position-anchor` for layout, so rebuilding the anchor
         // group refreshes it too.
-        if groups & (1 << STYLE_GROUP_INDEX_ANCHOR) != 0 {
-            groups |= 1 << STYLE_GROUP_INDEX_SURROUND;
+        if groups & (1 << group_index::ANCHOR) != 0 {
+            groups |= 1 << group_index::SURROUND;
         }
 
         // Colors resolve against the element's font as it stood when the overlay was last
         // published, or against the animated font where the overlay rebuilds the font group.
-        let record = self.record_font(style_record)?;
-        let rebuilds_font = groups & (1 << STYLE_GROUP_INDEX_FONT) != 0;
+        let record = RecordFont::of(&view);
+        let rebuilds_font = groups & (1 << group_index::FONT) != 0;
         if rebuilds_font && font.is_none() {
-            return Some(Err(NeedsHostFont));
+            return Err(NeedsHostFont);
         }
         let font_inputs = font.filter(|_| rebuilds_font);
         let own_font = match font_inputs {
@@ -266,10 +264,7 @@ impl RetainedState {
         );
         // The element's own color resolves first, since every other group resolves `currentcolor`
         // against it.
-        let color_data = table
-            .effective_value_handle(Some(overlay), prop::COLOR, true)
-            .0
-            .optional_data();
+        let color_data = longhands.effective_value(Some(overlay), prop::COLOR).optional_data();
         let color = color_data
             .and_then(|color| {
                 to_color(
@@ -291,21 +286,20 @@ impl RetainedState {
             length: Some(&length),
             channels: None,
         };
-        let build_inputs = TableGroupBuildInputs {
+        let build_inputs = crate::css::table_group_builder::GroupBuildInputs {
             color_input: &color_input,
             used_color_scheme,
-            animated_overlay: Some(overlay),
             box_display_before_transformation_raw: display_before_box_type_transformation_raw,
             font: font_inputs,
+            defaults: &self.process_style.default_groups,
         };
         let mut rebuilt = [std::ptr::null(); group_index::COUNT];
+        let source = crate::css::table_group_builder::LonghandSource::Longhands {
+            longhands,
+            animated_overlay: Some(overlay),
+        };
         unsafe {
-            crate::css::table_group_builder::build_group_payloads_from_table(
-                table,
-                groups,
-                &build_inputs,
-                &mut rebuilt,
-            );
+            crate::css::table_group_builder::build_group_payloads(&source, groups, &build_inputs, &mut rebuilt);
         }
         let mut rebuilt_groups = 0;
         for (group, payload) in rebuilt.into_iter().enumerate() {
@@ -314,10 +308,11 @@ impl RetainedState {
                 rebuilt_groups |= 1 << group;
             }
         }
-        Some(Ok(RebuiltOverlayGroups {
+        Ok(RebuiltOverlayGroups {
             groups: rebuilt_groups,
             every_group: rebuilds_every_group,
-        }))
+            bits: source.style_bits(),
+        })
     }
 }
 
@@ -387,12 +382,12 @@ impl super::StyleEngine {
         let mut composed = crate::css::style_compute::SampledEffects::new();
         let mut composed_properties = smallvec::SmallVec::<[u16; 8]>::new();
         let mut ended_properties = smallvec::SmallVec::<[u16; 8]>::new();
-        for effect in effects.iter().filter(|effect| effect.keyframes.len() >= 2) {
+        for effect in effects.iter().filter(|effect| effect.keyframes().len() >= 2) {
             let Some(timing) = &effect.timing else {
                 continue;
             };
             let properties = effect
-                .keyframes
+                .keyframes()
                 .iter()
                 .flat_map(|keyframe| effect.declarations_of(keyframe))
                 .map(|declaration| declaration.property_id);
@@ -411,8 +406,11 @@ impl super::StyleEngine {
             }
         }
 
-        let view = self.computed_group_sets.style_record_view(record).ok_or(NeedsHost)?;
-        let mut overlay = view.animated_overlay.cloned().unwrap_or_default();
+        let record = self.computed_group_sets.host_record(record).ok_or(NeedsHost)?.clone();
+        let mut overlay = super::StyleRecordView::of_host_record(&record)
+            .animated_overlay
+            .cloned()
+            .unwrap_or_default();
         for &property in ended_properties
             .iter()
             .filter(|property| !composed_properties.contains(property))
@@ -421,7 +419,7 @@ impl super::StyleEngine {
         }
         self.sample_composed_over_record(
             node,
-            record,
+            &record,
             overlay,
             None,
             composed,
@@ -445,7 +443,7 @@ impl super::StyleEngine {
         let mut properties = smallvec::SmallVec::new();
         for effect in self.element_animation_effects(node, 0) {
             for declaration in effect
-                .keyframes
+                .keyframes()
                 .iter()
                 .flat_map(|keyframe| effect.declarations_of(keyframe))
             {
@@ -462,7 +460,7 @@ impl super::StyleEngine {
     pub(crate) fn sample_composed_over_record(
         &mut self,
         node: StyleNodeID,
-        record: u64,
+        record: &std::sync::Arc<super::pipeline::Record>,
         mut overlay: AnimatedOverlay,
         fresh: Option<&[super::effect_descriptions::PublishedEffect]>,
         composed: crate::css::style_compute::SampledEffects,
@@ -484,59 +482,30 @@ impl super::StyleEngine {
         if outcome == crate::css::style_compute::FfiHostAnimationSampleOutcome::Cleared {
             overlay = AnimatedOverlay::default();
         }
-        let sample = self.compose_overlay_over_record(node, record, &overlay, bounds)?;
+        let sample = self.compose_overlay_over_record(
+            node,
+            crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
+            record,
+            &overlay,
+            bounds,
+        )?;
         Ok((sample, overlay))
     }
 
     /// Composes `overlay`, the values of animations of the element `node` names, or those it inherits from an
     /// ancestor's, over `record` into a record no element holds, pinned for a box, where the composition changes no more
-    /// than `bounds` lets it.
+    /// than `bounds` lets it. `record` is the element's, or, for a `pseudo_kind`, that pseudo-element's, and `overlay`
+    /// then holds the values the pseudo-element inherits of them.
     pub(crate) fn compose_overlay_over_record(
         &mut self,
         node: StyleNodeID,
-        record: u64,
-        overlay: &AnimatedOverlay,
-        bounds: super::style_invalidation::SampleBounds,
-    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
-        self.compose_overlay_over_record_of(
-            node,
-            crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
-            record,
-            overlay,
-            bounds,
-        )
-    }
-
-    /// Composes `overlay`, the values a pseudo-element of the kind `pseudo_kind` of the element `node` names inherits of
-    /// the element's animations, or of those the element inherits from an ancestor's, over `record`, the
-    /// pseudo-element's, as [`Self::compose_overlay_over_record`] does for an element.
-    pub(crate) fn compose_overlay_over_pseudo_element_record(
-        &mut self,
-        node: StyleNodeID,
         pseudo_kind: u8,
-        record: u64,
+        record: &std::sync::Arc<super::pipeline::Record>,
         overlay: &AnimatedOverlay,
         bounds: super::style_invalidation::SampleBounds,
     ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
-        self.compose_overlay_over_record_of(node, pseudo_kind, record, overlay, bounds)
-    }
-
-    fn compose_overlay_over_record_of(
-        &mut self,
-        node: StyleNodeID,
-        pseudo_kind: u8,
-        record: u64,
-        overlay: &AnimatedOverlay,
-        bounds: super::style_invalidation::SampleBounds,
-    ) -> Result<super::layout_style::DerivedStyleRecord, NeedsHost> {
-        let table = HostShared::from_option(
-            self.computed_group_sets
-                .style_record_view(record)
-                .ok_or(NeedsHost)?
-                .longhand_table,
-        );
         // What the host adjusts after it samples, and an animated color scheme, are the host's to compose.
-        let facts = self.computed_group_sets.adjustment_facts(node);
+        let facts = self.projection.adjustment_facts(node);
         if overlay.entries().iter().any(|entry| {
             entry.post_compute_adjustment
                 || post_compute_adjusts(entry.property, facts)
@@ -544,63 +513,50 @@ impl super::StyleEngine {
         }) {
             return Err(NeedsHost);
         }
-        // SAFETY: As above.
-        let table = unsafe { table.as_ref() }.ok_or(NeedsHost)?;
-        let used_color_scheme = u8::try_from(table.effective_color_scheme()).map_err(|_| NeedsHost)?;
+        // NB: The base record is held, so that its longhands outlive the view while the engine
+        //     resolves the animated font.
+        let view = StyleRecordView::of_host_record(record);
+        let base = view.retained_record();
+        let longhands = ViewLonghands::of_record(&base);
+        let used_color_scheme = u8::try_from(longhands.effective_color_scheme()).map_err(|_| NeedsHost)?;
         let mut payloads = [std::ptr::null(); group_index::COUNT];
         let mut build = |engine: &Self, font: Option<&FfiFontGroupBuildInputs>| {
-            engine
-                .build_animation_overlay_payloads(
-                    node,
-                    pseudo_kind,
-                    record,
-                    table,
-                    Some(overlay),
-                    used_color_scheme,
-                    table.display_before_box_type_transformation(),
-                    font,
-                    &mut payloads,
-                )
-                .ok_or(NeedsHost)
+            engine.build_animation_overlay_payloads(
+                node,
+                pseudo_kind,
+                view,
+                longhands,
+                Some(overlay),
+                used_color_scheme,
+                longhands.display_before_box_type_transformation(),
+                font,
+                &mut payloads,
+            )
         };
         // A sample that moves the font asks the document's font resolver for it, as the host's sample does.
-        let rebuilt = match build(self, None)? {
+        let rebuilt = match build(self, None) {
             Err(NeedsHostFont) => {
-                let font = self.animated_font_group_inputs(node, table, overlay).ok_or(NeedsHost)?;
-                build(self, Some(&font))?.map_err(|NeedsHostFont| NeedsHost)?
+                let font = self
+                    .animated_font_group_inputs(node, longhands, overlay)
+                    .ok_or(NeedsHost)?;
+                build(self, Some(&font)).map_err(|NeedsHostFont| NeedsHost)?
             }
             Ok(rebuilt) => rebuilt,
         };
         // What the sample changes beyond its box is the host's to show: the visual contexts above all, which the
         // compositor has from the host's frames.
-        if !self.animation_sample_stays_in_its_box(
-            node,
-            record,
-            overlay,
-            SharedPayload::from_pointer_slice(&payloads),
-            bounds,
-        ) {
+        // SAFETY: The rebuild wrote a live payload of each group.
+        let groups = &unsafe {
+            crate::css::computed_values::StyleGroups::retained_sharing(&payloads, rebuilt.bits, &[Some(&base.payloads)])
+        };
+        if !self.animation_sample_stays_in_its_box(node, view, overlay, groups, bounds) {
             release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
             return Err(NeedsHost);
         }
-        let sampled = super::bridge::publish_computed_groups_from_inputs(
-            self,
-            0,
-            u8::MAX,
-            SharedPayload::from_pointer_slice(&payloads),
-            super::computed::ENGINE_INHERITED_GROUP_COUNT,
-            0,
-            false,
-            0,
-            0,
-            std::ptr::null(),
-            &[],
-            Some(table),
-            std::ptr::null(),
-        )
-        .new_style_record;
+        // The sample holds the longhands of the record it composes over, as the host's does.
+        let sampled = self.install_record_derived(&base, groups, None);
         release_rebuilt_overlay_payloads(&payloads, rebuilt.groups);
-        Ok(super::layout_style::DerivedStyleRecord::pin(self, sampled))
+        Ok(super::layout_style::DerivedStyleRecord::pin(self, sampled.raw()))
     }
 
     /// Samples `composed` onto `overlay` over `record`, a record the engine holds for the element `node`
@@ -610,23 +566,18 @@ impl super::StyleEngine {
     pub(crate) fn sample_over_record(
         &mut self,
         node: StyleNodeID,
-        record: u64,
+        record: &std::sync::Arc<super::pipeline::Record>,
         overlay: &mut AnimatedOverlay,
         fresh: Option<&[super::effect_descriptions::PublishedEffect]>,
         composed: crate::css::style_compute::SampledEffects,
         transform_reference_box: Option<crate::css::css_pixels::CssPixelRect>,
         timeline_samples: super::animations::AnimationTimelineSamples<'_>,
     ) -> Result<crate::css::style_compute::FfiHostAnimationSampleResult, NeedsHost> {
-        let table = HostShared::new(std::ptr::from_ref(
-            self.computed_group_sets
-                .style_record_view(record)
-                .ok_or(NeedsHost)?
-                .longhand_table
-                .ok_or(NeedsHost)?,
-        ));
+        let base = super::StyleRecordView::of_host_record(record).retained_record();
+        let longhands = ViewLonghands::of_record(&base);
         // A keyframe substitutes against the custom properties of the element and of its parent, as the host's
         // sample does, from the stores the engine holds for their environments throughout the sample.
-        let inheritance_parent = self.tree.inheritance_parent(node);
+        let inheritance_parent = self.projection.inheritance_parent(node);
         let custom_property_environments = [Some(node), inheritance_parent].map(|node| {
             node.and_then(|node| self.computed_group_sets.custom_property_environment_identity(node))
                 .unwrap_or(0)
@@ -636,9 +587,7 @@ impl super::StyleEngine {
                 .store(identity)
                 .map_or(std::ptr::null(), |store| std::sync::Arc::as_ptr(store).cast())
         });
-        let inheritance_parent_style_record = inheritance_parent
-            .and_then(|parent| self.held_style_records.get(&parent).copied())
-            .unwrap_or(0);
+        let inheritance_parent_record = inheritance_parent.and_then(|parent| self.held_record(parent)).cloned();
         let inputs = &self.document_style_computation_inputs;
         let environment = FfiStyleComputationEnvironment {
             // SAFETY: As the host's value-initialized input, which an animation sample does not read.
@@ -665,17 +614,14 @@ impl super::StyleEngine {
             default_font_size_raw: inputs.default_font_size_raw,
             root_effective_zoom: self.root_effective_zoom(),
         };
-        // SAFETY: The record's table is frozen, and the record the caller holds keeps it alive throughout the
-        //         sample, which writes only `overlay` and what the engine keeps of the element's animations.
-        let table = unsafe { table.deref() };
         let input = AnimationSampleInput {
             style_node: node.raw(),
             pseudo_kind: crate::css::cascaded_properties::NO_PSEUDO_ELEMENT,
             effects: HostSampledEffects::none(),
-            longhand_table: table,
+            longhands,
             has_animated_overlay: true,
-            current_color: working_set_current_color(table, Some(overlay)),
-            style_record: record,
+            current_color: working_set_current_color(longhands, Some(overlay)),
+            style_record: Some(record.clone()),
             stores: crate::css::animation::KeyframeStores {
                 substitution: store,
                 // A sample that animates a custom property is the host's, so none composes over the element's own.
@@ -684,7 +630,7 @@ impl super::StyleEngine {
                 element_declares_custom_properties: false,
             },
             custom_property_environments,
-            inheritance_parent_style_record,
+            inheritance_parent_record,
             environment: &environment,
             custom_property_registration_generation: inputs.custom_property_registration_generation,
             element_box_slot: crate::layout::node_data::NodeSlotId::INVALID.index,
@@ -714,8 +660,8 @@ impl super::StyleEngine {
             return Some(node);
         }
         let mut target = node;
-        for ancestor in std::iter::successors(self.tree.flat_tree_parent(node), |&ancestor| {
-            self.tree.flat_tree_parent(ancestor)
+        for ancestor in std::iter::successors(self.projection.flat_tree_parent(node), |&ancestor| {
+            self.projection.flat_tree_parent(ancestor)
         }) {
             match self.tick_shown.get(ancestor).map(|shown| shown.boxes) {
                 Some(ShownBoxes::TakenAway) => return None,
@@ -743,7 +689,7 @@ impl super::StyleEngine {
         if self.record_holds_an_animation_overlay(host_record) {
             return Err(NeedsHost);
         }
-        let record = self.derive_record(node, bridge::FfiRecordDemand::ElementRead)?;
+        let record = self.derive_for_clock(node);
         let restyled = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
         // The box a clock frame built shows the records it was built from, whatever the host's say.
         let built = self.tick_shown.get(node).map(|shown| shown.boxes) == Some(ShownBoxes::Built);
@@ -808,18 +754,6 @@ impl super::StyleEngine {
         Ok(DependentRestyle::PseudoElementsMove(in_box))
     }
 
-    /// The record a read-only `demand` derives for `node`.
-    fn derive_record(
-        &mut self,
-        node: StyleNodeID,
-        demand: bridge::FfiRecordDemand,
-    ) -> Result<super::publication::DemandedEngineRecord, NeedsHost> {
-        match self.answer_record_demand(node, super::publication::RecordDemand::Element(demand)) {
-            Ok(super::publication::RecordDemandAnswer::Record { record, .. }) => Ok(record),
-            _ => Err(NeedsHost),
-        }
-    }
-
     /// Shows the clock frame's build the records the boxes a hover's move of `node` builds again take: where the element
     /// gains a box or its boxes move, its own and those of the elements below it, which compute against it, and where it
     /// loses its box, its own, which generates none. The host builds what only it can.
@@ -833,10 +767,6 @@ impl super::StyleEngine {
         let element = self.computed_group_sets.assigned_style_record(node).ok_or(NeedsHost)?;
         let mut record = super::publication::DemandedEngineRecord {
             style_record: element.raw(),
-            explicitly_inherited_groups: 0,
-            owes_an_animation_plan: false,
-            owes_a_transition_step: false,
-            composed_by_the_host: false,
             pseudo_records_present: 0,
             pseudo_records: [0; bridge::PSEUDO_RECORD_SLOTS],
         };
@@ -892,40 +822,22 @@ impl super::StyleEngine {
             pseudo: record.pseudo_records,
         };
         let moved = self.retained.show_for_tick(node, shown);
-        if self.tree.first_element_child(node).is_none() || self.record_is_in_display_none_subtree(element.raw()) {
+        if self.projection.first_element_child(node).is_none() || self.record_is_in_display_none_subtree(element.raw())
+        {
             return Ok(moved);
         }
-        // The elements below read their parent's record as the one assigned to it, which it is while they are read: in
-        // place of the host's, which an element below one without a box may not have yet, or not at all when the flush
-        // left it unstyled in a display:none subtree.
-        let host = self
-            .computed_group_sets
-            .assigned_style_record(node)
-            .unwrap_or(super::computed::FinalStyleRecordID::NONE);
-        let replaced = if host == element {
-            None
-        } else {
-            let replaced = self
-                .computed_group_sets
-                .assign_engine_computed_record(node, host, element);
-            Some(replaced.ok_or(NeedsHost)?)
-        };
-        let below = self.show_built_children(node, transitions);
-        if let Some(replaced) = replaced {
-            self.computed_group_sets
-                .revert_engine_computed_record(node, element, replaced);
-        }
-        Ok(below? || moved)
+        // NB: The engine computes the elements below over the record the clock frame shows for their parent.
+        Ok(self.show_built_children(node, transitions)? || moved)
     }
 
     /// Shows the records the element children of `parent` compute to against the one assigned to it, in the boxes a
     /// clock frame builds for them. Answers whether any moved from what the clock showed.
     fn show_built_children(&mut self, parent: StyleNodeID, transitions: Transitions) -> Result<bool, NeedsHost> {
         let mut moved = false;
-        let mut child = self.tree.first_element_child(parent);
+        let mut child = self.projection.first_element_child(parent);
         while let Some(node) = child {
-            child = self.tree.next_element_sibling(node);
-            let record = self.derive_record(node, bridge::FfiRecordDemand::ElementReadAgainstParent)?;
+            child = self.projection.next_element_sibling(node);
+            let record = self.derive_for_clock(node);
             let element = super::computed::FinalStyleRecordID::from_raw(record.style_record).ok_or(NeedsHost)?;
             moved |= self.show_built_boxes(node, ShownBoxes::BuiltBelow, element, &record, transitions)?;
         }
@@ -967,12 +879,11 @@ impl super::StyleEngine {
         let Some(view) = self.computed_group_sets.style_record_view(element.raw()) else {
             return Err(NeedsHost);
         };
-        let values =
-            crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(view.payloads));
+        let values = crate::css::computed_value_views::ComputedValuesView::of(view.payloads);
         let plain = self.element_box_kind(node) == bridge::ElementBoxKind::FromDisplay
-            && self.computed_group_sets.adjustment_facts(node) & typed == 0
-            && self.tree.shadow_root_of(node).is_none()
-            && self.tree.assigned_slot_of(node).is_none()
+            && self.projection.adjustment_facts(node) & typed == 0
+            && self.projection.shadow_root_of(node).is_none()
+            && self.projection.assigned_slot_of(node).is_none()
             && !is_container(element)
             && !self
                 .computed_group_sets
@@ -1040,11 +951,11 @@ impl super::StyleEngine {
         use element_adjustment_fact::{
             IS_DOCUMENT_ELEMENT, IS_HTML_BODY_ELEMENT, IS_SVG_ELEMENT, RENDERED_IN_TOP_LAYER,
         };
-        let parent = self.tree.parent(node)?;
+        let parent = self.projection.parent(node)?;
         let placed_otherwise = IS_DOCUMENT_ELEMENT | IS_HTML_BODY_ELEMENT | IS_SVG_ELEMENT | RENDERED_IN_TOP_LAYER;
-        (self.computed_group_sets.adjustment_facts(node) & placed_otherwise == 0
-            && self.tree.assigned_slot_of(node).is_none()
-            && self.tree.shadow_root_of(parent).is_none()
+        (self.projection.adjustment_facts(node) & placed_otherwise == 0
+            && self.projection.assigned_slot_of(node).is_none()
+            && self.projection.shadow_root_of(parent).is_none()
             && self.computed_group_sets.assigned_style_record(parent).is_some())
         .then_some(parent)
     }
@@ -1068,10 +979,8 @@ impl super::StyleEngine {
         self.computed_group_sets
             .style_record_view(record.raw())
             .is_none_or(|view| {
-                crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(
-                    view.payloads,
-                ))
-                .affects_generated_content_state()
+                crate::css::computed_value_views::ComputedValuesView::of(view.payloads)
+                    .affects_generated_content_state()
             })
     }
 
@@ -1081,9 +990,7 @@ impl super::StyleEngine {
         let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
             return true;
         };
-        let display =
-            crate::css::computed_value_views::ComputedValuesView::new(SharedPayload::as_pointer_slice(view.payloads))
-                .display();
+        let display = crate::css::computed_value_views::ComputedValuesView::of(view.payloads).display();
         view.dependency_flags & super::computed::IN_DISPLAY_NONE_SUBTREE == 0
             && !display.is_none()
             && !display.is_contents()
@@ -1099,9 +1006,7 @@ impl super::StyleEngine {
     ) -> bool {
         let place = |record: super::computed::FinalStyleRecordID| {
             self.computed_group_sets.style_record_view(record.raw()).map(|view| {
-                let values = crate::css::computed_value_views::ComputedValuesView::new(
-                    SharedPayload::as_pointer_slice(view.payloads),
-                );
+                let values = crate::css::computed_value_views::ComputedValuesView::of(view.payloads);
                 let display = values.display();
                 (
                     display.is_outside_and_inside(),
@@ -1123,10 +1028,11 @@ impl super::StyleEngine {
     fn animated_font_group_inputs(
         &mut self,
         node: StyleNodeID,
-        table: &ComputedLonghandTable,
+        longhands: ViewLonghands<'_>,
         overlay: &AnimatedOverlay,
     ) -> Option<FfiFontGroupBuildInputs> {
-        let request = font_resolution_request(table, Some(overlay), &self.document_style_computation_inputs, || {
+        let values = |property| Some(longhands.effective_value(Some(overlay), property));
+        let request = font_resolution_request(values, &self.document_style_computation_inputs, || {
             self.font_feature_values_scope(node)
         });
         let lookup = |engine: &Self| engine.font_resolution.as_ref()?.lookup(request);
@@ -1140,14 +1046,8 @@ impl super::StyleEngine {
                 lookup(self)?
             }
         };
-        let line_height_used = used_line_height(table, Some(overlay), &request, &resolved);
-        Some(font_group_build_inputs(
-            table,
-            Some(overlay),
-            &request,
-            line_height_used,
-            &resolved,
-        ))
+        let line_height_used = used_line_height(values, &request, &resolved);
+        Some(font_group_build_inputs(values, &request, line_height_used, &resolved))
     }
 }
 
@@ -1311,6 +1211,8 @@ pub(crate) struct RebuiltOverlayGroups {
     /// Whether the overlay named a value the groups could not be told from, or nothing at all, so
     /// none of the base record's groups could be kept as they were.
     pub(crate) every_group: bool,
+    /// What the sampled style's inherited set holds beside its groups.
+    pub(crate) bits: crate::css::computed_value_types::StyleBits,
 }
 
 /// Give back the references to the payloads `build_animation_overlay_payloads` rebuilt.
@@ -1349,29 +1251,20 @@ fn length_resolution_context(
     }
 }
 
-/// A longhand's computed value, over the overlay a sample composed where there is one.
-pub(super) fn effective_data<'a>(
-    table: &'a ComputedLonghandTable,
-    overlay: Option<&'a AnimatedOverlay>,
-    property: u16,
-) -> Option<&'a StyleValueData> {
-    table.effective_value_handle(overlay, property, true).0.optional_data()
-}
-
 /// What resolving an element's font asks the document's resolver, as the C++ font computer would
-/// resolve it for the element's computed values over `overlay`. The font phase computes
-/// font-size, font-weight and font-width to the shapes read here. `feature_values_scope` names the
-/// tree scope whose `@font-feature-values` the element's `font-variant-alternates` reads, asked
-/// only when it has one.
-pub(super) fn font_resolution_request(
-    table: &ComputedLonghandTable,
-    overlay: Option<&AnimatedOverlay>,
+/// resolve it for the element's computed values `values`. The font phase computes font-size,
+/// font-weight and font-width to the shapes read here. `feature_values_scope` names the tree scope
+/// whose `@font-feature-values` the element's `font-variant-alternates` reads, asked only when it
+/// has one.
+pub(super) fn font_resolution_request<'a>(
+    values: impl Fn(u16) -> Option<&'a RetainedStyleValueData>,
     inputs: &bridge::FfiDocumentStyleComputationInputs,
     feature_values_scope: impl FnOnce() -> TreeScopeID,
 ) -> bridge::FfiFontResolutionRequest {
-    let value_of = |property| effective_data(table, overlay, property);
-    let handle_of =
-        |property| bridge::FfiHostHandle::from_pointer(table.effective_value(overlay, property, true).value.cast());
+    let value_of = |property| values(property).and_then(RetainedStyleValueData::optional_data);
+    let handle_of = |property| {
+        bridge::FfiHostHandle::from_pointer(values(property).map_or(std::ptr::null(), |value| value.pointer().cast()))
+    };
     // The resolver reads these beside the family, so the request names each one whose computed
     // value is not the initial one and nothing for the rest. A non-initial value can also come
     // from inheritance.
@@ -1533,16 +1426,15 @@ pub(super) fn normal_line_height(resolved: &bridge::FfiResolvedFont) -> f64 {
     f64::from(resolved.ascent.round() as i32 + resolved.descent.round() as i32)
 }
 
-/// The used line height, as the C++ working set reads it from the computed value over `overlay`
+/// The used line height, as the C++ working set reads it from the computed value in `values`
 /// against the font it resolved. The line-height phase computes line-height to one of these
 /// shapes.
-pub(super) fn used_line_height(
-    table: &ComputedLonghandTable,
-    overlay: Option<&AnimatedOverlay>,
+pub(super) fn used_line_height<'a>(
+    values: impl Fn(u16) -> Option<&'a RetainedStyleValueData>,
     request: &bridge::FfiFontResolutionRequest,
     resolved: &bridge::FfiResolvedFont,
 ) -> f64 {
-    match effective_data(table, overlay, prop::LINE_HEIGHT) {
+    match values(prop::LINE_HEIGHT).and_then(RetainedStyleValueData::optional_data) {
         Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::NORMAL => normal_line_height(resolved),
         Some(StyleValueData::Length { value, unit }) if *unit == px_length_unit() => {
             CssPixels::nearest_value_for(*value).to_double()
@@ -1553,19 +1445,19 @@ pub(super) fn used_line_height(
 }
 
 /// What the font group of a record is built from, for an element whose font `request` resolved to
-/// `resolved`, with the computed values over `overlay`.
-pub(super) fn font_group_build_inputs(
-    table: &ComputedLonghandTable,
-    overlay: Option<&AnimatedOverlay>,
+/// `resolved`, with the computed values `values`.
+pub(super) fn font_group_build_inputs<'a>(
+    values: impl Fn(u16) -> Option<&'a RetainedStyleValueData>,
     request: &bridge::FfiFontResolutionRequest,
     line_height_used: f64,
     resolved: &bridge::FfiResolvedFont,
 ) -> FfiFontGroupBuildInputs {
-    let keyword_code = |property, map: fn(u16) -> Option<u8>| match effective_data(table, overlay, property) {
-        Some(StyleValueData::Keyword { keyword }) => map(*keyword).unwrap_or(0),
-        _ => 0,
-    };
-    let math_depth = match effective_data(table, overlay, prop::MATH_DEPTH) {
+    let keyword_code =
+        |property, map: fn(u16) -> Option<u8>| match values(property).and_then(RetainedStyleValueData::optional_data) {
+            Some(StyleValueData::Keyword { keyword }) => map(*keyword).unwrap_or(0),
+            _ => 0,
+        };
+    let math_depth = match values(prop::MATH_DEPTH).and_then(RetainedStyleValueData::optional_data) {
         Some(StyleValueData::Integer { value }) => *value,
         _ => 0,
     };

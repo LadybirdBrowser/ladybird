@@ -82,7 +82,6 @@ pub(crate) use crate::layout::layout_node_arena::{
     HostStyle, LayoutNodeArena, LiveRow, PublishedBoundRows, RowsVersion, SLOTS_PER_CHUNK, SampleKind, StyleRelayout,
 };
 use crate::layout::node_data::AncestorFact;
-pub use crate::layout::node_data::FfiStylePayloads;
 use crate::layout::node_data::NodeData;
 use crate::layout::node_data::NodeFlag;
 use crate::layout::node_data::NodeKind;
@@ -99,6 +98,7 @@ pub(crate) use geometry::{
 };
 pub(crate) use host_tables::{ArenaHandle, HostTables};
 pub(crate) use layout_node_arena::HeldNode as ArenaHeldNode;
+pub(crate) use layout_node_arena::{ElementInstall, StyledRows};
 pub(crate) use layout_pass::LayoutPass;
 pub(crate) use node_facts::NodeFacts;
 pub(crate) use partial_relayout::HeldNode as PartialRelayoutHeldNode;

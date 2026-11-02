@@ -189,9 +189,8 @@ impl LayoutNodeArena {
         //       boundary triggers ancestor scrollable overflow recomputation after commit.
 
         let parent_style = (!data.parent.get().is_invalid())
-            .then(|| self.style_payloads(data.parent.get()))
-            .flatten()
-            .map(|payloads| crate::css::computed_value_views::ComputedValuesView::new(&payloads.groups));
+            .then(|| self.style_view(data.parent.get()))
+            .flatten();
         matches!(
             formatting_context_type_created_by_node_data(
                 data,
@@ -553,7 +552,7 @@ impl LayoutNodeArena {
         }
         let style = node_facts::node_style_view(data)?;
         let anchor = style.anchor();
-        if style.box_values().position != positioning::ABSOLUTE
+        if style.position() != positioning::ABSOLUTE
             || style.has_position_anchor()
             || anchor.position_area.length != 0
             || anchor.position_try_fallbacks.length != 0
@@ -605,9 +604,8 @@ impl LayoutNodeArena {
         let parent_style = node_facts::node_style_view(parent_data);
         let grandparent = parent_data.parent.get();
         let grandparent_style = (!grandparent.is_invalid())
-            .then(|| self.style_payloads(grandparent))
-            .flatten()
-            .map(|payloads| crate::css::computed_value_views::ComputedValuesView::new(&payloads.groups));
+            .then(|| self.style_view(grandparent))
+            .flatten();
         if !matches!(
             formatting_context_type_created_by_node_data(
                 parent_data,
@@ -688,6 +686,41 @@ impl LayoutNodeArena {
             damage |= PaintDamage::ALL_PRODUCERS;
         }
         self.push_paint_damage(parent, damage);
+    }
+
+    /// Marks for layout every box whose style renders in one of the font cascades of `font_lists`, which loads filled
+    /// faces into in place: as with a font fallback list resolving a loaded face, the styles stay, and only what lays
+    /// their text out runs again.
+    pub(crate) fn relayout_users_of_font_lists(&mut self, font_lists: &[u64]) {
+        let mut users = Vec::new();
+        let mut node = self.bound_viewport_row();
+        while !node.is_invalid() {
+            if self
+                .node_style_if_live(node)
+                .is_some_and(|style| font_lists.contains(&(style.font().font_cascade_list.as_raw() as u64)))
+            {
+                users.push(node);
+            }
+            let data = self.data(node);
+            node = data.first_child.get();
+            if node.is_invalid() {
+                let mut current = data;
+                loop {
+                    node = current.next_sibling.get();
+                    if !node.is_invalid() {
+                        break;
+                    }
+                    let parent = current.parent.get();
+                    if parent.is_invalid() {
+                        break;
+                    }
+                    current = self.data(parent);
+                }
+            }
+        }
+        for user in users {
+            self.set_needs_layout_update(user, true);
+        }
     }
 
     pub(crate) fn set_needs_layout_update(&mut self, node: NodeSlotId, propagate_through_ancestors: bool) {

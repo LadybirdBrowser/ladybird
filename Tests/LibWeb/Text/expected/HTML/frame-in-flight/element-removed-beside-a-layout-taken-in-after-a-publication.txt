@@ -1,0 +1,3 @@
+height before: 20
+height after: 10
+computed height: 10px

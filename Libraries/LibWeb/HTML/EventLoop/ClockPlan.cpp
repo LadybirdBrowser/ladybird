@@ -142,7 +142,7 @@ bool hover_lane_is_enabled()
     return enabled;
 }
 
-// The page's cursor, as a hover of the render clock asks it to show the cursor of what it hovers, on the StyleLayout
+// The page's cursor, as a hover of the render clock asks it to show the cursor of what it hovers, on the Render
 // thread.
 static Layout::RustFFI::FfiPageCursor ffi_page_cursor(PageCursor& cursor)
 {

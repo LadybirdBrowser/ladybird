@@ -49,11 +49,12 @@ struct SvgPaintFacts {
     references_paint_server: bool,
 }
 
-pub(crate) fn svg_paint_color(paint: &ComputedSvgPaint) -> Option<u32> {
+/// The color `paint` paints with, with `currentcolor` resolved to `current_color`.
+pub(crate) fn svg_paint_color(paint: &ComputedSvgPaint, current_color: u32) -> Option<u32> {
     match paint.kind {
         SVG_PAINT_NONE => None,
-        SVG_PAINT_COLOR => Some(paint.color),
-        _ => paint.has_color.then_some(paint.color),
+        SVG_PAINT_COLOR => Some(paint.color.resolve(current_color)),
+        _ => paint.has_color.then(|| paint.color.resolve(current_color)),
     }
 }
 
@@ -96,8 +97,8 @@ fn svg_paint_facts<O: Observer>(
     facts.fill_winding = to_winding(svg.fill_rule);
     facts.fill_opacity = svg.fill_opacity;
     facts.stroke_opacity = svg.stroke_opacity;
-    facts.fill_color = svg_paint_color(&svg.fill);
-    facts.stroke_color = svg_paint_color(&svg.stroke);
+    facts.fill_color = svg_paint_color(&svg.fill, style.current_color());
+    facts.stroke_color = svg_paint_color(&svg.stroke, style.current_color());
     facts.references_paint_server = svg.fill.kind == SVG_PAINT_URL || svg.stroke.kind == SVG_PAINT_URL;
     let stroke = svg_stroke_style(layout_arena, paintable, &style);
     facts.cap_style = stroke.cap_style;
@@ -659,8 +660,7 @@ pub(crate) fn paint_image_element<O: Observer>(
             .map_or((false, 0), |style| {
                 use crate::css::css_enums::overflow;
                 (
-                    style.box_values().overflow_x == overflow::VISIBLE
-                        && style.box_values().overflow_y == overflow::VISIBLE,
+                    style.overflow_x() == overflow::VISIBLE && style.overflow_y() == overflow::VISIBLE,
                     style.image_rendering(),
                 )
             });

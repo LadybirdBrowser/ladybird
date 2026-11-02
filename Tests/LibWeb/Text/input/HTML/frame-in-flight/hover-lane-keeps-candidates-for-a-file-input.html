@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #target { display: block; width: 300px; height: 100px; }
+</style>
+<input id="target" type="file">
+<script>
+    // Default.css restyles the element backing ::file-selector-button on hover, so the lane has to restyle for an
+    // <input type=file>.
+    asyncTest(async done => {
+        const by = await whileLaneHovers(async frameTime => {
+            internals.moveHoverPointer(10, 50);
+            await nextTask();
+            internals.injectClockTick(frameTime + 32);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`hover presented by: ${by}`);
+        done();
+    });
+</script>

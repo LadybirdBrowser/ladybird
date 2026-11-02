@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    @keyframes angle {
+        from { --angle: 10deg; }
+        to { --angle: 10deg; }
+    }
+    #target::after {
+        content: "";
+        display: block;
+        height: 10px;
+        background-image: linear-gradient(var(--angle, 90deg), red, blue);
+        animation: angle 1000s infinite;
+    }
+</style>
+<div id="target">x</div>
+<script>
+    asyncTest(async done => {
+        // A restyle of the pseudo-element reads the animated value its animation sampled, which holds still here, so
+        // nothing publishes it again. The engine frees the records the color changes leave behind, and with them the
+        // custom property environments no record names, which must not take that sample.
+        const angle = () => getComputedStyle(target, "::after").backgroundImage.slice("linear-gradient(".length, -1).split(",")[0];
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        await nextFrame();
+        await nextFrame();
+        println(`before: ${angle()}`);
+        const seen = new Set();
+        for (let i = 0; i < 1500; ++i) {
+            target.style.color = `rgb(${i % 256}, ${i >> 8}, 0)`;
+            target.offsetWidth;
+            seen.add(angle());
+            if (i % 20 === 0)
+                await nextFrame();
+        }
+        println(`seen: ${[...seen].join(", ")}`);
+        done();
+    });
+</script>

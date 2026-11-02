@@ -8,7 +8,7 @@ ABSENT: ::before remove list-item on none in inline list-item | target
 ABSENT: ::before remove list-item on none in inline list-item | target descendant
 PRESERVED: ::before remove list-item on none in inline list-item | following sibling
 PRESERVED: ::before remove list-item on none in inline list-item | following sibling descendant
-STATS: ::before remove list-item on none in inline list-item | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove list-item on none in inline list-item | no layout tree build
 PASS: ::before remove list-item on none in inline list-item | incremental tree matches full rebuild
 PRESERVED: ::before remove table-header-group on none in table-footer-group | fixture ancestor
 PRESERVED: ::before remove table-header-group on none in table-footer-group | distant sibling
@@ -20,7 +20,7 @@ ABSENT: ::before remove table-header-group on none in table-footer-group | targe
 ABSENT: ::before remove table-header-group on none in table-footer-group | target descendant
 PRESERVED: ::before remove table-header-group on none in table-footer-group | following sibling
 PRESERVED: ::before remove table-header-group on none in table-footer-group | following sibling descendant
-STATS: ::before remove table-header-group on none in table-footer-group | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove table-header-group on none in table-footer-group | no layout tree build
 PASS: ::before remove table-header-group on none in table-footer-group | incremental tree matches full rebuild
 PRESERVED: ::before remove inline flex on none in block grid | fixture ancestor
 PRESERVED: ::before remove inline flex on none in block grid | distant sibling
@@ -32,7 +32,7 @@ ABSENT: ::before remove inline flex on none in block grid | target
 ABSENT: ::before remove inline flex on none in block grid | target descendant
 PRESERVED: ::before remove inline flex on none in block grid | following sibling
 PRESERVED: ::before remove inline flex on none in block grid | following sibling descendant
-STATS: ::before remove inline flex on none in block grid | rebuilt subtree roots=0, escaped=false
+STATS: ::before remove inline flex on none in block grid | no layout tree build
 PASS: ::before remove inline flex on none in block grid | incremental tree matches full rebuild
 PRESERVED: ::after create inline-block on none in list-item | fixture ancestor
 PRESERVED: ::after create inline-block on none in list-item | distant sibling
@@ -44,7 +44,7 @@ ABSENT: ::after create inline-block on none in list-item | target
 ABSENT: ::after create inline-block on none in list-item | target descendant
 PRESERVED: ::after create inline-block on none in list-item | following sibling
 PRESERVED: ::after create inline-block on none in list-item | following sibling descendant
-STATS: ::after create inline-block on none in list-item | rebuilt subtree roots=0, escaped=false
+STATS: ::after create inline-block on none in list-item | no layout tree build
 PASS: ::after create inline-block on none in list-item | incremental tree matches full rebuild
 PRESERVED: ::after create -webkit-inline-box on none in table-header-group | fixture ancestor
 PRESERVED: ::after create -webkit-inline-box on none in table-header-group | distant sibling
@@ -56,7 +56,7 @@ ABSENT: ::after create -webkit-inline-box on none in table-header-group | target
 ABSENT: ::after create -webkit-inline-box on none in table-header-group | target descendant
 PRESERVED: ::after create -webkit-inline-box on none in table-header-group | following sibling
 PRESERVED: ::after create -webkit-inline-box on none in table-header-group | following sibling descendant
-STATS: ::after create -webkit-inline-box on none in table-header-group | rebuilt subtree roots=0, escaped=false
+STATS: ::after create -webkit-inline-box on none in table-header-group | no layout tree build
 PASS: ::after create -webkit-inline-box on none in table-header-group | incremental tree matches full rebuild
 PRESERVED: ::after create inline flow-root on none in inline flex | fixture ancestor
 PRESERVED: ::after create inline flow-root on none in inline flex | distant sibling
@@ -68,7 +68,7 @@ ABSENT: ::after create inline flow-root on none in inline flex | target
 ABSENT: ::after create inline flow-root on none in inline flex | target descendant
 PRESERVED: ::after create inline flow-root on none in inline flex | following sibling
 PRESERVED: ::after create inline flow-root on none in inline flex | following sibling descendant
-STATS: ::after create inline flow-root on none in inline flex | rebuilt subtree roots=0, escaped=false
+STATS: ::after create inline flow-root on none in inline flex | no layout tree build
 PASS: ::after create inline flow-root on none in inline flex | incremental tree matches full rebuild
 PRESERVED: ::before change clear inline on contents in inline-block | fixture ancestor
 PRESERVED: ::before change clear inline on contents in inline-block | distant sibling

@@ -657,8 +657,32 @@ pub fn resolve_leaf_to_context_matrices(
     matrices
 }
 
+/// A number no other copy of a tree has had: what a holder of no reference to a tree can tell it by, where another tree
+/// can take the address of one that is gone. Every copy takes a number of its own, so a write to a tree someone shares,
+/// which copies it, moves the number.
+#[derive(Debug, PartialEq, Eq)]
+pub struct VisualContextTreeCopy(u64);
+
+impl VisualContextTreeCopy {
+    fn new() -> Self {
+        // NB: The process's counter numbers nothing but what its numbers are told apart from.
+        Self(allocate_structural_epoch())
+    }
+
+    pub fn number(&self) -> u64 {
+        self.0
+    }
+}
+
+impl Clone for VisualContextTreeCopy {
+    fn clone(&self) -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Clone)]
 pub struct VisualContextTree {
+    pub copy: VisualContextTreeCopy,
     pub spatial_nodes: Vec<SpatialNode>,
     pub clip_nodes: Vec<ClipNode>,
     pub effect_nodes: Vec<EffectNode>,
@@ -821,6 +845,7 @@ impl VisualContextTree {
             clip_nodes: Vec::new(),
             effect_nodes: Vec::new(),
             root_isolation_effect: None,
+            copy: VisualContextTreeCopy::new(),
             structural_epoch: allocate_structural_epoch(),
             spatial_slots: SlotAccounting {
                 live_count: 1,
@@ -855,6 +880,7 @@ impl VisualContextTree {
             clip_nodes,
             effect_nodes,
             root_isolation_effect,
+            copy: VisualContextTreeCopy::new(),
             structural_epoch,
             sampled_background_colors: HashMap::new(),
             visual_animations: std::sync::Arc::from(Vec::new()),

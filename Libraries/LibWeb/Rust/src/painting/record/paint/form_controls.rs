@@ -60,7 +60,7 @@ fn form_control_system_colors<O: Observer>(
         let ui = style.inherited_ui();
         (
             ui.color_scheme == PREFERRED_COLOR_SCHEME_DARK,
-            (!ui.accent_color.is_auto).then_some(Color(ui.accent_color.used_color)),
+            (!ui.accent_color.is_auto).then_some(Color(ui.accent_color.color.resolve(style.current_color()))),
         )
     });
     let system_color = |keyword_code: u16| {

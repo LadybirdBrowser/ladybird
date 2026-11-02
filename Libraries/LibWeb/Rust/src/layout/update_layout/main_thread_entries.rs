@@ -126,23 +126,6 @@ pub unsafe extern "C" fn render_state_seal_clock_plan(
     });
 }
 
-/// Seals the first round of the layout of a rendering update whose style is about to fly, as of the document's facts
-/// now, where the document needs one: the frame runs it after its style.
-///
-/// # Safety
-///
-/// As for [`render_state_update_layout`], with no layout update running.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn render_state_seal_first_layout_round(
-    host: &DocumentHost,
-    read: &BegunRead,
-    inputs: &FfiLayoutUpdateInputs,
-) {
-    // SAFETY: Guaranteed by the entry point's contract.
-    let main_thread = unsafe { main_thread(host) };
-    abort_on_panic(|| seal_first_round(&main_thread, host, read, inputs));
-}
-
 /// Lets the first round of the layout of a rendering update whose style is up to date fly beside the host, in `read`,
 /// where the document's layout is not up to date and `blocker` is none: the host's next layout update pays it first.
 /// Answers whether the round flies.

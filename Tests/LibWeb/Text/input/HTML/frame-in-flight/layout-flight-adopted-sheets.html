@@ -4,7 +4,7 @@
 <div id="box" style="height: 10px"></div>
 <div class="x" id="target">x</div>
 <script>
-    // Style sheets adopted beside a frame in flight drain its style transaction first, and reach the style engine in
+    // Style sheets adopted beside a frame in flight drain its style update first, and reach the style engine in
     // the order they were adopted: each attachment publishes more input as it runs, which goes in with it, ahead of
     // the attachments queued behind it.
     asyncTest(async done => {

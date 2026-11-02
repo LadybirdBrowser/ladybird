@@ -410,7 +410,7 @@ pub enum FfiRecordingStart {
     Recorded,
 }
 
-/// Why a rendering update's frame (its style transaction, or its recording) may not fly beside the
+/// Why a rendering update's frame (its style update, or its recording) may not fly beside the
 /// event loop: something reads what it computes before the next task.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1133,7 +1133,10 @@ pub extern "C" fn render_state_paintable_used_grid_tracks(
                 return std::ptr::null();
             };
             let list = if columns { &tracks.columns } else { &tracks.rows };
-            std::sync::Arc::into_raw(std::sync::Arc::new(list.style_value())).cast()
+            crate::css::style_value_arc::StyleValueArc::into_raw(crate::css::style_value_arc::StyleValueArc::new(
+                list.style_value(),
+            ))
+            .cast()
         },
     )
 }

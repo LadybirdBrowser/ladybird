@@ -1,0 +1,6 @@
+its custom property: 24px
+::first-line: 24px
+::marker: 24px
+::selection: 24px
+::placeholder: 24px
+::before: 24px

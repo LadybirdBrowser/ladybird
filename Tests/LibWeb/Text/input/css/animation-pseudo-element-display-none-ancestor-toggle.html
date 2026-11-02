@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    .hidden { display: none; }
+    #target::before { content: "x"; animation: fade 1s linear; }
+</style>
+<div id="host"><div id="target"></div></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        println(`shown: ${document.getAnimations().length}`);
+        for (let i = 1; i <= 2; ++i) {
+            host.classList.add("hidden");
+            internals.updateStyle();
+            println(`hidden ${i}: ${document.getAnimations().length}`);
+            host.classList.remove("hidden");
+            internals.updateStyle();
+            println(`revealed ${i}: ${document.getAnimations().length}`);
+        }
+    });
+</script>

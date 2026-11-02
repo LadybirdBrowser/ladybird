@@ -194,7 +194,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                     current,
                     lines,
                     text_reset.text_decoration_style,
-                    span.decoration_color.unwrap_or(text_reset.text_decoration_color),
+                    span.decoration_color.unwrap_or(style.text_decoration_color()),
                     thickness,
                 );
             }
@@ -230,7 +230,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                         block_node,
                         lines,
                         text_reset.text_decoration_style,
-                        span.decoration_color.unwrap_or(text_reset.text_decoration_color),
+                        span.decoration_color.unwrap_or(style.text_decoration_color()),
                         thickness,
                     );
                 }

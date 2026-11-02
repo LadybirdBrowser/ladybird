@@ -115,6 +115,13 @@ pub unsafe extern "C" fn render_state_adopt_derived_node_style(host: &DocumentHo
     unsafe { write_and_pay(host, node_read(), LayoutWrite::AdoptDerivedNodeStyle { node, record }) };
 }
 
+/// The style record the render side installed in the box `node` ahead of the host with the style update the host
+/// took last, which the box's layout node adopts without publishing it again, or 0 where it installed none.
+#[unsafe(no_mangle)]
+pub extern "C" fn render_state_installed_style_record(host: &DocumentHost, node: NodeSlotId) -> u64 {
+    host.render_state_installed_box_record(node).unwrap_or(0)
+}
+
 /// The anonymous rows below the row inherit its style again, which their layout nodes hear of once the host has its next
 /// job back. A table box, which `is_table_box` says the row's style makes it, may itself take a record the arena derives
 /// as its wrapper inherits its style again, which its layout node hears of before it reads its style again.

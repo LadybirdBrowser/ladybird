@@ -1,0 +1,6 @@
+timeline ahead of the end of the transitions: true
+scroll width: true
+drawer: hidden
+list: hidden
+item: hidden
+link: hidden

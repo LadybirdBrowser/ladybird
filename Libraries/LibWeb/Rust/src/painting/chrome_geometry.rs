@@ -104,12 +104,12 @@ pub(crate) fn physical_resize_axes(arena: &impl PaintRead, slot: NodeSlotId) -> 
     let overflow_allows_resize =
         |overflow| overflow != css_enums::overflow::VISIBLE && overflow != css_enums::overflow::CLIP;
     PhysicalAxes {
-        horizontal: overflow_allows_resize(box_values.overflow_x)
+        horizontal: overflow_allows_resize(style.overflow_x())
             && (box_values.resize == css_enums::resize::BOTH
                 || box_values.resize == css_enums::resize::HORIZONTAL
                 || (box_values.resize == css_enums::resize::INLINE && horizontal_writing_mode)
                 || (box_values.resize == css_enums::resize::BLOCK && !horizontal_writing_mode)),
-        vertical: overflow_allows_resize(box_values.overflow_y)
+        vertical: overflow_allows_resize(style.overflow_y())
             && (box_values.resize == css_enums::resize::BOTH
                 || box_values.resize == css_enums::resize::VERTICAL
                 || (box_values.resize == css_enums::resize::INLINE && !horizontal_writing_mode)
@@ -163,7 +163,7 @@ pub(crate) fn scroll_boundary_behavior(arena: &impl PaintRead, slot: NodeSlotId)
     };
 
     use css_enums::overscroll_behavior::{AUTO, CHAIN, CONTAIN};
-    let misc_reset = style.misc_reset();
+    let misc_interaction = style.misc_interaction();
     // contain: The element must not perform non-local boundary default actions such as scroll chaining. This value
     //          must not modify the behavior of how local boundary default actions should behave, such as showing any
     //          overscroll affordances.
@@ -175,12 +175,12 @@ pub(crate) fn scroll_boundary_behavior(arena: &impl PaintRead, slot: NodeSlotId)
     let shows_overscroll_effect = |value: u8| value == AUTO || value == CONTAIN;
     ScrollBoundaryBehavior {
         chains_to_ancestors: PhysicalAxes {
-            horizontal: chains(misc_reset.overscroll_behavior_x),
-            vertical: chains(misc_reset.overscroll_behavior_y),
+            horizontal: chains(misc_interaction.overscroll_behavior_x),
+            vertical: chains(misc_interaction.overscroll_behavior_y),
         },
         shows_overscroll_effect: PhysicalAxes {
-            horizontal: shows_overscroll_effect(misc_reset.overscroll_behavior_x),
-            vertical: shows_overscroll_effect(misc_reset.overscroll_behavior_y),
+            horizontal: shows_overscroll_effect(misc_interaction.overscroll_behavior_x),
+            vertical: shows_overscroll_effect(misc_interaction.overscroll_behavior_y),
         },
     }
 }
@@ -197,12 +197,11 @@ pub(crate) fn wheel_scrollable_axes(arena: &impl PaintRead, slot: NodeSlotId) ->
     let Some(style) = arena.node_style_if_live(slot) else {
         return PhysicalAxes::default();
     };
-    let box_values = style.box_values();
     let allows_wheel_scrolling =
         |overflow| overflow == css_enums::overflow::AUTO || overflow == css_enums::overflow::SCROLL;
     let mut axes = PhysicalAxes {
-        horizontal: allows_wheel_scrolling(box_values.overflow_x),
-        vertical: allows_wheel_scrolling(box_values.overflow_y),
+        horizontal: allows_wheel_scrolling(style.overflow_x()),
+        vertical: allows_wheel_scrolling(style.overflow_y()),
     };
     if !axes.horizontal && !axes.vertical {
         return axes;
@@ -344,7 +343,7 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
             return None;
         }
         let style = self.arena.node_style_if_live(slot)?;
-        if style.misc_reset().scrollbar_width == css_enums::scrollbar_width::NONE {
+        if style.misc_interaction().scrollbar_width == css_enums::scrollbar_width::NONE {
             return None;
         }
 
@@ -400,8 +399,8 @@ impl<'a, Arena: PaintRead> ChromeGeometry<'a, Arena> {
         }
         let style = arena.node_style_if_live(slot)?;
         let overflow = match direction {
-            ScrollDirection::Horizontal => style.box_values().overflow_x,
-            ScrollDirection::Vertical => style.box_values().overflow_y,
+            ScrollDirection::Horizontal => style.overflow_x(),
+            ScrollDirection::Vertical => style.overflow_y(),
         };
         if overflow != css_enums::overflow::SCROLL && !self.wheel_scrollable_axes(slot).along(direction) {
             return None;
@@ -498,7 +497,7 @@ pub(crate) fn scrollbar_colors_for_paint(
         let Some(style) = arena.node_style_if_live(ancestor) else {
             continue;
         };
-        let color = Color(style.background().background_color);
+        let color = Color(style.background_color());
         if color.alpha() != 0 {
             background_color = background_color.blend(color);
         }

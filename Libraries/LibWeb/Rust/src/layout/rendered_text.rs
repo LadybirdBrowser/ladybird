@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::LayoutNodeArena;
 use super::node_data::NodeSlotId;
 use super::text_transform::{TextRenderingOptions, may_require_bidi_processing, render_text};
-use super::{ComputedValuesView, LayoutNodeArena};
 use crate::css::css_enums::text_transform;
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -120,8 +120,7 @@ pub(crate) fn enroll_text_after_language_change(arena: &mut LayoutNodeArena, roo
         }
         let parent = arena.data(node).parent.get();
         !parent.is_invalid()
-            && arena.style_payloads(parent).is_some_and(|style| {
-                let values = ComputedValuesView::new(&style.groups);
+            && arena.style_view(parent).is_some_and(|values| {
                 transform_uses_locale(values.inherited_text().text_transform)
                     || values.line_break() == crate::css::css_enums::line_break::LOOSE
             })
@@ -163,6 +162,9 @@ pub(crate) struct TextChunkCacheKey {
     pub(crate) line_break_language: super::text_chunker::LineBreakLanguage,
     pub(crate) font_variant_emoji: u8,
     pub(crate) frozen_font_list: std::sync::Arc<libgfx_rust::font::FrozenFontList>,
+    /// How many times loads had filled faces of the frozen cascade in, each of which can move the
+    /// font of a chunk.
+    pub(crate) frozen_font_list_fill_generation: u32,
     pub(crate) splits_at_orientation_changes: bool,
 }
 
@@ -177,8 +179,9 @@ impl PartialEq for TextChunkCacheKey {
             && self.line_break_language == other.line_break_language
             && self.font_variant_emoji == other.font_variant_emoji
             && self.splits_at_orientation_changes == other.splits_at_orientation_changes
-            // A frozen cascade is immutable, so naming the same one is the whole of equality.
+            // A frozen cascade only moves when a load fills one of its faces in.
             && std::sync::Arc::ptr_eq(&self.frozen_font_list, &other.frozen_font_list)
+            && self.frozen_font_list_fill_generation == other.frozen_font_list_fill_generation
     }
 }
 
@@ -227,9 +230,13 @@ impl TextContent {
 /// text is still that text.
 #[derive(Default)]
 pub(crate) struct TextMemos {
-    chunks: RefCell<Vec<Option<ChunksOfText>>>,
+    /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every row's memo.
+    chunks: RefCell<crate::cow_column::CowVec<Option<ChunksOfText>, CHUNK_MEMOS_PER_CHUNK>>,
     grapheme_segmenters: RefCell<Vec<Option<GraphemeSegmenterOfText>>>,
 }
+
+/// How many rows' chunk memos a chunk of [`TextMemos::chunks`] holds: a write after a fork copies this many.
+const CHUNK_MEMOS_PER_CHUNK: usize = 128;
 
 /// The chunks a run made of a row's rendered text, and that text.
 #[derive(Clone)]
@@ -279,7 +286,7 @@ impl TextMemos {
         });
         let mut chunks = self.chunks.borrow_mut();
         if chunks.len() <= index {
-            chunks.resize_with(index + 1, || None);
+            chunks.resize_with_default(index + 1);
         }
         chunks[index] = Some(ChunksOfText {
             rendered: rendered.clone(),
@@ -312,8 +319,9 @@ impl TextMemos {
 
     /// Lets go of what the memos keep for the row in `slot`, which the arena freed.
     pub(crate) fn forget(&self, slot: u32) {
-        if let Some(chunks) = self.chunks.borrow_mut().get_mut(slot as usize) {
-            *chunks = None;
+        let mut chunks = self.chunks.borrow_mut();
+        if chunks.get(slot as usize).is_some_and(Option::is_some) {
+            chunks[slot as usize] = None;
         }
         if let Some(segmenter) = self.grapheme_segmenters.borrow_mut().get_mut(slot as usize) {
             *segmenter = None;
@@ -445,20 +453,15 @@ pub(super) fn ensure_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
 
 fn sync_text_content(arena: &mut LayoutNodeArena, id: NodeSlotId) {
     let parent = arena.data(id).parent.get();
-    let inherited = ComputedValuesView::new(
-        &arena
-            .style_payloads(parent)
-            .expect("text parent must have style")
-            .groups,
-    )
-    .inherited_text();
+    let parent_style = arena.style_view(parent).expect("text parent must have style");
+    let inherited = parent_style.inherited_text();
     let uses_locale = transform_uses_locale(inherited.text_transform);
     let input = arena.published_text_source(id, uses_locale);
     let source_length = length_in_code_units(&input.data);
     let source_range = arena.text_source_range(id, source_length);
     let options = TextRenderingOptions {
         text_transform: inherited.text_transform,
-        white_space_collapse: inherited.white_space_collapse,
+        white_space_collapse: parent_style.white_space_collapse(),
         is_password_input: input.is_password_input,
         dom_start_offset: source_range.start,
         dom_length_in_code_units: source_range.length,
@@ -529,6 +532,7 @@ mod tests {
             line_break_language: LineBreakLanguage::Japanese,
             font_variant_emoji: 0,
             frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
+            frozen_font_list_fill_generation: 0,
             splits_at_orientation_changes: false,
         };
         let memos = TextMemos::default();
@@ -576,6 +580,7 @@ mod tests {
             line_break_language: crate::layout::text_chunker::LineBreakLanguage::Other,
             font_variant_emoji: 0,
             frozen_font_list: std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()),
+            frozen_font_list_fill_generation: 0,
             splits_at_orientation_changes: false,
         };
         let chunk = TextChunk {
@@ -845,7 +850,7 @@ mod tests {
         arena.set_text_content(node, text);
         assert!(!arena.text_content_needs_sync(node));
 
-        arena.set_node_style(parent, 1, crate::layout::node_data::StylePayloadsRef::null());
+        arena.set_node_style(parent, 1, None);
         let pending = arena.pending_text_nodes_for_content_sync();
         assert_eq!(pending, [node]);
         assert!(arena.text_content_needs_sync(node));

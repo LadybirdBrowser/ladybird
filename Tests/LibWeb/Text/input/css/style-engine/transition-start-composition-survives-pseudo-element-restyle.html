@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { color: rgb(0, 0, 0); transition: color 1000s linear; }
+    #target.changed { color: rgb(100, 100, 100); }
+    #target::before { content: "pseudo"; background-color: rgb(0, 0, 0); transition: background-color 1000s linear; }
+    #target.changed::before { background-color: rgb(200, 200, 200); }
+</style>
+<div id="target"><span id="child">child</span></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const child = document.getElementById("child");
+        internals.updateStyle();
+        target.classList.add("changed");
+        internals.updateStyle();
+        println(`target color starts the transition: ${getComputedStyle(target).color}`);
+        println(`child inherits the transition's start: ${getComputedStyle(child).color}`);
+        println(`::before inherits the transition's start: ${getComputedStyle(target, "::before").color}`);
+        println(`::before background starts its own transition: ${getComputedStyle(target, "::before").backgroundColor}`);
+    });
+</script>

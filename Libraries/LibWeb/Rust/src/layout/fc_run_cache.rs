@@ -406,6 +406,9 @@ const EARLIER_ENTRIES_PER_BOX: usize = 3;
 
 const LAYOUT_COMMITS_AN_UNCOMMITTED_ENTRY_SURVIVES_UNUSED: u64 = 2;
 
+/// How many boxes' entries a chunk of [`FcRunCacheStore::slots`] holds: a write after a fork copies this many.
+const FC_RUN_CACHE_SLOTS_PER_CHUNK: usize = 128;
+
 #[derive(Clone, Copy, Default)]
 struct StoredEntrySummary {
     fragment_cache_epoch: u32,
@@ -456,7 +459,8 @@ type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; 
 /// ones.
 #[derive(Clone, Default)]
 pub(crate) struct FcRunCacheStore {
-    slots: RefCell<Vec<FcRunCacheSlot>>,
+    /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every box's entries.
+    slots: RefCell<crate::cow_column::CowVec<FcRunCacheSlot, FC_RUN_CACHE_SLOTS_PER_CHUNK>>,
     earlier_entries: RefCell<HashMap<u32, EarlierEntriesOfBox>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
     pending_sweep_slots: RefCell<Vec<u32>>,
@@ -532,8 +536,8 @@ impl FcRunCacheStore {
     }
 
     pub(crate) fn remove_entry(&self, slot: u32) {
-        if let Some(entries) = self.slots.borrow_mut().get_mut(slot as usize) {
-            *entries = FcRunCacheSlot::default();
+        if self.slot_holds_entries(slot) {
+            self.slots.borrow_mut()[slot as usize] = FcRunCacheSlot::default();
         }
         self.earlier_entries.borrow_mut().remove(&slot);
         self.forget_inline_layout_damage(slot);
@@ -631,7 +635,7 @@ impl FcRunCacheStore {
         entry.structural_epoch_bumps_when_stored = self.structural_epoch_bumps_of(box_);
         let mut slots = self.slots.borrow_mut();
         if slots.len() <= slot as usize {
-            slots.resize_with(slot as usize + 1, FcRunCacheSlot::default);
+            slots.resize_with_default(slot as usize + 1);
         }
         let entries = &mut slots[slot as usize];
         let mut earlier_entries = self.earlier_entries.borrow_mut();

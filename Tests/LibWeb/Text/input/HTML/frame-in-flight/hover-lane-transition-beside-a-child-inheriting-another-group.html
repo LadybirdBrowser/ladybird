@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    a { display: block; width: 200px; height: 40px; color: rgb(0, 0, 255); background-color: rgb(255, 255, 255); transition: background-color 100s linear; }
+    a:hover { color: rgb(255, 0, 0); background-color: rgb(0, 128, 0); }
+    span { box-sizing: inherit; }
+</style>
+<a id="link" href="#"><span id="label">Link</span></a>
+<script>
+    // A child that explicitly inherits a property its parent's transition does not animate reads nothing of the
+    // transition's composition: the hover beside the task stays on the lane.
+    asyncTest(async done => {
+        const presentedBy = await whileLaneHovers(() => {
+            internals.injectHoverPointer(150, 20);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`a tick presented the last frame: ${presentedBy === "clock"}`);
+        await nextFrame();
+        println(`link matches :hover: ${link.matches(":hover")}`);
+        println(`label color: ${getComputedStyle(label).color}`);
+        println(`label box-sizing: ${getComputedStyle(label).boxSizing}`);
+        done();
+    });
+</script>

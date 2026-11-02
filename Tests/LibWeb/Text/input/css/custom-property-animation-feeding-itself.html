@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<style>
+    @property --animated {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+    @keyframes feed {
+        from {
+            --animated: calc(var(--declared, 0px) + 1px);
+        }
+        to {
+            --animated: calc(var(--declared, 0px) + 1px);
+        }
+    }
+    @keyframes within {
+        from {
+            --one: var(--two);
+            --two: var(--one);
+        }
+        to {
+            --one: var(--two);
+            --two: var(--one);
+        }
+    }
+    #within {
+        animation: within 1000s linear both;
+    }
+    @keyframes plain {
+        from {
+            --animated: calc(var(--read) + 1px);
+        }
+        to {
+            --animated: calc(var(--read) + 1px);
+        }
+    }
+    #no-cycle {
+        animation: plain 1000s linear both;
+        --read: 4px;
+        --declared: var(--animated);
+    }
+    @function --read-declared() {
+        result: var(--declared, 0px);
+    }
+    @keyframes hidden-read {
+        from {
+            --animated: calc(--read-declared() + 1px);
+        }
+        to {
+            --animated: calc(--read-declared() + 1px);
+        }
+    }
+    #through-function {
+        animation: hidden-read 1000s linear both;
+        --declared: var(--animated);
+    }
+    #target {
+        animation: feed 1000s linear both;
+        --declared: var(--animated);
+        width: var(--animated);
+    }
+</style>
+<div id="target"><div id="child" style="width: var(--animated)"></div></div>
+<div id="within"></div>
+<div id="no-cycle"></div>
+<div id="through-function"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const child = document.getElementById("child");
+        const report = name => {
+            const style = getComputedStyle(target);
+            println(`${name}: --animated "${style.getPropertyValue("--animated")}", --declared "${style.getPropertyValue("--declared")}", width ${style.width}, child ${getComputedStyle(child).width}`);
+        };
+        report("a cycle through a declaration");
+        target.style.color = "red";
+        report("after a write");
+
+        const within = document.getElementById("within");
+        const style = getComputedStyle(within);
+        println(`a cycle within keyframes: "${style.getPropertyValue("--one")}" "${style.getPropertyValue("--two")}"`);
+        // FIXME: A cycle through a custom function, whose reads are not known ahead, should be invalid as the others are.
+        //        It only stops growing, at a value this does not print.
+        const throughFunction = getComputedStyle(document.getElementById("through-function"));
+        println(`a cycle through a function ends: ${throughFunction.getPropertyValue("--animated").endsWith("px")}`);
+        const noCycle = getComputedStyle(document.getElementById("no-cycle"));
+        println(`no cycle: "${noCycle.getPropertyValue("--animated")}" "${noCycle.getPropertyValue("--declared")}"`);
+    });
+</script>

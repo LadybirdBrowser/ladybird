@@ -1,0 +1,5 @@
+initial: before color=rgb(0, 0, 0) first-letter --tone=rgb(1, 2, 3) selection --tone=rgb(4, 5, 6) animations=none
+animated halfway: before color=rgb(100, 0, 100) first-letter --tone=rgb(1, 2, 3) selection --tone=rgb(4, 5, 6) animations=CSSAnimation(::before)
+animation removed: before color=rgb(100, 0, 100) first-letter --tone=rgb(1, 2, 3) selection --tone=rgb(4, 5, 6) animations=CSSTransition(::before)
+transition halfway: before color=rgb(50, 100, 50) first-letter --tone=rgb(1, 2, 3) selection --tone=rgb(4, 5, 6) animations=CSSTransition(::before)
+retoned: before color=rgb(0, 200, 0) first-letter --tone=rgb(7, 8, 9) selection --tone=rgb(10, 11, 12) animations=none

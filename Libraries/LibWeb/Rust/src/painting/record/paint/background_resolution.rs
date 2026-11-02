@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::style_value::{BackgroundSizePayload, ImageSetPayload, PositionPayload};
 use crate::painting::record::trace::Observer;
 
 use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
@@ -238,7 +239,7 @@ pub(crate) fn background_paint_source_from_style_and_geometry(
     }
     let border_radii = border_radii_data(style, layout_arena, slot);
     let background_color_clip = style.background().background_color_clip;
-    let own_color = libgfx_rust::Color(style.background().background_color);
+    let own_color = libgfx_rust::Color(style.background_color());
 
     // https://drafts.csswg.org/css-backgrounds/#root-background
     if style_queries::node_is_root_element(layout_arena, slot) {
@@ -260,7 +261,7 @@ pub(crate) fn background_paint_source_from_style_and_geometry(
             own_color
         } else {
             body_style.map_or(libgfx_rust::Color(0), |body_style| {
-                libgfx_rust::Color(body_style.background().background_color)
+                libgfx_rust::Color(body_style.background_color())
             })
         };
         // If the body's background was propagated to the root element, use the body's image-rendering value.
@@ -331,10 +332,13 @@ fn computed_layer_size(size_item: &StyleValueData) -> ComputedLayerSize<'_> {
     match size_item {
         StyleValueData::Keyword { keyword } if *keyword == CONTAIN => ComputedLayerSize::Contain,
         StyleValueData::Keyword { keyword } if *keyword == COVER => ComputedLayerSize::Cover,
-        StyleValueData::BackgroundSize { size_x, size_y } => ComputedLayerSize::LengthPercentage {
-            x: length_percentage_or_auto(size_x.data()),
-            y: length_percentage_or_auto(size_y.data()),
-        },
+        StyleValueData::BackgroundSize(background_size_payload) => {
+            let BackgroundSizePayload { size_x, size_y } = &**background_size_payload;
+            ComputedLayerSize::LengthPercentage {
+                x: length_percentage_or_auto(size_x.data()),
+                y: length_percentage_or_auto(size_y.data()),
+            }
+        }
         _ => unreachable!("computed background-size holds an unknown value"),
     }
 }
@@ -448,9 +452,10 @@ fn computed_mask_layers(style: ComputedValuesView<'_>, facts_owner: NodeSlotId) 
         let StyleValueData::RepeatStyle { repeat_x, repeat_y } = cycled(&repeat_items, index) else {
             unreachable!("computed mask-repeat holds a repeat-style value");
         };
-        let StyleValueData::Position { edge_x, edge_y } = cycled(&position_items, index) else {
+        let StyleValueData::Position(position_payload) = cycled(&position_items, index) else {
             unreachable!("computed mask-position holds a position value");
         };
+        let PositionPayload { edge_x, edge_y } = &**position_payload;
         let clip_keyword = keyword_of(cycled(&clip_items, index));
         let clip = css_enums::keyword_to_background_box(clip_keyword).unwrap_or(css_enums::background_box::BORDER_BOX);
         let origin = css_enums::keyword_to_background_box(keyword_of(cycled(&origin_items, index)))
@@ -772,10 +777,13 @@ fn layer_image_intrinsics<'a, O: Observer>(
         _ => {
             let facts = committed_layer_image_paint_facts(recorder, image);
             let selected_image_value = match (image.value, facts.image_set_selected_option_index) {
-                (StyleValueData::ImageSet { options }, Some(option_index)) => options
-                    .as_slice()
-                    .get(option_index as usize)
-                    .map(|option| option.values()[0].data()),
+                (StyleValueData::ImageSet(image_set_payload_1), Some(option_index)) => {
+                    let ImageSetPayload { options } = &**image_set_payload_1;
+                    options
+                        .as_slice()
+                        .get(option_index as usize)
+                        .map(|option| option.values()[0].data())
+                }
                 _ => None,
             };
             LayerImageIntrinsics {
@@ -847,7 +855,7 @@ pub(crate) fn has_background_to_paint(
         return true;
     }
     arena.node_style_if_live(paintable).is_some_and(|style| {
-        libgfx_rust::Color(style.background().background_color).alpha() != 0
+        libgfx_rust::Color(style.background_color()).alpha() != 0
             || arena.node_has_compositor_animation_frame(
                 paintable,
                 crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,

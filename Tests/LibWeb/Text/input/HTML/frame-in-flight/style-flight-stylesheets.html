@@ -8,7 +8,7 @@
 <div id="other" class="other"></div>
 <script>
     // Style sheets inserted, edited, replaced and removed beside a frame in flight: a change that writes the sheets to
-    // the style engine in place drains the style transaction that flew first, so it lands behind the changes made
+    // the style engine in place drains the style update that flew first, so it lands behind the changes made
     // beside the transaction, and a read or the next style update sees them all, in cascade order.
     function describe() {
         const style = getComputedStyle(box);

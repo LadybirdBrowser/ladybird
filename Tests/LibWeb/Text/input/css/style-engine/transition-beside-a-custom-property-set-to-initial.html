@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!-- A custom property set to `initial` holds a value the cascade makes anew each time, which must not read as a new
+     style: the transition's composition would restyle the element's pseudo-elements, and that the element, forever. -->
+<style>
+    .button {
+        --bg: red;
+        --before-top: -5px;
+        --after-top: 5px;
+        --before-rotate: 0deg;
+        --after-rotate: 0deg;
+        display: flex;
+    }
+    .button.on {
+        --bg: transparent;
+        --before-top: 0;
+        --after-top: 0;
+        --before-rotate: -45deg;
+        --after-rotate: 45deg;
+    }
+    .button:not(.on) span {
+        transition: background-color;
+        transition-duration: 100s;
+    }
+    .button span {
+        --own: initial;
+        background-color: var(--bg);
+    }
+    .button span, .button span::after, .button span::before {
+        height: 2px;
+        position: relative;
+        width: 16px;
+    }
+    .button span::after, .button span::before {
+        background-color: blue;
+        content: "";
+        left: 0;
+        position: absolute;
+        transition: top, transform;
+        transition-duration: 100s;
+        transition-timing-function: ease-in-out;
+    }
+    .button span::after {
+        top: var(--after-top);
+        transform: rotate(var(--after-rotate));
+    }
+    .button span::before {
+        top: var(--before-top);
+        transform: rotate(var(--before-rotate));
+    }
+</style>
+<a class="button"><span></span></a>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const button = document.querySelector(".button");
+        const span = button.firstChild;
+        const settle = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        getComputedStyle(span).backgroundColor;
+        await settle();
+        button.classList.add("on");
+        document.body.offsetWidth;
+        await settle();
+        button.classList.remove("on");
+        document.body.offsetWidth;
+        await settle();
+        println(`The update settled with ${span.getAnimations().length} transition running`);
+        done();
+    });
+</script>

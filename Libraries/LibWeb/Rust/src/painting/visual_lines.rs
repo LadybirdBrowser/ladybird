@@ -26,7 +26,7 @@ pub(crate) fn text_preserves_newlines(layout_arena: &impl PaintRead, text_node: 
         return false;
     };
     matches!(
-        parent_style.inherited_text().white_space_collapse,
+        parent_style.white_space_collapse(),
         crate::css::css_enums::white_space_collapse::PRESERVE
             | crate::css::css_enums::white_space_collapse::PRESERVE_BREAKS
     )

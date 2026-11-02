@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; outline: 1px solid rgb(0, 0, 255); }
+    @scope (:hover) { :scope { width: 150px; outline-color: rgb(0, 128, 0); } }
+</style>
+<div id="box"></div>
+<script>
+    // The roots of a scope can test :hover where no compound of the selector does.
+    // FIXME: The lane leaves such a move to the main thread, and only a rendering update shows it.
+    asyncTest(async done => {
+        const width = await whileLaneHovers(async frameTime => {
+            internals.moveHoverPointer(50, 50);
+            box.offsetWidth;
+            await nextTask();
+            internals.injectClockTick(frameTime + 32);
+            return internals.presentedBorderBox(box)?.width;
+        });
+        println(`box width on screen: ${width}`);
+        internals.queueMouseMove(50, 50);
+        await twoFrames();
+        println(`box width once the main thread handled the move: ${getComputedStyle(box).width}`);
+        done();
+    });
+</script>

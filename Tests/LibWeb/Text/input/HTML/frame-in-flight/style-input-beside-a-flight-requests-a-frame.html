@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    .target { transition: color 1000s; color: rgb(0, 0, 255); }
+    .target.moved { color: rgb(0, 128, 0); }
+    @keyframes arrives { from { opacity: 0; } }
+    .arrived { animation: arrives 1000s; }
+</style>
+<div class="target" id="first"></div>
+<div class="target" id="second"></div>
+<script>
+    // Style input recorded beside a rendering update in flight, and nothing else, has to ask for the frame that takes it
+    // in, which the transition or animation it starts shows: nothing here reads style or touches layout. The test times
+    // out if not.
+    let flights = 0;
+    asyncTest(async done => {
+        const fired = (element, name) => new Promise(resolve => element.addEventListener(name, () => resolve(), { once: true }));
+        const flight = during => whileRecordingInFlight(() => { document.body.style.outlineColor = `rgb(${++flights}, 0, 0)`; }, during);
+
+        let changed;
+        await flight(async () => {
+            changed = fired(first, "transitionrun");
+            first.classList.add("moved");
+        });
+        await changed;
+        println("a class change beside a flight took effect");
+
+        let arrived;
+        await flight(async () => {
+            const element = document.createElement("div");
+            element.className = "arrived";
+            arrived = fired(element, "animationstart");
+            document.body.append(element);
+        });
+        await arrived;
+        println("an arrival beside a flight took effect");
+
+        // The second input beside a flight finds input recorded, and asks for nothing.
+        let secondChange;
+        await flight(async () => {
+            secondChange = fired(second, "transitionrun");
+            second.dataset.first = "1";
+            second.style.setProperty("--x", "1");
+            second.classList.add("moved");
+        });
+        await secondChange;
+        println("a change after other input took effect");
+        done();
+    });
+</script>

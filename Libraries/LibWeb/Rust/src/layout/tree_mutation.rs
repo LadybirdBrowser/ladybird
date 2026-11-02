@@ -111,7 +111,7 @@ enum DueHostCall {
     ShellStyleChanged {
         facts: crate::layout::host_tables::ShellFacts,
         record: u64,
-        payloads: crate::layout::node_data::StylePayloadsRef,
+        payloads: Option<crate::layout::node_data::LayoutStyleRef>,
         derived: bool,
         attach_resources: bool,
     },
@@ -167,7 +167,7 @@ fn tell_shell_of_style_change(
     main_thread: &MainThread,
     facts: crate::layout::host_tables::ShellFacts,
     record: u64,
-    payloads: crate::layout::node_data::StylePayloadsRef,
+    payloads: Option<crate::layout::node_data::LayoutStyleRef>,
     derived: bool,
     attach_resources: bool,
 ) {
@@ -197,7 +197,7 @@ fn tell_shell_of_style_change(
             callbacks.context,
             shell.as_ptr(),
             record,
-            payloads.as_ptr().cast(),
+            payloads.map_or(std::ptr::null(), |payloads| payloads.as_ptr()),
             derived,
             attach_resources,
         );

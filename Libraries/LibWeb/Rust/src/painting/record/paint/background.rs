@@ -95,7 +95,7 @@ pub(crate) fn paint_background_within<O: Observer>(
         paintable,
         style,
         paintable,
-        libgfx_rust::Color(style.background().background_color),
+        libgfx_rust::Color(style.background_color()),
         style.background().background_color_clip,
         background_rect,
         border_radii,

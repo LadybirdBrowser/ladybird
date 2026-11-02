@@ -45,7 +45,7 @@ pub(crate) fn snap_axes_of_scroll_container(arena: &impl PaintRead, snap_contain
 }
 
 fn snap_axes_of_style(style: ComputedValuesView<'_>) -> FfiSnapAxes {
-    let snap_type = style.misc_reset();
+    let snap_type = style.misc_interaction();
     if snap_type.scroll_snap_strictness == scroll_snap_strictness::NONE {
         return FfiSnapAxes::default();
     }
@@ -90,7 +90,7 @@ pub(crate) fn scroll_snapport_rect(
     let Some(style) = snap_style(arena, snap_container) else {
         return scrollport;
     };
-    shrink_by_scroll_padding(scrollport, &style.misc_reset().scroll_padding)
+    shrink_by_scroll_padding(scrollport, &style.misc_interaction().scroll_padding)
 }
 
 fn shrink_by_scroll_padding(scrollport: CssPixelRect, scroll_padding: &ComputedLengthBox) -> CssPixelRect {
@@ -130,10 +130,10 @@ pub(crate) fn snap_container_geometry(
     paintable_geometry::scrollable_overflow_rect(arena, snap_container)?;
     let scrollport = paintable_geometry::absolute_padding_box_rect(arena, snap_container);
     Some(FfiSnapContainerGeometry {
-        snapport: shrink_by_scroll_padding(scrollport, &style.misc_reset().scroll_padding).into(),
+        snapport: shrink_by_scroll_padding(scrollport, &style.misc_interaction().scroll_padding).into(),
         min_scroll_offset: minimum_scroll_offset(arena, snap_container).into(),
         max_scroll_offset: maximum_scroll_offset(arena, snap_container).into(),
-        strictness: style.misc_reset().scroll_snap_strictness,
+        strictness: style.misc_interaction().scroll_snap_strictness,
         axes,
         horizontal_writing_mode: style.writing_mode() == writing_mode::HORIZONTAL_TB,
     })
@@ -150,7 +150,7 @@ pub(crate) fn for_each_snap_area(
     };
     let snapport = shrink_by_scroll_padding(
         paintable_geometry::absolute_padding_box_rect(arena, snap_container),
-        &container_style.misc_reset().scroll_padding,
+        &container_style.misc_interaction().scroll_padding,
     );
     let container_writing_mode = WritingModeFacts::of(container_style);
     for_each_descendant_with_snap_alignment(arena, snap_container, &mut |snap_area, style| {
@@ -200,7 +200,7 @@ fn snap_area_geometry(
     snapport: CssPixelRect,
     container_writing_mode: WritingModeFacts,
 ) -> Option<FfiSnapAreaGeometry> {
-    let misc = style.misc_reset();
+    let misc = style.misc_interaction();
     let rect = inflate_by_scroll_margin(
         captured_snap_area_rect(arena, snap_area, snap_container)?,
         &misc.scroll_margin,

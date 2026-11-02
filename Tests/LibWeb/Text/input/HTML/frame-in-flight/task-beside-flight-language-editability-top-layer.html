@@ -11,7 +11,7 @@
 <dialog id="dialog">dialog</dialog>
 <script>
     // A task beside a frame in flight that changes an element's language, makes an empty element an editing host, and
-    // takes an element whose ::backdrop the frame's style transaction styled out of the top layer: once the frame has
+    // takes an element whose ::backdrop the frame's style update styled out of the top layer: once the frame has
     // landed, the text is cased by the new language, the editing host holds a line, and the backdrop is gone.
     asyncTest(async done => {
         const states = await whileRecordingInFlight(() => {

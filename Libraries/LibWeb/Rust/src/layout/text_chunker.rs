@@ -1308,6 +1308,7 @@ pub(crate) fn text_chunks(
     unidirectional_ltr: bool,
 ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
     let parent_style = StyleValues::for_node(callbacks, callbacks.parent(node));
+    let frozen_font_list = parent_style.frozen_font_list_ref();
     let key = super::rendered_text::TextChunkCacheKey {
         should_wrap_lines,
         should_respect_linebreaks,
@@ -1321,7 +1322,8 @@ pub(crate) fn text_chunks(
             LineBreakLanguage::Other
         },
         font_variant_emoji: parent_style.font_variant_emoji(),
-        frozen_font_list: parent_style.frozen_font_list_ref(),
+        frozen_font_list_fill_generation: frozen_font_list.fill_generation(),
+        frozen_font_list,
         splits_at_orientation_changes: matches!(
             parent_style.writing_mode(),
             writing_mode::VERTICAL_RL | writing_mode::VERTICAL_LR

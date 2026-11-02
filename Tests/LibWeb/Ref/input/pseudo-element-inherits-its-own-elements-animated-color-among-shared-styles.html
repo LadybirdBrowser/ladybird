@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/pseudo-element-inherits-its-own-elements-animated-color-among-shared-styles-ref.html">
+<style>
+    @keyframes fade {
+        from { color: rgb(0, 0, 0); }
+        to { color: rgb(0, 0, 250); }
+    }
+    .target {
+        animation: fade 10s linear paused;
+    }
+    .target::before {
+        content: "";
+        display: block;
+        width: 50px;
+        height: 20px;
+        background-color: currentcolor;
+    }
+    .restyled .target {
+        animation-play-state: paused;
+    }
+</style>
+<div id="container">
+    <div class="target"></div>
+    <div class="target"></div>
+    <div class="target"></div>
+    <div class="target"></div>
+    <div class="target"></div>
+</div>
+<script>
+    // Restyling the targets in one pass lets them share a style, but each one's pseudo-element inherits the
+    // composition of its own element's animation.
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    window.onload = async () => {
+        [...container.children].forEach((target, index) => (target.getAnimations()[0].currentTime = 2000 * index));
+        await nextFrame();
+        await nextFrame();
+        container.className = "restyled";
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    };
+</script>
+</html>

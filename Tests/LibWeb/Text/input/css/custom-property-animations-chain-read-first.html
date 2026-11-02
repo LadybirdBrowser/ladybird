@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const depth = 24;
+        const style = document.createElement("style");
+        for (let level = 1; level <= depth; ++level) {
+            CSS.registerProperty({ name: `--level${level}`, syntax: "<length>", inherits: true, initialValue: "0px" });
+            const previous = level === 1 ? "0px" : `var(--level${level - 1})`;
+            const value = `--level${level}: calc(${previous} + 1px)`;
+            style.textContent += `@keyframes level${level} { from { ${value} } to { ${value} } }\n`;
+        }
+        document.head.append(style);
+
+        // The chain moves one level per style pass, past the number of passes a style update runs at once, so what
+        // the first read of an element below it asks for has to wait for all of them.
+        function chain(tag) {
+            const section = document.createElement("section");
+            let parent = section;
+            for (let level = 1; level <= depth; ++level) {
+                const element = document.createElement("div");
+                element.style.animation = `level${level} 1000s linear both`;
+                parent.append(element);
+                parent = element;
+            }
+            const last = document.createElement(tag);
+            parent.append(last);
+            document.body.append(section);
+            return last;
+        }
+
+        const name = `--level${depth}`;
+        println(`its custom property: ${getComputedStyle(chain("div")).getPropertyValue(name)}`);
+        for (const [tag, pseudoElement] of [
+            ["div", "::first-line"],
+            ["li", "::marker"],
+            ["div", "::selection"],
+            ["input", "::placeholder"],
+            ["div", "::before"],
+        ])
+            println(`${pseudoElement}: ${getComputedStyle(chain(tag), pseudoElement).getPropertyValue(name)}`);
+    });
+</script>

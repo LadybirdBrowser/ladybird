@@ -173,9 +173,9 @@ pub(crate) struct PositionOptionChoice {
     /// 0 for the base styles, or one more than the index of the position-try-fallbacks entry that made the option.
     pub(crate) option: u32,
     pub(crate) base_style_record: u64,
-    /// The identity of the @position-try rule the entry names, or 0 where it names none.
+    /// The @position-try rule the entry names.
     /// NB: A choice whose rule was replaced since is no longer the box's last successful position option.
-    pub(crate) rule: usize,
+    pub(crate) rule: crate::css::style::position_try::PositionTryRuleID,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

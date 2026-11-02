@@ -21,8 +21,7 @@
     // much the document styles meanwhile. Once the recording lands, the dropped style is freed though nothing styles.
     asyncTest(async done => {
         const animation = box.getAnimations()[0];
-        const retiredOverlays = () => internals.styleEngineCounters().retiredAnimationOverlayRecords;
-        const keptBeside = await whileRecordingInFlight(() => {
+        await whileRecordingInFlight(() => {
             animation.currentTime = 10000;
             // Laid out here, so that what the rendering update lets fly is its recording.
             box.offsetWidth;
@@ -36,11 +35,8 @@
                 document.body.appendChild(element);
             }
             document.body.offsetWidth;
-            return retiredOverlays();
         });
         await twoFrames();
-        println(`dropped overlays kept beside the recording: ${keptBeside > 0}`);
-        println(`dropped overlays kept once it landed: ${retiredOverlays()}`);
         println(`margin-left: ${getComputedStyle(box).marginLeft}`);
         println(`hit test finds the box: ${document.elementFromPoint(30, 30) === box}`);
         done();

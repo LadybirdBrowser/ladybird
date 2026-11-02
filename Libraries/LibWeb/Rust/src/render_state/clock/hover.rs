@@ -120,7 +120,7 @@ impl Drop for PageCursor {
 struct ReadOnlyHoverFrame {
     rows: crate::painting::published_frame::PublishedRows,
     bound_rows: crate::layout::PublishedBoundRows,
-    cursors: crate::css::style::hover_lane::HoverCursorFacts,
+    cursors: Arc<crate::css::style::hover_lane::HoverCursorFacts>,
     image_map_areas: crate::painting::image_map_areas::ImageMapAreaColumn,
     visual_context: crate::painting::visual_context::VisualContextState,
     _style_records: Arc<[u64]>,
@@ -133,7 +133,7 @@ pub(crate) struct HoverPlan {
     /// The scroll offsets of the frame the rendering update presented, in device pixels, by scroll frame.
     scroll_offsets: Vec<FloatPoint>,
     chrome_metrics: FfiChromeMetrics,
-    /// What the hover's style transactions take: the root and the document computation inputs of the host's last.
+    /// What the hover's style updates take: the root and the document computation inputs of the host's last.
     style: Option<(StyleNodeID, Arc<SealedStyleInputs>)>,
     /// The cursor of the document's page.
     page_cursor: Option<PageCursor>,
@@ -196,7 +196,7 @@ impl HoverPlan {
         };
         if !state.engine_ref().takes_hover_transactions()
             || state.engine_ref().has_animation_overlay_records()
-            || state.engine_ref().hover_needs_style_state(*root)
+            || state.engine_mut().hover_needs_style_state(*root)
         {
             return;
         }
@@ -216,7 +216,7 @@ impl HoverPlan {
         self.read_only_frame = Some(ReadOnlyHoverFrame {
             rows: state.arena.arena_mut().publish_rows(),
             bound_rows: state.arena.arena_mut().bound_rows_mut().publish(),
-            cursors: state.engine_ref().hover_cursor_facts(),
+            cursors: state.engine_mut().hover_cursor_facts(),
             image_map_areas: state.arena.arena().image_map_areas().clone(),
             visual_context,
             _style_records: style_records,
@@ -227,7 +227,7 @@ impl HoverPlan {
         self.read_only_frame.is_none()
     }
 
-    /// Has the hover's style transactions take `inputs`, the document computation inputs the host sealed for its last
+    /// Has the hover's style updates take `inputs`, the document computation inputs the host sealed for its last
     /// transaction under `root`.
     pub(crate) fn with_style_inputs(self, style: Option<(StyleNodeID, Arc<SealedStyleInputs>)>) -> Self {
         Self { style, ..self }
@@ -1257,7 +1257,7 @@ impl Lane {
         let resolved = list.resolve_hit(arena, topmost.index, topmost.local_point);
         let identity = if paintable_kind == NodeKind::Viewport {
             // The viewport stands for the document, and a hit that falls through to it hits the root element, the root
-            // of the style transactions the hover takes its own with. The cursor is the viewport's, as the host's is.
+            // of the style updates the hover takes its own with. The cursor is the viewport's, as the host's is.
             let &(root, _) = plan.style.as_ref().ok_or(HoverDeclined::Unmoved("no root element"))?;
             return Ok(HoverTarget::Element(CursorHit {
                 hit_node: paintable,
@@ -1452,7 +1452,7 @@ pub extern "C" fn document_host_move_pointer(
 
 /// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, beside the mouse event with
 /// the input event id `input_event_id`, or none for 0, ticks them at `frame_time_nanoseconds`, and waits until the
-/// StyleLayout thread has run the tick and the Paint thread the recording of the frame it presents. For a test.
+/// Render thread has run the tick and the Paint thread the recording of the frame it presents. For a test.
 #[unsafe(no_mangle)]
 pub extern "C" fn document_host_inject_pointer(
     host: &crate::render_state::DocumentHost,

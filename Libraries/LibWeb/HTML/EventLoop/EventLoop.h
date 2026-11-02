@@ -60,7 +60,7 @@ class WEB_API EventLoop : public JS::Cell {
     };
 
 public:
-    // Whether the style transaction of a document in a rendering update may fly beside the event loop, or what keeps it
+    // Whether the style update of a document in a rendering update may fly beside the event loop, or what keeps it
     // in step.
     Layout::RustFFI::FfiFlightBlocker style_flight_blocker(DOM::Document&) const;
 
@@ -136,6 +136,15 @@ public:
 
     void perform_a_microtask_checkpoint();
 
+    // NB: Style and layout run no script. A temporary execution context they use ends with an empty stack, which would
+    //     otherwise perform a checkpoint in the middle of them, for microtasks queued outside any script.
+    void defer_microtask_checkpoints() { ++m_microtask_checkpoint_deferrals; }
+    void resume_microtask_checkpoints()
+    {
+        VERIFY(m_microtask_checkpoint_deferrals > 0);
+        --m_microtask_checkpoint_deferrals;
+    }
+
     void register_document(Badge<DOM::Document>, DOM::Document&);
     void unregister_document(Badge<DOM::Document>, DOM::Document&);
     void document_navigable_did_change(Badge<DOM::Document>);
@@ -168,8 +177,8 @@ public:
 
     bool running_rendering_task() const { return m_running_rendering_task; }
 
-    // A rendering update's style transaction and its frame fly beside the event loop until the event loop takes them in
-    // between two tasks. A rendering update whose style transaction flies runs its steps from its style and layout on
+    // A rendering update's style update and its frame fly beside the event loop until the event loop takes them in
+    // between two tasks. A rendering update whose style update flies runs its steps from its style and layout on
     // once the transaction is taken in.
     void did_commit_frame(LocalNavigable&, CommittedFrameRecords);
     void did_take_frame_in(LocalNavigable&);
@@ -184,7 +193,7 @@ public:
     bool has_rendering_update_in_flight() const { return m_rendering_update_in_flight; }
     // Whether the layout of the rendering update in flight runs, or ran, beside the event loop.
     bool lays_out_rendering_update_in_flight() const;
-    // Runs the steps of the rendering update whose style transaction flies, which take the transaction in.
+    // Runs the steps of the rendering update whose style update flies, which take the transaction in.
     void finish_rendering_update_in_flight();
     // The serial number of the first rendering update that may gather a resize observation of `document` made now. A
     // task beside a rendering update whose style and layout of the document have yet to run comes after the whole of it.
@@ -256,6 +265,7 @@ private:
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
+    u32 m_microtask_checkpoint_deferrals { 0 };
 
     mutable Vector<GC::Weak<DOM::Document>> m_documents;
     mutable bool m_documents_sort_dirty { false };

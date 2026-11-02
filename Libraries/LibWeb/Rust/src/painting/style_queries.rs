@@ -83,14 +83,14 @@ fn fly_string_equals_ascii(string: &CssString, expected: &[u8]) -> bool {
 }
 
 fn will_change_has_any_property(style: ComputedValuesView<'_>, names: &[&[u8]]) -> bool {
-    let hints = style.misc_reset().implicit_will_change.as_slice();
+    let hints = style.misc_interaction().implicit_will_change.as_slice();
     if hints
         .iter()
         .any(|&property| names.contains(&property_name(property).as_bytes()))
     {
         return true;
     }
-    let Some(value) = handle_value(&style.misc_reset().will_change) else {
+    let Some(value) = handle_value(&style.misc_interaction().will_change) else {
         return false;
     };
     let StyleValueData::ValueList { values, .. } = value else {
@@ -172,7 +172,7 @@ pub(crate) fn clip_path_has_value(mask: &MaskValues) -> bool {
 }
 
 fn view_transition_name_has_value(style: ComputedValuesView<'_>) -> bool {
-    handle_value(&style.misc_reset().view_transition_name)
+    handle_value(&style.misc_interaction().view_transition_name)
         .is_some_and(|value| matches!(value, StyleValueData::CustomIdent { .. }))
 }
 
@@ -298,7 +298,7 @@ fn style_establishes_fixed_positioning_containing_block(
 
 pub(crate) fn inline_establishes_absolute_position_containing_block(style: ComputedValuesView<'_>) -> bool {
     let effects = style.effects();
-    style.box_values().position != positioning::STATIC
+    style.position() != positioning::STATIC
         || filter_has_filters(&effects.filter)
         || filter_has_filters(&effects.backdrop_filter)
         || will_change_has_any_property(style, &[b"position", b"filter", b"backdrop-filter"])
@@ -324,7 +324,7 @@ pub(crate) fn establishes_positioning_containing_blocks(arena: &impl PaintRead, 
         return (true, true);
     }
 
-    if style.box_values().position != positioning::STATIC || will_change_has_property(style, b"position") {
+    if style.position() != positioning::STATIC || will_change_has_property(style, b"position") {
         return (true, false);
     }
 
@@ -423,11 +423,10 @@ fn used_transform_style_is_preserve_3d(arena: &impl PaintRead, node: NodeSlotId)
         return false;
     }
     let effects = style.effects();
-    let box_values = style.box_values();
     let mask_values = style.mask();
     let grouping_overflow = |value: u8| value != overflow::VISIBLE && value != overflow::CLIP;
-    let has_transform_style_grouping_property = grouping_overflow(box_values.overflow_x)
-        || grouping_overflow(box_values.overflow_y)
+    let has_transform_style_grouping_property = grouping_overflow(style.overflow_x())
+        || grouping_overflow(style.overflow_y())
         || effects.opacity < 1.0
         || filter_has_filters(&effects.filter)
         || effects.clip_is_rect
@@ -500,7 +499,7 @@ pub(crate) fn auto_outline_width() -> CssPixels {
 }
 
 pub(crate) fn outline_geometry(style: ComputedValuesView<'_>) -> Option<OutlineGeometry> {
-    let misc = style.misc_reset();
+    let misc = style.misc_layout();
     let (line_style, width) = if misc.outline_style == outline_style::AUTO {
         (line_style::SOLID, auto_outline_width())
     } else {
@@ -530,7 +529,7 @@ pub(crate) fn outline_data(
     auto_outline_color: u32,
 ) -> Option<OutlineData> {
     let style = arena.node_style_if_live(node)?;
-    let is_auto = style.misc_reset().outline_style == outline_style::AUTO;
+    let is_auto = style.misc_layout().outline_style == outline_style::AUTO;
     if is_auto && !window_is_focused() {
         return None;
     }
@@ -538,7 +537,7 @@ pub(crate) fn outline_data(
     let color = if is_auto {
         auto_outline_color
     } else {
-        style.misc_reset().outline_color
+        style.outline_color()
     };
     if color >> 24 == 0 {
         return None;
@@ -553,7 +552,7 @@ pub(crate) fn outline_data(
 pub(crate) fn outline_offset(arena: &impl PaintRead, node: NodeSlotId) -> CssPixels {
     arena
         .node_style_if_live(node)
-        .map_or(CssPixels::from_raw(0), |style| style.misc_reset().outline_offset)
+        .map_or(CssPixels::from_raw(0), |style| style.misc_layout().outline_offset)
 }
 
 pub(crate) fn is_text_decoration_propagation_boundary(arena: &impl PaintRead, node: NodeSlotId) -> bool {
@@ -606,7 +605,7 @@ pub(crate) fn is_fixed_position(arena: &impl PaintRead, node: NodeSlotId) -> boo
 }
 
 pub(crate) fn is_sticky_position(style: ComputedValuesView<'_>) -> bool {
-    style.box_values().position == positioning::STICKY
+    style.position() == positioning::STICKY
 }
 
 pub(crate) fn is_floating(arena: &impl PaintRead, node: NodeSlotId) -> bool {
@@ -696,7 +695,7 @@ pub(crate) fn establishes_stacking_context(arena: &impl PaintRead, node: NodeSlo
     let box_values = style.box_values();
     let will_change = |name: &[u8]| will_change_has_property(style, name);
 
-    let position = box_values.position;
+    let position = style.position();
     let has_z_index = box_values.has_z_index || will_change(b"z-index");
 
     if (position == positioning::ABSOLUTE || position == positioning::RELATIVE) && has_z_index {

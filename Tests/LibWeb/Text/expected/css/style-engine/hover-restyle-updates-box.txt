@@ -1,0 +1,5 @@
+initial: width=100px background=rgb(0, 128, 0) box.width=100
+hovered by the render clock: box width on screen=150
+cold passes since: 0
+hovered: width=150px background=rgb(255, 0, 0) box.width=150
+unhovered: width=100px background=rgb(0, 128, 0) box.width=100

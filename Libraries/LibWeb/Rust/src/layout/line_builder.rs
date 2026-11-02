@@ -87,7 +87,7 @@ pub(crate) struct LineBuilder<'builder, 'context> {
     style_cache: Cell<Option<(Node, StyleValues<'context>)>>,
     /// The lookups behind the facts last asked for. Keeping the facts themselves copied the pass they
     /// hold into the cell and back, and the copy of the pass's padded tail stalled the loads after it.
-    facts_cache: Cell<Option<(Node, &'builder NodeData, Option<&'builder FfiStylePayloads>)>>,
+    facts_cache: Cell<Option<(Node, &'builder NodeData, Option<ComputedValuesView<'builder>>)>>,
 }
 
 impl<'builder, 'context> LineBuilder<'builder, 'context> {
@@ -226,7 +226,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             return NodeFacts::from_lookups(&self.context.callbacks, node, data, style_payloads);
         }
         let facts = NodeFacts::new(&self.context.callbacks, node);
-        self.facts_cache.set(Some((node, facts.data(), facts.style_payloads())));
+        self.facts_cache.set(Some((node, facts.data(), facts.style_view())));
         facts
     }
 
@@ -1443,7 +1443,10 @@ impl TextLayoutBounds {
         // NB: The bounds above already enclose the glyphs of the first available font.
         if let Some(font) = font
             && style.line_height_is_normal()
-            && font.as_raw() != style.font().first_available_font
+            && style
+                .font()
+                .first_available_font()
+                .is_none_or(|first_available| font.as_raw() != first_available.as_raw())
         {
             bounds.ascent = bounds.ascent.max(CssPixels::nearest_value_for_f32(font.facts().ascent));
             bounds.descent = bounds

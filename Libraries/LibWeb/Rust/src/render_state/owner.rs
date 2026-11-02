@@ -6,8 +6,8 @@
 
 //! The render owner: whichever thread holds the slot every document's render state lives in.
 //!
-//! The StyleLayout thread holds the slot for the jobs it runs, and a host's thread holds it for a job it runs itself,
-//! while it waits for nothing the StyleLayout thread runs (see [`super::on_render_side`]). A thread holds the slot only
+//! The Render thread holds the slot for the jobs it runs, and a host's thread holds it for a job it runs itself,
+//! while it waits for nothing the Render thread runs (see [`super::on_render_side`]). A thread holds the slot only
 //! for the length of a job, never between them, so no thread waits for another to run script. The host names its
 //! document's state by the [`DocumentId`] it minted, and reaches it only with a job. The owner makes a state the first
 //! time a job reaches it, from what the host's [`StateSeed`] says, so a document that never sends its state anything
@@ -52,15 +52,18 @@ pub(crate) struct SharedWithHost {
     pub(super) declaration_block_versions: Arc<AtomicU32>,
     /// The depth of the deepest element the state's style tree ever held.
     pub(super) deepest_element: Arc<AtomicU32>,
-    /// How many relation rows the state's style engine staged and has not settled yet, each of which may deepen the
-    /// tree by a level.
-    pub(super) staged_tree_rows: Arc<AtomicU32>,
+    /// How many elements' links the state's style engine wrote since it last released a transaction, each of which may
+    /// deepen the tree by a level until the tree settles them.
+    pub(super) link_rows_written: Arc<AtomicU32>,
+    /// The style atoms of the process, which the host interns names in beside the state's style engine.
+    pub(super) style_atoms: Arc<crate::css::style::ProcessAtoms>,
 }
 
 impl SharedWithHost {
     pub(super) fn new() -> Self {
         Self {
             declaration_block_versions: Arc::new(AtomicU32::new(1)),
+            style_atoms: Arc::clone(SLOT.process_style.atoms()),
             ..Self::default()
         }
     }
@@ -72,8 +75,12 @@ struct Slot {
     /// Each document's render state and clock lanes, which only the thread that holds the slot reaches. An entry is
     /// boxed, so a job reaching it keeps reaching it while the job makes another document's state.
     states: RefCell<HashMap<DocumentId, Box<DocumentEntry>>>,
+    /// The style data every document's style engine shares with the others.
+    process_style: Arc<crate::css::style::ProcessStyle>,
     /// What names the slot to ThreadSanitizer, which sees the ordering holding it gives only through it.
     tsan_key: AtomicBool,
+    /// The threads the style passes of every document run on besides the owner's.
+    style_pool: Arc<crate::css::style::pipeline::pool::StylePool>,
 }
 
 // SAFETY: Only the thread that holds the slot reaches its states, which may cross threads, and holding it orders what
@@ -90,8 +97,16 @@ const _: () = {
 static SLOT: LazyLock<Slot> = LazyLock::new(|| Slot {
     held: Mutex::new(()),
     states: RefCell::new(HashMap::new()),
+    process_style: Arc::default(),
     tsan_key: AtomicBool::new(false),
+    style_pool: Arc::new(crate::css::style::pipeline::pool::StylePool::of_process()),
 });
+
+/// The style data every document's style engine shares with the others, which any thread reaches without the slot: only
+/// what it guards itself is written once it is made.
+pub(crate) fn process_style() -> &'static Arc<crate::css::style::ProcessStyle> {
+    &SLOT.process_style
+}
 
 thread_local! {
     /// How many holds of the slot the calling thread is in, which a host callback of a job takes again.
@@ -177,7 +192,7 @@ pub(super) fn with_state<R>(
             let entry = match seed {
                 Some(seed) => states.entry(document).or_insert_with(|| {
                     Box::new(DocumentEntry {
-                        state: UnsafeCell::new(RenderState::new(seed)),
+                        state: UnsafeCell::new(RenderState::new(seed, &SLOT.process_style, &SLOT.style_pool)),
                         lanes: Cell::default(),
                         job_runs_on_state: Cell::new(false),
                     })

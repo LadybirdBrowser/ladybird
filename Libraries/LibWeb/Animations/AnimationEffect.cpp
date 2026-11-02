@@ -36,8 +36,8 @@ GC_DEFINE_ALLOCATOR(AnimationEffect);
 
 AnimationUpdateContext::ElementData::ElementData() = default;
 
-AnimationUpdateContext::ElementData::ElementData(CSS::StyleRecordID style_record_before_update, RefPtr<CSS::ComputedStyleWorkingSet> target_style)
-    : style_record_before_update(style_record_before_update)
+AnimationUpdateContext::ElementData::ElementData(CSS::InstalledStyle style_before_update, RefPtr<CSS::ComputedStyleWorkingSet> target_style)
+    : style_before_update(move(style_before_update))
     , target_style(move(target_style))
 {
 }
@@ -852,6 +852,19 @@ AnimationUpdateContext::~AnimationUpdateContext()
     publish();
 }
 
+template<typename Iterator, typename Callback>
+static void at_times_observed_ahead(Iterator timelines, Iterator end, Callback const& callback)
+{
+    if (timelines == end)
+        return callback();
+    auto& timeline = **timelines;
+    ++timelines;
+    if (!timeline.was_observed_ahead_in_current_task())
+        return at_times_observed_ahead(timelines, end, callback);
+    AnimationTimeline::CurrentTimeOverrideScope override { timeline, timeline.current_time_for_observation() };
+    at_times_observed_ahead(timelines, end, callback);
+}
+
 void AnimationUpdateContext::publish()
 {
     // Each element's effects, sampled over the style it holds.
@@ -915,32 +928,41 @@ void AnimationUpdateContext::publish()
         size_t end = first;
         for (; end < samples.size() && &samples[end].element.document() == &document; ++end) {
             auto& sample = samples[end];
-            if (!sample.effects.is_empty() && sample.element.style_record_identity() == sample.data.style_record_before_update)
+            if (sample.element.installed_style() != sample.data.style_before_update)
+                continue;
+            // NB: An element left with no effects, as where its style just removed its last animation, has nothing to
+            //     sample, and what it animated of its custom properties ends here.
+            if (sample.effects.is_empty())
+                style_computer.stop_publishing_animated_custom_properties(sample.element);
+            else
                 requests.append({ sample.element, sample.effects.span(), *sample.data.target_style });
         }
-        style_computer.refresh_animations_into_each(read, requests);
+        // A timeline script observed ahead of its current time in this task is sampled at that time, as an update of the
+        // effects needing it is, or the style installed here and the one that update sampled would keep disagreeing about
+        // an effect that ended between the two times.
+        at_times_observed_ahead(document.associated_animation_timelines().begin(), document.associated_animation_timelines().end(), [&] {
+            style_computer.refresh_animations_into_each(read, requests);
+        });
 
         publications.clear_with_capacity();
         overlays.clear_with_capacity();
         for (auto& sample : samples.span().slice(first, end - first)) {
             auto const& style = *sample.data.target_style;
-            if (sample.element.style_record_identity() != sample.data.style_record_before_update
+            if (sample.element.installed_style() != sample.data.style_before_update
                 || !sample.element.installed_style().animation_overlay_changed(style.animated_overlay()))
                 continue;
-            // The publication can release the record a pseudo-element installed, which the update still reads: as a
-            // transition baseline once the publication is compared with it, and from its originating element, whose
-            // entry may install first and recompute its pseudo-element styles. An element holds its record until it
-            // installs the published one, but a pseudo-element holds it nowhere, so the update pins it until its own
-            // entry ends.
             bool const may_record_baseline = style.animated_overlay() && !CSS::ComputedValuesFFI::rust_animated_overlay_is_empty(style.animated_overlay())
                 && document.is_in_style_stabilization_epoch();
-            if (sample.element.pseudo_element().has_value())
-                CSS::StyleEngineFFI::style_engine_pin_style_record(style_computer.style_engine().host(), sample.data.style_record_before_update.value());
             publications.append({ sample, may_record_baseline });
             overlays.append({ sample.element, style });
         }
         published.resize(overlays.size());
         style_computer.publish_sampled_animation_overlays(read, overlays, published);
+        // NB: Each publication hands over a reference to the style it published, which a later one can retire.
+        Vector<CSS::InstalledStyle> published_styles;
+        published_styles.ensure_capacity(published.size());
+        for (auto const& publication : published)
+            published_styles.unchecked_append(CSS::InstalledStyle::adopt(publication.record));
         first = end;
 
         for (size_t i = 0; i < publications.size(); ++i) {
@@ -950,17 +972,13 @@ void AnimationUpdateContext::publish()
             auto const& data = sample.data;
             GC::Ref<DOM::Element> target = element.element();
             // An earlier entry already republished this style with the current animation values.
-            bool const republished = element.style_record_identity() != data.style_record_before_update;
+            bool const republished = element.installed_style() != data.style_before_update;
             if (!republished && may_record_baseline && (document.style_stabilization_has_style_reactions() || animated_property_invalidation.requires_base_style_recomputation))
-                style_computer.record_transition_stabilization_baseline(element, data.style_record_before_update);
-            ScopeGuard unpin_installed_record = [&] {
-                if (element.pseudo_element().has_value())
-                    CSS::StyleEngineFFI::style_engine_unpin_style_record(style_computer.style_engine().host(), data.style_record_before_update.value());
-            };
+                style_computer.record_transition_stabilization_baseline(element, data.style_before_update);
             if (republished)
                 continue;
             auto invalidation = CSS::decode_style_invalidation(animated_property_invalidation.invalidation);
-            target->refresh_computed_style(element.pseudo_element(), CSS::StyleRecordID { published[i].publication.new_style_record });
+            target->refresh_computed_style(read, element.pseudo_element(), move(published_styles[i]));
             if (auto* svg_element = as_if<SVG::SVGElement>(*target); svg_element && !element.pseudo_element().has_value())
                 svg_element->note_svg_paint_resource_description_may_have_changed();
 
@@ -971,57 +989,8 @@ void AnimationUpdateContext::publish()
             if (animated_property_invalidation.requires_base_style_recomputation && !data.base_is_current)
                 target->document().style_computer().style_engine().record_derived_element_style_input_change(target->style_node_id(), CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle);
 
-            if (!data.inherited_style_update_owned_by_reaction && !element.pseudo_element().has_value() && invalidation.inherited_style_changed()) {
-                // Recomputing pseudo-element styles can start transitions, which stay provisional until a stabilization
-                // epoch commits them. This update also runs outside any style update (for example when an inert animation
-                // is disassociated from its target), so hold an epoch open around it.
-                auto& document = target->document();
-                document.begin_style_stabilization_epoch();
-                ScopeGuard end_stabilization_epoch = [&] {
-                    document.end_style_stabilization_epoch();
-                };
-                invalidation |= target->recompute_pseudo_element_styles(read);
-            }
-
-            // An animated value can be inherited through shadow and slot boundaries. Publish the exact
-            // flat-tree descendants as one feedback batch; the ordinary transaction owns their style
-            // materialization and observer consequences.
-            if (!element.pseudo_element().has_value()) {
-                // NB: An enclosing reaction compares the previous and final inherited groups. Keep the feedback for
-                //     explicit non-inherited dependencies and structural changes, which that comparison does not cover.
-                auto inherited_style_groups = data.inherited_style_update_owned_by_reaction ? u8 { 0 } : invalidation.inherited_style_groups_changed();
-                if (!invalidation.inherited_style_changed() || data.inherited_style_update_owned_by_reaction) {
-                    auto shadow_root = target->shadow_root();
-                    auto child_explicit_inheritance_groups = target->children_explicitly_inherited_non_inherited_style_groups();
-                    if (shadow_root)
-                        child_explicit_inheritance_groups |= shadow_root->children_explicitly_inherited_non_inherited_style_groups();
-                    auto descendants_may_observe_non_inherited_properties = (child_explicit_inheritance_groups & animated_property_invalidation.changed_non_inherited_style_groups) != 0
-                        || invalidation.recompute_descendant_styles
-                        || invalidation.needs_layout_tree_rebuild();
-                    if (auto* slot = as_if<HTML::HTMLSlotElement>(*target); slot && !descendants_may_observe_non_inherited_properties) {
-                        slot->assign_slottables_if_needed();
-                        // NB: Assigned elements leave explicit inheritance marks on their DOM parent,
-                        //     including values that substitute to inherit, rather than on the slot. Every
-                        //     assigned element is a child of the shadow host, so the first one's parent
-                        //     holds the marks of all of them.
-                        for (auto const& slottable : slot->assigned_nodes_internal()) {
-                            auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>();
-                            if (!assigned)
-                                continue;
-                            auto* parent = (*assigned)->parent();
-                            descendants_may_observe_non_inherited_properties = parent && (parent->children_explicitly_inherited_non_inherited_style_groups() & animated_property_invalidation.changed_non_inherited_style_groups) != 0;
-                            break;
-                        }
-                    }
-                    if (descendants_may_observe_non_inherited_properties)
-                        inherited_style_groups = CSS::RequiredInvalidationAfterStyleChange::all_inherited_style_groups;
-                }
-                if (inherited_style_groups != 0)
-                    target->document().style_computer().style_engine().record_flat_tree_descendant_style_input_changes(
-                        target->style_node_id(),
-                        CSS::StyleEngine::InheritedStyle,
-                        inherited_style_groups);
-            }
+            // NB: Publishing the composition had the style engine restyle the element's pseudo-elements and the
+            //     children that compute from what the composition moved, in its next pass.
 
             // NB: refresh_computed_style() already publishes the new record to the layout node. Only
             // inherited values and image resources require the additional C++ style side effects.

@@ -1,38 +1,38 @@
 PRESERVED: ::before change position inline-block on none in run-in | fixture ancestor
 PRESERVED: ::before change position inline-block on none in run-in | distant sibling
 PRESERVED: ::before change position inline-block on none in run-in | distant sibling descendant
-RECREATED: ::before change position inline-block on none in run-in | DOM parent
-RECREATED: ::before change position inline-block on none in run-in | preceding sibling
-RECREATED: ::before change position inline-block on none in run-in | preceding sibling descendant
+PRESERVED: ::before change position inline-block on none in run-in | DOM parent
+PRESERVED: ::before change position inline-block on none in run-in | preceding sibling
+PRESERVED: ::before change position inline-block on none in run-in | preceding sibling descendant
 ABSENT: ::before change position inline-block on none in run-in | target
 ABSENT: ::before change position inline-block on none in run-in | target descendant
-RECREATED: ::before change position inline-block on none in run-in | following sibling
-RECREATED: ::before change position inline-block on none in run-in | following sibling descendant
-STATS: ::before change position inline-block on none in run-in | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change position inline-block on none in run-in | following sibling
+PRESERVED: ::before change position inline-block on none in run-in | following sibling descendant
+STATS: ::before change position inline-block on none in run-in | no layout tree build
 PASS: ::before change position inline-block on none in run-in | incremental tree matches full rebuild
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | fixture ancestor
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | distant sibling
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | distant sibling descendant
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | DOM parent
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | preceding sibling
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | preceding sibling descendant
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | fixture ancestor
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | distant sibling
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | distant sibling descendant
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | DOM parent
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | preceding sibling
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | preceding sibling descendant
 ABSENT: ::before change position -webkit-inline-box on none in table-row-group | target
 ABSENT: ::before change position -webkit-inline-box on none in table-row-group | target descendant
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | following sibling
-RECREATED: ::before change position -webkit-inline-box on none in table-row-group | following sibling descendant
-STATS: ::before change position -webkit-inline-box on none in table-row-group | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | following sibling
+PRESERVED: ::before change position -webkit-inline-box on none in table-row-group | following sibling descendant
+STATS: ::before change position -webkit-inline-box on none in table-row-group | no layout tree build
 PASS: ::before change position -webkit-inline-box on none in table-row-group | incremental tree matches full rebuild
 PRESERVED: ::before change position inline flow-root on none in block flex | fixture ancestor
 PRESERVED: ::before change position inline flow-root on none in block flex | distant sibling
 PRESERVED: ::before change position inline flow-root on none in block flex | distant sibling descendant
-RECREATED: ::before change position inline flow-root on none in block flex | DOM parent
-RECREATED: ::before change position inline flow-root on none in block flex | preceding sibling
-RECREATED: ::before change position inline flow-root on none in block flex | preceding sibling descendant
+PRESERVED: ::before change position inline flow-root on none in block flex | DOM parent
+PRESERVED: ::before change position inline flow-root on none in block flex | preceding sibling
+PRESERVED: ::before change position inline flow-root on none in block flex | preceding sibling descendant
 ABSENT: ::before change position inline flow-root on none in block flex | target
 ABSENT: ::before change position inline flow-root on none in block flex | target descendant
-RECREATED: ::before change position inline flow-root on none in block flex | following sibling
-RECREATED: ::before change position inline flow-root on none in block flex | following sibling descendant
-STATS: ::before change position inline flow-root on none in block flex | rebuilt subtree roots=1, escaped=false
+PRESERVED: ::before change position inline flow-root on none in block flex | following sibling
+PRESERVED: ::before change position inline flow-root on none in block flex | following sibling descendant
+STATS: ::before change position inline flow-root on none in block flex | no layout tree build
 PASS: ::before change position inline flow-root on none in block flex | incremental tree matches full rebuild
 PRESERVED: ::after change clear inline on none in inline-block | fixture ancestor
 PRESERVED: ::after change clear inline on none in inline-block | distant sibling

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<div id="source"></div>
+<script>
+    // An element removed beside the layout that builds its box leaves nothing of that box behind.
+    asyncTest(async done => {
+        const built = document.createElement("table");
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        requestAnimationFrame(() => {
+            internals.holdNextFrame("layout");
+            source.append(built);
+        });
+        internals.injectRenderingOpportunity(performance.now());
+        while (internals.frameSchedulerState() !== "laying-out")
+            await nextTask();
+        built.remove();
+        internals.releaseHeldFrame();
+        while (internals.frameSchedulerState() !== "idle")
+            await nextTask();
+        internals.setManualRenderingOpportunities(false);
+        await twoFramesLanded();
+        println(`source height: ${source.offsetHeight}`);
+        done();
+    });
+</script>

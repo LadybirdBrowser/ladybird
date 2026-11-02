@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --amp { syntax: "<number>"; inherits: false; initial-value: 1; }
+    @property --mix { syntax: "<number>"; inherits: true; initial-value: 0; }
+    @keyframes amp { from { --amp: 1 } to { --amp: 3 } }
+    @keyframes mix { from { --mix: 0 } to { --mix: 1 } }
+    #track { animation: mix 100s linear paused; }
+    #bar { display: inline-block; width: 10px; height: 10px; transform: scaleY(calc(1 + var(--amp) * var(--mix))); animation: amp 100s linear paused; }
+</style>
+<div id="track"><div><span id="bar"></span></div></div>
+<script>
+    // An element's own animation samples --amp, and an ancestor's animation hands it --mix. Each time both move, the
+    // transform reading both reads the --mix the element's custom properties hold, not the one of a sample before.
+    asyncTest(async done => {
+        const [mix] = track.getAnimations();
+        const [amp] = bar.getAnimations();
+        const frames = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await frames();
+        for (const seconds of [10, 20, 30, 40]) {
+            mix.currentTime = seconds * 1000;
+            amp.currentTime = seconds * 1000;
+            await frames();
+            const style = getComputedStyle(bar);
+            const expected = 1 + parseFloat(style.getPropertyValue("--amp")) * parseFloat(style.getPropertyValue("--mix"));
+            println(`${seconds}s: transform ${style.transform}, custom properties give ${expected.toFixed(3)}`);
+        }
+        done();
+    });
+</script>

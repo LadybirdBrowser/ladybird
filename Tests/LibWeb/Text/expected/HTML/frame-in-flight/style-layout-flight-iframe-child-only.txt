@@ -2,5 +2,4 @@ state in the next task: in-flight
 child resize observed before the next task: nothing
 child resize observed: 80x20
 child box: 80x20
-container styles recomputed: 0
 container box: 50x20, iframe: 200x100

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<style>
+    @property --registered {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+    @keyframes grow {
+        from {
+            --registered: 10px;
+            --plain: 10px;
+        }
+        to {
+            --registered: 30px;
+            --plain: 30px;
+        }
+    }
+    .animated {
+        animation: grow 1000s -500s step-end both;
+    }
+    .reader {
+        width: var(--registered);
+        height: var(--plain, 1px);
+    }
+</style>
+<div id="name" class="animated"><div class="reader"></div></div>
+<div id="value-with-name" class="animated"><div class="reader"></div></div>
+<div id="name-then-value" class="animated"><div class="reader"></div></div>
+<div id="declared" style="--registered: 5px; --plain: 6px" class="animated"><div class="reader"></div></div>
+<div id="class" class="animated"><div class="reader"></div></div>
+<div id="undisplayed" class="animated"><div class="reader"></div></div>
+<div id="undisplayed-with-value" class="animated"><div class="reader"></div></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const element = id => document.getElementById(id);
+        const report = (name, id) => {
+            const style = getComputedStyle(element(id));
+            const child = getComputedStyle(element(id).firstElementChild);
+            println(`${name}: ${style.getPropertyValue("--registered")} "${style.getPropertyValue("--plain")}", child ${child.width} ${child.height}, ${element(id).getAnimations().length} animations`);
+        };
+
+        for (const child of document.querySelectorAll(".animated")) report(`${child.id} running`, child.id);
+
+        element("name").style.animationName = "none";
+        report("animation-name none", "name");
+
+        element("value-with-name").style.setProperty("--registered", "5px");
+        element("value-with-name").style.animationName = "none";
+        report("a declared value and animation-name none together", "value-with-name");
+
+        element("name-then-value").style.animationName = "none";
+        element("name-then-value").offsetWidth;
+        element("name-then-value").style.setProperty("--registered", "5px");
+        report("a declared value after animation-name none", "name-then-value");
+
+        element("declared").getAnimations()[0].cancel();
+        report("canceled over declared values", "declared");
+
+        element("class").className = "";
+        report("class removed", "class");
+
+        element("undisplayed").style.display = "none";
+        report("display none", "undisplayed");
+
+        element("undisplayed-with-value").style.display = "none";
+        element("undisplayed-with-value").style.setProperty("--registered", "5px");
+        report("display none with a declared value", "undisplayed-with-value");
+    });
+</script>

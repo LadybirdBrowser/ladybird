@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    button {
+        color: rgb(255, 255, 255);
+        background-color: rgb(0, 0, 0);
+        transition: color 1s linear, background-color 1s linear;
+    }
+    button:hover {
+        color: rgb(0, 0, 0);
+        background-color: rgb(255, 255, 255);
+    }
+    svg {
+        display: block;
+        width: 20px;
+        height: 20px;
+    }
+</style>
+<button id="button"><svg viewBox="0 0 20 20" stroke="currentColor"><path d="M0 0h20v20h-20z"/></svg></button>
+<script>
+    // Looking for the editing host of the pressed node asks the button whether it is focusable, which samples the
+    // animations of the button at the time script would observe, as its background runs on the compositor. That moves
+    // the color its SVG icon lays out from, and the hit test that follows reads the layout.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const rect = button.getBoundingClientRect();
+        const [x, y] = [rect.left + rect.width / 2, rect.top + rect.height / 2];
+        internals.mouseMove(x, y);
+
+        // Rendering updates make the transitions ready and put the background on the compositor.
+        let frameTime = performance.now();
+        do {
+            internals.injectRenderingOpportunity(frameTime);
+            frameTime += 1;
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle");
+        } while (button.getAnimations().some(animation => animation.pending));
+
+        // No more of them come, so script now observes the timeline ahead of what they sampled.
+        while (performance.now() < frameTime + 20) await nextTask();
+        internals.mouseDown(x, y);
+        internals.mouseUp(x, y);
+        internals.setManualRenderingOpportunities(false);
+        println("PASS (didn't crash)");
+        done();
+    });
+</script>

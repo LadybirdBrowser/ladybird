@@ -1,0 +1,4 @@
+10s: transform matrix(1, 0, 0, 1.12, 0, 0), custom properties give 1.120
+20s: transform matrix(1, 0, 0, 1.28, 0, 0), custom properties give 1.280
+30s: transform matrix(1, 0, 0, 1.48, 0, 0), custom properties give 1.480
+40s: transform matrix(1, 0, 0, 1.72, 0, 0), custom properties give 1.720

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    #compositor {
+        width: 50px;
+        height: 50px;
+        background: green;
+    }
+    .hidden #drawer {
+        visibility: hidden;
+        transition: visibility 20ms;
+    }
+    .hidden #list, .hidden #item, .hidden #link {
+        transition: all 20ms;
+    }
+</style>
+<div id="compositor"></div>
+<div id="other">text</div>
+<div id="drawer">
+    <ul id="list"><li id="item"><a id="link" href="#">link</a></li></ul>
+</div>
+<script>
+    // The transitions run in the last rendering update and have ended by the time script observes the timeline, ahead of
+    // that update as an animation runs on the compositor. A read then samples them at the time script observed, where
+    // they have ended, and over the records its style update installs. Both have to agree on that time, or the elements
+    // keep flipping between the values of the two times.
+    asyncTest(async done => {
+        await twoFramesLanded();
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        const frame = async time => {
+            internals.injectRenderingOpportunity(time);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle");
+        };
+        compositor.animate({ opacity: [0, 1] }, { duration: 100000 });
+        const start = performance.now();
+        document.documentElement.classList.add("hidden");
+        await frame(start);
+        await frame(start + 5);
+        while (performance.now() < start + 50) await nextTask();
+
+        println(`timeline ahead of the end of the transitions: ${document.timeline.currentTime > start + 25}`);
+        other.style.marginTop = "1px";
+        println(`scroll width: ${list.scrollWidth > 0}`);
+        for (const element of [drawer, list, item, link]) println(`${element.id}: ${getComputedStyle(element).visibility}`);
+        internals.setManualRenderingOpportunities(false);
+        done();
+    });
+</script>

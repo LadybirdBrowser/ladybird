@@ -1,0 +1,5 @@
+a cycle through a declaration: --animated "0px", --declared "", width 0px, child 0px
+after a write: --animated "0px", --declared "", width 0px, child 0px
+a cycle within keyframes: "" ""
+a cycle through a function ends: true
+no cycle: "5px" "5px"

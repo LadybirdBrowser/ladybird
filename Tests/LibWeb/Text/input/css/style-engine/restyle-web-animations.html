@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<style>
+    #box { width: 10px; height: 10px; }
+    #box.wide { height: 30px; }
+</style>
+<div id="box"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const read = (label) => println(`${label}: ${box.offsetWidth}x${box.offsetHeight} ${getComputedStyle(box).width}`);
+        internals.updateStyle();
+        const animation = box.animate([{ width: "100px" }, { width: "200px" }], { duration: 1000, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        read("animated");
+        box.classList.add("wide");
+        internals.updateStyle();
+        read("restyled under the animation");
+        animation.cancel();
+        read("canceled");
+    });
+</script>

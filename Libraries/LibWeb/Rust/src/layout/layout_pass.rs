@@ -49,7 +49,7 @@ pub(crate) struct LayoutPass<'arena> {
 /// https://drafts.csswg.org/css-anchor-position-1/#apply-a-position-option
 struct PositionOptionStyle<'pass> {
     node: Node,
-    style: super::node_data::StylePayloadsRef,
+    style: super::node_data::LayoutStyleRef,
     enclosing: Option<&'pass PositionOptionStyle<'pass>>,
 }
 
@@ -142,7 +142,7 @@ impl<'arena> LayoutPass<'arena> {
     pub(crate) fn with_position_option_style<R>(
         self,
         node: Node,
-        style: super::node_data::StylePayloadsRef,
+        style: super::node_data::LayoutStyleRef,
         run: impl for<'option> FnOnce(LayoutPass<'option>) -> R,
     ) -> R {
         let position_option_style = PositionOptionStyle {
@@ -159,7 +159,7 @@ impl<'arena> LayoutPass<'arena> {
 
     /// The style the style reads of `node` see in place of the style of its row, if any.
     #[inline]
-    fn position_option_style(&self, node: Node) -> Option<super::node_data::StylePayloadsRef> {
+    fn position_option_style(&self, node: Node) -> Option<super::node_data::LayoutStyleRef> {
         let mut position_option_style = self.position_option_styles;
         while let Some(option) = position_option_style {
             if option.node == node {
@@ -264,19 +264,9 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     #[inline]
-    pub(crate) fn style_payloads(&self, node: Node) -> &'arena FfiStylePayloads {
-        self.style_payloads_if_styled(node)
+    pub(crate) fn style_view(&self, node: Node) -> ComputedValuesView<'arena> {
+        self.computed_values_view_if_styled(node)
             .expect("styled node must publish its style container before layout")
-    }
-
-    /// The style of `node`: that of its row, or the position option it is being laid out with.
-    #[inline]
-    pub(crate) fn style_payloads_if_styled(&self, node: Node) -> Option<&'arena FfiStylePayloads> {
-        if let Some(style) = self.position_option_style(node) {
-            // SAFETY: A position option's style stays alive while a box is laid out with it.
-            return unsafe { super::node_data::style_payloads(style) };
-        }
-        self.arena.style_payloads(node)
     }
 
     pub(crate) fn replaced_content_facts(&self, node: Node) -> Option<ReplacedContentFacts> {
@@ -288,9 +278,14 @@ impl<'arena> LayoutPass<'arena> {
         self.arena.has_replaced_content_facts(node)
     }
 
+    /// The style of `node`: that of its row, or the position option it is being laid out with.
+    #[inline]
     pub(crate) fn computed_values_view_if_styled(&self, node: Node) -> Option<ComputedValuesView<'arena>> {
-        self.style_payloads_if_styled(node)
-            .map(|payloads| ComputedValuesView::new(&payloads.groups))
+        if let Some(style) = self.position_option_style(node) {
+            // SAFETY: A position option's style stays alive while a box is laid out with it.
+            return Some(unsafe { style.view() });
+        }
+        self.arena.style_view(node)
     }
 
     pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {

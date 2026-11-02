@@ -1,0 +1,14 @@
+name running: 10px "10px", child 10px 10px, 1 animations
+value-with-name running: 10px "10px", child 10px 10px, 1 animations
+name-then-value running: 10px "10px", child 10px 10px, 1 animations
+declared running: 10px "10px", child 10px 10px, 1 animations
+class running: 10px "10px", child 10px 10px, 1 animations
+undisplayed running: 10px "10px", child 10px 10px, 1 animations
+undisplayed-with-value running: 10px "10px", child 10px 10px, 1 animations
+animation-name none: 0px "", child 0px 1px, 0 animations
+a declared value and animation-name none together: 5px "", child 5px 1px, 0 animations
+a declared value after animation-name none: 5px "", child 5px 1px, 0 animations
+canceled over declared values: 5px "6px", child 5px 6px, 0 animations
+class removed: 0px "", child 0px 1px, 0 animations
+display none: 0px "", child 0px 1px, 0 animations
+display none with a declared value: 5px "", child 5px 1px, 0 animations

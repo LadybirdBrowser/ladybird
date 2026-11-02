@@ -106,13 +106,13 @@ pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> H
     HitTestFacts {
         visible_for_hit_testing: arena.paintable_row_is_populated(paintable)
             && row.dom_paint_facts() & DomPaintFact::Inert as u8 == 0
-            && style.inherited_ui().pointer_events != css_enums::pointer_events::NONE,
+            && style.pointer_events() != css_enums::pointer_events::NONE,
         has_resizer: crate::painting::chrome_geometry::has_resizer(arena, paintable),
         could_be_scrolled_horizontally: wheel_axes.horizontal,
         could_be_scrolled_vertically: wheel_axes.vertical,
         svg_hit_areas: if svg_path {
             let areas = svg_hit_areas(
-                style.inherited_ui().pointer_events,
+                style.pointer_events(),
                 style.visibility() == css_enums::visibility::VISIBLE,
                 svg.fill.kind == SVG_PAINT_NONE,
                 svg.stroke.kind == SVG_PAINT_NONE,
@@ -131,7 +131,7 @@ pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> H
             // image is the determinant for whether the image receives the event).
             // NB: The rectangular area for the image is also its bounding box.
             if svg_hit_areas(
-                style.inherited_ui().pointer_events,
+                style.pointer_events(),
                 style.visibility() == css_enums::visibility::VISIBLE,
                 false,
                 false,
@@ -142,7 +142,7 @@ pub(crate) fn hit_test_facts(arena: &impl PaintRead, paintable: NodeSlotId) -> H
                 0
             }
         } else if row.kind() == NodeKind::SVGGraphicsBox
-            && style.inherited_ui().pointer_events == css_enums::pointer_events::BOUNDING_BOX
+            && style.pointer_events() == css_enums::pointer_events::BOUNDING_BOX
         {
             svg_hit_area::BOUNDING_BOX
         } else {
@@ -568,7 +568,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             return false;
         };
         if style.visibility() != css_enums::visibility::VISIBLE
-            || style.inherited_ui().pointer_events == css_enums::pointer_events::NONE
+            || style.pointer_events() == css_enums::pointer_events::NONE
         {
             return false;
         }
@@ -587,7 +587,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let parent_style = self.source.node_style_if_live(parent)?;
         if parent_style.visibility() != css_enums::visibility::VISIBLE
             || parent_style.effects().opacity == 0.0
-            || parent_style.inherited_ui().pointer_events == css_enums::pointer_events::NONE
+            || parent_style.pointer_events() == css_enums::pointer_events::NONE
             || row.dom_paint_facts() & DomPaintFact::Inert as u8 != 0
         {
             return None;

@@ -1,0 +1,5 @@
+shown: 1
+hidden 1: 0
+revealed 1: 1
+hidden 2: 0
+revealed 2: 1

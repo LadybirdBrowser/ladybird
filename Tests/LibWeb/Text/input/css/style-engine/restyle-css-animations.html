@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<style>
+    @keyframes grow { from { width: 100px; } to { width: 200px; } }
+    @keyframes shrink { from { width: 50px; } to { width: 10px; } }
+    #box { width: 10px; height: 10px; }
+    #box.grow { animation: grow 1s linear paused; }
+    #box.shrink { animation-name: shrink; }
+</style>
+<div id="box"></div>
+<div id="host"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const box = document.getElementById("box");
+        const read = (element, label) => println(`${label}: ${element.offsetWidth} ${getComputedStyle(element).width}`);
+        const animations = (element) => element.getAnimations().map(animation => `${animation.constructor.name}(${animation.animationName})`).join(", ") || "none";
+        internals.updateStyle();
+        read(box, "before");
+        box.classList.add("grow");
+        internals.updateStyle();
+        println(`started: ${animations(box)}`);
+        box.getAnimations()[0].currentTime = 500;
+        read(box, "halfway");
+        // Naming other keyframes replaces the animation.
+        box.classList.add("shrink");
+        internals.updateStyle();
+        println(`renamed: ${animations(box)}`);
+        box.getAnimations()[0].currentTime = 500;
+        read(box, "renamed halfway");
+        box.classList.remove("grow", "shrink");
+        internals.updateStyle();
+        println(`removed: ${animations(box)}`);
+        read(box, "removed");
+
+        // An animation-name a shadow tree's sheet declares names the shadow tree's @keyframes.
+        const root = document.getElementById("host").attachShadow({ mode: "open" });
+        root.innerHTML = `<style>
+            @keyframes grow { from { width: 300px; } to { width: 400px; } }
+            div { height: 10px; animation: grow 1s linear paused; }
+        </style><div></div>`;
+        const inner = root.querySelector("div");
+        internals.updateStyle();
+        println(`shadow: ${animations(inner)}`);
+        inner.getAnimations()[0].currentTime = 500;
+        read(inner, "shadow halfway");
+    });
+</script>

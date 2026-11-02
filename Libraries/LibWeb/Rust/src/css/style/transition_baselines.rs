@@ -7,58 +7,60 @@
 //! The before-change styles a style stabilization epoch decides CSS transitions against.
 
 use super::boundary::StyleChange;
+use super::pipeline::Record;
 use super::tree::StyleNodeID;
-use super::{HashMap, RetainedState};
+use super::{HashMap, RetainedState, ViewLonghands};
 use crate::css::animated_overlay::FfiAnimatedOverlayEntry;
-use crate::css::computed_longhand_table::ComputedLonghandTable;
 use crate::css::style_value::StyleValueData;
 use smallvec::SmallVec;
+use std::sync::Arc;
 
 /// https://drafts.csswg.org/css-transitions-2/#defining-before-change-style
 /// Per transition target, by element and then pseudo-element kind, the before-change style its transitions are decided
-/// against for the rest of the style stabilization epoch: the first record named for the target. The engine keeps them
-/// pinned until the epoch commits, and the host follows every baseline it records for the engine, the commit that
-/// releases them, and every identity a transaction releases, as the engine drops a retired node's baselines, so it
-/// knows each without asking.
+/// against for the rest of the style stabilization epoch: the first record named for the target, which the baseline
+/// holds until the epoch commits. The host follows every baseline it records for the engine, the commit that releases
+/// them, and every identity a transaction releases, as the engine drops a retired node's baselines, so it knows each
+/// without asking.
 #[derive(Clone, Default)]
 pub(crate) struct TransitionBaselines {
-    baselines: HashMap<StyleNodeID, SmallVec<[(u8, u64); 1]>>,
+    /// Shared with a fork until either side writes it.
+    baselines: crate::fork::ForkShared<HashMap<StyleNodeID, SmallVec<[TargetBaseline; 1]>>>,
 }
 
+/// The baseline of a transition target, by its pseudo-element kind.
+type TargetBaseline = (u8, Arc<Record>);
+
 impl TransitionBaselines {
-    /// Keeps `style_record` as the target's baseline where it has none, answering whether it did.
-    fn insert(&mut self, node: StyleNodeID, pseudo_kind: u8, style_record: u64) -> bool {
-        let baselines = self.baselines.entry(node).or_default();
-        if baselines.iter().any(|&(kind, _)| kind == pseudo_kind) {
-            return false;
-        }
-        baselines.push((pseudo_kind, style_record));
-        true
+    /// The bytes the baselines hold on the heap.
+    pub(crate) fn heap_size(&self) -> usize {
+        use crate::heap_size::{map_bytes, small_vec_bytes};
+        map_bytes(&self.baselines) + self.baselines.values().map(small_vec_bytes).sum::<usize>()
     }
 
-    /// The baseline of the target, or 0 before a pass has recorded one.
-    pub(crate) fn get(&self, node: StyleNodeID, pseudo_kind: u8) -> u64 {
+    /// Keeps `record` as the target's baseline where it has none.
+    fn insert(&mut self, node: StyleNodeID, pseudo_kind: u8, record: &Arc<Record>) {
+        if self.get(node, pseudo_kind).is_some() {
+            return;
+        }
+        self.baselines
+            .entry(node)
+            .or_default()
+            .push((pseudo_kind, record.clone()));
+    }
+
+    /// The baseline of the target, or none before a pass has recorded one.
+    pub(crate) fn get(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<&Arc<Record>> {
         self.baselines
             .get(&node)
-            .and_then(|baselines| baselines.iter().find(|&&(kind, _)| kind == pseudo_kind))
-            .map_or(0, |&(_, style_record)| style_record)
+            .and_then(|baselines| baselines.iter().find(|(kind, _)| *kind == pseudo_kind))
+            .map(|(_, record)| record)
     }
 
-    /// Lets go of the baselines of `node`'s element and pseudo-elements, answering their records.
-    pub(crate) fn remove(&mut self, node: StyleNodeID) -> impl Iterator<Item = u64> {
-        self.baselines
-            .remove(&node)
-            .into_iter()
-            .flatten()
-            .map(|(_, style_record)| style_record)
-    }
-
-    /// Lets go of every baseline, answering their records.
-    fn take(&mut self) -> impl Iterator<Item = u64> {
-        std::mem::take(&mut self.baselines)
-            .into_values()
-            .flatten()
-            .map(|(_, style_record)| style_record)
+    /// Lets go of the baselines of `node`'s element and pseudo-elements.
+    pub(crate) fn remove(&mut self, node: StyleNodeID) {
+        if self.baselines.contains_key(&node) {
+            self.baselines.remove(&node);
+        }
     }
 
     /// Follows `change`, a write the host queued for the engine, as the engine applies it.
@@ -67,11 +69,11 @@ impl TransitionBaselines {
             StyleChange::RecordTransitionBaseline {
                 node: Some(node),
                 pseudo_kind,
-                style_record,
-            } if style_record != 0 => {
-                self.insert(node, pseudo_kind, style_record);
+                style_record: Some(ref record),
+            } => self.insert(node, pseudo_kind, record),
+            StyleChange::ReleaseTransitionBaselines if !self.baselines.is_empty() => {
+                self.baselines = Default::default();
             }
-            StyleChange::ReleaseTransitionBaselines => self.baselines.clear(),
             _ => {}
         }
     }
@@ -79,7 +81,7 @@ impl TransitionBaselines {
     /// Forgets the baselines of the nodes a transaction retired, whose identities it `released`.
     pub(crate) fn forget(&mut self, released: &[u32]) {
         for node in released.iter().filter_map(|&raw| StyleNodeID::from_raw(raw)) {
-            self.baselines.remove(&node);
+            self.remove(node);
         }
     }
 }
@@ -96,22 +98,21 @@ pub(crate) enum InheritedAnimatedValue<'a> {
 impl RetainedState {
     /// Style, layout or animation feedback can give a target a transition in any later pass of
     /// the epoch, and that transition starts from the style the target held before the epoch's
-    /// first pass. The first record named for a target is that style: it is kept, pinned, until
-    /// the epoch commits.
-    pub(crate) fn record_transition_baseline(&mut self, node: StyleNodeID, pseudo_kind: u8, style_record: u64) {
-        if style_record != 0 && self.transition_baselines.insert(node, pseudo_kind, style_record) {
-            self.computed_group_sets.pin_style_record(style_record);
-        }
+    /// first pass. The first record named for a target is that style: it is kept until the epoch
+    /// commits.
+    pub(crate) fn record_transition_baseline(&mut self, node: StyleNodeID, pseudo_kind: u8, record: Arc<Record>) {
+        self.transition_baselines.insert(node, pseudo_kind, &record);
     }
 
-    /// The baseline of `node`'s element or pseudo-element of kind `pseudo_kind`, or 0 before a pass has recorded one.
-    pub(crate) fn transition_baseline(&self, node: StyleNodeID, pseudo_kind: u8) -> u64 {
+    /// The baseline of `node`'s element or pseudo-element of kind `pseudo_kind`, or none before a pass has recorded
+    /// one.
+    pub(crate) fn transition_baseline(&self, node: StyleNodeID, pseudo_kind: u8) -> Option<&Arc<Record>> {
         self.transition_baselines.get(node, pseudo_kind)
     }
 
     /// Whether an ancestor `node` inherits from holds animated values, which is the only way it inherits one.
     pub(crate) fn ancestors_hold_animated_values(&self, node: StyleNodeID) -> bool {
-        let mut ancestor = self.tree.inheritance_parent(node);
+        let mut ancestor = self.projection.inheritance_parent(node);
         while let Some(current) = ancestor {
             if let Some(record) = self.computed_group_sets.assigned_style_record(current)
                 && self
@@ -121,12 +122,12 @@ impl RetainedState {
             {
                 return true;
             }
-            ancestor = self.tree.inheritance_parent(current);
+            ancestor = self.projection.inheritance_parent(current);
         }
         false
     }
 
-    /// Where an inherited value of `property` in `table`, a record of `node`'s, comes from when an
+    /// Where an inherited value of `property` in `longhands`, a record of `node`'s, comes from when an
     /// ancestor animates it. A record the engine derives holds the animated value its parent passed
     /// on in its table, where a transition decides against the value beneath the animations: an
     /// animation's value, where an ancestor's animation other than a transition sets it, or else the
@@ -135,39 +136,37 @@ impl RetainedState {
     pub(crate) fn inherited_animated_value(
         &self,
         node: StyleNodeID,
-        table: &ComputedLonghandTable,
+        longhands: ViewLonghands<'_>,
         property: u16,
     ) -> Option<InheritedAnimatedValue<'_>> {
-        if !table.is_inherited(property) {
+        if !longhands.is_inherited(property) {
             return None;
         }
         let mut transition_entry = None;
-        let mut ancestor = self.tree.inheritance_parent(node);
+        let mut ancestor = self.projection.inheritance_parent(node);
         while let Some(current) = ancestor {
             let record = self.computed_group_sets.assigned_style_record(current)?;
             let view = self.computed_group_sets.style_record_view(record.raw())?;
-            let ancestor_table = view.longhand_table?;
+            let ancestor_longhands = view.longhands();
             if let Some(entry) = view.animated_overlay.and_then(|overlay| overlay.get(property)) {
                 if !entry.result_of_transition {
                     return Some(InheritedAnimatedValue::Animation(entry));
                 }
                 transition_entry = Some(entry);
             }
-            if !ancestor_table.is_inherited(property) {
+            if !ancestor_longhands.is_inherited(property) {
                 transition_entry?;
                 return Some(InheritedAnimatedValue::BeneathTransitions(
-                    ancestor_table.get(property)?.data(),
+                    ancestor_longhands.value(property)?,
                 ));
             }
-            ancestor = self.tree.inheritance_parent(current);
+            ancestor = self.projection.inheritance_parent(current);
         }
         None
     }
 
     /// The epoch committed: no later pass decides against these styles.
     pub(crate) fn release_transition_baselines(&mut self) {
-        for style_record in self.transition_baselines.take() {
-            self.computed_group_sets.unpin_style_record(style_record);
-        }
+        self.transition_baselines.baselines.clear();
     }
 }

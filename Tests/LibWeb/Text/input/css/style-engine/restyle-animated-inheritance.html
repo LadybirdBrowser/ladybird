@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    #parent { color: rgb(0, 0, 0); letter-spacing: 0px; }
+</style>
+<div id="parent"><span id="child">child</span><div><span id="grandchild">grandchild</span></div></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const grandchild = document.getElementById("grandchild");
+        const read = (label, element) => {
+            const style = getComputedStyle(element);
+            println(`${label}: ${style.color} ${style.letterSpacing}`);
+        };
+        internals.updateStyle();
+        const animation = parent.animate(
+            { color: ["rgb(0, 0, 0)", "rgb(100, 100, 100)"], letterSpacing: ["0px", "100px"] },
+            1000000
+        );
+        animation.pause();
+        animation.currentTime = 250000;
+        read("child", child);
+        read("grandchild", grandchild);
+        animation.currentTime = 500000;
+        const inserted = document.createElement("span");
+        parent.appendChild(inserted);
+        read("child after seeking", child);
+        read("grandchild after seeking", grandchild);
+        read("inserted child", inserted);
+        animation.cancel();
+        read("child after cancelling", child);
+        read("inserted child after cancelling", inserted);
+    });
+</script>

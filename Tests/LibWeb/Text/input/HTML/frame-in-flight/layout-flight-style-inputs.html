@@ -9,7 +9,7 @@
 <script>
     // Style inputs beside a frame in flight: a style sheet attached, a rule inserted, an inline style edited and an
     // attribute value a selector reads. A write that reaches the style engine in place, as a sheet write does, drains
-    // the frame's style transaction first, and the next style update takes all of them.
+    // the frame's style update first, and the next style update takes all of them.
     asyncTest(async done => {
         const result = await whileRecordingInFlight(() => {
             box.style.height = "20px";

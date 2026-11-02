@@ -5,6 +5,7 @@
  */
 
 #include <AK/Array.h>
+#include <AK/Format.h>
 #include <AK/ScopeGuard.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
@@ -27,129 +28,6 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 
 namespace Web::DOM {
-
-// Describes the node a style node names, for the panic of a layout update that ran out of passes: the node and its
-// flat tree ancestors, each with whether it is styled and the display of its box, what the style engine knows of it,
-// and the marks and attributes that bear on whether it can be styled, as a NUL-terminated ASCII string in the buffer,
-// which the panic's message quotes.
-static void describe_node_for_bound_failure(Document& document, Layout::BegunRead const& read, u32 style_node, Bytes buffer)
-{
-    StringBuilder builder;
-    GC::Ptr<Node> node;
-    if (style_node)
-        node = document.style_computer().node_for_style_node(CSS::StyleNodeID { style_node });
-    if (!node) {
-        builder.append("none"sv);
-    } else {
-        auto const* engine_host = document.style_computer().style_engine().host();
-        int depth = 0;
-        for (Node* current = node.ptr(); current && depth < 6; current = current->flat_tree_parent(), ++depth) {
-            if (depth)
-                builder.append(" < "sv);
-            auto* element = as_if<Element>(*current);
-            if (!element) {
-                if (current->is_document())
-                    builder.append("document"sv);
-                else if (current->is_text())
-                    builder.append("#text"sv);
-                else
-                    builder.append("node"sv);
-                continue;
-            }
-            builder.appendff("{}", element->local_name());
-            if (element->id().has_value())
-                builder.appendff("#{}", element->id().value());
-            for (auto const& class_name : element->class_names())
-                builder.appendff(".{}", class_name);
-            if (!element->has_style())
-                builder.append("{unstyled}"sv);
-            else if (auto const* layout_node = element->unsafe_layout_node(read))
-                builder.appendff("{{{}}}", layout_node->display().to_string());
-            else
-                builder.append("{no box}"sv);
-            // The DOM-side marks that bear on styling the element, and the engine's view of it.
-            builder.append('[');
-            if (element->style_arrival_pending())
-                builder.append("arrival-pending,"sv);
-            if (element->child_style_arrivals_wait())
-                builder.append("children-wait,"sv);
-            if (element->descendant_style_arrival_pending())
-                builder.append("descendant-pending,"sv);
-            if (is<ShadowRoot>(element->root()))
-                builder.append("in-shadow,"sv);
-            if (element->has_assigned_slot())
-                builder.append("slotted,"sv);
-            if (element->style_node_id() == 0) {
-                builder.append("no-style-node"sv);
-            } else {
-                auto facts = CSS::StyleEngineFFI::style_engine_bound_failure_node_facts(engine_host, &read, element->style_node_id().value());
-                static constexpr Array displays { "-"sv, "none"sv, "contents"sv, "box"sv };
-                static constexpr Array answers { "record"sv, "absent"sv, "refused"sv, "suspended"sv, "awaits-parent"sv };
-                builder.appendff("engine:{},{},{},demand:{}", facts.is_live ? "live"sv : "dead"sv, facts.has_published_record ? "record"sv : "no-record"sv, displays[min<size_t>(facts.published_display, 3)], answers[min<size_t>(facts.read_demand_answer, 4)]);
-                if (facts.owes_style_input)
-                    builder.append(",owes-input"sv);
-                if (facts.ancestor_owes_style_input)
-                    builder.append(",ancestor-owes-input"sv);
-                // The record the engine holds the node on against the one the element holds, the environment the
-                // engine holds for it, whether its record has a cascade state, and the derived records the host
-                // has not taken.
-                builder.appendff(",rec:{}/{},env:{},cs:{}", facts.assigned_record, element->style_record_identity().value(), facts.environment, facts.has_cascade_state ? 1 : 0);
-                if (facts.pending_records)
-                    builder.appendff(",pending:{}({}>{})", facts.pending_records, facts.pending_old_record, facts.pending_new_record);
-                auto* flat_tree_parent_element = element->flat_tree_parent_element();
-                u32 flat_tree_parent_style_node = flat_tree_parent_element ? flat_tree_parent_element->style_node_id().value() : 0;
-                if (facts.inheritance_parent != flat_tree_parent_style_node || facts.flat_tree_parent != flat_tree_parent_style_node)
-                    builder.appendff(",engine-parents:{}/{},dom-parent:{}", facts.inheritance_parent, facts.flat_tree_parent, flat_tree_parent_style_node);
-            }
-            builder.append(']');
-            if (depth == 0) {
-                if (auto style = element->get_attribute(HTML::AttributeNames::style); style.has_value())
-                    builder.appendff(" style=\"{:.60}\"", style.value());
-                for (auto const& name : { HTML::AttributeNames::hidden, HTML::AttributeNames::popover, HTML::AttributeNames::slot }) {
-                    if (element->has_attribute(name))
-                        builder.appendff(" {}", name);
-                }
-                // What one more targeted style update of the element answers now, with the engine's trace of the
-                // update and the engine counters the update moved.
-                auto& style_engine = document.style_computer().style_engine();
-                Vector<u64> counters_before;
-                for (size_t index = 0;; ++index) {
-                    StringView name;
-                    u64 value = 0;
-                    if (!style_engine.counter(read, index, name, value))
-                        break;
-                    counters_before.append(value);
-                }
-                CSS::StyleEngineFFI::style_engine_begin_bound_failure_trace(engine_host);
-                bool styled = document.update_style_for_element(AbstractElement { *element });
-                Array<u8, 512> trace_buffer;
-                auto trace_length = CSS::StyleEngineFFI::style_engine_end_bound_failure_trace(engine_host, trace_buffer.span());
-                builder.appendff(" targeted-update:{} trace:[{}] counters:[", styled ? "styled"sv : "unstyled"sv, StringView { reinterpret_cast<char const*>(trace_buffer.data()), trace_length });
-                bool first_counter = true;
-                for (size_t index = 0; index < counters_before.size(); ++index) {
-                    StringView name;
-                    u64 value = 0;
-                    if (!style_engine.counter(read, index, name, value))
-                        break;
-                    if (value == counters_before[index])
-                        continue;
-                    // Only the counters about deriving records and answering demands: a targeted update moves dozens
-                    // of others, which would crowd these out of the report.
-                    if (!name.contains("engineComputedRecord"sv) && !name.contains("Demand"sv) && !name.contains("Bail"sv) && !name.contains("Abandon"sv))
-                        continue;
-                    auto delta = static_cast<i64>(value) - static_cast<i64>(counters_before[index]);
-                    builder.appendff("{}{}{}{}", first_counter ? ""sv : ","sv, name, delta > 0 ? "+"sv : ""sv, delta);
-                    first_counter = false;
-                }
-                builder.append(']');
-            }
-        }
-    }
-    auto text = builder.string_view();
-    auto length = min(text.length(), buffer.size() - 1);
-    memcpy(buffer.data(), text.characters_without_null_termination(), length);
-    buffer[length] = 0;
-}
 
 // The document-side steps of the layout update, which the Rust loop drives through this table.
 Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callbacks()
@@ -209,27 +87,22 @@ Layout::RustFFI::FfiLayoutUpdateHostCallbacks Document::layout_update_host_callb
         .after_layout_commit = [](void* context, Layout::BegunRead const* read, bool layout_tree_changed) { static_cast<Document*>(context)->after_layout_commit(*read, layout_tree_changed ? LayoutTreeChanged::Yes : LayoutTreeChanged::No); },
         .note_full_layout_performed = [](void* context) { static_cast<Document*>(context)->style_invalidation_counters().relayouts_performed++; },
         .evaluate_pending_container_queries = [](void* context, Layout::BegunRead const* read) { static_cast<Document*>(context)->style_computer().style_engine().evaluate_size_containers_needing_evaluation_after_layout(*read); },
-        .record_stabilization_bound_failure = [](void* context, Layout::BegunRead const* read, u32 last_unstyled_element, u32 last_rebuild_request) -> Layout::RustFFI::FfiStabilizationBoundFailureHostFacts {
+        .record_stabilization_bound_failure = [](void* context, Layout::BegunRead const* read) -> Layout::RustFFI::FfiStabilizationBoundFailureHostFacts {
             auto& document = *static_cast<Document*>(context);
             ++document.m_style_invalidation_counters.style_stabilization_bound_failures;
             auto navigable = document.navigable();
-            Layout::RustFFI::FfiStabilizationBoundFailureHostFacts facts {
+            return {
                 .document_is_top_level = navigable && navigable->is_top_level_traversable(),
                 .needs_animated_style_update = document.m_needs_animated_style_update,
-                .has_pending_style_transaction = document.style_computer().style_engine().has_pending_transaction(*read),
-                .has_flown_style_transaction = document.has_flown_style_transaction(),
+                .has_pending_style_update = document.style_computer().style_engine().has_pending_transaction(*read),
+                .has_flown_style_update = document.has_flown_style_update(),
                 .size_containers_await_evaluation = document.has_size_containers_needing_evaluation_after_layout(*read),
                 .list_items_await_renumbering = !document.m_list_owners_pending_item_renumber.is_empty(),
                 .top_layer_zone_rebuild_pending = document.m_top_layer_needs_layout_zone_rebuild,
                 .top_layer_membership_changes_pending = !document.m_elements_with_pending_top_layer_membership_change.is_empty(),
                 .document_needs_layout_tree_update = document.needs_layout_tree_update(),
                 .document_child_needs_layout_tree_update = document.child_needs_layout_tree_update(),
-                .last_unstyled_element = {},
-                .last_rebuild_request = {},
-            };
-            describe_node_for_bound_failure(document, *read, last_unstyled_element, { facts.last_unstyled_element, sizeof(facts.last_unstyled_element) });
-            describe_node_for_bound_failure(document, *read, last_rebuild_request, { facts.last_rebuild_request, sizeof(facts.last_rebuild_request) });
-            return facts; },
+            }; },
         .attach_style_resources = [](void* context, Layout::BegunRead const* read, Compositing::RustFFI::NodeSlotId slot, bool owns_content_replacement_image, Layout::RustFFI::FfiStyleImageFacts images) {
             auto& document = *static_cast<Document*>(context);
             if (Layout::attach_owed_style_resources(*read, document, slot, owns_content_replacement_image, images))
@@ -261,7 +134,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
 
     // The update's waits for the render state are one read, which takes a frame in flight in.
     Layout::ForcedReadScope read { style_computer().style_engine().render_document() };
-    drain_flown_style_transaction(read);
+    drain_flown_style_update(read);
 
     // An image box that owns its image's provider is handed it once the layout update that built the box is over, and
     // the update lays it out without an image. If the image was already there, the box lays out again with it before
@@ -282,26 +155,6 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
     //         document no such query asked about has nothing to snapshot, which is known without asking for layout.
     while (m_scroll_state_query_containers.has_containers() && layout_is_up_to_date() && m_scroll_state_query_containers.snapshot_post_layout_state(read, *this, CSS::ScrollStateQueryContainers::Snapshot::NewContainersOnly))
         update_style_and_layout();
-}
-
-// The first round of the rendering update's layout reads the document's facts as they are before its style flies, and
-// runs after the style in the frame. List items that wait to be renumbered and top layer work are the layout update's
-// to do first, so nothing is sealed while either waits.
-void Document::seal_first_layout_round(Layout::BegunRead const& read)
-{
-    if (!may_seal_first_layout_round())
-        return;
-    update_highlight_states_if_needed(read);
-    auto inputs = first_layout_round_inputs();
-    Layout::RustFFI::render_state_seal_first_layout_round(m_layout_node_arena->host(), &read, &inputs);
-}
-
-bool Document::may_seal_first_layout_round() const
-{
-    auto navigable = this->navigable();
-    if (!navigable || navigable->active_document().ptr() != this || !m_layout_node_arena)
-        return false;
-    return m_list_owners_pending_item_renumber.is_empty() && m_elements_with_pending_top_layer_membership_change.is_empty() && !m_top_layer_needs_layout_zone_rebuild;
 }
 
 Layout::RustFFI::FfiLayoutUpdateInputs Document::first_layout_round_inputs() const

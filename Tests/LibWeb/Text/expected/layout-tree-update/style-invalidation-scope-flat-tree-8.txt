@@ -2005,13 +2005,13 @@ PASS: direct shadow child display block flow list-item -> inline | incremental t
 PRESERVED: slot fallback child display block flow list-item -> grid | fixture ancestor
 PRESERVED: slot fallback child display block flow list-item -> grid | distant sibling
 PRESERVED: slot fallback child display block flow list-item -> grid | shadow host
-RECREATED: slot fallback child display block flow list-item -> grid | shadow container
-RECREATED: slot fallback child display block flow list-item -> grid | preceding flat-tree sibling
-RECREATED: slot fallback child display block flow list-item -> grid | preceding sibling descendant
+PRESERVED: slot fallback child display block flow list-item -> grid | shadow container
+PRESERVED: slot fallback child display block flow list-item -> grid | preceding flat-tree sibling
+PRESERVED: slot fallback child display block flow list-item -> grid | preceding sibling descendant
 RECREATED: slot fallback child display block flow list-item -> grid | target
 RECREATED: slot fallback child display block flow list-item -> grid | target descendant
-RECREATED: slot fallback child display block flow list-item -> grid | following flat-tree sibling
-RECREATED: slot fallback child display block flow list-item -> grid | following sibling descendant
+PRESERVED: slot fallback child display block flow list-item -> grid | following flat-tree sibling
+PRESERVED: slot fallback child display block flow list-item -> grid | following sibling descendant
 STATS: slot fallback child display block flow list-item -> grid | rebuilt subtree roots=1, escaped=false
 PASS: slot fallback child display block flow list-item -> grid | incremental tree matches full rebuild
 PRESERVED: assigned slottable display block flow list-item -> table-header-group | fixture ancestor

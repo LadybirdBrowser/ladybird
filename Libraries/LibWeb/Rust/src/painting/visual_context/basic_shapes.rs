@@ -9,6 +9,7 @@ use crate::css::css_enums::keyword;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::css::style_value::{BasicShapeData, RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::{BorderRadiusRectPayload, PositionPayload, RadialSizePayload};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::{BorderRadii, normalize_border_radii_data};
 use crate::painting::paint_read::PaintRead;
@@ -104,7 +105,10 @@ struct RadialSizeComponent<'a> {
 }
 
 fn radial_size_components(radius: &StyleValueData) -> Vec<RadialSizeComponent<'_>> {
-    let StyleValueData::RadialSize {
+    let StyleValueData::RadialSize(radial_size_payload) = radius else {
+        unreachable!("computed basic-shape radius is a radial size value");
+    };
+    let RadialSizePayload {
         component_count,
         is_extent_0,
         extent_0,
@@ -112,10 +116,7 @@ fn radial_size_components(radius: &StyleValueData) -> Vec<RadialSizeComponent<'_
         is_extent_1,
         extent_1,
         value_1,
-    } = radius
-    else {
-        unreachable!("computed basic-shape radius is a radial size value");
-    };
+    } = &**radial_size_payload;
     let mut components = vec![RadialSizeComponent {
         is_extent: *is_extent_0,
         extent: *extent_0,
@@ -226,12 +227,13 @@ pub(crate) fn resolve_ellipse_size(
 }
 
 pub(crate) fn position_resolved(position: Option<&StyleValueData>, rect: CssPixelRect) -> CssPixelPoint {
-    let Some(StyleValueData::Position { edge_x, edge_y }) = position else {
+    let Some(StyleValueData::Position(position_payload)) = position else {
         return CssPixelPoint::new(
             rect.x + LengthPercentageRef::over(&StyleValueData::Percentage { value: 50.0 }).to_px(rect.width),
             rect.y + LengthPercentageRef::over(&StyleValueData::Percentage { value: 50.0 }).to_px(rect.height),
         );
     };
+    let PositionPayload { edge_x, edge_y } = &**position_payload;
     let offset_px = |edge: &RetainedStyleValueData, reference: CssPixels| -> CssPixels {
         let StyleValueData::Edge { offset, .. } = edge.data() else {
             unreachable!("computed position component is an edge value");
@@ -291,15 +293,15 @@ fn inset_to_path(
         CssPixels::nearest_value_for_f32(bottom_edge - top_edge),
     );
 
-    let StyleValueData::BorderRadiusRect {
+    let StyleValueData::BorderRadiusRect(border_radius_rect_payload) = border_radius.data() else {
+        unreachable!("computed inset border-radius is a border-radius rect");
+    };
+    let BorderRadiusRectPayload {
         top_left,
         top_right,
         bottom_right,
         bottom_left,
-    } = border_radius.data()
-    else {
-        unreachable!("computed inset border-radius is a border-radius rect");
-    };
+    } = &**border_radius_rect_payload;
     let radii = normalize_border_radii_data(
         inset_rect,
         reference_box,

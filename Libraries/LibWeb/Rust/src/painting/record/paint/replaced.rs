@@ -232,7 +232,7 @@ pub(crate) fn get_replaced_box_painting_area<O: Observer>(
         let zero = crate::css::css_pixels::CssPixels::from_raw(0);
         match style {
             Some(style) => {
-                let misc = style.misc_reset();
+                let misc = style.misc_layout();
                 (
                     misc.object_position_x
                         .length_percentage()
@@ -278,7 +278,7 @@ fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeS
         .source
         .node_style_if_live(paintable)
         .map_or((object_fit::FILL, image_rendering::AUTO), |style| {
-            (style.misc_reset().object_fit, style.image_rendering())
+            (style.misc_layout().object_fit, style.image_rendering())
         })
 }
 
@@ -318,7 +318,7 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
             let backdrop = recorder
                 .source
                 .node_style_if_live(paintable)
-                .map(|style| libgfx_rust::Color(style.background().background_color));
+                .map(|style| libgfx_rust::Color(style.background_color()));
             let previous = recorder.recorder.set_contrast_backdrop(backdrop);
             recorder
                 .recorder
