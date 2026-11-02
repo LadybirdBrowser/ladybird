@@ -550,11 +550,14 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         let check_capacity = self.masm.new_label();
         self.masm
             .load64(storage, &Address::new(object, offsets.object_named_properties as i32));
-        self.masm.load_effective_address(
+        // NB: Inline storage starts at one of two offsets, within the object. Heap storage is outside of it.
+        self.masm.sub64(scratch, storage, object);
+        self.masm.branch64_imm(
+            Condition::Above,
             scratch,
-            &Address::new(object, self.runtime.object_allocation.inline_storage_offset as i32),
+            i64::from(self.runtime.object_allocation.inline_storage_offset),
+            heap_storage,
         );
-        self.masm.branch64(Condition::NotEqual, storage, scratch, heap_storage);
         self.masm.load8(
             scratch,
             &Address::new(object, self.runtime.object_allocation.inline_capacity_offset as i32),

@@ -116,11 +116,11 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         // NB: The cell's fields up to the inline storage come from the
         //     template, patched with the shape and the inline capacity.
         let template_bytes = 8 * info.template.len() as u64;
-        let fields_fit = u64::from(info.inline_storage_offset) <= template_bytes
-            && info.inline_storage_offset.is_multiple_of(8)
+        let fields_fit = u64::from(info.plain_inline_storage_offset) <= template_bytes
+            && info.plain_inline_storage_offset.is_multiple_of(8)
             && info.named_properties_offset.is_multiple_of(8)
-            && info.shape_offset + 4 <= info.inline_storage_offset
-            && info.inline_capacity_offset < info.inline_storage_offset;
+            && info.shape_offset + 4 <= info.plain_inline_storage_offset
+            && info.inline_capacity_offset < info.plain_inline_storage_offset;
         let size_class = info.size_class_for(reserve).copied().filter(|_| fields_fit);
         let Some(size_class) = size_class else {
             self.masm.jump(entry);
@@ -146,7 +146,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .template
             .iter()
             .flat_map(|word| word.to_le_bytes())
-            .take(info.inline_storage_offset as usize)
+            .take(info.plain_inline_storage_offset as usize)
             .collect::<Vec<u8>>();
         let shape_offset = info.shape_offset as usize;
         image[shape_offset..shape_offset + 4].copy_from_slice(&shape.compressed().to_le_bytes());
@@ -161,6 +161,8 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         //     If it is a constant, the allocation stores it, and none of
         //     them runs; otherwise they all run.
         let initialized = self.initializations_without_gc(node);
+        self.inline_initializations
+            .extend(initialized.iter().map(|(_, initialization, _)| *initialization));
         let last_initialization = |index: u32| initialized.iter().rev().find(|(offset, _, _)| *offset == index);
         for index in 0..size_class.inline_capacity {
             let value = match last_initialization(index) {
@@ -170,7 +172,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 Some((_, _, Some(bits))) => *bits,
                 None => value::UNDEFINED,
             };
-            fields.push((info.inline_storage_offset + 8 * index, 8, value));
+            fields.push((info.plain_inline_storage_offset + 8 * index, 8, value));
         }
         let mut constant_fields = Vec::new();
         for (offset, initialization, _) in &initialized {
@@ -179,7 +181,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             };
             self.absorbed_initializations.push(*initialization);
             if last == initialization {
-                constant_fields.push((info.inline_storage_offset + 8 * offset, *bits));
+                constant_fields.push((info.plain_inline_storage_offset + 8 * offset, *bits));
             }
         }
         self.deferred_allocations
@@ -188,7 +190,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .constant_fields = constant_fields;
         self.emit_constant_fields(cell, next, &mut fields)?;
         self.masm
-            .load_effective_address(next, &at(cell, info.inline_storage_offset));
+            .load_effective_address(next, &at(cell, info.plain_inline_storage_offset));
         self.masm.store64(&at(cell, info.named_properties_offset), next);
         self.box_object(cell);
         self.masm.bind(resume);
@@ -310,14 +312,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         }
         let storage = self.allocation_temp(node, 0);
         let object = self.input(node, 0);
-        // Objects allocated in a size class keep their properties inline.
-        let inline_storage = match self.graph.node(self.graph.node(node).inputs[0]).op {
-            Op::AllocateObject { reserve, .. } => self.runtime.object_allocation.size_class_for(reserve).is_some(),
-            _ => false,
-        };
+        // NB: Objects allocated in a size class keep their properties inline, until their first indexed property. A
+        //     computed key of the literal can give them one, but only further down than right after the allocation.
+        let inline_storage = self.inline_initializations.contains(&node);
         self.emit_unbox_cell(storage, object);
         let slot = if inline_storage {
-            let offset = u64::from(self.runtime.object_allocation.inline_storage_offset) + 8 * u64::from(offset);
+            let offset = u64::from(self.runtime.object_allocation.plain_inline_storage_offset) + 8 * u64::from(offset);
             Address::new(storage, super::checked_i32(offset)?)
         } else {
             let storage_field = Address::new(storage, self.runtime.offsets.object_named_properties as i32);

@@ -113,6 +113,7 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         shape_offset: offset(core::mem::offset_of!(Object, shape)),
         named_properties_offset: offset(core::mem::offset_of!(Object, named_properties)),
         inline_storage_offset: offset(core::mem::offset_of!(Object, inline_named_storage)),
+        plain_inline_storage_offset: offset(core::mem::offset_of!(Object, indexed_elements)),
         inline_capacity_offset: offset(core::mem::offset_of!(Object, inline_named_capacity)),
         slow_path: libjs_jit_allocate_object as *const () as u64,
         ..ObjectAllocationInfo::default()

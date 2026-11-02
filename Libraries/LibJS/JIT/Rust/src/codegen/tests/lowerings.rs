@@ -290,6 +290,7 @@ fn marker_runtime() -> RuntimeInfo {
     runtime.offsets.object_shape = 48;
     runtime.offsets.object_named_properties = 56;
     runtime.object_allocation.inline_storage_offset = 64;
+    runtime.object_allocation.plain_inline_storage_offset = 64;
     runtime.object_allocation.inline_capacity_offset = 40;
     runtime.offsets.shape_dictionary_generation = 84;
     runtime.object_allocation.template = vec![PLAIN_OBJECT_CLASS];

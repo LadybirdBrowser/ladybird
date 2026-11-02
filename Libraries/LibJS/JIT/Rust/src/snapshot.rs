@@ -1285,9 +1285,9 @@ pub struct DynamicCallLayout {
 /// 6. Copy `template` (`8 * template.len()` bytes, the start of every cell) to
 ///    `cell`. Then store `inline_capacity` (a u8) at
 ///    `cell + inline_capacity_offset`, the shape at `cell + shape_offset`,
-///    `cell + inline_storage_offset` (the address) at
+///    `cell + plain_inline_storage_offset` (the address) at
 ///    `cell + named_properties_offset`, and at
-///    `cell + inline_storage_offset + 8 * index` the value of each named
+///    `cell + plain_inline_storage_offset + 8 * index` the value of each named
 ///    property (in shape order; NaN-boxed `undefined` for the ones not
 ///    initialized yet) followed by NaN-boxed `undefined` up to
 ///    `inline_capacity` values.
@@ -1322,7 +1322,10 @@ pub struct ObjectAllocationInfo {
     pub template: Vec<u64>,
     pub shape_offset: u32,
     pub named_properties_offset: u32,
+    /// Where the inline named storage of the objects of other classes starts.
     pub inline_storage_offset: u32,
+    /// Where the inline named storage of plain objects starts, which is below `inline_storage_offset`.
+    pub plain_inline_storage_offset: u32,
     /// `Object::inline_named_capacity` (u8).
     pub inline_capacity_offset: u32,
     /// `Object* libjs_jit_allocate_object(VM*, Shape*, u32 reserve)`.
