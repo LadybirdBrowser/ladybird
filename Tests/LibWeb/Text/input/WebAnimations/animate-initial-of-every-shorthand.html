@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        // The initial value of a keyframe is the one of its property, which a shorthand has too. The name `offset` is that of
+        // the keyframe offset here.
+        const shorthands = [
+            "all", "animation", "animation-range", "background", "background-position", "border",
+            "border-block", "border-block-color", "border-block-end", "border-block-start",
+            "border-block-style", "border-block-width", "border-bottom", "border-color", "border-image",
+            "border-inline", "border-inline-color", "border-inline-end", "border-inline-start",
+            "border-inline-style", "border-inline-width", "border-left", "border-radius", "border-right",
+            "border-style", "border-top", "border-width", "column-rule", "columns", "contain-intrinsic-size",
+            "container", "corner-block-end-shape", "corner-block-start-shape", "corner-bottom-shape",
+            "corner-inline-end-shape", "corner-inline-start-shape", "corner-left-shape", "corner-right-shape",
+            "corner-shape", "corner-top-shape", "flex", "flex-flow", "font", "font-synthesis", "font-variant",
+            "gap", "grid", "grid-area", "grid-column", "grid-row", "grid-template", "inset", "inset-block",
+            "inset-inline", "line-clamp", "list-style", "margin", "margin-block", "margin-inline", "mask",
+            "outline", "overflow", "overflow-clip-margin", "overflow-clip-margin-block",
+            "overflow-clip-margin-inline", "overscroll-behavior", "padding", "padding-block",
+            "padding-inline", "page-break-after", "page-break-before", "page-break-inside", "place-content",
+            "place-items", "place-self", "position-try", "scroll-margin", "scroll-margin-block",
+            "scroll-margin-inline", "scroll-padding", "scroll-padding-block", "scroll-padding-inline",
+            "scroll-timeline", "text-decoration", "text-wrap", "transition", "view-timeline", "white-space",
+        ];
+        for (const shorthand of shorthands) {
+            const property = shorthand.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+            target.animate([{ [property]: "initial" }, { [property]: "initial" }], 1000).cancel();
+        }
+        println(`animated the initial value of ${shorthands.length} shorthands`);
+    });
+</script>
