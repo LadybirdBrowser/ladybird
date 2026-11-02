@@ -2263,6 +2263,7 @@ void Document::begin_style_stabilization_epoch()
     m_style_stabilization_pass_count = 0;
     m_style_stabilization_has_style_reactions = false;
     m_animated_custom_property_changes_in_stabilization_epoch.clear();
+    m_animated_custom_property_moves_in_stabilization_epoch = 0;
     ++m_style_invalidation_counters.style_stabilization_epochs;
     ++m_transition_generation;
 }
@@ -2284,9 +2285,11 @@ void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
     ++m_style_invalidation_counters.exact_stabilization_passes;
 
     // Size-query and style-reaction dependencies are acyclic, so a coherent pass settles at
-    // least one more connected element. Include inner StyleEngine transactions in the same exact
-    // bound as layout feedback so neither feedback path can spin independently of the epoch.
-    auto const exact_stabilization_round_limit = static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read)) + 1;
+    // least one more connected element, or moves the animated custom properties of one that reads
+    // another of them, which an element does a limited number of times in an epoch. Include inner
+    // StyleEngine transactions in the same exact bound as layout feedback so neither feedback path
+    // can spin independently of the epoch.
+    auto const exact_stabilization_round_limit = static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read)) + m_animated_custom_property_moves_in_stabilization_epoch + 1;
     if (m_style_stabilization_pass_count > ordinary_stabilization_round_limit + exact_stabilization_round_limit) {
         ++m_style_invalidation_counters.style_stabilization_bound_failures;
         VERIFY_NOT_REACHED();
@@ -2295,6 +2298,7 @@ void Document::record_style_stabilization_pass(Layout::BegunRead const& read)
 
 u64 Document::note_animated_custom_properties_moved_in_stabilization_epoch(CSS::StyleNodeID style_node)
 {
+    ++m_animated_custom_property_moves_in_stabilization_epoch;
     return ++m_animated_custom_property_changes_in_stabilization_epoch.ensure(style_node);
 }
 
@@ -2303,7 +2307,7 @@ bool Document::is_at_style_stabilization_bound(Layout::BegunRead const& read) co
     // NB: A style update runs at most this many passes.
     constexpr u64 passes_of_a_style_update = 9;
     constexpr u64 ordinary_stabilization_round_limit = 8;
-    return m_style_stabilization_pass_count + passes_of_a_style_update > ordinary_stabilization_round_limit + static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read));
+    return m_style_stabilization_pass_count + passes_of_a_style_update > ordinary_stabilization_round_limit + static_cast<u64>(CSS::StyleEngineFFI::style_engine_connected_element_count(style_computer().style_engine().host(), &read)) + m_animated_custom_property_moves_in_stabilization_epoch;
 }
 
 void Document::end_style_stabilization_epoch()

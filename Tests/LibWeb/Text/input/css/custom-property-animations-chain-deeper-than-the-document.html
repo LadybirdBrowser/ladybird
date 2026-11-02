@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<body>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        // Two values of the chain on each element keep the style passes going for twice as long as the document has
+        // elements, so a read of the last element below it finds its input pending if it stops at the number of elements.
+        const elements = 40;
+        const style = document.createElement("style");
+        let parent = document.body;
+        let level = 0;
+        for (let index = 0; index < elements; ++index) {
+            const animations = [];
+            for (let value = 0; value < 2; ++value) {
+                ++level;
+                CSS.registerProperty({ name: `--level${level}`, syntax: "<length>", inherits: true, initialValue: "0px" });
+                const previous = level === 1 ? "0px" : `var(--level${level - 1})`;
+                const declaration = `--level${level}: calc(${previous} + 1px)`;
+                style.textContent += `@keyframes level${level} { from { ${declaration} } to { ${declaration} } }\n`;
+                animations.push(`level${level} 1000s linear both`);
+            }
+            const element = document.createElement("div");
+            element.style.animation = animations.join(", ");
+            parent.append(element);
+            parent = element;
+        }
+        document.head.append(style);
+        const name = `--level${level}`;
+        println(`first read of a pseudo-element: ${getComputedStyle(parent, "::first-line").getPropertyValue(name)}`);
+        println(`the element: ${getComputedStyle(parent).getPropertyValue(name)}`);
+    });
+</script>

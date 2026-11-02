@@ -1,0 +1,2 @@
+first read of a pseudo-element: 40px
+the element: 40px
