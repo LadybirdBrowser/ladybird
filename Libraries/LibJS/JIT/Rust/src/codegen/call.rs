@@ -688,10 +688,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 .store64(&field(offsets.execution_context_lexical_environment), temp);
             self.masm
                 .store64(&field(offsets.execution_context_variable_environment), temp);
-            self.emit_load_nullable_compressed_cell(
-                temp,
-                &Address::new(aux, offsets.ecmascript_function_private_environment as i32),
-            );
+            self.emit_load_function_private_environment(temp, aux);
             self.masm
                 .store64(&field(offsets.execution_context_private_environment), temp);
         }
@@ -1622,10 +1619,12 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm
             .store64(&field(offsets.execution_context_function), function_register);
         let function_field = |offset: u32| Address::new(function_register, offset as i32);
+        let shared_data_field = function_field(self.runtime.dynamic_calls.ecmascript_function_shared_data);
         for word in [0, 8] {
+            self.emit_load_compressed_cell(temp, &shared_data_field);
             self.masm.load64(
                 temp,
-                &function_field(offsets.ecmascript_function_script_or_module + word),
+                &Address::new(temp, (offsets.shared_function_script_or_module + word) as i32),
             );
             self.masm
                 .store64(&field(offsets.execution_context_script_or_module + word), temp);
@@ -1636,7 +1635,7 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
             .store64(&field(offsets.execution_context_lexical_environment), temp);
         self.masm
             .store64(&field(offsets.execution_context_variable_environment), temp);
-        self.emit_load_nullable_compressed_cell(temp, &function_field(offsets.ecmascript_function_private_environment));
+        self.emit_load_function_private_environment(temp, function_register);
         self.masm
             .store64(&field(offsets.execution_context_private_environment), temp);
         // NB: Frames get their id when the debugger first needs it.

@@ -1543,10 +1543,16 @@ pub struct RuntimeOffsets {
     pub execution_context_runs_jit_code: u32,
     /// `EcmascriptFunctionObject::environment` (cell pointer).
     pub ecmascript_function_environment: u32,
-    /// `EcmascriptFunctionObject::private_environment` (cell pointer).
+    /// `EcmascriptFunctionObjectWithRareData::private_environment` (cell
+    /// pointer), of functions with the flag for it.
     pub ecmascript_function_private_environment: u32,
-    /// `EcmascriptFunctionObject::script_or_module` (16 bytes, as in `ExecutionContext`).
-    pub ecmascript_function_script_or_module: u32,
+    /// `SharedFunctionInstanceData::script_or_module` (16 bytes, as in `ExecutionContext`).
+    pub shared_function_script_or_module: u32,
+    /// `Object::function_bits` (u8).
+    pub object_function_bits: u32,
+    /// The bit of `Object::function_bits` of an ECMAScript function that has
+    /// a private environment field.
+    pub ecmascript_function_flag_has_rare_data: u32,
     /// `VmHead::execution_generation` (u32).
     pub vm_execution_generation: u32,
 }
@@ -1745,10 +1751,9 @@ pub struct RuntimeLayout {
     /// The address of the VM's array of the strings of the 128 ASCII
     /// characters (cell pointers), or 0 for code without one.
     pub single_ascii_character_strings: u64,
-    /// `FunctionObject::builtin` (u8), the builtin a function is, if
-    /// `FunctionObject::has_builtin` (bool).
+    /// `Object::function_bits` (u8): the builtin a function is plus one, if
+    /// it is one.
     pub function_object_builtin: u32,
-    pub function_object_has_builtin: u32,
     /// `Builtin` values.
     pub builtin_string_prototype_char_code_at: u8,
     pub builtin_string_prototype_char_at: u8,

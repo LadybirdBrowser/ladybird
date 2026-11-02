@@ -133,6 +133,9 @@ const PARAGRAPH_SEPARATOR: u16 = 0x2029;
 #[derive(Trace)]
 pub struct RegExpObject {
     base: Object,
+    /// OPTIMIZATION: The named property of most RegExp objects is "lastIndex".
+    #[gc(untraced = "the object traces its inline named storage")]
+    inline_named_storage: [Cell<Value>; 1],
     #[gc(untraced)]
     pattern: RefCell<Utf16String>,
     #[gc(untraced)]
@@ -148,7 +151,8 @@ pub struct RegExpObject {
     cached_regex: RefCell<Option<Rc<EcmaScriptRegex>>>,
 }
 
-const _: () = assert!(size_of::<RegExpObject>() == 104);
+const _: () = assert!(size_of::<RegExpObject>() == 96);
+const _: () = assert!(core::mem::offset_of!(RegExpObject, inline_named_storage) == size_of::<Object>());
 
 static REGEXP_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     initialize: RegExpObject::initialize,
@@ -197,7 +201,12 @@ impl RegExpObject {
         let shape = realm.intrinsics().new_regexp_object_shape(vm);
         let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
         let regexp_object = allocate_object(vm, |_| RegExpObject {
-            base: Object::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No),
+            base: Self::with_inline_named_storage(Object::new_with_shape(
+                Self::CLASS,
+                shape,
+                MayInterfereWithIndexedPropertyAccess::No,
+            )),
+            inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; 1],
             pattern: RefCell::new(pattern),
             flags: RefCell::new(flags),
             flag_bits: Cell::new(flag_bits),
@@ -209,10 +218,21 @@ impl RegExpObject {
         regexp_object
     }
 
+    fn with_inline_named_storage(base: Object) -> Object {
+        base.inline_named_capacity.set(1);
+        base
+    }
+
     fn new(vm: &Vm, pattern: Utf16String, flags: Utf16String, prototype: Gc<Object>) -> RegExpObject {
         let flag_bits = to_flag_bits(Utf16View::of_string(&flags));
         RegExpObject {
-            base: Object::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No),
+            base: Self::with_inline_named_storage(Object::new_with_prototype(
+                vm,
+                Self::CLASS,
+                prototype,
+                MayInterfereWithIndexedPropertyAccess::No,
+            )),
+            inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; 1],
             pattern: RefCell::new(pattern),
             flags: RefCell::new(flags),
             flag_bits: Cell::new(flag_bits),

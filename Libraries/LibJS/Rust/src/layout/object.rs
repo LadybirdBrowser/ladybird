@@ -46,8 +46,6 @@ pub enum IndexedStorageKind {
 /// Packed and holey indexed storage keeps its capacity in a header right in front of the first element.
 pub const INDEXED_ELEMENTS_HEADER_SIZE: usize = 8;
 
-pub const INLINE_NAMED_STORAGE_CAPACITY: usize = 2;
-
 /// An object starts with the shape and the array-like size in the first word of its cell header, which LibGC leaves
 /// to the cell, followed by the rest of the header.
 #[repr(C)]
@@ -59,13 +57,16 @@ pub struct Object {
     pub kind: CellKind,
     pub indexed_storage_kind: Cell<IndexedStorageKind>,
     pub flags: Cell<u16>,
-    /// How many named property values the inline storage holds. It ends the object, and only plain objects and
-    /// mapped arguments objects have cells with room for more than INLINE_NAMED_STORAGE_CAPACITY.
+    /// How many named property values the inline storage holds. It comes right after the object, in the cells of the
+    /// classes that make room for it.
     pub inline_named_capacity: Cell<u8>,
+    /// What a function object keeps in the object: its builtin plus one (zero for none), or ecmascript_function_flags
+    /// for an ECMAScript function object, which have the highest bit set. Zero for other objects.
+    pub function_bits: Cell<u8>,
     /// Points at `inline_named_storage` until the object needs more room.
     pub named_properties: Cell<*mut Value>,
     pub indexed_elements: Cell<*mut Value>,
-    pub inline_named_storage: [Cell<Value>; INLINE_NAMED_STORAGE_CAPACITY],
+    pub inline_named_storage: [Cell<Value>; 0],
 }
 
 const _: () = {
@@ -75,11 +76,8 @@ const _: () = {
     assert!(offset_of!(Object, kind) == offset_of!(CellHeader, kind));
 };
 
-const _: () = assert!(size_of::<Object>() == 48);
-const _: () = assert!(
-    core::mem::offset_of!(Object, inline_named_storage) + INLINE_NAMED_STORAGE_CAPACITY * size_of::<Value>()
-        == size_of::<Object>()
-);
+const _: () = assert!(size_of::<Object>() == 32);
+const _: () = assert!(core::mem::offset_of!(Object, inline_named_storage) == size_of::<Object>());
 
 /// Mirrors the Variant<Auto, Detached, size_t> the interpreter reads: the length first, then the alternative's index.
 #[repr(C)]

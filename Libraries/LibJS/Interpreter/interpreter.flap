@@ -3904,11 +3904,14 @@ handler Call(
     frame.function = function;
     frame.realm = realm;
     let lexical_environment = ecmascript_function.environment;
-    let private_environment = ecmascript_function.private_environment;
     assert(lexical_environment != 0);
     frame.lexical_environment = lexical_environment;
     frame.variable_environment = lexical_environment;
-    frame.private_environment = private_environment;
+    frame.private_environment = null;
+    let function_bits = function.function_bits;
+    if function_bits has ECMASCRIPT_FUNCTION_FLAG_HAS_RARE_DATA {
+        frame.private_environment = ecmascript_function.private_environment;
+    }
     frame.this_value = receiver;
     frame.executable = executable_pointer;
     let empty_tag: Value = Value<Empty>;
@@ -3917,7 +3920,8 @@ handler Call(
     frame.this_value_register = receiver;
     frame.return_value = empty_tag;
     frame.saved_lexical_environment = empty_tag;
-    frame.script_or_module = ecmascript_function.script_or_module;
+    let frame_shared_data = ecmascript_function.shared_data;
+    frame.script_or_module = frame_shared_data.script_or_module;
     frame.program_counter = 0;
     let frame_id_vm = current_vm();
     let frame_id = frame_id_vm.interpreter_stack_next_frame_id;

@@ -42,9 +42,9 @@ use crate::layout::environment::{
 use crate::layout::executable::ExecutableHead;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{
-    CallEnvironmentTemplate, EcmascriptFunctionObject, FUNCTION_ENVIRONMENT_WORDS, FunctionObject,
-    NATIVE_FUNCTION_TABLE_INDEX_MASK, NativeFunction, NativeFunctionTableEntry, SharedFunctionInstanceData,
-    asm_call_metadata,
+    CallEnvironmentTemplate, EcmascriptFunctionObject, EcmascriptFunctionObjectWithRareData,
+    FUNCTION_ENVIRONMENT_WORDS, NATIVE_FUNCTION_TABLE_INDEX_MASK, NativeFunction, NativeFunctionTableEntry,
+    SharedFunctionInstanceData, asm_call_metadata, ecmascript_function_flags,
 };
 use crate::layout::object::{
     INDEXED_ELEMENTS_HEADER_SIZE, IndexedStorageKind, Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase,
@@ -164,8 +164,13 @@ fn runtime_offsets() -> RuntimeOffsets {
         execution_context_returns_to_native_caller: offset(offset_of!(ExecutionContext, returns_to_native_caller)),
         execution_context_runs_jit_code: offset(offset_of!(ExecutionContext, runs_jit_code)),
         ecmascript_function_environment: offset(offset_of!(EcmascriptFunctionObject, environment)),
-        ecmascript_function_private_environment: offset(offset_of!(EcmascriptFunctionObject, private_environment)),
-        ecmascript_function_script_or_module: offset(offset_of!(EcmascriptFunctionObject, script_or_module)),
+        ecmascript_function_private_environment: offset(offset_of!(
+            EcmascriptFunctionObjectWithRareData,
+            private_environment
+        )),
+        shared_function_script_or_module: offset(offset_of!(SharedFunctionInstanceData, script_or_module)),
+        object_function_bits: offset(offset_of!(Object, function_bits)),
+        ecmascript_function_flag_has_rare_data: ecmascript_function_flags::HAS_RARE_DATA.into(),
         vm_execution_generation: offset(offset_of!(VmHead, execution_generation)),
     }
 }
@@ -226,8 +231,7 @@ fn runtime_layout() -> RuntimeLayout {
         utf16_string_data_storage: offset(size_of::<ak::Utf16StringDataHeader>()),
         // NB: Filled in by runtime_info().
         single_ascii_character_strings: 0,
-        function_object_builtin: offset(offset_of!(FunctionObject, builtin)),
-        function_object_has_builtin: offset(offset_of!(FunctionObject, has_builtin)),
+        function_object_builtin: offset(offset_of!(Object, function_bits)),
         builtin_string_prototype_char_code_at: Builtin::StringPrototypeCharCodeAt as u8,
         builtin_string_prototype_char_at: Builtin::StringPrototypeCharAt as u8,
         builtin_math_abs: Builtin::MathAbs as u8,
@@ -567,7 +571,7 @@ fn dynamic_call_layout(vm: &Vm) -> DynamicCallLayout {
         .expect("the VM has a JIT entry table while the JIT is on");
     DynamicCallLayout {
         object_flag_is_ecmascript_function: object_flag::IS_ECMASCRIPT_FUNCTION_OBJECT,
-        ecmascript_function_shared_data: offset(offset_of!(FunctionObject, ecmascript_shared_data)),
+        ecmascript_function_shared_data: offset(offset_of!(EcmascriptFunctionObject, shared_data)),
         shared_data_executable: offset(offset_of!(SharedFunctionInstanceData, executable)),
         shared_data_asm_call_metadata: offset(offset_of!(SharedFunctionInstanceData, asm_call_metadata)),
         executable_jit_entry_slot: offset(offset_of!(ExecutableHead, jit_entry_slot)),

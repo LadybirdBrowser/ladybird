@@ -41,7 +41,7 @@ pub struct PromiseResolvingFunction {
     kind: PromiseResolvingFunctionKind,
 }
 
-const _: () = assert!(size_of::<PromiseResolvingFunction>() == 96);
+const _: () = assert!(size_of::<PromiseResolvingFunction>() == 88);
 
 static PROMISE_RESOLVING_FUNCTION_VIRTUAL_METHODS: NativeFunctionMethods = NativeFunctionMethods {
     call: PromiseResolvingFunction::call,

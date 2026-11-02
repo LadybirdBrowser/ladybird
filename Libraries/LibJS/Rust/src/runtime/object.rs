@@ -15,7 +15,7 @@ use libjs_runtime_macros::Trace;
 use crate::bytecode::executable::PropertyLookupCache;
 use crate::bytecode::property_access::{Strict, put_by_property_key};
 use crate::embedding::abi_types::JSRealm;
-use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, class_at, define_cell};
+use crate::gc::class::{Class, Extends, ExternalMemorySize, GcCell, cast_ref, class_at, define_cell};
 use crate::gc::defer_gc::DeferGc;
 use crate::gc::gc_ref_cell::GcRefCell;
 use crate::gc::heap::{Heap, RuntimeClassAllocator, SizeClassAllocator};
@@ -27,9 +27,7 @@ use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{EcmascriptFunctionObject, FunctionObject, SharedFunctionInstanceData};
 use crate::layout::host_class::JSValue;
 use crate::layout::member::Member;
-pub use crate::layout::object::{
-    INDEXED_ELEMENTS_HEADER_SIZE, INLINE_NAMED_STORAGE_CAPACITY, IndexedStorageKind, Object, object_flag,
-};
+pub use crate::layout::object::{INDEXED_ELEMENTS_HEADER_SIZE, IndexedStorageKind, Object, object_flag};
 use crate::layout::value::Value;
 use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{
@@ -473,23 +471,20 @@ fn remove_intrinsic_accessor(vm: &Vm, object: &Object, property_key: &PropertyKe
 
 /// Plain objects (exactly an Object, as create() and create_with_premade_shape() make them) come in size classes by how
 /// many named property values they hold inline: the smallest one that fits the properties of their shape at creation,
-/// so that most of them never need named property storage of their own. The first size class is an Object's own cell.
+/// so that most of them never need named property storage of their own.
 pub const PLAIN_OBJECT_INLINE_CAPACITIES: [u8; 6] = [2, 4, 6, 8, 12, 16];
 
 /// The inline capacity of plain objects created without properties. More would keep the properties many of them get
 /// right away (like `this` in constructors) inline, but makes the cells of all of them larger.
 pub const EMPTY_PLAIN_OBJECT_INLINE_CAPACITY: u8 = PLAIN_OBJECT_INLINE_CAPACITIES[0];
 
-const _: () = assert!(PLAIN_OBJECT_INLINE_CAPACITIES[0] as usize == INLINE_NAMED_STORAGE_CAPACITY);
-
-const PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES: [u32; PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1] = {
-    let mut cell_sizes = [0; PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1];
+const PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES: [u32; PLAIN_OBJECT_INLINE_CAPACITIES.len()] = {
+    let mut cell_sizes = [0; PLAIN_OBJECT_INLINE_CAPACITIES.len()];
     let mut index = 0;
     while index < cell_sizes.len() {
-        let inline_capacity = PLAIN_OBJECT_INLINE_CAPACITIES[index + 1] as usize;
         // NB: The inline named storage ends the object.
         cell_sizes[index] =
-            (size_of::<Object>() + (inline_capacity - INLINE_NAMED_STORAGE_CAPACITY) * size_of::<Value>()) as u32;
+            (size_of::<Object>() + PLAIN_OBJECT_INLINE_CAPACITIES[index] as usize * size_of::<Value>()) as u32;
         index += 1;
     }
     cell_sizes
@@ -509,8 +504,7 @@ pub fn plain_object_size_class(property_count: u32) -> usize {
         .unwrap_or(PLAIN_OBJECT_INLINE_CAPACITIES.len() - 1)
 }
 
-/// The allocators of the plain object size classes beyond the first, which is Object's own allocator, for JIT code
-/// that allocates plain objects itself.
+/// The allocators of the plain object size classes, for JIT code that allocates plain objects itself.
 pub fn plain_object_size_classes(heap: &Heap) -> &[SizeClassAllocator] {
     heap.size_classes(Object::CLASS, &PLAIN_OBJECT_SIZE_CLASS_CELL_SIZES)
 }
@@ -578,10 +572,11 @@ impl Object {
             kind: CellKind::Object,
             indexed_storage_kind: Cell::new(IndexedStorageKind::None),
             flags: Cell::new(object_flag::IS_EXTENSIBLE),
-            inline_named_capacity: Cell::new(INLINE_NAMED_STORAGE_CAPACITY as u8),
+            inline_named_capacity: Cell::new(0),
+            function_bits: Cell::new(0),
             named_properties: Cell::new(core::ptr::null_mut()),
             indexed_elements: Cell::new(core::ptr::null_mut()),
-            inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; INLINE_NAMED_STORAGE_CAPACITY],
+            inline_named_storage: [],
         };
         if may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes {
             object.set_may_interfere_with_indexed_property_access();
@@ -649,26 +644,13 @@ impl Object {
     // 10.1.12 OrdinaryObjectCreate ( proto [ , additionalInternalSlotsList ] ), https://tc39.es/ecma262/#sec-ordinaryobjectcreate
     pub fn create(vm: &Vm, realm: Gc<Realm>, prototype: Option<Gc<Object>>) -> Gc<Object> {
         let Some(prototype) = prototype else {
-            return allocate_object(vm, |_| {
-                Self::new_with_shape(
-                    Self::CLASS,
-                    realm.empty_object_shape(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                )
-            });
+            return Self::create_in_size_class(vm, realm.empty_object_shape(), 0);
         };
         if prototype == realm.object_prototype() {
-            return allocate_object(vm, |_| {
-                Self::new_with_shape(
-                    Self::CLASS,
-                    realm.new_object_shape(),
-                    MayInterfereWithIndexedPropertyAccess::No,
-                )
-            });
+            return Self::create_in_size_class(vm, realm.new_object_shape(), 0);
         }
-        allocate_object(vm, |_| {
-            Self::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No)
-        })
+        let object = Self::new_with_prototype(vm, Self::CLASS, prototype, MayInterfereWithIndexedPropertyAccess::No);
+        Self::allocate_plain_object(vm, object, 0)
     }
 
     pub fn create_prototype(vm: &Vm, realm: Gc<Realm>, prototype: Option<Gc<Object>>) -> Gc<Object> {
@@ -676,20 +658,11 @@ impl Object {
         if let Some(prototype) = prototype {
             shape.set_prototype_without_transition(vm, prototype);
         }
-        allocate_object(vm, |_| {
-            Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No)
-        })
+        Self::create_in_size_class(vm, shape, 0)
     }
 
     pub fn create_with_premade_shape(vm: &Vm, shape: Gc<Shape>) -> Gc<Object> {
-        let property_count = shape.property_count();
-        // OPTIMIZATION: Objects with up to two properties, the most common ones, are in the first size class.
-        if property_count <= INLINE_NAMED_STORAGE_CAPACITY as u32 {
-            return allocate_object(vm, |_| {
-                Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No)
-            });
-        }
-        Self::create_in_size_class(vm, shape, property_count)
+        Self::create_in_size_class(vm, shape, shape.property_count())
     }
 
     /// OrdinaryObjectCreate(prototype) for the `this` of a construction of the function with `shared_data`, with
@@ -715,17 +688,17 @@ impl Object {
     }
 
     /// A plain object of the shape, in the size class for that many properties.
-    #[inline(never)]
     fn create_in_size_class(vm: &Vm, shape: Gc<Shape>, property_count: u32) -> Gc<Object> {
         let object = Self::new_with_shape(Self::CLASS, shape, MayInterfereWithIndexedPropertyAccess::No);
-        let size_class = plain_object_size_class(property_count);
-        if size_class == 0 {
-            return allocate_object(vm, |_| object);
-        }
+        Self::allocate_plain_object(vm, object, plain_object_size_class(property_count))
+    }
+
+    #[inline(always)]
+    fn allocate_plain_object(vm: &Vm, object: Object, size_class: usize) -> Gc<Object> {
         object
             .inline_named_capacity
             .set(PLAIN_OBJECT_INLINE_CAPACITIES[size_class]);
-        let size_class_allocator = plain_object_size_classes(vm.heap())[size_class - 1];
+        let size_class_allocator = plain_object_size_classes(vm.heap())[size_class];
         set_up_named_storage(
             vm.heap()
                 .allocate_with_size_class(size_class_allocator, |_| object, Value::UNDEFINED),
@@ -998,8 +971,8 @@ impl Object {
             return false;
         }
         let methods = self.methods();
-        // NB: ECMAScript function objects only answer "caller", "arguments" and a lazily created "prototype" themselves,
-        //     and arrays only "length" and array indices.
+        // NB: ECMAScript function objects only answer "caller", "arguments" and lazily created "length", "name" and
+        //     "prototype" properties themselves, and arrays only "length" and array indices.
         (core::ptr::fn_addr_eq(
             methods.internal_get_own_property,
             ORDINARY_OBJECT_METHODS.internal_get_own_property,
@@ -1046,13 +1019,16 @@ impl Object {
         if core::ptr::fn_addr_eq(internal_get_own_property, ordinary_get_own_property) {
             return true;
         }
-        // NB: ECMAScript function objects only answer "caller", "arguments" and a lazily created "prototype" themselves.
+        // NB: ECMAScript function objects only answer "caller", "arguments" and lazily created "length", "name" and
+        //     "prototype" properties themselves.
         core::ptr::fn_addr_eq(
             internal_get_own_property,
             ECMASCRIPT_FUNCTION_OBJECT_METHODS.internal_get_own_property,
         ) && *property_key != vm.names.caller
             && *property_key != vm.names.arguments
             && *property_key != vm.names.prototype
+            && *property_key != vm.names.length
+            && *property_key != vm.names.name
     }
 
     // 7.3.13 HasOwnProperty ( O, P ), https://tc39.es/ecma262/#sec-hasownproperty
@@ -2832,6 +2808,12 @@ impl Object {
             return None;
         }
 
+        // NB: Setting a lazy property of a function must find it.
+        if self.is_ecmascript_function_object() && (*property_key == vm.names.length || *property_key == vm.names.name)
+        {
+            self.reify_lazy_function_properties(vm);
+        }
+
         let Some(metadata) = self.shape().lookup(property_key) else {
             return self.storage_add(vm, property_key, value_and_attributes);
         };
@@ -2873,6 +2855,8 @@ impl Object {
         if !self.shape().is_dictionary()
             && self.shape().property_count() >= MAX_TRANSITIONS_BEFORE_CONVERTING_TO_DICTIONARY
         {
+            // NB: Functions with lazy properties have shapes of their own, which are never dictionaries.
+            self.reify_lazy_function_properties(vm);
             self.shape.set(self.shape().create_dictionary_transition(vm));
         }
 
@@ -2892,6 +2876,9 @@ impl Object {
 
     pub fn storage_delete(&self, vm: &Vm, property_key: &PropertyKey) {
         assert!(self.storage_has(property_key));
+
+        // NB: Functions with lazy properties have shapes of their own, which no deletion leads to.
+        self.reify_lazy_function_properties(vm);
 
         if property_key.is_number() && self.indexed_has(property_key.as_number()) {
             self.indexed_delete(property_key.as_number());
@@ -3603,6 +3590,8 @@ impl Object {
         if self.shape().is_prototype_shape() {
             return;
         }
+        // NB: Functions with lazy properties have shapes of their own, which no prototype shape is.
+        self.reify_lazy_function_properties(vm);
         self.shape.set(self.shape().clone_for_prototype(vm));
     }
 
@@ -3663,6 +3652,30 @@ impl Object {
         core::ptr::from_ref(&self.inline_named_storage)
             .cast::<Value>()
             .cast_mut()
+    }
+
+    /// Puts the property values in front of the existing ones, as `shape` has them.
+    pub(crate) fn prepend_named_properties(&self, shape: Gc<Shape>, values: &[Value]) {
+        let existing_count = self.shape().property_count();
+        self.ensure_named_storage_capacity(existing_count + values.len() as u32);
+        let named_properties = self.named_properties.get();
+        // SAFETY: The named storage has room for the existing and the new values.
+        unsafe {
+            core::ptr::copy(
+                named_properties,
+                named_properties.add(values.len()),
+                existing_count as usize,
+            );
+            core::ptr::copy_nonoverlapping(values.as_ptr(), named_properties, values.len());
+        }
+        self.shape.set(shape);
+    }
+
+    #[inline(always)]
+    fn reify_lazy_function_properties(&self, vm: &Vm) {
+        if self.is_ecmascript_function_object() {
+            cast_ref::<Object, EcmascriptFunctionObject>(self).reify_length_and_name(vm);
+        }
     }
 
     pub(crate) fn named_storage_is_inline(&self) -> bool {

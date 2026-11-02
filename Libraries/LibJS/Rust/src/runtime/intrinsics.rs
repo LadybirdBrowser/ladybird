@@ -207,8 +207,8 @@ define_intrinsics! {
     normal_function_prototype_constructor_offset: Cell<u32>,
 
     normal_function_shape: Cell<Option<Gc<Shape>>>,
-    normal_function_length_offset: Cell<u32>,
-    normal_function_name_offset: Cell<u32>,
+    generator_function_length_offset: Cell<u32>,
+    generator_function_name_offset: Cell<u32>,
 
     async_function_shape: Cell<Option<Gc<Shape>>>,
     generator_function_shape: Cell<Option<Gc<Shape>>>,
@@ -536,8 +536,8 @@ created_intrinsics! {
         iterator_result_object_value_offset,
         iterator_result_object_done_offset,
         normal_function_prototype_constructor_offset,
-        normal_function_length_offset,
-        normal_function_name_offset,
+        generator_function_length_offset,
+        generator_function_name_offset,
         generator_function_prototype_property_offset,
         native_function_length_offset,
         native_function_name_offset,
@@ -1171,12 +1171,6 @@ impl Intrinsics {
 
         let normal_function_shape = Shape::create(vm, realm);
         normal_function_shape.set_prototype_without_transition(vm, function_prototype);
-        normal_function_shape.add_property_without_transition(vm, &names.length, configurable);
-        normal_function_shape.add_property_without_transition(vm, &names.name, configurable);
-        self.normal_function_length_offset
-            .set(offset_of(normal_function_shape, &names.length));
-        self.normal_function_name_offset
-            .set(offset_of(normal_function_shape, &names.name));
         self.normal_function_shape.set(Some(normal_function_shape));
 
         let native_function_shape = Shape::create(vm, realm);
@@ -1449,25 +1443,27 @@ impl Intrinsics {
             configurable,
         );
 
-        // OPTIMIZATION: Like normal functions, the other function kinds start from a premade shape with their own properties
-        //               already in spec order, so creating one only has to store the property values.
-        let create_function_shape = |prototype: Gc<Object>, has_prototype_property: bool| {
+        // NB: Like normal functions, async functions make their properties lazily.
+        let async_function_shape = Shape::create(vm, realm);
+        async_function_shape.set_prototype_without_transition(vm, self.async_function_prototype(vm));
+        self.async_function_shape.set(Some(async_function_shape));
+
+        // OPTIMIZATION: Generator functions start from a premade shape with their own properties already in spec order,
+        //               so creating one only has to store the property values.
+        let create_function_shape = |prototype: Gc<Object>| {
             let shape = Shape::create(vm, realm);
             shape.set_prototype_without_transition(vm, prototype);
             shape.add_property_without_transition(vm, &names.length, configurable);
             shape.add_property_without_transition(vm, &names.name, configurable);
-            if has_prototype_property {
-                shape.add_property_without_transition(vm, &names.prototype, attributes(Attribute::WRITABLE));
-            }
-            assert!(offset_of(shape, &names.length) == self.normal_function_length_offset.get());
-            assert!(offset_of(shape, &names.name) == self.normal_function_name_offset.get());
+            shape.add_property_without_transition(vm, &names.prototype, attributes(Attribute::WRITABLE));
+            self.generator_function_length_offset
+                .set(offset_of(shape, &names.length));
+            self.generator_function_name_offset.set(offset_of(shape, &names.name));
             shape
         };
-        self.async_function_shape
-            .set(Some(create_function_shape(self.async_function_prototype(vm), false)));
-        let generator_function_shape = create_function_shape(self.generator_function_prototype(vm), true);
+        let generator_function_shape = create_function_shape(self.generator_function_prototype(vm));
         self.generator_function_shape.set(Some(generator_function_shape));
-        let async_generator_function_shape = create_function_shape(self.async_generator_function_prototype(vm), true);
+        let async_generator_function_shape = create_function_shape(self.async_generator_function_prototype(vm));
         self.async_generator_function_shape
             .set(Some(async_generator_function_shape));
         self.generator_function_prototype_property_offset

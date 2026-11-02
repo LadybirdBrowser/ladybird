@@ -15,7 +15,7 @@ use crate::gc::class::{GcCell, cast_ref, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::Environment;
-use crate::layout::object::{INLINE_NAMED_STORAGE_CAPACITY, Object};
+use crate::layout::object::Object;
 use crate::layout::value::Value;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
 use crate::runtime::object::{
@@ -27,16 +27,17 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::value::same_value;
 
+const ARGUMENTS_OBJECT_NAMED_PROPERTY_COUNT: usize = 3;
+
 /// The arguments exotic object of a function with a simple parameter list in sloppy mode code, whose indexed
 /// properties alias the bindings of the parameters they were passed for.
 #[repr(C)]
 #[derive(Trace)]
 pub struct ArgumentsObject {
     base: Object,
-    /// OPTIMIZATION: The named properties of arguments objects, "length", "callee" and @@iterator, fit in the inline
-    ///               named storage with this slot after it.
-    #[gc(untraced = "the object traces it as the last slot of its inline named storage")]
-    extra_inline_named_storage: Cell<Value>,
+    /// OPTIMIZATION: The named properties of arguments objects, "length", "callee" and @@iterator, are inline.
+    #[gc(untraced = "the object traces its inline named storage")]
+    inline_named_storage: [Cell<Value>; ARGUMENTS_OBJECT_NAMED_PROPERTY_COUNT],
     environment: Cell<Gc<Environment>>,
     #[gc(untraced)]
     parameter_map: RefCell<ParameterMap>,
@@ -75,8 +76,8 @@ fn as_arguments_object(object: &Object) -> &ArgumentsObject {
     cast_ref(object)
 }
 
-// NB: The inline named storage ends the object, so the extra slot continues it.
-const _: () = assert!(core::mem::offset_of!(ArgumentsObject, extra_inline_named_storage) == size_of::<Object>());
+// NB: The inline named storage of an object comes right after its Object.
+const _: () = assert!(core::mem::offset_of!(ArgumentsObject, inline_named_storage) == size_of::<Object>());
 
 impl ArgumentsObject {
     pub fn create(vm: &Vm, realm: Gc<Realm>, environment: Gc<Environment>, parameter_list_is_empty: bool) -> Gc<Self> {
@@ -89,10 +90,11 @@ impl ArgumentsObject {
                 MayInterfereWithIndexedPropertyAccess::Yes
             },
         );
-        base.inline_named_capacity.set(INLINE_NAMED_STORAGE_CAPACITY as u8 + 1);
+        base.inline_named_capacity
+            .set(ARGUMENTS_OBJECT_NAMED_PROPERTY_COUNT as u8);
         allocate_object(vm, |_| ArgumentsObject {
             base,
-            extra_inline_named_storage: Cell::new(Value::UNDEFINED),
+            inline_named_storage: [const { Cell::new(Value::UNDEFINED) }; ARGUMENTS_OBJECT_NAMED_PROPERTY_COUNT],
             environment: Cell::new(environment),
             parameter_map: RefCell::new(ParameterMap {
                 names: Rc::from([]),

@@ -39,7 +39,7 @@ use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::DeclarativeEnvironment;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::function_object::{
-    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction,
+    DirectGetterFunction, EcmascriptFunctionObject, FunctionObject, RawNativeFunction, SharedFunctionInstanceData,
 };
 use crate::layout::object::{Object, TYPED_ARRAY_CACHED_DATA_OFFSET_INVALID, TypedArrayBase};
 use crate::layout::property_lookup_cache::{GlobalVariableCache, PropertyLookupCache, PropertyLookupCacheEntryType};
@@ -357,10 +357,14 @@ fn native_call_target(vm: &Vm, feedback: &CallFeedback) -> Option<Gc<RawNativeFu
 
 /// The words of an ECMAScript function its frames start with, which stay the same for its lifetime.
 fn function_frame_fields(function: Gc<EcmascriptFunctionObject>) -> FunctionFrameFields {
+    let shared_data = function.shared_data();
     FunctionFrameFields {
         script_or_module: [
-            word_of(function, offset_of!(EcmascriptFunctionObject, script_or_module)),
-            word_of(function, offset_of!(EcmascriptFunctionObject, script_or_module) + 8),
+            word_of(shared_data, offset_of!(SharedFunctionInstanceData, script_or_module)),
+            word_of(
+                shared_data,
+                offset_of!(SharedFunctionInstanceData, script_or_module) + 8,
+            ),
         ],
         environment: function
             .environment()

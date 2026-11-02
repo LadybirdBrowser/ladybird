@@ -51,6 +51,7 @@ define_class_ids! {
     DirectGetterFunction,
     CapturingNativeFunction,
     EcmascriptFunctionObject,
+    EcmascriptFunctionObjectWithRareData,
     SharedFunctionInstanceData,
     CallEnvironmentTemplate,
     BoundFunction,

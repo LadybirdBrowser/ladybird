@@ -71,7 +71,9 @@ fn offsets() -> RuntimeOffsets {
         execution_context_runs_jit_code: 157,
         ecmascript_function_environment: 0,
         ecmascript_function_private_environment: 8,
-        ecmascript_function_script_or_module: 16,
+        shared_function_script_or_module: 24,
+        object_function_bits: 40,
+        ecmascript_function_flag_has_rare_data: 8,
         vm_execution_generation: 8 * VM_EXECUTION_GENERATION_WORD as u32,
     }
 }
@@ -533,6 +535,17 @@ fn write_frame_states(vm: *mut u64, frame: *mut u64, exit_index: u32, dump: *con
 /// The primitive storage cage base of the fake runtime: fake typed arrays hold
 /// the offsets of their data from it.
 const PRIMITIVE_STORAGE_CAGE_BASE: u64 = 0x1000;
+
+/// The words of a fake ECMAScript function (see `offsets()`): `words` are the
+/// environment, the private environment and the script or module, of which the
+/// last two also are in its fake shared data, followed by the compressed shared
+/// data and flags saying it has rare data.
+fn fake_function_words(words: [u64; 4]) -> Vec<u64> {
+    let shared_data = fake_heap::cell(&[0, 0, 0, words[2], words[3]]);
+    let mut function = words.to_vec();
+    function.extend([fake_heap::compressed(shared_data.as_ptr() as u64), 8]);
+    function
+}
 
 fn runtime() -> RuntimeInfo {
     let mut slow_paths = vec![0; NUM_OPCODES as usize];
@@ -2854,13 +2867,19 @@ mod inlining {
         configure: impl FnOnce(&mut Snapshot),
         prepare: impl FnOnce(&mut Machine),
     ) -> (JitResult, Machine, CompiledCode) {
-        let function_object = FUNCTION_WORDS.to_vec();
+        let function_object = fake_function_words(FUNCTION_WORDS);
         let mut function = function(true, false);
         function.function = CellId(function_object.as_ptr() as u64);
         let mut snapshot = snapshot_with_callee(caller, callee, function);
         snapshot.runtime = runtime();
         for executable in &mut snapshot.executables {
             executable.feedback.arith = vec![NUMBERS_AND_STRINGS_FEEDBACK];
+            // NB: The words of a function its frames start with are constants in code.
+            executable.function_fields = Some(FunctionFrameFields {
+                script_or_module: [FUNCTION_WORDS[2], FUNCTION_WORDS[3]],
+                environment: FUNCTION_WORDS[0],
+                private_environment: FUNCTION_WORDS[1],
+            });
         }
         configure(&mut snapshot);
         let compiled = compile_for::<crate::asm::MacroAssembler>(&snapshot, &|_| true).unwrap();
@@ -3295,7 +3314,7 @@ mod direct_calls {
     impl Callee {
         fn new() -> Self {
             let mut callee = Self {
-                function: FUNCTION_WORDS.to_vec(),
+                function: fake_function_words(FUNCTION_WORDS),
                 executable: fake_heap::cell(&[0; 7]),
                 entry_table: vec![0; 2 * ENTRY_TABLE_OWNERS_WORD],
                 interpreter_stack: vec![0xdead_beef_dead_beef; 512],
@@ -3748,10 +3767,13 @@ mod direct_calls {
                     fake_heap::compressed(callee.executable.as_ptr() as u64),
                     formal_parameter_count | flags,
                     0,
+                    FUNCTION_WORDS[2],
+                    FUNCTION_WORDS[3],
                 ]);
                 let mut function = vec![
                     fake_heap::compressed(shape.as_ptr() as u64),
-                    u64::from(ECMASCRIPT_FUNCTION_FLAG),
+                    // NB: The top byte holds the function's flags.
+                    u64::from(ECMASCRIPT_FUNCTION_FLAG) | 8 << 56,
                     fake_heap::compressed(shared_data.as_ptr() as u64),
                 ];
                 function.extend(FUNCTION_WORDS);
@@ -3780,7 +3802,7 @@ mod direct_calls {
             fake_heap::use_in(runtime);
             runtime.offsets.ecmascript_function_environment = 24;
             runtime.offsets.ecmascript_function_private_environment = 32;
-            runtime.offsets.ecmascript_function_script_or_module = 40;
+            runtime.offsets.object_function_bits = 15;
             runtime.dynamic_calls = crate::snapshot::DynamicCallLayout {
                 object_flag_is_ecmascript_function: ECMASCRIPT_FUNCTION_FLAG,
                 ecmascript_function_shared_data: 16,

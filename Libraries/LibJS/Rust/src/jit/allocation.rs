@@ -29,7 +29,7 @@ use crate::layout::cell::{CellHeader, Gc};
 use crate::layout::environment::{DeclarativeEnvironment, Environment, PrivateEnvironment};
 use crate::layout::function_object::{CallEnvironmentTemplate, EcmascriptFunctionObject, FUNCTION_ENVIRONMENT_WORDS};
 use crate::layout::member::NullableMember;
-use crate::layout::object::{INLINE_NAMED_STORAGE_CAPACITY, Object};
+use crate::layout::object::Object;
 use crate::layout::primitive_string::PrimitiveString;
 use crate::layout::realm::Realm;
 use crate::layout::shape::Shape;
@@ -118,15 +118,10 @@ pub fn allocation_infos<'d>(vm: &Vm, realm: Gc<Realm>, defer_gc: &'d DeferGc<'_>
         ..ObjectAllocationInfo::default()
     };
     // NB: Free lists are only popped inline where the heap gives their addresses (not in AddressSanitizer builds).
-    if let Some(local_free_list) = heap.local_free_list_of(Object::CLASS) {
-        object.size_classes.push(ObjectSizeClass {
-            allocator: local_free_list.as_ptr() as u64,
-            cell_size: size(size_of::<Object>()),
-            inline_capacity: INLINE_NAMED_STORAGE_CAPACITY as u32,
-        });
+    if heap.local_free_list_of(Object::CLASS).is_some() {
         for (size_class, inline_capacity) in plain_object_size_classes(heap)
             .iter()
-            .zip(&PLAIN_OBJECT_INLINE_CAPACITIES[1..])
+            .zip(&PLAIN_OBJECT_INLINE_CAPACITIES)
         {
             object.size_classes.push(ObjectSizeClass {
                 allocator: address(size_class.local_free_list()),
@@ -492,8 +487,6 @@ fn closure_template(
         None,
         realm.function_prototype(),
     );
-    // NB: The closures of the function's frames belong to its script or module, the active one in them.
-    sample.script_or_module.set(function.script_or_module.get());
     if !sample.can_be_copied() {
         return None;
     }
@@ -570,6 +563,5 @@ pub extern "C" fn libjs_jit_clone_function(
         private_environment,
         realm.function_prototype(),
     );
-    closure.script_or_module.set(sample.script_or_module.get());
     closure.as_ptr()
 }

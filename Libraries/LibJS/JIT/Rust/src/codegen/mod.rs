@@ -1392,8 +1392,10 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
                 let (output, function) = (self.output(node_id), self.input(node_id, 0));
                 let offsets = self.runtime.offsets;
                 if *private {
-                    let address = Address::new(function, offsets.ecmascript_function_private_environment as i32);
-                    self.emit_load_nullable_compressed_cell(output, &address);
+                    // NB: The output may be in the register of the function.
+                    let scratch = self.pinned.scratch;
+                    self.emit_load_function_private_environment(scratch, function);
+                    self.masm.move64(output, scratch);
                 } else {
                     // NB: ECMAScript functions always have an environment.
                     let address = Address::new(function, offsets.ecmascript_function_environment as i32);
@@ -2152,6 +2154,24 @@ impl<M: PortableMacroAssembler> Codegen<'_, M> {
         self.masm.branch_test32(Condition::Zero, dst, u32::MAX, null);
         self.emit_decompress_cell(dst);
         self.masm.bind(null);
+    }
+
+    /// Loads the private environment of the ECMAScript function that
+    /// `function` holds into `dst`, another register, as a cell pointer, or 0
+    /// if it has none.
+    fn emit_load_function_private_environment(&mut self, dst: Gpr, function: Gpr) {
+        let offsets = self.runtime.offsets;
+        let done = self.masm.new_label();
+        self.masm
+            .load8(dst, &Address::new(function, offsets.object_function_bits as i32));
+        self.masm
+            .and32_imm(dst, dst, offsets.ecmascript_function_flag_has_rare_data);
+        self.masm.branch_test32(Condition::Zero, dst, u32::MAX, done);
+        self.emit_load_nullable_compressed_cell(
+            dst,
+            &Address::new(function, offsets.ecmascript_function_private_environment as i32),
+        );
+        self.masm.bind(done);
     }
 
     /// Loads the compressed cell pointer field at `address` into `dst` as a
