@@ -125,7 +125,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
     callbacks: &LayoutPass<'_>,
     box_: Node,
     root_cells: used_values::RootInputCells,
-    input: LayoutInput,
+    input: &LayoutInput,
     outputs: &formatting_context::RunOutputs,
     lay_out: impl for<'discarded> Fn(
         LayoutPass<'discarded>,
@@ -159,7 +159,7 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
             "its layout at the block margins {:?} and {:?}",
             cells.margin_top, cells.margin_bottom
         );
-        reference_inputs.push((cells, input, reference));
+        reference_inputs.push((cells, input.clone(), reference));
     }
     for (reference_cells, reference_input, reference) in reference_inputs {
         let reference_outputs = callbacks.layout_trace().without_events(|| {

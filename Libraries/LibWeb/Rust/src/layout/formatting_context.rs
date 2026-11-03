@@ -1989,7 +1989,7 @@ pub(super) fn run_formatting_context(
         );
         return child_layout_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, &outputs, false);
     }
-    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input.clone(), root_cells);
+    let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         box_,
         parent_grid.is_some(),
@@ -1997,7 +1997,7 @@ pub(super) fn run_formatting_context(
         should_collect_devtools_layout_data,
         false,
         &callbacks,
-        &cache_key,
+        &cache_probe,
     ) {
         Ok(attempt) => attempt,
         Err(hit) => {
@@ -2063,7 +2063,7 @@ pub(super) fn run_formatting_context(
             &callbacks,
             box_,
             root_cells,
-            input.clone(),
+            &input,
             &outputs,
             |callbacks, other_root_cells, other_input| {
                 execute_formatting_context_run(
@@ -2083,7 +2083,7 @@ pub(super) fn run_formatting_context(
             },
         );
     }
-    let outputs = cache_attempt.conclude(&callbacks, box_, cache_key, outputs);
+    let outputs = cache_attempt.conclude(&callbacks, box_, &cache_probe, outputs);
     child_layout_from_outputs(&callbacks, parent_fragments, box_, &input, root_cells, &outputs, false)
 }
 
@@ -3224,7 +3224,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
     }
     let runs_ahead_of_intrinsic_block_padding =
         builds_fragments && input.sizing.table_cell_intrinsic_block_padding.is_some();
-    let cache_key = fc_run_cache::FcRunCacheKey::new(fc_type, input.clone(), root_cells);
+    let cache_probe = fc_run_cache::FcRunCacheProbe::new(fc_type, &input, root_cells);
     let cache_attempt = match fc_run_cache::FcRunCacheAttempt::probe(
         node,
         false,
@@ -3232,7 +3232,7 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
         false,
         true,
         &callbacks,
-        &cache_key,
+        &cache_probe,
     ) {
         Ok(attempt) => attempt,
         Err(hit) => {
@@ -3263,12 +3263,12 @@ pub(crate) fn lay_out_shape_for_its_result(callbacks: LayoutPass<'_>, shape: Chi
             &callbacks,
             node,
             root_cells,
-            input,
+            &input,
             &outputs,
             |callbacks, other_root_cells, other_input| lay_out(callbacks, other_root_cells, &other_input, None),
         );
     }
-    let outputs = cache_attempt.conclude(&callbacks, node, cache_key, outputs);
+    let outputs = cache_attempt.conclude(&callbacks, node, &cache_probe, outputs);
     result_with_host_findings(&outputs)
 }
 
