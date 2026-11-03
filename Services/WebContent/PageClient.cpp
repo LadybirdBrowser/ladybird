@@ -714,8 +714,13 @@ void PageClient::request_rendering_opportunity_if_needed()
             schedule_local_rendering_opportunity();
             return;
         }
+        // NB: A frame within the resolution of the time a page reads would repeat the last one's timestamp, and script
+        //     would see the document timeline stand still from one frame to the next.
+        static constexpr double maximum_time_resolution_in_milliseconds = 0.1;
+        auto now = Web::HighResolutionTime::unsafe_shared_current_time();
+        auto is_within_time_resolution = now - Web::HTML::main_thread_event_loop().last_render_opportunity_time() < maximum_time_resolution_in_milliseconds;
         m_frame_timer_purpose = FrameTimerPurpose::LocalFallback;
-        m_frame_timer->restart(AK::Duration::zero());
+        m_frame_timer->restart(is_within_time_resolution ? AK::Duration::from_milliseconds(1) : AK::Duration::zero());
         return;
     }
 
