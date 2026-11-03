@@ -359,11 +359,73 @@ impl RetainedState {
         // The logical aliases declared with a CSS-wide keyword that compute directly, with the
         // physical longhand each computes as and whether it takes the parent's value.
         let mut keyword_aliases: smallvec::SmallVec<[(u16, u16, bool); 8]> = smallvec::SmallVec::new();
+        // A winner that needs nothing but its value absolutized against the element's context, with
+        // what it computes against known from how it was written, is applied as it is. An element
+        // whose every winner is one takes no drive, whatever it declares.
+        let takes_no_drive = parent_view.is_some()
+            && !pseudo_kind::is_highlight(target_pseudo_kind)
+            && parent_longhands.is_some_and(|longhands| longhands.effective_zoom() == 1.0);
+        let mut plain_dependencies = takes_no_drive.then_some(0_u32);
+        for &Winner {
+            property,
+            source,
+            index,
+            ..
+        } in winners
+        {
+            let Some(dependencies) = plain_dependencies else {
+                break;
+            };
+            let (declaration, written, checks) = self.declaration_of(&element_declarations, source, index);
+            let prepared = checks.dependencies();
+            let value = match written.data() {
+                data @ StyleValueData::Shorthand { .. } if !checks.waits_on_substitution() => {
+                    shorthand_longhand_data(property, data).expect("the style engine answers every row")
+                }
+                _ => written,
+            };
+            let is_plain = !checks.waits_on_substitution()
+                && declaration.operator() == CascadeOperator::Declared
+                && prepared & winner_store::DEPENDENCIES_COMPUTED != 0
+                && table_row_bits(property) & LOGICAL_ALIAS_BIT == 0
+                && moved_longhand_groups(property) & (1 << group_index::FONT) == 0
+                && value.optional_data().is_some_and(|data| {
+                    crate::css::style_compute::value_computes_directly(
+                        property,
+                        data,
+                        Some(winner_store::unpack_dependencies(prepared)),
+                    )
+                });
+            if !is_plain {
+                plain_dependencies = None;
+                break;
+            }
+            easy.push((
+                property,
+                std::borrow::Cow::Borrowed(value),
+                Some(winner_store::unpack_dependencies(prepared)),
+            ));
+            direct_inheritance.push((property, false));
+            environment_reads |= property_environment_reads(property);
+            plain_dependencies = Some(dependencies | (prepared & winner_store::DEPENDENCY_BITS));
+        }
+        if plain_dependencies.is_none() {
+            easy.clear();
+            direct_inheritance.clear();
+            environment_reads = StyleEnvironment::default();
+        }
+        if let Some(dependencies) = plain_dependencies {
+            let dependencies = winner_store::unpack_dependencies(dependencies);
+            reads_root_font = dependencies.root_font_reads;
+            reads_font_metric_lengths = dependencies.font_metric_relative_length;
+            environment_reads |= dependency_environment_reads(dependencies);
+        }
+        let is_plain = plain_dependencies.is_some();
         // Each winner's classification, with the declaration it decides with and, where it rolled
         // back below a revert, the place of that declaration and of the revert.
         let mut resolved: smallvec::SmallVec<[(_, _, Option<RolledBack>); 24]> = smallvec::SmallVec::new();
         let mut rolled_below = false;
-        for (position, &winner) in winners.iter().enumerate() {
+        for (position, &winner) in winners.iter().enumerate().filter(|_| !is_plain) {
             // https://drafts.csswg.org/css-cascade-5/#default
             // `revert` and `revert-layer`, declared or substituted, roll the property back below
             // the declaration that held them, to a lower declaration that is substituted in turn.
@@ -604,7 +666,10 @@ impl RetainedState {
             }
             alike
         });
-        let winners = &deciding[..];
+        let winners = match is_plain {
+            true => winners,
+            false => &deciding[..],
+        };
         let mut groups = 0_u32;
         for winner in winners {
             groups |= moved_longhand_groups(winner.property);
@@ -1270,22 +1335,22 @@ impl RetainedState {
         value
     }
 
-    /// What the engine computes a winner from: its written value, or what that substitutes to where
-    /// it waits on substitution, and, where the value computes directly from a plain declaration
-    /// of a longhand the engine computes directly, the value's external dependencies.
-    #[allow(clippy::too_many_arguments)]
-    fn classify_winner<'a>(
+    /// The declaration at `index` of the block `source` names, with its written value and checks.
+    #[inline]
+    fn declaration_of<'a>(
         &'a self,
         element_declarations: &[Option<(
             ElementDeclarationKind,
             crate::css::style::element_declarations::ElementDeclarations<'a>,
         )>; 3],
-        custom_properties: super::custom_properties::CustomPropertyStores<'_>,
-        property: u16,
         source: WinnerSource,
         index: usize,
-    ) -> ClassifiedWinner<'a> {
-        let (declaration, written, checks) = match source {
+    ) -> (
+        crate::css::declaration_block::DeclarationEntry,
+        &'a RetainedStyleValueData,
+        WrittenValueChecks,
+    ) {
+        match source {
             WinnerSource::Rule(rule) => (
                 *self
                     .rules
@@ -1312,7 +1377,24 @@ impl RetainedState {
                     declarations.checks(index),
                 )
             }
-        };
+        }
+    }
+
+    /// What the engine computes a winner from: its written value, or what that substitutes to where
+    /// it waits on substitution, and, where the value computes directly from a plain declaration
+    /// of a longhand the engine computes directly, the value's external dependencies.
+    fn classify_winner<'a>(
+        &'a self,
+        element_declarations: &[Option<(
+            ElementDeclarationKind,
+            crate::css::style::element_declarations::ElementDeclarations<'a>,
+        )>; 3],
+        custom_properties: super::custom_properties::CustomPropertyStores<'_>,
+        property: u16,
+        source: WinnerSource,
+        index: usize,
+    ) -> ClassifiedWinner<'a> {
+        let (declaration, written, checks) = self.declaration_of(element_declarations, source, index);
         if checks.waits_on_substitution() {
             use crate::css::style_value::StyleValueData;
             let value = match written.data() {
@@ -2065,8 +2147,15 @@ fn environment_reads(
     let Some(value) = value else {
         return StyleEnvironment::default();
     };
-    let dependencies =
-        dependencies.unwrap_or_else(|| crate::css::style_compute::collect_external_value_dependencies(value));
+    dependency_environment_reads(
+        dependencies.unwrap_or_else(|| crate::css::style_compute::collect_external_value_dependencies(value)),
+    )
+}
+
+/// What of the document's environment a value with `dependencies` resolves against.
+fn dependency_environment_reads(
+    dependencies: crate::css::style_compute::ExternalValueDependencies,
+) -> StyleEnvironment {
     let mut reads = StyleEnvironment::default();
     if dependencies.color_scheme_dependent {
         reads |= StyleEnvironment::COLOR_SCHEME;
