@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target { position: absolute; width: 10px; height: 10px; }
+</style>
+<body>
+<div id="parent"><span id="target"></span></div>
+<script>
+    test(() => {
+        const report = label => {
+            const compared = internals.compareLayoutTreeWithFullRebuild();
+            println(`${label}: the tree matches a full rebuild: ${compared.matches}`);
+        };
+        target.style.display = "inline";
+        report("inline");
+        target.style.display = "block";
+        report("block");
+        target.style.display = "inline-block";
+        report("inline-block");
+        target.style.display = "flex";
+        report("flex");
+    });
+</script>

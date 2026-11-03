@@ -1,0 +1,4 @@
+inline: the tree matches a full rebuild: true
+block: the tree matches a full rebuild: true
+inline-block: the tree matches a full rebuild: true
+flex: the tree matches a full rebuild: true
