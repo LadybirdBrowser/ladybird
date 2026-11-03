@@ -92,9 +92,6 @@ pub(crate) struct EffectsIndex(u32);
 pub(crate) struct StyleInstallation {
     pub(crate) swaps: Vec<StyleSwap>,
     pub(crate) effects: Vec<InstalledElementEffects>,
-    /// The indices of the effects, sorted by the elements they are of, for the render side to find an element's, or
-    /// none where the effects are sorted by their elements already.
-    effects_by_node: Vec<EffectsIndex>,
     pub(crate) document_damage: u32,
     /// The records the elements and their pseudo-elements move away from, which their moves and effects read, pinned
     /// until the host ends the transaction.
@@ -106,20 +103,9 @@ pub(crate) struct StyleInstallation {
 
 impl StyleInstallation {
     /// The effects of `node`, where its style moves.
+    #[cfg(test)]
     pub(crate) fn effects_of(&self, node: StyleNodeID) -> Option<&InstalledElementEffects> {
-        if self.effects_by_node.is_empty() {
-            let index = self
-                .effects
-                .binary_search_by_key(&node, InstalledElementEffects::node)
-                .ok()?;
-            return Some(&self.effects[index]);
-        }
-        let index = self
-            .effects_by_node
-            .binary_search_by_key(&node, |&EffectsIndex(index)| self.effects[index as usize].node())
-            .ok()?;
-        let EffectsIndex(index) = self.effects_by_node[index];
-        Some(&self.effects[index as usize])
+        self.effects.iter().find(|effects| effects.node() == node)
     }
 
     /// Takes what the main thread does, leaving the records the installation pinned, which stay pinned until the host
@@ -199,11 +185,7 @@ impl StyleInstallation {
 
     /// Keeps the effects of only the elements the main thread has anything to do for beside swapping in their styles.
     pub(crate) fn keep_effects_with_host_work(&mut self) {
-        let before = self.effects.len();
         self.effects.retain(InstalledElementEffects::has_host_work);
-        if self.effects.len() != before {
-            self.sort_effects_by_node();
-        }
     }
 
     /// Ends the element `node`, whose styles the installation noted from the swap `first_swap` on. The elements whose
@@ -219,20 +201,6 @@ impl StyleInstallation {
     /// Ends the installation: what all its moves damage is `document_damage`.
     fn finish(&mut self, document_damage: u32) {
         self.document_damage = document_damage;
-        self.sort_effects_by_node();
-    }
-
-    /// Indexes the effects by their elements, where they are not sorted by them already.
-    fn sort_effects_by_node(&mut self) {
-        self.effects_by_node.clear();
-        if self.effects.is_sorted_by(|a, b| a.node() < b.node()) {
-            return;
-        }
-        let count = u32::try_from(self.effects.len()).expect("an installation's effects fit their index");
-        self.effects_by_node = (0..count).map(EffectsIndex).collect();
-        let effects = &self.effects;
-        self.effects_by_node
-            .sort_unstable_by_key(|&EffectsIndex(index)| effects[index as usize].node());
     }
 }
 
