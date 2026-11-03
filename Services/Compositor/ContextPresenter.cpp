@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <Compositor/CanvasSurfaceRegistry.h>
 #include <Compositor/ContextPresenter.h>
 #include <Compositor/ContextScene.h>
@@ -178,8 +179,8 @@ bool ContextPresenter::update_composited_raster_transform(Gfx::FloatRect destina
     float scale_x = 1;
     float scale_y = 1;
     if (!has_perspective) {
-        scale_x = hypotf(transform[0, 0], transform[1, 0]) * destination_rect.width() / m_viewport_size.width();
-        scale_y = hypotf(transform[0, 1], transform[1, 1]) * destination_rect.height() / m_viewport_size.height();
+        scale_x = AK::hypot<float>(transform[0, 0], transform[1, 0]) * destination_rect.width() / m_viewport_size.width();
+        scale_y = AK::hypot<float>(transform[0, 1], transform[1, 1]) * destination_rect.height() / m_viewport_size.height();
     }
     if (!isfinite(scale_x) || !isfinite(scale_y))
         return false;

@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/Math.h>
 #include <LibCore/Resource.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/Icon.h>
@@ -151,7 +152,7 @@ static QPainterPath parse_svg_path(StringView data)
         auto cy = cyp + (current.y() + end.y()) / 2;
 
         auto angle = [](double ux, double uy, double vx, double vy) {
-            return atan2((ux * vy) - (uy * vx), (ux * vx) + (uy * vy));
+            return AK::atan2((ux * vy) - (uy * vx), (ux * vx) + (uy * vy));
         };
         auto start_angle = angle(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
         auto sweep_angle = angle((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);

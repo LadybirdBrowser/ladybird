@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGComponentTransferFunctionElement.h>
@@ -234,7 +235,7 @@ ReadonlyBytes SVGComponentTransferFunctionElement::color_table()
         auto exponent = this->exponent()->base_val();
         auto offset = this->offset()->base_val();
         for (int i = 0; i < 256; ++i)
-            result.data()[i] = to_u8(amplitude * pow(i / 255.f, exponent) + offset);
+            result.data()[i] = to_u8(amplitude * AK::pow<float>(i / 255.f, exponent) + offset);
         break;
     }
     }

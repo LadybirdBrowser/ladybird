@@ -1160,8 +1160,8 @@ static PointerInputData pointer_input_data(ActionObject::PointerFields const& ac
             else if (azimuth > pi && azimuth < 2 * pi)
                 tilt_y = -90;
         } else {
-            tilt_x = atan(cos(azimuth) / tan(altitude)) * 180 / pi;
-            tilt_y = atan(sin(azimuth) / tan(altitude)) * 180 / pi;
+            tilt_x = AK::atan(AK::cos(azimuth) / AK::tan(altitude)) * 180 / pi;
+            tilt_y = AK::atan(AK::sin(azimuth) / AK::tan(altitude)) * 180 / pi;
         }
         properties.tilt_x = action.tilt_x.value_or(static_cast<i32>(floor(tilt_x + 0.5)));
         properties.tilt_y = action.tilt_y.value_or(static_cast<i32>(floor(tilt_y + 0.5)));
@@ -1176,7 +1176,7 @@ static PointerInputData pointer_input_data(ActionObject::PointerFields const& ac
         else if (tilt_y == 0)
             properties.azimuth_angle = tilt_x < 0 ? pi : 0;
         else if (abs(tilt_x) != 90 && abs(tilt_y) != 90) {
-            properties.azimuth_angle = atan2(tan(radians_y), tan(radians_x));
+            properties.azimuth_angle = AK::atan2(AK::tan(radians_y), AK::tan(radians_x));
             if (properties.azimuth_angle < 0)
                 properties.azimuth_angle += 2 * pi;
         }
@@ -1187,9 +1187,9 @@ static PointerInputData pointer_input_data(ActionObject::PointerFields const& ac
         else if (tilt_y == 0)
             properties.altitude_angle = pi / 2 - fabs(radians_x);
         else {
-            auto tangent_x = tan(radians_x);
-            auto tangent_y = tan(radians_y);
-            properties.altitude_angle = atan(1 / sqrt(tangent_x * tangent_x + tangent_y * tangent_y));
+            auto tangent_x = AK::tan(radians_x);
+            auto tangent_y = AK::tan(radians_y);
+            properties.altitude_angle = AK::atan(1 / sqrt(tangent_x * tangent_x + tangent_y * tangent_y));
         }
     }
     return PointerInputData { properties };

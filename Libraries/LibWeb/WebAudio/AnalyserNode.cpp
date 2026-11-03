@@ -111,7 +111,7 @@ Vector<f32> AnalyserNode::apply_a_blackman_window(Vector<f32> const& x) const
     unsigned long const N = m_fft_size;
 
     auto w = [&](unsigned long n) {
-        return a0 - a1 * cos(2 * AK::Pi<f32> * (f32)n / (f32)N) + a2 * cos(4 * AK::Pi<f32> * (f32)n / (f32)N);
+        return a0 - a1 * AK::cos(2 * AK::Pi<f32> * (f32)n / (f32)N) + a2 * AK::cos(4 * AK::Pi<f32> * (f32)n / (f32)N);
     };
 
     Vector<f32> x_hat;

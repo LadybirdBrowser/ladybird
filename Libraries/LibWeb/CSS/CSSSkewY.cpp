@@ -5,6 +5,7 @@
  */
 
 #include "CSSSkewY.h"
+#include <AK/Math.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
@@ -79,7 +80,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewY::to_matrix() const
 
     // NB: Gfx::Matrix4x4 is row by row, so the element m12 is in the second row.
     auto matrix = Gfx::DoubleMatrix4x4::identity();
-    matrix[1, 0] = tanf(ay_rad);
+    matrix[1, 0] = AK::tan<float>(ay_rad);
 
     return Geometry::DOMMatrix::create(matrix, is_2d());
 }

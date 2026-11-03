@@ -5,6 +5,7 @@
  */
 
 #include "CSSSkewX.h"
+#include <AK/Math.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSNumericValue.h>
 #include <LibWeb/CSS/CSSUnitValue.h>
@@ -79,7 +80,7 @@ WebIDL::ExceptionOr<GC::Ref<Geometry::DOMMatrix>> CSSSkewX::to_matrix() const
 
     // NB: Gfx::Matrix4x4 is row by row, so the element m21 is in the first row.
     auto matrix = Gfx::DoubleMatrix4x4::identity();
-    matrix[0, 1] = tanf(ax_rad);
+    matrix[0, 1] = AK::tan<float>(ax_rad);
 
     return Geometry::DOMMatrix::create(matrix, is_2d());
 }
