@@ -2828,7 +2828,11 @@ impl<'pass> TableFormattingContext<'pass> {
             available_space: input,
             containing_block_constraints: ContainingBlockConstraints::default(),
             sizing: RootSizingDirectives {
-                adopt_automatic_content_block_size,
+                content_block_size_after_run: if adopt_automatic_content_block_size {
+                    geometry::ContentBlockSizeAfterRun::Automatic
+                } else {
+                    geometry::ContentBlockSizeAfterRun::HandedOver
+                },
                 table_cell_intrinsic_block_padding: intrinsic_block_padding,
                 ..RootSizingDirectives::default()
             },
@@ -2946,7 +2950,11 @@ impl<'pass> TableFormattingContext<'pass> {
                 available_space: inner,
                 containing_block_constraints: ContainingBlockConstraints::default(),
                 sizing: RootSizingDirectives {
-                    adopt_automatic_content_block_size,
+                    content_block_size_after_run: if adopt_automatic_content_block_size {
+                        geometry::ContentBlockSizeAfterRun::Automatic
+                    } else {
+                        geometry::ContentBlockSizeAfterRun::HandedOver
+                    },
                     ..RootSizingDirectives::default()
                 },
                 participation: ParticipationInParentFormattingContext::Item,

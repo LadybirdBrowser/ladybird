@@ -3248,9 +3248,10 @@ impl<'pass> FlexFormattingContext<'pass> {
             && self.flex_item_details[index]
                 .cross_size_transferred_through_aspect_ratio
                 .is_some()
+            && let Some(cross_size) = self.flex_items[index].cross_size
         {
-            input.sizing.content_block_size_after_inside_layout =
-                geometry::PackedOptionalCssPixels::from(self.flex_items[index].cross_size);
+            input.sizing.content_block_size_after_run =
+                geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(cross_size);
         }
         input
     }

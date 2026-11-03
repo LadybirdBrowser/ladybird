@@ -290,8 +290,7 @@ fn sizing_directives_match_ignoring_unobserved(
         block_parent_resolved_content_inline_size,
         table_cell_intrinsic_block_padding,
         table_box_content_block_offset_in_wrapper,
-        adopt_automatic_content_block_size,
-        content_block_size_after_inside_layout,
+        content_block_size_after_run,
         flex_self_block_size_resolution_space,
         outer_float_intrusion_before_list_item_children,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
@@ -303,8 +302,7 @@ fn sizing_directives_match_ignoring_unobserved(
         && block_parent_resolved_content_inline_size == b.block_parent_resolved_content_inline_size
         && table_cell_intrinsic_block_padding == b.table_cell_intrinsic_block_padding
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
-        && ((adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
-            && content_block_size_after_inside_layout == b.content_block_size_after_inside_layout)
+        && (content_block_size_after_run == b.content_block_size_after_run
             || content_block_size_adopted_after_run_unobserved)
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
@@ -1487,9 +1485,8 @@ mod tests {
         let stored = key_of(item_input.clone());
 
         let mut adopting_input = item_input;
-        adopting_input.sizing.adopt_automatic_content_block_size = true;
-        adopting_input.sizing.content_block_size_after_inside_layout =
-            geometry::PackedOptionalCssPixels::from(Some(px(40)));
+        adopting_input.sizing.content_block_size_after_run =
+            geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(px(40));
         let probe = key_of(adopting_input);
 
         assert!(!stored.matches(&probe, RunInputsTheStoredRunNeverObserved::default()));

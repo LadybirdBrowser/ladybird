@@ -3414,10 +3414,11 @@ pub(super) fn content_block_size_adopted_after_run(
     if input.participation != ParticipationInParentFormattingContext::Item {
         return None;
     }
-    input.sizing.content_block_size_after_inside_layout.get().or(input
-        .sizing
-        .adopt_automatic_content_block_size
-        .then_some(automatic_content_block_size))
+    match input.sizing.content_block_size_after_run {
+        geometry::ContentBlockSizeAfterRun::HandedOver => None,
+        geometry::ContentBlockSizeAfterRun::Automatic => Some(automatic_content_block_size),
+        geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(block_size) => Some(block_size),
+    }
 }
 
 fn child_layout_from_outputs(
