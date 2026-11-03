@@ -292,7 +292,6 @@ fn sizing_directives_match_ignoring_unobserved(
         table_cell_intrinsic_block_padding,
         table_box_content_block_offset_in_wrapper,
         adopt_automatic_content_block_size,
-        finds_automatic_line_clamp_lines,
         content_block_size_after_inside_layout,
         flex_self_block_size_resolution_space,
         outer_float_intrusion_before_list_item_children,
@@ -311,7 +310,6 @@ fn sizing_directives_match_ignoring_unobserved(
         && ((adopt_automatic_content_block_size == b.adopt_automatic_content_block_size
             && content_block_size_after_inside_layout == b.content_block_size_after_inside_layout)
             || content_block_size_adopted_after_run_unobserved)
-        && finds_automatic_line_clamp_lines == b.finds_automatic_line_clamp_lines
         && outer_float_intrusion_before_list_item_children == b.outer_float_intrusion_before_list_item_children
         && treat_block_axis_percentage_insets_as_auto_beyond_root
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
