@@ -1,5 +1,5 @@
 before the listener's step: compositor scale=1.5
 listener's step: cancelable=true
-after the listener's step, beside the task: compositor scale=2.25
-compositor scale after the task: 2.25
-main thread scale after the task: 2.25
+after the listener's step, beside the task: compositor scale=3.375
+compositor scale after the task: 3.375
+main thread scale after the task: 3.375
