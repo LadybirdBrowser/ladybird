@@ -1,0 +1,27 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 32 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 16 0+0+8] children: inline
+      frag 0 from TextNode start: 0, length: 1, rect: [131.390625,8 8x16] baseline: 12.796875
+          " "
+      InlineNode <ruby> at [8,8] [0+0+0 123.390625 0+0+0] [0+0+0 16 0+0+0]
+        frag 0 from TextNode start: 0, length: 4, rect: [8,8 36.875x16] baseline: 12.796875
+            "base"
+        TextNode <#text> (not painted)
+        InlineNode <rt> at [44.875,8] [0+0+0 86.515625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 10, rect: [44.875,8 86.515625x16] baseline: 12.796875
+              "annotation"
+          TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+      InlineNode <span> at [139.390625,8] [0+0+0 137.625 0+0+0] [0+0+0 16 0+0+0]
+        InlineNode <ruby> at [139.390625,8] [0+0+0 137.625 0+0+0] [0+0+0 16 0+0+0]
+          frag 0 from TextNode start: 0, length: 6, rect: [139.390625,8 51.109375x16] baseline: 12.796875
+              "nested"
+          TextNode <#text> (not painted)
+          InlineNode <rt> at [190.5,8] [0+0+0 86.515625 0+0+0] [0+0+0 16 0+0+0]
+            frag 0 from TextNode start: 0, length: 10, rect: [190.5,8 86.515625x16] baseline: 12.796875
+                "annotation"
+            TextNode <#text> (not painted)
+      TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x32] (z-index: auto)

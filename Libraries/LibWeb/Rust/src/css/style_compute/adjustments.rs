@@ -175,7 +175,11 @@ pub(super) fn adjust_element_style(
     if input.disallow_display_contents && new_display.is_contents() {
         new_display = FfiDisplay::none();
     }
-    if input.rewrite_inline_flow && new_display.is_inline_outside() && new_display.inside == display_inside::FLOW {
+    if input.rewrite_inline_flow
+        && new_display.is_outside_and_inside()
+        && new_display.is_inline_outside()
+        && new_display.inside == display_inside::FLOW
+    {
         new_display = FfiDisplay::inline_block();
     }
     if input.is_button_element
@@ -184,7 +188,7 @@ pub(super) fn adjust_element_style(
             || new_display.is_none()
             || new_display.is_contents())
     {
-        new_display = if new_display.is_inline_outside() {
+        new_display = if new_display.is_inline_outside() && !new_display.is_internal_ruby() {
             FfiDisplay::inline_block()
         } else {
             FfiDisplay::flow_root()
@@ -382,7 +386,10 @@ pub(super) fn transform_box_type(input: &FfiBoxTypeTransformationInput) -> FfiBo
         //   becomes 'flow-root'.
         // NB: Layout makes a block container with another writing mode than its parent box establish an
         //     independent formatting context, so only the inline box's display changes here.
-        if new_display.is_flow_inside() && new_display.is_inline_outside() {
+        if new_display.is_outside_and_inside()
+            && new_display.inside == display_inside::FLOW
+            && new_display.outside == display_outside::INLINE
+        {
             new_display = FfiDisplay::outside_and_inside(
                 new_display.outside,
                 crate::css::css_enums::display_inside::FLOW_ROOT,

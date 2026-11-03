@@ -509,7 +509,7 @@ pub(crate) fn node_creates_block_formatting_context(
         if display.is_table_inside() || display.is_flex_inside() || display.is_grid_inside() {
             return false;
         }
-        let inside_is_laid_out_as_flow = display.is_flow_inside() || display.is_ruby_inside();
+        let inside_is_laid_out_as_flow = display.is_flow_inside();
         if (style.is_floating() && !has_flag(data, NodeFlag::IsFlexItem))
             || style.own_style_establishes_block_formatting_context()
         {

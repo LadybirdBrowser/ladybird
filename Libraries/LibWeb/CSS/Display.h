@@ -57,6 +57,8 @@ public:
         return m_value.internal;
     }
 
+    // https://drafts.csswg.org/css-ruby-1/#ruby-display
+    bool is_internal_ruby() const { return is_internal() && first_is_one_of(internal(), DisplayInternal::RubyBase, DisplayInternal::RubyText, DisplayInternal::RubyBaseContainer, DisplayInternal::RubyTextContainer); }
     bool is_table_row() const { return is_internal() && internal() == DisplayInternal::TableRow; }
     bool is_table_cell() const { return is_internal() && internal() == DisplayInternal::TableCell; }
     bool is_table_caption() const { return is_internal() && internal() == DisplayInternal::TableCaption; }
@@ -75,7 +77,7 @@ public:
     }
 
     bool is_block_outside() const { return is_outside_and_inside() && outside() == DisplayOutside::Block; }
-    bool is_inline_outside() const { return is_outside_and_inside() && outside() == DisplayOutside::Inline; }
+    bool is_inline_outside() const { return (is_outside_and_inside() && outside() == DisplayOutside::Inline) || is_internal_ruby(); }
 
     ListItem list_item() const
     {
@@ -91,7 +93,9 @@ public:
         return m_value.outside_inside.inside;
     }
 
-    bool is_flow_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Flow; }
+    // FIXME: Implement ruby layout. Until then a ruby container and the boxes inside it hold their contents as inline
+    //        boxes do, so bases and annotations stay in the line, one after the other.
+    bool is_flow_inside() const { return (is_outside_and_inside() && first_is_one_of(inside(), DisplayInside::Flow, DisplayInside::Ruby)) || is_internal_ruby(); }
     bool is_flow_root_inside() const { return is_outside_and_inside() && inside() == DisplayInside::FlowRoot; }
     bool is_table_inside() const { return is_outside_and_inside() && inside() == DisplayInside::Table; }
     bool is_flex_inside() const { return is_outside_and_inside() && first_is_one_of(inside(), DisplayInside::Flex, DisplayInside::WebkitBox); }

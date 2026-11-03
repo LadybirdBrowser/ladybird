@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<input id="base" style="display: ruby-base">
+<input id="text" style="display: ruby-text">
+<script>
+    test(() => {
+        println(`base: ${getComputedStyle(base).display}`);
+        println(`text: ${getComputedStyle(text).display}`);
+    });
+</script>
