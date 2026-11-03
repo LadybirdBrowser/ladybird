@@ -4,19 +4,6 @@ describe("errors", () => {
             DataView.prototype.byteLength;
         }).toThrowWithMessage(TypeError, "Not an object of type DataView");
     });
-
-    test("detached buffer", () => {
-        let buffer = new ArrayBuffer(5, { maxByteLength: 10 });
-        let view = new DataView(buffer);
-        detachArrayBuffer(buffer);
-
-        expect(() => {
-            view.byteLength;
-        }).toThrowWithMessage(
-            TypeError,
-            "DataView contains a property which references a value at an index not contained within its buffer's bounds"
-        );
-    });
 });
 
 describe("normal behavior", () => {
@@ -32,5 +19,12 @@ describe("normal behavior", () => {
         expect(new DataView(buffer, 0).byteLength).toBe(5);
         expect(new DataView(buffer, 3).byteLength).toBe(2);
         expect(new DataView(buffer, 5).byteLength).toBe(0);
+    });
+
+    test("detached buffer", () => {
+        let buffer = new ArrayBuffer(5, { maxByteLength: 10 });
+        let view = new DataView(buffer);
+        detachArrayBuffer(buffer);
+        expect(view.byteLength).toBe(0);
     });
 });

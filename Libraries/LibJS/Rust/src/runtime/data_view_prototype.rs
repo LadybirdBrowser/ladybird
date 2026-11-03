@@ -255,17 +255,17 @@ impl DataViewPrototype {
 
     // 25.3.4.2 get DataView.prototype.byteLength, https://tc39.es/ecma262/#sec-get-dataview.prototype.bytelength
     fn byte_length_getter(vm: &Vm) -> ThrowCompletionOr<Value> {
-        // 1. Let O be the this value.
-        // 2. Perform ? RequireInternalSlot(O, [[DataView]]).
-        // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
+        // 1. Let obj be the this value.
+        // 2. Perform ? RequireInternalSlot(obj, [[DataView]]).
+        // 3. Assert: obj has a [[ViewedArrayBuffer]] internal slot.
         let data_view = this_data_view(vm)?;
 
-        // 4. Let viewRecord be MakeDataViewWithBufferWitnessRecord(O, seq-cst).
+        // 4. Let viewRecord be MakeDataViewWithBufferWitnessRecord(obj, SEQ-CST).
         let view_record = make_data_view_with_buffer_witness_record(data_view, Order::SeqCst);
 
-        // 5. If IsViewOutOfBounds(viewRecord) is true, throw a TypeError exception.
+        // 5. If IsViewOutOfBounds(viewRecord) is true, return +0𝔽.
         if is_view_out_of_bounds(&view_record) {
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::BufferOutOfBounds, &[&"DataView"]);
+            return Ok(Value::from_i32(0));
         }
 
         // 6. Let size be GetViewByteLength(viewRecord).
@@ -277,20 +277,20 @@ impl DataViewPrototype {
 
     // 25.3.4.3 get DataView.prototype.byteOffset, https://tc39.es/ecma262/#sec-get-dataview.prototype.byteoffset
     fn byte_offset_getter(vm: &Vm) -> ThrowCompletionOr<Value> {
-        // 1. Let O be the this value.
-        // 2. Perform ? RequireInternalSlot(O, [[DataView]]).
-        // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
+        // 1. Let obj be the this value.
+        // 2. Perform ? RequireInternalSlot(obj, [[DataView]]).
+        // 3. Assert: obj has a [[ViewedArrayBuffer]] internal slot.
         let data_view = this_data_view(vm)?;
 
-        // 4. Let viewRecord be MakeDataViewWithBufferWitnessRecord(O, seq-cst).
+        // 4. Let viewRecord be MakeDataViewWithBufferWitnessRecord(obj, SEQ-CST).
         let view_record = make_data_view_with_buffer_witness_record(data_view, Order::SeqCst);
 
-        // 5. If IsViewOutOfBounds(viewRecord) is true, throw a TypeError exception.
+        // 5. If IsViewOutOfBounds(viewRecord) is true, return +0𝔽.
         if is_view_out_of_bounds(&view_record) {
-            return vm.throw_completion(ErrorKind::TypeError, ErrorType::BufferOutOfBounds, &[&"DataView"]);
+            return Ok(Value::from_i32(0));
         }
 
-        // 6. Let offset be O.[[ByteOffset]].
+        // 6. Let offset be obj.[[ByteOffset]].
         let offset = data_view.byte_offset();
 
         // 7. Return 𝔽(offset).
