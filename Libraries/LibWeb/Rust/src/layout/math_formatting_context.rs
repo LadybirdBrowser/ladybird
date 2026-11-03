@@ -2663,7 +2663,7 @@ impl<'pass> MathFormattingContext<'pass> {
             };
             formatting_context::register_contained_abspos_child(
                 &self.run.callbacks,
-                self.run.fragments.as_deref(),
+                self.run.fragments,
                 self.run.box_,
                 child,
                 static_position_rect,
