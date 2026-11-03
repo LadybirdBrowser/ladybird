@@ -345,7 +345,7 @@ impl RetainedState {
         // A logical alias computes as its physical counterpart for the element's writing mode and
         // direction, which an element declaring neither has from its parent.
         let parent_flow =
-            match winners
+            || match winners
                 .iter()
                 .any(|winner| winner.property == prop::WRITING_MODE || winner.property == prop::DIRECTION)
             {
@@ -366,6 +366,7 @@ impl RetainedState {
             && !pseudo_kind::is_highlight(target_pseudo_kind)
             && parent_longhands.is_some_and(|longhands| longhands.effective_zoom() == 1.0);
         let mut plain_dependencies = takes_no_drive.then_some(0_u32);
+        let mut plain_block = None;
         for &Winner {
             property,
             source,
@@ -376,34 +377,49 @@ impl RetainedState {
             let Some(dependencies) = plain_dependencies else {
                 break;
             };
-            let (declaration, written, checks) = self.declaration_of(&element_declarations, source, index);
-            let prepared = checks.dependencies();
-            let value = match written.data() {
-                data @ StyleValueData::Shorthand { .. } if !checks.waits_on_substitution() => {
-                    shorthand_longhand_data(property, data).expect("the style engine answers every row")
-                }
-                _ => written,
-            };
-            let is_plain = !checks.waits_on_substitution()
-                && declaration.operator() == CascadeOperator::Declared
-                && prepared & winner_store::DEPENDENCIES_COMPUTED != 0
-                && table_row_bits(property) & LOGICAL_ALIAS_BIT == 0
-                && moved_longhand_groups(property) & (1 << group_index::FONT) == 0
-                && value.optional_data().is_some_and(|data| {
-                    crate::css::style_compute::value_computes_directly(
-                        property,
-                        data,
-                        Some(winner_store::unpack_dependencies(prepared)),
-                    )
-                });
-            if !is_plain {
+            // NB: A block's winners come one after another.
+            if plain_block.is_none_or(|(held, _)| held != source) {
+                plain_block = Some((
+                    source,
+                    match source {
+                        WinnerSource::Rule(rule) => {
+                            crate::css::style::element_declarations::ElementDeclarations::of_parts(
+                                self.rules.declared_properties_of(rule),
+                                self.rules.written_values_of(rule),
+                                self.rules.written_value_checks_of(rule),
+                            )
+                        }
+                        WinnerSource::Element(kind) => {
+                            let (_, declarations) = element_declarations
+                                .iter()
+                                .flatten()
+                                .find(|(declarations_kind, _)| *declarations_kind == kind)
+                                .expect("the style engine answers every row");
+                            *declarations
+                        }
+                    },
+                ));
+            }
+            let (_, block) = plain_block.expect("the block was just taken");
+            let checks = block.checks(index);
+            let declaration = block
+                .declared_property(index)
+                .expect("the style engine answers every row");
+            let written = block.written(index);
+            if !checks.is_plain() || declaration.operator() != CascadeOperator::Declared {
                 plain_dependencies = None;
                 break;
             }
+            let prepared = checks.dependencies();
+            let value = match checks.is_shorthand() {
+                true => shorthand_longhand_data(property, written.data()).expect("the style engine answers every row"),
+                false => written,
+            };
             easy.push((
                 property,
                 std::borrow::Cow::Borrowed(value),
                 Some(winner_store::unpack_dependencies(prepared)),
+                checks.known_computation(),
             ));
             direct_inheritance.push((property, false));
             environment_reads |= property_environment_reads(property);
@@ -589,7 +605,7 @@ impl RetainedState {
             let mut inherited_property = property;
             let keyword_value = reads.css_wide_keyword.and_then(|keyword| {
                 if is_logical_alias {
-                    let (writing_mode, direction) = parent_flow?;
+                    let (writing_mode, direction) = parent_flow()?;
                     inherited_property = map_logical_alias_to_physical(property, writing_mode, direction);
                 }
                 let inherits = match keyword {
@@ -632,7 +648,12 @@ impl RetainedState {
                     .optional_data()
                     .is_some_and(|data| crate::css::style_compute::font_value_computes_natively(property, data));
             match (computation, keyword_value) {
-                (_, Some(value)) => easy.push((property, std::borrow::Cow::Owned(value), Some(Default::default()))),
+                (_, Some(value)) => easy.push((
+                    property,
+                    std::borrow::Cow::Owned(value),
+                    Some(Default::default()),
+                    Default::default(),
+                )),
                 (WinnerComputation::Direct(dependencies), None) => easy.push((
                     property,
                     match &value {
@@ -640,6 +661,7 @@ impl RetainedState {
                         _ => std::borrow::Cow::Owned(written.clone()),
                     },
                     dependencies,
+                    Default::default(),
                 )),
                 (WinnerComputation::Full, None) if font_computes_natively => native_font.push((
                     property,
@@ -929,7 +951,7 @@ impl RetainedState {
                 && !crate::css::style_compute::compute_declared_values(
                     &mut writer,
                     easy.iter()
-                        .map(|(property, value, dependencies)| (*property, &**value, *dependencies)),
+                        .map(|(property, value, dependencies, known)| (*property, &**value, *dependencies, *known)),
                     &length,
                     scheme,
                     &box_type_input,
@@ -999,7 +1021,7 @@ impl RetainedState {
             if !crate::css::style_compute::compute_declared_values(
                 &mut writer,
                 easy.iter()
-                    .map(|(property, value, dependencies)| (*property, &**value, *dependencies)),
+                    .map(|(property, value, dependencies, known)| (*property, &**value, *dependencies, *known)),
                 &length,
                 scheme,
                 &box_type_input,
@@ -1997,6 +2019,7 @@ type DirectWinner<'a> = (
     u16,
     std::borrow::Cow<'a, RetainedStyleValueData>,
     Option<crate::css::style_compute::ExternalValueDependencies>,
+    crate::css::style_compute::KnownComputation,
 );
 
 /// The engine: what an element's group values start from.
@@ -2451,7 +2474,11 @@ const _: () = assert!(
     winner_store::DEPENDENCY_BITS
         & (WrittenValueChecks::WHOLE_CONTEXT_FREE
             | WrittenValueChecks::LONGHAND_CONTEXT_FREE
-            | WrittenValueChecks::WAITS_ON_SUBSTITUTION)
+            | WrittenValueChecks::WAITS_ON_SUBSTITUTION
+            | WrittenValueChecks::IS_SHORTHAND
+            | WrittenValueChecks::PLAIN
+            | WrittenValueChecks::COMPUTES_TO_ITSELF
+            | WrittenValueChecks::IS_INITIAL)
         == 0
 );
 
@@ -2459,6 +2486,30 @@ impl WrittenValueChecks {
     const WHOLE_CONTEXT_FREE: u32 = 1 << 21;
     const LONGHAND_CONTEXT_FREE: u32 = 1 << 22;
     const WAITS_ON_SUBSTITUTION: u32 = 1 << 23;
+    const IS_SHORTHAND: u32 = 1 << 24;
+    const PLAIN: u32 = 1 << 25;
+    const COMPUTES_TO_ITSELF: u32 = 1 << 26;
+    const IS_INITIAL: u32 = 1 << 27;
+
+    /// Whether the value is a shorthand declared whole, of which a longhand computes from its part.
+    fn is_shorthand(self) -> bool {
+        self.0 & Self::IS_SHORTHAND != 0
+    }
+
+    /// Whether the longhand computes from this value, written as a declared value, by having it
+    /// absolutized against the element's context, with what it computes against told by these
+    /// checks: no drive, no font resolution and no logical mapping have anything to do with it.
+    fn is_plain(self) -> bool {
+        self.0 & Self::PLAIN != 0
+    }
+
+    /// What is known of how the longhand computes from the value where nothing zooms it.
+    fn known_computation(self) -> crate::css::style_compute::KnownComputation {
+        crate::css::style_compute::KnownComputation {
+            to_itself: self.0 & Self::COMPUTES_TO_ITSELF != 0,
+            is_initial: self.0 & Self::IS_INITIAL != 0,
+        }
+    }
 
     /// The packed external dependencies of the value, when they were prepared.
     pub(in crate::css::style) fn dependencies(self) -> u32 {
@@ -2503,6 +2554,43 @@ impl WrittenValueChecks {
             None => bits |= Self::WAITS_ON_SUBSTITUTION,
             Some(true) => bits |= Self::LONGHAND_CONTEXT_FREE,
             Some(false) => {}
+        }
+        if matches!(value.data(), StyleValueData::Shorthand { .. }) {
+            bits |= Self::IS_SHORTHAND;
+        }
+        let shorthand_part;
+        let longhand_value = match bits & (Self::IS_SHORTHAND | Self::WAITS_ON_SUBSTITUTION) {
+            0 => Some(value),
+            Self::IS_SHORTHAND => {
+                shorthand_part = shorthand_longhand_value(property, value.data());
+                shorthand_part.as_ref()
+            }
+            _ => None,
+        };
+        if let Some(longhand_value) = longhand_value
+            && dependencies & winner_store::DEPENDENCIES_COMPUTED != 0
+        {
+            use crate::css::style_compute::{
+                LOGICAL_ALIAS_BIT, table_row_bits, value_absolutization_is_identity_where_nothing_zooms,
+                value_computes_directly,
+            };
+            let unpacked = winner_store::unpack_dependencies(dependencies);
+            if table_row_bits(property) & LOGICAL_ALIAS_BIT == 0
+                && moved_longhand_groups(property) & (1 << crate::css::table_group_builder::group_index::FONT) == 0
+                && value_computes_directly(property, longhand_value.data(), Some(unpacked))
+            {
+                bits |= Self::PLAIN;
+            }
+            if value_absolutization_is_identity_where_nothing_zooms(longhand_value.data()) {
+                bits |= Self::COMPUTES_TO_ITSELF;
+            }
+            if longhand_value.pointer() == crate::css::style_compute::initial_value_data(property)
+                && !crate::css::property_metadata::property_is_inherited(property)
+                && table_row_bits(property) == 0
+                && !unpacked.inheritance_dependent
+            {
+                bits |= Self::IS_INITIAL;
+            }
         }
         Self(bits)
     }

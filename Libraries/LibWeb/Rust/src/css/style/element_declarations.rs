@@ -28,6 +28,19 @@ pub struct ElementDeclarations<'a> {
 }
 
 impl<'a> ElementDeclarations<'a> {
+    /// A block of declarations of its parts, parallel to one another.
+    pub(in crate::css::style) fn of_parts(
+        declared: &'a [DeclarationEntry],
+        written: &'a [RetainedStyleValueData],
+        checks: &'a [Checks],
+    ) -> Self {
+        Self {
+            declared,
+            written,
+            checks,
+        }
+    }
+
     /// The value the declaration at `index` of `declared` was written with.
     #[must_use]
     pub fn written(self, index: usize) -> &'a RetainedStyleValueData {

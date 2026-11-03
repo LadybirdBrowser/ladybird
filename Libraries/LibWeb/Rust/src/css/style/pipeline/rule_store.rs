@@ -1344,6 +1344,14 @@ impl RuleStore {
             .is_some_and(|data| data.may_affect_layout_geometry)
     }
 
+    /// The checks of the values the rule's declarations were written with, parallel to them.
+    pub(in crate::css::style) fn written_value_checks_of(
+        &self,
+        rule: RuleID,
+    ) -> &[super::pipeline::compute::WrittenValueChecks] {
+        self.cascade_data_of(rule).map_or(&[], |data| data.checks())
+    }
+
     pub(in crate::css::style) fn written_value_checks(
         &self,
         rule: RuleID,
