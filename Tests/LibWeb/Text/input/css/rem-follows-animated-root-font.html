@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<style>
+    @keyframes root-font {
+        from, to { font-size: 30px; line-height: 40px; }
+    }
+    html {
+        font-size: 20px;
+        line-height: 25px;
+        padding-left: 1em;
+        padding-right: 1rem;
+    }
+    html.animated {
+        animation: root-font 1000s linear;
+    }
+    html.transitioning {
+        transition: font-size 1000s linear, line-height 1000s linear;
+    }
+    html.moved {
+        font-size: 40px;
+        line-height: 55px;
+    }
+    #reader {
+        width: 10rem;
+        height: 1rlh;
+    }
+    #reader::before {
+        content: "";
+        margin-left: 2rem;
+        margin-right: 2rlh;
+    }
+    #em {
+        width: 3em;
+    }
+    #fixed {
+        font-size: 10px;
+        line-height: 10px;
+    }
+    #below-fixed {
+        width: 5rem;
+        height: 2em;
+    }
+</style>
+<div id="reader"></div>
+<div id="em"></div>
+<div id="fixed"><div id="below-fixed"></div></div>
+<script src="../include.js"></script>
+<script>
+    function dump(label) {
+        const root = getComputedStyle(document.documentElement);
+        const readerStyle = getComputedStyle(reader);
+        const before = getComputedStyle(reader, "::before");
+        const belowFixedStyle = getComputedStyle(document.getElementById("below-fixed"));
+        println(`${label}:`);
+        println(`  root font: ${root.fontSize}/${root.lineHeight}`);
+        // FIXME: A length on the element whose font animates resolves against the font of its record, the root's or
+        //        any other's, not against the font the animation gives it.
+        println(`  em, rem on the root itself: ${root.paddingLeft}, ${root.paddingRight}`);
+        println(`  rem, rlh: ${readerStyle.width}, ${readerStyle.height}, laid out ${reader.getBoundingClientRect().width}`);
+        println(`  rem, rlh on ::before: ${before.marginLeft}, ${before.marginRight}`);
+        println(`  em below the root: ${getComputedStyle(em).width}`);
+        println(`  rem, em below a fixed font: ${belowFixedStyle.width}, ${belowFixedStyle.height}`);
+    }
+
+    test(() => {
+        const root = document.documentElement;
+        dump("no animation");
+
+        root.classList.add("animated");
+        dump("running animation");
+        const added = document.createElement("div");
+        added.style.width = "1rem";
+        document.body.append(added);
+        println(`  rem on an element added meanwhile: ${getComputedStyle(added).width}`);
+        added.remove();
+        root.getAnimations()[0].cancel();
+        dump("canceled animation");
+        root.classList.remove("animated");
+
+        const scripted = root.animate([{ fontSize: "10px" }, { fontSize: "30px" }], 1000);
+        scripted.pause();
+        scripted.currentTime = 500;
+        dump("script animation halfway");
+        scripted.currentTime = 750;
+        dump("script animation further");
+        scripted.cancel();
+        dump("script animation canceled");
+
+        root.classList.add("transitioning");
+        getComputedStyle(root).fontSize;
+        root.classList.add("moved");
+        dump("transition at its start");
+        for (const transition of root.getAnimations()) {
+            transition.pause();
+            transition.currentTime = 500000;
+        }
+        dump("transition halfway");
+        for (const transition of root.getAnimations())
+            transition.finish();
+        dump("transition finished");
+    });
+</script>
