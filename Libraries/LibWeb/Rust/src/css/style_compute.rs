@@ -3418,6 +3418,20 @@ pub(crate) fn value_absolutization_is_identity(value: &StyleValueData) -> bool {
     }
 }
 
+/// Whether `value` is a scalar that reads nothing of any context and computes to itself where nothing
+/// zooms it: a length in pixels, a percentage, a number, an opaque legacy color, or a keyword that is
+/// no color and no CSS-wide keyword.
+pub(crate) fn value_is_a_plain_scalar(value: &StyleValueData) -> bool {
+    match value {
+        StyleValueData::Length { unit, .. } => *unit == px_length_unit(),
+        StyleValueData::Percentage { .. } | StyleValueData::Number { .. } | StyleValueData::Integer { .. } => true,
+        StyleValueData::Keyword { keyword } => {
+            *keyword != keyword::CURRENTCOLOR && !keyword_is_color(*keyword) && !value_is_css_wide_keyword(value)
+        }
+        _ => crate::css::absolutize::color_function_is_canonical_legacy_rgb(value),
+    }
+}
+
 /// What is known of how a declared value computes from how it was written, for the winners it is
 /// known of.
 #[derive(Clone, Copy, Default)]
