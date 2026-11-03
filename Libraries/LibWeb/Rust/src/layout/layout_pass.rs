@@ -251,9 +251,12 @@ impl<'arena> LayoutPass<'arena> {
         key: &super::rendered_text::TextChunkCacheKey,
         compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
-        self.scratch
-            .text_memos()
-            .text_chunks(node, self.text_content(node).rendered(), key, compute)
+        self.scratch.text_memos().text_chunks(
+            self.text_state_index(node),
+            self.text_content(node).rendered(),
+            key,
+            compute,
+        )
     }
 
     pub(crate) fn prepared_inline_content_memos(
@@ -281,9 +284,17 @@ impl<'arena> LayoutPass<'arena> {
         node: Node,
         read: impl FnOnce(&super::text_chunker::GraphemeSegmenter) -> R,
     ) -> R {
-        self.scratch
-            .text_memos()
-            .with_grapheme_segmenter(node, self.text_content(node).rendered(), read)
+        self.scratch.text_memos().with_grapheme_segmenter(
+            self.text_state_index(node),
+            self.text_content(node).rendered(),
+            read,
+        )
+    }
+
+    fn text_state_index(&self, node: Node) -> u32 {
+        self.arena
+            .text_state_index(node)
+            .expect("a text row holds its text in a text state")
     }
 
     #[inline]

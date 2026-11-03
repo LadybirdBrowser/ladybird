@@ -365,15 +365,20 @@ struct TextSlots {
     states: CowVec<TextNodeState, TEXT_STATES_PER_CHUNK>,
     /// The places in `states` no slot uses.
     vacant_states: Vec<u32>,
+    released_states: Vec<u32>,
     published: CowColumn<PublishedTextSlot, SLOTS_PER_CHUNK>,
 }
 
 impl TextSlots {
-    fn state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
+    fn state_index(&self, id: NodeSlotId) -> Option<u32> {
         self.slots
             .get(id.slot_index() as usize)
             .filter(|slot| slot.generation == id.generation() && slot.state != TextNodeSlot::NO_STATE)
-            .map(|slot| &self.states[slot.state as usize])
+            .map(|slot| slot.state)
+    }
+
+    fn state(&self, id: NodeSlotId) -> Option<&TextNodeState> {
+        self.state_index(id).map(|state| &self.states[state as usize])
     }
 
     /// The state of `id`'s slot, for writing. A slot last used by another generation starts over.
@@ -413,6 +418,7 @@ impl TextSlots {
         if state != TextNodeSlot::NO_STATE {
             self.states[state as usize] = TextNodeState::default();
             self.vacant_states.push(state);
+            self.released_states.push(state);
         }
     }
 
@@ -1374,6 +1380,9 @@ impl LayoutNodeArena {
 
     /// What writes did to the boxes the layout stage's run memos hold entries of since the stage last took it.
     pub(crate) fn take_memo_invalidations(&mut self) -> super::memo_invalidations::MemoInvalidations {
+        for state in self.text_slots.released_states.drain(..) {
+            self.memo_invalidations.note_text_state_dropped(state);
+        }
         std::mem::take(&mut self.memo_invalidations)
     }
 
@@ -5419,7 +5428,11 @@ impl LayoutNodeArena {
         if !parent.is_invalid() && super::node_facts::has_flag(self.data(parent), NodeFlag::Anonymous) {
             self.derive_flex_or_grid_item_flags(parent);
         }
-        self.memo_invalidations.note_text_replaced(id.slot_index());
+        let text_state = self
+            .text_slots
+            .state_index(id)
+            .expect("the row has the text it was just given");
+        self.memo_invalidations.note_text_state_dropped(text_state);
         self.searchable_text = None;
         // Publication can happen through a C++ text read before the enrolled
         // sync runs. Invalidate here so every publication invalidates layout,
@@ -5526,6 +5539,17 @@ impl LayoutNodeArena {
 
     pub(crate) fn text_content(&self, id: NodeSlotId) -> Option<&TextContent> {
         self.text_node_state(id)?.content.as_ref()
+    }
+
+    pub(crate) fn text_state_index(&self, id: NodeSlotId) -> Option<u32> {
+        if !self.slot_is_live(id) {
+            return None;
+        }
+        self.text_slots.state_index(id)
+    }
+
+    pub(crate) fn text_state_capacity(&self) -> usize {
+        self.text_slots.states.len()
     }
 
     pub(super) fn set_first_letter_slices(
