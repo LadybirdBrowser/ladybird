@@ -231,7 +231,15 @@ impl RenderState {
         answer.note_host_styled_boxes(arena);
         let work = OwedHostWork::default();
         arena.queue_box_presence();
-        let styled = arena.install_styles(HostCalls(&work), answer.rows(), |node| answer.element_install(node));
+        let next_effects = std::cell::Cell::new(0);
+        let styled = arena.install_styles(HostCalls(&work), answer.rows(), |node| {
+            answer.element_install(node, &next_effects)
+        });
+        assert_eq!(
+            next_effects.get(),
+            answer.effects_count(),
+            "the rows and the effects of an installation stand in one order"
+        );
         let host_work = work.resolve(arena);
         self.engine_mut().end_reinheriting_for_install();
         if !host_work.is_empty() {

@@ -266,13 +266,24 @@ impl StyleJobAnswer {
 
     /// How the boxes of `node`, an element whose style record the transaction installed, take it: they are built
     /// again from the root the move names, or the host installs it where they take the composition of its animations, or
-    /// appear or go.
-    pub(crate) fn element_install(&self, node: StyleNodeID) -> crate::layout::ElementInstall {
+    /// appear or go. Asked of the elements of the rows in their order, which is that of the effects, as `next_effects`
+    /// says it has come to.
+    pub(crate) fn element_install(
+        &self,
+        node: StyleNodeID,
+        next_effects: &std::cell::Cell<usize>,
+    ) -> crate::layout::ElementInstall {
         use super::bridge::MainEffects;
         use crate::layout::ElementInstall;
-        let Some(row) = self.installation_for_host.effects_of(node) else {
+        let Some(row) = self
+            .installation_for_host
+            .effects
+            .get(next_effects.get())
+            .filter(|row| row.node() == node)
+        else {
             return ElementInstall::Boxes;
         };
+        next_effects.set(next_effects.get() + 1);
         if row
             .effects
             .intersects(MainEffects::ANIMATED | MainEffects::DISPLAY_NONE_FLIP)
@@ -283,6 +294,11 @@ impl StyleJobAnswer {
         } else {
             ElementInstall::Boxes
         }
+    }
+
+    /// How many elements have effects.
+    pub(crate) fn effects_count(&self) -> usize {
+        self.installation_for_host.effects.len()
     }
 
     /// Notes `styled`, what the render side installed of the transaction's style rows in `arena`.
