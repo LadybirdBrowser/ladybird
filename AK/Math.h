@@ -10,6 +10,7 @@
 #include <AK/Concepts.h>
 #include <AK/Endian.h>
 #include <AK/FloatingPoint.h>
+#include <AK/MathFunctions.h>
 #include <AK/NumericLimits.h>
 #include <AK/StdLibExtraDetails.h>
 #include <AK/Types.h>
@@ -41,8 +42,9 @@ constexpr T to_degrees(T radians)
     return radians * 180 / AK::Pi<T>;
 }
 
-// NB: These all forward to the compiler builtins, which lower to the host's libm (or to single instructions where the
-//     target has them), and are constant-evaluated by the compiler where it supports that.
+// NB: These forward to the compiler builtins, which lower to single instructions where the target has them, and are
+//     constant-evaluated by the compiler where it supports that. Their results are exact, so they are the same on
+//     every platform.
 #define AK_MATH_BUILTIN(function, args...)    \
     if constexpr (IsSame<T, long double>)     \
         return __builtin_##function##l(args); \
@@ -71,30 +73,35 @@ AK_MATH_UNARY_FUNCTION(fabs)
 AK_MATH_UNARY_FUNCTION(rint)
 AK_MATH_UNARY_FUNCTION(round)
 AK_MATH_UNARY_FUNCTION(sqrt)
-AK_MATH_UNARY_FUNCTION(cbrt)
-AK_MATH_UNARY_FUNCTION(sin)
-AK_MATH_UNARY_FUNCTION(cos)
-AK_MATH_UNARY_FUNCTION(tan)
-AK_MATH_UNARY_FUNCTION(asin)
-AK_MATH_UNARY_FUNCTION(acos)
-AK_MATH_UNARY_FUNCTION(atan)
-AK_MATH_UNARY_FUNCTION(sinh)
-AK_MATH_UNARY_FUNCTION(cosh)
-AK_MATH_UNARY_FUNCTION(tanh)
-AK_MATH_UNARY_FUNCTION(asinh)
-AK_MATH_UNARY_FUNCTION(acosh)
-AK_MATH_UNARY_FUNCTION(atanh)
-AK_MATH_UNARY_FUNCTION(exp)
-AK_MATH_UNARY_FUNCTION(exp2)
-AK_MATH_UNARY_FUNCTION(log)
-AK_MATH_UNARY_FUNCTION(log2)
-AK_MATH_UNARY_FUNCTION(log10)
 
 AK_MATH_BINARY_FUNCTION(fmod)
 AK_MATH_BINARY_FUNCTION(remainder)
-AK_MATH_BINARY_FUNCTION(hypot)
-AK_MATH_BINARY_FUNCTION(atan2)
-AK_MATH_BINARY_FUNCTION(pow)
+
+// NB: These forward to LLVM libc, so that their results are the same on every platform.
+#define AK_MATH_LLVM_LIBC(function, args...)      \
+    if constexpr (IsSame<T, float>)               \
+        return ladybird_math_##function##f(args); \
+    else if constexpr (IsSame<T, double>)         \
+        return ladybird_math_##function(args);    \
+    else                                          \
+        static_assert(DependentFalse<T>, "LLVM libc has no " #function " for this floating point type");
+
+#define AK_MATH_LLVM_LIBC_UNARY_FUNCTION(function) \
+    template<FloatingPoint T>                      \
+    T function(T x)                                \
+    {                                              \
+        AK_MATH_LLVM_LIBC(function, x);            \
+    }
+
+#define AK_MATH_LLVM_LIBC_BINARY_FUNCTION(function) \
+    template<FloatingPoint T>                       \
+    T function(T x, T y)                            \
+    {                                               \
+        AK_MATH_LLVM_LIBC(function, x, y);          \
+    }
+
+AK_ENUMERATE_UNARY_MATH_FUNCTIONS(AK_MATH_LLVM_LIBC_UNARY_FUNCTION)
+AK_ENUMERATE_BINARY_MATH_FUNCTIONS(AK_MATH_LLVM_LIBC_BINARY_FUNCTION)
 
 // NB: Not every compiler constant-evaluates these builtins, so they get a fallback for constant evaluation.
 template<FloatingPoint T>
@@ -135,10 +142,14 @@ constexpr T trunc(T num)
 }
 
 template<FloatingPoint T>
-constexpr void sincos(T angle, T& sin_value, T& cos_value)
+void sincos(T angle, T& sin_value, T& cos_value)
 {
-    sin_value = sin(angle);
-    cos_value = cos(angle);
+    if constexpr (IsSame<T, float>)
+        ladybird_math_sincosf(angle, &sin_value, &cos_value);
+    else if constexpr (IsSame<T, double>)
+        ladybird_math_sincos(angle, &sin_value, &cos_value);
+    else
+        static_assert(DependentFalse<T>, "LLVM libc has no sincos for this floating point type");
 }
 
 // Rounds to the nearest integer, with ties going to even (in the default floating point environment). Values outside of
@@ -179,6 +190,9 @@ constexpr I clamp_to(T value)
     return value;
 }
 
+#undef AK_MATH_LLVM_LIBC_BINARY_FUNCTION
+#undef AK_MATH_LLVM_LIBC_UNARY_FUNCTION
+#undef AK_MATH_LLVM_LIBC
 #undef AK_MATH_BINARY_FUNCTION
 #undef AK_MATH_UNARY_FUNCTION
 #undef AK_MATH_BUILTIN
