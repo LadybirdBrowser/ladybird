@@ -607,11 +607,6 @@ impl ProjectionGeneration {
         Some(host.unwrap_or(parent))
     }
 
-    /// The element slots whose written rows may differ between `older` and this generation.
-    pub(in crate::css::style) fn written_slots_changed_since(&self, older: &Self) -> Vec<std::ops::Range<usize>> {
-        self.rows.changed_rows_since(&older.rows)
-    }
-
     /// The element slots whose committed rows may differ between `older` and this generation.
     pub(in crate::css::style) fn committed_slots_changed_since(&self, older: &Self) -> Vec<std::ops::Range<usize>> {
         self.committed.changed_rows_since(&older.committed)
@@ -691,6 +686,8 @@ pub(in crate::css::style) struct Projection {
     host_fact_sets: Arc<HostFactSets>,
     /// A slotted text node's slot. Text nodes have no rows, and a slotted one is rare.
     text_assigned_slots: Arc<HashMap<StyleNodeID, StyleNodeID>>,
+    /// The elements whose facts say they are disabled, as the host last published them.
+    disabled: Arc<HashSet<StyleNodeID>>,
     /// The elements whose rows the host's publications wrote since the last barrier.
     written: WrittenRows,
     /// Each write since the last barrier, which whether a written row changes the committed
@@ -816,6 +813,7 @@ impl Projection {
             bytes += texts.values().map(|text| size_of_val::<[u16]>(text)).sum::<usize>();
         }
         bytes += sizer.arc_shallow(&self.text_assigned_slots) + map_bytes(&self.text_assigned_slots);
+        bytes += sizer.arc_shallow(&self.disabled) + crate::heap_size::set_bytes(&self.disabled);
         if sizer.arc_shallow(&self.structural_flags) != 0 {
             bytes += crate::heap_size::ARC_HEADER_BYTES
                 + size_of::<StructuralFlagsColumn>()
@@ -1157,6 +1155,7 @@ impl Projection {
             catalogs,
             host_fact_sets,
             text_assigned_slots,
+            disabled,
             written,
             links_written,
             relations_written,
@@ -1171,6 +1170,7 @@ impl Projection {
         self.catalogs = catalogs;
         self.host_fact_sets = host_fact_sets;
         self.text_assigned_slots = text_assigned_slots;
+        self.disabled = disabled;
         for node in written {
             self.note_written(node, node.element_slot());
             self.pending_change_scan.writes.push(node);
@@ -1207,6 +1207,12 @@ impl Projection {
     }
 
     // -- Reads ---------------------------------------------------------------------------------
+
+    /// The elements whose facts as written say they are disabled.
+    #[must_use]
+    pub(in crate::css::style) fn written_disabled(&self) -> &HashSet<StyleNodeID> {
+        &self.disabled
+    }
 
     /// One past the greatest element slot the projection holds a row for.
     #[must_use]

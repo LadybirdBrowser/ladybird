@@ -13,7 +13,7 @@ customProperties: within 0
 retainedSlots: within 540
 recordCells: within 112
 installed: within 1320
-projection: within 5216
+projection: within 5408
 hostTree: within 4672
 elementDeclarations: within 16
 heldRecordMaps: within 1168
