@@ -1,0 +1,2 @@
+scrollY after the momentum: 620
+scrollY after the next gesture: 670

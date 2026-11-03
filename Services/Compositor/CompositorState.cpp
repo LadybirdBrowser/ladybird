@@ -637,7 +637,7 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
     auto is_wheel_event = event.type == Web::MouseEvent::Type::MouseWheel;
     bool is_first_wheel_event_with_delta = false;
     if (is_wheel_event) {
-        // A key or a script that scrolls takes over from momentum, until wheel input other than the momentum takes
+        // A key, or a script's smooth scroll, takes over from momentum, until wheel input other than the momentum takes
         // over again.
         if (context->absorbs_wheel_event_of_interrupted_momentum(event)) {
             record_routing(Web::InputRoutingDecision::MomentumInterrupted);
@@ -1298,11 +1298,8 @@ void CompositorState::forget_wheel_gesture_the_page_canceled(Web::CompositorCont
         context_if_present(*routing_context_id)->forget_wheel_latch_of_gesture(gesture_id);
 }
 
-static bool scroll_request_scrolls_for_script(Compositing::ScrollRequest const& scroll_request)
+static bool scroll_request_smoothly_scrolls_for_script(Compositing::ScrollRequest const& scroll_request)
 {
-    bool has_instant_scroll = scroll_request.jump_offset.has_value() || scroll_request.relative_scroll.has_value();
-    if (has_instant_scroll && !scroll_request.instant_scroll_is_for_user_input)
-        return true;
     return scroll_request.smooth_scroll.has_value() && scroll_request.smooth_scroll->initiator == Compositing::SmoothScrollInitiator::Programmatic;
 }
 
@@ -1312,10 +1309,11 @@ void CompositorState::apply_scroll_requests(Web::CompositorContextId context_id,
     if (!context)
         return;
 
-    // A script's scroll of a box ends the momentum scrolling it, as a key's does.
+    // A script's smooth scroll of a box ends the momentum scrolling it, as a key's does. A script's instant scroll only
+    // moves the box, and the momentum goes on from there: pages keep their content in place under a flick that way.
     auto now = MonotonicTime::now();
     for (auto const& scroll_request : scroll_requests) {
-        if (scroll_request.takes_over_from_momentum || scroll_request_scrolls_for_script(scroll_request))
+        if (scroll_request.takes_over_from_momentum || scroll_request_smoothly_scrolls_for_script(scroll_request))
             dispatch_scroll_fling_step(context_id, *context, context->end_momentum_scrolling(scroll_request.stable_node_id), now);
     }
     if (auto frame_to_present = context->apply_scroll_requests(scroll_requests); frame_to_present.has_value())

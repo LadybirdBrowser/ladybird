@@ -17,23 +17,17 @@
         await animationFrame();
         await animationFrame();
 
-        // The script takes the page somewhere of its own, and the rest of the fling goes nowhere.
-        window.scrollTo(0, 500);
+        // A smooth scroll of the script's takes over from the momentum, whose rest scrolls nothing.
+        const smoothScrollEnded = scrollendEvent(document);
+        window.scrollTo({ top: 1000, behavior: "smooth" });
         await animationFrame();
         await animationFrame();
         for (let step = 0; step < 3; step++)
             await internals.wheelThroughUIProcess(50, 50, 0, 40, true, "momentum");
         internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+        await smoothScrollEnded;
         for (let frame = 0; frame < 4; frame++)
             await animationFrame();
-        println(`scrollY after the fling: ${window.scrollY}`);
-
-        // The next gesture scrolls as usual.
-        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ongoing");
-        await internals.wheelThroughUIProcess(50, 50, 0, 50, true, "ongoing");
-        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
-        for (let frame = 0; frame < 4; frame++)
-            await animationFrame();
-        println(`scrollY after the next gesture: ${window.scrollY}`);
+        println(`scrollY after the smooth scroll: ${window.scrollY}`);
     });
 </script>
