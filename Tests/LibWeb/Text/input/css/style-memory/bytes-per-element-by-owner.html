@@ -41,7 +41,7 @@
     // - records, payloads, groupValueFacts: the computed style and its group data.
     // - retainedSlots, recordCells, installed, heldRecordMaps: which style an element holds.
     // - layoutStyleColumns: the layout object's style pointer.
-    // - styleValues, specifiedValues, elementDeclarations: the inline style property set.
+    // - styleValues, elementDeclarations: the inline style property set.
     // - customProperties: the inherited variables map.
     // - projection: a row per element: tag, flags, host facts, states, interned fact lists pointer, dispatch bloom and
     //   element links.
@@ -71,9 +71,9 @@
         installed: 48,
         projection: 52,
         hostTree: 24,
-        elementDeclarations: 80,
+        elementDeclarations: 88,
         heldRecordMaps: 12,
-        styleValues: 108,
+        styleValues: 144,
         hostMemo: 36,
         cppInstalledStyles: 8,
     };
@@ -86,14 +86,13 @@
         installed: 16,
         projection: 44,
         hostTree: 24,
-        elementDeclarations: 80,
+        elementDeclarations: 84,
         heldRecordMaps: 12,
-        styleValues: 124,
+        styleValues: 160,
         hostMemo: 72,
         cppInstalledStyles: 8,
     };
     const uniqueBudgets = {
-        specifiedValues: 32,
         records: 92,
         payloads: 164,
         groupValueFacts: 4,
@@ -107,7 +106,6 @@
     };
 
     const uniqueFontBudgets = {
-        specifiedValues: 68,
         records: 160,
         payloads: 340,
         groupValueFacts: 4,
@@ -150,8 +148,19 @@
     //     document keep each element's text of it, which bytes-per-element-reading-style-text covers. Where one ran, what
     //     that text adds to these owners is not this page's to bound.
 
-    // NB: Elements styled on different threads can each make a value or record of the same style.
     const slack = 1;
+
+    // NB: A style thread makes its own copy of a group or record its caches don't hold yet, so which threads took part
+    //     between two reports decides how many copies the slope finds, down to none where one thread styles a page. These
+    //     are the bytes of one copy by owner, for at most the eight style threads a machine gets and the calling thread.
+    const copyingThreads = 9;
+    const bytesPerThreadCopy = {
+        records: 312,
+        payloads: 680,
+        groupValueFacts: 208,
+        retainedSlots: 60,
+        styleValues: 88,
+    };
 
     function check(name, result, budgets) {
         println(`${name}: ${result.elements} elements, ${result.styledElements} styled`);
@@ -161,7 +170,8 @@
                 continue;
             const slope = result.slopes[owner];
             const budget = budgets[owner] ?? 0;
-            println(`  ${owner}: ${slope.toFixed(1) <= budget + slack ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
+            const copies = copyingThreads * (bytesPerThreadCopy[owner] ?? 0) / result.elements;
+            println(`  ${owner}: ${slope.toFixed(1) <= budget + slack + copies ? "within" : `OVER (${slope.toFixed(1)})`} ${budget}`);
         }
     }
 

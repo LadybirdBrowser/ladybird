@@ -2033,10 +2033,6 @@ pub(crate) fn collect_external_value_dependencies(value: &StyleValueData) -> Ext
     dependencies
 }
 
-pub(crate) fn value_may_need_style_sheet_resource_context(value: &StyleValueData) -> bool {
-    collect_external_value_dependencies(value).may_need_style_sheet_resource_context
-}
-
 /// The external dependencies of a value, or `None` for one whose computational independence is
 /// not known, which only a value that never reaches computation has.
 pub(crate) fn try_external_value_dependencies(value: &StyleValueData) -> Option<ExternalValueDependencies> {

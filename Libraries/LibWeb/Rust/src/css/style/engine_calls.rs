@@ -88,8 +88,9 @@ pub(crate) enum EngineWrite {
         kind: super::bridge::FfiElementDeclarationKind,
         properties: Box<[crate::css::declaration_block::DeclaredProperty]>,
     },
-    /// An element's inline declaration block, or none.
-    InlineStyle {
+    /// The custom properties an element's inline declaration block declares, which the engine names in atoms of its own.
+    /// The rest of the block reaches it with the host's rows.
+    InlineCustomProperties {
         node: StyleNodeID,
         data: Option<crate::css::declaration_block::SharedDeclarationBlock>,
     },
@@ -254,7 +255,6 @@ impl EngineWrite {
                     properties
                         .iter()
                         .map(crate::css::declaration_block::DeclaredProperty::borrowed),
-                    Default::default(),
                 );
             }
             Self::AnimationKeyframes { tree_scope, row } => engine.animation_keyframes.set(tree_scope, row),
@@ -269,14 +269,10 @@ impl EngineWrite {
                         .keep_timing(node, 0, identity, timing);
                 }
             }
-            Self::InlineStyle { node, data } => {
-                super::bridge::register_element_declared_properties(
+            Self::InlineCustomProperties { node, data } => {
+                super::bridge::register_element_custom_properties(
                     engine,
                     node,
-                    super::bridge::FfiElementDeclarationKind::InlineStyle,
-                    data.as_ref()
-                        .map_or_else(Default::default, |data| data.properties())
-                        .iter(),
                     data.as_ref()
                         .map_or(Default::default(), |data| data.custom_properties()),
                 );

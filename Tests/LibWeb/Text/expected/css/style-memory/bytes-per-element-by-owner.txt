@@ -6,7 +6,6 @@ shared: 500 elements, 500 styled
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 0
   records: within 4
   payloads: within 4
   groupValueFacts: within 4
@@ -35,7 +34,6 @@ custom: 500 elements, 500 styled
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 0
   records: within 312
   payloads: within 164
   groupValueFacts: within 4
@@ -45,11 +43,11 @@ custom: 500 elements, 500 styled
   installed: within 48
   projection: within 52
   hostTree: within 24
-  elementDeclarations: within 80
+  elementDeclarations: within 88
   heldRecordMaps: within 12
   layoutStyleColumns: within 0
   otherMaps: within 0
-  styleValues: within 108
+  styleValues: within 144
   animationEffects: within 0
   fontResolutions: within 0
   cssAnimations: within 0
@@ -64,7 +62,6 @@ unique: 500 elements, 500 styled
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 32
   records: within 92
   payloads: within 164
   groupValueFacts: within 4
@@ -93,7 +90,6 @@ uniqueFont: 500 elements, 500 styled
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 68
   records: within 160
   payloads: within 340
   groupValueFacts: within 4
@@ -122,7 +118,6 @@ uniqueVisual: 500 elements, 500 styled
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 0
   records: within 156
   payloads: within 188
   groupValueFacts: within 4
@@ -151,7 +146,6 @@ substituted: 500 elements, 500 styled
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 0
   records: within 312
   payloads: within 164
   groupValueFacts: within 4
@@ -161,11 +155,11 @@ substituted: 500 elements, 500 styled
   installed: within 16
   projection: within 44
   hostTree: within 24
-  elementDeclarations: within 80
+  elementDeclarations: within 84
   heldRecordMaps: within 12
   layoutStyleColumns: within 0
   otherMaps: within 0
-  styleValues: within 124
+  styleValues: within 160
   animationEffects: within 0
   fontResolutions: within 0
   cssAnimations: within 0

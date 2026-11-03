@@ -917,9 +917,8 @@ mod tests {
         let plain = nodes[RECORDS + 2];
         // NB: A value no other test holds, as tests run side by side and small numbers are shared.
         let written = RetainedStyleValueData::from_owned(StyleValueData::Number { value: 8675309.25 });
-        engine.element_declarations.set(
+        engine.element_declarations.set_inline_for_test(
             declaring,
-            ElementDeclarationKind::InlineStyle,
             vec![(
                 DeclarationEntry::new(
                     crate::css::property_metadata::property_id::MARGIN_LEFT,

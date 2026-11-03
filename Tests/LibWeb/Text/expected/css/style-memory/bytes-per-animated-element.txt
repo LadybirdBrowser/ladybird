@@ -6,7 +6,6 @@ animation: 500 elements
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 0
   records: within 456
   payloads: within 656
   groupValueFacts: within 0
@@ -35,7 +34,6 @@ transition: 500 elements
   sheetSegments: within 0
   sharedDeclarations: within 0
   invalidation: within 0
-  specifiedValues: within 0
   records: within 456
   payloads: within 352
   groupValueFacts: within 0

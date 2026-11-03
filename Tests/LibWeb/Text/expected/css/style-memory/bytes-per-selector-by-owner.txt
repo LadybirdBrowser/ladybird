@@ -4,7 +4,6 @@ class:
   userAgentIndex: within 0
   sheetSegments: within 248
   invalidation: within 8
-  specifiedValues: within 0
   sharedDeclarations: within 8
   styleValues: within 0
   total: within 392
@@ -14,7 +13,6 @@ descendant:
   userAgentIndex: within 0
   sheetSegments: within 424
   invalidation: within 8
-  specifiedValues: within 0
   sharedDeclarations: within 8
   styleValues: within 0
   total: within 568
@@ -24,7 +22,6 @@ is:
   userAgentIndex: within 0
   sheetSegments: within 408
   invalidation: within 8
-  specifiedValues: within 0
   sharedDeclarations: within 8
   styleValues: within 0
   total: within 544
@@ -34,7 +31,6 @@ selector list:
   userAgentIndex: within 0
   sheetSegments: within 488
   invalidation: within 8
-  specifiedValues: within 0
   sharedDeclarations: within 8
   styleValues: within 0
   total: within 664
@@ -44,7 +40,6 @@ descendant, media print:
   userAgentIndex: within 0
   sheetSegments: within 0
   invalidation: within 0
-  specifiedValues: within 0
   sharedDeclarations: within 8
   styleValues: within 0
   total: within 80

@@ -435,7 +435,6 @@ pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &Arena
             | Rule::LayerOrder { .. } => {}
         },
         ArenaChange::Engine(write) => match write {
-            Engine::InlineStyle { data: Some(data), .. } => note_attr_names_read_by_block(host, data),
             Engine::PresentationalHints { properties, .. } => {
                 note_attr_names_read_by(host, properties.iter().map(|property| &*property.value));
             }
@@ -449,7 +448,7 @@ pub(crate) fn note_attr_names_read_by_change(host: &DocumentHost, change: &Arena
                     note_attr_names_read_by_block(host, rule.declarations());
                 }
             }
-            Engine::InlineStyle { data: None, .. }
+            Engine::InlineCustomProperties { .. }
             | Engine::PublishFontFaces { .. }
             | Engine::ElementCustomPropertyData { .. }
             | Engine::PseudoElementCustomPropertyData { .. }

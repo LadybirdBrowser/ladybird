@@ -5,7 +5,6 @@ userAgentIndex: within 149568
 sheetSegments: within 0
 sharedDeclarations: within 14592
 invalidation: within 904
-specifiedValues: within 0
 records: within 1552
 payloads: within 7120
 groupValueFacts: within 672
@@ -15,7 +14,7 @@ recordCells: within 112
 installed: within 1320
 projection: within 5408
 hostTree: within 4672
-elementDeclarations: within 16
+elementDeclarations: within 32
 heldRecordMaps: within 1168
 layoutStyleColumns: within 104
 otherMaps: within 88

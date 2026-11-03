@@ -46,25 +46,6 @@ macro_rules! define_id {
         #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord)]
         $visibility struct $name($field_visibility u32);
     };
-    // An identity an `InternTable` hands out, which indexes the table directly.
-    ($(#[$attribute:meta])* interned $($rest:tt)*) => {
-        define_id! { $(#[$attribute])* $($rest)* }
-        define_id!(@interned $($rest)*);
-    };
-    (@interned default $($rest:tt)*) => {
-        define_id!(@interned $($rest)*);
-    };
-    (@interned $visibility:vis struct $name:ident($($field:tt)*);) => {
-        impl $crate::css::style::intern_table::InternIdentity for $name {
-            fn index(self) -> usize {
-                self.0 as usize
-            }
-
-            fn from_index(index: usize) -> Self {
-                Self(u32::try_from(index).expect("interned identity exceeds u32"))
-            }
-        }
-    };
 }
 
 pub(crate) mod animations;
@@ -105,7 +86,6 @@ mod inputs;
 mod installed_records;
 pub(crate) use inputs::next_declaration_block_version;
 pub mod instrumentation;
-mod intern_table;
 pub(crate) mod layout_style;
 pub(crate) mod memory_report;
 pub mod order;
@@ -138,6 +118,12 @@ pub mod selector_evaluation;
 mod shareable;
 mod size_container_invalidation;
 mod specified_value;
+
+/// Whether the host has to note what `value` reads of its element's attributes.
+pub(crate) fn value_reads_attributes(value: &crate::css::style_value::StyleValueData) -> bool {
+    custom_property_cascade::unresolved_reading_attributes(value).is_some()
+}
+
 mod transaction_view;
 pub mod tree;
 mod weak_pool;
@@ -217,7 +203,6 @@ use pipeline::rule_store::StyleScopeID;
 use selector::Incomplete;
 use selector::MatchScratch;
 use selector::Specificity;
-use specified_value::CanonicalValues;
 use transaction_view::TransactionFactSide;
 use tree::HostTree;
 use tree::SegmentedNodeColumn;
@@ -265,8 +250,6 @@ pub struct RetainedState {
     /// ancestor's font-relative lengths against.
     monospace_font_family: RetainedStyleValueData,
 
-    /// The values elements' own declarations share, one per content.
-    canonical_values: crate::fork::ForkShared<CanonicalValues>,
     /// The shared computed-group payload tuple last published for each live element. This is the
     /// computed half of the eventual base style record; custom properties and metadata remain
     /// separate inputs until that record is complete.
