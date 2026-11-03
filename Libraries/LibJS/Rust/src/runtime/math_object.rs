@@ -6,6 +6,7 @@
 
 use std::sync::{LazyLock, Mutex};
 
+use ak::math;
 use libjs_abi::Builtin;
 use libjs_runtime_macros::Trace;
 
@@ -28,18 +29,6 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::value;
-
-// NB: Rust's acosh, asinh and atanh are computed in Rust rather than by the C library, whose results these return
-//     instead. Every other function here is one Rust also takes from the C library.
-// SAFETY: These are the C library's math functions, which take and return a double and have no other effects.
-unsafe extern "C" {
-    #[link_name = "acosh"]
-    safe fn libm_acosh(x: f64) -> f64;
-    #[link_name = "asinh"]
-    safe fn libm_asinh(x: f64) -> f64;
-    #[link_name = "atanh"]
-    safe fn libm_atanh(x: f64) -> f64;
-}
 
 const M_PI_4: f64 = core::f64::consts::FRAC_PI_4;
 const M_PI_2: f64 = core::f64::consts::FRAC_PI_2;
@@ -195,8 +184,8 @@ impl MathObject {
         constant(&names.E, core::f64::consts::E);
         constant(&names.LN2, core::f64::consts::LN_2);
         constant(&names.LN10, core::f64::consts::LN_10);
-        constant(&names.LOG2E, core::f64::consts::E.log2());
-        constant(&names.LOG10E, core::f64::consts::E.log10());
+        constant(&names.LOG2E, math::log2(core::f64::consts::E));
+        constant(&names.LOG10E, math::log10(core::f64::consts::E));
         constant(&names.PI, M_PI);
         constant(&names.SQRT1_2, core::f64::consts::FRAC_1_SQRT_2);
         constant(&names.SQRT2, core::f64::consts::SQRT_2);
@@ -262,7 +251,7 @@ impl MathObject {
         }
 
         // 4. Return an implementation-approximated Number value representing the result of the inverse cosine of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().acos()))
+        Ok(Value::from_f64(math::acos(number.as_f64())))
     }
 
     // 21.3.2.3 Math.acosh ( x ), https://tc39.es/ecma262/#sec-math.acosh
@@ -286,7 +275,7 @@ impl MathObject {
         }
 
         // 5. Return an implementation-approximated Number value representing the result of the inverse hyperbolic cosine of ℝ(n).
-        Ok(Value::from_f64(libm_acosh(number.as_f64())))
+        Ok(Value::from_f64(math::acosh(number.as_f64())))
     }
 
     // 21.3.2.4 Math.asin ( x ), https://tc39.es/ecma262/#sec-math.asin
@@ -305,7 +294,7 @@ impl MathObject {
         }
 
         // 4. Return an implementation-approximated Number value representing the result of the inverse sine of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().asin()))
+        Ok(Value::from_f64(math::asin(number.as_f64())))
     }
 
     // 21.3.2.5 Math.asinh ( x ), https://tc39.es/ecma262/#sec-math.asinh
@@ -319,7 +308,7 @@ impl MathObject {
         }
 
         // 3. Return an implementation-approximated Number value representing the result of the inverse hyperbolic sine of ℝ(n).
-        Ok(Value::from_f64(libm_asinh(number.as_f64())))
+        Ok(Value::from_f64(math::asinh(number.as_f64())))
     }
 
     // 21.3.2.6 Math.atan ( x ), https://tc39.es/ecma262/#sec-math.atan
@@ -343,7 +332,7 @@ impl MathObject {
         }
 
         // 5. Return an implementation-approximated Number value representing the result of the inverse tangent of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().atan()))
+        Ok(Value::from_f64(math::atan(number.as_f64())))
     }
 
     // 21.3.2.7 Math.atanh ( x ), https://tc39.es/ecma262/#sec-math.atanh
@@ -372,7 +361,7 @@ impl MathObject {
         }
 
         // 6. Return an implementation-approximated Number value representing the result of the inverse hyperbolic tangent of ℝ(n).
-        Ok(Value::from_f64(libm_atanh(number.as_f64())))
+        Ok(Value::from_f64(math::atanh(number.as_f64())))
     }
 
     // 21.3.2.8 Math.atan2 ( y, x ), https://tc39.es/ecma262/#sec-math.atan2
@@ -487,7 +476,7 @@ impl MathObject {
         assert!(x.is_finite_number() && !x.is_positive_zero() && !x.is_negative_zero());
 
         // 12. Return an implementation-approximated Number value representing the result of the inverse tangent of the quotient ℝ(ny) / ℝ(nx).
-        Ok(Value::from_f64(y.as_f64().atan2(x.as_f64())))
+        Ok(Value::from_f64(math::atan2(y.as_f64(), x.as_f64())))
     }
 
     // 21.3.2.9 Math.cbrt ( x ), https://tc39.es/ecma262/#sec-math.cbrt
@@ -501,7 +490,7 @@ impl MathObject {
         }
 
         // 3. Return an implementation-approximated Number value representing the result of the cube root of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().cbrt()))
+        Ok(Value::from_f64(math::cbrt(number.as_f64())))
     }
 
     // 21.3.2.10 Math.ceil ( x ), https://tc39.es/ecma262/#sec-math.ceil
@@ -565,7 +554,7 @@ impl MathObject {
         }
 
         // 5. Return an implementation-approximated Number value representing the result of the hyperbolic cosine of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().cosh()))
+        Ok(Value::from_f64(math::cosh(number.as_f64())))
     }
 
     // 21.3.2.14 Math.exp ( x ), https://tc39.es/ecma262/#sec-math.exp
@@ -593,7 +582,7 @@ impl MathObject {
         }
 
         // 4. Return an implementation-approximated Number value representing the result of subtracting 1 from the exponential function of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().exp_m1()))
+        Ok(Value::from_f64(math::expm1(number.as_f64())))
     }
 
     // 21.3.2.16 Math.floor ( x ), https://tc39.es/ecma262/#sec-math.floor
@@ -746,7 +735,7 @@ impl MathObject {
         }
 
         // 5. Return an implementation-approximated Number value representing the result of the natural logarithm of 1 + ℝ(n).
-        Ok(Value::from_f64(number.as_f64().ln_1p()))
+        Ok(Value::from_f64(math::log1p(number.as_f64())))
     }
 
     // 21.3.2.23 Math.log10 ( x ), https://tc39.es/ecma262/#sec-math.log10
@@ -775,7 +764,7 @@ impl MathObject {
         }
 
         // 6. Return an implementation-approximated Number value representing the result of the base 10 logarithm of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().log10()))
+        Ok(Value::from_f64(math::log10(number.as_f64())))
     }
 
     // 21.3.2.24 Math.log2 ( x ), https://tc39.es/ecma262/#sec-math.log2
@@ -804,7 +793,7 @@ impl MathObject {
         }
 
         // 6. Return an implementation-approximated Number value representing the result of the base 2 logarithm of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().log2()))
+        Ok(Value::from_f64(math::log2(number.as_f64())))
     }
 
     // 21.3.2.25 Math.max ( ...args ), https://tc39.es/ecma262/#sec-math.max
@@ -951,7 +940,7 @@ impl MathObject {
         }
 
         // 3. Return an implementation-approximated Number value representing the result of the hyperbolic sine of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().sinh()))
+        Ok(Value::from_f64(math::sinh(number.as_f64())))
     }
 
     // 21.3.2.33 Math.sqrt ( x ), https://tc39.es/ecma262/#sec-math.sqrt
@@ -1251,7 +1240,7 @@ impl MathObject {
         }
 
         // 5. Return an implementation-approximated Number value representing the result of the hyperbolic tangent of ℝ(n).
-        Ok(Value::from_f64(number.as_f64().tanh()))
+        Ok(Value::from_f64(math::tanh(number.as_f64())))
     }
 
     // 21.3.2.37 Math.trunc ( x ), https://tc39.es/ecma262/#sec-math.trunc
@@ -1318,7 +1307,7 @@ pub fn cos_of_number(number: f64) -> f64 {
     }
 
     // 4. Return an implementation-approximated Number value representing the result of the cosine of ℝ(n).
-    number.cos()
+    math::cos(number)
 }
 
 /// The steps of Math.exp after ToNumber, which JIT code also calls.
@@ -1339,7 +1328,7 @@ pub fn exp_of_number(number: f64) -> f64 {
     }
 
     // 5. Return an implementation-approximated Number value representing the result of the exponential function of ℝ(n).
-    number.exp()
+    math::exp(number)
 }
 
 /// The steps of Math.log after ToNumber, which JIT code also calls.
@@ -1365,7 +1354,7 @@ pub fn log_of_number(number: f64) -> f64 {
     }
 
     // 6. Return an implementation-approximated Number value representing the result of the natural logarithm of ℝ(n).
-    number.ln()
+    math::log(number)
 }
 
 /// The generator of Math.random. Every realm and VM of the process draws from the one generator, seeded the first time
@@ -1386,7 +1375,7 @@ pub fn sin_of_number(number: f64) -> f64 {
     }
 
     // 4. Return an implementation-approximated Number value representing the result of the sine of ℝ(n).
-    number.sin()
+    math::sin(number)
 }
 
 struct TwoSumResult {
@@ -1413,5 +1402,5 @@ pub fn tan_of_number(number: f64) -> f64 {
     }
 
     // 4. Return an implementation-approximated Number value representing the result of the tangent of ℝ(n).
-    number.tan()
+    math::tan(number)
 }

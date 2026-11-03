@@ -8,6 +8,7 @@ use core::cell::{Cell, RefCell};
 use core::ops::Deref;
 
 use ak::Utf16String;
+use ak::math;
 use libjs_runtime_macros::Trace;
 use num_traits::FromPrimitive;
 
@@ -732,8 +733,11 @@ pub fn compute_fractional_digits(duration_format: &DurationFormat, duration: &Du
             let value = (duration_instances_component.value_slot)(duration);
 
             // iv. Set result to result + (value / 10**exponent).
-            result =
-                &result + &BigFraction::new(big_integer_of_field(value), big_integer_of_field(10f64.powf(exponent)));
+            result = &result
+                + &BigFraction::new(
+                    big_integer_of_field(value),
+                    big_integer_of_field(math::pow(10f64, exponent)),
+                );
 
             // v. Set exponent to exponent + 3.
             exponent += 3.0;
