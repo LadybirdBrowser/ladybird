@@ -118,7 +118,6 @@ private:
     };
 
     Compositing::WheelRoutingAdmission m_admission { Compositing::WheelRoutingAdmission::NoAsyncScrollingState };
-    bool m_has_blocking_wheel_event_listeners { false };
     u64 m_wheel_event_listener_state_generation { 0 };
     struct Gesture {
         u64 id;
