@@ -6,28 +6,28 @@
   sharedDeclarations: within 40
   animationEffects: within 0
 @media that fails:
-  ruleStore: within 68
+  ruleStore: within 69
   ruleIndex: within 0
   sheetSegments: within 0
   invalidation: within 0
   sharedDeclarations: within 40
   animationEffects: within 0
 @layer:
-  ruleStore: within 84
+  ruleStore: within 87
   ruleIndex: within 60
   sheetSegments: within 240
   invalidation: within 0
   sharedDeclarations: within 40
   animationEffects: within 0
 @container:
-  ruleStore: within 60
+  ruleStore: within 63
   ruleIndex: within 196
   sheetSegments: within 240
   invalidation: within 0
   sharedDeclarations: within 40
   animationEffects: within 0
 @keyframes:
-  ruleStore: within 116
+  ruleStore: within 120
   ruleIndex: within 0
   sheetSegments: within 0
   invalidation: within 0
