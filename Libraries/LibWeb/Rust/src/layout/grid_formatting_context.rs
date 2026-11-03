@@ -4821,6 +4821,7 @@ impl<'pass> GridFormattingContext<'pass> {
         let plan = formatting_context::child_run_plan(
             &self.run,
             item.box_,
+            formatting_context::formatting_context_type_created_by_box(NodeFacts::new(&self.run.callbacks, item.box_)),
             input,
             false,
             self.run
