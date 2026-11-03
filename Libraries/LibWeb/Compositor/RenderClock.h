@@ -60,6 +60,10 @@ public:
     // takes beside it, and answers what the lanes want next.
     PointerAnswer pointer_moved(Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id) const;
 
+    // Hands the lane that the pointer rests where the Compositor's animations move what is under it, which the next
+    // tick hovers again, and answers what the lanes want next.
+    PointerAnswer pointer_rests_on_moving_content() const;
+
     bool hands_on_to(ClockTicksHandle const& other) const { return m_ticks == other.m_ticks; }
 
 private:
@@ -128,6 +132,7 @@ private:
     void request_clock_tick(Web::CompositorContextId, double maximum_frames_per_second);
     void did_receive_clock_tick(Web::CompositorContextId, i64 frame_time_nanoseconds, ReadonlySpan<Web::CompositorScrollOffset>);
     void did_receive_pointer_move(Web::CompositorContextId, Optional<Gfx::FloatPoint> device_position, u32 buttons, bool scrolled_since_frame, u64 input_event_id);
+    void did_receive_pointer_rest(Web::CompositorContextId);
     void did_lose_channel();
 
     NonnullRefPtr<Threading::Thread> m_thread;
@@ -146,6 +151,7 @@ private:
         NonnullRefPtr<ClockTicksHandle> ticks;
     };
     HashMap<Web::CompositorContextId, PointerLane> m_pointer_lanes;
+    void arm_lane_for_pointer_answer(Web::CompositorContextId, PointerLane const&, PointerAnswer);
 };
 
 }

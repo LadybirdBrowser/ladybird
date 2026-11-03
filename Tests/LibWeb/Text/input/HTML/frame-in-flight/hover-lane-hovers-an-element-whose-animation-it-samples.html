@@ -14,7 +14,7 @@
     // A box the clock lane moves across the pointer at rest is hovered by the lane as the pointer moves, like any other
     // box: a hover that changes nothing of the element's animations leaves their plan as it is, so the lane installs the
     // hover's style itself and keeps sampling the animation over it, and shows the cursor of the box. The host hovers
-    // the same box afterwards.
+    // where the pointer rests afterwards, which the box has left by then.
     asyncTest(async done => {
         internals.mouseMove(150, 50);
         await twoFrames();

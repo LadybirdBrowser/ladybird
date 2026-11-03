@@ -413,10 +413,12 @@ impl LaneState {
     }
 }
 
-/// What a tick of a lane did: the pointer move its hover took, if it took one, and whether it presented a frame.
+/// What a tick of a lane did: the pointer move its hover took, if it took one, whether it presented a frame, and
+/// whether the samples of animations or transitions it showed in that frame moved boxes.
 struct Ticked {
     hover_move: Option<LaneMove>,
     presented: bool,
+    sampled: bool,
 }
 
 /// A pointer move a tick of a lane took, which the host takes in.
@@ -800,6 +802,13 @@ impl ClockTicks {
         self.pointer_state().moved(pointer, follows)
     }
 
+    /// Hands the lane that the pointer rests where an animation moves what is under it, which the next tick hovers
+    /// again, and answers what the lane wants next.
+    pub(super) fn pointer_rests_on_moving_content(&self) -> hover::PointerAnswer {
+        let follows = self.published().follows_pointer;
+        self.pointer_state().rests_on_moving_content(follows)
+    }
+
     /// Where the compositor said the pointer went last, beside the mouse event the host takes, if it said so.
     pub(super) fn newest_pointer(&self) -> Option<PendingPointer> {
         self.pointer_state().last()
@@ -836,6 +845,11 @@ impl ClockTicks {
     /// Hands the lane a pointer move, and ticks it at `frame_time_nanoseconds`. For a test.
     pub(super) fn inject_pointer(self: &Arc<Self>, pointer: PendingPointer, frame_time_nanoseconds: i64) {
         let _ = self.pointer_moved(pointer);
+        self.tick(frame_time_nanoseconds, &[]);
+    }
+
+    pub(super) fn inject_pointer_rest(self: &Arc<Self>, frame_time_nanoseconds: i64) {
+        let _ = self.pointer_rests_on_moving_content();
         self.tick(frame_time_nanoseconds, &[]);
     }
 
@@ -1379,6 +1393,7 @@ impl Lane {
         let mut ticked = Ticked {
             hover_move: None,
             presented: false,
+            sampled: false,
         };
         if self.frame_left_to_host || (!samples_animations && hovers.is_none() && !transitions) {
             return ticked;
@@ -1396,12 +1411,14 @@ impl Lane {
         state.engine_mut().lend_tick_shown(std::mem::take(&mut self.shown));
         self.refresh_host_effect_timings(state);
         let mut moved = false;
+        let mut sampled = false;
         if transitions {
             // NB: Transitions a tick left to the host keep what their boxes showed, beside what the others moved.
-            moved |= self.sample_started_transitions(state, sampled_at.0).unwrap_or(true);
+            sampled |= self.sample_started_transitions(state, sampled_at.0).unwrap_or(true);
+            moved |= sampled;
         }
         if let Some(pointer) = hovers {
-            let hovered = self.hover(state, pointer, sampled_at.0);
+            let hovered = self.hover(state, pointer, sampled_at.0, frame_time_nanoseconds);
             ticked.hover_move = Some(LaneMove {
                 input_event_id: pointer.input_event_id,
                 target: match hovered {
@@ -1424,7 +1441,10 @@ impl Lane {
                         false => Ok(false),
                     });
                 match shown {
-                    Ok(sampled) => moved |= sampled,
+                    Ok(transitions_moved) => {
+                        moved |= transitions_moved;
+                        sampled |= transitions_moved;
+                    }
                     Err(Park(reason)) => {
                         if hover::logs_hover() {
                             eprintln!("{} hover lane: frame left to the host: {reason}", hover::log_time());
@@ -1448,6 +1468,7 @@ impl Lane {
             match self.sample_host_animations(state, samples) {
                 Ok(()) => {
                     moved = true;
+                    sampled = true;
                     self.shown_at = sampled_at.0;
                     self.shown_scroll_progress = progress;
                 }
@@ -1470,6 +1491,7 @@ impl Lane {
                         );
                     }
                     ticked.presented = true;
+                    ticked.sampled = sampled;
                 }
                 Err(Park(reason)) => {
                     if hover::logs_hover() {

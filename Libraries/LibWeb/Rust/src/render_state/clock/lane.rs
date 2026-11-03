@@ -466,7 +466,7 @@ impl LaneSlot {
         {
             if let Some(pointer) = pointer {
                 lane.hovered.go_on_from_nested(self.nested);
-                self.last_move = Some(lane.hover_read_only(pointer));
+                self.last_move = Some(lane.hover_read_only(pointer, self.ticks.latest.load(Ordering::Acquire)));
                 self.nested = lane.hovered.nested();
             }
             return;
@@ -519,6 +519,11 @@ impl LaneSlot {
                 colors: lane.presented_colors.clone(),
                 compositor_animations: lane.presented_compositor_animations.clone(),
             };
+            // The samples the tick showed may have moved a box under the pointer at rest, or away from under it: the
+            // next tick hovers where the pointer rests again, in the frame this tick presented.
+            if ticked.sampled {
+                let _ = self.ticks.pointer_rests_on_moving_content();
+            }
         }
     }
 

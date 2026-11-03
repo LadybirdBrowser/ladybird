@@ -318,6 +318,20 @@ impl PointerState {
         self.last
     }
 
+    /// Has the next tick hover where the pointer rests, as an animation moves what is under it, where a lane `follows`
+    /// the pointer, and answers what the lanes want next. A rest the host handled a newer move than is nobody's to
+    /// hover, as such a move is.
+    pub(super) fn rests_on_moving_content(&mut self, follows: bool) -> PointerAnswer {
+        let Some(last) = self.last.filter(|last| last.position.is_some()) else {
+            return PointerAnswer::Moves;
+        };
+        if !follows || self.is_older_than_handled(last) {
+            return PointerAnswer::Moves;
+        }
+        self.pending = Some(last);
+        PointerAnswer::Ticks
+    }
+
     /// Takes the move that waits for a tick to hover it.
     pub(super) fn take(&mut self) -> Option<PendingPointer> {
         self.pending.take()
@@ -551,8 +565,15 @@ impl Lane {
         }
     }
 
-    /// Hovers the element under `pointer`, and answers whether that moved anything to lay out and present.
-    pub(super) fn hover(&mut self, state: &mut RenderState, pointer: PendingPointer, timestamp: f64) -> Hovered {
+    /// Hovers the element under `pointer`, in the frame as the screen shows it at `frame_time_nanoseconds`, and answers
+    /// whether that moved anything to lay out and present.
+    pub(super) fn hover(
+        &mut self,
+        state: &mut RenderState,
+        pointer: PendingPointer,
+        timestamp: f64,
+        frame_time_nanoseconds: i64,
+    ) -> Hovered {
         // A scroll the host has not laid out moved what is under the pointer, and a held button drags or selects,
         // which only the host follows.
         let Some(plan) = self.plan.hover.take() else {
@@ -567,7 +588,14 @@ impl Lane {
         } else if pointer.buttons != 0 {
             Err(HoverDeclined::Unmoved("buttons held"))
         } else {
-            let hovered = self.hover_with(state, &plan, pointer, timestamp, &mut cursor_hit);
+            let hovered = self.hover_with(
+                state,
+                &plan,
+                pointer,
+                timestamp,
+                frame_time_nanoseconds,
+                &mut cursor_hit,
+            );
             // The iframe the hover handed the pointer to before hears that it left, wherever else in the document the
             // move went.
             if !matches!(hovered, Err(HoverDeclined::Handed(_) | HoverDeclined::Unplaced(_))) {
@@ -636,10 +664,11 @@ impl Lane {
         plan: &HoverPlan,
         pointer: PendingPointer,
         timestamp: f64,
+        frame_time_nanoseconds: i64,
         cursor_hit: &mut Option<CursorHit>,
     ) -> Result<(), HoverDeclined> {
         let target = match pointer.position {
-            Some(position) => match self.hit_test(state, plan, position)? {
+            Some(position) => match self.hit_test(state, plan, position, frame_time_nanoseconds)? {
                 HoverTarget::Element(hit) => {
                     *cursor_hit = Some(hit);
                     Some(hit.element)
@@ -1065,7 +1094,7 @@ impl Lane {
     }
 
     /// Hit tests the preserved frame without copying mutable style and layout state.
-    pub(super) fn hover_read_only(&mut self, pointer: PendingPointer) -> super::LaneMove {
+    pub(super) fn hover_read_only(&mut self, pointer: PendingPointer, frame_time_nanoseconds: i64) -> super::LaneMove {
         use crate::painting::paint_read::{GeometryRead, PaintSource};
         if pointer.buttons != 0 {
             return super::LaneMove {
@@ -1092,6 +1121,15 @@ impl Lane {
             if published.structural_epoch != tree.structural_epoch {
                 return None;
             }
+            // The screen shows the compositor's animations sampled at the frame's time, where the hit test finds them.
+            let sampled;
+            let tree = match tree.has_visual_animations() {
+                true => {
+                    sampled = tree.with_visual_animation_samples(frame_time_nanoseconds);
+                    &sampled
+                }
+                false => tree,
+            };
             let absolute_rects = std::cell::RefCell::default();
             let source = PaintSource::over_rows(&frame.rows, &absolute_rects);
             let mut list = HitTestList {
@@ -1200,6 +1238,7 @@ impl Lane {
         state: &mut RenderState,
         plan: &HoverPlan,
         position: FloatPoint,
+        frame_time_nanoseconds: i64,
     ) -> Result<HoverTarget, HoverDeclined> {
         // The hit-test list is the one of the frame the lane presented last, which comes back with its recording.
         let recorder = self.recording.0.take(WaitsForTickRecording(()));
@@ -1218,6 +1257,11 @@ impl Lane {
         if published.structural_epoch != tree.structural_epoch {
             return Err(HoverDeclined::Unplaced("visual contexts the frame does not show"));
         }
+        // The screen shows the compositor's animations sampled at the frame's time, where the hit test finds them.
+        let tree = match tree.has_visual_animations() {
+            true => Arc::new(tree.with_visual_animation_samples(frame_time_nanoseconds)),
+            false => tree,
+        };
         let mut list = HitTestList {
             items: std::sync::Arc::clone(&published.items),
             ..HitTestList::default()
@@ -1444,6 +1488,26 @@ pub extern "C" fn clock_ticks_pointer_moved(
         scrolled_since_frame,
         input_event_id,
     }) as u8
+}
+
+/// Hands the clock lane `ticks` belong to that the pointer rests where the compositor's animations move what is under
+/// it, which the next tick hovers again in the frame as the screen shows it, and answers what the lane wants next, as a
+/// `PointerAnswer`.
+#[unsafe(no_mangle)]
+pub extern "C" fn clock_ticks_pointer_rests_on_moving_content(ticks: &super::ClockTicks) -> u8 {
+    ticks.pointer_rests_on_moving_content() as u8
+}
+
+/// Hands the clock lanes of `host`'s document that the pointer rests where the compositor's animations move what is
+/// under it, ticks them at `frame_time_nanoseconds`, and waits as [`document_host_inject_pointer`] does. For a test.
+#[unsafe(no_mangle)]
+pub extern "C" fn document_host_inject_pointer_rest(
+    host: &crate::render_state::DocumentHost,
+    frame_time_nanoseconds: i64,
+) {
+    super::settle_lanes_for_testing();
+    host.clock_ticks().inject_pointer_rest(frame_time_nanoseconds);
+    super::settle_lanes_for_testing();
 }
 
 /// Hands the clock lanes of `host`'s document a pointer move to `x`, `y` in device pixels, as the compositor would,

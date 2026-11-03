@@ -2589,11 +2589,14 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
 {
     auto animations_are_active = m_scene.advance_visual_animations(now);
     // The main thread hovers what is under the pointer at rest again as a transform animation moves content under it,
-    // with the animation sampled at the frame's time, and once more as the content moves away.
+    // with the animation sampled at the frame's time, and once more as the content moves away. So does the clock lane
+    // of the frame, at its next tick, while the main thread runs a task.
     auto animated_content_is_under_pointer = animations_are_active && m_pointer_position.has_value()
         && m_scene.visual_context_tree_for_compositing().running_transform_animation_covers_point(now.nanoseconds(), *m_pointer_position, m_scroll_state_snapshot);
-    if (animated_content_is_under_pointer || m_animated_content_was_under_pointer)
+    if (animated_content_is_under_pointer || m_animated_content_was_under_pointer) {
         m_web_content_client.animated_content_moved_under_pointer(m_context_id, now.nanoseconds());
+        m_web_content_client.pointer_rests_on_moving_content(m_context_id);
+    }
     m_animated_content_was_under_pointer = animated_content_is_under_pointer;
     return animations_are_active;
 }
