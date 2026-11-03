@@ -565,6 +565,35 @@ impl Lane {
         }
     }
 
+    /// Shows the cursor of what is under `pointer` in the frame the screen shows at `frame_time_nanoseconds`, where the
+    /// lane may present nothing, and leaves the move to the host, which hovers what is under the pointer itself.
+    pub(super) fn show_cursor_only(
+        &mut self,
+        state: &mut RenderState,
+        pointer: PendingPointer,
+        frame_time_nanoseconds: i64,
+    ) -> super::LaneMove {
+        let left_to_host = super::LaneMove {
+            input_event_id: pointer.input_event_id,
+            target: None,
+            handed: false,
+        };
+        let Some(plan) = self.plan.hover.take() else {
+            return left_to_host;
+        };
+        let placed = pointer.buttons == 0 && !(pointer.scrolled_since_frame && self.scroll_offsets.is_empty());
+        if placed
+            && let Some(position) = pointer.position
+            && let Ok(HoverTarget::Element(hit)) = self.hit_test(state, &plan, position, frame_time_nanoseconds)
+            && let Some(page_cursor) = &plan.page_cursor
+            && let Some(cursor) = cursor_for_hit(state, hit)
+        {
+            page_cursor.request(cursor);
+        }
+        self.plan.hover = Some(plan);
+        left_to_host
+    }
+
     /// Hovers the element under `pointer`, in the frame as the screen shows it at `frame_time_nanoseconds`, and answers
     /// whether that moved anything to lay out and present.
     pub(super) fn hover(
@@ -603,9 +632,10 @@ impl Lane {
             }
             hovered
         };
-        // The cursor shows what the pointer is over once the element the hover is on is the one under it, as the host
-        // shows it as it handles the move. A move the host hovers leaves the cursor to it too.
-        if matches!(hovered, Ok(()) | Err(HoverDeclined::Same))
+        // The cursor shows what the pointer is over in the frame on screen, whether the hover moves or the host hovers
+        // the move: the host shows the cursor of what it finds there as it handles the move. A move handed to an iframe
+        // shows the cursor its lane finds.
+        if !matches!(hovered, Err(HoverDeclined::Handed(_)))
             && let Some(page_cursor) = &plan.page_cursor
             && let Some(hit) = cursor_hit
             && let Some(cursor) = cursor_for_hit(state, hit)

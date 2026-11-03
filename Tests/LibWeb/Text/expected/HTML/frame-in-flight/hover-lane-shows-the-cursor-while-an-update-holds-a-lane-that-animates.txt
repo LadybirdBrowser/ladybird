@@ -1,0 +1,5 @@
+frame scheduler while held: in-flight
+cursor beside the held frame: Crosshair
+box matches :hover beside the held frame: false, presented height undefined
+box matches :hover once the frame landed: true
+cursor once the frame landed: Crosshair

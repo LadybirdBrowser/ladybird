@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 150px; }
+    #box { position: absolute; width: 100px; height: 60px; top: 20px; left: 100px; cursor: cell; }
+    #box:hover { height: 80px; }
+    #spinner { position: absolute; left: 300px; top: 100px; width: 20px; height: 20px; animation: grow 10s linear infinite; }
+    @keyframes grow { to { width: 40px; } }
+</style>
+<div id="stage"><div id="box"></div><div id="spinner"></div></div>
+<script>
+    // As above, for a lane that samples a layout animation beside the tasks, which hit tests the frame on its fork of
+    // the render state: the cursor follows a move while the update's frame is held, and the move waits for the host.
+    asyncTest(async done => {
+        // The lane follows the pointer, which the compositor told it of, beside the box.
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(350, 50, frameTime + 16);
+        });
+        const result = await whileRecordingInFlight(() => {
+            stage.style.marginTop = "5px";
+        }, async schedulerState => {
+            internals.injectHoverPointer(150, 50, performance.now());
+            return { schedulerState, cursor: internals.currentCursor(), hovered: box.matches(":hover"), height: internals.presentedBorderBox(box)?.height };
+        });
+        println(`frame scheduler while held: ${result.schedulerState}`);
+        println(`cursor beside the held frame: ${result.cursor}`);
+        println(`box matches :hover beside the held frame: ${result.hovered}, presented height ${result.height}`);
+        await twoFramesLanded();
+        await nextTask();
+        println(`box matches :hover once the frame landed: ${box.matches(":hover")}`);
+        println(`cursor once the frame landed: ${internals.currentCursor()}`);
+        done();
+    });
+</script>
