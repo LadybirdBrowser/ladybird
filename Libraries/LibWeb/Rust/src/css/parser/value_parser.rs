@@ -5626,11 +5626,18 @@ fn shared_single_layer_initial_list(property: u16) -> Option<RetainedStyleValueD
     // NB: An initial value parses the same in every context, so the list is parsed in the empty one.
     LISTS[index]
         .get_or_init(|| {
-            Some(RetainedStyleValueData::from_owned(value_list(
+            let list = RetainedStyleValueData::from_owned(value_list(
                 vec![coordinating_initial_item(&ParseContext::default(), property)?],
                 1,
                 true,
-            )))
+            ));
+            // NB: The longhand's initial value where it is this list, so that the element declaring the
+            //     list holds the very value its seed does.
+            let initial = crate::css::style_compute::initial_value_handle(property);
+            Some(match *initial == list {
+                true => initial.clone(),
+                false => list,
+            })
         })
         .clone()
 }

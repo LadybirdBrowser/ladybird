@@ -471,6 +471,27 @@ fn canonical_legacy_rgb(value: &StyleValueData) -> Option<StyleValueData> {
     ))
 }
 
+/// Whether `value` is the canonical computed form of a fully-resolved opaque legacy sRGB color, which
+/// computes to itself.
+pub(crate) fn color_function_is_canonical_legacy_rgb(value: &StyleValueData) -> bool {
+    let StyleValueData::ColorFunction(color_function) = value else {
+        return false;
+    };
+    let channel_is_a_byte = |channel: &RetainedStyleValueData| {
+        matches!(channel.optional_data(), Some(StyleValueData::Number { value })
+            if (0.0..=255.0).contains(value) && value.fract() == 0.0)
+    };
+    color_function.color_base.has_color_type
+        && color_function.color_base.color_type == crate::css::color_conversion::RGB
+        && color_function.color_base.color_syntax == COLOR_SYNTAX_LEGACY
+        && !color_function.has_name
+        && color_function.origin_color.optional_data().is_none()
+        && channel_is_a_byte(&color_function.channel_0)
+        && channel_is_a_byte(&color_function.channel_1)
+        && channel_is_a_byte(&color_function.channel_2)
+        && matches!(color_function.alpha.optional_data(), Some(StyleValueData::Number { value }) if *value == 1.0)
+}
+
 /// Port of hsl_to_absolutized_rgb() in ColorFunctionStyleValue.cpp.
 // https://drafts.csswg.org/css-color-4/#hsl-to-rgb
 fn hsl_to_absolutized_rgb(
