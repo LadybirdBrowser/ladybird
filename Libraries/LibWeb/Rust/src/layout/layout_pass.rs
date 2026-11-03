@@ -42,6 +42,7 @@ pub(crate) struct LayoutPass<'arena> {
     reads_no_memoized_layout: bool,
     /// The innermost of the position options the boxes this pass view lays out are laid out with.
     position_option_styles: Option<&'arena PositionOptionStyle<'arena>>,
+    records_trace: bool,
 }
 
 /// The style a box is laid out with in place of the style of its row: that of one of its position options. It links to
@@ -74,6 +75,7 @@ impl<'arena> LayoutPass<'arena> {
             intrinsic_size_caches: &scratch.intrinsic_size_caches,
             reads_no_memoized_layout: false,
             position_option_styles: None,
+            records_trace: scratch.layout_trace.is_recording(),
         }
     }
 
@@ -181,7 +183,7 @@ impl<'arena> LayoutPass<'arena> {
     /// Where this pass view records what its runs do while the document traces its layout: the document's layout trace,
     /// or nowhere inside a run whose result is discarded.
     pub(crate) fn layout_trace(&self) -> super::trace::LayoutTraceTarget<'arena> {
-        if self.reads_no_memoized_layout {
+        if self.reads_no_memoized_layout || !self.records_trace {
             return super::trace::LayoutTraceTarget::recording_nothing();
         }
         super::trace::LayoutTraceTarget::recording_into(&self.scratch.layout_trace)
