@@ -2275,18 +2275,19 @@ fn lay_out_run_root_and_contents<'pass>(
     let mut implementation = None;
     let mut root_lines = used_values::LineDataState::Empty;
     let mut laid_out_content_block_size = None;
-    let (mut result, own_root_after_body) = if !changes_frame
-        && run.fragments.is_some()
-        && matches!(
-            input.participation,
-            ParticipationInParentFormattingContext::AtomicInline
-        )
-        && fc_type == FormattingContextType::Block
-        && callbacks.first_child(box_).is_invalid()
-    {
-        // An empty atomic block context has no body output. Root sizing and finalization still
+    let (mut result, own_root_after_body) = if empty_root_needs_no_formatting_context_algorithm(
+        &callbacks,
+        box_,
+        fc_type,
+        input,
+        should_collect_devtools_layout_data,
+    ) {
+        // An empty root context has no body output. Root sizing and finalization still
         // run through the shared paths around this branch.
-        (ChildLayoutResult::default(), own_root.get())
+        (
+            result_of_empty_root(&callbacks, box_, fc_type, own_root.get()),
+            own_root.get(),
+        )
     } else {
         let mut context_implementation = create_formatting_context_implementation(
             body_run,
@@ -2630,6 +2631,48 @@ fn lay_out_run_root_and_contents<'pass>(
         )
     };
     (outputs, root_cells_left_by_run)
+}
+
+pub(super) fn empty_root_needs_no_formatting_context_algorithm(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    fc_type: FormattingContextType,
+    input: &LayoutInput,
+    should_collect_devtools_layout_data: bool,
+) -> bool {
+    if input.participation == ParticipationInParentFormattingContext::Root
+        || should_collect_devtools_layout_data
+        || !callbacks.first_child(box_).is_invalid()
+        || frame_established_by(callbacks, box_) != callbacks.frame
+    {
+        return false;
+    }
+    match fc_type {
+        FormattingContextType::Block => !NodeFacts::new(callbacks, box_).display().is_math_inside(),
+        FormattingContextType::Flex => {
+            input.sizing.flex_self_block_size_resolution_space.is_none()
+                && !input.sizing.root_is_measured_for_its_content_block_size
+        }
+        _ => false,
+    }
+}
+
+fn result_of_empty_root(
+    callbacks: &LayoutPass<'_>,
+    box_: Node,
+    fc_type: FormattingContextType,
+    root_cells: used_values::RootInputCells,
+) -> ChildLayoutResult {
+    match fc_type {
+        FormattingContextType::Flex => ChildLayoutResult {
+            automatic_content_block_size: root_cells.content_block_size,
+            in_flow_children_margin_box_block_extent: NodeFacts::new(callbacks, box_)
+                .has_preferred_aspect_ratio()
+                .then_some(CssPixels::default()),
+            ..ChildLayoutResult::default()
+        },
+        _ => ChildLayoutResult::default(),
+    }
 }
 
 /// Lays out the absolutely positioned boxes whose containing block is the root of `body_run`, against the root's
