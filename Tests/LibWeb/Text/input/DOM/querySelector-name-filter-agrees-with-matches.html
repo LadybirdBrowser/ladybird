@@ -1,0 +1,529 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    const HTML_NS = "http://www.w3.org/1999/xhtml";
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const XLINK_NS = "http://www.w3.org/1999/xlink";
+
+    // Each query is compared to asking every element of the root's tree in turn, which reads no document-wide state.
+    function check(label, root, selector) {
+        const queried = Array.from(root.querySelectorAll(selector));
+        const walked = Array.from(root.querySelectorAll("*")).filter(element => element.matches(selector));
+        const agrees = queried.length === walked.length && queried.every((element, index) => element === walked[index]);
+        const first = root.querySelector(selector);
+        const firstAgrees = first === (walked[0] ?? null);
+        println(`${label}: ${selector} = ${queried.length}${agrees && firstAgrees ? "" : ` DISAGREES, walk found ${walked.length}`}`);
+    }
+
+    function checkAll(label, root, selectors) {
+        for (const selector of selectors) check(label, root, selector);
+    }
+
+    function make(doc, parent, attributes = {}) {
+        const element = doc.createElementNS(HTML_NS, "div");
+        for (const [name, value] of Object.entries(attributes)) element.setAttribute(name, value);
+        parent?.append(element);
+        return element;
+    }
+
+    // What differs by document type and mode is the case of what is compared, so each mode gets the same tree.
+    function checkPaths(label, doc, container) {
+        println(`-- ${label}, by each path a name arrives`);
+
+        const attributes = make(doc, container);
+        attributes.setAttribute("a-set", "");
+        attributes.setAttributeNS(null, "a-set-ns", "");
+        attributes.setAttributeNS("urn:x", "p:a-set-prefixed", "");
+        attributes.toggleAttribute("a-toggled");
+        const node = doc.createAttribute("a-node");
+        attributes.setAttributeNode(node);
+        const namespacedNode = doc.createAttributeNS("urn:x", "p:a-node-prefixed");
+        attributes.setAttributeNodeNS(namespacedNode);
+        const namedItem = doc.createAttribute("a-named-item");
+        attributes.attributes.setNamedItem(namedItem);
+        const namedItemNS = doc.createAttributeNS("urn:x", "p:a-named-item-prefixed");
+        attributes.attributes.setNamedItemNS(namedItemNS);
+        const otherDocumentNode = document.implementation.createHTMLDocument().createAttribute("a-other-document-node");
+        attributes.setAttributeNode(otherDocumentNode);
+        const moved = make(doc, container);
+        const carried = doc.createAttribute("a-carried");
+        moved.setAttributeNode(carried);
+        moved.removeAttributeNode(carried);
+        attributes.setAttributeNode(carried);
+        attributes.id = "a-reflected-id";
+        attributes.title = "x";
+        checkAll(label, container, [
+            "[a-set]",
+            "[a-set-ns]",
+            "[a-set-prefixed]",
+            "[*|a-set-prefixed]",
+            "[|a-set-prefixed]",
+            "[p\\:a-set-prefixed]",
+            "[a-toggled]",
+            "[a-node]",
+            "[a-node-prefixed]",
+            "[*|a-node-prefixed]",
+            "[a-named-item]",
+            "[*|a-named-item-prefixed]",
+            "[a-other-document-node]",
+            "[a-carried]",
+            "[id]",
+            "[title]",
+        ]);
+
+        const classes = make(doc, container);
+        classes.className = "c-name";
+        classes.classList.add("c-list");
+        classes.classList.toggle("c-toggle");
+        classes.classList.replace("c-toggle", "c-replaced");
+        const second = make(doc, container);
+        second.setAttribute("class", "\tc-tab\nc-newline  c-spaces ");
+        const third = make(doc, container);
+        const classNode = doc.createAttribute("class");
+        classNode.value = "c-node-before";
+        third.setAttributeNode(classNode);
+        classNode.value = "c-node-value";
+        third.attributes.getNamedItem("class").nodeValue += " c-node-value-2";
+        const fourth = make(doc, container);
+        fourth.setAttributeNS("urn:x", "p:class", "c-prefixed");
+        checkAll(label, container, [
+            ".c-name",
+            ".c-list",
+            ".c-toggle",
+            ".c-replaced",
+            ".c-tab",
+            ".c-newline",
+            ".c-spaces",
+            ".c-node-before",
+            ".c-node-value",
+            ".c-node-value-2",
+            ".c-prefixed",
+            "[class]",
+        ]);
+
+        const inlineStyle = make(doc, container);
+        inlineStyle.style.color = "red";
+        check(label, container, "[style]");
+        const inlineStyleOwn = make(doc, null);
+        inlineStyleOwn.style.color = "red";
+        const clonedPendingStyle = inlineStyleOwn.cloneNode();
+        clonedPendingStyle.className = "pending-style-clone";
+        container.append(clonedPendingStyle);
+        check(label, container, ".pending-style-clone[style]");
+
+        const parsed = make(doc, container);
+        if (doc.contentType === "text/html") {
+            parsed.innerHTML = `<p class="p-inner" p-inner-attribute></p>`;
+            parsed.insertAdjacentHTML("beforeend", `<p class="p-adjacent" p-adjacent-attribute></p>`);
+            const replaced = make(doc, parsed);
+            replaced.outerHTML = `<p class="p-outer" p-outer-attribute></p>`;
+            const range = doc.createRange();
+            range.selectNodeContents(parsed);
+            parsed.append(range.createContextualFragment(`<p class="p-contextual" p-contextual-attribute></p>`));
+            const unsafe = make(doc, parsed);
+            unsafe.setHTMLUnsafe(`<p class="p-unsafe" p-unsafe-attribute></p>`);
+            checkAll(label, container, [
+                ".p-inner",
+                "[p-inner-attribute]",
+                ".p-adjacent",
+                "[p-adjacent-attribute]",
+                ".p-outer",
+                "[p-outer-attribute]",
+                ".p-contextual",
+                "[p-contextual-attribute]",
+                ".p-unsafe",
+                "[p-unsafe-attribute]",
+            ]);
+        }
+
+        const source = make(doc, null, { class: "k-clone", "k-clone-attribute": "" });
+        make(doc, source, { class: "k-clone-child", "k-clone-child-attribute": "" });
+        container.append(source.cloneNode(true));
+        const other = document.implementation.createHTMLDocument();
+        const foreign = make(other, null, { class: "k-import", "k-import-attribute": "" });
+        make(other, foreign, { class: "k-import-child", "k-import-child-attribute": "" });
+        container.append(doc.importNode(foreign, true));
+        const adopted = make(other, null, { class: "k-adopt", "k-adopt-attribute": "" });
+        make(other, adopted, { class: "k-adopt-child", "k-adopt-child-attribute": "" });
+        const adoptedStyle = make(other, adopted, { class: "k-adopt-style" });
+        adoptedStyle.style.color = "red";
+        container.append(doc.adoptNode(adopted));
+        const inserted = make(other, null, { class: "k-insert-adopts", "k-insert-adopts-attribute": "" });
+        container.append(inserted);
+        checkAll(label, container, [
+            ".k-clone",
+            "[k-clone-attribute]",
+            ".k-clone-child",
+            "[k-clone-child-attribute]",
+            ".k-import",
+            "[k-import-attribute]",
+            ".k-import-child",
+            "[k-import-child-attribute]",
+            ".k-adopt",
+            "[k-adopt-attribute]",
+            ".k-adopt-child",
+            "[k-adopt-child-attribute]",
+            ".k-adopt-style[style]",
+            ".k-insert-adopts",
+            "[k-insert-adopts-attribute]",
+        ]);
+
+        const stale = make(doc, container, { class: "stale-class", "stale-attribute": "" });
+        stale.removeAttribute("class");
+        stale.removeAttribute("stale-attribute");
+        checkAll(label, container, [".stale-class", "[stale-attribute]"]);
+    }
+
+    function checkCase(label, doc, container) {
+        println(`-- ${label}, by case`);
+        const element = make(doc, container);
+        element.className = "MixedClass lowerclass UPPERCLASS ÄMixed";
+        element.setAttribute("MixedAttribute", "");
+        element.setAttributeNS(null, "MixedExactly", "");
+        element.setAttributeNS(null, "lowerexactly", "");
+        const svg = doc.createElementNS(SVG_NS, "svg");
+        svg.setAttribute("viewBox", "0 0 1 1");
+        svg.setAttributeNS(null, "lowerinsvg", "");
+        svg.setAttributeNS(XLINK_NS, "xlink:href", "#");
+        container.append(svg);
+        checkAll(label, container, [
+            ".MixedClass",
+            ".mixedclass",
+            ".MIXEDCLASS",
+            ".lowerclass",
+            ".LOWERCLASS",
+            ".UPPERCLASS",
+            ".upperclass",
+            ".ÄMixed",
+            ".Ämixed",
+            ".äMixed",
+            "[mixedattribute]",
+            "[MixedAttribute]",
+            "[MIXEDATTRIBUTE]",
+            "[mixedexactly]",
+            "[MixedExactly]",
+            "[lowerexactly]",
+            "[LOWEREXACTLY]",
+            "[viewBox]",
+            "[viewbox]",
+            "[VIEWBOX]",
+            "[lowerinsvg]",
+            "[LOWERINSVG]",
+            "[href]",
+            "[|href]",
+            "[*|href]",
+            "[*|HREF]",
+            "[xlink\\:href]",
+            "svg[viewBox]",
+            "svg[viewbox]",
+            "[class~=lowerclass]",
+            "[class~=LOWERCLASS]",
+            "[class~=LOWERCLASS i]",
+        ]);
+    }
+
+    function checkSelectorShapes(label, doc, container) {
+        println(`-- ${label}, by selector shape`);
+        const outer = make(doc, container, { class: "outer", "outer-attribute": "" });
+        const inner = make(doc, outer, { class: "inner", "inner-attribute": "" });
+        const after = make(doc, outer, { class: "after", "after-attribute": "" });
+        make(doc, inner, { class: "deep" });
+        checkAll(label, container, [
+            ".absent",
+            "[absent]",
+            ".absent, .inner",
+            ".inner, .absent",
+            "[absent], [inner-attribute]",
+            "[inner-attribute], [absent]",
+            ".absent, [absent], .after",
+            ".absent .inner, .after",
+            ".inner .absent, .after",
+            ".absent.inner",
+            ".inner[absent]",
+            ".outer .absent",
+            ".absent .deep",
+            ":not(.absent)",
+            ":not([absent])",
+            ".inner:not(.absent)",
+            ".inner:not(.inner)",
+            ":not(.absent, [absent])",
+            ":not(.absent) .deep",
+            ":not(:not(.inner))",
+            ":not(:not(.absent))",
+            ":is(.absent, .inner)",
+            ":is(.inner, .absent)",
+            ":is(.absent)",
+            ":is(.absent, [absent])",
+            ":is(.absent, [inner-attribute]) .deep",
+            ":where(.absent, .inner)",
+            ":where(.absent)",
+            ":is(:is(.absent), .inner)",
+            ".absent, :is(.inner)",
+            ":has(.deep)",
+            ":has(.absent)",
+            ":has(> .deep)",
+            ":has(+ .after)",
+            ":not(:has(.absent))",
+            ":not(:has(.deep))",
+            ":has(.absent, .deep)",
+            ":nth-child(1 of .inner)",
+            ":nth-child(1 of :not(.absent))",
+            ":nth-child(1 of .absent)",
+            ":nth-last-child(1 of .absent, .after)",
+            ".inner + .after",
+            ".inner ~ .after",
+            ".absent + .after",
+            ".outer > .inner",
+            ".outer .deep",
+            "[outer-attribute] [inner-attribute]",
+            "[*|absent]",
+            "[*|inner-attribute]",
+            "[|inner-attribute]",
+            "[absent=x], [inner-attribute]",
+            "[inner-attribute=''], [absent]",
+            "[inner-attribute^=''], [absent]",
+            ":root",
+            ":root.absent",
+            ":root .deep",
+            "*",
+            "* .absent",
+            "div.absent, div.inner",
+            ".outer .\\61 bsent, .\\69 nner",
+        ]);
+
+        // An element above the root of the query, which the walk never reaches, still counts as an ancestor.
+        checkAll(`${label}, from inner`, outer, [".outer .inner", ".outer .deep", ".absent .deep", "[outer-attribute] .deep"]);
+        checkAll(`${label}, from inner`, inner, [".outer .deep", ".inner .deep", ".absent .deep"]);
+        // NB: :scope is the root of the query, where matches() would have it be the element, so these have no walk.
+        for (const selector of [":scope .deep", ":scope.inner .deep", ":scope.absent .deep", ".outer > :scope > .deep", ".outer :scope.inner .deep"])
+            println(`${label}, from inner: ${selector} = ${inner.querySelectorAll(selector).length}`);
+    }
+
+    function checkShadowTrees(label, doc, container) {
+        println(`-- ${label}, in shadow trees`);
+        const host = make(doc, container, { class: "s-host-class", "s-host-attribute": "" });
+        const shadow = host.attachShadow({ mode: "open", clonable: true });
+        make(doc, shadow, { class: "s-inner", "s-inner-attribute": "" });
+        make(doc, shadow.firstChild, { class: "s-deep" });
+        checkAll(label, shadow, [
+            ".s-inner",
+            "[s-inner-attribute]",
+            ".s-absent",
+            ".s-host-class",
+            "[s-host-attribute]",
+            ":host .s-inner",
+            ":host(.s-host-class) .s-inner",
+            ":host(.s-absent) .s-inner",
+            ":host(:not(.s-absent)) .s-inner",
+            ":host([s-host-attribute]) .s-inner",
+            ":host([s-absent]) .s-inner",
+            ".s-host-class .s-inner",
+            ".s-inner .s-deep",
+            ":has(.s-deep)",
+            ":has(.s-absent)",
+            ".s-absent, .s-deep",
+        ]);
+        checkAll(`${label}, from outside`, container, [".s-inner", "[s-inner-attribute]", ".s-host-class", "[s-host-attribute]", ":has(.s-inner)", ":host"]);
+
+        const clonedHost = host.cloneNode(true);
+        clonedHost.shadowRoot.firstChild.classList.add("s-in-clone");
+        container.append(clonedHost);
+        checkAll(`${label}, clone`, clonedHost.shadowRoot, [".s-in-clone", ".s-inner", "[s-inner-attribute]", ":host(.s-host-class) .s-deep"]);
+
+        const other = document.implementation.createHTMLDocument();
+        const otherHost = make(other, null, { class: "s-other-host" });
+        const otherShadow = otherHost.attachShadow({ mode: "open", clonable: true });
+        const otherInner = make(other, otherShadow, { class: "s-other-inner", "s-other-attribute": "" });
+        otherInner.style.color = "red";
+        container.append(doc.adoptNode(otherHost));
+        checkAll(`${label}, adopted`, otherShadow, [".s-other-inner", "[s-other-attribute]", ".s-other-inner[style]", ":host(.s-other-host) .s-other-inner"]);
+
+        const importedSource = make(other, null, { class: "s-imported-host" });
+        const importedSourceShadow = importedSource.attachShadow({ mode: "open", clonable: true });
+        make(other, importedSourceShadow, { class: "s-imported-inner", "s-imported-attribute": "" });
+        const imported = doc.importNode(importedSource, true);
+        container.append(imported);
+        checkAll(`${label}, imported`, imported.shadowRoot, [".s-imported-inner", "[s-imported-attribute]", ":host(.s-imported-host) .s-imported-inner"]);
+
+        if (doc.contentType === "text/html") {
+            const declarative = make(doc, container);
+            declarative.setHTMLUnsafe(`<div class="d-host"><template shadowrootmode="open"><p class="d-inner" d-attribute><template><b class="d-nested"></b></template></p></template></div>`);
+            const declarativeShadow = declarative.firstChild.shadowRoot;
+            checkAll(`${label}, declarative`, declarativeShadow, [".d-inner", "[d-attribute]", ":host(.d-host) .d-inner", ".d-nested"]);
+            checkAll(`${label}, declarative nested`, declarativeShadow.querySelector("template").content, [".d-nested", ".d-inner"]);
+            const adoptedDeclarative = other.adoptNode(declarative);
+            checkAll(`${label}, declarative moved away`, adoptedDeclarative.firstChild.shadowRoot, [".d-inner", "[d-attribute]"]);
+        }
+    }
+
+    function checkDetachedAndTemplates(label, doc, container) {
+        println(`-- ${label}, detached trees and templates`);
+        const detached = make(doc, null, { class: "x-root" });
+        make(doc, detached, { class: "x-child", "x-attribute": "" });
+        checkAll(label, detached, [".x-child", "[x-attribute]", ".x-root .x-child", ".x-absent"]);
+        const fragment = doc.createDocumentFragment();
+        make(doc, fragment, { class: "f-child", "f-attribute": "" });
+        checkAll(label, fragment, [".f-child", "[f-attribute]", ".f-absent", ":has(.f-child)"]);
+        const removed = make(doc, container, { class: "r-root" });
+        make(doc, removed, { class: "r-child" });
+        removed.remove();
+        checkAll(label, removed, [".r-child", ".r-root .r-child"]);
+
+        if (doc.contentType !== "text/html") return;
+        const holder = make(doc, container);
+        holder.innerHTML = `<template id="t"><p class="t-class Mixed-T" t-attribute><template><b class="t-nested" t-nested-attribute></b></template></p></template>`;
+        const template = holder.firstChild;
+        checkAll(label, template.content, [".t-class", "[t-attribute]", ".mixed-t", ".Mixed-T", ".t-nested", ".t-absent"]);
+        checkAll(`${label}, nested template`, template.content.querySelector("template").content, [".t-nested", "[t-nested-attribute]"]);
+        checkAll(`${label}, outside the template`, container, [".t-class", "[t-attribute]"]);
+        make(template.content.ownerDocument, template.content, { class: "t-later", "t-later-attribute": "" });
+        checkAll(label, template.content, [".t-later", "[t-later-attribute]"]);
+
+        const clone = template.cloneNode(true);
+        checkAll(`${label}, cloned template`, clone.content, [".t-class", "[t-attribute]", ".t-later"]);
+        checkAll(`${label}, cloned nested`, clone.content.querySelector("template").content, [".t-nested", "[t-nested-attribute]"]);
+        const stamped = template.content.cloneNode(true);
+        container.append(stamped);
+        checkAll(`${label}, stamped`, container, [".t-class", "[t-attribute]", ".t-later"]);
+        container.append(doc.importNode(template.content, true));
+        checkAll(`${label}, imported`, container, [".t-class"]);
+
+        const other = document.implementation.createHTMLDocument();
+        const adoptedTemplate = other.adoptNode(template);
+        checkAll(`${label}, adopted template`, adoptedTemplate.content, [".t-class", "[t-attribute]", ".t-later"]);
+        checkAll(`${label}, adopted nested`, adoptedTemplate.content.querySelector("template").content, [".t-nested", "[t-nested-attribute]"]);
+        const movedBack = doc.adoptNode(adoptedTemplate);
+        checkAll(`${label}, adopted back`, movedBack.content, [".t-class", "[t-attribute]", ".t-later"]);
+    }
+
+    function checkParsedDocument(label, doc) {
+        println(`-- ${label}, as parsed`);
+        checkAll(label, doc, [
+            "[from-html-tag]",
+            "[from-second-html-tag]",
+            "[from-body-tag]",
+            "[from-second-body-tag]",
+            ".from-html-class",
+            ".From-Mixed",
+            ".from-mixed",
+            "[viewBox]",
+            "[viewbox]",
+            "[definitionURL]",
+            "[definitionurl]",
+            "[lang]",
+            "[*|lang]",
+            "[xml\\:lang]",
+            "[href]",
+            "[*|href]",
+            "[xlink\\:href]",
+            "[xmlns]",
+            "[*|xlink]",
+            "[UPPERCASE-IN-MARKUP]",
+            "[uppercase-in-markup]",
+            ".in-svg",
+            ".in-math",
+            ".in-table-foster",
+            "[in-table-foster]",
+            ".active-formatting",
+            "[active-formatting]",
+            ".in-select",
+            ":root[from-html-tag]",
+            ".from-html-class .in-svg",
+        ]);
+    }
+
+    const parsedMarkup = `<html from-html-tag class="from-html-class"><head></head><body from-body-tag><html from-second-html-tag><body from-second-body-tag>
+        <div UPPERCASE-IN-MARKUP class="From-Mixed"></div>
+        <svg viewbox="0 0 1 1" class="in-svg" xml:lang="en" xmlns:xlink="http://www.w3.org/1999/xlink"><a xlink:href="#"></a></svg>
+        <math definitionurl="x" class="in-math"></math>
+        <table><div class="in-table-foster" in-table-foster></div></table>
+        <b class="active-formatting" active-formatting><p>one<p>two</b>
+        <select><option class="in-select"></select>`;
+
+    test(() => {
+        const standards = document.implementation.createHTMLDocument();
+        const quirks = new DOMParser().parseFromString("<body></body>", "text/html");
+        const xml = new DOMParser().parseFromString(`<root xmlns="${HTML_NS}"></root>`, "application/xml");
+        println(`${standards.compatMode} ${quirks.compatMode} ${xml.compatMode}`);
+
+        for (const [label, doc, container] of [
+            ["standards", standards, standards.body],
+            ["quirks", quirks, quirks.body],
+            ["xml", xml, xml.documentElement],
+        ]) {
+            checkPaths(label, doc, make(doc, container));
+            checkCase(label, doc, make(doc, container));
+            checkSelectorShapes(label, doc, make(doc, container));
+            checkShadowTrees(label, doc, make(doc, container));
+            checkDetachedAndTemplates(label, doc, make(doc, container));
+        }
+
+        checkParsedDocument("standards", new DOMParser().parseFromString(`<!doctype html>${parsedMarkup}`, "text/html"));
+        checkParsedDocument("quirks", new DOMParser().parseFromString(parsedMarkup, "text/html"));
+
+        println("-- xml, as parsed");
+        const parsedXML = new DOMParser().parseFromString(
+            `<root xmlns:p="urn:p" xmlns:xlink="${XLINK_NS}" Camel="" class="Foo Bar">
+                <a p:x="" xlink:href="#" xml:lang="en" class="baz"/>
+                <p:b class="InPrefix" lower=""/>
+                <html xmlns="${HTML_NS}" class="HtmlInXml" MixedHtml=""/>
+            </root>`,
+            "application/xml"
+        );
+        checkAll("xml", parsedXML, [
+            "[Camel]",
+            "[camel]",
+            ".Foo",
+            ".foo",
+            ".Bar",
+            ".baz",
+            ".BAZ",
+            "[x]",
+            "[*|x]",
+            "[p\\:x]",
+            "[href]",
+            "[*|href]",
+            "[lang]",
+            "[*|lang]",
+            "[xmlns]",
+            "[*|xmlns]",
+            "[*|p]",
+            "[lower]",
+            ".InPrefix",
+            ".HtmlInXml",
+            "[MixedHtml]",
+            "[mixedhtml]",
+        ]);
+
+        println("-- a mode change");
+        const frame = document.createElement("iframe");
+        document.body.append(frame);
+        const changing = frame.contentDocument;
+        changing.open();
+        changing.write(`<p class="Early" early-attribute></p>`);
+        changing.close();
+        checkAll(changing.compatMode, changing, [".Early", ".early", "[early-attribute]"]);
+        const kept = changing.body.firstChild;
+        changing.open();
+        changing.write(`<!doctype html><p class="Late" late-attribute></p>`);
+        changing.close();
+        changing.body.append(kept);
+        checkAll(changing.compatMode, changing, [".Early", ".early", ".Late", ".late", "[early-attribute]", "[late-attribute]"]);
+        changing.open();
+        changing.write(`<p class="Again" again-attribute></p>`);
+        changing.close();
+        changing.body.append(changing.adoptNode(kept));
+        checkAll(changing.compatMode, changing, [".Early", ".early", ".Again", ".again", "[again-attribute]"]);
+        frame.remove();
+
+        println("-- a document without a parser");
+        const created = document.implementation.createDocument(HTML_NS, "html");
+        make(created, created.documentElement, { class: "Created", "created-attribute": "" });
+        checkAll("created", created, [".Created", ".created", "[created-attribute]", ".absent"]);
+        const clonedDocument = created.cloneNode(true);
+        checkAll("cloned", clonedDocument, [".Created", "[created-attribute]", ".absent"]);
+        const clonedQuirks = quirks.cloneNode(true);
+        println(`cloned mode: ${clonedQuirks.compatMode}`);
+        checkAll("cloned quirks", clonedQuirks, [".mixedclass", ".MixedClass", "[mixedattribute]"]);
+    });
+</script>
