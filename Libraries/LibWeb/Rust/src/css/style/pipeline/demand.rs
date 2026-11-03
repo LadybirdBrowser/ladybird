@@ -101,7 +101,10 @@ impl Live {
 
     /// The elements `node` inherits through, the topmost first, and the index of the first of them
     /// whose record is not current. A pass keeps current the record of every element whose
-    /// ancestors are displayed, and computes none for the descendants of one that is not.
+    /// ancestors are displayed, and computes none for the descendants of one that is not. No pass
+    /// samples the animations of an element that is not displayed, so the record of one whose
+    /// animations a read sampled is not current either, as it could read the custom properties they
+    /// animate.
     pub(super) fn demand_chain(
         &self,
         state: &RetainedState,
@@ -113,7 +116,16 @@ impl Live {
         let mut parent_kept_current = true;
         for (index, &element) in chain.iter().enumerate() {
             match self.records.get(element) {
-                Some(record) if parent_kept_current => parent_kept_current = record.is_displayed(),
+                Some(record)
+                    if parent_kept_current
+                        && (record.is_displayed()
+                            || state
+                                .element_custom_property_data
+                                .get(&element)
+                                .is_none_or(|held| held.sampled_over.is_none())) =>
+                {
+                    parent_kept_current = record.is_displayed();
+                }
                 _ if self.computed_on_demand(element) => parent_kept_current = false,
                 _ => return (chain, Some(index)),
             }

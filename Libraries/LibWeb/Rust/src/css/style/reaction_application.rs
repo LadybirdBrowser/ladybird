@@ -110,6 +110,10 @@ unsafe extern "C" {
     fn web_css_note_style_update_has_reactions(application: *mut HostStyleReactionApplication);
     fn web_css_sample_animations_for_style_update(application: *mut HostStyleReactionApplication);
     fn web_css_begin_style_update_pass(application: *mut HostStyleReactionApplication, first: bool);
+    fn web_css_sample_undisplayed_animations_for_read(
+        application: *mut HostStyleReactionApplication,
+        element: *mut HostElement,
+    );
     fn web_css_style_reaction_element(application: *mut HostStyleReactionApplication, node: u32) -> FfiReactionElement;
     fn web_css_install_styles(
         application: *mut HostStyleReactionApplication,
@@ -147,12 +151,6 @@ impl Application<'_> {
             for &record in &installation.pinned_records {
                 engine.unpin_layout_style_record(record);
             }
-            // NB: Installing the record replays the element's animations over it, which ask to restyle what reads the
-            //     custom properties they sample. The next demand of the walk reads those from here, and what the walk
-            //     does not reach computes when something reads it.
-            // FIXME: A read below an element that is not displayed stays at the first sampled value of a custom property
-            //        animation that moves later.
-            engine.consume_element_style_input(node);
         });
         true
     }
@@ -379,6 +377,16 @@ impl Application<'_> {
             && (mode != FfiStyleUpdateMode::Normal || scan.nearest_display_none.is_none())
         {
             return FfiTargetedStyleAnswer::HeldStyle;
+        }
+        // NB: No style update samples the animations of an element that is not displayed. What a read below one sees of
+        //     them is sampled here, from the top down, for the demands below to compute from.
+        if mode == FfiStyleUpdateMode::Normal && scan.nearest_display_none.is_some() {
+            let elements: smallvec::SmallVec<[_; 32]> =
+                self.inheritance_chain(first).map(|element| element.element).collect();
+            for element in elements.into_iter().rev() {
+                // SAFETY: The host lends its application for the call, and the element is live while it is read.
+                unsafe { web_css_sample_undisplayed_animations_for_read(self.host_application, element.0) };
+            }
         }
         // Normal mode also re-cascades the target path under its display:none ancestors.
         let mut topmost_element_to_recompute = scan.topmost_requiring_style;

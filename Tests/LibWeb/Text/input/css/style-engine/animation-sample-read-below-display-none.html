@@ -10,8 +10,16 @@
         inherits: false;
         initial-value: before;
     }
+    @property --tone {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: rgb(0, 0, 0);
+    }
     .none {
         display: none;
+    }
+    .toned {
+        color: var(--tone);
     }
     .rotates {
         rotate: var(--spin);
@@ -41,6 +49,21 @@
 </div>
 <div class="none">
     <div id="animated-6"><div id="query-reader-6" class="query-reader"><div id="below-6"></div></div></div>
+</div>
+<div class="none">
+    <div id="animated-7" class="toned"><div class="none"><div id="reader-7"></div></div></div>
+</div>
+<div id="animated-8" class="none toned">
+    <div class="none"><div id="reader-8"></div></div>
+</div>
+<div id="animated-9" class="none">
+    <div class="toned"><div class="none"><div><div id="reader-9"></div></div></div></div>
+</div>
+<div class="none">
+    <div id="animated-10"><div class="none"><div id="reader-10"></div></div></div>
+</div>
+<div id="animated-11" class="none">
+    <div class="none"><div id="reader-11"></div></div>
 </div>
 <script src="../../include.js"></script>
 <script>
@@ -123,5 +146,22 @@
         println(`at 60%: ${getComputedStyle(element("below-6")).color}`);
         sixth.currentTime = 10000;
         println(`at 10% again: ${getComputedStyle(element("below-6")).color}`);
+
+        function readRepeatedly(label, animatedId, readerId, property) {
+            println(label);
+            const animation = animate(element(animatedId), property, "rgb(0, 0, 0)", "rgb(100, 100, 100)");
+            for (const time of [10000, 20000, 30000]) {
+                animation.currentTime = time;
+                println(`at ${time / 1000}%: ${getComputedStyle(element(readerId)).color}`);
+                println(`at ${time / 1000}%, again: ${getComputedStyle(element(readerId)).color}`);
+            }
+            animation.cancel();
+            println(`cancelled: ${getComputedStyle(element(readerId)).color}`);
+        }
+        readRepeatedly("A color reading an animation between two elements not displayed:", "animated-7", "reader-7", "--tone");
+        readRepeatedly("A color reading an animation of a hidden element above another:", "animated-8", "reader-8", "--tone");
+        readRepeatedly("A color below a hidden animated element, read further down:", "animated-9", "reader-9", "--tone");
+        readRepeatedly("An animated color between two elements not displayed:", "animated-10", "reader-10", "color");
+        readRepeatedly("An animated color of a hidden element above another:", "animated-11", "reader-11", "color");
     });
 </script>

@@ -884,6 +884,12 @@ void StyleComputer::publish_animated_custom_properties(ComputedStyleWorkingSet& 
 void StyleComputer::invalidate_animated_custom_property_readers(DOM::AbstractElement abstract_element, bool recompute_style) const
 {
     auto& element = abstract_element.element();
+    // NB: A read below an element that is not displayed samples the animations on its way down. No pass styles what is
+    //     below that element, and what the read goes on to demand computes from the environment the sample published.
+    if (m_inheritance_chain_read_depth > 0) {
+        if (auto style = element.computed_style(); style && (style->in_display_none_subtree() || style->display().is_none()))
+            return;
+    }
     auto& style_engine = element.document().style_computer().style_engine();
     if (recompute_style) {
         style_engine.record_derived_element_style_input_change(element.style_node_id(), StyleEngine::PublishedStyle | StyleEngine::RecomputeStyle);
