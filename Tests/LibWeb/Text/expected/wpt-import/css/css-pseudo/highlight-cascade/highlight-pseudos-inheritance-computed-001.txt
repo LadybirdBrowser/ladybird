@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 12 tests
 
-6 Pass
-6 Fail
+8 Pass
+4 Fail
 Pass	getComputedStyle() for ::selection at #child1
 Pass	getComputedStyle() for ::selection at #child2
 Fail	getComputedStyle() for ::target-text at #child1
@@ -14,5 +14,5 @@ Pass	getComputedStyle() for ::spelling-error at #child1
 Pass	getComputedStyle() for ::spelling-error at #child2
 Fail	getComputedStyle() for ::grammar-error at #child1
 Fail	getComputedStyle() for ::grammar-error at #child2
-Fail	getComputedStyle() for ::highlight(foo) at #child1
-Fail	getComputedStyle() for ::highlight(foo) at #child2
+Pass	getComputedStyle() for ::highlight(foo) at #child1
+Pass	getComputedStyle() for ::highlight(foo) at #child2

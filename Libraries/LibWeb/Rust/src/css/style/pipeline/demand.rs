@@ -16,7 +16,8 @@ use super::super::publication::{DemandedEngineRecord, RecordDemand, RecordDemand
 use super::super::*;
 use super::live::Live;
 use super::records::{
-    ChildImpact, MatchList, PseudoElementRecords, Record, RecordCells, Records, RetainedRecords, highlights_moved,
+    ChildImpact, MatchList, PseudoElementRecords, PseudoElementTarget, Record, RecordCells, Records, RetainedRecords,
+    highlights_moved,
 };
 use super::rule_changes::RuleIndexChanges;
 use super::rules::RuleIndex;
@@ -291,9 +292,9 @@ impl Live {
         }
     }
 
-    /// The records of the pseudo-elements of `node` that generate a box, by kind, beside its
+    /// The records of the pseudo-elements of `node` that generate a box, by target, beside its
     /// current record.
-    pub(super) fn demanded_pseudo_element_records(&self, node: StyleNodeID) -> &[(u8, Arc<Record>)] {
+    pub(super) fn demanded_pseudo_element_records(&self, node: StyleNodeID) -> &[(PseudoElementTarget, Arc<Record>)] {
         match self.computed_on_demand(node) {
             true => self.demand_records().pseudo_element_records(node),
             false => self.records.pseudo_element_records(node),
@@ -304,7 +305,7 @@ impl Live {
     fn demanded_highlights(&self, node: StyleNodeID) -> PseudoElementRecords {
         self.demanded_pseudo_element_records(node)
             .iter()
-            .filter(|(kind, _)| super::HIGHLIGHT_KINDS.contains(kind))
+            .filter(|(target, _)| super::super::publication::pseudo_kind::is_highlight(target.kind))
             .cloned()
             .collect()
     }
@@ -457,7 +458,7 @@ impl Live {
         &self,
         state: &RetainedState,
         node: StyleNodeID,
-        kind: u8,
+        target: PseudoElementTarget,
         read: PseudoElementRead,
         inheritance_parent: Option<StyleNodeID>,
     ) -> DemandedPseudoElement {
@@ -466,7 +467,7 @@ impl Live {
         // has one. The passes style those only while the host shows a highlight of the kind, and
         // then only for the elements it shows it in, so those of the ancestors are styled for the
         // read too.
-        let styles_ancestor_highlights = super::HIGHLIGHT_KINDS.contains(&kind);
+        let styles_ancestor_highlights = super::super::publication::pseudo_kind::is_highlight(target.kind);
         let mut cells = RecordCells::default();
         if styles_ancestor_highlights {
             cells.reserve(state.projection.element_slot_count());
@@ -496,9 +497,9 @@ impl Live {
                 .collect();
             for &ancestor in ancestors.iter().rev() {
                 let mut held: PseudoElementRecords = records.pseudo_element_records(ancestor).into();
-                held.retain(|(held_kind, _)| *held_kind != kind);
-                match traversal::style_pseudo_element(&context, ancestor, kind, PseudoElementRead::Styled) {
-                    DemandedPseudoElement::Styled(record) => held.push((kind, record)),
+                held.retain(|(held_target, _)| *held_target != target);
+                match traversal::style_pseudo_element(&context, ancestor, target, PseudoElementRead::Styled) {
+                    DemandedPseudoElement::Styled(record) => held.push((target, record)),
                     DemandedPseudoElement::Unstyled => {}
                     demanded @ (DemandedPseudoElement::Waiting(..) | DemandedPseudoElement::Declined) => {
                         return demanded;
@@ -507,7 +508,7 @@ impl Live {
                 records.insert_pseudo_element_records(ancestor, held);
             }
         }
-        traversal::style_pseudo_element_inheriting_from(&context, node, kind, read, inheritance_parent)
+        traversal::style_pseudo_element_inheriting_from(&context, node, target, read, inheritance_parent)
     }
 }
 
@@ -545,8 +546,12 @@ impl StyleEngine {
                 let answered = self.install_demanded_element(node, &record);
                 RecordDemandAnswer::Record { record: answered }
             }
-            RecordDemand::PseudoElement(_, pseudo_element) => {
-                self.answer_pseudo_element_demand(node, &record, pseudo_element as u8, demand.is_read_only())
+            RecordDemand::PseudoElement(_, pseudo_element, highlight_name) => {
+                let target = PseudoElementTarget {
+                    kind: pseudo_element as u8,
+                    highlight_name,
+                };
+                self.answer_pseudo_element_demand(node, &record, target, demand.is_read_only())
             }
         }
     }
@@ -822,16 +827,20 @@ impl StyleEngine {
             style_record: style_record.raw(),
             ..DemandedEngineRecord::default()
         };
-        for (kind, pseudo_record) in pseudo_element_records {
+        for (target, pseudo_record) in pseudo_element_records
+            .iter()
+            .filter(|(target, _)| !target.is_custom_highlight())
+        {
+            let kind = target.kind;
             let pseudo_environment =
                 self.retained
                     .pseudo_element_environment(node, pseudo_record, record, environment, minted);
             let pseudo_record = &self.retained.record_in_environment(pseudo_record, pseudo_environment);
             let pseudo_style_record = self.retained.install_record(pseudo_record, &mut installed);
             self.retained
-                .hold_demand_record(computed::ComputedStyleTarget::new(node, *kind), pseudo_style_record);
+                .hold_demand_record(computed::ComputedStyleTarget::new(node, kind), pseudo_style_record);
             answered.pseudo_records_present |= 1 << kind;
-            answered.pseudo_records[usize::from(*kind)] = pseudo_style_record.raw();
+            answered.pseudo_records[usize::from(kind)] = pseudo_style_record.raw();
         }
         answered
     }
@@ -895,7 +904,7 @@ impl StyleEngine {
         self.install_demanded_records(node, &record, &pseudo_element_records, environment, &mut minted)
     }
 
-    /// Answer a read of the pseudo-element of `kind` of `node`, whose current record is `element`:
+    /// Answer a read of the pseudo-element `target` of `node`, whose current record is `element`:
     /// the record of a pseudo-element of a kind the passes style that generates a box, and for any other
     /// read the style the kind computes to from the element's rules for it, whether or not it
     /// generates a box. A `read_only` read styles any kind; another one a kind no rule styles not,
@@ -904,19 +913,20 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         element: &Arc<Record>,
-        kind: u8,
+        target: PseudoElementTarget,
         read_only: bool,
     ) -> RecordDemandAnswer {
         let live = self.retained.live_style.take().expect("the engine owns the document");
         // The passes keep the highlight pseudo-elements current only where the host shows them.
-        let generated = (super::PSEUDO_ELEMENT_KINDS.contains(&kind) && !super::HIGHLIGHT_KINDS.contains(&kind))
-            .then(|| {
-                live.demanded_pseudo_element_records(node)
-                    .iter()
-                    .find(|(held, _)| *held == kind)
-                    .map(|(_, record)| record.clone())
-            })
-            .flatten();
+        let generated = (super::PSEUDO_ELEMENT_KINDS.contains(&target.kind)
+            && !super::HIGHLIGHT_KINDS.contains(&target.kind))
+        .then(|| {
+            live.demanded_pseudo_element_records(node)
+                .iter()
+                .find(|(held, _)| *held == target)
+                .map(|(_, record)| record.clone())
+        })
+        .flatten();
         let mut minted = HashMap::default();
         let element_environment = self.demanded_environment(&live, node, element, &mut minted);
         self.retained.live_style = Some(live);
@@ -927,7 +937,7 @@ impl StyleEngine {
                     true => PseudoElementRead::Any,
                     false => PseudoElementRead::Styled,
                 };
-                self.demand_pseudo_element(node, kind, read, None)
+                self.demand_pseudo_element(node, target, read, None)
             }
         };
         let record = match demanded {
@@ -947,7 +957,7 @@ impl StyleEngine {
         let record = self.retained.record_in_environment(&record, pseudo_environment);
         let style_record = self.retained.install_record(&record, &mut HashMap::default());
         self.retained
-            .hold_demand_record(computed::ComputedStyleTarget::new(node, kind), style_record);
+            .hold_demand_record(computed::ComputedStyleTarget::new(node, target.kind), style_record);
         RecordDemandAnswer::Record {
             record: DemandedEngineRecord {
                 style_record: style_record.raw(),
@@ -971,7 +981,13 @@ impl StyleEngine {
         let DemandedElement::Styled(element_record) = live.demand_element(&self.retained, element, false) else {
             return None;
         };
-        let record = match live.demand_pseudo_element(&self.retained, element, kind, PseudoElementRead::Styled, None) {
+        let record = match live.demand_pseudo_element(
+            &self.retained,
+            element,
+            PseudoElementTarget::of_kind(kind),
+            PseudoElementRead::Styled,
+            None,
+        ) {
             DemandedPseudoElement::Styled(record) => record,
             DemandedPseudoElement::Unstyled => return Some(0),
             DemandedPseudoElement::Waiting(..) | DemandedPseudoElement::Declined => return None,
@@ -992,18 +1008,18 @@ impl StyleEngine {
         Some(style_record.raw())
     }
 
-    /// Style the pseudo-element of `kind` of `node` as [`Live::demand_pseudo_element`] does,
+    /// Style the pseudo-element `target` of `node` as [`Live::demand_pseudo_element`] does,
     /// resolving the fonts and random base values it asks for first.
     fn demand_pseudo_element(
         &mut self,
         node: StyleNodeID,
-        kind: u8,
+        target: PseudoElementTarget,
         read: PseudoElementRead,
         inheritance_parent: Option<StyleNodeID>,
     ) -> DemandedPseudoElement {
         self.until_resolved(node, |engine| {
             let live = engine.retained.live_style.take().expect("the engine owns the document");
-            let demanded = live.demand_pseudo_element(&engine.retained, node, kind, read, inheritance_parent);
+            let demanded = live.demand_pseudo_element(&engine.retained, node, target, read, inheritance_parent);
             engine.retained.live_style = Some(live);
             match demanded {
                 DemandedPseudoElement::Waiting(fonts, random_bases) => Err(super::Waits { fonts, random_bases }),
@@ -1024,9 +1040,12 @@ impl StyleEngine {
         let parent = self.retained.first_letter_inheritance_parent(node, text)?;
         self.retained.live_style.as_ref()?;
         let kind = pseudo_kind::FIRST_LETTER;
-        let DemandedPseudoElement::Styled(record) =
-            self.demand_pseudo_element(node, kind, PseudoElementRead::Styled, Some(parent))
-        else {
+        let DemandedPseudoElement::Styled(record) = self.demand_pseudo_element(
+            node,
+            PseudoElementTarget::of_kind(kind),
+            PseudoElementRead::Styled,
+            Some(parent),
+        ) else {
             return None;
         };
         let parent_record = self.retained.computed_group_sets.assigned_style_record(parent)?;

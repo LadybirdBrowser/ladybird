@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight selectors getComputedStyle</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #target::selection {
+    background-color: green;
+    color: lime;
+  }
+  #target::target-text {
+    background-color: green;
+    color: lime;
+  }
+  #target::spelling-error {
+    background-color: green;
+    color: lime;
+  }
+  #target::grammar-error {
+    background-color: green;
+    color: lime;
+  }
+  #target::highlight(foo) {
+    background-color: green;
+    color: lime;
+  }
+  #target::highlight(bar) {
+    background-color: blue;
+    color: yellow;
+  }
+</style>
+<div id="target"></div>
+<script>
+  for (const pseudo of ["::selection", "::target-text", "::spelling-error", "::grammar-error", "::highlight(foo)"]) {
+    test(() => {
+      let style = getComputedStyle(target, pseudo);
+      assert_equals(style.backgroundColor, "rgb(0, 128, 0)", "Background color is green.");
+      assert_equals(style.color, "rgb(0, 255, 0)", "Color is lime.");
+    }, `getComputedStyle() for ${pseudo}`);
+
+    for (illFormedPseudo of [`${pseudo}:`, `${pseudo})`, `${pseudo}(`, `${pseudo}(foo)`, `${pseudo}()`, `:${pseudo}`, `${pseudo}.`]) {
+      test(() => {
+        let style = getComputedStyle(target, illFormedPseudo);
+        let defaultStyle = getComputedStyle(target);
+        assert_equals(style.backgroundColor, "");
+        assert_equals(style.color,  "");
+      }, `getComputedStyle() for ${illFormedPseudo} should return an empty CSSStyleDeclaration`);
+    }
+  }
+
+  const pseudo = "::highlight(bar)";
+  test(() => {
+    let style = getComputedStyle(target, pseudo);
+    assert_equals(style.backgroundColor, "rgb(0, 0, 255)", "Background color is blue.");
+    assert_equals(style.color, "rgb(255, 255, 0)", "Color is yellow.");
+  }, `Different getComputedStyle() for ${pseudo} and same element`);
+</script>

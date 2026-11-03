@@ -176,7 +176,13 @@ impl Cascade {
     ) -> Self {
         let mut cascade = Self::new();
         cascade.declared_only = Some(Box::new(declared));
-        cascade.cascade(state, index, node, &[], u8::MAX);
+        cascade.cascade(
+            state,
+            index,
+            node,
+            &[],
+            super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
+        );
         cascade
     }
 
@@ -195,7 +201,13 @@ impl Cascade {
         matches: &[ElementMatch],
     ) {
         self.backed_kind = u8::MAX;
-        self.cascade(state, index, node, matches, u8::MAX);
+        self.cascade(
+            state,
+            index,
+            node,
+            matches,
+            super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
+        );
     }
 
     /// Cascade an element standing for its shadow host's pseudo-element of `kind`, such as the
@@ -210,7 +222,13 @@ impl Cascade {
         kind: u8,
     ) {
         self.backed_kind = kind;
-        self.cascade(state, index, node, host_matches, kind);
+        self.cascade(
+            state,
+            index,
+            node,
+            host_matches,
+            super::PseudoElementTarget::of_kind(kind),
+        );
     }
 
     /// Whether a declaration of `property` by `source` takes part in the cascade: a rule's for a
@@ -221,7 +239,7 @@ impl Cascade {
             || crate::css::property_metadata::pseudo_element_supports_property(self.pseudo_kind, property)
     }
 
-    /// Cascade the element's matches for its pseudo-element of `kind` into `winners`, as
+    /// Cascade the element's matches for its pseudo-element `target` into `winners`, as
     /// [`Self::cascade_element`] does for the element: the element's own declarations style the
     /// element alone.
     pub(super) fn cascade_pseudo_element(
@@ -230,10 +248,10 @@ impl Cascade {
         index: &RuleIndex,
         node: StyleNodeID,
         matches: &[ElementMatch],
-        kind: u8,
+        target: super::PseudoElementTarget,
     ) {
         self.backed_kind = u8::MAX;
-        self.cascade(state, index, node, matches, kind);
+        self.cascade(state, index, node, matches, target);
     }
 
     fn cascade(
@@ -242,8 +260,9 @@ impl Cascade {
         index: &RuleIndex,
         node: StyleNodeID,
         matches: &[ElementMatch],
-        pseudo_kind: u8,
+        target: super::PseudoElementTarget,
     ) {
+        let pseudo_kind = target.kind;
         self.pseudo_kind = pseudo_kind;
         self.decided = [0; LONGHAND_WORDS];
         self.winners.clear();
@@ -257,7 +276,7 @@ impl Cascade {
         // target's; its greatest specificity decides for the rule.
         let mut targeted = matches
             .iter()
-            .filter(|matched| matched.pseudo_kind == pseudo_kind)
+            .filter(|matched| matched.styles(index, target))
             .peekable();
         while let Some(first) = targeted.next() {
             let mut specificity: Specificity = first.specificity;

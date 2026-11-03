@@ -56,6 +56,8 @@ public:
     u64 identity() const { return m_declarations.identity(); }
     u64 revision() const { return m_declarations.revision(); }
 
+    virtual Utf16FlyString owner_highlight_name() const override { return m_owner_highlight_name; }
+
     virtual bool has_property(PropertyNameAndID const&) const override;
     bool has_property(PropertyID) const;
 
@@ -90,6 +92,7 @@ private:
     Vector<Utf16FlyString> const& computed_custom_property_names() const;
 
     RustDeclarationBlock m_declarations;
+    Utf16FlyString m_owner_highlight_name;
     mutable Vector<Utf16FlyString> m_cached_computed_custom_property_names;
     mutable GC::Weak<DOM::Document> m_cached_computed_custom_property_document;
     mutable RefPtr<CustomPropertyData const> m_cached_computed_custom_property_data;

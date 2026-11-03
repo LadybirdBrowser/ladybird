@@ -16,15 +16,17 @@
 
 namespace Web::DOM {
 
-AbstractElement::AbstractElement(GC::Ref<Element> element, Optional<CSS::PseudoElement> pseudo_element)
+AbstractElement::AbstractElement(GC::Ref<Element> element, Optional<CSS::PseudoElement> pseudo_element, Utf16FlyString highlight_name)
     : m_element(element)
     , m_pseudo_element(move(pseudo_element))
+    , m_highlight_name(move(highlight_name))
 {
 }
 
-AbstractElement::AbstractElement(Element const& element, Optional<CSS::PseudoElement> pseudo_element)
+AbstractElement::AbstractElement(Element const& element, Optional<CSS::PseudoElement> pseudo_element, Utf16FlyString highlight_name)
     : m_element(const_cast<Element&>(element))
     , m_pseudo_element(move(pseudo_element))
+    , m_highlight_name(move(highlight_name))
 {
 }
 
@@ -197,6 +199,11 @@ Utf16String AbstractElement::debug_description() const
         builder.append(m_element->debug_description());
         builder.append_ascii("::"sv);
         builder.append_ascii(CSS::pseudo_element_name(*m_pseudo_element));
+        if (!m_highlight_name.is_empty()) {
+            builder.append_code_unit('(');
+            builder.append(m_highlight_name);
+            builder.append_code_unit(')');
+        }
         return builder.to_string();
     }
     return m_element->debug_description();

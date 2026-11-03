@@ -15,8 +15,8 @@
 //! but `0` aborts there.
 
 use super::super::super::*;
-use super::super::records::{PseudoElementRecords, Record};
-use super::super::self_check::{Mode, describe, pseudo_element_name, record_differences};
+use super::super::records::{PseudoElementRecords, PseudoElementTarget, Record};
+use super::super::self_check::{Mode, describe, pseudo_element_name, pseudo_element_target_name, record_differences};
 use super::{PassContext, Scratch, is_document_element};
 use std::sync::Arc;
 
@@ -158,20 +158,24 @@ impl Scratch<'_> {
             return;
         };
         let live_pseudo_elements = context.records.pseudo_element_records(node);
-        let kinds = |records: &[(u8, Arc<Record>)]| records.iter().map(|(kind, _)| *kind).collect::<Vec<_>>();
-        if kinds(live_pseudo_elements) != kinds(cold_pseudo_elements) {
-            let names = |kinds: Vec<u8>| kinds.into_iter().map(pseudo_element_name).collect::<Vec<_>>();
+        let targets = |records: &[(PseudoElementTarget, Arc<Record>)]| {
+            records.iter().map(|(target, _)| *target).collect::<Vec<_>>()
+        };
+        if targets(live_pseudo_elements) != targets(cold_pseudo_elements) {
+            let names = |targets: Vec<PseudoElementTarget>| {
+                targets.into_iter().map(pseudo_element_target_name).collect::<Vec<_>>()
+            };
             audit.failures.push(format!(
                 "{}, from {}: live holds the pseudo-elements {:?}, cold computes {:?}",
                 element(),
                 reuse.name(),
-                names(kinds(live_pseudo_elements)),
-                names(kinds(cold_pseudo_elements))
+                names(targets(live_pseudo_elements)),
+                names(targets(cold_pseudo_elements))
             ));
             return;
         }
-        for ((kind, live), (_, cold)) in live_pseudo_elements.iter().zip(cold_pseudo_elements) {
-            let reuse = match self.pseudo_element_cache_hits.contains(kind) {
+        for ((target, live), (_, cold)) in live_pseudo_elements.iter().zip(cold_pseudo_elements) {
+            let reuse = match self.pseudo_element_cache_hits.contains(target) {
                 true => Reuse::PseudoElementRecord,
                 false => reuse,
             };
@@ -180,7 +184,7 @@ impl Scratch<'_> {
             if !differences.is_empty() {
                 audit.failures.push(format!(
                     "{} of {}, from {}: live differs from cold in {}",
-                    pseudo_element_name(*kind),
+                    pseudo_element_target_name(*target),
                     element(),
                     reuse.name(),
                     differences.join(", ")

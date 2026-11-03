@@ -13,6 +13,7 @@ use crate::css::style::bridge::{
     ElementBoxKind, FfiDemandedPseudoElement, FfiPseudoElementRecordDemand, answer_record_demand,
     element_adjustment_fact,
 };
+use crate::css::style::index::StyleAtomID;
 use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle};
 use crate::css::style::tree::StyleNodeID;
 use crate::layout::layout_node_arena::{LayoutNodeArena, OwedImageResources, StaleWalkFacts};
@@ -3606,6 +3607,7 @@ fn stamp_nested_list_marker_row(
                 let demand = RecordDemand::PseudoElement(
                     FfiPseudoElementRecordDemand::ReadOnly,
                     FfiDemandedPseudoElement::Marker,
+                    StyleAtomID::NONE,
                 );
                 let record = answer_record_demand(engine, generator, demand).record.style_record;
                 (record != 0).then_some(record)

@@ -1,0 +1,18 @@
+Harness status: OK
+
+Found 12 tests
+
+6 Pass
+6 Fail
+Pass	getComputedStyle() for ::selection at #target1
+Pass	getComputedStyle() for ::selection at #target2
+Fail	getComputedStyle() for ::target-text at #target1
+Fail	getComputedStyle() for ::target-text at #target2
+Pass	getComputedStyle() for ::search-text at #target1
+Pass	getComputedStyle() for ::search-text at #target2
+Fail	getComputedStyle() for ::spelling-error at #target1
+Fail	getComputedStyle() for ::spelling-error at #target2
+Fail	getComputedStyle() for ::grammar-error at #target1
+Fail	getComputedStyle() for ::grammar-error at #target2
+Pass	getComputedStyle() for ::highlight(foo) at #target1
+Pass	getComputedStyle() for ::highlight(foo) at #target2

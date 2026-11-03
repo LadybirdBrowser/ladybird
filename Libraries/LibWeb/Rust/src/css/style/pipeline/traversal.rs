@@ -550,9 +550,9 @@ struct Scratch<'a> {
     backing_elements_moved: bool,
     /// What `LIBWEB_STYLE_AUDIT_CACHES` found of what the pass reused, where it is set.
     cache_audit: Option<Box<cache_audit::CacheAudit>>,
-    /// The kinds of the pseudo-elements of the element styled last whose records came from the
+    /// The pseudo-elements of the element styled last whose records came from the
     /// matched declarations cache, kept for the audit alone.
-    pseudo_element_cache_hits: SmallVec<[u8; 2]>,
+    pseudo_element_cache_hits: SmallVec<[super::PseudoElementTarget; 2]>,
 }
 
 impl<'a> Scratch<'a> {
@@ -1235,14 +1235,21 @@ impl<'a> Scratch<'a> {
             if kinds & (1 << kind) == 0 {
                 continue;
             }
-            match self.compute_pseudo_element(context, node, &element, &inherited, kind, PseudoElementRead::Generating)
-            {
+            let target = super::PseudoElementTarget::of_kind(kind);
+            match self.compute_pseudo_element(
+                context,
+                node,
+                &element,
+                &inherited,
+                target,
+                PseudoElementRead::Generating,
+            ) {
                 PseudoElementOutcome::Computed {
                     record,
                     element_dependent: dependent,
                 } => {
                     element_dependent |= dependent;
-                    pseudo_element_records.push((kind, record));
+                    pseudo_element_records.push((target, record));
                 }
                 PseudoElementOutcome::Declined => self.statistics.pseudo_elements_declined += 1,
                 // A pseudo-element waiting on a font or a random base value is styled again with
@@ -1255,7 +1262,7 @@ impl<'a> Scratch<'a> {
         Some((pseudo_element_records, element_dependent))
     }
 
-    /// Compute the style of the pseudo-element of `kind` of `node`, whose record is `element`, from the
+    /// Compute the style of the pseudo-element `target` of `node`, whose record is `element`, from the
     /// rules it matched for it, cascaded over what it inherits, `inherited`. Which pseudo-elements
     /// are styled is what `read` says.
     fn compute_pseudo_element(
@@ -1264,17 +1271,18 @@ impl<'a> Scratch<'a> {
         node: StyleNodeID,
         element: &std::sync::Arc<Record>,
         inherited: &PseudoElementInheritance<'_>,
-        kind: u8,
+        target: super::PseudoElementTarget,
         read: PseudoElementRead,
     ) -> PseudoElementOutcome {
         let state = context.state;
+        let kind = target.kind;
         let matches: &[ElementMatch] = match self.gated {
             true => &self.applied,
             false => &self.matches,
         };
-        let has_rules = matches.iter().any(|matched| matched.pseudo_kind == kind);
+        let has_rules = matches.iter().any(|matched| matched.styles(context.index, target));
         let generating = read == PseudoElementRead::Generating;
-        let highlight = super::HIGHLIGHT_KINDS.contains(&kind);
+        let highlight = super::super::publication::pseudo_kind::is_highlight(kind);
         // A pass styles the highlight pseudo-elements of the elements the host shows a highlight
         // of their kind in, and a read of their styles those of any other.
         if generating && highlight && !state.highlight_observers.observes(node, kind) {
@@ -1291,7 +1299,7 @@ impl<'a> Scratch<'a> {
         // https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
         // A highlight pseudo-element no rule styles still inherits the one of an ancestor.
         let highlight_parent = highlight
-            .then(|| context.records.highlight_inheritance_parent(node, kind))
+            .then(|| context.records.highlight_inheritance_parent(node, target))
             .flatten();
         if !read.styles(kind, has_rules || highlight_parent.is_some(), element) {
             return PseudoElementOutcome::Unstyled;
@@ -1308,7 +1316,7 @@ impl<'a> Scratch<'a> {
                 .map(|(record, _)| record.clone())
         }) {
             if self.cache_audit.is_some() {
-                self.pseudo_element_cache_hits.push(kind);
+                self.pseudo_element_cache_hits.push(target);
             }
             return PseudoElementOutcome::Computed {
                 record,
@@ -1323,7 +1331,7 @@ impl<'a> Scratch<'a> {
             return PseudoElementOutcome::Waiting;
         }
         self.cascade
-            .cascade_pseudo_element(state, context.index, node, matches, kind);
+            .cascade_pseudo_element(state, context.index, node, matches, target);
         // A pseudo-element's own custom properties resolve over what its element hands down,
         // as a child's do.
         let subject = SubstitutionSubject::new(context, node, Some(kind));
@@ -1382,7 +1390,7 @@ impl<'a> Scratch<'a> {
                 },
                 &mut self.groups,
                 &mut self.absolutized,
-                kind,
+                target,
                 context.root_font(),
                 group_seeds,
             );
@@ -1419,7 +1427,7 @@ impl<'a> Scratch<'a> {
                     },
                     &mut self.groups,
                     &mut self.absolutized,
-                    kind,
+                    target,
                     context.root_font(),
                     group_seeds,
                 );
@@ -1469,7 +1477,7 @@ impl<'a> Scratch<'a> {
             && Self::reads_nothing_of_the_element(&computed);
         let value_of = |property| computed.groups.value(property);
         let counter_style_environment_identity = state.values_counter_style_environment_identity(
-            super::super::computed::ComputedStyleTarget::new(node, kind),
+            super::super::computed::ComputedStyleTarget::of_pseudo_element(node, target),
             |property| {
                 computed
                     .value_facts
@@ -1802,7 +1810,7 @@ impl<'a> Scratch<'a> {
                 },
                 &mut self.groups,
                 &mut self.absolutized,
-                u8::MAX,
+                super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
                 context.root_font(),
                 group_seeds,
             );
@@ -1842,7 +1850,7 @@ impl<'a> Scratch<'a> {
                     },
                     &mut self.groups,
                     &mut self.absolutized,
-                    u8::MAX,
+                    super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
                     context.root_font(),
                     group_seeds,
                 );
@@ -2988,7 +2996,7 @@ pub(super) enum DemandedPseudoElement {
     Declined,
 }
 
-/// Style the pseudo-element of `kind` of `node` for a read of its style, whether or not it
+/// Style the pseudo-element `target` of `node` for a read of its style, whether or not it
 /// generates a box, from the rules the element matches for it, over the record `context` holds for
 /// `node`, which it inherits from. Which pseudo-elements are styled is what `read` says.
 /// Whether the computed values of `computed` hold `display: none`.
@@ -3004,18 +3012,18 @@ fn computed_display_is_none(computed: &super::compute::ComputedElement) -> bool 
 pub(super) fn style_pseudo_element(
     context: &PassContext<'_>,
     node: StyleNodeID,
-    kind: u8,
+    target: super::PseudoElementTarget,
     read: PseudoElementRead,
 ) -> DemandedPseudoElement {
-    style_pseudo_element_inheriting_from(context, node, kind, read, None)
+    style_pseudo_element_inheriting_from(context, node, target, read, None)
 }
 
-/// Style the pseudo-element of `kind` of `node` as [`style_pseudo_element`] does, inheriting from
+/// Style the pseudo-element `target` of `node` as [`style_pseudo_element`] does, inheriting from
 /// `inheritance_parent` rather than from `node` where it names an element.
 pub(super) fn style_pseudo_element_inheriting_from(
     context: &PassContext<'_>,
     node: StyleNodeID,
-    kind: u8,
+    target: super::PseudoElementTarget,
     read: PseudoElementRead,
     inheritance_parent: Option<StyleNodeID>,
 ) -> DemandedPseudoElement {
@@ -3046,7 +3054,7 @@ pub(super) fn style_pseudo_element_inheriting_from(
         }
         None => PseudoElementInheritance::of(context, node, &element),
     };
-    let outcome = scratch.compute_pseudo_element(context, node, &element, &inherited, kind, read);
+    let outcome = scratch.compute_pseudo_element(context, node, &element, &inherited, target, read);
     if !scratch.statistics.font_requests.is_empty() || !scratch.statistics.random_requests.is_empty() {
         return DemandedPseudoElement::Waiting(
             std::mem::take(&mut scratch.statistics.font_requests),

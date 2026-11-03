@@ -2,14 +2,13 @@ Harness status: OK
 
 Found 9 tests
 
-8 Pass
-1 Fail
+9 Pass
 Pass	Originating element container for ::before
 Pass	Originating element container for ::after
 Pass	Originating element container for ::marker
 Pass	Originating element container for ::first-line
 Pass	Originating element container for ::first-letter
-Fail	Originating element container  for ::highlight
+Pass	Originating element container  for ::highlight
 Pass	Originating element container for outer ::first-line
 Pass	Originating element container for outer ::first-letter
 Pass	Originating element container for ::backdrop

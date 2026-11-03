@@ -122,7 +122,7 @@ pub(super) fn key_of(
             super::HIGHLIGHT_KINDS.map(|kind| {
                 parent_records
                     .iter()
-                    .find(|(held, _)| *held == kind)
+                    .find(|(held, _)| *held == super::PseudoElementTarget::of_kind(kind))
                     .map_or(0, |(_, record)| Arc::as_ptr(record) as usize)
             })
         },

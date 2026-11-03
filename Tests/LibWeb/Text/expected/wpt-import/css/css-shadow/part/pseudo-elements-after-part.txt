@@ -1,0 +1,79 @@
+Harness status: OK
+
+Found 44 tests
+
+38 Pass
+6 Fail
+Pass	"::part(mypart)::part(anotherpart)" should be an invalid selector
+Pass	"::part(mypart)::notarealpseudoelement" should be an invalid selector
+Pass	"::part(mypart)::after" should be a valid selector
+Pass	"::part(mypart)::backdrop" should be a valid selector
+Pass	"::part(mypart)::before" should be a valid selector
+Fail	"::part(mypart)::cue" should be a valid selector
+Pass	"::part(mypart)::details-content" should be a valid selector
+Pass	"::part(mypart)::file-selector-button" should be a valid selector
+Pass	"::part(mypart)::first-letter" should be a valid selector
+Pass	"::part(mypart)::first-line" should be a valid selector
+Fail	"::part(mypart)::grammar-error" should be a valid selector
+Pass	"::part(mypart)::highlight(myhighlight)" should be a valid selector
+Pass	"::part(mypart)::marker" should be a valid selector
+Pass	"::part(mypart)::placeholder" should be a valid selector
+Pass	"::part(mypart)::search-text" should be a valid selector
+Pass	"::part(mypart)::selection" should be a valid selector
+Pass	"::part(mypart)::spelling-error" should be a valid selector
+Fail	"::part(mypart)::target-text" should be a valid selector
+Pass	"::part(mypart)::view-transition" should be a valid selector
+Pass	"::part(mypart)::view-transition-group(*)" should be a valid selector
+Pass	"::part(mypart)::view-transition-image-pair(*)" should be a valid selector
+Pass	"::part(mypart)::view-transition-new(*)" should be a valid selector
+Pass	"::part(mypart)::view-transition-old(*)" should be a valid selector
+Pass	computed style for ::part()::after
+Pass	computed style for ::part()::backdrop
+Pass	computed style for ::part()::before
+Pass	computed style for ::part()::details-content
+Pass	computed style for ::part()::file-selector-button
+Pass	computed style for ::part()::first-letter
+Pass	computed style for ::part()::first-line
+Fail	computed style for ::part()::grammar-error
+Pass	computed style for ::part()::highlight(myhighlight)
+Pass	computed style for ::part()::placeholder
+Pass	computed style for ::part()::search-text
+Pass	computed style for ::part()::selection
+Pass	computed style for ::part()::spelling-error
+Fail	computed style for ::part()::target-text
+Pass	::part styles with ::part(mypart)::after {
+                  display: block;
+                  content: "";
+                  height: 77px;
+                } and <div part='mypart'></div>
+Pass	::part styles with ::part(mypart)::before {
+                  display: block;
+                  content: "";
+                  height: 46px;
+                } and <div part='mypart'></div>
+Pass	::part styles with ::part(mypart)::details-content {
+                  height: 371px;
+                } and <details part='mypart'><summary style="height:47px">summary</summary>details</details>
+Pass	::part styles with ::part(mypart)::file-selector-button {
+                  height: 94px;
+                  padding: 0;
+                  margin: 0;
+                  border: none;
+                  appearance: none;
+                } and <input type=file part=mypart>
+Pass	::part styles with ::part(mypart) {
+                  font: 20px/1 Ahem;
+                }
+                ::part(mypart)::first-letter {
+                  font-size: 86px;
+                } and <div part=mypart>X<br>X</div>
+Fail	::part styles with ::part(mypart) {
+                  font: 20px/1 Ahem;
+                }
+                ::part(mypart)::first-line {
+                  font-size: 86px;
+                } and <div part=mypart>X<br>X</div>
+Pass	::part styles with ::part(mypart)::marker {
+                  font: 63px/1.0 Ahem;
+                  content: "X";
+                } and <li style="list-style-position: inside" part="mypart"></li>

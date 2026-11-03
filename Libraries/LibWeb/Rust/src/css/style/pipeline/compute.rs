@@ -396,7 +396,7 @@ impl RetainedState {
         custom_properties: super::custom_properties::CustomPropertyStores<'_>,
         group_cache: &mut GroupCache,
         absolutized: &mut crate::css::style_compute::AbsolutizedValues,
-        target_pseudo_kind: u8,
+        target_pseudo_element: super::PseudoElementTarget,
         root_font: Option<RootFontInputs>,
         group_seeds: GroupSeeds<'_>,
     ) -> Drive<ComputedElement> {
@@ -423,6 +423,7 @@ impl RetainedState {
         };
         let parent_longhands = parent_view.as_ref().map(computed::StyleRecordView::longhands);
         let parent_overlay = parent_view.as_ref().and_then(|view| view.animated_overlay);
+        let target_pseudo_kind = target_pseudo_element.kind;
         // A pseudo-element's computation reads only the facts about its element's markup language.
         let is_pseudo_element = target_pseudo_kind != u8::MAX;
         let declared_only = cascade.declared_only();
@@ -835,7 +836,7 @@ impl RetainedState {
                 return Err(Unanswered::Suspended(Suspension::RandomBaseValues));
             }
             let subject = DriveSubject {
-                target: computed::ComputedStyleTarget::new(node, target_pseudo_kind),
+                target: computed::ComputedStyleTarget::of_pseudo_element(node, target_pseudo_element),
                 parent: parent.map(|(parent, _)| parent),
                 facts,
             };

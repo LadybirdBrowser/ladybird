@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibGC/Cell.h>
 #include <LibWeb/CSS/PseudoElement.h>
@@ -26,14 +27,16 @@ namespace Web::DOM {
 // FIXME: Figure out const-correctness for the Element.
 class WEB_API AbstractElement {
 public:
-    AbstractElement(GC::Ref<Element>, Optional<CSS::PseudoElement> = {});
-    AbstractElement(Element const&, Optional<CSS::PseudoElement> = {});
+    AbstractElement(GC::Ref<Element>, Optional<CSS::PseudoElement> = {}, Utf16FlyString highlight_name = {});
+    AbstractElement(Element const&, Optional<CSS::PseudoElement> = {}, Utf16FlyString highlight_name = {});
 
     Document& document() const;
 
     Element& element() { return m_element; }
     Element const& element() const { return m_element; }
     Optional<CSS::PseudoElement> pseudo_element() const { return m_pseudo_element; }
+    Utf16FlyString const& highlight_name() const { return m_highlight_name; }
+    bool is_custom_highlight() const { return m_pseudo_element == CSS::PseudoElement::Highlight && !m_highlight_name.is_empty(); }
 
     Layout::NodeWithStyle* layout_node(Layout::BegunRead const& read);
     Layout::NodeWithStyle const* layout_node(Layout::BegunRead const& read) const { return const_cast<AbstractElement*>(this)->layout_node(read); }
@@ -89,6 +92,7 @@ public:
 private:
     GC::Ref<Element> m_element;
     Optional<CSS::PseudoElement> m_pseudo_element;
+    Utf16FlyString m_highlight_name;
 };
 
 }
@@ -97,6 +101,6 @@ template<>
 struct AK::Traits<Web::DOM::AbstractElement> : public DefaultTraits<Web::DOM::AbstractElement> {
     static unsigned hash(Web::DOM::AbstractElement const& key)
     {
-        return pair_int_hash(ptr_hash(&key.element()), key.pseudo_element().has_value() ? to_underlying(key.pseudo_element().value()) : -1);
+        return pair_int_hash(pair_int_hash(ptr_hash(&key.element()), key.pseudo_element().has_value() ? to_underlying(key.pseudo_element().value()) : -1), key.highlight_name().hash());
     }
 };

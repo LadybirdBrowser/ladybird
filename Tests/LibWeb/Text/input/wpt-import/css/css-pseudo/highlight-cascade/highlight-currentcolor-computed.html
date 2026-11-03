@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight selectors getComputedStyle for currentcolor</title>
+<meta name="assert" content="Checks the result of getComputedStyle for each kind of highlight pseudo, when ‘color’ and ‘background-color’ are set to ‘currentColor’. The result for both properties should equal the originating element ‘color’.">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  div {
+    background-color: green;
+    color: lime;
+  }
+  .wrapper::selection {
+    color: cyan;
+    background-color: blue;
+  }
+  .wrapper::target-text {
+    color: cyan;
+    background-color: blue;
+  }
+  .wrapper::spelling-error {
+    color: cyan;
+    background-color: blue;
+  }
+  .wrapper::grammar-error {
+    color: cyan;
+    background-color: blue;
+  }
+  .wrapper::highlight(foo) {
+    color: cyan;
+    background-color: blue;
+  }
+  .target::selection {
+    color: currentcolor;
+    background-color: currentcolor;
+  }
+  .target::target-text {
+    color: currentcolor;
+    background-color: currentcolor;
+  }
+  .target::search-text {
+    color: currentcolor;
+    background-color: currentcolor;
+  }
+  .target::search-text:current {
+    color: red;
+    background-color: red;
+  }
+  .target::spelling-error {
+    color: currentcolor;
+    background-color: currentcolor;
+  }
+  .target::grammar-error {
+    color: currentcolor;
+    background-color: currentcolor;
+  }
+  .target::highlight(foo) {
+    color: currentcolor;
+    background-color: currentcolor;
+  }
+</style>
+<div id="target1" class="target"></div>
+<div class="wrapper">
+  <span id="target2" class="target"></span>
+</div>
+<script>
+  for (const pseudo of ["::selection", "::target-text", "::search-text", "::spelling-error", "::grammar-error", "::highlight(foo)"]) {
+    for (const target of [target1, target2]) {
+      test(() => {
+        let style = getComputedStyle(target, pseudo);
+        assert_equals(style.backgroundColor, "rgb(0, 255, 0)", "Background color is lime.");
+        assert_equals(style.color, "rgb(0, 255, 0)", "Color is lime.");
+      }, `getComputedStyle() for ${pseudo} at #${target.id}`);
+    }
+  }
+</script>

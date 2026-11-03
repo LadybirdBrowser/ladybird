@@ -420,7 +420,10 @@ impl RetainedState {
                     .pseudo_style_record(node, kind)
                     .unwrap_or(computed::FinalStyleRecordID::NONE);
                 let old_pseudo = old_pseudo_record.raw();
-                let new_pseudo_record = match pseudo_element_records.iter().find(|(held, _)| *held == kind) {
+                let new_pseudo_record = match pseudo_element_records
+                    .iter()
+                    .find(|(held, _)| *held == super::PseudoElementTarget::of_kind(kind))
+                {
                     Some((_, pseudo_record)) => {
                         // A pseudo-element's containers are its originating element's.
                         self.note_container_unit_reads(node, pseudo_record, true);

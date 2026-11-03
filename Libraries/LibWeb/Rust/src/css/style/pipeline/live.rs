@@ -857,7 +857,7 @@ impl Live {
             } else if records
                 .pseudo_element_records(node)
                 .iter()
-                .any(|(kind, record)| moved(records, ComputedStyleTarget::new(node, *kind), record))
+                .any(|(target, record)| moved(records, ComputedStyleTarget::of_pseudo_element(node, *target), record))
             {
                 hints.mark(node, RESTYLE_PSEUDO_ELEMENTS);
             }
@@ -1043,7 +1043,9 @@ impl Live {
                 .records
                 .pseudo_element_records(node)
                 .iter()
-                .find_map(|(pseudo, record)| (*pseudo == kind).then_some(record))?,
+                .find_map(|(pseudo, record)| {
+                    (*pseudo == super::PseudoElementTarget::of_kind(kind)).then_some(record)
+                })?,
         };
         Some(
             record
@@ -1065,7 +1067,9 @@ impl Live {
                 .records
                 .pseudo_element_records(node)
                 .iter()
-                .find_map(|(pseudo, record)| (*pseudo == kind).then_some(record))?,
+                .find_map(|(pseudo, record)| {
+                    (*pseudo == super::PseudoElementTarget::of_kind(kind)).then_some(record)
+                })?,
         };
         Some(&record.rare().custom_property_reads)
     }
@@ -2328,7 +2332,7 @@ impl Live {
                             .records
                             .pseudo_element_records(node)
                             .iter()
-                            .any(|(generated, _)| *generated == kind)
+                            .any(|(generated, _)| *generated == super::PseudoElementTarget::of_kind(kind))
                 })
             });
             if holds_demanded {

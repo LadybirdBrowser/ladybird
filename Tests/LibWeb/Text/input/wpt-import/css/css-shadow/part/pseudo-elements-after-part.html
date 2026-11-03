@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<title>Pseudo-elements allowed after ::part()</title>
+<link rel="help" href="https://drafts.csswg.org/css-shadow/#part">
+<meta name="flags" content="ahem">
+<link rel="stylesheet" href="../../../fonts/ahem.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../css/support/parsing-testcommon.js"></script>
+
+<body>
+<span style="font-family: Ahem">X</span>
+
+<script>
+"use strict";
+
+test_invalid_selector("::part(mypart)::part(anotherpart)");
+test_invalid_selector("::part(mypart)::notarealpseudoelement");
+
+test_valid_selector("::part(mypart)::after");
+test_valid_selector("::part(mypart)::backdrop");
+test_valid_selector("::part(mypart)::before");
+test_valid_selector("::part(mypart)::cue");
+test_valid_selector("::part(mypart)::details-content");
+test_valid_selector("::part(mypart)::file-selector-button");
+test_valid_selector("::part(mypart)::first-letter");
+test_valid_selector("::part(mypart)::first-line");
+test_valid_selector("::part(mypart)::grammar-error");
+test_valid_selector("::part(mypart)::highlight(myhighlight)");
+test_valid_selector("::part(mypart)::marker");
+test_valid_selector("::part(mypart)::placeholder");
+test_valid_selector("::part(mypart)::search-text");
+test_valid_selector("::part(mypart)::selection");
+test_valid_selector("::part(mypart)::spelling-error");
+test_valid_selector("::part(mypart)::target-text");
+test_valid_selector("::part(mypart)::view-transition");
+test_valid_selector("::part(mypart)::view-transition-group(*)");
+test_valid_selector("::part(mypart)::view-transition-image-pair(*)");
+test_valid_selector("::part(mypart)::view-transition-new(*)");
+test_valid_selector("::part(mypart)::view-transition-old(*)");
+
+// to be used inside of a promise_test() function.
+async function run_part_test(t, style_rules, part_html, assertion) {
+  let container = document.createElement("div");
+  let shadow = container.attachShadow({mode: "open"});
+  shadow.innerHTML = `
+    ${part_html}
+    <slot></slot>
+  `;
+  document.body.append(container);
+  let style = document.createElement("style");
+  style.innerText = style_rules;
+  document.head.append(style);
+  t.add_cleanup(() => {
+    container.remove();
+    style.remove();
+  });
+  await assertion(container, shadow.firstElementChild);
+}
+
+function test_with_part(style_rules, part_html, assertion) {
+  promise_test(async (t) => {
+    await run_part_test(t, style_rules, part_html, assertion);
+  }, `::part styles with ${style_rules} and ${part_html}`);
+}
+
+// Generate a random-looking color using the string input as a "seed"
+// (so different tests use different colors).
+function generate_color(str) {
+  let sum = Array.from(str).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return `rgb(${sum % 255}, ${(sum * 2 + 17) % 255}, ${(sum * 3 + 139) % 255})`;
+}
+
+function test_pseudo_computed_style(pseudo_element, tag, attributes) {
+  promise_test(async (t) => {
+    let our_color = generate_color(pseudo_element);
+    await run_part_test(t,
+                        `::part(mypart)${pseudo_element} {
+                           background: ${our_color};
+                         }`,
+                        `<${tag} ${attributes} part='mypart'></${tag}>`,
+                        async (container, part) => {
+                          assert_equals(getComputedStyle(part, pseudo_element).backgroundColor, our_color);
+                        });
+
+  }, `computed style for ::part()${pseudo_element}`);
+}
+
+test_pseudo_computed_style("::after", "div", "");
+test_pseudo_computed_style("::backdrop", "div", "popover='auto'");
+test_pseudo_computed_style("::before", "div", "");
+// NOTE: not testing :cue at all.
+test_pseudo_computed_style("::details-content", "details", "");
+test_pseudo_computed_style("::file-selector-button", "input", "type='file'");
+test_pseudo_computed_style("::first-letter", "div", "");
+test_pseudo_computed_style("::first-line", "div", "");
+test_pseudo_computed_style("::grammar-error", "div", "");
+test_pseudo_computed_style("::highlight(myhighlight)", "div", "");
+test_pseudo_computed_style("::placeholder", "input", "type='text' placeholder='enter text'");
+test_pseudo_computed_style("::search-text", "div", "");
+test_pseudo_computed_style("::selection", "div", "");
+test_pseudo_computed_style("::spelling-error", "div", "");
+test_pseudo_computed_style("::target-text", "div", "");
+// NOTE: Not yet testing computed style for view transition
+// pseudo-elements since they currently only apply to the root element
+// (but are intended to apply to others later).
+
+test_with_part(`::part(mypart)::after {
+                  display: block;
+                  content: "";
+                  height: 77px;
+                }`,
+               `<div part='mypart'></div>`,
+               async (container, part) => {
+                 assert_equals(container.getBoundingClientRect().height, 77);
+               });
+
+test_with_part(`::part(mypart)::before {
+                  display: block;
+                  content: "";
+                  height: 46px;
+                }`,
+               `<div part='mypart'></div>`,
+               async (container, part) => {
+                 assert_equals(container.getBoundingClientRect().height, 46);
+               });
+
+test_with_part(`::part(mypart)::details-content {
+                  height: 371px;
+                }`,
+               `<details part='mypart'><summary style="height:47px">summary</summary>details</details>`,
+               async (container, part) => {
+                 assert_equals(container.getBoundingClientRect().height, 371 + 47);
+               });
+
+test_with_part(`::part(mypart)::file-selector-button {
+                  height: 94px;
+                  padding: 0;
+                  margin: 0;
+                  border: none;
+                  appearance: none;
+                }`,
+               `<input type=file part=mypart>`,
+               async (container, part) => {
+                 assert_equals(container.getBoundingClientRect().height, 94);
+               });
+
+test_with_part(`::part(mypart) {
+                  font: 20px/1 Ahem;
+                }
+                ::part(mypart)::first-letter {
+                  font-size: 86px;
+                }`,
+               `<div part=mypart>X<br>X</div>`,
+               async (container, part) => {
+                 await document.fonts.ready;
+                 assert_equals(container.getBoundingClientRect().height, 86 + 20);
+               });
+
+test_with_part(`::part(mypart) {
+                  font: 20px/1 Ahem;
+                }
+                ::part(mypart)::first-line {
+                  font-size: 86px;
+                }`,
+               `<div part=mypart>X<br>X</div>`,
+               async (container, part) => {
+                 await document.fonts.ready;
+                 assert_equals(container.getBoundingClientRect().height, 86 + 20);
+               });
+
+test_with_part(`::part(mypart)::marker {
+                  font: 63px/1.0 Ahem;
+                  content: "X";
+                }`,
+               `<li style="list-style-position: inside" part="mypart"></li>`,
+               async (container, part) => {
+                 await document.fonts.ready;
+                 assert_equals(container.getBoundingClientRect().height, 63);
+               });
+
+</script>

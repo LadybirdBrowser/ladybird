@@ -1811,9 +1811,9 @@ StyleRecordID StyleComputer::install_computed_style_inputs(Layout::BegunRead con
     return const_cast<StyleComputer&>(*this).style_engine().install_host_style_record(read, payloads, payload_source.inherited_set_values(), payload_source.reset_bits(), custom_property_environment ? custom_property_environment->identity() : 0, counter_style_environment_identity, base.record().get(), custom_property_environment ? custom_property_environment->rust_store() : nullptr);
 }
 
-RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const& element, StyleEngine::DemandedPseudoElement pseudo_element)
+RefPtr<ComputedValues const> StyleComputer::engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const& element, StyleEngine::DemandedPseudoElement pseudo_element, StyleAtomID highlight_name)
 {
-    auto answer = StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_style_engine.host(), &read, element.style_node_id().value(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element);
+    auto answer = StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(m_style_engine.host(), &read, element.style_node_id().value(), StyleEngine::PseudoElementRecordDemand::ReadOnly, pseudo_element, highlight_name.value());
     InstalledStyle const style { answer.record.host_record };
     if (!style)
         return {};

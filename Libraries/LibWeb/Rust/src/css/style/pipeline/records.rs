@@ -137,6 +137,26 @@ impl RecordHeader {
     }
 }
 
+/// The pseudo-element of a kind, or the `::highlight()` of a custom highlight name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(in super::super) struct PseudoElementTarget {
+    pub(in super::super) kind: u8,
+    pub(in super::super) highlight_name: StyleAtomID,
+}
+
+impl PseudoElementTarget {
+    pub(in super::super) const fn of_kind(kind: u8) -> Self {
+        Self {
+            kind,
+            highlight_name: StyleAtomID::NONE,
+        }
+    }
+
+    pub(in super::super) fn is_custom_highlight(self) -> bool {
+        !self.highlight_name.is_none()
+    }
+}
+
 /// The pseudo-elements of an element that generate a box, as a bit per kind.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub(in super::super) struct PseudoElementStyles(u16);
@@ -145,8 +165,13 @@ impl PseudoElementStyles {
     pub(in super::super) const NONE: Self = Self(0);
 
     /// The pseudo-elements `records` style, by kind.
-    pub(in super::super) fn of(records: &[(u8, Arc<Record>)]) -> Self {
-        Self(records.iter().fold(0, |mask, (kind, _)| mask | (1 << kind)))
+    pub(in super::super) fn of(records: &[(PseudoElementTarget, Arc<Record>)]) -> Self {
+        Self(
+            records
+                .iter()
+                .filter(|(target, _)| !target.is_custom_highlight())
+                .fold(0, |mask, (target, _)| mask | (1 << target.kind)),
+        )
     }
 
     /// The pseudo-elements of the kinds whose bits `bits` holds, as a test names them.
@@ -1268,21 +1293,26 @@ pub(super) type HeldCustomProperties = Option<Arc<crate::css::custom_properties:
 /// record, unless its animations sampled them.
 pub(super) type BorrowedCustomProperties<'a> = Option<Cow<'a, Arc<crate::css::custom_properties::CustomPropertyStore>>>;
 
-pub(super) type PseudoElementRecords = smallvec::SmallVec<[(u8, Arc<Record>); 2]>;
+pub(super) type PseudoElementRecords = smallvec::SmallVec<[(PseudoElementTarget, Arc<Record>); 2]>;
 
 /// https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
 /// Whether the highlight pseudo-elements of `new` hold other styles than those of `old`, which the
 /// highlight pseudo-elements of an element's children inherit from.
-pub(super) fn highlights_moved(new: &[(u8, Arc<Record>)], old: &[(u8, Arc<Record>)]) -> bool {
-    let of_kind = |records: &'_ [(u8, Arc<Record>)], kind: u8| {
+pub(super) fn highlights_moved(
+    new: &[(PseudoElementTarget, Arc<Record>)],
+    old: &[(PseudoElementTarget, Arc<Record>)],
+) -> bool {
+    let of_target = |records: &'_ [(PseudoElementTarget, Arc<Record>)], target: PseudoElementTarget| {
         records
             .iter()
-            .find(|(held, _)| *held == kind)
+            .find(|(held, _)| *held == target)
             .map(|(_, record)| record.clone())
     };
-    super::HIGHLIGHT_KINDS
-        .iter()
-        .any(|&kind| match (of_kind(new, kind), of_kind(old, kind)) {
+    new.iter()
+        .chain(old)
+        .map(|&(target, _)| target)
+        .filter(|target| super::super::publication::pseudo_kind::is_highlight(target.kind))
+        .any(|target| match (of_target(new, target), of_target(old, target)) {
             (None, None) => false,
             (Some(new), Some(old)) => !Arc::ptr_eq(&new, &old) && !new.holds_the_same_as(&old),
             _ => true,
@@ -1324,7 +1354,7 @@ impl RetainedSlot {
         self.held.is_none() && self.rare.is_none()
     }
 
-    fn pseudo_element_records(&self) -> &[(u8, Arc<Record>)] {
+    fn pseudo_element_records(&self) -> &[(PseudoElementTarget, Arc<Record>)] {
         self.rare
             .as_ref()
             .map_or(&[], |rare| rare.pseudo_element_records.as_slice())
@@ -1460,7 +1490,7 @@ impl RetainedRecords {
         self.held(node)?.matches.as_ref()
     }
 
-    pub(super) fn pseudo_element_records(&self, node: StyleNodeID) -> &[(u8, Arc<Record>)] {
+    pub(super) fn pseudo_element_records(&self, node: StyleNodeID) -> &[(PseudoElementTarget, Arc<Record>)] {
         self.slot(node.element_slot())
             .map_or(&[], RetainedSlot::pseudo_element_records)
     }
@@ -1991,8 +2021,8 @@ impl<'a> Records<'a> {
         self.get_shared(node).map(|record| &**record)
     }
 
-    /// The records of the pseudo-elements of `node` that generate a box, by kind.
-    pub(super) fn pseudo_element_records(&self, node: StyleNodeID) -> &'a [(u8, Arc<Record>)] {
+    /// The records of the pseudo-elements of `node` that generate a box, by target.
+    pub(super) fn pseudo_element_records(&self, node: StyleNodeID) -> &'a [(PseudoElementTarget, Arc<Record>)] {
         match self.cells.pseudo_element_records(node.element_slot()) {
             Some(records) => records.as_slice(),
             None if self.computed(node) => &[],
@@ -2326,10 +2356,14 @@ impl Record {
 }
 
 impl<'a> Records<'a> {
-    /// The record the highlight pseudo-element of `kind` of `node` inherits from: that of the same
+    /// The record the highlight pseudo-element `target` of `node` inherits from: that of the same
     /// pseudo-element of its nearest flat-tree ancestor holding one, here or, for an ancestor these
     /// records hold nothing for, as it is installed.
-    pub(super) fn highlight_inheritance_parent(&self, node: StyleNodeID, kind: u8) -> Option<HighlightParent<'a>> {
+    pub(super) fn highlight_inheritance_parent(
+        &self,
+        node: StyleNodeID,
+        target: PseudoElementTarget,
+    ) -> Option<HighlightParent<'a>> {
         let mut ancestor = self.state.projection.inheritance_parent(node);
         while let Some(current) = ancestor {
             match self.get(current) {
@@ -2337,13 +2371,13 @@ impl<'a> Records<'a> {
                     if let Some((_, record)) = self
                         .pseudo_element_records(current)
                         .iter()
-                        .find(|(held, _)| *held == kind)
+                        .find(|(held, _)| *held == target)
                     {
                         return Some(HighlightParent::Record(record));
                     }
                 }
                 None => {
-                    if let Some(record) = self.state.computed_group_sets.pseudo_style_record(current, kind) {
+                    if let Some(record) = self.state.installed_pseudo_style_record(current, target) {
                         return Some(HighlightParent::Installed(record));
                     }
                 }
@@ -2373,8 +2407,12 @@ impl DriveRecords for Records<'_> {
         Some(record.view())
     }
 
-    fn highlight_inheritance_parent_view(&self, node: StyleNodeID, kind: u8) -> Option<computed::StyleRecordView<'_>> {
-        match self.highlight_inheritance_parent(node, kind)? {
+    fn highlight_inheritance_parent_view(
+        &self,
+        node: StyleNodeID,
+        target: PseudoElementTarget,
+    ) -> Option<computed::StyleRecordView<'_>> {
+        match self.highlight_inheritance_parent(node, target)? {
             HighlightParent::Record(record) => Some(record.view()),
             HighlightParent::Installed(record) => self.state.computed_group_sets.style_record_view(record.raw()),
         }

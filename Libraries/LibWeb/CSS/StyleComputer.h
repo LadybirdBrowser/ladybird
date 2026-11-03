@@ -60,7 +60,7 @@ public:
     void update_root_element_font_metrics(ComputedValues const&);
     // The style of a pseudo-element the element holds no style for, as the style engine derives it for one read alone;
     // null where the engine leaves the read to C++.
-    [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const&, StyleEngine::DemandedPseudoElement);
+    [[nodiscard]] RefPtr<ComputedValues const> engine_transient_pseudo_element_style(Layout::BegunRead const& read, DOM::Element const&, StyleEngine::DemandedPseudoElement, StyleAtomID highlight_name = {});
     [[nodiscard]] JsonArray collect_devtools_applied_style_rules(Layout::BegunRead const& read, DOM::AbstractElement, bool include_inherited, bool include_user_agent_styles);
 
     // The way back from a StyleEngine rule identity to what that rule contributes to the cascade.
