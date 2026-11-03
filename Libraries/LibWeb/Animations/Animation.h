@@ -193,6 +193,8 @@ protected:
     void set_provisional_effect(GC::Ref<AnimationEffect>);
     void discard_provisional_effect();
 
+    void effect_timing_changed_by_style();
+
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void finalize() override;
 

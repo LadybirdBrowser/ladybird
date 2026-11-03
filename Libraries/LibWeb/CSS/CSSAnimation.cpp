@@ -268,6 +268,10 @@ void CSSAnimation::apply_css_properties(AnimationProperties const& animation_pro
     effect.set_fill_mode(Animations::css_fill_mode_to_bindings_fill_mode(animation_properties.fill_mode));
     effect.set_playback_direction(Animations::css_animation_direction_to_bindings_playback_direction(animation_properties.direction));
     effect.set_composite(Animations::css_animation_composition_to_composite_operation(animation_properties.composition));
+    {
+        HTML::TemporaryExecutionContext context(relevant_settings_object());
+        effect_timing_changed_by_style();
+    }
 
     if (animation_properties.play_state != last_css_animation_play_state()) {
         if (!m_script_overrode_play_state) {

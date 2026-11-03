@@ -1429,6 +1429,11 @@ void Animation::effect_timing_changed(Badge<AnimationEffect>)
     update_finished_state(DidSeek::No, SynchronouslyNotify::Yes);
 }
 
+void Animation::effect_timing_changed_by_style()
+{
+    update_finished_state(DidSeek::No, SynchronouslyNotify::No);
+}
+
 // https://www.w3.org/TR/web-animations-1/#associated-effect-end
 TimeValue Animation::associated_effect_end() const
 {
