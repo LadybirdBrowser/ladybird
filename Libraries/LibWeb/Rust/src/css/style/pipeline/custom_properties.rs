@@ -455,7 +455,6 @@ impl RetainedState {
             .filter(|(_, all_visible)| *all_visible)
             .and_then(|(names, _)| {
                 names
-                    .iter()
                     .map(|name| {
                         stores.own.map_or(Some(0), |store| {
                             store.resolved_value_identity(&ak::Utf16FlyString::from_utf16(name))
