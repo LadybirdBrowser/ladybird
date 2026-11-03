@@ -8571,7 +8571,7 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
     if (target->element().namespace_uri() == Namespace::SVG) {
         auto const* layout_node = target->unsafe_layout_node(read);
         // NB: The compositor has no animations for the documents of SVG images.
-        if (!layout_node || (!targets_transform && !targets_opacity) || target->document().is_decoded_svg())
+        if (!layout_node || (!targets_transform && !targets_opacity && !targets_filter) || target->document().is_decoded_svg())
             return {};
         if (targets_transform && !svg_transform_may_run_on_the_compositor(target->element(), *layout_node))
             return {};

@@ -14,10 +14,10 @@ runs on the compositor:
   a fading group: true
   a fading use element: true
   a fading rect in a group with a filter element: true
-  a dimming rect: false
-  a dimming group: false
-  a dimming use element: false
-  a dimming rect in a group with a filter element: false
+  a dimming rect: true
+  a dimming group: true
+  a dimming use element: true
+  a dimming rect in a group with a filter element: true
 runs on the compositor, though it must not:
   a rect in a group with a filter element: false
   a rect in a group with a clip path in its bounding box: false
