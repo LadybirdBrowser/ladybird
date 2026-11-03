@@ -515,6 +515,9 @@ pub extern "C" fn style_engine_drain_flown_style_update(host: &DocumentHost, rea
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_end_flown_style_drain(host: &DocumentHost) {
     host.end_style_drain();
+    let memo = host.engine_memo();
+    memo.flown_update_awaits_self_check
+        .set(memo.style_self_check.is_enabled());
 }
 
 /// Whether the render state installed the record `style_record` of the element `style_node` names in its box ahead of

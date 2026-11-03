@@ -561,8 +561,21 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
             return begin_style_update_inputs(read, document, container_layout);
         }
     }();
-    if (!inputs.has_value())
+    auto const self_check = [&] {
+        auto* root = document.document_element();
+        StyleEngineFFI::style_engine_self_check(document.style_computer().style_engine().host(), &read, root ? root->style_node_id().value() : 0);
+    };
+    // NB: An update behind one that flew and left nothing to do is the one that checks it.
+    auto const self_check_a_flown_update = [&] {
+        if constexpr (!drains_flown_transaction) {
+            if (StyleEngineFFI::style_engine_flown_update_awaits_self_check(document.style_computer().style_engine().host()))
+                self_check();
+        }
+    };
+    if (!inputs.has_value()) {
+        self_check_a_flown_update();
         return;
+    }
     if (has_no_style_work) {
         dbgln("Style update found work its document said it had none of");
         VERIFY_NOT_REACHED();
@@ -597,8 +610,10 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
         if (element.installed_style().view().animated_overlay || element.custom_property_data_is_animation_overlay({}))
             sample_animations_for_installed_record(DOM::AbstractElement { element });
     });
-    if (!applied.had_reactions)
+    if (!applied.had_reactions) {
+        self_check_a_flown_update();
         return;
+    }
 
     document.set_has_completed_style_update();
     apply_document_style_invalidation_after_style_change(document, application.invalidation);
@@ -612,10 +627,8 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     //     update checks. So does the one after an update that stopped at its limit of passes with what they fed back
     //     still pending. An update that stopped with nothing left has settled.
     auto const stopped_with_work_left = applied.pass_guard_hits != 0 && document.style_computer().style_engine().has_pending_transaction(read);
-    if (!drains_flown_transaction && !stopped_with_work_left && StyleEngineFFI::style_engine_self_check_is_enabled(document.style_computer().style_engine().host())) {
-        auto* root = document.document_element();
-        StyleEngineFFI::style_engine_self_check(document.style_computer().style_engine().host(), &read, root ? root->style_node_id().value() : 0);
-    }
+    if (!drains_flown_transaction && !stopped_with_work_left && StyleEngineFFI::style_engine_self_check_is_enabled(document.style_computer().style_engine().host()))
+        self_check();
 }
 
 // Records what update_style() records before it runs the document's style update, and lets the update fly
