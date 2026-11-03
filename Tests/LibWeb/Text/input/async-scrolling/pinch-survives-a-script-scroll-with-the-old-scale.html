@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // The compositor zooms beside this task, and the task scrolls before it has heard of the new scale. The scroll must
+    // leave the scale alone, or the zoom would be undone.
+    promiseTest(async () => {
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+        while (visualViewport.scale !== 1.5) await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        internals.pinchThroughUIProcess(400, 300, 1);
+        // NB: This only gives up on a zoom that never comes, so the time limit can't fail a slow machine's run of a
+        //     fixed engine.
+        const giveUpAt = performance.now() + 2000;
+        while (compositorScale() !== 3 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`beside the task: compositor scale: ${compositorScale()}, main thread scale: ${visualViewport.scale}`);
+        window.scrollTo(0, 10);
+
+        const settleUntil = performance.now() + 500;
+        while (performance.now() < settleUntil) await animationFrame();
+        internals.synchronizeCompositor();
+        println(`after the task: compositor scale: ${compositorScale()}, main thread scale: ${visualViewport.scale}`);
+    });
+</script>
