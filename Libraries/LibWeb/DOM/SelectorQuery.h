@@ -39,10 +39,10 @@ public:
     bool is_result_cacheable() const { return m_is_result_cacheable; }
     bool depends_on_character_data() const { return m_depends_on_character_data; }
 
-    // Stamped by the document's selector query cache each time the query is handed out, so that a full cache can
-    // evict the query used least recently.
-    u64 last_use() const { return m_last_use; }
-    void set_last_use(u64 use) const { m_last_use = use; }
+    // Marked by the document's selector query cache each time it hands out the query again, so that a full cache can
+    // give a query in use another turn as it looks for one to evict.
+    void mark_used() const { m_used_mark = true; }
+    bool take_used_mark() const { return exchange(m_used_mark, false); }
 
     GC::Ptr<Element> query_first(ParentNode&) const;
     GC::Ref<NodeList> query_all(ParentNode&) const;
@@ -58,7 +58,7 @@ private:
     // The selectors compiled for the DOM matcher, when a query first needs them, for an HTML document or not.
     mutable CSS::SelectorFFI::DomSelectorProgram* m_program { nullptr };
     mutable bool m_program_is_for_html_document { false };
-    mutable u64 m_last_use { 0 };
+    mutable bool m_used_mark { false };
 
     // Whether the selector is a lone `*`, which every element matches: a query then collects the
     // subtree's elements without matching any of them.
