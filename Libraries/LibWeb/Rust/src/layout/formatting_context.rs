@@ -1771,9 +1771,9 @@ fn dimension_block_level_root(
     body_input
 }
 
-/// Gives the root of a block-level run the inline size its block formatting context resolved for it, and resolves its
-/// block size where that follows without laying out its contents. Answers the space a flex root resolves its own
-/// automatic block size in, if it does.
+/// Resolves the block size of the root of a block-level run, which arrives with the inline size its block formatting
+/// context resolved for it, where that follows without laying out its contents. Answers the space a flex root resolves
+/// its own automatic block size in, if it does.
 fn size_block_level_root_ahead_of_its_contents(
     run: &FormattingContextRun,
     sized_root: sizing_context::SizedCells<'_>,
@@ -1784,9 +1784,6 @@ fn size_block_level_root_ahead_of_its_contents(
     let constraints = input.containing_block_constraints;
     let sizing = run.sizing();
     let facts = NodeFacts::new(&run.callbacks, node);
-    if let Some(content_inline_size) = input.sizing.block_parent_resolved_content_inline_size.get() {
-        root.set_content_inline_size(content_inline_size);
-    }
     let flex_self_resolution_space =
         flex_self_block_size_resolution_space(&sizing, sized_root.sized_box(), input.available_space, constraints);
     let resolution_space = sizing.available_space_for_block_size_resolution(node, input.available_space, constraints);
@@ -3368,7 +3365,6 @@ fn is_run_of_table_wrapper_sized_by_its_parent(
 ) -> bool {
     fc_type == FormattingContextType::Block
         && input.participation == ParticipationInParentFormattingContext::BlockLevel
-        && input.sizing.block_parent_resolved_content_inline_size.is_some()
         && NodeFacts::new(&run.callbacks, run.box_).is_table_wrapper()
 }
 

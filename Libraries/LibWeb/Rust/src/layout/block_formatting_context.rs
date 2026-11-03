@@ -2805,9 +2805,13 @@ impl<'pass> BlockFormattingContext<'pass> {
             containing_block_rect_in_root_now,
             &mut probe,
         );
-        if !has_independent_formatting_context && let Some(content_inline_size) = probe.content_inline_size {
-            self.cells_laid_out_here(sized_child)
-                .set_content_inline_size(content_inline_size);
+        if let Some(content_inline_size) = probe.content_inline_size {
+            self.update_cells_of(sized_child, |cells| cells.set_content_inline_size(content_inline_size));
+        } else {
+            debug_assert!(
+                !has_independent_formatting_context || !facts.is_table_wrapper(),
+                "a block-level table wrapper arrives at its run with the inline size its parent resolved for it"
+            );
         }
         let content_inline_size_now = probe
             .content_inline_size
@@ -2949,9 +2953,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     } else {
                         geometry::PackedOptionalCssPixels::from(None)
                     },
-                    block_parent_resolved_content_inline_size: geometry::PackedOptionalCssPixels::from(
-                        probe.content_inline_size,
-                    ),
                     table_box_content_block_offset_in_wrapper: geometry::PackedOptionalCssPixels::from(
                         is_table_formatting_context.then_some(content_block_offset),
                     ),

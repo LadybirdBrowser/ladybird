@@ -76,7 +76,6 @@ fn root_input_cells_match_ignoring_unobserved(
             return cells;
         }
         used_values::RootInputCells {
-            content_inline_size: CssPixels::default(),
             margin_left: CssPixels::default(),
             margin_right: CssPixels::default(),
             ..cells
@@ -289,7 +288,6 @@ fn sizing_directives_match_ignoring_unobserved(
     let RootSizingDirectives {
         forced_content_block_size,
         forced_min_border_box_block_size,
-        block_parent_resolved_content_inline_size,
         table_box_content_block_offset_in_wrapper,
         content_block_size_after_run,
         outer_float_intrusion_before_list_item_children,
@@ -299,7 +297,6 @@ fn sizing_directives_match_ignoring_unobserved(
     } = *a;
     forced_content_block_size == b.forced_content_block_size
         && forced_min_border_box_block_size == b.forced_min_border_box_block_size
-        && block_parent_resolved_content_inline_size == b.block_parent_resolved_content_inline_size
         && table_box_content_block_offset_in_wrapper == b.table_box_content_block_offset_in_wrapper
         && (content_block_size_after_run == b.content_block_size_after_run
             || content_block_size_adopted_after_run_unobserved)
