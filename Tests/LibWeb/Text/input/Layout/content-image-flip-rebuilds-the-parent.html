@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    const image = "url(data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEAAAAALAAAAAABAAEAAAIBAAA=)";
+
+    function check(label, html) {
+        for (const [from, to] of [["none", image], [image, "none"], ["normal", image], [image, "normal"]]) {
+            const host = document.createElement("div");
+            host.innerHTML = html;
+            document.body.append(host);
+            const target = host.querySelector("#t");
+            target.style.content = from;
+            document.body.offsetWidth;
+            target.style.content = to;
+            document.body.offsetWidth;
+            const comparison = internals.compareLayoutTreeWithFullRebuild();
+            println(`${label}, ${from.slice(0, 3)} to ${to.slice(0, 3)}: ${comparison.matches ? "matches a full rebuild" : "differs from a full rebuild"}`);
+            host.remove();
+        }
+    }
+
+    test(() => {
+        check("legend", "<fieldset><legend id=t>l</legend>x</fieldset>");
+        check("cell", "<table><tr><td id=t>a</td></tr></table>");
+        check("row", "<table><tr id=t><td>a</td></tr></table>");
+        check("caption", "<table><caption id=t>c</caption><tr><td>a</td></tr></table>");
+        check("column group", "<table><colgroup id=t><col></colgroup><tr><td>a</td></tr></table>");
+    });
+</script>
