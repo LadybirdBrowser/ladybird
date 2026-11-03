@@ -297,7 +297,6 @@ fn sizing_directives_match_ignoring_unobserved(
         treat_block_axis_percentage_insets_as_auto_beyond_root,
         math_stretch_size_constraint,
         root_is_measured_for_its_content_block_size,
-        root_keeps_its_committed_geometry,
     } = *a;
     forced_content_block_size == b.forced_content_block_size
         && forced_min_border_box_block_size == b.forced_min_border_box_block_size
@@ -312,7 +311,6 @@ fn sizing_directives_match_ignoring_unobserved(
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
         && math_stretch_size_constraint == b.math_stretch_size_constraint
         && root_is_measured_for_its_content_block_size == b.root_is_measured_for_its_content_block_size
-        && root_keeps_its_committed_geometry == b.root_keeps_its_committed_geometry
         && match (
             flex_self_block_size_resolution_space,
             b.flex_self_block_size_resolution_space,

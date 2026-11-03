@@ -2199,13 +2199,6 @@ fn execute_formatting_context_run(
             )
         },
     );
-    if input.sizing.root_keeps_its_committed_geometry {
-        assert_eq!(
-            sizes_and_box_sides(root_cells_left_by_run),
-            sizes_and_box_sides(root_cells),
-            "the run of {box_:?} changed the committed geometry of its root"
-        );
-    }
     if checks_root_input_cells_its_parent_owns {
         let mut root_input_cells_the_run_must_leave = root_cells;
         if fc_type.lays_out_inside_its_root_as_definite_in_both_axes() {
@@ -2766,7 +2759,6 @@ fn body_input_in_own_frame(
         treat_block_axis_percentage_insets_as_auto_beyond_root: input
             .sizing
             .treat_block_axis_percentage_insets_as_auto_beyond_root,
-        root_keeps_its_committed_geometry: input.sizing.root_keeps_its_committed_geometry,
         ..RootSizingDirectives::default()
     };
     std::mem::swap(
@@ -3708,6 +3700,13 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
             root_cells.set_content_inline_size(viewport_inline_size);
             root_cells.set_content_block_size(viewport_block_size);
             root_cells.has_definite_block_size = true;
+            if root_for_layout != root {
+                svg_formatting_context::size_document_element_svg_from_its_width_and_height(
+                    &callbacks,
+                    root_for_layout,
+                    &mut root_cells,
+                );
+            }
             let input = LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::definite(viewport_inline_size),
@@ -3853,7 +3852,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .expect("partial relayout root must have committed geometry");
     let root_cells = committed_root.cells;
     let fragments = run.fragments.expect("partial relayout must build fragments");
-    let mut input = LayoutInput::new(
+    let input = LayoutInput::new(
         AvailableSpace {
             inline_size: AvailableSize::definite(root_cells.content_inline_size),
             block_size: AvailableSize::definite(root_cells.content_block_size),
@@ -3863,7 +3862,6 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         ContainingBlockConstraints::default(),
         ParticipationInParentFormattingContext::Root,
     );
-    input.sizing.root_keeps_its_committed_geometry = true;
 
     let facts = NodeFacts::new(callbacks, root);
     debug_assert!(facts.is_svg_svg_box());
@@ -3886,6 +3884,11 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         fragment_arrival,
         ..
     } = root_outcome;
+    assert_eq!(
+        sizes_and_box_sides(root_box.cells),
+        sizes_and_box_sides(root_cells),
+        "the run of {root:?} changed the committed geometry of its root"
+    );
     let root_geometry = fragment_tree::FragmentGeometry {
         cells: root_box.cells,
         line_data: root_box.line_data,
