@@ -2780,6 +2780,11 @@ u64 Internals::style_record_identity(DOM::Element& element)
     return element.style_record_identity().value();
 }
 
+u64 Internals::custom_property_environment_identity(DOM::Element& element)
+{
+    return element.installed_style().custom_property_environment();
+}
+
 u64 Internals::layout_style_record_identity(DOM::Element& element)
 {
     Layout::ForcedReadScope read { element.document() };

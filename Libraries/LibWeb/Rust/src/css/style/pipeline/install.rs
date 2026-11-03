@@ -220,7 +220,7 @@ impl StyleInstallation {
 
 impl RetainedState {
     /// The identity `record` is installed under: the one it names, the one another element took
-    /// for it in this installation, kept in `installed`, or a new one.
+    /// for a copy of it in this installation, kept in `installed`, or a new one.
     #[expect(
         clippy::mutable_key_type,
         reason = "a key hashes and compares only the address it holds"
@@ -240,7 +240,10 @@ impl RetainedState {
         let id = records.install_record(record, || {
             computed::record_dependency_flags(&record.facts(), &record.payloads)
         });
-        installed.insert(PointerKey::new(record, ()), id);
+        // NB: A record a fork's slot names took a copy in this slot, which it finds again here.
+        if records.installed_record_named_by(record).is_none() {
+            installed.insert(PointerKey::new(record, ()), id);
+        }
         id
     }
 
@@ -301,9 +304,8 @@ impl RetainedState {
                 || parent.is_some_and(|parent| self.hidden_before(parent, scratch));
             scratch.note_hidden_before(node, below_display_none || self.record_is_display_none(old));
             let new_record = self.install_record(record, &mut scratch.installed);
-            // NB: Where the record holds what one installed before it does, or the element installs a copy of it in
-            //     another custom property environment, the element keeps what it installed, and its own goes: the
-            //     composition of its animations lies over what it holds.
+            // NB: Where the element installs a copy of the record, as in another custom property environment, the element
+            //     keeps what it installed, and its own goes: the composition of its animations lies over what it holds.
             if let Some(installed) = self.computed_group_sets.installed_record(new_record)
                 && !Arc::ptr_eq(installed, computed_record)
             {

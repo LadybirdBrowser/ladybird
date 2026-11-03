@@ -1053,7 +1053,7 @@ impl RetainedState {
     }
 
     fn install_new_record(&mut self, record: Arc<Record>) -> computed::FinalStyleRecordID {
-        self.computed_group_sets.install_record(&record, || {
+        self.computed_group_sets.install_derived_record(&record, || {
             computed::record_dependency_flags(&record.facts(), &record.payloads)
         })
     }
@@ -1779,6 +1779,26 @@ impl<'a> Records<'a> {
             })?
             .identity;
         Some(self.state.custom_property_environments.store(sampled))
+    }
+
+    /// The record `node` held before this pass, or the one the host holds for it or composes its animations over, where
+    /// it holds the style `record` does: what it keeps in place of `record`, so that its children compute from it as
+    /// they did, and the host has nothing to take.
+    pub(super) fn held_before_holding_the_same_style_as(
+        &self,
+        node: StyleNodeID,
+        record: &Record,
+    ) -> Option<&'a Arc<Record>> {
+        let previous = self.previous?.get(node);
+        let held = self
+            .state
+            .held_style_records
+            .get(node)
+            .map(|held| held.sample_of_animations().map_or(held, |sample| &sample.base));
+        previous
+            .into_iter()
+            .chain(held.filter(|held| previous.is_none_or(|previous| !Arc::ptr_eq(previous, held))))
+            .find(|candidate| candidate.holds_the_same_style_as(record))
     }
 
     /// Whether this pass computed `node`.

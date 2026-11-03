@@ -1903,13 +1903,10 @@ impl<'a> Scratch<'a> {
             )
             .with_custom_properties(custom_properties.as_ref()),
         });
-        // NB: An element computing what an installed record holds, as the clone of an element does,
-        //     holds that record: installing it takes the slot the record names, and the children of
-        //     the element are computed from the record the children of the original were.
         self.last_record = Some(record.clone());
-        let record = state
-            .computed_group_sets
-            .installed_record_holding_the_same_style_as(&record)
+        let record = context
+            .records
+            .held_before_holding_the_same_style_as(node, &record)
             .cloned()
             .unwrap_or(record);
         // Only what the key and the conditions of an entry name is read of what may differ between

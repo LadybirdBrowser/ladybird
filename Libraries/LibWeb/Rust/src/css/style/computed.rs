@@ -1028,21 +1028,22 @@ impl ComputedGroupSets {
         FinalStyleRecordID::installed(self.installed.install(record, dependency_flags))
     }
 
+    /// Take a slot for a record derived for what no element is, or answer one holding the same.
+    /// `dependency_flags` says what the view of a record in a new slot depends on.
+    pub(super) fn install_derived_record(
+        &mut self,
+        record: &std::sync::Arc<super::pipeline::Record>,
+        dependency_flags: impl FnOnce() -> u8,
+    ) -> FinalStyleRecordID {
+        FinalStyleRecordID::installed(self.installed.install_derived(record, dependency_flags))
+    }
+
     /// The identity `record` holds already, if it holds one.
     pub(super) fn installed_record_named_by(
         &self,
         record: &std::sync::Arc<super::pipeline::Record>,
     ) -> Option<FinalStyleRecordID> {
         self.installed.named_by(record).map(FinalStyleRecordID::installed)
-    }
-
-    /// An installed record holding the style `record` does, which an element computing `record`
-    /// holds in its place.
-    pub(super) fn installed_record_holding_the_same_style_as(
-        &self,
-        record: &super::pipeline::Record,
-    ) -> Option<&std::sync::Arc<super::pipeline::Record>> {
-        self.installed.holding_the_same_style_as(record)
     }
 
     /// The record the engine computed that the installed `record` installs, where it is one.
@@ -1853,7 +1854,7 @@ mod tests {
                 pseudo_element_styles,
             ))
             .with_test_dependency_flags(dependency_flags);
-        sets.install_record(&record, || 0)
+        sets.install_derived_record(&record, || 0)
     }
 
     /// Assigns `target` a record installed as [`install`] installs it.

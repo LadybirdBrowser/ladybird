@@ -15,7 +15,7 @@ test(() => {
         root.style.setProperty(`--inherited-${index}`, index);
     root.style.setProperty('--number', '1', 'important');
     internals.updateStyle();
-    println(`same child environment: ${internals.styleRecordIdentity(first) === internals.styleRecordIdentity(second)}`);
+    println(`same child environment: ${internals.customPropertyEnvironmentIdentity(first) === internals.customPropertyEnvironmentIdentity(second)}`);
     println(`inherited value: ${getComputedStyle(first).getPropertyValue('--inherited-15')}`);
 
     const animation = first.animate({'--number': ['2', '4']}, {duration: 1000, fill: 'both'});

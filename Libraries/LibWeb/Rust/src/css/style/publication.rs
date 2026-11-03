@@ -532,7 +532,7 @@ impl RetainedState {
             .unwrap_or_else(|| self.default_groups().groups().clone());
         let record = std::sync::Arc::new(super::pipeline::Record::derived(&source, &payloads))
             .with_pseudo_element_styles(super::pipeline::PseudoElementStyles::from_bits(pseudo_element_styles));
-        let identity = self.computed_group_sets.install_record(&record, || {
+        let identity = self.computed_group_sets.install_derived_record(&record, || {
             computed::record_dependency_flags(&record.facts(), &record.payloads)
         });
         match target.is_pseudo() {

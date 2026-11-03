@@ -318,6 +318,7 @@ public:
     GC::Ref<JS::Object> style_memory_report();
     u64 style_memory_of_frames();
     u64 style_record_identity(DOM::Element&);
+    u64 custom_property_environment_identity(DOM::Element&);
     u64 layout_style_record_identity(DOM::Element&);
     u64 before_style_record_identity(DOM::Element&);
     u64 before_layout_style_record_identity(DOM::Element&);

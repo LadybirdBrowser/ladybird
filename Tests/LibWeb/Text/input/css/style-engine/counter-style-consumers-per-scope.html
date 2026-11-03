@@ -29,15 +29,12 @@
         const second = append_items(second_root);
         internals.updateStyle();
         const record = element => internals.styleRecordIdentity(element);
-        // The consumers of one scope's counter style share a record, as do their markers, and
-        // neither answers for a consumer of the other scope's; an element naming no counter style
-        // shares its record across scopes.
-        println(`first scope's consumers share a record: ${first.every(item => record(item) === record(first[0]))}`);
-        println(`second scope's consumers share a record: ${second.every(item => record(item) === record(second[0]))}`);
-        println(`scopes' consumers hold different records: ${record(first[0]) !== record(second[0])}`);
-        const plain = root => root.querySelector("span");
-        println(`non-consumers share a record across scopes: ${record(plain(first_root)) === record(plain(second_root))}`);
         const width = element => element.getBoundingClientRect().width;
-        println(`each scope's consumers use its counter style: ${width(second[0]) > width(first[0])}`);
+        // NB: Whether two consumers of one scope's counter style hold one record is up to the caches, which may have no
+        //     room for it. No record answers for a consumer of the other scope's, and each consumer shows its own.
+        println(`scopes' consumers hold different records: ${first.every(a => second.every(b => record(a) !== record(b)))}`);
+        println(`first scope's consumers look alike: ${first.every(item => width(item) === width(first[0]))}`);
+        println(`second scope's consumers look alike: ${second.every(item => width(item) === width(second[0]))}`);
+        println(`each scope's consumers use its counter style: ${first.every(a => second.every(b => width(b) > width(a)))}`);
     });
 </script>
