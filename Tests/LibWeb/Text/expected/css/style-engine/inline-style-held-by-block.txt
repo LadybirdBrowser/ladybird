@@ -1,0 +1,17 @@
+same text: 11px 11px
+one edited: 12px 11px
+written back: 11px 11px
+one removed: 11px 784px
+custom: 21px
+custom rewritten: 22px
+custom gone: 23px []
+custom back: 24px
+custom removed: []
+round 0: 31px
+round 1: 784px
+round 2: 784px
+in: 41px
+back: 42px
+attr: 51px
+attr moved: 52px
+transitions: 1

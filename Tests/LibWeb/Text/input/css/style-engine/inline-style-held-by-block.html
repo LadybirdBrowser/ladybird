@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<div id="host"></div>
+<script>
+    function add(style) {
+        const element = document.createElement("div");
+        if (style !== undefined)
+            element.setAttribute("style", style);
+        host.appendChild(element);
+        return element;
+    }
+
+    function width(element) {
+        return getComputedStyle(element).width;
+    }
+
+    test(() => {
+        // Elements writing the same text hold one block, which an edit through the CSSOM leaves to the other.
+        const first = add("width: 11px");
+        const second = add("width: 11px");
+        println(`same text: ${width(first)} ${width(second)}`);
+        first.style.width = "12px";
+        println(`one edited: ${width(first)} ${width(second)}`);
+        first.setAttribute("style", "width: 11px");
+        println(`written back: ${width(first)} ${width(second)}`);
+        second.removeAttribute("style");
+        println(`one removed: ${width(first)} ${width(second)}`);
+        host.textContent = "";
+
+        // The custom properties of a block come and go with it.
+        const custom = add("--size: 21px; width: var(--size)");
+        println(`custom: ${width(custom)}`);
+        custom.setAttribute("style", "--size: 22px; width: var(--size)");
+        println(`custom rewritten: ${width(custom)}`);
+        custom.setAttribute("style", "width: var(--size, 23px)");
+        println(`custom gone: ${width(custom)} [${getComputedStyle(custom).getPropertyValue("--size")}]`);
+        custom.setAttribute("style", "--size: 24px; width: var(--size)");
+        println(`custom back: ${width(custom)}`);
+        custom.removeAttribute("style");
+        println(`custom removed: [${getComputedStyle(custom).getPropertyValue("--size")}]`);
+        host.textContent = "";
+
+        // A new element that takes the identity of one that left holds none of its declarations.
+        for (let round = 0; round < 3; ++round) {
+            const held = add(round == 0 ? "width: 31px" : undefined);
+            println(`round ${round}: ${width(held)}`);
+            held.remove();
+            width(host);
+        }
+
+        // An element holds a block through leaving the tree and coming back.
+        const moved = add("width: 41px");
+        println(`in: ${width(moved)}`);
+        moved.remove();
+        width(host);
+        moved.style.width = "42px";
+        host.appendChild(moved);
+        println(`back: ${width(moved)}`);
+        host.textContent = "";
+
+        // What a block reads of its element is noted as it is handed over.
+        const reading = add("width: attr(data-width px)");
+        reading.setAttribute("data-width", "51");
+        println(`attr: ${width(reading)}`);
+        reading.setAttribute("data-width", "52");
+        println(`attr moved: ${width(reading)}`);
+        host.textContent = "";
+
+        // Whether a block can define a transition is said as it is handed over.
+        const transitioning = add("width: 61px");
+        width(transitioning);
+        transitioning.setAttribute("style", "width: 62px; transition: width 100s");
+        width(transitioning);
+        transitioning.setAttribute("style", "width: 63px; transition: width 100s");
+        println(`transitions: ${transitioning.getAnimations().length}`);
+        transitioning.remove();
+    });
+</script>
