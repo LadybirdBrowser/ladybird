@@ -2960,6 +2960,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildLayout {
     let facts = NodeFacts::new(&run.callbacks, child);
+    let created_fc_type = formatting_context_type_created_by_box(facts);
     let child_run_builds_fragments = run_builds_fragments(&input, run.fragments.is_some());
     if let Some((padding_top, padding_bottom)) = input.sizing.table_cell_intrinsic_block_padding {
         debug_assert!(facts.is_table_cell());
@@ -2980,7 +2981,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
             input.participation,
             ParticipationInParentFormattingContext::AtomicInline
         )
-        && formatting_context_type_created_by_box(facts) == Some(FormattingContextType::Block)
+        && created_fc_type == Some(FormattingContextType::Block)
         && run.callbacks.first_child(child).is_invalid()
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
@@ -2995,7 +2996,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
         return ChildLayout::of_child_sized_in_parent_run(skipped(None), cells_of_this_layout.get());
     }
     let creates_replaced_context = matches!(
-        formatting_context_type_created_by_box(facts),
+        created_fc_type,
         Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
@@ -3015,6 +3016,7 @@ pub(crate) fn layout_inside_child_with_input_cells(
     } = child_run_plan(
         run,
         child,
+        created_fc_type,
         input,
         force_independent_context_run,
         percentage_block_insets_of_containing_block_have_definite_basis,
@@ -3069,6 +3071,7 @@ pub(crate) fn table_cell_run_shape_ahead_of_its_intrinsic_block_padding(
     let plan = child_run_plan(
         run,
         cell,
+        formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, cell)),
         input,
         false,
         run.percentage_block_insets_of_root_children_have_definite_basis(table_box),
@@ -3152,22 +3155,27 @@ pub(crate) struct ChildRunPlan {
 pub(crate) fn child_run_plan(
     run: &FormattingContextRun,
     child: Node,
+    created_fc_type: Option<FormattingContextType>,
     mut input: LayoutInput,
     force_independent_context_run: bool,
     percentage_block_insets_of_containing_block_have_definite_basis: bool,
 ) -> ChildRunPlan {
-    let fc_type = formatting_context_type_created_by_box(NodeFacts::new(&run.callbacks, child)).unwrap_or_else(|| {
+    let child_facts = NodeFacts::new(&run.callbacks, child);
+    let fc_type = created_fc_type.unwrap_or_else(|| {
         assert!(
             force_independent_context_run,
             "{child:?} is handed to a run of its own without a formatting context of its own"
         );
-        independent_formatting_context_type(child, &run.callbacks)
+        assert!(
+            child_facts.is_block_container(),
+            "a box that creates no formatting context must be a block container to be laid out in one"
+        );
+        FormattingContextType::Block
     });
     let root_containing_block = run
         .callbacks
         .containing_block_for_child_run(child, &input.participation);
     // NB: Percentages see through an anonymous root to the block size of its containing block.
-    let child_facts = NodeFacts::new(&run.callbacks, child);
     input.sizing.treat_block_axis_percentage_insets_as_auto_beyond_root = child_facts.is_anonymous()
         && !child_facts.is_table_cell()
         && !percentage_block_insets_of_containing_block_have_definite_basis;

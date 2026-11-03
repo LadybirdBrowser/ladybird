@@ -3327,6 +3327,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         let plan = formatting_context::child_run_plan(
             &self.run,
             node,
+            formatting_context::formatting_context_type_created_by_box(NodeFacts::new(&self.run.callbacks, node)),
             input,
             false,
             self.run
