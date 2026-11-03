@@ -138,6 +138,73 @@ impl LengthPercentageRef<'_> {
     }
 }
 
+/// The plain length or percentage a computed size or length-percentage keeps inline beside its style value, as the
+/// reads of the style value would resolve it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum InlineLengthPercentage {
+    /// An absolute length, in CSS pixels.
+    Length(CssPixels),
+    /// A percentage, whose value as an f32 is exactly the f64 the style value holds.
+    Percentage(f32),
+}
+
+impl InlineLengthPercentage {
+    const NONE: u8 = 0;
+    const LENGTH: u8 = 1;
+    const PERCENTAGE: u8 = 2;
+
+    /// What a computed value holding `value` keeps inline: nothing for a calculation, a relative length or a percentage
+    /// an f32 does not hold.
+    pub(crate) fn of(value: Option<&StyleValueData>) -> Option<Self> {
+        match value? {
+            StyleValueData::Length { value, unit } => {
+                let ratio = crate::css::style_compute::LENGTH_UNIT_CANONICAL_PX_RATIOS[*unit as usize];
+                ratio
+                    .is_finite()
+                    .then(|| Self::Length(CssPixels::nearest_value_for(value * ratio)))
+            }
+            StyleValueData::Percentage { value } => {
+                let narrowed = *value as f32;
+                (f64::from(narrowed) == *value).then_some(Self::Percentage(narrowed))
+            }
+            _ => None,
+        }
+    }
+
+    /// The form and value fields that hold `inline`.
+    pub(crate) fn encode(inline: Option<Self>) -> (u8, u32) {
+        match inline {
+            None => (Self::NONE, 0),
+            Some(Self::Length(pixels)) => (Self::LENGTH, pixels.raw_value() as u32),
+            Some(Self::Percentage(value)) => (Self::PERCENTAGE, value.to_bits()),
+        }
+    }
+
+    #[inline]
+    fn decode(form: u8, value: u32) -> Option<Self> {
+        match form {
+            Self::LENGTH => Some(Self::Length(CssPixels::from_raw(value as i32))),
+            Self::PERCENTAGE => Some(Self::Percentage(f32::from_bits(value))),
+            _ => None,
+        }
+    }
+
+    /// As [`LengthPercentageRef::to_px`] resolves the style value.
+    #[inline]
+    fn to_px(self, reference: CssPixels) -> CssPixels {
+        match self {
+            Self::Length(pixels) => pixels,
+            Self::Percentage(value) => {
+                CssPixels::truncated_value_for(reference.to_double() * (f64::from(value) * 0.01))
+            }
+        }
+    }
+
+    fn contains_percentage(self) -> bool {
+        matches!(self, Self::Percentage(_))
+    }
+}
+
 impl ComputedStyleValueHandle {
     /// The lifetime is the caller's to choose: the referenced style value is
     /// retained by whatever owns the handle, not by the handle borrow itself.
@@ -233,6 +300,12 @@ impl ComputedSize {
         self.value.length_percentage()
     }
 
+    /// The plain length or percentage the size keeps inline, if any.
+    #[inline]
+    pub(crate) fn inline_length_percentage(&self) -> Option<InlineLengthPercentage> {
+        InlineLengthPercentage::decode(self.inline_form, self.inline_value)
+    }
+
     pub(crate) fn to_px(&self, reference: CssPixels) -> CssPixels {
         match self.kind {
             ComputedSizeKind::Auto
@@ -241,7 +314,10 @@ impl ComputedSize {
             | ComputedSizeKind::Stretch
             | ComputedSizeKind::None => CssPixels::default(),
             ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
-                self.length_percentage().to_px(reference)
+                match self.inline_length_percentage() {
+                    Some(inline) => inline.to_px(reference),
+                    None => self.length_percentage().to_px(reference),
+                }
             }
             ComputedSizeKind::FitContent => self
                 .fit_content_available_space()
@@ -290,12 +366,24 @@ impl ComputedLengthPercentageOrAuto {
         )
     }
 
+    /// The plain length or percentage the value keeps inline, if any.
+    #[inline]
+    pub(crate) fn inline_length_percentage(&self) -> Option<InlineLengthPercentage> {
+        InlineLengthPercentage::decode(self.inline_form, self.inline_value)
+    }
+
     pub(crate) fn to_px(&self, reference: CssPixels) -> CssPixels {
+        if let Some(inline) = self.inline_length_percentage() {
+            return inline.to_px(reference);
+        }
         self.length_percentage()
             .map_or(CssPixels::default(), |value| value.to_px(reference))
     }
 
     pub(crate) fn contains_percentage(&self) -> bool {
+        if let Some(inline) = self.inline_length_percentage() {
+            return inline.contains_percentage();
+        }
         self.length_percentage()
             .is_some_and(|value| value.contains_percentage())
     }
@@ -331,6 +419,8 @@ unsafe impl Sync for SyncComputedSize {}
 
 static AUTO_COMPUTED_SIZE: SyncComputedSize = SyncComputedSize(ComputedSize {
     kind: ComputedSizeKind::Auto,
+    inline_form: InlineLengthPercentage::NONE,
+    inline_value: 0,
     value: ComputedStyleValueHandle {
         pointer: std::ptr::null(),
     },
@@ -344,6 +434,8 @@ pub(crate) fn auto_computed_size() -> &'static ComputedSize {
 
 static NONE_COMPUTED_SIZE: SyncComputedSize = SyncComputedSize(ComputedSize {
     kind: ComputedSizeKind::None,
+    inline_form: InlineLengthPercentage::NONE,
+    inline_value: 0,
     value: ComputedStyleValueHandle {
         pointer: std::ptr::null(),
     },
