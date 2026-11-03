@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // A pinch zoom leaves the compositor to pan the visual viewport, so keys scroll beside a task that keeps the main
+    // thread busy just as they do unzoomed. The visual viewport takes as much of a step as it can before the layout
+    // viewport takes the rest.
+    promiseTest(async () => {
+        const state = () => internals.compositorScrollState();
+        const settle = async () => {
+            await animationFrame();
+            await animationFrame();
+            internals.synchronizeCompositor();
+        };
+
+        await settle();
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+        while (visualViewport.scale !== 1.5) await animationFrame();
+        await settle();
+        const startTop = visualViewport.offsetTop;
+        println(`scale: ${visualViewport.scale}, visual viewport top: ${startTop}`);
+
+        const pressAndAwait = isDone => {
+            internals.sendKeyThroughUIProcess("Down");
+            // NB: This only gives up on a scroll that never comes, so the time limit can't fail a slow machine's run of
+            //     a fixed engine.
+            const giveUpAt = performance.now() + 2000;
+            while (!isDone() && performance.now() < giveUpAt) {
+                // Stay in this task.
+            }
+        };
+
+        pressAndAwait(() => state().visualViewportOffset.y === 200);
+        println(`first key, beside the task: visual viewport top: ${state().visualViewportOffset.y}`);
+        println(`first key, beside the task: layout viewport top: ${state().scrollOffset.y}`);
+        await settle();
+
+        pressAndAwait(() => state().scrollOffset.y === 100);
+        println(`second key, beside the task: visual viewport top: ${state().visualViewportOffset.y}`);
+        println(`second key, beside the task: layout viewport top: ${state().scrollOffset.y}`);
+
+        const giveUpAt = performance.now() + 2000;
+        while ((scrollY !== 100 || visualViewport.offsetTop !== 200) && performance.now() < giveUpAt) await animationFrame();
+        println(`main thread: visual viewport top: ${visualViewport.offsetTop}, layout viewport top: ${scrollY}`);
+    });
+</script>
