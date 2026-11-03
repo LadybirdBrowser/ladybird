@@ -483,7 +483,7 @@ pub(crate) fn shared_style_value(value: StyleValueData) -> StyleValueArc {
         _ => None,
     };
     if let Some(index) = index {
-        StyleValueArc::clone(VALUES[index].get_or_init(|| StyleValueArc::new(value)))
+        StyleValueArc::clone(VALUES[index].get_or_init(|| StyleValueArc::immortal(value)))
     } else {
         StyleValueArc::new(value)
     }
@@ -497,7 +497,7 @@ impl RetainedStyleValueData {
             "the shared values hold every keyword"
         );
         let value =
-            VALUES[usize::from(keyword)].get_or_init(|| StyleValueArc::new(StyleValueData::Keyword { keyword }));
+            VALUES[usize::from(keyword)].get_or_init(|| StyleValueArc::immortal(StyleValueData::Keyword { keyword }));
         // SAFETY: A handle is one pointer at the value, as an arc is, and the shared values keep
         //         theirs for the life of the process.
         unsafe { &*std::ptr::from_ref(value).cast::<Self>() }
