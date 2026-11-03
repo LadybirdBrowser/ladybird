@@ -4657,16 +4657,16 @@ mod stretch_cross_limit_tests {
                 if index == 1 && max_constrained {
                     let surround = style.surround_mut();
                     for side in [&mut surround.margin.top, &mut surround.margin.bottom] {
-                        *side = ComputedLengthPercentageOrAuto {
-                            is_auto: false,
-                            value: crate::css::computed_values::ComputedStyleValueHandle::length(5.0),
-                        };
+                        *side = ComputedLengthPercentageOrAuto::new(
+                            false,
+                            crate::css::computed_values::ComputedStyleValueHandle::length(5.0),
+                        );
                     }
                     for side in [&mut surround.padding.top, &mut surround.padding.bottom] {
-                        *side = ComputedLengthPercentageOrAuto {
-                            is_auto: false,
-                            value: crate::css::computed_values::ComputedStyleValueHandle::length(2.0),
-                        };
+                        *side = ComputedLengthPercentageOrAuto::new(
+                            false,
+                            crate::css::computed_values::ComputedStyleValueHandle::length(2.0),
+                        );
                     }
                     let border = style.border_mut();
                     for side in [&mut border.border_top, &mut border.border_bottom] {

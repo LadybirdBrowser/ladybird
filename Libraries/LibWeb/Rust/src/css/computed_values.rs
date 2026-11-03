@@ -44,6 +44,7 @@ pub use crate::css::computed_value_types::{
     RetainedTextDecorationLineList, RetainedWillChangePropertyList, SVGResetValues, SizingValues, StyleBits,
     SurroundValues, TextResetValues, TransformValues,
 };
+use crate::css::computed_value_views::InlineLengthPercentage;
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
@@ -118,14 +119,34 @@ impl Clone for ComputedSize {
     fn clone(&self) -> Self {
         Self {
             kind: self.kind,
+            inline_form: self.inline_form,
+            inline_value: self.inline_value,
             value: self.value.clone(),
         }
     }
 }
 
+// NB: The inline length or percentage is derived from the value, so it takes no part in comparisons.
 impl PartialEq for ComputedSize {
     fn eq(&self, other: &Self) -> bool {
         self.kind == other.kind && self.value == other.value
+    }
+}
+
+impl Clone for ComputedLengthPercentageOrAuto {
+    fn clone(&self) -> Self {
+        Self {
+            is_auto: self.is_auto,
+            inline_form: self.inline_form,
+            inline_value: self.inline_value,
+            value: self.value.clone(),
+        }
+    }
+}
+
+impl PartialEq for ComputedLengthPercentageOrAuto {
+    fn eq(&self, other: &Self) -> bool {
+        self.is_auto == other.is_auto && self.value == other.value
     }
 }
 
@@ -205,7 +226,6 @@ impl_computed_payload_clone_and_eq!(AlignmentValues {
     column_gap,
     row_gap,
 });
-impl_computed_payload_clone_and_eq!(ComputedLengthPercentageOrAuto { is_auto, value });
 impl_computed_payload_clone_and_eq!(ComputedLengthBox {
     top,
     right,
@@ -915,10 +935,7 @@ impl GridValues {
         ComputedGridTrackBreadth {
             is_flex: false,
             flex_factor: 0.0,
-            size: ComputedSize {
-                kind: ComputedSizeKind::Auto,
-                value: ComputedStyleValueHandle::empty(),
-            },
+            size: ComputedSize::keyword(ComputedSizeKind::Auto),
         }
     }
 
@@ -5600,18 +5617,23 @@ pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
 }
 
 impl ComputedSize {
-    pub(crate) fn keyword(kind: ComputedSizeKind) -> Self {
+    /// A size of `kind` holding `value`, which keeps the plain length or percentage `value` holds inline.
+    pub(crate) fn new(kind: ComputedSizeKind, value: ComputedStyleValueHandle) -> Self {
+        let (inline_form, inline_value) = InlineLengthPercentage::encode(InlineLengthPercentage::of(value.data()));
         Self {
             kind,
-            value: ComputedStyleValueHandle::empty(),
+            inline_form,
+            inline_value,
+            value,
         }
     }
 
+    pub(crate) fn keyword(kind: ComputedSizeKind) -> Self {
+        Self::new(kind, ComputedStyleValueHandle::empty())
+    }
+
     fn retained(kind: ComputedSizeKind, data: &RetainedStyleValueData) -> Self {
-        Self {
-            kind,
-            value: ComputedStyleValueHandle::from_retained(data),
-        }
+        Self::new(kind, ComputedStyleValueHandle::from_retained(data))
     }
 
     pub(crate) fn from_data(data: &RetainedStyleValueData) -> Self {
@@ -5663,10 +5685,9 @@ impl ComputedSize {
             Some(StyleValueData::Percentage { .. }) => Self::retained(ComputedSizeKind::Percentage, data),
             Some(StyleValueData::Length { .. }) => Self::retained(ComputedSizeKind::Length, data),
             // NB: Layout resolves anchor-size() itself, through the calculation that wraps it.
-            Some(StyleValueData::AnchorSize { .. }) => Self {
-                kind: ComputedSizeKind::Calculated,
-                value: anchor_function_calculated_handle(data),
-            },
+            Some(StyleValueData::AnchorSize { .. }) => {
+                Self::new(ComputedSizeKind::Calculated, anchor_function_calculated_handle(data))
+            }
             _ => Self::keyword(ComputedSizeKind::Auto),
         }
     }
@@ -5786,18 +5807,23 @@ fn anchor_function_calculated_handle(data: &RetainedStyleValueData) -> ComputedS
 }
 
 impl ComputedLengthPercentageOrAuto {
-    fn auto() -> Self {
+    /// A value holding `value`, or auto, which keeps the plain length or percentage `value` holds inline.
+    pub(crate) fn new(is_auto: bool, value: ComputedStyleValueHandle) -> Self {
+        let (inline_form, inline_value) = InlineLengthPercentage::encode(InlineLengthPercentage::of(value.data()));
         Self {
-            is_auto: true,
-            value: ComputedStyleValueHandle::empty(),
+            is_auto,
+            inline_form,
+            inline_value,
+            value,
         }
     }
 
+    fn auto() -> Self {
+        Self::new(true, ComputedStyleValueHandle::empty())
+    }
+
     fn zero() -> Self {
-        Self {
-            is_auto: false,
-            value: ComputedStyleValueHandle::length(0.0),
-        }
+        Self::new(false, ComputedStyleValueHandle::length(0.0))
     }
 
     pub(crate) fn from_data(data: &RetainedStyleValueData) -> Self {
@@ -5808,14 +5834,14 @@ impl ComputedLengthPercentageOrAuto {
             data.optional_data(),
             Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::AUTO
         );
-        Self {
+        Self::new(
             is_auto,
-            value: if is_auto {
+            if is_auto {
                 ComputedStyleValueHandle::empty()
             } else {
                 ComputedStyleValueHandle::from_retained(data)
             },
-        }
+        )
     }
 
     fn from_length_box_data(data: &RetainedStyleValueData, default_is_auto: bool) -> Self {
@@ -5826,16 +5852,12 @@ impl ComputedLengthPercentageOrAuto {
             Some(StyleValueData::Keyword { keyword: value }) if *value == keyword::AUTO => Self::auto(),
             Some(
                 StyleValueData::Length { .. } | StyleValueData::Percentage { .. } | StyleValueData::Calculated { .. },
-            ) => Self {
-                is_auto: false,
-                value: ComputedStyleValueHandle::from_retained(data),
-            },
+            ) => Self::new(false, ComputedStyleValueHandle::from_retained(data)),
             // NB: Layout resolves an anchor-size() margin itself, through the calculation that wraps it. Insets keep
             //     their anchor functions in separate wrappers instead, and expose auto here.
-            Some(StyleValueData::AnchorSize { .. }) if !default_is_auto => Self {
-                is_auto: false,
-                value: anchor_function_calculated_handle(data),
-            },
+            Some(StyleValueData::AnchorSize { .. }) if !default_is_auto => {
+                Self::new(false, anchor_function_calculated_handle(data))
+            }
             _ if default_is_auto => Self::auto(),
             _ => Self::zero(),
         }
@@ -5854,10 +5876,7 @@ impl ComputedLengthBox {
 
     pub(crate) fn zero() -> Self {
         let zero = ComputedStyleValueHandle::length(0.0);
-        let side = || ComputedLengthPercentageOrAuto {
-            is_auto: false,
-            value: zero.clone(),
-        };
+        let side = || ComputedLengthPercentageOrAuto::new(false, zero.clone());
         Self {
             top: side(),
             right: side(),
@@ -5970,14 +5989,8 @@ impl SVGResetValues {
             cy: zero.clone(),
             d: ComputedStyleValueHandle::keyword(keyword::NONE),
             r: zero.clone(),
-            rx: ComputedLengthPercentageOrAuto {
-                is_auto: true,
-                value: ComputedStyleValueHandle::empty(),
-            },
-            ry: ComputedLengthPercentageOrAuto {
-                is_auto: true,
-                value: ComputedStyleValueHandle::empty(),
-            },
+            rx: ComputedLengthPercentageOrAuto::auto(),
+            ry: ComputedLengthPercentageOrAuto::auto(),
             x: zero.clone(),
             y: zero,
             stop_color: crate::css::computed_value_types::StyleColor::rgba(OPAQUE_BLACK_BGRA),

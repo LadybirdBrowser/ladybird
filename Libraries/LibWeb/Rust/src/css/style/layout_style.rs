@@ -526,10 +526,10 @@ impl LayoutStyle {
                     values.flex_direction = flex_direction::COLUMN;
                 });
                 style.edit::<SizingValues>(|values| {
-                    values.height = ComputedSize {
-                        kind: ComputedSizeKind::Percentage,
-                        value: ComputedStyleValueHandle::percentage(100.0),
-                    }
+                    values.height = ComputedSize::new(
+                        ComputedSizeKind::Percentage,
+                        ComputedStyleValueHandle::percentage(100.0),
+                    );
                 });
             }
             AnonymousStyleKind::FieldsetContentWrapper => {
@@ -572,10 +572,7 @@ impl LayoutStyle {
         }
         if kind == AnonymousStyleKind::ButtonContentBox {
             style.edit::<SizingValues>(|values| {
-                values.min_height = ComputedSize {
-                    kind: ComputedSizeKind::Length,
-                    value: ComputedStyleValueHandle::length(0.0),
-                }
+                values.min_height = ComputedSize::new(ComputedSizeKind::Length, ComputedStyleValueHandle::length(0.0));
             });
         }
         style

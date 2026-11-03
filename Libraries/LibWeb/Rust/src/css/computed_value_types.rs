@@ -37,6 +37,10 @@ unsafe impl Sync for ComputedStyleValueHandle where crate::css::style_value::Sty
 #[derive(Debug)]
 pub struct ComputedSize {
     pub kind: ComputedSizeKind,
+    /// The plain length or percentage `value` holds, kept inline so that reading it needs no dereference: the form of
+    /// `inline_value`, one of the forms `InlineLengthPercentage` decodes.
+    pub inline_form: u8,
+    pub inline_value: u32,
     pub value: ComputedStyleValueHandle,
 }
 
@@ -107,6 +111,9 @@ pub const OVERFLOW_ALIGNMENT_UNSAFE: u8 = 2;
 #[repr(C)]
 pub struct ComputedLengthPercentageOrAuto {
     pub is_auto: bool,
+    /// The plain length or percentage `value` holds, as in [`ComputedSize`].
+    pub inline_form: u8,
+    pub inline_value: u32,
     pub value: ComputedStyleValueHandle,
 }
 

@@ -135,18 +135,15 @@ impl AnchorResolvedValues {
     pub(crate) fn new(resolved: &ResolvedAnchorSizes, frame: geometry::Frame) -> Self {
         let size = |value: Option<ResolvedSizeOverride>| {
             value.map(|value| match value {
-                ResolvedSizeOverride::Length(px) => ComputedSize {
-                    kind: ComputedSizeKind::Length,
-                    value: ComputedStyleValueHandle::length(px.to_double()),
-                },
+                ResolvedSizeOverride::Length(px) => ComputedSize::new(
+                    ComputedSizeKind::Length,
+                    ComputedStyleValueHandle::length(px.to_double()),
+                ),
                 ResolvedSizeOverride::Keyword(kind) => ComputedSize::keyword(kind),
             })
         };
         let margin = |value: Option<CssPixels>| {
-            value.map(|px| ComputedLengthPercentageOrAuto {
-                is_auto: false,
-                value: ComputedStyleValueHandle::length(px.to_double()),
-            })
+            value.map(|px| ComputedLengthPercentageOrAuto::new(false, ComputedStyleValueHandle::length(px.to_double())))
         };
         Self {
             width: size(resolved.width),

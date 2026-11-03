@@ -877,10 +877,8 @@ mod tests {
             });
             // SAFETY: The container's style outlives the child's.
             let child_style = LayoutScratchStyle::over(unsafe { container_style.style().view() }, |style| {
-                style.surround_mut().margin.bottom = ComputedLengthPercentageOrAuto {
-                    is_auto: false,
-                    value: ComputedStyleValueHandle::percentage(50.0),
-                };
+                style.surround_mut().margin.bottom =
+                    ComputedLengthPercentageOrAuto::new(false, ComputedStyleValueHandle::percentage(50.0));
             });
             let container = arena.allocate_for_test().slot;
             let child = arena.allocate_for_test().slot;
