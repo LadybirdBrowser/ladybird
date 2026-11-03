@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+    #listener {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="listener"></div>
+<script>
+    // A listener only sees the wheel event of a pinch over its own element, so it only holds back that pinch. The
+    // compositor zooms for one elsewhere on the page without waiting for the task that keeps the main thread busy.
+    promiseTest(async () => {
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        const wheelEvent = new Promise(resolve => {
+            listener.addEventListener(
+                "wheel",
+                event => {
+                    event.preventDefault();
+                    resolve(event);
+                },
+                { passive: false }
+            );
+        });
+        await animationFrame();
+        await animationFrame();
+
+        internals.pinchThroughUIProcess(50, 50, 0.5);
+        const event = await wheelEvent;
+        println(`over the listener: cancelable=${event.cancelable} compositor scale=${compositorScale()}`);
+
+        // NB: Leave the task handling the pinch above, which holds back the next one until it finishes.
+        await animationFrame();
+
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+
+        // NB: This only gives up on a zoom that never comes, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorScale() !== 1.5 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`away from the listener, beside the task: compositor scale=${compositorScale()}`);
+    });
+</script>

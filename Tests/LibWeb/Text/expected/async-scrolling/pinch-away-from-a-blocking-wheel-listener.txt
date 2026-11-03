@@ -1,0 +1,2 @@
+over the listener: cancelable=true compositor scale=1
+away from the listener, beside the task: compositor scale=1
