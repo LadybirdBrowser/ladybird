@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .old:hover { width: 200px; }
+    .new:hover { width: 300px; }
+</style>
+<div id="target" class="old"></div>
+<script>
+    // A task moves a class that only shows under :hover, and the first write forks the state as the presented frame left
+    // it, for the lane to hover beside the task. The rendering update after it paints nothing, so the lane of that frame
+    // goes on, and it hovers the document as the update left it, not as it was before the task.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(async frameTime => {
+            target.className = "new";
+            const computedWidth = getComputedStyle(target).width;
+            internals.injectRenderingOpportunity(frameTime + 16);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
+            internals.injectHoverPointer(50, 50, frameTime + 32);
+            return { computedWidth, onScreen: internals.presentedBorderBox(target)?.width, presentedBy: internals.lastFramePresentedBy(document) };
+        });
+        println(`computed width in the task: ${result.computedWidth}`);
+        println(`width on screen: ${result.onScreen}`);
+        println(`last frame presented by: ${result.presentedBy}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        done();
+    });
+</script>

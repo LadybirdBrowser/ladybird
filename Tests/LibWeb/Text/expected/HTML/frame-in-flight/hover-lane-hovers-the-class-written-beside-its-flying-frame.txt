@@ -1,0 +1,5 @@
+lane of the flying frame is coming: true
+computed width beside the frame: 100px
+width on screen: 200
+last frame presented by: clock
+computed width: 300px
