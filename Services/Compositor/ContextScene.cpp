@@ -80,7 +80,11 @@ Compositing::AccumulatedVisualContextTree const& ContextScene::visual_context_tr
 
 Compositing::TransformWithOrigin ContextScene::visual_viewport_transform() const
 {
-    return m_async_visual_viewport_transform.value_or(m_visual_context_tree->visual_viewport_transform());
+    if (m_async_visual_viewport_transform.has_value())
+        return *m_async_visual_viewport_transform;
+    if (m_visual_context_tree.has_value())
+        return m_visual_context_tree->visual_viewport_transform();
+    return { Gfx::FloatMatrix4x4::identity(), {} };
 }
 
 Optional<float> ContextScene::visual_viewport_scale() const
