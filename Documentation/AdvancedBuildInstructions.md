@@ -49,7 +49,7 @@ There are some optional features that can be enabled during compilation that are
 - `LADYBIRD_ENABLE_CPPTRACE`: uses cpptrace for stack traces when it is available, and `backtrace.h` otherwise. Enabled by default.
 - `LADYBIRD_GENERATE_SYMBOL_FILES`: builds with debug information and writes the symbols of the installed executables to separate files. Enabled by the `Distribution` preset. Not supported with MSVC-style toolchains.
 - `LADYBIRD_GENERATE_DSYM`: generates dSYM bundles for executables and libraries on macOS.
-- `LADYBIRD_VERSION`: sets the version of a release, as year.month.patch optionally followed by `.alpha` or `.beta`, such as `2026.11.1`. Empty for development builds.
+- `LADYBIRD_VERSION`: sets the version of a release, as year.month.patch, such as `2026.11.0`. Empty for development builds.
 - `ENABLE_INSTALL_HEADERS`: installs the headers of the libraries. Enabled by default.
 - `ENABLE_INSTALL_FREEDESKTOP_FILES`: installs the desktop entry, D-Bus service, icon and AppStream metainfo files. Enabled by default on Linux and the BSDs.
 

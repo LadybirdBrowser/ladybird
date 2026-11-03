@@ -41,22 +41,17 @@ if (LADYBIRD_GENERATE_SYMBOL_FILES AND MSVC)
 endif()
 option(ENABLE_CI_BASELINE_CPU "Use a common CPU baseline for portable binaries and ccache sharing" OFF)
 
-set(LADYBIRD_VERSION "" CACHE STRING "Version of a release: year.month.patch, optionally followed by .alpha or .beta")
-set(LADYBIRD_BUNDLE_VERSION "${PROJECT_VERSION}")
-set(LADYBIRD_PACKAGE_VERSION "${PROJECT_VERSION}")
+set(LADYBIRD_VERSION "" CACHE STRING "Version of a release: year.month.patch")
+set(LADYBIRD_BROWSER_VERSION "${PROJECT_VERSION}")
 if (NOT LADYBIRD_VERSION STREQUAL "")
-    if (NOT LADYBIRD_VERSION MATCHES "^([0-9][0-9][0-9][0-9]\\.([1-9]|1[0-2])\\.(0|[1-9][0-9]*))(\\.alpha|\\.beta)?$")
-        message(FATAL_ERROR "LADYBIRD_VERSION must be year.month.patch, optionally followed by .alpha or .beta: "
-            "${LADYBIRD_VERSION}")
+    if (NOT LADYBIRD_VERSION MATCHES "^[0-9][0-9][0-9][0-9]\\.([1-9]|1[0-2])\\.(0|[1-9][0-9]*)$")
+        message(FATAL_ERROR "LADYBIRD_VERSION must be year.month.patch: ${LADYBIRD_VERSION}")
     endif()
-
-    # macOS compares bundle versions as numbers, so they leave out the suffix.
-    set(LADYBIRD_BUNDLE_VERSION "${CMAKE_MATCH_1}")
-
-    # Debian and RPM sort a tilde before everything else, which puts 2026.12.3~beta before 2026.12.3.
-    string(REPLACE "." "~" package_version_suffix "${CMAKE_MATCH_4}")
-    set(LADYBIRD_PACKAGE_VERSION "${CMAKE_MATCH_1}${package_version_suffix}")
+    set(LADYBIRD_BROWSER_VERSION "${LADYBIRD_VERSION}")
 endif()
+
+# The stage of development that releases are in, if any, such as Alpha or Beta.
+set(LADYBIRD_RELEASE_STAGE "Alpha")
 
 # Like other browsers, our Linux packages keep Ladybird in a directory of its own.
 set(LADYBIRD_PACKAGE_INSTALL_PREFIX "/opt/ladybird")
