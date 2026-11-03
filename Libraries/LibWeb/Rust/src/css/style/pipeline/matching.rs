@@ -18,7 +18,7 @@ use crate::css::selector::Specificity;
 use smallvec::SmallVec;
 
 /// One rule entry matching the element.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub(super) struct ElementMatch {
     /// The entry in the rule index.
     pub(super) entry: u32,

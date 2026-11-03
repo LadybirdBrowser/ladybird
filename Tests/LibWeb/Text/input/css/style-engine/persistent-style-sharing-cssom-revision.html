@@ -17,8 +17,7 @@
         internals.updateStyle();
 
         const counters = internals.styleCounters();
-        // FIXME: The arriving span should take the record of the one styled in an earlier pass
-        //        (shared or reused >= 1), but the style engine shares records only within a pass.
+        // NB: The arriving span takes the record of the one styled in an earlier pass.
         println(`shared or reused across transactions: ${counters.sharedElements + counters.reusedElements}`);
         println(`initial colors: ${getComputedStyle(first).color}, ${getComputedStyle(second).color}`);
 

@@ -46,11 +46,10 @@ ALLOWED = {
     "css/style/pipeline/custom_properties.rs": 4,
     "css/style/pipeline/custom_property_moves.rs": 1,
     "css/style/pipeline/install.rs": 1,
-    "css/style/pipeline/records.rs": 3,
-    "css/style/pipeline/results.rs": 1,
+    "css/style/pipeline/records.rs": 2,
     "css/style/pipeline/rules.rs": 2,
     "css/style/pipeline/sharing.rs": 1,
-    "css/style/pipeline/traversal.rs": 5,
+    "css/style/pipeline/traversal.rs": 3,
     "css/style_compute/ffi_test_stubs.rs": 1,
     "layout/layout_node_arena.rs": 1,
 }
