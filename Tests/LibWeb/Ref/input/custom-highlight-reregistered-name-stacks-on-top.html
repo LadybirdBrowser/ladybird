@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/custom-highlight-green-text-ref.html">
+<style>
+::highlight(green) {
+    background-color: green;
+}
+::highlight(red) {
+    background-color: red;
+}
+</style>
+<p id="target">text</p>
+<script>
+const range = new Range();
+range.selectNodeContents(target);
+const green = new Highlight(range);
+CSS.highlights.set("green", green);
+CSS.highlights.set("red", new Highlight(range));
+requestAnimationFrame(() => {
+    CSS.highlights.set("green", green);
+    requestAnimationFrame(() => document.documentElement.classList.remove("reftest-wait"));
+});
+</script>
+</html>
