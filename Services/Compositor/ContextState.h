@@ -244,6 +244,8 @@ public:
     void end_wheel_gesture_stretch(MonotonicTime now) { m_elastic_overscroll_controller.end_gesture(now); }
     ContextUpdateResult handle_pinch_event(Web::PinchEvent const&);
     bool admits_async_pinch() const { return m_wheel_gesture_routing.admits_async_pinch(); }
+    // Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
+    bool page_may_cancel_pinch_at(Gfx::FloatPoint position);
 
     bool may_hand_first_wheel_steps_to_nested_contexts() const;
     Optional<Compositing::NestedContextHit> nested_context_for_wheel_at(Gfx::FloatPoint position);

@@ -678,9 +678,7 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event_at(Web::Mouse
 
 ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEvent const& event)
 {
-    if (!presents_to_client())
-        return {};
-    if (!m_wheel_gesture_routing.admits_async_pinch())
+    if (!presents_to_client() || !m_has_async_scrolling_state)
         return {};
     if (!m_scene.visual_context_tree().has_value())
         return {};
@@ -1733,6 +1731,16 @@ bool ContextState::may_hand_first_wheel_steps_to_nested_contexts() const
     // A zoomed page pans its visual viewport before anything scrolls. This document's wheel event listeners never see
     // the wheel events over a document nested in it, whatever state they are in.
     return m_has_async_scrolling_state && m_scene.visual_viewport_scale().value_or(1.0f) == 1.0f;
+}
+
+bool ContextState::page_may_cancel_pinch_at(Gfx::FloatPoint position)
+{
+    if (!m_has_async_scrolling_state || !m_wheel_gesture_routing.admits_async_pinch())
+        return true;
+    auto const& visual_context_tree = m_scene.visual_context_tree_for_compositing();
+    // NB: The main thread takes the wheel events of a nested document the compositor cannot reach.
+    return m_async_scroll_tree.blocks_wheel_event_at_position(visual_context_tree, position)
+        || m_async_scroll_tree.main_thread_wheel_event_region_contains(visual_context_tree, position);
 }
 
 Optional<Compositing::NestedContextHit> ContextState::nested_context_for_wheel_at(Gfx::FloatPoint position)

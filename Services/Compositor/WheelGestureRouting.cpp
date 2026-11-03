@@ -34,21 +34,18 @@ void WheelGestureRouting::did_install_scrolling_state(Compositing::AsyncScrollin
 {
     m_admission = Compositing::wheel_routing_admission_for(async_scrolling_state, m_wheel_event_listener_state_generation);
     m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, async_scrolling_state.wheel_event_listener_state_generation);
-    m_has_blocking_wheel_event_listeners = async_scrolling_state.has_blocking_wheel_event_listeners;
 }
 
 void WheelGestureRouting::invalidate_wheel_event_listener_state(u64 generation)
 {
     m_wheel_event_listener_state_generation = max(m_wheel_event_listener_state_generation, generation);
     m_admission = Compositing::WheelRoutingAdmission::StaleWheelEventListeners;
-    m_has_blocking_wheel_event_listeners = true;
 }
 
 bool WheelGestureRouting::admits_async_pinch() const
 {
     // Pinch zoom scales the visual viewport, which a page whose viewport cannot be scrolled has too.
-    return first_is_one_of(m_admission, Compositing::WheelRoutingAdmission::Accepted, Compositing::WheelRoutingAdmission::NoScrollNode)
-        && !m_has_blocking_wheel_event_listeners;
+    return first_is_one_of(m_admission, Compositing::WheelRoutingAdmission::Accepted, Compositing::WheelRoutingAdmission::NoScrollNode);
 }
 
 WheelGestureRouting::NotedWheelEvent WheelGestureRouting::note_wheel_event(Web::MouseEvent const& event, Gfx::FloatPoint position, Compositing::AsyncScrollTree const& async_scroll_tree, MonotonicTime now)

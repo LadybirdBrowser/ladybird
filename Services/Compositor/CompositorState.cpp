@@ -1164,17 +1164,31 @@ void CompositorState::dispatch_scroll_fling_step(Web::CompositorContextId contex
     context.dispatch_mouse_event_to_web_content(*event);
 }
 
-// A pinch over a document nested in the context is a ctrl+wheel event to that document first, which its blocking wheel
-// event listeners may cancel before anything zooms. Rather than hit test contexts the pinch may be zooming, any nested
-// context that would hold back a pinch of its own holds back the pinch of the context it is nested in.
-bool CompositorState::nested_context_may_cancel_pinch(Web::CompositorContextId context_id) const
+// A pinch is a ctrl+wheel event first, to the document under it, whose blocking wheel event listeners may cancel it
+// before anything zooms. Only the documents at the position can see that event.
+bool CompositorState::page_under_pinch_may_cancel_it(Web::CompositorContextId context_id, ContextState& context, Gfx::FloatPoint position)
 {
-    for (auto const& context_entry : m_contexts) {
-        auto const& nested_context = *context_entry.value;
-        if (!nested_context.admits_async_pinch() && is_nested_in(context_id, nested_context))
+    auto containing_context_id = context_id;
+    auto* containing_context = &context;
+    // A walk down the nested contexts that outlasts the number of contexts went around a loop.
+    for (size_t remaining_contexts = m_contexts.size(); remaining_contexts > 0; --remaining_contexts) {
+        if (containing_context->page_may_cancel_pinch_at(position))
             return true;
+        auto hit = containing_context->nested_context_for_wheel_at(position);
+        if (!hit.has_value())
+            return false;
+        // NB: Nothing is known yet of the listeners of a context that is not available.
+        auto* nested_context = context_if_present(hit->child_context_id);
+        if (!nested_context || nested_context->parent_context_id() != containing_context_id)
+            return true;
+        auto position_in_nested = position_in_nested_context(*hit, *nested_context);
+        if (!position_in_nested.has_value())
+            return true;
+        containing_context_id = hit->child_context_id;
+        containing_context = nested_context;
+        position = *position_in_nested;
     }
-    return false;
+    return true;
 }
 
 void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId context_id, Web::PinchEvent event)
@@ -1188,8 +1202,9 @@ void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId c
         return;
     }
 
-    // A nested document that already let the event through leaves only the zoom to do.
-    if (context->admits_async_pinch() && (event.wheel_event_was_dispatched || !nested_context_may_cancel_pinch(context_id)))
+    // A page that already let the event through leaves only the zoom to do.
+    Gfx::FloatPoint position { static_cast<float>(event.position.x().value()), static_cast<float>(event.position.y().value()) };
+    if (event.wheel_event_was_dispatched || !page_under_pinch_may_cancel_it(context_id, *context, position))
         event.async_zoom_performed_default_action = apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
 
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.

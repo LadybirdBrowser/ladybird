@@ -292,7 +292,7 @@ private:
     // without regard to where their content is or what clips it.
     Optional<Gfx::FloatPoint> position_in_nested_context_ignoring_clips(Web::CompositorContextId presenting_context_id, ContextState& presenting_context, ContextState& nested_context, Gfx::FloatPoint position);
     bool is_nested_in(Web::CompositorContextId containing_context_id, ContextState const&) const;
-    bool nested_context_may_cancel_pinch(Web::CompositorContextId) const;
+    bool page_under_pinch_may_cancel_it(Web::CompositorContextId, ContextState&, Gfx::FloatPoint position);
     void dispatch_scroll_fling_step(Web::CompositorContextId, ContextState&, Optional<Web::MouseEvent>, MonotonicTime now);
     void present_frame(Web::CompositorContextId, ContextState&, PendingFrame);
     void schedule_present_frame(Web::CompositorContextId, ContextState&, PendingFrame);

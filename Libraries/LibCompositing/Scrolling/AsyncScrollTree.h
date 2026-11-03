@@ -147,6 +147,7 @@ public:
     Optional<Web::CSSPixelPoint> css_scroll_offset_for_node(Compositing::SpatialNodeIndex, Compositing::ScrollStateSnapshot const&) const;
     Web::CSSPixelPoint css_scroll_offset_for_node(AsyncScrollNode const&, Compositing::ScrollStateSnapshot const&) const;
     bool blocks_wheel_event_at_position(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
+    bool main_thread_wheel_event_region_contains(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     WheelHitTestResult hit_test_scroll_node_for_wheel(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, Function<Optional<Gfx::FloatPoint>(Web::AsyncScrollNodeStableID)> const& in_flight_destination_for = {}, WheelStepDispatch = WheelStepDispatch::NotYetDispatched, NestedContextRegions = NestedContextRegions::LeaveToMainThread) const;
     // The nested context whose content is the topmost thing taking pointer input at the position, if any.
     Optional<NestedContextHit> nested_context_at(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
@@ -188,7 +189,6 @@ private:
     static bool can_scroll_node_from_offset_by_delta(AsyncScrollNode const&, Gfx::FloatPoint scroll_offset, Gfx::FloatPoint delta);
 
     AsyncScrollNode const* scroll_node_for_stable_id(Web::AsyncScrollNodeStableID) const;
-    bool main_thread_wheel_event_region_contains(Compositing::AccumulatedVisualContextTree const&, Gfx::FloatPoint position) const;
     struct NestedContextWheelRegionHit {
         NestedContextWheelRegion const& region;
         Gfx::FloatPoint position_in_context;
