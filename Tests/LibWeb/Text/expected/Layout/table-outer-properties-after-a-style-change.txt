@@ -1,0 +1,15 @@
+table, float left to none: none, matches a full rebuild
+table, float none to left: left, matches a full rebuild
+table, position absolute to static: static, matches a full rebuild
+table, position static to absolute: absolute, matches a full rebuild
+table, position fixed to relative: relative, matches a full rebuild
+display: table, float left to none: none, matches a full rebuild
+display: table, float none to left: left, matches a full rebuild
+display: table, position absolute to static: static, matches a full rebuild
+display: table, position static to absolute: absolute, matches a full rebuild
+display: table, position fixed to relative: relative, matches a full rebuild
+inline-table, float left to none: none, matches a full rebuild
+inline-table, float none to left: left, matches a full rebuild
+inline-table, position absolute to static: static, matches a full rebuild
+inline-table, position static to absolute: absolute, matches a full rebuild
+inline-table, position fixed to relative: relative, matches a full rebuild

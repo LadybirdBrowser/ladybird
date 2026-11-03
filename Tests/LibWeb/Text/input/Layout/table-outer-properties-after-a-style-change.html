@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    function check(label, html, property, from, to) {
+        const host = document.createElement("div");
+        host.innerHTML = html;
+        document.body.append(host);
+        const target = host.querySelector("#t");
+        target.style.setProperty(property, from);
+        document.body.offsetWidth;
+        target.style.setProperty(property, to);
+        const value = getComputedStyle(target).getPropertyValue(property);
+        document.body.offsetWidth;
+        const comparison = internals.compareLayoutTreeWithFullRebuild();
+        println(`${label}, ${property} ${from} to ${to}: ${value}, ${comparison.matches ? "matches a full rebuild" : "differs from a full rebuild"}`);
+        host.remove();
+    }
+
+    test(() => {
+        const table = "<table id=t><tr><td>a</td></tr></table>";
+        const displayTable = "<div id=t style='display: table'>a</div>";
+        const inlineTable = "<table id=t style='display: inline-table'><tr><td>a</td></tr></table>";
+        for (const [label, html] of [["table", table], ["display: table", displayTable], ["inline-table", inlineTable]]) {
+            check(label, html, "float", "left", "none");
+            check(label, html, "float", "none", "left");
+            check(label, html, "position", "absolute", "static");
+            check(label, html, "position", "static", "absolute");
+            check(label, html, "position", "fixed", "relative");
+        }
+    });
+</script>

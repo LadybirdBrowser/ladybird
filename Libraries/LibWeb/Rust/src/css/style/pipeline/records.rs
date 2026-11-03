@@ -786,14 +786,18 @@ impl Record {
     /// Whether `other` holds the computed values this record does.
     fn holds_the_same_values_as(&self, other: &Record) -> bool {
         let (mine, theirs) = (self.value_groups(), other.value_groups());
-        mine.iter()
-            .zip(theirs.iter())
-            .enumerate()
-            .all(|(group, (mine, theirs))| {
-                mine.as_ptr() == theirs.as_ptr()
+        // NB: The groups a derived record answers from are its source's, whose bits can differ from its own: a table's box
+        //     holds none of the outer properties the table computes.
+        mine.reset_bits() == theirs.reset_bits()
+            && mine
+                .iter()
+                .zip(theirs.iter())
+                .enumerate()
+                .all(|(group, (mine, theirs))| {
+                    mine.as_ptr() == theirs.as_ptr()
                 // SAFETY: Both records hold a reference to each of their value groups.
                 || unsafe { crate::css::computed_values::hold_the_same_values(group, mine.as_ptr(), theirs.as_ptr()) }
-            })
+                })
     }
 
     /// Whether `other` holds the custom declarations this record does: the element's own, which
