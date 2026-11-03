@@ -354,7 +354,22 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
     if (!nodes.is_empty())
         StyleEngineFFI::document_host_learn_selector_requirements(style_engine.host(), &read);
     PublishedDirectionalities directionalities;
-    for (auto node : nodes) {
+    for (size_t index = 0; index < nodes.size(); ++index) {
+        // OPTIMIZATION: Most of an element's publication is first reading memory no one touched since the element was
+        //               parsed. Asking for it ahead turns waiting for one element at a time into overlapping waits.
+        static constexpr size_t elements_ahead = 8;
+        if (index + 2 * elements_ahead < nodes.size()) {
+            if (auto ahead = style_computer.node_for_style_node(nodes[index + 2 * elements_ahead])) {
+                auto const* bytes = reinterpret_cast<u8 const*>(ahead.ptr());
+                for (size_t offset = 0; offset < sizeof(DOM::Element); offset += 64)
+                    __builtin_prefetch(bytes + offset);
+            }
+        }
+        if (index + elements_ahead < nodes.size()) {
+            if (auto ahead = style_computer.element_for_style_node(nodes[index + elements_ahead]))
+                __builtin_prefetch(ahead->inline_style_declarations());
+        }
+        auto node = nodes[index];
         auto element = style_computer.element_for_style_node(node);
         // NB: An element that left the tree gave up its mark. Its identity may have gone to an element since, which is
         //     then listed twice and published at the first.
