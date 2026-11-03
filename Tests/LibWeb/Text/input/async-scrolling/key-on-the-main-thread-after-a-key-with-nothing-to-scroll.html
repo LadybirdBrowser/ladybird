@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // A blocking listener leaves keys to the main thread, which may handle several together once a task ends. A key at
+    // the end of the scroll range goes nowhere, and takes nothing away from the key after it.
+    promiseTest(async () => {
+        const keys = [];
+        addEventListener("keydown", () => {});
+        document.addEventListener("keyup", event => keys.push(event.key));
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+
+        internals.sendKeyThroughUIProcess("Up");
+        internals.sendKeyThroughUIProcess("Down");
+        const waitUntil = performance.now() + 100;
+        while (performance.now() < waitUntil) {
+            // Stay in this task, so that the main thread handles the keys together.
+        }
+
+        // NB: This only gives up on what never comes, so the time limit can't fail a slow machine's run of a fixed engine.
+        const giveUpAt = performance.now() + 5000;
+        while ((keys.length < 2 || window.scrollY !== 100) && performance.now() < giveUpAt) await animationFrame();
+        println(`keys the page heard of: ${keys.join(", ")}`);
+        println(`main thread offset: ${window.scrollY}`);
+    });
+</script>
