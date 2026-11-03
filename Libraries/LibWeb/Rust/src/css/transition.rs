@@ -23,6 +23,11 @@ pub enum FfiTransitionActionKind {
 #[repr(C)]
 pub struct FfiExistingTransition {
     pub property_id: u16,
+    /// The raw name of the custom property it transitions, or 0 for a longhand.
+    pub custom_name: usize,
+    /// Where it transitions a custom property and is running, the value it holds the property at, which the overlay of
+    /// the target's environment answers. Null otherwise: the record of a longhand holds its current value.
+    pub custom_current_value: *const StyleValueData,
     /// Whether the transition is running rather than completed.
     pub running: bool,
     pub end_value: *const StyleValueData,
@@ -52,6 +57,8 @@ pub struct FfiTransitionInput {
 #[repr(C)]
 pub struct FfiTransitionAction {
     pub property_id: u16,
+    /// The raw name of the custom property the action is for, or 0 for a longhand.
+    pub custom_name: usize,
     pub kind: FfiTransitionActionKind,
     pub delay: f64,
     pub active_duration: f64,
@@ -132,6 +139,21 @@ fn property_values_are_transitionable(
     new_value: *const StyleValueData,
     allow_discrete: bool,
 ) -> bool {
+    // https://drafts.css-houdini.org/css-properties-values-api/#animation-behavior-of-custom-properties
+    // When referenced by animations and transitions, custom property values interpolate by computed value, in
+    // accordance with the type that they parsed as.
+    if property_id == crate::css::property_metadata::property_id::CUSTOM {
+        return allow_discrete
+            || crate::css::animation::interpolate_value(
+                Some(context),
+                property_id,
+                unsafe { &*old_value },
+                unsafe { &*new_value },
+                0.5,
+            )
+            .value
+            .is_some();
+    }
     let animation_type = crate::css::property_metadata::property_animation_type(property_id);
 
     // https://drafts.csswg.org/css-transitions/#transitionable
@@ -205,6 +227,7 @@ fn decide_transition(
             );
     let mut action = FfiTransitionAction {
         property_id: input.property_id,
+        custom_name: 0,
         kind: FfiTransitionActionKind::None,
         delay: input.delay,
         active_duration: input.duration,
@@ -475,6 +498,111 @@ impl TransitionDecision {
         self.decide_over(engine, reference_box, None, entries, existing, &[])
     }
 
+    /// What the values of the decision interpolate in, with `after_overlay` over the after-change record.
+    fn animation_context<'a>(
+        &'a self,
+        engine: &crate::css::style::StyleEngine,
+        reference_box: Option<crate::css::css_pixels::CssPixelRect>,
+        after_overlay: Option<&'a crate::css::animated_overlay::AnimatedOverlay>,
+    ) -> crate::css::animation::FfiAnimationContext<'a> {
+        let after = crate::css::style::StyleRecordView::of_host_record(&self.after);
+        let after_longhands = after.longhands();
+        let mut context = crate::css::animation::FfiAnimationContext {
+            allow_discrete: false,
+            // The value that matters is the one in the after-change style.
+            allow_keyword_size_interpolation: crate::css::animation::allows_keyword_size_interpolation(
+                after_longhands,
+                after_overlay,
+            ),
+            current_color: Some(
+                after_longhands.effective_value(after_overlay, crate::css::property_metadata::property_id::COLOR),
+            ),
+            has_length_resolution_context: true,
+            length_resolution_context: engine.transition_length_resolution_context(&self.after),
+            has_transform_reference_box: false,
+            transform_reference_box_width: 0.0,
+            transform_reference_box_height: 0.0,
+        };
+        context.set_transform_reference_box(reference_box);
+        context
+    }
+
+    /// Runs the CSS Transitions decision algorithm for the custom properties the after-change style's `transition-*`
+    /// values name, then for those of `existing` transitions they do not name. The longhands are `decide`'s.
+    pub(crate) fn decide_custom_properties(
+        &self,
+        engine: &crate::css::style::StyleEngine,
+        existing: &[FfiExistingTransition],
+    ) -> CustomPropertyDecisions {
+        use crate::css::custom_properties::CustomPropertyStore;
+        let mut decisions = CustomPropertyDecisions::default();
+        let existing_for = |name: usize| existing.iter().find(|existing| existing.custom_name == name);
+        let has_existing = existing.iter().any(|existing| existing.custom_name != 0);
+        let after = crate::css::style::StyleRecordView::of_host_record(&self.after);
+        let after_longhands = after.longhands();
+        if !has_existing && crate::css::style_compute::transition_delay_and_duration_are_single_zero(after_longhands) {
+            return decisions;
+        }
+        let entries = crate::css::style_compute::custom_property_transition_entries(after_longhands);
+        if !has_existing && entries.is_empty() {
+            return decisions;
+        }
+        let before_store = self.before.custom_properties();
+        let after_store = self.after.custom_properties();
+
+        let mut names: Vec<ak::Utf16FlyString> = entries.named_properties().cloned().collect();
+        // A `transition: all` entry names every custom property either style holds.
+        if entries.names_all_properties()
+            && !std::ptr::eq(
+                before_store.map_or(std::ptr::null(), std::sync::Arc::as_ptr),
+                after_store.map_or(std::ptr::null(), std::sync::Arc::as_ptr),
+            )
+        {
+            for store in [before_store, after_store].into_iter().flatten() {
+                names.extend(store.held_names().cloned());
+            }
+        }
+        for existing in existing.iter().filter(|existing| existing.custom_name != 0) {
+            // SAFETY: The caller keeps the name of the transition alive.
+            names.push(unsafe { ak::Utf16FlyString::from_raw_borrowed(existing.custom_name) });
+        }
+        names.sort_unstable_by_key(ak::Utf16FlyString::raw_identity);
+        names.dedup_by_key(|name| name.raw_identity());
+
+        let registry = engine.custom_property_registry();
+        let value_in = |store: Option<&std::sync::Arc<CustomPropertyStore>>, name: &ak::Utf16FlyString| {
+            store
+                .and_then(|store| store.get(name.raw_identity()))
+                .map_or_else(|| registry.initial_value(&name.to_utf16()), |entry| entry.value.clone())
+        };
+        let context = self.animation_context(engine, None, after.animated_overlay);
+        for name in names {
+            let raw_name = name.raw_identity();
+            let existing = existing_for(raw_name);
+            let mut property = TransitionProperty::new(
+                crate::css::property_metadata::property_id::CUSTOM,
+                entries.entry_for(raw_name),
+                existing,
+            );
+            let before_value = value_in(before_store, &name);
+            let after_value = value_in(after_store, &name);
+            property.before_change_value = before_value.pointer();
+            property.after_change_value = after_value.pointer();
+            if let Some(existing) = existing.filter(|existing| existing.running) {
+                property.current_value = existing.custom_current_value;
+            }
+            let mut action = decide_transition(&context, &property, false);
+            action.custom_name = raw_name;
+            if action.kind == FfiTransitionActionKind::None && action.start_value.is_null() && existing.is_none() {
+                continue;
+            }
+            decisions.actions.push(action);
+            decisions.values.extend([before_value, after_value]);
+            decisions.names.push(name);
+        }
+        decisions
+    }
+
     /// As `decide_entries`, with `after_overlay` in place of the after-change record's overlay where it is given: the
     /// current values of the target's running transitions, which the record holds none of.
     fn decide_over(
@@ -487,29 +615,12 @@ impl TransitionDecision {
         ended: &[u16],
     ) -> Vec<FfiTransitionAction> {
         let element = self.element;
-        let length_resolution_context = engine.transition_length_resolution_context(&self.after);
         let before = crate::css::style::StyleRecordView::of_host_record(&self.before);
         let after = crate::css::style::StyleRecordView::of_host_record(&self.after);
         let (before_longhands, before_overlay) = (before.longhands(), before.animated_overlay);
         let after_longhands = after.longhands();
         let after_overlay = after_overlay.or(after.animated_overlay);
-        let mut context = crate::css::animation::FfiAnimationContext {
-            allow_discrete: false,
-            // The value that matters is the one in the after-change style.
-            allow_keyword_size_interpolation: crate::css::animation::allows_keyword_size_interpolation(
-                after_longhands,
-                after_overlay,
-            ),
-            current_color: Some(
-                after_longhands.effective_value(after_overlay, crate::css::property_metadata::property_id::COLOR),
-            ),
-            has_length_resolution_context: true,
-            length_resolution_context,
-            has_transform_reference_box: false,
-            transform_reference_box_width: 0.0,
-            transform_reference_box_height: 0.0,
-        };
-        context.set_transform_reference_box(reference_box);
+        let context = self.animation_context(engine, reference_box, after_overlay);
         let existing_for = |property_id| existing.iter().find(|existing| existing.property_id == property_id);
         // OPTIMIZATION: An element inherits an animated value only from an ancestor holding one, so one walk up the
         //               tree, taken for the first inherited property, answers for every property where none does.
@@ -522,7 +633,9 @@ impl TransitionDecision {
             .map(|entry| (entry.property_id, Some(entry), existing_for(entry.property_id)));
         let unmatched = existing
             .iter()
-            .filter(|existing| entries.iter().all(|entry| entry.property_id != existing.property_id))
+            .filter(|existing| {
+                existing.custom_name == 0 && entries.iter().all(|entry| entry.property_id != existing.property_id)
+            })
             .map(|existing| (existing.property_id, None, Some(existing)));
         matched
             .chain(unmatched)
@@ -576,6 +689,14 @@ impl TransitionDecision {
     }
 }
 
+/// What a transition step does to the transitions of custom properties, with what its actions point into.
+#[derive(Default)]
+pub(crate) struct CustomPropertyDecisions {
+    pub(crate) actions: Vec<FfiTransitionAction>,
+    values: Vec<crate::css::style_value::RetainedStyleValueData>,
+    names: Vec<ak::Utf16FlyString>,
+}
+
 /// What the transition step a style update's row owes decides, where nothing but the engine's records decides it
 /// (see [`DecidedTransitionStep::of_row`]).
 pub(crate) struct RowTransitions {
@@ -595,6 +716,18 @@ pub(crate) struct RowTransitions {
     /// from, kept until the values it compared are retained.
     #[expect(dead_code, reason = "the actions point into it")]
     after_overlay: Option<Box<crate::css::animated_overlay::AnimatedOverlay>>,
+}
+
+/// Whether `before` and `after` hold the same custom-property environment.
+fn same_custom_properties(
+    before: &crate::css::style::pipeline::Record,
+    after: &crate::css::style::pipeline::Record,
+) -> bool {
+    match (before.custom_properties(), after.custom_properties()) {
+        (Some(before), Some(after)) => std::sync::Arc::ptr_eq(before, after),
+        (None, None) => true,
+        _ => false,
+    }
 }
 
 /// A transition an element runs, as it stands at the time a step decides at: one the host runs, as the engine's
@@ -817,6 +950,12 @@ impl RowTransitions {
         } else {
             crate::css::style_compute::transition_entries(after_longhands)
         };
+        // The host holds the custom property values a transition runs over.
+        if !crate::css::style_compute::custom_property_transition_entries(after_longhands).is_empty()
+            && !same_custom_properties(&before, &after)
+        {
+            return Err("a transition of a custom property");
+        }
         // A transform interpolates against the box it transforms.
         if reference_box.is_none() && entries.iter().any(|entry| entry.property_id == prop::TRANSFORM) {
             return Err("a transition of transform");
@@ -835,6 +974,8 @@ impl RowTransitions {
             .iter()
             .map(|transition| FfiExistingTransition {
                 property_id: transition.property_id,
+                custom_name: 0,
+                custom_current_value: std::ptr::null(),
                 running: transition.key.is_some(),
                 end_value: transition.end_value,
                 reversing_adjusted_start_value: transition.reversing_adjusted_start_value,
@@ -1750,6 +1891,7 @@ mod tests {
         ] {
             let action = FfiTransitionAction {
                 property_id: crate::css::property_metadata::property_id::OPACITY,
+                custom_name: 0,
                 kind,
                 delay: 100.0,
                 active_duration: 1000.0,

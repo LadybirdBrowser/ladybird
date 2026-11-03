@@ -6208,7 +6208,7 @@ fn active_transition_property_ids_of<'a>(
 }
 
 /// Whether computed `transition-property`, `transition-duration` and `transition-delay` values
-/// make any longhand transitionable.
+/// make any property transitionable.
 pub(crate) fn transition_values_declare_transitions(
     properties: &RetainedStyleValueData,
     durations: &RetainedStyleValueData,
@@ -6220,19 +6220,17 @@ pub(crate) fn transition_values_declare_transitions(
         };
         values.as_slice()
     }
-    fn names_a_longhand(property: u16) -> bool {
+    fn names_a_property(property: u16) -> bool {
         use crate::css::property_metadata::property_id as prop;
         property == prop::ALL
-            || if property_is_shorthand(property) {
-                longhands_for_shorthand(property)
-                    .iter()
-                    .any(|&longhand| names_a_longhand(longhand))
-            } else {
-                property != prop::CUSTOM
-            }
+            || property == prop::CUSTOM
+            || !property_is_shorthand(property)
+            || longhands_for_shorthand(property)
+                .iter()
+                .any(|&longhand| names_a_property(longhand))
     }
     active_transition_property_ids_of(value_list(properties), value_list(durations), value_list(delays))
-        .any(names_a_longhand)
+        .any(names_a_property)
 }
 
 /// The `transition-*` values of `longhands`, per physical longhand they name: shorthands expanded,
@@ -6294,28 +6292,101 @@ pub(crate) fn transition_entries(
     entries
 }
 
+/// The `transition-*` values of `longhands` as they apply to custom properties: a name takes its last entry, and a
+/// `transition: all` entry stands for every name no later entry gives its own.
+#[derive(Default)]
+pub(crate) struct CustomPropertyTransitionEntries {
+    named: Vec<(ak::Utf16FlyString, crate::css::transition::TransitionEntry)>,
+    all: Option<crate::css::transition::TransitionEntry>,
+}
+
+impl CustomPropertyTransitionEntries {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.named.is_empty() && self.all.is_none()
+    }
+
+    pub(crate) fn names_all_properties(&self) -> bool {
+        self.all.is_some()
+    }
+
+    pub(crate) fn named_properties(&self) -> impl Iterator<Item = &ak::Utf16FlyString> {
+        self.named.iter().map(|(name, _)| name)
+    }
+
+    pub(crate) fn entry_for(&self, raw_name: usize) -> Option<&crate::css::transition::TransitionEntry> {
+        self.named
+            .iter()
+            .find(|(name, _)| name.raw_identity() == raw_name)
+            .map(|(_, entry)| entry)
+            .or(self.all.as_ref())
+    }
+}
+
+pub(crate) fn custom_property_transition_entries(
+    longhands: crate::css::style::ViewLonghands<'_>,
+) -> CustomPropertyTransitionEntries {
+    use crate::css::property_metadata::property_id as prop;
+
+    let mut entries = CustomPropertyTransitionEntries::default();
+    let property_values = computed_value_list(longhands, prop::TRANSITION_PROPERTY);
+    for (index, property_value) in property_values.iter().enumerate() {
+        let StyleValueData::CustomIdent { custom_ident } = property_value.data() else {
+            continue;
+        };
+        let property = property_id_from_custom_ident(custom_ident);
+        if property != Some(prop::ALL) && property != Some(prop::CUSTOM) {
+            continue;
+        }
+        let at = |list: u16| {
+            let values = computed_value_list(longhands, list);
+            &values[index % values.len()]
+        };
+        let entry = crate::css::transition::TransitionEntry {
+            property_id: prop::CUSTOM,
+            delay: time_value_to_milliseconds(at(prop::TRANSITION_DELAY).data()),
+            duration: time_value_to_milliseconds(at(prop::TRANSITION_DURATION).data()),
+            timing_function: at(prop::TRANSITION_TIMING_FUNCTION).pointer(),
+            behavior: match at(prop::TRANSITION_BEHAVIOR).data() {
+                StyleValueData::Keyword { keyword } => keyword_to_transition_behavior(*keyword).unwrap(),
+                _ => unreachable!("computed transition-behavior must be a keyword"),
+            },
+        };
+        if property == Some(prop::ALL) {
+            entries.named.clear();
+            entries.all = Some(entry);
+            continue;
+        }
+        let name = ak::Utf16FlyString::from_utf16(custom_ident.units());
+        entries
+            .named
+            .retain(|(named, _)| named.raw_identity() != name.raw_identity());
+        entries.named.push((name, entry));
+    }
+    entries
+}
+
 /// Whether `transition_entries` answers any entry for `longhands`, without expanding them.
 pub(crate) fn has_transition_entries(longhands: crate::css::style::ViewLonghands<'_>) -> bool {
     use crate::css::property_metadata::property_id as prop;
 
-    // Whether an entry for `property` names a longhand, as `append_transition_longhands` would.
-    fn names_a_longhand(property: u16) -> bool {
-        if property == prop::ALL {
+    // Whether an entry for `property` names a longhand or a custom property.
+    fn names_a_property(property: u16) -> bool {
+        if property == prop::ALL || property == prop::CUSTOM {
             return true;
         }
         if property_is_shorthand(property) {
             return longhands_for_shorthand(property)
                 .iter()
-                .any(|&longhand| names_a_longhand(longhand));
+                .any(|&longhand| names_a_property(longhand));
         }
-        property != prop::CUSTOM
+        true
     }
 
     computed_value_list(longhands, prop::TRANSITION_PROPERTY)
         .iter()
         .any(|value| match value.data() {
             StyleValueData::CustomIdent { custom_ident } => {
-                property_id_from_custom_ident(custom_ident).is_some_and(names_a_longhand)
+                property_id_from_custom_ident(custom_ident).is_some_and(names_a_property)
             }
             _ => false,
         })

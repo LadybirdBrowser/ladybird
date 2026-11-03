@@ -304,7 +304,7 @@ private:
     struct ProvisionalTransitionState {
         GC::Ptr<DOM::Element> element;
         Optional<PseudoElement> pseudo_element;
-        PropertyID property_id;
+        PropertyNameAndID property;
         GC::Ptr<CSSTransition> committed_transition;
         GC::Ptr<CSSTransition> proposed_transition;
         StyleValueFFI::FfiTransitionActionKind action {};

@@ -1,0 +1,13 @@
+started: [--length] --length = 0px, width = 0px
+a quarter in: [--length] --length = 25px, width = 25px
+retargeted: [--length] --length = 25px, width = 25px
+no longer named: [] --length = 100px, width = 100px
+transition: all: [--length] --length = 25px, width = 784px
+finished: [] --length = 100px, width = 100px
+started back: [--length] --length = 100px, width = 100px
+color: [--color] --color = rgb(50, 0, 0), width = 0px
+unregistered: [] --plain = 100px, width = 0px
+unregistered, allow-discrete: [--plain] --plain = 0px, width = 0px
+custom-ident: [] --ident = b, width = 0px
+no duration: [] --length = 100px, width = 100px
+inherited by a child: [] --color = rgb(50, 0, 0), width = 0px

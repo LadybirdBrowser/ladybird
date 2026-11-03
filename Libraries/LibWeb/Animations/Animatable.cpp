@@ -24,7 +24,7 @@ namespace Web::Animations {
 struct Animatable::Transition {
     AK_ALLOC_WITH_KMALLOC;
 
-    HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> associated_transitions;
+    HashMap<CSS::PropertyNameAndID, GC::Ref<CSS::CSSTransition>> associated_transitions;
 };
 
 Animatable::Impl::~Impl() = default;
@@ -324,13 +324,13 @@ bool Animatable::has_existing_transitions(Optional<CSS::PseudoElement> pseudo_el
     return transition && !transition->associated_transitions.is_empty();
 }
 
-HashMap<CSS::PropertyID, GC::Ref<CSS::CSSTransition>> const* Animatable::existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
+HashMap<CSS::PropertyNameAndID, GC::Ref<CSS::CSSTransition>> const* Animatable::existing_transitions(Optional<CSS::PseudoElement> pseudo_element) const
 {
     auto const* transition = transition_if_exists(pseudo_element);
     return transition ? &transition->associated_transitions : nullptr;
 }
 
-GC::Ptr<CSS::CSSTransition> Animatable::property_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property) const
+GC::Ptr<CSS::CSSTransition> Animatable::property_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyNameAndID const& property) const
 {
     auto const* maybe_transition = transition_if_exists(pseudo_element);
     if (!maybe_transition)
@@ -341,7 +341,7 @@ GC::Ptr<CSS::CSSTransition> Animatable::property_transition(Optional<CSS::Pseudo
     return {};
 }
 
-void Animatable::set_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property, GC::Ref<CSS::CSSTransition> animation)
+void Animatable::set_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyNameAndID const& property, GC::Ref<CSS::CSSTransition> animation)
 {
     auto maybe_transition = ensure_transition(pseudo_element);
     if (!maybe_transition)
@@ -351,15 +351,15 @@ void Animatable::set_transition(Optional<CSS::PseudoElement> pseudo_element, CSS
     transition.associated_transitions.set(property, animation);
 }
 
-void Animatable::remove_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyID property_id)
+void Animatable::remove_transition(Optional<CSS::PseudoElement> pseudo_element, CSS::PropertyNameAndID const& property)
 {
     auto maybe_transition = ensure_transition(pseudo_element);
     if (!maybe_transition)
         return;
     auto& transition = *maybe_transition;
-    auto removed_transition = transition.associated_transitions.get(property_id);
+    auto removed_transition = transition.associated_transitions.get(property);
     VERIFY(removed_transition.has_value());
-    transition.associated_transitions.remove(property_id);
+    transition.associated_transitions.remove(property);
     removed_transition.value()->schedule_disassociation_from_target();
 }
 
