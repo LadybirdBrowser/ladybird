@@ -28,8 +28,9 @@ use super::rule_changes::Restyled;
 use super::rule_store::RuleChanges;
 use super::rules::{IndexChanges, RuleIndex};
 use super::traversal::{
-    self, DIRTY_DESCENDANTS, HintBits, InitialStyle, MATCH_DESCENDANTS, MATCH_SELF, PARENT_CHANGED, PassContext,
-    RECOMPUTE_SELF, RESTYLE_DESCENDANTS, RESTYLE_PSEUDO_ELEMENTS, RESTYLE_SELF, RESTYLES_SELF, STYLES_SOMETHING,
+    self, CONTAINERS_MOVED, DIRTY_DESCENDANTS, HintBits, InitialStyle, MATCH_DESCENDANTS, MATCH_SELF, PARENT_CHANGED,
+    PassContext, RECOMPUTE_SELF, RESTYLE_DESCENDANTS, RESTYLE_PSEUDO_ELEMENTS, RESTYLE_SELF, RESTYLES_SELF,
+    STYLES_SOMETHING,
 };
 use crate::cow_column::CowColumn;
 use crate::css::style::custom_property_cascade::{
@@ -1206,7 +1207,8 @@ impl Live {
         // An element arriving, leaving or moving among its siblings changes what `sibling-index()`
         // and `sibling-count()` compute to for its siblings.
         for &parent in sibling_parents.iter() {
-            // NB: Every record reading it noted so on its element's parent as it was held.
+            // NB: Every record reading it noted so on its element's parent as it was held, and every style query
+            //     reading it on its container's parent as it answered.
             if !tree.is_live(parent)
                 || !projection
                     .structural_flags(parent)
@@ -1214,6 +1216,10 @@ impl Live {
             {
                 continue;
             }
+            let counted_containers = state
+                .containers_counted_by_style_queries
+                .lock()
+                .expect("the counted containers are never held across a panic");
             for child in projection.children(parent) {
                 if self
                     .records
@@ -1226,6 +1232,11 @@ impl Live {
                         .any(|(_, record)| record.rare().reads.reads_sibling_position)
                 {
                     self.hints.add(child, RESTYLE_SELF);
+                }
+                // A style() query counted where this child stands as a container, which no record of it may read: the
+                // elements below it that read their containers read them anew.
+                if counted_containers.contains(&child) {
+                    self.hints.add(child, CONTAINERS_MOVED);
                 }
             }
         }

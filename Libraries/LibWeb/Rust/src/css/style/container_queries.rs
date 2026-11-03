@@ -8,6 +8,8 @@
 //! container query inputs, the previous layout's boxes and the containers' style records.
 
 use super::bridge::FfiContainerEffectKind;
+use super::selector_evaluation::StructuralRead;
+use super::transaction_view::TransactionFactSide;
 use super::tree::StyleNodeID;
 use super::*;
 use crate::css::computed_longhand_table::FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS;
@@ -627,6 +629,7 @@ impl RetainedState {
                     .effects
                     .push((candidate, FfiContainerEffectKind::NeedsEvaluationAfterLayout));
             }
+            let mut read_sibling_position = false;
             // SAFETY: The facts' length context is live for the call.
             let result = unsafe {
                 crate::css::parser::query_parser::evaluate_container_query(query, &facts, &mut |feature| {
@@ -640,9 +643,22 @@ impl RetainedState {
                         &length,
                         context.color,
                         context.tree_counting,
+                        &mut read_sibling_position,
                     )
                 })
             };
+            // NB: Its siblings moving is what moves the answer, as for a record reading its own place.
+            if read_sibling_position {
+                self.containers_counted_by_style_queries
+                    .lock()
+                    .expect("the counted containers are never held across a panic")
+                    .insert(candidate);
+                self.projection.note_structural_read(
+                    TransactionFactSide::After,
+                    candidate,
+                    StructuralRead::SiblingPositionValue,
+                );
+            }
             if resolved_viewport_relative_length {
                 verdict
                     .effects

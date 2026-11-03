@@ -2753,12 +2753,15 @@ pub(crate) fn evaluate_retained_container_style_feature(
     length_resolution_context: &crate::css::style_compute::FfiLengthResolutionContext,
     color_resolution_input: crate::css::color_resolution::ColorResolutionInput<'_>,
     tree_counting: Option<(u64, u64)>,
+    read_sibling_position: &mut bool,
 ) -> MatchResult {
+    let mut dependencies = None;
     let mut context = ASFResolutionContext {
         inheritance_store: store.and_then(|store| store.inheritance_parent.as_deref()),
         style_query_length_resolution_context: Some(length_resolution_context),
         style_query_color_resolution_input: Some(color_resolution_input),
         style_query_tree_counting: tree_counting,
+        style_query_dependencies: Some(&mut dependencies),
         ..Default::default()
     };
     let registry = Some(registry);
@@ -2769,6 +2772,8 @@ pub(crate) fn evaluate_retained_container_style_feature(
         }
         StyleFeature::Range { .. } => evaluate_style_range(store, registry, feature, &mut context, 0),
     };
+    *read_sibling_position |=
+        dependencies.is_some_and(|dependencies: Box<StyleQueryDependencies>| dependencies.sibling_position);
     match result {
         ConditionEvaluation::Match(true) => MatchResult::True,
         ConditionEvaluation::Match(false) => MatchResult::False,
