@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade {
+        from { opacity: 0; }
+    }
+    #target {
+        animation-name: fade;
+    }
+</style>
+<div id="target"></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(() => resolve()));
+
+    asyncTest(async done => {
+        const target = document.getElementById("target");
+        await nextFrame();
+        await nextFrame();
+        println(`animations after the zero-duration animation finished: ${target.getAnimations().length}`);
+
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Let a rendering update apply the change, rather than a style flush from script.
+        target.style.animationDuration = "100s";
+        await nextFrame();
+        const animation = target.getAnimations()[0];
+        println(`play state after lengthening the duration: ${animation?.playState}`);
+        const timeBefore = animation?.currentTime;
+        await nextFrame();
+        await nextFrame();
+        println(`current time advances: ${animation?.currentTime > timeBefore}`);
+        done();
+    });
+</script>

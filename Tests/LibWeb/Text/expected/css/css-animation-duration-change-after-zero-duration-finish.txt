@@ -1,0 +1,3 @@
+animations after the zero-duration animation finished: 0
+play state after lengthening the duration: running
+current time advances: true
