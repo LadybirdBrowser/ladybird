@@ -1,0 +1,24 @@
+<!doctype html>
+<style>
+    div* { color: rgb(1, 0, 0); }
+    .a* { background-color: rgb(2, 0, 0); }
+    ** { margin-left: 3px; }
+    *.a { margin-right: 4px; }
+</style>
+<div id="target" class="a"></div>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const selector of ["*", "*|*", "|*", "*.a", "*[id]", "*:first-child", "*::before", "**", "div*", "*div", "*|**", "*|*|*", "|*|*", "*|div*", ".a*", "#target*", "[id]*", ":first-child*", "*[id]*", "::before*", "div *", "div > *"]) {
+            let parsed = "parses";
+            try {
+                document.querySelector(selector);
+            } catch (error) {
+                parsed = error.name;
+            }
+            println(`${selector}: ${parsed}, supports ${CSS.supports(`selector(${selector})`)}`);
+        }
+        const style = getComputedStyle(document.getElementById("target"));
+        println(`color ${style.color}, background-color ${style.backgroundColor}, margin-left ${style.marginLeft}, margin-right ${style.marginRight}`);
+    });
+</script>

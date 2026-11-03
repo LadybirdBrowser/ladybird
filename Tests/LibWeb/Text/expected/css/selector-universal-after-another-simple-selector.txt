@@ -1,0 +1,23 @@
+*: parses, supports true
+*|*: parses, supports true
+|*: parses, supports true
+*.a: parses, supports true
+*[id]: parses, supports true
+*:first-child: parses, supports true
+*::before: parses, supports true
+**: parses, supports true
+div*: parses, supports true
+*div: SyntaxError, supports false
+*|**: parses, supports true
+*|*|*: parses, supports true
+|*|*: parses, supports true
+*|div*: parses, supports true
+.a*: parses, supports true
+#target*: parses, supports true
+[id]*: parses, supports true
+:first-child*: parses, supports true
+*[id]*: parses, supports true
+::before*: parses, supports true
+div *: parses, supports true
+div > *: parses, supports true
+color rgb(1, 0, 0), background-color rgb(2, 0, 0), margin-left 3px, margin-right 4px
