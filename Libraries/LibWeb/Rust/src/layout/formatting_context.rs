@@ -1348,13 +1348,17 @@ impl<'pass> FormattingContextRun<'pass> {
     }
 }
 
+#[expect(
+    clippy::large_enum_variant,
+    reason = "held on the stack of the run that lays out its root, where boxing would allocate for every run"
+)]
 enum FormattingContextImplementation<'pass> {
-    Block(Box<block_formatting_context::BlockFormattingContext<'pass>>),
-    Flex(Box<flex_formatting_context::FlexFormattingContext<'pass>>),
-    Grid(Box<grid_formatting_context::GridFormattingContext<'pass>>),
-    Table(Box<table_formatting_context::TableFormattingContext<'pass>>),
-    Svg(Box<svg_formatting_context::SvgFormattingContext<'pass>>),
-    Math(Box<math_formatting_context::MathFormattingContext<'pass>>),
+    Block(block_formatting_context::BlockFormattingContext<'pass>),
+    Flex(flex_formatting_context::FlexFormattingContext<'pass>),
+    Grid(grid_formatting_context::GridFormattingContext<'pass>),
+    Table(table_formatting_context::TableFormattingContext<'pass>),
+    Svg(svg_formatting_context::SvgFormattingContext<'pass>),
+    Math(math_formatting_context::MathFormattingContext<'pass>),
     ReplacedWithChildren,
     InternalReplaced,
 }
@@ -1449,28 +1453,28 @@ fn create_formatting_context_implementation<'pass>(
     previous_line_data: Option<std::sync::Arc<inline_content::InlineContent>>,
 ) -> FormattingContextImplementation<'pass> {
     match fc_type {
-        FormattingContextType::Block => FormattingContextImplementation::Block(Box::new(
+        FormattingContextType::Block => FormattingContextImplementation::Block(
             block_formatting_context::BlockFormattingContext::new(run, root_cells_in_own_frame, previous_line_data),
-        )),
-        FormattingContextType::Flex => FormattingContextImplementation::Flex(Box::new(
+        ),
+        FormattingContextType::Flex => FormattingContextImplementation::Flex(
             flex_formatting_context::FlexFormattingContext::new(run, root_cells_in_own_frame),
-        )),
-        FormattingContextType::Grid => FormattingContextImplementation::Grid(Box::new(
+        ),
+        FormattingContextType::Grid => FormattingContextImplementation::Grid(
             grid_formatting_context::GridFormattingContext::new(run, root_cells_in_own_frame, parent_grid),
-        )),
+        ),
         FormattingContextType::Table => {
-            FormattingContextImplementation::Table(Box::new(table_formatting_context::TableFormattingContext::new(
+            FormattingContextImplementation::Table(table_formatting_context::TableFormattingContext::new(
                 run,
                 root_cells_in_own_frame,
                 table_formatting_context::AutoTableInlineSize::FillsAvailableInlineSize,
-            )))
+            ))
         }
         FormattingContextType::Svg => {
-            FormattingContextImplementation::Svg(Box::new(svg_formatting_context::SvgFormattingContext::new(run)))
+            FormattingContextImplementation::Svg(svg_formatting_context::SvgFormattingContext::new(run))
         }
-        FormattingContextType::Math => FormattingContextImplementation::Math(Box::new(
+        FormattingContextType::Math => FormattingContextImplementation::Math(
             math_formatting_context::MathFormattingContext::new(run, root_cells_in_own_frame),
-        )),
+        ),
         FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
         FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
     }
@@ -2289,19 +2293,19 @@ fn lay_out_run_root_and_contents<'pass>(
             own_root.get(),
         )
     } else {
-        let mut context_implementation = create_formatting_context_implementation(
+        let context_implementation = implementation.insert(create_formatting_context_implementation(
             body_run,
             own_root.get(),
             parent_grid,
             fc_type,
             previous_line_data,
-        );
+        ));
         if let (Some(layout), FormattingContextImplementation::Block(context)) =
-            (inline_layout_of_child_table_box, &context_implementation)
+            (inline_layout_of_child_table_box, &*context_implementation)
         {
             context.keep_table_inline_layout_of(layout.table_box(), layout);
         }
-        let result_and_own_root_after_body = match &mut context_implementation {
+        match context_implementation {
             FormattingContextImplementation::Block(context) => {
                 context.run(body_run, body_input);
                 laid_out_content_block_size = Some(context.laid_out_content_block_size());
@@ -2381,9 +2385,7 @@ fn lay_out_run_root_and_contents<'pass>(
                 (result, root_after_body)
             }
             FormattingContextImplementation::InternalReplaced => (ChildLayoutResult::default(), own_root.get()),
-        };
-        implementation = Some(context_implementation);
-        result_and_own_root_after_body
+        }
     };
     let baselines_in_own_frame = result.baselines;
     // https://drafts.csswg.org/css-sizing-4/#intrinsic-size-override
@@ -2580,8 +2582,8 @@ fn lay_out_run_root_and_contents<'pass>(
         );
         return (outputs, root_cells_left_by_run);
     }
-    if let Some(implementation) = implementation {
-        match &implementation {
+    if let Some(implementation) = &implementation {
+        match implementation {
             FormattingContextImplementation::Block(_) => {}
             FormattingContextImplementation::Table(_) => {
                 register_table_abspos_descendants(body_run, run.box_);
