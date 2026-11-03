@@ -166,6 +166,10 @@ void ContextState::install_display_list_update(
         m_visual_viewport_document_id.clear();
     }
 
+    // NB: What the page of one document let through of a pinch says nothing about the page of the next.
+    if (async_scrolling_state.document_id != m_async_scroll_tree.document_id())
+        m_pinch_gesture_was_let_through = false;
+
     auto box_of_dragged_scrollbar = box_of_captured_scrollbar();
     m_scrollbar_controller.set_scrollbars(async_scrolling_state.scrollbars);
     if (!m_scrollbar_controller.has_captured_scrollbar())

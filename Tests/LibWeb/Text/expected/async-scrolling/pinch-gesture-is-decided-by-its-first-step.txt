@@ -1,7 +1,7 @@
 first step, beside the task: compositor scale=1.5
-step after the listener appeared, beside the task: compositor scale=1.5
+step after the listener appeared, beside the task: compositor scale=2.25
 listener could cancel an event of that gesture: false
 next gesture: cancelable=true
 rest of the canceled gesture: cancelable=true
-compositor scale: 1.5
-main thread scale: 1.5
+compositor scale: 2.25
+main thread scale: 2.25

@@ -1202,10 +1202,12 @@ void CompositorState::handle_and_dispatch_pinch_event(Web::CompositorContextId c
         return;
     }
 
-    // A page that already let the event through leaves only the zoom to do.
+    // The first step of a gesture decides for the steps after it: a gesture the page let through zooms from here on,
+    // whatever listeners have appeared since. A page that already let this step through leaves only the zoom to do.
     Gfx::FloatPoint position { static_cast<float>(event.position.x().value()), static_cast<float>(event.position.y().value()) };
-    if (event.wheel_event_was_dispatched || !page_under_pinch_may_cancel_it(context_id, *context, position))
+    if ((event.continues_gesture && context->pinch_gesture_was_let_through()) || event.wheel_event_was_dispatched || !page_under_pinch_may_cancel_it(context_id, *context, position))
         event.async_zoom_performed_default_action = apply_context_update_result(context_id, *context, context->handle_pinch_event(event));
+    context->set_pinch_gesture_was_let_through(event.async_zoom_performed_default_action);
 
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);
