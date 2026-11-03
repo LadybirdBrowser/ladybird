@@ -385,6 +385,9 @@ pub(super) fn differences_by_element(
             (Some(_), None) if hidden_in_cold(node) => continue,
             (Some(_), None) => failures.push((node, "live holds a record, cold computed none".to_owned())),
             (None, Some(_)) => failures.push((node, "live holds no record, cold computed one".to_owned())),
+            // NB: No pass samples the animations of an element that is not displayed. A cold pass reads what a read
+            //     below it last sampled, which the record the passes keep does not, and a read samples them again.
+            (Some(live), Some(_)) if !live.is_displayed() && state.element_samples_custom_properties(node) => continue,
             (Some(live), Some(cold)) => {
                 let differences = record_differences(live, cold);
                 if !differences.is_empty() {
@@ -437,11 +440,11 @@ pub(super) fn installed_differences(
     let mut failures = Vec::new();
     for node in state.projection.style_preorder(root) {
         // NB: The engine keeps the records of the elements below one that stopped being displayed,
-        //     which no pass keeps current and the host installs none of.
-        let hidden = std::iter::successors(state.projection.inheritance_parent(node), |&ancestor| {
-            state.projection.inheritance_parent(ancestor)
-        })
-        .any(|ancestor| live.get(ancestor).is_none_or(|record| !record.is_displayed()));
+        //     which no pass keeps current and the host installs none of. What the host holds for an
+        //     element that is itself not displayed is what a read below it last sampled, and a read
+        //     of it demands its style again.
+        let hidden = std::iter::successors(Some(node), |&ancestor| state.projection.inheritance_parent(ancestor))
+            .any(|ancestor| live.get(ancestor).is_none_or(|record| !record.is_displayed()));
         if hidden {
             continue;
         }

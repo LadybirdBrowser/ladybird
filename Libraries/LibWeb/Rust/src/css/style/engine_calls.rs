@@ -880,6 +880,8 @@ pub(crate) struct EngineMemo {
     takes_transaction_to_apply: std::cell::Cell<bool>,
     /// What `LIBWEB_STYLE_SELFCHECK` asked for as the host started.
     pub(super) style_self_check: super::pipeline::SelfCheckSettings,
+    /// Whether the self-check of a style update that flew is yet to run: it is the next update's to run.
+    pub(super) flown_update_awaits_self_check: std::cell::Cell<bool>,
 }
 
 impl EngineMemo {
@@ -1009,6 +1011,7 @@ impl Default for EngineMemo {
             applying_reactions: Default::default(),
             takes_transaction_to_apply: Default::default(),
             style_self_check: super::pipeline::SelfCheckSettings::from_environment(),
+            flown_update_awaits_self_check: Default::default(),
         }
     }
 }

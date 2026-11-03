@@ -1,0 +1,4 @@
+at 30%, below: rgb(30, 30, 30)
+cancelled, itself: rgb(0, 0, 0)
+at 30%, below: rgb(30, 30, 30)
+cancelled and shown, itself: rgb(0, 0, 0)

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<style>
+    @property --tone {
+        syntax: "<color>";
+        inherits: true;
+        initial-value: rgb(0, 0, 0);
+    }
+    .toned {
+        color: var(--tone);
+    }
+    .none {
+        display: none;
+    }
+</style>
+<div id="read-itself" class="none toned"><div class="none"><div id="reader-1"></div></div></div>
+<div id="shown" class="none toned"><div class="none"><div id="reader-2"></div></div></div>
+<script src="../../include.js"></script>
+<script>
+    function colorOf(element) {
+        return getComputedStyle(element).color;
+    }
+
+    // A read below an element that is not displayed gives the element the color its animation samples.
+    function cancelAfterReadingBelow(animated, reader) {
+        const animation = animated.animate([{ "--tone": "rgb(0, 0, 0)" }, { "--tone": "rgb(100, 100, 100)" }], {
+            duration: 100000,
+            fill: "both",
+        });
+        animation.pause();
+        animation.currentTime = 30000;
+        println(`at 30%, below: ${colorOf(reader)}`);
+        animation.cancel();
+    }
+
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+
+        cancelAfterReadingBelow(document.getElementById("read-itself"), document.getElementById("reader-1"));
+        await nextFrame();
+        await nextFrame();
+        println(`cancelled, itself: ${colorOf(document.getElementById("read-itself"))}`);
+
+        cancelAfterReadingBelow(document.getElementById("shown"), document.getElementById("reader-2"));
+        await nextFrame();
+        await nextFrame();
+        document.getElementById("shown").classList.remove("none");
+        println(`cancelled and shown, itself: ${colorOf(document.getElementById("shown"))}`);
+        done();
+    });
+</script>

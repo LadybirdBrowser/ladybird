@@ -258,11 +258,18 @@ pub extern "C" fn style_engine_self_check_is_enabled(host: &DocumentHost) -> boo
     host.engine_memo().style_self_check.is_enabled()
 }
 
+/// Whether a style update that flew is yet to be checked, which an update finding nothing to do has to do.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_flown_update_awaits_self_check(host: &DocumentHost) -> bool {
+    host.engine_memo().flown_update_awaits_self_check.get()
+}
+
 /// Checks what the engine holds for the host's document under `root`, its document element's style node or zero,
 /// against a cold pass, as `LIBWEB_STYLE_SELFCHECK` asks, once a style update has settled.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_self_check(host: &DocumentHost, read: &BegunRead, root: u32) {
     let settings = host.engine_memo().style_self_check;
+    host.engine_memo().flown_update_awaits_self_check.set(false);
     if let Some(root) = StyleNodeID::from_raw(root)
         && settings.is_enabled()
     {

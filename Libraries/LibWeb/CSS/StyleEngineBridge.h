@@ -96,6 +96,7 @@ void style_engine_set_tree_scope_root(DocumentHost const*, TreeScopeID tree_scop
 void style_engine_set_sheet_conditions_hold(DocumentHost const*, SheetID sheet, bool conditions_hold);
 u32 style_engine_connected_element_count(DocumentHost const*, BegunRead const*);
 bool style_engine_self_check_is_enabled(DocumentHost const*);
+bool style_engine_flown_update_awaits_self_check(DocumentHost const*);
 bool style_engine_custom_property_environment_is_engine_made(DocumentHost const*, BegunRead const*, u64 identity);
 bool style_engine_pending_transaction_may_affect_layout_geometry(DocumentHost const*, BegunRead const*);
 void style_engine_defer_pending_transaction_for_geometry_read(DocumentHost const*, BegunRead const*);
