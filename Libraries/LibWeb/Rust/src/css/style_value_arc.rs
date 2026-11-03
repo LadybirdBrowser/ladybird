@@ -37,6 +37,10 @@ unsafe impl Sync for StyleValueArc where StyleValueData: Send + Sync {}
 /// The most references a value may have, beyond which counting aborts, as std's `Arc` does.
 const MAXIMUM_REFERENCES: usize = isize::MAX as usize;
 
+/// The count of a value that lives for the rest of the process, which no reference counts: threads
+/// sharing it only read the line it is on.
+const IMMORTAL_REFERENCES: usize = usize::MAX;
+
 impl StyleValueArc {
     const DATA_OFFSET: usize = std::mem::offset_of!(StyleValueAllocation, data);
 
@@ -50,6 +54,20 @@ impl StyleValueArc {
         Self {
             pointer: unsafe { NonNull::new_unchecked(&raw mut (*allocation).data) },
         }
+    }
+
+    /// A value that lives for the rest of the process, for the tables of values every thread shares.
+    pub(crate) fn immortal(data: StyleValueData) -> Self {
+        let value = Self::new(data);
+        Self::references(value.pointer.as_ptr()).store(IMMORTAL_REFERENCES, Ordering::Relaxed);
+        value
+    }
+
+    /// This value, which must be its only reference, as one that lives for the rest of the process.
+    pub(crate) fn into_immortal(this: Self) -> Self {
+        assert!(Self::is_unique(&this), "a value becomes immortal before it is shared");
+        Self::references(this.pointer.as_ptr()).store(IMMORTAL_REFERENCES, Ordering::Relaxed);
+        this
     }
 
     fn allocation(pointer: *const StyleValueData) -> *mut StyleValueAllocation {
@@ -91,7 +109,11 @@ impl StyleValueArc {
     /// # Safety
     /// `pointer` must point at a live value.
     pub(crate) unsafe fn increment_strong_count(pointer: *const StyleValueData) {
-        let previous = Self::references(pointer).fetch_add(1, Ordering::Relaxed);
+        let references = Self::references(pointer);
+        if references.load(Ordering::Relaxed) == IMMORTAL_REFERENCES {
+            return;
+        }
+        let previous = references.fetch_add(1, Ordering::Relaxed);
         if previous > MAXIMUM_REFERENCES {
             std::process::abort();
         }
@@ -114,7 +136,11 @@ impl StyleValueArc {
     /// The value, where this is its only reference.
     pub(crate) fn into_inner(this: Self) -> Option<StyleValueData> {
         let pointer = Self::into_raw(this);
-        if Self::references(pointer).fetch_sub(1, Ordering::Release) != 1 {
+        let references = Self::references(pointer);
+        if references.load(Ordering::Relaxed) == IMMORTAL_REFERENCES {
+            return None;
+        }
+        if references.fetch_sub(1, Ordering::Release) != 1 {
             return None;
         }
         fence(Ordering::Acquire);
@@ -144,7 +170,11 @@ impl Clone for StyleValueArc {
 
 impl Drop for StyleValueArc {
     fn drop(&mut self) {
-        if Self::references(self.pointer.as_ptr()).fetch_sub(1, Ordering::Release) != 1 {
+        let references = Self::references(self.pointer.as_ptr());
+        if references.load(Ordering::Relaxed) == IMMORTAL_REFERENCES {
+            return;
+        }
+        if references.fetch_sub(1, Ordering::Release) != 1 {
             return;
         }
         fence(Ordering::Acquire);
@@ -253,6 +283,17 @@ mod tests {
 
         let moved_out = StyleValueArc::unwrap_or_clone(ratio);
         assert_eq!(payload_of(&moved_out), payload);
+    }
+
+    #[test]
+    fn counts_no_references_to_an_immortal_value() {
+        let value = StyleValueArc::immortal(StyleValueData::Number { value: 1.5 });
+        let copy = value.clone();
+        assert_eq!(StyleValueArc::strong_count(&value), super::IMMORTAL_REFERENCES);
+        drop(copy);
+        assert_eq!(StyleValueArc::strong_count(&value), super::IMMORTAL_REFERENCES);
+        assert!(!StyleValueArc::is_unique(&value));
+        assert!(StyleValueArc::into_inner(value).is_none());
     }
 
     #[test]

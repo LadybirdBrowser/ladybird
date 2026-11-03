@@ -3047,8 +3047,16 @@ fn initial_value_table() -> &'static InitialValueTable {
     TABLE.get_or_init(|| {
         let values: Box<[_]> = (FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID)
             .map(|property| {
-                crate::css::parser::value_parser::parse_initial_value(property)
-                    .map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_arc)
+                crate::css::parser::value_parser::parse_initial_value(property).map_or_else(
+                    RetainedStyleValueData::none,
+                    |value| match crate::css::style_value_arc::StyleValueArc::is_unique(&value) {
+                        // NB: The table holds the value for the rest of the process.
+                        true => RetainedStyleValueData::from_arc(
+                            crate::css::style_value_arc::StyleValueArc::into_immortal(value),
+                        ),
+                        false => RetainedStyleValueData::from_arc(value),
+                    },
+                )
             })
             .collect();
         let dependencies = values
