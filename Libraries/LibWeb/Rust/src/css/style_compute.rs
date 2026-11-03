@@ -3422,6 +3422,19 @@ pub(crate) fn value_absolutization_is_identity(value: &StyleValueData) -> bool {
     }
 }
 
+/// Whether `value` computes to itself against the length context `length`, without looking any
+/// further into it: a length in pixels where nothing zooms it, or a value whose absolutization is
+/// the identity.
+fn value_computes_to_itself(value: &StyleValueData, length: &FfiLengthResolutionContext) -> bool {
+    match value {
+        StyleValueData::Length { unit, .. } => *unit == px_length_unit() && length.zoom == 1.0,
+        _ => {
+            value_absolutization_is_identity(value)
+                || crate::css::absolutize::color_function_is_canonical_legacy_rgb(value)
+        }
+    }
+}
+
 /// Properties with a dedicated computed-value rule in the native driver;
 /// everything else computes as plain absolutization.
 fn property_has_dedicated_compute_rule(property_id: u16) -> bool {
@@ -5663,7 +5676,15 @@ pub(crate) fn compute_declared_values<'a>(
         writing_mode_and_direction_of(values.get(prop::WRITING_MODE), values.get(prop::DIRECTION));
     // The longhands decided so far: a lower-priority member of a logical pair decides nothing the
     // higher-priority member decided.
-    let mut decided: SmallVec<[u16; 32]> = SmallVec::new();
+    let mut decided = [0_u64; crate::css::property_metadata::LONGHAND_WORD_COUNT];
+    let longhand_bit = |property_id: u16| {
+        let index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+        (index / 64, 1_u64 << (index % 64))
+    };
+    let is_decided = |decided: &[u64; crate::css::property_metadata::LONGHAND_WORD_COUNT], property_id: u16| {
+        let (word, bit) = longhand_bit(property_id);
+        decided[word] & bit != 0
+    };
     // What a drive over the table computed is decided too.
     let was_driven = |property_id: u16| {
         let index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
@@ -5692,6 +5713,20 @@ pub(crate) fn compute_declared_values<'a>(
         };
         // The caller passes only winners it classified as computing directly.
         debug_assert!(value_computes_directly(property_id, data, prepared_dependencies));
+        // A longhand that does not inherit, declared with the very value its initial value is, holds
+        // what the element's seed does: its initial value computed. Nothing computes against it.
+        if value.pointer() == initial_value_data(property_id)
+            && !is_decided(&decided, property_id)
+            && !was_driven(property_id)
+            && !crate::css::property_metadata::property_is_inherited(property_id)
+            && table_row_bits(property_id) == 0
+            && prepared_dependencies.is_some_and(|dependencies| !dependencies.inheritance_dependent)
+        {
+            let (word, bit) = longhand_bit(property_id);
+            decided[word] |= bit;
+            values.flags_mut().mark_evaluated(property_id);
+            continue;
+        }
         let color_context;
         let context = if property_id == prop::COLOR {
             color_context = crate::css::absolutize::AbsolutizationContext {
@@ -5703,7 +5738,7 @@ pub(crate) fn compute_declared_values<'a>(
         } else {
             &context
         };
-        let mut computed = if value_absolutization_is_identity(data) {
+        let mut computed = if value_computes_to_itself(data, length) {
             std::borrow::Cow::Borrowed(value)
         } else {
             // The color property absolutizes against the inherited color, which no key holds.
@@ -5731,7 +5766,9 @@ pub(crate) fn compute_declared_values<'a>(
                     context
                         .resolved_viewport_relative_length
                         .set(resolved_before || resolved_viewport_relative_length);
-                    if property_id != prop::COLOR && memoized.is_none() {
+                    // NB: A value that absolutized to itself costs its walk again, which is less than
+                    //     a memo entry costs each value that never recurs.
+                    if property_id != prop::COLOR && memoized.is_none() && computed.pointer() != value.pointer() {
                         let independent = value_is_computationally_independent(data) == Some(true);
                         absolutized.insert(
                             crate::css::style::pointer_key::PointerKey::new(value, scheme),
@@ -5791,7 +5828,7 @@ pub(crate) fn compute_declared_values<'a>(
             .or_else(|| try_external_value_dependencies(data))
             .is_none_or(|dependencies| dependencies.inheritance_dependent);
         if let Some(physical) = physical {
-            if decided.contains(&physical) || was_driven(physical) {
+            if is_decided(&decided, physical) || was_driven(physical) {
                 // The physical longhand won, and its value is the alias's too.
                 if let Some(winning) = values.get(physical).cloned() {
                     computed = std::borrow::Cow::Owned(winning);
@@ -5801,12 +5838,14 @@ pub(crate) fn compute_declared_values<'a>(
                 // NB: The physical longhand is what its children inherit, so it keeps the specified
                 //     value as well, replacing the one the table it started from held.
                 values.set_inheritance_dependent_value(physical, inheritance_dependent.then(|| value.clone()));
-                decided.push(physical);
+                let (word, bit) = longhand_bit(physical);
+                decided[word] |= bit;
             }
-        } else if decided.contains(&property_id) || was_driven(property_id) {
+        } else if is_decided(&decided, property_id) || was_driven(property_id) {
             continue;
         }
-        decided.push(property_id);
+        let (word, bit) = longhand_bit(property_id);
+        decided[word] |= bit;
         values.set_borrowed(property_id, &computed);
         values.set_inheritance_dependent_value(property_id, inheritance_dependent.then(|| value.clone()));
     }
@@ -5824,10 +5863,7 @@ pub(crate) fn compute_declared_values<'a>(
     ];
     // https://drafts.csswg.org/css-overflow-3/#overflow-control
     // NB: The two overflow longhands compute together, as in a drive.
-    if decided
-        .iter()
-        .any(|&property_id| property_id == prop::OVERFLOW_X || property_id == prop::OVERFLOW_Y)
-    {
+    if is_decided(&decided, prop::OVERFLOW_X) || is_decided(&decided, prop::OVERFLOW_Y) {
         let [Some(overflow_x), Some(overflow_y)] = overflow else {
             return false;
         };
