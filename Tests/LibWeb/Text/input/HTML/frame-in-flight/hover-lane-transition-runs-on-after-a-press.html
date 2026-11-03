@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; color: rgb(0, 0, 0); transition: color 10s linear; }
+    #box:hover { color: rgb(200, 0, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // A press goes ahead of the next rendering update, in a task of its own, in which the host takes over the transition
+    // the hover of a lane started. That changes nothing of what the lane samples, so it runs the transition on beside
+    // the tasks after the press.
+    asyncTest(async done => {
+        const { before, after, running } = await whileLaneHovers(async frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 100);
+            internals.injectClockTick(frameTime + 1100);
+            const before = internals.presentedColor(box);
+            const clicked = new Promise(resolve => document.addEventListener("click", resolve, { once: true }));
+            await internals.clickThroughUIProcess(300, 300);
+            await clicked;
+            await nextTask();
+            internals.injectClockTick(frameTime + 2100);
+            return { before, after: internals.presentedColor(box), running: box.getAnimations().length };
+        });
+        println(`the transition moved before the press: ${before !== null && before !== "rgb(0, 0, 0)"}`);
+        const redOf = color => parseInt(color.match(/\d+/)[0]);
+        println(`a tick after the press moved the transition on: ${after !== null && redOf(after) > redOf(before)}`);
+        println(`transitions the host runs: ${running}`);
+        done();
+    });
+</script>

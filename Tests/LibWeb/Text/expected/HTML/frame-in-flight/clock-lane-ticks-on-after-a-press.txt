@@ -1,0 +1,2 @@
+the animation moved before the press: true
+a tick after the press moved the animation on: false

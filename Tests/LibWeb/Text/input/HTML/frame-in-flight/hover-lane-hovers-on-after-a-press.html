@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; background: rgb(0, 0, 255); }
+    #box:hover { background: rgb(0, 128, 0); }
+    #other { width: 100px; height: 10px; }
+</style>
+<div id="box"></div>
+<div id="other"></div>
+<script>
+    // A press goes ahead of the next rendering update, in a task of its own, and its listener writes what the release
+    // lays out. A lane that only follows the pointer has sampled nothing, and hovers on from its fork beside the tasks
+    // after the press, with no rendering update to hand it a new one.
+    asyncTest(async done => {
+        const presentedBy = await whileLaneHovers(async () => {
+            const clicked = new Promise(resolve => document.addEventListener("click", resolve, { once: true }));
+            document.addEventListener("pointerdown", () => (other.style.height = "20px"), { once: true });
+            await internals.clickThroughUIProcess(300, 300);
+            await clicked;
+            await nextTask();
+            internals.injectHoverPointer(50, 50);
+            return internals.lastFramePresentedBy(document);
+        });
+        println(`last frame presented by: ${presentedBy}`);
+        await nextFrame();
+        println(`box matches :hover: ${box.matches(":hover")}`);
+        done();
+    });
+</script>

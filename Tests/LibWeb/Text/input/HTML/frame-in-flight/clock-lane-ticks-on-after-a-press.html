@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 0; background: green; }
+</style>
+<div id="box"></div>
+<script>
+    // A press goes ahead of the next rendering update, in a task of its own. No rendering update comes with it, so the
+    // lane ticks on beside the tasks after it.
+    asyncTest(async done => {
+        const { before, after } = await whileLaneAnimates(() => {
+            return box.animate([{ height: "0px" }, { height: "100px" }], { duration: 10000, easing: "linear" });
+        }, async frameTime => {
+            internals.injectClockTick(frameTime + 1000);
+            const before = internals.presentedBorderBox(box).height;
+            const clicked = new Promise(resolve => document.addEventListener("click", resolve, { once: true }));
+            await internals.clickThroughUIProcess(300, 300);
+            await clicked;
+            await nextTask();
+            internals.injectClockTick(frameTime + 2000);
+            return { before, after: internals.presentedBorderBox(box).height };
+        });
+        println(`the animation moved before the press: ${before > 0}`);
+        println(`a tick after the press moved the animation on: ${after > before}`);
+        done();
+    });
+</script>
