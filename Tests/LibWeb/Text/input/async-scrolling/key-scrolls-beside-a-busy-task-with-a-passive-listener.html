@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 5000px;
+    }
+</style>
+<script>
+    // A passive key listener can't cancel a key's scroll, so the compositor scrolls for the key without waiting for the
+    // task that keeps the main thread busy, and the listener hears of the key after. A blocking listener may cancel the
+    // scroll, so the key waits for it.
+    promiseTest(async () => {
+        const compositorOffset = () => internals.compositorScrollState().scrollOffset.y;
+        const settle = async () => {
+            await animationFrame();
+            await animationFrame();
+            internals.synchronizeCompositor();
+        };
+
+        let passiveListenerRan = false;
+        const passiveEvent = new Promise(resolve => {
+            addEventListener(
+                "keydown",
+                event => {
+                    passiveListenerRan = true;
+                    event.preventDefault();
+                    resolve(event);
+                },
+                { passive: true }
+            );
+        });
+        addEventListener("keypress", () => {}, { passive: true });
+        await settle();
+
+        internals.sendKeyThroughUIProcess("Down");
+
+        // NB: This only gives up on a scroll that never comes, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorOffset() !== 100 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`passive listener, beside the task: compositor offset=${compositorOffset()} listener ran=${passiveListenerRan}`);
+
+        let event = await passiveEvent;
+        println(`passive listener: defaultPrevented=${event.defaultPrevented}`);
+        while (window.scrollY !== 100 || compositorOffset() !== 100) await animationFrame();
+
+        const blockingEvent = new Promise(resolve => {
+            addEventListener("keydown", event => {
+                event.preventDefault();
+                resolve(event);
+            });
+        });
+        await settle();
+
+        internals.sendKeyThroughUIProcess("Down");
+
+        // NB: With nothing to move the offset here, the length of this wait can't fail a run of a fixed engine.
+        const waitUntil = performance.now() + 200;
+        while (performance.now() < waitUntil) {
+            // Stay in this task.
+        }
+        println(`blocking listener, beside the task: compositor offset=${compositorOffset()}`);
+
+        event = await blockingEvent;
+        println(`blocking listener: defaultPrevented=${event.defaultPrevented}`);
+        await animationFrame();
+        await animationFrame();
+        println(`after the canceled key: compositor offset=${compositorOffset()} main thread offset=${window.scrollY}`);
+    });
+</script>
