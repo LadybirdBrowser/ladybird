@@ -450,6 +450,10 @@ impl LayoutNodeArena {
         if inputs.containing_block_info.derives_from_own_computed_values {
             return false;
         }
+        // What the box's anchor functions resolved to last time says nothing of the style it has now.
+        if inputs.resolved_anchor_insets.is_some() {
+            return false;
+        }
 
         let Some(style) = node_facts::node_style_view(data) else {
             return false;
