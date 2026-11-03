@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The root takes a store a descendant then holds over another parent's environment, in one style update.
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const readStyles = () => {
+            for (const element of document.querySelectorAll("html, body, body *"))
+                getComputedStyle(element).getPropertyValue("--value");
+        };
+
+        const parent = document.createElement("div");
+        document.body.append(parent);
+        document.body.append(document.createElement("details"));
+        const child = document.createElement("option");
+        child.className = "marked";
+        parent.append(child);
+
+        for (const text of [
+            "* { --value: 0; }",
+            "@media (prefers-color-scheme: light) { :is(.marked, .other) { --value: 1; } }",
+        ]) {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.append(style);
+        }
+        await nextFrame();
+
+        document.documentElement.classList.add("marked");
+        document.head.style.display = "block";
+        document.documentElement.cloneNode(true);
+        readStyles();
+        document.head.removeAttribute("style");
+
+        internals.setPreferredColorScheme("dark");
+        await nextFrame();
+        internals.setPreferredColorScheme("light");
+        await nextFrame();
+        internals.setPreferredColorScheme("dark");
+        await nextFrame();
+        await nextFrame();
+
+        for (const element of [document.documentElement, parent, child])
+            println(`${element.localName}: ${getComputedStyle(element).getPropertyValue("--value")}`);
+        done();
+    });
+</script>

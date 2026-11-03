@@ -1971,16 +1971,19 @@ RefPtr<CSS::CustomPropertyData const> Element::style_custom_property_environment
     // NB: Where the animations of the element's parent sample custom properties, the parent holds their composition
     //     over the environment the style engine resolved the element's over. The element inherits the composition, and
     //     its own declarations stand over it, as when the animations move the parent's environment.
+    // NB: An environment names the environment it was resolved over last, which a descendant holding the store can have
+    //     moved. So this also comes to the root, whose declarations stand over nothing.
     auto parent = DOM::AbstractElement { const_cast<Element&>(*this) }.element_to_inherit_style_from();
-    VERIFY(parent.has_value());
     auto& style_computer = document().style_computer();
     auto& style_engine = style_computer.style_engine();
     RefPtr<CSS::CustomPropertyData const> inherited_data;
-    if (auto parent_data = parent->custom_property_data())
-        inherited_data = parent_data->inheritable(read, document());
-    auto const parent_identity = parent->installed_style().custom_property_environment();
-    if (identity == CSS::StyleEngineFFI::style_engine_inheritable_custom_property_environment(style_engine.host(), &read, parent_identity))
-        return inherited_data;
+    if (parent.has_value()) {
+        if (auto parent_data = parent->custom_property_data())
+            inherited_data = parent_data->inheritable(read, document());
+        auto const parent_identity = parent->installed_style().custom_property_environment();
+        if (identity == CSS::StyleEngineFFI::style_engine_inheritable_custom_property_environment(style_engine.host(), &read, parent_identity))
+            return inherited_data;
+    }
     auto declarations = style_computer.engine_custom_property_declarations_over(read, identity, inherited_data);
     VERIFY(declarations);
     return declarations;
