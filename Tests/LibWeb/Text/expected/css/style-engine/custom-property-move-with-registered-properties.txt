@@ -1,0 +1,20 @@
+initially
+own: width=20px inherited=10px own=20px theme=1
+inherited: width=10px inherited=10px own=0px theme=1
+theme: width=1px inherited=10px own=0px theme=1
+unrelated: width=3px inherited=10px own=0px theme=1
+after moving an unregistered custom property
+own: width=40px inherited=10px own=40px theme=2
+inherited: width=10px inherited=10px own=0px theme=2
+theme: width=2px inherited=10px own=0px theme=2
+unrelated: width=3px inherited=10px own=0px theme=2
+after moving an inherited registered custom property
+own: width=40px inherited=30px own=40px theme=2
+inherited: width=30px inherited=30px own=0px theme=2
+theme: width=2px inherited=30px own=0px theme=2
+unrelated: width=3px inherited=30px own=0px theme=2
+after setting a registered custom property that does not inherit
+own: width=40px inherited=30px own=40px theme=2
+inherited: width=30px inherited=30px own=0px theme=2
+theme: width=2px inherited=30px own=0px theme=2
+unrelated: width=3px inherited=30px own=0px theme=2

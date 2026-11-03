@@ -423,11 +423,15 @@ pub(super) fn append_named_custom_property_reads(value: &StyleValueData, names: 
 }
 
 /// The custom properties a written value reads by name, or `None` when it may read others: an
-/// `if()` condition, a custom function or an attribute's value can read any.
+/// `if()` condition, a custom function or an attribute's value can read any, and `inherit()` reads
+/// what the parent holds, which holds more than it hands down.
 fn named_custom_property_reads(value: &StyleValueData) -> Option<Vec<&[u16]>> {
     let value = substituted_tokens(value);
     if let StyleValueData::Unresolved(unresolved) = value
-        && (unresolved.presence().attr || unresolved.presence().dashed_function || unresolved.presence().if_)
+        && (unresolved.presence().attr
+            || unresolved.presence().dashed_function
+            || unresolved.presence().if_
+            || unresolved.presence().inherit)
     {
         return None;
     }
