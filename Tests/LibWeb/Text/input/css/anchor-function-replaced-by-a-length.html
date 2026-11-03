@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div style="position: relative; width: 100px; height: 100px"><div id="target" style="position: absolute; width: 5px; height: 5px"></div></div>
+<script>
+    test(() => {
+        const container = target.parentElement.getBoundingClientRect();
+        const report = label => {
+            const { left, top, width } = target.getBoundingClientRect();
+            println(`${label}: left ${left - container.left}, top ${top - container.top}, width ${width}`);
+        };
+
+        // What an anchor function resolved to, here its fallback, holds for the layout it ran in, and no longer once a
+        // length replaces it. The layout before each change gives the box inputs that a later layout may replay.
+        const change = (property, anchored, length) => {
+            report(`${property} before`);
+            target.style[property] = anchored;
+            document.body.offsetWidth;
+            target.style[property] = length;
+            report(`${property} from ${anchored} to ${length}`);
+            target.style[property] = "";
+        };
+        change("top", "anchor(--none bottom, 7px)", "1px");
+        change("left", "anchor(--none right, 7px)", "1px");
+        change("width", "anchor-size(--none width, 7px)", "1px");
+    });
+</script>

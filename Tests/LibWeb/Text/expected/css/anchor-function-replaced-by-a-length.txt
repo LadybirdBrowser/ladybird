@@ -1,0 +1,6 @@
+top before: left 0, top 0, width 5
+top from anchor(--none bottom, 7px) to 1px: left 0, top 1, width 5
+left before: left 0, top 0, width 5
+left from anchor(--none right, 7px) to 1px: left 1, top 0, width 5
+width before: left 0, top 0, width 5
+width from anchor-size(--none width, 7px) to 1px: left 0, top 0, width 1
