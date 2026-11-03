@@ -11,6 +11,7 @@
 #include <AK/HashTable.h>
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
+#include <AK/Optional.h>
 #include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/StackInfo.h>
@@ -226,7 +227,9 @@ private:
     void give_back_local_free_lists();
 
     void will_allocate(size_t, TriggersCollection = TriggersCollection::Yes);
-    void update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_external_bytes);
+    void update_allocation_rate();
+    double next_growth_factor(size_t live_cell_bytes);
+    void update_gc_bytes_threshold(size_t live_external_bytes);
 
     enum class IncludeIncomingCrossHeapMembers {
         No,
@@ -334,7 +337,7 @@ private:
 
     bool m_incremental_sweep_active { false };
     size_t m_block_sweeps_in_progress { 0 };
-    size_t m_sweep_live_cell_bytes { 0 };
+    size_t m_marked_cell_bytes { 0 };
     size_t m_sweep_live_external_bytes { 0 };
     Vector<GC::Ptr<Cell>> m_cells_allocated_during_sweep;
     CellAllocator::SweepList m_allocators_to_sweep;
@@ -345,6 +348,14 @@ private:
     // The context a heap created through LibGC/CAPI.h was created with.
     void* m_foreign_context { nullptr };
     IdleCollectionPolicy m_idle_collection_policy;
+
+    // What decides the next collection budget. See next_growth_factor().
+    double m_allocation_bytes_per_second { 0 };
+    Optional<double> m_wanted_growth_factor;
+    u64 m_total_allocated_bytes_at_last_collection { 0 };
+    i64 m_last_collection_end_ns { 0 };
+    i64 m_mark_duration_ns { 0 };
+    i64 m_sweep_duration_ns { 0 };
 };
 
 inline void Heap::did_create_root(Badge<RootImpl>, RootImpl& impl)

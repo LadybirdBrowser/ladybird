@@ -49,12 +49,24 @@
 namespace GC {
 
 static constexpr size_t GC_MIN_BYTES_THRESHOLD { 32 * 1024 * 1024 };
-static constexpr size_t GC_HEAP_GROWTH_FACTOR_NUMERATOR { 16 };
-static constexpr size_t GC_HEAP_GROWTH_FACTOR_DENOMINATOR { 4 };
+
+// The share of running time we want to spend collecting. A cycle costs its mark and sweep time and lasts as long as it
+// takes to allocate its budget, so meeting this share takes a budget of allocation_rate * cost * (1 - u) / u.
+static constexpr double GC_TARGET_TIME_FRACTION { 0.1 };
+
+// Growth factors relative to live cell bytes. The minimum lets the heap triple between collections, which is where a
+// page that allocates slowly ends up. A lower minimum would save more memory, but marking pauses the page for as long
+// as it takes to mark everything alive, and it would do so more often while the page is busy.
+static constexpr double GC_MIN_GROWTH_FACTOR { 2 };
+static constexpr double GC_MAX_GROWTH_FACTOR { 8 };
+
+// OPTIMIZATION: A program that allocates fast and keeps little alive gains from a budget far above the maximum factor,
+//               so the maximum never limits a budget below this.
+static constexpr size_t GC_MAX_BUDGET_FLOOR_BYTES { 256 * 1024 * 1024 };
 
 // NB: Memory that cells own outside the heap (array buffer contents, decoded images) is mostly large, long-lived data,
-//     and allocating more cells does not grow it. Letting it grow the threshold by the cell factor makes a page with
-//     1 GiB of such memory allocate ~4 GiB of cells between collections, so it only grows the threshold by a tenth.
+//     and allocating more cells does not grow it. Letting it grow the threshold by the growth factor makes a page with
+//     1 GiB of such memory allocate gigabytes of cells between collections, so it only grows the threshold by a tenth.
 static constexpr size_t GC_EXTERNAL_GROWTH_FACTOR_NUMERATOR { 1 };
 static constexpr size_t GC_EXTERNAL_GROWTH_FACTOR_DENOMINATOR { 10 };
 
@@ -305,6 +317,7 @@ Heap::Heap(AK::Function<void(HashMap<Cell*, GC::HeapRoot>&)> gather_embedder_roo
     if (become_process_default == BecomeProcessDefault::Yes)
         s_the = this;
     m_gc_bytes_threshold = GC_MIN_BYTES_THRESHOLD;
+    m_last_collection_end_ns = MonotonicTime::now().nanoseconds();
     static_assert(HeapBlock::min_possible_cell_size <= 32, "Heap Cell tracking uses too much data!");
 }
 
@@ -418,15 +431,35 @@ void Heap::did_free_external_memory(size_t size)
     m_allocated_bytes_since_last_gc -= size;
 }
 
-void Heap::update_gc_bytes_threshold(size_t live_cell_bytes, size_t live_external_bytes)
+double Heap::next_growth_factor(size_t live_cell_bytes)
 {
+    if (live_cell_bytes == 0)
+        return GC_MIN_GROWTH_FACTOR;
+
+    auto live = static_cast<double>(live_cell_bytes);
+    auto cost_seconds = static_cast<double>(m_mark_duration_ns + m_sweep_duration_ns) / 1e9;
+    auto wanted_budget = m_allocation_bytes_per_second * cost_seconds * (1 - GC_TARGET_TIME_FRACTION) / GC_TARGET_TIME_FRACTION;
+
+    // NB: Allocation rates swing from one cycle to the next, so keep an average that the clamp below does not touch.
+    m_wanted_growth_factor = m_wanted_growth_factor.has_value()
+        ? (wanted_budget / live + m_wanted_growth_factor.value()) / 2
+        : wanted_budget / live;
+
+    auto max_growth_factor = max(GC_MAX_GROWTH_FACTOR, static_cast<double>(GC_MAX_BUDGET_FLOOR_BYTES) / live);
+    return clamp(m_wanted_growth_factor.value(), GC_MIN_GROWTH_FACTOR, max_growth_factor);
+}
+
+void Heap::update_gc_bytes_threshold(size_t live_external_bytes)
+{
+    // NB: Only marking knows how much the last collection found alive. A sweep also sees the cells allocated into
+    //     blocks it has yet to reach, which are marked to keep them alive.
+    auto live_cell_bytes = m_marked_cell_bytes;
     if (m_stats) {
         m_stats->live_cell_bytes = live_cell_bytes;
         m_stats->live_external_bytes = live_external_bytes;
     }
-    Checked<size_t> next_gc_bytes_threshold = live_cell_bytes;
-    next_gc_bytes_threshold *= GC_HEAP_GROWTH_FACTOR_NUMERATOR;
-    next_gc_bytes_threshold /= GC_HEAP_GROWTH_FACTOR_DENOMINATOR;
+    Checked<size_t> next_gc_bytes_threshold = static_cast<size_t>(static_cast<double>(live_cell_bytes) * next_growth_factor(live_cell_bytes));
+    m_sweep_duration_ns = 0;
 
     Checked<size_t> external_growth = live_external_bytes;
     external_growth *= GC_EXTERNAL_GROWTH_FACTOR_NUMERATOR;
@@ -799,8 +832,9 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
 
     VERIFY(!m_collecting_garbage);
 
+    update_allocation_rate();
     finish_pending_incremental_sweep();
-    auto stats_start_ns = m_stats ? MonotonicTime::now().nanoseconds() : 0;
+    auto mark_start_ns = MonotonicTime::now().nanoseconds();
     give_back_local_free_lists();
     g_next_incremental_sweep_should_report = false;
 
@@ -841,10 +875,13 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
                 ScopedPhaseTimer timer { report, g_phase_timings.mark_live_cells_us };
                 mark_live_cells(roots);
             }
+        } else {
+            m_marked_cell_bytes = 0;
         }
         clear_weak_pointers_to_dead_cells(report);
         run_post_mark_phases(report);
         m_weak_pointers_to_dead_cells_are_cleared = false;
+        m_mark_duration_ns = MonotonicTime::now().nanoseconds() - mark_start_ns;
 
         // For CollectEverything we must finish sweeping synchronously so that
         // every cell is collected before the Heap destructor returns. All
@@ -877,8 +914,11 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     else
         g_next_incremental_sweep_should_report = false;
 
+    m_last_collection_end_ns = MonotonicTime::now().nanoseconds();
+    m_total_allocated_bytes_at_last_collection = m_total_allocated_bytes;
+
     if (m_stats) {
-        m_stats->pause_duration_ns = MonotonicTime::now().nanoseconds() - stats_start_ns;
+        m_stats->pause_duration_ns = m_last_collection_end_ns - mark_start_ns;
         if (!m_incremental_sweep_active)
             finish_stats_collection();
     }
@@ -888,6 +928,13 @@ void Heap::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, Collecti
     // A collection just happened: restart the idle policy's episode (peak rate and watchdog tick count) from here, so
     // a threshold-driven GC mid-episode doesn't leave it comparing against stale state.
     m_idle_collection_policy.reset(m_total_allocated_bytes);
+}
+
+void Heap::update_allocation_rate()
+{
+    auto now_ns = MonotonicTime::now().nanoseconds();
+    if (now_ns > m_last_collection_end_ns)
+        m_allocation_bytes_per_second = static_cast<double>(m_total_allocated_bytes - m_total_allocated_bytes_at_last_collection) * 1e9 / static_cast<double>(now_ns - m_last_collection_end_ns);
 }
 
 void Heap::set_should_collect_on_every_allocation(bool should_collect)
@@ -1437,6 +1484,8 @@ public:
                 auto cell = m_work_queue.take_last();
                 if (cell->state() != Cell::State::Live)
                     continue;
+                auto* block = HeapBlock::from_cell(cell.ptr());
+                block->heap().m_marked_cell_bytes += block->cell_size();
                 cell->type_info().visit_edges(cell.ptr(), this);
             }
 
@@ -1485,6 +1534,9 @@ void Heap::mark_live_cells_across(ReadonlySpan<Heap* const> heaps, HashMap<Cell*
         }
     }
 
+    for (auto* heap : heaps)
+        heap->m_marked_cell_bytes = 0;
+
     Optional<MarkingVisitor> visitor;
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.mark_initial_visit_us };
@@ -1530,6 +1582,7 @@ void Heap::sweep_weak_blocks()
 void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measurement_timer)
 {
     dbgln_if(HEAP_DEBUG, "sweep_dead_cells:");
+    auto sweep_start_ns = MonotonicTime::now().nanoseconds();
     Vector<HeapBlock*, 32> empty_blocks;
     Vector<HeapBlock*, 32> full_blocks_that_became_usable;
 
@@ -1594,7 +1647,8 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 
     {
         ScopedPhaseTimer timer { g_recording_phase_timings, g_phase_timings.sweep_update_threshold_us };
-        update_gc_bytes_threshold(live_cell_bytes, live_external_bytes);
+        m_sweep_duration_ns += MonotonicTime::now().nanoseconds() - sweep_start_ns;
+        update_gc_bytes_threshold(live_external_bytes);
     }
 
     if (print_report) {
@@ -1617,11 +1671,15 @@ void Heap::sweep_dead_cells(bool print_report, Core::ElapsedTimer const& measure
 void Heap::sweep_block(HeapBlock& block)
 {
     // A destructor can allocate and sweep another block. Its time is included in the outermost sweep.
-    bool record_stats = m_stats && m_block_sweeps_in_progress == 0;
-    auto stats_start_ns = record_stats ? MonotonicTime::now().nanoseconds() : 0;
-    ScopeGuard record_duration = [&] {
-        if (record_stats)
-            m_stats->sweep_duration_ns += MonotonicTime::now().nanoseconds() - stats_start_ns;
+    bool record_duration = m_block_sweeps_in_progress == 0;
+    auto start_ns = record_duration ? MonotonicTime::now().nanoseconds() : 0;
+    ScopeGuard record_duration_guard = [&] {
+        if (!record_duration)
+            return;
+        auto duration_ns = MonotonicTime::now().nanoseconds() - start_ns;
+        m_sweep_duration_ns += duration_ns;
+        if (m_stats)
+            m_stats->sweep_duration_ns += duration_ns;
     };
     ++m_block_sweeps_in_progress;
     ScopeGuard finish_block_sweep = [&] { --m_block_sweeps_in_progress; };
@@ -1644,7 +1702,6 @@ void Heap::sweep_block(HeapBlock& block)
         } else {
             cell->set_marked(false);
             block_has_live_cells = true;
-            m_sweep_live_cell_bytes += block.cell_size();
             ++live_cells;
             if (!external_memory_size)
                 return;
@@ -1700,7 +1757,6 @@ void Heap::start_incremental_sweep()
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Starting incremental sweep ===");
 
     m_incremental_sweep_active = true;
-    m_sweep_live_cell_bytes = 0;
     m_sweep_live_external_bytes = 0;
     incremental_sweep_stats().should_report = false;
     incremental_sweep_stats().total_blocks = 0;
@@ -1733,13 +1789,13 @@ void Heap::start_incremental_sweep()
 
 void Heap::finish_incremental_sweep()
 {
-    update_gc_bytes_threshold(m_sweep_live_cell_bytes, m_sweep_live_external_bytes);
+    update_gc_bytes_threshold(m_sweep_live_external_bytes);
 
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep] === Sweep complete ===");
-    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live cell bytes: {} ({} KiB)", m_sweep_live_cell_bytes, m_sweep_live_cell_bytes / KiB);
+    dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live cell bytes: {} ({} KiB)", m_marked_cell_bytes, m_marked_cell_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Live external bytes: {} ({} KiB)", m_sweep_live_external_bytes, m_sweep_live_external_bytes / KiB);
     dbgln_if(INCREMENTAL_SWEEP_DEBUG, "[sweep]     Next GC threshold: {} ({} KiB)", m_gc_bytes_threshold, m_gc_bytes_threshold / KiB);
-    print_incremental_sweep_report(m_sweep_live_cell_bytes, m_sweep_live_external_bytes, m_gc_bytes_threshold);
+    print_incremental_sweep_report(m_marked_cell_bytes, m_sweep_live_external_bytes, m_gc_bytes_threshold);
 
     // Clear marks on cells allocated during sweep. Sweep already cleared
     // marks on cells it visited, so only these remain marked.
