@@ -92,7 +92,11 @@ define_object_class!(FunctionPrototype, extends: [FunctionObject, Object], metho
 pub(crate) static APPLY_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::apply);
 pub(crate) static CALL_FUNCTION: RawNativeFunctionPointer = raw_native!(FunctionPrototype::call);
 
-fn is_native_function(vm: &Vm, function: &RawNativeFunction, native_function: RawNativeFunctionPointer) -> bool {
+pub(crate) fn is_native_function(
+    vm: &Vm,
+    function: &RawNativeFunction,
+    native_function: RawNativeFunctionPointer,
+) -> bool {
     let address = |pointer: RawNativeFunctionPointer| pointer.map(|pointer| pointer as usize);
     address(function.native_function(vm)) == address(native_function)
 }

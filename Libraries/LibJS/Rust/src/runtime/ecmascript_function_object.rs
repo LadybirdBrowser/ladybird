@@ -23,8 +23,8 @@ use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
 use crate::layout::environment::{Environment, PrivateEnvironment};
 use crate::layout::execution_context::{ExecutionContext, ScriptOrModule};
-use crate::layout::function_object::ecmascript_function_flags;
 pub use crate::layout::function_object::{EcmascriptFunctionObject, EcmascriptFunctionObjectWithRareData};
+use crate::layout::function_object::{RawNativeFunction, ecmascript_function_flags};
 use crate::layout::member::NullableMember;
 use crate::layout::object::{IndexedStorageKind, Object};
 use crate::layout::value::Value;
@@ -39,6 +39,7 @@ use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
+use crate::runtime::function_prototype::FunctionPrototype;
 use crate::runtime::generator_object::{GeneratingFunction, GeneratorObject};
 use crate::runtime::intrinsics::Intrinsics;
 use crate::runtime::object::{
@@ -49,6 +50,7 @@ use crate::runtime::property_attributes::{Attribute, PropertyAttributes};
 use crate::runtime::property_descriptor::PropertyDescriptor;
 use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
+use crate::runtime::reflect_object::ReflectObject;
 use crate::runtime::shared_function_instance_data::{
     ClassFieldInitializerName, ClosureCount, ConstructorKind, FunctionKind, SharedFunctionInstanceData, ThisMode,
 };
@@ -166,6 +168,15 @@ pub fn value_as_ecmascript_function_object(value: Value) -> Option<Gc<Ecmascript
         return None;
     }
     as_ecmascript_function_object(value.as_object())
+}
+
+fn performs_prepare_for_tail_call(vm: &Vm, function: Gc<FunctionObject>) -> bool {
+    let Some(function) = function.upcast::<Object>().downcast::<RawNativeFunction>() else {
+        return false;
+    };
+    FunctionPrototype::is_call_function(vm, &function)
+        || FunctionPrototype::is_apply_function(vm, &function)
+        || ReflectObject::is_apply_function(vm, &function)
 }
 
 fn prototype_for_function_kind(realm: Gc<Realm>, kind: FunctionKind) -> Gc<Object> {
@@ -1117,6 +1128,12 @@ impl EcmascriptFunctionObject {
             let Some(function) = frame.function else {
                 return ControlFlow::Continue(());
             };
+
+            // NB: The spec has these built-ins perform PrepareForTailCall(), which discards their execution context
+            //     before they call this function. We don't implement it, so skip the frames we keep for them.
+            if performs_prepare_for_tail_call(vm, function) {
+                return ControlFlow::Continue(());
+            }
 
             caller = as_ecmascript_function_object(function);
             ControlFlow::Break(())
