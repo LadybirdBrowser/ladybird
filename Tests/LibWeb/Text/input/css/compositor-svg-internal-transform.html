@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes pulse { from { transform: scaleY(0.5); } to { transform: scaleY(1); } }
+    .bar { animation: pulse 1s infinite; }
+    #cases { width: 100px; height: 100px; }
+</style>
+<svg id="cases" viewBox="0 0 24 24"></svg>
+<script>
+    function nextTask() {
+        const { promise, resolve } = Promise.withResolvers();
+        const channel = new MessageChannel();
+        channel.port1.onmessage = resolve;
+        channel.port2.postMessage(null);
+        return promise;
+    }
+
+    const rect = `<rect class="bar" width="5" height="5"/>`;
+    const onTheCompositor = {
+        "a rect": rect,
+        "a rect in a group": `<g>${rect}</g>`,
+        "a rect in a transformed group": `<g transform="translate(1 1)">${rect}</g>`,
+        "a group": `<g class="bar"><rect width="5" height="5"/></g>`,
+        "a rect in a translucent group": `<g opacity="0.5">${rect}</g>`,
+    };
+    // The bounding box of a container includes the transforms of the boxes inside it, so what reads that box needs
+    // the current transform. A <use> element's own translation is part of the matrix the animation would replace.
+    // Resources paint on the main thread each time they are used, and a nested viewport has a transform of its own.
+    const onTheMainThread = {
+        "a rect in a group with a filter": `<filter id="f"><feOffset dx="1"/></filter><g filter="url(#f)">${rect}</g>`,
+        "a rect in a group with a clip path": `<clipPath id="c"><rect width="9" height="9"/></clipPath><g clip-path="url(#c)">${rect}</g>`,
+        "a rect in a group with a mask": `<mask id="m"><rect width="9" height="9" fill="white"/></mask><g mask="url(#m)">${rect}</g>`,
+        "a rect in a group transformed about its fill box": `<g style="transform: rotate(5deg); transform-box: fill-box">${rect}</g>`,
+        "a rect in a mask": `<mask id="n">${rect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
+        "a use element": `<defs><rect id="u" width="5" height="5"/></defs><use class="bar" href="#u" x="1"/>`,
+        "a nested svg": `<svg class="bar" width="5" height="5"><rect width="5" height="5"/></svg>`,
+    };
+
+    asyncTest(async done => {
+        internals.setManualRenderingOpportunities(true);
+        await nextTask();
+        let frameTime = performance.now();
+        const renderFrames = async () => {
+            for (let i = 0; i < 4; ++i) {
+                internals.injectRenderingOpportunity((frameTime += 16));
+                await nextTask();
+            }
+        };
+        const check = async (heading, group) => {
+            println(heading);
+            for (const [name, markup] of Object.entries(group)) {
+                cases.innerHTML = markup;
+                await renderFrames();
+                internals.resetStyleInvalidationCounters();
+                internals.updateCompositorAnimations();
+                println(`  ${name}: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+            }
+        };
+        await check("runs on the compositor:", onTheCompositor);
+        await check("runs on the compositor, though it must not:", onTheMainThread);
+
+        cases.innerHTML = onTheCompositor["a rect in a group"];
+        await renderFrames();
+        await renderFrames();
+        internals.resetStyleInvalidationCounters();
+        internals.resetRenderingSchedulerCounters();
+        await renderFrames();
+        const counters = internals.getStyleInvalidationCounters();
+        const scheduler = internals.getRenderingSchedulerCounters();
+        println(`the main thread leaves the animated style alone: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`the main thread asks for no frames: ${counters.animationFramePumpRequests === 0}`);
+        println(`the main thread runs no rendering updates: ${scheduler.updatesRun === 0}`);
+
+        // What a script reads comes from the current transform, while the compositor draws it.
+        cases.innerHTML = `<g><rect width="5" height="10"/></g>`;
+        const group = cases.firstElementChild;
+        const timeline = internals.createInternalAnimationTimeline();
+        const animation = new Animation(new KeyframeEffect(group.firstElementChild,
+            [{ transform: "scaleY(1)" }, { transform: "scaleY(0.5)" }],
+            { duration: 1000, iterations: Infinity }), timeline);
+        animation.play();
+        timeline.setTime(0);
+        await renderFrames();
+        internals.resetStyleInvalidationCounters();
+        internals.updateCompositorAnimations();
+        println(`the box a script reads runs on the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        println(`height of its group at the start: ${group.getBBox().height}`);
+        await nextTask();
+        timeline.setTimeForObservation(500);
+        println(`height of its group halfway: ${group.getBBox().height}`);
+        done();
+    });
+</script>

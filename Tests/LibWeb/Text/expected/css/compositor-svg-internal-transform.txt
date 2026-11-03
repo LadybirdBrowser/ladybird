@@ -1,0 +1,20 @@
+runs on the compositor:
+  a rect: false
+  a rect in a group: false
+  a rect in a transformed group: false
+  a group: false
+  a rect in a translucent group: false
+runs on the compositor, though it must not:
+  a rect in a group with a filter: false
+  a rect in a group with a clip path: false
+  a rect in a group with a mask: false
+  a rect in a group transformed about its fill box: false
+  a rect in a mask: false
+  a use element: false
+  a nested svg: false
+the main thread leaves the animated style alone: false
+the main thread asks for no frames: false
+the main thread runs no rendering updates: false
+the box a script reads runs on the compositor: false
+height of its group at the start: 10
+height of its group halfway: 10
