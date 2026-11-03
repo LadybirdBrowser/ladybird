@@ -54,9 +54,12 @@ struct PositionOptionStyle<'pass> {
 }
 
 impl<'arena> LayoutPass<'arena> {
+    /// A pass over `arena` and `scratch`, which notes what it finds out for the host outside any run in
+    /// `host_findings_outside_runs`.
     pub(crate) fn new(
         arena: &'arena LayoutNodeArena,
         scratch: &'arena super::run_state::LayoutScratch,
+        host_findings_outside_runs: &'arena RefCell<super::run_state::HostFindings>,
         stage: super::formatting_context::LayoutStageFacts,
     ) -> Self {
         Self {
@@ -67,7 +70,7 @@ impl<'arena> LayoutPass<'arena> {
             document_in_quirks_mode: stage.document_in_quirks_mode,
             frame: super::geometry::Frame::PHYSICAL,
             innermost_run: (NodeSlotId::INVALID, NodeSlotId::INVALID),
-            host_findings: &scratch.host_findings_outside_runs,
+            host_findings: host_findings_outside_runs,
             intrinsic_size_caches: &scratch.intrinsic_size_caches,
             reads_no_memoized_layout: false,
             position_option_styles: None,
@@ -76,10 +79,15 @@ impl<'arena> LayoutPass<'arena> {
 
     /// A pass over `arena` and `scratch` with no viewport, in no-quirks mode.
     #[cfg(test)]
-    pub(crate) fn for_test(arena: &'arena LayoutNodeArena, scratch: &'arena super::run_state::LayoutScratch) -> Self {
+    pub(crate) fn for_test(
+        arena: &'arena LayoutNodeArena,
+        scratch: &'arena super::run_state::LayoutScratch,
+        host_findings_outside_runs: &'arena RefCell<super::run_state::HostFindings>,
+    ) -> Self {
         Self::new(
             arena,
             scratch,
+            host_findings_outside_runs,
             super::formatting_context::LayoutStageFacts {
                 viewport_inline_size: CssPixels::default(),
                 viewport_block_size: CssPixels::default(),

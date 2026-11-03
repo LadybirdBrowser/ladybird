@@ -665,7 +665,11 @@ mod tests {
         let block = arena.allocate_for_test().slot;
         scratch.apply_memo_invalidations(&mut arena);
         let keep = |arena: &LayoutNodeArena, scratch: &LayoutScratch| {
-            let validity = run_root_validity(&LayoutPass::for_test(arena, scratch), block);
+            let host_findings_outside_runs = RefCell::default();
+            let validity = run_root_validity(
+                &LayoutPass::for_test(arena, scratch, &host_findings_outside_runs),
+                block,
+            );
             let prepared = Arc::new(PreparedInlineContent {
                 validity,
                 items: Box::default(),
