@@ -87,6 +87,8 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
     if (verify_style) {
         // NB: The style engine checks what it installed against a cold computation of the document.
         MUST(Core::Environment::set("LIBWEB_STYLE_SELFCHECK"sv, "1"sv, Core::Environment::Overwrite::Yes));
+        // NB: The style engine compares each group an element takes with the one its values build.
+        MUST(Core::Environment::set("LIBWEB_VERIFY_STYLE_CHUNKS"sv, "1"sv, Core::Environment::Overwrite::Yes));
         // NB: A cold computation per update takes a large document's test past the usual timeout.
         per_test_timeout_in_seconds = max(per_test_timeout_in_seconds, 180);
     }
