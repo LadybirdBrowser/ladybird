@@ -102,6 +102,11 @@ class LinkedResourceFinder(HTMLParser):
             attr_dict = dict(attrs)
             if "src" in attr_dict:
                 self._resources.add(attr_dict["src"])
+            # An SVG script element names its script with href or xlink:href.
+            if tag == "script":
+                for name in ["href", "xlink:href"]:
+                    if name in attr_dict:
+                        self._resources.add(attr_dict[name])
         if tag == "link":
             attr_dict = dict(attrs)
             if "rel" in attr_dict and attr_dict["rel"] == "stylesheet":
