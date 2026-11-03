@@ -364,6 +364,9 @@ private:
     void update_iosurface_layer_background_color();
     void detach_iosurface_layer_from_native_view();
     void destroy_iosurface_layer();
+    void update_whether_qt_paints_view();
+    virtual QPaintEngine* paintEngine() const override;
+    virtual void childEvent(QChildEvent*) override;
 
     void* m_iosurface_layer { nullptr };
     void* m_page_dim_layer { nullptr };
