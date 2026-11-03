@@ -445,7 +445,7 @@ pub struct HostState {
     /// The style node identities the end of a transaction released since the job began, which the job's end pays the
     /// host to mint again.
     released_style_nodes: Vec<u32>,
-    /// The hover seal's last answer, with what it read.
+    /// What the hover seal keeps between frames.
     hover_seal: pipeline::HoverSealMemo,
 }
 

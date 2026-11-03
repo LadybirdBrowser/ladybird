@@ -380,41 +380,6 @@ impl<T, const CHUNK: usize> ColumnSnapshot<T, CHUNK> {
         spine_heap_size(&self.spine, sizer, &mut row_heap)
     }
 
-    /// The rows of the chunks this snapshot holds other than `older` does, as ranges of row indices: a chunk either
-    /// holds and the other does not, or that the two hold different allocations of. A group both share is skipped
-    /// whole, so the cost follows the chunks written between the two generations rather than the column's size.
-    pub(crate) fn changed_rows_since(&self, older: &Self) -> Vec<std::ops::Range<usize>> {
-        let mut changed = Vec::new();
-        if Arc::ptr_eq(&self.spine, &older.spine) {
-            return changed;
-        }
-        for group_index in 0..self.spine.len().max(older.spine.len()) {
-            let (group, older_group) = (self.spine.get(group_index), older.spine.get(group_index));
-            if let (Some(group), Some(older_group)) = (group, older_group)
-                && Arc::ptr_eq(group, older_group)
-            {
-                continue;
-            }
-            for chunk_in_group in 0..GROUP {
-                let chunk = group.and_then(|group| group.0[chunk_in_group].as_ref());
-                let older_chunk = older_group.and_then(|group| group.0[chunk_in_group].as_ref());
-                let same = match (chunk, older_chunk) {
-                    (Some(chunk), Some(older_chunk)) => Arc::ptr_eq(chunk, older_chunk),
-                    (None, None) => true,
-                    _ => false,
-                };
-                if !same {
-                    let start = (group_index * GROUP + chunk_in_group) * CHUNK;
-                    match changed.last_mut() {
-                        Some(last) if last.end == start => last.end = start + CHUNK,
-                        _ => changed.push(start..start + CHUNK),
-                    }
-                }
-            }
-        }
-        changed
-    }
-
     /// How many rows the snapshot has room for: every row index below it may be read.
     pub(crate) fn slot_capacity(&self) -> usize {
         self.spine.last().map_or(0, |last| {
@@ -617,21 +582,6 @@ mod tests {
         assert_eq!(rows(&first, 6), [1, 2, 3, 4, 5, 6]);
         assert_eq!(rows(&second, 7), [1, 20, 3, 4, 5, 6, 7]);
         assert_eq!(rows(&column.publish(), 7), [1, 20, 3, 4, 5, 60, 7]);
-    }
-
-    #[test]
-    fn a_snapshot_names_the_rows_of_the_chunks_written_since_an_older_one() {
-        let mut column = column_of(&[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        let first = column.publish();
-        assert!(column.publish().changed_rows_since(&first).is_empty());
-        set(&mut column, 5, 60);
-        set(&mut column, 9, 90);
-        column.grow_to(13);
-        let second = column.publish();
-        assert_eq!(second.changed_rows_since(&first), [4..16]);
-        set(&mut column, 1, 20);
-        assert_eq!(column.publish().changed_rows_since(&second), [0..4]);
-        assert_eq!(first.changed_rows_since(&ColumnSnapshot::default()), [0..12]);
     }
 
     #[test]
