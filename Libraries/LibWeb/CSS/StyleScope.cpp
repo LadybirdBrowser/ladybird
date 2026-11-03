@@ -430,9 +430,11 @@ void StyleScope::add_rules_to_rule_cache(CascadeOrigin cascade_origin)
     for_each_stylesheet(cascade_origin, [&](auto& sheet) {
         if (!sheet.native_media_list().matches())
             return;
-        // OPTIMIZATION: A constructed sheet may be adopted by many shadow roots. What it defines is collected once,
-        //               on the sheet, and every scope that adopts it takes that in.
-        if (sheet.constructed())
+        // OPTIMIZATION: A constructed sheet may be adopted by many shadow roots, and a user-agent sheet is one for every
+        //               document of the process. What it defines is collected once, on the sheet, and every scope that
+        //               takes it takes that in.
+        // NB: This holds for a user-agent sheet because no @media in one holds what this collects.
+        if (sheet.constructed() || cascade_origin == CascadeOrigin::UserAgent)
             m_rule_cache->add_rules_from_cache(sheet.rule_cache());
         else
             m_rule_cache->add_rules_from_sheet(sheet, cascade_origin);
