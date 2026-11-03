@@ -324,6 +324,7 @@ private:
     void update_radio_button_group_registration();
     virtual void computed_properties_changed() override;
     virtual void prepare_for_style_computation() override { create_shadow_tree_if_needed(); }
+    virtual bool needs_preparation_for_style_computation() const override { return true; }
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const override;

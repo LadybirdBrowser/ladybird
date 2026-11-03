@@ -99,7 +99,21 @@ void StyleEngine::mint_text_style_nodes(Span<StyleNodeID> nodes)
     StyleEngineFFI::style_engine_mint_style_nodes(m_render_document->host(), true, raw_nodes);
 }
 
-HashTable<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
+void StyleEngine::defer_element_initial_features(DOM::Element& element)
+{
+    element.set_initial_style_features_pending(true);
+    m_nodes_with_pending_initial_features.append(element.style_node_id());
+    if (element.needs_preparation_for_style_computation())
+        m_nodes_awaiting_first_style_computation.set(element.style_node_id());
+}
+
+void StyleEngine::cancel_deferred_element_initial_features(DOM::Element& element)
+{
+    element.set_initial_style_features_pending(false);
+    m_nodes_awaiting_first_style_computation.remove(element.style_node_id());
+}
+
+Vector<StyleNodeID> StyleEngine::take_deferred_element_initial_features()
 {
     return move(m_nodes_with_pending_initial_features);
 }
