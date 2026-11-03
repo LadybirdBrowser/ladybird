@@ -6,6 +6,7 @@
 
 //! The engine's computation of one element's style from the winners its cascade decided.
 
+use super::super::process_style::{InitialGroupsInputs, SharedInitialGroups};
 use super::super::publication::pseudo_kind;
 use super::super::*;
 use super::cascade::Winner;
@@ -128,6 +129,18 @@ impl RetainedState {
         &self,
         root: StyleNodeID,
     ) -> Result<ComputedInitialStyle, Option<Box<font_resolution::FontRequest>>> {
+        let inputs = InitialGroupsInputs::of(&self.document_style_computation_inputs);
+        match self.process_style.initial_groups_of(&inputs) {
+            Some(shared) => self.initial_style_over(root, &shared),
+            None => self.initial_style_driven(root),
+        }
+    }
+
+    /// The initial values computed from nothing: every longhand is driven and every group built.
+    fn initial_style_driven(
+        &self,
+        root: StyleNodeID,
+    ) -> Result<ComputedInitialStyle, Option<Box<font_resolution::FontRequest>>> {
         let subject = DriveSubject {
             target: computed::ComputedStyleTarget::new(root, u8::MAX),
             parent: None,
@@ -183,9 +196,12 @@ impl RetainedState {
                         first_available_font: font.first_available_font as usize,
                         font_cascade_list: font.font_cascade_list as usize,
                     };
+                    let value_facts = values.facts().clone();
                     Ok(ComputedInitialStyle {
                         payloads,
-                        value_facts: values.into_facts(),
+                        value_groups: Some(values.into_groups()),
+                        shared: None,
+                        value_facts,
                         flags,
                         dependency_flags,
                         color: color_inputs.1,
@@ -198,6 +214,137 @@ impl RetainedState {
                 _ => Err(None),
             }
         })
+    }
+
+    /// The initial values another document computed from what this one computes them from, which
+    /// `shared` holds: only the font group holds anything of this document, its fonts.
+    fn initial_style_over(
+        &self,
+        root: StyleNodeID,
+        shared: &Arc<SharedInitialGroups>,
+    ) -> Result<ComputedInitialStyle, Option<Box<font_resolution::FontRequest>>> {
+        use crate::css::computed_values::StyleGroupIndex;
+        use crate::css::table_group_builder::group_index;
+        let subject = DriveSubject {
+            target: computed::ComputedStyleTarget::new(root, u8::MAX),
+            parent: None,
+            facts: 0,
+        };
+        let store = WinnerStore::new(Vec::new());
+        let inputs = self.document_style_computation_inputs;
+        let mut font_scratch = drive::FontDriveScratch::default();
+        let held = shared.values();
+        let seed = crate::css::computed_values::GroupSeed::new(shared.seed_groups(), &held.value_facts);
+        let writer = GroupValuesWriter::seeded_for_child(
+            seed,
+            seed,
+            std::iter::empty(),
+            held.flags.clone(),
+            held.dependency_flags,
+        );
+        let selected = [0_u64; crate::css::property_metadata::LONGHAND_WORD_COUNT];
+        let driven = self.engine_drive_with(
+            self,
+            subject,
+            writer,
+            Some(&selected),
+            &store,
+            &inputs,
+            &mut font_scratch,
+        );
+        let (writer, length, font) = match driven {
+            Ok(drive::DrivenValues {
+                writer,
+                length,
+                font: Some(font),
+            }) => (writer, length, font),
+            Err(Unanswered::Suspended(Suspension::Font)) => {
+                return Err(Some(Box::new(font_scratch.take_suspended_request())));
+            }
+            _ => return Err(None),
+        };
+        let (values, _, _) = writer.finish(&[seed]);
+        let source = crate::css::table_group_builder::LonghandSource::Values {
+            values: &values,
+            reads: None,
+        };
+        let color_inputs = crate::css::table_group_builder::assembly_color_inputs_from_source(&source, &length);
+        let mut payloads = std::array::from_fn(|group| match group == group_index::FONT {
+            // SAFETY: The values are those of an element with no parent.
+            true => unsafe {
+                crate::css::table_group_builder::assemble_group_from_source(
+                    &source,
+                    group_index::FONT,
+                    Some(&font),
+                    crate::css::computed_values::GroupShares::new(
+                        &self.process_style.default_groups,
+                        group_index::FONT,
+                        None,
+                    ),
+                    color_inputs,
+                    &length,
+                )
+            },
+            false => shared
+                .groups()
+                .group(StyleGroupIndex::new(group))
+                .held()
+                .into_retained(),
+        });
+        // SAFETY: Each payload is a live payload of its group, whose reference the style takes, and the groups
+        //         but the font group hold the values already.
+        unsafe { values.put_into(&mut payloads, !(1 << group_index::FONT)) };
+        let initial_font = super::traversal::InitialFont {
+            first_available_font: font.first_available_font as usize,
+            font_cascade_list: font.font_cascade_list as usize,
+        };
+        let computed = ComputedInitialStyle {
+            payloads,
+            value_groups: None,
+            value_facts: held.value_facts.clone(),
+            flags: held.flags.clone(),
+            dependency_flags: held.dependency_flags,
+            color: held.color,
+            font: initial_font,
+            shared: None,
+        };
+        if self.process_style.verifies_reads {
+            self.verify_initial_style_over(root, shared, &computed, color_inputs.1);
+        }
+        Ok(ComputedInitialStyle {
+            shared: Some(Arc::clone(shared)),
+            ..computed
+        })
+    }
+
+    /// Check that driving every longhand computes what the shared groups hold for this document.
+    fn verify_initial_style_over(
+        &self,
+        root: StyleNodeID,
+        shared: &SharedInitialGroups,
+        computed: &ComputedInitialStyle,
+        color: u32,
+    ) {
+        let Ok(driven) = self.initial_style_driven(root) else {
+            return;
+        };
+        // SAFETY: The groups take over the references the drive made.
+        let groups = unsafe {
+            crate::css::computed_values::StyleGroups::adopt(
+                driven.payloads,
+                crate::css::computed_value_types::StyleBits::INITIAL,
+            )
+        };
+        assert!(
+            shared.hold_the_same_as(&groups)
+                && driven.flags == computed.flags
+                && driven.dependency_flags == computed.dependency_flags
+                && driven.color == color
+                && driven.color == computed.color
+                && driven.value_facts.publication_equals(&computed.value_facts)
+                && driven.font == computed.font,
+            "a document's initial values are those of the documents it shares initial groups with"
+        );
     }
 
     /// The engine: compute the record of `node` from the cascade winners it decided, against the
@@ -2035,6 +2182,10 @@ pub(in crate::css::style) struct GroupSeeds<'a> {
 /// The initial values as a drive computes them, with a reference to each payload.
 pub(in crate::css::style) struct ComputedInitialStyle {
     pub(in crate::css::style) payloads: [*const std::ffi::c_void; crate::css::table_group_builder::group_index::COUNT],
+    /// The groups of the initial values, with no font in them, where a drive computed them.
+    pub(in crate::css::style) value_groups: Option<crate::css::computed_values::StyleGroups>,
+    /// The groups of the process the values were found in, where they were.
+    pub(in crate::css::style) shared: Option<Arc<SharedInitialGroups>>,
     pub(in crate::css::style) value_facts: crate::css::computed_values::GroupValueFacts,
     pub(in crate::css::style) flags: crate::css::computed_longhand_table::LonghandTableFlags,
     pub(in crate::css::style) dependency_flags: u8,

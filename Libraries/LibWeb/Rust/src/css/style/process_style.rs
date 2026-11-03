@@ -30,9 +30,8 @@ pub(crate) struct ProcessStyle {
     pub(super) rule_indexes: pipeline::ProcessRuleIndexes,
     /// The fact lists of every document's projection rows, interned by content.
     pub(super) fact_lists: Mutex<pipeline::projection::FactListsTable>,
-    /// The initial groups the documents of the process share, by the device pixel ratio lengths
-    /// snap by, which every initial length computes against.
-    initial_groups: Mutex<HashMap<u64, Vec<std::sync::Weak<SharedInitialGroups>>>>,
+    /// The initial groups the documents of the process share, one entry for what each computed from.
+    initial_groups: Mutex<Vec<std::sync::Weak<SharedInitialGroups>>>,
     /// The groups of default values every computation starting from nothing starts from.
     pub(super) default_groups: crate::css::computed_values::DefaultGroups,
     /// Whether what is read of an element's values is checked against what its groups build from
@@ -40,18 +39,78 @@ pub(crate) struct ProcessStyle {
     pub(super) verifies_reads: bool,
 }
 
+/// What a document's initial values compute from, which documents agreeing on it share the groups
+/// of: the lengths its initial values snap by and its initial font's metrics and sizes, and the
+/// color scheme the initial color resolves against.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct InitialGroupsInputs {
+    device_pixels_per_css_pixel: u64,
+    initial_font_metrics: [u64; 5],
+    initial_font_size_raw: i32,
+    default_font_size_raw: i32,
+    effective_color_scheme: u8,
+}
+
+impl InitialGroupsInputs {
+    pub(super) fn of(inputs: &bridge::FfiDocumentStyleComputationInputs) -> Self {
+        Self {
+            device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel.to_bits(),
+            initial_font_metrics: [
+                inputs.initial_font_size,
+                inputs.initial_font_x_height,
+                inputs.initial_font_cap_height,
+                inputs.initial_font_zero_advance,
+                inputs.initial_line_height,
+            ]
+            .map(f64::to_bits),
+            initial_font_size_raw: inputs.initial_font_size_raw,
+            default_font_size_raw: inputs.default_font_size_raw,
+            effective_color_scheme: crate::css::style_compute::resolve_effective_color_scheme(
+                &[],
+                inputs.preferred_color_scheme,
+                inputs.has_document_supported_schemes.then(|| {
+                    &inputs.document_supported_scheme_codes[..usize::from(inputs.document_supported_scheme_count)]
+                }),
+            ),
+        }
+    }
+}
+
+/// What a document's initial values compute to, besides what its font group holds of its fonts.
+pub(super) struct InitialGroupsValues {
+    pub(super) flags: crate::css::computed_longhand_table::LonghandTableFlags,
+    pub(super) dependency_flags: u8,
+    pub(super) color: u32,
+    pub(super) value_facts: crate::css::computed_values::GroupValueFacts,
+}
+
 /// The initial groups the documents of the process share: each group of a document's initial
 /// style but its font group, which holds the fonts of its document's font computer and is the
 /// default one here.
-pub(super) struct SharedInitialGroups(crate::css::computed_values::StyleGroups);
+pub(super) struct SharedInitialGroups {
+    inputs: InitialGroupsInputs,
+    groups: crate::css::computed_values::StyleGroups,
+    /// These groups with the font values of the initial style in the font group, which is built
+    /// from no fonts: what a document computes its own font group from.
+    seed_groups: crate::css::computed_values::StyleGroups,
+    values: InitialGroupsValues,
+}
 
 impl SharedInitialGroups {
     pub(super) fn groups(&self) -> &crate::css::computed_values::StyleGroups {
-        &self.0
+        &self.groups
+    }
+
+    pub(super) fn seed_groups(&self) -> &crate::css::computed_values::StyleGroups {
+        &self.seed_groups
+    }
+
+    pub(super) fn values(&self) -> &InitialGroupsValues {
+        &self.values
     }
 
     /// Whether each group of `groups` but the font group holds what this one does.
-    fn hold_the_same_as(&self, groups: &crate::css::computed_values::StyleGroups) -> bool {
+    pub(super) fn hold_the_same_as(&self, groups: &crate::css::computed_values::StyleGroups) -> bool {
         use crate::css::computed_values::StyleGroupIndex;
         use crate::css::table_group_builder::group_index;
         StyleGroupIndex::all()
@@ -61,7 +120,7 @@ impl SharedInitialGroups {
                 unsafe {
                     crate::css::computed_values::groups_hold_the_same(
                         index.usize(),
-                        self.0[index.usize()].as_ptr(),
+                        self.groups[index.usize()].as_ptr(),
                         groups[index.usize()].as_ptr(),
                     )
                 }
@@ -93,14 +152,26 @@ impl ProcessStyle {
 }
 
 impl ProcessStyle {
+    /// The initial groups another document of the process computed from `inputs`, if one is alive.
+    pub(super) fn initial_groups_of(&self, inputs: &InitialGroupsInputs) -> Option<Arc<SharedInitialGroups>> {
+        self.initial_groups
+            .lock()
+            .expect("the initial groups lock is not poisoned")
+            .iter()
+            .filter_map(std::sync::Weak::upgrade)
+            .find(|shared| shared.inputs == *inputs)
+    }
+
     /// The initial groups the documents of the process share that hold what `groups`, a
-    /// document's initial groups computed under the device pixel ratio
-    /// `device_pixels_per_css_pixel`, hold besides its font group: the ones another document
-    /// computed, or these.
+    /// document's initial groups computed from `inputs`, hold besides its font group: those of
+    /// another document's where they hold the same. `value_groups` are the groups of those values,
+    /// with no font in them.
     pub(super) fn share_initial_groups(
         &self,
-        device_pixels_per_css_pixel: f64,
+        inputs: InitialGroupsInputs,
         groups: &crate::css::computed_values::StyleGroups,
+        value_groups: &crate::css::computed_values::StyleGroups,
+        values: InitialGroupsValues,
     ) -> Arc<SharedInitialGroups> {
         use crate::css::computed_values::StyleGroupIndex;
         use crate::css::table_group_builder::group_index;
@@ -108,20 +179,30 @@ impl ProcessStyle {
             .initial_groups
             .lock()
             .expect("the initial groups lock is not poisoned");
-        let shared = initial_groups.entry(device_pixels_per_css_pixel.to_bits()).or_default();
-        shared.retain(|entry| entry.strong_count() != 0);
-        if let Some(shared) = shared
+        initial_groups.retain(|entry| entry.strong_count() != 0);
+        let same = initial_groups
             .iter()
             .filter_map(std::sync::Weak::upgrade)
-            .find(|shared| shared.hold_the_same_as(groups))
-        {
-            return shared;
-        }
-        // NB: The font group is the default one, so that no document's fonts outlive it here.
-        let mut own = groups.clone();
-        own.share_group(self.default_groups.groups(), StyleGroupIndex::new(group_index::FONT));
-        let own = Arc::new(SharedInitialGroups(own));
-        shared.push(Arc::downgrade(&own));
+            .find(|shared| shared.hold_the_same_as(groups));
+        let font = StyleGroupIndex::new(group_index::FONT);
+        let own_groups = same.as_ref().map_or_else(
+            || {
+                // NB: The font group is the default one, so that no document's fonts outlive it here.
+                let mut own = groups.clone();
+                own.share_group(self.default_groups.groups(), font);
+                own
+            },
+            |same| same.groups.clone(),
+        );
+        let mut seed_groups = own_groups.clone();
+        seed_groups.share_group(value_groups, font);
+        let own = Arc::new(SharedInitialGroups {
+            inputs,
+            groups: own_groups,
+            seed_groups,
+            values,
+        });
+        initial_groups.push(Arc::downgrade(&own));
         own
     }
 

@@ -447,7 +447,7 @@ pub(super) fn resolve_effective_overflow_keywords(overflow_x: u16, overflow_y: u
 }
 
 // https://drafts.csswg.org/css-color-adjust-1/#determine-the-used-color-scheme
-pub(super) fn resolve_effective_color_scheme(
+pub(crate) fn resolve_effective_color_scheme(
     schemes: &[u8],
     preferred_scheme: u8,
     document_supported_schemes: Option<&[u8]>,

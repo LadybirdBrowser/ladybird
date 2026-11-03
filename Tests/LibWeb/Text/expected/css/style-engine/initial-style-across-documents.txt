@@ -1,0 +1,7 @@
+no-quirks: color: rgb(0, 0, 0); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
+quirks: color: rgb(0, 0, 0); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
+dark: color: rgb(255, 255, 255); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
+light dark: color: rgb(0, 0, 0); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
+no-quirks again: color: rgb(0, 0, 0); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
+no-quirks after one went: color: rgb(0, 0, 0); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
+dark after one went: color: rgb(255, 255, 255); background-color: rgba(0, 0, 0, 0); color-scheme: normal; font-size: 16px; line-height: normal; display: block; margin-top: 0px
