@@ -89,7 +89,8 @@ void DocumentPaintState::update_accumulated_visual_contexts(Layout::BegunRead co
         ++m_accumulated_visual_context_tree_incremental_update_count;
     if (result.requires_display_list_recording || svg_paint_resources_changed)
         document.set_needs_to_record_display_list();
-    m_visual_context_tree_needs_compositor_update = true;
+    if (result.values_may_have_changed)
+        m_visual_context_tree_needs_compositor_update = true;
 }
 
 void DocumentPaintState::update_visual_viewport_accumulated_visual_context(Layout::BegunRead const& read, DOM::Document& document)

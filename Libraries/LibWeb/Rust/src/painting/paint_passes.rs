@@ -422,6 +422,7 @@ pub(crate) fn update_accumulated_visual_contexts(
     if state.tree.as_deref().is_some_and(|tree| tree.should_compact()) {
         scope = VisualContextUpdateScope::FreshTree;
     }
+    let values_may_have_changed = scope != VisualContextUpdateScope::DirtyPath || !state.dirty_boxes.is_empty();
 
     while scope != VisualContextUpdateScope::FreshTree {
         let result = update_visual_context_tree(&mut arena.paintable_rows_mut(), viewport, inputs, scope, &mut state);
@@ -444,6 +445,7 @@ pub(crate) fn update_accumulated_visual_contexts(
                     performed_full_build,
                     structural_epoch_changed: outcome.delta.structural_epoch_changed,
                     requires_display_list_recording: outcome.delta.requires_display_list_recording,
+                    values_may_have_changed,
                     structural_epoch: state.structural_epoch(),
                 };
                 arena.paint_state_mut().visual_context = state;
@@ -509,6 +511,7 @@ fn fresh_visual_context_tree_build(
         performed_full_build: true,
         structural_epoch_changed: true,
         requires_display_list_recording: true,
+        values_may_have_changed: true,
         structural_epoch: state.structural_epoch(),
     }
 }
