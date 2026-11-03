@@ -17,6 +17,7 @@
 #include <LibMediaCodecs/Codecs/H265.h>
 #include <LibMediaCodecs/Codecs/MPEG4Audio.h>
 #include <LibMediaCodecs/Codecs/VP9.h>
+#include <LibMediaCodecs/Limits.h>
 
 #include "Reader.h"
 #include "Streamer.h"
@@ -650,8 +651,10 @@ DecoderErrorOr<SampleEntry> Reader::parse_sample_entry(Streamer& streamer, BoxHe
 
     Optional<CodingIndependentCodePoints> color_from_colour_information_box;
     TRY(parse_child_boxes(streamer, header, IsTopLevel::No, [&](BoxHeader const& child) -> DecoderErrorOr<IterationDecision> {
-        auto read_configuration = [&] -> DecoderErrorOr<FixedArray<u8>> {
-            return streamer.read_bytes(child.content_size.value());
+        auto read_configuration = [&](size_t size) -> DecoderErrorOr<FixedArray<u8>> {
+            if (size > MAX_CODEC_CONFIGURATION_SIZE)
+                return DecoderError::corrupted("Codec configuration box is too large"sv);
+            return streamer.read_bytes(size);
         };
 
         auto require_sample_entry_codec = [&](auto... codec_ids) -> DecoderErrorOr<void> {
@@ -666,15 +669,15 @@ DecoderErrorOr<SampleEntry> Reader::parse_sample_entry(Streamer& streamer, BoxHe
 
         if (child.type == AVC_CONFIGURATION_BOX) {
             TRY(require_sample_entry_codec(CodecID::H264));
-            entry.codec_initialization_data = TRY(read_configuration());
+            entry.codec_initialization_data = TRY(read_configuration(child.content_size.value()));
             adopt_parameters(Codecs::H264::parse_configuration_record(entry.codec_initialization_data.span()));
         } else if (child.type == HEVC_CONFIGURATION_BOX) {
             TRY(require_sample_entry_codec(CodecID::H265));
-            entry.codec_initialization_data = TRY(read_configuration());
+            entry.codec_initialization_data = TRY(read_configuration(child.content_size.value()));
             adopt_parameters(Codecs::H265::parse_configuration_record(entry.codec_initialization_data.span()));
         } else if (child.type == AV1_CONFIGURATION_BOX) {
             TRY(require_sample_entry_codec(CodecID::AV1));
-            entry.codec_initialization_data = TRY(read_configuration());
+            entry.codec_initialization_data = TRY(read_configuration(child.content_size.value()));
             adopt_parameters(Codecs::AV1::parse_configuration_record(entry.codec_initialization_data.span()));
         } else if (child.type == VP_CONFIGURATION_BOX) {
             TRY(require_sample_entry_codec(CodecID::VP8, CodecID::VP9));
@@ -683,14 +686,14 @@ DecoderErrorOr<SampleEntry> Reader::parse_sample_entry(Streamer& streamer, BoxHe
                 return DecoderError::corrupted("VP codec configuration box is too small"sv);
             auto full_box = TRY(read_full_box_header(streamer));
             if (entry.codec_id == CodecID::VP9 && full_box.version == 1) {
-                auto record = TRY(streamer.read_bytes(child.content_size.value() - FULL_BOX_HEADER_SIZE));
+                auto record = TRY(read_configuration(child.content_size.value() - FULL_BOX_HEADER_SIZE));
                 adopt_parameters(Codecs::VP9::parse_configuration_record(record.span()));
             }
         } else if (child.type == OPUS_CONFIGURATION_BOX) {
-            auto configuration = TRY(read_configuration());
+            auto configuration = TRY(read_configuration(child.content_size.value()));
             entry.codec_initialization_data = TRY(Codecs::Opus::codec_initialization_data_from_isobmff_configuration(configuration.span()));
         } else if (child.type == FLAC_CONFIGURATION_BOX) {
-            auto configuration = TRY(read_configuration());
+            auto configuration = TRY(read_configuration(child.content_size.value()));
             entry.codec_initialization_data = TRY(Codecs::FLAC::codec_initialization_data_from_isobmff_configuration(configuration.span()));
         } else if (child.type == ELEMENTARY_STREAM_DESCRIPTOR_BOX) {
             u8 object_type_indication = 0;
@@ -772,6 +775,8 @@ DecoderErrorOr<FixedArray<u8>> Reader::parse_elementary_stream_descriptor_box(St
     auto size = TRY(read_descriptor_size(streamer));
     if (streamer.position() > end || size > end - streamer.position())
         return DecoderError::corrupted("DecoderSpecificInfo extends past the end of its box"sv);
+    if (size > MAX_CODEC_CONFIGURATION_SIZE)
+        return DecoderError::corrupted("DecoderSpecificInfo is too large"sv);
     return streamer.read_bytes(size);
 }
 

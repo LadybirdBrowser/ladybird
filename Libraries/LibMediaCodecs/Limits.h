@@ -28,4 +28,7 @@ constexpr bool audio_sample_rate_is_outside_limits(u64 sample_rate)
 
 static constexpr size_t MAX_DECODED_AUDIO_BYTE_COUNT = 512 * MiB;
 
+static constexpr size_t MAX_METADATA_STRING_SIZE = 16 * KiB;
+static constexpr size_t MAX_CODEC_CONFIGURATION_SIZE = 16 * MiB;
+
 }

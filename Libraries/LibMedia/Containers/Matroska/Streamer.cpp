@@ -10,6 +10,7 @@
 #include <AK/String.h>
 #include <AK/Utf8View.h>
 #include <LibMedia/MediaStream.h>
+#include <LibMediaCodecs/Limits.h>
 
 #include "Streamer.h"
 
@@ -25,6 +26,8 @@ Streamer::~Streamer() = default;
 DecoderErrorOr<String> Streamer::read_string()
 {
     auto string_length = TRY(read_variable_size_integer());
+    if (string_length > MAX_METADATA_STRING_SIZE)
+        return DecoderError::corrupted("String element is too large"sv);
     auto string_data = TRY(read_raw_octets(string_length));
     if (string_data.is_empty())
         return String {};

@@ -15,6 +15,7 @@
 #include <LibMedia/Containers/ISOBMFF/Streamer.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
 #include <LibMedia/ReadonlyBytesCursor.h>
+#include <LibMediaCodecs/Limits.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
@@ -1433,6 +1434,36 @@ TEST_CASE(accepts_a_vp_configuration_box_under_a_vp8_sample_entry)
     ByteBuffer bytes;
     append_video_movie(bytes, "vp08", append_vp9_configuration_box, ColourBoxOrder::None);
     EXPECT(!parse_movie(bytes).is_error());
+}
+
+TEST_CASE(rejects_a_configuration_box_past_the_codec_configuration_limit)
+{
+    ByteBuffer bytes;
+    auto append_oversized_configuration_box = [](ByteBuffer& bytes) {
+        auto configuration = begin_box(bytes, "av1C");
+        MUST(bytes.try_resize(bytes.size() + Media::MAX_CODEC_CONFIGURATION_SIZE + 1));
+        finish_box(bytes, configuration);
+    };
+    append_video_movie(bytes, "av01", append_oversized_configuration_box, ColourBoxOrder::None);
+    auto result = parse_movie(bytes);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
+}
+
+TEST_CASE(rejects_null_terminated_strings_past_the_metadata_string_limit)
+{
+    ByteBuffer bytes;
+    MUST(bytes.try_resize(Media::MAX_METADATA_STRING_SIZE + 1));
+    bytes.bytes().fill('a');
+
+    auto streamer = streamer_for(bytes);
+    auto string = MUST(streamer.read_null_terminated_string(Media::MAX_METADATA_STRING_SIZE));
+    EXPECT_EQ(string.bytes().size(), Media::MAX_METADATA_STRING_SIZE);
+
+    auto oversized_streamer = streamer_for(bytes);
+    auto result = oversized_streamer.read_null_terminated_string(Media::MAX_METADATA_STRING_SIZE + 1);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::Corrupted);
 }
 
 TEST_CASE(uses_first_edit_list_entry_for_presentation_offset)
