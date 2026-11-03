@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<style>
+    .monospace {
+        font-family: monospace;
+    }
+    #reader::before {
+        content: "before";
+    }
+</style>
+<div id="ancestor">
+    <div class="monospace" id="reader"></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    function dump(label) {
+        const added = document.createElement("div");
+        added.className = "monospace";
+        ancestor.append(added);
+        const size = (element, pseudo) => getComputedStyle(element, pseudo).fontSize;
+        println(`${label}: ${size(ancestor)}, monospace ${size(reader)}, ::before ${size(reader, "::before")}, added ${size(added)}`);
+        added.remove();
+    }
+
+    test(() => {
+        dump("no animation");
+
+        const atItsOwnSize = ancestor.animate([{ fontSize: "16px" }, { fontSize: "16px" }], { duration: 1000, delay: 1000 });
+        atItsOwnSize.pause();
+        atItsOwnSize.currentTime = 0;
+        dump("in its delay, at the ancestor's size");
+        atItsOwnSize.currentTime = 1500;
+        dump("past its delay, at the ancestor's size");
+        atItsOwnSize.cancel();
+        dump("canceled");
+
+        const atAnotherSize = ancestor.animate([{ fontSize: "20px" }, { fontSize: "20px" }], { duration: 1000, delay: 1000 });
+        atAnotherSize.pause();
+        atAnotherSize.currentTime = 0;
+        dump("in its delay, at another size");
+        atAnotherSize.currentTime = 1500;
+        dump("past its delay, at another size");
+        atAnotherSize.cancel();
+        dump("canceled");
+    });
+</script>
