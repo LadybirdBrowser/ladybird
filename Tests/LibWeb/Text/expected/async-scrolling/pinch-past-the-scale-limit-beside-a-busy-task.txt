@@ -1,0 +1,2 @@
+compositor scale beside the task: 1
+main thread scale after the task: 1
