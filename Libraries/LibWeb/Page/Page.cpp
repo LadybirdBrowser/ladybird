@@ -624,7 +624,8 @@ EventResult Page::handle_drag_and_drop_event(DragEvent::Type type, DevicePixelPo
 
 EventResult Page::handle_pinch_event(HTML::LocalNavigable& root, PinchEvent const& event, Optional<RemoteInputEventTarget>* remote_target)
 {
-    if (event.async_zoom_performed_default_action && root.is_top_level_traversable())
+    // The compositor forwards its scroll updates ahead of the event. Listeners must see the zoom already presented.
+    if (root.is_top_level_traversable())
         root.adopt_pending_async_scroll_offsets(Compositing::AsyncScrollUpdateFreshness::Pushed);
     return root.event_handler().handle_pinch_event(device_to_css_point(event.position), event, remote_target);
 }
@@ -636,6 +637,12 @@ EventResult Page::handle_pinch_event(DevicePixelPoint position, unsigned modifie
         .modifiers = static_cast<UIEvents::KeyModifier>(modifiers),
         .scale_delta = scale,
     };
+    auto result = handle_pinch_event(local_traversable(), event, nullptr);
+    if (result != EventResult::Accepted)
+        return result;
+
+    // NB: No UI process is there to ask for the zoom of an event left uncanceled.
+    event.wheel_event_was_dispatched = true;
     return handle_pinch_event(local_traversable(), event, nullptr);
 }
 

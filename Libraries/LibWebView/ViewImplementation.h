@@ -948,6 +948,9 @@ protected:
         // that dies forwards none of the events still marked this way.
         bool routed_through_compositor { false };
 
+        // Set while an answer of the compositor is still to come for a trip through it that WebContent already finished.
+        bool expects_stale_compositor_answer { false };
+
         // A key event stays routed through the compositor until it forwards the event or hands it back. Later input
         // waits until then.
         bool awaits_compositor_dispatch() const { return routed_through_compositor && event.has<Web::KeyEvent>(); }

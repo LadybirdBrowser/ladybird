@@ -1299,12 +1299,16 @@ void ViewImplementation::did_finish_handling_input_event(Badge<WebContentPage>, 
     // Keep the returned default action in its original position. Removing it and scheduling the queue first would
     // let a later pinch overtake it, which changes the zoom when focal points differ or a scale limit is reached.
     auto& pending_input = m_pending_input_events[*index];
+    auto pinch_default_action_returned = event_result == Web::EventResult::Accepted
+        || (pending_input.forwarded_to_child_frame && event_result != Web::EventResult::Handled && event_result != Web::EventResult::Cancelled);
     if (auto* pinch_event = pending_input.event.get_pointer<Web::PinchEvent>();
-        pinch_event && pending_input.forwarded_to_child_frame && !pinch_event->wheel_event_was_dispatched && !pinch_event->async_zoom_performed_default_action
-        && event_result != Web::EventResult::Handled && event_result != Web::EventResult::Cancelled) {
+        pinch_event && pinch_default_action_returned && !pinch_event->wheel_event_was_dispatched && !pinch_event->async_zoom_performed_default_action) {
         pinch_event->wheel_event_was_dispatched = true;
         pending_input.endpoint = page();
         pending_input.sent = false;
+        // NB: WebContent's answer travels on another connection than the compositor's and may overtake it. What the
+        //     compositor still answers for this trip must not be taken for an answer to the next one.
+        pending_input.expects_stale_compositor_answer = pending_input.routed_through_compositor;
         pending_input.routed_through_compositor = false;
         send_queued_input_events();
         return;
@@ -1486,6 +1490,8 @@ void ViewImplementation::did_dispatch_input_event_through_compositor(Badge<WebCo
         return;
 
     auto& pending = m_pending_input_events[*index];
+    if (exchange(pending.expects_stale_compositor_answer, false))
+        return;
     if (!pending.routed_through_compositor)
         return;
     if (auto* key_event = pending.event.get_pointer<Web::KeyEvent>())

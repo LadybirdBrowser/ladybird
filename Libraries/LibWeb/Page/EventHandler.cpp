@@ -2451,8 +2451,9 @@ EventResult EventHandler::handle_pinch_event(CSSPixelPoint point, PinchEvent con
         return EventResult::Handled;
 
     // The pinch zooms the visual viewport of the top-level traversable. A frame hosted apart from it leaves the zoom to
-    // the page displaying the tab, which the UI asks once the event is left uncanceled.
-    if (!m_navigable->is_top_level_traversable())
+    // the page displaying the tab, which the UI asks once the event is left uncanceled. The page leaves it to the
+    // compositor likewise, whose scale may be newer than ours, and zooms only where the compositor could not.
+    if (!m_navigable->is_top_level_traversable() || !event.wheel_event_was_dispatched)
         return EventResult::Accepted;
 
     document = m_navigable->active_document();

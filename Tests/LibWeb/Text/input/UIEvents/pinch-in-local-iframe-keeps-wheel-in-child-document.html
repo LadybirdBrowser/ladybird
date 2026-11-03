@@ -57,6 +57,8 @@
         internals.pinchThroughUIProcess(200, 150, 1);
         let event = await wheel;
         println(`child accepted: ctrlKey=${event.ctrlKey} defaultPrevented=${event.defaultPrevented}`);
+        // The compositor zooms for the pinch once the page has let it through, and the page hears of that after this.
+        while (visualViewport.scale === 1) await animationFrame();
         println(`parent wheel events: ${parentWheels}, scale: ${visualViewport.scale}`);
 
         const changed = nextMessage("ready");
