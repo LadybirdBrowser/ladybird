@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<style>
+    #anchor {
+        anchor-name: --a;
+    }
+    .odd {
+        position: absolute;
+        position-anchor: --a;
+        width: fit-content(20px);
+        min-width: min-content;
+        max-width: calc-size(auto, size);
+        height: -webkit-fill-available;
+        min-height: anchor-size(height, 3px);
+        max-height: none;
+        top: anchor(top, 10px);
+        right: auto;
+        bottom: 5%;
+        left: 7px;
+        margin-top: anchor-size(width, 4px);
+        margin-right: auto;
+        margin-bottom: 3%;
+        margin-left: 2px;
+        padding-top: 1px;
+        padding-right: 2%;
+    }
+    .inheriting {
+        position: inherit;
+        position-anchor: inherit;
+        width: inherit;
+        min-width: inherit;
+        max-width: inherit;
+        height: inherit;
+        min-height: inherit;
+        max-height: inherit;
+        top: inherit;
+        right: inherit;
+        bottom: inherit;
+        left: inherit;
+        margin-top: inherit;
+        margin-right: inherit;
+        margin-bottom: inherit;
+        margin-left: inherit;
+        padding-top: inherit;
+        padding-right: inherit;
+    }
+    .background {
+        background: linear-gradient(red, blue) 3px 4px / 5px 6px no-repeat fixed padding-box content-box #123456;
+        background-blend-mode: multiply;
+        mask: url(#m) 1px 2px / 3px 4px no-repeat;
+        opacity: 0.5;
+        filter: blur(1px);
+        clip: rect(1px, 2px, 3px, 4px);
+        box-shadow: 1px 2px 3px red;
+        cx: 1px;
+        r: 2px;
+    }
+</style>
+<div id="anchor"></div>
+<div id="odd" class="odd"><div id="child" class="inheriting"></div></div>
+<div id="plain"><div id="plain-child" class="inheriting"></div></div>
+<div id="background" class="background"></div>
+<div id="restored" class="odd"></div>
+<script src="../../include.js"></script>
+<script>
+    const sizingAndSurround = [
+        "width", "min-width", "max-width", "height", "min-height", "max-height",
+        "top", "right", "bottom", "left",
+        "margin-top", "margin-right", "margin-bottom", "margin-left",
+        "padding-top", "padding-right", "padding-bottom", "padding-left",
+    ];
+    const handles = [
+        "background-color", "background-image", "background-attachment", "background-blend-mode", "background-clip",
+        "background-origin", "background-position-x", "background-position-y", "background-repeat", "background-size",
+        "mask-image", "mask-repeat", "mask-size", "opacity", "filter", "clip", "box-shadow", "cx", "cy", "r",
+    ];
+    function print(id, properties) {
+        const style = getComputedStyle(document.getElementById(id));
+        for (const property of properties)
+            println(`${id} ${property}: ${style.getPropertyValue(property)}`);
+    }
+    test(() => {
+        // The values an element reads back, and those a child inheriting them computes from them, whatever fields of
+        // its groups hold them.
+        print("odd", sizingAndSurround);
+        print("child", sizingAndSurround);
+        print("plain", sizingAndSurround);
+        print("plain-child", sizingAndSurround);
+        print("background", handles);
+        const restored = document.getElementById("restored");
+        restored.style.top = "1px";
+        restored.style.marginTop = "2px";
+        restored.style.minHeight = "3px";
+        restored.style.width = "4px";
+        print("restored", sizingAndSurround);
+        restored.style.removeProperty("top");
+        restored.style.removeProperty("margin-top");
+        print("restored", sizingAndSurround);
+    });
+</script>
