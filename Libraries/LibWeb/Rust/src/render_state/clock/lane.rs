@@ -441,10 +441,53 @@ impl LaneSlot {
         }
     }
 
+    /// Shows the cursor of what is under the move that waits for a tick, if one waits, in the frame the screen shows,
+    /// as a tick that presents nothing: the host hovers the move once it takes the lanes in.
+    fn show_cursor_where_a_move_waits(&mut self) {
+        let Some(pointer) = self.ticks.pointer_state().take() else {
+            return;
+        };
+        self.show_cursor_for(pointer);
+    }
+
+    fn show_cursor_for(&mut self, pointer: PendingPointer) {
+        let frame_time_nanoseconds = self.ticks.latest.load(Ordering::Acquire);
+        let document = self.ticks.document;
+        let nested = self.nested;
+        let (hovered, nested) = match self.lanes.current() {
+            // A lane that needs no render state hovers its read-only frame as it always does, which presents nothing.
+            Some(lane) if !lane.needs_render_state() => {
+                lane.hovered.go_on_from_nested(nested);
+                let hovered = lane.hover_read_only(pointer, frame_time_nanoseconds);
+                (Some(hovered), lane.hovered.nested())
+            }
+            // A lane without a fork, which the host's write let go of as the update took the lane in, hit tests the
+            // state the host writes: what the frame the update presents next shows, which the cursor follows ahead of it.
+            Some(lane) => {
+                let hovered = lane
+                    .show_cursor_on_fork(frame_time_nanoseconds, pointer)
+                    .unwrap_or_else(|| {
+                        owner::with_state(document, None, |state| {
+                            lane.show_cursor_only(state, pointer, frame_time_nanoseconds)
+                        })
+                    });
+                (Some(hovered), nested)
+            }
+            None => (None, nested),
+        };
+        self.nested = nested;
+        self.last_move = Some(hovered.unwrap_or(LaneMove {
+            input_event_id: pointer.input_event_id,
+            target: None,
+            handed: false,
+        }));
+    }
+
     fn tick(&mut self) {
         self.take_in_scroll_offsets();
         // A recording of the host's own adds to the resource storage the lane presents with: a move waits for it.
         if self.ticks.is_held() {
+            self.show_cursor_where_a_move_waits();
             return;
         }
         // A rendering update took in what the lanes did, and the frame it presents shows that, at the time it took it
@@ -457,6 +500,7 @@ impl LaneSlot {
                     super::hover::log_time()
                 );
             }
+            self.show_cursor_where_a_move_waits();
             return;
         }
         let samples_animations = !self.ticks.animations_held.load(Ordering::Relaxed);
@@ -484,6 +528,9 @@ impl LaneSlot {
             if newest {
                 lane.parked = true;
                 lane.hovered.park();
+            }
+            if let Some(pointer) = pointer {
+                self.show_cursor_for(pointer);
             }
             return;
         }

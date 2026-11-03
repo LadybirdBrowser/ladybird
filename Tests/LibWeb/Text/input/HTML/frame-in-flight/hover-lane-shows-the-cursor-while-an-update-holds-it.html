@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 100px; cursor: pointer; }
+    #box:hover { width: 150px; }
+    #filler { height: 100px; }
+</style>
+<div id="filler"></div>
+<div id="box"></div>
+<script>
+    // A rendering update that took the lanes in, whose frame is still in flight, holds the lane from presenting: the
+    // frame the update presents would go back from anything the lane showed since. The cursor is not in a frame, so a
+    // move beside the held frame shows the cursor of what it is over in the frame on screen all the same, and the move
+    // itself waits for the host, which hovers it once the frame lands.
+    asyncTest(async done => {
+        // The lane follows the pointer, which the compositor told it of, beside the box.
+        await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+        });
+        const result = await whileRecordingInFlight(() => {
+            filler.style.height = "120px";
+        }, async schedulerState => {
+            internals.injectHoverPointer(50, 150, performance.now());
+            return { schedulerState, cursor: internals.currentCursor(), hovered: box.matches(":hover"), width: internals.presentedBorderBox(box)?.width };
+        });
+        println(`frame scheduler while held: ${result.schedulerState}`);
+        println(`cursor beside the held frame: ${result.cursor}`);
+        println(`box matches :hover beside the held frame: ${result.hovered}, presented width ${result.width}`);
+        await twoFramesLanded();
+        await nextTask();
+        println(`box matches :hover once the frame landed: ${box.matches(":hover")}`);
+        println(`cursor once the frame landed: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

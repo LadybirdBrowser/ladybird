@@ -1379,6 +1379,22 @@ impl Lane {
         Some(ticked)
     }
 
+    /// Shows the cursor of what is under `pointer` in the frame the screen shows at `frame_time_nanoseconds`, on the
+    /// lane's fork, as a tick that may present nothing would (see [`Lane::show_cursor_only`]). Answers the move it
+    /// leaves to the host, or none where the lane has no fork to hit test on.
+    fn show_cursor_on_fork(&mut self, frame_time_nanoseconds: i64, pointer: PendingPointer) -> Option<LaneMove> {
+        let (mut fork, state_moved_on) = match std::mem::take(&mut self.state) {
+            LaneState::Forked { fork, state_moved_on } => (fork, state_moved_on),
+            state => {
+                self.state = state;
+                return None;
+            }
+        };
+        let left_to_host = self.show_cursor_only(&mut fork, pointer, frame_time_nanoseconds);
+        self.state = LaneState::Forked { fork, state_moved_on };
+        Some(left_to_host)
+    }
+
     fn tick(
         &mut self,
         state: &mut RenderState,
@@ -1395,6 +1411,12 @@ impl Lane {
             presented: false,
             sampled: false,
         };
+        // A parked hover, or a frame left to the host, hovers nothing: the cursor follows the pointer all the same.
+        if let Some(pointer) = pointer
+            && (hovers.is_none() || self.frame_left_to_host)
+        {
+            ticked.hover_move = Some(self.show_cursor_only(state, pointer, frame_time_nanoseconds));
+        }
         if self.frame_left_to_host || (!samples_animations && hovers.is_none() && !transitions) {
             return ticked;
         }

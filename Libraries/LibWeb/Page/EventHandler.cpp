@@ -1406,7 +1406,12 @@ void EventHandler::update_hover_at(CSSPixelPoint visual_viewport_position, GC::P
     if (m_last_known_mouse_visual_viewport_position.has_value())
         screen_position = m_last_known_mouse_screen_position + (visual_viewport_position - *m_last_known_mouse_visual_viewport_position);
     record_last_known_mouse_position(visual_viewport_position, screen_position, m_last_known_mouse_buttons, m_last_known_mouse_modifiers);
-    update_hover_after_scroll(visual_viewport_position, screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers, hover_target);
+    // A hit test of the host's own finds what the screen shows where it samples the compositor's animations at the
+    // frame time the compositor reported last. The hover the pointer rests on clears the time as it reads it.
+    Optional<i64> visual_animation_sample_time_nanoseconds;
+    if (!hover_target)
+        visual_animation_sample_time_nanoseconds = m_visual_animation_sample_time_nanoseconds;
+    update_hover_after_scroll(visual_viewport_position, screen_position, UIEvents::MouseButton::None, m_last_known_mouse_buttons, m_last_known_mouse_modifiers, hover_target, visual_animation_sample_time_nanoseconds);
 }
 
 // AD-HOC: The hover and the cursor follow what is under the pointer while it rests. A frame may move what is there,
