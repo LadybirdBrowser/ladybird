@@ -3590,7 +3590,7 @@ impl<'a> SyntaxParseBuilder<'a> {
                     .entry(name.into())
                     .or_insert_with(|| CssString::from_utf16(name))
                     .clone();
-                block.set_custom_property(name, property);
+                block.append_custom_property(name, property);
             } else {
                 block.append_in_specified_order(property);
             }

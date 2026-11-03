@@ -711,7 +711,18 @@ impl DeclarationBlockBuilder {
             self.append_normalized_property(declaration.to_declared());
         }
         for property in other.custom_properties().iter() {
-            self.set_custom_property(property.name.clone(), property.declaration.to_declared());
+            self.append_custom_property(property.name.clone(), property.declaration.to_declared());
+        }
+    }
+
+    pub(crate) fn append_custom_property(&mut self, name: CssString, declaration: DeclaredProperty) {
+        if let Some(property) = self.custom_properties.iter_mut().find(|property| property.name == name) {
+            if property.declaration.important && !declaration.important {
+                return;
+            }
+            property.declaration = declaration;
+        } else {
+            self.custom_properties.push(CustomProperty { name, declaration });
         }
     }
 
