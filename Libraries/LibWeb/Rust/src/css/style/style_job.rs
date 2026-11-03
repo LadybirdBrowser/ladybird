@@ -285,15 +285,26 @@ impl StyleJobAnswer {
         }
     }
 
-    /// Notes `styled`, what the render side installed of the transaction's style rows.
-    pub(crate) fn note_styled(&mut self, styled: crate::layout::StyledRows) {
+    /// Notes `styled`, what the render side installed of the transaction's style rows in `arena`.
+    pub(crate) fn note_styled(&mut self, styled: crate::layout::StyledRows, arena: &crate::layout::LayoutNodeArena) {
         debug_assert!(
             self.styled_rows.pinned_records.is_empty() && self.styled_rows.rebuilt.is_empty(),
             "the render side installs a transaction once"
         );
         use super::bridge::MainEffects;
-        for row in &mut self.installation_for_host.effects {
+        let below_first_styles = self.installation_for_host.take_first_styles_below_first_styles();
+        let mut below_first_styles = below_first_styles.into_iter().peekable();
+        for (index, row) in self.installation_for_host.effects.iter_mut().enumerate() {
             let node = row.node();
+            // The boxes of an element with no box are built with its children's, which have none to replace: the build
+            // reaches them from the first of them to have a parent with a box, whatever they are marked with.
+            if let Some((_, parent)) = below_first_styles.next_if(|&(below, _)| below as usize == index)
+                && arena.bound_row(node).is_invalid()
+                && arena.bound_row(parent).is_invalid()
+            {
+                row.effects = row.effects.without(MainEffects::REBUILD);
+                continue;
+            }
             // The render side marked the rebuilds of these elements, which leaves the host none to mark.
             if styled.rebuilt.binary_search(&node).is_ok() {
                 row.effects = row.effects.without(MainEffects::REBUILD);

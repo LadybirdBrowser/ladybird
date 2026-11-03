@@ -345,10 +345,16 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
         }
     };
 
+    // NB: No element holds children waiting to arrive where the document has none below it.
+    auto const reveal_waiting = document.descendant_style_arrival_pending() ? CSS::MainEffects::RevealWaiting : CSS::MainEffects::None;
     for (auto const& element_effects : ReadonlySpan<InstalledElementEffects> { effects, effect_count }) {
+        auto main_effects = static_cast<CSS::MainEffects>(element_effects.effects);
+        main_effects &= ~CSS::MainEffects::RevealWaiting | reveal_waiting;
+        // NB: The swaps of an element with nothing else to do come with the next element's that has.
+        if (main_effects == CSS::MainEffects::None && element_effects.pseudo_elements_composed == 0)
+            continue;
         swap_in_styles_until(element_effects.swaps_begin);
         auto* element = element_for(element_effects.style_node);
-        auto const main_effects = static_cast<CSS::MainEffects>(element_effects.effects);
         // https://drafts.csswg.org/css-transitions-1/#starting
         // The transition step compares the style the element held before its swaps with the record they install, so the
         // record it held has to outlive its replacement until the step has read it. A step toward a record that declares

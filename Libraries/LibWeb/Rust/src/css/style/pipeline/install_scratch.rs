@@ -24,7 +24,9 @@ const HOLDING: u32 = 1 << 1;
 const HIDDEN_BEFORE_KNOWN: u32 = 1 << 2;
 /// The element, or an ancestor of it, was display:none before the installation.
 const HIDDEN_BEFORE: u32 = 1 << 3;
-const MARK_BITS: u32 = 4;
+/// The element takes its first style in the installation.
+const FIRST_STYLE: u32 = 1 << 4;
+const MARK_BITS: u32 = 5;
 const LAST_GENERATION: u32 = u32::MAX >> MARK_BITS;
 
 #[derive(Default)]
@@ -146,6 +148,16 @@ impl InstallScratch {
                 false => *marks & !HIDDEN_BEFORE,
             };
         }
+    }
+
+    /// Notes that `node` takes its first style in the installation.
+    pub(super) fn note_first_style(&mut self, node: StyleNodeID) {
+        self.mark(node, FIRST_STYLE);
+    }
+
+    /// Whether `node` takes its first style in the installation, as noted so far.
+    pub(super) fn takes_first_style(&self, node: StyleNodeID) -> bool {
+        self.marks_of(node) & FIRST_STYLE != 0
     }
 
     /// Empties the scratch for the next installation, keeping its room up to

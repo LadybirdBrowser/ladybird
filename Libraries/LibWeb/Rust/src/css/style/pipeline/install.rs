@@ -99,6 +99,9 @@ pub(crate) struct StyleInstallation {
     /// The records the elements and their pseudo-elements move away from, which their moves and effects read, pinned
     /// until the host ends the transaction.
     pub(crate) pinned_records: Vec<u64>,
+    /// The elements taking their first style whose parent, its layout tree parent as well, takes its first style in
+    /// this installation too, in the order of their effects, each with the index of those and that parent.
+    first_styles_below_first_styles: Vec<(EffectsIndex, StyleNodeID)>,
 }
 
 impl StyleInstallation {
@@ -177,6 +180,21 @@ impl StyleInstallation {
             effects.effects |= bridge::MainEffects::HOST_BOX_FACTS;
         }
         self.keep_effects_with_host_work();
+    }
+
+    /// Notes that the element whose effects the installation noted last takes its first style below `parent`, which
+    /// takes its first style too.
+    fn note_first_style_below_first_style(&mut self, parent: StyleNodeID) {
+        let index = u32::try_from(self.effects.len() - 1).expect("an installation's effects fit their index");
+        self.first_styles_below_first_styles.push((EffectsIndex(index), parent));
+    }
+
+    /// Takes the elements `note_first_style_below_first_style` noted.
+    pub(crate) fn take_first_styles_below_first_styles(&mut self) -> Vec<(u32, StyleNodeID)> {
+        std::mem::take(&mut self.first_styles_below_first_styles)
+            .into_iter()
+            .map(|(EffectsIndex(index), parent)| (index, parent))
+            .collect()
     }
 
     /// Keeps the effects of only the elements the main thread has anything to do for beside swapping in their styles.
@@ -531,9 +549,18 @@ impl RetainedState {
                     old_record: old_view.and(computed::FinalStyleRecordID::from_raw(old)),
                     pseudo_elements,
                 };
+                let first_style = facts.element_damage.is_none();
                 let effects = self.main_effects(node, old_view, new_view, facts);
                 scratch.document_damage.push(effects.damage());
                 installation.note_element_effects(effects, first_swap);
+                if first_style {
+                    scratch.note_first_style(node);
+                    if let Some(parent) = parent.filter(|&parent| {
+                        scratch.takes_first_style(parent) && self.projection.parent(node) == Some(parent)
+                    }) {
+                        installation.note_first_style_below_first_style(parent);
+                    }
+                }
             }
             installation.end_element(node, first_swap);
         }
