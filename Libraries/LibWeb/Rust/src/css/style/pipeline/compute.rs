@@ -2403,6 +2403,16 @@ fn moved_longhand_groups(property: u16) -> u32 {
     }
 }
 
+/// Whether what `property_id` is declared with, where its value computes directly, computes without
+/// a drive and without a logical mapping.
+fn longhand_takes_plain_values(property: u16) -> bool {
+    use crate::css::style_compute::{LOGICAL_ALIAS_BIT, computes_directly, computes_in_font_phases, table_row_bits};
+    computes_directly(property)
+        && !computes_in_font_phases(property)
+        && table_row_bits(property) & LOGICAL_ALIAS_BIT == 0
+        && moved_longhand_groups(property) & (1 << crate::css::table_group_builder::group_index::FONT) == 0
+}
+
 /// The font-phase longhands the font group carries without a group binding of their own.
 fn font_group_carries_longhand(property: u16) -> bool {
     use crate::css::property_metadata::property_id as prop;
@@ -2525,6 +2535,29 @@ impl WrittenValueChecks {
         property: u16,
         value: &crate::css::style_value::RetainedStyleValueData,
     ) -> Self {
+        // NB: Most declared values are scalars, of which nothing need be walked to tell these. This
+        //     runs once for each declaration of a style attribute, on the thread they all go through.
+        if !crate::css::style_compute::value_is_a_plain_scalar(value.data()) {
+            return Self::prepare_by_walking(property, value);
+        }
+        let mut bits = winner_store::DEPENDENCIES_COMPUTED
+            | Self::WHOLE_CONTEXT_FREE
+            | Self::LONGHAND_CONTEXT_FREE
+            | Self::COMPUTES_TO_ITSELF;
+        if longhand_takes_plain_values(property) {
+            bits |= Self::PLAIN;
+        }
+        if value.pointer() == crate::css::style_compute::initial_value_data(property)
+            && !crate::css::property_metadata::property_is_inherited(property)
+            && crate::css::style_compute::table_row_bits(property) == 0
+        {
+            bits |= Self::IS_INITIAL;
+        }
+        debug_assert!(bits == Self::prepare_by_walking(property, value).0);
+        Self(bits)
+    }
+
+    fn prepare_by_walking(property: u16, value: &crate::css::style_value::RetainedStyleValueData) -> Self {
         use crate::css::style_value::StyleValueData;
         let whole_context_free = value_computes_without_document_context(value.data());
         let longhand_context_free = match value.data() {
@@ -2571,12 +2604,10 @@ impl WrittenValueChecks {
             && dependencies & winner_store::DEPENDENCIES_COMPUTED != 0
         {
             use crate::css::style_compute::{
-                LOGICAL_ALIAS_BIT, table_row_bits, value_absolutization_is_identity_where_nothing_zooms,
-                value_computes_directly,
+                table_row_bits, value_absolutization_is_identity_where_nothing_zooms, value_computes_directly,
             };
             let unpacked = winner_store::unpack_dependencies(dependencies);
-            if table_row_bits(property) & LOGICAL_ALIAS_BIT == 0
-                && moved_longhand_groups(property) & (1 << crate::css::table_group_builder::group_index::FONT) == 0
+            if longhand_takes_plain_values(property)
                 && value_computes_directly(property, longhand_value.data(), Some(unpacked))
             {
                 bits |= Self::PLAIN;
