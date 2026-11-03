@@ -297,7 +297,6 @@ fn sizing_directives_match_ignoring_unobserved(
         outer_float_intrusion_before_list_item_children,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
         math_stretch_size_constraint,
-        maximum_inline_size_resolved_by_caller,
         root_is_measured_for_its_content_block_size,
         root_keeps_its_committed_geometry,
     } = *a;
@@ -314,7 +313,6 @@ fn sizing_directives_match_ignoring_unobserved(
         && treat_block_axis_percentage_insets_as_auto_beyond_root
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
         && math_stretch_size_constraint == b.math_stretch_size_constraint
-        && maximum_inline_size_resolved_by_caller == b.maximum_inline_size_resolved_by_caller
         && root_is_measured_for_its_content_block_size == b.root_is_measured_for_its_content_block_size
         && root_keeps_its_committed_geometry == b.root_keeps_its_committed_geometry
         && match (

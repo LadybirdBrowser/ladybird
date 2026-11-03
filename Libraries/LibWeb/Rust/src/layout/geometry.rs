@@ -374,7 +374,6 @@ pub(crate) struct RootSizingDirectives {
     pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
-    pub(crate) maximum_inline_size_resolved_by_caller: PackedOptionalCssPixels,
     pub(crate) root_is_measured_for_its_content_block_size: bool,
     // Input-only: MathML layout lays out an embellished operator with the size its core operator should stretch to
     // cover.
