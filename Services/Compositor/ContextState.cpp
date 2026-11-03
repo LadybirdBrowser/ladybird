@@ -1953,6 +1953,11 @@ String ContextState::scroll_state_for_testing(Web::AsyncScrollNodeStableID scrol
     stretch_object.set("y"sv, stretch.y());
     scroll_state.set("stretch"sv, move(stretch_object));
     scroll_state.set("visualViewportScale"sv, m_scene.visual_viewport_scale().value_or(1.0f));
+    auto visual_viewport_offset = visual_viewport_scroll_offset(m_scene.visual_viewport_transform());
+    JsonObject visual_viewport_offset_object;
+    visual_viewport_offset_object.set("x"sv, visual_viewport_offset.x());
+    visual_viewport_offset_object.set("y"sv, visual_viewport_offset.y());
+    scroll_state.set("visualViewportOffset"sv, move(visual_viewport_offset_object));
     return scroll_state.serialized();
 }
 

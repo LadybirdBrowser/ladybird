@@ -1,0 +1,6 @@
+scale: 1.5, visual viewport top: 100
+first key, beside the task: visual viewport top: 100
+first key, beside the task: layout viewport top: 0
+second key, beside the task: visual viewport top: 100
+second key, beside the task: layout viewport top: 0
+main thread: visual viewport top: 200, layout viewport top: 100
