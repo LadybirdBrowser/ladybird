@@ -4,12 +4,12 @@ runs on the compositor:
   a rect in a transformed group: true
   a group: true
   a rect in a translucent group: true
-  a rect in a group with a filter function: false
-  a rect in a group with a clip path in user space: false
-  a rect in a group with a mask in user space: false
+  a rect in a group with a filter function: true
+  a rect in a group with a clip path in user space: true
+  a rect in a group with a mask in user space: true
   a use element: false
   a use element with a position: false
-  a nested svg: false
+  a nested svg: true
   a fading rect: true
   a fading group: true
   a fading use element: true
@@ -21,6 +21,10 @@ runs on the compositor, though it must not:
   a rect in a group with a mask in its bounding box: false
   a rect in a group with a mask image: false
   a rect in a group transformed about its fill box: false
+  a rect in a group rotated about its fill box: false
+  a rect in a group scaled about its fill box: false
+  a rect with a non-scaling stroke: false
+  a group around a non-scaling stroke: false
   a rect in a mask: false
   a fading rect in a mask: false
 the main thread leaves the animated style alone: true

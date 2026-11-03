@@ -250,8 +250,10 @@
 #include <LibWeb/SVG/SMILAnimation.h>
 #include <LibWeb/SVG/SMILTimeContainer.h>
 #include <LibWeb/SVG/SVGAnimateMotionElement.h>
+#include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGMaskElement.h>
 #include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGScriptElement.h>
@@ -8448,47 +8450,79 @@ static Painting::CompositorAnimationKeyframes const& compositor_animation_keyfra
     });
 }
 
-// Whether a box of an SVG container paints or places itself by its bounding box, which includes the transforms of the
-// boxes inside it.
-static bool svg_box_uses_its_bounding_box(Layout::Node const& svg_box)
+// Whether a box inside an SVG paints or places itself by its bounding box, which includes the transforms of the boxes
+// inside it. The compositor knows no bounding boxes, so such a box needs those transforms kept current by the main
+// thread.
+static bool svg_box_uses_its_bounding_box(Layout::NodeWithStyle const& svg_box)
 {
+    auto resource_box = [&](Layout::RustFFI::NodeKind kind) -> Layout::Node const* {
+        for (auto const* child = svg_box.first_child(); child; child = child->next_sibling()) {
+            if (child->kind() == kind)
+                return child;
+        }
+        return nullptr;
+    };
     auto const* element = as_if<Element>(svg_box.dom_node());
     if (!element)
         return false;
     auto computed_style = element->computed_style();
     if (!computed_style)
         return true;
-    auto is_none = [&](CSS::PropertyID property) {
-        auto value = computed_style->computed_style_value(property);
-        return value && value->to_string(CSS::SerializationMode::Normal) == "none"sv;
-    };
-    if (!is_none(CSS::PropertyID::Filter) || !is_none(CSS::PropertyID::ClipPath) || !is_none(CSS::PropertyID::MaskImage))
-        return true;
-    if (is_none(CSS::PropertyID::Transform))
-        return false;
-    auto transform_box = computed_style->computed_style_value(CSS::PropertyID::TransformBox);
-    return !transform_box || transform_box->to_keyword() != CSS::Keyword::ViewBox;
+
+    // NB: A filter function works on what is painted. A filter element's region comes from the bounding box.
+    if (!svg_box.filter().is_none()) {
+        auto filter = computed_style->computed_style_value(CSS::PropertyID::Filter);
+        if (!filter || filter->to_string(CSS::SerializationMode::Normal).contains("url("sv))
+            return true;
+    }
+
+    // NB: A clip path element in user space leaves the bounding box alone, unlike its other units and a basic shape.
+    auto clip_path_value = computed_style->computed_style_value(CSS::PropertyID::ClipPath);
+    if (!clip_path_value || !clip_path_value->is_keyword() || clip_path_value->to_keyword() != CSS::Keyword::None) {
+        auto const* clip_box = resource_box(Layout::RustFFI::NodeKind::SVGClipBox);
+        auto const* clip_path = clip_box ? as_if<SVG::SVGClipPathElement>(clip_box->dom_node()) : nullptr;
+        if (!clip_path || clip_path->clip_path_units() != SVG::ClipPathUnits::UserSpaceOnUse)
+            return true;
+    }
+
+    // NB: The same goes for a mask element whose area and content are both in user space, and not for a mask image.
+    auto has_mask = svg_box.style_group<CSS::ComputedValues::MaskValues>().mask_url_value().has_value()
+        || any_of(svg_box.mask_images(), [](auto const& image) { return image; });
+    if (has_mask) {
+        auto const* mask_box = resource_box(Layout::RustFFI::NodeKind::SVGMaskBox);
+        auto const* mask = mask_box ? as_if<SVG::SVGMaskElement>(mask_box->dom_node()) : nullptr;
+        if (!mask || mask->mask_units() != SVG::MaskUnits::UserSpaceOnUse || mask->mask_content_units() != SVG::MaskContentUnits::UserSpaceOnUse)
+            return true;
+    }
+
+    // NB: Any transform property or animation of it may start from none, so a box's transform-box alone decides this.
+    return svg_box.style_group<CSS::ComputedValues::TransformValues>().transform_box != to_underlying(CSS::TransformBox::ViewBox);
 }
 
 static bool svg_transform_may_run_on_the_compositor(Element const& target, Layout::Node const& layout_node)
 {
-    // NB: An outer SVG viewport embedded in HTML uses the CSS box transform independently of its SVG contents.
-    if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGSVGBox) {
-        auto parent = target.parent_element();
-        return parent && parent->namespace_uri() == Namespace::HTML;
-    }
-
-    // NB: The compositor has no animations for the documents of SVG images, and replaces the matrix that the x and y
-    //     of a <use> element are part of.
-    if (target.document().is_decoded_svg() || is<SVG::SVGUseElement>(target))
+    // FIXME: Let the root of an SVG document run on the compositor too.
+    if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGSVGBox && !target.parent_element())
         return false;
 
-    // NB: A box's own bounding box leaves out its own transform, but those of the containers around it include it.
+    // NB: The compositor replaces the matrix that the x and y of a <use> element are part of.
+    if (is<SVG::SVGUseElement>(target))
+        return false;
+
+    // NB: A box's own bounding box leaves out its own transform, but those of the boxes around it include it.
     for (auto const* ancestor = layout_node.parent(); ancestor && ancestor->is_svg_box(); ancestor = ancestor->parent()) {
         if (svg_box_uses_its_bounding_box(*ancestor))
             return false;
     }
-    return true;
+
+    // NB: The width of a non-scaling stroke undoes the scale of all transforms around it, and only recording does that.
+    auto has_non_scaling_stroke = layout_node.for_each_in_inclusive_subtree([](Layout::Node const& node) {
+        auto const* node_with_style = as_if<Layout::NodeWithStyle>(node);
+        if (node_with_style && node_with_style->style_group<CSS::ComputedValues::SVGResetValues>().vector_effect == to_underlying(CSS::VectorEffect::NonScalingStroke))
+            return TraversalDecision::Break;
+        return TraversalDecision::Continue;
+    }) == TraversalDecision::Break;
+    return !has_non_scaling_stroke;
 }
 
 // Builds the compositor animation of one target kind for an effect the compositor could drive, and
