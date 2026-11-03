@@ -129,6 +129,7 @@ enum class SetNeedsLayoutReason {
     X(NodeInsertBefore)                                   \
     X(NodeInsertBeforeWithDisplayContents)                \
     X(NodeRemove)                                         \
+    X(TableCellSpanAttribute)                             \
     X(NodeSetTextContent)                                 \
     X(None)                                               \
     X(PseudoElementBoxEscapedRebuildRoot)                 \

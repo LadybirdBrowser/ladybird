@@ -24,11 +24,16 @@ public:
     void set_col_span(WebIDL::UnsignedLong);
     void set_row_span(WebIDL::UnsignedLong);
 
+    // Whether the cell's effective spans differ from what they were when this was last asked.
+    bool take_table_span_change();
+
     WebIDL::Long cell_index() const;
 
     virtual Optional<ARIA::Role> default_role() const override;
 
 private:
+    WebIDL::UnsignedLong m_last_col_span { 1 };
+    WebIDL::UnsignedLong m_last_row_span { 1 };
     HTMLTableCellElement(DOM::Document&, DOM::QualifiedName);
 
     virtual bool is_html_table_cell_element() const override { return true; }

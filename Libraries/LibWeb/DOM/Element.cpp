@@ -124,6 +124,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/HTMLStyleElement.h>
+#include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableElement.h>
 #include <LibWeb/HTML/HTMLTemplateElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
@@ -1456,6 +1457,11 @@ void Element::run_attribute_change_steps(Utf16FlyString const& local_name, Optio
             Layout::ForcedReadScope read { document() };
             if (auto* layout_node = unsafe_layout_node(read))
                 layout_node->synchronize_table_span_data();
+            // NB: The spans decide which cells of the table's grid are missing, which its boxes fill.
+            if (auto* cell = as_if<HTML::HTMLTableCellElement>(*this); cell && cell->take_table_span_change()) {
+                if (auto table = first_ancestor_of_type<HTML::HTMLTableElement>())
+                    table->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::TableCellSpanAttribute);
+            }
         }
         if (!document().suppresses_attribute_style_invalidation()) {
             CSS::Invalidation::invalidate_style_after_attribute_change(

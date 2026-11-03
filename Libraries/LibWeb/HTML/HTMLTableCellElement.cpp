@@ -115,6 +115,14 @@ void HTMLTableCellElement::apply_presentational_hints(Vector<CSS::StyleProperty>
 
 // This implements step 8 in the spec here:
 // https://html.spec.whatwg.org/multipage/tables.html#algorithm-for-processing-rows
+bool HTMLTableCellElement::take_table_span_change()
+{
+    auto spans_changed = col_span() != m_last_col_span || row_span() != m_last_row_span;
+    m_last_col_span = col_span();
+    m_last_row_span = row_span();
+    return spans_changed;
+}
+
 WebIDL::UnsignedLong HTMLTableCellElement::col_span() const
 {
     // If the current cell has a colspan attribute, then parse that attribute's value, and let colspan be the result.
