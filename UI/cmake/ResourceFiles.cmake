@@ -112,6 +112,10 @@ function(copy_resource_set subdir)
     cmake_parse_arguments(PARSE_ARGV 1 "COPY" "" "TARGET;DESTINATION" "RESOURCES")
     set(inputs ${COPY_RESOURCES})
 
+    if (NOT inputs)
+        return()
+    endif()
+
     if (APPLE)
         target_sources(${COPY_TARGET} PRIVATE ${inputs})
         set_source_files_properties(${inputs} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/${subdir}")
