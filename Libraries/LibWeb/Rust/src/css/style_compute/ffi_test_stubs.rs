@@ -70,6 +70,13 @@ extern "C" fn web_css_sample_animations_for_style_update(_application: *mut Host
     unreachable!("no unit test applies style reactions");
 }
 #[unsafe(no_mangle)]
+extern "C" fn web_css_sample_undisplayed_animations_for_read(
+    _application: *mut HostStyleReactionApplication,
+    _element: *mut HostElement,
+) {
+    unreachable!("no unit test applies style reactions");
+}
+#[unsafe(no_mangle)]
 extern "C" fn web_css_begin_style_update_pass(_application: *mut HostStyleReactionApplication, _first: bool) {
     unreachable!("no unit test applies style reactions");
 }

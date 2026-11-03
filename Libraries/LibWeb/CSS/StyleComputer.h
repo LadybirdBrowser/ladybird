@@ -94,6 +94,8 @@ public:
 
     void begin_style_update() const;
     void end_style_update() const;
+    void begin_inheritance_chain_read() const { ++m_inheritance_chain_read_depth; }
+    void end_inheritance_chain_read() const { --m_inheritance_chain_read_depth; }
 
     struct ComputedStyleInvalidation {
         RequiredInvalidationAfterStyleChange invalidation;
@@ -286,6 +288,7 @@ private:
     mutable double m_root_element_effective_zoom { 1 };
 
     mutable u64 m_style_update_depth { 0 };
+    mutable u64 m_inheritance_chain_read_depth { 0 };
     mutable Optional<MediaEnvironmentSnapshot> m_style_update_media_environment;
     mutable Optional<Parser::ValueParserFFI::FfiMediaEnvironment> m_style_update_ffi_media_environment;
     u64 m_viewport_environment_version { 0 };

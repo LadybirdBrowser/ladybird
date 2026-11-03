@@ -253,6 +253,23 @@ static void sample_animations_for_installed_record(DOM::AbstractElement abstract
     context.publish();
 }
 
+// No style update samples the animations of an element that is not displayed, nor those of its pseudo-elements. A read
+// below it samples them for itself, over the styles they hold.
+void StyleEngineFFI::web_css_sample_undisplayed_animations_for_read(StyleReactionApplication* application, DOM::Element* element)
+{
+    auto& style_computer = application->document->style_computer();
+    auto sample = [&](DOM::AbstractElement abstract_element) {
+        auto const& style = abstract_element.installed_style();
+        if (!style || (!style_computer.has_animations_to_compose(abstract_element) && !style.view().animated_overlay && !abstract_element.custom_property_data_is_animation_overlay()))
+            return;
+        if (element->has_inclusive_ancestor_with_display_none_ignoring_animations())
+            sample_animations_for_installed_record(abstract_element);
+    };
+    sample(DOM::AbstractElement { *element });
+    for (auto pseudo_element : DOM::Element::computed_pseudo_elements)
+        sample(DOM::AbstractElement { *element, pseudo_element });
+}
+
 // What the style engine reads of an element it applies a reaction to.
 static StyleEngineFFI::FfiReactionElement describe_reaction_element(DOM::Document const& document, DOM::Element* element)
 {
@@ -844,6 +861,8 @@ static bool update_style_for_element(Layout::BegunRead const& read, DOM::Documen
     }
 
     StyleReactionApplication application { read, document };
+    document.style_computer().begin_inheritance_chain_read();
+    ScopeGuard end_inheritance_chain_read = [&] { document.style_computer().end_inheritance_chain_read(); };
     auto answer = StyleEngineFFI::style_engine_update_style_for_inheritance_chain(document.style_computer().style_engine().host(), &read, &application, first_element_of_inheritance_chain(abstract_element), static_cast<StyleEngineFFI::FfiStyleUpdateMode>(mode), embedding_document_layout_was_stale);
     apply_document_style_invalidation_after_style_change(document, application.invalidation);
     return answer_style_read(abstract_element, answer);
