@@ -2180,6 +2180,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
 
     for (auto const& state : previous_read_write_states)
         CSS::Invalidation::invalidate_style_after_read_write_state_change(*state.element, state.value);
+    if (!previous_read_write_states.is_empty())
+        CSS::Invalidation::invalidate_style_after_focused_element_keyboard_input_change(document());
 
     // 26. Queue a tree mutation record for oldParent with « », « node », oldPreviousSibling, and oldNextSibling.
     GC::Ref<Node> moved_node = *this;
@@ -2456,6 +2458,7 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         return TraversalDecision::Continue;
     });
     document().page().keyboard_scroll_editability_changed(document());
+    CSS::Invalidation::invalidate_style_after_focused_element_keyboard_input_change(document());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editable

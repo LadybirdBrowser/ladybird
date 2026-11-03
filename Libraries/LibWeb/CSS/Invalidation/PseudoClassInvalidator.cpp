@@ -175,6 +175,14 @@ void invalidate_style_after_slot_assignment_changed(DOM::Element& slot)
     }
 }
 
+// Whether the focused element takes keyboard input decides whether it indicates focus, which then moves without focus
+// moving, so the element is asked its own answer.
+void invalidate_style_after_focused_element_keyboard_input_change(DOM::Document& document)
+{
+    if (auto* element = as_if<DOM::Element>(document.focused_area().ptr()))
+        record_element_state_changed(*element, CSS::PseudoClass::FocusVisible, element->should_indicate_focus());
+}
+
 // A slot leaving takes the flat tree chain of the elements assigned to it along, though they stay where they are, so
 // that the source stands in no chain through the subtree by the time the subtree has left.
 void invalidate_style_after_subtree_holding_a_state_source_left(DOM::Node& subtree, GC::Ptr<DOM::Node> old_parent)

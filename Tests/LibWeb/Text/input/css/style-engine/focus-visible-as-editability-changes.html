@@ -40,9 +40,11 @@
         focusable.removeAttribute("contenteditable");
         report("No longer an editing host", focusable);
         document.designMode = "on";
-        report("designMode on", focusable);
+        report("designMode on moved focus to the root", document.documentElement);
         document.designMode = "off";
-        report("designMode off", focusable);
+        report("designMode off", document.documentElement);
+        focusWithPointer(focusable);
+        report("Focused with a pointer again", focusable);
         element("editable").moveBefore(focusable, null);
         report("Moved into an editing host", focusable);
         element("ancestor").moveBefore(focusable, null);
