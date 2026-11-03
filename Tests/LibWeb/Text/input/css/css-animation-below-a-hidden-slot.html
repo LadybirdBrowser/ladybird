@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes half {
+        from, to { opacity: 0.5; }
+    }
+    .animated {
+        animation: half 1000s;
+    }
+    .hidden {
+        display: none;
+    }
+</style>
+<body>
+<script>
+    function report(label, target) {
+        document.body.offsetWidth;
+        println(`${label}: ${target.getAnimations().length} animations, opacity ${getComputedStyle(target).opacity}`);
+    }
+
+    // Builds a host whose shadow tree has one slot, with one slotted element, and gives each kind of hiding the same
+    // treatment a plain parent gets.
+    function buildSlotted(hidden) {
+        const host = document.createElement("div");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<style>.hidden { display: none; }</style><slot class="${hidden ? "hidden" : ""}"></slot>`;
+        const target = document.createElement("div");
+        host.appendChild(target);
+        document.body.appendChild(host);
+        return { hider: root.querySelector("slot"), target };
+    }
+
+    function buildPlain(hidden) {
+        const parent = document.createElement("div");
+        parent.className = hidden ? "hidden" : "";
+        const target = document.createElement("div");
+        parent.appendChild(target);
+        document.body.appendChild(parent);
+        return { hider: parent, target };
+    }
+
+    test(() => {
+        for (const [name, build] of [["plain parent", buildPlain], ["slot", buildSlotted]]) {
+            let { hider, target } = build(true);
+            document.body.offsetWidth;
+            target.className = "animated";
+            report(`${name}, hidden, animation set`, target);
+            hider.className = "";
+            report(`${name}, then shown`, target);
+            hider.className = "hidden";
+            report(`${name}, then hidden again`, target);
+            hider.className = "";
+            report(`${name}, then shown again`, target);
+
+            ({ hider, target } = build(true));
+            target.className = "animated";
+            report(`${name}, hidden, animation there from the start`, target);
+
+            ({ hider, target } = build(false));
+            target.className = "animated";
+            report(`${name}, shown, animation set`, target);
+            hider.className = "hidden";
+            getComputedStyle(target).opacity;
+            report(`${name}, then hidden`, target);
+        }
+
+        // Hiding what holds the slot is hiding the slot.
+        let host = document.createElement("div");
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = "<style>.hidden { display: none; }</style><div><slot></slot></div>";
+        let target = document.createElement("div");
+        target.className = "animated";
+        const child = document.createElement("div");
+        child.className = "animated";
+        target.append(child);
+        host.append(target);
+        document.body.append(host);
+        report("shown ancestor of a slot", target);
+        report("its slottable's child", child);
+        root.querySelector("div").className = "hidden";
+        report("hidden ancestor of a slot", target);
+        report("its slottable's child", child);
+        root.querySelector("div").className = "";
+        report("shown again", target);
+        report("its slottable's child", child);
+
+        // A slottable moves between slots.
+        host = document.createElement("div");
+        host.attachShadow({ mode: "open" }).innerHTML = "<style>.hidden { display: none; }</style><slot name=shown></slot><slot name=hidden class=hidden></slot>";
+        target = document.createElement("div");
+        target.className = "animated";
+        target.slot = "shown";
+        host.append(target);
+        document.body.append(host);
+        report("in a shown slot", target);
+        target.slot = "hidden";
+        report("moved to a hidden slot", target);
+        target.slot = "shown";
+        report("moved back", target);
+    });
+</script>

@@ -574,6 +574,7 @@ static void update_style(Layout::BegunRead const& read, DOM::Document& document,
     timing_counters.style_engine_published_reactions += applied.published_reactions;
     timing_counters.style_update_pass_guard_hits += applied.pass_guard_hits;
     timing_counters.style_update_apply_microseconds += applied.apply_microseconds;
+    document.settle_elements_whose_assigned_slot_changed();
     if (!applied.had_reactions)
         return;
 
@@ -668,6 +669,7 @@ static bool document_has_style_work_a_read_waits_for(Layout::BegunRead const& re
         || style_engine.has_recorded_input()
         || style_engine.has_flown_style_update()
         || subtree_arrivals_may_be_due(read, document)
+        || document.has_assigned_slot_change_notes()
         || document.has_dirty_style_attributes()
         || document.has_unreported_style_attributes_to_report()
         || document.needs_highlight_style_update()

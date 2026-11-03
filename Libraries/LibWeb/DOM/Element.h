@@ -384,6 +384,8 @@ public:
     // Terminates or resumes the animations of a subtree whose display, ignoring animations, left or entered none since
     // `before`, and clears the styles of a subtree that became display:none.
     void apply_display_none_change(DisplayNoneState before);
+    // Terminates or resumes the animations of the element and of what is below it in the flat tree.
+    void play_or_cancel_animations_of_flat_tree_subtree();
     // Clears the styles of the descendants of a display:none element, which have no boxes: a CSSOM read or the subtree's
     // reveal materializes them again. The styles of the SVG elements visible content can reference are computed again.
     void clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read);

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<style>
+    @keyframes tone {
+        from {
+            color: rgb(1, 1, 1);
+        }
+        to {
+            color: rgb(2, 2, 2);
+        }
+    }
+    .animated {
+        animation: tone 1000s;
+    }
+</style>
+<iframe id="frame"></iframe>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const frame = document.getElementById("frame");
+        const frameDocument = frame.contentDocument;
+        frameDocument.body.innerHTML = `
+            <style>
+                @keyframes tone {
+                    from {
+                        color: rgb(1, 1, 1);
+                    }
+                    to {
+                        color: rgb(2, 2, 2);
+                    }
+                }
+                .animated {
+                    animation: tone 1000s;
+                }
+            </style>
+            <div id="host"><div id="child" class="animated"></div></div>
+            <p id="other"></p>
+        `;
+        const host = frameDocument.getElementById("host");
+        const child = frameDocument.getElementById("child");
+        const other = frameDocument.getElementById("other");
+        println(`before: ${frame.contentWindow.getComputedStyle(child).animationName}`);
+
+        // The child's slot changes, and it leaves before its document settles that.
+        host.attachShadow({ mode: "open" });
+        const adopted = document.adoptNode(child);
+        document.body.append(adopted);
+        println(`adopted: ${getComputedStyle(adopted).animationName}, ${adopted.getAnimations().length} animation`);
+
+        // Both documents now run a style update.
+        other.className = "changed";
+        await new Promise(resolve => frame.contentWindow.requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println(`settled: ${getComputedStyle(adopted).animationName}, ${adopted.getAnimations().length} animation`);
+        done();
+    });
+</script>

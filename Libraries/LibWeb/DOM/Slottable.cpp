@@ -67,6 +67,8 @@ void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_s
     }
     if (node.document().may_have_blocking_wheel_event_listener())
         node.update_inside_blocking_wheel_event_handler_state_for_subtree();
+    if (auto* element = as_if<Element>(node))
+        node.document().note_element_assigned_slot_changed(*element);
 }
 
 GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::manual_slot_assignment()

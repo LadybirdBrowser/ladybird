@@ -6798,10 +6798,12 @@ fn in_display_none_subtree_for_animations(
     if longhands.effective_display(None).is_none() && !longhands.display_none_is_animated() {
         return true;
     }
-    // The element's own display is answered above, so an element's walk starts at its parent; a
-    // pseudo-element's starts at its originating element.
+    // The element's own display is answered above, so an element's walk starts at the slot it is
+    // assigned to or its parent; a pseudo-element's starts at its originating element.
     let start = match pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
-        true => style_engine.parent_or_shadow_host(node),
+        true => style_engine
+            .assigned_slot_of(node)
+            .or_else(|| style_engine.parent_or_shadow_host(node)),
         false => Some(node),
     };
     start.is_some_and(|start| style_engine.has_inclusive_ancestor_with_display_none_ignoring_animations(start))
