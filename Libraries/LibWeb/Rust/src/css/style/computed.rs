@@ -108,6 +108,23 @@ impl SharedLonghands {
         // NB: The inherited bits are no group's: the records' values of them compare by value.
         layout.holds_value(longhand) && place.bit_field().is_none() && self.shared_groups & (1 << place.group()) != 0
     }
+
+    /// The longhands whose values the records may hold differently, one bit per longhand from the
+    /// first: those in a group they do not share, and those that map elsewhere or hold no value of a
+    /// group.
+    pub(crate) fn longhands_to_compare(self) -> [u64; crate::css::property_metadata::LONGHAND_WORD_COUNT] {
+        use crate::css::property_metadata::LONGHAND_WORD_COUNT;
+        let group_longhands = crate::css::computed_values::GroupValueLayout::group_longhands();
+        let mut longhands = [u64::MAX; LONGHAND_WORD_COUNT];
+        for (group, group_words) in group_longhands.iter().enumerate() {
+            if self.shared_groups & (1 << group) != 0 {
+                for (word, group_word) in longhands.iter_mut().zip(group_words) {
+                    *word &= !group_word;
+                }
+            }
+        }
+        longhands
+    }
 }
 
 impl<'a> ViewLonghands<'a> {
