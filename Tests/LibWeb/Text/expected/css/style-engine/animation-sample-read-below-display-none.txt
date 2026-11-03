@@ -1,0 +1,35 @@
+An element hidden once it has been shown:
+shown at 10%: 36.000001deg
+hidden at 10%: 36.000001deg
+hidden at 20%: 36.000001deg
+hidden at 20%, sibling: 36.000001deg
+hidden at 30%, sibling: 36.000001deg
+hidden at 30%: 36.000001deg
+shown again at 30%: 108.000004deg
+shown at 40%: 144.000002deg
+An element never shown:
+at 10%: 36.000001deg
+at 10%, own property: 36.000001deg
+at 20%: 36.000001deg
+at 20%, middle: 36.000001deg
+at 20%, sibling: 36.000001deg
+at 20%, own property: 36.000001deg
+cancelled: 36.000001deg
+cancelled, own property: 36.000001deg
+shown: 0deg
+An animated inherited color:
+at 10%: rgb(10, 10, 10)
+at 20%: rgb(20, 20, 20)
+cancelled: rgb(0, 0, 0)
+An animated element that is itself not displayed:
+at 10%: 0deg
+at 20%: 0deg
+cancelled: 0deg
+An animated element above another that is not displayed:
+at 10%: 36.000001deg
+at 20%: 36.000001deg
+cancelled: 36.000001deg
+A style query on a custom property that does not inherit:
+at 10%: rgb(0, 0, 0)
+at 60%: rgb(0, 0, 0)
+at 10% again: rgb(0, 0, 0)
