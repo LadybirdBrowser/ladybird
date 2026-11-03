@@ -1,0 +1,13 @@
+before: rgb(0, 0, 0) rgb(0, 0, 0)
+still unread: rgb(0, 0, 0) rgb(0, 0, 0)
+arrived unread: rgb(0, 0, 0)
+kept: rgb(1, 0, 0)
+changed: rgb(2, 0, 0)
+removed: true
+added: rgb(5, 0, 0)
+arrived: rgb(1, 0, 0)
+in a shadow tree: rgb(7, 0, 0)
+local link: rgb(6, 0, 0)
+other link: false
+kept removed: rgb(0, 0, 0)
+came back: rgb(1, 0, 0)

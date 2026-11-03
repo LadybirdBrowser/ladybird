@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #host { color: rgb(0, 0, 0); }
+</style>
+<a id="link-here"></a>
+<a id="link-elsewhere" href="https://example.com/"></a>
+<div id="plain" data-kept="1" data-changed="old" data-removed="1"></div>
+<div id="later"></div>
+<div id="host"></div>
+<script>
+    test(() => {
+        document.getElementById("link-here").href = location.href;
+        const host = document.getElementById("host");
+        const shadowChild = document.createElement("div");
+        shadowChild.setAttribute("data-kept", "1");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.appendChild(shadowChild);
+
+        const plain = document.getElementById("plain");
+        const later = document.getElementById("later");
+        const color = element => getComputedStyle(element).color;
+
+        // Nothing tests these names or `:local-link` once this update is through.
+        println(`before: ${color(plain)} ${color(later)}`);
+
+        // What moves while nothing reads it, on an element that has arrived.
+        plain.setAttribute("data-changed", "new");
+        plain.removeAttribute("data-removed");
+        later.setAttribute("data-added", "1");
+        println(`still unread: ${color(plain)} ${color(later)}`);
+
+        // An element arriving while nothing reads its attributes.
+        const arrived = document.createElement("div");
+        arrived.setAttribute("data-kept", "1");
+        document.body.appendChild(arrived);
+        println(`arrived unread: ${color(arrived)}`);
+
+        // An element arriving and leaving before anything looks.
+        const gone = document.createElement("div");
+        gone.setAttribute("data-kept", "1");
+        document.body.appendChild(gone);
+        gone.remove();
+
+        const style = document.createElement("style");
+        style.textContent = `
+            [data-kept] { color: rgb(1, 0, 0); }
+            [data-changed="new"] { background-color: rgb(2, 0, 0); }
+            [data-changed="old"] { background-color: rgb(3, 0, 0); }
+            [data-removed] { border-top-color: rgb(4, 0, 0); }
+            [data-added] { color: rgb(5, 0, 0); }
+            :local-link { color: rgb(6, 0, 0); }
+        `;
+        document.head.appendChild(style);
+        const shadowStyle = document.createElement("style");
+        shadowStyle.textContent = "[data-kept] { color: rgb(7, 0, 0); }";
+        shadow.appendChild(shadowStyle);
+
+        println(`kept: ${color(plain)}`);
+        println(`changed: ${getComputedStyle(plain).backgroundColor}`);
+        println(`removed: ${getComputedStyle(plain).borderTopColor === getComputedStyle(plain).color}`);
+        println(`added: ${color(later)}`);
+        println(`arrived: ${color(arrived)}`);
+        println(`in a shadow tree: ${color(shadowChild)}`);
+        println(`local link: ${color(document.getElementById("link-here"))}`);
+        println(`other link: ${color(document.getElementById("link-elsewhere")) === "rgb(6, 0, 0)"}`);
+
+        // A name read from now on is published as it moves.
+        plain.removeAttribute("data-kept");
+        println(`kept removed: ${color(plain)}`);
+        document.body.appendChild(gone);
+        println(`came back: ${color(gone)}`);
+    });
+</script>
