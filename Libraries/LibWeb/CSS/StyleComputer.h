@@ -253,6 +253,15 @@ public:
     void ensure_style_node_slot(StyleNodeID);
     void unregister_style_node(StyleNodeID style_node_id);
     [[nodiscard]] GC::Ptr<DOM::Element> element_for_style_node(StyleNodeID style_node_id) const;
+    // Every element holding a style node, in the order of the nodes.
+    template<typename Callback>
+    void for_each_element_with_style_node(Callback callback) const
+    {
+        for (auto const& node : m_element_style_nodes) {
+            if (auto* element = as_if<DOM::Element>(node.ptr()))
+                callback(*element);
+        }
+    }
     [[nodiscard]] GC::Ptr<DOM::Node> node_for_style_node(StyleNodeID style_node_id) const;
     // The node a style node id the render clock's lanes report names, or none where the id left its node since the
     // rendering update the lanes follow took them in last: the id may name another node by now, which the lanes, on a

@@ -283,17 +283,16 @@ public:
     };
     // NB: An element's identity may have been retired, or taken by another element, by the time a fact withheld from
     //     it is published: what is published is read from whatever element holds the identity then.
-    using WithheldAttributeCarriers = HashMap<WithheldAttributeName, HashTable<StyleNodeID>, WithheldAttributeNameTraits>;
-    void note_local_link_state_withheld(StyleNodeID node) { m_withheld_local_link_states.set(node); }
-    void note_attribute_withheld(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri, StyleNodeID node)
+    void note_local_link_state_withheld() { m_local_link_state_is_withheld = true; }
+    void note_attribute_withheld(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_uri)
     {
-        m_withheld_attribute_carriers.ensure({ local_name, namespace_uri }).set(node);
+        m_withheld_attribute_names.set({ local_name, namespace_uri });
     }
     // What was withheld that something may read now, which is withheld no longer, with the elements it was withheld
     // from.
     struct WithheldFeaturesNowRead {
-        HashTable<StyleNodeID> local_link_states;
-        WithheldAttributeCarriers attributes;
+        bool local_link_state { false };
+        Vector<WithheldAttributeName> attributes;
     };
     WithheldFeaturesNowRead take_withheld_features_now_read(Layout::BegunRead const&);
 
@@ -471,8 +470,8 @@ private:
     RelationalArrivalKeys m_relational_arrival_keys;
     Optional<u64> m_waiting_children_checked_against_keys_version;
     bool m_may_have_waiting_children { false };
-    HashTable<StyleNodeID> m_withheld_local_link_states;
-    WithheldAttributeCarriers m_withheld_attribute_carriers;
+    bool m_local_link_state_is_withheld { false };
+    HashTable<WithheldAttributeName, WithheldAttributeNameTraits> m_withheld_attribute_names;
     bool m_css_transitions_may_observe_style_changes { false };
     mutable bool m_geometry_read_deferred_transaction { false };
     StyleAtomID m_html_element_namespace;
