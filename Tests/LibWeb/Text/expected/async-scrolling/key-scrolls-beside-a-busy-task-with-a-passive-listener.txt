@@ -1,0 +1,5 @@
+passive listener, beside the task: compositor offset=0 listener ran=false
+passive listener: defaultPrevented=false
+blocking listener, beside the task: compositor offset=100
+blocking listener: defaultPrevented=true
+after the canceled key: compositor offset=100 main thread offset=100
