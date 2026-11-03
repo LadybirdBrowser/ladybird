@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<style>
+    /* Each pair of elements below matches the same rules. */
+    .em { width: 2em; }
+    .current-color { background-color: currentcolor; border-top: 1px solid currentcolor; }
+    .attr-width { width: attr(data-width px); }
+    .attr-custom { --from-attr: attr(data-width px); width: var(--from-attr); }
+    .uses-custom { width: var(--inherited-width); }
+    .declares-custom { --declared: var(--inherited-width); width: var(--declared); }
+    .rem-under-a-parent { width: 2rem; }
+    .style-function { width: if(style(--flag: on): 2px; else: 1px); }
+    @function --width-in-a-container() { result: 1px; @container (min-width: 200px) { result: 2px; } }
+    .function-in-a-container { width: --width-in-a-container(); }
+    .vw { width: 10vw; }
+    .logical { margin-inline-start: 5px; margin-block-start: 7px; }
+    .inherits-width { width: inherit; padding-top: inherit; }
+    .inherits-color { background-color: inherit; }
+    .monospace { font-family: monospace; }
+    .span-in-box { position: static; }
+    .contained { width: 1px; }
+    @container (min-width: 200px) { .contained { width: 2px; } }
+    .contained-units { width: 10cqw; }
+    .style-query { width: 1px; }
+    @container style(--flag: on) { .style-query { width: 2px; } }
+    .reverted { display: revert; }
+    .reverted-layer { color: revert-layer; }
+    @layer base { .reverted-layer { color: rgb(1, 2, 3); } }
+    .before::before { content: attr(data-text); width: 2em; display: block; }
+    .light-dark { color: light-dark(rgb(1, 1, 1), rgb(2, 2, 2)); }
+    .sibling-index { width: calc(sibling-index() * 1px); }
+    .plain { width: 3px; }
+    .font-em { font-size: 2em; line-height: 1.5; }
+    .lh { width: 2lh; }
+    .quirk-free { width: 1ex; }
+    .in-animated { background-color: currentcolor; width: 2em; }
+    .animated-parent { animation: move-parent 1000s linear paused; animation-delay: -500s; }
+    @keyframes move-parent { from { color: rgb(0, 0, 0); font-size: 10px; } to { color: rgb(200, 200, 200); font-size: 30px; } }
+    .reads-animated { width: var(--animated-width); }
+    .sampled { width: var(--animated-width); animation: sample 1000s linear paused; animation-delay: -500s; }
+    @property --animated-width { syntax: "<length>"; inherits: true; initial-value: 1px; }
+    @keyframes sample { from { --animated-width: 0px; } to { --animated-width: 200px; } }
+    .rule-moved { width: 1px; }
+    .zoomed { width: 10px; }
+    .registered { width: var(--registered); }
+    .display-of-child { display: inline; }
+    .attr-font-size { font-size: attr(data-size px); }
+    .ch-of-a-face { font-family: Arriving, serif; font-size: 100px; width: 1ch; }
+</style>
+<body><div id="stage"></div>
+<script src="../../include.js"></script>
+<script>
+    const stage = document.getElementById("stage");
+
+    // Builds a parent holding one child, which leaves the child in a pass of its own.
+    function childUnder(parentStyle, childClass, childAttributes = {}, parentAttributes = {}) {
+        const parent = document.createElement("div");
+        parent.setAttribute("style", parentStyle);
+        for (const [name, value] of Object.entries(parentAttributes)) parent.setAttribute(name, value);
+        stage.appendChild(parent);
+        getComputedStyle(parent).width;
+        const child = document.createElement(childAttributes.tag ?? "div");
+        child.className = childClass;
+        for (const [name, value] of Object.entries(childAttributes)) {
+            if (name !== "tag") child.setAttribute(name, value);
+        }
+        parent.appendChild(child);
+        return child;
+    }
+
+    function show(name, element, ...properties) {
+        const style = getComputedStyle(element);
+        println(`${name}: ${properties.map(property => `${property}=${style.getPropertyValue(property)}`).join(" ")}`);
+    }
+
+    // Styles two children in passes of their own, then again in one pass, which is how a later
+    // element can find what an earlier one left, and what elements of one pass leave each other.
+    function pair(name, properties, first, second) {
+        const a = childUnder(...first);
+        show(`${name} first`, a, ...properties);
+        const b = childUnder(...second);
+        show(`${name} second`, b, ...properties);
+        const c = childUnder(...first);
+        const d = childUnder(...second);
+        show(`${name} same pass first`, c, ...properties);
+        show(`${name} same pass second`, d, ...properties);
+    }
+
+    function alikeUnderParents() {
+        pair("parent font size", ["width"], ["font-size: 10px", "em"], ["font-size: 20px", "em"]);
+        pair("parent color", ["background-color", "border-top-color"],
+            ["color: rgb(1, 1, 1)", "current-color"], ["color: rgb(2, 2, 2)", "current-color"]);
+        pair("attribute", ["width"], ["", "attr-width", { "data-width": "11" }], ["", "attr-width", { "data-width": "22" }]);
+        pair("attribute in a custom property", ["width"],
+            ["", "attr-custom", { "data-width": "11" }], ["", "attr-custom", { "data-width": "22" }]);
+        pair("inherited custom property", ["width"],
+            ["--inherited-width: 11px", "uses-custom"], ["--inherited-width: 22px", "uses-custom"]);
+        pair("declared over an inherited custom property", ["width"],
+            ["--inherited-width: 11px", "declares-custom"], ["--inherited-width: 22px", "declares-custom"]);
+        pair("own custom property", ["width"],
+            ["", "uses-custom", { style: "--inherited-width: 11px" }], ["", "uses-custom", { style: "--inherited-width: 22px" }]);
+        pair("own declaration", ["width"], ["", "plain", { style: "width: 11px" }], ["", "plain", { style: "width: 22px" }]);
+        pair("own important declaration", ["width"],
+            ["", "plain", { style: "width: 11px !important" }], ["", "plain", { style: "width: 22px" }]);
+        pair("writing mode", ["margin-left", "margin-top", "margin-right"],
+            ["writing-mode: horizontal-tb", "logical"], ["writing-mode: vertical-rl", "logical"]);
+        pair("direction", ["margin-left", "margin-top", "margin-right"], ["direction: ltr", "logical"], ["direction: rtl", "logical"]);
+        pair("explicit inherit of a reset property", ["width", "padding-top"],
+            ["width: 11px; padding-top: 1px", "inherits-width"], ["width: 22px; padding-top: 2px", "inherits-width"]);
+        pair("explicit inherit of a reset color", ["background-color"],
+            ["background-color: rgb(1, 1, 1)", "inherits-color"], ["background-color: rgb(2, 2, 2)", "inherits-color"]);
+        pair("monospace recascade", ["font-size"], ["font-size: x-large", "monospace"], ["font-size: 24px", "monospace"]);
+        pair("parent box", ["display"], ["display: flex", "display-of-child"], ["display: block", "display-of-child"]);
+        pair("contents parent", ["display"], ["display: contents", "display-of-child"], ["display: flex", "display-of-child"]);
+        pair("container size", ["width"],
+            ["container-type: inline-size; width: 100px", "contained"], ["container-type: inline-size; width: 300px", "contained"]);
+        pair("container units", ["width"],
+            ["container-type: inline-size; width: 100px", "contained-units"], ["container-type: inline-size; width: 300px", "contained-units"]);
+        pair("container style", ["width"], ["--flag: off", "style-query"], ["--flag: on", "style-query"]);
+        pair("style function", ["width"], ["--flag: off", "style-function"], ["--flag: on", "style-function"]);
+        pair("custom function reading a container", ["width"],
+            ["container-type: inline-size; width: 100px", "function-in-a-container"],
+            ["container-type: inline-size; width: 300px", "function-in-a-container"]);
+        pair("revert", ["display"], ["", "reverted", { tag: "span" }], ["", "reverted", { tag: "div" }]);
+        pair("revert to a layer", ["color"], ["color: rgb(9, 9, 9)", "reverted-layer"], ["color: rgb(8, 8, 8)", "reverted-layer"]);
+        pair("color scheme", ["color"], ["color-scheme: light", "light-dark"], ["color-scheme: dark", "light-dark"]);
+        println(`zoom of the parent: ${["zoom: 1", "zoom: 2", "zoom: 1", "zoom: 2"].map(style => childUnder(style, "zoomed").getBoundingClientRect().width).join(" ")}`);
+        pair("line height", ["width"], ["line-height: 10px", "lh"], ["line-height: 20px", "lh"]);
+        pair("font size winner", ["font-size", "line-height"], ["font-size: 10px", "font-em"], ["font-size: 20px", "font-em"]);
+        pair("font of the parent", ["width"], ["font: 10px serif", "quirk-free"], ["font: 40px serif", "quirk-free"]);
+        pair("animated parent", ["background-color", "width"], ["", "in-animated"], ["", "in-animated"]);
+        // A parent generating no box leaves the box of its parent to its child.
+        for (const display of ["flex", "block", "flex", "block"]) {
+            const child = childUnder("display: contents", "display-of-child");
+            child.parentElement.remove();
+            const outer = stage.appendChild(document.createElement("div"));
+            outer.style.display = display;
+            getComputedStyle(outer).display;
+            outer.appendChild(child.parentElement);
+            show(`below a contents parent in a ${display} box`, child, "display");
+        }
+        const animatedParent = childUnder("", "in-animated").parentElement;
+        animatedParent.classList.add("animated-parent");
+        show("under an animating parent", animatedParent.firstElementChild, "background-color", "width");
+        show("under no animating parent", childUnder("", "in-animated"), "background-color", "width");
+    }
+
+    function computedAgainstTheElement() {
+        // Elements matching alike, where each computes against its own attribute or position.
+        const a = childUnder("", "before", { "data-text": "first" });
+        const b = childUnder("font-size: 20px", "before", { "data-text": "second" });
+        const before = element => getComputedStyle(element, "::before");
+        println(`pseudo-element first: content=${before(a).content} width=${before(a).width}`);
+        println(`pseudo-element second: content=${before(b).content} width=${before(b).width}`);
+
+        const parent = document.createElement("div");
+        stage.appendChild(parent);
+        for (let i = 0; i < 3; ++i) parent.appendChild(document.createElement("div")).className = "sibling-index";
+        for (const child of parent.children) show("sibling index", child, "width");
+        parent.prepend(document.createElement("div"));
+        for (const child of parent.children) show("sibling index after a prepend", child, "width");
+    }
+
+    function sampledCustomProperties() {
+        // An element holding animated custom properties of its own takes no record of another.
+        const plain = childUnder("--animated-width: 5px", "reads-animated");
+        const sampled = childUnder("", "sampled");
+        const beside = childUnder("", "sampled");
+        beside.style.animation = "none";
+        show("custom property read plainly", plain, "width");
+        show("custom property sampled", sampled, "width");
+        show("custom property no longer sampled", beside, "width");
+    }
+
+    function documentWideInputs() {
+        // What moves for the whole document leaves no record computed before it behind.
+        const root = document.documentElement;
+        root.style.fontSize = "10px";
+        show("root font before", childUnder("font-size: 12px", "rem-under-a-parent"), "width");
+        root.style.fontSize = "20px";
+        show("root font after", childUnder("font-size: 12px", "rem-under-a-parent"), "width");
+        root.style.fontSize = "";
+
+        const sheet = document.styleSheets[0];
+        show("rule before", childUnder("", "rule-moved"), "width");
+        const inserted = sheet.insertRule(".rule-moved { width: 2px; }", sheet.cssRules.length);
+        show("rule inserted", childUnder("", "rule-moved"), "width");
+        sheet.deleteRule(inserted);
+        show("rule deleted", childUnder("", "rule-moved"), "width");
+
+        show("custom property before registration", childUnder("", "registered"), "width");
+        CSS.registerProperty({ name: "--registered", syntax: "<length>", inherits: false, initialValue: "9px" });
+        show("custom property after registration", childUnder("", "registered"), "width");
+    }
+
+    function shadowTreesAdoptingOneSheet() {
+        // The rule of a sheet two shadow trees adopt looks for its `@keyframes` in the one it decides from.
+        const shared = new CSSStyleSheet();
+        shared.replaceSync(".animates { animation: size 1000s paused; }");
+        const elementsIn = widths => widths.map(width => {
+            const host = stage.appendChild(document.createElement("div"));
+            const root = host.attachShadow({ mode: "open" });
+            const own = new CSSStyleSheet();
+            own.replaceSync(`@keyframes size { from { width: ${width}; } to { width: ${width}; } }`);
+            root.adoptedStyleSheets = [shared, own];
+            const element = root.appendChild(document.createElement("div"));
+            element.className = "animates";
+            return element;
+        });
+        for (const element of elementsIn(["11px", "22px"])) show("shadow tree", element, "width");
+    }
+
+    function elementsAskingForFontsOfTheirOwn() {
+        // Elements with one key, each asking for a font of another size, more than a pass has rounds.
+        const parent = stage.appendChild(document.createElement("div"));
+        const sizes = Array.from({ length: 24 }, (_, index) => 30 + index);
+        const elements = sizes.map(size => {
+            const element = parent.appendChild(document.createElement("div"));
+            element.className = "attr-font-size";
+            element.setAttribute("data-size", size);
+            return element;
+        });
+        println(`font sizes of their own: ${elements.map(element => getComputedStyle(element).fontSize).join(" ")}`);
+    }
+
+    async function fontEnvironment() {
+        // A font face arriving moves what a length against the font of an element resolves to.
+        const before = childUnder("", "ch-of-a-face");
+        const widthBefore = getComputedStyle(before).width;
+        const face = new FontFace("Arriving", "url(../../../../Assets/HashSans.woff)");
+        document.fonts.add(face);
+        await face.load();
+        const widthAfter = getComputedStyle(childUnder("", "ch-of-a-face")).width;
+        println(`font face arriving: moved=${widthBefore !== widthAfter}`);
+    }
+
+    asyncTest(async done => {
+        alikeUnderParents();
+        computedAgainstTheElement();
+        sampledCustomProperties();
+        documentWideInputs();
+        shadowTreesAdoptingOneSheet();
+        elementsAskingForFontsOfTheirOwn();
+        await fontEnvironment();
+
+        // The viewport units and media conditions of a document of its own, which moves below them.
+        const frame = document.createElement("iframe");
+        frame.style.width = "100px";
+        frame.style.height = "100px";
+        stage.appendChild(frame);
+        const frameDocument = frame.contentDocument;
+        frameDocument.head.appendChild(frameDocument.createElement("style")).textContent = `
+            .vw { width: 10vw; }
+            .vh { height: 10vh; }
+            .em { width: 2em; }
+            .media { width: 1px; }
+            @media (min-width: 200px) { .media { width: 2px; } }
+            .if-media { width: if(media(min-width: 200px): 2px; else: 1px); }
+        `;
+        const addChild = className => {
+            const child = frameDocument.body.appendChild(frameDocument.createElement("div"));
+            child.className = className;
+            return child;
+        };
+        const report = name => {
+            for (const className of ["vw", "vh", "media", "if-media"]) {
+                const style = frame.contentWindow.getComputedStyle(addChild(className));
+                println(`${name} ${className}: width=${style.width} height=${style.height}`);
+            }
+        };
+        report("viewport 100px");
+        // What the font of a parent read of the viewport, which a child computing against it takes
+        // along, though another parent holds the same font size now.
+        const parentOfFontSize = fontSize => {
+            const parent = addChild("");
+            parent.style.fontSize = fontSize;
+            frame.contentWindow.getComputedStyle(parent).fontSize;
+            const child = parent.appendChild(frameDocument.createElement("div"));
+            child.className = "em";
+            return child;
+        };
+        const fixed = parentOfFontSize("10px");
+        const relative = parentOfFontSize("10vw");
+        const widthOf = element => frame.contentWindow.getComputedStyle(element).width;
+        println(`parent font size at viewport 100px: fixed=${widthOf(fixed)} relative=${widthOf(relative)}`);
+        frame.style.width = "300px";
+        frame.style.height = "300px";
+        document.body.offsetWidth;
+        report("viewport 300px");
+        println(`parent font size at viewport 300px: fixed=${widthOf(fixed)} relative=${widthOf(relative)}`);
+        frame.remove();
+        done();
+    });
+</script>

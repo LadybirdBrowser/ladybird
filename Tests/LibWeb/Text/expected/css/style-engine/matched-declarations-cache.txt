@@ -1,0 +1,152 @@
+parent font size first: width=20px
+parent font size second: width=40px
+parent font size same pass first: width=20px
+parent font size same pass second: width=40px
+parent color first: background-color=rgb(1, 1, 1) border-top-color=rgb(1, 1, 1)
+parent color second: background-color=rgb(2, 2, 2) border-top-color=rgb(2, 2, 2)
+parent color same pass first: background-color=rgb(1, 1, 1) border-top-color=rgb(1, 1, 1)
+parent color same pass second: background-color=rgb(2, 2, 2) border-top-color=rgb(2, 2, 2)
+attribute first: width=11px
+attribute second: width=22px
+attribute same pass first: width=11px
+attribute same pass second: width=22px
+attribute in a custom property first: width=11px
+attribute in a custom property second: width=22px
+attribute in a custom property same pass first: width=11px
+attribute in a custom property same pass second: width=22px
+inherited custom property first: width=11px
+inherited custom property second: width=22px
+inherited custom property same pass first: width=11px
+inherited custom property same pass second: width=22px
+declared over an inherited custom property first: width=11px
+declared over an inherited custom property second: width=22px
+declared over an inherited custom property same pass first: width=11px
+declared over an inherited custom property same pass second: width=22px
+own custom property first: width=11px
+own custom property second: width=22px
+own custom property same pass first: width=11px
+own custom property same pass second: width=22px
+own declaration first: width=11px
+own declaration second: width=22px
+own declaration same pass first: width=11px
+own declaration same pass second: width=22px
+own important declaration first: width=11px
+own important declaration second: width=22px
+own important declaration same pass first: width=11px
+own important declaration same pass second: width=22px
+writing mode first: margin-left=5px margin-top=7px margin-right=0px
+writing mode second: margin-left=0px margin-top=5px margin-right=7px
+writing mode same pass first: margin-left=5px margin-top=7px margin-right=0px
+writing mode same pass second: margin-left=0px margin-top=5px margin-right=7px
+direction first: margin-left=5px margin-top=7px margin-right=0px
+direction second: margin-left=0px margin-top=7px margin-right=5px
+direction same pass first: margin-left=5px margin-top=7px margin-right=0px
+direction same pass second: margin-left=0px margin-top=7px margin-right=5px
+explicit inherit of a reset property first: width=11px padding-top=1px
+explicit inherit of a reset property second: width=22px padding-top=2px
+explicit inherit of a reset property same pass first: width=11px padding-top=1px
+explicit inherit of a reset property same pass second: width=22px padding-top=2px
+explicit inherit of a reset color first: background-color=rgb(1, 1, 1)
+explicit inherit of a reset color second: background-color=rgb(2, 2, 2)
+explicit inherit of a reset color same pass first: background-color=rgb(1, 1, 1)
+explicit inherit of a reset color same pass second: background-color=rgb(2, 2, 2)
+monospace recascade first: font-size=20px
+monospace recascade second: font-size=24px
+monospace recascade same pass first: font-size=20px
+monospace recascade same pass second: font-size=24px
+parent box first: display=block
+parent box second: display=inline
+parent box same pass first: display=block
+parent box same pass second: display=inline
+contents parent first: display=inline
+contents parent second: display=block
+contents parent same pass first: display=inline
+contents parent same pass second: display=block
+container size first: width=1px
+container size second: width=2px
+container size same pass first: width=1px
+container size same pass second: width=2px
+container units first: width=10px
+container units second: width=30px
+container units same pass first: width=10px
+container units same pass second: width=30px
+container style first: width=1px
+container style second: width=2px
+container style same pass first: width=1px
+container style same pass second: width=2px
+style function first: width=1px
+style function second: width=2px
+style function same pass first: width=1px
+style function same pass second: width=2px
+custom function reading a container first: width=1px
+custom function reading a container second: width=2px
+custom function reading a container same pass first: width=1px
+custom function reading a container same pass second: width=2px
+revert first: display=inline
+revert second: display=block
+revert same pass first: display=inline
+revert same pass second: display=block
+revert to a layer first: color=rgb(1, 2, 3)
+revert to a layer second: color=rgb(1, 2, 3)
+revert to a layer same pass first: color=rgb(1, 2, 3)
+revert to a layer same pass second: color=rgb(1, 2, 3)
+color scheme first: color=rgb(1, 1, 1)
+color scheme second: color=rgb(2, 2, 2)
+color scheme same pass first: color=rgb(1, 1, 1)
+color scheme same pass second: color=rgb(2, 2, 2)
+zoom of the parent: 10 20 10 20
+line height first: width=20px
+line height second: width=40px
+line height same pass first: width=20px
+line height same pass second: width=40px
+font size winner first: font-size=20px line-height=30px
+font size winner second: font-size=40px line-height=60px
+font size winner same pass first: font-size=20px line-height=30px
+font size winner same pass second: font-size=40px line-height=60px
+font of the parent first: width=5.375px
+font of the parent second: width=21.484375px
+font of the parent same pass first: width=5.375px
+font of the parent same pass second: width=21.484375px
+animated parent first: background-color=rgb(0, 0, 0) width=32px
+animated parent second: background-color=rgb(0, 0, 0) width=32px
+animated parent same pass first: background-color=rgb(0, 0, 0) width=32px
+animated parent same pass second: background-color=rgb(0, 0, 0) width=32px
+below a contents parent in a flex box: display=block
+below a contents parent in a block box: display=inline
+below a contents parent in a flex box: display=block
+below a contents parent in a block box: display=inline
+under an animating parent: background-color=rgb(100, 100, 100) width=40px
+under no animating parent: background-color=rgb(0, 0, 0) width=32px
+pseudo-element first: content="first" width=32px
+pseudo-element second: content="second" width=40px
+sibling index: width=1px
+sibling index: width=2px
+sibling index: width=3px
+sibling index after a prepend: width=784px
+sibling index after a prepend: width=2px
+sibling index after a prepend: width=3px
+sibling index after a prepend: width=4px
+custom property read plainly: width=5px
+custom property sampled: width=100px
+custom property no longer sampled: width=1px
+root font before: width=20px
+root font after: width=40px
+rule before: width=1px
+rule inserted: width=2px
+rule deleted: width=1px
+custom property before registration: width=784px
+custom property after registration: width=9px
+shadow tree: width=11px
+shadow tree: width=22px
+font sizes of their own: 30px 31px 32px 33px 34px 35px 36px 37px 38px 39px 40px 41px 42px 43px 44px 45px 46px 47px 48px 49px 50px 51px 52px 53px
+font face arriving: moved=true
+viewport 100px vw: width=10px height=0px
+viewport 100px vh: width=84px height=10px
+viewport 100px media: width=1px height=0px
+viewport 100px if-media: width=1px height=0px
+parent font size at viewport 100px: fixed=20px relative=20px
+viewport 300px vw: width=30px height=0px
+viewport 300px vh: width=284px height=30px
+viewport 300px media: width=2px height=0px
+viewport 300px if-media: width=2px height=0px
+parent font size at viewport 300px: fixed=20px relative=60px
