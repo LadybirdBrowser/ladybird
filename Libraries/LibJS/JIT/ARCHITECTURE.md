@@ -415,7 +415,7 @@ unreachable. Each one keeps the graph valid (`passes/verify.rs`), and IR tests i
 | Escape analysis | Allocations that do not escape become their properties' SSA values; frame states refer to `VirtualObject`s. `AssumeLegacyArgumentsUnread` nodes after calls whose frame states have virtual objects among legacy arguments become `AssumeValid` nodes; the others go away. |
 | Dead code elimination | Again, for what escape analysis left unused. |
 | Branch fusion | A branch on a single-use comparison (int32, float64 or tagged) compares itself, after a block that only branches on a phi of booleans hands the branch to its predecessors. |
-| Refinement removal | Every use of a refined value becomes a use of the value itself; `Refine` nodes go away and checks lose their values; value numbering then merges what differed only in refinements (section 3.2). |
+| Refinement removal | Every use of a refined value becomes a use of the value itself; `Refine` nodes go away and checks lose their values; value numbering then merges what differed only in refinements (section 3.2), and dead code elimination removes what only the merged checks' frame states kept alive. |
 | Frame initialization | Moves `InitializeFrame` to the first node that observes the frame's slots on each path, and puts `PublishFrame` before nodes that only need the frame visible (allocations, calls in inlined callees) where it may not be yet. |
 | Frame state cleanup | Drops the frame states no node uses. |
 | Cold block layout | Moves the cold blocks after all others. |
