@@ -1109,16 +1109,10 @@ impl RetainedState {
         // NB: A group that is not built and whose values are the shared group's own is the parent's
         //     or the initial one, taken without a reference of its own: a record sharing its set
         //     needs none, and one that does not counts it as it makes its own set.
-        let shared_payload = |group: usize| match group < ENGINE_INHERITED_GROUP_COUNT {
-            true => parent_view
-                .as_ref()
-                .map_or(std::ptr::null(), |view| view.payloads[group].as_ptr()),
-            false => initial.payloads[group].as_ptr(),
-        };
-        let borrowed = crate::css::computed_values::BorrowedGroups::of_groups_where(|group| {
-            let shared = shared_payload(group);
-            groups & (1 << group) == 0 && !shared.is_null() && values.hold_the_seed(group, shared)
-        });
+        let parent_payloads = parent_view
+            .as_ref()
+            .map_or([std::ptr::null(); group_index::COUNT], |view| view.payloads.pointers());
+        let initial_payloads = initial.payloads.pointers();
         // The lookups of the groups assembled anew, which the cache takes the groups for once they
         // hold their values.
         let mut assembled: smallvec::SmallVec<[GroupLookup<'_>; 4]> = smallvec::SmallVec::new();
@@ -1126,10 +1120,9 @@ impl RetainedState {
         // The groups the cache had, which hold the element's values.
         let mut found_holding = 0_u32;
         let mut payloads = [std::ptr::null(); group_index::COUNT];
+        let mut borrowed = crate::css::computed_values::BorrowedGroups::default();
         for (group, payload) in payloads.iter_mut().enumerate() {
-            let parent_payload = parent_view
-                .as_ref()
-                .map_or(std::ptr::null(), |view| view.payloads[group].as_ptr());
+            let parent_payload = parent_payloads[group];
             *payload = if groups & (1 << group) != 0 {
                 let key = (group != group_index::FONT && group_cache.worth_looking_for(group)).then(|| {
                     // A group holding plain `currentcolor` for its reader is the same whatever the
@@ -1195,24 +1188,18 @@ impl RetainedState {
             } else {
                 let shared = match group < ENGINE_INHERITED_GROUP_COUNT && !parent_payload.is_null() {
                     true => parent_payload,
-                    false => initial.payloads[group].as_ptr(),
+                    false => initial_payloads[group],
                 };
-                if !borrowed.contains(group) {
-                    crate::css::computed_values::retain_group_payload(group, shared);
+                match values.hold_the_seed(group, shared) && borrowed.note_if_of_a_set(group) {
+                    true => {}
+                    false => crate::css::computed_values::retain_group_payload(group, shared),
                 }
                 shared
             };
         }
-        let before = payloads;
         // SAFETY: Each payload is a live payload of its group holding a reference for the element,
         //         but the borrowed ones, whose values are the very values the element holds.
         unsafe { values.put_into(&mut payloads, found_holding) };
-        for group in (0..group_index::COUNT).filter(|&group| borrowed.contains(group)) {
-            assert_eq!(
-                payloads[group], before[group],
-                "a borrowed group holds the element's values"
-            );
-        }
         if self.process_style.verifies_reads {
             Self::verify_value_built_groups(
                 &values,

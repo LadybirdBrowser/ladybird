@@ -5515,8 +5515,8 @@ pub(crate) fn value_computes_directly(
     }
     // The background layer longhands coordinate with the number of background-image layers,
     // which is the identity only where every one of them holds a single layer.
-    if (property_id == prop::BACKGROUND_IMAGE || BACKGROUND_LAYER_LONGHANDS.contains(&property_id))
-        && matches!(data, StyleValueData::ValueList { values, .. } if values.as_slice().len() != 1)
+    if matches!(data, StyleValueData::ValueList { values, .. } if values.as_slice().len() != 1)
+        && (property_id == prop::BACKGROUND_IMAGE || BACKGROUND_LAYER_LONGHANDS.contains(&property_id))
     {
         return false;
     }
