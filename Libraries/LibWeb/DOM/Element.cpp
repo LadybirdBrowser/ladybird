@@ -2151,6 +2151,20 @@ void Element::play_or_cancel_animations_of_flat_tree_subtree()
     });
 }
 
+void Element::settle_animations_of_flat_tree_subtree(Layout::BegunRead const& read, Function<void(Element&)> const& compose_element)
+{
+    auto const& style_computer = document().style_computer();
+    for_each_inclusive_descendant_element_in_flat_tree(*this, [&](Element& element) {
+        element.play_or_cancel_animations_after_display_property_change();
+        if (element.has_style()) {
+            AbstractElement abstract_element { element };
+            style_computer.apply_settled_animation_plan(read, abstract_element);
+            compose_element(element);
+        }
+        return TraversalDecision::Continue;
+    });
+}
+
 void Element::clear_computed_styles_from_display_none_descendants(Layout::BegunRead const& read)
 {
     for_each_inclusive_descendant_element_in_flat_tree(*this, [this, &read](Element& descendant) {
@@ -2319,6 +2333,12 @@ WebIDL::ExceptionOr<void> Element::attach_a_shadow_root(ShadowRootMode mode, boo
 
     // 13. Set element’s shadow root to shadow.
     set_shadow_root(shadow);
+
+    // NB: This takes the children out of the flat tree until a slot takes them.
+    for_each_child_of_type<Element>([&](Element& child) {
+        document().note_element_assigned_slot_changed(child);
+        return IterationDecision::Continue;
+    });
     return {};
 }
 

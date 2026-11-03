@@ -646,16 +646,29 @@ impl RetainedState {
                 .or_else(|| self.projection.parent_or_shadow_host(current))
         })
         .any(|ancestor| {
-            self.computed_group_sets
-                .assigned_style_record(ancestor)
-                .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
-                .is_some_and(|view| {
-                    crate::css::computed_value_views::ComputedValuesView::of(view.base_payloads)
-                        .display()
-                        .is_none()
-                        && !view.longhands().display_none_is_animated()
-                })
+            self.is_child_of_shadow_host_no_slot_takes(ancestor)
+                || self
+                    .computed_group_sets
+                    .assigned_style_record(ancestor)
+                    .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
+                    .is_some_and(|view| {
+                        crate::css::computed_value_views::ComputedValuesView::of(view.base_payloads)
+                            .display()
+                            .is_none()
+                            && !view.longhands().display_none_is_animated()
+                    })
         })
+    }
+
+    /// Whether `node` is a child of a shadow host that no slot takes. Such an element is not in the flat tree, so it
+    /// generates no box, as if it were below a `display: none` element.
+    pub(crate) fn is_child_of_shadow_host_no_slot_takes(&self, node: StyleNodeID) -> bool {
+        if self.projection.assigned_slot_of(node).is_some() {
+            return false;
+        }
+        self.projection
+            .parent(node)
+            .is_some_and(|parent| self.projection.shadow_root_of(parent).is_some())
     }
 
     /// Whether the element is a `<slot>`, whose children the flat tree takes elsewhere.

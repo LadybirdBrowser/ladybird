@@ -1,0 +1,13 @@
+no slot in the shadow tree: 0 animations, opacity 1
+its child: 0 animations, opacity 1
+a slot takes it: 1 animations, opacity 0.5
+its child: 1 animations, opacity 0.5
+the slot leaves: 0 animations, opacity 1
+its child: 0 animations, opacity 1
+no slot of its name: 0 animations, opacity 1
+renamed for the slot: 1 animations, opacity 0.5
+renamed away: 0 animations, opacity 1
+a child of a plain element: 1 animations, opacity 0.5
+the parent becomes a host: 0 animations, opacity 1
+a slot takes it: 1 animations, opacity 0.5
+an element of the shadow tree: 1 animations, opacity 0.5

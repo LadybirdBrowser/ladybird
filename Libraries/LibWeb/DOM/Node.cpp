@@ -4976,6 +4976,10 @@ bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
         }
         if (ancestor_element->installed_style().display_is_none_ignoring_animations())
             return true;
+        // NB: A child of a shadow host that no slot takes is not in the flat tree, so it generates no box, as if it
+        //     were below a display:none element.
+        if (auto parent = ancestor_element->parent_element(); parent && parent->shadow_root() && !ancestor_element->assigned_slot_internal())
+            return true;
         ancestor = ancestor_element->element_to_inherit_style_from({}).ptr();
     }
     return false;

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes half {
+        from,
+        to {
+            opacity: 0.5;
+        }
+    }
+    .animated {
+        animation: half 1000s;
+    }
+</style>
+<div id="host"><div id="child" class="animated"></div></div>
+<div id="flip"></div>
+<script>
+    // A slot change beside a style update that flew is the next style update's, which knows the style of the new slot.
+    asyncTest(async done => {
+        const host = document.getElementById("host");
+        const child = document.getElementById("child");
+        const flip = document.getElementById("flip");
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<slot></slot>`;
+        function report(label) {
+            println(`${label}: ${child.getAnimations().length} animations, opacity ${getComputedStyle(child).opacity}`);
+        }
+        report("Slotted");
+
+        const state = await whileRecordingInFlight(
+            () => {
+                flip.className = "flipped";
+            },
+            state => {
+                // The new slot has no style yet as the update that flew lands, and the one after computes it.
+                const hidden = document.createElement("slot");
+                hidden.name = "hidden";
+                hidden.style.display = "none";
+                shadow.append(hidden);
+                child.slot = "hidden";
+                return state;
+            },
+            "style"
+        );
+        println(`The change ran beside: ${state}`);
+        await twoFramesLanded();
+        report("Moved to a hidden slot");
+        done();
+    });
+</script>

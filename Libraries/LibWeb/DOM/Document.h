@@ -1071,7 +1071,13 @@ public:
     void note_element_assigned_slot_changed(Element&);
     void forget_assigned_slot_change_note(Element&);
     bool has_assigned_slot_change_notes() const { return !m_elements_whose_assigned_slot_changed.is_empty(); }
-    void settle_elements_whose_assigned_slot_changed();
+    // What a style update that flies knows of is settled as it lands. What comes beside it is the next update's.
+    void note_style_update_flew_past_assigned_slot_changes();
+    enum class AssignedSlotChanges : u8 {
+        Recorded,
+        FlewPast,
+    };
+    void settle_elements_whose_assigned_slot_changed(AssignedSlotChanges, Layout::BegunRead const&, Function<void(Element&)> const& compose_element);
     void set_has_completed_style_update() { m_has_completed_style_update = true; }
     void mark_style_attribute_dirty(Element&);
     void synchronize_dirty_style_attributes();
@@ -2392,6 +2398,7 @@ private:
     // The shadow roots whose counter style registry may resolve or publish differently since the last style update.
     ShadowRoot::DocumentCounterStyleSettleList m_shadow_roots_with_counter_styles_to_settle;
     Vector<GC::Ref<Element>> m_elements_whose_assigned_slot_changed;
+    Vector<GC::Ref<Element>> m_elements_whose_assigned_slot_change_flew_past;
     u64 m_style_sheet_set_generation { 0 };
     // The `@keyframes` rows the style engine still holds for shadow roots that left this document.
     Vector<CSS::StyleScope::DepartedAnimationKeyframes> m_departed_animation_keyframes;
