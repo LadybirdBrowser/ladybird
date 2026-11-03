@@ -1609,7 +1609,8 @@ impl<'a> Scratch<'a> {
         };
         // What the element's pseudo-elements and animations compute reads the element's custom
         // properties beyond its own record, as do transitions, which start from the values that
-        // moved. A registered custom property computes against the element's own context.
+        // moved. A custom property the element declares that is registered computes against the
+        // element's own context, where one it only inherits arrives computed.
         if !records.pseudo_element_records(node).is_empty()
             || records.composition(node).is_some()
             || records.sampled_custom_properties(node).is_some()
@@ -1622,10 +1623,11 @@ impl<'a> Scratch<'a> {
                     crate::css::property_metadata::property_id::TRANSITION_DURATION,
                 )),
             )
-            || state
-                .document_style_computation_inputs
-                .custom_property_registry()
-                .has_registrations()
+            || old.custom_declarations().is_some_and(|declarations| {
+                declarations
+                    .iter()
+                    .any(|(declared, _)| state.custom_property_name_is_registered(declared.name))
+            })
         {
             return false;
         }

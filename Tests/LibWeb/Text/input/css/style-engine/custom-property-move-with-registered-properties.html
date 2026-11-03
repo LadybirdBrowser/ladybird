@@ -1,0 +1,70 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    @property --unrelated {
+        syntax: "<number>";
+        inherits: false;
+        initial-value: 0;
+    }
+    @property --inherited-length {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+    @property --own-length {
+        syntax: "<length>";
+        inherits: true;
+        initial-value: 0px;
+    }
+    #root {
+        --theme: 1;
+        --inherited-length: 1em;
+        font-size: 10px;
+    }
+    .declares-registered {
+        font-size: 20px;
+        --own-length: calc(var(--theme) * 1em);
+    }
+    .reads-own {
+        width: var(--own-length);
+    }
+    .reads-inherited {
+        width: var(--inherited-length);
+    }
+    .reads-theme {
+        width: calc(var(--theme) * 1px);
+    }
+    .reads-unrelated {
+        width: calc((var(--unrelated) + 3) * 1px);
+    }
+</style>
+<div id="root">
+    <div>
+        <div class="declares-registered"><div id="own" class="reads-own"></div></div>
+        <div id="inherited" class="reads-inherited"></div>
+        <div id="theme" class="reads-theme"></div>
+        <div id="unrelated" class="reads-unrelated"></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const report = title => {
+            println(title);
+            for (const id of ["own", "inherited", "theme", "unrelated"]) {
+                const style = getComputedStyle(document.getElementById(id));
+                const inherited = style.getPropertyValue("--inherited-length");
+                const own = style.getPropertyValue("--own-length");
+                const theme = style.getPropertyValue("--theme");
+                println(`${id}: width=${style.width} inherited=${inherited} own=${own} theme=${theme}`);
+            }
+        };
+        const root = document.getElementById("root");
+        report("initially");
+        root.style.setProperty("--theme", "2");
+        report("after moving an unregistered custom property");
+        root.style.setProperty("--inherited-length", "3em");
+        report("after moving an inherited registered custom property");
+        root.style.setProperty("--unrelated", "4");
+        report("after setting a registered custom property that does not inherit");
+    });
+</script>
