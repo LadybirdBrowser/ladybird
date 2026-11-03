@@ -349,11 +349,18 @@ pub(super) fn is_document_element(state: &RetainedState, node: StyleNodeID) -> b
     state.projection.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0
 }
 
-fn root_font_of(record: &Record) -> RootFontInputs {
-    RootFontInputs::from_payloads(
-        &record.payloads,
-        super::super::computed::record_dependency_flags(&record.facts(), &record.payloads),
-    )
+// https://drafts.csswg.org/css-values-4/#rem
+// Equal to the computed value of the em unit on the root element.
+// NB: The computed value holds what the root element's animations apply, which the composition of
+//     them over its record has where the host composed one.
+fn root_font_of(records: &Records<'_>, node: StyleNodeID, record: &Record) -> RootFontInputs {
+    match records.composition(node) {
+        Some(view) => RootFontInputs::from_payloads(view.payloads, view.dependency_flags),
+        None => RootFontInputs::from_payloads(
+            &record.payloads,
+            super::super::computed::record_dependency_flags(&record.facts(), &record.payloads),
+        ),
+    }
 }
 
 /// The document element, where `root` is it or its parent.
@@ -379,7 +386,7 @@ pub(super) fn held_root_font(
     Some(
         records
             .kept_root_font(document_element)
-            .unwrap_or_else(|| root_font_of(record)),
+            .unwrap_or_else(|| root_font_of(records, document_element, record)),
     )
 }
 
@@ -410,7 +417,7 @@ impl PassContext<'_> {
         let Some(record) = self.records.get(node) else {
             return;
         };
-        let root_font = root_font_of(record);
+        let root_font = root_font_of(self.records, node, record);
         let previous = self
             .held_root_font
             .unwrap_or_else(|| RootFontInputs::from_document(&self.state.document_style_computation_inputs));

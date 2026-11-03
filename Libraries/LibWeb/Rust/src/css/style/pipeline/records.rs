@@ -1263,6 +1263,12 @@ impl RetainedRecords {
         self.root_font = Some((node, root_font));
     }
 
+    /// The root font inputs the last pass that styled the document element `node` resolved against, where one did.
+    pub(super) fn kept_root_font(&self, node: StyleNodeID) -> Option<super::compute::RootFontInputs> {
+        let (kept, root_font) = self.root_font?;
+        (kept == node).then_some(root_font)
+    }
+
     /// Whether the style of `node`, its own or one of its pseudo-elements', derives from the
     /// metrics of a first available font, or is not known not to, having no record.
     pub(super) fn reads_font_metrics(&self, node: StyleNodeID) -> bool {
@@ -1638,8 +1644,7 @@ impl<'a> Records<'a> {
     /// The root font inputs the last pass that styled the document element `node` resolved
     /// against, where one did.
     pub(super) fn kept_root_font(&self, node: StyleNodeID) -> Option<super::compute::RootFontInputs> {
-        let (kept, root_font) = self.previous?.root_font?;
-        (kept == node).then_some(root_font)
+        self.previous?.kept_root_font(node)
     }
 
     pub(super) fn new(state: &'a RetainedState, cells: &'a RecordCells, previous: Option<&'a RetainedRecords>) -> Self {
