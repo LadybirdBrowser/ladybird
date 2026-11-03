@@ -163,6 +163,15 @@ impl LayoutNodeArena {
             return false;
         }
 
+        // An out-of-flow box with an authored table-internal display is a table child to the table fixup, which gave it
+        // anonymous parents that go with it.
+        if self.node_style_if_live(child).is_some_and(|style| {
+            let display = style.display_before_box_type_transformation();
+            style.is_absolutely_positioned() && (display.is_internal_table() || display.is_table_caption())
+        }) {
+            return false;
+        }
+
         // OPTIMIZATION: Absolutely positioned boxes do not participate in their DOM parent's inline or block formatting
         //               structure, even when they are attached to an ancestor containing block. Removing them cannot
         //               disturb anonymous wrappers or sibling box levels.

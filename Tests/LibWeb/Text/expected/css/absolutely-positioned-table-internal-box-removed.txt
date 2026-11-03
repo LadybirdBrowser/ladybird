@@ -1,0 +1,5 @@
+table-caption removed: the tree matches a full rebuild: true
+table-row removed: the tree matches a full rebuild: true
+table-cell removed: the tree matches a full rebuild: true
+table-row-group removed: the tree matches a full rebuild: true
+table-column removed: the tree matches a full rebuild: true

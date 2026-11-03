@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    test(() => {
+        for (const display of ["table-caption", "table-row", "table-cell", "table-row-group", "table-column"]) {
+            const target = document.createElement("div");
+            target.style.position = "absolute";
+            target.style.display = display;
+            target.textContent = "text";
+            document.body.append(target);
+            document.body.offsetWidth;
+            target.remove();
+            println(`${display} removed: the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+    });
+</script>
