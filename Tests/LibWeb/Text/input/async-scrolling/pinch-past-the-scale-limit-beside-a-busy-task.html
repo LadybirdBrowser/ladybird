@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    // A step of a pinch that the scale limit leaves nothing to do for is still the compositor's: the main thread has no
+    // zoom to do for it, so it holds back none of the steps after it, however busy the main thread is.
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        internals.pinchThroughUIProcess(400, 300, -0.5);
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+        internals.pinchThroughUIProcess(400, 300, 0.5);
+
+        // NB: This only gives up on steps that never come, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorScale() !== 2.25 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`compositor scale beside the task: ${compositorScale()}`);
+
+        while (visualViewport.scale !== compositorScale())
+            await animationFrame();
+        println(`main thread scale after the task: ${visualViewport.scale}`);
+    });
+</script>
