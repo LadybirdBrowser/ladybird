@@ -46,6 +46,8 @@ pub struct FfiVisualContextUpdateOutcome {
     pub performed_full_build: bool,
     pub structural_epoch_changed: bool,
     pub requires_display_list_recording: bool,
+    /// Whether the update may have given a node of the tree other values: it visited a dirty box, or every box.
+    pub values_may_have_changed: bool,
     pub structural_epoch: u64,
 }
 
