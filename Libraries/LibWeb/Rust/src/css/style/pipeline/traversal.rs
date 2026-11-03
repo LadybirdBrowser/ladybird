@@ -1498,6 +1498,7 @@ impl<'a> Scratch<'a> {
             .with_custom_properties(custom_properties.as_ref()),
             header: super::records::RecordHeader::new(computed.facts),
         });
+        record.settle_holds_image_values();
         if let Some(matched_key) = matched_key
             && storable
             && sampled_custom_properties.is_none()
@@ -1908,11 +1909,13 @@ impl<'a> Scratch<'a> {
             .with_custom_properties(custom_properties.as_ref()),
         });
         self.last_record = Some(record.clone());
-        let record = context
-            .records
-            .held_before_holding_the_same_style_as(node, &record)
-            .cloned()
-            .unwrap_or(record);
+        let record = match context.records.held_before_holding_the_same_style_as(node, &record) {
+            Some(held) => held.clone(),
+            None => {
+                record.settle_holds_image_values();
+                record
+            }
+        };
         // Only what the key and the conditions of an entry name is read of what may differ between
         // the elements that find it.
         if let Some(key) = key

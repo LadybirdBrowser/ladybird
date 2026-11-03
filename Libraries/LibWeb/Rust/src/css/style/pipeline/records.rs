@@ -38,9 +38,9 @@ pub(crate) struct Record {
 
 /// A record's header word, which the host reads from its own thread: the facts of the record,
 /// settled when it is made, the computed `display` in bits 0-12 and the flags in bits 16-23; whether
-/// its groups hold images in bit 15, settled as a slot takes it; and the identity of that slot, its
-/// index in bits 24-47 and its generation in bits 48-63, which the slot names as it takes the record
-/// and forgets as it lets go of it.
+/// its groups hold images in bit 15, which bit 14 says is settled, by the thread computing it or the
+/// slot taking it; and the identity of that slot, its index in bits 24-47 and its generation in bits
+/// 48-63, which the slot names as it takes the record and forgets as it lets go of it.
 pub(in super::super) struct RecordHeader(std::sync::atomic::AtomicU64);
 
 const _: () = assert!((InstalledRecordID::MAX_SLOT as u64) < RecordHeader::SLOT_MASK);
@@ -48,6 +48,7 @@ const _: () = assert!((InstalledRecordID::MAX_GENERATION as u64) <= u64::MAX >> 
 
 impl RecordHeader {
     const DISPLAY_MASK: u64 = (1 << 13) - 1;
+    const IMAGE_VALUES_SETTLED: u64 = 1 << 14;
     const HOLDS_IMAGE_VALUES: u64 = 1 << 15;
     const FLAGS_SHIFT: u32 = 16;
     const SLOT_SHIFT: u32 = 24;
@@ -90,13 +91,20 @@ impl RecordHeader {
 
     fn set_holds_image_values(&self, holds_image_values: bool) {
         self.replace(
-            Self::HOLDS_IMAGE_VALUES,
-            if holds_image_values {
-                Self::HOLDS_IMAGE_VALUES
-            } else {
-                0
-            },
+            Self::IMAGE_VALUES_SETTLED | Self::HOLDS_IMAGE_VALUES,
+            Self::IMAGE_VALUES_SETTLED
+                | if holds_image_values {
+                    Self::HOLDS_IMAGE_VALUES
+                } else {
+                    0
+                },
         );
+    }
+
+    /// Whether the groups of the record hold images, where that is settled.
+    fn settled_holds_image_values(&self) -> Option<bool> {
+        let header = self.load();
+        (header & Self::IMAGE_VALUES_SETTLED != 0).then_some(header & Self::HOLDS_IMAGE_VALUES != 0)
     }
 
     fn installed_record(&self) -> Option<InstalledRecordID> {
@@ -760,6 +768,23 @@ impl Record {
     /// What a view of the record depends on, as the slot holding it last settled it.
     pub(in super::super) fn view_dependency_flags(&self) -> u8 {
         computed::view_dependency_flags(&self.facts(), self.header.holds_image_values())
+    }
+
+    /// Settles whether the groups of the record hold images: on the thread that built them, which has them at hand, and
+    /// among others, for the serial step that names the record's slot to read a flag.
+    pub(in super::super) fn settle_holds_image_values(&self) {
+        // SAFETY: The record holds a reference to each of its groups.
+        let holds_image_values =
+            unsafe { crate::css::computed_values::style_group_payloads_hold_image_values(&self.payloads.pointers()) };
+        self.header.set_holds_image_values(holds_image_values);
+    }
+
+    /// What a view of the record depends on, for a slot to take it.
+    pub(in super::super) fn dependency_flags_for_a_slot(&self) -> u8 {
+        match self.header.settled_holds_image_values() {
+            Some(holds_image_values) => computed::view_dependency_flags(&self.facts(), holds_image_values),
+            None => computed::record_dependency_flags(&self.facts(), &self.payloads),
+        }
     }
 
     /// Forget the identity of the slot that let go of the record.

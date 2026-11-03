@@ -255,9 +255,7 @@ impl RetainedState {
         if let Some(&id) = installed.get(&PointerLookup::new(record, ())) {
             return id;
         }
-        let id = records.install_record(record, || {
-            computed::record_dependency_flags(&record.facts(), &record.payloads)
-        });
+        let id = records.install_record(record, || record.dependency_flags_for_a_slot());
         // NB: A record a fork's slot names took a copy in this slot, which it finds again here.
         if records.installed_record_named_by(record).is_none() {
             installed.insert(PointerKey::new(record, ()), id);
