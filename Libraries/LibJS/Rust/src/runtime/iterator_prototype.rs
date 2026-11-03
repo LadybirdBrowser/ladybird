@@ -129,7 +129,7 @@ impl IteratorPrototype {
             PropertyAttributes::new(Attribute::CONFIGURABLE),
         );
 
-        // 27.1.3.3.18 Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.tostringtag%
+        // 27.1.3.3.19 Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.tostringtag%
         object.define_native_accessor(
             vm,
             realm,
@@ -546,7 +546,7 @@ impl IteratorPrototype {
         }
     }
 
-    // 1 Iterator.prototype.includes ( searchElement [ , skippedElements ] ), https://tc39.es/proposal-iterator-includes/#sec-iterator.prototype.includes
+    // 27.1.3.3.9 Iterator.prototype.includes ( searchElement [ , skippedElements ] ), https://tc39.es/ecma262/#sec-iterator.prototype.includes
     fn includes(vm: &Vm) -> ThrowCompletionOr<Value> {
         let search_element = vm.argument(0);
         let skipped_elements = vm.argument(1);
@@ -621,7 +621,7 @@ impl IteratorPrototype {
             // a. Let value be ? IteratorStepValue(iterated).
             let value = iterator_step_value(vm, &iterated)?;
 
-            // b. If value is done, return false.
+            // b. If value is DONE, return false.
             let Some(value) = value else {
                 return Ok(Value::FALSE);
             };
@@ -639,7 +639,7 @@ impl IteratorPrototype {
         }
     }
 
-    // 27.1.3.3.9 Iterator.prototype.join ( separator ), https://tc39.es/ecma262/#sec-iterator.prototype.join
+    // 27.1.3.3.10 Iterator.prototype.join ( separator ), https://tc39.es/ecma262/#sec-iterator.prototype.join
     fn join(vm: &Vm) -> ThrowCompletionOr<Value> {
         let separator = vm.argument(0);
 
@@ -707,7 +707,7 @@ impl IteratorPrototype {
         }
     }
 
-    // 27.1.3.3.10 Iterator.prototype.map ( mapper ), https://tc39.es/ecma262/#sec-iterator.prototype.map
+    // 27.1.3.3.11 Iterator.prototype.map ( mapper ), https://tc39.es/ecma262/#sec-iterator.prototype.map
     fn map(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
@@ -747,7 +747,7 @@ impl IteratorPrototype {
         Ok(Value::from_object(result))
     }
 
-    // 27.1.3.3.11 Iterator.prototype.reduce ( reducer [ , initialValue ] ), https://tc39.es/ecma262/#sec-iterator.prototype.reduce
+    // 27.1.3.3.12 Iterator.prototype.reduce ( reducer [ , initialValue ] ), https://tc39.es/ecma262/#sec-iterator.prototype.reduce
     fn reduce(vm: &Vm) -> ThrowCompletionOr<Value> {
         let reducer = vm.argument(0);
 
@@ -828,7 +828,7 @@ impl IteratorPrototype {
         }
     }
 
-    // 27.1.3.3.12 Iterator.prototype.some ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.some
+    // 27.1.3.3.13 Iterator.prototype.some ( predicate ), https://tc39.es/ecma262/#sec-iterator.prototype.some
     fn some(vm: &Vm) -> ThrowCompletionOr<Value> {
         let predicate = vm.argument(0);
 
@@ -887,7 +887,7 @@ impl IteratorPrototype {
         }
     }
 
-    // 27.1.3.3.13 Iterator.prototype.take ( limit ), https://tc39.es/ecma262/#sec-iterator.prototype.take
+    // 27.1.3.3.14 Iterator.prototype.take ( limit ), https://tc39.es/ecma262/#sec-iterator.prototype.take
     fn take(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
@@ -956,7 +956,7 @@ impl IteratorPrototype {
         Ok(Value::from_object(result))
     }
 
-    // 27.1.3.3.14 Iterator.prototype.toArray ( ), https://tc39.es/ecma262/#sec-iterator.prototype.toarray
+    // 27.1.3.3.15 Iterator.prototype.toArray ( ), https://tc39.es/ecma262/#sec-iterator.prototype.toarray
     fn to_array(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
@@ -985,7 +985,7 @@ impl IteratorPrototype {
         }
     }
 
-    // 27.1.3.3.15 Iterator.prototype.windows ( windowSize [ , undersized ] ), https://tc39.es/ecma262/#sec-iterator.prototype.windows
+    // 27.1.3.3.16 Iterator.prototype.windows ( windowSize [ , undersized ] ), https://tc39.es/ecma262/#sec-iterator.prototype.windows
     fn windows(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
         let window_size = vm.argument(0);
@@ -1064,7 +1064,7 @@ impl IteratorPrototype {
         Ok(Value::from_object(result))
     }
 
-    // 27.1.3.3.16 Iterator.prototype [ %Symbol.dispose% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.dispose%
+    // 27.1.3.3.17 Iterator.prototype [ %Symbol.dispose% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.dispose%
     fn symbol_dispose(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Let obj be the this value.
         let object = vm.this_value();
@@ -1082,14 +1082,14 @@ impl IteratorPrototype {
         Ok(Value::UNDEFINED)
     }
 
-    // 27.1.3.3.17 Iterator.prototype [ %Symbol.iterator% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.iterator%
+    // 27.1.3.3.18 Iterator.prototype [ %Symbol.iterator% ] ( ), https://tc39.es/ecma262/#sec-iterator.prototype-%symbol.iterator%
     #[allow(clippy::unnecessary_wraps, reason = "native functions can throw")]
     fn symbol_iterator(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Return the this value.
         Ok(vm.this_value())
     }
 
-    // 27.1.3.3.18.1 get Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-get-iterator.prototype-%symbol.tostringtag%
+    // 27.1.3.3.19.1 get Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-get-iterator.prototype-%symbol.tostringtag%
     #[allow(clippy::unnecessary_wraps, reason = "native functions can throw")]
     fn to_string_tag_getter(vm: &Vm) -> ThrowCompletionOr<Value> {
         // 1. Return "Iterator".
@@ -1099,7 +1099,7 @@ impl IteratorPrototype {
         )))
     }
 
-    // 27.1.3.3.18.2 set Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-set-iterator.prototype-%symbol.tostringtag%
+    // 27.1.3.3.19.2 set Iterator.prototype [ %Symbol.toStringTag% ], https://tc39.es/ecma262/#sec-set-iterator.prototype-%symbol.tostringtag%
     fn to_string_tag_setter(vm: &Vm) -> ThrowCompletionOr<Value> {
         let realm = current_realm(vm);
 
