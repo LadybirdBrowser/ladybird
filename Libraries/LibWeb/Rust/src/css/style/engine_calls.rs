@@ -857,7 +857,8 @@ pub extern "C" fn style_engine_answer_record_demand(
     ask_record_demand(host, read, node, RecordDemand::Element(demand))
 }
 
-/// Answer a read of one of an element's pseudo-elements the host makes before the next style update.
+/// Answer a read of one of an element's pseudo-elements the host makes before the next style update. `highlight_name`
+/// is the atom of the custom highlight name of a `::highlight()`, and zero for any other pseudo-element.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_answer_pseudo_element_record_demand(
     host: &DocumentHost,
@@ -865,8 +866,14 @@ pub extern "C" fn style_engine_answer_pseudo_element_record_demand(
     node: u32,
     demand: FfiPseudoElementRecordDemand,
     pseudo_element: FfiDemandedPseudoElement,
+    highlight_name: u32,
 ) -> FfiRecordDemandAnswer {
-    ask_record_demand(host, read, node, RecordDemand::PseudoElement(demand, pseudo_element))
+    ask_record_demand(
+        host,
+        read,
+        node,
+        RecordDemand::PseudoElement(demand, pseudo_element, StyleAtomID(highlight_name)),
+    )
 }
 
 fn ask_record_demand(

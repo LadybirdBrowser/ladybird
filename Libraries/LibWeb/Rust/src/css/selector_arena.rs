@@ -1188,6 +1188,31 @@ impl<'a> Selector<'a> {
         })
     }
 
+    fn target_highlight(self) -> Option<PseudoElementSelector<'a>> {
+        if self.target_pseudo_element() != Some(PseudoElementType::Highlight) {
+            return None;
+        }
+        match self.first_compound().simple_selectors.first()? {
+            SimpleSelector::PseudoElement(selector) => Some(selector),
+            _ => None,
+        }
+    }
+
+    #[must_use]
+    pub fn target_highlight_name(self) -> StyleAtomID {
+        self.target_highlight()
+            .and_then(|selector| selector.identifier_identities.first().copied())
+            .unwrap_or(StyleAtomID::NONE)
+    }
+
+    #[must_use]
+    pub fn target_highlight_name_text(self) -> Option<&'a [u16]> {
+        match self.target_highlight()?.value {
+            PseudoElementValue::Identifiers(names) => names.iter().next(),
+            _ => None,
+        }
+    }
+
     #[must_use]
     pub fn styles_every_search_text_match(self) -> bool {
         self.target_pseudo_element() == Some(PseudoElementType::SearchText)

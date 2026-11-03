@@ -19,9 +19,13 @@ pub(in crate::css::style) trait DriveRecords:
 {
     fn assigned_record_view(&self, node: StyleNodeID) -> Option<computed::StyleRecordView<'_>>;
 
-    /// The record the highlight pseudo-element of `kind` of `node` inherits from: that of the same
+    /// The record the highlight pseudo-element `target` of `node` inherits from: that of the same
     /// pseudo-element of its nearest flat-tree ancestor holding one.
-    fn highlight_inheritance_parent_view(&self, node: StyleNodeID, kind: u8) -> Option<computed::StyleRecordView<'_>>;
+    fn highlight_inheritance_parent_view(
+        &self,
+        node: StyleNodeID,
+        target: super::records::PseudoElementTarget,
+    ) -> Option<computed::StyleRecordView<'_>>;
 }
 
 impl DriveRecords for RetainedState {
@@ -31,8 +35,12 @@ impl DriveRecords for RetainedState {
             .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
     }
 
-    fn highlight_inheritance_parent_view(&self, node: StyleNodeID, kind: u8) -> Option<computed::StyleRecordView<'_>> {
-        self.retained_highlight_inheritance_parent_style_record(node, kind)
+    fn highlight_inheritance_parent_view(
+        &self,
+        node: StyleNodeID,
+        target: super::records::PseudoElementTarget,
+    ) -> Option<computed::StyleRecordView<'_>> {
+        self.retained_highlight_inheritance_parent_style_record(node, target)
             .and_then(|record| self.computed_group_sets.style_record_view(record.raw()))
     }
 }
@@ -550,7 +558,7 @@ impl RetainedState {
         // pseudo-element of the nearest ancestor.
         let highlight = pseudo_kind::is_highlight(target.pseudo_kind()).then(|| {
             let snapshot = records
-                .highlight_inheritance_parent_view(target.node(), target.pseudo_kind())
+                .highlight_inheritance_parent_view(target.node(), target.pseudo_element())
                 .map(|view| {
                     crate::css::style_compute::ParentSnapshot::from_view(
                         view.longhands(),

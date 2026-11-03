@@ -58,13 +58,15 @@ public:
     {
         if (!m_owner_element)
             return {};
-        return DOM::AbstractElement { m_owner_element.as_nonnull(), m_owner_pseudo_element };
+        return DOM::AbstractElement { m_owner_element.as_nonnull(), m_owner_pseudo_element, owner_highlight_name() };
     }
     void set_owner_node(Optional<DOM::AbstractElement>);
 
     // https://drafts.csswg.org/cssom/#cssstyledeclaration-updating-flag
     [[nodiscard]] bool is_updating() const { return m_updating; }
     void set_is_updating(bool value) { m_updating = value; }
+
+    virtual Utf16FlyString owner_highlight_name() const { return {}; }
 
     virtual bool has_property(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }
     virtual RefPtr<StyleValue const> get_property_style_value(PropertyNameAndID const&) const { VERIFY_NOT_REACHED(); }

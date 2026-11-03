@@ -129,6 +129,13 @@ pub(super) fn pseudo_element_name(kind: u8) -> String {
     }
 }
 
+pub(super) fn pseudo_element_target_name(target: super::PseudoElementTarget) -> String {
+    match target.is_custom_highlight() {
+        true => format!("::highlight() of atom {}", target.highlight_name.0),
+        false => pseudo_element_name(target.kind),
+    }
+}
+
 fn payloads_equal(
     group: usize,
     first: &crate::css::computed_values::GroupPointer,
@@ -397,27 +404,31 @@ pub(super) fn differences_by_element(
         }
         compared += 1;
         let (live, cold) = (live.pseudo_element_records(node), cold.pseudo_element_records(node));
-        let kinds = |records: &[(u8, Arc<Record>)]| records.iter().map(|(kind, _)| *kind).collect::<Vec<_>>();
-        if kinds(live) != kinds(cold) {
-            let names = |kinds: Vec<u8>| kinds.into_iter().map(pseudo_element_name).collect::<Vec<_>>();
+        let targets = |records: &[(super::PseudoElementTarget, Arc<Record>)]| {
+            records.iter().map(|(target, _)| *target).collect::<Vec<_>>()
+        };
+        if targets(live) != targets(cold) {
+            let names = |targets: Vec<super::PseudoElementTarget>| {
+                targets.into_iter().map(pseudo_element_target_name).collect::<Vec<_>>()
+            };
             failures.push((
                 node,
                 format!(
                     "live holds the pseudo-elements {:?}, cold computed {:?}",
-                    names(kinds(live)),
-                    names(kinds(cold))
+                    names(targets(live)),
+                    names(targets(cold))
                 ),
             ));
             continue;
         }
-        for ((kind, live), (_, cold)) in live.iter().zip(cold) {
+        for ((target, live), (_, cold)) in live.iter().zip(cold) {
             let differences = record_differences(live, cold);
             if !differences.is_empty() {
                 failures.push((
                     node,
                     format!(
                         "{}: live differs from cold in {}",
-                        pseudo_element_name(*kind),
+                        pseudo_element_target_name(*target),
                         differences.join(", ")
                     ),
                 ));
@@ -462,9 +473,9 @@ pub(super) fn installed_differences(
                 ));
             }
         }
-        for (kind, held) in live.pseudo_element_records(node) {
-            let Some(record) = installed
-                .pseudo_style_record(node, *kind)
+        for (target, held) in live.pseudo_element_records(node) {
+            let Some(record) = state
+                .installed_pseudo_style_record(node, *target)
                 .and_then(|record| installed.installed_base_record(record))
             else {
                 continue;
@@ -473,7 +484,7 @@ pub(super) fn installed_differences(
             if !differences.is_empty() {
                 failures.push(format!(
                     "{} of {}: the installed record differs from live in {}",
-                    pseudo_element_name(*kind),
+                    pseudo_element_target_name(*target),
                     describe(node),
                     differences.join(", ")
                 ));

@@ -14,7 +14,11 @@ use super::*;
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum RecordDemand {
     Element(bridge::FfiRecordDemand),
-    PseudoElement(bridge::FfiPseudoElementRecordDemand, bridge::FfiDemandedPseudoElement),
+    PseudoElement(
+        bridge::FfiPseudoElementRecordDemand,
+        bridge::FfiDemandedPseudoElement,
+        StyleAtomID,
+    ),
 }
 
 impl RecordDemand {
@@ -25,7 +29,7 @@ impl RecordDemand {
             self,
             Self::Element(
                 Element::ElementRead | Element::ElementReadWithoutInlineStyle | Element::ElementReadAgainstParent
-            ) | Self::PseudoElement(Pseudo::ReadOnly, _)
+            ) | Self::PseudoElement(Pseudo::ReadOnly, _, _)
         )
     }
 }

@@ -26,6 +26,7 @@ use super::selector_tree::{
     PseudoElementValue, SelectorList, SimpleSelector, TransitionNameAndClassSelector, TransitionNameSelector,
     search_text_match_filter,
 };
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style::AtomLease;
 use crate::css::style::index::StyleAtomID;
 
@@ -1501,6 +1502,7 @@ pub(crate) unsafe fn parse_selector_list_from_ffi(
 pub struct FfiParsedPseudoElement {
     pub selector: *mut RustSelector,
     pub pseudo_element: u8,
+    pub highlight_name: usize,
 }
 
 /// Parses the restricted pseudo-element syntax accepted by `getComputedStyle()` and animation APIs.
@@ -1509,21 +1511,24 @@ pub extern "C" fn rust_selector_parse_pseudo_element(
     input: FfiUtf16View,
     for_computed_style: bool,
 ) -> FfiParsedPseudoElement {
+    let failure = FfiParsedPseudoElement {
+        selector: std::ptr::null_mut(),
+        pseudo_element: u8::MAX,
+        highlight_name: 0,
+    };
     let Some(input) = input.units() else {
-        return FfiParsedPseudoElement {
-            selector: std::ptr::null_mut(),
-            pseudo_element: u8::MAX,
-        };
+        return failure;
     };
     let Ok((selector, pseudo_element)) = parse_pseudo_element_selector(input, for_computed_style) else {
-        return FfiParsedPseudoElement {
-            selector: std::ptr::null_mut(),
-            pseudo_element: u8::MAX,
-        };
+        return failure;
     };
+    let highlight_name = selector.view().target_highlight_name_text().map_or(0, |name| {
+        std::mem::ManuallyDrop::new(RetainedUtf16FlyString::from_utf16(name)).raw()
+    });
     FfiParsedPseudoElement {
         selector: Box::into_raw(Box::new(RustSelector { selector })),
         pseudo_element: pseudo_element as u8,
+        highlight_name,
     }
 }
 

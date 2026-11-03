@@ -132,7 +132,7 @@ impl RetainedState {
                 },
                 &mut groups,
                 &mut absolutized,
-                u8::MAX,
+                super::PseudoElementTarget::of_kind(super::rules::ELEMENT_PSEUDO_KIND),
                 None,
                 initial.group_seeds(None),
             );

@@ -89,6 +89,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM:
 CSSStyleProperties::CSSStyleProperties(Computed computed, Readonly readonly, RustDeclarationBlock declarations, Optional<DOM::AbstractElement> owner_node)
     : CSSStyleDeclaration(computed, readonly)
     , m_declarations(move(declarations))
+    , m_owner_highlight_name(owner_node.has_value() ? owner_node->highlight_name() : Utf16FlyString {})
 {
     set_owner_node(move(owner_node));
 }
@@ -474,7 +475,7 @@ static void install_engine_pseudo_element_style(Layout::BegunRead const& read, D
     auto pseudo_element = *target.pseudo_element();
     auto& element = target.element();
     auto& style_engine = element.document().style_computer().style_engine();
-    auto answer = StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(style_engine.host(), &read, element.style_node_id().value(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element));
+    auto answer = StyleEngineFFI::style_engine_answer_pseudo_element_record_demand(style_engine.host(), &read, element.style_node_id().value(), StyleEngine::PseudoElementRecordDemand::CssomRead, *StyleEngine::demanded_pseudo_element(pseudo_element), 0);
     if (!answer.is_absent && answer.record.style_record == 0)
         return;
     StyleRecordID record { answer.record.style_record };
@@ -745,8 +746,9 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
                 // it would have for this read alone; a read it answers with none has no value.
                 auto& style_computer = abstract_element.document().style_computer();
                 if (auto pseudo_element = abstract_element.pseudo_element(); pseudo_element.has_value()) {
+                    auto highlight_name = abstract_element.is_custom_highlight() ? style_computer.style_engine().intern_atom(abstract_element.highlight_name()) : StyleAtomID {};
                     if (auto demanded_pseudo_element = StyleEngine::demanded_pseudo_element(*pseudo_element); demanded_pseudo_element.has_value())
-                        transient_style = style_computer.engine_transient_pseudo_element_style(read, abstract_element.element(), *demanded_pseudo_element);
+                        transient_style = style_computer.engine_transient_pseudo_element_style(read, abstract_element.element(), *demanded_pseudo_element, highlight_name);
                 }
                 if (!transient_style)
                     return {};

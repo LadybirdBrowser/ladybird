@@ -59,6 +59,7 @@ pub(super) use cascade::DeclaredOnly;
 pub(super) use live::Live;
 #[cfg(test)]
 pub(super) use records::PseudoElementStyles;
+pub(super) use records::PseudoElementTarget;
 pub(crate) use records::Record;
 pub(crate) use records::{CustomDeclarations, RareSetFacts, RareStyleFacts};
 pub(super) use records::{RecordFacts, Sample};

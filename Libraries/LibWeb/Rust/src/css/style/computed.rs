@@ -13,6 +13,7 @@
 //! an animation overlay record over the record it is assigned, in a recyclable slot of its own.
 
 use super::fast_hash::FastMap as HashMap;
+use super::index::StyleAtomID;
 use super::installed_records::{InstalledRecord, InstalledRecordID, InstalledRecords};
 use super::tree::StyleNodeID;
 use crate::css::computed_longhand_table::DEPENDS_ON_VIEWPORT_METRICS;
@@ -741,11 +742,32 @@ pub struct AnimationOverlayUpdate {
 pub struct ComputedStyleTarget {
     node: StyleNodeID,
     pseudo_kind: u8,
+    highlight_name: StyleAtomID,
 }
 
 impl ComputedStyleTarget {
     pub fn new(node: StyleNodeID, pseudo_kind: u8) -> Self {
-        Self { node, pseudo_kind }
+        Self {
+            node,
+            pseudo_kind,
+            highlight_name: StyleAtomID::NONE,
+        }
+    }
+
+    pub(super) fn of_pseudo_element(node: StyleNodeID, target: super::pipeline::PseudoElementTarget) -> Self {
+        Self {
+            node,
+            pseudo_kind: target.kind,
+            highlight_name: target.highlight_name,
+        }
+    }
+
+    #[must_use]
+    pub(super) fn pseudo_element(self) -> super::pipeline::PseudoElementTarget {
+        super::pipeline::PseudoElementTarget {
+            kind: self.pseudo_kind,
+            highlight_name: self.highlight_name,
+        }
     }
 
     #[must_use]

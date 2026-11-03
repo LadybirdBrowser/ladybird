@@ -1366,7 +1366,7 @@ fn highlight_pseudo_elements_are_styled_where_the_host_shows_the_highlight() {
         live.records()
             .pseudo_element_records(node)
             .iter()
-            .any(|(kind, _)| *kind == SELECTION)
+            .any(|(target, _)| target.kind == SELECTION)
     };
     let (mut engine, nodes) = linear_document();
     let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);

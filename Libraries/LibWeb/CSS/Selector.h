@@ -49,9 +49,10 @@ public:
         {
         }
 
-        PseudoElementSelector(PseudoElement type, Utf16String serialized)
+        PseudoElementSelector(PseudoElement type, Utf16String serialized, Utf16FlyString highlight_name = {})
             : m_type(type)
             , m_serialized(move(serialized))
+            , m_highlight_name(move(highlight_name))
         {
         }
 
@@ -67,9 +68,12 @@ public:
         Utf16String serialize() const;
         PseudoElement type() const { return m_type; }
 
+        Utf16FlyString const& highlight_name() const { return m_highlight_name; }
+
     private:
         PseudoElement m_type;
         Utf16String m_serialized;
+        Utf16FlyString m_highlight_name;
     };
 
     static NonnullRefPtr<Selector> create(SelectorFFI::RustSelector*);

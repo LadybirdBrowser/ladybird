@@ -238,6 +238,7 @@ pub enum FfiDemandedPseudoElement {
     SliderFill = 14,
     SliderThumb = 15,
     SliderTrack = 16,
+    Highlight = 17,
     ViewTransitionGroup = 20,
     ViewTransitionImagePair = 21,
     ViewTransitionNew = 22,

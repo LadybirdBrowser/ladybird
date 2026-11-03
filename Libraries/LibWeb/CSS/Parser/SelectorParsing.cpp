@@ -27,10 +27,11 @@ Optional<Selector::PseudoElementSelector> Parser::parse_as_pseudo_element_select
     if (!parsed.selector)
         return {};
     auto selector = Selector::create(parsed.selector);
+    auto highlight_name = parsed.highlight_name ? Utf16FlyString::adopt_raw(parsed.highlight_name) : Utf16FlyString {};
     auto pseudo_element = pseudo_element_from_ffi(parsed.pseudo_element);
     if (!pseudo_element.has_value())
         return {};
-    return Selector::PseudoElementSelector { pseudo_element.release_value(), selector->serialize() };
+    return Selector::PseudoElementSelector { pseudo_element.release_value(), selector->serialize(), move(highlight_name) };
 }
 
 }

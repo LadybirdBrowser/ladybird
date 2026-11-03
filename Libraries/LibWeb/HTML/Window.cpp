@@ -1798,7 +1798,7 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
         // 3. Otherwise let obj be the given pseudo-element of elt.
         else {
             // TODO: Keep the function arguments of the pseudo-element if there are any.
-            object = { element, type.value().type() };
+            object = { element, type.value().type(), type.value().highlight_name() };
         }
 
         // https://drafts.csswg.org/css-view-transitions-1/#update-pseudo-element-styles
