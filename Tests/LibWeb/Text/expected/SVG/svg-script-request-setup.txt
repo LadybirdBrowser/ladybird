@@ -1,0 +1,3 @@
+initiator type: script
+referrer without referrerpolicy: sent
+referrer with referrerpolicy="no-referrer": none

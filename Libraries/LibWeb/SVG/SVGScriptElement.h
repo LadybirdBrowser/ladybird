@@ -47,8 +47,11 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 
-    void finish_external_script_fetch(URL::URL const& script_url, ReadonlyBytes body, HTML::ClassicScript::MutedErrors);
+    void finish_external_script_fetch(GC::Ptr<HTML::ClassicScript>);
     void execute_script();
+
+    // https://html.spec.whatwg.org/multipage/scripting.html#preparation-time-document
+    GC::Ptr<DOM::Document> m_preparation_time_document;
 
     bool m_already_processed { false };
     bool m_parser_inserted { false };

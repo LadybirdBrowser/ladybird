@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A redirected SVG script resolves its relative imports against the response's URL, and reports its errors with
+    // the request's URL and their line in the script.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        await server.createEcho("GET", "/svg-script-redirect/target/module.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: `export const resolvedAgainst = "the response's URL";`,
+        });
+        const targetURL = await server.createEcho("GET", "/svg-script-redirect/target/script.js", {
+            status: 200,
+            headers: { "Content-Type": "text/javascript" },
+            body: [
+                `import("./module.js").then(module => importSettled(module.resolvedAgainst),`,
+                `    () => importSettled("failed"));`,
+                `throw new Error("thrown on line 3");`,
+            ].join("\n"),
+        });
+        const requestURL = await server.createEcho("GET", "/svg-script-redirect-source.js", {
+            status: 302,
+            headers: { "Location": targetURL },
+            body: "",
+        });
+
+        // The page reports the script's error and the result of its import once it has both. Its SVG script is below
+        // the page's first lines, so the script's lines are not the page's.
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", "/svg-script-redirect.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                ${scriptStartTag}>
+                    const results = {};
+                    const reportOnceSettled = () => {
+                        if ("filename" in results && "importResult" in results)
+                            parent.postMessage(results, "*");
+                    };
+                    addEventListener("error", event => {
+                        results.filename = event.filename;
+                        results.line = event.lineno;
+                        reportOnceSettled();
+                    });
+                    globalThis.importSettled = result => {
+                        results.importResult = result;
+                        reportOnceSettled();
+                    };
+                ${scriptEndTag}
+                <svg xmlns="http://www.w3.org/2000/svg">
+                    ${scriptStartTag} href="${requestURL}">${scriptEndTag}
+                </svg>`,
+        });
+
+        window.addEventListener(
+            "message",
+            event => {
+                const urlNames = new Map([
+                    [requestURL, "the request's URL"],
+                    [targetURL, "the response's URL"],
+                ]);
+                println(`error filename: ${urlNames.get(event.data.filename) ?? event.data.filename}`);
+                println(`error line: ${event.data.line}`);
+                println(`import resolved against: ${event.data.importResult}`);
+                done();
+            },
+            { once: true }
+        );
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+    });
+</script>

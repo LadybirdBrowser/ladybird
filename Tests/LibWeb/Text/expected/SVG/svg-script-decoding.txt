@@ -1,0 +1,4 @@
+header charset: e9
+document encoding: c3 a9
+byte order mark: e9
+malformed byte: fffd

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<svg xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+    // An SVG script element's request has "script" as its initiator type, and the referrer policy of the element's
+    // referrerpolicy attribute.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const svg = document.querySelector("svg");
+
+        const ranScripts = new Map();
+        window.scriptRan = name => ranScripts.get(name)();
+
+        const runScript = async (name, referrerPolicy) => {
+            const url = await server.createEcho("GET", `/svg-script-request-setup-${name}.js`, {
+                status: 200,
+                headers: { "Content-Type": "text/javascript", "Cache-Control": "no-store" },
+                body: `scriptRan(${JSON.stringify(name)});`,
+            });
+            const ran = new Promise(resolve => ranScripts.set(name, resolve));
+            const script = document.createElementNS("http://www.w3.org/2000/svg", "script");
+            if (referrerPolicy !== null)
+                script.setAttribute("referrerpolicy", referrerPolicy);
+            script.setAttribute("href", url);
+            svg.append(script);
+            await ran;
+            return url;
+        };
+
+        const resourceTimingEntry = url =>
+            new Promise(resolve => {
+                const observer = new PerformanceObserver(list => {
+                    const entry = list.getEntriesByName(url)[0];
+                    if (entry) {
+                        observer.disconnect();
+                        resolve(entry);
+                    }
+                });
+                observer.observe({ type: "resource", buffered: true });
+            });
+
+        const referrerSent = async url => {
+            const headers = await (await fetch(server.recordedRequestHeadersURL(url))).json();
+            return headers["Referer"] !== undefined ? "sent" : "none";
+        };
+
+        const defaultURL = await runScript("default", null);
+        const noReferrerURL = await runScript("no-referrer", "no-referrer");
+
+        const entry = await resourceTimingEntry(defaultURL);
+        println(`initiator type: ${entry.initiatorType}`);
+        println(`referrer without referrerpolicy: ${await referrerSent(defaultURL)}`);
+        println(`referrer with referrerpolicy="no-referrer": ${await referrerSent(noReferrerURL)}`);
+    });
+</script>

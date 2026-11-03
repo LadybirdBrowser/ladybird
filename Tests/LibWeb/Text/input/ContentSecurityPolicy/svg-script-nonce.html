@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    // An SVG script element's request carries the element's nonce, so a policy that allows the nonce allows its script.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const createScript = name =>
+            server.createEcho("GET", `/svg-script-nonce-${name}.js`, {
+                status: 200,
+                headers: { "Content-Type": "text/javascript" },
+                body: `globalThis.executedScripts.push(${JSON.stringify(name)});`,
+            });
+        const matchingNonceURL = await createScript("matching-nonce");
+        const otherNonceURL = await createScript("other-nonce");
+
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageBody = `<!DOCTYPE html>
+            ${scriptStartTag} nonce="fixed">globalThis.executedScripts = [];${scriptEndTag}
+            <svg xmlns="http://www.w3.org/2000/svg">
+                ${scriptStartTag} nonce="fixed" href="${matchingNonceURL}">${scriptEndTag}
+                ${scriptStartTag} nonce="other" href="${otherNonceURL}">${scriptEndTag}
+            </svg>
+            ${scriptStartTag} nonce="fixed">parent.postMessage(executedScripts.join(", ") || "none", "*");${scriptEndTag}`;
+        const pageURL = await server.createEcho("GET", "/svg-script-nonce.html", {
+            status: 200,
+            headers: {
+                "Content-Type": "text/html",
+                "Content-Security-Policy": "script-src 'nonce-fixed'",
+            },
+            body: pageBody,
+        });
+
+        window.addEventListener(
+            "message",
+            event => {
+                println(`executed: ${event.data}`);
+                done();
+            },
+            { once: true }
+        );
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+    });
+</script>

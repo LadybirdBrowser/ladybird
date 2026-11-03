@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An SVG script moved to another document while its script is fetched runs in neither document. Both documents
+    // stay active, and both finish loading.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptToken = `svg-script-moved-script-${crypto.randomUUID()}`;
+
+        // Each response's first byte arrives at once, and the rest once its token is unblocked.
+        const heldURL = async (path, contentType, body, token) =>
+            (await server.createEcho("GET", path, {
+                status: 200,
+                headers: { "Content-Type": contentType, "Cache-Control": "no-store" },
+                body,
+            })) + `?chunks=1&chunk_unblock_tokens=${token}`;
+        const scriptURL = await heldURL(
+            "/svg-script-moved-to-another-document.js",
+            "text/javascript",
+            "self.svgScriptRan = true;",
+            scriptToken
+        );
+
+        // Each document keeps loading until its image arrives, and the script's fetch delays the load event of one of
+        // them, so that both have loaded only once the script is fetched.
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const openFrame = async name => {
+            const imageToken = `svg-script-moved-${name}-image-${crypto.randomUUID()}`;
+            const imageURL = await heldURL(`/svg-script-moved-${name}.png`, "image/png", "xx", imageToken);
+            const pageURL = await server.createEcho("GET", `/svg-script-moved-${name}.html`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>
+                    <svg xmlns="http://www.w3.org/2000/svg"></svg>
+                    ${scriptStartTag}>parent.postMessage("${name} parsed", "*");${scriptEndTag}
+                    <img src="${imageURL}">`,
+            });
+            const frame = document.createElement("iframe");
+            const parsed = new Promise(resolve => {
+                const listener = event => {
+                    if (event.data !== `${name} parsed`)
+                        return;
+                    window.removeEventListener("message", listener);
+                    resolve();
+                };
+                window.addEventListener("message", listener);
+            });
+            const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+            frame.src = pageURL;
+            document.body.append(frame);
+            await parsed;
+            return { frame, imageToken, loaded };
+        };
+        const original = await openFrame("original");
+        const destination = await openFrame("destination");
+
+        const originalDocument = original.frame.contentDocument;
+        const script = originalDocument.createElementNS("http://www.w3.org/2000/svg", "script");
+        script.setAttribute("href", scriptURL);
+        originalDocument.querySelector("svg").append(script);
+        await server.waitForRequest(scriptURL);
+
+        destination.frame.contentDocument.querySelector("svg").append(script);
+        await fetch(`${server.baseURL}/unblock/${original.imageToken}`);
+        await fetch(`${server.baseURL}/unblock/${destination.imageToken}`);
+        await fetch(`${server.baseURL}/unblock/${scriptToken}`);
+        await Promise.all([original.loaded, destination.loaded]);
+
+        println(`ran in the original document: ${original.frame.contentWindow.svgScriptRan === true}`);
+        println(`ran in the document it moved to: ${destination.frame.contentWindow.svgScriptRan === true}`);
+        println(`ran in the test's document: ${window.svgScriptRan === true}`);
+    });
+</script>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A parser-inserted SVG script blocks the parser until it has run, or until its fetch has failed, as it does for a
+    // response whose status is not ok, whose body does not run.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const createScript = (name, status) =>
+            server.createEcho("GET", `/svg-script-parser-order-${name}.js`, {
+                status,
+                headers: { "Content-Type": "text/javascript" },
+                body: `executed.push(${JSON.stringify(name)});`,
+            });
+        const notFoundURL = await createScript("not-found", 404);
+        const firstURL = await createScript("first", 200);
+        const secondURL = await createScript("second", 200);
+
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageURL = await server.createEcho("GET", "/svg-script-parser-order.html", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                ${scriptStartTag}>globalThis.executed = ["before"];${scriptEndTag}
+                <svg xmlns="http://www.w3.org/2000/svg">
+                    ${scriptStartTag} href="${notFoundURL}">${scriptEndTag}
+                    ${scriptStartTag} href="${firstURL}">${scriptEndTag}
+                    ${scriptStartTag} href="${secondURL}">${scriptEndTag}
+                </svg>
+                ${scriptStartTag}>executed.push("after"); parent.postMessage(executed.join(", "), "*");${scriptEndTag}`,
+        });
+
+        window.addEventListener(
+            "message",
+            event => {
+                println(`executed: ${event.data}`);
+                done();
+            },
+            { once: true }
+        );
+
+        const frame = document.createElement("iframe");
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+    });
+</script>
