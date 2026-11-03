@@ -96,7 +96,7 @@ static StyleEngine* style_engine_for_identified(DOM::Element& element)
 static StyleEngine* style_engine_for_published(DOM::Element& element)
 {
     auto* style_engine = style_engine_for_identified(element);
-    return style_engine && !style_engine->has_deferred_element_initial_features(element.style_node_id()) ? style_engine : nullptr;
+    return style_engine && !element.initial_style_features_pending() ? style_engine : nullptr;
 }
 
 // A relation is only nameable if the element on its other end already has an identity. Naming a
@@ -321,26 +321,26 @@ static void record_element_relinked(StyleEngine& style_engine, StyleNodeID node,
 
 void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& style_computer, Layout::BegunRead const& read)
 {
-    auto nodes = style_engine.take_deferred_element_initial_features().values();
+    auto nodes = style_engine.take_deferred_element_initial_features();
     // What the engine reads decides what of the elements is withheld from it, which the host asks the engine where a
     // rule it queued since its last job leaves it not knowing.
     if (!nodes.is_empty())
         StyleEngineFFI::document_host_learn_selector_requirements(style_engine.host(), &read);
-    // Feature postings are ordered by node identity. Publish arrivals in that order so growing
-    // their indexes appends members instead of repeatedly searching and splitting posting chunks.
-    quick_sort(nodes);
     for (auto node : nodes) {
         auto element = style_computer.element_for_style_node(node);
-        if (!element)
+        // NB: An element that left the tree gave up its mark. Its identity may have gone to an element since, which is
+        //     then listed twice and published at the first.
+        if (!element || !element->initial_style_features_pending())
             continue;
         // An inserted subtree takes its identities before its insertion steps mark its nodes connected, in tree order.
         // A step that submits the recorded input on the way, as a <style> writing its sheet to the engine in place
         // while a style update flies, finds the elements after it unconnected: their arrivals are submitted, and
         // their features wait for the next submit, which folds them onto those arrivals.
         if (!element->is_connected()) {
-            style_engine.defer_element_initial_features(node);
+            style_engine.defer_element_initial_features(*element);
             continue;
         }
+        element->set_initial_style_features_pending(false);
         record_element_initial_features(*element);
     }
 }
@@ -715,7 +715,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<Pendin
                 .node = element->style_node_id().value(),
                 .relations = relations_of(*element, style_engine, arrival.tree_scope),
             });
-            style_engine.defer_element_initial_features(element->style_node_id());
+            style_engine.defer_element_initial_features(*element);
         }
         style_engine.record_element_arrivals(arriving_elements.span());
         for (auto const& slottable : slottables_identified_earlier)
@@ -1876,7 +1876,7 @@ static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree
         }
     }
 
-    style_engine->cancel_deferred_element_initial_features(node);
+    style_engine->cancel_deferred_element_initial_features(element);
 
     style_engine->record_tree_delta({
         .node = node.value(),

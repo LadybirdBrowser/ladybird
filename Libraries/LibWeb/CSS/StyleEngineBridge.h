@@ -186,20 +186,11 @@ public:
     StyleNodeID mint_style_node();
     void mint_style_nodes(Span<StyleNodeID> nodes);
     void mint_text_style_nodes(Span<StyleNodeID> nodes);
-    void defer_element_initial_features(StyleNodeID style_node)
-    {
-        m_nodes_with_pending_initial_features.set(style_node);
-        m_nodes_awaiting_first_style_computation.set(style_node);
-    }
-    void cancel_deferred_element_initial_features(StyleNodeID style_node)
-    {
-        m_nodes_with_pending_initial_features.remove(style_node);
-        m_nodes_awaiting_first_style_computation.remove(style_node);
-    }
-    [[nodiscard]] bool has_deferred_element_initial_features(StyleNodeID style_node) const { return m_nodes_with_pending_initial_features.contains(style_node); }
+    void defer_element_initial_features(DOM::Element&);
+    void cancel_deferred_element_initial_features(DOM::Element&);
     // Whether any element waits to have its initial features published, or to be prepared for its first style.
     [[nodiscard]] bool has_elements_awaiting_initial_style_work() const { return !m_nodes_with_pending_initial_features.is_empty() || !m_nodes_awaiting_first_style_computation.is_empty(); }
-    HashTable<StyleNodeID> take_deferred_element_initial_features();
+    Vector<StyleNodeID> take_deferred_element_initial_features();
     HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
@@ -467,7 +458,9 @@ private:
     StyleAtomID m_last_language_atom;
     u64 m_last_language_atom_generation { 0 };
 
-    HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
+    // NB: In the order the elements arrived, which is tree order. An element that left since is still listed, and no
+    //     longer holds its mark, DOM::Element::initial_style_features_pending().
+    Vector<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
 
     HashTable<StyleNodeID> m_parents_whose_children_changed_beside_flown_transaction;

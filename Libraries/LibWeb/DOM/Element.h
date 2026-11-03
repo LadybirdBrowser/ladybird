@@ -924,6 +924,11 @@ public:
     virtual void initialize_element() { }
 
     void prepare_for_style_computation(Badge<CSS::StyleComputer>) { prepare_for_style_computation(); }
+    virtual bool needs_preparation_for_style_computation() const { return false; }
+
+    // Whether the element holds a style node whose initial features the style engine has not been told yet.
+    bool initial_style_features_pending() const { return m_initial_style_features_pending; }
+    void set_initial_style_features_pending(bool value) { m_initial_style_features_pending = value; }
 
     // Unregisters the anchor names this element registered in the tree scope `tree_root` is the root of.
     void unregister_anchor_names_before_leaving_tree_scope(Badge<Node>, Node& tree_root);
@@ -1086,6 +1091,7 @@ private:
     friend class Attr;
     friend class NamedNodeMap;
 
+    bool m_initial_style_features_pending : 1 { false };
     bool m_is_being_activated : 1 { false };
     bool m_in_top_layer : 1 { false };
     bool m_rendered_in_top_layer : 1 { false };
