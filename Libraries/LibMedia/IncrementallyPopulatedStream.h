@@ -128,6 +128,8 @@ private:
 
     DecoderErrorOr<void> wait_for_data_while_locked(Cursor&, u64 position, u64 length);
     DecoderErrorOr<size_t> read_at(Cursor&, size_t position, Bytes&);
+    DecoderErrorOr<void> wait_for_every_byte_while_locked(Cursor&, size_t position, size_t length);
+    DecoderErrorOr<FixedArray<u8>> read_bytes_at(Cursor&, size_t position, size_t length);
     DecoderErrorOr<void> discard_at(Cursor&, size_t position, size_t length);
 
     bool a_cursor_is_blocked_while_locked() const;
