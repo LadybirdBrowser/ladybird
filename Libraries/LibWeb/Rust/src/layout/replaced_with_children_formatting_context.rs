@@ -53,7 +53,7 @@ pub(super) fn layout_replaced_with_children(
             available_space: child_available_space,
             containing_block_constraints: wrapper_constraints,
             sizing: geometry::RootSizingDirectives {
-                adopt_automatic_content_block_size: true,
+                content_block_size_after_run: geometry::ContentBlockSizeAfterRun::Automatic,
                 ..geometry::RootSizingDirectives::default()
             },
             participation: geometry::ParticipationInParentFormattingContext::Item,

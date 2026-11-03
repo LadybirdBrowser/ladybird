@@ -2345,7 +2345,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 available_space: inner_available_space,
                 containing_block_constraints: marker_constraints,
                 sizing: RootSizingDirectives {
-                    adopt_automatic_content_block_size: true,
+                    content_block_size_after_run: geometry::ContentBlockSizeAfterRun::Automatic,
                     ..RootSizingDirectives::default()
                 },
                 participation: ParticipationInParentFormattingContext::Item,

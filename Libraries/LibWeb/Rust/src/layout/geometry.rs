@@ -367,10 +367,7 @@ pub(crate) struct RootSizingDirectives {
     // content box sits in the wrapper, so rows and row groups (whose containing block is the
     // wrapper) can be placed in wrapper coordinates.
     pub(crate) table_box_content_block_offset_in_wrapper: PackedOptionalCssPixels,
-    pub(crate) adopt_automatic_content_block_size: bool,
-    // Input-only: a flex item lays out its content against the block size transferred through its aspect ratio, then
-    // takes this block size, which the automatic minimum size grew to fit the content.
-    pub(crate) content_block_size_after_inside_layout: PackedOptionalCssPixels,
+    pub(crate) content_block_size_after_run: ContentBlockSizeAfterRun,
     pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
@@ -378,6 +375,19 @@ pub(crate) struct RootSizingDirectives {
     // Input-only: MathML layout lays out an embellished operator with the size its core operator should stretch to
     // cover.
     pub(crate) math_stretch_size_constraint: Option<MathStretchSizeConstraint>,
+}
+
+/// The content block size the root of an item's run takes once its contents are laid out.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum ContentBlockSizeAfterRun {
+    /// The one its container handed it.
+    #[default]
+    HandedOver,
+    /// Its automatic content block size.
+    Automatic,
+    /// A flex or grid item lays out its content against the block size transferred through its aspect ratio, then
+    /// takes this block size, which the automatic minimum size grew to fit the content.
+    GrownFromAspectRatioBlockSize(CssPixels),
 }
 
 /// The size that MathML layout asks the core operator of an embellished operator to stretch to cover.

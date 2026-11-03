@@ -4878,8 +4878,8 @@ impl<'pass> GridFormattingContext<'pass> {
             if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
                 // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
                 //     grows to its used block size afterwards.
-                sizing.content_block_size_after_inside_layout =
-                    geometry::PackedOptionalCssPixels::from(Some(cells.content_block_size));
+                sizing.content_block_size_after_run =
+                    geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(cells.content_block_size);
                 cells.set_content_block_size(transferred);
             }
             self.update_cells_of(item, |item_cells| *item_cells = cells);
