@@ -11,6 +11,8 @@
     @keyframes turn { from, to { transform: rotate(90deg); } }
     @keyframes grow { from, to { transform: scale(2); } }
     @keyframes half { from, to { opacity: 0.5; } }
+    @keyframes dim { from, to { filter: brightness(0.5); } }
+    @keyframes shadow { from, to { filter: drop-shadow(4px 4px 0 red); } }
 </style>
 <svg viewBox="0 0 24 24">
     <rect class="box" style="animation: squash 1s linear infinite" x="2" y="2" width="4" height="4"></rect>
@@ -29,6 +31,11 @@
     <g clip-path="url(#clip)"><rect class="box" style="animation: squash 1s linear infinite" x="18" y="12" width="4" height="4"></rect></g>
     <rect style="animation: half 1s linear infinite" x="10" y="12" width="2" height="2"></rect>
     <g style="animation: half 1s linear infinite"><rect x="13" y="12" width="2" height="2"></rect><rect x="14" y="13" width="2" height="2"></rect></g>
+</svg>
+<svg viewBox="0 0 24 24">
+    <rect style="animation: dim 1s linear infinite" x="2" y="2" width="4" height="4"></rect>
+    <g style="animation: dim 1s linear infinite"><rect x="8" y="2" width="4" height="4"></rect></g>
+    <rect style="animation: shadow 1s linear infinite" x="14" y="2" width="4" height="4"></rect>
 </svg>
 <script>
     // These animations stay on one value, so whichever side samples them draws what a box at that value draws. The

@@ -3,8 +3,12 @@
 <style>
     @keyframes pulse { from { transform: scaleY(0.5); } to { transform: scaleY(1); } }
     @keyframes fade { from { opacity: 0.5; } to { opacity: 1; } }
+    @keyframes dim { from { filter: brightness(0.5); } to { filter: brightness(1); } }
+    @keyframes dim-through-a-filter-element { from { filter: url(#f); } to { filter: url(#f); } }
     .bar { animation: pulse 1s infinite; }
     .fading { animation: fade 1s infinite; }
+    .dimming { animation: dim 1s infinite; }
+    .dimming-through-a-filter-element { animation: dim-through-a-filter-element 1s infinite; }
     #cases { width: 100px; height: 100px; }
 </style>
 <svg id="cases" viewBox="0 0 24 24"></svg>
@@ -19,6 +23,7 @@
 
     const rect = `<rect class="bar" width="5" height="5"/>`;
     const fadingRect = `<rect class="fading" width="5" height="5"/>`;
+    const dimmingRect = `<rect class="dimming" width="5" height="5"/>`;
     const urlFilter = `<filter id="f"><feOffset dx="1"/></filter>`;
     const onTheCompositor = {
         "a rect": rect,
@@ -36,10 +41,15 @@
         "a fading group": `<g class="fading"><rect width="5" height="5"/></g>`,
         "a fading use element": `<defs><rect id="u" width="5" height="5"/></defs><use class="fading" href="#u" x="1"/>`,
         "a fading rect in a group with a filter element": `${urlFilter}<g filter="url(#f)">${fadingRect}</g>`,
+        "a dimming rect": dimmingRect,
+        "a dimming group": `<g class="dimming"><rect width="5" height="5"/></g>`,
+        "a dimming use element": `<defs><rect id="u" width="5" height="5"/></defs><use class="dimming" href="#u" x="1"/>`,
+        "a dimming rect in a group with a filter element": `${urlFilter}<g filter="url(#f)">${dimmingRect}</g>`,
     };
     // The compositor knows no bounding boxes. That of a group includes the transforms of the boxes inside it, so what
-    // reads that box needs the main thread to keep those transforms current. Opacity leaves bounding boxes alone. The
-    // content of a resource is painted by the main thread each time it is used, so has no nodes for the compositor.
+    // reads that box needs the main thread to keep those transforms current. Opacity and filter functions leave bounding
+    // boxes alone. The content of a resource is painted by the main thread each time it is used, so has no nodes for the
+    // compositor, and the compositor has no filter elements.
     const onTheMainThread = {
         "a rect in a group with a filter element": `${urlFilter}<g filter="url(#f)">${rect}</g>`,
         "a rect in a group with a clip path in its bounding box": `<clipPath id="c" clipPathUnits="objectBoundingBox"><rect width="1" height="1"/></clipPath><g clip-path="url(#c)">${rect}</g>`,
@@ -53,6 +63,8 @@
         "a group around a non-scaling stroke": `<g class="bar"><rect width="5" height="5" stroke="red" vector-effect="non-scaling-stroke"/></g>`,
         "a rect in a mask": `<mask id="n">${rect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
         "a fading rect in a mask": `<mask id="n">${fadingRect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
+        "a dimming rect in a mask": `<mask id="n">${dimmingRect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
+        "a rect animating a filter element": `${urlFilter}<rect class="dimming-through-a-filter-element" width="5" height="5"/>`,
     };
 
     asyncTest(async done => {
