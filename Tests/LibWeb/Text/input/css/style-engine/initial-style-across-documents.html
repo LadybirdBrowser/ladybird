@@ -1,0 +1,40 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<body>
+<script>
+    // Documents of one process share the initial groups they compute alike. Each of these documents reads the initial
+    // values its own inputs give it, in whichever order the documents take them.
+    const documents = {
+        "no-quirks": "<!doctype html><div id=target>x</div>",
+        "quirks": "<div id=target>x</div>",
+        "dark": `<!doctype html><meta name="color-scheme" content="dark"><div id=target>x</div>`,
+        "light dark": `<!doctype html><meta name="color-scheme" content="light dark"><div id=target>x</div>`,
+        "no-quirks again": "<!doctype html><div id=target>x</div>",
+    };
+    const properties = ["color", "background-color", "color-scheme", "font-size", "line-height", "display", "margin-top"];
+
+    function describe(frame) {
+        const target = frame.contentDocument.getElementById("target");
+        const style = frame.contentWindow.getComputedStyle(target);
+        return properties.map(property => `${property}: ${style.getPropertyValue(property)}`).join("; ");
+    }
+
+    asyncTest(async done => {
+        const frames = [];
+        for (const [name, html] of Object.entries(documents)) {
+            const frame = document.createElement("iframe");
+            frame.srcdoc = html;
+            const loaded = new Promise(resolve => (frame.onload = resolve));
+            document.body.append(frame);
+            await loaded;
+            println(`${name}: ${describe(frame)}`);
+            frames.push(frame);
+        }
+        // The documents that came first keep their values with the others around, and one that goes leaves them.
+        frames[1].remove();
+        println(`no-quirks after one went: ${describe(frames[0])}`);
+        println(`dark after one went: ${describe(frames[2])}`);
+        document.body.innerHTML = "";
+        done();
+    });
+</script>

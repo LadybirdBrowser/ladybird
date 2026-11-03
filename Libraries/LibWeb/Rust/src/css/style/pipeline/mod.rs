@@ -192,7 +192,7 @@ impl StyleEngine {
         // have asked the resolver for yet.
         self.until_resolved(root, |engine| {
             match engine.retained.initial_style(root) {
-                Ok(computed) => {
+                Ok(mut computed) => {
                     // SAFETY: The initial style takes over the references the drive made.
                     let mut payloads = unsafe {
                         crate::css::computed_values::StyleGroups::adopt(
@@ -207,18 +207,31 @@ impl StyleEngine {
                         )
                     };
                     // The documents of the process share the initial groups but the font group.
-                    let shared = engine.retained.process_style.share_initial_groups(
-                        engine
-                            .retained
-                            .document_style_computation_inputs
-                            .device_pixels_per_css_pixel,
-                        &payloads,
-                    );
-                    for index in crate::css::computed_values::StyleGroupIndex::all() {
-                        if index.usize() != crate::css::table_group_builder::group_index::FONT {
-                            payloads.share_group(shared.groups(), index);
+                    let shared = computed.shared.take().unwrap_or_else(|| {
+                        let value_groups = computed
+                            .value_groups
+                            .take()
+                            .expect("a drive made the groups of its values");
+                        let shared = engine.retained.process_style.share_initial_groups(
+                            super::process_style::InitialGroupsInputs::of(
+                                &engine.retained.document_style_computation_inputs,
+                            ),
+                            &payloads,
+                            &value_groups,
+                            super::process_style::InitialGroupsValues {
+                                flags: computed.flags.clone(),
+                                dependency_flags: computed.dependency_flags,
+                                color: computed.color,
+                                value_facts: computed.value_facts.clone(),
+                            },
+                        );
+                        for index in crate::css::computed_values::StyleGroupIndex::all() {
+                            if index.usize() != crate::css::table_group_builder::group_index::FONT {
+                                payloads.share_group(shared.groups(), index);
+                            }
                         }
-                    }
+                        shared
+                    });
                     Ok(Some(traversal::InitialStyle::new(computed, payloads, shared)))
                 }
                 // NB: An engine no host published its fonts to yet, such as a test's bare engine, has no resolver

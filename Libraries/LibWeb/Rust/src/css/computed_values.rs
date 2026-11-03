@@ -4599,6 +4599,11 @@ unsafe impl Send for HeldGroup {}
 unsafe impl Sync for HeldGroup {}
 
 impl HeldGroup {
+    /// The payload, whose reference goes to the caller.
+    pub(crate) fn into_retained(self) -> *const c_void {
+        std::mem::ManuallyDrop::new(self).payload
+    }
+
     /// The group `payload`, a payload of the group at `group`, taking over the caller's
     /// reference to it.
     ///

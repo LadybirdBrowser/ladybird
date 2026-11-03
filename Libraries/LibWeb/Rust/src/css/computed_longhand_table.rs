@@ -72,7 +72,7 @@ fn set_bitmap_bit(bits: &mut [u8; LONGHAND_BITMAP_BYTES], index: usize, value: b
 /// box display, color scheme and dependency flags: whether each longhand's value was important,
 /// inherited or evaluated by the computation, and what the box adjustments and monospace
 /// recascades read.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub(crate) struct LonghandTableFlags {
     important_bits: [u8; LONGHAND_BITMAP_BYTES],
     inherited_bits: [u8; LONGHAND_BITMAP_BYTES],
