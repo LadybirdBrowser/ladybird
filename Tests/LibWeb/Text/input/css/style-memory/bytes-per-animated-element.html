@@ -47,6 +47,7 @@
     //   with every element running the same @keyframes rule).
     // - cssAnimations: each CSS animation's name and applied definition.
     // - hostMemo: the versions of the effects the host described to the engine.
+    // - styleValues: the animated value of the longhand the payload of its group holds.
     const animationBudgets = {
         records: 456,
         payloads: 656,
@@ -57,6 +58,7 @@
         hostTree: 24,
         heldRecordMaps: 12,
         layoutStyleColumns: 28,
+        styleValues: 24,
         animationEffects: 388,
         cssAnimations: 320,
         hostMemo: 180,

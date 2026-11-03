@@ -1138,16 +1138,6 @@ impl RetainedState {
                 shared
             };
         }
-        if self.process_style.verifies_reads {
-            Self::verify_value_built_groups(
-                &values,
-                &payloads,
-                groups,
-                color_inputs,
-                &length,
-                &self.process_style.default_groups,
-            );
-        }
         let before = payloads;
         // SAFETY: Each payload is a live payload of its group holding a reference for the element,
         //         but the borrowed ones, whose values are the very values the element holds.
@@ -1156,6 +1146,16 @@ impl RetainedState {
             assert_eq!(
                 payloads[group], before[group],
                 "a borrowed group holds the element's values"
+            );
+        }
+        if self.process_style.verifies_reads {
+            Self::verify_value_built_groups(
+                &values,
+                &payloads,
+                groups,
+                color_inputs,
+                &length,
+                &self.process_style.default_groups,
             );
         }
         for lookup in &assembled {
