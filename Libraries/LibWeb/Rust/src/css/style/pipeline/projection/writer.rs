@@ -14,6 +14,7 @@
 //! published before keep its facts, which is where the render owner reads what a departed element carried.
 
 use super::super::super::fast_hash::FastMap as HashMap;
+use super::super::super::fast_hash::FastSet as HashSet;
 use super::super::super::index::AttributeFact;
 use super::super::super::index::AttributeNameForms;
 use super::super::super::index::StyleAtomID;
@@ -75,6 +76,8 @@ pub(in crate::css::style) struct ProjectionWriter {
     recent_lists: RecentFactLists,
     /// A slotted text node's slot. Text nodes have no rows, and a slotted one is rare.
     text_assigned_slots: Arc<HashMap<StyleNodeID, StyleNodeID>>,
+    /// The elements whose facts say they are disabled, which only the writes of their states and their departures move.
+    disabled: Arc<HashSet<StyleNodeID>>,
     /// The elements whose rows were written since the last publication.
     written: WrittenRows,
     /// Of those, the elements whose links were written.
@@ -101,6 +104,7 @@ pub(in crate::css::style) struct ProjectionPublication {
     pub(super) catalogs: Catalogs,
     pub(super) host_fact_sets: Arc<HostFactSets>,
     pub(super) text_assigned_slots: Arc<HashMap<StyleNodeID, StyleNodeID>>,
+    pub(super) disabled: Arc<HashSet<StyleNodeID>>,
     pub(super) written: Vec<StyleNodeID>,
     pub(super) links_written: Vec<StyleNodeID>,
     pub(super) relations_written: Vec<StyleNodeID>,
@@ -146,6 +150,7 @@ impl ProjectionWriter {
             bytes += texts.values().map(|text| size_of_val::<[u16]>(text)).sum::<usize>();
         }
         bytes += sizer.arc_shallow(&self.text_assigned_slots) + map_bytes(&self.text_assigned_slots);
+        bytes += sizer.arc_shallow(&self.disabled) + crate::heap_size::set_bytes(&self.disabled);
         bytes += [&self.written, &self.links_written, &self.relations_written]
             .iter()
             .map(|rows| rows.heap_size())
@@ -179,6 +184,7 @@ impl ProjectionWriter {
         // NB: Nothing routes from a departed element's facts but the generations published before, which keep them.
         for &node in &departed {
             self.retire(node);
+            self.note_disabled(node, false);
             if let Some(mut row) = self.rows.row_mut(node.element_slot()) {
                 row.facts = row.facts.forgotten();
             }
@@ -201,6 +207,7 @@ impl ProjectionWriter {
             catalogs: self.catalogs.clone(),
             host_fact_sets: Arc::clone(&self.host_fact_sets),
             text_assigned_slots: Arc::clone(&self.text_assigned_slots),
+            disabled: Arc::clone(&self.disabled),
             written: self.written.take(),
             links_written: self.links_written.take(),
             relations_written: self.relations_written.take(),
@@ -227,6 +234,19 @@ impl ProjectionWriter {
 
     fn note_links_written(&mut self, node: StyleNodeID) {
         self.links_written.insert(node, node.element_slot());
+    }
+
+    /// Note whether the facts of `node` say it is disabled.
+    fn note_disabled(&mut self, node: StyleNodeID, disabled: bool) {
+        if self.disabled.contains(&node) == disabled {
+            return;
+        }
+        let elements = Arc::make_mut(&mut self.disabled);
+        if disabled {
+            elements.insert(node);
+        } else {
+            elements.remove(&node);
+        }
     }
 
     /// The element's facts as written, or none where nothing was written of it.
@@ -445,6 +465,7 @@ impl ProjectionWriter {
     /// They leave what style reads when the transaction is released.
     pub(in crate::css::style) fn forget(&mut self, node: StyleNodeID) {
         if self.row(node).is_some_and(|row| row.facts.resident()) {
+            self.note_disabled(node, false);
             self.edit(node, |row| row.facts = row.facts.forgotten());
         }
     }
@@ -480,6 +501,9 @@ impl ProjectionWriter {
     }
 
     pub(in crate::css::style) fn set_state(&mut self, node: StyleNodeID, fact: StateFact, value: bool) {
+        if fact == StateFact::Disabled {
+            self.note_disabled(node, value);
+        }
         self.edit_facts(node, |facts| match value {
             true => facts.states.insert(fact),
             false => facts.states.remove(fact),
@@ -627,6 +651,9 @@ impl ProjectionWriter {
             false => arrival.folded_tag,
         };
         let lists = Self::make_lists(&mut self.recent_lists, &self.catalogs.name_forms, lists);
+        if arrival.states.contains(StateFact::Disabled) {
+            self.note_disabled(node, true);
+        }
         self.edit_facts(node, |facts| {
             facts.tag = arrival.tag;
             facts.set_flag(ElementFacts::IS_SLOT, arrival.is_slot);

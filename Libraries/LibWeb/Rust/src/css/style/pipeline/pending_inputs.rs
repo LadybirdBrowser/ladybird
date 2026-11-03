@@ -33,8 +33,6 @@ pub(in crate::css::style) struct HoverSealMemo {
 struct HoverSealCandidates {
     projection: ProjectionGeneration,
     invalidation: Option<Arc<InvalidationMap>>,
-    /// The elements whose written facts say they are disabled.
-    disabled: FastSet<StyleNodeID>,
     hover_keyed: HoverKeyedElements,
 }
 
@@ -235,7 +233,7 @@ impl StyleEngine {
         let tree = self.tree();
         let under_root =
             |node: &StyleNodeID| tree.is_live(*node) && projection.is_in_shadow_including_subtree_of(*node, root);
-        candidates.disabled.iter().any(under_root)
+        projection.written_disabled().iter().any(under_root)
             || match &candidates.hover_keyed {
                 HoverKeyedElements::Every => true,
                 HoverKeyedElements::Carrying(elements) => elements.iter().any(under_root),
@@ -259,7 +257,6 @@ impl StyleEngine {
                 HoverSealCandidates {
                     projection: generation.clone(),
                     invalidation: None,
-                    disabled: FastSet::default(),
                     hover_keyed: HoverKeyedElements::Every,
                 },
                 true,
@@ -268,25 +265,6 @@ impl StyleEngine {
         let projection = &self.retained.projection;
         let every_slot: Vec<_> = std::iter::once(0..projection.element_slot_count()).collect();
         let element_at = |slot: usize| StyleNodeID::element(u32::try_from(slot).expect("element slot exceeds u32"));
-        let disabled_slots = match first_read {
-            true => every_slot.clone(),
-            false => generation.written_slots_changed_since(&candidates.projection),
-        };
-        for node in disabled_slots
-            .into_iter()
-            .flatten()
-            .filter(|&slot| slot != 0)
-            .map(element_at)
-        {
-            if projection
-                .written_facts(node)
-                .is_some_and(|facts| facts.states().contains(StateFact::Disabled))
-            {
-                candidates.disabled.insert(node);
-            } else {
-                candidates.disabled.remove(&node);
-            }
-        }
         let hover = Trigger::State(StateFact::Hover);
         candidates.hover_keyed = match self.current_invalidation() {
             Some((live, map)) if map.queries_testing(&hover).next().is_none() => {
