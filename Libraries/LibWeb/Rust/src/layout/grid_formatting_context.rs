@@ -1316,6 +1316,7 @@ pub(crate) struct GridFormattingContext<'pass> {
     maximum_inline_size_resolved_by_caller: Option<CssPixels>,
     item_runs_offered_to_row_measurements: Option<RowMeasurementsAhead>,
     next_item_lookup_start: Cell<usize>,
+    items_to_fork: OnceCell<Vec<usize>>,
 }
 
 impl formatting_context::ChildRunShapes for GridFormattingContext<'_> {
@@ -1504,6 +1505,7 @@ impl<'pass> GridFormattingContext<'pass> {
             maximum_inline_size_resolved_by_caller: None,
             item_runs_offered_to_row_measurements: None,
             next_item_lookup_start: Cell::new(0),
+            items_to_fork: OnceCell::new(),
             collected_items: Vec::new(),
             table_inline_layout_of_item: Cell::new(None),
             in_flow_items_margin_box_block_extent: None,
@@ -1527,6 +1529,7 @@ impl<'pass> GridFormattingContext<'pass> {
         self.column_gaps.clear();
         self.row_gaps.clear();
         self.items.clear();
+        self.items_to_fork.take();
         self.explicit_column_line_count = 0;
         self.explicit_row_line_count = 0;
         self.explicit_column_start = 0;
@@ -3725,7 +3728,61 @@ impl<'pass> GridFormattingContext<'pass> {
         result
     }
 
+    fn fork_candidates(&self) -> Vec<usize> {
+        self.items_to_fork
+            .get_or_init(|| {
+                parallel_layout::fork_candidates(&self.run.callbacks, 0..self.items.len(), |index| {
+                    self.items[index].box_
+                })
+            })
+            .clone()
+    }
+
+    fn measure_track_sizing_contributions_ahead(&self, axis: Axis) {
+        if self.lanes.is_some_and(|lanes| lanes.grid_axis == axis) {
+            return;
+        }
+        let candidates = self.fork_candidates();
+        if candidates.is_empty() {
+            return;
+        }
+        let sizing = self.sizing();
+        let items = candidates.into_iter().map(|index| self.items[index]).filter(|&item| {
+            !self.grid_item_is_subgridded(item, axis)
+                && self.item_contributes_to_track_sizing(item, axis)
+                && self.preferred_behaves_as_auto(item, axis)
+                && !(axis.is_column() && self.item_facts(item).is_scroll_container())
+                && !(!axis.is_column() && self.grid_item_is_column_only_subgrid(item))
+        });
+        if axis.is_column() {
+            let measurements = items
+                .filter_map(|item| {
+                    let cells = self.cells_of(item);
+                    sizing.content_inline_size_measurement_ahead(
+                        sizing_context::SizedBox::new(item.box_, &cells),
+                        self.intrinsic_contribution_constraints(item, axis),
+                        None,
+                    )
+                })
+                .collect();
+            sizing.measure_content_inline_sizes_ahead(measurements);
+        } else {
+            let shapes = items
+                .filter_map(|item| {
+                    let cells = self.cells_of(item);
+                    sizing.max_content_block_size_run_shape(
+                        sizing_context::SizedBox::new(item.box_, &cells),
+                        self.item_available_space(item).inline_size.to_px_or_zero(),
+                        self.intrinsic_contribution_constraints(item, axis),
+                    )
+                })
+                .collect();
+            parallel_layout::lay_out_shapes_ahead(&self.run.callbacks, shapes);
+        }
+    }
+
     fn run_track_sizing(&mut self, axis: Axis) {
+        self.measure_track_sizing_contributions_ahead(axis);
         let mut tracks = self.interleaved_tracks(axis);
         let mut contributions = self.item_contributions_to_track_sizing(axis);
         let style = self.container_style;
@@ -4856,70 +4913,77 @@ impl<'pass> GridFormattingContext<'pass> {
     fn layout_items(&mut self, run: &FormattingContextRun<'pass>) {
         let mut baseline_aligned_items = Vec::new();
         let track_offsets = self.grid_track_offsets();
+        let percentage_block_insets_have_definite_basis =
+            run.percentage_block_insets_of_root_children_have_definite_basis(&self.container_cells);
+        let candidates = self.fork_candidates();
+        let mut next_candidate = 0;
+        let mut laid_out_ahead = formatting_context::ChildRunsLaidOutAhead::default();
+        let mut handed_over_to_runs_laid_out_ahead = false;
         for item_index in 0..self.items.len() {
             let item = self.items[item_index];
             let area = self.grid_area(item, &track_offsets);
-            let mut table_wrapper_inline_basis = None;
-            if self.item_facts(item).is_table_wrapper() {
-                // Track spacing can expand the final grid area after the earlier inline-size pass. Recompute the wrapper
-                // against that final area so the real table layout resolves percentages against the grid area.
-                let resolved = self.resolve_table_wrapper_inline_size(item, area.size.inline_size);
-                table_wrapper_inline_basis = Some(area.size.inline_size);
-                self.update_cells_of(item, |cells| {
-                    cells.margin_left = resolved.margin_start;
-                    cells.margin_right = resolved.margin_end;
-                    cells.set_content_inline_size(resolved.size);
-                });
-            }
-            let row_area = ItemRowArea::SizedAt(area.size.block_size);
-            let mut cells = self.cells_of(item);
-            self.prepare_item_cells(item, &mut cells, row_area);
-            let mut sizing = RootSizingDirectives::default();
-            if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
-                // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
-                //     grows to its used block size afterwards.
-                sizing.content_block_size_after_run =
-                    geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(cells.content_block_size);
-                cells.set_content_block_size(transferred);
-            }
-            self.update_cells_of(item, |item_cells| *item_cells = cells);
-            if self.item_facts(item).is_table_wrapper() && self.item_is_stretched(item, Axis::Row) {
-                // A stretched table wrapper stretches the table box inside it, less the size of its captions.
-                let sizes = self.sizing().measure_table_box_block_size_inside_wrapper(
-                    sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
-                    AvailableSpace {
-                        inline_size: AvailableSize::definite(area.size.inline_size),
-                        block_size: AvailableSize::Indefinite,
-                    },
-                    self.grid_area_constraints(item),
-                );
-                let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
-                let stretched_table_box_block_size = cells.content_block_size - captions_block_size;
-                sizing.forced_min_border_box_block_size = geometry::PackedOptionalCssPixels::from(Some(
-                    stretched_table_box_block_size.max(sizes.table_box_border_box_block_size),
-                ));
-            }
-            let mut input = self.item_layout_input(item, &cells, row_area);
-            input.sizing = sizing;
-            if let Some(inline_basis) = table_wrapper_inline_basis {
-                // Table wrappers pass their constraints through to the table box, so hand them the
-                // grid area in both axes for the table's percentage resolution.
-                input.containing_block_constraints.percentage_basis_inline_size = Some(inline_basis);
-            }
+            let is_candidate = candidates.get(next_candidate) == Some(&item_index);
+            next_candidate += usize::from(is_candidate);
+            let laid_out = if let Some(laid_out) = laid_out_ahead.take(run, item_index) {
+                laid_out
+            } else {
+                let lays_out_ahead =
+                    is_candidate && !handed_over_to_runs_laid_out_ahead && self.item_may_be_laid_out_ahead(run, item);
+                let (cells, input) = self.item_run_request(item, area);
+                let planned = if lays_out_ahead {
+                    formatting_context::plan_child_run(
+                        run,
+                        item.box_,
+                        input,
+                        cells,
+                        percentage_block_insets_have_definite_basis,
+                    )
+                } else {
+                    formatting_context::PlannedChildRun::Unplanned(cells, input)
+                };
+                match planned {
+                    formatting_context::PlannedChildRun::Job(job) if job.reuses_stored_run() => {
+                        formatting_context::lay_out_child_run_job(run.callbacks, job)
+                    }
+                    formatting_context::PlannedChildRun::Job(job) => {
+                        handed_over_to_runs_laid_out_ahead = true;
+                        laid_out_ahead = formatting_context::ChildRunsLaidOutAhead::lay_out_from_first_miss(
+                            run,
+                            (item_index, job),
+                            candidates[next_candidate..]
+                                .iter()
+                                .map(|&later| (later, self.items[later]))
+                                .filter(|&(_, later)| self.item_may_be_laid_out_ahead(run, later))
+                                .map(|(later_index, later)| {
+                                    let (cells, input) =
+                                        self.item_run_request(later, self.grid_area(later, &track_offsets));
+                                    (later_index, later.box_, cells, input)
+                                }),
+                            percentage_block_insets_have_definite_basis,
+                        );
+                        laid_out_ahead
+                            .take(run, item_index)
+                            .expect("the item was laid out ahead")
+                    }
+                    formatting_context::PlannedChildRun::Unplanned(cells, input) => {
+                        formatting_context::layout_inside_child_with_input_cells(
+                            run,
+                            None,
+                            Some(self),
+                            item.box_,
+                            input,
+                            cells,
+                            false,
+                            percentage_block_insets_have_definite_basis,
+                        )
+                    }
+                }
+            };
             let formatting_context::ChildLayout {
                 outcome,
                 fragment_arrival,
                 laid_out_box,
-            } = formatting_context::layout_inside_child_with_input_cells(
-                run,
-                None,
-                Some(self),
-                item.box_,
-                input,
-                cells,
-                false,
-                run.percentage_block_insets_of_root_children_have_definite_basis(&self.container_cells),
-            );
+            } = laid_out;
             self.update_cells_of(item, |item_cells| *item_cells = laid_out_box.cells);
             outcome.report_percentage_block_size_dependency_of(run, item.box_);
             self.collected_item(item).laid_out.set(Some(LaidOutGridItem {
@@ -4958,6 +5022,65 @@ impl<'pass> GridFormattingContext<'pass> {
             first: self.baseline_of_items(formatting_context::BaselineSet::First),
             last: self.baseline_of_items(formatting_context::BaselineSet::Last),
         };
+    }
+
+    fn item_run_request(
+        &self,
+        item: GridItem,
+        area: geometry::LogicalRect,
+    ) -> (used_values::RootInputCells, LayoutInput) {
+        let mut table_wrapper_inline_basis = None;
+        if self.item_facts(item).is_table_wrapper() {
+            // Track spacing can expand the final grid area after the earlier inline-size pass. Recompute the wrapper
+            // against that final area so the real table layout resolves percentages against the grid area.
+            let resolved = self.resolve_table_wrapper_inline_size(item, area.size.inline_size);
+            table_wrapper_inline_basis = Some(area.size.inline_size);
+            self.update_cells_of(item, |cells| {
+                cells.margin_left = resolved.margin_start;
+                cells.margin_right = resolved.margin_end;
+                cells.set_content_inline_size(resolved.size);
+            });
+        }
+        let row_area = ItemRowArea::SizedAt(area.size.block_size);
+        let mut cells = self.cells_of(item);
+        self.prepare_item_cells(item, &mut cells, row_area);
+        let mut sizing = RootSizingDirectives::default();
+        if let Some(transferred) = item.block_size_transferred_through_aspect_ratio {
+            // NB: The content is laid out against the block size transferred through the aspect ratio, and the item
+            //     grows to its used block size afterwards.
+            sizing.content_block_size_after_run =
+                geometry::ContentBlockSizeAfterRun::GrownFromAspectRatioBlockSize(cells.content_block_size);
+            cells.set_content_block_size(transferred);
+        }
+        self.update_cells_of(item, |item_cells| *item_cells = cells);
+        if self.item_facts(item).is_table_wrapper() && self.item_is_stretched(item, Axis::Row) {
+            // A stretched table wrapper stretches the table box inside it, less the size of its captions.
+            let sizes = self.sizing().measure_table_box_block_size_inside_wrapper(
+                sizing_context::SizedBox::new(item.box_, &self.cells_of(item)),
+                AvailableSpace {
+                    inline_size: AvailableSize::definite(area.size.inline_size),
+                    block_size: AvailableSize::Indefinite,
+                },
+                self.grid_area_constraints(item),
+            );
+            let captions_block_size = sizes.wrapper_content_block_size - sizes.table_box_border_box_block_size;
+            let stretched_table_box_block_size = cells.content_block_size - captions_block_size;
+            sizing.forced_min_border_box_block_size = geometry::PackedOptionalCssPixels::from(Some(
+                stretched_table_box_block_size.max(sizes.table_box_border_box_block_size),
+            ));
+        }
+        let mut input = self.item_layout_input(item, &cells, row_area);
+        input.sizing = sizing;
+        if let Some(inline_basis) = table_wrapper_inline_basis {
+            // Table wrappers pass their constraints through to the table box, so hand them the
+            // grid area in both axes for the table's percentage resolution.
+            input.containing_block_constraints.percentage_basis_inline_size = Some(inline_basis);
+        }
+        (cells, input)
+    }
+
+    fn item_may_be_laid_out_ahead(&self, run: &FormattingContextRun<'pass>, item: GridItem) -> bool {
+        !self.item_facts(item).is_table_wrapper() && !grid_template_declares_a_subgrid_axis(&run.callbacks, item.box_)
     }
 
     // NB: Only the vertical Row axis aligns items by their baselines, using the horizontal baselines of items in a
