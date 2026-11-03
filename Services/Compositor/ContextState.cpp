@@ -1917,7 +1917,7 @@ Compositing::FirstWheelStepRouteForTesting ContextState::route_first_wheel_step_
     return { m_async_scroll_tree.route_first_wheel_step(m_wheel_gesture_routing.admission(), m_scene.visual_context_tree_for_compositing(), position, delta, nested_context_regions), document_id };
 }
 
-String ContextState::scroll_state_for_testing(Web::AsyncScrollNodeStableID stretched_scroller) const
+String ContextState::scroll_state_for_testing(Web::AsyncScrollNodeStableID scroller) const
 {
     auto const& display_list = m_scene.display_list();
     auto scroll_state = Compositing::async_scrolling_state_to_json(display_list ? Compositing::async_scrolling_state_from_display_list(*display_list) : Compositing::AsyncScrollingState {});
@@ -1928,7 +1928,16 @@ String ContextState::scroll_state_for_testing(Web::AsyncScrollNodeStableID stret
         : Web::input_routing_decision_name(Compositing::input_routing_decision_for_wheel_step_not_admitted_by(admission));
     scroll_state.set("wheelRoutingAdmission"sv, admission_name);
 
-    auto stretch = m_elastic_overscroll_controller.stretch_of(stretched_scroller).scaled(1.0f / static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
+    if (auto scroll_node_index = m_async_scroll_tree.scroll_node_index_for_stable_id(scroller); scroll_node_index.has_value()) {
+        if (auto offset = m_async_scroll_tree.css_scroll_offset_for_node(*scroll_node_index, m_scroll_state_snapshot); offset.has_value()) {
+            JsonObject offset_object;
+            offset_object.set("x"sv, offset->x().to_double());
+            offset_object.set("y"sv, offset->y().to_double());
+            scroll_state.set("scrollOffset"sv, move(offset_object));
+        }
+    }
+
+    auto stretch = m_elastic_overscroll_controller.stretch_of(scroller).scaled(1.0f / static_cast<float>(m_async_scroll_tree.device_pixels_per_css_pixel()));
     JsonObject stretch_object;
     stretch_object.set("x"sv, stretch.x());
     stretch_object.set("y"sv, stretch.y());
