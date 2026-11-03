@@ -653,41 +653,30 @@ impl MathObject {
         let coerced = CoercedArguments::of(vm)?;
 
         // 3. For each element number of coerced, do
-        for number in coerced.iter() {
-            // a. If number is either +∞𝔽 or -∞𝔽, return +∞𝔽.
-            if number.is_infinite() {
-                return Ok(js_infinity());
-            }
+        //     a. If number is either +∞𝔽 or -∞𝔽, return +∞𝔽.
+        if coerced.iter().any(|number| number.is_infinite()) {
+            return Ok(js_infinity());
         }
 
         // 4. Let onlyZero be true.
-        let mut only_zero = true;
-
-        let mut sum_of_squares = 0.0;
-
         // 5. For each element number of coerced, do
-        for &number in coerced.iter() {
-            // a. If number is NaN, return NaN.
-            // OPTIMIZATION: For infinities, the result will be infinity with the same sign, so we can return early.
-            if number.is_nan() || number.is_infinite() {
-                return Ok(Value::from_f64(number));
-            }
-
-            // b. If number is neither +0𝔽 nor -0𝔽, set onlyZero to false.
-            if number != 0.0 {
-                only_zero = false;
-            }
-
-            sum_of_squares += number * number;
+        //     a. If number is NaN, return NaN.
+        if coerced.iter().any(|number| number.is_nan()) {
+            return Ok(js_nan());
         }
 
+        //     b. If number is neither +0𝔽 nor -0𝔽, set onlyZero to false.
         // 6. If onlyZero is true, return +0𝔽.
-        if only_zero {
-            return Ok(Value::from_i32(0));
-        }
-
         // 7. Return an implementation-approximated Number value representing the square root of the sum of squares of the mathematical values of the elements of coerced.
-        Ok(Value::from_f64(f64::sqrt(sum_of_squares)))
+        // NB: hypot() scales its inputs and maps zeros to +0, which covers steps 5.b to 7. NaN has to be checked first,
+        //     since a partial result that overflows to infinity would win over it.
+        let result = match &*coerced {
+            [] => 0.0,
+            [first, rest @ ..] => rest
+                .iter()
+                .fold(first.abs(), |result, &number| math::hypot(result, number)),
+        };
+        Ok(Value::from_f64(result))
     }
 
     // 21.3.2.20 Math.imul ( x, y ), https://tc39.es/ecma262/#sec-math.imul
