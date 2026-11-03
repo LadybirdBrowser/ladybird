@@ -12,6 +12,7 @@ find_package(mimalloc CONFIG REQUIRED)
 find_package(Backtrace)
 find_package(cpptrace CONFIG)
 find_package(FastFloat CONFIG REQUIRED)
+find_path(LLVM_LIBC_INCLUDE_DIR NAMES llvm-libc/shared/math.h REQUIRED)
 find_package(simdutf REQUIRED)
 find_package(zmij CONFIG REQUIRED)
 

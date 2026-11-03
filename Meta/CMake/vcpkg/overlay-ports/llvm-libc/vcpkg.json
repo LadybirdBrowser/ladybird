@@ -1,0 +1,7 @@
+{
+  "name": "llvm-libc",
+  "version-string": "e54169423e7ee5d8b41c2f1b6f7a59000c901ee0",
+  "description": "The header-only math functions of LLVM libc",
+  "homepage": "https://libc.llvm.org/",
+  "license": "Apache-2.0 WITH LLVM-exception"
+}

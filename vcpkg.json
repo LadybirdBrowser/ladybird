@@ -112,6 +112,7 @@
       ]
     },
     "libxml2",
+    "llvm-libc",
     {
       "name": "mman",
       "platform": "windows"
@@ -366,6 +367,10 @@
     {
       "name": "libxml2",
       "version": "2.15.4#0"
+    },
+    {
+      "name": "llvm-libc",
+      "version": "e54169423e7ee5d8b41c2f1b6f7a59000c901ee0#0"
     },
     {
       "name": "md4c",
