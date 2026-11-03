@@ -20,6 +20,7 @@ find_package(harfbuzz REQUIRED)
 find_package(JPEG REQUIRED)
 find_package(LIBAVIF REQUIRED)
 find_package(PNG REQUIRED)
+find_package(PDFJS QUIET)
 find_package(WebP REQUIRED)
 find_path(WUFFS_INCLUDE_DIR NAMES wuffs/wuffs-v0.3.c REQUIRED)
 

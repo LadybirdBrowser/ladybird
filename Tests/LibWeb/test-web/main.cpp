@@ -141,6 +141,9 @@ static ErrorOr<void> load_test_config(StringView test_root_path)
     for (auto const& group : config->groups()) {
         if (group == "Skipped"sv) {
             TRY(add_config_paths(test_root_path, config->keys(group), s_skipped_tests));
+        } else if (group == "RequiresPDFJS"sv) {
+            if (!HAS_PDFJS)
+                TRY(add_config_paths(test_root_path, config->keys(group), s_skipped_tests));
         } else if (group == "LoadFromHttpServer"sv) {
             TRY(add_config_paths(test_root_path, config->keys(group), s_loaded_from_http_server));
         } else if (group == "CapFrameRate"sv) {

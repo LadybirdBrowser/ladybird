@@ -85,8 +85,7 @@ set(THEMES
 )
 list(TRANSFORM THEMES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/themes/")
 
-# pdf.js viewer assets installed by the pdfjs vcpkg port.
-# Only populated when building with vcpkg and pdfjs is installed.
+# PDF.js viewer assets are optional for builds without the PDF.js distribution.
 set(PDFJS_BUILD_FILES "")
 set(PDFJS_WEB_BASE_FILES "")
 set(PDFJS_WEB_IMAGE_FILES "")
@@ -94,22 +93,19 @@ set(PDFJS_WEB_WASM_FILES "")
 set(PDFJS_WEB_LOCALE_JSON "")
 set(PDFJS_WEB_LOCALE_EN_US "")
 set(PDFJS_VIEWER_HTML "")
-if (NOT "${VCPKG_INSTALLED_DIR}" STREQUAL "" AND NOT "${VCPKG_TARGET_TRIPLET}" STREQUAL "")
-    set(_pdfjs_vcpkg_dir "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/pdfjs")
-    if (EXISTS "${_pdfjs_vcpkg_dir}/build/pdf.mjs")
-        file(GLOB PDFJS_BUILD_FILES "${_pdfjs_vcpkg_dir}/build/*.mjs")
-        set(_pdfjs_ladybird_dir "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/pdfjs")
-        set(PDFJS_WEB_BASE_FILES
-            "${_pdfjs_ladybird_dir}/pdfjs-ladybird-transport.mjs"
-            "${_pdfjs_vcpkg_dir}/web/viewer.mjs"
-            "${_pdfjs_vcpkg_dir}/web/viewer.css"
-        )
-        file(GLOB PDFJS_WEB_IMAGE_FILES "${_pdfjs_vcpkg_dir}/web/images/*")
-        file(GLOB PDFJS_WEB_WASM_FILES "${_pdfjs_vcpkg_dir}/web/wasm/*")
-        set(PDFJS_WEB_LOCALE_JSON "${_pdfjs_vcpkg_dir}/web/locale/locale.json")
-        set(PDFJS_WEB_LOCALE_EN_US "${_pdfjs_vcpkg_dir}/web/locale/en-US/viewer.ftl")
-        set(PDFJS_VIEWER_HTML "${_pdfjs_vcpkg_dir}/web/viewer.html")
-    endif()
+if (PDFJS_FOUND)
+    file(GLOB PDFJS_BUILD_FILES "${PDFJS_DIR}/build/*.mjs")
+    set(_pdfjs_ladybird_dir "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/pdfjs")
+    set(PDFJS_WEB_BASE_FILES
+        "${_pdfjs_ladybird_dir}/pdfjs-ladybird-transport.mjs"
+        "${PDFJS_DIR}/web/viewer.mjs"
+        "${PDFJS_DIR}/web/viewer.css"
+    )
+    file(GLOB PDFJS_WEB_IMAGE_FILES "${PDFJS_DIR}/web/images/*")
+    file(GLOB PDFJS_WEB_WASM_FILES "${PDFJS_DIR}/web/wasm/*")
+    set(PDFJS_WEB_LOCALE_JSON "${PDFJS_DIR}/web/locale/locale.json")
+    set(PDFJS_WEB_LOCALE_EN_US "${PDFJS_DIR}/web/locale/en-US/viewer.ftl")
+    set(PDFJS_VIEWER_HTML "${PDFJS_DIR}/web/viewer.html")
 endif()
 
 function(copy_resource_set subdir)
