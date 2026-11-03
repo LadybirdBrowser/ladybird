@@ -8,11 +8,11 @@ no animation:
 running animation:
   root font: 30px/40px
   em, rem on the root itself: 20px, 20px
-  rem, rlh: 200px, 25px, laid out 200
-  rem, rlh on ::before: 40px, 50px
+  rem, rlh: 300px, 40px, laid out 300
+  rem, rlh on ::before: 60px, 80px
   em below the root: 90px
-  rem, em below a fixed font: 100px, 20px
-  rem on an element added meanwhile: 20px
+  rem, em below a fixed font: 150px, 20px
+  rem on an element added meanwhile: 30px
 canceled animation:
   root font: 20px/25px
   em, rem on the root itself: 20px, 20px
@@ -30,10 +30,10 @@ script animation halfway:
 script animation further:
   root font: 25px/25px
   em, rem on the root itself: 20px, 20px
-  rem, rlh: 200px, 25px, laid out 200
-  rem, rlh on ::before: 40px, 50px
+  rem, rlh: 250px, 25px, laid out 250
+  rem, rlh on ::before: 50px, 50px
   em below the root: 75px
-  rem, em below a fixed font: 100px, 20px
+  rem, em below a fixed font: 125px, 20px
 script animation canceled:
   root font: 20px/25px
   em, rem on the root itself: 20px, 20px
@@ -51,14 +51,14 @@ transition at its start:
 transition halfway:
   root font: 30px/40px
   em, rem on the root itself: 40px, 40px
-  rem, rlh: 400px, 55px, laid out 400
-  rem, rlh on ::before: 80px, 110px
+  rem, rlh: 300px, 40px, laid out 300
+  rem, rlh on ::before: 60px, 80px
   em below the root: 90px
-  rem, em below a fixed font: 100px, 20px
+  rem, em below a fixed font: 150px, 20px
 transition finished:
   root font: 40px/55px
   em, rem on the root itself: 40px, 40px
   rem, rlh: 400px, 55px, laid out 400
   rem, rlh on ::before: 80px, 110px
   em below the root: 120px
-  rem, em below a fixed font: 100px, 20px
+  rem, em below a fixed font: 200px, 20px

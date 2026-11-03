@@ -4206,11 +4206,25 @@ impl StyleEngine {
                 true => ChildImpact::of_groups(view.payloads, &held.payloads),
                 false => ChildImpact::All,
             };
+        // What resolved root-relative lengths against the font of the document element resolves them again, which the
+        // next pass tells as it restyles the element.
+        let root_font = super::compute::RootFontInputs::from_payloads(view.payloads, view.dependency_flags);
+        let root_font_moved = traversal::is_document_element(&self.retained, node)
+            && self
+                .retained
+                .live_style
+                .as_ref()
+                .and_then(|live| live.records.kept_root_font(node))
+                .is_some_and(|kept| kept != root_font);
         if let Some(mut live) = self.retained.live_style.take() {
             live.generation += 1;
             live.note_composition_moved(&self.retained, node, impact);
             if font_size_animated != held.font_size_animated {
                 live.note_animated_font_size_came_or_went(&self.retained, node);
+            }
+            if root_font_moved {
+                live.hints.reserve(self.retained.projection.element_slot_count());
+                live.hints.mark(node, RESTYLE_PSEUDO_ELEMENTS);
             }
             self.retained.live_style = Some(live);
         }
