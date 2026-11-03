@@ -338,9 +338,14 @@ impl RetainedState {
                 MainEffects::VISIBILITY_FLIP,
                 old_values.is_some_and(|old| old.visibility() != new_values.visibility()),
             )
+            // NB: An element's environment is the store its record holds. The host has something to do only where
+            //     another lies over that: what animations sample, on the element or a parent it inherits them from.
             .with(
                 MainEffects::CUSTOM_PROPERTIES,
-                custom_properties || facts.pseudo_elements.environment_moved,
+                (custom_properties || facts.pseudo_elements.environment_moved)
+                    && (facts.inherits_sampled_custom_properties
+                        || self.element_custom_property_data.contains_key(&node)
+                        || self.pseudo_element_custom_property_data.contains_key(&node)),
             )
             .with(
                 MainEffects::ANCHOR_NAMES,

@@ -5509,8 +5509,8 @@ void Element::replace_custom_property_data(Optional<CSS::PseudoElement> pseudo_e
     install_custom_property_data(read, pseudo_element, move(data), is_animation_overlay);
 }
 
-// The style engine keeps the custom-property environments an element and its synthetic pseudo-elements hold; the
-// element keeps no copy of its own. This is the only place they move.
+// An element and its synthetic pseudo-elements hold the custom-property environment of their records. The style engine
+// keeps the ones lying over that; the element keeps no copy of its own. This is the only place they move.
 void Element::install_custom_property_data(Layout::BegunRead const& read, Optional<CSS::PseudoElement> pseudo_element, RefPtr<CSS::CustomPropertyData const> data, CSS::IsAnimationOverlay is_animation_overlay)
 {
     VERIFY(data || is_animation_overlay == CSS::IsAnimationOverlay::No);
@@ -5522,6 +5522,9 @@ void Element::install_custom_property_data(Layout::BegunRead const& read, Option
         VERIFY(style_node != 0 || !data);
         if (style_node == 0)
             return;
+        // NB: What the record holds already lies over nothing.
+        if (is_animation_overlay == CSS::IsAnimationOverlay::No && data && data->identity() == installed_style(pseudo_element).custom_property_environment())
+            data = nullptr;
         auto& style_engine = document().style_computer().style_engine();
         if (!pseudo_element.has_value()) {
             style_engine.set_element_custom_property_data(read, *this, data.ptr(), is_animation_overlay);
@@ -5570,9 +5573,13 @@ RefPtr<CSS::CustomPropertyData const> Element::custom_property_data(Optional<CSS
         if (style_node == 0)
             return nullptr;
         auto const& style_engine = document().style_computer().style_engine();
-        if (!pseudo_element.has_value())
-            return static_cast<CSS::CustomPropertyData const*>(CSS::StyleEngineFFI::style_engine_element_custom_property_data(style_engine.host(), style_node.value()));
-        return static_cast<CSS::CustomPropertyData const*>(CSS::StyleEngineFFI::style_engine_pseudo_element_custom_property_data(style_engine.host(), style_node.value(), to_underlying(pseudo_element.value())));
+        auto const* lying_over = static_cast<CSS::CustomPropertyData const*>(pseudo_element.has_value()
+                ? CSS::StyleEngineFFI::style_engine_pseudo_element_custom_property_data(style_engine.host(), style_node.value(), to_underlying(pseudo_element.value()))
+                : CSS::StyleEngineFFI::style_engine_element_custom_property_data(style_engine.host(), style_node.value()));
+        if (lying_over)
+            return lying_over;
+        // NB: The identity of an environment is the address of its store, which the record holds a reference to.
+        return reinterpret_cast<CSS::CustomPropertyData const*>(static_cast<FlatPtr>(installed_style(pseudo_element).custom_property_environment()));
     }
 
     if (auto existing_pseudo_element = get_pseudo_element(pseudo_element.value()); existing_pseudo_element.has_value())
