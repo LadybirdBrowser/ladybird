@@ -1,0 +1,78 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<body>
+<script>
+    // Elements arriving together read the language and direction of their parents, at any depth and after the
+    // publication of a sibling's deep subtree, whichever order they took their identities in.
+    function element(tag, attributes = {}, ...children) {
+        const result = document.createElement(tag);
+        for (const [name, value] of Object.entries(attributes))
+            result.setAttribute(name, value);
+        result.append(...children);
+        return result;
+    }
+
+    function describe(name, node) {
+        const direction = node.matches(":dir(rtl)") ? "rtl" : node.matches(":dir(ltr)") ? "ltr" : "none";
+        const language = ["he", "de", "en"].find(tag => node.matches(`:lang(${tag})`)) ?? "none";
+        println(`${name}: ${direction} ${language}`);
+    }
+
+    asyncTest(async done => {
+        const deep = element("div");
+        let chain = deep;
+        for (let i = 0; i < 20; ++i)
+            chain = element("div", {}, chain);
+        const after_deep = element("span");
+        const own_direction = element("div", { dir: "ltr", lang: "en" }, element("span", { id: "below-own" }));
+        const auto_direction = element("div", { dir: "auto" }, "א", element("span"));
+        const telephone = element("input", { type: "tel" });
+        const bdi = element("bdi", {}, "abc");
+        const root = element("div", { dir: "rtl", lang: "he" }, chain, after_deep, own_direction, auto_direction, telephone, bdi);
+        document.body.append(root);
+        await animationFrame();
+
+        describe("root", root);
+        describe("deep", deep);
+        describe("sibling after a deep subtree", after_deep);
+        describe("own attributes", own_direction);
+        describe("below own attributes", own_direction.firstElementChild);
+        describe("auto", auto_direction);
+        describe("below auto", auto_direction.lastElementChild);
+        describe("telephone input", telephone);
+        describe("bdi", bdi);
+
+        const host = element("div", { dir: "rtl", lang: "he" });
+        const in_shadow = element("span", {}, element("b"));
+        host.attachShadow({ mode: "open" }).append(in_shadow);
+        document.body.append(host);
+        await animationFrame();
+        describe("in a shadow tree", in_shadow);
+        describe("below that", in_shadow.firstElementChild);
+
+        // An element that took its identity first and then moves under a parent that takes one later.
+        const first = element("div");
+        document.body.append(first);
+        const moved = element("div", {}, element("i"));
+        first.append(moved);
+        const later_parent = element("div", { dir: "rtl", lang: "de" });
+        document.body.append(later_parent);
+        later_parent.append(moved);
+        await animationFrame();
+        describe("moved under a later parent", moved);
+        describe("below that", moved.firstElementChild);
+
+        // Elements the update published and later moved read where they went, and later changes reach them.
+        document.body.append(moved);
+        await animationFrame();
+        describe("moved out again", moved);
+        describe("below that", moved.firstElementChild);
+        root.setAttribute("dir", "ltr");
+        root.setAttribute("lang", "de");
+        await animationFrame();
+        describe("deep after the root changed", deep);
+
+        document.body.innerHTML = "";
+        done();
+    });
+</script>

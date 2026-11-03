@@ -1,0 +1,16 @@
+root: rtl he
+deep: rtl he
+sibling after a deep subtree: rtl he
+own attributes: ltr en
+below own attributes: ltr en
+auto: rtl he
+below auto: rtl he
+telephone input: ltr he
+bdi: ltr he
+in a shadow tree: rtl he
+below that: rtl he
+moved under a later parent: rtl de
+below that: rtl de
+moved out again: ltr none
+below that: ltr none
+deep after the root changed: ltr de

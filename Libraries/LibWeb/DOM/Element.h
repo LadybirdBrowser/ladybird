@@ -832,6 +832,7 @@ public:
         Rtl,
     };
     Directionality directionality() const;
+    Optional<Directionality> directionality_unless_from_parent() const;
     bool is_auto_directionality_form_associated_element() const;
 
     Optional<Utf16FlyString> const& id() const { return m_id; }
