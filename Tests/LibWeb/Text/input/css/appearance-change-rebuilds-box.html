@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .none { appearance: none; }
+</style>
+<body>
+<script>
+    test(() => {
+        for (const html of ["<input>", "<input type=checkbox>", "<input type=radio>", "<input type=range>"]) {
+            const parent = document.createElement("div");
+            parent.innerHTML = html;
+            document.body.append(parent);
+            const input = parent.firstChild;
+            const report = label => {
+                const { width, height } = input.getBoundingClientRect();
+                println(`${html} ${label}: ${width}x${height}, the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+            };
+            report("with its native appearance");
+            input.className = "none";
+            report("given none");
+            input.className = "";
+            report("back");
+            parent.remove();
+        }
+    });
+</script>

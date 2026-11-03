@@ -1,0 +1,12 @@
+<input> with its native appearance: 169.6875x20, the tree matches a full rebuild: true
+<input> given none: 169.6875x20, the tree matches a full rebuild: true
+<input> back: 169.6875x20, the tree matches a full rebuild: true
+<input type=checkbox> with its native appearance: 13x13, the tree matches a full rebuild: true
+<input type=checkbox> given none: 0x0, the tree matches a full rebuild: true
+<input type=checkbox> back: 13x13, the tree matches a full rebuild: true
+<input type=radio> with its native appearance: 12x12, the tree matches a full rebuild: true
+<input type=radio> given none: 0x0, the tree matches a full rebuild: true
+<input type=radio> back: 12x12, the tree matches a full rebuild: true
+<input type=range> with its native appearance: 129x16, the tree matches a full rebuild: true
+<input type=range> given none: 129x16, the tree matches a full rebuild: true
+<input type=range> back: 129x16, the tree matches a full rebuild: true
