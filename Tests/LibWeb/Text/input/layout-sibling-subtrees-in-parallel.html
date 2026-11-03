@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 10px/10px SerenitySans; }
+    #root { position: absolute; }
+    .row { display: flex; }
+    .column { display: flex; flex-direction: column; }
+    .grid { display: grid; grid-template-columns: auto auto; }
+</style>
+<div id="root"></div>
+<script>
+    function nestedBoxes(depth, index) {
+        const kinds = ["row", "column", "grid", "block"];
+        const box = document.createElement("div");
+        box.className = kinds[(depth + index) % kinds.length];
+        if (depth === 0) {
+            box.textContent = "word ".repeat(1 + (index % 3));
+            return box;
+        }
+        for (let child = 0; child < 4; ++child)
+            box.appendChild(nestedBoxes(depth - 1, child));
+        return box;
+    }
+
+    function digestOfBoxesIn(root) {
+        let digest = 0;
+        for (const element of root.querySelectorAll("*")) {
+            const rect = element.getBoundingClientRect();
+            const mixed = Math.round((rect.x + rect.y * 3 + rect.width * 5 + rect.height * 7) * 64);
+            digest = (digest * 31 + mixed) % 1000000007;
+        }
+        const rect = root.getBoundingClientRect();
+        return `${rect.width}x${rect.height}, digest ${digest}`;
+    }
+
+    test(() => {
+        const root = document.getElementById("root");
+        for (let index = 0; index < 4; ++index)
+            root.appendChild(nestedBoxes(3, index));
+        println(`${root.querySelectorAll("*").length} boxes`);
+        println(`shrink-to-fit root: ${digestOfBoxesIn(root)}`);
+        root.style.width = "300px";
+        println(`narrower root: ${digestOfBoxesIn(root)}`);
+        root.querySelector(".grid").style.paddingLeft = "7px";
+        println(`one grid padded: ${digestOfBoxesIn(root)}`);
+    });
+</script>

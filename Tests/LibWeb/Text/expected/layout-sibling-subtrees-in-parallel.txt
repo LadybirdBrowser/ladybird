@@ -1,0 +1,4 @@
+340 boxes
+shrink-to-fit root: 800x1040, digest 798898209
+narrower root: 300x1220, digest 806122313
+one grid padded: 300x1220, digest 332182852

@@ -43,6 +43,7 @@ pub(crate) struct LayoutPass<'arena> {
     /// The innermost of the position options the boxes this pass view lays out are laid out with.
     position_option_styles: Option<&'arena PositionOptionStyle<'arena>>,
     records_trace: bool,
+    forks_runs: bool,
     worker_scratch: WorkerScratchOfThisThread,
 }
 
@@ -130,13 +131,43 @@ impl<'arena> LayoutPass<'arena> {
             reads_no_memoized_layout: false,
             position_option_styles: None,
             records_trace: scratch.layout_trace.is_recording(),
+            forks_runs: false,
             worker_scratch: WorkerScratchOfThisThread::get(),
+        }
+    }
+
+    pub(super) fn on_this_thread(self) -> Self {
+        Self {
+            worker_scratch: WorkerScratchOfThisThread::get(),
+            ..self
         }
     }
 
     #[inline]
     pub(super) fn worker_scratch(&self) -> &WorkerScratch {
         self.worker_scratch.scratch()
+    }
+
+    pub(crate) fn forking_runs(self) -> Self {
+        Self {
+            forks_runs: true,
+            ..self
+        }
+    }
+
+    pub(super) fn forks_runs(&self) -> bool {
+        self.forks_runs && !self.reads_no_memoized_layout && !self.records_trace
+    }
+
+    pub(super) fn noting_host_findings_in<'findings>(
+        self,
+        host_findings: &'findings super::run_state::HostFindingsSink,
+    ) -> LayoutPass<'findings>
+    where
+        'arena: 'findings,
+    {
+        let pass: LayoutPass<'findings> = self;
+        LayoutPass { host_findings, ..pass }
     }
 
     /// A pass over `arena` and `scratch` with no viewport, in no-quirks mode.
@@ -311,6 +342,7 @@ impl<'arena> LayoutPass<'arena> {
         key: &super::rendered_text::TextChunkCacheKey,
         compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> std::sync::Arc<super::rendered_text::CachedTextChunks> {
+        super::parallel_layout::check_row_reached_by_forked_task(node.slot_index() as usize, true);
         self.scratch.text_memos().text_chunks(
             self.text_state_index(node),
             self.text_content(node).rendered(),
@@ -344,6 +376,7 @@ impl<'arena> LayoutPass<'arena> {
         node: Node,
         read: impl FnOnce(&super::text_chunker::GraphemeSegmenter) -> R,
     ) -> R {
+        super::parallel_layout::check_row_reached_by_forked_task(node.slot_index() as usize, true);
         self.scratch.text_memos().with_grapheme_segmenter(
             self.text_state_index(node),
             self.text_content(node).rendered(),
