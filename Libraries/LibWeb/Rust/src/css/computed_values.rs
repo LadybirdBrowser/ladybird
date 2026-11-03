@@ -2858,6 +2858,25 @@ pub(crate) unsafe fn group_values<'a>(group_index: usize, payload: *const c_void
     unsafe { values_of(style_group(group_index), payload) }
 }
 
+/// The bytes of the computed values the group of `payload`, a payload of the group at `group_index`,
+/// holds, in its values and in its payload handles, as `sizer` has not counted them yet.
+///
+/// # Safety
+/// `payload` must be a live payload of the group.
+pub(crate) unsafe fn group_held_values_heap_size(
+    group_index: usize,
+    payload: *const c_void,
+    sizer: &mut crate::heap_size::HeapSizer,
+) -> usize {
+    use crate::heap_size::HeapSize;
+    // SAFETY: As the caller guarantees.
+    let values = unsafe { group_values(group_index, payload) };
+    GroupValueLayout::handles_of(group_index).fold(values.heap_size(sizer), |bytes, (_, place)| {
+        // SAFETY: As the caller guarantees.
+        bytes + unsafe { place.value_in(payload, values) }.heap_size(sizer)
+    })
+}
+
 /// The computed value of `property` in the groups `group_of` answers by group index, with
 /// `inherited` beside the inherited groups.
 ///
@@ -2936,7 +2955,7 @@ pub(crate) unsafe fn groups_hold_the_same(group_index: usize, first: *const c_vo
 /// The group holding the payload of `payload` and the computed values of `values`, a seed group's,
 /// with `writes` over them, the writes of the group in place order. It takes over the caller's
 /// reference to `payload` and carries one for the caller: `payload` itself where it holds those
-/// values already, else the seed where nothing is written over it and it holds the same payload,
+/// values already, else the seed where nothing is written over it and it holds the same group,
 /// else `payload` with the values written into it where only the caller references it, else a copy
 /// of it holding them.
 ///
@@ -2962,7 +2981,14 @@ unsafe fn group_with_values(
         {
             return payload;
         }
-        if writes.is_empty() && seed != payload && payloads_equal(group, seed, payload) {
+        if writes.is_empty()
+            && seed != payload
+            && payloads_equal(group, seed, payload)
+            && values_of(group, seed)
+                .iter()
+                .zip(written())
+                .all(|(held, value)| held.pointer() == value.pointer())
+        {
             retain_group_payload(group_index, seed);
             release_group_payload(group_index, payload);
             return seed;
@@ -3640,8 +3666,12 @@ pub(crate) fn computed_group_output_mask(property: u16) -> Option<u32> {
         .filter(|mask| *mask != 0)
 }
 
-/// The most computed values one group holds, so that a read names each of a group's values by one bit.
-pub(crate) const MAX_GROUP_VALUES: usize = 64;
+/// The most computed values one group holds, so that a read names each of a group's values by one bit
+/// and its payload handles by another.
+pub(crate) const MAX_GROUP_VALUES: usize = 63;
+
+/// The bit of a group's reads that names the values its payload handles hold.
+const READS_PAYLOAD_HANDLES: u64 = 1 << MAX_GROUP_VALUES;
 
 /// A longhand property, by its id.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -3936,8 +3966,8 @@ impl crate::css::computed_value_types::StyleBits {
 pub(crate) struct LonghandPlace {
     group: u8,
     index: u8,
-    /// The offset of the payload handle holding the value, or zero where the group's values hold
-    /// it.
+    /// One past the offset of the payload field holding the value, or zero where the group's values
+    /// hold it.
     handle: u16,
 }
 
@@ -3959,7 +3989,7 @@ impl LonghandPlace {
 
     /// The offset of the payload handle holding the value, where one does.
     pub(crate) fn handle_offset(self) -> Option<usize> {
-        (self.handle != 0).then_some(usize::from(self.handle))
+        (self.handle != 0).then(|| usize::from(self.handle) - 1)
     }
 
     /// The value at this place of `payload`, a live payload of the group whose values are
@@ -3968,11 +3998,59 @@ impl LonghandPlace {
     /// # Safety
     /// `payload` must be a live payload of the place's group, holding `values`, live for `'a`.
     unsafe fn value_in(self, payload: *const c_void, values: &[RetainedStyleValueData]) -> &RetainedStyleValueData {
-        match self.handle_offset() {
-            // SAFETY: The handle is a `ComputedStyleValueHandle`, a single retained pointer laid out
-            //         as a `RetainedStyleValueData` is, which the payload keeps live.
-            Some(offset) => unsafe { &*payload.byte_add(offset).cast::<RetainedStyleValueData>() },
-            None => &values[self.index()],
+        let Some(offset) = self.handle_offset() else {
+            return &values[self.index()];
+        };
+        if self.index != u8::MAX
+            && let Some(StyleValueData::ValueList { values, .. }) = values[TYPED_VALUES_SLOT].optional_data()
+        {
+            return &values.as_slice()[self.index()];
+        }
+        // SAFETY: As the caller guarantees.
+        unsafe { self.value_in_payload(payload, offset) }
+    }
+
+    /// The value the payload holds at this place, a place of a handle or of a typed field at `offset`.
+    ///
+    /// # Safety
+    /// `payload` must be a live payload of the place's group, live for `'a`.
+    unsafe fn value_in_payload<'a>(self, payload: *const c_void, offset: usize) -> &'a RetainedStyleValueData {
+        // SAFETY: As the caller guarantees: the field at the offset is of the type the group says,
+        //         and a handle is a single retained pointer laid out as a `RetainedStyleValueData` is.
+        unsafe {
+            let field = payload.byte_add(offset);
+            if self.index == u8::MAX {
+                return &*field.cast::<RetainedStyleValueData>();
+            }
+            match usize::from(self.group) {
+                group_index::SIZING => (*field.cast::<ComputedSize>()).computed_value(),
+                _ => (*field.cast::<ComputedLengthPercentageOrAuto>()).computed_value(),
+            }
+        }
+    }
+
+    /// Puts `value` in the handle or typed field at this place of `payload`, which only the caller
+    /// references.
+    ///
+    /// # Safety
+    /// `payload` must be a live payload of the place's group.
+    unsafe fn set_in_payload(self, payload: *mut c_void, value: &RetainedStyleValueData) {
+        let offset = self.handle_offset().expect("a payload field place");
+        // SAFETY: As in `value_in_payload`.
+        unsafe {
+            let field = payload.byte_add(offset);
+            if self.index == u8::MAX {
+                *field.cast::<RetainedStyleValueData>() = value.clone();
+                return;
+            }
+            match usize::from(self.group) {
+                group_index::SIZING => *field.cast::<ComputedSize>() = ComputedSize::from_data(value),
+                _ => {
+                    // NB: Insets come first among the group's longhands.
+                    *field.cast::<ComputedLengthPercentageOrAuto>() =
+                        ComputedLengthPercentageOrAuto::from_length_box_data(value, self.index < 4);
+                }
+            }
         }
     }
 
@@ -4007,14 +4085,142 @@ impl LonghandPlace {
 /// The values a group's build reads, of each group, one bit per value index.
 pub(crate) type GroupReads = [u64; group_index::COUNT];
 
+/// The slot of the values of a group whose longhands typed fields hold, for the computed values of an
+/// element some of whose values its typed fields do not tell.
+const TYPED_VALUES_SLOT: usize = 0;
+
+/// The groups whose longhands are all held by typed fields of their payload, which hold each value,
+/// or leave a keyword to tell by their kind.
+const GROUPS_OF_TYPED_LONGHANDS: u32 = (1 << group_index::SIZING) | (1 << group_index::SURROUND);
+
+/// The longhands of those groups, by the offset of the typed field and the position of the longhand
+/// among its group's.
+const PAYLOAD_TYPED_LONGHANDS: [(u16, usize, usize, u8); 18] = {
+    use crate::css::property_metadata::property_id as p;
+    use std::mem::offset_of;
+    let sizing = group_index::SIZING;
+    let surround = group_index::SURROUND;
+    let inset = offset_of!(SurroundValues, inset);
+    let margin = offset_of!(SurroundValues, margin);
+    let padding = offset_of!(SurroundValues, padding);
+    let top = offset_of!(ComputedLengthBox, top);
+    let right = offset_of!(ComputedLengthBox, right);
+    let bottom = offset_of!(ComputedLengthBox, bottom);
+    let left = offset_of!(ComputedLengthBox, left);
+    [
+        (p::WIDTH, sizing, offset_of!(SizingValues, width), 0),
+        (p::MIN_WIDTH, sizing, offset_of!(SizingValues, min_width), 1),
+        (p::MAX_WIDTH, sizing, offset_of!(SizingValues, max_width), 2),
+        (p::HEIGHT, sizing, offset_of!(SizingValues, height), 3),
+        (p::MIN_HEIGHT, sizing, offset_of!(SizingValues, min_height), 4),
+        (p::MAX_HEIGHT, sizing, offset_of!(SizingValues, max_height), 5),
+        (p::TOP, surround, inset + top, 0),
+        (p::RIGHT, surround, inset + right, 1),
+        (p::BOTTOM, surround, inset + bottom, 2),
+        (p::LEFT, surround, inset + left, 3),
+        (p::MARGIN_TOP, surround, margin + top, 4),
+        (p::MARGIN_RIGHT, surround, margin + right, 5),
+        (p::MARGIN_BOTTOM, surround, margin + bottom, 6),
+        (p::MARGIN_LEFT, surround, margin + left, 7),
+        (p::PADDING_TOP, surround, padding + top, 8),
+        (p::PADDING_RIGHT, surround, padding + right, 9),
+        (p::PADDING_BOTTOM, surround, padding + bottom, 10),
+        (p::PADDING_LEFT, surround, padding + left, 11),
+    ]
+};
+
 /// The longhands whose computed value a handle of their group's payload holds as it is, by the
 /// handle's offset: the group's values keep no second copy of them.
-const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 19] = {
-    use crate::css::computed_value_types::FontValues;
+const PAYLOAD_HANDLE_LONGHANDS: [(u16, usize, usize); 51] = {
+    use crate::css::computed_value_types::{BackgroundValues, EffectsValues, FontValues, MaskValues, SVGResetValues};
     use crate::css::property_metadata::property_id as p;
     use std::mem::offset_of;
     let font = group_index::FONT;
+    let background = group_index::BACKGROUND;
+    let mask = group_index::MASK;
+    let effects = group_index::EFFECTS;
+    let svg_reset = group_index::SVG_RESET;
     [
+        (
+            p::BACKGROUND_IMAGE,
+            background,
+            offset_of!(BackgroundValues, background_image),
+        ),
+        (
+            p::BACKGROUND_ATTACHMENT,
+            background,
+            offset_of!(BackgroundValues, background_attachment),
+        ),
+        (
+            p::BACKGROUND_BLEND_MODE,
+            background,
+            offset_of!(BackgroundValues, background_blend_mode),
+        ),
+        (
+            p::BACKGROUND_CLIP,
+            background,
+            offset_of!(BackgroundValues, background_clip),
+        ),
+        (
+            p::BACKGROUND_ORIGIN,
+            background,
+            offset_of!(BackgroundValues, background_origin),
+        ),
+        (
+            p::BACKGROUND_POSITION_X,
+            background,
+            offset_of!(BackgroundValues, background_position_x),
+        ),
+        (
+            p::BACKGROUND_POSITION_Y,
+            background,
+            offset_of!(BackgroundValues, background_position_y),
+        ),
+        (
+            p::BACKGROUND_REPEAT,
+            background,
+            offset_of!(BackgroundValues, background_repeat),
+        ),
+        (
+            p::BACKGROUND_SIZE,
+            background,
+            offset_of!(BackgroundValues, background_size),
+        ),
+        (p::MASK_IMAGE, mask, offset_of!(MaskValues, mask_image)),
+        (p::MASK_TYPE, mask, offset_of!(MaskValues, mask_type)),
+        (p::CLIP_PATH, mask, offset_of!(MaskValues, clip_path)),
+        (p::MASK_MODE, mask, offset_of!(MaskValues, mask_mode)),
+        (p::MASK_REPEAT, mask, offset_of!(MaskValues, mask_repeat)),
+        (p::MASK_POSITION, mask, offset_of!(MaskValues, mask_position)),
+        (p::MASK_CLIP, mask, offset_of!(MaskValues, mask_clip)),
+        (p::MASK_ORIGIN, mask, offset_of!(MaskValues, mask_origin)),
+        (p::MASK_SIZE, mask, offset_of!(MaskValues, mask_size)),
+        (p::MASK_COMPOSITE, mask, offset_of!(MaskValues, mask_composite)),
+        (p::OPACITY, effects, offset_of!(EffectsValues, opacity_style_value)),
+        (p::FILTER, effects, offset_of!(EffectsValues, filter_style_value)),
+        (
+            p::BACKDROP_FILTER,
+            effects,
+            offset_of!(EffectsValues, backdrop_filter_style_value),
+        ),
+        (
+            p::MIX_BLEND_MODE,
+            effects,
+            offset_of!(EffectsValues, mix_blend_mode_style_value),
+        ),
+        (p::ISOLATION, effects, offset_of!(EffectsValues, isolation_style_value)),
+        (
+            p::BOX_SHADOW,
+            effects,
+            offset_of!(EffectsValues, box_shadow_style_value),
+        ),
+        (p::CLIP, effects, offset_of!(EffectsValues, clip_style_value)),
+        (p::CX, svg_reset, offset_of!(SVGResetValues, cx)),
+        (p::CY, svg_reset, offset_of!(SVGResetValues, cy)),
+        (p::D, svg_reset, offset_of!(SVGResetValues, d)),
+        (p::R, svg_reset, offset_of!(SVGResetValues, r)),
+        (p::X, svg_reset, offset_of!(SVGResetValues, x)),
+        (p::Y, svg_reset, offset_of!(SVGResetValues, y)),
         (p::FONT_FAMILY, font, offset_of!(FontValues, font_family)),
         (p::FONT_STYLE, font, offset_of!(FontValues, font_style)),
         (
@@ -4133,6 +4339,8 @@ impl GroupValueLayout {
             handle: 0,
         }; LONGHAND_COUNT];
         let mut counts = [0_u8; group_index::COUNT];
+        counts[group_index::SIZING] = 1;
+        counts[group_index::SURROUND] = 1;
         let mut longhand = 0;
         while longhand < LONGHAND_COUNT {
             let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
@@ -4152,7 +4360,7 @@ impl GroupValueLayout {
                 let (handle_property, handle_group, offset) = PAYLOAD_HANDLE_LONGHANDS[handle];
                 if handle_property == property {
                     assert!(handle_group == group, "a payload handle holds a longhand of its group");
-                    assert!(offset != 0 && offset <= u16::MAX as usize);
+                    assert!(offset < u16::MAX as usize);
                     break;
                 }
                 handle += 1;
@@ -4161,7 +4369,25 @@ impl GroupValueLayout {
                 places[longhand] = LonghandPlace {
                     group: group as u8,
                     index: u8::MAX,
-                    handle: PAYLOAD_HANDLE_LONGHANDS[handle].2 as u16,
+                    handle: PAYLOAD_HANDLE_LONGHANDS[handle].2 as u16 + 1,
+                };
+                longhand += 1;
+                continue;
+            }
+            let mut typed = 0;
+            while typed < PAYLOAD_TYPED_LONGHANDS.len() {
+                if PAYLOAD_TYPED_LONGHANDS[typed].0 == property {
+                    break;
+                }
+                typed += 1;
+            }
+            if typed < PAYLOAD_TYPED_LONGHANDS.len() {
+                let (_, typed_group, offset, position) = PAYLOAD_TYPED_LONGHANDS[typed];
+                assert!(typed_group == group, "a typed field holds a longhand of its group");
+                places[longhand] = LonghandPlace {
+                    group: group as u8,
+                    index: position,
+                    handle: offset as u16 + 1,
                 };
                 longhand += 1;
                 continue;
@@ -4190,8 +4416,7 @@ impl GroupValueLayout {
                 longhand += 1;
                 continue;
             }
-            // NB: A build reading a value a payload handle holds keys on the group holding it, as
-            //     a build reading the group's values does: see `GroupValues::read_hash`.
+            // NB: A build reading a value a payload handle holds reads all the group's handles.
             if place.handle != 0 {
                 longhand += 1;
                 continue;
@@ -4210,6 +4435,19 @@ impl GroupValueLayout {
             }
             longhand += 1;
         }
+        let mut typed = 0;
+        while typed < PAYLOAD_TYPED_LONGHANDS.len() {
+            let (property, group, _, _) = PAYLOAD_TYPED_LONGHANDS[typed];
+            let read_by = STYLE_GROUP_MASKS.masks[longhand_index_of(property)] | (1 << group);
+            let mut reader = 0;
+            while reader < group_index::COUNT {
+                if read_by & (1 << reader) != 0 {
+                    reads[reader][group] |= READS_PAYLOAD_HANDLES;
+                }
+                reader += 1;
+            }
+            typed += 1;
+        }
         let mut handle = 0;
         while handle < PAYLOAD_HANDLE_LONGHANDS.len() {
             let (property, group, _) = PAYLOAD_HANDLE_LONGHANDS[handle];
@@ -4219,10 +4457,9 @@ impl GroupValueLayout {
             } | (1 << group);
             let mut reader = 0;
             while reader < group_index::COUNT {
-                assert!(
-                    read_by & (1 << reader) == 0 || reads[reader][group] != 0,
-                    "a build reading a payload handle's value reads a value of its group"
-                );
+                if read_by & (1 << reader) != 0 {
+                    reads[reader][group] |= READS_PAYLOAD_HANDLES;
+                }
                 reader += 1;
             }
             handle += 1;
@@ -4317,7 +4554,7 @@ impl GroupValueLayout {
         place != LonghandPlace::NONE
             && place.bit_field().is_none()
             && match place.handle_offset() {
-                Some(_) => reads[place.group()] != 0,
+                Some(_) => reads[place.group()] & READS_PAYLOAD_HANDLES != 0,
                 None => reads[place.group()] & (1 << place.index) != 0,
             }
     }
@@ -4327,7 +4564,14 @@ impl GroupValueLayout {
         PAYLOAD_HANDLE_LONGHANDS
             .iter()
             .filter(move |(_, handle_group, _)| *handle_group == group)
-            .map(|&(property, _, _)| (property, GROUP_VALUE_LAYOUT.place_of(property)))
+            .map(|&(property, _, _)| property)
+            .chain(
+                PAYLOAD_TYPED_LONGHANDS
+                    .iter()
+                    .filter(move |(_, typed_group, _, _)| *typed_group == group)
+                    .map(|&(property, _, _, _)| property),
+            )
+            .map(|property| (property, GROUP_VALUE_LAYOUT.place_of(property)))
     }
 }
 
@@ -4631,23 +4875,15 @@ impl HeldGroup {
         }
     }
 
-    /// Puts `value` in the payload handle at `place`, where this is the only reference to the group.
-    fn set_handle(&mut self, place: LonghandPlace, value: &RetainedStyleValueData) {
+    /// Puts `value` in the payload field at `place`, where this is the only reference to the group.
+    fn set_payload_field(&mut self, place: LonghandPlace, value: &RetainedStyleValueData) {
         let group = style_group(self.group);
-        let offset = place.handle_offset().expect("a payload handle place");
         assert_eq!(
             refcount_of(self.payload, payload_align(group)).load(Ordering::Acquire),
             1
         );
-        // SAFETY: The handle is a single retained pointer laid out as a `RetainedStyleValueData`
-        //         is, and this is the only reference to the group.
-        unsafe {
-            *self
-                .payload
-                .cast_mut()
-                .byte_add(offset)
-                .cast::<RetainedStyleValueData>() = value.clone();
-        };
+        // SAFETY: The group is live, and this is its only reference.
+        unsafe { place.set_in_payload(self.payload.cast_mut(), value) };
     }
 }
 
@@ -4925,10 +5161,48 @@ impl GroupValues<'_> {
             if holding & (1 << group) != 0 || (*payload == seed && self.written_groups & (1 << group) == 0) {
                 continue;
             }
+            let writes = self.writes_of(group);
             // SAFETY: The caller passes live payloads, and the seeds are live while these are.
-            *payload =
-                unsafe { group_with_values(group, *payload, seed, self.seeds.values(group), self.writes_of(group)) };
+            *payload = unsafe {
+                match GROUPS_OF_TYPED_LONGHANDS & (1 << group) != 0 {
+                    true => {
+                        let untold = self.typed_values_untold(group, *payload);
+                        group_with_values(group, *payload, seed, std::slice::from_ref(&untold), writes)
+                    }
+                    false => group_with_values(group, *payload, seed, self.seeds.values(group), writes),
+                }
+            };
         }
+    }
+
+    /// The value of the slot of the group at `group`, whose longhands typed fields hold, in `payload`,
+    /// built from these values: none where the typed fields tell every value, or else a list of them.
+    fn typed_values_untold(&self, group: usize, payload: *const c_void) -> RetainedStyleValueData {
+        let told = |place: LonghandPlace, value: &RetainedStyleValueData| {
+            let offset = place.handle_offset().expect("a typed field place");
+            // SAFETY: The caller passes a live payload of the group.
+            let held = unsafe { place.value_in_payload(payload, offset) };
+            held.pointer() == value.pointer() || held == value
+        };
+        let seed_tells_all = self.seeds.values(group)[TYPED_VALUES_SLOT].pointer().is_null();
+        let tells_all = match seed_tells_all {
+            true => self
+                .writes_of(group)
+                .iter()
+                .all(|write| told(write.place, &write.value)),
+            false => GroupValueLayout::handles_of(group).all(|(property, place)| told(place, self.value(property))),
+        };
+        if tells_all {
+            return RetainedStyleValueData::none();
+        }
+        let values: Vec<_> = GroupValueLayout::handles_of(group)
+            .map(|(property, _)| self.value(property).clone())
+            .collect();
+        RetainedStyleValueData::from_owned(StyleValueData::ValueList {
+            values: crate::css::style_value::RetainedStyleValueDataList::from_retained_values(values),
+            separator: 0,
+            collapsible: false,
+        })
     }
 
     /// The groups holding these values, a seed group where nothing is written over it or else one
@@ -4945,7 +5219,13 @@ impl GroupValues<'_> {
             let base = unsafe { GroupPayloadRef::new(group, self.seeds.pointers[group]) }.expect("a seed has a group");
             let mut own = HeldGroup::new_copy(base, written_values(self.seeds.values(group), writes));
             for write in writes.iter().filter(|write| write.place.handle_offset().is_some()) {
-                own.set_handle(write.place, &write.value);
+                own.set_payload_field(write.place, &write.value);
+            }
+            if GROUPS_OF_TYPED_LONGHANDS & (1 << group) != 0 {
+                let untold = self.typed_values_untold(group, own.as_ptr());
+                // SAFETY: The group was just made, and this is its only reference.
+                let slots = unsafe { values_of_mut(style_group(group), own.as_ptr().cast_mut()) };
+                slots[TYPED_VALUES_SLOT] = untold;
             }
             std::mem::ManuallyDrop::new(own).payload
         });
@@ -5766,6 +6046,26 @@ pub(crate) fn build_group_payload_with_rust_fill<T: StyleGroupPayload>(
 }
 
 impl ComputedSize {
+    /// The computed value this size holds, or the keyword its kind tells.
+    fn computed_value(&self) -> &RetainedStyleValueData {
+        use crate::css::css_enums::keyword;
+        if self.value.pointer.is_null() {
+            return RetainedStyleValueData::shared_keyword(match self.kind {
+                ComputedSizeKind::Auto => keyword::AUTO,
+                ComputedSizeKind::MinContent => keyword::MIN_CONTENT,
+                ComputedSizeKind::MaxContent => keyword::MAX_CONTENT,
+                ComputedSizeKind::FitContent => keyword::FIT_CONTENT,
+                ComputedSizeKind::Stretch => keyword::STRETCH,
+                ComputedSizeKind::None => keyword::NONE,
+                ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
+                    unreachable!("a size of this kind holds a value")
+                }
+            });
+        }
+        // SAFETY: A handle is a single retained pointer laid out as a `RetainedStyleValueData` is.
+        unsafe { &*std::ptr::from_ref(&self.value).cast::<RetainedStyleValueData>() }
+    }
+
     /// A size of `kind` holding `value`, which keeps the plain length or percentage `value` holds inline.
     pub(crate) fn new(kind: ComputedSizeKind, value: ComputedStyleValueHandle) -> Self {
         let (inline_form, inline_value) = InlineLengthPercentage::encode(InlineLengthPercentage::of(value.data()));
@@ -5956,6 +6256,15 @@ fn anchor_function_calculated_handle(data: &RetainedStyleValueData) -> ComputedS
 }
 
 impl ComputedLengthPercentageOrAuto {
+    /// The computed value this side holds, or `auto`.
+    fn computed_value(&self) -> &RetainedStyleValueData {
+        if self.value.pointer.is_null() {
+            return RetainedStyleValueData::shared_keyword(crate::css::css_enums::keyword::AUTO);
+        }
+        // SAFETY: A handle is a single retained pointer laid out as a `RetainedStyleValueData` is.
+        unsafe { &*std::ptr::from_ref(&self.value).cast::<RetainedStyleValueData>() }
+    }
+
     /// A value holding `value`, or auto, which keeps the plain length or percentage `value` holds inline.
     pub(crate) fn new(is_auto: bool, value: ComputedStyleValueHandle) -> Self {
         let (inline_form, inline_value) = InlineLengthPercentage::encode(InlineLengthPercentage::of(value.data()));
@@ -7117,7 +7426,8 @@ mod tests {
                 })
                 .collect::<Vec<_>>();
             values.sort_unstable_by_key(|place| place.index());
-            assert_eq!(values.len(), usize::from(layout.counts[group]));
+            let typed_slots = usize::from(GROUPS_OF_TYPED_LONGHANDS & (1 << group) != 0);
+            assert_eq!(values.len() + typed_slots, usize::from(layout.counts[group]));
             for (index, place) in values.into_iter().enumerate() {
                 assert_eq!(place.index(), index);
                 assert!(GroupValueLayout::reads(layout.reads_of(group), place));

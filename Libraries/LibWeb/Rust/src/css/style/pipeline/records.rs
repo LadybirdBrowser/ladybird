@@ -1130,8 +1130,9 @@ impl Record {
             }
             payloads += crate::css::computed_values::group_payload_allocation_bytes(group, payload.as_ptr());
             // SAFETY: The record holds a reference to each of its groups.
-            payloads += unsafe { crate::css::computed_values::group_values(group, payload.as_ptr()) }
-                .heap_size(&mut report.sizer);
+            payloads += unsafe {
+                crate::css::computed_values::group_held_values_heap_size(group, payload.as_ptr(), &mut report.sizer)
+            };
         }
         report.add(MemoryOwner::Payloads, payloads);
         if let Some(store) = record.custom_properties() {

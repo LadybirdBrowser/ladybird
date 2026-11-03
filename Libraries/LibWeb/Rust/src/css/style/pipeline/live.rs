@@ -471,10 +471,9 @@ impl Live {
                 }
                 bytes += crate::css::computed_values::group_payload_allocation_bytes(group, payload.as_ptr());
                 // SAFETY: The initial style holds a reference to each of its groups.
-                bytes += crate::heap_size::HeapSize::heap_size(
-                    unsafe { crate::css::computed_values::group_values(group, payload.as_ptr()) },
-                    &mut report.sizer,
-                );
+                bytes += unsafe {
+                    crate::css::computed_values::group_held_values_heap_size(group, payload.as_ptr(), &mut report.sizer)
+                };
             }
             report.add(MemoryOwner::Initial, bytes);
             report.count(MemoryOwner::Initial, &initial.value_facts);
