@@ -28,17 +28,19 @@
         await animationFrame();
         await animationFrame();
 
-        await internals.wheel(50, 50, 0, 100);
-        println(`scroller.scrollTop after the first tick: ${scroller.scrollTop}`);
+        // NB: These steps belong to one gesture for as long as its fingers rest, however long the test takes to reach the
+        //     next one. Wheel ticks with no phase stop belonging to it once enough time has passed between them.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`scroller.scrollTop after the first step: ${scroller.scrollTop}`);
 
-        // The page let the gesture through, so the compositor scrolls the latched scroller by this tick before the
+        // The page let the gesture through, so the compositor scrolls the latched scroller by this step before the
         // listener removes the scroller.
-        await internals.wheel(50, 50, 0, 100);
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
         println(`scroller removed: ${!scroller.isConnected}`);
-        println(`window.scrollY after the second tick: ${window.scrollY}`);
+        println(`window.scrollY after the second step: ${window.scrollY}`);
 
-        // The scroller the gesture is latched to is gone, so the tick is routed afresh, to the page.
-        await internals.wheel(50, 50, 0, 100);
-        println(`window.scrollY after the third tick: ${window.scrollY}`);
+        // The scroller the gesture is latched to is gone, so the step is routed afresh, to the page.
+        await internals.wheel(50, 50, 0, 100, true, "ongoing");
+        println(`window.scrollY after the third step: ${window.scrollY}`);
     });
 </script>
