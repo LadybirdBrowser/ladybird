@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    const blankURL = "../../data/blank.html";
+
+    // Navigates a new iframe to a javascript: URL and, while that waits for its task, to a file. The file is the newer
+    // navigation, and goes on whatever the javascript: URL does. A loaded file's document is cross-origin here.
+    function navigate(script) {
+        return new Promise(resolve => {
+            const iframe = document.createElement("iframe");
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                if (iframe.contentDocument)
+                    return;
+                iframe.remove();
+                resolve();
+            };
+            iframe.contentWindow.location = script;
+            iframe.src = blankURL;
+        });
+    }
+
+    asyncTest(async done => {
+        await navigate("javascript:void(0)");
+        println("The newer navigation went on past a javascript: URL with no result");
+        await navigate("javascript:'<p>older</p>'");
+        println("The newer navigation went on past a javascript: URL making a document");
+
+        // Both javascript: URLs run, and only the newer one makes a document.
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const ran = [];
+        window.noteRun = name => ran.push(name);
+        await new Promise(resolve => {
+            iframe.onload = resolve;
+            iframe.contentWindow.location = "javascript:parent.noteRun('older URL'),'<p>older</p><script>parent.noteRun(\\'older document\\')<\\/script>'";
+            iframe.contentWindow.location = "javascript:parent.noteRun('newer URL'),'<p>newer</p>'";
+        });
+        println(`Ran: ${ran.join(", ")}`);
+        println(`The frame ended on: ${iframe.contentDocument.body.textContent}`);
+
+        // The load event of the initial document is for a javascript: URL that nothing superseded.
+        const initial = document.createElement("iframe");
+        initial.src = "javascript:void(0)";
+        const loads = [];
+        await new Promise(resolve => {
+            initial.onload = () => {
+                loads.push(initial.contentDocument ? "initial document" : "newer navigation");
+                if (!initial.contentDocument)
+                    resolve();
+            };
+            document.body.appendChild(initial);
+            initial.src = blankURL;
+        });
+        println(`Loads of an initial insertion superseded: ${loads.join(", ")}`);
+        done();
+    });
+</script>
