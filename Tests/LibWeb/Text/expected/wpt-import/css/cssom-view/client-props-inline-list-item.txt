@@ -2,5 +2,5 @@ Harness status: OK
 
 Found 1 tests
 
-1 Fail
-Fail	client* returns the same for non-replaced inlines regardless of list-item-ness
+1 Pass
+Pass	client* returns the same for non-replaced inlines regardless of list-item-ness

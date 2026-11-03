@@ -2,10 +2,9 @@ Harness status: OK
 
 Found 28 tests
 
-26 Pass
-2 Fail
-Fail	annotation with href attribute does not react to click.
-Fail	annotation-xml with href attribute does not react to click.
+28 Pass
+Pass	annotation with href attribute does not react to click.
+Pass	annotation-xml with href attribute does not react to click.
 Pass	maction with href attribute does not react to click.
 Pass	menclose with href attribute does not react to click.
 Pass	merror with href attribute does not react to click.

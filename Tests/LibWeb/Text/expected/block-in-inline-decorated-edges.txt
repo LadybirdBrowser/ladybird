@@ -1,0 +1,57 @@
+ltr div no edges: PASS
+ltr div margins: PASS
+ltr div start margin: PASS
+ltr div end margin: PASS
+ltr div negative margins: PASS
+ltr div padding: PASS
+ltr div borders: PASS
+ltr div canceling edges: PASS
+ltr div block-axis edges: PASS
+ltr svg no edges: PASS
+ltr svg margins: PASS
+ltr svg start margin: PASS
+ltr svg end margin: PASS
+ltr svg negative margins: PASS
+ltr svg padding: PASS
+ltr svg borders: PASS
+ltr svg canceling edges: PASS
+ltr svg block-axis edges: PASS
+rtl div no edges: PASS
+rtl div margins: PASS
+rtl div start margin: PASS
+rtl div end margin: PASS
+rtl div negative margins: PASS
+rtl div padding: PASS
+rtl div borders: PASS
+rtl div canceling edges: PASS
+rtl div block-axis edges: PASS
+rtl svg no edges: PASS
+rtl svg margins: PASS
+rtl svg start margin: PASS
+rtl svg end margin: PASS
+rtl svg negative margins: PASS
+rtl svg padding: PASS
+rtl svg borders: PASS
+rtl svg canceling edges: PASS
+rtl svg block-axis edges: PASS
+collapsed whitespace: PASS
+nested canceling margins: PASS
+nested line heights: PASS
+consecutive blocks: PASS
+start edge before break: PASS
+end edge after break: PASS
+start edge before newline: PASS
+end edge before newline: PASS
+multiline text: PASS
+space after break: PASS
+new end edge after break: PASS
+new start edge after break: PASS
+empty inline min-content width: 16
+RTL text padding: 20
+ltr start edge rectangle: 0,8
+ltr inline client size: 0,0
+rtl start edge rectangle: 192,8
+rtl inline client size: 0,0
+empty sibling rectangle: 0,16
+tab after closing edge: PASS
+column start edge rectangle: 0,8

@@ -5,10 +5,12 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
         BlockContainer <pre> at [8,13] [0+0+0 784 0+0+0] [13+0+0 39 0+0+13] children: inline
           frag 0 from TextNode start: 0, length: 5, rect: [8,13 29.921875x13] baseline: 10.390625
               "hello"
-          frag 1 from TextNode start: 1, length: 1, rect: [8,39 6.5x13] baseline: 10.390625
+          frag 1 from InlineNode start: 0, length: 0, rect: [18,26 0x13] baseline: 10.390625
+          frag 2 from InlineNode start: 0, length: 0, rect: [18,26 0x13] baseline: 10.390625
+          frag 3 from TextNode start: 1, length: 1, rect: [8,39 6.5x13] baseline: 10.390625
               " "
           TextNode <#text> (not painted)
-          InlineNode <code> at [8,13] [0+10+0 0 0+10+0] [0+10+0 13 0+10+0]
+          InlineNode <code> at [18,26] [0+10+0 0 0+10+0] [0+10+0 13 0+10+0]
           TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)

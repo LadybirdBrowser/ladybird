@@ -1,0 +1,129 @@
+<!doctype html>
+<link rel="help" href="https://drafts.csswg.org/css-inline-3/#invisible-line-boxes">
+<script src="include.js"></script>
+<style>
+    .container { font: 16px/16px monospace; width: 200px; }
+    .child { display: block; width: 30px; height: 30px; }
+</style>
+<script>
+    test(() => {
+        const cases = [
+            ["no edges", "", 30, 0],
+            ["margins", "margin-inline: 8px", 62, 16],
+            ["start margin", "margin-inline-start: 8px", 46, 16],
+            ["end margin", "margin-inline-end: 8px", 46, 0],
+            ["negative margins", "margin-inline: -8px", 62, 16],
+            ["padding", "padding-inline: 8px", 62, 16],
+            ["borders", "border-inline: 2px solid", 62, 16],
+            ["canceling edges", "margin-inline: -8px; padding-inline: 8px", 62, 16],
+            ["block-axis edges", "margin-block: 8px; padding-block: 8px", 30, 0],
+        ];
+        for (const direction of ["ltr", "rtl"]) {
+            for (const tag of ["div", "svg"]) {
+                for (const [name, declarations, height, offset] of cases) {
+                    const container = document.createElement("div");
+                    container.className = "container";
+                    container.dir = direction;
+                    const link = document.createElement("a");
+                    link.style.cssText = declarations;
+                    const child = tag === "svg"
+                        ? document.createElementNS("http://www.w3.org/2000/svg", "svg")
+                        : document.createElement("div");
+                    child.classList.add("child");
+                    link.append(child);
+                    container.append(link);
+                    document.body.append(container);
+                    const outer = container.getBoundingClientRect();
+                    const inner = child.getBoundingClientRect();
+                    const actual = [outer.height, inner.top - outer.top];
+                    println(`${direction} ${tag} ${name}: ${actual[0] === height && actual[1] === offset ? "PASS" : `${actual} != ${height},${offset}`}`);
+                    container.remove();
+                }
+            }
+        }
+        const fixtures = [
+            ["collapsed whitespace", '<a style="margin-inline:8px"> <div class="child"></div> </a>', 62, "16"],
+            ["nested canceling margins", '<a style="margin-inline:8px"><span style="margin-inline:-8px"><div class="child"></div></span></a>', 62, "16"],
+            ["nested line heights", '<a style="margin-inline:8px;line-height:32px"><span style="margin-inline:8px;line-height:16px"><div class="child"></div></span></a>', 94, "32"],
+            ["consecutive blocks", '<a style="margin-inline:8px"><div class="child"></div><div class="child"></div></a>', 92, "16,46"],
+            ["start edge before break", '<a style="margin-inline-start:8px"><br></a>', 16, ""],
+            ["end edge after break", '<a style="margin-inline-end:8px"><br></a>', 16, ""],
+            ["start edge before newline", '<a style="margin-inline-start:8px;white-space:pre">\n</a>', 16, ""],
+            ["end edge before newline", '<a style="padding-inline-end:8px;white-space:pre">\n</a>', 16, ""],
+            ["multiline text", '<a style="padding-inline-end:8px;white-space:pre">\nX</a>', 32, ""],
+            ["space after break", '<a style="margin-inline:8px"><br> </a>', 16, ""],
+            ["new end edge after break", '<br><a style="margin-inline-end:8px"></a>', 32, ""],
+            ["new start edge after break", '<br><a style="margin-inline-start:8px"></a>', 32, ""],
+        ];
+        for (const [name, html, height, offsets] of fixtures) {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.innerHTML = html;
+            document.body.append(container);
+            const outer = container.getBoundingClientRect();
+            const actual = [...container.querySelectorAll(".child")].map(child => child.getBoundingClientRect().top - outer.top).join(",");
+            println(`${name}: ${outer.height === height && actual === offsets ? "PASS" : `${outer.height};${actual} != ${height};${offsets}`}`);
+            container.remove();
+        }
+        const sizing = document.createElement("div");
+        sizing.className = "container";
+        sizing.style.width = "min-content";
+        sizing.innerHTML = '<span style="padding-inline:8px"></span>';
+        document.body.append(sizing);
+        println(`empty inline min-content width: ${sizing.getBoundingClientRect().width}`);
+        sizing.remove();
+
+        const rtl = document.createElement("div");
+        rtl.className = "container";
+        rtl.innerHTML = '<span dir="rtl" style="padding-left:20px">abc</span>';
+        document.body.append(rtl);
+        const range = document.createRange();
+        range.selectNodeContents(rtl.firstChild);
+        println(`RTL text padding: ${range.getBoundingClientRect().left - rtl.firstChild.getBoundingClientRect().left}`);
+        rtl.remove();
+
+        for (const direction of ["ltr", "rtl"]) {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.dir = direction;
+            container.innerHTML = '<a style="padding-inline-start:8px"><div class="child"></div></a>';
+            document.body.append(container);
+            const rect = container.firstChild.getClientRects()[0];
+            println(`${direction} start edge rectangle: ${rect.left - container.getBoundingClientRect().left},${rect.width}`);
+            println(`${direction} inline client size: ${container.firstChild.clientWidth},${container.firstChild.clientHeight}`);
+            container.remove();
+        }
+
+        const sibling = document.createElement("div");
+        sibling.className = "container";
+        sibling.innerHTML = '<a style="margin-right:8px"><div class="child"></div><span id="empty" style="padding-inline:8px"></span></a>';
+        document.body.append(sibling);
+        const siblingRect = sibling.querySelector("#empty").getBoundingClientRect();
+        println(`empty sibling rectangle: ${siblingRect.left - sibling.getBoundingClientRect().left},${siblingRect.width}`);
+        sibling.remove();
+
+        const tabPositions = [];
+        for (const padding of [0, 8]) {
+            const container = document.createElement("div");
+            container.className = "container";
+            container.innerHTML = `<a style="padding-right:${padding}px"><br></a><span style="white-space:pre">\tX</span>`;
+            document.body.append(container);
+            const range = document.createRange();
+            range.setStart(container.lastChild.firstChild, 1);
+            range.setEnd(container.lastChild.firstChild, 2);
+            tabPositions.push(range.getBoundingClientRect().left - container.getBoundingClientRect().left);
+            container.remove();
+        }
+        println(`tab after closing edge: ${tabPositions[0] === tabPositions[1] ? "PASS" : tabPositions.join(",")}`);
+
+        const columns = document.createElement("div");
+        columns.className = "container";
+        columns.style.cssText = "columns:2;column-gap:0;column-fill:auto;height:32px";
+        columns.innerHTML = '<a style="padding-inline:8px"><div class="child" style="break-inside:avoid"></div></a>';
+        document.body.append(columns);
+        const columnRect = columns.getBoundingClientRect();
+        const edgeRect = columns.firstChild.getClientRects()[0];
+        println(`column start edge rectangle: ${edgeRect.left - columnRect.left},${edgeRect.width}`);
+        columns.remove();
+    });
+</script>

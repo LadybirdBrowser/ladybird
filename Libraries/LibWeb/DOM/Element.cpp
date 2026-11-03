@@ -2933,7 +2933,7 @@ int Element::client_width() const
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
     auto const* layout_node = this->layout_node(read);
-    if (!layout_node || !Painting::has_committed_box(*layout_node))
+    if (!layout_node || layout_node->is_fragmented_inline() || !Painting::has_committed_box(*layout_node))
         return 0;
 
     // 3. Return the width of the padding edge excluding the width of any rendered scrollbar between the padding edge and the border edge,
@@ -2961,7 +2961,7 @@ int Element::client_height() const
 
     // 1. If the element has no associated CSS layout box or if the CSS layout box is inline, return zero.
     auto const* layout_node = this->layout_node(read);
-    if (!layout_node || !Painting::has_committed_box(*layout_node))
+    if (!layout_node || layout_node->is_fragmented_inline() || !Painting::has_committed_box(*layout_node))
         return 0;
 
     // 3. Return the height of the padding edge excluding the height of any rendered scrollbar between the padding edge and the border edge,
