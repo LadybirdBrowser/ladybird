@@ -10,10 +10,10 @@ runs on the compositor:
   a use element: false
   a use element with a position: false
   a nested svg: false
-  a fading rect: false
-  a fading group: false
-  a fading use element: false
-  a fading rect in a group with a filter element: false
+  a fading rect: true
+  a fading group: true
+  a fading use element: true
+  a fading rect in a group with a filter element: true
 runs on the compositor, though it must not:
   a rect in a group with a filter element: false
   a rect in a group with a clip path in its bounding box: false

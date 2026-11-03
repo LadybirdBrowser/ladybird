@@ -8540,7 +8540,10 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
         return {};
     if (target->element().namespace_uri() == Namespace::SVG) {
         auto const* layout_node = target->unsafe_layout_node(read);
-        if (!targets_transform || !layout_node || !svg_transform_may_run_on_the_compositor(target->element(), *layout_node))
+        // NB: The compositor has no animations for the documents of SVG images.
+        if (!layout_node || (!targets_transform && !targets_opacity) || target->document().is_decoded_svg())
+            return {};
+        if (targets_transform && !svg_transform_may_run_on_the_compositor(target->element(), *layout_node))
             return {};
     }
     auto monotonic_time_at_anchor_ms = [&]() -> Optional<double> {

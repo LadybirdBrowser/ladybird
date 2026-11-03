@@ -1,9 +1,9 @@
 offscreen SVG opacity builds no overlays: true
-an outer clip stops the frame pump around transformed and filtered SVG: true
+an outer clip stops updates around transformed and filtered SVG: true
 SVG style observes the current opacity: true
 scrolling into view samples SVG opacity: true
-visible SVG opacity resumes the frame pump: true
-scrolling out of view stops the frame pump again: true
+visible SVG opacity resumes updating: true
+scrolling out of view stops updating again: true
 a transform outside the clip keeps SVG opacity updating: true
 a filter outside the clip keeps SVG opacity updating: true
 potentially referenced SVG keeps updating: true
