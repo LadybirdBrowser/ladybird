@@ -315,6 +315,35 @@ fn rendered_legend_with_automatic_inline_size(callbacks: &LayoutPass<'_>, fields
     (!legend.is_invalid() && StyleValues::for_node(callbacks, legend).width().is_auto()).then_some(legend)
 }
 
+fn measure_outer_inline_contributions_of_children_ahead(
+    callbacks: &LayoutPass<'_>,
+    node: Node,
+    available_block_size: AvailableSize,
+    child_constraints: ContainingBlockConstraints,
+    legend_sized_to_fit_its_content: Option<Node>,
+) {
+    let children = parallel_layout::fork_candidates(callbacks, callbacks.children(node), |child| child)
+        .into_iter()
+        .filter(|&child| {
+            let child_facts = NodeFacts::new(callbacks, child);
+            child_facts.is_flow_layout_participant()
+                && !child_facts.is_table_wrapper()
+                && legend_sized_to_fit_its_content != Some(child)
+                && (block_formatting_context::box_avoids_floats_because_it_establishes_formatting_context(
+                    callbacks, child,
+                ) || !is_anonymous_wrapper_without_in_flow_content(callbacks, child))
+        })
+        .collect();
+    sizing_context::measure_ahead(
+        callbacks,
+        children,
+        |&child| child,
+        |sizing, child| {
+            sizing.outer_inline_contributions(child, available_block_size, child_constraints);
+        },
+    );
+}
+
 pub(super) fn content_sizes_of_block_container(
     callbacks: LayoutPass<'_>,
     scope: &ContentSizingScope,
@@ -328,6 +357,13 @@ pub(super) fn content_sizes_of_block_container(
         let child_constraints = sizing.constraints_for_child_context(node, &scope.root_cells(), constraints);
         let collects_column_spanners = facts.lays_out_in_columns();
         let legend_sized_to_fit_its_content = rendered_legend_with_automatic_inline_size(&callbacks, node);
+        measure_outer_inline_contributions_of_children_ahead(
+            &run.callbacks,
+            node,
+            scope.available_block_size(),
+            child_constraints,
+            legend_sized_to_fit_its_content,
+        );
         let mut contributions_of_children = BlockLevelContributions::default();
         let mut largest_column_spanner_contributions = sizing_context::ContentSizes::default();
         for child in callbacks.children(node) {

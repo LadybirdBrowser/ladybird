@@ -104,6 +104,17 @@ pub(crate) fn lay_out_shapes_ahead(pass: &LayoutPass<'_>, shapes: Vec<formatting
     );
 }
 
+pub(crate) fn prepare_inline_content_ahead(pass: &LayoutPass<'_>, block_containers: Vec<Node>) {
+    let _ = lay_out_in_parallel(
+        pass,
+        block_containers,
+        |&block_container| block_container,
+        |callbacks, block_container| {
+            prepared_inline_content::PreparedInlineContent::for_block_container(callbacks, block_container);
+        },
+    );
+}
+
 pub(crate) struct ForkedTask<R> {
     pub(crate) result: R,
     pub(crate) host_findings: run_state::HostFindings,

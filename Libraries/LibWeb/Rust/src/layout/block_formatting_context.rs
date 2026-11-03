@@ -3685,6 +3685,29 @@ impl<'pass> BlockFormattingContext<'pass> {
             .store(node.slot_index(), entry, committed_identity);
     }
 
+    fn prepare_inline_content_of_children_ahead(&self, block_container: Node) {
+        let callbacks = self.run.callbacks;
+        if callbacks.lays_out_with_position_option() {
+            return;
+        }
+        let memos = callbacks.prepared_inline_content_memos();
+        let children = parallel_layout::fork_candidates(&callbacks, callbacks.children(block_container), |child| child)
+            .into_iter()
+            .filter(|&child| {
+                let facts = self.facts(child);
+                facts.is_block_container()
+                    && facts.children_are_inline()
+                    && !facts.is_floating()
+                    && !facts.is_absolutely_positioned()
+                    && formatting_context::formatting_context_type_created_by_box(facts).is_none()
+                    && memos
+                        .kept(child, fc_run_cache::run_root_validity(&callbacks, child))
+                        .is_none()
+            })
+            .collect();
+        parallel_layout::prepare_inline_content_ahead(&callbacks, children);
+    }
+
     fn layout_block_level_children(
         &self,
         run: &FormattingContextRun<'pass>,
@@ -3726,6 +3749,9 @@ impl<'pass> BlockFormattingContext<'pass> {
             .unwrap_or_else(|| self.run.callbacks.first_child(block_container.node));
         if block_container.node == self.run.box_ {
             self.root_flow_children.borrow_mut().clear();
+        }
+        if fragmentainer.is_none() {
+            self.prepare_inline_content_of_children_ahead(block_container.node);
         }
         let mut summary = ChildrenSummary::default();
         for child in self
