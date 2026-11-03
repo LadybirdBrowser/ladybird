@@ -47,6 +47,10 @@
         "a rect in a group with a mask in its bounding box": `<mask id="m"><rect width="9" height="9" fill="white"/></mask><g mask="url(#m)">${rect}</g>`,
         "a rect in a group with a mask image": `<g style="mask-image: linear-gradient(black, white)">${rect}</g>`,
         "a rect in a group transformed about its fill box": `<g style="transform: rotate(5deg); transform-box: fill-box">${rect}</g>`,
+        "a rect in a group rotated about its fill box": `<g style="rotate: 5deg; transform-box: fill-box">${rect}</g>`,
+        "a rect in a group scaled about its fill box": `<g style="scale: 2; transform-box: fill-box">${rect}</g>`,
+        "a rect with a non-scaling stroke": `<rect class="bar" width="5" height="5" stroke="red" vector-effect="non-scaling-stroke"/>`,
+        "a group around a non-scaling stroke": `<g class="bar"><rect width="5" height="5" stroke="red" vector-effect="non-scaling-stroke"/></g>`,
         "a rect in a mask": `<mask id="n">${rect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
         "a fading rect in a mask": `<mask id="n">${fadingRect}</mask><rect mask="url(#n)" width="9" height="9"/>`,
     };

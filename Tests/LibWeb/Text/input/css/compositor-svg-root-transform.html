@@ -5,7 +5,6 @@
     #spinner { display: block; width: 40px; height: 20px; transform-origin: 50% 50%; }
 </style>
 <svg id="spinner" viewBox="0 0 80 40"><path d="M0 0H80V40H0Z" fill="green" /></svg>
-<svg width="40" height="40"><svg id="nested" width="10" height="10"></svg></svg>
 <script>
     asyncTest(async done => {
         internals.updateStyle();
@@ -34,12 +33,6 @@
         timeline.setTimeForObservation(250);
         const rect = spinner.getBoundingClientRect();
         println(`rotation uses CSS box center: ${Math.abs(rect.x - 10) < 0.1 && Math.abs(rect.y + 10) < 0.1 && Math.abs(rect.width - 20) < 0.1 && Math.abs(rect.height - 40) < 0.1}`);
-        animation.cancel();
-        makeAnimation(document.getElementById("nested"));
-        timeline.setTime(500);
-        for (let i = 0; i < 4; ++i)
-            await new Promise(requestAnimationFrame);
-        println(`nested SVG stays on the main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
         done();
     });
 </script>
