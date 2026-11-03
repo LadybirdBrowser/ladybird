@@ -22,6 +22,9 @@ VCPKG_OVERLAYS_PORTS = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "vcpkg" / "overl
 VCPKG_REPO = LADYBIRD_SOURCE_DIR / "Build" / "vcpkg-release"
 VCPKG_BASELINE_URL = "https://raw.githubusercontent.com/microsoft/vcpkg/{}/versions/baseline.json"
 FLATPAK_MANIFEST = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "flatpak" / "org.ladybird.Ladybird.json"
+CARGO_LOCK = LADYBIRD_SOURCE_DIR / "Cargo.lock"
+CARGO_SOURCES = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "flatpak" / "cargo-sources.json"
+GENERATE_CARGO_SOURCES = LADYBIRD_SOURCE_DIR / "Meta" / "CMake" / "flatpak" / "generate-cargo-sources.py"
 SELF = "Ladybird"
 
 # List of build tools that are not provided by the Flatpak SDK and therefore in the manifest
@@ -224,18 +227,26 @@ def check_vcpkg_vs_flatpak_versioning(vcpkg_repo: Path):
     return mismatch_found
 
 
+def check_cargo_sources_match_cargo_lock():
+    return subprocess.run([sys.executable, GENERATE_CARGO_SOURCES, "--check"]).returncode != 0
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--vcpkg-repo", required=False, type=Path, default=VCPKG_REPO)
-    parser.add_argument("file_list", type=Path, nargs="*", default=[VCPKG])
+    parser.add_argument("file_list", type=Path, nargs="*", default=[VCPKG, CARGO_LOCK])
     args = parser.parse_args()
 
     vcpkg_repo = args.vcpkg_repo.resolve()
-    file_list = [f.resolve() for f in args.file_list if f.exists()]
+    requested = [f.resolve() for f in args.file_list]
+    file_list = [f for f in requested if f.exists()]
     did_fail = False
 
     if VCPKG in file_list or FLATPAK_MANIFEST in file_list:
         did_fail = check_vcpkg_vs_flatpak_versioning(vcpkg_repo)
+
+    if any(path in requested for path in (CARGO_LOCK, CARGO_SOURCES, GENERATE_CARGO_SOURCES)):
+        did_fail |= check_cargo_sources_match_cargo_lock()
 
     # TODO: Add linting of Flatpak and AppStream manifest
     # See #5594, bullet point "Missing lint job in CI to ensure Flatpak and AppStream manifests are up to snuff"
