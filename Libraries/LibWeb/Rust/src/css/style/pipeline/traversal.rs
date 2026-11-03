@@ -2032,6 +2032,11 @@ impl<'a> Scratch<'a> {
             return None;
         }
         let state = context.state;
+        // Elements styled by rules alone repeat; one with its own declarations mostly does not.
+        let declares_own = matched_declarations::declares_own(state, node);
+        if declares_own && !self.own_declaration_lookups.worth_looking() {
+            return None;
+        }
         let facts = state.projection.facts(node)?;
         let parent = state.projection.inheritance_parent(node)?;
         let records = context.records;
@@ -2050,11 +2055,6 @@ impl<'a> Scratch<'a> {
             return None;
         }
         let (parent_store, parent_held) = records.custom_stores_of(parent)?;
-        // Elements styled by rules alone repeat; one with its own declarations mostly does not.
-        let declares_own = matched_declarations::declares_own(state, node);
-        if declares_own && !self.own_declaration_lookups.worth_looking() {
-            return None;
-        }
         let matches = match self.gated {
             true => &self.applied,
             false => &self.matches,
