@@ -1230,18 +1230,9 @@ pub(super) fn substitute_against_stores(
     let invalid = || RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
     match resolution {
         NativeVarResolution::Resolved {
-            source,
+            components,
             contains_attr_tainted_values,
-        } => {
-            let Ok(values) = crate::css::style_value::components_of_text(
-                crate::css::css_tokenizer::TokenizerInput::Utf16(&source),
-                crate::css::css_tokenizer::Comments::Separating,
-            ) else {
-                crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
-                return invalid();
-            };
-            parse_substituted_value(&parse_context, property, &source, &values, contains_attr_tainted_values)
-        }
+        } => parse_substituted_value(&parse_context, property, &components, contains_attr_tainted_values),
         NativeVarResolution::Invalid | NativeVarResolution::NotHandled => invalid(),
     }
 }

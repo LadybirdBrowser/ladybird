@@ -1,0 +1,5 @@
+shallow: 0.5
+deep: 1
+245 deep: true
+275 deep: false
+substituting that: false

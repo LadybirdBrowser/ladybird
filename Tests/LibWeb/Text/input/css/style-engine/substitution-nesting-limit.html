@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<div id="target"></div>
+<script>
+    // Values nested deeper by substitution than text may be are invalid at computed-value time.
+    test(() => {
+        const nested = (depth, inner) => "(".repeat(depth) + inner + ")".repeat(depth);
+        const target = document.getElementById("target");
+        target.style.setProperty("--shallow", nested(10, "0.5"));
+        target.style.setProperty("--deep", nested(200, "0.5"));
+        const read = value => {
+            target.style.setProperty("opacity", value);
+            const opacity = getComputedStyle(target).opacity;
+            target.style.removeProperty("opacity");
+            return opacity;
+        };
+        println(`shallow: ${read(`calc(${nested(10, "var(--shallow)")})`)}`);
+        println(`deep: ${read(`calc(${nested(200, "var(--deep)")})`)}`);
+
+        // A custom property reaching that depth through others is invalid as well, as is one that substitutes it.
+        target.style.setProperty("--chain-0", nested(5, "0.5"));
+        const is_set = name => getComputedStyle(target).getPropertyValue(name) !== "";
+        for (let link = 1; link <= 10; ++link)
+            target.style.setProperty(`--chain-${link}`, nested(30, `var(--chain-${link - 1})`));
+        println(`245 deep: ${is_set("--chain-8")}`);
+        println(`275 deep: ${is_set("--chain-9")}`);
+        println(`substituting that: ${is_set("--chain-10")}`);
+    });
+</script>

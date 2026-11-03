@@ -716,9 +716,6 @@ impl CustomPropertyRegistry {
             ) => Some(parse_substituted_value(
                 parse_context,
                 property_id::CUSTOM,
-                // NB: The value keeps this text alone and tokenizes it where it is read, so it is the
-                //     serialization that tokenizes back to the components.
-                &serialize_component_values_to_utf16(&components, ComponentSerializationMode::Retokenize),
                 &components,
                 contains_attr_tainted_values,
             )),
@@ -1201,9 +1198,8 @@ const MAX_SUBSTITUTION_RECURSION_DEPTH: u32 = 64;
 
 pub(crate) enum NativeVarResolution {
     Resolved {
-        /// The substituted components, serialized to tokenize back to them where comments only keep
-        /// tokens apart.
-        source: Vec<u16>,
+        /// The substituted components.
+        components: ComponentValueList,
         contains_attr_tainted_values: bool,
     },
     Invalid,
@@ -3818,8 +3814,8 @@ pub(crate) fn resolve_vars(
     match result {
         // A custom property carries its taint to the values that substitute it; another property is invalid where a
         // tainted value reaches a URL.
-        TokenResolution::Resolved(tokens) => NativeVarResolution::Resolved {
-            source: serialize_component_values_to_utf16(&tokens, ComponentSerializationMode::Retokenize),
+        TokenResolution::Resolved(components) => NativeVarResolution::Resolved {
+            components,
             contains_attr_tainted_values: if property_id == crate::css::property_metadata::property_id::CUSTOM {
                 context.contains_attr_tainted_values
             } else {

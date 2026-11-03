@@ -5993,32 +5993,28 @@ fn parse_css_value_after_substitution_scan(
         //     text are written as that serialization.
         let serialization;
         let mut unresolved = if context.is_substituted_value || unresolved_source.is_empty() {
-            let text = if context.is_substituted_value {
-                unresolved_source
-            } else {
-                serialization = crate::css::serialize::serialize_component_values_to_utf16(
-                    values,
-                    crate::css::parser::component_value::ComponentSerializationMode::Retokenize,
-                );
-                &serialization
-            };
+            serialization = crate::css::serialize::serialize_component_values_to_utf16(
+                values,
+                crate::css::parser::component_value::ComponentSerializationMode::Retokenize,
+            );
             unresolved_value_with_components(
-                text,
+                &serialization,
                 UnresolvedValueComponents::OfSerialization(values),
                 substitution_presence,
             )
         } else {
+            serialization = Vec::new();
             unresolved_value(unresolved_source, values.to_vec(), substitution_presence)
         };
         if let StyleValueData::Unresolved(unresolved_payload) = &mut unresolved {
             unresolved_payload.payload_mut().contains_attr_tainted_values = context.contains_attr_tainted_values;
             if property_id == property_id::CUSTOM && context.is_substituted_value {
-                let first_non_whitespace = unresolved_source
+                let first_non_whitespace = serialization
                     .iter()
                     .position(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
-                    .unwrap_or(unresolved_source.len());
-                *unresolved_payload = unresolved_payload
-                    .with_source_text(TokenizerInput::Utf16(&unresolved_source[first_non_whitespace..]));
+                    .unwrap_or(serialization.len());
+                *unresolved_payload =
+                    unresolved_payload.with_source_text(TokenizerInput::Utf16(&serialization[first_non_whitespace..]));
             }
         }
         return ParseOutcome::Parsed(shared_style_value(unresolved));
