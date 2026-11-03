@@ -2933,45 +2933,52 @@ pub(crate) unsafe fn groups_hold_the_same(group_index: usize, first: *const c_vo
         }
 }
 
-/// The group holding the payload of `payload` and the computed values `values`, which takes over
-/// the caller's reference to `payload` and carries one for the caller: `payload` itself where it
-/// holds those values already, else the first of `candidates` holding the same payload and values,
+/// The group holding the payload of `payload` and the computed values of `values`, a seed group's,
+/// with `writes` over them, the writes of the group in place order. It takes over the caller's
+/// reference to `payload` and carries one for the caller: `payload` itself where it holds those
+/// values already, else the seed where nothing is written over it and it holds the same payload,
 /// else `payload` with the values written into it where only the caller references it, else a copy
 /// of it holding them.
 ///
 /// # Safety
-/// `payload` and every non-null candidate must be live payloads of the group at `group_index`.
-pub(crate) unsafe fn group_with_values(
+/// `payload` and `seed` must be live payloads of the group at `group_index`, and `values` the values
+/// of `seed`.
+unsafe fn group_with_values(
     group_index: usize,
     payload: *const c_void,
+    seed: *const c_void,
     values: &[RetainedStyleValueData],
-    candidates: &[*const c_void],
+    writes: &[ValueWrite],
 ) -> *const c_void {
     let group = style_group(group_index);
     assert_eq!(values.len(), value_count(group));
+    let written = || written_values(values, writes);
     // SAFETY: The caller passes live payloads of the group.
     unsafe {
-        if same_group_values(values_of(group, payload), values) {
+        if values_of(group, payload)
+            .iter()
+            .zip(written())
+            .all(|(held, value)| held.pointer() == value.pointer() || held == value)
+        {
             return payload;
         }
-        if let Some(&shared) = candidates.iter().find(|&&candidate| {
-            !candidate.is_null()
-                && candidate != payload
-                && payloads_equal(group, candidate, payload)
-                && same_group_values(values_of(group, candidate), values)
-        }) {
-            retain_group_payload(group_index, shared);
+        if writes.is_empty() && seed != payload && payloads_equal(group, seed, payload) {
+            retain_group_payload(group_index, seed);
             release_group_payload(group_index, payload);
-            return shared;
+            return seed;
         }
-        let refcount = refcount_of(payload, payload_align(group));
-        if refcount.load(Ordering::Acquire) == 1 {
-            values_of_mut(group, payload.cast_mut()).clone_from_slice(values);
+        let write_into = |target: *mut c_void| {
+            for (slot, value) in values_of_mut(group, target).iter_mut().zip(written()) {
+                *slot = value.clone();
+            }
+        };
+        if refcount_of(payload, payload_align(group)).load(Ordering::Acquire) == 1 {
+            write_into(payload.cast_mut());
             return payload;
         }
         let copy = allocate_payload(group, 1);
         copy_construct(group, copy, payload);
-        values_of_mut(group, copy).clone_from_slice(values);
+        write_into(copy);
         release_group_payload(group_index, payload);
         copy.cast_const()
     }
@@ -3944,6 +3951,12 @@ impl LonghandPlace {
         handle: 0,
     };
 
+    /// Where this place comes among the places of the groups: by group, then by index, with the
+    /// payload handles of a group after its values.
+    fn order(self) -> u32 {
+        (u32::from(self.group) << 24) | (u32::from(self.index) << 16) | u32::from(self.handle)
+    }
+
     /// The offset of the payload handle holding the value, where one does.
     pub(crate) fn handle_offset(self) -> Option<usize> {
         (self.handle != 0).then_some(usize::from(self.handle))
@@ -4074,11 +4087,15 @@ const _: () = assert!(
 pub(crate) struct GroupValueLayout {
     places: [LonghandPlace; LONGHAND_COUNT],
     counts: [u8; group_index::COUNT],
-    longhands: [[u16; MAX_GROUP_VALUES]; group_index::COUNT],
     /// Per group, the values its build reads: those of the longhands whose changes may change it,
     /// but for logical aliases, and all of its own. The longhands whose changes feed no group are
     /// read by the font group's build.
     reads: [GroupReads; group_index::COUNT],
+    /// Per group, the groups its build reads values of, one bit per group.
+    read_groups: [u32; group_index::COUNT],
+    /// Per group, the values its payload is looked for by: those it reads, but for a background
+    /// color, which the cache patches into the payload it finds.
+    key_reads: [GroupReads; group_index::COUNT],
 }
 
 const GROUP_VALUE_LAYOUT: GroupValueLayout = GroupValueLayout::compute();
@@ -4116,7 +4133,6 @@ impl GroupValueLayout {
             handle: 0,
         }; LONGHAND_COUNT];
         let mut counts = [0_u8; group_index::COUNT];
-        let mut longhands = [[0_u16; MAX_GROUP_VALUES]; group_index::COUNT];
         let mut longhand = 0;
         while longhand < LONGHAND_COUNT {
             let property = FIRST_LONGHAND_PROPERTY_ID + longhand as u16;
@@ -4155,7 +4171,6 @@ impl GroupValueLayout {
                 index < MAX_GROUP_VALUES,
                 "a group holds no more values than a read names"
             );
-            longhands[group][index] = property;
             places[longhand] = LonghandPlace {
                 group: group as u8,
                 index: index as u8,
@@ -4212,11 +4227,27 @@ impl GroupValueLayout {
             }
             handle += 1;
         }
+        let mut read_groups = [0_u32; group_index::COUNT];
+        let mut reader = 0;
+        while reader < group_index::COUNT {
+            let mut group = 0;
+            while group < group_index::COUNT {
+                if reads[reader][group] != 0 {
+                    read_groups[reader] |= 1 << group;
+                }
+                group += 1;
+            }
+            reader += 1;
+        }
+        let mut key_reads = reads;
+        let background_color = places[longhand_index_of(crate::css::property_metadata::property_id::BACKGROUND_COLOR)];
+        key_reads[group_index::BACKGROUND][background_color.group as usize] &= !(1 << background_color.index);
         Self {
             places,
             counts,
-            longhands,
             reads,
+            read_groups,
+            key_reads,
         }
     }
 
@@ -4266,14 +4297,19 @@ impl GroupValueLayout {
         self.place(LonghandID::new(property))
     }
 
-    /// The longhands whose values `group` holds, in order.
-    pub(crate) fn longhands_of(&self, group: usize) -> &[u16] {
-        &self.longhands[group][..usize::from(self.counts[group])]
-    }
-
     /// The values the build of `group` may read.
     pub(crate) fn reads_of(&self, group: usize) -> &GroupReads {
         &self.reads[group]
+    }
+
+    /// The groups the build of `group` reads values of.
+    pub(crate) fn read_groups_of(&self, group: usize) -> u32 {
+        self.read_groups[group]
+    }
+
+    /// The values the payload of `group` is looked for by.
+    pub(crate) fn key_reads_of(&self, group: usize) -> &GroupReads {
+        &self.key_reads[group]
     }
 
     /// Whether a build reading `reads` reads the value at `place`.
@@ -4320,10 +4356,32 @@ pub(crate) struct GroupValueFacts {
     inheritance_dependent_values: Option<std::sync::Arc<[InheritanceDependentValue]>>,
     effective_zoom: f32,
     display_before_box_type_transformation: u32,
-    effective_color_scheme: i16,
+    effective_color_scheme: i8,
     /// https://drafts.csswg.org/css-ui/#appearance-disabling-properties
     /// Whether an author declaration disables the element's native appearance.
     native_appearance_disabled: bool,
+    /// What of the recorded specified values a group build reads in place of computed values, by
+    /// [`read_in_place_bits_of`], so that a build of another group mostly need not look through them.
+    read_in_place_bits: u16,
+    /// The groups holding colors resolved against `currentcolor`, through the recorded specified
+    /// values or the inherited values that read it.
+    current_color_groups: u32,
+}
+
+/// The bits standing for `groups` among the recorded values a group build reads in place: those of
+/// their indices, each group sharing its bit with any other sixteen indices away.
+fn read_in_place_bits_of(groups: u32) -> u16 {
+    (groups as u16) | ((groups >> u16::BITS) as u16)
+}
+
+/// The bit standing for `property` among the recorded values a group build reads in place: that of
+/// its group, or one beyond the groups for the longhands no group holds.
+fn read_in_place_bit(property: u16) -> u16 {
+    let place = GROUP_VALUE_LAYOUT.place_of(property);
+    read_in_place_bits_of(match place == LonghandPlace::NONE || place.bit_field().is_some() {
+        true => 1 << group_index::COUNT,
+        false => 1 << place.group(),
+    })
 }
 
 impl crate::heap_size::HeapSize for GroupValueFacts {
@@ -4342,7 +4400,14 @@ impl GroupValueFacts {
             display_before_box_type_transformation: 0,
             effective_color_scheme: -1,
             native_appearance_disabled: false,
+            read_in_place_bits: 0,
+            current_color_groups: 0,
         }
+    }
+
+    /// The groups holding colors resolved against `currentcolor`.
+    pub(crate) fn current_color_groups(&self) -> u32 {
+        self.current_color_groups
     }
 
     /// The recorded specified values of the longhands whose computed values depend on what the
@@ -4357,6 +4422,9 @@ impl GroupValueFacts {
     /// The recorded value a group build reads for `property` in place of its computed value: its
     /// currentcolor-dependent specified value where a drive did not evaluate it.
     pub(crate) fn value_read_in_place(&self, property: u16) -> Option<&RetainedStyleValueData> {
+        if self.read_in_place_bits & read_in_place_bit(property) == 0 {
+            return None;
+        }
         self.inheritance_dependent_values
             .as_deref()?
             .iter()
@@ -4364,13 +4432,16 @@ impl GroupValueFacts {
             .map(|held| &held.value)
     }
 
-    /// The recorded values a group build reading `reads` reads in place of computed values.
+    /// The recorded values a group build reading `reads`, the values of the groups `read_groups`
+    /// names, reads in place of computed values.
     pub(crate) fn values_read_in_place<'a>(
         &'a self,
         reads: &'a GroupReads,
+        read_groups: u32,
     ) -> impl Iterator<Item = (u16, &'a RetainedStyleValueData)> + 'a {
         self.inheritance_dependent_values
             .iter()
+            .filter(move |_| self.read_in_place_bits & read_in_place_bits_of(read_groups) != 0)
             .flat_map(|values| values.iter())
             .filter(move |held| {
                 held.read_by_groups && GroupValueLayout::reads(reads, GROUP_VALUE_LAYOUT.place_of(held.property))
@@ -4387,7 +4458,7 @@ impl GroupValueFacts {
     }
 
     pub(crate) fn effective_color_scheme(&self) -> i16 {
-        self.effective_color_scheme
+        i16::from(self.effective_color_scheme)
     }
 
     pub(crate) fn native_appearance_disabled(&self) -> bool {
@@ -4458,12 +4529,13 @@ impl<'a> GroupSeed<'a> {
         self.groups.group(StyleGroupIndex::new(group))
     }
 
-    fn values(&self, group: usize) -> &'a [RetainedStyleValueData] {
-        self.group(group).group_values()
-    }
-
     fn style_bits(&self) -> StyleBits {
         self.groups.style_bits()
+    }
+
+    /// The color the groups resolve `currentcolor` to.
+    pub(crate) fn current_color(&self) -> u32 {
+        self.groups.current_color()
     }
 }
 
@@ -4501,12 +4573,20 @@ pub(crate) fn with_default_seed<R>(defaults: &DefaultGroups, compute: impl FnOnc
     compute(GroupSeed::new(defaults.groups(), &facts))
 }
 
-/// One group's computed values while an element's style is computed: a seed group's, or a group
-/// of its own, which holds a copy of a seed group's payload until its own is built.
-enum DraftValues<'a> {
-    Seed(GroupPayloadRef<'a>),
-    Own(HeldGroup),
+/// The groups an element's values start from, one of each index: its parent's or the initial
+/// style's, or those a writer holds a reference to, as one waiting on a font does. Written values
+/// stay beside these until the group's allocation takes them, as a style struct stays borrowed until
+/// it is first mutated.
+struct SeedGroups<'a> {
+    pointers: [*const c_void; group_index::COUNT],
+    /// Whether these hold a reference to each group.
+    holds_references: bool,
+    styles: std::marker::PhantomData<&'a StyleGroups>,
 }
+
+// SAFETY: As for `StyleGroups`.
+unsafe impl Send for SeedGroups<'_> {}
+unsafe impl Sync for SeedGroups<'_> {}
 
 /// A group, with a reference to it.
 pub(crate) struct HeldGroup {
@@ -4551,19 +4631,6 @@ impl HeldGroup {
         }
     }
 
-    pub(crate) fn values(&self) -> &[RetainedStyleValueData] {
-        // SAFETY: The held reference keeps the group live.
-        unsafe { group_values(self.group, self.payload) }
-    }
-
-    /// The values to write, where this is the only reference to the group.
-    fn values_mut(&mut self) -> Option<&mut [RetainedStyleValueData]> {
-        let group = style_group(self.group);
-        (refcount_of(self.payload, payload_align(group)).load(Ordering::Acquire) == 1)
-            // SAFETY: The group is live, and this is its only reference.
-            .then(|| unsafe { values_of_mut(group, self.payload.cast_mut()) })
-    }
-
     /// Puts `value` in the payload handle at `place`, where this is the only reference to the group.
     fn set_handle(&mut self, place: LonghandPlace, value: &RetainedStyleValueData) {
         let group = style_group(self.group);
@@ -4582,15 +4649,6 @@ impl HeldGroup {
                 .cast::<RetainedStyleValueData>() = value.clone();
         };
     }
-
-    /// The group, with another reference to it.
-    fn held(&self) -> Self {
-        retain_group_payload(self.group, self.payload);
-        Self {
-            group: self.group,
-            payload: self.payload,
-        }
-    }
 }
 
 impl Drop for HeldGroup {
@@ -4599,72 +4657,88 @@ impl Drop for HeldGroup {
     }
 }
 
-impl Clone for DraftValues<'_> {
+impl Clone for SeedGroups<'_> {
     fn clone(&self) -> Self {
-        match self {
-            Self::Seed(group) => Self::Seed(*group),
-            Self::Own(own) => Self::Own(own.held()),
+        if self.holds_references {
+            for (group, &pointer) in self.pointers.iter().enumerate() {
+                retain_group_payload(group, pointer);
+            }
+        }
+        Self { ..*self }
+    }
+}
+
+impl Drop for SeedGroups<'_> {
+    fn drop(&mut self) {
+        if self.holds_references {
+            for (group, &pointer) in self.pointers.iter().enumerate() {
+                release_group_payload(group, pointer);
+            }
         }
     }
 }
 
-impl<'a> DraftValues<'a> {
-    /// The value at `place`, a place of this group.
+impl<'a> SeedGroups<'a> {
+    /// The value at `place`.
     fn value(&self, place: LonghandPlace) -> &RetainedStyleValueData {
-        // SAFETY: The draft's group is live while the draft is, and holds these values.
-        unsafe { place.value_in(self.group(), self.values()) }
+        let group = place.group();
+        // SAFETY: The groups are live while these are, and each holds the values of its index.
+        unsafe { place.value_in(self.pointers[group], group_values(group, self.pointers[group])) }
     }
 
-    fn values(&self) -> &[RetainedStyleValueData] {
-        match self {
-            Self::Seed(group) => group.group_values(),
-            Self::Own(group) => group.values(),
-        }
+    /// The values `group` holds.
+    fn values(&self, group: usize) -> &[RetainedStyleValueData] {
+        // SAFETY: As for `value`.
+        unsafe { group_values(group, self.pointers[group]) }
     }
 
-    /// The group whose values these are.
-    fn group(&self) -> *const c_void {
-        match self {
-            Self::Seed(group) => group.as_ptr(),
-            Self::Own(group) => group.payload,
+    /// These groups, but with `seed` as the group at `group`.
+    fn replace(&mut self, group: usize, seed: GroupPayloadRef<'a>) {
+        if self.holds_references {
+            retain_group_payload(group, seed.as_ptr());
+            release_group_payload(group, self.pointers[group]);
         }
+        self.pointers[group] = seed.as_ptr();
     }
 
-    #[cfg(test)]
-    fn seed(&self) -> Option<*const c_void> {
-        match self {
-            Self::Seed(group) => Some(group.as_ptr()),
-            Self::Own(_) => None,
+    /// The group at `group`, with another reference to it.
+    fn held(&self, group: usize) -> HeldGroup {
+        retain_group_payload(group, self.pointers[group]);
+        HeldGroup {
+            group,
+            payload: self.pointers[group],
         }
     }
+}
 
-    /// The group of the first of `seeds` holding the very values `values` yields, or else a group
-    /// of the element's own holding them, with a copy of the payload of `base`.
-    fn shared_or_own<'v>(
-        seeds: &[GroupSeed<'a>],
-        base: GroupPayloadRef<'_>,
-        values: impl ExactSizeIterator<Item = &'v RetainedStyleValueData> + Clone,
-    ) -> Self {
-        let group = base.group_index;
-        match seeds.iter().find(|seed| {
-            values
-                .clone()
-                .zip(seed.values(group))
-                .all(|(value, held)| value.pointer() == held.pointer())
-                && GroupValueLayout::handles_of(group)
-                    .all(|(_, place)| value_at(seed.group(group), place).pointer() == value_at(base, place).pointer())
-        }) {
-            Some(seed) => Self::Seed(seed.group(group)),
-            None => Self::Own(HeldGroup::new_copy(base, values)),
-        }
-    }
+/// The values of a group with `writes`, its writes in place order, over `values`, those of its seed.
+fn written_values<'v>(
+    values: &'v [RetainedStyleValueData],
+    writes: &'v [ValueWrite],
+) -> impl Iterator<Item = &'v RetainedStyleValueData> {
+    let mut writes = writes
+        .iter()
+        .filter(|write| write.place.handle_offset().is_none())
+        .peekable();
+    values.iter().enumerate().map(
+        move |(at, value)| match writes.next_if(|write| write.place.index() == at) {
+            Some(write) => &write.value,
+            None => value,
+        },
+    )
 }
 
 /// An element's computed values by group while its style is computed, before its groups are
-/// built: each group's values are those of a seed group, its parent's or the initial style's, or
-/// its own. Building the groups then puts each group's values into the group's allocation.
+/// built: each group's values are those of a seed group, its parent's or the initial style's, with
+/// the writes over it where the element's values differ. Building a group then puts its values
+/// into the group's allocation, the one a group of the element's own has.
 pub(crate) struct GroupValues<'a> {
-    groups: [DraftValues<'a>; group_index::COUNT],
+    seeds: SeedGroups<'a>,
+    /// The values written over those of `seeds`, in place order, each differing from the value it
+    /// is written over.
+    writes: smallvec::SmallVec<[ValueWrite; WRITES_INLINE]>,
+    /// The groups `writes` writes into, one bit per group.
+    written_groups: u32,
     /// The values of the longhands held as bits.
     bits: StyleBits,
     facts: GroupValueFacts,
@@ -4674,7 +4748,63 @@ impl GroupValues<'_> {
     /// Whether the values of `group` are those of `payload` itself, a seed the element holds as it
     /// is, which taking the values into it leaves.
     pub(crate) fn hold_the_seed(&self, group: usize, payload: *const c_void) -> bool {
-        matches!(&self.groups[group], DraftValues::Seed(seed) if seed.as_ptr() == payload)
+        self.written_groups & (1 << group) == 0 && self.seeds.pointers[group] == payload
+    }
+
+    /// The writes into `group`, in place order.
+    fn writes_of(&self, group: usize) -> &[ValueWrite] {
+        if self.written_groups & (1 << group) == 0 {
+            return &[];
+        }
+        let start = self.writes.partition_point(|write| write.place.group() < group);
+        let end = self.writes.partition_point(|write| write.place.group() <= group);
+        &self.writes[start..end]
+    }
+
+    /// Whether the groups these hold colors resolved against `currentcolor` in are those of `seed`:
+    /// they hold its inherited groups and its recorded specified values.
+    fn holds_what_the_current_color_groups_of(&self, seed: &GroupSeed<'_>) -> bool {
+        let same_recorded = match (
+            &seed.facts.inheritance_dependent_values,
+            &self.facts.inheritance_dependent_values,
+        ) {
+            (Some(held), Some(values)) => std::sync::Arc::ptr_eq(held, values),
+            (None, None) => true,
+            _ => false,
+        };
+        same_recorded
+            && INHERITED_SET_GROUPS.iter().all(|&group| {
+                self.written_groups & (1 << group) == 0 && self.seeds.pointers[group] == seed.group(group).as_ptr()
+            })
+    }
+
+    /// The groups holding colors resolved against `currentcolor`, read from the values.
+    fn current_color_groups(&self) -> u32 {
+        use crate::css::table_group_builder::{
+            group_holds_current_color_for_its_reader, groups_reading_current_color_through_inherited_values,
+        };
+        self.facts
+            .inheritance_dependent_values()
+            .filter(|(property, value)| {
+                !group_holds_current_color_for_its_reader(*property, value.optional_data())
+                    && crate::css::style_value::retained_value_depends_on_current_color(value)
+            })
+            // NB: Logical aliases retain their specified values but own no output payload. Their
+            //     resolved physical longhands are recorded separately and name the actual group.
+            .filter_map(|(property, _)| computed_group_output_mask(property))
+            .fold(0, |mask, groups| mask | groups)
+            | groups_reading_current_color_through_inherited_values(|property| self.value(property).optional_data())
+    }
+
+    /// Whether the element's `color` is that of its parent, whose groups are `parent`, and resolves
+    /// to the same color: it holds the parent's group of it, in the same color scheme.
+    pub(crate) fn keeps_the_color_of(&self, parent: GroupSeed<'_>) -> bool {
+        let group = GROUP_VALUE_LAYOUT
+            .place_of(crate::css::property_metadata::property_id::COLOR)
+            .group();
+        self.written_groups & (1 << group) == 0
+            && self.seeds.pointers[group] == parent.group(group).as_ptr()
+            && self.facts.effective_color_scheme == parent.facts.effective_color_scheme
     }
 
     /// The computed value of `property`.
@@ -4684,7 +4814,12 @@ impl GroupValues<'_> {
         if let Some(field) = place.bit_field() {
             return self.bits.value(field);
         }
-        self.groups[place.group()].value(place)
+        if self.written_groups & (1 << place.group()) != 0
+            && let Some(write) = self.writes.iter().find(|write| write.place == place)
+        {
+            return &write.value;
+        }
+        self.seeds.value(place)
     }
 
     /// What the groups holding these values hold as bits beside them.
@@ -4710,101 +4845,109 @@ impl GroupValues<'_> {
         &self.facts
     }
 
-    /// A hash of the values `reads` names, by their contents.
-    pub(crate) fn read_hash(&self, reads: &GroupReads, hasher: &mut impl std::hash::Hasher) {
-        for (group, &indices) in reads.iter().enumerate() {
-            let values = self.groups[group].values();
-            let mut remaining = indices;
-            while remaining != 0 {
-                let at = remaining.trailing_zeros() as usize;
-                remaining &= remaining - 1;
-                hasher.write_u64(crate::css::style_value::style_value_content_hash(
-                    values[at].optional_data(),
-                ));
-            }
-            // NB: A build reading any of a group's values may read the ones its payload handles
-            //     hold, which no read bit names.
-            if indices != 0 {
-                for (_, place) in GroupValueLayout::handles_of(group) {
+    /// A hash of the values `reads` names, the values of the groups `read_groups` names: the seed
+    /// of each by its identity and what is written over it by content, so that it costs what the
+    /// element declares.
+    pub(crate) fn read_hash(&self, reads: &GroupReads, read_groups: u32, hasher: &mut impl std::hash::Hasher) {
+        let mut remaining = read_groups;
+        while remaining != 0 {
+            let group = remaining.trailing_zeros() as usize;
+            remaining &= remaining - 1;
+            hasher.write_usize(self.seeds.pointers[group] as usize);
+            for write in self.writes_of(group) {
+                if GroupValueLayout::reads(reads, write.place) {
+                    hasher.write_u32(write.place.order());
                     hasher.write_u64(crate::css::style_value::style_value_content_hash(
-                        self.groups[group].value(place).optional_data(),
+                        write.value.optional_data(),
                     ));
                 }
             }
         }
     }
 
-    /// The values of each group `reads` reads any of, held, in group order.
-    pub(crate) fn held_read_groups(&self, reads: &GroupReads) -> impl Iterator<Item = HeldGroup> + '_ {
-        let reads = *reads;
+    /// The seed of each group `read_groups` names, held, in group order.
+    pub(crate) fn held_read_seeds(&self, read_groups: u32) -> impl Iterator<Item = HeldGroup> + '_ {
         (0..group_index::COUNT)
-            .filter(move |&group| reads[group] != 0)
-            .map(|group| match &self.groups[group] {
-                DraftValues::Seed(seed) => HeldGroup {
-                    group,
-                    payload: seed.retained(),
-                },
-                DraftValues::Own(own) => own.held(),
-            })
+            .filter(move |&group| read_groups & (1 << group) != 0)
+            .map(|group| self.seeds.held(group))
     }
 
-    /// Whether these hold the values `held`, the values of each group `reads` reads any of in group
-    /// order, hold at the indices `reads` names, each by identity or else by value.
-    pub(crate) fn holds_read_values(&self, reads: &GroupReads, held: &[HeldGroup]) -> bool {
-        let mut held = held.iter();
-        reads
+    /// What is written over the values `reads` names, in place order, by where each comes in it.
+    pub(crate) fn read_writes<'r>(
+        &'r self,
+        reads: &'r GroupReads,
+    ) -> impl Iterator<Item = (u32, &'r RetainedStyleValueData)> + 'r {
+        self.writes
             .iter()
-            .enumerate()
-            .filter(|(_, indices)| **indices != 0)
-            .all(|(group, &indices)| {
-                let Some(held) = held.next() else {
-                    return false;
-                };
-                if self.groups[group].group() == held.as_ptr() {
-                    return true;
-                }
-                // SAFETY: The held group is live while it is held.
-                let held_group = unsafe { GroupPayloadRef::new(group, held.as_ptr()) }.expect("a held group");
-                if !GroupValueLayout::handles_of(group).all(|(_, place)| {
-                    let (value, held) = (self.groups[group].value(place), value_at(held_group, place));
-                    value.pointer() == held.pointer() || value == held
-                }) {
-                    return false;
-                }
-                let (values, held) = (self.groups[group].values(), held.values());
-                let mut remaining = indices;
-                while remaining != 0 {
-                    let at = remaining.trailing_zeros() as usize;
-                    remaining &= remaining - 1;
-                    if values[at].pointer() != held[at].pointer() && values[at] != held[at] {
-                        return false;
-                    }
-                }
-                true
-            })
+            .filter(|write| GroupValueLayout::reads(reads, write.place))
+            .map(|write| (write.place.order(), &write.value))
+    }
+
+    /// Whether these start from the seeds `seeds`, those of each group `read_groups` names in group
+    /// order, and write `written`, by where each value comes in place order, over the values `reads`
+    /// names, each value by identity or else by value.
+    pub(crate) fn hold_read_values(
+        &self,
+        reads: &GroupReads,
+        read_groups: u32,
+        seeds: &[HeldGroup],
+        written: &[(u32, RetainedStyleValueData)],
+    ) -> bool {
+        let mut seeds = seeds.iter();
+        let mut remaining = read_groups;
+        while remaining != 0 {
+            let group = remaining.trailing_zeros() as usize;
+            remaining &= remaining - 1;
+            if seeds
+                .next()
+                .is_none_or(|seed| seed.as_ptr() != self.seeds.pointers[group])
+            {
+                return false;
+            }
+        }
+        let mut written = written.iter();
+        self.read_writes(reads).all(|(place, value)| {
+            written
+                .next()
+                .is_some_and(|(order, held)| *order == place && (held.pointer() == value.pointer() || held == value))
+        }) && written.next().is_none()
     }
 
     /// Puts the values of each group into the group `groups` holds for it, built from them,
     /// taking over the reference `groups` holds: the very group where it holds them already, or
-    /// the draft's group, a seed's or the element's own, where it holds the same payload, or else
-    /// the built group with the values in it.
+    /// else the built group with the values in it. The groups `holding` names hold them already.
     ///
     /// # Safety
     /// `groups` must hold one live payload of each group, each with a reference the caller holds.
-    pub(crate) unsafe fn put_into(&self, groups: &mut [*const c_void; group_index::COUNT]) {
-        for (group, (payload, values)) in groups.iter_mut().zip(&self.groups).enumerate() {
-            // SAFETY: The caller passes live payloads, and the drafts' groups are live while they are.
-            *payload = unsafe { group_with_values(group, *payload, values.values(), &[values.group()]) };
+    pub(crate) unsafe fn put_into(&self, groups: &mut [*const c_void; group_index::COUNT], holding: u32) {
+        for (group, payload) in groups.iter_mut().enumerate() {
+            let seed = self.seeds.pointers[group];
+            if holding & (1 << group) != 0 || (*payload == seed && self.written_groups & (1 << group) == 0) {
+                continue;
+            }
+            // SAFETY: The caller passes live payloads, and the seeds are live while these are.
+            *payload =
+                unsafe { group_with_values(group, *payload, seed, self.seeds.values(group), self.writes_of(group)) };
         }
     }
 
-    /// The groups holding these values, a seed group or one of the element's own each, with a
-    /// reference to each: groups of values, whose payloads are not built from them.
+    /// The groups holding these values, a seed group where nothing is written over it or else one
+    /// of its own, with a reference to each: groups of values, whose payloads are not built from
+    /// them.
     pub(crate) fn into_groups(self) -> StyleGroups {
         let bits = self.style_bits();
-        let pointers = self.groups.map(|draft| match draft {
-            DraftValues::Seed(seed) => seed.retained(),
-            DraftValues::Own(own) => std::mem::ManuallyDrop::new(own).payload,
+        let pointers = std::array::from_fn(|group| {
+            let writes = self.writes_of(group);
+            if writes.is_empty() {
+                return std::mem::ManuallyDrop::new(self.seeds.held(group)).payload;
+            }
+            // SAFETY: The seed is live while these values are.
+            let base = unsafe { GroupPayloadRef::new(group, self.seeds.pointers[group]) }.expect("a seed has a group");
+            let mut own = HeldGroup::new_copy(base, written_values(self.seeds.values(group), writes));
+            for write in writes.iter().filter(|write| write.place.handle_offset().is_some()) {
+                own.set_handle(write.place, &write.value);
+            }
+            std::mem::ManuallyDrop::new(own).payload
         });
         // SAFETY: Each pointer is a live group of its index, with a reference handed over.
         unsafe { StyleGroups::adopt(pointers, bits) }
@@ -4819,18 +4962,20 @@ impl GroupValues<'_> {
 /// An element's computed values as the engine computes them, directly or through the longhand drive,
 /// over the values the element holds before its own declarations, with the flags its record keeps
 /// beside them. The writes are kept beside those values, which the writer only borrows where its
-/// parent or the initial style holds them: a group's values are copied only as the writer finishes,
+/// parent or the initial style holds them: a group's values are copied only as its allocation is built,
 /// for the groups whose written values no seed holds: a copy-on-write style builder, at the
 /// granularity of groups.
 #[derive(Clone)]
 pub(crate) struct GroupValuesWriter<'a> {
     /// The values the element holds before its own declarations, which no write changes.
-    seeded: [DraftValues<'a>; group_index::COUNT],
+    seeded: SeedGroups<'a>,
     /// The values written over the seeded ones, one per longhand whose value differs from the
     /// seeded one where it was written.
     writes: smallvec::SmallVec<[ValueWrite; WRITES_INLINE]>,
     /// The groups `writes` writes into, one bit per group.
     written_groups: u32,
+    /// The longhands `writes` writes, one bit per longhand.
+    written_longhands: [u64; crate::css::property_metadata::LONGHAND_WORD_COUNT],
     /// The values of the longhands held as bits, as written so far. The zoom beside them is
     /// `effective_zoom`'s.
     bits: StyleBits,
@@ -4863,9 +5008,8 @@ const WRITES_INLINE: usize = 16;
 
 impl<'a> GroupValuesWriter<'a> {
     /// The values a child of the element whose groups are `parent` holds before its own
-    /// declarations: the initial values, with the parent's values of the longhands that inherit in
-    /// place of the ones they are not equal to, and then likewise the values `inherited_overrides`
-    /// hands down in place of those. The child starts with the parent's zoom and color scheme and
+    /// declarations: the initial values, but the parent's values of the longhands that inherit, and
+    /// then likewise the values `inherited_overrides` hands down in place of those. The child starts with the parent's zoom and color scheme and
     /// the initial recorded specified values.
     ///
     /// The writer starts with the flags `flags` and the dependency flags `dependency_flags`.
@@ -4877,38 +5021,24 @@ impl<'a> GroupValuesWriter<'a> {
         dependency_flags: u8,
     ) -> Self {
         use crate::css::property_metadata::property_is_inherited;
-        let seeded = std::array::from_fn(|group| {
-            let (parent_group, initial_group) = (parent.group(group), initial.group(group));
-            let longhands = GROUP_VALUE_LAYOUT.longhands_of(group);
-            if parent_group.as_ptr() == initial_group.as_ptr()
-                || !longhands.iter().any(|&property| property_is_inherited(property))
-            {
-                return DraftValues::Seed(initial_group);
-            }
-            let (parent_values, initial_values) = (parent_group.group_values(), initial_group.group_values());
-            // NB: An inherited value equal to the initial one keeps the initial one, as the seed
-            //     of a longhand table does.
-            let inherited_value = |(index, &property): (usize, &u16)| {
-                let (value, initial_value) = (&parent_values[index], &initial_values[index]);
-                match property_is_inherited(property)
-                    && !value.pointer().is_null()
-                    && value.pointer() != initial_value.pointer()
-                    && (initial_value.pointer().is_null() || value != initial_value)
-                {
-                    true => value,
-                    false => initial_value,
+        // NB: A group's longhands all inherit or all do not, so a child borrows its parent's group of
+        //     those that do and the initial group of those that do not.
+        let seeded = SeedGroups {
+            pointers: std::array::from_fn(|group| {
+                match INHERITED_SET_GROUPS.contains(&group) {
+                    true => parent.group(group),
+                    false => initial.group(group),
                 }
-            };
-            DraftValues::shared_or_own(
-                &[parent, initial],
-                parent_group,
-                longhands.iter().enumerate().map(inherited_value),
-            )
-        });
+                .as_ptr()
+            }),
+            holds_references: false,
+            styles: std::marker::PhantomData,
+        };
         let mut writer = Self {
             seeded,
             writes: smallvec::SmallVec::new(),
             written_groups: 0,
+            written_longhands: [0; crate::css::property_metadata::LONGHAND_WORD_COUNT],
             // NB: A child inherits its parent's inherited bits, and starts from the initial reset ones.
             bits: StyleBits {
                 inherited: parent.style_bits().inherited,
@@ -4918,7 +5048,7 @@ impl<'a> GroupValuesWriter<'a> {
             inheritance_dependent_values: None,
             effective_zoom: parent.facts.effective_zoom,
             display_before_box_type_transformation: initial.facts.display_before_box_type_transformation,
-            effective_color_scheme: parent.facts.effective_color_scheme,
+            effective_color_scheme: parent.facts.effective_color_scheme(),
             flags,
             dependency_flags,
         };
@@ -4954,6 +5084,7 @@ impl<'a> GroupValuesWriter<'a> {
             seeded,
             writes,
             written_groups,
+            written_longhands,
             bits,
             seeded_inheritance_dependent_values,
             inheritance_dependent_values,
@@ -4963,16 +5094,21 @@ impl<'a> GroupValuesWriter<'a> {
             flags,
             dependency_flags,
         } = self;
+        let seeded = std::mem::ManuallyDrop::new(seeded);
+        if !seeded.holds_references {
+            for (group, &pointer) in seeded.pointers.iter().enumerate() {
+                retain_group_payload(group, pointer);
+            }
+        }
         GroupValuesWriter {
-            seeded: seeded.map(|draft| match draft {
-                DraftValues::Seed(seed) => DraftValues::Own(HeldGroup {
-                    group: seed.group_index,
-                    payload: seed.retained(),
-                }),
-                DraftValues::Own(own) => DraftValues::Own(own),
-            }),
+            seeded: SeedGroups {
+                pointers: seeded.pointers,
+                holds_references: true,
+                styles: std::marker::PhantomData,
+            },
             writes,
             written_groups,
+            written_longhands,
             bits,
             seeded_inheritance_dependent_values,
             inheritance_dependent_values,
@@ -4994,9 +5130,10 @@ impl<'a> GroupValuesWriter<'a> {
         self.seeded_inheritance_dependent_values.as_deref().unwrap_or_default()
     }
 
-    /// The write at `place`, if there is one.
-    fn write_at(&self, place: LonghandPlace) -> Option<&ValueWrite> {
-        if self.written_groups & (1 << place.group()) == 0 {
+    /// The write of `property`, whose place is `place`, if there is one.
+    fn write_of(&self, property: u16, place: LonghandPlace) -> Option<&ValueWrite> {
+        let index = LonghandID::new(property).index();
+        if self.written_longhands[index / 64] & (1 << (index % 64)) == 0 {
             return None;
         }
         self.writes.iter().find(|write| write.place == place)
@@ -5009,9 +5146,9 @@ impl<'a> GroupValuesWriter<'a> {
         if let Some(field) = place.bit_field() {
             return self.bits.value(field);
         }
-        match self.write_at(place) {
+        match self.write_of(property, place) {
             Some(write) => &write.value,
-            None => self.seeded[place.group()].value(place),
+            None => self.seeded.value(place),
         }
     }
 
@@ -5028,8 +5165,8 @@ impl<'a> GroupValuesWriter<'a> {
         if let Some(field) = place.bit_field() {
             return self.bits.get(field) != seeded_bits.get(field);
         }
-        self.write_at(place)
-            .is_some_and(|write| write.value != *self.seeded[place.group()].value(place))
+        self.write_of(property, place)
+            .is_some_and(|write| write.value != *self.seeded.value(place))
     }
 
     /// The computed value of `property` written so far, where it has one.
@@ -5095,13 +5232,21 @@ impl<'a> GroupValuesWriter<'a> {
             self.bits = self.bits.with_value(field, &value);
             return;
         }
-        if let Some(write) = self.writes.iter_mut().find(|write| write.place == place) {
+        let index = LonghandID::new(property).index();
+        let (word, bit) = (index / 64, 1 << (index % 64));
+        if self.written_longhands[word] & bit != 0 {
+            let write = self
+                .writes
+                .iter_mut()
+                .find(|write| write.place == place)
+                .expect("a longhand written has a write");
             write.value = value.into_owned();
             return;
         }
-        if self.seeded[place.group()].value(place).pointer() == value.pointer() {
+        if self.seeded.value(place).pointer() == value.pointer() {
             return;
         }
+        self.written_longhands[word] |= bit;
         self.written_groups |= 1 << place.group();
         self.writes.push(ValueWrite {
             place,
@@ -5263,10 +5408,25 @@ impl<'a> GroupValuesWriter<'a> {
         u8,
     ) {
         let inheritance_dependent_values = self.finished_inheritance_dependent_values(seeds);
+        let read_in_place_bits = match (
+            seeds.iter().find(
+                |seed| match (&seed.facts.inheritance_dependent_values, &inheritance_dependent_values) {
+                    (Some(held), Some(values)) => std::sync::Arc::ptr_eq(held, values),
+                    _ => false,
+                },
+            ),
+            &inheritance_dependent_values,
+        ) {
+            (Some(seed), _) => seed.facts.read_in_place_bits,
+            (None, Some(values)) => values
+                .iter()
+                .filter(|held| held.read_by_groups)
+                .fold(0, |bits, held| bits | read_in_place_bit(held.property)),
+            (None, None) => 0,
+        };
         let Self {
             seeded,
-            writes,
-            written_groups,
+            mut writes,
             bits,
             effective_zoom,
             display_before_box_type_transformation,
@@ -5275,73 +5435,70 @@ impl<'a> GroupValuesWriter<'a> {
             dependency_flags,
             ..
         } = self;
-        let mut seeded = seeded.map(Some);
-        let groups = std::array::from_fn(|group| {
-            let mut seeded = seeded[group].take().expect("each group is finished once");
-            if written_groups & (1 << group) == 0 {
-                return seeded;
+        let mut seeded = seeded;
+        // NB: A value written back over the seed's equal value leaves the seed's.
+        writes.retain(|write| {
+            let held = seeded.value(write.place);
+            held.pointer() != write.value.pointer() && *held != write.value
+        });
+        writes.sort_unstable_by_key(|write| write.place.order());
+        let written_groups = writes
+            .iter()
+            .fold(0_u32, |groups, write| groups | (1 << write.place.group()));
+        // The first of `seeds` holding the very values the element's group does holds them for it.
+        let mut remaining = written_groups;
+        let mut shared_groups = 0_u32;
+        while remaining != 0 {
+            let group = remaining.trailing_zeros() as usize;
+            remaining &= remaining - 1;
+            let start = writes.partition_point(|write| write.place.group() < group);
+            let end = writes.partition_point(|write| write.place.group() <= group);
+            let group_writes = &writes[start..end];
+            // NB: A write to a payload handle leaves the element's group its own.
+            if group_writes.iter().any(|write| write.place.handle_offset().is_some()) {
+                continue;
             }
-            let handle_writes: smallvec::SmallVec<[&ValueWrite; WRITES_INLINE]> = writes
-                .iter()
-                .filter(|write| write.place.group() == group && write.place.handle_offset().is_some())
-                .filter(|write| {
-                    let held = seeded.value(write.place);
-                    held.pointer() != write.value.pointer() && *held != write.value
-                })
-                .collect();
-            let base = seeded.values();
-            let group_writes: smallvec::SmallVec<[(usize, &RetainedStyleValueData); WRITES_INLINE]> = writes
-                .iter()
-                .filter(|write| write.place.group() == group && write.place.handle_offset().is_none())
-                .map(|write| (write.place.index(), &write.value))
-                .filter(|&(at, value)| base[at].pointer() != value.pointer() && base[at] != *value)
-                .collect();
-            if group_writes.is_empty() && handle_writes.is_empty() {
-                return seeded;
-            }
-            // NB: A group of the element's own takes the writes in place.
-            if let DraftValues::Own(own) = &mut seeded
-                && let Some(values) = own.values_mut()
-            {
-                for (at, value) in group_writes {
-                    values[at] = value.clone();
-                }
-                for write in handle_writes {
-                    own.set_handle(write.place, &write.value);
-                }
-                return seeded;
-            }
-            let base = seeded.values();
-            let written_value = |at: usize| {
+            let shared = seeds.iter().find(|seed| {
+                let seed_group = seed.group(group);
                 group_writes
                     .iter()
-                    .find(|&&(written, _)| written == at)
-                    .map_or(&base[at], |&(_, value)| value)
-            };
-            // SAFETY: The seeded group is live while the draft is.
-            let base_group = unsafe { GroupPayloadRef::new(group, seeded.group()) }.expect("a draft has a group");
-            if handle_writes.is_empty() {
-                return DraftValues::shared_or_own(seeds, base_group, (0..base.len()).map(written_value));
+                    .all(|write| value_at(seed_group, write.place).pointer() == write.value.pointer())
+                    && written_values(seeded.values(group), group_writes)
+                        .zip(seed_group.group_values())
+                        .all(|(value, held)| value.pointer() == held.pointer())
+                    && GroupValueLayout::handles_of(group)
+                        .all(|(_, place)| value_at(seed_group, place).pointer() == seeded.value(place).pointer())
+            });
+            if let Some(seed) = shared {
+                seeded.replace(group, seed.group(group));
+                shared_groups |= 1 << group;
             }
-            // NB: A write to a payload handle gives the element a group of its own.
-            let mut own = HeldGroup::new_copy(base_group, (0..base.len()).map(written_value));
-            for write in handle_writes {
-                own.set_handle(write.place, &write.value);
-            }
-            DraftValues::Own(own)
-        });
+        }
+        if shared_groups != 0 {
+            writes.retain(|write| shared_groups & (1 << write.place.group()) == 0);
+        }
         let native_appearance_disabled =
             dependency_flags & crate::css::computed_longhand_table::NATIVE_APPEARANCE_DISABLED != 0;
-        let values = GroupValues {
-            groups,
+        let mut values = GroupValues {
+            seeds: seeded,
+            writes,
+            written_groups: written_groups & !shared_groups,
             bits,
             facts: GroupValueFacts {
                 inheritance_dependent_values,
                 effective_zoom,
                 display_before_box_type_transformation,
-                effective_color_scheme,
+                effective_color_scheme: i8::try_from(effective_color_scheme).expect("a color scheme is a small code"),
                 native_appearance_disabled,
+                read_in_place_bits,
+                current_color_groups: 0,
             },
+        };
+        // NB: What a parent's groups read of `currentcolor` a child holding the same inherited groups
+        //     and recorded values reads too.
+        values.facts.current_color_groups = match seeds.first() {
+            Some(parent) if values.holds_what_the_current_color_groups_of(parent) => parent.facts.current_color_groups,
+            _ => values.current_color_groups(),
         };
         (values, flags, dependency_flags)
     }
@@ -6949,9 +7106,20 @@ mod tests {
         let layout = GroupValueLayout::get();
         let mut held = 0;
         for group in 0..group_index::COUNT {
-            for (index, &property) in layout.longhands_of(group).iter().enumerate() {
-                let place = layout.place(LonghandID::new(property));
-                assert_eq!((place.group(), place.index()), (group, index));
+            let mut values = (crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID
+                ..=crate::css::property_metadata::LAST_LONGHAND_PROPERTY_ID)
+                .map(|property| layout.place(LonghandID::new(property)))
+                .filter(|place| {
+                    *place != LonghandPlace::NONE
+                        && place.bit_field().is_none()
+                        && place.handle_offset().is_none()
+                        && place.group() == group
+                })
+                .collect::<Vec<_>>();
+            values.sort_unstable_by_key(|place| place.index());
+            assert_eq!(values.len(), usize::from(layout.counts[group]));
+            for (index, place) in values.into_iter().enumerate() {
+                assert_eq!(place.index(), index);
                 assert!(GroupValueLayout::reads(layout.reads_of(group), place));
                 held += 1;
             }
@@ -7006,7 +7174,7 @@ mod tests {
             writer.set(property_id::WIDTH, initial_width.clone());
             let (initial_values, ..) = writer.finish(&[]);
             // SAFETY: Each group holds one reference to a fresh payload of its group.
-            unsafe { initial_values.put_into(&mut initial_groups) };
+            unsafe { initial_values.put_into(&mut initial_groups, 0) };
             initial_values.into_facts()
         });
         // SAFETY: The groups stay live until the end of the test.
@@ -7022,7 +7190,7 @@ mod tests {
         writer.set(property_id::WIDTH, width.clone());
         let (values, ..) = writer.finish(&[seed]);
         for group in 0..group_index::COUNT {
-            assert_eq!(values.groups[group].seed().is_some(), group != sizing);
+            assert_eq!(values.writes_of(group).is_empty(), group != sizing);
         }
         assert_eq!(values.value(property_id::WIDTH).pointer(), width.pointer());
 
@@ -7037,7 +7205,7 @@ mod tests {
         );
         writer.set(property_id::WIDTH, width.clone());
         let (written, ..) = writer.finish(&[seed]);
-        assert!(written.groups[sizing].seed().is_none());
+        assert!(!written.writes_of(sizing).is_empty());
         assert_eq!(written.value(property_id::WIDTH).pointer(), width.pointer());
         let mut writer = GroupValuesWriter::seeded_for_child(
             seed,
@@ -7049,7 +7217,7 @@ mod tests {
         writer.set(property_id::WIDTH, number(7.0));
         writer.set(property_id::WIDTH, initial_width.clone());
         let (restored, ..) = writer.finish(&[seed]);
-        assert_eq!(restored.groups[sizing].seed(), Some(initial_groups[sizing]));
+        assert!(restored.hold_the_seed(sizing, initial_groups[sizing]));
 
         for (group, payload) in initial_groups.into_iter().enumerate() {
             release_group_payload(group, payload);

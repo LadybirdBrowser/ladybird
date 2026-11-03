@@ -3456,16 +3456,21 @@ fn own_color_from_source(
     to_color(values.value(property_id::COLOR)?, &input).map(packed_color)
 }
 
+/// The used color scheme of the values `values` holds.
+pub(crate) fn used_color_scheme_of_source(values: &LonghandSource<'_>) -> u8 {
+    u8::try_from(values.effective_color_scheme()).unwrap_or_else(|_| {
+        debug_assert!(false, "a driven table without a used color scheme");
+        crate::css::color_resolution::PREFERRED_COLOR_SCHEME_LIGHT
+    })
+}
+
 /// The used color scheme and the element's own resolved `color`, as [`assembly_color_inputs`]
 /// answers them, from the values `values` holds.
 pub(crate) fn assembly_color_inputs_from_source(
     values: &LonghandSource<'_>,
     length: &crate::css::style_compute::FfiLengthResolutionContext,
 ) -> (u8, u32) {
-    let used_color_scheme = u8::try_from(values.effective_color_scheme()).unwrap_or_else(|_| {
-        debug_assert!(false, "a driven table without a used color scheme");
-        crate::css::color_resolution::PREFERRED_COLOR_SCHEME_LIGHT
-    });
+    let used_color_scheme = used_color_scheme_of_source(values);
     let current_color = own_color_from_source(values, used_color_scheme, Some(length)).unwrap_or_else(|| {
         debug_assert!(false, "a driven table whose color does not resolve");
         0xff00_0000
