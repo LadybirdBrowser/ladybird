@@ -4736,7 +4736,7 @@ mod stretch_cross_limit_tests {
             arena.set_node_flag(child, NodeFlag::IsFlexItem, true);
             arena.insert_child(container, child, Node::INVALID);
         }
-        let host_findings_outside_runs = RefCell::default();
+        let host_findings_outside_runs = crate::layout::run_state::HostFindingsSink::default();
         let callbacks = LayoutPass::for_test(&arena, &scratch, &host_findings_outside_runs);
         let px = |value: i32| CssPixels::from_integer(i64::from(value));
         let constraints = ContainingBlockConstraints {

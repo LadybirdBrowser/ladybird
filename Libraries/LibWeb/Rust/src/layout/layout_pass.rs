@@ -33,7 +33,7 @@ pub(crate) struct LayoutPass<'arena> {
     /// searches from inside the run stop. Invalid outside any run.
     innermost_run: (Node, Node),
     /// What the run this pass view was handed to found out for the host so far, or the pass outside any run.
-    host_findings: &'arena RefCell<super::run_state::HostFindings>,
+    host_findings: &'arena super::run_state::HostFindingsSink,
     /// The intrinsic sizes the runs this pass view reaches read and measure into: those passes measured, kept for the
     /// passes after them, or inside a run whose result is discarded, that run's own.
     intrinsic_size_caches: &'arena super::layout_node_arena::IntrinsicSizeCaches,
@@ -60,7 +60,7 @@ impl<'arena> LayoutPass<'arena> {
     pub(crate) fn new(
         arena: &'arena LayoutNodeArena,
         scratch: &'arena super::run_state::LayoutScratch,
-        host_findings_outside_runs: &'arena RefCell<super::run_state::HostFindings>,
+        host_findings_outside_runs: &'arena super::run_state::HostFindingsSink,
         stage: super::formatting_context::LayoutStageFacts,
     ) -> Self {
         Self {
@@ -84,7 +84,7 @@ impl<'arena> LayoutPass<'arena> {
     pub(crate) fn for_test(
         arena: &'arena LayoutNodeArena,
         scratch: &'arena super::run_state::LayoutScratch,
-        host_findings_outside_runs: &'arena RefCell<super::run_state::HostFindings>,
+        host_findings_outside_runs: &'arena super::run_state::HostFindingsSink,
     ) -> Self {
         Self::new(
             arena,
@@ -104,7 +104,7 @@ impl<'arena> LayoutPass<'arena> {
         self,
         root: Node,
         root_containing_block: Node,
-        host_findings: &'run RefCell<super::run_state::HostFindings>,
+        host_findings: &'run super::run_state::HostFindingsSink,
     ) -> LayoutPass<'run>
     where
         'arena: 'run,
@@ -211,12 +211,11 @@ impl<'arena> LayoutPass<'arena> {
 
     /// Notes what the run this pass view was handed to found out for the host, or the pass outside any run.
     pub(crate) fn note_host_findings(&self, note: impl FnOnce(&mut super::run_state::HostFindings)) {
-        self.scratch.note_host_findings_noted_in_pass();
-        note(&mut self.host_findings.borrow_mut());
+        self.host_findings.note(note);
     }
 
-    pub(crate) fn host_findings_noted_in_pass(&self) -> u64 {
-        self.scratch.host_findings_noted_in_pass()
+    pub(crate) fn host_findings_noted_so_far(&self) -> u64 {
+        self.host_findings.notes_so_far()
     }
 
     /// Hands what a finished run found out to the run this pass view was handed to, which used its result.

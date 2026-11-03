@@ -477,7 +477,7 @@ enum InFlowReuse {
         validity: fc_run_cache::FcRunCacheValidity,
         flow_position: CssPixels,
         abspos_containing_block_info_contributions_received: u64,
-        host_findings_noted_in_pass: u64,
+        host_findings_noted_so_far: u64,
     },
 }
 
@@ -3564,7 +3564,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             flow_position: self.flow_position(),
             abspos_containing_block_info_contributions_received: self
                 .abspos_containing_block_info_contributions_received(),
-            host_findings_noted_in_pass: callbacks.host_findings_noted_in_pass(),
+            host_findings_noted_so_far: callbacks.host_findings_noted_so_far(),
         }
     }
 
@@ -3638,7 +3638,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             validity,
             flow_position,
             abspos_containing_block_info_contributions_received,
-            host_findings_noted_in_pass,
+            host_findings_noted_so_far,
         } = attempt
         else {
             return;
@@ -3654,7 +3654,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             && self.floats.borrow().is_empty()
             && self.abspos_containing_block_info_contributions_received()
                 == abspos_containing_block_info_contributions_received
-            && self.run.callbacks.host_findings_noted_in_pass() == host_findings_noted_in_pass
+            && self.run.callbacks.host_findings_noted_so_far() == host_findings_noted_so_far
             && used.border_box_block_size(false) != CssPixels::default();
         if !reusable {
             return;

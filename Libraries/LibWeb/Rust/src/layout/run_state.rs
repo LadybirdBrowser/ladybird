@@ -13,7 +13,6 @@ use super::*;
 pub(crate) struct LayoutScratch {
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(super) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
-    host_findings_noted_in_pass: Cell<u64>,
     /// The results of formatting context runs, kept for the runs after them in this pass and the passes after it.
     fc_run_cache_store: super::fc_run_cache::FcRunCacheStore,
     /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
@@ -43,6 +42,35 @@ pub(crate) struct ContainerLengthRead {
     pub(crate) reader: NodeSlotId,
     pub(crate) element: crate::css::style::tree::StyleNodeID,
     pub(crate) bases: crate::css::style::ContainerUnitBases,
+}
+
+#[derive(Default)]
+pub(crate) struct HostFindingsSink {
+    findings: std::sync::Mutex<HostFindings>,
+    noted_any: std::sync::atomic::AtomicBool,
+    notes: std::sync::atomic::AtomicU64,
+}
+
+impl HostFindingsSink {
+    pub(crate) fn note(&self, note: impl FnOnce(&mut HostFindings)) {
+        let mut findings = self.findings.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        note(&mut findings);
+        self.noted_any.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.notes.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    pub(crate) fn notes_so_far(&self) -> u64 {
+        self.notes.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub(crate) fn take(&self) -> HostFindings {
+        if !self.noted_any.load(std::sync::atomic::Ordering::Relaxed) {
+            return HostFindings::default();
+        }
+        let mut findings = self.findings.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.noted_any.store(false, std::sync::atomic::Ordering::Relaxed);
+        std::mem::take(&mut *findings)
+    }
 }
 
 impl HostFindings {
@@ -166,15 +194,6 @@ impl LayoutScratch {
         );
     }
 
-    pub(super) fn note_host_findings_noted_in_pass(&self) {
-        self.host_findings_noted_in_pass
-            .set(self.host_findings_noted_in_pass.get() + 1);
-    }
-
-    pub(super) fn host_findings_noted_in_pass(&self) -> u64 {
-        self.host_findings_noted_in_pass.get()
-    }
-
     /// Brings the run memos up to date with what the commit into `arena` did to their boxes, and sweeps the run cache.
     pub(crate) fn end_layout_pass(&mut self, arena: &mut LayoutNodeArena) {
         self.apply_memo_invalidations(arena);
@@ -195,7 +214,7 @@ pub(crate) struct RunState {
     /// The anchor-size() resolutions of an absolutely positioned root, a run input that is constant for the run.
     root_anchor_resolved_values: Option<Box<style_values::AnchorResolvedValues>>,
     /// What the run found out for the host so far, which the pass the run is handed notes into.
-    host_findings: RefCell<HostFindings>,
+    host_findings: HostFindingsSink,
     fragments: Option<fragment_tree::RunFragmentBuilder>,
 }
 
@@ -396,7 +415,7 @@ impl RunState {
                 PercentageBlockSizeDependency::default()
             )]),
             root_anchor_resolved_values,
-            host_findings: RefCell::new(HostFindings::default()),
+            host_findings: HostFindingsSink::default(),
             fragments,
         };
         run(
@@ -411,7 +430,7 @@ impl RunState {
 
     /// What this run found out for the host, which its outputs carry to the run that uses its result.
     pub(crate) fn take_host_findings(&self) -> Option<Box<HostFindings>> {
-        let findings = std::mem::take(&mut *self.host_findings.borrow_mut());
+        let findings = self.host_findings.take();
         (!findings.is_empty()).then(|| Box::new(findings))
     }
 
@@ -513,7 +532,7 @@ mod tests {
     fn a_nested_run_keeps_its_own_root_and_host_findings() {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
-        let host_findings_outside_runs = RefCell::default();
+        let host_findings_outside_runs = HostFindingsSink::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
         RunState::with_root(
@@ -543,6 +562,6 @@ mod tests {
                 );
             },
         );
-        assert!(host_findings_outside_runs.borrow().is_empty());
+        assert!(host_findings_outside_runs.take().is_empty());
     }
 }
