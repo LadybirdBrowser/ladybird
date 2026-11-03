@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/Scripting/ImportMapParseResult.h>
 #include <LibWeb/HTML/Scripting/Script.h>
+#include <LibWeb/HTML/Scripting/ScriptFetchOptions.h>
 #include <LibWeb/TrustedTypes/TrustedScript.h>
 #include <LibWeb/TrustedTypes/TrustedScriptURL.h>
 #include <LibWebCommon/ReferrerPolicy/ReferrerPolicy.h>
@@ -161,6 +162,17 @@ private:
     // https://www.w3.org/TR/trusted-types/#htmlscriptelement-script-text
     Utf16String m_script_text;
 };
+
+struct ScriptElementFetchAttributes {
+    CORSSettingAttribute crossorigin { CORSSettingAttribute::NoCORS };
+    Utf16String cryptographic_nonce {};
+    Optional<Utf16String> integrity {};
+    ReferrerPolicy::ReferrerPolicy referrer_policy { ReferrerPolicy::ReferrerPolicy::EmptyString };
+    Fetch::Infrastructure::Request::Priority fetch_priority { Fetch::Infrastructure::Request::Priority::Auto };
+    bool parser_inserted { false };
+};
+
+ScriptFetchOptions script_element_fetch_options(ScriptElementFetchAttributes const&);
 
 }
 
