@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    @keyframes root-font {
+        from { font-size: 10px; }
+        to { font-size: 30px; }
+    }
+    html.animated {
+        animation: root-font 10s linear infinite alternate;
+    }
+    #reader {
+        width: 10rem;
+        height: 10px;
+    }
+</style>
+<div id="reader"></div>
+<script>
+    // A box resolves `rem` against the root element's font as the main thread styles it, which a clock tick does not
+    // restyle. The ticks leave the animations of the root element to the main thread.
+    asyncTest(async done => {
+        const result = await whileLaneAnimates(() => {
+            document.documentElement.classList.add("animated");
+            return document.documentElement.getAnimations()[0];
+        }, (frameTime, animation) => {
+            internals.injectClockTick(frameTime + 3000);
+            return {
+                presented: internals.presentedBorderBox(reader),
+                presentedBy: internals.lastFramePresentedBy(document),
+                animation,
+            };
+        });
+        result.animation.cancel();
+        println(`last frame presented by: ${result.presentedBy}`);
+        println(`a tick presented the box: ${result.presented !== null}`);
+        done();
+    });
+</script>
