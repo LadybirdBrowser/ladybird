@@ -7,6 +7,7 @@
 #include <AK/JsonObject.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/String.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/System.h>
 #include <LibWebCommon/Loader/UserAgent.h>
 #include <LibWebView/Application.h>

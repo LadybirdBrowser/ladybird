@@ -10,6 +10,7 @@
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
 #include <AK/LexicalPath.h>
+#include <LibCore/BrowserVersion.h>
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
@@ -149,7 +150,7 @@ TEST_CASE(web_compat_report)
 
     auto manifest = JsonValue::from_string(manifest_text).release_value().as_object();
     VERIFY(manifest.get_string("kind"sv) == "web_compat"sv);
-    VERIFY(manifest.get_string("client_version"sv) == "1.0"sv);
+    VERIFY(manifest.get_string("client_version"sv) == BROWSER_VERSION ""sv);
     VERIFY(manifest_field(manifest, "description"sv)->as_string() == "The menu does not open"sv);
     VERIFY(manifest_field(manifest, "url"sv)->as_string() == "https://example.com/broken?query"sv);
     VERIFY(manifest_field(manifest, "user_agent"sv)->as_string() == "Mozilla/5.0 Ladybird/1.0"sv);

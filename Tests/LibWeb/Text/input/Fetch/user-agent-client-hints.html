@@ -31,7 +31,8 @@
             // The build's own Chrome token, whatever this platform reports.
             const version = navigator.userAgent.match(/Chrome\/(\d+)/)?.[1];
             println(`own brands name Chromium at the User-Agent's version: ${brands.includes(`"Chromium";v="${version}"`) ? "PASS" : `FAIL (${brands})`}`);
-            println(`own brands name Ladybird: ${brands.includes('"Ladybird";v="1"') ? "PASS" : `FAIL (${brands})`}`);
+            const ladybirdVersion = navigator.userAgent.match(/Ladybird\/(\d+)/)?.[1];
+            println(`own brands name Ladybird: ${brands.includes(`"Ladybird";v="${ladybirdVersion}"`) ? "PASS" : `FAIL (${brands})`}`);
             println(`own mobile hint is a boolean: ${["?0", "?1"].includes(own("Sec-CH-UA-Mobile")) ? "PASS" : `FAIL (${own("Sec-CH-UA-Mobile")})`}`);
             println(`own platform hint is quoted: ${/^".+"$/.test(own("Sec-CH-UA-Platform") ?? "") ? "PASS" : `FAIL (${own("Sec-CH-UA-Platform")})`}`);
 

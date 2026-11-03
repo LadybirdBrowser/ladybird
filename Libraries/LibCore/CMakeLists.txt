@@ -115,6 +115,12 @@ endif()
 ladybird_lib(LibCore core EXPLICIT_SYMBOL_EXPORT)
 target_link_libraries(LibCore PRIVATE Threads::Threads LibUnicode LibTextCodec mimalloc)
 
+configure_file(BrowserVersion.h.in BrowserVersion.h @ONLY)
+if (ENABLE_INSTALL_HEADERS)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/BrowserVersion.h" COMPONENT Lagom_Development
+        DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/LibCore")
+endif()
+
 if (${CMAKE_SYSTEM_NAME} MATCHES "NetBSD")
     # NetBSD has its shm_open and shm_unlink functions in librt so we need to link that
     target_link_libraries(LibCore PRIVATE rt)
