@@ -43,6 +43,8 @@ struct WEBCOMMON_API KeyEvent {
 
     OwnPtr<BrowserInputData> browser_data {};
     bool async_scroll_performed_default_action { false };
+    // How many scrolls for user input the compositor had made when it found nothing to scroll for this key.
+    Optional<u64> user_input_scroll_count_with_nothing_to_scroll {};
 
     // The UI process numbers the events it sends, and a completion names the event it finished.
     u64 id { 0 };

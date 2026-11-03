@@ -2105,8 +2105,9 @@ void WebContentPage::did_request_key_event_for_testing(Web::KeyEvent event)
         client().did_misbehave("did_request_key_event_for_testing"sv, "not driven by WebDriver or a test"sv);
         return;
     }
-    // Only the compositor sets this, on its way to WebContent.
+    // Only the compositor sets these, on its way to WebContent.
     event.async_scroll_performed_default_action = false;
+    event.user_input_scroll_count_with_nothing_to_scroll = {};
     view().enqueue_input_event(move(event));
 }
 

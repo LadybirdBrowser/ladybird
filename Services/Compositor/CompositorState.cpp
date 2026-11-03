@@ -602,17 +602,21 @@ void CompositorState::handle_and_dispatch_key_event(Web::CompositorContextId con
         return;
     }
 
+    bool later_keys_need_not_wait = false;
     if (allow_keyboard_scroll) {
         if (auto box = context->box_scrolled_for_key_event(event); box.has_value())
             dispatch_scroll_fling_step(context_id, *context, context->end_momentum_scrolling(box.value()), MonotonicTime::now());
-        auto handled = apply_context_update_result(context_id, *context, context->handle_key_event(event));
-        event.async_scroll_performed_default_action = handled && event.type == Web::KeyEvent::Type::KeyDown;
+        auto result = context->handle_key_event(event);
+        later_keys_need_not_wait = apply_context_update_result(context_id, *context, result) && event.type == Web::KeyEvent::Type::KeyDown;
+        event.async_scroll_performed_default_action = later_keys_need_not_wait && !result.key_found_nothing_to_scroll;
+        if (later_keys_need_not_wait && result.key_found_nothing_to_scroll)
+            event.user_input_scroll_count_with_nothing_to_scroll = context->user_input_scroll_count();
     }
 
     // The scroll updates the event produced reach WebContent ahead of the event itself on the same connection.
     publish_pending_async_scroll_updates(context_id, *context);
     context->dispatch_key_event_to_web_content(event);
-    presentation->did_dispatch_input_event(context_id, event.id, event.async_scroll_performed_default_action);
+    presentation->did_dispatch_input_event(context_id, event.id, later_keys_need_not_wait);
 }
 
 void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId context_id, Web::MouseEvent event)

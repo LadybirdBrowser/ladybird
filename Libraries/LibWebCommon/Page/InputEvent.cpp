@@ -28,7 +28,7 @@ Optional<PointerProperties> PointerInputData::properties() const
 
 KeyEvent KeyEvent::clone_without_browser_data() const
 {
-    return { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, id, editing_commands, native_editing_binding_resolved };
+    return { type, key, modifiers, code_point, repeat, should_insert_text, nullptr, async_scroll_performed_default_action, user_input_scroll_count_with_nothing_to_scroll, id, editing_commands, native_editing_binding_resolved };
 }
 
 MouseEvent MouseEvent::clone_without_browser_data() const

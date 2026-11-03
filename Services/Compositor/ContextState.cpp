@@ -290,9 +290,7 @@ Optional<ContextState::KeyScroll> ContextState::key_scroll_for(Web::KeyEvent con
     // Falling back would cancel the running animation and lose the steps already accumulated in its destination.
     if (!target_scroll_node_index.has_value())
         target_scroll_node_index = m_async_scroll_tree.scroll_node_for_keyboard_scroll(key_step->keyboard_scroll_target, key_step->delta, m_scroll_state_snapshot);
-    if (!target_scroll_node_index.has_value())
-        return {};
-    return KeyScroll { .step = key_step.release_value(), .target_scroll_node_index = target_scroll_node_index.value() };
+    return KeyScroll { .step = key_step.release_value(), .target_scroll_node_index = target_scroll_node_index };
 }
 
 Optional<Web::AsyncScrollNodeStableID> ContextState::box_scrolled_for_key_event(Web::KeyEvent const& event) const
@@ -300,9 +298,9 @@ Optional<Web::AsyncScrollNodeStableID> ContextState::box_scrolled_for_key_event(
     if (event.type != Web::KeyEvent::Type::KeyDown)
         return {};
     auto key_scroll = key_scroll_for(event);
-    if (!key_scroll.has_value())
+    if (!key_scroll.has_value() || !key_scroll->target_scroll_node_index.has_value())
         return {};
-    return m_async_scroll_tree.scroll_node_for_index(key_scroll->target_scroll_node_index)->stable_node_id;
+    return m_async_scroll_tree.scroll_node_for_index(*key_scroll->target_scroll_node_index)->stable_node_id;
 }
 
 ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent const& event)
@@ -324,11 +322,15 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     auto key_scroll = key_scroll_for(event);
     if (!key_scroll.has_value())
         return {};
+    // NB: With nothing to scroll here, the main thread must not hold back the keys after this one. It still gets to
+    //     scroll for this one, as content it added may have extended the scroll range since the compositor last heard.
+    if (!key_scroll->target_scroll_node_index.has_value())
+        return { .accepted = true, .key_found_nothing_to_scroll = true };
     auto const& key_step = key_scroll->step;
     auto delta = key_step.delta;
     auto scrolls_to_extent = key_step.scrolls_to_extent;
     auto now = MonotonicTime::now();
-    auto target_scroll_node_index = key_scroll->target_scroll_node_index;
+    auto target_scroll_node_index = *key_scroll->target_scroll_node_index;
 
     m_keyboard_scroll_controller.hold_key(event.key);
 
@@ -967,6 +969,14 @@ ContextState::NodeScrollByWheelDelta ContextState::scroll_node_by_wheel_delta(Co
 void ContextState::note_user_input_scrolled(Web::AsyncScrollNodeStableID stable_node_id)
 {
     m_user_input_scroll_counts.ensure(stable_node_id)++;
+}
+
+u64 ContextState::user_input_scroll_count() const
+{
+    u64 count = 0;
+    for (auto const& entry : m_user_input_scroll_counts)
+        count += entry.value;
+    return count;
 }
 
 Optional<Gfx::Orientation> ContextState::axis_held_by_scrollbar_of(Compositing::SpatialNodeIndex scroll_node_index) const
