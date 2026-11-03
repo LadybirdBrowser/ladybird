@@ -86,16 +86,23 @@ struct InFlowBlockSlot {
 }
 
 /// Per-document store of in-flow block layouts, surviving across layout passes in the layout stage's scratch.
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub(crate) struct InFlowBlockCacheStore {
-    /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every box's entries.
-    entries: RefCell<crate::cow_column::CowVec<InFlowBlockSlot, IN_FLOW_BLOCK_SLOTS_PER_CHUNK>>,
+    /// Written in place, while a fork of the arena reads them as they were when it was made.
+    entries: super::pass_column::ForkSharedRows<InFlowBlockSlot>,
 }
 
-/// How many boxes' entries a chunk of [`InFlowBlockCacheStore::entries`] holds: a write after a fork copies this many.
-const IN_FLOW_BLOCK_SLOTS_PER_CHUNK: usize = 128;
-
 impl InFlowBlockCacheStore {
+    pub(super) fn fork(&self) -> Self {
+        Self {
+            entries: self.entries.fork(),
+        }
+    }
+
+    pub(super) fn cover_slots(&mut self, slot_count: usize) {
+        self.entries.cover_slots(slot_count);
+    }
+
     /// The stored layout of the box in `slot` for `key` that placed the fragment the box committed, `committed_identity`.
     pub(super) fn matching(
         &self,
@@ -104,49 +111,42 @@ impl InFlowBlockCacheStore {
         key: &InFlowBlockKey,
         committed_identity: u64,
     ) -> Option<std::sync::Arc<InFlowBlockEntry>> {
-        let entries = self.entries.borrow();
-        let slot = entries.get(slot as usize)?;
-        [&slot.committed, &slot.latest]
-            .into_iter()
-            .flatten()
-            .find(|entry| {
-                entry.validity == validity && entry.key == *key && entry.fragment_identity == committed_identity
-            })
-            .cloned()
+        self.entries.with_row(slot as usize, |slot| {
+            [&slot?.committed, &slot?.latest]
+                .into_iter()
+                .flatten()
+                .find(|entry| {
+                    entry.validity == validity && entry.key == *key && entry.fragment_identity == committed_identity
+                })
+                .cloned()
+        })
     }
 
     /// Stores `entry`, keeping the entry that placed the box's committed fragment, `committed_identity`.
     pub(super) fn store(&self, slot: u32, entry: InFlowBlockEntry, committed_identity: Option<u64>) {
-        let mut entries = self.entries.borrow_mut();
-        if entries.len() <= slot as usize {
-            entries.resize_with_default(slot as usize + 1);
-        }
-        let slot = &mut entries[slot as usize];
-        let places_committed_fragment = |entry: &Option<std::sync::Arc<InFlowBlockEntry>>| {
-            entry
-                .as_ref()
-                .is_some_and(|entry| Some(entry.fragment_identity) == committed_identity)
-        };
-        if places_committed_fragment(&slot.latest) {
-            slot.committed = slot.latest.take();
-        } else if !places_committed_fragment(&slot.committed) {
-            slot.committed = None;
-        }
-        // An entry nothing else holds is written in place rather than allocated again.
-        if let Some(existing) = slot.latest.as_mut().and_then(std::sync::Arc::get_mut) {
-            *existing = entry;
-            return;
-        }
-        slot.latest = Some(std::sync::Arc::new(entry));
+        self.entries.with_row_mut(slot as usize, |slot| {
+            let places_committed_fragment = |entry: &Option<std::sync::Arc<InFlowBlockEntry>>| {
+                entry
+                    .as_ref()
+                    .is_some_and(|entry| Some(entry.fragment_identity) == committed_identity)
+            };
+            if places_committed_fragment(&slot.latest) {
+                slot.committed = slot.latest.take();
+            } else if !places_committed_fragment(&slot.committed) {
+                slot.committed = None;
+            }
+            // An entry nothing else holds is written in place rather than allocated again.
+            if let Some(existing) = slot.latest.as_mut().and_then(std::sync::Arc::get_mut) {
+                *existing = entry;
+                return;
+            }
+            slot.latest = Some(std::sync::Arc::new(entry));
+        });
     }
 
     pub(crate) fn remove_entry(&mut self, slot: u32) {
-        let entries = self.entries.get_mut();
-        if entries
-            .get(slot as usize)
-            .is_some_and(|entries| entries.latest.is_some() || entries.committed.is_some())
-        {
-            entries[slot as usize] = InFlowBlockSlot::default();
-        }
+        self.entries.reset_row_where(slot as usize, |entries| {
+            entries.latest.is_some() || entries.committed.is_some()
+        });
     }
 }
