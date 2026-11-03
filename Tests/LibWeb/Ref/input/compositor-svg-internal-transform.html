@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/compositor-svg-internal-transform-ref.html">
+<style>
+    body { margin: 0; }
+    svg { display: block; width: 96px; height: 96px; fill: green; }
+    .box { transform-box: fill-box; transform-origin: center; }
+    @keyframes squash { from, to { transform: scaleY(0.5); } }
+    @keyframes shift { from, to { transform: translate(3px, 2px); } }
+    @keyframes shift-by-its-size { from, to { transform: translate(100%, 50%); } }
+    @keyframes turn { from, to { transform: rotate(90deg); } }
+    @keyframes grow { from, to { transform: scale(2); } }
+</style>
+<svg viewBox="0 0 24 24">
+    <rect class="box" style="animation: squash 1s linear infinite" x="2" y="2" width="4" height="4"></rect>
+    <rect style="animation: shift 1s linear infinite" x="8" y="2" width="4" height="4"></rect>
+    <rect class="box" style="animation: shift-by-its-size 1s linear infinite" x="14" y="2" width="4" height="4"></rect>
+    <rect class="box" style="animation: turn 1s linear infinite" x="2" y="11" width="4" height="2"></rect>
+    <rect style="animation: grow 1s linear infinite" x="5" y="9" width="2" height="2"></rect>
+    <g transform="translate(2 2)"><rect class="box" style="animation: squash 1s linear infinite" x="16" y="10" width="4" height="4"></rect></g>
+</svg>
+<script>
+    // These animations stay on one value, so whichever side samples them draws what a box at that value draws. The
+    // reference spells out where each box ends up without a transform, under the same scale from the viewBox.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
