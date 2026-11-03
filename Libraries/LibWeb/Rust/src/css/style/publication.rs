@@ -884,6 +884,15 @@ impl StyleEngine {
 }
 
 impl RetainedState {
+    /// The resolution of `request`: the one the cache holds, or, on a thread of a pass that resolves as it goes, one of
+    /// the pass.
+    pub(super) fn resolved_font(&self, request: bridge::FfiFontResolutionRequest) -> Option<bridge::FfiResolvedFont> {
+        self.font_resolution
+            .as_ref()
+            .and_then(|resolutions| resolutions.lookup(request))
+            .or_else(|| self.pass_fonts.as_ref().map(|pass_fonts| pass_fonts.resolve(request)))
+    }
+
     /// Resolve `request` through `resolver` into the font resolution cache, between passes or the
     /// rounds of one, on the thread that runs them.
     pub(super) fn refill_font_request(

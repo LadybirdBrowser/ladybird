@@ -1512,11 +1512,7 @@ impl RetainedState {
             inputs,
             || self.font_feature_values_scope(node),
         );
-        let Some(resolved) = self
-            .font_resolution
-            .as_ref()
-            .and_then(|resolutions| resolutions.lookup(request))
-        else {
+        let Some(resolved) = self.resolved_font(request) else {
             *suspended_font = Some(font_resolution::FontRequest::new(request));
             return Err(Unanswered::Suspended(Suspension::Font));
         };
