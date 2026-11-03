@@ -1973,7 +1973,7 @@ impl GroupCache {
         self.key_values.extend(
             lookup
                 .values
-                .read_writes(lookup.reads)
+                .read_writes(lookup.reads, lookup.read_groups)
                 .map(|(order, value)| (order, value.clone())),
         );
         let writes_length = self.key_values.len() - values_start;

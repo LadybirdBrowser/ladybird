@@ -2873,8 +2873,29 @@ pub(crate) fn release_group_payload(group_index: usize, payload: *const c_void) 
 /// # Safety
 /// `payload` must be a live payload of the group that stays live for `'a`.
 pub(crate) unsafe fn group_values<'a>(group_index: usize, payload: *const c_void) -> &'a [RetainedStyleValueData] {
-    unsafe { values_of(style_group(group_index), payload) }
+    let (offset, count) = GROUP_VALUE_SPANS[group_index];
+    // SAFETY: The allocation holds `count` initialized values `offset` bytes from the payload.
+    unsafe { ak::slice_from_raw_parts(payload.byte_add(offset).cast::<RetainedStyleValueData>(), count) }
 }
+
+/// Per group, how far from a payload its values start and how many it holds.
+const GROUP_VALUE_SPANS: [(usize, usize); group_index::COUNT] = {
+    let mut spans = [(0, 0); group_index::COUNT];
+    let mut slot = 0;
+    while slot < STYLE_GROUPS.len() {
+        let (size, align) =
+            with_style_group_type!(STYLE_GROUPS[slot], Payload => (size_of::<Payload>(), align_of::<Payload>()));
+        let header = if align > size_of::<usize>() {
+            align
+        } else {
+            size_of::<usize>()
+        };
+        let offset = (header + size).next_multiple_of(align_of::<RetainedStyleValueData>()) - header;
+        spans[slot] = (offset, GROUP_VALUE_LAYOUT.counts[slot] as usize);
+        slot += 1;
+    }
+    spans
+};
 
 /// The bytes of the computed values the group of `payload`, a payload of the group at `group_index`,
 /// holds, in its values and in its payload handles, as `sizer` has not counted them yet.
@@ -3999,6 +4020,16 @@ impl LonghandPlace {
         handle: 0,
     };
 
+    /// Whether a build reading `reads` reads the value at this place, a place of a group.
+    #[inline]
+    fn is_read_by(self, reads: &GroupReads) -> bool {
+        let bit = match self.handle {
+            0 => 1 << self.index,
+            _ => READS_PAYLOAD_HANDLES,
+        };
+        reads[usize::from(self.group)] & bit != 0
+    }
+
     /// Where this place comes among the places of the groups: by group, then by index, with the
     /// payload handles of a group after its values.
     fn order(self) -> u32 {
@@ -5112,7 +5143,7 @@ impl GroupValues<'_> {
             remaining &= remaining - 1;
             hasher.write_usize(self.seeds.pointers[group] as usize);
             for write in self.writes_of(group) {
-                if GroupValueLayout::reads(reads, write.place) {
+                if write.place.is_read_by(reads) {
                     hasher.write_u32(write.place.order());
                     hasher.write_u64(crate::css::style_value::style_value_content_hash(
                         write.value.optional_data(),
@@ -5129,14 +5160,21 @@ impl GroupValues<'_> {
             .map(|group| self.seeds.held(group))
     }
 
-    /// What is written over the values `reads` names, in place order, by where each comes in it.
+    /// What is written over the values `reads` names, of the groups `read_groups` names, in place
+    /// order, by where each comes in it.
     pub(crate) fn read_writes<'r>(
         &'r self,
         reads: &'r GroupReads,
+        read_groups: u32,
     ) -> impl Iterator<Item = (u32, &'r RetainedStyleValueData)> + 'r {
-        self.writes
+        // NB: A group's build mostly reads its own values alone.
+        let writes = match read_groups.is_power_of_two() {
+            true => self.writes_of(read_groups.trailing_zeros() as usize),
+            false => &self.writes[..],
+        };
+        writes
             .iter()
-            .filter(|write| GroupValueLayout::reads(reads, write.place))
+            .filter(|write| write.place.is_read_by(reads))
             .map(|write| (write.place.order(), &write.value))
     }
 
@@ -5163,7 +5201,7 @@ impl GroupValues<'_> {
             }
         }
         let mut written = written.iter();
-        self.read_writes(reads).all(|(place, value)| {
+        self.read_writes(reads, read_groups).all(|(place, value)| {
             written
                 .next()
                 .is_some_and(|(order, held)| *order == place && (held.pointer() == value.pointer() || held == value))
