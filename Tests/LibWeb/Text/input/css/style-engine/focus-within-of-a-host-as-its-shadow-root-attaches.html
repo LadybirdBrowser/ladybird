@@ -1,0 +1,33 @@
+<!doctype html>
+<style>
+    :focus-within {
+        color: rgb(1, 2, 3);
+    }
+</style>
+<div id="outer">
+    <div id="host"><div id="child"><button id="button"></button></div></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        function report(label) {
+            for (const id of ["outer", "host", "child", "button"]) {
+                const element = document.getElementById(id);
+                println(`${label}: ${id} ${element.matches(":focus-within")} ${getComputedStyle(element).color}`);
+            }
+        }
+
+        document.getElementById("button").focus();
+        report("Focused");
+
+        // The children of a host stand in the flat tree only through a slot.
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        report("Attached");
+
+        shadow.innerHTML = `<slot></slot>`;
+        report("Slotted");
+
+        shadow.firstChild.remove();
+        report("Slot removed");
+    });
+</script>
