@@ -7283,6 +7283,12 @@ void LocalNavigable::request_scroll_jump(Web::AsyncScrollNodeStableID stable_nod
 
 void LocalNavigable::request_smooth_scroll(Web::AsyncScrollNodeStableID stable_node_id, Compositing::RequestedSmoothScroll smooth_scroll)
 {
+    if (smooth_scroll.destination_is_relative) {
+        if (auto const* scrolling_box = committed_scrolling_box_for_async_scroll_node(*active_document(), stable_node_id)) {
+            smooth_scroll.relative_lower_bound = device_scroll_offset(Painting::minimum_scroll_offset(*scrolling_box));
+            smooth_scroll.relative_upper_bound = device_scroll_offset(Painting::maximum_scroll_offset(*scrolling_box));
+        }
+    }
     auto& scroll_request = unsent_scroll_request_for(stable_node_id);
     // A scroll that continues the same operation folds into the request for it, whose promises carry over.
     if (scroll_request.smooth_scroll.has_value() && scroll_request.smooth_scroll->operation_id == smooth_scroll.operation_id) {
