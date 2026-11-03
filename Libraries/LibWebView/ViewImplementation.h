@@ -861,6 +861,7 @@ protected:
     SharedBitmap m_front_bitmap;
     Vector<SharedBitmap> m_other_bitmaps;
     bool m_has_usable_bitmap { false };
+    bool m_pinch_gesture_was_canceled { false };
     bool m_presents_from_cpu_memory { false };
 
     // Set once an assistive technology asked for the page tree; every display page the view shows from then on gets
