@@ -249,7 +249,9 @@ impl ElementDeclarationRow {
                 references: std::sync::atomic::AtomicU32::new(1),
                 ends: stored_ends,
             });
-            let row = Self(header);
+            // NB: The row owns its values once they are all written, so a panic while writing them
+            //     leaks the allocation rather than dropping what was never written.
+            let row = std::mem::ManuallyDrop::new(Self(header));
             if custom_count != 0 {
                 header.add(1).cast::<CustomCount>().write(CustomCount {
                     count: u32::try_from(custom_count).expect("an element's custom declarations fit in u32"),
@@ -274,7 +276,7 @@ impl ElementDeclarationRow {
                 written_count, count,
                 "an element's declarations are as many as its ends say"
             );
-            row
+            std::mem::ManuallyDrop::into_inner(row)
         }
     }
 
@@ -948,6 +950,18 @@ mod tests {
         store.set(node, hints, unwritten_declarations(&[declared(4)]));
         assert_eq!(fork.declared_properties(node, hints), &[declared(3)][..]);
         assert_eq!(store.declared_properties(node, hints), &[declared(4)][..]);
+    }
+
+    #[test]
+    fn a_panic_while_a_row_is_written_drops_no_value() {
+        let ends = [1; ElementDeclarationKind::COUNT];
+        let panicking = std::iter::from_fn(|| -> Option<(DeclarationEntry, RetainedStyleValueData, Checks)> {
+            panic!("a declaration fails to prepare");
+        });
+        let built = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            ElementDeclarationRow::build(panicking, ends, Vec::new())
+        }));
+        assert!(built.is_err());
     }
 
     #[test]
