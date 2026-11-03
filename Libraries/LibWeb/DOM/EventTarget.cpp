@@ -290,6 +290,11 @@ static void invalidate_compositor_keyboard_scroll_state(EventTarget& target, DOM
         node->document().page().keyboard_scroll_event_path_changed(target);
 }
 
+static bool is_blocking_keyboard_event_listener(DOMEventListener const& listener)
+{
+    return AK::first_is_one_of(listener.type, u"keydown"sv, u"keypress"sv) && listener.passive != true;
+}
+
 static bool is_blocking_wheel_event_listener(DOMEventListener const& listener)
 {
     return AK::first_is_one_of(listener.type, u"wheel"sv, u"mousewheel"sv) && listener.passive != true;
@@ -1187,6 +1192,11 @@ bool EventTarget::has_event_listener(Utf16FlyString const& type) const
 bool EventTarget::has_blocking_wheel_event_listener() const
 {
     return m_data && m_data->event_listener_list.contains(is_blocking_wheel_event_listener);
+}
+
+bool EventTarget::has_blocking_keyboard_event_listener() const
+{
+    return m_data && m_data->event_listener_list.contains(is_blocking_keyboard_event_listener);
 }
 
 bool EventTarget::has_event_listeners() const

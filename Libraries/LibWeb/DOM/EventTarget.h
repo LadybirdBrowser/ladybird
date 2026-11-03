@@ -78,6 +78,7 @@ public:
 
     bool has_event_listener(Utf16FlyString const& type) const;
     bool has_blocking_wheel_event_listener() const;
+    bool has_blocking_keyboard_event_listener() const;
     bool has_event_listeners() const;
 
 protected:
