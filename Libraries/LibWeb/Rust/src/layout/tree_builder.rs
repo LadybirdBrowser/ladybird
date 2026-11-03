@@ -2829,7 +2829,18 @@ fn construct_principal_layout_node(
                 FfiElementLayoutKind::SvgClipPath => Some(NodeKind::SVGClipBox),
                 FfiElementLayoutKind::SvgPattern => Some(NodeKind::SVGPatternBox),
                 FfiElementLayoutKind::Normal => {
-                    node_kind_for_element_box_kind(box_kind, facts.display, facts.appearance)
+                    use crate::css::style::bridge::element_construction_fact::USES_BUTTON_LAYOUT;
+                    let uses_button_layout = host
+                        .arena()
+                        .with_style_store(|engine| engine.element_construction_facts(update.identity))
+                        & USES_BUTTON_LAYOUT
+                        != 0;
+                    // NB: The anonymous button content box holds all the children of a box in button layout, which
+                    //     leaves no place for an outside marker beside them, so such a box is not a list item.
+                    match node_kind_for_element_box_kind(box_kind, facts.display, facts.appearance) {
+                        Some(NodeKind::ListItemBox) if uses_button_layout => Some(NodeKind::BlockContainer),
+                        kind => kind,
+                    }
                 }
             };
             if let Some(kind) = kind {

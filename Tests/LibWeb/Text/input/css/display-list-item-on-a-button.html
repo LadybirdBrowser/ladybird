@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .item { display: list-item; }
+</style>
+<body>
+<input class="item" type="color">
+<input class="item" type="file">
+<input class="item" type="button" value="button">
+<input class="item" type="button" value="button" style="appearance: none">
+<button class="item">text</button>
+<button class="item"><div>block</div></button>
+<script>
+    test(() => {
+        for (const element of document.querySelectorAll(".item")) {
+            const { height } = element.getBoundingClientRect();
+            println(`${element.localName} ${element.type} displays as ${getComputedStyle(element).display} with a box: ${height > 0}`);
+        }
+    });
+</script>
