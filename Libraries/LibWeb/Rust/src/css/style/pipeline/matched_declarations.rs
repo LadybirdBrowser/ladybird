@@ -223,6 +223,11 @@ impl<'a> MatchedKey<'a> {
         self.declares_own
     }
 
+    /// What tells this key from others, short of comparing what it names.
+    pub(super) fn hash(&self) -> u64 {
+        self.hash
+    }
+
     /// This key, looking for what `winners` and `custom_winners` were picked by a cascade.
     pub(super) fn for_picked(
         &self,
@@ -831,6 +836,22 @@ mod tests {
         let entries = matched_declarations(&engine).entry_count();
         assert_ne!(entries, 0);
         assert!(entries <= MAX_BUCKETS * WAYS, "{entries} entries");
+        assert_live_matches_cold(&mut engine, nodes[0]);
+    }
+
+    #[test]
+    fn elements_with_one_key_wait_on_a_font_once() {
+        let (mut engine, nodes) = document_with_children(12);
+        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
+        add_rules(&mut engine, sheet, ".item { font-size: 13px; }");
+        start_live(&mut engine, nodes[0]);
+        let requests = |engine: &StyleEngine| engine.retained.counters.get(Counter::FontResolutionRequests);
+        let before = requests(&engine);
+        for &node in &nodes[1..] {
+            add_class(&mut engine, node, "item");
+        }
+        run_style_update(&mut engine, nodes[0]);
+        assert_eq!(requests(&engine), before + 1);
         assert_live_matches_cold(&mut engine, nodes[0]);
     }
 

@@ -2137,6 +2137,7 @@ impl Live {
                 suspends: true,
                 group_caches: Some(&self.scratch.groups),
                 kept_matched_declarations: Some(&self.scratch.matched_declarations),
+                waits_once: round + 1 < MAX_SUSPENDING_ROUNDS,
                 cache_audit: self.cache_audit,
                 root_font: root_font.map_or_else(Default::default, std::sync::OnceLock::from),
                 root_font_moved: root_font_moved.map_or_else(Default::default, std::sync::OnceLock::from),
