@@ -1,0 +1,3 @@
+checkbox: 13x13, the tree matches a full rebuild: true
+radio: 12x12, the tree matches a full rebuild: true
+back to a checkbox: 13x13, the tree matches a full rebuild: true

@@ -120,6 +120,7 @@ enum class SetNeedsLayoutReason {
     X(DetailsElementOpenedOrClosed)                       \
     X(HTMLImageElementUpdateTheImageData)                 \
     X(HTMLInputElementSrcAttribute)                       \
+    X(HTMLInputElementTypeAttribute)                      \
     X(HTMLObjectElementUpdateLayoutAndChildObjects)       \
     X(KeyframeEffect)                                     \
     X(LanguageChangeUnderCasingTextTransform)             \

@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<input id="input" type="checkbox">
+<script>
+    test(() => {
+        const report = label => {
+            const { width, height } = input.getBoundingClientRect();
+            println(`${label}: ${width}x${height}, the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        };
+        report("checkbox");
+        input.type = "radio";
+        report("radio");
+        input.type = "checkbox";
+        report("back to a checkbox");
+    });
+</script>
