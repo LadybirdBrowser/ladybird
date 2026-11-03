@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .flex { display: flex; }
+    .contents { display: contents; }
+    .contents::before { content: "x"; }
+</style>
+<div><div class="contents" id="in-block-first"></div></div>
+<div class="flex"><div class="contents" id="in-flex-second"></div></div>
+<div class="flex"><div class="contents"><div class="contents" id="nested-in-flex"></div></div></div>
+<div id="late-parent"></div>
+<script>
+    test(() => {
+        const display = id => getComputedStyle(document.getElementById(id), "::before").display;
+        println(`in a block: ${display("in-block-first")}`);
+        println(`in a flex container: ${display("in-flex-second")}`);
+        println(`nested in a flex container: ${display("nested-in-flex")}`);
+
+        const parent = document.getElementById("late-parent");
+        parent.innerHTML = '<div class="contents" id="late"></div>';
+        println(`added in a block: ${display("late")}`);
+        parent.style.display = "flex";
+        println(`parent became a flex container: ${display("late")}`);
+        parent.style.display = "block";
+        println(`parent became a block: ${display("late")}`);
+    });
+</script>
