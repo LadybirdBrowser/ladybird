@@ -43,8 +43,8 @@ pub(super) struct InstallScratch {
     pub(super) installed: HashMap<PointerKey<std::sync::Arc<super::Record>>, computed::FinalStyleRecordID>,
     /// The elements the installation let go of the animation overlay of, with its view.
     pub(super) released_compositions: Vec<(StyleNodeID, super::live::HeldComposition)>,
-    /// The elements whose records hold what a record installed before them does, which they keep
-    /// in place of their own, by the address of their own.
+    /// The elements that installed a copy of their records, which they keep in place of their own,
+    /// by the address of their own.
     pub(super) adopted: Vec<(StyleNodeID, usize, std::sync::Arc<super::Record>)>,
 }
 
@@ -186,25 +186,6 @@ mod tests {
         engine.take_installation();
         nodes.insert(1, first);
         (engine, nodes)
-    }
-
-    #[test]
-    fn an_element_whose_record_holds_what_an_installed_one_does_keeps_that_one() {
-        let (mut engine, nodes) = linear_document();
-        let sheet = add_sheet(&mut engine, TreeScopeID::DOCUMENT);
-        add_rules(
-            &mut engine,
-            sheet,
-            ".a { color: rgb(0, 128, 0); } .b { color: rgb(0, 128, 0); }",
-        );
-        start_live(&mut engine, nodes[0]);
-        add_class(&mut engine, nodes[1], "a");
-        add_class(&mut engine, nodes[2], "b");
-        run_style_update(&mut engine, nodes[0]);
-        assert!(std::sync::Arc::ptr_eq(
-            &live_record(&engine, nodes[1]),
-            &live_record(&engine, nodes[2])
-        ));
     }
 
     #[test]

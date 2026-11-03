@@ -387,6 +387,7 @@ interface Internals {
     // once however many of them share it.
     unsigned long long styleMemoryOfFrames();
     unsigned long long styleRecordIdentity(Element element);
+    unsigned long long customPropertyEnvironmentIdentity(Element element);
     unsigned long long layoutStyleRecordIdentity(Element element);
     unsigned long long beforeStyleRecordIdentity(Element element);
     unsigned long long beforeLayoutStyleRecordIdentity(Element element);

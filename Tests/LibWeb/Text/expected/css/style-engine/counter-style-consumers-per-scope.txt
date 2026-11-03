@@ -1,0 +1,4 @@
+scopes' consumers hold different records: true
+first scope's consumers look alike: true
+second scope's consumers look alike: true
+each scope's consumers use its counter style: true
