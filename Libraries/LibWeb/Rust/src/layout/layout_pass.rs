@@ -285,11 +285,19 @@ impl<'arena> LayoutPass<'arena> {
     /// The style of `node`: that of its row, or the position option it is being laid out with.
     #[inline]
     pub(crate) fn computed_values_view_if_styled(&self, node: Node) -> Option<ComputedValuesView<'arena>> {
+        self.row_and_style(node).1
+    }
+
+    /// The row of `node` together with its style as [`Self::computed_values_view_if_styled`] answers it, from one
+    /// lookup of the row.
+    #[inline]
+    pub(crate) fn row_and_style(&self, node: Node) -> (&'arena NodeData, Option<ComputedValuesView<'arena>>) {
+        let data = self.node_data(node);
         if let Some(style) = self.position_option_style(node) {
             // SAFETY: A position option's style stays alive while a box is laid out with it.
-            return Some(unsafe { style.view() });
+            return (data, Some(unsafe { style.view() }));
         }
-        self.arena.style_view(node)
+        (data, node_facts::node_style_view(data))
     }
 
     pub(crate) fn can_skip_is_anonymous_text_run(&self, node: Node) -> bool {

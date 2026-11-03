@@ -225,8 +225,9 @@ impl<'a> StyleValues<'a> {
 
     #[inline]
     pub(crate) fn for_node(callbacks: &LayoutPass<'a>, node: Node) -> Self {
-        StyleValues::new(callbacks.style_view(node))
-            .for_kind(callbacks.node_data(node).kind.get())
+        let (data, style) = callbacks.row_and_style(node);
+        StyleValues::new(style.expect("styled node must publish its style container before layout"))
+            .for_kind(data.kind.get())
             .in_frame(callbacks.frame)
     }
 

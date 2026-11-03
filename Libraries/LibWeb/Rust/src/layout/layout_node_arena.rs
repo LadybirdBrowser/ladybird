@@ -51,6 +51,23 @@ pub(crate) use main_thread_entries::MainThreadFfiEntry;
 
 pub(crate) const SLOTS_PER_CHUNK: usize = 256;
 
+#[cold]
+#[inline(never)]
+#[track_caller]
+fn invalid_slot_access(id: NodeSlotId) -> ! {
+    panic!("invalid layout node arena slot ID {id:?}")
+}
+
+#[cold]
+#[inline(never)]
+#[track_caller]
+fn stale_slot_access(id: NodeSlotId, slot_generation: u8, access: &str) -> ! {
+    panic!(
+        "layout node arena {access} a stale or unused slot: {id:?} has generation {}, the slot {slot_generation}",
+        id.generation()
+    )
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct IntrinsicSizeCacheKey {
     /// The block size inline sizes were measured at, or the inline size a block size was measured at.
@@ -1676,37 +1693,31 @@ impl LayoutNodeArena {
         paintable_row_reset
     }
 
+    // NB: The invalid ID names a slot past every chunk the arena can hold, or one whose generation never matches, so
+    //     the chunk lookup and the generation check reject it too.
     #[inline]
     pub(crate) fn data(&self, id: NodeSlotId) -> &NodeData {
-        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         let index = id.slot_index() as usize;
-        let chunk = self
-            .chunks
-            .get(index / SLOTS_PER_CHUNK)
-            .expect("invalid layout node arena slot ID");
+        let Some(chunk) = self.chunks.get(index / SLOTS_PER_CHUNK) else {
+            invalid_slot_access(id)
+        };
         let data = chunk.slot(index % SLOTS_PER_CHUNK);
-        assert_eq!(
-            data.slot_generation.get(),
-            id.generation(),
-            "layout node arena read a stale or unused slot"
-        );
+        if data.slot_generation.get() != id.generation() {
+            stale_slot_access(id, data.slot_generation.get(), "read")
+        }
         data
     }
 
     /// The node's shape, for writing. See [`ShapeWriter`].
     pub(crate) fn write_shape(&mut self, id: NodeSlotId) -> ShapeWriter<'_> {
-        assert!(!id.is_invalid(), "invalid layout node arena slot ID");
         let index = id.slot_index() as usize;
-        let shape = self
-            .chunks
-            .get_mut(index / SLOTS_PER_CHUNK)
-            .expect("invalid layout node arena slot ID")
-            .write_shape(index / SLOTS_PER_CHUNK, index % SLOTS_PER_CHUNK, &mut self.shape_writes);
-        assert_eq!(
-            shape.slot_generation.get(),
-            id.generation(),
-            "layout node arena wrote a stale or unused slot"
-        );
+        let Some(chunk) = self.chunks.get_mut(index / SLOTS_PER_CHUNK) else {
+            invalid_slot_access(id)
+        };
+        let shape = chunk.write_shape(index / SLOTS_PER_CHUNK, index % SLOTS_PER_CHUNK, &mut self.shape_writes);
+        if shape.slot_generation.get() != id.generation() {
+            stale_slot_access(id, shape.slot_generation.get(), "wrote")
+        }
         shape
     }
 
