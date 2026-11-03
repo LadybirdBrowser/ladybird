@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        scrollTo(0, document.documentElement.scrollHeight);
+        internals.synchronizeCompositor();
+        await animationFrame();
+        await animationFrame();
+        const bottom = internals.compositorScrollState().scrollOffset.y;
+
+        // The main thread's offset is now past the new bottom, so layout moves it there.
+        document.body.style.height = "2900px";
+        document.documentElement.scrollHeight;
+        println(`main thread moved up with the bottom: ${scrollY < bottom}`);
+
+        // Beside this task, the user scrolls the compositor up past the new bottom.
+        internals.wheelThroughUIProcess(50, 50, 0, -200, true, "ongoing");
+        const giveUpAt = performance.now() + 5000;
+        while (internals.compositorScrollState().scrollOffset.y === bottom && performance.now() < giveUpAt)
+            internals.synchronizeCompositor();
+        println(`wheel scrolled up by: ${bottom - internals.compositorScrollState().scrollOffset.y}`);
+
+        // The frame of the layout reaches the compositor after the task.
+        await animationFrame();
+        await animationFrame();
+        internals.synchronizeCompositor();
+        println(`after the frame, up from the old bottom by: ${bottom - internals.compositorScrollState().scrollOffset.y}`);
+
+        await internals.wheelThroughUIProcess(50, 50, 0, 0, true, "ended");
+    });
+</script>
