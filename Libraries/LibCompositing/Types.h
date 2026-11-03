@@ -204,6 +204,10 @@ struct RequestedSmoothScroll {
     // Where the scroll goes, or how far it goes from wherever the box is.
     Gfx::FloatPoint destination_offset;
     bool destination_is_relative { false };
+    // What a relative scroll clamps the box to, as each scroll folded into it clamps the box to the scroll range it
+    // had.
+    Gfx::FloatPoint relative_lower_bound { -AK::Infinity<float>, -AK::Infinity<float> };
+    Gfx::FloatPoint relative_upper_bound { AK::Infinity<float>, AK::Infinity<float> };
     ScrollAnimationKind animation_kind { ScrollAnimationKind::SmoothScroll };
     SmoothScrollInitiator initiator { SmoothScrollInitiator::Programmatic };
     // User input that heads the user input scroll of the same operation somewhere else, rather than starting another.
@@ -212,19 +216,31 @@ struct RequestedSmoothScroll {
     // that the main thread had heard of. User input the compositor took since carries the gesture on instead.
     Optional<u64> settled_user_input_scroll_count;
 
+    RequestedRelativeScroll relative_scroll() const
+    {
+        VERIFY(destination_is_relative);
+        return { destination_offset, relative_lower_bound, relative_upper_bound };
+    }
+
     // A later scroll of the same operation goes on from where this one was headed.
     void fold_later(RequestedSmoothScroll const& later)
     {
         VERIFY(later.operation_id == operation_id);
-        auto earlier_destination_offset = destination_offset;
-        auto earlier_destination_is_relative = destination_is_relative;
-        auto earlier_retargets_operation = retargets_operation;
+        auto earlier = *this;
         *this = later;
-        retargets_operation |= earlier_retargets_operation;
-        if (later.destination_is_relative) {
-            destination_offset.translate_by(earlier_destination_offset);
-            destination_is_relative = earlier_destination_is_relative;
+        retargets_operation |= earlier.retargets_operation;
+        if (!later.destination_is_relative)
+            return;
+        if (!earlier.destination_is_relative) {
+            destination_offset = later.relative_scroll().applied_to(earlier.destination_offset);
+            destination_is_relative = false;
+            return;
         }
+        auto folded = earlier.relative_scroll();
+        folded.then(later.relative_scroll());
+        destination_offset = folded.delta;
+        relative_lower_bound = folded.lower_bound;
+        relative_upper_bound = folded.upper_bound;
     }
 };
 

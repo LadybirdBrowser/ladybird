@@ -1136,7 +1136,7 @@ Optional<PendingFrame> ContextState::apply_scroll_requests(ReadonlySpan<Composit
                 auto relative_scroll_start = m_async_scroll_tree.scroll_offset_for_node(scroll_node_index.value(), m_scroll_state_snapshot).value();
                 if (smooth_scroll->initiator == Compositing::SmoothScrollInitiator::UserInput && destination_of_running_user_scroll.has_value())
                     relative_scroll_start = destination_of_running_user_scroll.value();
-                destination_offset.translate_by(relative_scroll_start);
+                destination_offset = smooth_scroll->relative_scroll().applied_to(relative_scroll_start);
             }
             destination_offset = m_async_scroll_tree.clamped_scroll_offset_for_node(scroll_node_index.value(), destination_offset);
             if (retargets_running_animation) {

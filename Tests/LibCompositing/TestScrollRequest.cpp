@@ -94,3 +94,25 @@ TEST_CASE(later_step_of_an_unsent_operation_goes_on_from_where_it_was_headed)
     EXPECT(!then_to_an_offset.destination_is_relative);
     EXPECT(then_to_an_offset.retargets_operation);
 }
+
+TEST_CASE(step_past_the_end_of_the_scroll_range_takes_nothing_from_the_later_step_of_an_unsent_operation)
+{
+    auto step = [](float delta) {
+        auto scroll = smooth_scroll({ 0, delta }, true, true);
+        scroll.relative_lower_bound = { 0, 0 };
+        scroll.relative_upper_bound = { 0, 1000 };
+        return scroll;
+    };
+
+    auto from_the_start = step(-100);
+    from_the_start.fold_later(step(100));
+    EXPECT_EQ(from_the_start.relative_scroll().applied_to({ 0, 0 }), Gfx::FloatPoint(0, 100));
+    EXPECT_EQ(from_the_start.relative_scroll().applied_to({ 0, 500 }), Gfx::FloatPoint(0, 500));
+    EXPECT_EQ(from_the_start.relative_scroll().applied_to({ 0, 1000 }), Gfx::FloatPoint(0, 1000));
+
+    auto to_an_offset = smooth_scroll({ 0, 950 }, false, false);
+    to_an_offset.fold_later(step(100));
+    EXPECT_EQ(to_an_offset.destination_offset, Gfx::FloatPoint(0, 1000));
+    to_an_offset.fold_later(step(-100));
+    EXPECT_EQ(to_an_offset.destination_offset, Gfx::FloatPoint(0, 900));
+}
