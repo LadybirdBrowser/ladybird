@@ -5658,18 +5658,11 @@ pub(crate) fn compute_declared_values<'a>(
 ) -> bool {
     use crate::css::property_metadata::property_id as prop;
 
-    // https://www.w3.org/TR/css-color-4/#resolving-other-colors
-    // In the color property, the used value of currentcolor is the resolved inherited value.
-    let inherited_color = values.get(prop::COLOR).cloned();
-    let inherited_text_align = match values
-        .get(prop::TEXT_ALIGN)
-        .and_then(RetainedStyleValueData::optional_data)
-    {
-        Some(StyleValueData::Keyword { keyword }) => *keyword,
-        _ => return false,
+    // The longhands held as bits, as the element holds them before its own declarations.
+    let seeded_bits = values.bits();
+    let inherited = |property_id: u16| {
+        seeded_bits.value(crate::css::computed_values::StyleBitField::of(property_id).expect("a longhand of the bits"))
     };
-    let (writing_mode, direction) =
-        writing_mode_and_direction_of(values.get(prop::WRITING_MODE), values.get(prop::DIRECTION));
     // The longhands decided so far: a lower-priority member of a logical pair decides nothing the
     // higher-priority member decided.
     let mut decided = [0_u64; crate::css::property_metadata::LONGHAND_WORD_COUNT];
@@ -5685,13 +5678,6 @@ pub(crate) fn compute_declared_values<'a>(
     let was_driven = |property_id: u16| {
         let index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
         driven.is_some_and(|words| words[index / 64] & (1 << (index % 64)) != 0)
-    };
-    let parent_direction_is_ltr = match values
-        .get(prop::DIRECTION)
-        .and_then(RetainedStyleValueData::optional_data)
-    {
-        Some(StyleValueData::Keyword { keyword }) => *keyword == keyword::LTR,
-        _ => return false,
     };
     let context = crate::css::absolutize::AbsolutizationContext {
         length,
@@ -5723,8 +5709,12 @@ pub(crate) fn compute_declared_values<'a>(
             values.flags_mut().mark_evaluated(property_id);
             continue;
         }
+        // https://www.w3.org/TR/css-color-4/#resolving-other-colors
+        // In the color property, the used value of currentcolor is the resolved inherited value.
+        let inherited_color;
         let color_context;
         let context = if property_id == prop::COLOR {
+            inherited_color = values.get(prop::COLOR).cloned();
             color_context = crate::css::absolutize::AbsolutizationContext {
                 current_color: inherited_color.as_ref().and_then(RetainedStyleValueData::optional_data),
                 resolved_viewport_relative_length: std::cell::Cell::new(false),
@@ -5777,7 +5767,13 @@ pub(crate) fn compute_declared_values<'a>(
         };
         // The physical longhand a logical alias's value computes as.
         let physical = match table_row_bits(property_id) & LOGICAL_ALIAS_BIT != 0 {
-            true => Some(map_logical_alias_to_physical(property_id, writing_mode, direction)),
+            true => {
+                let (writing_mode, direction) = writing_mode_and_direction_of(
+                    Some(inherited(prop::WRITING_MODE)),
+                    Some(inherited(prop::DIRECTION)),
+                );
+                Some(map_logical_alias_to_physical(property_id, writing_mode, direction))
+            }
             false => None,
         };
         // https://drafts.csswg.org/css-backgrounds/#border-width
@@ -5799,12 +5795,24 @@ pub(crate) fn compute_declared_values<'a>(
             let Some(StyleValueData::Keyword { keyword }) = computed.optional_data() else {
                 return false;
             };
+            let Some(StyleValueData::Keyword {
+                keyword: inherited_text_align,
+            }) = inherited(prop::TEXT_ALIGN).optional_data()
+            else {
+                return false;
+            };
+            let Some(StyleValueData::Keyword {
+                keyword: inherited_direction,
+            }) = inherited(prop::DIRECTION).optional_data()
+            else {
+                return false;
+            };
             let adjustment = compute_text_align_adjustment(
                 *keyword,
                 is_th_element,
                 true,
-                inherited_text_align,
-                parent_direction_is_ltr,
+                *inherited_text_align,
+                *inherited_direction == keyword::LTR,
             );
             if adjustment.changed {
                 computed = std::borrow::Cow::Owned(RetainedStyleValueData::from_arc(StyleValueArc::new(
