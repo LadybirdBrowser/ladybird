@@ -4108,11 +4108,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 block_size: definite_block_size.map_or(AvailableSize::Indefinite, AvailableSize::definite),
             },
             containing_block_constraints: input.containing_block_constraints,
-            sizing: RootSizingDirectives {
-                forced_content_inline_size: geometry::PackedOptionalCssPixels::from(Some(geometry.inline_size)),
-                forced_content_block_size: geometry::PackedOptionalCssPixels::from(definite_block_size),
-                ..RootSizingDirectives::default()
-            },
+            sizing: RootSizingDirectives::default(),
             participation: ParticipationInParentFormattingContext::Root,
         };
         let spanner_input = self.child_layout_input(self.root_block_container(), input.clone(), input.available_space);
@@ -4496,6 +4492,11 @@ impl<'pass> BlockFormattingContext<'pass> {
             ColumnLayoutUse::BalancingProbe => false,
             ColumnLayoutUse::ContainerContent => self.run.fragments.is_some(),
         };
+        let AvailableSize::Definite(column_inline_size) = input.available_space.inline_size else {
+            unreachable!("a column's available inline size is the inline size of the columns");
+        };
+        let mut column_root_cells = self.root_cells;
+        column_root_cells.set_content_inline_size(column_inline_size);
         loop {
             let fragmentainer = std::rc::Rc::new(fragmentation::FragmentainerContext::new(
                 block_size,
@@ -4507,7 +4508,7 @@ impl<'pass> BlockFormattingContext<'pass> {
             ));
             let outputs = formatting_context::run_fragmentainer(
                 &self.run,
-                self.root_cells,
+                column_root_cells,
                 builds_fragments,
                 input.clone(),
                 fragmentainer.clone(),

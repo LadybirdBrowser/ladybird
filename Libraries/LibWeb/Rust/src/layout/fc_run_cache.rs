@@ -285,7 +285,6 @@ fn sizing_directives_match_ignoring_unobserved(
     content_block_size_adopted_after_run_unobserved: bool,
 ) -> bool {
     let RootSizingDirectives {
-        forced_content_inline_size,
         forced_content_block_size,
         forced_min_border_box_block_size,
         block_parent_resolved_content_inline_size,
@@ -300,8 +299,7 @@ fn sizing_directives_match_ignoring_unobserved(
         root_is_measured_for_its_content_block_size,
         root_keeps_its_committed_geometry,
     } = *a;
-    forced_content_inline_size == b.forced_content_inline_size
-        && forced_content_block_size == b.forced_content_block_size
+    forced_content_block_size == b.forced_content_block_size
         && forced_min_border_box_block_size == b.forced_min_border_box_block_size
         && block_parent_resolved_content_inline_size == b.block_parent_resolved_content_inline_size
         && table_cell_intrinsic_block_padding == b.table_cell_intrinsic_block_padding

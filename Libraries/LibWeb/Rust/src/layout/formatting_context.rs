@@ -1712,20 +1712,7 @@ fn apply_root_sizing_directives(
             }
             input.clone()
         }
-        ParticipationInParentFormattingContext::Root => {
-            let directives = input.sizing;
-            if directives.forced_content_inline_size.is_some() || directives.forced_content_block_size.is_some() {
-                let used = sized_root.cells;
-                if let Some(inline_size) = directives.forced_content_inline_size.get() {
-                    used.set_content_inline_size(inline_size);
-                }
-                if let Some(block_size) = directives.forced_content_block_size.get() {
-                    used.set_content_block_size(block_size);
-                    used.update_cells(|cells| cells.has_definite_block_size = true);
-                }
-            }
-            input.clone()
-        }
+        ParticipationInParentFormattingContext::Root => input.clone(),
     };
     RootSizingOutcome {
         body_input,
@@ -2783,12 +2770,10 @@ fn body_input_in_own_frame(
     }
     let mut constraints = input.containing_block_constraints;
     let mut available_space = input.available_space;
-    let mut sizing = RootSizingDirectives {
+    let sizing = RootSizingDirectives {
         treat_block_axis_percentage_insets_as_auto_beyond_root: input
             .sizing
             .treat_block_axis_percentage_insets_as_auto_beyond_root,
-        forced_content_inline_size: body_input.sizing.forced_content_inline_size,
-        forced_content_block_size: body_input.sizing.forced_content_block_size,
         root_keeps_its_committed_geometry: input.sizing.root_keeps_its_committed_geometry,
         ..RootSizingDirectives::default()
     };
@@ -2798,10 +2783,6 @@ fn body_input_in_own_frame(
     );
     constraints.quirks_mode_percentage_basis_block_size = None;
     std::mem::swap(&mut available_space.inline_size, &mut available_space.block_size);
-    std::mem::swap(
-        &mut sizing.forced_content_inline_size,
-        &mut sizing.forced_content_block_size,
-    );
     // https://drafts.csswg.org/css-writing-modes-4/#orthogonal-flows
     // In the sizing phase [...] the dimensions of the box and the containing block are mapped to the inline
     // size and block size and calculations are performed accordingly using the writing mode of the box
@@ -3735,7 +3716,10 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
                 } else {
                     root
                 };
-            let root_cells = used_values::cells_before_sizing(&callbacks, root_for_layout, root_constraints);
+            let mut root_cells = used_values::cells_before_sizing(&callbacks, root_for_layout, root_constraints);
+            root_cells.set_content_inline_size(viewport_inline_size);
+            root_cells.set_content_block_size(viewport_block_size);
+            root_cells.has_definite_block_size = true;
             let input = LayoutInput::new(
                 AvailableSpace {
                     inline_size: AvailableSize::definite(viewport_inline_size),
@@ -3743,8 +3727,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
                 },
                 ContainingBlockConstraints::default(),
                 ParticipationInParentFormattingContext::Root,
-            )
-            .with_forced_sizes(viewport_inline_size, viewport_block_size);
+            );
             let fc_type = independent_formatting_context_type(root_for_layout, &callbacks);
             let root_outcome = run_formatting_context(
                 true,
