@@ -378,6 +378,8 @@ pub(super) struct FlexFormattingContext<'pass> {
     available_space_for_items: Option<AxisAgnosticAvailableSpace>,
     available_space: Option<AvailableSpace>,
     layout_input: Option<LayoutInput>,
+    /// The space in which the container resolves its own automatic block size, if its run left that to it.
+    own_automatic_block_size_resolution_space: Option<AvailableSpace>,
     item_percentage_bases: ContainingBlockConstraints,
     item_runs_offered_to_block_size_measurements: Option<ItemRunsOfferedToBlockSizeMeasurements>,
     flex_item_index_by_node: OnceCell<HashMap<Node, usize>>,
@@ -427,6 +429,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             available_space_for_items: None,
             available_space: None,
             layout_input: None,
+            own_automatic_block_size_resolution_space: None,
             item_percentage_bases: ContainingBlockConstraints::default(),
             item_runs_offered_to_block_size_measurements: None,
             flex_item_index_by_node: OnceCell::new(),
@@ -1772,13 +1775,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         //     indefinite available main size even when its calculation changes the used size.
         let available_main_size = if !self.main_axis_is_horizontal()
             && crate::layout::sizing_context::is_plain_auto(self.container_computed_main_size())
-            && self
-                .layout_input
-                .as_ref()
-                .unwrap()
-                .sizing
-                .flex_self_block_size_resolution_space
-                .is_some()
+            && self.own_automatic_block_size_resolution_space.is_some()
         {
             AvailableSize::definite(self.inner_main_size_used(&self.container_cells))
         } else {
@@ -3764,7 +3761,7 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     fn resolve_own_auto_block_size_from_max_content_main_size(&mut self) {
         let sizing = self.layout_input.as_ref().unwrap().sizing;
-        let resolution_space = sizing.flex_self_block_size_resolution_space;
+        let resolution_space = self.own_automatic_block_size_resolution_space;
         if resolution_space.is_none() && !sizing.root_is_measured_for_its_content_block_size {
             return;
         }
@@ -3799,7 +3796,7 @@ impl<'pass> FlexFormattingContext<'pass> {
             return;
         }
         let sizing = self.layout_input.as_ref().unwrap().sizing;
-        if let Some(resolution_space) = sizing.flex_self_block_size_resolution_space {
+        if let Some(resolution_space) = self.own_automatic_block_size_resolution_space {
             self.resolve_own_auto_block_size(self.automatic_block_size_from_line_cross_sizes(), resolution_space);
         } else if sizing.root_is_measured_for_its_content_block_size {
             self.set_container_cross_size(self.automatic_block_size_from_line_cross_sizes());
@@ -4022,13 +4019,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
         if self.flex_item_details[index].inputs.preferred_aspect_ratio.is_some()
             || self.has_definite_main_size(index)
-            || self
-                .layout_input
-                .as_ref()
-                .unwrap()
-                .sizing
-                .flex_self_block_size_resolution_space
-                .is_some()
+            || self.own_automatic_block_size_resolution_space.is_some()
         {
             return true;
         }
@@ -4206,7 +4197,13 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
     }
 
-    pub(super) fn run(&mut self, run: &FormattingContextRun<'pass>, layout_input: LayoutInput) {
+    pub(super) fn run(
+        &mut self,
+        run: &FormattingContextRun<'pass>,
+        layout_input: LayoutInput,
+        own_automatic_block_size_resolution_space: Option<AvailableSpace>,
+    ) {
+        self.own_automatic_block_size_resolution_space = own_automatic_block_size_resolution_space;
         self.prepare_items(layout_input);
 
         // 5. Collect flex items into flex lines:

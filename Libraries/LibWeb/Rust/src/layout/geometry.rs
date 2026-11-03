@@ -368,7 +368,6 @@ pub(crate) struct RootSizingDirectives {
     // wrapper) can be placed in wrapper coordinates.
     pub(crate) table_box_content_block_offset_in_wrapper: PackedOptionalCssPixels,
     pub(crate) content_block_size_after_run: ContentBlockSizeAfterRun,
-    pub(crate) flex_self_block_size_resolution_space: Option<AvailableSpace>,
     pub(crate) outer_float_intrusion_before_list_item_children: inline_formatting_context::SpaceUsedByFloats,
     pub(crate) treat_block_axis_percentage_insets_as_auto_beyond_root: bool,
     pub(crate) root_is_measured_for_its_content_block_size: bool,
@@ -412,6 +411,9 @@ pub(crate) enum ParticipationInParentFormattingContext {
     /// containing block, placed here.
     Float {
         containing_block_position_in_bfc_root: FfiCssPixelPoint,
+        /// Whether the float is a flex container that resolves its own automatic block size in its available space,
+        /// which its parent finds ahead of the float's inline size.
+        flex_container_resolves_its_own_automatic_block_size: bool,
     },
     AtomicInline,
     AbsolutelyPositioned(std::sync::Arc<abspos_inputs::AbsposLayoutInputs>),

@@ -109,6 +109,7 @@ impl FcRunCacheKey {
         //     run and places it after. The run lays the float out from its own origin.
         if let ParticipationInParentFormattingContext::Float {
             containing_block_position_in_bfc_root,
+            ..
         } = &mut input.participation
         {
             *containing_block_position_in_bfc_root = FfiCssPixelPoint::default();
@@ -199,9 +200,15 @@ fn participation_matches_probe(
 ) -> bool {
     match (stored, probe) {
         (
-            ParticipationInParentFormattingContext::Float { .. },
-            ParticipationInParentFormattingContext::Float { .. },
-        ) => true,
+            ParticipationInParentFormattingContext::Float {
+                flex_container_resolves_its_own_automatic_block_size: stored,
+                ..
+            },
+            ParticipationInParentFormattingContext::Float {
+                flex_container_resolves_its_own_automatic_block_size: probe,
+                ..
+            },
+        ) => stored == probe,
         (
             ParticipationInParentFormattingContext::AbsolutelyPositioned(stored),
             ParticipationInParentFormattingContext::AbsolutelyPositioned(probe),
@@ -273,7 +280,6 @@ fn layout_inputs_match_ignoring_unobserved(
         && sizing_directives_match_ignoring_unobserved(
             sizing,
             &b.sizing,
-            unobserved.available_block_size_definiteness(),
             unobserved.content_block_size_adopted_after_run,
         )
 }
@@ -281,7 +287,6 @@ fn layout_inputs_match_ignoring_unobserved(
 fn sizing_directives_match_ignoring_unobserved(
     a: &RootSizingDirectives,
     b: &RootSizingDirectives,
-    block_size_definiteness_unobserved: bool,
     content_block_size_adopted_after_run_unobserved: bool,
 ) -> bool {
     let RootSizingDirectives {
@@ -291,7 +296,6 @@ fn sizing_directives_match_ignoring_unobserved(
         table_cell_intrinsic_block_padding,
         table_box_content_block_offset_in_wrapper,
         content_block_size_after_run,
-        flex_self_block_size_resolution_space,
         outer_float_intrusion_before_list_item_children,
         treat_block_axis_percentage_insets_as_auto_beyond_root,
         math_stretch_size_constraint,
@@ -309,21 +313,6 @@ fn sizing_directives_match_ignoring_unobserved(
             == b.treat_block_axis_percentage_insets_as_auto_beyond_root
         && math_stretch_size_constraint == b.math_stretch_size_constraint
         && root_is_measured_for_its_content_block_size == b.root_is_measured_for_its_content_block_size
-        && match (
-            flex_self_block_size_resolution_space,
-            b.flex_self_block_size_resolution_space,
-        ) {
-            (None, None) => true,
-            (Some(a_space), Some(b_space)) => {
-                a_space.inline_size == b_space.inline_size
-                    && available_block_sizes_match(
-                        a_space.block_size,
-                        b_space.block_size,
-                        block_size_definiteness_unobserved,
-                    )
-            }
-            _ => false,
-        }
 }
 
 /// What must still be true for a stored entry to be replayed: the slot
@@ -1582,6 +1571,7 @@ mod tests {
             |probe| {
                 probe.input.participation = ParticipationInParentFormattingContext::Float {
                     containing_block_position_in_bfc_root: FfiCssPixelPoint::default(),
+                    flex_container_resolves_its_own_automatic_block_size: false,
                 }
             },
         ];

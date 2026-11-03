@@ -466,10 +466,6 @@ impl BlockMarginState {
 }
 
 /// What the probe for a stored in-flow layout found, and what storing the fresh layout needs.
-#[expect(
-    clippy::large_enum_variant,
-    reason = "held on the stack while one child is laid out, where boxing would allocate for every child"
-)]
 enum InFlowReuse {
     Ineligible,
     Hit {
@@ -4997,6 +4993,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
         let ParticipationInParentFormattingContext::Float {
             containing_block_position_in_bfc_root,
+            ..
         } = input.participation
         else {
             unreachable!("a float root is dimensioned as a float");
@@ -5067,23 +5064,25 @@ impl<'pass> BlockFormattingContext<'pass> {
         let node = sized_float.node;
         let available_space = input.available_space;
         assert!(self.facts(node).is_floating());
-        let mut float_input = LayoutInput {
-            available_space,
-            containing_block_constraints: input.containing_block_constraints,
-            sizing: RootSizingDirectives::default(),
-            participation: ParticipationInParentFormattingContext::Float {
-                containing_block_position_in_bfc_root: containing_block_position_in_root,
-            },
-        };
-        // NB: The space is found ahead of the float's inline size, which can make its block size transfer through its
-        //     aspect ratio.
-        float_input.sizing.flex_self_block_size_resolution_space =
+        // NB: This is found ahead of the float's inline size, which can make its block size transfer through its aspect
+        //     ratio.
+        let flex_container_resolves_its_own_automatic_block_size =
             formatting_context::flex_self_block_size_resolution_space(
                 &self.sizing(),
                 sizing_context::SizedBox::new(node, &self.metrics_of(sized_float)),
                 available_space,
                 input.containing_block_constraints,
-            );
+            )
+            .is_some();
+        let float_input = LayoutInput {
+            available_space,
+            containing_block_constraints: input.containing_block_constraints,
+            sizing: RootSizingDirectives::default(),
+            participation: ParticipationInParentFormattingContext::Float {
+                containing_block_position_in_bfc_root: containing_block_position_in_root,
+                flex_container_resolves_its_own_automatic_block_size,
+            },
+        };
         self.dimension_float_root_inline_size(sized_float, block_container, &float_input);
         let (float_layout, fragment_arrival, float_box) =
             self.layout_inside(run, sized_float, block_container, float_input, false);
