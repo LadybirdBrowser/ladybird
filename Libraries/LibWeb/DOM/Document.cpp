@@ -8448,6 +8448,49 @@ static Painting::CompositorAnimationKeyframes const& compositor_animation_keyfra
     });
 }
 
+// Whether a box of an SVG container paints or places itself by its bounding box, which includes the transforms of the
+// boxes inside it.
+static bool svg_box_uses_its_bounding_box(Layout::Node const& svg_box)
+{
+    auto const* element = as_if<Element>(svg_box.dom_node());
+    if (!element)
+        return false;
+    auto computed_style = element->computed_style();
+    if (!computed_style)
+        return true;
+    auto is_none = [&](CSS::PropertyID property) {
+        auto value = computed_style->computed_style_value(property);
+        return value && value->to_string(CSS::SerializationMode::Normal) == "none"sv;
+    };
+    if (!is_none(CSS::PropertyID::Filter) || !is_none(CSS::PropertyID::ClipPath) || !is_none(CSS::PropertyID::MaskImage))
+        return true;
+    if (is_none(CSS::PropertyID::Transform))
+        return false;
+    auto transform_box = computed_style->computed_style_value(CSS::PropertyID::TransformBox);
+    return !transform_box || transform_box->to_keyword() != CSS::Keyword::ViewBox;
+}
+
+static bool svg_transform_may_run_on_the_compositor(Element const& target, Layout::Node const& layout_node)
+{
+    // NB: An outer SVG viewport embedded in HTML uses the CSS box transform independently of its SVG contents.
+    if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGSVGBox) {
+        auto parent = target.parent_element();
+        return parent && parent->namespace_uri() == Namespace::HTML;
+    }
+
+    // NB: The compositor has no animations for the documents of SVG images, and replaces the matrix that the x and y
+    //     of a <use> element are part of.
+    if (target.document().is_decoded_svg() || is<SVG::SVGUseElement>(target))
+        return false;
+
+    // NB: A box's own bounding box leaves out its own transform, but those of the containers around it include it.
+    for (auto const* ancestor = layout_node.parent(); ancestor && ancestor->is_svg_box(); ancestor = ancestor->parent()) {
+        if (svg_box_uses_its_bounding_box(*ancestor))
+            return false;
+    }
+    return true;
+}
+
 // Builds the compositor animation of one target kind for an effect the compositor could drive, and
 // keeps it pending with the effect. The checks here are the ones that read the animation objects; the
 // builder in Rust lowers and validates the keyframes.
@@ -8496,12 +8539,8 @@ static Painting::CompositorAnimationEffectState::BuildOutcome build_compositor_a
     if (!target.has_value())
         return {};
     if (target->element().namespace_uri() == Namespace::SVG) {
-        // NB: An outer SVG viewport embedded in HTML uses the CSS box transform independently of its SVG
-        //     contents. Internal SVG transforms also affect SVG geometry and must remain on the main thread.
         auto const* layout_node = target->unsafe_layout_node(read);
-        auto parent = target->element().parent_element();
-        if (!targets_transform || !layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::SVGSVGBox
-            || !parent || parent->namespace_uri() != Namespace::HTML)
+        if (!targets_transform || !layout_node || !svg_transform_may_run_on_the_compositor(target->element(), *layout_node))
             return {};
     }
     auto monotonic_time_at_anchor_ms = [&]() -> Optional<double> {
