@@ -4756,7 +4756,8 @@ impl<'pass> BlockFormattingContext<'pass> {
         let available_space = input.available_space;
         if self.is_line_clamp_container && self.style(self.run.box_).max_lines() == 0 {
             let automatic_block_size = self.resolve_automatic_line_clamp_block_size(input.clone());
-            if input.sizing.finds_automatic_line_clamp_lines || run.fragments.is_none() {
+            // NB: The measurement run below builds no fragments, so it finds the lines itself.
+            if run.fragments.is_none() {
                 self.automatic_line_clamp_block_size.set(automatic_block_size);
             } else if automatic_block_size.is_some() {
                 let measurement_result = formatting_context::lay_out_measurement_root_for_its_result(
@@ -4764,10 +4765,6 @@ impl<'pass> BlockFormattingContext<'pass> {
                     self.run.box_,
                     self.root_cells,
                     LayoutInput {
-                        sizing: RootSizingDirectives {
-                            finds_automatic_line_clamp_lines: true,
-                            ..input.sizing
-                        },
                         participation: ParticipationInParentFormattingContext::Root,
                         ..input
                     },
