@@ -17,6 +17,7 @@ use super::super::*;
 use super::live::Live;
 use super::records::{PseudoElementRecords, Record, RecordCells, Records, RetainedRecords};
 use super::traversal::{self, DemandedPseudoElement, PassContext, PseudoElementRead};
+use crate::css::style::input_types::StyleEnvironment;
 use std::sync::Arc;
 
 /// The records computed on demand in one generation of the engine.
@@ -27,6 +28,82 @@ pub(super) struct DemandOverlay {
     records: Option<RetainedRecords>,
     /// The elements whose records were computed on demand.
     computed: HashSet<StyleNodeID>,
+}
+
+/// Which records of the elements that keep their style below an element that is not displayed
+/// still stand. No pass styles these elements or notes what they read, so an installation computes
+/// them on demand, and nothing but what is noted here can move how they compute.
+#[derive(Default)]
+pub(in super::super) struct KeptHiddenRecords {
+    /// The elements computed for an installation, with the parts of the environment they read.
+    computed: HashMap<StyleNodeID, StyleEnvironment>,
+    /// The elements an input or a hint reached since the last installation, or whose children a
+    /// pass found to compute from something else: what inherits through one computes anew.
+    moved: HashSet<StyleNodeID>,
+}
+
+impl KeptHiddenRecords {
+    /// Every element computes anew, as for a change to the rules.
+    pub(super) fn forget(&mut self) {
+        self.computed.clear();
+    }
+
+    pub(super) fn note_environment_moved(&mut self, environment: StyleEnvironment) {
+        if !environment.is_empty() {
+            self.computed.retain(|_, reads| !reads.intersects(environment));
+        }
+    }
+
+    pub(super) fn note_moved(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
+        self.moved.extend(nodes);
+    }
+
+    /// Elements that left the tree compute nothing anymore.
+    pub(super) fn note_left(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
+        for node in nodes {
+            self.computed.remove(&node);
+        }
+    }
+
+    /// Whether `node` is one this holds a computation of.
+    pub(super) fn computed(&self, node: StyleNodeID) -> bool {
+        self.computed.contains_key(&node)
+    }
+
+    /// Whether what `node` computes from stands, as `standing` remembers of the elements it
+    /// inherits through.
+    fn stands(
+        &self,
+        state: &RetainedState,
+        records: &RetainedRecords,
+        node: StyleNodeID,
+        standing: &mut HashMap<StyleNodeID, bool>,
+    ) -> bool {
+        if !self.computed.contains_key(&node) {
+            return false;
+        }
+        let mut walked: SmallVec<[StyleNodeID; 32]> = SmallVec::new();
+        let mut current = Some(node);
+        let mut stands = true;
+        while let Some(element) = current {
+            if let Some(&known) = standing.get(&element) {
+                stands = known;
+                break;
+            }
+            walked.push(element);
+            // NB: The sampled values of animations move with no input.
+            if self.moved.contains(&element)
+                || state.projection.adjustment_facts(element) & bridge::element_adjustment_fact::HAS_ANIMATIONS != 0
+                || !(self.computed.contains_key(&element) || records.get(element).is_some())
+            {
+                stands = false;
+                break;
+            }
+            current = state.projection.inheritance_parent(element);
+        }
+        standing.extend(walked.into_iter().map(|element| (element, stands)));
+        stands
+    }
 }
 
 /// What a computation of an element's style for a clock frame found: its record, with those of the
@@ -341,21 +418,40 @@ impl StyleEngine {
         let mut kept = std::mem::take(&mut live.kept_hidden);
         kept.sort_unstable();
         kept.dedup();
+        live.note_hints_moved_kept_hidden_records();
         let mut installed = Vec::new();
+        let mut standing = HashMap::default();
         for node in kept {
             if !self.retained.projection.is_live(node) || !self.retained.keeps_style_in_display_none_subtree(node) {
                 continue;
             }
-            let live = self.retained.live_style.as_ref().expect("the engine owns the document");
-            let (chain, first_stale) = live.demand_chain(&self.retained, node);
-            if let Some(live) = self.retained.live_style.as_mut() {
-                live.kept_hidden.push(node);
-            }
-            let Some(first_stale) = first_stale else {
+            let mut live = self.retained.live_style.take().expect("the engine owns the document");
+            live.kept_hidden.push(node);
+            let stands = live
+                .kept_hidden_records
+                .stands(&self.retained, &live.records, node, &mut standing);
+            let demanded = (!stands).then(|| live.demand_chain(&self.retained, node));
+            self.retained.live_style = Some(live);
+            let Some((chain, Some(first_stale))) = demanded else {
                 continue;
             };
             self.demand_element(node, false);
+            let live = self.retained.live_style.as_mut().expect("the engine owns the document");
+            for &element in &chain[first_stale..] {
+                let environment_reads = live.demanded_record(element).and_then(|record| {
+                    // NB: The sizes of containers move with no input.
+                    let reads_container = live.demand_records().container_reads(element).is_some();
+                    (!reads_container).then(|| record.rare().reads.environment_reads)
+                });
+                match environment_reads {
+                    Some(reads) => live.kept_hidden_records.computed.insert(element, reads),
+                    None => live.kept_hidden_records.computed.remove(&element),
+                };
+            }
             installed.extend_from_slice(&chain[first_stale..]);
+        }
+        if let Some(live) = self.retained.live_style.as_mut() {
+            live.kept_hidden_records.moved.clear();
         }
         installed.sort_unstable();
         installed.dedup();

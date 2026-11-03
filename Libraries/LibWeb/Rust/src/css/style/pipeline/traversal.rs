@@ -465,6 +465,8 @@ pub(super) struct Statistics {
     pub(super) moved_custom_properties: Vec<StyleNodeID>,
     /// How many of those it styled differently than before, in what their children compute from.
     pub(super) changed_elements: u64,
+    /// Those elements.
+    pub(super) children_moved: Vec<StyleNodeID>,
     /// The children of elements whose records moved beneath the composition of their animations,
     /// with the hints the pass kept for them, which the next pass restyles once the host composed
     /// the animations over the new records.
@@ -2705,6 +2707,9 @@ fn style_trees<'scope, 'a: 'scope>(
                     false => ChildImpact::None,
                 };
                 scratch.statistics.changed_elements += u64::from(impact != ChildImpact::None);
+                if impact != ChildImpact::None {
+                    scratch.statistics.children_moved.push(node);
+                }
                 let children = match hint & RESTYLE_DESCENDANTS != 0 {
                     true => {
                         RESTYLE_SELF
@@ -3121,6 +3126,7 @@ impl Statistics {
         statistics.styled.extend(round.styled);
         statistics.moved_custom_properties.extend(round.moved_custom_properties);
         statistics.changed_elements += round.changed_elements;
+        statistics.children_moved.extend(round.children_moved);
         statistics.deferred.extend(round.deferred);
         statistics
             .restyled_for_pseudo_elements

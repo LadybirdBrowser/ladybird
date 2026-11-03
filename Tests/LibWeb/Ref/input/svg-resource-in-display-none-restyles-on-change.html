@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/svg-resource-in-display-none-restyles-on-change-ref.html">
+<style>
+    #custom-property { --stop: red; }
+    #inherited { color: red; }
+    .stop-custom-property { stop-color: var(--stop); }
+    .stop-current-color { stop-color: currentColor; }
+    .stop-red { stop-color: red; }
+    .attribute[data-green] .stop-red { stop-color: green; }
+    #sibling.green ~ svg .stop-red { stop-color: green; }
+    .has:has(.green) .stop-red { stop-color: green; }
+    svg.swatch { display: inline-block; width: 40px; height: 40px; }
+</style>
+<div id="custom-property">
+    <div style="display: none">
+        <svg><linearGradient id="custom-property-gradient"><stop class="stop-custom-property" /></linearGradient></svg>
+    </div>
+</div>
+<div id="inherited">
+    <div style="display: none">
+        <svg><linearGradient id="inherited-gradient"><stop class="stop-current-color" /></linearGradient></svg>
+    </div>
+</div>
+<div id="attribute" class="attribute" style="display: none">
+    <svg><linearGradient id="attribute-gradient"><stop class="stop-red" /></linearGradient></svg>
+</div>
+<div style="display: none">
+    <span id="sibling"></span>
+    <svg><linearGradient id="sibling-gradient"><stop class="stop-red" /></linearGradient></svg>
+</div>
+<div class="has" style="display: none">
+    <span id="has-target"></span>
+    <svg><linearGradient id="has-gradient"><stop class="stop-red" /></linearGradient></svg>
+</div>
+<div style="display: none">
+    <svg><linearGradient id="inline-gradient"><stop id="inline-stop" style="stop-color: red" /></linearGradient></svg>
+</div>
+<div style="display: none">
+    <svg><linearGradient id="rule-gradient"><stop id="rule-stop" /></linearGradient></svg>
+</div>
+<div id="hidden-root-custom-property" style="display: none; --stop: red">
+    <svg><linearGradient id="hidden-root-custom-property-gradient"><stop class="stop-custom-property" /></linearGradient></svg>
+</div>
+<div id="hidden-root-color" style="display: none; color: red">
+    <svg><linearGradient id="hidden-root-color-gradient"><stop class="stop-current-color" /></linearGradient></svg>
+</div>
+<div id="moved-to" style="--stop: green"></div>
+<div id="moved-from" style="--stop: red; display: none">
+    <svg id="moved-svg"><linearGradient id="moved-gradient"><stop class="stop-custom-property" /></linearGradient></svg>
+</div>
+<svg class="swatch"><rect width="40" height="40" fill="url(#custom-property-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#inherited-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#attribute-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#sibling-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#has-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#inline-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#rule-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#hidden-root-custom-property-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#hidden-root-color-gradient)" /></svg>
+<svg class="swatch"><rect width="40" height="40" fill="url(#moved-gradient)" /></svg>
+<script>
+    const nextFrames = async () => {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        await new Promise(resolve => requestAnimationFrame(resolve));
+    };
+    // NB: Each change gets frames of its own, and the one restyling every hidden element, the new rule, goes first:
+    //     it would otherwise cover for the others.
+    const changes = [
+        () => document.styleSheets[0].insertRule("#rule-stop { stop-color: green; }"),
+        () => document.getElementById("custom-property").style.setProperty("--stop", "green"),
+        () => (document.getElementById("inherited").style.color = "green"),
+        () => document.getElementById("attribute").setAttribute("data-green", ""),
+        () => document.getElementById("sibling").classList.add("green"),
+        () => document.getElementById("has-target").classList.add("green"),
+        () => (document.getElementById("inline-stop").style.stopColor = "green"),
+        () => document.getElementById("hidden-root-custom-property").style.setProperty("--stop", "green"),
+        () => (document.getElementById("hidden-root-color").style.color = "green"),
+        () => {
+            const hiddenInNewPlace = document.createElement("div");
+            hiddenInNewPlace.style.display = "none";
+            document.getElementById("moved-to").appendChild(hiddenInNewPlace);
+            hiddenInNewPlace.appendChild(document.getElementById("moved-svg"));
+        },
+    ];
+    (async () => {
+        await nextFrames();
+        for (const change of changes) {
+            change();
+            await nextFrames();
+        }
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
+</html>
