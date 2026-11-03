@@ -126,6 +126,14 @@ impl FcRunCacheKey {
         }
     }
 
+    fn as_probe(&self) -> FcRunCacheProbe<'_> {
+        FcRunCacheProbe {
+            fc_type: self.fc_type,
+            input: &self.input,
+            root_cells: self.root_cells,
+        }
+    }
+
     /// The key with the intrinsic block padding a table hands its cell taken out of the root's block paddings.
     fn without_table_cell_intrinsic_block_padding(&self) -> Self {
         let mut key = self.clone();
@@ -137,22 +145,79 @@ impl FcRunCacheKey {
         key
     }
 
+    #[cfg(test)]
     fn matches(&self, probe: &Self, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
-        if self == probe {
+        self.matches_probe(&probe.as_probe(), unobserved)
+    }
+
+    fn matches_probe(&self, probe: &FcRunCacheProbe<'_>, unobserved: RunInputsTheStoredRunNeverObserved) -> bool {
+        if self.fc_type != probe.fc_type {
+            return false;
+        }
+        if self.root_cells == probe.root_cells && layout_inputs_equal_to_probe(&self.input, probe.input) {
             return true;
         }
         if !unobserved.relaxes_any_input() {
             return false;
         }
-        self.fc_type == probe.fc_type
-            && root_input_cells_match_ignoring_unobserved(
-                self.root_cells,
-                probe.root_cells,
-                unobserved.own_block_size,
-                unobserved.inline_space_around_root,
-            )
-            && layout_inputs_match_ignoring_unobserved(&self.input, &probe.input, unobserved)
+        root_input_cells_match_ignoring_unobserved(
+            self.root_cells,
+            probe.root_cells,
+            unobserved.own_block_size,
+            unobserved.inline_space_around_root,
+        ) && layout_inputs_match_ignoring_unobserved(&self.input, probe.input, unobserved)
     }
+}
+
+pub(super) struct FcRunCacheProbe<'input> {
+    fc_type: formatting_context::FormattingContextType,
+    input: &'input LayoutInput,
+    root_cells: used_values::RootInputCells,
+}
+
+impl<'input> FcRunCacheProbe<'input> {
+    pub(super) fn new(
+        fc_type: formatting_context::FormattingContextType,
+        input: &'input LayoutInput,
+        root_cells: used_values::RootInputCells,
+    ) -> Self {
+        Self {
+            fc_type,
+            input,
+            root_cells,
+        }
+    }
+
+    fn key(&self) -> FcRunCacheKey {
+        FcRunCacheKey::new(self.fc_type, self.input.clone(), self.root_cells)
+    }
+}
+
+fn participation_matches_probe(
+    stored: &ParticipationInParentFormattingContext,
+    probe: &ParticipationInParentFormattingContext,
+) -> bool {
+    match (stored, probe) {
+        (
+            ParticipationInParentFormattingContext::Float { .. },
+            ParticipationInParentFormattingContext::Float { .. },
+        ) => true,
+        (
+            ParticipationInParentFormattingContext::AbsolutelyPositioned(stored),
+            ParticipationInParentFormattingContext::AbsolutelyPositioned(probe),
+        ) => {
+            std::sync::Arc::ptr_eq(stored, probe)
+                || **stored == probe.without_static_position_in_axes_placed_by_own_insets()
+        }
+        (stored, probe) => stored == probe,
+    }
+}
+
+fn layout_inputs_equal_to_probe(stored: &LayoutInput, probe: &LayoutInput) -> bool {
+    stored.available_space == probe.available_space
+        && stored.containing_block_constraints == probe.containing_block_constraints
+        && stored.sizing == probe.sizing
+        && participation_matches_probe(&stored.participation, &probe.participation)
 }
 
 fn available_block_sizes_match(a: AvailableSize, b: AvailableSize, block_size_definiteness_unobserved: bool) -> bool {
@@ -177,7 +242,7 @@ fn layout_inputs_match_ignoring_unobserved(
         percentage_basis_block_size,
         quirks_mode_percentage_basis_block_size,
     } = *containing_block_constraints;
-    if *participation != b.participation {
+    if !participation_matches_probe(participation, &b.participation) {
         return false;
     }
     let available_inline_sizes_match = available_space.inline_size == b.available_space.inline_size
@@ -376,14 +441,15 @@ impl FcRunCacheEntry {
                 > LAYOUT_COMMITS_AN_UNCOMMITTED_ENTRY_SURVIVES_UNUSED
     }
 
-    fn answers_probe_for(&self, key: &FcRunCacheKey) -> bool {
+    fn answers_probe_for(&self, probe: &FcRunCacheProbe<'_>) -> bool {
         let unobserved = self.outputs.inputs_never_observed;
-        self.key.matches(key, unobserved)
-            || (self.table_cell_intrinsic_block_padding_unobserved
-                && self
-                    .key
+        self.key.matches_probe(probe, unobserved)
+            || (self.table_cell_intrinsic_block_padding_unobserved && {
+                let probe_key = probe.key().without_table_cell_intrinsic_block_padding();
+                self.key
                     .without_table_cell_intrinsic_block_padding()
-                    .matches(&key.without_table_cell_intrinsic_block_padding(), unobserved))
+                    .matches_probe(&probe_key.as_probe(), unobserved)
+            })
     }
 }
 
@@ -584,7 +650,7 @@ impl FcRunCacheStore {
         &self,
         box_: Node,
         validity: FcRunCacheValidity,
-        key: &FcRunCacheKey,
+        probe: &FcRunCacheProbe<'_>,
     ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
         let structural_epoch_bumps = self.structural_epoch_bumps_of(box_);
         let entry_was_damaged_since_stored = |entry: &FcRunCacheEntry| {
@@ -593,8 +659,8 @@ impl FcRunCacheStore {
             entry.outputs.root.is_some()
                 && structural_epoch_bumps_since_stored != 0
                 && entry.validity.slot_generation == validity.slot_generation
-                && entry.key.matches(
-                    key,
+                && entry.key.matches_probe(
+                    probe,
                     entry
                         .outputs
                         .inputs_never_observed
@@ -809,7 +875,7 @@ impl FcRunCacheAttempt {
         should_collect_devtools_layout_data: bool,
         measurement_root_keeps_its_result: bool,
         callbacks: &LayoutPass<'_>,
-        key: &FcRunCacheKey,
+        probe: &FcRunCacheProbe<'_>,
     ) -> Result<Self, FcRunCacheHit> {
         if !can_describe_run(
             box_,
@@ -817,7 +883,7 @@ impl FcRunCacheAttempt {
             should_collect_devtools_layout_data,
             measurement_root_keeps_its_result,
             callbacks,
-            key,
+            probe,
         ) {
             return Ok(Self::Bypass);
         }
@@ -827,7 +893,7 @@ impl FcRunCacheAttempt {
             if let Some(entry) = store.first_entry_where_summary_allows(
                 box_.slot_index(),
                 |summary| summary.may_answer_probe(validity, false),
-                |entry| entry.validity == validity && entry.answers_probe_for(key),
+                |entry| entry.validity == validity && entry.answers_probe_for(probe),
             ) {
                 entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
                 return Err(FcRunCacheHit { entry });
@@ -837,14 +903,14 @@ impl FcRunCacheAttempt {
         if let Some(entry) = store.first_entry_where_summary_allows(
             box_.slot_index(),
             |summary| summary.may_answer_probe(validity, true),
-            |entry| entry.validity == validity && entry.outputs.root.is_some() && entry.answers_probe_for(key),
+            |entry| entry.validity == validity && entry.outputs.root.is_some() && entry.answers_probe_for(probe),
         ) {
             // NB: Once the replayed fragments are committed, the sweep keeps the entry beside later ones.
             store.enqueue_for_sweep(box_.slot_index());
             entry.note_used_at_layout_commit(callbacks.arena().layout_commit_count());
             return Err(FcRunCacheHit { entry });
         }
-        let structurally_damaged_entry = store.structurally_damaged_entry(box_, validity, key);
+        let structurally_damaged_entry = store.structurally_damaged_entry(box_, validity, probe);
         Ok(Self::Store {
             validity,
             structurally_damaged_entry,
@@ -868,7 +934,7 @@ impl FcRunCacheAttempt {
         self,
         callbacks: &LayoutPass<'_>,
         box_: Node,
-        key: FcRunCacheKey,
+        probe: &FcRunCacheProbe<'_>,
         outputs: formatting_context::RunOutputs,
     ) -> formatting_context::RunOutputsHandle {
         let store = callbacks.fc_run_cache_store();
@@ -879,7 +945,7 @@ impl FcRunCacheAttempt {
                 return formatting_context::RunOutputsHandle::Stored(store.store(
                     box_,
                     FcRunCacheEntry {
-                        key,
+                        key: probe.key(),
                         validity,
                         outputs,
                         table_cell_intrinsic_block_padding_unobserved: false,
@@ -902,11 +968,11 @@ impl FcRunCacheAttempt {
             return formatting_context::RunOutputsHandle::Owned(outputs);
         }
         let table_cell_intrinsic_block_padding_unobserved =
-            key.input.sizing.table_cell_intrinsic_block_padding.is_some()
+            probe.input.sizing.table_cell_intrinsic_block_padding.is_some()
                 && outputs.root_outcome.parent_owns_root_input_cells()
                 && !run_observes_root_block_padding(callbacks, box_, &outputs);
         let entry = FcRunCacheEntry {
-            key,
+            key: probe.key(),
             validity,
             outputs,
             table_cell_intrinsic_block_padding_unobserved,
@@ -925,10 +991,10 @@ pub(super) fn can_describe_run(
     should_collect_devtools_layout_data: bool,
     measurement_root_keeps_its_result: bool,
     callbacks: &LayoutPass<'_>,
-    key: &FcRunCacheKey,
+    probe: &FcRunCacheProbe<'_>,
 ) -> bool {
-    let fc_type = key.fc_type;
-    let input = &key.input;
+    let fc_type = probe.fc_type;
+    let input = probe.input;
     if should_collect_devtools_layout_data
         || (input.participation == ParticipationInParentFormattingContext::Root && !measurement_root_keeps_its_result)
         || fc_type == formatting_context::FormattingContextType::InternalReplaced
@@ -1424,7 +1490,7 @@ mod tests {
             fragment_cache_epoch: 3,
         };
         let damaged = store
-            .structurally_damaged_entry(box_, damaged_validity, &at(300))
+            .structurally_damaged_entry(box_, damaged_validity, &at(300).as_probe())
             .expect("the entry stored before the damage supplies its line data");
         assert_eq!(
             damaged.key.input.available_space.inline_size,
@@ -1433,7 +1499,7 @@ mod tests {
         store.note_inline_layout_damage(box_);
         assert!(
             store
-                .structurally_damaged_entry(box_, damaged_validity, &at(300))
+                .structurally_damaged_entry(box_, damaged_validity, &at(300).as_probe())
                 .is_none()
         );
     }
