@@ -663,6 +663,20 @@
       ]
     },
     {
+      "name": "llvm-libc",
+      "buildsystem": "simple",
+      "build-commands": [
+        "cd libc && find hdr include shared src/__support src/string/memory_utils -name '*.h' -exec install -D -m644 {} /app/include/llvm-libc/{} \\;"
+      ],
+      "sources": [
+        {
+          "type": "archive",
+          "url": "https://github.com/llvm/llvm-project/archive/e54169423e7ee5d8b41c2f1b6f7a59000c901ee0.tar.gz",
+          "sha256": "db3ee51752d716118e3ff1109c7920a32dfc29bd414112e8d18ff6280e608c1c"
+        }
+      ]
+    },
+    {
       "name": "wuffs",
       "buildsystem": "simple",
       "build-commands": [
