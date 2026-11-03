@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<style>
+@property --p { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --q { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@function --conditional() { result: if(style(--mode: on): var(--q); else: 2px); }
+</style>
+<body>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        // A keyframe's value takes part in a cycle exactly as the same value declared on the element does.
+        const cases = {
+            "a condition reads the other property": "if(style(--q: 7px): 1px; else: 2px)",
+            "a later condition reads it": "if(media(not all): 1px; style(--q: 7px): 2px; else: 3px)",
+            "the branch taken reads it": "if(style(--mode: on): calc(var(--q) + 1px); else: 1px)",
+            "a branch not taken reads it": "if(style(--mode: off): calc(var(--q) + 1px); else: 1px)",
+            "a condition after the one that held reads it": "if(style(--mode: on): 1px; style(--q: 7px): 2px; else: 3px)",
+            "an else not taken reads it": "if(style(--mode: on): 1px; else: calc(var(--q) + 1px))",
+            "a function's branch taken reads it": "calc(--conditional() + 1px)",
+            "an attribute's value reads it": "calc(attr(data-reads type(<length>)) + 1px)",
+            "an attribute's value reads it as a string": "calc(attr(data-length px) + 1px)",
+            "a fallback in place of no attribute reads it": "calc(attr(data-none type(<length>), var(--q)) + 1px)",
+            "a fallback beside an attribute reads it": "calc(attr(data-length px, var(--q)) + 1px)",
+            "a fallback in place of an invalid attribute reads it": "calc(attr(data-invalid px, var(--q)) + 1px)",
+            "a fallback in place of no environment variable reads it": "calc(env(no-such-variable, var(--q)) + 1px)",
+            "a fallback beside an inherited value reads it": "calc(inherit(--held, var(--q)) + 1px)",
+            "a fallback in place of no inherited value reads it": "calc(inherit(--unset, var(--q)) + 1px)",
+        };
+
+        document.body.style.setProperty("--held", "6px");
+        let css = "";
+        const elements = [];
+        Object.entries(cases).forEach(([name, value], index) => {
+            css += `.declared${index} { --p: ${value}; --q: var(--p); }\n`;
+            css += `@keyframes k${index} { from, to { --p: ${value}; } }\n`;
+            css += `.paused${index} { --q: var(--p); animation: k${index} 100s paused; }\n`;
+            css += `.running${index} { --q: var(--p); animation: k${index} 100s linear; }\n`;
+            const add = variant => {
+                const element = document.createElement("div");
+                element.className = `${variant}${index}`;
+                element.style.setProperty("--mode", "on");
+                element.dataset.reads = "var(--q)";
+                element.dataset.length = "4";
+                element.dataset.invalid = "x";
+                document.body.append(element);
+                return element;
+            };
+            elements.push({ name, declared: add("declared"), paused: add("paused"), running: add("running") });
+        });
+        const style = document.createElement("style");
+        style.textContent = css;
+        document.head.append(style);
+
+        const values = element => {
+            const style = getComputedStyle(element);
+            return `--p: ${style.getPropertyValue("--p")}, --q: ${style.getPropertyValue("--q")}`;
+        };
+        elements.forEach(({ paused, running }) => {
+            values(paused);
+            values(running);
+        });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+        for (const { name, declared, paused, running } of elements) {
+            println(`${name}: ${values(declared)}`);
+            if (values(paused) !== values(declared))
+                println(`    paused differs: ${values(paused)}`);
+            if (values(running) !== values(declared))
+                println(`    running differs: ${values(running)}`);
+        }
+        done();
+    });
+</script>
