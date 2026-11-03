@@ -1,4 +1,4 @@
-test("legacy caller property exposes only ordinary sloppy callers", () => {
+test("legacy caller property exposes only sloppy non-generator, non-async callers", () => {
     function getCaller() {
         return getCaller.caller;
     }
@@ -7,20 +7,53 @@ test("legacy caller property exposes only ordinary sloppy callers", () => {
         return getCaller();
     }
 
+    const arrow = () => getCaller();
+
+    const object = {
+        method() {
+            return getCaller();
+        },
+        get getter() {
+            return getCaller();
+        },
+    };
+
     function strict() {
         "use strict";
         return getCaller();
+    }
+
+    class C {
+        method() {
+            return getCaller();
+        }
     }
 
     function* generator() {
         yield getCaller();
     }
 
-    expect(getCaller()).toBeNull();
     expect(ordinary()).toBe(ordinary);
+    expect(arrow()).toBe(arrow);
+    expect(object.method()).toBe(object.method);
+    expect(object.getter).toBe(Object.getOwnPropertyDescriptor(object, "getter").get);
     expect(strict()).toBeNull();
+    expect(new C().method()).toBeNull();
     expect(generator().next().value).toBeNull();
     expect([1].map(getCaller)[0]).toBeNull();
+});
+
+test("legacy caller property hides async callers", () => {
+    function getCaller() {
+        return getCaller.caller;
+    }
+
+    let result;
+    async function asyncFunction() {
+        result = getCaller();
+    }
+    asyncFunction();
+    expect(result).toBeNull();
 });
 
 test("legacy caller property looks through Function.prototype.call, apply and Reflect.apply", () => {
@@ -59,7 +92,6 @@ test("legacy caller property looks through Function.prototype.call, apply and Re
     expect(viaCallOfCall()).toBe(viaCallOfCall);
     expect(viaApplyOfReflectApply()).toBe(viaApplyOfReflectApply);
     expect(strictViaCall()).toBeNull();
-    expect(getCaller.call(null)).toBeNull();
 });
 
 test("legacy arguments property exposes the active arguments object", () => {
@@ -208,8 +240,12 @@ test("assigning to legacy caller and arguments does nothing", () => {
         return [ordinary.caller, ordinary.arguments];
     }
 
-    const [caller, argumentsObject] = ordinary(3);
-    expect(caller).toBeNull();
+    function outer() {
+        return ordinary(3);
+    }
+
+    const [caller, argumentsObject] = outer();
+    expect(caller).toBe(outer);
     expect(argumentsObject[0]).toBe(3);
     expect(Object.hasOwn(ordinary, "caller")).toBeFalse();
     expect(Object.hasOwn(ordinary, "arguments")).toBeFalse();
