@@ -49,6 +49,9 @@ pub(crate) struct RegisteredHighlight {
     #[gc(untraced)]
     pub(crate) name: Utf16String,
     pub(crate) highlight: Ref<Highlight>,
+    /// When the name was last set, which orders custom highlights of the same priority.
+    #[gc(untraced)]
+    registration_sequence: u64,
 }
 
 // https://drafts.csswg.org/css-highlight-api-1/#highlightregistry
@@ -57,9 +60,11 @@ pub(crate) struct RegisteredHighlight {
 pub(crate) struct HighlightRegistry {
     document: CppCell,
     this: Cell<Option<Ref<HighlightRegistry>>>,
-    /// The map entries of this maplike object, in registration order.
+    /// The map entries of this maplike object, in insertion order.
     highlights: GcRefCell<Vec<RegisteredHighlight>>,
     map_entries: WorldEntries<Map>,
+    #[gc(untraced)]
+    next_registration_sequence: Cell<u64>,
 }
 
 impl Wrappable for HighlightRegistry {}
@@ -82,6 +87,7 @@ impl HighlightRegistry {
             this: Cell::new(None),
             highlights: GcRefCell::new(Vec::new()),
             map_entries: WorldEntries::default(),
+            next_registration_sequence: Cell::new(0),
         });
         registry.this.set(Some(registry));
         registry
@@ -119,10 +125,9 @@ impl HighlightRegistry {
         // https://drafts.csswg.org/css-highlight-api-1/#priorities
         // A higher priority results in being above in the stacking order. [...] When two or more custom highlights
         // have the same numerical priority, the one most recently registered has the higher effective priority.
-        // NB: The sort is stable, and the map entries are in registration order.
         highlights
             .values_mut()
-            .sort_by_key(|entry| entry.highlight.current_priority());
+            .sort_by_key(|entry| (entry.highlight.current_priority(), entry.registration_sequence));
         highlights
     }
 
@@ -170,13 +175,13 @@ impl HighlightRegistry {
         }
 
         // 2. Otherwise, let results be an empty sequence.
-        // NB: The results stay in registration order in a MarkedVec, as they hold new wrappers, with the sort keys next
-        //     to them.
+        // NB: The results stay in insertion order in a MarkedVec, as they hold new wrappers, with the sort keys next to
+        //     them.
         let unsorted_results = MarkedVec::new(vm);
-        let mut sort_keys: Vec<(i32, usize)> = Vec::new();
+        let mut sort_keys: Vec<(i32, u64)> = Vec::new();
 
         // 3. For each Highlight highlight in this HighlightRegistry:
-        for (registration_index, entry) in self.registered_highlights(vm).values().iter().enumerate() {
+        for entry in self.registered_highlights(vm).values().iter() {
             let highlight = entry.highlight;
 
             // 1. Let result be a new HighlightHitResult with highlight set to highlight.
@@ -198,7 +203,7 @@ impl HighlightRegistry {
 
             // 3. If result.ranges is not empty, append result to results.
             if !ranges.is_empty() {
-                sort_keys.push((highlight.current_priority(), registration_index));
+                sort_keys.push((highlight.current_priority(), entry.registration_sequence));
                 unsorted_results.push(HighlightHitResult {
                     highlight: Some(highlight),
                     ranges: Some(ranges.to_vec()),
@@ -211,8 +216,8 @@ impl HighlightRegistry {
         //     the higher effective priority.
         let mut order: Vec<usize> = (0..sort_keys.len()).collect();
         order.sort_by_key(|index| {
-            let (priority, registration_index) = sort_keys[*index];
-            (core::cmp::Reverse(priority), core::cmp::Reverse(registration_index))
+            let (priority, registration_sequence) = sort_keys[*index];
+            (core::cmp::Reverse(priority), core::cmp::Reverse(registration_sequence))
         });
 
         // 5. Return results.
@@ -238,14 +243,21 @@ impl Maplike for HighlightRegistry {
 impl WritableMaplike for HighlightRegistry {
     fn map_set(&self, cx: &CallContext, key: Utf16String, value: Value) {
         let highlight = implementation_of::<Highlight>(value.as_object());
+        // NB: Setting a name again registers it again, though the maplike entry keeps its place in iteration order.
+        let registration_sequence = self.next_registration_sequence.get() + 1;
+        self.next_registration_sequence.set(registration_sequence);
         let previous = {
             let mut highlights = self.highlights.borrow_mut(cx.vm());
             match highlights.iter_mut().find(|entry| entry.name == key) {
-                Some(entry) => Some(core::mem::replace(&mut entry.highlight, highlight)),
+                Some(entry) => {
+                    entry.registration_sequence = registration_sequence;
+                    Some(core::mem::replace(&mut entry.highlight, highlight))
+                }
                 None => {
                     highlights.push(RegisteredHighlight {
                         name: key.clone(),
                         highlight,
+                        registration_sequence,
                     });
                     None
                 }
