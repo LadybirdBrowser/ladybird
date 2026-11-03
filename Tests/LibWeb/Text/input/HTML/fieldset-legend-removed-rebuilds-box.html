@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<fieldset id="fieldset"><legend>first</legend><legend>second</legend>content</fieldset>
+<script>
+    test(() => {
+        const report = label => println(`${label}: the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        report("two legends");
+        fieldset.firstElementChild.remove();
+        report("the rendered legend removed, another takes its place");
+        fieldset.firstElementChild.remove();
+        report("no legend");
+    });
+</script>
