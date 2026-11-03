@@ -71,8 +71,7 @@ pub(in crate::css::style) enum MonospaceRecascade {
 
 /// Driven values, with the length context they were driven against and the font a full drive
 /// resolved.
-pub(in crate::css::style) struct DrivenValues<'a> {
-    pub(in crate::css::style) writer: GroupValuesWriter<'a>,
+pub(in crate::css::style) struct DrivenValues {
     pub(in crate::css::style) length: crate::css::style_compute::FfiLengthResolutionContext,
     pub(in crate::css::style) font: Option<crate::css::table_group_builder::FfiFontGroupBuildInputs>,
 }
@@ -416,14 +415,14 @@ impl RetainedState {
     /// transformation reads. Root-input preparation finishes only the font and line-height
     /// phases and preserves them for completion.
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
-    pub(in crate::css::style) fn engine_full_drive<'a>(
+    pub(in crate::css::style) fn engine_full_drive(
         &self,
         subject: DriveSubject,
-        writer: GroupValuesWriter<'a>,
+        writer: &mut GroupValuesWriter<'_>,
         store: &WinnerStore,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         font_scratch: &mut FontDriveScratch,
-    ) -> Drive<DrivenValues<'a>> {
+    ) -> Drive<DrivenValues> {
         self.engine_drive_with(self, subject, writer, None, store, inputs, font_scratch)
     }
 
@@ -432,16 +431,16 @@ impl RetainedState {
     /// only those, beside the inputs every drive evaluates, and keeps the writer's values for the
     /// rest.
     #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
-    pub(in crate::css::style) fn engine_drive_with<'a>(
+    pub(in crate::css::style) fn engine_drive_with(
         &self,
         records: &impl DriveRecords,
         subject: DriveSubject,
-        writer: GroupValuesWriter<'a>,
+        writer: &mut GroupValuesWriter<'_>,
         selected: Option<&[u64]>,
         store: &WinnerStore,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         font_scratch: &mut FontDriveScratch,
-    ) -> Drive<DrivenValues<'a>> {
+    ) -> Drive<DrivenValues> {
         let random_base_values = store
             .drive_random_base_values(self, subject.target.node())
             .expect("a random function's base values are drawn before the row is driven");
@@ -665,7 +664,7 @@ impl RetainedState {
         if !resuming {
             self.counters.bump(Counter::EngineFullDrivesStarted);
         }
-        let (mut writer, mut results, mut effective_color_scheme) = match resumed {
+        let (mut results, mut effective_color_scheme) = match resumed {
             Some(pending) => {
                 resolved_viewport_relative_length = pending.resolved_viewport_relative_length;
                 if !pending.root_font_complete {
@@ -675,9 +674,10 @@ impl RetainedState {
                         u64::from(pending.results.longhand_evaluations),
                     );
                 }
-                (pending.writer, pending.results, pending.effective_color_scheme)
+                *writer = pending.writer;
+                (pending.results, pending.effective_color_scheme)
             }
-            None => (writer, empty_longhand_driver_results(), -1),
+            None => (empty_longhand_driver_results(), -1),
         };
         let drive = |counters: &Counters,
                      writer: &mut GroupValuesWriter<'_>,
@@ -732,7 +732,7 @@ impl RetainedState {
             }
             drive(
                 &self.counters,
-                &mut writer,
+                writer,
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_FONT,
@@ -759,7 +759,7 @@ impl RetainedState {
                 root_font_complete: false,
                 color_scheme_complete: false,
                 recascaded_font_size,
-                writer: writer.detached(),
+                writer: writer.clone().detached(),
                 results,
                 effective_color_scheme,
                 resolved_viewport_relative_length,
@@ -798,7 +798,7 @@ impl RetainedState {
         if !root_font_complete {
             drive(
                 &self.counters,
-                &mut writer,
+                writer,
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
@@ -812,7 +812,7 @@ impl RetainedState {
         if !color_scheme_complete {
             drive(
                 &self.counters,
-                &mut writer,
+                writer,
                 &mut results,
                 &mut effective_color_scheme,
                 LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
@@ -849,7 +849,7 @@ impl RetainedState {
         };
         drive(
             &self.counters,
-            &mut writer,
+            writer,
             &mut results,
             &mut effective_color_scheme,
             LONGHAND_DRIVE_PHASE_REMAINING,
@@ -868,7 +868,6 @@ impl RetainedState {
             ..remaining_length
         };
         Ok(DrivenValues {
-            writer,
             length,
             font: Some(font),
         })

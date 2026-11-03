@@ -151,16 +151,15 @@ impl RetainedState {
         let mut font_scratch = drive::FontDriveScratch::default();
         // The initial values compute from nothing: from the default groups, which hold no values.
         crate::css::computed_values::with_default_seed(&self.process_style.default_groups, |seed| {
-            let writer = GroupValuesWriter::seeded_for_child(
+            let mut writer = GroupValuesWriter::seeded_for_child(
                 seed,
                 seed,
                 std::iter::empty(),
                 crate::css::computed_longhand_table::LonghandTableFlags::empty(),
                 0,
             );
-            match self.engine_full_drive(subject, writer, &store, &inputs, &mut font_scratch) {
+            match self.engine_full_drive(subject, &mut writer, &store, &inputs, &mut font_scratch) {
                 Ok(drive::DrivenValues {
-                    writer,
                     length,
                     font: Some(font),
                 }) => {
@@ -235,7 +234,7 @@ impl RetainedState {
         let mut font_scratch = drive::FontDriveScratch::default();
         let held = shared.values();
         let seed = crate::css::computed_values::GroupSeed::new(shared.seed_groups(), &held.value_facts);
-        let writer = GroupValuesWriter::seeded_for_child(
+        let mut writer = GroupValuesWriter::seeded_for_child(
             seed,
             seed,
             std::iter::empty(),
@@ -246,18 +245,17 @@ impl RetainedState {
         let driven = self.engine_drive_with(
             self,
             subject,
-            writer,
+            &mut writer,
             Some(&selected),
             &store,
             &inputs,
             &mut font_scratch,
         );
-        let (writer, length, font) = match driven {
+        let (length, font) = match driven {
             Ok(drive::DrivenValues {
-                writer,
                 length,
                 font: Some(font),
-            }) => (writer, length, font),
+            }) => (length, font),
             Err(Unanswered::Suspended(Suspension::Font)) => {
                 return Err(Some(Box::new(font_scratch.take_suspended_request())));
             }
@@ -795,7 +793,7 @@ impl RetainedState {
         };
         // A container-relative length never computes directly, so only a drive resolves one.
         let mut container_units = 0;
-        let (mut writer, length, font, author_disables_native_appearance) = if runs_drive {
+        let (length, font, author_disables_native_appearance) = if runs_drive {
             let store = WinnerStore::new(
                 winners
                     .iter()
@@ -847,7 +845,7 @@ impl RetainedState {
             let driven = self.engine_drive_with(
                 records,
                 subject,
-                writer,
+                &mut writer,
                 (!drives_everything).then_some(&selected[..]),
                 &store,
                 &inputs,
@@ -856,11 +854,7 @@ impl RetainedState {
             if matches!(driven, Err(Unanswered::Suspended(Suspension::Font))) {
                 *suspended_font = Some(font_scratch.take_suspended_request());
             }
-            let drive::DrivenValues {
-                mut writer,
-                length,
-                font,
-            } = driven?;
+            let drive::DrivenValues { length, font } = driven?;
             let font = font.expect("the style engine answers every row");
             let scheme = u8::try_from(writer.effective_color_scheme()).ok();
             // A drive of every longhand computed the winners that compute directly too.
@@ -883,7 +877,7 @@ impl RetainedState {
             }
             let author_disables_native_appearance = !appearance_is_none(&writer)
                 && crate::css::style_compute::has_author_value_disabling_native_appearance(&store.view(self));
-            (writer, length, Some(font), author_disables_native_appearance)
+            (length, Some(font), author_disables_native_appearance)
         } else {
             // https://drafts.csswg.org/css-fonts/#font-size-prop
             // NB: The document element's font resolves against the document's initial font, as in
@@ -960,7 +954,7 @@ impl RetainedState {
                                 | crate::css::cascaded_properties::CascadeOrigin::AuthorPresentationalHint
                         )
                 });
-            (writer, length, font, author_disables_native_appearance)
+            (length, font, author_disables_native_appearance)
         };
         writer.set_native_appearance_disabled(author_disables_native_appearance);
         let required_moved = crate::css::style_compute::REQUIRED_DRIVER_INPUTS
