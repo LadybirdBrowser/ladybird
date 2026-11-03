@@ -4428,9 +4428,11 @@ mod replaced_ratio_tests {
                 ..Default::default()
             },
         );
+        let host_findings_outside_runs = RefCell::default();
         let callbacks = LayoutPass::new(
             &arena,
             &scratch,
+            &host_findings_outside_runs,
             LayoutStageFacts {
                 viewport_inline_size: CssPixels::from_integer(800),
                 viewport_block_size: CssPixels::from_integer(600),

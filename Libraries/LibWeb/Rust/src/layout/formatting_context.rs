@@ -3681,7 +3681,8 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         root,
         stage,
     } = input;
-    let callbacks = LayoutPass::new(arena, scratch, stage);
+    let host_findings_outside_runs = RefCell::default();
+    let callbacks = LayoutPass::new(arena, scratch, &host_findings_outside_runs, stage);
     let viewport_inline_size = stage.viewport_inline_size;
     let viewport_block_size = stage.viewport_block_size;
 
@@ -3769,7 +3770,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
                 entry_run_state,
                 entry_fragments,
                 &callbacks,
-                scratch,
+                &host_findings_outside_runs,
                 should_collect_devtools_layout_data,
             )
         },
@@ -3792,7 +3793,7 @@ fn finish_entry_pass(
     entry_run_state: &RunState,
     entry_fragments: &fragment_tree::RunFragmentBuilder,
     callbacks: &LayoutPass<'_>,
-    scratch: &super::run_state::LayoutScratch,
+    host_findings_outside_runs: &RefCell<super::run_state::HostFindings>,
     should_collect_devtools_layout_data: bool,
 ) -> LayoutStageOutput {
     abspos_engine::drain_abspos_with_placed_containing_blocks(
@@ -3806,7 +3807,7 @@ fn finish_entry_pass(
         !pass_fragments.roots.is_empty(),
         "an entry pass always produces the entry root's fragment"
     );
-    let mut host_findings = scratch.take_host_findings_outside_runs();
+    let mut host_findings = host_findings_outside_runs.take();
     if let Some(found_by_entry_run) = entry_run_state.take_host_findings() {
         host_findings.receive(*found_by_entry_run);
     }
@@ -3825,7 +3826,8 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         root,
         stage,
     } = input;
-    let callbacks = LayoutPass::new(arena, scratch, stage);
+    let host_findings_outside_runs = RefCell::default();
+    let callbacks = LayoutPass::new(arena, scratch, &host_findings_outside_runs, stage);
 
     // NB: Either way, the boundary root's own geometry lies in the frame of its containing block.
     let callbacks = if containing_block.is_invalid() {
@@ -3869,7 +3871,13 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
             } else {
                 layout_subtree_with_frozen_root_geometry(&entry_run);
             }
-            finish_entry_pass(entry_run_state, entry_fragments, &callbacks, scratch, false)
+            finish_entry_pass(
+                entry_run_state,
+                entry_fragments,
+                &callbacks,
+                &host_findings_outside_runs,
+                false,
+            )
         },
     )
 }
@@ -3992,9 +4000,11 @@ mod baseline_tests {
         arena.set_node_style(parent, 0, Some(parent_style.style()));
         arena.set_node_style(child, 0, Some(child_style.style()));
         arena.insert_child(parent, child, Node::INVALID);
+        let host_findings_outside_runs = RefCell::default();
         let callbacks = LayoutPass::new(
             &arena,
             &scratch,
+            &host_findings_outside_runs,
             LayoutStageFacts {
                 viewport_inline_size: CssPixels::from_integer(800),
                 viewport_block_size: CssPixels::from_integer(600),

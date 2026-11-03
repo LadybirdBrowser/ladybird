@@ -9,11 +9,10 @@ use super::*;
 /// What the layout stage keeps for itself besides what each of its runs keeps: what the runs of a layout pass share. It
 /// is the stage's scratch rather than arena columns: nothing outside a running pass reads it, but for the memos it
 /// keeps for later passes.
+#[derive(Default)]
 pub(crate) struct LayoutScratch {
     /// The intrinsic sizes passes measured, kept for the passes after them.
     pub(super) intrinsic_size_caches: super::layout_node_arena::IntrinsicSizeCaches,
-    /// What the pass found out for the host outside any run, which its driver reports itself.
-    pub(super) host_findings_outside_runs: RefCell<HostFindings>,
     /// The results of formatting context runs, kept for the runs after them in this pass and the passes after it.
     fc_run_cache_store: super::fc_run_cache::FcRunCacheStore,
     /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
@@ -91,22 +90,6 @@ const _: () = {
     assert_send::<LayoutScratch>();
 };
 
-impl Default for LayoutScratch {
-    fn default() -> Self {
-        Self {
-            intrinsic_size_caches: Default::default(),
-            host_findings_outside_runs: RefCell::new(HostFindings::default()),
-            fc_run_cache_store: Default::default(),
-            in_flow_block_cache_store: Default::default(),
-            layout_trace: Default::default(),
-            text_memos: Default::default(),
-            inline_content_preparation_buffers: Default::default(),
-            prepared_inline_content_memos: Default::default(),
-            fragment_builder_scratch: Default::default(),
-        }
-    }
-}
-
 impl LayoutScratch {
     /// The scratch of a fork of the arena, which keeps the run memos the arena's entries were stored for and starts
     /// the rest anew.
@@ -155,11 +138,6 @@ impl LayoutScratch {
             &self.prepared_inline_content_memos,
             &self.intrinsic_size_caches,
         );
-    }
-
-    /// What the pass found out outside any run, which its driver reports itself.
-    pub(crate) fn take_host_findings_outside_runs(&self) -> HostFindings {
-        std::mem::take(&mut self.host_findings_outside_runs.borrow_mut())
     }
 
     /// Brings the run memos up to date with what the commit into `arena` did to their boxes, and sweeps the run cache.
@@ -500,10 +478,11 @@ mod tests {
     fn a_nested_run_keeps_its_own_root_and_host_findings() {
         let mut arena = LayoutNodeArena::new();
         let scratch = LayoutScratch::default();
+        let host_findings_outside_runs = RefCell::default();
         let root = arena.allocate_for_test().slot;
         let child = arena.allocate_for_test().slot;
         RunState::with_root(
-            LayoutPass::for_test(&arena, &scratch),
+            LayoutPass::for_test(&arena, &scratch, &host_findings_outside_runs),
             root,
             NodeSlotId::INVALID,
             None,
@@ -529,6 +508,6 @@ mod tests {
                 );
             },
         );
-        assert!(scratch.take_host_findings_outside_runs().is_empty());
+        assert!(host_findings_outside_runs.borrow().is_empty());
     }
 }
