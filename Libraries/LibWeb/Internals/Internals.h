@@ -293,6 +293,7 @@ public:
     void inject_clock_tick(double frame_time_ms, Optional<double> viewport_scroll_y);
     void inject_clock_tick_scrolling_element(double frame_time_ms, DOM::Element& scroller, double x, double y);
     void inject_hover_pointer(double x, double y, Optional<double> frame_time_ms, Optional<u64> input_event_id);
+    void note_animated_content_moved_under_pointer(double frame_time_ms);
     u64 queue_mouse_move(double x, double y, u32 buttons);
     void move_hover_pointer(double x, double y, Optional<u64> input_event_id);
     Utf16String clock_lane_state(DOM::Document&);

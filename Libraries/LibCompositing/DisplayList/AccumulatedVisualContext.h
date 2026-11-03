@@ -67,6 +67,9 @@ public:
 
     bool has_visual_animations() const;
     bool has_active_visual_animation_at(i64 monotonic_time_ns) const;
+    // Whether the point lies in the bounds of a node that a transform animation running at the time moves, through the
+    // values this tree holds: those of a sample at the time, where a frame shows it.
+    bool running_transform_animation_covers_point(i64 monotonic_time_ns, Gfx::FloatPoint screen_point, ScrollStateSnapshot const&) const;
     VisualAnimationSummary visual_animation_summary() const;
     // One flag per spatial node: whether a transform animation moves the node or an ancestor.
     Vector<bool> spatial_nodes_in_subtrees_of_transform_animations() const;

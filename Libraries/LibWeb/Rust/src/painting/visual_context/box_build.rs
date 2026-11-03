@@ -429,6 +429,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
                 role: TransformDataRole::CssTransform,
                 synthetic_plane: true,
                 establishes_sorting_context: inherited.sorting_context_root.is_none(),
+                bounds: libgfx_rust::FloatRect::default(),
             }),
         );
         appended_synthetic_plane = true;

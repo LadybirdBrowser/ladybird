@@ -898,6 +898,21 @@ fn with_hit_test_list_spatial_indexes_and_visual_context_tree<R>(
     .unwrap_or(default)
 }
 
+/// `tree` with the compositor's animations sampled at the time the query reads them at, where it reads them so, kept in
+/// `sampled`; otherwise `tree` itself.
+fn tree_as_the_query_reads_it<'tree>(
+    tree: &'tree crate::painting::visual_context::VisualContextTree,
+    callbacks: &crate::painting::host::FfiHitTestQueryCallbacks,
+    sampled: &'tree mut Option<crate::painting::visual_context::VisualContextTree>,
+) -> &'tree crate::painting::visual_context::VisualContextTree {
+    match callbacks.visual_animation_sample_time_ns() {
+        Some(sample_time_ns) if tree.has_visual_animations() => {
+            sampled.insert(tree.with_visual_animation_samples(sample_time_ns))
+        }
+        _ => tree,
+    }
+}
+
 fn ffi_topmost(item: Option<crate::painting::hit_test::query::TopmostItem>) -> crate::painting::host::FfiTopmostItem {
     match item {
         Some(item) => crate::painting::host::FfiTopmostItem {
@@ -1006,7 +1021,11 @@ pub unsafe extern "C" fn layout_hit_test_find_topmost_item(
         read,
         false,
         Default::default(),
-        |list, tree, arena| ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into())),
+        |list, tree, arena| {
+            let mut sampled = None;
+            let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
+            ffi_topmost(list.find_topmost_item(arena, tree, &callbacks, point.into()))
+        },
     );
 }
 
@@ -1027,7 +1046,11 @@ pub unsafe extern "C" fn layout_hit_test_all(
         read,
         false,
         Vec::new(),
-        |list, tree, arena| list.hit_test_all(arena, tree, &callbacks, point.into()),
+        |list, tree, arena| {
+            let mut sampled = None;
+            let tree = tree_as_the_query_reads_it(tree, &callbacks, &mut sampled);
+            list.hit_test_all(arena, tree, &callbacks, point.into())
+        },
     );
     for index in indices {
         // SAFETY: The C++ sink consumes the index synchronously.

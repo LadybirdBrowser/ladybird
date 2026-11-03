@@ -53,16 +53,19 @@ public:
     Compositing::ScrollStateSnapshot const& scroll_state() const { return m_scroll_state; }
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
     ChromeMetrics const& chrome_metrics() const { return m_chrome_metrics; }
+    // The time the query reads the compositor's animations at, as a frame of the compositor's shows them, if any.
+    Optional<i64> visual_animation_sample_time_nanoseconds() const { return m_visual_animation_sample_time_nanoseconds; }
 
 private:
     friend class DOM::Document;
 
-    HitTestQuery(HitTestDisplayList const& list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics)
+    HitTestQuery(HitTestDisplayList const& list, Compositing::AccumulatedVisualContextTree visual_context_tree, Compositing::ScrollStateSnapshot const& scroll_state, double device_pixels_per_css_pixel, ChromeMetrics chrome_metrics, Optional<i64> visual_animation_sample_time_nanoseconds)
         : m_list(list)
         , m_visual_context_tree(move(visual_context_tree))
         , m_scroll_state(scroll_state)
         , m_device_pixels_per_css_pixel(device_pixels_per_css_pixel)
         , m_chrome_metrics(chrome_metrics)
+        , m_visual_animation_sample_time_nanoseconds(visual_animation_sample_time_nanoseconds)
     {
     }
 
@@ -71,6 +74,7 @@ private:
     Compositing::ScrollStateSnapshot const& m_scroll_state;
     double m_device_pixels_per_css_pixel { 1 };
     ChromeMetrics m_chrome_metrics;
+    Optional<i64> m_visual_animation_sample_time_nanoseconds;
 };
 
 class WEB_API HitTestDisplayList : public RefCounted<HitTestDisplayList> {

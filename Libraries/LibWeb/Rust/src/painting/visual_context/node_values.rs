@@ -47,12 +47,14 @@ pub(crate) fn visual_viewport_transform_data(inputs: &FfiVisualContextTreeInputs
         role: TransformDataRole::CssTransform,
         synthetic_plane: false,
         establishes_sorting_context: false,
+        bounds: libgfx_rust::FloatRect::default(),
     }
 }
 
 pub(crate) trait TransformGeometry {
     fn content_box(&self) -> CssPixelRect;
     fn border_box(&self) -> CssPixelRect;
+    fn scrollable_overflow_rect(&self) -> Option<CssPixelRect>;
     fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect>;
     fn containing_block_box(&self, coord_box: u16) -> CssPixelRect;
     fn svg_additional_element_transform(&self) -> Option<AffineTransform>;
@@ -70,6 +72,10 @@ impl<Arena: PaintRead> TransformGeometry for CommittedTransformGeometry<'_, Aren
 
     fn border_box(&self) -> CssPixelRect {
         paintable_geometry::absolute_border_box_rect(self.arena, self.node)
+    }
+
+    fn scrollable_overflow_rect(&self) -> Option<CssPixelRect> {
+        paintable_geometry::scrollable_overflow_rect(self.arena, self.node)
     }
 
     fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect> {
@@ -301,6 +307,11 @@ pub(crate) fn compute_transform_against(
     };
     let matrix = scale_matrix_for_device_pixels(matrix, scale);
     let is_invertible = matrix.is_invertible();
+    let mut bounds = geometry.border_box();
+    bounds.unite(reference_box);
+    if let Some(scrollable_overflow_rect) = geometry.scrollable_overflow_rect() {
+        bounds.unite(scrollable_overflow_rect);
+    }
     Some((
         TransformData {
             matrix,
@@ -310,6 +321,12 @@ pub(crate) fn compute_transform_against(
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: libgfx_rust::FloatRect {
+                x: bounds.x.to_float() * scale,
+                y: bounds.y.to_float() * scale,
+                width: bounds.width.to_float() * scale,
+                height: bounds.height.to_float() * scale,
+            },
         },
         is_invertible,
     ))

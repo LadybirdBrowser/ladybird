@@ -11713,7 +11713,7 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
     page().client().request_frame();
 }
 
-Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunRead const& read)
+Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunRead const& read, Optional<i64> visual_animation_sample_time_nanoseconds)
 {
     update_paint_and_hit_testing_properties_if_needed();
 
@@ -11744,18 +11744,22 @@ Optional<Painting::HitTestQuery> Document::prepare_hit_test_query(Layout::BegunR
             return {};
     }
 
+    auto visual_context_tree = paint_state().visual_context_tree_without_update(read, *this);
+    if (visual_animation_sample_time_nanoseconds.has_value() && visual_context_tree.has_visual_animations())
+        visual_context_tree = visual_context_tree.with_visual_animation_samples(*visual_animation_sample_time_nanoseconds);
     return Painting::HitTestQuery {
         *m_hit_test_display_list,
-        paint_state().visual_context_tree_without_update(read, *this),
+        move(visual_context_tree),
         scroll_state_snapshot(),
         page().client().device_pixels_per_css_pixel(),
         page().chrome_metrics(),
+        visual_animation_sample_time_nanoseconds,
     };
 }
 
-Optional<Painting::HitTestResult> Document::hit_test(Layout::BegunRead const& read, CSSPixelPoint position)
+Optional<Painting::HitTestResult> Document::hit_test(Layout::BegunRead const& read, CSSPixelPoint position, Optional<i64> visual_animation_sample_time_nanoseconds)
 {
-    auto query = prepare_hit_test_query(read);
+    auto query = prepare_hit_test_query(read, visual_animation_sample_time_nanoseconds);
     if (!query.has_value())
         return {};
     // https://w3c.github.io/pointerevents/#hit-test

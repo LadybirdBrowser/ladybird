@@ -154,6 +154,11 @@ void ConnectionFromWebContent::async_scroll_updates(Web::CompositorContextId con
     async_async_scroll_updates(context_id, updates);
 }
 
+void ConnectionFromWebContent::animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds)
+{
+    async_animated_content_moved_under_pointer(context_id, frame_time_nanoseconds);
+}
+
 void ConnectionFromWebContent::overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> const& visibilities)
 {
     async_overlay_scrollbar_visibilities_changed(visibilities);

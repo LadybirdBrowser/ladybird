@@ -1604,8 +1604,10 @@ public:
     Painting::HitTestListAdoption adopt_published_recording(Optional<Layout::BegunRead const&> hit_test_list_read, Painting::DisplayListRecording const&, NonnullRefPtr<Compositing::DisplayList>, Function<Compositing::DisplayListResourceSet()> const& referenced_resources);
     // Indicates whether a query of the hit test list would require a synchronous update to it.
     [[nodiscard]] bool hit_test_display_list_is_current(Layout::BegunRead const& read);
-    Optional<Painting::HitTestQuery> prepare_hit_test_query(Layout::BegunRead const& read);
-    Optional<Painting::HitTestResult> hit_test(Layout::BegunRead const& read, CSSPixelPoint);
+    // Where a visual animation sample time is given, the hit test reads the compositor's animations at that time, as a
+    // frame of the compositor's shows them.
+    Optional<Painting::HitTestQuery> prepare_hit_test_query(Layout::BegunRead const& read, Optional<i64> visual_animation_sample_time_nanoseconds = {});
+    Optional<Painting::HitTestResult> hit_test(Layout::BegunRead const& read, CSSPixelPoint, Optional<i64> visual_animation_sample_time_nanoseconds = {});
     Optional<Painting::CaretPosition> caret_position_from_point(Layout::BegunRead const& read, CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection_start(Layout::BegunRead const& read, CSSPixelPoint);
     Optional<Painting::CaretPosition> caret_position_from_point_for_selection(Layout::BegunRead const& read, CSSPixelPoint, GC::Ptr<Node const> constraint_scope = nullptr);

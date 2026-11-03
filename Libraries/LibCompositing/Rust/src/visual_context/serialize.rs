@@ -28,7 +28,7 @@ use libgfx_rust::{
 };
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 9;
+const SERIALIZED_TREE_FORMAT: u32 = 10;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -110,6 +110,12 @@ impl TreeByteWriter {
     fn point(&mut self, point: FloatPoint) {
         self.f32(point.x);
         self.f32(point.y);
+    }
+    fn rect(&mut self, rect: FloatRect) {
+        self.f32(rect.x);
+        self.f32(rect.y);
+        self.f32(rect.width);
+        self.f32(rect.height);
     }
     fn size(&mut self, size: FloatSize) {
         self.f32(size.width);
@@ -226,6 +232,14 @@ impl<'a> TreeByteReader<'a> {
             y: self.f32()?,
         })
     }
+    fn rect(&mut self) -> Option<FloatRect> {
+        Some(FloatRect {
+            x: self.f32()?,
+            y: self.f32()?,
+            width: self.f32()?,
+            height: self.f32()?,
+        })
+    }
     fn size(&mut self) -> Option<FloatSize> {
         Some(FloatSize {
             width: self.f32()?,
@@ -335,6 +349,7 @@ fn write_spatial_data(writer: &mut TreeByteWriter, data: &SpatialData) {
             writer.u8(transform.role as u8);
             writer.bool(transform.synthetic_plane);
             writer.bool(transform.establishes_sorting_context);
+            writer.rect(transform.bounds);
         }
         SpatialData::Perspective(perspective) => {
             writer.u8(SPATIAL_KIND_PERSPECTIVE);
@@ -393,6 +408,7 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
             role: reader.transform_role()?,
             synthetic_plane: reader.bool()?,
             establishes_sorting_context: reader.bool()?,
+            bounds: reader.rect()?,
         }),
         SPATIAL_KIND_PERSPECTIVE => SpatialData::Perspective(PerspectiveData {
             matrix: reader.matrix()?,
@@ -953,6 +969,7 @@ mod tests {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: FloatRect::default(),
         }
     }
 

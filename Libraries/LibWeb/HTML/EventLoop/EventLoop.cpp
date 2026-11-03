@@ -1576,9 +1576,18 @@ bool EventLoop::let_layout_of_rendering_update_fly()
 
 void EventLoop::note_hover_may_be_stale(LocalNavigable& navigable)
 {
-    if (any_of(m_navigables_with_hover_that_may_be_stale, [&](auto const& entry) { return entry.ptr() == &navigable; }))
+    if (!queue_hover_that_may_be_stale(navigable))
         return;
+    // An idle loop comes between two tasks only as the next task comes: this makes it come now.
+    schedule();
+}
+
+bool EventLoop::queue_hover_that_may_be_stale(LocalNavigable& navigable)
+{
+    if (any_of(m_navigables_with_hover_that_may_be_stale, [&](auto const& entry) { return entry.ptr() == &navigable; }))
+        return false;
     m_navigables_with_hover_that_may_be_stale.append(navigable);
+    return true;
 }
 
 void EventLoop::update_hovers_that_may_be_stale(HoverUpdatePoint hover_update_point)
@@ -1588,8 +1597,9 @@ void EventLoop::update_hovers_that_may_be_stale(HoverUpdatePoint hover_update_po
     for (auto& navigable : navigables) {
         if (navigable->has_been_destroyed())
             continue;
+        // A hover that waits for a frame, or for a rendering update, comes here again as it lands or begins.
         if (navigable->event_handler().update_hover_where_the_pointer_rests(hover_update_point))
-            note_hover_may_be_stale(*navigable);
+            queue_hover_that_may_be_stale(*navigable);
     }
 }
 

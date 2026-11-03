@@ -21,6 +21,7 @@
 #include <LibWeb/Compositor/RenderClock.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/Page/EventHandler.h>
 #include <LibWeb/Page/Page.h>
 
 // The Paint stage presents frames, and only the connection hands it the sink it presents them through, and the
@@ -871,6 +872,16 @@ void CompositorConnection::rendering_opportunity(Web::CompositorContextId contex
         if (navigable->compositor_context().id() != context_id)
             continue;
         navigable->page().client().rendering_opportunity(frame_time_nanoseconds, frame_interval_milliseconds);
+        return;
+    }
+}
+
+void CompositorConnection::animated_content_moved_under_pointer(Web::CompositorContextId context_id, i64 frame_time_nanoseconds)
+{
+    for (auto& navigable : Web::HTML::all_local_navigables()) {
+        if (!navigable->has_compositor_context() || navigable->compositor_context().id() != context_id)
+            continue;
+        navigable->event_handler().note_animated_content_moved_under_pointer(frame_time_nanoseconds);
         return;
     }
 }

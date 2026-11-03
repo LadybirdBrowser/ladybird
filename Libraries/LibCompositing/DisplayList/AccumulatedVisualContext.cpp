@@ -130,6 +130,12 @@ bool AccumulatedVisualContextTree::has_active_visual_animation_at(i64 monotonic_
     return Compositing::RustFFI::visual_context_tree_has_active_visual_animation_at(m_rust_tree, monotonic_time_ns);
 }
 
+bool AccumulatedVisualContextTree::running_transform_animation_covers_point(i64 monotonic_time_ns, Gfx::FloatPoint screen_point, ScrollStateSnapshot const& scroll_state) const
+{
+    auto scroll_offsets = scroll_state.device_offsets();
+    return Compositing::RustFFI::visual_context_tree_running_transform_animation_covers_point(m_rust_tree, monotonic_time_ns, screen_point, scroll_offsets.data(), scroll_offsets.size());
+}
+
 VisualAnimationSummary AccumulatedVisualContextTree::visual_animation_summary() const
 {
     auto summary = Compositing::RustFFI::visual_context_tree_visual_animation_summary(m_rust_tree);
