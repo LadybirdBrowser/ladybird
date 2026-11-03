@@ -1,0 +1,12 @@
+When a clearing <br> ends the last line of a block container, Ladybird
+makes that line reach down to the clearance, so the block ends below the
+floats it clears — however much room the floats left beside the break.
+
+Gecko, Blink and WebKit all do the same. Gecko’s nsBlockFrame::
+ReflowDirtyLines() clears the floats after the block’s last
+line (“BR-clearance from the last line of the block”). Blink’s
+InlineLayoutAlgorithm::AddAnyClearanceAfterLine() records the exclusion
+space’s clearance offset with SetClearanceAfterLine(). And WebKit’s
+InlineFormattingContext::updateLayoutStateWithLineLayoutResult() sets
+the gap after the last line from logicalTopForNextLine(), which takes
+the break’s clear into account.
