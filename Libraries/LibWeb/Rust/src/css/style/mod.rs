@@ -131,6 +131,9 @@ use std::sync::Mutex;
 /// Attribute names a document's selectors read, which its engine shares with its host.
 pub(crate) type SelectorAttributeNames = Arc<HashSet<StyleAtomID>>;
 
+/// The style record each pseudo-element of an element holds, by its kind.
+type HeldPseudoStyleRecords = crate::fork::ForkShared<HashMap<StyleNodeID, smallvec::SmallVec<[(u8, u64); 1]>>>;
+
 /// What an element's arrival has to carry to reach the anchor of a `:has()` argument: a name whose raw identity is
 /// among `names` as its tag, ID, class or attribute name, or a state among `states`. Where an argument can be reached
 /// by anything else, every arrival can reach one. The engine shares it with its host, which leaves the subtrees of
@@ -276,7 +279,7 @@ pub struct RetainedState {
     held_style_records: inputs::HeldStyleRecords,
     /// The style record each pseudo-element holds, by its kind, for the elements whose pseudo-elements
     /// hold one, as the host reports every record it installs or clears.
-    held_pseudo_style_records: crate::fork::ForkShared<HashMap<StyleNodeID, Vec<(u8, u64)>>>,
+    held_pseudo_style_records: HeldPseudoStyleRecords,
     /// The records a clock frame shows in place of the ones the host installed, which it lends the published reads
     /// for as long as it runs.
     tick_shown: engine_sample::TickShownRecords,

@@ -670,6 +670,9 @@ struct PseudoComputedRow {
     installed_overlay_slot: Option<u32>,
 }
 
+/// The rows of an element's pseudo-elements, of which it rarely has more than one.
+type PseudoComputedRows = smallvec::SmallVec<[PseudoComputedRow; 1]>;
+
 /// The slot of the animation overlay composed over each element's record, by element.
 #[derive(Clone, Default)]
 struct AnimationOverlayColumn(Vec<u32>);
@@ -793,6 +796,9 @@ pub(crate) struct InstalledPseudoStyle {
 /// How many elements a chunk of the installed style columns holds.
 const INSTALLED_STYLE_CHUNK: usize = 64;
 
+/// The styles installed for an element's pseudo-elements, of which it rarely has more than one.
+type InstalledPseudoStyles = smallvec::SmallVec<[InstalledPseudoStyle; 1]>;
+
 /// The styles installed for the elements and their pseudo-elements, by element slot, as one
 /// installation left them: a published generation of the sets' columns, which later
 /// installations do not change. Publishing one costs a reference count however many elements
@@ -801,7 +807,7 @@ const INSTALLED_STYLE_CHUNK: usize = 64;
 pub(crate) struct InstalledStyles {
     elements: crate::cow_column::ColumnSnapshot<Option<InstalledStyle>, INSTALLED_STYLE_CHUNK>,
     pseudo_elements:
-        crate::cow_column::ColumnSnapshot<Option<std::sync::Arc<Box<[InstalledPseudoStyle]>>>, INSTALLED_STYLE_CHUNK>,
+        crate::cow_column::ColumnSnapshot<Option<std::sync::Arc<InstalledPseudoStyles>>, INSTALLED_STYLE_CHUNK>,
 }
 
 impl InstalledStyles {
@@ -843,7 +849,7 @@ pub struct ComputedGroupSets {
     /// the column was last published, by element index. A row is one thin pointer: most elements
     /// have none.
     installed_pseudo_column:
-        crate::cow_column::CowColumn<Option<std::sync::Arc<Box<[InstalledPseudoStyle]>>>, INSTALLED_STYLE_CHUNK>,
+        crate::cow_column::CowColumn<Option<std::sync::Arc<InstalledPseudoStyles>>, INSTALLED_STYLE_CHUNK>,
     /// The elements whose pseudo rows moved since the pseudo column was last published.
     pseudo_rows_moved: Vec<StyleNodeID>,
     /// Long-lived immutable readers pin only the records they actually read. Expired readers leave weak entries
@@ -868,7 +874,7 @@ pub struct ComputedGroupSets {
     leases: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     live_animation_overlay_assignments: usize,
     next_animation_overlay_generation: u64,
-    pseudo_rows_by_node: crate::fork::ForkShared<HashMap<StyleNodeID, Box<[PseudoComputedRow]>>>,
+    pseudo_rows_by_node: crate::fork::ForkShared<HashMap<StyleNodeID, PseudoComputedRows>>,
     /// How many installed records were freed since what they named was last reclaimed.
     records_freed_since_reclamation: usize,
     next_reclamation_after: usize,
@@ -903,7 +909,7 @@ impl ComputedGroupSets {
     /// Counts the installed records and the columns naming them toward the installed records,
     /// and the records by owner.
     pub(super) fn report_memory(&self, report: &mut super::memory_report::MemoryReport) {
-        use crate::heap_size::{map_bytes, vec_bytes};
+        use crate::heap_size::{map_bytes, small_vec_bytes, vec_bytes};
         self.installed.report_memory(report);
         for record in self.animation_overlay_slots.records() {
             super::pipeline::Record::report_memory(record, report);
@@ -912,7 +918,7 @@ impl ComputedGroupSets {
         report.add(
             super::memory_report::MemoryOwner::Installed,
             self.installed_column.len() * size_of::<Option<InstalledStyle>>()
-                + self.installed_pseudo_column.len() * size_of::<Option<std::sync::Arc<Box<[InstalledPseudoStyle]>>>>()
+                + self.installed_pseudo_column.len() * size_of::<Option<std::sync::Arc<InstalledPseudoStyles>>>()
                 + vec_bytes(&self.pseudo_rows_moved)
                 + vec_bytes(&self.animation_overlay_column.0)
                 + self.animation_overlay_slots.heap_size()
@@ -920,10 +926,7 @@ impl ComputedGroupSets {
                 + vec_bytes(&self.held_animation_overlay_slots)
                 + vec_bytes(&self.released_animation_overlay_records.records)
                 + map_bytes(pseudo_rows)
-                + pseudo_rows
-                    .values()
-                    .map(|rows| size_of_val::<[PseudoComputedRow]>(rows))
-                    .sum::<usize>(),
+                + pseudo_rows.values().map(small_vec_bytes).sum::<usize>(),
         );
     }
 
@@ -991,7 +994,7 @@ impl ComputedGroupSets {
     }
 
     fn pseudo_rows(&self, node: StyleNodeID) -> &[PseudoComputedRow] {
-        self.pseudo_rows_by_node.get(&node).map_or(&[], Box::as_ref)
+        self.pseudo_rows_by_node.get(&node).map_or(&[], |rows| rows.as_slice())
     }
 
     fn pseudo_row(&self, node: StyleNodeID, kind: u8) -> Option<&PseudoComputedRow> {
@@ -1009,12 +1012,8 @@ impl ComputedGroupSets {
         self.pseudo_rows_moved.push(node);
         let rows = self.pseudo_rows_by_node.entry(node).or_default();
         let row_index = rows.iter().position(|row| row.kind == kind).unwrap_or_else(|| {
-            let mut extended = std::mem::take(rows).into_vec();
-            let row_index = extended.len();
-            extended.push(PseudoComputedRow::new(kind));
-            *rows = extended.into_boxed_slice();
-
-            row_index
+            rows.push(PseudoComputedRow::new(kind));
+            rows.len() - 1
         });
         &mut rows[row_index]
     }
@@ -1027,13 +1026,9 @@ impl ComputedGroupSets {
         let Some(row_index) = entry.get().iter().position(|row| row.kind == kind && row.is_empty()) else {
             return;
         };
-        let mut rows = std::mem::take(entry.get_mut()).into_vec();
-        rows.remove(row_index);
-
-        if rows.is_empty() {
+        entry.get_mut().remove(row_index);
+        if entry.get().is_empty() {
             entry.remove();
-        } else {
-            entry.insert(rows.into_boxed_slice());
         }
     }
 
@@ -1142,7 +1137,7 @@ impl ComputedGroupSets {
             let Some(index) = node.element_index().map(|index| index as usize) else {
                 continue;
             };
-            let styles: Vec<InstalledPseudoStyle> = self
+            let styles: InstalledPseudoStyles = self
                 .pseudo_rows(node)
                 .iter()
                 .filter_map(|row| {
@@ -1156,7 +1151,7 @@ impl ComputedGroupSets {
                     })
                 })
                 .collect();
-            let styles = (!styles.is_empty()).then(|| std::sync::Arc::new(styles.into_boxed_slice()));
+            let styles = (!styles.is_empty()).then(|| std::sync::Arc::new(styles));
             if styles.is_some() {
                 self.installed_pseudo_column.grow_to(index + 1);
             }
@@ -1674,7 +1669,7 @@ impl ComputedGroupSets {
         }
         self.pseudo_rows_moved.push(node);
         if let Some(rows) = self.pseudo_rows_by_node.remove(&node) {
-            for row in rows.into_vec() {
+            for row in rows {
                 if let Some(installed) = row.installed {
                     self.installed.release(installed);
                 }

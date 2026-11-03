@@ -77,7 +77,7 @@ pub(super) struct PseudoElementFacts {
     /// Whether any of them moved.
     pub(super) moved: bool,
     /// What each move damages, a counter-style rebuild of its box included.
-    pub(super) damages: Vec<u32>,
+    pub(super) damages: smallvec::SmallVec<[u32; 2]>,
     /// Whether the custom-property environment of any of them moved.
     pub(super) environment_moved: bool,
     /// Whether the record any of them moves from or to holds an image.
