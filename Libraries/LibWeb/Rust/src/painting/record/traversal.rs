@@ -175,6 +175,7 @@ fn record_display_list_impl<O: Observer>(
     };
     let mut hit_test_list = recorder.list;
     hit_test_list.generation = paint_state.hit_test_list_generation + 1;
+    hit_test_list.recorded_structural_epoch = structural_epoch;
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
         frame_inputs,

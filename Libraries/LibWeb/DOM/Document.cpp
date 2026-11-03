@@ -11684,7 +11684,7 @@ Painting::HitTestListAdoption Document::adopt_published_recording(Optional<Layou
     if (!hit_test_list_read.has_value()) {
         m_hit_test_display_list = nullptr;
         adoption = Painting::HitTestListAdoption::Dropped;
-    } else if (!recording_returned_the_paint_command_cache_source || !m_hit_test_display_list || !m_hit_test_display_list->is_current()) {
+    } else if (!m_hit_test_display_list || !m_hit_test_display_list->is_current()) {
         m_hit_test_display_list = Painting::HitTestDisplayList::create_from_rust_recording(*hit_test_list_read, recording.visual_context_tree.structural_epoch(), layout_node_arena(), *m_chrome_widget_registry);
         adoption = Painting::HitTestListAdoption::TookNew;
     }
