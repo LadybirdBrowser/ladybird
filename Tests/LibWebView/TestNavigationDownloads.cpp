@@ -72,9 +72,14 @@ public:
         return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/page", m_port)).release_value();
     }
 
-    URL::URL url() const
+    URL::URL url(bool cross_site = false) const
     {
-        return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", m_port)).release_value();
+        return URL::Parser::basic_parse(ByteString::formatted("http://{}:{}/file", cross_site ? "localhost" : "127.0.0.1", m_port)).release_value();
+    }
+
+    URL::URL redirect_url() const
+    {
+        return URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/redirect", m_port)).release_value();
     }
 
     // The number of requests for url(), not counting the page.
@@ -119,6 +124,11 @@ private:
         if (request.string_view().starts_with("GET /page "sv)) {
             auto page = "<!DOCTYPE html><title>Downloads</title>"sv;
             auto response = ByteString::formatted("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}", page.length(), page);
+            (void)write_all(client, response.bytes());
+            return;
+        }
+        if (request.string_view().starts_with("GET /redirect "sv)) {
+            auto response = ByteString::formatted("HTTP/1.1 302 Found\r\nLocation: {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", url(true));
             (void)write_all(client, response.bytes());
             return;
         }
@@ -254,6 +264,16 @@ void expect_navigation_downloads_cached_body(Core::AnonymousBuffer const& theme,
     }
 }
 
+void expect_cross_site_navigation_downloads_body(Core::AnonymousBuffer const& theme, StringView what, ByteString headers, ByteBuffer const& body, bool redirect, Optional<size_t> pause_after = {})
+{
+    TestHttpServer server { move(headers), body, pause_after };
+    auto view = WebView::HeadlessWebView::create(theme, { 800, 600 });
+    load_page(*view, server.page_url());
+    expect_download_holds_body(what, download_navigation_response(*view, redirect ? server.redirect_url() : server.url(true)), body);
+    EXPECT(!view->is_loading());
+    EXPECT_EQ(view->url(), server.page_url());
+}
+
 }
 
 TEST_CASE(navigation_downloads)
@@ -276,6 +296,12 @@ TEST_CASE(navigation_downloads)
     expect_navigation_downloads_body(theme, "a response sniffed from bytes that arrive in parts"sv, "Content-Type: application/octet-stream\r\n"sv, body, 500);
     expect_navigation_downloads_cached_body(theme, "a response sniffed from the disk cache"sv, "Cache-Control: max-age=3600\r\nContent-Type: application/octet-stream\r\n"sv, body);
     expect_navigation_downloads_cached_body(theme, "an attachment from the disk cache"sv, "Cache-Control: max-age=3600\r\nContent-Disposition: attachment; filename=\"attachment.bin\"\r\n"sv, body);
+
+    for (bool redirect : { false, true }) {
+        expect_cross_site_navigation_downloads_body(theme, "a cross-site attachment"sv, "Content-Disposition: attachment; filename=\"cross-site.bin\"\r\n"sv, body, redirect);
+        expect_cross_site_navigation_downloads_body(theme, "a cross-site response sniffed as unrenderable"sv, "Content-Type: application/octet-stream\r\n"sv, body, redirect);
+    }
+    expect_cross_site_navigation_downloads_body(theme, "a cross-site response whose bytes arrive in parts"sv, "Content-Type: application/octet-stream\r\n"sv, body, false, 500);
 
     outln("PASS: navigation responses download byte for byte");
 }

@@ -2773,7 +2773,15 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
     // received that response may claim it, and only while its population is in flight.
     FileDownloader::ResponseFinished on_response_finished;
     bool matches_in_flight_navigation = false;
-    if (auto navigable = population_worker_navigable(navigable_id); navigable.has_value()) {
+    if (auto navigable = traversable().top_level_traversable().find(navigable_id); navigable.has_value()) {
+        auto ongoing_navigation = navigation_id.has_value() ? navigable->navigation_with_id(*navigation_id) : nullptr;
+        bool owns_navigation = ongoing_navigation
+            && ((ongoing_navigation->state.has<CanonicalNavigation::CreatingNavigationParams>() && ongoing_navigation->worker() == this)
+                || (ongoing_navigation->state.has<CanonicalNavigation::Populating>() && ongoing_navigation->host() == this));
+        // The active host can report a response after navigation is canceled, so BiDi still needs its terminal error.
+        if (!owns_navigation && !traversable().hosts(*navigable, *this))
+            return { Optional<u64> {} };
+
         if (auto* bidi = WebDriverBiDi::the();
             bidi && network_response.is_object()) {
             on_response_finished = [weak_bidi = bidi->make_weak_ptr(),
@@ -2787,10 +2795,7 @@ Messages::WebContentClient::DidStartDownloadResponse WebContentPage::did_start_d
                         timing, error);
             };
         }
-        auto ongoing_navigation = navigation_id.has_value() ? navigable->navigation_with_id(*navigation_id) : nullptr;
-        if (ongoing_navigation
-            && (ongoing_navigation->state.has<CanonicalNavigation::CreatingNavigationParams>() || ongoing_navigation->state.has<CanonicalNavigation::Populating>())
-            && ongoing_navigation->loader()->response_body_matches(request_server_client_id, request_server_request_id)) {
+        if (owns_navigation && ongoing_navigation->loader()->response_body_matches(request_server_client_id, request_server_request_id)) {
             matches_in_flight_navigation = true;
             navigable->did_cancel_navigation(*navigation_id);
         }
