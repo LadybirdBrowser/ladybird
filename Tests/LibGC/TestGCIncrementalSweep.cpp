@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/JsonObject.h>
 #include <LibGC/Cell.h>
 #include <LibGC/CellAllocator.h>
+#include <LibGC/DeferGC.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapBlock.h>
 #include <LibGC/Root.h>
@@ -136,4 +138,50 @@ TEST_CASE(free_cells_that_a_destructor_takes_while_a_collection_finishes_the_swe
     heap.sweep_block(block);
     auto next_cell = GC::make_root(heap.allocate<CellOfAnotherType>());
     EXPECT_EQ(next_cell.ptr(), cell_allocated_by_the_destructor);
+}
+
+TEST_CASE(cells_allocated_into_blocks_pending_sweep_do_not_count_as_live)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    heap.enable_stats();
+
+    auto reachable_cell = GC::make_root(heap.allocate<CellOfAnotherType>());
+    auto& block = *GC::HeapBlock::from_cell(reachable_cell.ptr());
+    GC::scrub_stack_for_testing();
+
+    heap.collect_garbage();
+    EXPECT(heap.is_incremental_sweep_active());
+
+    // Under a deferral the allocator takes cells from the block without sweeping it, and they get marked to survive.
+    {
+        GC::DeferGC defer_gc { heap };
+        for (size_t i = 0; i < 16; ++i) {
+            auto cell = heap.allocate<CellOfAnotherType>();
+            EXPECT_EQ(GC::HeapBlock::from_cell(cell.ptr()), &block);
+            EXPECT(block.is_pending_sweep());
+        }
+    }
+
+    // The next collection finishes that sweep, which records what the collection before it found alive.
+    heap.collect_garbage();
+    AK::JsonObject stats;
+    heap.add_stats(stats);
+    EXPECT_EQ(stats.get_u64("gc.live_cell_bytes"sv), block.cell_size());
+}
+
+TEST_CASE(collect_everything_leaves_no_live_cell_bytes)
+{
+    GC::Heap heap([](auto&) { }, GC::Heap::BecomeProcessDefault::No);
+    heap.enable_stats();
+
+    {
+        auto reachable_cell = GC::make_root(heap.allocate<CellOfAnotherType>());
+        GC::scrub_stack_for_testing();
+        heap.collect_garbage();
+    }
+
+    heap.collect_garbage(GC::Heap::CollectionType::CollectEverything);
+    AK::JsonObject stats;
+    heap.add_stats(stats);
+    EXPECT_EQ(stats.get_u64("gc.live_cell_bytes"sv), 0u);
 }
