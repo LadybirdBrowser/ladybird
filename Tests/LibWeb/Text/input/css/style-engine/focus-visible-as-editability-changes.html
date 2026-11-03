@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<style>
+    :focus-visible {
+        color: rgb(1, 2, 3);
+    }
+    div,
+    input {
+        display: block;
+        width: 100px;
+        height: 20px;
+    }
+</style>
+<div id="ancestor"><div id="focusable" tabindex="0"></div></div>
+<input id="input" type="checkbox">
+<div id="editable" contenteditable></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const element = id => document.getElementById(id);
+
+        function focusWithPointer(target) {
+            const rect = target.getBoundingClientRect();
+            internals.mouseDown(rect.x + rect.width / 2, rect.y + rect.height / 2);
+            internals.mouseUp(rect.x + rect.width / 2, rect.y + rect.height / 2);
+        }
+
+        function report(label, target) {
+            println(`${label}: focused ${document.activeElement === target}, matches ${target.matches(":focus-visible")}, ${getComputedStyle(target).color}`);
+        }
+
+        const focusable = element("focusable");
+        focusWithPointer(focusable);
+        report("Focused with a pointer", focusable);
+        element("ancestor").setAttribute("contenteditable", "");
+        report("Ancestor made editable", focusable);
+        element("ancestor").removeAttribute("contenteditable");
+        report("Ancestor no longer editable", focusable);
+        focusable.setAttribute("contenteditable", "");
+        report("Made an editing host", focusable);
+        focusable.removeAttribute("contenteditable");
+        report("No longer an editing host", focusable);
+        document.designMode = "on";
+        report("designMode on", focusable);
+        document.designMode = "off";
+        report("designMode off", focusable);
+        element("editable").moveBefore(focusable, null);
+        report("Moved into an editing host", focusable);
+        element("ancestor").moveBefore(focusable, null);
+        report("Moved out of it", focusable);
+
+        const input = element("input");
+        focusWithPointer(input);
+        report("Checkbox focused with a pointer", input);
+        input.type = "text";
+        report("Became a text field", input);
+        input.type = "checkbox";
+        report("Became a checkbox", input);
+    });
+</script>
