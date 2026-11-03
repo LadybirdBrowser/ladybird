@@ -272,7 +272,8 @@ struct ScrollRequest {
             instant_scroll_is_for_user_input = later.instant_scroll_is_for_user_input;
         if (later.jump_offset.has_value()) {
             jump_offset = later.jump_offset;
-            visual_viewport_scale = later.visual_viewport_scale;
+            if (later.visual_viewport_scale.has_value())
+                visual_viewport_scale = later.visual_viewport_scale;
             relative_scroll = later.relative_scroll;
             relative_scroll_moves_visual_viewport_first = later.relative_scroll_moves_visual_viewport_first;
         } else if (later.relative_scroll.has_value()) {

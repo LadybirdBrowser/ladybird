@@ -1,2 +1,2 @@
 beside the task: compositor scale: 3, main thread scale: 1.5
-after the task: compositor scale: 1.5, main thread scale: 1.5
+after the task: compositor scale: 3, main thread scale: 3

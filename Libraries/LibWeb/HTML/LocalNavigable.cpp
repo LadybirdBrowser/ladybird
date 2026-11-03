@@ -7277,8 +7277,11 @@ void LocalNavigable::request_scroll_jump(Web::AsyncScrollNodeStableID stable_nod
     scroll_request.relative_scroll.clear();
     scroll_request.relative_scroll_moves_visual_viewport_first = false;
     scroll_request.instant_scroll_is_for_user_input = trigger != ScrollTrigger::Programmatic;
-    if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport)
-        scroll_request.visual_viewport_scale = active_document()->visual_viewport()->scale();
+    // NB: The compositor zooms on its own, so the scale this thread knows may be old. Only a change made here goes along.
+    if (stable_node_id.kind == Web::AsyncScrollNodeKind::VisualViewport) {
+        if (auto scale = active_document()->visual_viewport()->take_scale_for_compositor(); scale.has_value())
+            scroll_request.visual_viewport_scale = static_cast<float>(scale.value());
+    }
 }
 
 void LocalNavigable::request_smooth_scroll(Web::AsyncScrollNodeStableID stable_node_id, Compositing::RequestedSmoothScroll smooth_scroll)
