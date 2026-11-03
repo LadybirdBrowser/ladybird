@@ -1,0 +1,33 @@
+Harness status: OK
+
+Found 28 tests
+
+28 Pass
+Pass	inline: !important followed by red
+Pass	inline: red followed by !important
+Pass	inline: green !important followed by red
+Pass	inline: red followed by green !important
+Pass	inline: green !important followed by red !important
+Pass	inline: red !important followed by !important
+Pass	inline: !important followed by green !important
+Pass	inline: green followed by red
+Pass	stylesheet: !important followed by red
+Pass	stylesheet: red followed by !important
+Pass	stylesheet: green !important followed by red
+Pass	stylesheet: red followed by green !important
+Pass	stylesheet: green !important followed by red !important
+Pass	stylesheet: red !important followed by !important
+Pass	stylesheet: !important followed by green !important
+Pass	stylesheet: green followed by red
+Pass	inline with ignored rule: !important followed by red
+Pass	inline with ignored rule: red followed by !important
+Pass	inline with ignored rule: green !important followed by red
+Pass	inline with ignored rule: red followed by green !important
+Pass	inline with ignored rule: green !important followed by red !important
+Pass	inline with ignored rule: red !important followed by !important
+Pass	inline with ignored rule: !important followed by green !important
+Pass	inline with ignored rule: green followed by red
+Pass	inline: setProperty replaces !important with a normal value
+Pass	inline: setProperty replaces green !important with a normal value
+Pass	stylesheet: setProperty replaces !important with a normal value
+Pass	stylesheet: setProperty replaces green !important with a normal value

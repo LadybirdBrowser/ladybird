@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Custom property importance within declaration blocks</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#cascade-sort">
+<link rel="help" href="https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty">
+<script src="../wpt-import/resources/testharness.js"></script>
+<script src="../wpt-import/resources/testharnessreport.js"></script>
+<body>
+<script>
+    function createDeclaration(t, context, declarations) {
+        const target = document.createElement("div");
+        target.id = "target";
+        document.body.append(target);
+        t.add_cleanup(() => target.remove());
+        if (context === "stylesheet") {
+            const style = document.createElement("style");
+            style.textContent = `#target { ${declarations.join(";")}; }`;
+            document.head.append(style);
+            t.add_cleanup(() => style.remove());
+            return [target, style.sheet.cssRules[0].style];
+        }
+        const separator = context === "inline with ignored rule" ? "; @unknown {} " : ";";
+        target.style.cssText = declarations.join(separator) + ";";
+        return [target, target.style];
+    }
+
+    for (const context of ["inline", "stylesheet", "inline with ignored rule"]) {
+        for (const [first, second, value, priority] of [
+            ["!important", "red", "", "important"],
+            ["red", "!important", "", "important"],
+            ["green !important", "red", "green", "important"],
+            ["red", "green !important", "green", "important"],
+            ["green !important", "red !important", "red", "important"],
+            ["red !important", "!important", "", "important"],
+            ["!important", "green !important", "green", "important"],
+            ["green", "red", "red", ""],
+        ]) {
+            test(t => {
+                const [target, declaration] = createDeclaration(t, context, [`--value: ${first}`, `--value: ${second}`]);
+                assert_equals(declaration.length, 1);
+                assert_equals(declaration.getPropertyValue("--value").trim(), value);
+                assert_equals(declaration.getPropertyPriority("--value"), priority);
+                assert_equals(getComputedStyle(target).getPropertyValue("--value").trim(), value);
+            }, `${context}: ${first} followed by ${second}`);
+        }
+    }
+
+    for (const context of ["inline", "stylesheet"]) {
+        for (const initial of ["!important", "green !important"]) {
+            test(t => {
+                const [target, declaration] = createDeclaration(t, context, [`--value: ${initial}`]);
+                declaration.setProperty("--value", "red");
+                assert_equals(declaration.getPropertyValue("--value"), "red");
+                assert_equals(declaration.getPropertyPriority("--value"), "");
+                assert_equals(getComputedStyle(target).getPropertyValue("--value"), "red");
+            }, `${context}: setProperty replaces ${initial} with a normal value`);
+        }
+    }
+</script>

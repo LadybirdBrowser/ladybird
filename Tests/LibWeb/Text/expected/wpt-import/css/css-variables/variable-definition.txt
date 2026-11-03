@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 73 tests
 
-53 Pass
-20 Fail
+59 Pass
+14 Fail
 Pass	no variable
 Pass	variable
 Pass	single char variable
@@ -25,8 +25,8 @@ Pass	 leading white space (double space) 2
 Pass	 middle white space (double space) 2
 Pass	 trailing white space (double space) 2
 Pass	!important
-Fail	!important 2
-Fail	!important (with space)
+Pass	!important 2
+Pass	!important (with space)
 Pass	no variable (Computed Style)
 Pass	variable (Computed Style)
 Pass	single char variable (Computed Style)
@@ -48,8 +48,8 @@ Pass	 leading white space (double space) 2 (Computed Style)
 Pass	 middle white space (double space) 2 (Computed Style)
 Pass	 trailing white space (double space) 2 (Computed Style)
 Pass	!important (Computed Style)
-Fail	!important 2 (Computed Style)
-Fail	!important (with space) (Computed Style)
+Pass	!important 2 (Computed Style)
+Pass	!important (with space) (Computed Style)
 Pass	no variable (Cascading)
 Pass	variable (Cascading)
 Pass	single char variable (Cascading)
@@ -71,8 +71,8 @@ Pass	 leading white space (double space) 2 (Cascading)
 Pass	 middle white space (double space) 2 (Cascading)
 Pass	 trailing white space (double space) 2 (Cascading)
 Pass	!important (Cascading)
-Fail	!important 2 (Cascading)
-Fail	!important (with space) (Cascading)
+Pass	!important 2 (Cascading)
+Pass	!important (with space) (Cascading)
 Pass	basic CSSOM.setProperty
 Fail	CSSOM.setProperty with space 1
 Fail	CSSOM.setProperty with space 2
