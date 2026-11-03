@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #stage { position: relative; width: 400px; height: 150px; }
+    #box { position: absolute; width: 100px; height: 60px; top: 20px; left: -200px; cursor: cell; }
+    #box:hover { height: 80px; }
+    #stage.active #box { animation: walk 10s linear infinite; }
+    @keyframes walk { from { left: -200px; } to { left: 800px; } }
+</style>
+<div id="stage"><div id="box"></div></div>
+<script>
+    // A box the clock lane moves across the pointer at rest is hovered by the lane as the pointer moves, like any other
+    // box: a hover that changes nothing of the element's animations leaves their plan as it is, so the lane installs the
+    // hover's style itself and keeps sampling the animation over it, and shows the cursor of the box. The host hovers
+    // the same box afterwards.
+    asyncTest(async done => {
+        internals.mouseMove(150, 50);
+        await twoFrames();
+        const result = await whileLaneAnimates(() => {
+            stage.classList.add("active");
+            return box.getAnimations()[0];
+        }, (frameTime, animation, startTime) => {
+            const lines = [];
+            // 3 s in, the box spans 100..200 by 20..80, under the pointer.
+            internals.injectClockTick(startTime + 3000);
+            lines.push(`presented left at 3 s: ${internals.presentedBorderBox(box)?.x}`);
+            internals.injectHoverPointer(150, 50, startTime + 3016);
+            lines.push(`cursor at a move over the box: ${internals.currentCursor()}`);
+            lines.push(`presented height after the move: ${internals.presentedBorderBox(box)?.height}`);
+            // 4 s in, the lane still samples the animation over the hovered style.
+            internals.injectClockTick(startTime + 4000);
+            lines.push(`presented left at 4 s: ${internals.presentedBorderBox(box)?.x}`);
+            lines.push(`last frame presented by: ${internals.lastFramePresentedBy(document)}`);
+            return lines;
+        });
+        for (const line of result)
+            println(line);
+        await nextFrame();
+        println(`box matches :hover after the task: ${box.matches(":hover")}`);
+        println(`cursor after the task: ${internals.currentCursor()}`);
+        done();
+    });
+</script>

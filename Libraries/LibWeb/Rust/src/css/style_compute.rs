@@ -6939,7 +6939,7 @@ pub extern "C" fn rust_animation_range_edge(
 
 /// Which of an element's animation lists a computation belongs to, in the host's own numbering:
 /// zero for the element itself, and the pseudo-element's value plus one for each pseudo-element.
-fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSlot {
+pub(crate) fn animation_slot(pseudo_kind: u8) -> crate::css::style::animations::AnimationSlot {
     match pseudo_kind == crate::css::cascaded_properties::NO_PSEUDO_ELEMENT {
         true => 0,
         false => pseudo_kind + 1,
@@ -6989,24 +6989,8 @@ fn settled_animation_plan(
     pseudo_kind: u8,
     record: &std::sync::Arc<crate::css::style::pipeline::Record>,
 ) -> Option<(smallvec::SmallVec<[FfiComputedAnimation; 1]>, bool)> {
+    let definitions = style_engine.animation_plan_of_record(node, pseudo_kind, record)?;
     let longhands = crate::css::style::StyleRecordView::of_host_record(record).longhands();
-    let declaration_scope = style_engine.animation_name_declaration_scope_of(node, pseudo_kind, record)?;
-    let existing_animations = style_engine.element_css_defined_animations(node, animation_slot(pseudo_kind));
-    let element_tree_scope = style_engine.element_tree_scope(node);
-    let mut definitions = smallvec::SmallVec::new();
-    build_computed_animation_list(
-        longhands,
-        existing_animations,
-        |name| {
-            style_engine
-                .animation_keyframes()
-                .resolve(declaration_scope, element_tree_scope, name)
-        },
-        &mut definitions,
-    );
-    if crate::css::style::animations::plan_changes_nothing(&definitions, existing_animations) {
-        return None;
-    }
     let in_display_none_subtree =
         in_display_none_subtree_for_animations(style_engine, node, pseudo_kind, longhands, &definitions);
     Some((definitions, in_display_none_subtree))
@@ -7081,7 +7065,7 @@ pub(crate) fn animation_names_declare_css_animations(names: &RetainedStyleValueD
 
 // https://drafts.csswg.org/css-values-4/#linked-properties
 // https://drafts.csswg.org/css-animations-1/#animations
-fn build_computed_animation_list(
+pub(crate) fn build_computed_animation_list(
     longhands: crate::css::style::ViewLonghands<'_>,
     existing_animations: &[crate::css::style::animations::CssDefinedAnimation],
     resolve_keyframes: impl Fn(&[u16]) -> Option<usize>,

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #box { width: 100px; height: 60px; animation: fade 100s linear infinite; transition: outline-color 100s linear; outline: 4px solid rgb(0, 0, 255); }
+    @keyframes fade { to { opacity: 0.5; } }
+    #box:hover { height: 80px; outline-color: rgb(0, 128, 0); }
+</style>
+<div id="box"></div>
+<script>
+    // The ticks of the lane sample either the animations the host runs on an element or the transitions the lane's
+    // hover started on it. A hover that starts a transition on an element that runs a CSS animation is left to the
+    // host, which runs both: the box shows nothing of the hover beside the task.
+    asyncTest(async done => {
+        const result = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 30, frameTime + 16);
+            return internals.presentedBorderBox(box)?.height;
+        });
+        println(`height on screen beside the task: ${result}`);
+        await nextFrame();
+        println(`box matches :hover after the task: ${box.matches(":hover")}`);
+        println(`height after the task: ${box.getBoundingClientRect().height}`);
+        done();
+    });
+</script>
