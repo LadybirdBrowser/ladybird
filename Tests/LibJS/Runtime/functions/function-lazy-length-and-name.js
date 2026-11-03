@@ -1,22 +1,20 @@
-const namesOf = f => Object.getOwnPropertyNames(f).filter(name => name !== "arguments" && name !== "caller");
-
 describe("own properties of functions that never had them looked at", () => {
     test("length and name come first, whatever is added first", () => {
         function a(x, y) {}
         a.foo = 1;
-        expect(namesOf(a).slice(0, 2)).toEqual(["length", "name"]);
+        expect(Object.getOwnPropertyNames(a).slice(0, 2)).toEqual(["length", "name"]);
         expect(a.length).toBe(2);
         expect(a.name).toBe("a");
-        expect(namesOf(a)).toContain("foo");
+        expect(Object.getOwnPropertyNames(a)).toContain("foo");
 
         const b = () => {};
         Object.defineProperty(b, "bar", { value: 1 });
-        expect(namesOf(b)).toEqual(["length", "name", "bar"]);
+        expect(Object.getOwnPropertyNames(b)).toEqual(["length", "name", "bar"]);
 
         const c = async x => {};
         c[Symbol.iterator] = 1;
         c.baz = 1;
-        expect(namesOf(c)).toEqual(["length", "name", "baz"]);
+        expect(Object.getOwnPropertyNames(c)).toEqual(["length", "name", "baz"]);
         expect(c.length).toBe(1);
     });
 
@@ -73,7 +71,7 @@ describe("own properties of functions that never had them looked at", () => {
         const f = function named() {};
         Object.defineProperty(f, "name", { value: "other" });
         expect(f.name).toBe("other");
-        expect(namesOf(f).slice(0, 2)).toEqual(["length", "name"]);
+        expect(Object.getOwnPropertyNames(f).slice(0, 2)).toEqual(["length", "name"]);
     });
 
     test("objects inheriting from a function see them", () => {
@@ -134,7 +132,7 @@ describe("own properties of functions that never had them looked at", () => {
         f.foo = 1;
         expect(o.foo).toBe(1);
         expect(o.length).toBe(1);
-        expect(namesOf(f).slice(0, 2)).toEqual(["length", "name"]);
+        expect(Object.getOwnPropertyNames(f).slice(0, 2)).toEqual(["length", "name"]);
     });
 
     test("bind", () => {
@@ -151,9 +149,9 @@ describe("own properties of functions that never had them looked at", () => {
         }
         expect(A.name).toBe("A");
         expect(A.length).toBe(0);
-        expect(namesOf(A).slice(0, 3)).toEqual(["length", "name", "prototype"]);
+        expect(Object.getOwnPropertyNames(A).slice(0, 3)).toEqual(["length", "name", "prototype"]);
         expect(A.m.name).toBe("m");
-        expect(namesOf(A.m)).toEqual(["length", "name"]);
+        expect(Object.getOwnPropertyNames(A.m)).toEqual(["length", "name"]);
 
         class B extends A {
             constructor(a, b) {
@@ -187,7 +185,13 @@ describe("own properties of functions that never had them looked at", () => {
         expect(f.b).toBe(2);
         expect(f.c).toBe(3);
         expect(f.length).toBe(1);
-        expect(namesOf(f).filter(name => name !== "prototype")).toEqual(["length", "name", "a", "b", "c"]);
+        expect(Object.getOwnPropertyNames(f).filter(name => name !== "prototype")).toEqual([
+            "length",
+            "name",
+            "a",
+            "b",
+            "c",
+        ]);
         expect(Object.getOwnPropertyDescriptor(f, "c").enumerable).toBeFalse();
         expect(Object.keys(f)).toEqual(["a", "b"]);
     });
@@ -197,14 +201,14 @@ describe("own properties of functions that never had them looked at", () => {
         f.a = 1;
         f.b = 2;
         expect(delete f.a).toBeTrue();
-        expect(namesOf(f)).toEqual(["length", "name", "b"]);
+        expect(Object.getOwnPropertyNames(f)).toEqual(["length", "name", "b"]);
         expect(f.b).toBe(2);
     });
 
     test("many added properties", () => {
         const f = () => {};
         for (let i = 0; i < 100; ++i) f["p" + i] = i;
-        const names = namesOf(f);
+        const names = Object.getOwnPropertyNames(f);
         expect(names.length).toBe(102);
         expect(names.slice(0, 3)).toEqual(["length", "name", "p0"]);
         for (let i = 0; i < 100; ++i) expect(f["p" + i]).toBe(i);
@@ -232,7 +236,7 @@ describe("own properties of functions that never had them looked at", () => {
         const o = Object.create(f);
         expect(o.a).toBe(1);
         expect(o.name).toBe("named");
-        expect(namesOf(f).slice(0, 3)).toEqual(["length", "name", "a"]);
+        expect(Object.getOwnPropertyNames(f).slice(0, 3)).toEqual(["length", "name", "a"]);
     });
 
     test("the prototype property does not get ahead of them", () => {
@@ -240,7 +244,7 @@ describe("own properties of functions that never had them looked at", () => {
         F.prototype.x = 1;
         expect(new F().x).toBe(1);
         expect(F.length).toBe(2);
-        expect(namesOf(F)).toEqual(["length", "name", "prototype"]);
+        expect(Object.getOwnPropertyNames(F)).toEqual(["length", "name", "prototype"]);
     });
 
     test("cached additions keep functions apart", () => {
@@ -252,7 +256,7 @@ describe("own properties of functions that never had them looked at", () => {
         for (let i = 0; i < 3000; ++i) {
             const f = addTo(x => x);
             if (i % 3 === 0) expect(f.length).toBe(1);
-            if (i % 3 === 1) expect(namesOf(f)).toEqual(["length", "name", "a", "b"]);
+            if (i % 3 === 1) expect(Object.getOwnPropertyNames(f)).toEqual(["length", "name", "a", "b"]);
             expect(f.a + f.b).toBe(3);
             if (i % 7 === 0) {
                 expect(f.name).toBe("");
@@ -273,7 +277,7 @@ describe("own properties of functions that never had them looked at", () => {
             expect(lengthOf(f)).toBe(2);
             expect(nameOf(f)).toBe("named");
             const g = addTo(() => {});
-            expect(namesOf(g)).toEqual(["length", "name", "foo"]);
+            expect(Object.getOwnPropertyNames(g)).toEqual(["length", "name", "foo"]);
             expect(g.foo).toBe(1);
             expect(lengthOf(addTo(x => x))).toBe(1);
         }
@@ -286,7 +290,7 @@ describe("own properties of functions that never had them looked at", () => {
             last = make();
             if (i % 1000 === 0) {
                 expect(last.length).toBe(1);
-                expect(namesOf(last)).toEqual(["length", "name"]);
+                expect(Object.getOwnPropertyNames(last)).toEqual(["length", "name"]);
             }
         }
         expect(last.length).toBe(1);

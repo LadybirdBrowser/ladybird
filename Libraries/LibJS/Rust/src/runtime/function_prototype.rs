@@ -51,7 +51,9 @@ use crate::runtime::bound_function::{
 };
 use crate::runtime::class_field_definition::ClassElementName;
 use crate::runtime::completion::{Must, ThrowCompletionOr};
-use crate::runtime::ecmascript_function_object::as_ecmascript_function_object;
+use crate::runtime::ecmascript_function_object::{
+    EcmascriptFunctionObject, as_ecmascript_function_object, value_as_ecmascript_function_object,
+};
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
 use crate::runtime::function_object::{FUNCTION_OBJECT_METHODS, FunctionObject};
@@ -63,6 +65,13 @@ use crate::runtime::property_key::PropertyKey;
 use crate::runtime::realm::Realm;
 use crate::runtime::value::ordinary_has_instance;
 use crate::utf16::{Utf16StringBuilder, Utf16View, concatenate};
+
+fn this_function_with_legacy_caller_and_arguments(vm: &Vm) -> ThrowCompletionOr<Gc<EcmascriptFunctionObject>> {
+    match value_as_ecmascript_function_object(vm.this_value()) {
+        Some(function) if function.supports_legacy_caller_or_arguments() => Ok(function),
+        _ => vm.throw_completion(ErrorKind::TypeError, ErrorType::LegacyCallerOrArgumentsReceiver, &[]),
+    }
+}
 
 /// %Function.prototype%, a function object that accepts any arguments and returns undefined.
 #[repr(C)]
@@ -158,6 +167,39 @@ impl FunctionPrototype {
             Value::from_string(PrimitiveString::create(vm, Utf16String::default())),
             PropertyAttributes::new(Attribute::CONFIGURABLE),
         );
+
+        // INTEROP: The specification makes these accessors %ThrowTypeError%, and all major engines have them work for
+        //          sloppy functions. Being accessors here keeps them out of what functions report as their own
+        //          properties, which scripts that walk object graphs would otherwise follow out of the function.
+        object.define_native_accessor(
+            vm,
+            realm,
+            &names.caller,
+            raw_native!(FunctionPrototype::legacy_caller_getter),
+            raw_native!(FunctionPrototype::legacy_caller_or_arguments_setter),
+            PropertyAttributes::new(Attribute::CONFIGURABLE),
+        );
+        object.define_native_accessor(
+            vm,
+            realm,
+            &names.arguments,
+            raw_native!(FunctionPrototype::legacy_arguments_getter),
+            raw_native!(FunctionPrototype::legacy_caller_or_arguments_setter),
+            PropertyAttributes::new(Attribute::CONFIGURABLE),
+        );
+    }
+
+    fn legacy_caller_getter(vm: &Vm) -> ThrowCompletionOr<Value> {
+        Ok(this_function_with_legacy_caller_and_arguments(vm)?.legacy_caller(vm))
+    }
+
+    fn legacy_arguments_getter(vm: &Vm) -> ThrowCompletionOr<Value> {
+        Ok(this_function_with_legacy_caller_and_arguments(vm)?.legacy_arguments(vm))
+    }
+
+    fn legacy_caller_or_arguments_setter(vm: &Vm) -> ThrowCompletionOr<Value> {
+        this_function_with_legacy_caller_and_arguments(vm)?;
+        Ok(Value::UNDEFINED)
     }
 
     #[allow(clippy::unnecessary_wraps, reason = "[[Call]] can throw for other functions")]

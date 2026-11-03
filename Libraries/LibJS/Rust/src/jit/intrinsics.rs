@@ -106,9 +106,7 @@ fn has_ordinary_lookups(object: Gc<Object>) -> bool {
 
 /// Whether looking up the property `key` of the object creates nothing.
 fn lookup_creates_nothing(vm: &Vm, object: Gc<Object>, key: &PropertyKey) -> bool {
-    if object.is_ecmascript_function_object()
-        && (*key == vm.names.prototype || *key == vm.names.caller || *key == vm.names.arguments)
-    {
+    if object.is_ecmascript_function_object() && *key == vm.names.prototype {
         return false;
     }
     if key.is_number() {
