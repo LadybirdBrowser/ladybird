@@ -863,6 +863,13 @@ impl DeclarationBlock {
         }
     }
 
+    pub(crate) fn is_empty(&self) -> bool {
+        match &*self.state.borrow() {
+            DeclarationBlockState::Immutable(data) => data.is_empty(),
+            DeclarationBlockState::Mutable(owner) => owner.borrow().data.is_empty(),
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn is_immutable(&self) -> bool {
         matches!(&*self.state.borrow(), DeclarationBlockState::Immutable(_))
@@ -944,7 +951,7 @@ pub(crate) fn visit_declaration_images(data: &DeclarationBlockHeader, visit: &mu
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_declaration_block_is_empty(block: &DeclarationBlock) -> bool {
-    block.data().is_empty()
+    block.is_empty()
 }
 
 /// Whether a declaration of the block holds an image or a gradient, as its value or as an item of its list.
