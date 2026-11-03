@@ -1,0 +1,2 @@
+Frames with the last frame's timestamp: 0
+Frames with the last frame's timeline time: 0

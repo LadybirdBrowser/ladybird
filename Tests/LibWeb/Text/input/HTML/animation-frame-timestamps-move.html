@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const frames = 300;
+        let count = 0;
+        let previousTimestamp = -1;
+        let previousTimelineTime = -1;
+        let repeatedTimestamps = 0;
+        let repeatedTimelineTimes = 0;
+        function frame(timestamp) {
+            const timelineTime = document.timeline.currentTime;
+            if (timestamp <= previousTimestamp)
+                ++repeatedTimestamps;
+            if (timelineTime <= previousTimelineTime)
+                ++repeatedTimelineTimes;
+            previousTimestamp = timestamp;
+            previousTimelineTime = timelineTime;
+            if (++count < frames) {
+                requestAnimationFrame(frame);
+                return;
+            }
+            println(`Frames with the last frame's timestamp: ${repeatedTimestamps}`);
+            println(`Frames with the last frame's timeline time: ${repeatedTimelineTimes}`);
+            done();
+        }
+        requestAnimationFrame(frame);
+    });
+</script>
