@@ -1,0 +1,3 @@
+main thread moved up with the bottom: true
+wheel scrolled up by: 200
+after the frame, up from the old bottom by: 100
