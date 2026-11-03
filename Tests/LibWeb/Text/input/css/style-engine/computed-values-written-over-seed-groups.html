@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<style>
+    .relative {
+        color: red;
+        background-color: rgb(from currentcolor r g b);
+        border-top-color: rgb(from currentcolor r g b);
+        outline-color: rgb(from currentcolor r g b);
+        column-rule-color: rgb(from currentcolor r g b);
+        text-decoration-color: rgb(from currentcolor r g b);
+        caret-color: rgb(from currentcolor r g b);
+        accent-color: rgb(from currentcolor r g b);
+        scrollbar-color: rgb(from currentcolor r g b) rgb(from currentcolor g r b);
+    }
+    .relative > .inheriting {
+        color: green;
+        background-color: inherit;
+        border-top-color: inherit;
+        outline-color: inherit;
+        column-rule-color: inherit;
+        text-decoration-color: inherit;
+    }
+    .relative > .inheriting-with-sibling-write {
+        color: blue;
+        background-color: inherit;
+        background-image: linear-gradient(red, blue);
+        border-top-color: inherit;
+        border-top-width: 7px;
+        outline-color: inherit;
+        outline-width: 3px;
+        text-decoration-color: inherit;
+        text-decoration-style: dotted;
+    }
+    .relative > .keeps-inherited {
+        color: blue;
+        cursor: pointer;
+    }
+    .relative > .moves-other-inherited-text {
+        text-transform: uppercase;
+    }
+    .system {
+        color: canvas;
+        caret-color: canvastext;
+        accent-color: canvastext;
+    }
+    .system > .dark {
+        color-scheme: dark;
+        text-transform: uppercase;
+        cursor: pointer;
+    }
+    .system > .dark-auto-accent {
+        color-scheme: dark;
+        accent-color: auto;
+    }
+    .transform-base {
+        transform: rotate(45deg);
+        transform-origin: 1px 2px 3px;
+        perspective: 10px;
+        perspective-origin: 3px 4px;
+    }
+    .translate-only {
+        translate: 10px 20px;
+    }
+    .rotate-and-transform {
+        rotate: 30deg;
+        scale: 2;
+        transform: scale(3);
+    }
+    .offset {
+        offset-path: path("M0 0 L10 10");
+        offset-distance: 5px;
+        offset-rotate: 10deg;
+    }
+    .backface {
+        backface-visibility: hidden;
+        transform-box: fill-box;
+        transform-style: preserve-3d;
+    }
+    .text-reset-line {
+        text-decoration-line: underline line-through;
+    }
+    .text-reset-thickness {
+        text-decoration-thickness: 3px;
+    }
+    .text-reset-from-font {
+        text-decoration-thickness: from-font;
+    }
+    .text-reset-trim {
+        white-space-trim: discard-before discard-inner;
+    }
+    .ui-cursor {
+        cursor: help;
+    }
+    .ui-scheme {
+        color-scheme: light dark;
+    }
+    .ui-misc {
+        forced-color-adjust: none;
+        interpolate-size: allow-keywords;
+        image-rendering: pixelated;
+    }
+    .misc-appearance {
+        appearance: button;
+    }
+    .misc-appearance-none {
+        appearance: none;
+    }
+    .misc-outline {
+        outline: 2px dotted lime;
+        outline-offset: 3px;
+    }
+    .misc-clip {
+        overflow-clip-margin-top: content-box 3px;
+        overflow-clip-margin-left: 4px;
+    }
+    .misc-columns {
+        column-span: all;
+        column-fill: auto;
+        column-rule: 3px dashed lime;
+        column-height: 40px;
+        break-before: page;
+    }
+    .misc-object {
+        object-fit: contain;
+        object-position: 3px 4px;
+        shape-margin: 2px;
+        shape-outside: circle(10px);
+        shape-image-threshold: 0.5;
+        content-visibility: hidden;
+    }
+    .interaction-sides {
+        scroll-margin-left: 3px;
+        scroll-padding-top: 4px;
+    }
+    .interaction-snap {
+        scroll-snap-align: start end;
+        scroll-snap-type: y mandatory;
+        scroll-snap-stop: always;
+    }
+    .interaction-snap-keyword {
+        scroll-snap-align: center;
+        scroll-snap-type: x;
+    }
+    .interaction-misc {
+        scrollbar-gutter: stable;
+        scrollbar-width: thin;
+        will-change: transform;
+        view-transition-name: foo;
+        user-select: none;
+        overscroll-behavior-x: contain;
+    }
+    .background-clip {
+        background-image: linear-gradient(red, blue), none;
+        background-clip: content-box, padding-box;
+    }
+    .background-clip-only {
+        background-clip: content-box;
+    }
+    .background-image-only {
+        background-image: none, linear-gradient(red, blue);
+        background-clip: content-box, padding-box;
+    }
+    .background-rest {
+        background-attachment: fixed;
+        background-blend-mode: multiply;
+        background-origin: border-box;
+        background-position-x: 3px;
+        background-position-y: 4px;
+        background-repeat: no-repeat;
+        background-size: 5px 6px;
+    }
+</style>
+<div class="relative" id="relative">
+    <div class="inheriting" id="inheriting"></div>
+    <div class="inheriting-with-sibling-write" id="inheriting-with-sibling-write"></div>
+    <div class="keeps-inherited" id="keeps-inherited"></div>
+    <div class="moves-other-inherited-text" id="moves-other-inherited-text"></div>
+</div>
+<div class="system" id="system">
+    <div class="dark" id="dark"></div>
+    <div class="dark-auto-accent" id="dark-auto-accent"></div>
+</div>
+<div id="cases"></div>
+<script src="../../include.js"></script>
+<script>
+    test(() => {
+        const show = (element, properties) => {
+            const style = getComputedStyle(element);
+            for (const property of properties)
+                println(`${element.className || element.id} ${property}: ${style.getPropertyValue(property)}`);
+        };
+        const colors = [
+            "color",
+            "background-color",
+            "border-top-color",
+            "outline-color",
+            "column-rule-color",
+            "text-decoration-color",
+            "caret-color",
+            "accent-color",
+            "scrollbar-color",
+        ];
+        for (const id of ["relative", "inheriting", "inheriting-with-sibling-write", "keeps-inherited", "moves-other-inherited-text", "system", "dark", "dark-auto-accent"])
+            show(document.getElementById(id), colors);
+
+        const cases = {
+            "transform-base": ["transform", "transform-origin", "perspective", "perspective-origin"],
+            "translate-only": ["translate", "rotate", "scale", "transform", "transform-origin"],
+            "rotate-and-transform": ["translate", "rotate", "scale", "transform"],
+            "offset": ["offset-path", "offset-distance", "offset-rotate", "offset-anchor", "offset-position"],
+            "backface": ["backface-visibility", "transform-box", "transform-style", "transform"],
+            "text-reset-line": ["text-decoration-line", "text-decoration-thickness", "text-decoration-style"],
+            "text-reset-thickness": ["text-decoration-line", "text-decoration-thickness"],
+            "text-reset-from-font": ["text-decoration-thickness"],
+            "text-reset-trim": ["white-space-trim", "text-decoration-line"],
+            "ui-cursor": ["cursor", "caret-color", "color-scheme"],
+            "ui-scheme": ["color-scheme", "cursor", "accent-color"],
+            "ui-misc": ["forced-color-adjust", "interpolate-size", "image-rendering", "cursor"],
+            "misc-appearance": ["appearance", "outline-style"],
+            "misc-appearance-none": ["appearance"],
+            "misc-outline": ["outline-color", "outline-style", "outline-width", "outline-offset"],
+            "misc-clip": ["overflow-clip-margin-top", "overflow-clip-margin-left", "overflow-clip-margin-right"],
+            "misc-columns": ["column-span", "column-fill", "column-rule-style", "column-rule-width", "column-rule-color", "column-height", "break-before", "break-after"],
+            "misc-object": ["object-fit", "object-position", "shape-margin", "shape-outside", "shape-image-threshold", "content-visibility"],
+            "interaction-sides": ["scroll-margin-top", "scroll-margin-left", "scroll-padding-top", "scroll-padding-right"],
+            "interaction-snap": ["scroll-snap-align", "scroll-snap-type", "scroll-snap-stop"],
+            "interaction-snap-keyword": ["scroll-snap-align", "scroll-snap-type"],
+            "interaction-misc": ["scrollbar-gutter", "scrollbar-width", "will-change", "view-transition-name", "user-select", "overscroll-behavior-x", "overscroll-behavior-y"],
+            "background-clip": ["background-image", "background-clip", "background-origin"],
+            "background-clip-only": ["background-image", "background-clip"],
+            "background-image-only": ["background-image", "background-clip"],
+            "background-rest": ["background-attachment", "background-blend-mode", "background-origin", "background-position-x", "background-position-y", "background-repeat", "background-size", "background-color"],
+        };
+        const container = document.getElementById("cases");
+        for (const [className, properties] of Object.entries(cases)) {
+            const element = document.createElement("div");
+            element.className = className;
+            container.appendChild(element);
+            show(element, properties);
+        }
+    });
+</script>
