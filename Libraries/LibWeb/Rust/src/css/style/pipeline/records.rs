@@ -784,9 +784,10 @@ impl Record {
     /// Whether `other` holds the computed values this record does.
     fn holds_the_same_values_as(&self, other: &Record) -> bool {
         let (mine, theirs) = (self.value_groups(), other.value_groups());
-        // NB: The groups a derived record answers from are its source's, whose bits can differ from its own: a table's box
-        //     holds none of the outer properties the table computes.
-        mine.reset_bits() == theirs.reset_bits()
+        // NB: The longhands a derived record answers with are its source's, whose bits can differ from its own: a
+        //     table's box holds none of the outer properties the table computes, and an anonymous box's source can
+        //     hold another writing mode.
+        mine.style_bits() == theirs.style_bits()
             && mine
                 .iter()
                 .zip(theirs.iter())
