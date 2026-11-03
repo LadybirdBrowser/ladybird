@@ -684,7 +684,7 @@ impl<'a> StyleValues<'a> {
 /// If no fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
 /// NB: Outside of the resolutions the abspos engine installs, an anchor function is unresolvable.
 fn unresolvable_anchor_size_or<'a>(size: &'a ComputedSize, initial: &'static ComputedSize) -> &'a ComputedSize {
-    if !size.is_length_percentage() || !size.length_percentage().contains_anchor_function() {
+    if !size.contains_anchor_function() {
         return size;
     }
     let mut percentage_basis = CssPixels::default();

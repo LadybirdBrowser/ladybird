@@ -563,9 +563,6 @@ impl LayoutNodeArena {
             return None;
         }
         // Anchor functions resolve against anchors this path does not look up.
-        let size_contains_anchor_function = |size: &crate::layout::ComputedSize| {
-            size.is_length_percentage() && size.length_percentage().contains_anchor_function()
-        };
         let side_contains_anchor_function = |side: &crate::layout::ComputedLengthPercentageOrAuto| {
             side.length_percentage()
                 .is_some_and(|length_percentage| length_percentage.contains_anchor_function())
@@ -580,7 +577,7 @@ impl LayoutNodeArena {
             style.max_height(),
         ]
         .into_iter()
-        .any(size_contains_anchor_function)
+        .any(crate::layout::ComputedSize::contains_anchor_function)
             || [&surround.inset, &surround.margin].into_iter().any(|sides| {
                 [&sides.top, &sides.right, &sides.bottom, &sides.left]
                     .into_iter()

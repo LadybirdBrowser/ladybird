@@ -249,6 +249,12 @@ impl ComputedSize {
         }
     }
 
+    /// Whether the size is a calculation holding an anchor function. Only a calculation can hold one, so a plain length or
+    /// percentage answers without reading its value.
+    pub(crate) fn contains_anchor_function(&self) -> bool {
+        self.kind == ComputedSizeKind::Calculated && self.length_percentage().contains_anchor_function()
+    }
+
     pub(crate) fn contains_percentage(&self) -> bool {
         match self.kind {
             ComputedSizeKind::Auto
@@ -258,10 +264,9 @@ impl ComputedSize {
             // NB: A stretch size depends on the size of the containing block, and behaves as auto, zero or none
             //     wherever a percentage of it would not resolve.
             // https://drafts.csswg.org/css-sizing-3/#stretch-fit-sizing
-            ComputedSizeKind::Stretch => true,
-            ComputedSizeKind::Calculated | ComputedSizeKind::Length | ComputedSizeKind::Percentage => {
-                self.length_percentage().contains_percentage()
-            }
+            ComputedSizeKind::Stretch | ComputedSizeKind::Percentage => true,
+            ComputedSizeKind::Length => false,
+            ComputedSizeKind::Calculated => self.length_percentage().contains_percentage(),
             ComputedSizeKind::FitContent => self
                 .fit_content_available_space()
                 .is_some_and(|available_space| available_space.contains_percentage()),
