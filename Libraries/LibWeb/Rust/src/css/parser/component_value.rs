@@ -667,6 +667,19 @@ pub(crate) fn consume_a_list_of_component_values(tokens: impl ComponentValueToke
     consume_a_counted_list_of_component_values(tokens).map(ComponentValueList::into_vec)
 }
 
+/// Whether `values` nest deeper than a list of component values consumed from text may.
+pub(crate) fn exceeds_component_value_nesting_limit(values: &[ComponentValue]) -> bool {
+    fn exceeds(values: &[ComponentValue], depth: usize) -> bool {
+        values.iter().any(|value| match &value.kind {
+            ComponentKind::Token(_) => false,
+            ComponentKind::Function { values, .. } | ComponentKind::SimpleBlock { values, .. } => {
+                depth >= MAXIMUM_COMPONENT_VALUE_NESTING_DEPTH || exceeds(values, depth + 1)
+            }
+        })
+    }
+    exceeds(values, 0)
+}
+
 pub(crate) fn consume_a_counted_list_of_component_values(
     tokens: impl ComponentValueTokens,
 ) -> Result<ComponentValueList, ()> {

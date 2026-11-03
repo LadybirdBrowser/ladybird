@@ -345,11 +345,14 @@ thread_local! {
 pub(crate) fn parse_substituted_value(
     base_context: &ParseContext,
     property_id: u16,
-    source: &[u16],
     values: &[ComponentValue],
     contains_attr_tainted_values: bool,
 ) -> RetainedStyleValueData {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::SubstitutionParse);
+    // NB: Substitution can nest components deeper than text may, which no value holds.
+    if crate::css::parser::component_value::exceeds_component_value_nesting_limit(values) {
+        return RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid);
+    }
     let random_function_index = crate::css::parser::value_parser::RandomFunctionIndex::default();
     let value_context = FfiValueParsingContext {
         kind: FfiValueParsingContextKind::Property,
@@ -362,7 +365,7 @@ pub(crate) fn parse_substituted_value(
     context.contains_attr_tainted_values = contains_attr_tainted_values;
     context.value_contexts = ak::Span::new(std::slice::from_ref(&value_context));
     context.random_function_index = Some(&random_function_index);
-    match parse_css_value_with_source(&context, property_id, values, source) {
+    match parse_css_value_with_source(&context, property_id, values, &[]) {
         ParseOutcome::Parsed(value) => RetainedStyleValueData::from_arc(value),
         ParseOutcome::Invalid | ParseOutcome::NotHandled => {
             RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid)
