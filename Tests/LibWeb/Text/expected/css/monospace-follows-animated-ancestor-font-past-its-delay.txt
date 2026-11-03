@@ -1,6 +1,6 @@
 no animation: 16px, monospace 13px, ::before 13px, added 13px
 in its delay, at the ancestor's size: 16px, monospace 13px, ::before 13px, added 13px
-past its delay, at the ancestor's size: 16px, monospace 13px, ::before 13px, added 13px
+past its delay, at the ancestor's size: 16px, monospace 16px, ::before 16px, added 16px
 canceled: 16px, monospace 13px, ::before 13px, added 13px
 in its delay, at another size: 16px, monospace 13px, ::before 13px, added 13px
 past its delay, at another size: 20px, monospace 20px, ::before 20px, added 20px

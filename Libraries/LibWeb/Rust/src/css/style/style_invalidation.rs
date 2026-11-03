@@ -820,6 +820,14 @@ pub(crate) fn animation_overlay_changed(
         return true;
     }
 
+    // NB: Whether an animation gives an element its font size matters beyond the value: a monospace element below it
+    //     goes on from that size rather than from what the font-size cascade decides.
+    let animates_font_size =
+        |overlay: Option<&AnimatedOverlay>| longhands.overlay_value(overlay, property_id::FONT_SIZE).is_some();
+    if animates_font_size(old_overlay) != animates_font_size(new_overlay) {
+        return true;
+    }
+
     animation_overlay_properties(old_overlay, new_overlay)
         .any(|property| animation_value_changed(longhands, old_overlay, new_overlay, property))
 }
