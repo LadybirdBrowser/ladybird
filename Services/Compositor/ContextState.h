@@ -246,6 +246,8 @@ public:
     bool admits_async_pinch() const { return m_wheel_gesture_routing.admits_async_pinch(); }
     // Whether this context's page may cancel the ctrl+wheel event of a pinch at the position, or has yet to tell.
     bool page_may_cancel_pinch_at(Gfx::FloatPoint position);
+    bool pinch_gesture_was_let_through() const { return m_pinch_gesture_was_let_through; }
+    void set_pinch_gesture_was_let_through(bool was_let_through) { m_pinch_gesture_was_let_through = was_let_through; }
 
     bool may_hand_first_wheel_steps_to_nested_contexts() const;
     Optional<Compositing::NestedContextHit> nested_context_for_wheel_at(Gfx::FloatPoint position);
@@ -487,6 +489,7 @@ private:
     bool m_scroll_offsets_differ_from_last_frame { false };
     // The document whose visual viewport this context zoomed or panned, which it presents as it left it from then on.
     Optional<Web::UniqueNodeID> m_visual_viewport_document_id;
+    bool m_pinch_gesture_was_let_through { false };
     KeyboardScrollController m_keyboard_scroll_controller;
     // The boxes that the keys held since none was have scrolled, whose gesture lasts until the last of them is released.
     Vector<Web::AsyncScrollNodeStableID> m_boxes_scrolled_by_held_keys;
