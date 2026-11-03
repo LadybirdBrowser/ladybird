@@ -780,6 +780,15 @@ impl RetainedState {
             parent.map(|(parent, _)| parent),
         );
         let is_th_element = facts & bridge::element_adjustment_fact::IS_TH != 0;
+        // https://drafts.csswg.org/css-ui/#appearance-disabling-properties
+        // NB: Only an element whose appearance is not none can have a native appearance to disable. Leaving the flag
+        //     clear for every other element keeps their author backgrounds and borders from splitting style groups.
+        let appearance_is_none = |writer: &GroupValuesWriter<'_>| {
+            matches!(
+                writer.get(prop::APPEARANCE).map(RetainedStyleValueData::data),
+                Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::style_compute::keyword::NONE
+            )
+        };
         // A container-relative length never computes directly, so only a drive resolves one.
         let mut container_units = 0;
         let (mut writer, length, font, author_disables_native_appearance) = if runs_drive {
@@ -868,8 +877,8 @@ impl RetainedState {
             {
                 unreachable!("the style engine answers every row");
             }
-            let author_disables_native_appearance =
-                crate::css::style_compute::has_author_value_disabling_native_appearance(&store.view(self));
+            let author_disables_native_appearance = !appearance_is_none(&writer)
+                && crate::css::style_compute::has_author_value_disabling_native_appearance(&store.view(self));
             (writer, length, Some(font), author_disables_native_appearance)
         } else {
             // https://drafts.csswg.org/css-fonts/#font-size-prop
@@ -938,24 +947,18 @@ impl RetainedState {
                 unreachable!("the style engine answers every row");
             }
             // NB: None of these winners reverts, so each is the cascaded value of its property.
-            let author_disables_native_appearance = winners.iter().any(|winner| {
-                crate::css::style_compute::PROPERTIES_DISABLING_NATIVE_APPEARANCE.contains(&winner.property)
-                    && matches!(
-                        cascade.priority_of(winner.source, winner.important).cascade_origin(),
-                        crate::css::cascaded_properties::CascadeOrigin::Author
-                            | crate::css::cascaded_properties::CascadeOrigin::AuthorPresentationalHint
-                    )
-            });
+            let author_disables_native_appearance = !appearance_is_none(&writer)
+                && winners.iter().any(|winner| {
+                    crate::css::style_compute::property_disables_native_appearance(winner.property)
+                        && matches!(
+                            cascade.priority_of(winner.source, winner.important).cascade_origin(),
+                            crate::css::cascaded_properties::CascadeOrigin::Author
+                                | crate::css::cascaded_properties::CascadeOrigin::AuthorPresentationalHint
+                        )
+                });
             (writer, length, font, author_disables_native_appearance)
         };
-        // https://drafts.csswg.org/css-ui/#appearance-disabling-properties
-        // NB: Only an element whose appearance is not none can have a native appearance to disable. Leaving the flag
-        //     clear for every other element keeps their author backgrounds and borders from splitting style groups.
-        let appearance_is_none = matches!(
-            writer.get(prop::APPEARANCE).map(RetainedStyleValueData::data),
-            Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::style_compute::keyword::NONE
-        );
-        writer.set_native_appearance_disabled(!appearance_is_none && author_disables_native_appearance);
+        writer.set_native_appearance_disabled(author_disables_native_appearance);
         let required_moved = crate::css::style_compute::REQUIRED_DRIVER_INPUTS
             .iter()
             .filter(|&&property| writer.moved_from_seed(property, seeded_bits))

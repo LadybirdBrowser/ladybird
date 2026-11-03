@@ -3563,14 +3563,6 @@ impl StyleGroupMasks {
         // NB: The surround group holds whether the element names a default anchor, which layout reads beside the
         //     anchor group's name.
         masks[index(POSITION_ANCHOR)] |= 1 << crate::css::table_group_builder::group_index::SURROUND;
-        // NB: The misc layout group holds whether an author declaration disables native appearance, which these
-        //     properties' winners decide.
-        let disabling = crate::css::style_compute::PROPERTIES_DISABLING_NATIVE_APPEARANCE;
-        let mut disabling_index = 0;
-        while disabling_index < disabling.len() {
-            masks[index(disabling[disabling_index])] |= 1 << crate::css::table_group_builder::group_index::MISC_LAYOUT;
-            disabling_index += 1;
-        }
 
         let mut ungrouped_inherited = [0; LONGHAND_COUNT];
         let mut ungrouped_inherited_count = 0;

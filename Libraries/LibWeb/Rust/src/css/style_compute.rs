@@ -4061,6 +4061,25 @@ pub(crate) const PROPERTIES_DISABLING_NATIVE_APPEARANCE: &[u16] = {
     ]
 };
 
+/// One bit per longhand: whether it is among [`PROPERTIES_DISABLING_NATIVE_APPEARANCE`].
+const LONGHANDS_DISABLING_NATIVE_APPEARANCE: [u64; crate::css::property_metadata::LONGHAND_WORD_COUNT] = {
+    let mut words = [0; crate::css::property_metadata::LONGHAND_WORD_COUNT];
+    let mut at = 0;
+    while at < PROPERTIES_DISABLING_NATIVE_APPEARANCE.len() {
+        let index = (PROPERTIES_DISABLING_NATIVE_APPEARANCE[at]
+            - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID) as usize;
+        words[index / 64] |= 1 << (index % 64);
+        at += 1;
+    }
+    words
+};
+
+/// Whether `property_id` is a longhand that, declared in the Author Origin, disables native appearance.
+pub(crate) fn property_disables_native_appearance(property_id: u16) -> bool {
+    let index = usize::from(property_id - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
+    LONGHANDS_DISABLING_NATIVE_APPEARANCE[index / 64] & (1 << (index % 64)) != 0
+}
+
 // https://drafts.csswg.org/css-ui/#appearance-disabling-properties
 // Certain properties, when declared in the Author Origin, will disable the native appearance of certain widgets.
 // Specifically, if all the declarations of the Author Origin pertaining to such a widget are cascaded and a cascaded
