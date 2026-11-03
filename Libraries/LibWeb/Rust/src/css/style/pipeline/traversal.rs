@@ -59,7 +59,11 @@ const DEFAULT_MAX_THREAD_COUNT: usize = 8;
 /// How many threads the traversal runs on where none are asked for: three of every four logical
 /// processors, leaving the others to the main thread and the rest of the process, and at least one.
 pub(super) fn thread_count() -> usize {
-    std::thread::available_parallelism().map_or(1, |count| (count.get() * 3 / 4).clamp(1, DEFAULT_MAX_THREAD_COUNT))
+    // NB: Each pass asks, and the answer takes system calls and reading files of the control groups.
+    static THREAD_COUNT: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *THREAD_COUNT.get_or_init(|| {
+        std::thread::available_parallelism().map_or(1, |count| (count.get() * 3 / 4).clamp(1, DEFAULT_MAX_THREAD_COUNT))
+    })
 }
 
 /// How many elements a task hands to another at once.

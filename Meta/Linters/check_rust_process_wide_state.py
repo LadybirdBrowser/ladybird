@@ -135,6 +135,7 @@ RENDER_STATE_ALLOWED = {
             "css/parser/stylesheet_cache.rs:HASHER",
             "css/parser/stylesheet_cache.rs:KEYS",
             "css/property_metadata.rs:SHORTHAND_LEAVES",
+            "css/style/pipeline/traversal.rs:THREAD_COUNT",
             "css/style_compute.rs:DIRECT",
             "css/style_compute.rs:FONT_ORDER",
             "css/style_compute.rs:FONT_PHASES",
