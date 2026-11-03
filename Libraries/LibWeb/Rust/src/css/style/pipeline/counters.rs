@@ -50,8 +50,9 @@ pub(in super::super) enum StyleCounter {
     /// The elements passes gave the record of an element they styled before with the same parent,
     /// the same inputs and the same revalidation answers, without matching them.
     SharedElements,
-    /// The elements passes gave the record of an element whose cascade picked the same
-    /// declarations, which they matched and cascaded but did not compute.
+    /// The elements passes gave the record of an element that matched the same rules and declared
+    /// the same declarations, under a parent they inherit the same from, which they matched but
+    /// did not cascade or compute.
     ReusedElements,
     /// The rule indexes the engine built: one as it started, and one for each pass after a rule
     /// change.

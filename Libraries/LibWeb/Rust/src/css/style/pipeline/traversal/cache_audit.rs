@@ -5,11 +5,11 @@
  */
 
 //! The audit of what a pass reuses. With `LIBWEB_STYLE_AUDIT_CACHES` set, every element a pass
-//! with its caches on gives a record, whether through style sharing, the result cache, a move of
+//! with its caches on gives a record, whether through style sharing, the matched declarations cache, a move of
 //! its custom properties or a computation reading the group, absolutized value, custom property
 //! store and substitution caches of its thread, is styled again from nothing: on a scratch of its
 //! own, with every cache off, over the records the pass holds for the elements before it. The
-//! element's record and its pseudo-elements' records, the ones from the pseudo-element record cache
+//! element's record and its pseudo-elements' records, the ones from the matched declarations cache
 //! included, must be the ones that recomputation gives, and the rules it matched the ones that
 //! recomputation matches. `report` prints what differs at the end of the pass, and any other value
 //! but `0` aborts there.
@@ -33,11 +33,11 @@ pub(in super::super) fn mode_from_environment() -> Mode {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Reuse {
     SharedStyle,
-    ReusedResult,
+    MatchedDeclarations,
     MovedCustomProperties,
     /// A computation, reading the caches its thread kept of the computations before it.
     ComputationCaches,
-    /// The pseudo-element record cache, for a pseudo-element.
+    /// The matched declarations cache, for a pseudo-element.
     PseudoElementRecord,
 }
 
@@ -47,10 +47,10 @@ impl Reuse {
     fn name(self) -> &'static str {
         match self {
             Self::SharedStyle => "style sharing",
-            Self::ReusedResult => "the result cache",
+            Self::MatchedDeclarations => "the matched declarations cache",
             Self::MovedCustomProperties => "a move of its custom properties",
             Self::ComputationCaches => "a computation with the caches of its thread",
-            Self::PseudoElementRecord => "the pseudo-element record cache",
+            Self::PseudoElementRecord => "the matched declarations cache, for a pseudo-element",
         }
     }
 }
@@ -237,7 +237,7 @@ fn recompute(context: &PassContext<'_>, node: StyleNodeID) -> Option<Recomputed>
     if !scratch.cascade_element(&reference, node, state.backed_host_pseudo_element(node)) {
         return None;
     }
-    let (record, _) = scratch.compute(&reference, node).ok()?;
+    let (record, _) = scratch.compute(&reference, node, None).ok()?;
     if is_document_element {
         note_root_font();
     }
@@ -310,7 +310,7 @@ pub(super) mod tests {
         assert_eq!(audit.failures, Vec::<String>::new());
         for reuse in [
             Reuse::SharedStyle,
-            Reuse::ReusedResult,
+            Reuse::MatchedDeclarations,
             Reuse::ComputationCaches,
             Reuse::PseudoElementRecord,
         ] {
@@ -384,15 +384,34 @@ pub(super) mod tests {
     }
 
     #[test]
+    fn a_matched_declarations_record_that_differs_from_recomputation_is_reported() {
+        let (mut engine, nodes) = document_of_items();
+        start_live(&mut engine, nodes[0]);
+        let audit = poisoned_pass(&mut engine, &nodes[..3], |scratch, context| {
+            // Have every element record the pass keeps be the root's record.
+            let wrong = context.records.get_shared(nodes[0]).unwrap();
+            context.matched_declarations().poison_with(wrong, false);
+            scratch.sharing = Default::default();
+        });
+        assert_eq!(audit.checked[Reuse::MatchedDeclarations as usize], 1);
+        assert!(
+            audit.failures[0].contains(&format!(
+                "(node {}), from the matched declarations cache: live differs from cold in ",
+                nodes[2].raw()
+            )),
+            "{:?}",
+            audit.failures
+        );
+    }
+
+    #[test]
     fn a_pseudo_element_record_that_differs_from_recomputation_is_reported() {
         let (mut engine, nodes) = document_of_items();
         start_live(&mut engine, nodes[0]);
         let audit = poisoned_pass(&mut engine, &nodes[..3], |scratch, context| {
-            // Have every pseudo-element record the scratch keeps be the root's record.
-            let wrong = context.records.get_shared(nodes[0]).unwrap().clone();
-            for record in scratch.pseudo_elements.values_mut() {
-                *record = wrong.clone();
-            }
+            // Have every pseudo-element record the pass keeps be the root's record.
+            let wrong = context.records.get_shared(nodes[0]).unwrap();
+            context.matched_declarations().poison_with(wrong, true);
             scratch.sharing = Default::default();
         });
         assert_eq!(audit.checked[Reuse::PseudoElementRecord as usize], 1);
@@ -402,7 +421,7 @@ pub(super) mod tests {
         assert!(failure.starts_with("::before of <"), "{failure}");
         assert!(
             failure.contains(&format!(
-                "(node {}), from the pseudo-element record cache: live differs from cold in ",
+                "(node {}), from the matched declarations cache, for a pseudo-element: live differs from cold in ",
                 nodes[2].raw()
             )),
             "{failure}"

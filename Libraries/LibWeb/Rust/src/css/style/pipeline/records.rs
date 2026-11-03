@@ -2274,16 +2274,6 @@ pub(super) enum HighlightParent<'a> {
     Installed(computed::FinalStyleRecordID),
 }
 
-impl HighlightParent<'_> {
-    /// The identity of the record, which tells it apart from any other one live.
-    pub(super) fn identity(self) -> usize {
-        match self {
-            Self::Record(record) => Arc::as_ptr(record) as usize,
-            Self::Installed(record) => record.raw() as usize,
-        }
-    }
-}
-
 impl DriveRecords for Records<'_> {
     fn assigned_record_view(&self, node: StyleNodeID) -> Option<computed::StyleRecordView<'_>> {
         let Some(record) = self.get_shared(node) else {

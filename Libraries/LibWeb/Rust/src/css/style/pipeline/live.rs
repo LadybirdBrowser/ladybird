@@ -165,6 +165,11 @@ struct LiveScratch {
     memos: super::pool::PerThread<FollowScratch>,
     /// The group caches the passes keep for the next, by thread, for the threads that styled.
     groups: super::pool::PerThread<super::compute::GroupCache>,
+    /// The matched declarations cache the passes keep for the next.
+    matched_declarations: super::matched_declarations::MatchedDeclarationsCache,
+    /// The inputs of the document the entries of the matched declarations cache read, as they
+    /// were when the last pass started.
+    matched_declarations_inputs: Option<MatchedDeclarationsInputs>,
     /// The DOM order version of the tree the memos measured where siblings stand in, where the
     /// transaction they measured it for moved no element, so the tree before it was the same.
     memos_dom_order_version: Option<u64>,
@@ -414,7 +419,45 @@ impl InitialStyleInputs {
     }
 }
 
+/// What every computation may read of the document, which the elements reading it are restyled for
+/// as it moves, and the entries of the matched declarations cache do not hold on to: what the
+/// initial style computes from, the viewport, the color schemes, the custom property registrations
+/// and what a `url()` resolves against.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct MatchedDeclarationsInputs {
+    initial_style: InitialStyleInputs,
+    in_quirks_mode: bool,
+    viewport: [u64; 2],
+    preferred_color_scheme: u8,
+    supported_color_schemes: Option<(u8, [u8; 4])>,
+    custom_property_registration_generation: u64,
+    style_sheet_resource_contexts_version: u64,
+}
+
+impl MatchedDeclarationsInputs {
+    fn of(inputs: &super::super::bridge::FfiDocumentStyleComputationInputs) -> Self {
+        Self {
+            initial_style: InitialStyleInputs::of(inputs),
+            in_quirks_mode: inputs.in_quirks_mode,
+            viewport: [inputs.viewport_width.to_bits(), inputs.viewport_height.to_bits()],
+            preferred_color_scheme: inputs.preferred_color_scheme,
+            supported_color_schemes: inputs.has_document_supported_schemes.then_some((
+                inputs.document_supported_scheme_count,
+                inputs.document_supported_scheme_codes,
+            )),
+            custom_property_registration_generation: inputs.custom_property_registration_generation,
+            style_sheet_resource_contexts_version: inputs.style_sheet_resource_contexts_version,
+        }
+    }
+}
+
 impl Live {
+    /// The matched declarations cache the passes keep for the next.
+    #[cfg(test)]
+    pub(super) fn matched_declarations(&self) -> &super::matched_declarations::MatchedDeclarationsCache {
+        &self.scratch.matched_declarations
+    }
+
     /// Counts the rule data, initial style and records the engine holds, by owner. Rule data
     /// and initial style come first, as every record shares their groups and declarations.
     pub(in super::super) fn report_memory(&self, report: &mut MemoryReport) {
@@ -460,6 +503,7 @@ impl Live {
                 + vec_bytes(&self.kept_hidden)
                 + vec_bytes(&self.scratch.kept),
         );
+        self.scratch.matched_declarations.report_memory(report);
         for cache in self.scratch.groups.made() {
             cache
                 .lock()
@@ -492,6 +536,12 @@ impl Live {
         // NB: An environment change or a restart can move how any element computes.
         if transaction.restyles_everything {
             self.pending_everything = true;
+        }
+        if transaction.restyles_everything
+            || !transaction.environment.is_empty()
+            || !transaction.rule_changes.is_empty()
+        {
+            self.scratch.matched_declarations.forget();
         }
         let changes = state.projection.changes();
         if transaction.has_no_element_inputs() && changes.is_empty() && transaction.rule_changes.is_empty() {
@@ -684,6 +734,7 @@ impl Live {
     /// A record computed while its scope had no registry names none, though its style reads one,
     /// so what a record names is compared with what it would name now.
     fn note_counter_style_environment_moved(&mut self, state: &RetainedState) {
+        self.scratch.matched_declarations.forget();
         self.restyle_records_where(state, |_, target, record| {
             record.rare().counter_style_environment_identity
                 != state.values_counter_style_environment_identity(target, |property| record.effective_value(property))
@@ -747,6 +798,7 @@ impl Live {
         if names.is_empty() {
             return;
         }
+        self.scratch.matched_declarations.forget();
         let raw: HashSet<usize> = names.iter().map(ak::Utf16FlyString::raw_identity).collect();
         let texts: Vec<std::borrow::Cow<'_, [u16]>> = names.iter().map(ak::Utf16FlyString::to_utf16).collect();
         self.restyle_records_where(state, |records, target, record| {
@@ -857,6 +909,7 @@ impl Live {
     /// they compute: those whose custom properties call a custom function, or whose longhands
     /// substitute something that may.
     fn note_custom_functions_moved(&mut self, state: &RetainedState) {
+        self.scratch.matched_declarations.forget();
         self.restyle_records_where(state, |_, _, record| {
             record.rare().custom_property_reads == LonghandCustomPropertyReads::Any
                 || record.custom_declarations().is_some_and(|declarations| {
@@ -1938,6 +1991,15 @@ impl Live {
         let changed_sheets = std::mem::take(&mut self.changed_sheets);
         let reordered_scopes = std::mem::take(&mut self.reordered_scopes);
         let layered_scopes = std::mem::take(&mut self.layered_scopes);
+        let matched_declarations_inputs = MatchedDeclarationsInputs::of(&state.document_style_computation_inputs);
+        if rebuilds_index
+            || updates_index
+            || self.scratch.matched_declarations_inputs != Some(matched_declarations_inputs)
+        {
+            self.scratch.matched_declarations.forget();
+            self.scratch.matched_declarations_inputs = Some(matched_declarations_inputs);
+        }
+        self.scratch.matched_declarations.prepare(slot_count);
         if rebuilds_index {
             self.rebuild_index(state);
         } else if updates_index {
@@ -2074,6 +2136,7 @@ impl Live {
                 keeps_matches: true,
                 suspends: true,
                 group_caches: Some(&self.scratch.groups),
+                kept_matched_declarations: Some(&self.scratch.matched_declarations),
                 cache_audit: self.cache_audit,
                 root_font: root_font.map_or_else(Default::default, std::sync::OnceLock::from),
                 root_font_moved: root_font_moved.map_or_else(Default::default, std::sync::OnceLock::from),

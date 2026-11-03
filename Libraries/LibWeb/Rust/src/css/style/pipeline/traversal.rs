@@ -25,9 +25,11 @@ use super::cascade::{Cascade, CascadeCounters};
 use super::compute::{GroupSeeds, RootFontInputs};
 use super::custom_properties::{DrivenWithRegisteredProperties, SubstitutingSubject, drive_with_registered_properties};
 use super::drive::DriveRecords;
+use super::matched_declarations::{
+    self, Declared, MatchedConditions, MatchedContext, MatchedDeclarationsCache, MatchedKey, OwnDeclarationLookups,
+};
 use super::matching::{ElementMatch, MatchCounters, Matcher};
 use super::records::{ChildImpact, RareStyleFacts, Record, Records};
-use super::results::{ResultCache, ResultContext};
 use super::rule_changes::all_lose_every_longhand;
 use super::rules::{ContainerGateID, RuleIndex};
 use super::sharing::SharingCache;
@@ -277,8 +279,12 @@ pub(super) struct PassContext<'a> {
     /// keeps its caches: an element restyled in a later pass finds the groups the elements styled
     /// before it built.
     pub(super) group_caches: Option<&'a super::pool::PerThread<super::compute::GroupCache>>,
+    /// The matched declarations cache a pass keeps for the next, where it keeps its caches.
+    pub(super) kept_matched_declarations: Option<&'a MatchedDeclarationsCache>,
+    /// The cache of a pass that keeps none for the next.
+    pub(super) own_matched_declarations: MatchedDeclarationsCache,
     /// Whether the pass reuses what it computed for one element for another: shares records
-    /// between elements, reuses results and pseudo-element records, and keeps the caches of its
+    /// between elements, finds them in the matched declarations cache, and keeps the caches of its
     /// computations across elements. A reference pass checking the others does none of that.
     pub(super) uses_caches: bool,
     /// What the audit of what the pass reuses asks for, as `LIBWEB_STYLE_AUDIT_CACHES` asks.
@@ -315,12 +321,21 @@ impl<'a> PassContext<'a> {
             keeps_matches: false,
             suspends: false,
             group_caches: None,
+            kept_matched_declarations: None,
+            own_matched_declarations: MatchedDeclarationsCache::default(),
             uses_caches: true,
             cache_audit: super::self_check::Mode::Off,
             held_root_font,
             root_font: Default::default(),
             root_font_moved: Default::default(),
         }
+    }
+}
+
+impl PassContext<'_> {
+    /// The matched declarations cache of the pass.
+    fn matched_declarations(&self) -> &MatchedDeclarationsCache {
+        self.kept_matched_declarations.unwrap_or(&self.own_matched_declarations)
     }
 }
 
@@ -506,12 +521,8 @@ struct Scratch<'a> {
     substitutions: std::cell::RefCell<super::custom_properties::SubstitutionCache>,
     sharing: SharingCache,
     moved_names: super::custom_property_moves::MovedCustomProperties,
-    /// The pseudo-element records a thread computed, by kind, what they inherit from their
-    /// element and their winners: a pseudo-element's style is a function of those alone, where no
-    /// winner computes against the element itself or takes its value of a property that does not
-    /// inherit.
-    pseudo_elements: crate::fast_hash::FastMap<PseudoElementKey, std::sync::Arc<Record>>,
-    results: ResultCache,
+    /// What decides which of the elements with declarations of their own the cache is worth for.
+    own_declaration_lookups: OwnDeclarationLookups,
     /// The longhand table flags of the records the thread made last, most recent first, which the
     /// next record holding the same flags shares.
     table_flags: SmallVec<[std::sync::Arc<crate::css::computed_longhand_table::LonghandTableFlags>; TABLE_FLAGS_KEPT]>,
@@ -533,8 +544,8 @@ struct Scratch<'a> {
     backing_elements_moved: bool,
     /// What `LIBWEB_STYLE_AUDIT_CACHES` found of what the pass reused, where it is set.
     cache_audit: Option<Box<cache_audit::CacheAudit>>,
-    /// The kinds of the pseudo-elements of the element styled last whose records came from
-    /// `pseudo_elements`, kept for the audit alone.
+    /// The kinds of the pseudo-elements of the element styled last whose records came from the
+    /// matched declarations cache, kept for the audit alone.
     pseudo_element_cache_hits: SmallVec<[u8; 2]>,
 }
 
@@ -556,8 +567,7 @@ impl<'a> Scratch<'a> {
             substitutions: Default::default(),
             sharing: SharingCache::default(),
             moved_names: Default::default(),
-            pseudo_elements: Default::default(),
-            results: ResultCache::default(),
+            own_declaration_lookups: OwnDeclarationLookups::default(),
             table_flags: SmallVec::new(),
             rare_facts: SmallVec::new(),
             last_record: None,
@@ -892,11 +902,30 @@ impl<'a> Scratch<'a> {
         if matched {
             self.apply_container_gates(context, node, false);
         }
-        let cascaded = matched && self.cascade_element(context, node, backed);
+        // An element that matched what one styled before did, with what that element's computation
+        // read holding still, takes its record without a cascade.
+        let matched_key = match matched {
+            true => self.matched_key(context, node, backed),
+            false => None,
+        };
+        let found = matched_key
+            .as_ref()
+            .and_then(|key| self.find_matched_declarations(context, node, key));
+        let cascaded = found.is_some() || (matched && self.cascade_element(context, node, backed));
         let outcome = if !cascaded {
             Outcome::CascadeDeclined
         } else {
-            let computed = self.compute(context, node);
+            let computed = match found {
+                Some(record) => Ok((
+                    record,
+                    ComputedFacts {
+                        directly: false,
+                        element_dependent: false,
+                        reused: true,
+                    },
+                )),
+                None => self.compute(context, node, matched_key),
+            };
             match computed {
                 Ok((record, computed)) => {
                     if let Some(before) = &matched_before {
@@ -933,7 +962,7 @@ impl<'a> Scratch<'a> {
                         context,
                         node,
                         match computed.reused {
-                            true => cache_audit::Reuse::ReusedResult,
+                            true => cache_audit::Reuse::MatchedDeclarations,
                             false => cache_audit::Reuse::ComputationCaches,
                         },
                     );
@@ -1200,7 +1229,7 @@ impl<'a> Scratch<'a> {
         context: &PassContext<'_>,
         node: StyleNodeID,
         element: &std::sync::Arc<Record>,
-        inherited: &PseudoElementInheritance,
+        inherited: &PseudoElementInheritance<'_>,
         kind: u8,
         read: PseudoElementRead,
     ) -> PseudoElementOutcome {
@@ -1233,6 +1262,25 @@ impl<'a> Scratch<'a> {
         if !read.styles(kind, has_rules || highlight_parent.is_some(), element) {
             return PseudoElementOutcome::Unstyled;
         }
+        // A pseudo-element that generates a box, whose element inherits it what one did that left a
+        // record, takes that record without a cascade, as an element does.
+        let matched_key = (generating && !highlight)
+            .then(|| Self::pseudo_element_matched_key(context, node, matches, inherited, kind))
+            .flatten();
+        if let Some(record) = matched_key.as_ref().and_then(|key| {
+            context
+                .matched_declarations()
+                .find(state, node, Declared::Matched(matches), key, context.root_font())
+                .map(|(record, _)| record.clone())
+        }) {
+            if self.cache_audit.is_some() {
+                self.pseudo_element_cache_hits.push(kind);
+            }
+            return PseudoElementOutcome::Computed {
+                record,
+                element_dependent: false,
+            };
+        }
         self.cascade
             .cascade_pseudo_element(state, context.index, node, matches, kind);
         // A pseudo-element's own custom properties resolve over what its element hands down,
@@ -1259,50 +1307,6 @@ impl<'a> Scratch<'a> {
         // The pseudo-element's other properties substitute the animated values of its custom
         // properties, which the host sampled over the environment it holds, as an element's do.
         let sampled_custom_properties = context.records.sampled_pseudo_element_custom_properties(node, kind);
-        let key = PseudoElementKey {
-            kind,
-            inherited_groups: inherited.groups,
-            color: inherited.color,
-            inherited_values: inherited.inherited_values,
-            element_dependency_flags: inherited.dependency_flags,
-            display: {
-                let display = element.facts().display();
-                [
-                    display.tag,
-                    display.outside,
-                    display.inside,
-                    u8::from(display.list_item),
-                    display.internal,
-                    display.box_value,
-                ]
-            },
-            custom_properties: inherited
-                .handed_down
-                .as_ref()
-                .map_or(0, |store| std::sync::Arc::as_ptr(store) as usize),
-            winners: self.cascade.winners.clone(),
-            custom_winners: self
-                .cascade
-                .custom_winners
-                .iter()
-                .map(|(declaration, value)| (*declaration, value.pointer() as usize))
-                .collect(),
-            animation_name_scope: self.cascade.animation_name_scope,
-            highlight_parent: highlight_parent.map_or(0, super::records::HighlightParent::identity),
-            counter_style_environment: state.counter_style_environment_identity_of(node),
-        };
-        if sampled_custom_properties.is_none()
-            && context.uses_caches
-            && let Some(record) = self.pseudo_elements.get(&key)
-        {
-            if self.cache_audit.is_some() {
-                self.pseudo_element_cache_hits.push(kind);
-            }
-            return PseudoElementOutcome::Computed {
-                record: record.clone(),
-                element_dependent: false,
-            };
-        }
         let group_seeds = context
             .initial
             .group_seeds(context.records.get_shared(inherited.parent));
@@ -1406,10 +1410,17 @@ impl<'a> Scratch<'a> {
             Err(outcome) => return outcome,
         };
         let custom_properties = registered.unwrap_or(custom_properties);
-        if let Some(reads) = subject.container_reads.into_inner() {
+        let asked_own_style = subject.asked_pseudo_element_style.get();
+        let container_reads = subject.container_reads.into_inner();
+        let reads_container_style = container_reads.is_some();
+        if let Some(reads) = container_reads {
             self.container_reads.get_or_insert_default().add_reads(reads);
         }
         computed.reads.reads_attributes = Self::note_substitution_reads(&mut computed, &self.cascade.custom_winners);
+        let storable = !asked_own_style
+            && !reads_container_style
+            && !self.recascades_monospace_font_size(&computed)
+            && Self::reads_nothing_of_the_element(&computed);
         let value_of = |property| computed.groups.value(property);
         let counter_style_environment_identity = state.values_counter_style_environment_identity(
             super::super::computed::ComputedStyleTarget::new(node, kind),
@@ -1446,15 +1457,23 @@ impl<'a> Scratch<'a> {
             .with_custom_properties(custom_properties.as_ref()),
             header: super::records::RecordHeader::new(computed.facts),
         });
-        if context.uses_caches
-            && !computed.element_dependent
-            && computed.reads.parent_reset_groups == 0
+        if let Some(matched_key) = matched_key
+            && storable
             && sampled_custom_properties.is_none()
         {
-            if self.pseudo_elements.len() == 1024 {
-                self.pseudo_elements.clear();
-            }
-            self.pseudo_elements.insert(key, record.clone());
+            let matches = match self.gated {
+                true => &self.applied,
+                false => &self.matches,
+            };
+            context.matched_declarations().insert(
+                state,
+                node,
+                Declared::Matched(matches),
+                matched_key,
+                matched_conditions(context, computed.reads),
+                record.clone(),
+                &mut self.own_declaration_lookups,
+            );
         }
         PseudoElementOutcome::Computed {
             record,
@@ -1618,8 +1637,50 @@ impl<'a> Scratch<'a> {
         &mut self,
         context: &PassContext<'_>,
         node: StyleNodeID,
+        key: Option<MatchedKey<'_>>,
     ) -> Result<(std::sync::Arc<Record>, ComputedFacts), Outcome> {
         let state = context.state;
+        // An element that matched other rules than one styled before, whose cascade picked the same
+        // declarations all the same, takes its record, and the next to match what it did takes it
+        // without a cascade.
+        let picked_key = key
+            .as_ref()
+            .map(|key| key.for_picked(&self.cascade.winners, &self.cascade.custom_winners));
+        if let (Some(key), Some(picked_key)) = (key.as_ref(), picked_key.as_ref()) {
+            let declared = Declared::Picked {
+                winners: &self.cascade.winners,
+                custom_winners: &self.cascade.custom_winners,
+                animation_name_scope: self.cascade.animation_name_scope,
+            };
+            if let Some((record, conditions)) =
+                context
+                    .matched_declarations()
+                    .find(state, node, declared, picked_key, context.root_font())
+            {
+                let record = record.clone();
+                let matches = match self.gated {
+                    true => &self.applied,
+                    false => &self.matches,
+                };
+                context.matched_declarations().insert(
+                    state,
+                    node,
+                    Declared::Matched(matches),
+                    *key,
+                    conditions,
+                    record.clone(),
+                    &mut self.own_declaration_lookups,
+                );
+                return Ok((
+                    record,
+                    ComputedFacts {
+                        directly: false,
+                        element_dependent: false,
+                        reused: true,
+                    },
+                ));
+            }
+        }
         let inheritance_parent = state.projection.inheritance_parent(node);
         let parent = match inheritance_parent {
             Some(parent) => match context.records.current_color_of(parent) {
@@ -1661,48 +1722,10 @@ impl<'a> Scratch<'a> {
         // samples its animations over the record the pass installs.
         let sampled_custom_properties = context.records.sampled_custom_properties(node).flatten();
 
-        // Elements styled by rules alone repeat; one with its own declarations mostly does not.
-        let declares_own = self
-            .cascade
-            .winners
-            .iter()
-            .any(|winner| matches!(winner.source, WinnerSource::Element(_)));
-        let result_context = (context.uses_caches
-            && sampled_custom_properties.is_none()
-            && !custom_properties_read_subject
-            && (!declares_own || self.results.worth_looking()))
-        .then(|| self.result_context(context, node, inheritance_parent, custom_properties.as_ref()))
-        .flatten();
-        if let Some(result_context) = &result_context
-            && let Some(record) = self.results.find(
-                state,
-                node,
-                &self.cascade.winners,
-                self.cascade.animation_name_scope,
-                result_context,
-            )
-            // NB: An element declaring other custom properties than the one whose result it is
-            //     may resolve to the same ones, but declares its own, which a move of the custom
-            //     properties it inherits builds them anew from.
-            && declares_the_custom_properties_of(&record, &self.cascade.custom_winners)
-        {
-            return Ok((
-                record,
-                ComputedFacts {
-                    directly: false,
-                    element_dependent: false,
-                    reused: true,
-                },
-            ));
-        }
-
         let group_seeds = context
             .initial
             .group_seeds(parent.and_then(|(parent, _)| context.records.get_shared(parent)));
         let requested = self.requested();
-        // The store the result context names, which the registered values of the element may
-        // compute to another.
-        let result_custom_properties = result_context.as_ref().and_then(|_| custom_properties.clone());
         let (mut computed, registered) = drive_with_registered_properties(|computed_store| {
             let mut suspended_font = None;
             let substituted = computed_store.unwrap_or(&custom_properties);
@@ -1796,10 +1819,15 @@ impl<'a> Scratch<'a> {
             })
         })?;
         let custom_properties = registered.unwrap_or(custom_properties);
-        if let Some(reads) = subject.container_reads.into_inner() {
+        let container_reads = subject.container_reads.into_inner();
+        let reads_container_style = container_reads.is_some();
+        if let Some(reads) = container_reads {
             self.container_reads.get_or_insert_default().add_reads(reads);
         }
         computed.reads.reads_attributes = Self::note_substitution_reads(&mut computed, &self.cascade.custom_winners);
+        let storable = !reads_container_style
+            && !self.recascades_monospace_font_size(&computed)
+            && Self::reads_nothing_of_the_element(&computed);
         let value_of = |property| computed.groups.value(property);
         let counter_style_environment_identity = state.values_counter_style_environment_identity(
             super::super::computed::ComputedStyleTarget::new(node, u8::MAX),
@@ -1847,19 +1875,35 @@ impl<'a> Scratch<'a> {
             .installed_record_holding_the_same_style_as(&record)
             .cloned()
             .unwrap_or(record);
-        // A result reading the parent's values of properties that are not inherited depends on
-        // more of the parent than the key holds.
-        if let Some(result_context) = result_context
-            && !computed.element_dependent
-            && computed.reads.parent_reset_groups == 0
+        // Only what the key and the conditions of an entry name is read of what may differ between
+        // the elements that find it.
+        if let Some(key) = key
+            && storable
         {
-            self.results.insert(
+            let conditions = matched_conditions(context, computed.reads);
+            let matches = match self.gated {
+                true => &self.applied,
+                false => &self.matches,
+            };
+            let cache = context.matched_declarations();
+            let lookups = &mut self.own_declaration_lookups;
+            cache.insert(
+                state,
                 node,
-                &self.cascade.winners,
-                result_context,
-                result_custom_properties,
+                Declared::Matched(matches),
+                key,
+                conditions,
                 record.clone(),
+                lookups,
             );
+            if let Some(picked_key) = picked_key {
+                let declared = Declared::Picked {
+                    winners: &self.cascade.winners,
+                    custom_winners: &self.cascade.custom_winners,
+                    animation_name_scope: self.cascade.animation_name_scope,
+                };
+                cache.insert(state, node, declared, picked_key, conditions, record.clone(), lookups);
+            }
         }
         Ok((
             record,
@@ -1927,52 +1971,183 @@ impl<'a> Scratch<'a> {
         reads & FfiNodeRecordReads::Attributes as u8 != 0
     }
 
-    /// What the computation of `node` reads besides its winners, where its result may be reused:
-    /// it has a parent this pass styled, and no winner computes in the font phases, which can read
-    /// the cascaded font sizes of ancestors beyond the parent.
-    fn result_context(
-        &self,
-        context: &PassContext<'_>,
+    /// What `node`, which just matched, is looked for by in the matched declarations cache, where
+    /// its record may be one computed before: it has a parent this pass or one before it styled,
+    /// and neither reads the animated values a record does not hold.
+    fn matched_key<'c>(
+        &mut self,
+        context: &PassContext<'c>,
         node: StyleNodeID,
-        inheritance_parent: Option<StyleNodeID>,
-        custom_properties: Option<&std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>,
-    ) -> Option<ResultContext> {
+        backed: Option<(u8, StyleNodeID)>,
+    ) -> Option<MatchedKey<'c>> {
+        if !context.uses_caches || backed.is_some() {
+            return None;
+        }
         let state = context.state;
-        if self
-            .cascade
-            .winners
-            .iter()
-            .any(|winner| crate::css::style_compute::computes_in_font_phases(winner.property))
-        {
-            return None;
-        }
-        let parent = inheritance_parent?;
-        let parent_record = context.records.get(parent)?;
-        // What a child computes under the composition of its parent's animations is not the
-        // parent's record's alone.
-        if context.records.composition(parent).is_some() {
-            return None;
-        }
         let facts = state.projection.facts(node)?;
+        let parent = state.projection.inheritance_parent(node)?;
+        let records = context.records;
+        let parent_record = records.get_shared(parent)?;
         // A parent that generates no box makes the box its child would be in an ancestor's.
         let parent_display = parent_record.facts().display();
         if parent_display.is_contents() {
             return None;
         }
-        let result_context = ResultContext {
-            parent_inherited_groups: std::array::from_fn(|group| parent_record.payloads[group].as_ptr() as usize),
-            parent_color: parent_record.payloads.current_color(),
-            parent_inherited_values: parent_record.payloads.inherited_values(),
-            parent_dependency_flags: parent_record.facts().publication_dependency_flags(),
-            parent_display,
-            custom_properties: custom_properties.map_or(0, |store| std::sync::Arc::as_ptr(store) as usize),
-            adjustment_facts: state.projection.adjustment_facts(node),
-            language: facts.language(),
-            directionality: facts.directionality(),
-            counter_style_environment: state.counter_style_environment_identity_of(node),
-            hash: 0,
+        // What a child computes under the composition of its parent's animations is not the
+        // parent's record's alone, and the custom properties animations sample are no record's.
+        if records.composition(parent).is_some()
+            || records.sampled_custom_properties(parent).flatten().is_some()
+            || records.sampled_custom_properties(node).flatten().is_some()
+        {
+            return None;
+        }
+        let (parent_store, parent_held) = records.custom_stores_of(parent)?;
+        // Elements styled by rules alone repeat; one with its own declarations mostly does not.
+        let declares_own = matched_declarations::declares_own(state, node);
+        if declares_own && !self.own_declaration_lookups.worth_looking() {
+            return None;
+        }
+        let matches = match self.gated {
+            true => &self.applied,
+            false => &self.matches,
         };
-        Some(result_context.hashed(state, node, &self.cascade.winners))
+        Some(MatchedKey::new(
+            state,
+            node,
+            matches,
+            MatchedContext {
+                parent_inherited_groups: std::array::from_fn(|group| parent_record.payloads[group].as_ptr() as usize),
+                parent_color: parent_record.payloads.current_color(),
+                parent_inherited_values: parent_record.payloads.inherited_values(),
+                parent_dependency_flags: parent_record.facts().publication_dependency_flags(),
+                parent_display,
+                parent_custom_properties: [
+                    custom_store_identity(parent_store.as_deref()),
+                    custom_store_identity(parent_held.as_deref()),
+                ],
+                pseudo_kind: u8::MAX,
+                adjustment_facts: state.projection.adjustment_facts(node),
+                language: facts.language(),
+                directionality: facts.directionality(),
+                tree_scope: state.projection.tree_scope(node),
+                counter_style_environment: state.counter_style_environment_identity_of(node),
+            },
+            parent_record,
+            declares_own,
+        ))
+    }
+
+    /// What the pseudo-element of `kind` of `node`, inheriting `inherited`, is looked for by in the
+    /// matched declarations cache, where its record may be one computed before.
+    fn pseudo_element_matched_key<'k>(
+        context: &PassContext<'_>,
+        node: StyleNodeID,
+        matches: &[ElementMatch],
+        inherited: &PseudoElementInheritance<'k>,
+        kind: u8,
+    ) -> Option<MatchedKey<'k>> {
+        if !context.uses_caches {
+            return None;
+        }
+        let state = context.state;
+        let facts = state.projection.facts(node)?;
+        let records = context.records;
+        // NB: Only where these are absent is what `inherited` names held by `inherited.record`, which
+        //     the entry holds to keep those addresses from going to others.
+        if records.composition(inherited.parent).is_some()
+            || records.sampled_custom_properties(inherited.parent).flatten().is_some()
+            || records.sampled_pseudo_element_custom_properties(node, kind).is_some()
+        {
+            return None;
+        }
+        Some(MatchedKey::new(
+            state,
+            node,
+            matches,
+            MatchedContext {
+                parent_inherited_groups: inherited.groups,
+                parent_color: inherited.color,
+                parent_inherited_values: inherited.inherited_values,
+                parent_dependency_flags: inherited.dependency_flags,
+                parent_display: inherited.record.facts().display(),
+                parent_custom_properties: [
+                    custom_store_identity(inherited.handed_down.as_ref()),
+                    custom_store_identity(inherited.held.as_ref()),
+                ],
+                pseudo_kind: kind,
+                adjustment_facts: state.projection.adjustment_facts(node),
+                language: facts.language(),
+                directionality: facts.directionality(),
+                tree_scope: state.projection.tree_scope(node),
+                counter_style_environment: state.counter_style_environment_identity_of(node),
+            },
+            inherited.record,
+            false,
+        ))
+    }
+
+    /// Whether a winning `font-family: monospace` recascaded the font size of `computed` over the
+    /// whole ancestor chain, which the key of the matched declarations cache does not name.
+    fn recascades_monospace_font_size(&self, computed: &super::compute::ComputedElement) -> bool {
+        use crate::css::property_metadata::property_id::FONT_FAMILY;
+        self.cascade.winners.iter().any(|winner| winner.property == FONT_FAMILY)
+            && computed
+                .groups
+                .value(FONT_FAMILY)
+                .optional_data()
+                .is_some_and(crate::css::style_compute::font_family_is_monospace)
+    }
+
+    /// Whether `computed` read nothing of its element that the key and the conditions of the
+    /// matched declarations cache do not name.
+    fn reads_nothing_of_the_element(computed: &super::compute::ComputedElement) -> bool {
+        !computed.element_dependent
+            && !computed.reads.reads_sibling_position
+            && !computed.reads.reads_attributes
+            && computed.reads.container_units == 0
+            && !computed.reads.display_none_is_animated
+    }
+
+    /// The record the matched declarations cache holds for the element `key` looks for.
+    fn find_matched_declarations(
+        &mut self,
+        context: &PassContext<'_>,
+        node: StyleNodeID,
+        key: &MatchedKey<'_>,
+    ) -> Option<std::sync::Arc<Record>> {
+        let matches = match self.gated {
+            true => &self.applied,
+            false => &self.matches,
+        };
+        let found = context
+            .matched_declarations()
+            .find(
+                context.state,
+                node,
+                Declared::Matched(matches),
+                key,
+                context.root_font(),
+            )
+            .map(|(record, _)| record.clone());
+        if key.declares_own() {
+            self.own_declaration_lookups.note_answer(found.is_some());
+        }
+        found
+    }
+}
+
+/// The identity of a store of custom properties a parent holds, which an entry of the matched
+/// declarations cache holds the parent's record for.
+fn custom_store_identity(store: Option<&std::sync::Arc<crate::css::custom_properties::CustomPropertyStore>>) -> usize {
+    store.map_or(0, |store| std::sync::Arc::as_ptr(store) as usize)
+}
+
+/// What a computation that read `reads` needs to hold still for an entry of the matched declarations
+/// cache to answer for another element.
+fn matched_conditions(context: &PassContext<'_>, reads: super::records::ComputationReads) -> MatchedConditions {
+    MatchedConditions {
+        root_font: (reads.reads_root_font != RootFontReads::None).then(|| context.root_font()),
+        reads_parent_reset_values: reads.parent_reset_groups != 0,
     }
 }
 
@@ -2168,52 +2343,13 @@ fn gate_verdict(
         .unwrap_or_else(|| undecided_verdict(conditions))
 }
 
-/// Whether `record` holds `custom_winners` as the custom declarations it was computed from.
-fn declares_the_custom_properties_of(
-    record: &Record,
-    custom_winners: &[(CustomDeclaration, crate::css::style_value::RetainedStyleValueData)],
-) -> bool {
-    let declarations = record
-        .custom_declarations()
-        .map_or(&[][..], |declarations| &declarations[..]);
-    declarations.len() == custom_winners.len()
-        && declarations.iter().zip(custom_winners).all(|(declared, winner)| {
-            declared.0 == winner.0 && (declared.1.pointer() == winner.1.pointer() || declared.1 == winner.1)
-        })
-}
-
-/// What a pseudo-element's style is computed from, besides the facts its element's style already
-/// holds.
-#[derive(PartialEq, Eq, Hash)]
-struct PseudoElementKey {
-    kind: u8,
-    inherited_groups: [usize; super::super::computed::ENGINE_INHERITED_GROUP_COUNT],
-    color: u32,
-    inherited_values: crate::css::computed_value_types::InheritedSetValues,
-    /// What the element's style depends on, part of which its pseudo-elements take on, as being in a
-    /// `display: none` subtree.
-    element_dependency_flags: u8,
-    display: [u8; 6],
-    custom_properties: usize,
-    winners: Vec<super::cascade::Winner>,
-    /// The pseudo-element's own custom declarations, by declaration and value address, which its
-    /// winners do not hold: a `::first-letter` whose longhands all lose still differs by these.
-    custom_winners: Vec<(CustomDeclaration, usize)>,
-    /// Where the winning `animation-name` was declared, which the winners do not tell apart for a
-    /// sheet several shadow roots adopt.
-    animation_name_scope: super::super::animations::DeclarationScope,
-    /// The record a highlight pseudo-element inherits from, or zero.
-    highlight_parent: usize,
-    /// The identity of the counter-style registry of the element's style scope, which a `::marker`
-    /// or generated content may resolve its counter styles against.
-    counter_style_environment: u64,
-}
-
 /// What a pseudo-element inherits from its originating element.
-struct PseudoElementInheritance {
+struct PseudoElementInheritance<'r> {
     /// The element inherited from: the originating element, or for a `::first-letter` the element
     /// containing the letter.
     parent: StyleNodeID,
+    /// The record of that element.
+    record: &'r std::sync::Arc<Record>,
     /// The inherited longhands that element holds as bits, and its effective zoom.
     inherited_values: crate::css::computed_value_types::InheritedSetValues,
     /// What a view of that element says its style depends on.
@@ -2225,11 +2361,11 @@ struct PseudoElementInheritance {
     held: super::records::HeldCustomProperties,
 }
 
-impl PseudoElementInheritance {
+impl<'r> PseudoElementInheritance<'r> {
     // https://drafts.csswg.org/css-pseudo-4/#treelike
     // A pseudo-element inherits from its originating element, the animated values of the
     // composition the host lays over the element's record included, as a child does.
-    fn of(context: &PassContext<'_>, node: StyleNodeID, element: &Record) -> Self {
+    fn of(context: &PassContext<'_>, node: StyleNodeID, element: &'r std::sync::Arc<Record>) -> Self {
         let composition = context.records.composition(node);
         let inherited_payloads: &crate::css::computed_values::StyleGroups = match &composition {
             Some(view) => view.payloads,
@@ -2244,6 +2380,7 @@ impl PseudoElementInheritance {
         };
         Self {
             parent: node,
+            record: element,
             inherited_values: inherited_payloads.inherited_values(),
             dependency_flags: composition.as_ref().map_or_else(
                 || element.facts().publication_dependency_flags(),
@@ -2837,10 +2974,10 @@ pub(super) fn style_pseudo_element_inheriting_from(
     scratch.apply_container_gates(context, node, true);
     let inherited = match inheritance_parent {
         Some(parent) => {
-            let Some(parent_record) = context.records.get_shared(parent).cloned() else {
+            let Some(parent_record) = context.records.get_shared(parent) else {
                 return DemandedPseudoElement::Declined;
             };
-            PseudoElementInheritance::of(context, parent, &parent_record)
+            PseudoElementInheritance::of(context, parent, parent_record)
         }
         None => PseudoElementInheritance::of(context, node, &element),
     };

@@ -122,6 +122,33 @@ fn losing_rule_source(index: usize) -> String {
     format!("{selector} {{ {declaration}; }}")
 }
 
+/// The style rule of `index` for the matched declarations workload: the shapes of [`rule_source`],
+/// with declarations whose computed values read the parent, the document's root or each other.
+fn matched_declarations_rule_source(index: usize) -> String {
+    let a = class_name(index % CLASSES);
+    let b = class_name((index + 3) % CLASSES);
+    let selector = match index % 3 {
+        0 => format!(".{a}"),
+        1 => format!(".{a} .{b}"),
+        _ => format!(".{a} > .{b}"),
+    };
+    let declaration = match index % 12 {
+        0 => format!("font-size: {}px", 8 + 4 * index),
+        1 => "width: 2em".to_owned(),
+        2 => format!("color: rgb({}, 0, 0)", 16 * index),
+        3 => "background-color: currentcolor".to_owned(),
+        4 => format!("--width: {}px", 1 + index),
+        5 => "height: var(--width, 3px)".to_owned(),
+        6 => "width: inherit".to_owned(),
+        7 => "padding-top: 1rem".to_owned(),
+        8 => "font-size: larger".to_owned(),
+        9 => "margin-inline-start: 2em".to_owned(),
+        10 => "writing-mode: vertical-rl".to_owned(),
+        _ => "display: revert".to_owned(),
+    };
+    format!("{selector} {{ {declaration}; }}")
+}
+
 /// The style rule of `index` for the `:has()` workload: one of twelve shapes of `:has()` over
 /// three of the classes, whose arguments go down, to a child, or sideways from the anchor, as a
 /// subject or a non-subject compound, nested in `:is()` and `:not()`.
@@ -536,6 +563,20 @@ fn seeded_transactions_restyle_live_as_a_cold_pass_does() {
 fn seeded_transactions_restyle_rules_that_lose_as_a_cold_pass_does() {
     for seed_index in 0..seeds() {
         run_seed(seed_index, losing_rule_source);
+    }
+}
+
+#[test]
+fn seeded_transactions_restyle_what_matched_declarations_read_as_a_cold_pass_does() {
+    for seed_index in 0..seeds() {
+        run_seed(seed_index, matched_declarations_rule_source);
+    }
+}
+
+#[test]
+fn seeded_transactions_restyle_what_matched_declarations_read_alike_on_one_thread_and_on_several() {
+    for seed_index in 0..seeds() {
+        run_seed_on_one_thread_and_on_several(seed_index, matched_declarations_rule_source);
     }
 }
 
