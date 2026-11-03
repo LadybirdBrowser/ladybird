@@ -178,7 +178,7 @@ impl RetainedState {
                     }
                     // The initial groups hold the initial values, each group in its own allocation.
                     // SAFETY: Each payload is a live payload of its group, whose reference the style takes.
-                    unsafe { values.put_into(&mut payloads) };
+                    unsafe { values.put_into(&mut payloads, 0) };
                     let initial_font = super::traversal::InitialFont {
                         first_available_font: font.first_available_font as usize,
                         font_cascade_list: font.font_cascade_list as usize,
@@ -1008,25 +1008,17 @@ impl RetainedState {
             values: &values,
             reads: None,
         };
-        let color_inputs = crate::css::table_group_builder::assembly_color_inputs_from_source(&group_values, &length);
+        let color_inputs = match parent {
+            Some(_) if seeded_parent.is_some() && values.keeps_the_color_of(seeds[0]) => (
+                crate::css::table_group_builder::used_color_scheme_of_source(&group_values),
+                seeds[0].current_color(),
+            ),
+            _ => crate::css::table_group_builder::assembly_color_inputs_from_source(&group_values, &length),
+        };
         let current_color = color_inputs.1;
         // Groups holding colors resolved against `currentcolor` resolve again where the element's
         // color differs from the one their shared payload resolved against.
-        let current_color_groups = computed::ComputedGroupSets::specified_value_dependency_mask_of(
-            values
-                .facts()
-                .inheritance_dependent_values()
-                .filter(|(property, value)| {
-                    !crate::css::table_group_builder::group_holds_current_color_for_its_reader(
-                        *property,
-                        value.optional_data(),
-                    )
-                }),
-            crate::css::style_value::retained_value_depends_on_current_color,
-        )
-            | crate::css::table_group_builder::groups_reading_current_color_through_inherited_values(|property| {
-                values.value(property).optional_data()
-            });
+        let current_color_groups = values.facts().current_color_groups();
         let inherited_groups = (1_u32 << ENGINE_INHERITED_GROUP_COUNT) - 1;
         let parent_color = parent.map_or(initial.color, |(_, color)| color);
         if parent_color != current_color {
@@ -1065,6 +1057,9 @@ impl RetainedState {
         // The lookups of the groups assembled anew, which the cache takes the groups for once they
         // hold their values.
         let mut assembled: smallvec::SmallVec<[GroupLookup<'_>; 4]> = smallvec::SmallVec::new();
+        let group_inputs = GroupCache::inputs(&values, color_inputs.0, &length);
+        // The groups the cache had, which hold the element's values.
+        let mut found_holding = 0_u32;
         let mut payloads = [std::ptr::null(); group_index::COUNT];
         for (group, payload) in payloads.iter_mut().enumerate() {
             let parent_payload = parent_view
@@ -1078,7 +1073,12 @@ impl RetainedState {
                         || crate::css::table_group_builder::GROUPS_HOLDING_CURRENT_COLOR_FOR_THEIR_READER
                             & (1 << group)
                             == 0;
-                    GroupCache::key(&values, group, color_inputs, reads_current_color, &length)
+                    GroupCache::key(
+                        &values,
+                        group,
+                        reads_current_color.then_some(current_color),
+                        &group_inputs,
+                    )
                 });
                 let found = key.as_ref().and_then(|key| group_cache.find(key));
                 if key.is_some() {
@@ -1104,6 +1104,7 @@ impl RetainedState {
                     },
                     Some(payload) => {
                         crate::css::computed_values::retain_group_payload(group, payload);
+                        found_holding |= 1 << group;
                         payload
                     }
                     None => {
@@ -1150,7 +1151,7 @@ impl RetainedState {
         let before = payloads;
         // SAFETY: Each payload is a live payload of its group holding a reference for the element,
         //         but the borrowed ones, whose values are the very values the element holds.
-        unsafe { values.put_into(&mut payloads) };
+        unsafe { values.put_into(&mut payloads, found_holding) };
         for group in (0..group_index::COUNT).filter(|&group| borrowed.contains(group)) {
             assert_eq!(
                 payloads[group], before[group],
@@ -1653,15 +1654,20 @@ pub(in crate::css::style) struct GroupCache {
     hits: [u32; crate::css::table_group_builder::group_index::COUNT],
     misses: [u32; crate::css::table_group_builder::group_index::COUNT],
     lookups: u32,
-    /// The longhands and recorded specified values the groups of the entries read in place of
-    /// computed values, compared by identity, one run per entry, which the keys name by where it
-    /// starts. The entries hold them, as they outlive the pass they came from and no other value
-    /// may take their addresses. Most entries have none.
-    key_values: Vec<(u16, crate::css::style_value::RetainedStyleValueData)>,
+    /// The values of the keys of the entries, one run per entry, which the keys name by where it
+    /// starts: what was written over the values the group read, by where each comes in place order,
+    /// then the longhands and recorded specified values it read in place of computed values,
+    /// compared by identity. The entries hold them, as they outlive the pass they came from and no
+    /// other value may take their addresses.
+    key_values: Vec<(u32, crate::css::style_value::RetainedStyleValueData)>,
     /// The distinct inputs of the entries, which the keys name by index. The elements of a pass
     /// mostly assemble their groups against the same ones.
-    key_inputs: Vec<[u64; 18]>,
+    key_inputs: Vec<GroupInputs>,
 }
+
+/// What an element's groups are built from beside their values, but for the color they resolve
+/// `currentcolor` against, which only some read.
+pub(in crate::css::style) type GroupInputs = [u64; 17];
 
 struct GroupCacheEntry {
     group: usize,
@@ -1674,14 +1680,17 @@ const READ_GROUPS_INLINE: usize = 3;
 
 /// What an entry's payload was assembled from.
 struct GroupKey {
-    /// The values of the groups the group read any of, in group order, which the entry keeps.
-    groups: smallvec::SmallVec<[crate::css::computed_values::HeldGroup; READ_GROUPS_INLINE]>,
-    /// The recorded specified values the group read in place of computed values, as the run of
-    /// the cache's key values starting here and this long.
+    /// The seeds of the groups the group read any of, in group order, which the entry keeps.
+    seeds: smallvec::SmallVec<[crate::css::computed_values::HeldGroup; READ_GROUPS_INLINE]>,
+    /// The run of the cache's key values starting here: this many values written over the values it
+    /// read, then this many recorded specified values it read in place of computed values.
     values_start: u32,
-    values_length: u32,
+    writes_length: u32,
+    read_in_place_length: u32,
     /// The index of the inputs in the cache's key inputs.
     inputs: u32,
+    /// The color the group resolved `currentcolor` against, where it reads one.
+    current_color: u64,
 }
 
 /// What a group's payload is looked for by: the element's values the group reads, which are only
@@ -1690,8 +1699,10 @@ struct GroupLookup<'a> {
     hash: u64,
     group: usize,
     values: &'a crate::css::computed_values::GroupValues<'a>,
-    reads: crate::css::computed_values::GroupReads,
-    inputs: [u64; 18],
+    reads: &'static crate::css::computed_values::GroupReads,
+    read_groups: u32,
+    inputs: &'a GroupInputs,
+    current_color: u64,
 }
 
 impl GroupLookup<'_> {
@@ -1699,20 +1710,27 @@ impl GroupLookup<'_> {
     fn values_read_in_place(
         &self,
     ) -> impl Iterator<Item = (u16, &crate::css::style_value::RetainedStyleValueData)> + '_ {
-        self.values.facts().values_read_in_place(&self.reads)
+        self.values.facts().values_read_in_place(self.reads, self.read_groups)
     }
 
     fn matches(&self, group: usize, key: &GroupKey, cache: &GroupCache) -> bool {
         let start = key.values_start as usize;
+        let read_in_place_start = start + key.writes_length as usize;
         group == self.group
-            && cache.key_inputs[key.inputs as usize] == self.inputs
-            && self.values.holds_read_values(&self.reads, &key.groups)
-            && cache.key_values[start..start + key.values_length as usize]
+            && key.current_color == self.current_color
+            && cache.key_inputs[key.inputs as usize] == *self.inputs
+            && self.values.hold_read_values(
+                self.reads,
+                self.read_groups,
+                &key.seeds,
+                &cache.key_values[start..read_in_place_start],
+            )
+            && cache.key_values[read_in_place_start..read_in_place_start + key.read_in_place_length as usize]
                 .iter()
                 .map(|(property, value)| (*property, value.pointer()))
                 .eq(self
                     .values_read_in_place()
-                    .map(|(property, value)| (property, value.pointer())))
+                    .map(|(property, value)| (u32::from(property), value.pointer())))
     }
 }
 
@@ -1767,14 +1785,13 @@ impl GroupCache {
         self.misses[group] < 32 || self.hits[group] * 4 >= self.misses[group]
     }
 
-    fn key<'a>(
-        values: &'a crate::css::computed_values::GroupValues<'a>,
-        group: usize,
-        (scheme, current_color): (u8, u32),
-        reads_current_color: bool,
+    /// What the groups of an element with `values`, in the color scheme `scheme`, are built from
+    /// beside their values, with their hash: what its lookups have in common.
+    fn inputs(
+        values: &crate::css::computed_values::GroupValues<'_>,
+        scheme: u8,
         length: &crate::css::style_compute::FfiLengthResolutionContext,
-    ) -> GroupLookup<'a> {
-        use crate::css::computed_values::{GroupValueLayout, LonghandID};
+    ) -> (GroupInputs, u64) {
         use std::hash::{Hash, Hasher};
         let metrics = |metrics: &crate::css::style_compute::FfiFontMetrics| {
             [
@@ -1791,11 +1808,6 @@ impl GroupCache {
         let facts = values.facts();
         let inputs = [
             u64::from(scheme),
-            if reads_current_color {
-                u64::from(current_color)
-            } else {
-                0
-            },
             u64::from(facts.display_before_box_type_transformation())
                 | (u64::from(facts.native_appearance_disabled()) << u32::BITS),
             u64::from(facts.effective_zoom().to_bits()),
@@ -1814,30 +1826,40 @@ impl GroupCache {
             i,
             j,
         ];
-        let mut reads = *GroupValueLayout::get().reads_of(group);
-        // A background group's payload for one element is another's with the background color
-        // patched, where the two hold the same values of every other longhand the group reads.
-        // The key of the group leaves the longhand out.
-        if group == crate::css::table_group_builder::group_index::BACKGROUND {
-            let color = GroupValueLayout::get().place(LonghandID::new(
-                crate::css::property_metadata::property_id::BACKGROUND_COLOR,
-            ));
-            reads[color.group()] &= !(1 << color.index());
-        }
+        let mut hasher = crate::fast_hash::fast_hasher();
+        inputs.hash(&mut hasher);
+        (inputs, hasher.finish())
+    }
+
+    fn key<'a>(
+        values: &'a crate::css::computed_values::GroupValues<'a>,
+        group: usize,
+        current_color: Option<u32>,
+        (inputs, inputs_hash): &'a (GroupInputs, u64),
+    ) -> GroupLookup<'a> {
+        use crate::css::computed_values::GroupValueLayout;
+        use std::hash::{Hash, Hasher};
+        let layout = GroupValueLayout::get();
+        let reads = layout.key_reads_of(group);
+        let read_groups = layout.read_groups_of(group);
+        let current_color = current_color.map_or(0, |color| u64::from(color) | (1 << u32::BITS));
         let mut hasher = crate::fast_hash::fast_hasher();
         group.hash(&mut hasher);
-        values.read_hash(&reads, &mut hasher);
-        for (property, value) in facts.values_read_in_place(&reads) {
+        hasher.write_u64(*inputs_hash);
+        hasher.write_u64(current_color);
+        values.read_hash(reads, read_groups, &mut hasher);
+        for (property, value) in values.facts().values_read_in_place(reads, read_groups) {
             hasher.write_u16(property);
             hasher.write_usize(value.pointer() as usize);
         }
-        inputs.hash(&mut hasher);
         GroupLookup {
             hash: hasher.finish(),
             group,
             values,
             reads,
+            read_groups,
             inputs,
+            current_color,
         }
     }
 
@@ -1857,20 +1879,29 @@ impl GroupCache {
         }
         let group = lookup.group;
         crate::css::computed_values::retain_group_payload(group, payload);
-        if self.key_inputs.last() != Some(&lookup.inputs) {
-            self.key_inputs.push(lookup.inputs);
+        if self.key_inputs.last() != Some(lookup.inputs) {
+            self.key_inputs.push(*lookup.inputs);
         }
         let values_start = self.key_values.len();
         self.key_values.extend(
             lookup
+                .values
+                .read_writes(lookup.reads)
+                .map(|(order, value)| (order, value.clone())),
+        );
+        let writes_length = self.key_values.len() - values_start;
+        self.key_values.extend(
+            lookup
                 .values_read_in_place()
-                .map(|(property, value)| (property, value.clone())),
+                .map(|(property, value)| (u32::from(property), value.clone())),
         );
         let key = GroupKey {
-            groups: lookup.values.held_read_groups(&lookup.reads).collect(),
+            seeds: lookup.values.held_read_seeds(lookup.read_groups).collect(),
             values_start: values_start as u32,
-            values_length: (self.key_values.len() - values_start) as u32,
+            writes_length: writes_length as u32,
+            read_in_place_length: (self.key_values.len() - values_start - writes_length) as u32,
             inputs: (self.key_inputs.len() - 1) as u32,
+            current_color: lookup.current_color,
         };
         self.entries
             .entry(lookup.hash)
