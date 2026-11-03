@@ -118,6 +118,7 @@ private:
     virtual void request_rendering_update() override;
     virtual void rendering_opportunity(Web::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) override;
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates) override;
+    virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 frame_time_nanoseconds) override;
     virtual void did_complete_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_fail_screenshot(Compositing::ScreenshotRequestId) override;
     virtual void did_lose_compositor() override;

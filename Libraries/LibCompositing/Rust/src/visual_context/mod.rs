@@ -41,6 +41,9 @@ pub struct TransformData {
     pub role: TransformDataRole,
     pub synthetic_plane: bool,
     pub establishes_sorting_context: bool,
+    /// The box the node transforms, with what overflows it, in the node's space: what a transform animation of the
+    /// node moves. Empty where the node transforms no box.
+    pub bounds: FloatRect,
 }
 
 impl TransformData {
@@ -1480,6 +1483,7 @@ mod tests {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: FloatRect::default(),
         }
     }
 

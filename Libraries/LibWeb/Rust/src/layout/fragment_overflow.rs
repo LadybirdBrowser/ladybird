@@ -142,6 +142,10 @@ impl TransformGeometry for ContainedBoxTransformGeometry<'_> {
         self.contained.border_box
     }
 
+    fn scrollable_overflow_rect(&self) -> Option<CssPixelRect> {
+        None
+    }
+
     fn nearest_svg_viewport_user_rect(&self) -> Option<CssPixelRect> {
         None
     }

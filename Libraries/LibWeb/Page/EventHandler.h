@@ -90,7 +90,7 @@ public:
 #if defined(AK_OS_MACOS)
     bool select_word_for_dictionary_lookup(CSSPixelPoint visual_viewport_position);
 #endif
-    void update_hover_at_last_known_mouse_position();
+    void update_hover_at_last_known_mouse_position(Optional<i64> visual_animation_sample_time_nanoseconds = {});
     void update_hover_at(CSSPixelPoint visual_viewport_position, GC::Ptr<DOM::Node> hover_target = {});
     // Call once per rendering update, after its layout and before it paints.
     void update_hover_after_rendering_update();
@@ -105,6 +105,9 @@ public:
     // Call where the hover may be stale (see EventLoop::note_hover_may_be_stale). Answers whether it still is: a
     // frame to come shows what it waits for.
     bool update_hover_where_the_pointer_rests(HTML::HoverUpdatePoint);
+    // Call as the compositor reports a frame of a transform animation it runs that moved content under the pointer at
+    // rest, or away from it. The hover follows with the animations sampled at the frame's time.
+    void note_animated_content_moved_under_pointer(i64 frame_time_nanoseconds);
     GC::Ptr<DOM::Node> target_node_for_mouse_position(CSSPixelPoint);
 
     EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false, ReadonlySpan<TextEditingCommand> editing_commands = {}, bool native_editing_binding_resolved = false);
@@ -246,7 +249,7 @@ private:
         Layout::Node* layout_node(Layout::BegunRead const& read) const;
         GC::Ptr<DOM::Node> dom_node() const;
     };
-    Optional<Target> target_for_mouse_position(CSSPixelPoint position);
+    Optional<Target> target_for_mouse_position(CSSPixelPoint position, Optional<i64> visual_animation_sample_time_nanoseconds = {});
     GC::Ptr<DOM::Node> focus_candidate_for_position(Layout::BegunRead const& read, CSSPixelPoint) const;
 
     void run_mousedown_default_actions(Layout::BegunRead const& read, DOM::Document&, CSSPixelPoint visual_viewport_position, unsigned button, unsigned modifiers, int click_count);
@@ -274,7 +277,7 @@ private:
     void clear_mousedown_tracking();
     void stop_updating_selection();
 
-    void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target = {});
+    void update_hover_after_scroll(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, GC::Ptr<DOM::Node> hover_target = {}, Optional<i64> visual_animation_sample_time_nanoseconds = {});
     EventResult dispatch_wheel_event(Layout::BegunRead const& read, Layout::Node&, CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, double wheel_tick_120ths_x, double wheel_tick_120ths_y, bool is_cancelable);
     // Both drop the latch when what it refers to is gone from the document, so that the event is targeted afresh.
     Layout::Node* validated_latched_wheel_event_target_layout_node(Layout::BegunRead const& read, DOM::Document&);
@@ -346,6 +349,9 @@ private:
     Optional<CSSPixelPoint> m_last_known_mouse_visual_viewport_position;
     // Whether what is under the pointer may have moved, or changed its cursor, since the hover last followed it.
     bool m_hover_may_be_stale { false };
+    // The time of the compositor's frame whose animations moved what is under the pointer, which the hover samples
+    // them at.
+    Optional<i64> m_visual_animation_sample_time_nanoseconds;
     bool m_handling_outdated_input { false };
     // The UI process's id of the input event being handled, or 0.
     u64 m_handling_input_event_id { 0 };

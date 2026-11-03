@@ -252,6 +252,7 @@ private:
     // Goes on with the rendering update in flight where it has landed, and presents the recordings that have landed.
     void take_finished_frames_in();
     void update_hovers_that_may_be_stale(HoverUpdatePoint);
+    bool queue_hover_that_may_be_stale(LocalNavigable&);
     bool let_layout_of_rendering_update_fly();
     void note_clock_lanes(ClockAnimations);
 

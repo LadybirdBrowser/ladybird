@@ -44,6 +44,7 @@ pub(crate) fn compute_svg_viewport_transform_data(
         role: TransformDataRole::SvgViewportTransform,
         synthetic_plane: false,
         establishes_sorting_context: false,
+        bounds: libgfx_rust::FloatRect::default(),
     }
 }
 

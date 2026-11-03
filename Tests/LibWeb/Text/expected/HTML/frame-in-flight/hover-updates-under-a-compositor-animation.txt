@@ -1,0 +1,4 @@
+at rest: Arrow, :hover false, events none
+as the animation started: Arrow, :hover false, events none
+at a frame 2s in: Hand, :hover true, events mouseover
+at a frame 9s in: Arrow, :hover false, events mouseover mouseout

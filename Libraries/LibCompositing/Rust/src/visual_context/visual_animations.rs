@@ -6,9 +6,13 @@
 
 //! The compositor animations a visual context tree carries, and the trees derived by sampling them.
 
-use super::{EffectNodeData, EffectNodeIndex, EffectsData, SpatialData, SpatialNodeIndex, VisualContextTree};
+use super::{
+    ClipBehavior, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex, EffectsData, SpatialData,
+    SpatialNodeIndex, VisualContextTree,
+};
 use crate::host::{FfiVisualAnimationSummary, FfiVisualAnimationTargetKind, FfiVisualAnimationTransformOperationKind};
 use crate::visual_animation::{VisualAnimation, VisualAnimationSample, VisualAnimationValue};
+use libgfx_rust::FloatPoint;
 
 /// What a frame scheduler needs to bound the content the running animations move: the nodes of the
 /// animations whose swept area is bounded, sorted by how the bound is computed, and whether every
@@ -101,6 +105,34 @@ impl VisualContextTree {
         self.visual_animations
             .iter()
             .any(|animation| animation.is_active_at(sample_time_ns))
+    }
+
+    /// Whether `screen_point` lies in the bounds of a node that a transform animation running at `sample_time_ns`
+    /// moves, through the values the nodes hold: those of this tree sampled at that time, where a frame shows it.
+    pub fn running_transform_animation_covers_point(
+        &self,
+        sample_time_ns: i64,
+        screen_point: FloatPoint,
+        scroll_offsets: &[FloatPoint],
+    ) -> bool {
+        self.visual_animations.iter().any(|animation| {
+            animation.target_kind == FfiVisualAnimationTargetKind::Transform
+                && animation.is_active_at(sample_time_ns)
+                && animation.node_indices.iter().any(|&node_index| {
+                    let Some(SpatialData::Transform(transform)) =
+                        self.spatial_nodes.get(node_index as usize).map(|node| &node.data)
+                    else {
+                        return false;
+                    };
+                    let context = ContextRef {
+                        spatial: SpatialNodeIndex(node_index),
+                        clip: ClipNodeIndex::NONE,
+                        effect: EffectNodeIndex::NONE,
+                    };
+                    self.transform_point_for_hit_test(context, screen_point, scroll_offsets, ClipBehavior::Ignore)
+                        .is_some_and(|local_point| transform.bounds.contains_point(local_point))
+                })
+        })
     }
 
     pub fn visual_animations_target_valid_nodes(&self) -> bool {
@@ -208,6 +240,7 @@ mod tests {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: libgfx_rust::FloatRect::default(),
         }
     }
 
@@ -312,6 +345,39 @@ mod tests {
             panic!("not a transform node");
         };
         assert_eq!(sampled_transform.matrix, translation_matrix(5.0, 0.0, 0.0));
+    }
+
+    #[test]
+    fn a_running_transform_animation_covers_a_point_in_the_bounds_it_moves() {
+        let mut tree = VisualContextTree::create(transform_data(FloatMatrix4x4::identity()));
+        // A box from x 150 to 1150 slides 150 pixels a second to the left: it covers x 50 from 2/3 s to 7 1/3 s in.
+        let spatial = tree.append_spatial(
+            SpatialData::Transform(TransformData {
+                bounds: libgfx_rust::FloatRect::new(150.0, 0.0, 1000.0, 100.0),
+                ..transform_data(FloatMatrix4x4::identity())
+            }),
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        tree.set_visual_animations(vec![VisualAnimation {
+            target_kind: FfiVisualAnimationTargetKind::Transform,
+            node_indices: vec![spatial.0],
+            iteration_duration_ms: 10000.0,
+            iteration_count: 1.0,
+            keyframes: vec![keyframe(0.0, translate_x(0.0)), keyframe(1.0, translate_x(-1500.0))],
+            ..VisualAnimation::default()
+        }]);
+        let point = FloatPoint { x: 50.0, y: 50.0 };
+        let covers_at = |time_ns: i64| {
+            tree.with_visual_animation_samples(time_ns)
+                .running_transform_animation_covers_point(time_ns, point, &[])
+        };
+        assert!(!covers_at(milliseconds(0)));
+        assert!(covers_at(milliseconds(2000)));
+        assert!(!covers_at(milliseconds(9000)));
+        // The animation over, the node holds the value the main thread published, which has the box beside the point.
+        assert!(!covers_at(milliseconds(11000)));
+        // The tree answers for the values it holds: unsampled, the box is where the main thread published it.
+        assert!(!tree.running_transform_animation_covers_point(milliseconds(2000), point, &[]));
     }
 
     #[test]

@@ -458,7 +458,16 @@ ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEve
 
 ContextState::ContextUpdateResult ContextState::handle_mouse_event_from_containing_context(Web::MouseEvent const& event, Gfx::FloatPoint position)
 {
+    if (event.type == Web::MouseEvent::Type::MouseMove)
+        note_pointer_position(position);
+    else if (first_is_one_of(event.type, Web::MouseEvent::Type::MouseLeave, Web::MouseEvent::Type::MouseCancel))
+        note_pointer_position({});
     return handle_mouse_event_at(event, position);
+}
+
+void ContextState::note_pointer_position(Optional<Gfx::FloatPoint> position)
+{
+    m_pointer_position = position;
 }
 
 // The compositor presents how scrollbars expand, outside of what damage tracking sees.
@@ -2578,7 +2587,15 @@ bool ContextState::visual_animations_need_frame()
 
 bool ContextState::advance_visual_animations(MonotonicTime now)
 {
-    return m_scene.advance_visual_animations(now);
+    auto animations_are_active = m_scene.advance_visual_animations(now);
+    // The main thread hovers what is under the pointer at rest again as a transform animation moves content under it,
+    // with the animation sampled at the frame's time, and once more as the content moves away.
+    auto animated_content_is_under_pointer = animations_are_active && m_pointer_position.has_value()
+        && m_scene.visual_context_tree_for_compositing().running_transform_animation_covers_point(now.nanoseconds(), *m_pointer_position, m_scroll_state_snapshot);
+    if (animated_content_is_under_pointer || m_animated_content_was_under_pointer)
+        m_web_content_client.animated_content_moved_under_pointer(m_context_id, now.nanoseconds());
+    m_animated_content_was_under_pointer = animated_content_is_under_pointer;
+    return animations_are_active;
 }
 
 }

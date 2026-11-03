@@ -66,6 +66,7 @@ public:
     virtual void pointer_moved(Web::CompositorContextId, Web::DevicePixelPoint, u32 /* buttons */, bool /* scrolled_since_frame */, u64 /* input_event_id */) { }
     virtual void pointer_left(Web::CompositorContextId, u64 /* input_event_id */) { }
     virtual void async_scroll_updates(Web::CompositorContextId, Compositing::PendingAsyncScrollUpdates const&) = 0;
+    virtual void animated_content_moved_under_pointer(Web::CompositorContextId, i64 /* frame_time_nanoseconds */) { }
     virtual void overlay_scrollbar_visibilities_changed(Vector<Web::OverlayScrollbarVisibility> const&) { }
     virtual void create_video_edge(Media::VideoSinkHandle) = 0;
     virtual void release_video_edge(Media::VideoSinkHandle) = 0;

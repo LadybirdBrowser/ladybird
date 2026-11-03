@@ -632,6 +632,7 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
         role: TransformDataRole::CssTransform,
         synthetic_plane: false,
         establishes_sorting_context: false,
+        bounds: libgfx_rust::FloatRect::default(),
     });
     // Force-dark never reaches here: an image is darkened by classifying the image itself — not by inverting the
     // fills that raster it.

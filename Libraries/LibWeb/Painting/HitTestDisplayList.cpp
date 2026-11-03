@@ -85,6 +85,8 @@ struct HitTestDisplayList::QueryContext {
             .scroll_offsets_len = scroll_offsets.size(),
             .has_chrome_metrics = query != nullptr,
             .chrome_metrics = {},
+            .has_visual_animation_sample_time = query && query->visual_animation_sample_time_nanoseconds().has_value(),
+            .visual_animation_sample_time_ns = query ? query->visual_animation_sample_time_nanoseconds().value_or(0) : 0,
             .contains = [](void* context_pointer, Layout::RustFFI::FfiNodeIdentity ancestor, Layout::RustFFI::FfiNodeIdentity node) -> bool {
                 auto& context = *static_cast<QueryContext*>(context_pointer);
                 if (!context.document)

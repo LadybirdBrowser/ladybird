@@ -99,6 +99,7 @@ mod tests {
             role: TransformDataRole::CssTransform,
             sorting_context_root_index: None,
             establishes_sorting_context: false,
+            bounds: FloatRect::default(),
             synthetic_plane: false,
         })
     }

@@ -510,6 +510,23 @@ pub unsafe extern "C" fn visual_context_tree_has_active_visual_animation_at(
 
 /// # Safety
 ///
+/// `tree` must be a live retained tree handle, and `scroll_offsets` must address `scroll_offsets_len` points.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_running_transform_animation_covers_point(
+    tree: *const c_void,
+    sample_time_ns: i64,
+    screen_point: libgfx_rust::FloatPoint,
+    scroll_offsets: *const libgfx_rust::FloatPoint,
+    scroll_offsets_len: usize,
+) -> bool {
+    let tree = unsafe { tree_from_handle(tree) };
+    // SAFETY: The caller guarantees the offsets address `scroll_offsets_len` points.
+    let scroll_offsets = unsafe { ak::slice_from_raw_parts(scroll_offsets, scroll_offsets_len) };
+    tree.running_transform_animation_covers_point(sample_time_ns, screen_point, scroll_offsets)
+}
+
+/// # Safety
+///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_visual_animation_summary(
@@ -593,6 +610,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_create() -> *mut c_voi
         role: crate::visual_context::TransformDataRole::CssTransform,
         synthetic_plane: false,
         establishes_sorting_context: false,
+        bounds: libgfx_rust::FloatRect::default(),
     });
     Box::into_raw(Box::new(tree)).cast()
 }
@@ -625,6 +643,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_transform(
             role: crate::visual_context::TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: libgfx_rust::FloatRect::default(),
         }),
         SpatialNodeIndex(parent),
     )

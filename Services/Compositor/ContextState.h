@@ -314,6 +314,9 @@ public:
     Compositing::FirstWheelStepRouteForTesting route_first_wheel_step_for_testing(Gfx::FloatPoint position, Gfx::FloatPoint delta_in_css_pixels, Compositing::NestedContextRegions);
     bool advance_visual_animations(MonotonicTime now);
     bool visual_animations_need_frame();
+    // Where the pointer is in this context's device pixels, as the mouse event the context takes or hands on says, or
+    // nowhere, as the pointer leaves it.
+    void note_pointer_position(Optional<Gfx::FloatPoint>);
     Compositing::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
 
@@ -511,6 +514,8 @@ private:
     bool m_scrollbar_track_press_jumps { false };
     RefPtr<Core::Timer> m_scrollbar_paging_timer;
     PointerInNestedContexts m_pointer_in_nested_contexts;
+    Optional<Gfx::FloatPoint> m_pointer_position;
+    bool m_animated_content_was_under_pointer { false };
     ScrollFlingController m_scroll_fling_controller;
     Optional<Web::MouseEvent> m_last_reported_scroll_momentum_step;
     bool m_reported_scroll_momentum_was_interrupted { false };

@@ -635,6 +635,11 @@ void CompositorState::handle_and_dispatch_mouse_event(Web::CompositorContextId c
         return;
     }
 
+    if (event.type == Web::MouseEvent::Type::MouseMove)
+        context->note_pointer_position(Gfx::FloatPoint { static_cast<float>(event.position.x().value()), static_cast<float>(event.position.y().value()) });
+    else if (first_is_one_of(event.type, Web::MouseEvent::Type::MouseLeave, Web::MouseEvent::Type::MouseCancel))
+        context->note_pointer_position({});
+
     if (event.type == Web::MouseEvent::Type::MouseDown)
         dispatch_scroll_fling_step(context_id, *context, context->end_scroll_fling(), MonotonicTime::now());
 
@@ -814,6 +819,7 @@ ContextState::ContextUpdateResult CompositorState::handle_mouse_event_in_nested_
         if (pointer.context_under_pointer == nested_context_id)
             return;
         if (auto* context_left = context_still_nested_in(context_id, pointer.context_under_pointer)) {
+            context_left->note_pointer_position({});
             if (auto frame_to_present = context_left->clear_scrollbar_hover(); frame_to_present.has_value())
                 schedule_present_frame(*pointer.context_under_pointer, *context_left, *frame_to_present);
         }

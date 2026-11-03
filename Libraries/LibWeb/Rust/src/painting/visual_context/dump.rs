@@ -422,6 +422,7 @@ mod node_dump_tests {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: FloatRect::default(),
         })
     }
 
@@ -444,6 +445,7 @@ mod node_dump_tests {
                 role: TransformDataRole::CssTransform,
                 synthetic_plane: false,
                 establishes_sorting_context: false,
+                bounds: FloatRect::default(),
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -456,6 +458,7 @@ mod node_dump_tests {
                 role: TransformDataRole::SvgViewportTransform,
                 synthetic_plane: false,
                 establishes_sorting_context: false,
+                bounds: FloatRect::default(),
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
@@ -672,6 +675,7 @@ mod section_dump_tests {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
+            bounds: FloatRect::default(),
         });
         let scroll_node = tree.append_spatial(
             SpatialData::Scroll(ScrollData {
