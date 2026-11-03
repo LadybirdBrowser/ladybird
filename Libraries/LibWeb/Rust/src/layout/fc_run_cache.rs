@@ -501,24 +501,23 @@ impl StoredEntrySummary {
     }
 }
 
+type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; EARLIER_ENTRIES_PER_BOX]>;
+
 #[derive(Clone, Default)]
 struct FcRunCacheSlot {
     latest: Option<std::sync::Arc<FcRunCacheEntry>>,
     committed: Option<std::sync::Arc<FcRunCacheEntry>>,
     committed_summary: StoredEntrySummary,
     latest_summary: StoredEntrySummary,
-    has_earlier_entries: bool,
+    earlier: EarlierEntriesOfBox,
 }
 
 impl FcRunCacheSlot {
-    fn refresh_summaries(&mut self, has_earlier_entries: bool) {
+    fn refresh_summaries(&mut self) {
         self.committed_summary = StoredEntrySummary::of(self.committed.as_deref());
         self.latest_summary = StoredEntrySummary::of(self.latest.as_deref());
-        self.has_earlier_entries = has_earlier_entries;
     }
 }
-
-type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; EARLIER_ENTRIES_PER_BOX]>;
 
 /// Per-document store of completed run results, surviving across layout passes in the layout stage's scratch: per box
 /// the latest entry, the one whose fragments the box committed where a later store moved it aside, and a few earlier
@@ -527,7 +526,6 @@ type EarlierEntriesOfBox = smallvec::SmallVec<[std::sync::Arc<FcRunCacheEntry>; 
 pub(crate) struct FcRunCacheStore {
     /// In chunks a fork of the arena shares until either side writes one, so forking does not copy every box's entries.
     slots: RefCell<crate::cow_column::CowVec<FcRunCacheSlot, FC_RUN_CACHE_SLOTS_PER_CHUNK>>,
-    earlier_entries: RefCell<HashMap<u32, EarlierEntriesOfBox>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
     pending_sweep_slots: RefCell<Vec<u32>>,
     enrolled_for_sweep: RefCell<Vec<bool>>,
@@ -546,10 +544,9 @@ impl FcRunCacheStore {
     }
 
     fn slot_holds_entries(&self, slot: u32) -> bool {
-        self.slots
-            .borrow()
-            .get(slot as usize)
-            .is_some_and(|entries| entries.latest.is_some() || entries.committed.is_some())
+        self.slots.borrow().get(slot as usize).is_some_and(|entries| {
+            entries.latest.is_some() || entries.committed.is_some() || !entries.earlier.is_empty()
+        })
     }
 
     pub(crate) fn note_invalidated_entry(&self, node: Node) {
@@ -574,27 +571,21 @@ impl FcRunCacheStore {
         summary_allows: impl Fn(StoredEntrySummary) -> bool,
         mut answers: impl FnMut(&FcRunCacheEntry) -> bool,
     ) -> Option<std::sync::Arc<FcRunCacheEntry>> {
+        let slots = self.slots.borrow();
+        let entries = slots.get(slot as usize)?;
+        if let Some(entry) = [
+            (&entries.committed, entries.committed_summary),
+            (&entries.latest, entries.latest_summary),
+        ]
+        .into_iter()
+        .filter(|(_, summary)| summary_allows(*summary))
+        .filter_map(|(entry, _)| entry.as_ref())
+        .find(|entry| answers(entry))
         {
-            let slots = self.slots.borrow();
-            let entries = slots.get(slot as usize)?;
-            if let Some(entry) = [
-                (&entries.committed, entries.committed_summary),
-                (&entries.latest, entries.latest_summary),
-            ]
-            .into_iter()
-            .filter(|(_, summary)| summary_allows(*summary))
-            .filter_map(|(entry, _)| entry.as_ref())
-            .find(|entry| answers(entry))
-            {
-                return Some(entry.clone());
-            }
-            if !entries.has_earlier_entries {
-                return None;
-            }
+            return Some(entry.clone());
         }
-        self.earlier_entries
-            .borrow()
-            .get(&slot)?
+        entries
+            .earlier
             .iter()
             .filter(|entry| summary_allows(StoredEntrySummary::of(Some(entry))))
             .find(|entry| answers(entry))
@@ -605,7 +596,6 @@ impl FcRunCacheStore {
         if self.slot_holds_entries(slot) {
             self.slots.borrow_mut()[slot as usize] = FcRunCacheSlot::default();
         }
-        self.earlier_entries.borrow_mut().remove(&slot);
         self.forget_inline_layout_damage(slot);
     }
 
@@ -704,13 +694,7 @@ impl FcRunCacheStore {
             slots.resize_with_default(slot as usize + 1);
         }
         let entries = &mut slots[slot as usize];
-        let mut earlier_entries = self.earlier_entries.borrow_mut();
-        if let Some(earlier) = earlier_entries.get_mut(&slot) {
-            earlier.retain(|earlier| earlier.key != entry.key);
-            if earlier.is_empty() {
-                earlier_entries.remove(&slot);
-            }
-        }
+        entries.earlier.retain(|earlier| earlier.key != entry.key);
         let mut displaced = entries.committed.take_if(|committed| committed.key == entry.key);
         match entries.latest.take() {
             Some(latest) if latest.key == entry.key => displaced = Some(latest),
@@ -718,7 +702,7 @@ impl FcRunCacheStore {
                 displaced = entries.committed.replace(latest).or(displaced);
             }
             Some(latest) => {
-                let earlier = earlier_entries.entry(slot).or_default();
+                let earlier = &mut entries.earlier;
                 if earlier.len() == EARLIER_ENTRIES_PER_BOX {
                     let oldest_result_only_or_oldest = earlier
                         .iter()
@@ -732,8 +716,7 @@ impl FcRunCacheStore {
         }
         let stored = shared_entry_in_allocation_of(displaced, entry);
         entries.latest = Some(stored.clone());
-        entries.refresh_summaries(earlier_entries.contains_key(&slot));
-        drop(earlier_entries);
+        entries.refresh_summaries();
         drop(slots);
         // NB: Invalidation can occur between probing a run and storing its result.
         self.enqueue_for_sweep(slot);
@@ -751,7 +734,6 @@ impl FcRunCacheStore {
         layout_commit_count: u64,
     ) {
         let mut slots = self.slots.borrow_mut();
-        let mut earlier_entries = self.earlier_entries.borrow_mut();
         let mut enrolled = self.enrolled_for_sweep.borrow_mut();
         let mut pending_sweep_slots = self.pending_sweep_slots.borrow_mut();
         let mut slots_holding_entries_that_may_go_unused = Vec::new();
@@ -760,7 +742,7 @@ impl FcRunCacheStore {
             let Some(entries) = slots.get_mut(slot as usize) else {
                 continue;
             };
-            let mut earlier = earlier_entries.remove(&slot).unwrap_or_default();
+            let mut earlier = std::mem::take(&mut entries.earlier);
             entries.committed.take_if(|committed| !keep(slot, committed.validity));
             entries.latest.take_if(|latest| !keep(slot, latest.validity));
             earlier.retain(|earlier| keep(slot, earlier.validity));
@@ -792,10 +774,8 @@ impl FcRunCacheStore {
             {
                 slots_holding_entries_that_may_go_unused.push(slot);
             }
-            if !earlier.is_empty() {
-                earlier_entries.insert(slot, earlier);
-            }
-            entries.refresh_summaries(earlier_entries.contains_key(&slot));
+            entries.earlier = earlier;
+            entries.refresh_summaries();
             if entries.latest.is_none() && entries.committed.is_none() {
                 self.forget_inline_layout_damage(slot);
             }
