@@ -1,0 +1,4 @@
+colSpan: the tree matches a full rebuild: true
+colSpan back: the tree matches a full rebuild: true
+rowSpan: the tree matches a full rebuild: true
+rowSpan back: the tree matches a full rebuild: true

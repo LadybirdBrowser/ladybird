@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    test(() => {
+        for (const [attribute, value] of [["colSpan", 2], ["rowSpan", 2]]) {
+            const table = document.createElement("table");
+            table.innerHTML = "<tr><td id=target>a<td>b<tr><td>c<td>d";
+            document.body.append(table);
+            document.body.offsetWidth;
+            table.querySelector("#target")[attribute] = value;
+            println(`${attribute}: the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+            table.querySelector("#target")[attribute] = 1;
+            println(`${attribute} back: the tree matches a full rebuild: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+            table.remove();
+        }
+    });
+</script>
