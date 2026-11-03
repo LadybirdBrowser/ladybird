@@ -1052,17 +1052,17 @@ void ViewImplementation::enqueue_input_event(Web::InputEvent event)
 // Input waits while the compositor decides whether it forwards a key event, so a key it hands back is not overtaken.
 void ViewImplementation::send_queued_input_events()
 {
-    bool has_earlier_pinch = false;
+    bool has_earlier_pinch_yet_to_zoom = false;
     for (size_t index = 0; index < m_pending_input_events.size(); ++index) {
         // Pinches in different processes share the tab's visual viewport. A later pinch must not zoom it before an
-        // earlier frame has dispatched its wheel event and, if uncanceled, returned for the zoom.
-        if (m_pending_input_events[index].event.has<Web::PinchEvent>()) {
-            if (has_earlier_pinch)
-                continue;
-            has_earlier_pinch = true;
-        }
+        // earlier frame has dispatched its wheel event and, if uncanceled, returned for the zoom. A pinch the
+        // compositor zoomed for holds back nothing, so a busy page does not hold back the zoom.
+        if (m_pending_input_events[index].event.has<Web::PinchEvent>() && has_earlier_pinch_yet_to_zoom)
+            continue;
         if (!m_pending_input_events[index].sent)
             send_input_event(index);
+        if (auto const* pinch_event = m_pending_input_events[index].event.get_pointer<Web::PinchEvent>())
+            has_earlier_pinch_yet_to_zoom = !pinch_event->async_zoom_performed_default_action;
         if (m_pending_input_events[index].awaits_compositor_dispatch())
             return;
     }
@@ -1479,18 +1479,23 @@ void ViewImplementation::did_not_dispatch_input_event_through_compositor(Badge<W
     send_queued_input_events();
 }
 
-void ViewImplementation::did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool async_scroll_performed_default_action)
+void ViewImplementation::did_dispatch_input_event_through_compositor(Badge<WebContentPage>, u64 event_id, bool performed_default_action)
 {
     auto index = m_pending_input_events.find_first_index_if([&](auto const& pending) { return Web::input_event_id(pending.event) == event_id; });
     if (!index.has_value())
         return;
 
     auto& pending = m_pending_input_events[*index];
-    if (!pending.awaits_compositor_dispatch())
+    if (!pending.routed_through_compositor)
+        return;
+    if (auto* key_event = pending.event.get_pointer<Web::KeyEvent>())
+        key_event->async_scroll_performed_default_action = performed_default_action;
+    else if (auto* pinch_event = pending.event.get_pointer<Web::PinchEvent>())
+        pinch_event->async_zoom_performed_default_action = performed_default_action;
+    else
         return;
     // WebContent finishes the event from here on, as it does an event the view sends it directly.
     pending.routed_through_compositor = false;
-    pending.event.get<Web::KeyEvent>().async_scroll_performed_default_action = async_scroll_performed_default_action;
     send_queued_input_events();
 }
 
