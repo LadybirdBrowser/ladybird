@@ -817,14 +817,8 @@ pub(crate) struct NodeFacts<'pass> {
 impl<'pass> NodeFacts<'pass> {
     #[inline]
     pub(crate) fn new(callbacks: &LayoutPass<'pass>, node: Node) -> Self {
-        let data = callbacks.node_data(node);
-        let style = callbacks.computed_values_view_if_styled(node);
-        Self {
-            callbacks: *callbacks,
-            node,
-            data,
-            style,
-        }
+        let (data, style) = callbacks.row_and_style(node);
+        Self::from_lookups(callbacks, node, data, style)
     }
 
     /// The facts of `node`, from the node data and style payloads that [`Self::new`] looked up for it.

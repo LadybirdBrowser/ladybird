@@ -227,7 +227,6 @@ impl<'cells> SizedCells<'cells> {
 pub(crate) struct SizingContext<'pass, 'container> {
     state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
-    style_cache: Cell<Option<(Node, ComputedValuesView<'pass>)>>,
     child_run_shapes: Option<&'container dyn formatting_context::ChildRunShapes>,
 }
 
@@ -283,7 +282,6 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         Self {
             state,
             callbacks,
-            style_cache: Cell::new(None),
             child_run_shapes: None,
         }
     }
@@ -308,16 +306,7 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
     }
 
     pub(super) fn style(&self, node: Node) -> StyleValues<'pass> {
-        let kind = self.callbacks.node_data(node).kind.get();
-        let payloads = match self.style_cache.get() {
-            Some((cached_node, payloads)) if cached_node == node => payloads,
-            _ => {
-                let payloads = self.callbacks.style_view(node);
-                self.style_cache.set(Some((node, payloads)));
-                payloads
-            }
-        };
-        let style = StyleValues::new(payloads).for_kind(kind).in_frame(self.callbacks.frame);
+        let style = StyleValues::for_node(&self.callbacks, node);
         if !style.is_absolutely_positioned() {
             return style;
         }
