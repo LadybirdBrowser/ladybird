@@ -7,6 +7,8 @@
     // Coded frame eviction that frees exactly enough room for the appended data leaves the buffer able to accept it,
     // so the buffer full flag must not stay set and reject the next append.
     const FRAME_SIZE = 1000;
+    // The buffer also holds the OpusHead, which eviction moves to the first remaining frame.
+    const CODEC_CONFIGURATION_SIZE = 19;
 
     asyncTest(done => {
         function fail(name, error) {
@@ -30,11 +32,11 @@
                 const EVICTED_FRAMES = 10;
                 const FINAL_CLUSTER_FRAMES = 50;
                 const finalClusterWithoutLastFrame = generatedOpusCluster(0, new Array(FINAL_CLUSTER_FRAMES).fill(FRAME_SIZE)).length - FRAME_SIZE;
-                let lastFrameSize = (AUDIO_SOURCE_BUFFER_CAPACITY - finalClusterWithoutLastFrame) % FRAME_SIZE;
+                let lastFrameSize = (AUDIO_SOURCE_BUFFER_CAPACITY - CODEC_CONFIGURATION_SIZE - finalClusterWithoutLastFrame) % FRAME_SIZE;
                 if (lastFrameSize === 0)
                     lastFrameSize = FRAME_SIZE;
                 const finalClusterSize = finalClusterWithoutLastFrame + lastFrameSize;
-                const filledFrames = (AUDIO_SOURCE_BUFFER_CAPACITY - finalClusterSize) / FRAME_SIZE + EVICTED_FRAMES;
+                const filledFrames = (AUDIO_SOURCE_BUFFER_CAPACITY - CODEC_CONFIGURATION_SIZE - finalClusterSize) / FRAME_SIZE + EVICTED_FRAMES;
 
                 const FRAMES_PER_CLUSTER = 1000;
                 for (let firstFrame = 0; firstFrame < filledFrames; firstFrame += FRAMES_PER_CLUSTER) {
@@ -57,7 +59,7 @@
 
                 // Size the next append so that it also requires evicting a whole number of frames exactly, so that an
                 // eviction run for it before appending cannot overshoot and clear the flag either.
-                const bufferedBytes = (filledFrames - EVICTED_FRAMES + FINAL_CLUSTER_FRAMES - 1) * FRAME_SIZE + lastFrameSize;
+                const bufferedBytes = CODEC_CONFIGURATION_SIZE + (filledFrames - EVICTED_FRAMES + FINAL_CLUSTER_FRAMES - 1) * FRAME_SIZE + lastFrameSize;
                 const NEXT_CLUSTER_FRAMES = 5;
                 const nextClusterWithoutLastFrame = generatedOpusCluster(0, new Array(NEXT_CLUSTER_FRAMES).fill(FRAME_SIZE)).length - FRAME_SIZE;
                 let nextLastFrameSize = (AUDIO_SOURCE_BUFFER_CAPACITY - bufferedBytes - nextClusterWithoutLastFrame) % FRAME_SIZE;

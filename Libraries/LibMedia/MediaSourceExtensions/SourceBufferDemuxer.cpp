@@ -5,6 +5,7 @@
  */
 
 #include <AK/BinarySearch.h>
+#include <AK/SaturatingMath.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/MediaSourceExtensions/SourceBufferDemuxer.h>
 
@@ -144,6 +145,14 @@ void SourceBufferDemuxer::recalculate_run_bounds(FrameRun& run)
         extend_run_bounds_for_frame(run, frame);
 }
 
+static size_t buffered_byte_count(Media::CodedFrame const& frame)
+{
+    auto byte_count = frame.data().size();
+    if (auto configuration = frame.new_codec_configuration(); configuration.has_value())
+        byte_count += configuration.value().size();
+    return byte_count;
+}
+
 // A run's first frame carries the codec configuration to decode it from, so a run never has to be searched
 // past to find one.
 Optional<ReadonlyBytes> SourceBufferDemuxer::codec_configuration_after_frame_prefix(FrameRun const& run, size_t frame_count)
@@ -217,13 +226,13 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
 
     count_frame_duration(data, frame.duration());
     data.track_buffer_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
-    data.total_bytes += frame.data().size();
     data.last_appended_decode_timestamp = frame.decode_timestamp();
 
     if (run_to_continue.has_value()) {
         auto& run = data.runs[run_to_continue.value()];
         extend_run_bounds_for_frame(run, frame);
         update_last_appended_codec_configuration();
+        data.total_bytes += buffered_byte_count(frame);
         run.frames.append(move(frame));
         buffered_data_changed_while_locked();
         return;
@@ -234,6 +243,7 @@ void SourceBufferDemuxer::add_coded_frame(Media::Track const& track, Media::Code
         frame.set_new_codec_configuration(MUST(data.last_appended_codec_configuration->clone()));
     extend_run_bounds_for_frame(run, frame);
     update_last_appended_codec_configuration();
+    data.total_bytes += buffered_byte_count(frame);
     run.frames.append(move(frame));
 
     size_t insert_index = 0;
@@ -278,8 +288,10 @@ void SourceBufferDemuxer::split_run(TrackData& data, size_t run_index, size_t sp
     for (size_t index = split_at; index < run.frames.size(); index++)
         tail.frames.append(move(run.frames[index]));
     run.frames.remove(split_at, run.frames.size() - split_at);
-    if (!tail.frames.first().new_codec_configuration().has_value())
+    if (!tail.frames.first().new_codec_configuration().has_value()) {
+        data.total_bytes += codec_configuration_before_tail.size();
         tail.frames.first().set_new_codec_configuration(move(codec_configuration_before_tail));
+    }
     recalculate_run_bounds(run);
     recalculate_run_bounds(tail);
 
@@ -318,6 +330,7 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
     auto& run = data.runs[run_index];
     VERIFY(minimum_frame_count > 0);
     VERIFY(first_frame + minimum_frame_count <= run.frames.size());
+    auto total_bytes_before_erasing = data.total_bytes;
 
     size_t bytes = 0;
     size_t frame_count = 0;
@@ -329,7 +342,7 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
         data.track_buffer_ranges.remove_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
         if (data.highest_delivered_presentation_end.has_value() && frame.presentation_timestamp() < data.highest_delivered_presentation_end.value())
             m_invalidated_ranges.add_range(frame.presentation_timestamp(), frame.presentation_timestamp() + frame.duration());
-        bytes += frame.data().size();
+        bytes += buffered_byte_count(frame);
         if (frame.duration() == data.maximum_frame_duration)
             removed_frames_with_the_maximum_duration++;
         frame_count++;
@@ -365,19 +378,21 @@ size_t SourceBufferDemuxer::erase_frames_and_dependants(TrackData& data, size_t 
             data.current_run--;
         else if (data.current_run == run_index)
             data.cursor_continuity = CursorContinuity::NeedsReanchoring;
-        return bytes;
+        return saturating_sub(total_bytes_before_erasing, data.total_bytes);
     }
 
     if (first_frame == 0) {
-        if (!run.frames.first().new_codec_configuration().has_value())
+        if (!run.frames.first().new_codec_configuration().has_value()) {
+            data.total_bytes += codec_configuration_before_remaining_frames.size();
             run.frames.first().set_new_codec_configuration(move(codec_configuration_before_remaining_frames));
+        }
     } else if (first_frame < run.frames.size()) {
         VERIFY(run.frames[first_frame].is_keyframe());
         split_run(data, run_index, first_frame, move(codec_configuration_before_remaining_frames));
-        return bytes;
+        return saturating_sub(total_bytes_before_erasing, data.total_bytes);
     }
     recalculate_run_bounds(run);
-    return bytes;
+    return saturating_sub(total_bytes_before_erasing, data.total_bytes);
 }
 
 void SourceBufferDemuxer::remove_coded_frames_and_dependants_in_range(Media::Track const& track, AK::Duration start, AK::Duration end)
@@ -460,6 +475,15 @@ size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Medi
     size_t bytes = 0;
     for (auto const& run : data.runs) {
         auto const& frames = run.frames;
+
+        // Eviction that stops within a run moves the last evicted configuration onto the first remaining frame.
+        size_t last_evicted_configuration_size = 0;
+        auto bytes_when_stopping_at = [&](size_t first_remaining_frame) {
+            if (frames[first_remaining_frame].new_codec_configuration().has_value())
+                return bytes;
+            return bytes - last_evicted_configuration_size;
+        };
+
         size_t group_start = 0;
         while (group_start < frames.size()) {
             size_t group_end = group_start + 1;
@@ -467,15 +491,20 @@ size_t SourceBufferDemuxer::evictable_bytes_when_taking_all_earliest_frames(Medi
                 group_end++;
 
             size_t group_bytes = 0;
+            Optional<size_t> group_configuration_size;
             for (size_t index = group_start; index < group_end; index++) {
                 if (!is_frame_evictable(data, frames[index], current_time))
-                    return bytes;
-                group_bytes += frames[index].data().size();
+                    return bytes_when_stopping_at(group_start);
+                group_bytes += buffered_byte_count(frames[index]);
+                if (auto configuration = frames[index].new_codec_configuration(); configuration.has_value())
+                    group_configuration_size = configuration.value().size();
             }
             if (group_end == frames.size() && run_ends_at_last_appended_frame(data, run))
-                return bytes;
+                return bytes_when_stopping_at(group_start);
 
             bytes += group_bytes;
+            if (group_configuration_size.has_value())
+                last_evicted_configuration_size = group_configuration_size.value();
             group_start = group_end;
         }
     }
@@ -540,7 +569,7 @@ SourceBufferDemuxer::RemovedFrame SourceBufferDemuxer::take_latest_frame(Media::
 
     auto& run = data.runs.last();
     auto const& frame = run.frames.last();
-    RemovedFrame removed { .byte_size = frame.data().size(), .decode_timestamp = frame.decode_timestamp() };
+    RemovedFrame removed { .byte_size = buffered_byte_count(frame), .decode_timestamp = frame.decode_timestamp() };
 
     erase_frames_and_dependants(data, data.runs.size() - 1, run.frames.size() - 1, 1);
     buffered_data_changed_while_locked();

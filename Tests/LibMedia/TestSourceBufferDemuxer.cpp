@@ -187,6 +187,53 @@ TEST_CASE(evicting_the_first_frame_of_a_run_preserves_its_configuration)
     EXPECT_EQ(sample.new_codec_configuration(), initial_configuration.span());
 }
 
+TEST_CASE(buffered_bytes_include_the_codec_configurations_that_frames_carry)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    Array<u8, 100> configuration {};
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    // Each switch of configuration is charged, and so is the copy that starts a new run.
+    demuxer->add_coded_frame(track, coded_frame_at(0, configuration.span()));
+    demuxer->add_coded_frame(track, coded_frame_at(1));
+    demuxer->add_coded_frame(track, coded_frame_at(2, configuration.span()));
+    demuxer->add_coded_frame(track, coded_frame_at(10));
+    EXPECT_EQ(demuxer->total_bytes(track), 304u);
+
+    // The next frame carries the evicted frame's configuration forward, so only its sample is freed.
+    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), 1u);
+    EXPECT_EQ(demuxer->total_bytes(track), 303u);
+
+    EXPECT_EQ(demuxer->take_latest_frame(track).byte_size, 101u);
+    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), 101u);
+    EXPECT_EQ(demuxer->take_earliest_frame_and_dependants(track), 101u);
+    EXPECT_EQ(demuxer->total_bytes(track), 0u);
+}
+
+TEST_CASE(evictable_bytes_leave_out_the_configuration_that_eviction_moves_forward)
+{
+    Media::Track track { Media::TrackType::Video, 1, Media::Track::Kind::Main, {}, {} };
+    Array<u8, 100> initial_configuration {};
+    Array<u8, 50> changed_configuration {};
+    auto demuxer = make_ref_counted<Media::MediaSourceExtensions::SourceBufferDemuxer>(Vector { track });
+
+    demuxer->add_coded_frame(track, coded_frame_at(0, initial_configuration.span()));
+    demuxer->add_coded_frame(track, coded_frame_at(1));
+    demuxer->add_coded_frame(track, coded_frame_at(2, changed_configuration.span()));
+    demuxer->add_coded_frame(track, coded_frame_at(3));
+    demuxer->add_coded_frame(track, coded_frame_at(10));
+
+    // Eviction stops at the frame at 3 seconds, which receives the changed configuration.
+    auto current_time = AK::Duration::from_seconds(3);
+    auto evictable_bytes = demuxer->evictable_bytes_when_taking_all_earliest_frames(track, current_time);
+    EXPECT_EQ(evictable_bytes, 103u);
+
+    size_t evicted_bytes = 0;
+    while (demuxer->earliest_evictable_frame_timestamp(track, current_time).has_value())
+        evicted_bytes += demuxer->take_earliest_frame_and_dependants(track);
+    EXPECT_EQ(evicted_bytes, evictable_bytes);
+}
+
 // Removing the run that the cursor sits in leaves it with no position to jump from, so a later removal that
 // would otherwise displace it must not discard that.
 TEST_CASE(a_pending_reanchor_outranks_a_later_jump)
