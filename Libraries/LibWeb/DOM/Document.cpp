@@ -12469,11 +12469,9 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text
 {
     static constexpr size_t MAX_SELECTOR_QUERY_CACHE_SIZE = 512;
 
-    // One clock for every document: a stamp only has to order the uses of queries within one cache.
-    static u64 s_selector_query_use_clock = 0;
     auto mark_used = [](RefPtr<SelectorQuery const> const& query) {
         if (query)
-            query->set_last_use(++s_selector_query_use_clock);
+            query->mark_used();
     };
 
     if (m_last_selector_query_text.has_value() && selector_text == *m_last_selector_query_text) {
@@ -12497,19 +12495,23 @@ RefPtr<SelectorQuery const> Document::selector_query_for(Utf16View selector_text
     RefPtr<SelectorQuery const> query;
     if (maybe_selectors.has_value())
         query = SelectorQuery::create(maybe_selectors.release_value());
-    mark_used(query);
 
-    // Evict the query used least recently. A page cycling through a working set of selectors that fits the cache then
-    // stops missing, instead of evicting members of that set over and over. A selector that did not parse has no
-    // query to recompile and goes first.
+    // Evict the oldest query not used since the cache last came to it, sending the used ones it passes to the back. A
+    // page cycling through a working set of selectors that fits the cache then stops missing, instead of evicting
+    // members of that set over and over. A selector that did not parse has no query to recompile and gets no second
+    // turn. A query goes around once per use at most, so a miss costs a constant amount of work on average.
     if (m_selector_query_cache.size() >= MAX_SELECTOR_QUERY_CACHE_SIZE) {
-        auto victim = m_selector_query_cache.begin();
-        for (auto it = m_selector_query_cache.begin(); it != m_selector_query_cache.end(); ++it) {
-            auto last_use = it->value ? it->value->last_use() : 0;
-            if (last_use < (victim->value ? victim->value->last_use() : 0))
-                victim = it;
+        while (true) {
+            auto oldest = m_selector_query_cache.begin();
+            if (!oldest->value || !oldest->value->take_used_mark()) {
+                m_selector_query_cache.remove(oldest);
+                break;
+            }
+            auto text = oldest->key;
+            auto used_query = oldest->value;
+            m_selector_query_cache.remove(oldest);
+            m_selector_query_cache.set(move(text), move(used_query));
         }
-        m_selector_query_cache.remove(victim);
     }
 
     auto selector_text_copy = Utf16String::from_utf16(selector_text);
