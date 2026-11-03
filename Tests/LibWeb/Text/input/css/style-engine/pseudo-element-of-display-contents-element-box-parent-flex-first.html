@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .flex { display: flex; }
+    .contents { display: contents; }
+    .contents::before { content: "x"; }
+</style>
+<div class="flex"><div class="contents" id="in-flex-first"></div></div>
+<div><div class="contents" id="in-block-second"></div><span id="next">y</span></div>
+<script>
+    test(() => {
+        const display = id => getComputedStyle(document.getElementById(id), "::before").display;
+        println(`in a flex container: ${display("in-flex-first")}`);
+        println(`in a block: ${display("in-block-second")}`);
+        // An inline ::before leaves what follows it on its line.
+        println(`what follows starts a line: ${next.getBoundingClientRect().left === next.parentElement.getBoundingClientRect().left}`);
+    });
+</script>
