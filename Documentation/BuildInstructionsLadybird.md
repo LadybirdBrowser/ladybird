@@ -289,8 +289,9 @@ For other builds, use the version pinned in `vcpkg.json` and apply
 [`0001-ladybird-embed.patch`](../Meta/CMake/vcpkg/overlay-ports/pdfjs/0001-ladybird-embed.patch).
 Install the patched distribution under `<prefix>/share/pdfjs` and add that prefix to `CMAKE_PREFIX_PATH`,
 or set `PDFJS_DIR` directly to the directory containing `build/pdf.mjs` and `web/`.
-If PDF.js is unavailable, PDF-dependent tests are skipped. Missing decoder files in a build configured
-with PDF.js still cause the rendering test to fail.
+If PDF.js is unavailable, PDF-dependent tests are skipped. In a build configured with PDF.js, the JBIG2
+test checks that its Wasm decoder is present and valid, and renders an image with both Wasm enabled and
+the JavaScript fallback forced.
 
 ### Custom CMake build directory
 

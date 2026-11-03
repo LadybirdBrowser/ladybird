@@ -2,6 +2,8 @@
 <script src="../include.js"></script>
 <script>
     asyncTest(async done => {
+        const wasm = await fetch("resource://ladybird/pdfjs/web/wasm/jbig2.wasm");
+        println(`Valid Wasm decoder: ${wasm.ok && WebAssembly.validate(await wasm.arrayBuffer())}`);
         const { getDocument, GlobalWorkerOptions } = await import("resource://ladybird/pdfjs/build/pdf.mjs");
         GlobalWorkerOptions.workerSrc = "resource://ladybird/pdfjs/build/pdf.worker.mjs";
         // A single-page PDF containing an 8x8 black JBIG2 image with MMR-encoded pixels.
