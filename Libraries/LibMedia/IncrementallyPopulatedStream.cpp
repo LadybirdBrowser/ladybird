@@ -18,8 +18,6 @@ static constexpr u64 PRECEDING_DATA_SIZE = 1 * KiB;
 static constexpr u64 FORWARD_REQUEST_THRESHOLD = 1 * MiB;
 static constexpr AK::Duration CURSOR_ACTIVE_TIME = AK::Duration::from_milliseconds(50);
 
-static constexpr size_t UNKNOWN_SIZE_READ_CHUNK_SIZE = 64 * KiB;
-
 NonnullRefPtr<IncrementallyPopulatedStream> IncrementallyPopulatedStream::create_empty()
 {
     return adopt_ref(*new IncrementallyPopulatedStream());
@@ -419,22 +417,39 @@ DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, siz
     return read_from_chunks_while_locked(position, bytes);
 }
 
-DecoderErrorOr<void> IncrementallyPopulatedStream::discard_at(Cursor& cursor, size_t position, size_t length)
+DecoderErrorOr<void> IncrementallyPopulatedStream::wait_for_every_byte_while_locked(Cursor& cursor, size_t position, size_t length)
 {
-    MutexLocker locker { m_mutex };
     auto extends_past_the_expected_size = [&] {
         return m_expected_size.has_value() && (position >= m_expected_size.value() || length > m_expected_size.value() - position);
     };
     if (extends_past_the_expected_size())
-        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Discarded bytes extend past the end of the stream"sv);
+        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "The bytes extend past the end of the stream"sv);
 
     TRY(wait_for_data_while_locked(cursor, position, length));
 
     if (extends_past_the_expected_size())
-        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Discarded bytes extend past the end of the stream"sv);
+        return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "The bytes extend past the end of the stream"sv);
     if (!cursor.m_is_blocking && !check_if_data_is_available_or_begin_request_while_locked(cursor, position, length))
-        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "The discarded bytes are not all present"sv);
+        return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "The bytes are not all present"sv);
     return {};
+}
+
+DecoderErrorOr<FixedArray<u8>> IncrementallyPopulatedStream::read_bytes_at(Cursor& cursor, size_t position, size_t length)
+{
+    MutexLocker locker { m_mutex };
+    TRY(wait_for_every_byte_while_locked(cursor, position, length));
+
+    auto buffer = DECODER_TRY_ALLOC(FixedArray<u8>::create(length));
+    auto bytes = buffer.span();
+    auto read_count = read_from_chunks_while_locked(position, bytes);
+    VERIFY(read_count == length);
+    return buffer;
+}
+
+DecoderErrorOr<void> IncrementallyPopulatedStream::discard_at(Cursor& cursor, size_t position, size_t length)
+{
+    MutexLocker locker { m_mutex };
+    return wait_for_every_byte_while_locked(cursor, position, length);
 }
 
 NonnullRefPtr<MediaStreamCursor> IncrementallyPopulatedStream::create_cursor()
@@ -518,25 +533,9 @@ DecoderErrorOr<FixedArray<u8>> IncrementallyPopulatedStream::Cursor::read_bytes(
     if (size == 0)
         return FixedArray<u8>();
 
-    auto expected_size = m_stream->expected_size();
-    if (expected_size.has_value()) {
-        if (m_position >= expected_size.value() || size > expected_size.value() - m_position)
-            return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "Not enough data to read the requested bytes"sv);
-
-        auto buffer = DECODER_TRY_ALLOC(FixedArray<u8>::create(size));
-        TRY(read_until_filled(buffer.span()));
-        return buffer;
-    }
-
-    // If the size is unknown, grow a buffer in chunks before copying it out.
-    ByteBuffer buffer;
-    while (buffer.size() < size) {
-        auto filled_size = buffer.size();
-        auto chunk_size = min(size - filled_size, UNKNOWN_SIZE_READ_CHUNK_SIZE);
-        DECODER_TRY_ALLOC(buffer.try_resize(filled_size + chunk_size));
-        TRY(read_until_filled(buffer.span().slice(filled_size, chunk_size)));
-    }
-    return DECODER_TRY_ALLOC(FixedArray<u8>::create(buffer.span()));
+    auto buffer = TRY(m_stream->read_bytes_at(*this, m_position, size));
+    m_position += size;
+    return buffer;
 }
 
 void IncrementallyPopulatedStream::Cursor::abort()

@@ -1285,3 +1285,22 @@ TEST_CASE(blocking_read_and_discard_waits_for_every_byte)
     EXPECT(discard_succeeded.load());
     EXPECT_EQ(cursor->position(), 70u);
 }
+
+TEST_CASE(read_bytes_allocates_only_once_every_byte_has_arrived)
+{
+    // A declared size that could never be allocated fails on the missing data instead of the allocation.
+    static constexpr size_t declared_size = 1ull << 60;
+    auto stream = Media::IncrementallyPopulatedStream::create_empty();
+    stream->set_expected_size(declared_size + 100);
+    auto data = make_test_data(100);
+    stream->add_chunk_at(0, data.bytes());
+    stream->make_missing_data_permanently_unavailable();
+
+    auto cursor = stream->create_cursor();
+    auto result = cursor->read_bytes(declared_size);
+    EXPECT(result.is_error());
+    EXPECT_EQ(result.error().category(), Media::DecoderErrorCategory::PermanentlyUnavailable);
+
+    auto bytes = MUST(cursor->read_bytes(100));
+    EXPECT_EQ(bytes.span(), data.bytes());
+}
