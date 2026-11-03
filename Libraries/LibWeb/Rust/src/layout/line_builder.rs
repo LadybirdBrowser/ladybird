@@ -458,6 +458,31 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
         self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(margin_block_size);
     }
 
+    pub(crate) fn append_inline_edge(&mut self, item: &inline_level_iterator::Item) {
+        self.prepare_to_append_inline_content();
+        let line_index = self.ensure_last_line_index();
+        let facts = self.fragment_facts(item.node);
+        let block_size = TextLayoutBounds::new(self.style(facts.style_source), None).block_size();
+        self.line_mut(line_index).add_fragment(
+            item.node,
+            0,
+            0,
+            item.border_start + item.padding_start,
+            item.border_end + item.padding_end,
+            item.margin_start,
+            item.margin_end,
+            CssPixels::default(),
+            block_size,
+            CssPixels::default(),
+            CssPixels::default(),
+            None,
+            facts,
+            false,
+            line_box_fragment::TrailingWhitespace::default(),
+        );
+        self.max_block_size_on_current_line = self.max_block_size_on_current_line.max(block_size);
+    }
+
     pub(crate) fn append_text_item(&mut self, item: &mut inline_level_iterator::Item, style: StyleValues) {
         let glyphs = item.glyphs.take().unwrap();
         let content_block_size = TextLayoutBounds::new(style, Some(&glyphs.font)).block_size();
@@ -858,19 +883,20 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 )
             };
             let style = self.style(style_source);
-            let fragment_baseline = if is_block_ellipsis || self.facts(node).is_text_node() {
-                self.text_fragment_layout_bounds(line_index, fragment_index, style)
-                    .ascent
-            } else {
-                let box_cells = box_cells.expect("the fragment of an element item carries the cells of its box");
-                formatting_context::inline_box_baseline(
-                    &self.context().callbacks,
-                    node,
-                    &box_cells,
-                    content_baselines
-                        .expect("the fragment of an element item carries the content baselines of its box"),
-                )
-            };
+            let fragment_baseline =
+                if is_block_ellipsis || self.facts(node).is_text_node() || self.facts(node).is_fragmented_inline() {
+                    self.text_fragment_layout_bounds(line_index, fragment_index, style)
+                        .ascent
+                } else {
+                    let box_cells = box_cells.expect("the fragment of an element item carries the cells of its box");
+                    formatting_context::inline_box_baseline(
+                        &self.context().callbacks,
+                        node,
+                        &box_cells,
+                        content_baselines
+                            .expect("the fragment of an element item carries the content baselines of its box"),
+                    )
+                };
             self.line_mut(line_index).fragments[fragment_index].baseline = fragment_baseline;
             if has_line_relative_aligned_subtree && self.line_relative_aligned_subtree_root(style_source).is_some() {
                 continue;
@@ -1284,7 +1310,8 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             }
 
             let is_text_node = self.line(line_index).fragments[fragment_index].is_block_ellipsis
-                || self.facts(snapshot.layout_node).is_text_node();
+                || self.facts(snapshot.layout_node).is_text_node()
+                || self.facts(snapshot.layout_node).is_fragmented_inline();
             if is_text_node {
                 let font_box_size = normal_line_height(style);
                 let font_baseline = Self::baseline_for_style(style, font_box_size);

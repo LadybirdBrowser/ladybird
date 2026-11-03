@@ -17,6 +17,7 @@ pub(crate) enum ItemType {
     ForcedBreak,
     AbsolutelyPositionedElement,
     FloatingElement,
+    InlineEdge,
 }
 
 impl ItemType {
@@ -25,7 +26,7 @@ impl ItemType {
     pub(crate) fn stays_on_lines(self) -> bool {
         matches!(
             self,
-            Self::Text | Self::Element | Self::ForcedBreak | Self::AbsolutelyPositionedElement
+            Self::Text | Self::Element | Self::InlineEdge | Self::ForcedBreak | Self::AbsolutelyPositionedElement
         )
     }
 }
@@ -493,6 +494,25 @@ struct ExtraBoxMetrics {
     padding: CssPixels,
 }
 
+#[derive(Clone, Copy)]
+enum InlineEdgeBoundary {
+    BeforeBlock(Node),
+    BeforeBreak(Option<Node>),
+    Closing(Node, Option<Node>),
+    End,
+}
+
+struct PendingInlineEdge {
+    node: Node,
+    margin: CssPixels,
+    border: CssPixels,
+    padding: CssPixels,
+    physical: ExtraBoxMetrics,
+    is_start: bool,
+    is_low: bool,
+    takes_leading_metrics: bool,
+}
+
 struct TextNodeContext<'pass> {
     chunks: std::sync::Arc<super::rendered_text::CachedTextChunks>,
     text: &'pass [u16],
@@ -554,14 +574,14 @@ impl PreparedInlineContent {
             context,
             prepared: self,
             atomic_sizing,
-            extra_leading_metrics: None,
-            extra_trailing_metrics: None,
+            pending_inline_edges: Vec::new(),
             box_model_node_stack: Vec::new(),
             entered_box_model_nodes: Vec::new(),
             accumulated_inline_size_for_tabs: CssPixels::default(),
             next_box_event: 0,
             next_tab_stop: 0,
             fonts_taken: 0,
+            forced_break_owner: NodeSlotId::INVALID,
         }
         .resolve()
     }
@@ -680,17 +700,14 @@ impl<'pass> InlineContentPreparer<'pass> {
 
         let mut node = current;
         loop {
-            let next = self.pass.next_sibling(node);
-            if !next.is_invalid() {
-                if self.buffers.box_stack.last().copied() == Some(node) {
-                    self.exit_node_with_box_model_metrics();
-                }
-                return next;
-            }
-            node = self.pass.parent(node);
             if self.buffers.box_stack.last().copied() == Some(node) {
                 self.exit_node_with_box_model_metrics();
             }
+            let next = self.pass.next_sibling(node);
+            if !next.is_invalid() {
+                return next;
+            }
+            node = self.pass.parent(node);
             if node.is_invalid() || node == stay_within {
                 return NodeSlotId::INVALID;
             }
@@ -884,7 +901,7 @@ impl<'pass> InlineContentPreparer<'pass> {
         }
         if text_context.should_respect_linebreaks && chunk.has_breaking_newline {
             self.text_node_context = Some(text_context);
-            return Some(PreparedItem::new(ItemType::ForcedBreak, NodeSlotId::INVALID, 0));
+            return Some(PreparedItem::new(ItemType::ForcedBreak, text_node, 0));
         }
 
         let full_text = text_context.text;
@@ -1074,14 +1091,14 @@ struct RunItemResolver<'resolver, 'context> {
     context: &'resolver mut inline_formatting_context::InlineFormattingContext<'context>,
     prepared: &'resolver PreparedInlineContent,
     atomic_sizing: AtomicInlineSizing,
-    extra_leading_metrics: Option<ExtraBoxMetrics>,
-    extra_trailing_metrics: Option<ExtraBoxMetrics>,
+    pending_inline_edges: Vec<PendingInlineEdge>,
     box_model_node_stack: Vec<Node>,
     entered_box_model_nodes: Vec<Node>,
     accumulated_inline_size_for_tabs: CssPixels,
     next_box_event: usize,
     next_tab_stop: usize,
     fonts_taken: usize,
+    forced_break_owner: Node,
 }
 
 impl<'context> RunItemResolver<'_, 'context> {
@@ -1091,23 +1108,175 @@ impl<'context> RunItemResolver<'_, 'context> {
 
     fn resolve(mut self) -> InlineLevelIterator {
         let prepared = self.prepared;
-        let mut items = Vec::with_capacity(prepared.items.len());
+        let mut items: Vec<Item> = Vec::with_capacity(prepared.items.len());
+        let mut next_non_whitespace = 0;
         for (index, prepared_item) in prepared.items.iter().enumerate() {
             self.apply_inline_box_events_at(index, false);
+            if !self.pending_inline_edges.is_empty()
+                && prepared_item.type_() == ItemType::Text
+                && prepared_item.has(PreparedItem::COLLAPSIBLE_WHITESPACE)
+            {
+                if next_non_whitespace <= index {
+                    next_non_whitespace = index + 1;
+                    while let Some(next) = prepared.items.get(next_non_whitespace)
+                        && next.type_() == ItemType::Text
+                        && next.has(PreparedItem::COLLAPSIBLE_WHITESPACE)
+                    {
+                        next_non_whitespace += 1;
+                    }
+                }
+                if prepared
+                    .items
+                    .get(next_non_whitespace)
+                    .is_none_or(|next| matches!(next.type_(), ItemType::BlockLevelBox | ItemType::ForcedBreak))
+                {
+                    // Whitespace at a line end disappears, but its inline box edges still belong on that line.
+                    self.fonts_taken += usize::from(prepared_item.has(PreparedItem::TAKES_NEXT_FONT));
+                    continue;
+                }
+            }
+            if let Some(last) = items.last()
+                && last.type_ == ItemType::ForcedBreak
+            {
+                let boundary = InlineEdgeBoundary::Closing(self.forced_break_owner, Some(prepared_item.node()));
+                self.append_unattached_edges(&mut items, boundary);
+            }
+            if prepared_item.type_() == ItemType::BlockLevelBox {
+                self.append_unattached_edges(&mut items, InlineEdgeBoundary::BeforeBlock(prepared_item.node()));
+            } else if prepared_item.type_() == ItemType::ForcedBreak {
+                let next = prepared.items.get(index + 1).map(PreparedItem::node);
+                self.append_unattached_edges(&mut items, InlineEdgeBoundary::BeforeBreak(next));
+            }
             let item = self.resolve_item(index, prepared_item);
             if matches!(item.type_, ItemType::ForcedBreak | ItemType::BlockLevelBox) {
                 self.accumulated_inline_size_for_tabs = CssPixels::default();
             } else if item.type_ != ItemType::FloatingElement {
                 self.accumulated_inline_size_for_tabs += item.border_box_inline_size();
             }
+            let closes_boundary = matches!(item.type_, ItemType::BlockLevelBox | ItemType::ForcedBreak);
+            if item.type_ == ItemType::ForcedBreak {
+                self.forced_break_owner = prepared_item.node();
+            }
             items.push(item);
+            if closes_boundary {
+                let next = prepared.items.get(index + 1).map(PreparedItem::node);
+                self.append_unattached_edges(&mut items, InlineEdgeBoundary::Closing(prepared_item.node(), next));
+            }
         }
-        self.apply_inline_box_events_at(items.len(), false);
+        self.apply_inline_box_events_at(prepared.items.len(), false);
+        self.append_unattached_edges(&mut items, InlineEdgeBoundary::End);
         debug_assert_eq!(self.next_box_event, prepared.box_events.len());
         InlineLevelIterator {
             entered_box_model_nodes: self.entered_box_model_nodes,
             items: ItemQueue::Owned(items.into_iter()),
             items_kept_for_looking_ahead: 0,
+        }
+    }
+
+    fn append_unattached_edges(&mut self, items: &mut Vec<Item>, boundary: InlineEdgeBoundary) {
+        // Nonzero inline-axis edges keep a line box even when it contains no text. Preserve their presence
+        // independently of their sum, since negative margins can cancel other margins, borders, or padding.
+        // https://drafts.csswg.org/css-inline-3/#invisible-line-boxes
+        let context = &*self.context;
+        let is_ancestor = |ancestor: Node, mut node: Node| {
+            while !node.is_invalid() {
+                node = context.parent_node(node);
+                if node == ancestor {
+                    return true;
+                }
+            }
+            false
+        };
+        let closing_prefix = if let InlineEdgeBoundary::Closing(node, next) = boundary {
+            self.pending_inline_edges.iter().rposition(|edge| {
+                !edge.is_start && is_ancestor(edge.node, node) && next.is_none_or(|next| !is_ancestor(edge.node, next))
+            })
+        } else {
+            None
+        };
+        let mut edge_index = 0;
+        let mut advance = CssPixels::default();
+        self.pending_inline_edges.retain(|edge| {
+            let emit = match boundary {
+                InlineEdgeBoundary::End => true,
+                InlineEdgeBoundary::BeforeBlock(node) => edge.is_start || !is_ancestor(edge.node, node),
+                InlineEdgeBoundary::BeforeBreak(next) => {
+                    edge.is_start || next.is_none_or(|next| !is_ancestor(edge.node, next))
+                }
+                InlineEdgeBoundary::Closing(_, _) => closing_prefix.is_some_and(|last| edge_index <= last),
+            };
+            edge_index += 1;
+            if !emit {
+                return true;
+            }
+            if edge.margin == CssPixels::default()
+                && edge.border == CssPixels::default()
+                && edge.padding == CssPixels::default()
+            {
+                return false;
+            }
+            let mut item = Item::new(ItemType::InlineEdge, edge.node);
+            if edge.is_low {
+                item.margin_start = edge.margin;
+                item.border_start = edge.border;
+                item.padding_start = edge.padding;
+            } else {
+                item.margin_end = edge.margin;
+                item.border_end = edge.border;
+                item.padding_end = edge.padding;
+            }
+            if !edge.is_start
+                && items.last().is_some_and(|last| {
+                    last.type_ == ItemType::ForcedBreak && is_ancestor(edge.node, self.forced_break_owner)
+                })
+            {
+                items.insert(items.len() - 1, item);
+            } else {
+                advance += item.border_box_inline_size();
+                items.push(item);
+            }
+            false
+        });
+        self.accumulated_inline_size_for_tabs += advance;
+    }
+
+    fn keep_inline_edge(&mut self, node: Node, sides: &used_values::RootInputCells, is_start: bool) {
+        let reversed = self.context().facts(node).inline_axis_is_reverse();
+        let (margin, border, padding) = if is_start != reversed {
+            (sides.margin_left, sides.border_left, sides.padding_left)
+        } else {
+            (sides.margin_right, sides.border_right, sides.padding_right)
+        };
+        let physical = if is_start {
+            ExtraBoxMetrics {
+                margin: sides.margin_left,
+                border: sides.border_left,
+                padding: sides.padding_left,
+            }
+        } else {
+            ExtraBoxMetrics {
+                margin: sides.margin_right,
+                border: sides.border_right,
+                padding: sides.padding_right,
+            }
+        };
+        if margin != CssPixels::default()
+            || border != CssPixels::default()
+            || padding != CssPixels::default()
+            || physical.margin != CssPixels::default()
+            || physical.border != CssPixels::default()
+            || physical.padding != CssPixels::default()
+        {
+            self.pending_inline_edges.push(PendingInlineEdge {
+                node,
+                margin,
+                border,
+                padding,
+                physical,
+                is_start,
+                is_low: is_start != reversed,
+                takes_leading_metrics: is_start,
+            });
         }
     }
 
@@ -1128,35 +1297,22 @@ impl<'context> RunItemResolver<'_, 'context> {
     fn enter_node_with_box_model_metrics(&mut self, node: Node) {
         self.entered_box_model_nodes.push(node);
         let sides = lay_out_entered_inline_box(self.context, node);
-        let leading = self.extra_leading_metrics.get_or_insert_default();
-        leading.margin += sides.margin_left;
-        leading.border += sides.border_left;
-        leading.padding += sides.padding_left;
+        self.keep_inline_edge(node, &sides, true);
         self.box_model_node_stack.push(node);
     }
 
     fn exit_node_with_box_model_metrics(&mut self) {
         let node = self.box_model_node_stack.pop().unwrap();
         let sides = self.context().sides_of_entered_inline_box(node);
-        let margin = sides.margin_right;
-        let border = sides.border_right;
-        let padding = sides.padding_right;
-        let trailing = self.extra_trailing_metrics.get_or_insert_default();
-        trailing.margin += margin;
-        trailing.border += border;
-        trailing.padding += padding;
+        self.keep_inline_edge(node, &sides, false);
     }
 
     /// The end edges of inline boxes that end right after an out-of-flow box are pending when the resolver reaches
     /// that box. It takes no edges itself, so they precede the next item rather than follow its content.
     fn carry_trailing_metrics_past_out_of_flow_box(&mut self) {
-        let Some(trailing) = self.extra_trailing_metrics.take() else {
-            return;
-        };
-        let leading = self.extra_leading_metrics.get_or_insert_default();
-        leading.margin += trailing.margin;
-        leading.border += trailing.border;
-        leading.padding += trailing.padding;
+        for edge in &mut self.pending_inline_edges {
+            edge.takes_leading_metrics = true;
+        }
     }
 
     fn add_extra_box_model_metrics_to_item(
@@ -1165,32 +1321,53 @@ impl<'context> RunItemResolver<'_, 'context> {
         add_leading_metrics: bool,
         add_trailing_metrics: bool,
     ) {
-        if add_leading_metrics && let Some(extra) = self.extra_leading_metrics.take() {
-            item.margin_start += extra.margin;
-            item.border_start += extra.border;
-            item.padding_start += extra.padding;
-        }
-        if add_trailing_metrics && let Some(extra) = self.extra_trailing_metrics.take() {
-            item.margin_end += extra.margin;
-            item.border_end += extra.border;
-            item.padding_end += extra.padding;
-        }
+        self.pending_inline_edges.retain(|edge| {
+            if edge.takes_leading_metrics && add_leading_metrics {
+                item.margin_start += edge.physical.margin;
+                item.border_start += edge.physical.border;
+                item.padding_start += edge.physical.padding;
+                false
+            } else if !edge.takes_leading_metrics && add_trailing_metrics {
+                item.margin_end += edge.physical.margin;
+                item.border_end += edge.physical.border;
+                item.padding_end += edge.physical.padding;
+                false
+            } else {
+                true
+            }
+        });
     }
 
     fn resolve_item(&mut self, item_index: usize, prepared_item: &PreparedItem) -> Item {
         let node = prepared_item.node();
         match prepared_item.type_() {
+            ItemType::InlineEdge => unreachable!("unattached inline edges are emitted while resolving items"),
             ItemType::Text => self.resolve_text_item(prepared_item),
             ItemType::ForcedBreak => {
                 self.apply_inline_box_events_at(item_index, true);
-                Item::new(ItemType::ForcedBreak, node)
+                Item::new(
+                    ItemType::ForcedBreak,
+                    if self.context().facts(node).is_text_node() {
+                        NodeSlotId::INVALID
+                    } else {
+                        node
+                    },
+                )
             }
             ItemType::AbsolutelyPositionedElement => {
-                let preceded = self.extra_leading_metrics.is_some_and(|extra| {
-                    extra.margin != CssPixels::default()
-                        || extra.border != CssPixels::default()
-                        || extra.padding != CssPixels::default()
-                });
+                let leading = self
+                    .pending_inline_edges
+                    .iter()
+                    .filter(|edge| edge.takes_leading_metrics)
+                    .fold(ExtraBoxMetrics::default(), |mut sum, edge| {
+                        sum.margin += edge.physical.margin;
+                        sum.border += edge.physical.border;
+                        sum.padding += edge.physical.padding;
+                        sum
+                    });
+                let preceded = leading.margin != CssPixels::default()
+                    || leading.border != CssPixels::default()
+                    || leading.padding != CssPixels::default();
                 self.carry_trailing_metrics_past_out_of_flow_box();
                 self.apply_inline_box_events_at(item_index, true);
                 let mut item = Item::new(ItemType::AbsolutelyPositionedElement, node);

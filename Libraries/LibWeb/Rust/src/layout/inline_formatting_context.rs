@@ -557,7 +557,7 @@ pub(crate) fn compute(
 
             let mut direct = true;
             let mut previous: Option<usize> = None;
-            let mut ancestor = context.nearest_fragmented_inline_ancestor(fragment.layout_node);
+            let mut ancestor = context.inline_box_for_fragment(fragment.layout_node);
             while !ancestor.is_invalid() {
                 let node_index = if let Some(index) = node_to_index.get(&ancestor) {
                     *index
@@ -1319,7 +1319,7 @@ impl<'context> InlineFormattingContext<'context> {
 
     fn fragmented_inline_ancestors(&self, node: Node) -> Vec<Node> {
         let mut ancestors = Vec::new();
-        let mut ancestor = self.nearest_fragmented_inline_ancestor(node);
+        let mut ancestor = self.inline_box_for_fragment(node);
         while !ancestor.is_invalid() {
             ancestors.push(ancestor);
             ancestor = self.nearest_fragmented_inline_ancestor(ancestor);
@@ -1332,6 +1332,14 @@ impl<'context> InlineFormattingContext<'context> {
         let mut ancestors = self.fragmented_inline_ancestors(before);
         ancestors.retain(|ancestor| after_ancestors.contains(ancestor));
         ancestors
+    }
+
+    fn inline_box_for_fragment(&self, node: Node) -> Node {
+        if !node.is_invalid() && self.facts(node).is_fragmented_inline() {
+            node
+        } else {
+            self.nearest_fragmented_inline_ancestor(node)
+        }
     }
 
     pub(crate) fn nearest_fragmented_inline_ancestor(&self, node: Node) -> Node {
@@ -2083,6 +2091,12 @@ impl<'context> InlineFormattingContext<'context> {
             leading_padding = CssPixels::default();
 
             match item.type_ {
+                inline_level_iterator::ItemType::InlineEdge => {
+                    if self.stops_at_line_clamp_point(line_builder, &mut state_at_clamp_point) {
+                        break;
+                    }
+                    line_builder.append_inline_edge(&item);
+                }
                 inline_level_iterator::ItemType::ForcedBreak => {
                     self.current_line_start.set(fragmentation::LinePosition {
                         item_index: item_index + 1,
@@ -2957,7 +2971,11 @@ impl<'context> InlineFormattingContext<'context> {
             .chain(childless_inline_boxes)
             .filter(|node| !node.is_invalid())
         {
-            let mut ancestor = self.callbacks.parent(node);
+            let mut ancestor = if self.facts(node).is_fragmented_inline() {
+                node
+            } else {
+                self.callbacks.parent(node)
+            };
             while !ancestor.is_invalid() && ancestor != self.containing_block && walked.insert(ancestor) {
                 present.insert(ancestor);
                 ancestor = self.callbacks.parent(ancestor);
@@ -2991,7 +3009,12 @@ impl<'context> InlineFormattingContext<'context> {
             // NB: Fragments that text-overflow elided keep their shift too, since the elided content still extends
             //     the scrollable overflow.
             for fragment in &mut line.fragments {
-                fragment.relpos_delta = accumulated_relative_offset_from(self.callbacks.parent(fragment.layout_node));
+                let first_ancestor = if self.facts(fragment.layout_node).is_fragmented_inline() {
+                    fragment.layout_node
+                } else {
+                    self.callbacks.parent(fragment.layout_node)
+                };
+                fragment.relpos_delta = accumulated_relative_offset_from(first_ancestor);
             }
         }
         for piece in &mut data.inline_box_pieces {
@@ -3309,6 +3332,9 @@ impl ContentSizingLines {
         );
         match item.type_ {
             inline_level_iterator::ItemType::ForcedBreak => self.lines.force_break(),
+            inline_level_iterator::ItemType::InlineEdge => {
+                self.lines.append(border_box_inline_size, false, CssPixels::default());
+            }
             inline_level_iterator::ItemType::Element => {
                 self.lines
                     .append_atomic_inline(border_box_inline_size, self.container_wraps);
