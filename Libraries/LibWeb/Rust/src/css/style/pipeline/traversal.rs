@@ -2097,6 +2097,10 @@ impl<'a> Scratch<'a> {
         if !context.uses_caches {
             return None;
         }
+        // An element that generates no box makes the box its pseudo-element would be in an ancestor's.
+        if inherited.record.facts().display().is_contents() {
+            return None;
+        }
         let state = context.state;
         let facts = state.projection.facts(node)?;
         let records = context.records;
