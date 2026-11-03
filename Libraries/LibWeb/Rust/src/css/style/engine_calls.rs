@@ -582,6 +582,19 @@ pub unsafe extern "C" fn style_engine_stage_element_arrival(
     }
 }
 
+/// Whether the host's projection row of `node` holds the attribute `name`.
+#[unsafe(no_mangle)]
+pub extern "C" fn style_engine_row_holds_attribute(host: &DocumentHost, node: u32, name: u32) -> bool {
+    let name = StyleAtomID(name);
+    StyleNodeID::from_raw(node).is_some_and(|node| {
+        host.engine_memo()
+            .projection
+            .borrow()
+            .written_facts(node)
+            .is_some_and(|facts| facts.attributes().iter().any(|attribute| attribute.name == name))
+    })
+}
+
 /// Writes the local feature delta `delta` into the host's projection rows.
 #[unsafe(no_mangle)]
 pub extern "C" fn style_engine_stage_local_feature_delta(host: &DocumentHost, delta: &FfiLocalFeatureDelta) {

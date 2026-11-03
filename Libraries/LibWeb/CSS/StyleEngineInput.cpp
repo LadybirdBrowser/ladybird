@@ -1035,7 +1035,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     for (auto const& [name, value] : element.attribute_list()) {
         auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
         if (style_engine.attribute_is_known_unread(name_atom)) {
-            style_engine.note_attribute_withheld(name.local_name(), name.namespace_(), node);
+            style_engine.note_attribute_withheld(name.local_name(), name.namespace_());
             continue;
         }
         attributes.append(name_atom);
@@ -1053,18 +1053,17 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
     auto ask_local_link = SelectorMatching::AskLocalLink::Yes;
     if (element.matches_link_pseudo_class() && style_engine.local_link_is_known_untested()) {
         ask_local_link = SelectorMatching::AskLocalLink::No;
-        style_engine.note_local_link_state_withheld(node);
+        style_engine.note_local_link_state_withheld();
     }
     auto states = SelectorMatching::element_states(element, ask_local_link);
     u64 state_bits = 0;
-    for (size_t index = 0; index < to_underlying(PseudoClass::__Count); ++index) {
-        auto pseudo_class = static_cast<PseudoClass>(index);
+    states.for_each_set([&](PseudoClass pseudo_class) {
         // The engine's hover chain holds `:hover`, which the hover follows to an element that arrives hovered.
-        if (pseudo_class == PseudoClass::Hover || !states.get(pseudo_class))
-            continue;
+        if (pseudo_class == PseudoClass::Hover)
+            return;
         if (auto fact = state_fact_for(pseudo_class); fact.has_value())
             state_bits |= static_cast<u64>(1) << to_underlying(*fact);
-    }
+    });
 
     // The tag is computed afresh and not left cached. One cached where the element used to be says nothing about where
     // it arrives, as a subtree that moves while detached is never reached by the walk a `lang` change runs, and one
@@ -1585,56 +1584,47 @@ void record_element_construction_facts(DOM::Element& element)
 void publish_withheld_element_features(StyleEngine& style_engine, StyleComputer& style_computer, Layout::BegunRead const& read)
 {
     auto now_read = style_engine.take_withheld_features_now_read(read);
-    if (now_read.local_link_states.is_empty() && now_read.attributes.is_empty())
+    if (!now_read.local_link_state && now_read.attributes.is_empty())
         return;
-    auto element_holding = [&](StyleNodeID node) -> GC::Ptr<DOM::Element> {
-        auto element = style_computer.element_for_style_node(node);
-        if (!element || !element->is_connected() || element->style_node_id() != node)
-            return nullptr;
-        return element;
-    };
     auto local_link = state_fact_for(PseudoClass::LocalLink);
     VERIFY(local_link.has_value());
-    for (auto node : now_read.local_link_states) {
-        if (auto element = element_holding(node); element && element->matches_local_link_pseudo_class())
+    struct NameNowRead {
+        StyleEngine::WithheldAttributeName name;
+        StyleAtomID atom;
+    };
+    Vector<NameNowRead, 2> names_now_read;
+    names_now_read.ensure_capacity(now_read.attributes.size());
+    for (auto const& name : now_read.attributes)
+        names_now_read.unchecked_append({ name, style_engine.intern_attribute_name(name.local_name, name.namespace_uri) });
+    // NB: A name comes to be read once in a document's life, so nothing is kept per element for it. An element whose
+    //     initial features still wait reads the names as they are by then.
+    style_computer.for_each_element_with_style_node([&](DOM::Element& element) {
+        if (!element.is_connected() || element.initial_style_features_pending())
+            return;
+        auto node = element.style_node_id();
+        if (now_read.local_link_state && element.matches_local_link_pseudo_class())
             style_engine.record_state_delta({ .node = node.value(), .fact = *local_link, .new_value = true });
-    }
-    // Each element is asked once about every name now read that was withheld from it.
-    HashMap<StyleNodeID, Vector<StyleEngine::WithheldAttributeName, 2>> names_by_carrier;
-    for (auto const& [name, carriers] : now_read.attributes) {
-        for (auto node : carriers)
-            names_by_carrier.ensure(node).append(name);
-    }
-    for (auto const& [node, names] : names_by_carrier) {
-        auto element = element_holding(node);
-        if (!element)
-            continue;
-        Vector<StyleEngine::WithheldAttributeName, 2> names_gone = names;
-        element->for_each_attribute([&](DOM::QualifiedName const& name, Utf16String const& value) {
-            StyleEngine::WithheldAttributeName withheld { name.local_name(), name.namespace_() };
-            if (!names.contains_slow(withheld))
-                return;
-            names_gone.remove_all_matching([&](auto const& gone) { return gone == withheld; });
-            auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
-            style_engine.record_local_feature_delta({
-                .node = node.value(),
-                .feature_kind = StyleEngineFFI::FfiFeatureKind::Attribute,
-                .name_atom = name_atom.value(),
-                .new_kind = StyleEngineFFI::FfiFeatureValueKind::Atom,
-                .new_atom = style_engine.intern_attribute_value(name_atom, value).value(),
-            });
-        });
-        // NB: The row may hold a value published before the name was known to be unread, of an attribute removed since.
-        for (auto const& name : names_gone) {
-            style_engine.record_local_feature_delta({
-                .node = node.value(),
-                .feature_kind = StyleEngineFFI::FfiFeatureKind::Attribute,
-                .name_atom = style_engine.intern_attribute_name(name.local_name, name.namespace_uri).value(),
-                .new_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
-                .new_atom = 0,
-            });
+        for (auto const& [name, atom] : names_now_read) {
+            if (auto value = element.get_attribute_ns(name.namespace_uri, name.local_name); value.has_value()) {
+                style_engine.record_local_feature_delta({
+                    .node = node.value(),
+                    .feature_kind = StyleEngineFFI::FfiFeatureKind::Attribute,
+                    .name_atom = atom.value(),
+                    .new_kind = StyleEngineFFI::FfiFeatureValueKind::Atom,
+                    .new_atom = style_engine.intern_attribute_value(atom, *value).value(),
+                });
+            } else if (StyleEngineFFI::style_engine_row_holds_attribute(style_engine.host(), node.value(), atom.value())) {
+                // NB: The row holds a value published before the name was known to be unread, of an attribute removed since.
+                style_engine.record_local_feature_delta({
+                    .node = node.value(),
+                    .feature_kind = StyleEngineFFI::FfiFeatureKind::Attribute,
+                    .name_atom = atom.value(),
+                    .new_kind = StyleEngineFFI::FfiFeatureValueKind::Absent,
+                    .new_atom = 0,
+                });
+            }
         }
-    }
+    });
 }
 
 // The atom an id or class name is published under. A quirks-mode document matches those selectors
@@ -3324,7 +3314,7 @@ void record_element_attribute_changed(DOM::Element& element, Utf16FlyString cons
     // OPTIMIZATION: Nothing of the engine reads this name, so the element's row need not hear of the change. The element
     //               is noted as an arrival withholding the name is, and is published if something comes to read it.
     if (style_engine->attribute_is_known_unread(atom)) {
-        style_engine->note_attribute_withheld(name, namespace_uri, element.style_node_id());
+        style_engine->note_attribute_withheld(name, namespace_uri);
         return;
     }
     auto kind_of = [](Optional<Utf16String> const& value) {
