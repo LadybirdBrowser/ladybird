@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<style>
+    @property --spin {
+        syntax: "<angle>";
+        inherits: true;
+        initial-value: 0deg;
+    }
+    @property --local {
+        syntax: "<custom-ident>";
+        inherits: false;
+        initial-value: before;
+    }
+    .none {
+        display: none;
+    }
+    .rotates {
+        rotate: var(--spin);
+    }
+    @container style(--local: after) {
+        .query-reader {
+            color: rgb(0, 128, 0);
+        }
+    }
+</style>
+<div id="hidden-later">
+    <div id="animated-1"><div id="reader-1"></div><div id="sibling-1"></div></div>
+</div>
+<div id="never-shown" class="none">
+    <div id="animated-2" class="rotates"><div id="middle-2"><div id="reader-2"></div></div><div id="sibling-2"></div></div>
+</div>
+<div id="color-parent" class="none">
+    <div id="animated-3"><div id="reader-3"></div></div>
+</div>
+<div id="animated-root" class="none">
+    <div id="reader-4"></div>
+</div>
+<div class="none">
+    <div id="animated-5">
+        <div class="none"><div id="reader-5"></div></div>
+    </div>
+</div>
+<div class="none">
+    <div id="animated-6"><div id="query-reader-6" class="query-reader"><div id="below-6"></div></div></div>
+</div>
+<script src="../../include.js"></script>
+<script>
+    function spinOf(element) {
+        return getComputedStyle(element).getPropertyValue("--spin");
+    }
+
+    function animate(element, property, from, to) {
+        const animation = element.animate(
+            [{ [property]: from }, { [property]: to }],
+            { duration: 100000, fill: "both" }
+        );
+        animation.pause();
+        animation.currentTime = 10000;
+        return animation;
+    }
+
+    test(() => {
+        const element = id => document.getElementById(id);
+
+        println("An element hidden once it has been shown:");
+        const first = animate(element("animated-1"), "--spin", "0deg", "360deg");
+        println(`shown at 10%: ${spinOf(element("reader-1"))}`);
+        element("hidden-later").style.display = "none";
+        println(`hidden at 10%: ${spinOf(element("reader-1"))}`);
+        first.currentTime = 20000;
+        println(`hidden at 20%: ${spinOf(element("reader-1"))}`);
+        println(`hidden at 20%, sibling: ${spinOf(element("sibling-1"))}`);
+        first.currentTime = 30000;
+        println(`hidden at 30%, sibling: ${spinOf(element("sibling-1"))}`);
+        println(`hidden at 30%: ${spinOf(element("reader-1"))}`);
+        element("hidden-later").style.display = "";
+        println(`shown again at 30%: ${spinOf(element("reader-1"))}`);
+        first.currentTime = 40000;
+        println(`shown at 40%: ${spinOf(element("reader-1"))}`);
+
+        println("An element never shown:");
+        const second = animate(element("animated-2"), "--spin", "0deg", "360deg");
+        println(`at 10%: ${spinOf(element("reader-2"))}`);
+        println(`at 10%, own property: ${getComputedStyle(element("animated-2")).rotate}`);
+        second.currentTime = 20000;
+        println(`at 20%: ${spinOf(element("reader-2"))}`);
+        println(`at 20%, middle: ${spinOf(element("middle-2"))}`);
+        println(`at 20%, sibling: ${spinOf(element("sibling-2"))}`);
+        println(`at 20%, own property: ${getComputedStyle(element("animated-2")).rotate}`);
+        second.cancel();
+        println(`cancelled: ${spinOf(element("reader-2"))}`);
+        println(`cancelled, own property: ${getComputedStyle(element("animated-2")).rotate}`);
+        element("never-shown").style.display = "block";
+        println(`shown: ${spinOf(element("reader-2"))}`);
+
+        println("An animated inherited color:");
+        const third = animate(element("animated-3"), "color", "rgb(0, 0, 0)", "rgb(100, 100, 100)");
+        println(`at 10%: ${getComputedStyle(element("reader-3")).color}`);
+        third.currentTime = 20000;
+        println(`at 20%: ${getComputedStyle(element("reader-3")).color}`);
+        third.cancel();
+        println(`cancelled: ${getComputedStyle(element("reader-3")).color}`);
+
+        println("An animated element that is itself not displayed:");
+        const fourth = animate(element("animated-root"), "--spin", "0deg", "360deg");
+        println(`at 10%: ${spinOf(element("reader-4"))}`);
+        fourth.currentTime = 20000;
+        println(`at 20%: ${spinOf(element("reader-4"))}`);
+        fourth.cancel();
+        println(`cancelled: ${spinOf(element("reader-4"))}`);
+
+        println("An animated element above another that is not displayed:");
+        const fifth = animate(element("animated-5"), "--spin", "0deg", "360deg");
+        println(`at 10%: ${spinOf(element("reader-5"))}`);
+        fifth.currentTime = 20000;
+        println(`at 20%: ${spinOf(element("reader-5"))}`);
+        fifth.cancel();
+        println(`cancelled: ${spinOf(element("reader-5"))}`);
+
+        println("A style query on a custom property that does not inherit:");
+        const sixth = animate(element("animated-6"), "--local", "before", "after");
+        println(`at 10%: ${getComputedStyle(element("below-6")).color}`);
+        sixth.currentTime = 60000;
+        println(`at 60%: ${getComputedStyle(element("below-6")).color}`);
+        sixth.currentTime = 10000;
+        println(`at 10% again: ${getComputedStyle(element("below-6")).color}`);
+    });
+</script>
