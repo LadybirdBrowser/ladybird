@@ -3418,12 +3418,27 @@ pub(crate) fn value_absolutization_is_identity(value: &StyleValueData) -> bool {
     }
 }
 
+/// What is known of how a declared value computes from how it was written, for the winners it is
+/// known of.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct KnownComputation {
+    /// The value computes to itself where nothing zooms it.
+    pub(crate) to_itself: bool,
+    /// The value is the initial value of a longhand that does not inherit, and depends on nothing.
+    pub(crate) is_initial: bool,
+}
+
 /// Whether `value` computes to itself against the length context `length`, without looking any
-/// further into it: a length in pixels where nothing zooms it, or a value whose absolutization is
-/// the identity.
+/// further into it.
 fn value_computes_to_itself(value: &StyleValueData, length: &FfiLengthResolutionContext) -> bool {
+    length.zoom == 1.0 && value_absolutization_is_identity_where_nothing_zooms(value)
+}
+
+/// Whether `value` computes to itself where nothing zooms it: a length in pixels, or a value whose
+/// absolutization is the identity.
+pub(crate) fn value_absolutization_is_identity_where_nothing_zooms(value: &StyleValueData) -> bool {
     match value {
-        StyleValueData::Length { unit, .. } => *unit == px_length_unit() && length.zoom == 1.0,
+        StyleValueData::Length { unit, .. } => *unit == px_length_unit(),
         _ => {
             value_absolutization_is_identity(value)
                 || crate::css::absolutize::color_function_is_canonical_legacy_rgb(value)
@@ -5646,7 +5661,14 @@ pub(crate) type AbsolutizedValues = crate::fast_hash::FastMap<
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn compute_declared_values<'a>(
     values: &mut GroupValuesWriter<'_>,
-    winners: impl Iterator<Item = (u16, &'a RetainedStyleValueData, Option<ExternalValueDependencies>)>,
+    winners: impl Iterator<
+        Item = (
+            u16,
+            &'a RetainedStyleValueData,
+            Option<ExternalValueDependencies>,
+            KnownComputation,
+        ),
+    >,
     length: &FfiLengthResolutionContext,
     scheme: Option<u8>,
     box_type_input: &FfiBoxTypeTransformationInput,
@@ -5689,7 +5711,7 @@ pub(crate) fn compute_declared_values<'a>(
         style_sheet_resource_context: None,
         current_color: None,
     };
-    for (property_id, value, prepared_dependencies) in winners {
+    for (property_id, value, prepared_dependencies, known) in winners {
         let Some(data) = value.optional_data() else {
             return false;
         };
@@ -5697,13 +5719,7 @@ pub(crate) fn compute_declared_values<'a>(
         debug_assert!(value_computes_directly(property_id, data, prepared_dependencies));
         // A longhand that does not inherit, declared with the very value its initial value is, holds
         // what the element's seed does: its initial value computed. Nothing computes against it.
-        if value.pointer() == initial_value_data(property_id)
-            && !is_decided(&decided, property_id)
-            && !was_driven(property_id)
-            && !crate::css::property_metadata::property_is_inherited(property_id)
-            && table_row_bits(property_id) == 0
-            && prepared_dependencies.is_some_and(|dependencies| !dependencies.inheritance_dependent)
-        {
+        if known.is_initial && !is_decided(&decided, property_id) && !was_driven(property_id) {
             let (word, bit) = longhand_bit(property_id);
             decided[word] |= bit;
             values.flags_mut().mark_evaluated(property_id);
@@ -5724,7 +5740,7 @@ pub(crate) fn compute_declared_values<'a>(
         } else {
             &context
         };
-        let mut computed = if value_computes_to_itself(data, length) {
+        let mut computed = if (known.to_itself && length.zoom == 1.0) || value_computes_to_itself(data, length) {
             std::borrow::Cow::Borrowed(value)
         } else {
             // The color property absolutizes against the inherited color, which no key holds.
