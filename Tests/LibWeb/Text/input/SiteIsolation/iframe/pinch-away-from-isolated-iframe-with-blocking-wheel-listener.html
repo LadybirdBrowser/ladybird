@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    iframe {
+        display: block;
+        width: 300px;
+        height: 200px;
+        border: 0;
+    }
+</style>
+<script>
+    // An iframe's listeners only see the wheel event of a pinch over the iframe, so a pinch elsewhere on the page does
+    // not wait for it. The compositor zooms without waiting for the task that keeps the main thread busy.
+    promiseTest(async () => {
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", "/oop-iframe-pinch-away", {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("wheel", () => {}, { passive: false });
+                    requestAnimationFrame(() => requestAnimationFrame(() => {
+                        // The parent synchronizes only its own process. Publish this frame's listener state and
+                        // parent-context link on our compositor connection before inviting input.
+                        internals.synchronizeCompositor();
+                        parent.postMessage("ready", "*");
+                    }));
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-iframe-pinch-away");
+
+        const ready = new Promise(resolve => window.addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        await ready;
+        await animationFrame();
+        await animationFrame();
+
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        internals.pinchThroughUIProcess(500, 400, 0.5);
+
+        // NB: This only gives up on a zoom that never comes, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorScale() !== 1.5 && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`compositor scale beside the task: ${compositorScale()}`);
+    });
+</script>
