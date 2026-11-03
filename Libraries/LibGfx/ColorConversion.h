@@ -207,9 +207,9 @@ constexpr ColorComponents linear_srgb_to_oklab(ColorComponents const& rgb)
     float g = rgb[1];
     float b = rgb[2];
 
-    float l = cbrtf(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
-    float m = cbrtf(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
-    float s = cbrtf(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
+    float l = AK::cbrt<float>(0.4122214708f * r + 0.5363325363f * g + 0.0514459929f * b);
+    float m = AK::cbrt<float>(0.2119034982f * r + 0.6806995451f * g + 0.1073969566f * b);
+    float s = AK::cbrt<float>(0.0883024619f * r + 0.2817188376f * g + 0.6299787005f * b);
 
     return {
         0.2104542553f * l + 0.7936177850f * m - 0.0040720468f * s,

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Math.h>
 #include <AK/StringConversions.h>
 #include <AK/Utf16View.h>
 #include <LibWeb/HTML/Numbers.h>
@@ -309,7 +310,7 @@ fraction_exit:
         // NB: A zero value stays zero for any exponent. Skip the multiplication, as zero times an infinite power of
         //     ten would be NaN.
         if (value != 0)
-            value *= pow(10, exponent);
+            value *= AK::pow<double>(10, exponent);
     }
 
 conversion:
@@ -327,7 +328,7 @@ conversion:
     double rounded_value = value;
 
     // 17. If rounded-value is 2^1024 or −2^1024, return an error.
-    if (abs(rounded_value) >= pow(2, 1024)) {
+    if (abs(rounded_value) >= AK::pow<double>(2, 1024)) {
         return {};
     }
 

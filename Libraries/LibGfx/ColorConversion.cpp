@@ -41,7 +41,7 @@ ColorComponents srgb_to_linear_srgb(ColorComponents const& srgb)
         if (absolute <= 0.04045)
             return static_cast<float>(c / 12.92);
 
-        return static_cast<float>(sign * pow((absolute + 0.055) / 1.055, 2.4));
+        return static_cast<float>(sign * AK::pow<double>((absolute + 0.055) / 1.055, 2.4));
     };
 
     return { to_linear(srgb[0]), to_linear(srgb[1]), to_linear(srgb[2]), srgb.alpha() };
@@ -56,7 +56,7 @@ ColorComponents linear_srgb_to_srgb(ColorComponents const& linear)
         float absolute = abs(c);
 
         if (absolute > 0.0031308f)
-            return sign * static_cast<float>(1.055 * pow(absolute, 1.0 / 2.4) - 0.055);
+            return sign * static_cast<float>(1.055 * AK::pow<double>(absolute, 1.0 / 2.4) - 0.055);
 
         return 12.92f * c;
     };
@@ -86,7 +86,7 @@ ColorComponents display_p3_to_linear_display_p3(ColorComponents const& p3)
         if (absolute <= 0.04045f)
             return c / 12.92f;
 
-        return sign * static_cast<float>(pow((absolute + 0.055f) / 1.055f, 2.4));
+        return sign * static_cast<float>(AK::pow<double>((absolute + 0.055f) / 1.055f, 2.4));
     };
 
     return { to_linear(p3[0]), to_linear(p3[1]), to_linear(p3[2]), p3.alpha() };
@@ -100,7 +100,7 @@ ColorComponents a98rgb_to_xyz65(ColorComponents const& a98)
         float sign = c < 0 ? -1.0f : 1.0f;
         float absolute = abs(c);
 
-        return sign * static_cast<float>(pow(absolute, 563.0 / 256.0));
+        return sign * static_cast<float>(AK::pow<double>(absolute, 563.0 / 256.0));
     };
 
     auto linear_r = to_linear(a98[0]);
@@ -125,7 +125,7 @@ ColorComponents pro_photo_rgb_to_xyz50(ColorComponents const& prophoto)
         if (absolute <= 16.0f / 512.0f)
             return c / 16.0f;
 
-        return sign * static_cast<float>(pow(absolute, 1.8));
+        return sign * static_cast<float>(AK::pow<double>(absolute, 1.8));
     };
 
     auto linear_r = to_linear(prophoto[0]);
@@ -153,7 +153,7 @@ ColorComponents rec2020_to_xyz65(ColorComponents const& rec2020)
         if (absolute < beta * 4.5)
             return c / 4.5f;
 
-        return sign * static_cast<float>(pow((absolute + alpha - 1) / alpha, 1 / 0.45));
+        return sign * static_cast<float>(AK::pow<double>((absolute + alpha - 1) / alpha, 1 / 0.45));
     };
 
     auto linear_r = to_linear(rec2020[0]);
@@ -209,7 +209,7 @@ ColorComponents lab_to_xyz50(ColorComponents const& lab)
     };
 
     float x = compute(f0);
-    float y = L > kappa * epsilon ? static_cast<float>(pow((L + 16.0) / 116.0, 3)) : static_cast<float>(L / kappa);
+    float y = L > kappa * epsilon ? static_cast<float>(AK::pow<double>((L + 16.0) / 116.0, 3)) : static_cast<float>(L / kappa);
     float z = compute(f2);
 
     // D50
@@ -270,9 +270,9 @@ ColorComponents xyz65_to_oklab(ColorComponents const& components)
     float y = components[1];
     float z = components[2];
 
-    float long_cone = cbrtf(0.8190224379967030f * x + 0.3619062600528904f * y - 0.1288737815209879f * z);
-    float medium_cone = cbrtf(0.0329836539323885f * x + 0.9292868615863434f * y + 0.0361446663506424f * z);
-    float short_cone = cbrtf(0.0481771893596242f * x + 0.2642395317527308f * y + 0.6335478284694309f * z);
+    float long_cone = AK::cbrt<float>(0.8190224379967030f * x + 0.3619062600528904f * y - 0.1288737815209879f * z);
+    float medium_cone = AK::cbrt<float>(0.0329836539323885f * x + 0.9292868615863434f * y + 0.0361446663506424f * z);
+    float short_cone = AK::cbrt<float>(0.0481771893596242f * x + 0.2642395317527308f * y + 0.6335478284694309f * z);
 
     return {
         0.2104542683093140f * long_cone + 0.7936177747023054f * medium_cone - 0.0040720430116193f * short_cone,
@@ -318,7 +318,7 @@ ColorComponents xyz50_to_lab(ColorComponents const& components)
 
     auto f = [](float value) -> float {
         if (value > epsilon)
-            return cbrtf(value);
+            return AK::cbrt<float>(value);
         return static_cast<float>((kappa * value + 16.0) / 116.0);
     };
 
@@ -446,7 +446,7 @@ ColorComponents linear_a98_rgb_to_a98_rgb(ColorComponents const& components)
 {
     auto to_gamma = [](float c) {
         double sign = c < 0.0f ? -1.0 : 1.0;
-        return static_cast<float>(sign * pow(abs(c), 256.0 / 563.0));
+        return static_cast<float>(sign * AK::pow<double>(abs(c), 256.0 / 563.0));
     };
 
     return { to_gamma(components[0]), to_gamma(components[1]), to_gamma(components[2]), components.alpha() };
@@ -476,7 +476,7 @@ ColorComponents linear_prophoto_rgb_to_prophoto_rgb(ColorComponents const& compo
         float absolute = abs(c);
         if (absolute <= 1.0f / 512.0f)
             return c * 16.0f;
-        return sign * static_cast<float>(pow(absolute, 1.0 / 1.8));
+        return sign * static_cast<float>(AK::pow<double>(absolute, 1.0 / 1.8));
     };
 
     return { to_gamma(components[0]), to_gamma(components[1]), to_gamma(components[2]), components.alpha() };
@@ -512,7 +512,7 @@ ColorComponents linear_rec2020_to_rec2020(ColorComponents const& components)
         if (absolute < beta)
             return 4.5f * c;
 
-        return sign * static_cast<float>(alpha * pow(absolute, 0.45) - (alpha - 1));
+        return sign * static_cast<float>(alpha * AK::pow<double>(absolute, 0.45) - (alpha - 1));
     };
 
     return { to_gamma(components[0]), to_gamma(components[1]), to_gamma(components[2]), components.alpha() };

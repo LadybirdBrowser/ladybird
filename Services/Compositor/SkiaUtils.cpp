@@ -327,8 +327,8 @@ sk_sp<SkImageFilter> SkiaFilterReader::filter()
         auto angle_degrees = value<float>();
         auto input = optional_filter();
         float radians = AK::to_radians(angle_degrees);
-        auto cosA = cos(radians);
-        auto sinA = sin(radians);
+        auto cosA = AK::cos(radians);
+        auto sinA = AK::sin(radians);
 
         auto a00 = 0.213f + cosA * 0.787f - sinA * 0.213f;
         auto a01 = 0.715f - cosA * 0.715f - sinA * 0.715f;
