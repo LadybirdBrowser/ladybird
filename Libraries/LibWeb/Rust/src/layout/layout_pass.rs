@@ -180,6 +180,10 @@ impl<'arena> LayoutPass<'arena> {
         self.scratch.fc_run_cache_store()
     }
 
+    pub(crate) fn fragment_builder_scratch(&self) -> &'arena RefCell<super::fragment_tree::FragmentBuilderScratch> {
+        self.scratch.fragment_builder_scratch()
+    }
+
     /// The layouts of in-flow blocks, kept for the passes after the one that laid them out.
     pub(crate) fn in_flow_block_cache_store(&self) -> &'arena super::in_flow_block_cache::InFlowBlockCacheStore {
         self.scratch.in_flow_block_cache_store()

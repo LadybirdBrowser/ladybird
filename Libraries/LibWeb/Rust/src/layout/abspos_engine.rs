@@ -283,7 +283,7 @@ impl<'pass> AbsposEngine<'pass> {
 
     /// Where the run placed `node`, if it placed the box.
     fn placement_of(&self, node: Node) -> Option<run_state::BoxPlacement> {
-        self.placed_box_fragments().placement_of(node)
+        self.placed_box_fragments().placement_of(&self.callbacks, node)
     }
 
     fn placement_containing_block(&self, node: Node) -> Node {
