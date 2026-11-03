@@ -9,13 +9,16 @@ use libjs_runtime_macros::Trace;
 use crate::gc::class::{GcCell, define_cell};
 use crate::interpreter::vm::Vm;
 use crate::layout::cell::Gc;
+use crate::layout::function_object::RawNativeFunction;
 use crate::layout::object::Object;
 use crate::layout::value::Value;
+use crate::layout_forward::RawNativeFunctionPointer;
 use crate::runtime::abstract_operations::{call_function_object, construct, create_list_from_array_like};
 use crate::runtime::array::Array;
 use crate::runtime::completion::ThrowCompletionOr;
 use crate::runtime::error::ErrorKind;
 use crate::runtime::error_types::ErrorType;
+use crate::runtime::function_prototype::is_native_function;
 use crate::runtime::native_function::raw_native;
 use crate::runtime::object::{
     MayInterfereWithIndexedPropertyAccess, ORDINARY_OBJECT_METHODS, PropertyLookupPhase, define_object_class,
@@ -37,7 +40,14 @@ define_object_class!(ReflectObject, extends: [Object], methods: {
     ..ORDINARY_OBJECT_METHODS
 });
 
+static APPLY_FUNCTION: RawNativeFunctionPointer = raw_native!(ReflectObject::apply);
+
 impl ReflectObject {
+    /// Whether the function is Reflect.apply (of any realm).
+    pub fn is_apply_function(vm: &Vm, function: &RawNativeFunction) -> bool {
+        is_native_function(vm, function, APPLY_FUNCTION)
+    }
+
     pub fn create(vm: &Vm, realm: Gc<Realm>) -> Gc<ReflectObject> {
         realm.create_object(vm, |_| ReflectObject {
             base: Object::new_with_prototype(
@@ -55,7 +65,7 @@ impl ReflectObject {
         let define_native_function = |property_key: &PropertyKey, function, length| {
             object.define_native_function(vm, realm, property_key, function, length, attr, None);
         };
-        define_native_function(&names.apply, raw_native!(ReflectObject::apply), 3);
+        define_native_function(&names.apply, APPLY_FUNCTION, 3);
         define_native_function(&names.construct, raw_native!(ReflectObject::construct), 2);
         define_native_function(&names.defineProperty, raw_native!(ReflectObject::define_property), 3);
         define_native_function(&names.deleteProperty, raw_native!(ReflectObject::delete_property), 2);

@@ -23,6 +23,45 @@ test("legacy caller property exposes only ordinary sloppy callers", () => {
     expect([1].map(getCaller)[0]).toBeNull();
 });
 
+test("legacy caller property looks through Function.prototype.call, apply and Reflect.apply", () => {
+    function getCaller() {
+        return getCaller.caller;
+    }
+
+    function viaCall() {
+        return getCaller.call(null);
+    }
+
+    function viaApply() {
+        return getCaller.apply(null, []);
+    }
+
+    function viaReflectApply() {
+        return Reflect.apply(getCaller, null, []);
+    }
+
+    function viaCallOfCall() {
+        return Function.prototype.call.call(getCaller, null);
+    }
+
+    function viaApplyOfReflectApply() {
+        return Reflect.apply.apply(null, [getCaller, null, []]);
+    }
+
+    function strictViaCall() {
+        "use strict";
+        return getCaller.call(null);
+    }
+
+    expect(viaCall()).toBe(viaCall);
+    expect(viaApply()).toBe(viaApply);
+    expect(viaReflectApply()).toBe(viaReflectApply);
+    expect(viaCallOfCall()).toBe(viaCallOfCall);
+    expect(viaApplyOfReflectApply()).toBe(viaApplyOfReflectApply);
+    expect(strictViaCall()).toBeNull();
+    expect(getCaller.call(null)).toBeNull();
+});
+
 test("legacy arguments property exposes the active arguments object", () => {
     function getArguments(a, b) {
         return getArguments.arguments;
