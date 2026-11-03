@@ -318,8 +318,7 @@ impl LayoutNodeArena {
         let Some(style_node) = node.or(document) else {
             return;
         };
-        if mark.is_child_list_insertion
-            && let Some(element) = node
+        if let Some(element) = node
             && let Some(owner) = self.first_letter_owner_covering(element)
             && owner != element
         {
@@ -385,7 +384,7 @@ impl LayoutNodeArena {
     }
 
     /// The `::first-letter` owner on or above the element `element` whose first letter its box holds, or that has no
-    /// first-letter box, whose rebuild an insertion under `element` reaches. See
+    /// first-letter box, whose rebuild a rebuild of `element` reaches: it alone finds the letter again. See
     /// `DOM::Node::first_letter_owner_for_layout_subtree_from`.
     fn first_letter_owner_covering(&self, element: StyleNodeID) -> Option<StyleNodeID> {
         let layout_node = self.bound_row(element);

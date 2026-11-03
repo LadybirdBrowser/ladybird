@@ -1,0 +1,8 @@
+sibling out of flow to in flow: matches a full rebuild
+sibling block to inline: matches a full rebuild
+sibling inline to block: matches a full rebuild
+sibling hidden: matches a full rebuild
+sibling shown: matches a full rebuild
+own box: matches a full rebuild
+inside an inline: matches a full rebuild
+list marker: matches a full rebuild
