@@ -6,5 +6,8 @@ edition = "2024"
 [lib]
 crate-type = ["rlib"]
 
+[build-dependencies]
+cc = "1"
+
 [lints]
 workspace = true

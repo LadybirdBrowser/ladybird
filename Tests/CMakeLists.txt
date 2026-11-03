@@ -37,7 +37,10 @@ add_subdirectory(Meta)
 if (NOT WIN32)
     string(TOUPPER "${RUST_TARGET_TRIPLE}" rust_target_upper)
     string(REPLACE "-" "_" rust_target_upper "${rust_target_upper}")
-    set(rust_test_env "CARGO_TARGET_${rust_target_upper}_RUSTFLAGS=${RUSTC_TARGET_FLAGS}")
+    set(rust_test_env
+        "CARGO_TARGET_${rust_target_upper}_RUSTFLAGS=${RUSTC_TARGET_FLAGS}"
+        "LLVM_LIBC_INCLUDE_DIR=${LLVM_LIBC_INCLUDE_DIR}/llvm-libc"
+    )
 
     set(rust_workspace_test_command
         "${CMAKE_COMMAND}" -E env

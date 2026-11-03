@@ -410,6 +410,13 @@ function(_rust_crate_common_setup)
         list(APPEND cargo_env "FFI_OUTPUT_DIR=${ARG_FFI_OUTPUT_DIR}")
     endif()
 
+    # The crates of the shared target directory link into libraries that link AK, so the ak crate leaves the math
+    # functions to AK rather than compiling a copy of its own.
+    if (NOT ARG_TARGET_DIR)
+        list(APPEND cargo_env "LADYBIRD_LINKS_AK=1")
+    endif()
+    list(APPEND cargo_env "LLVM_LIBC_INCLUDE_DIR=${LLVM_LIBC_INCLUDE_DIR}/llvm-libc")
+
     # On Windows, rustc invokes the linker directly with MSVC-style flags, so we must not override it with a
     # compiler driver like clang-cl.
     if (NOT WIN32)
