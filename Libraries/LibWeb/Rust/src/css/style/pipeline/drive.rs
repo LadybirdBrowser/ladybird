@@ -179,14 +179,36 @@ impl RetainedState {
         };
         let default_size = CssPixels::from_integer(13).raw_value();
         let document_inputs = FontSizeRecascadeDocumentInputs::from_document(inputs);
+        // NB: The size an ancestor's animations give it wins over what the cascade of its ancestors decides, so the
+        //     recascade goes on from that ancestor's computed size.
+        let animated = views.iter().enumerate().rev().find_map(|(index, (_, view))| {
+            let view = view.as_ref()?;
+            view.longhands()
+                .overlay_value(
+                    view.animated_overlay,
+                    crate::css::property_metadata::property_id::FONT_SIZE,
+                )
+                .map(|_| (index, view))
+        });
+        let (start_index, start_size_raw, start_depends_on_viewport) =
+            animated.map_or((0, default_size, false), |(index, view)| {
+                (
+                    index + 1,
+                    crate::css::computed_value_views::ComputedValuesView::of(view.payloads)
+                        .font()
+                        .font_size
+                        .raw_value(),
+                    view.dependency_flags & FONT_METRICS_DEPEND_ON_VIEWPORT_METRICS != 0,
+                )
+            });
         let mut batch = recascade_font_size_batch(
             views.len(),
             value_at,
             |index| zooms[index],
             applies_zoom_at,
-            0,
-            default_size,
-            false,
+            start_index,
+            start_size_raw,
+            start_depends_on_viewport,
             default_size,
             document_inputs,
             None,

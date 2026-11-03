@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<style>
+    #ancestor {
+        font-size: medium;
+    }
+    .monospace {
+        font-family: monospace;
+        margin: 0;
+    }
+    #ancestor::before, #before::before, #after::after {
+        content: "x";
+        font-family: monospace;
+    }
+</style>
+<div id="ancestor">
+    <div><span class="monospace" id="target"></span><span id="before"></span><span id="after"></span></div>
+</div>
+<script src="../include.js"></script>
+<script>
+    // An animation of an ancestor's font size at the size the ancestor has already moves no value its descendants
+    // inherit, but a monospace font size goes on from an animated size where it would recascade otherwise.
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const dump = label => {
+            const fresh = target.parentElement.appendChild(document.createElement("span"));
+            fresh.className = "monospace";
+            const size = (element, pseudo) => getComputedStyle(element, pseudo).fontSize;
+            println(`${label}: ancestor ${size(ancestor)}, its ::before ${size(ancestor, "::before")}, monospace ${size(target)}, ::before ${size(before, "::before")}, ::after ${size(after, "::after")}, new monospace ${size(fresh)}`);
+            fresh.remove();
+        };
+        await nextFrame();
+        await nextFrame();
+        dump("no animation");
+        const animation = ancestor.animate({ fontSize: ["16px", "16px"] }, { duration: 1000000 });
+        await nextFrame();
+        await nextFrame();
+        dump("running animation");
+        animation.cancel();
+        await nextFrame();
+        await nextFrame();
+        dump("canceled animation");
+        const finished = ancestor.animate({ fontSize: ["16px", "16px"] }, { duration: 1000000 });
+        await nextFrame();
+        await nextFrame();
+        dump("running again");
+        finished.finish();
+        await nextFrame();
+        await nextFrame();
+        dump("finished animation");
+        done();
+    });
+</script>

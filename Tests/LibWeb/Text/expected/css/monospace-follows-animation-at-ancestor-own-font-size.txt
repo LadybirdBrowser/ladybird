@@ -1,0 +1,5 @@
+no animation: ancestor 16px, its ::before 13px, monospace 13px, ::before 13px, ::after 13px, new monospace 13px
+running animation: ancestor 16px, its ::before 16px, monospace 16px, ::before 16px, ::after 16px, new monospace 16px
+canceled animation: ancestor 16px, its ::before 13px, monospace 13px, ::before 13px, ::after 13px, new monospace 13px
+running again: ancestor 16px, its ::before 16px, monospace 16px, ::before 16px, ::after 16px, new monospace 16px
+finished animation: ancestor 16px, its ::before 13px, monospace 13px, ::before 13px, ::after 13px, new monospace 13px

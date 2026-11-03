@@ -50,5 +50,10 @@
         dump("transition halfway");
         transition.finish();
         dump("transition finished");
+
+        ancestor.className = "";
+        ancestor.style.zoom = 2;
+        ancestor.classList.add("animated");
+        dump("running animation under a zoom");
     });
 </script>
