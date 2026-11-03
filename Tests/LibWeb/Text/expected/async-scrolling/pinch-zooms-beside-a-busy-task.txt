@@ -1,0 +1,3 @@
+compositor scale beside the task: 1.5
+main thread scale beside the task: 1
+main thread scale after the task: 3.375
