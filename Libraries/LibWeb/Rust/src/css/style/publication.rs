@@ -587,8 +587,18 @@ impl RetainedState {
             || self.computed_group_sets.retired_animation_overlay_records() != 0
     }
 
-    pub(crate) fn lease_selected_style_records(&self, records: Vec<u64>) -> Option<std::sync::Arc<[u64]>> {
-        self.computed_group_sets.lease_selected_style_records(records)
+    pub(crate) fn lease_hover_frame_style_records(
+        &mut self,
+        nodes: crate::cow_column::ColumnSnapshot<
+            crate::layout::node_data::PaintNode,
+            { crate::layout::tree_shape::PUBLISHED_ROWS_PER_CHUNK },
+        >,
+    ) -> std::sync::Arc<computed::HoverFrameLease> {
+        self.computed_group_sets.lease_hover_frame_style_records(nodes)
+    }
+
+    pub(crate) fn style_record_is_held(&self, record: u64) -> bool {
+        self.computed_group_sets.style_record_is_held(record)
     }
 
     pub(crate) fn lease_style_records(&self) -> computed::StyleRecordLease {

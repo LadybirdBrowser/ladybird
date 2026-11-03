@@ -63,6 +63,11 @@ pub(crate) struct PublishedRows {
 }
 
 impl PublishedRows {
+    /// The column of the nodes, as published.
+    pub(crate) fn paint_nodes(&self) -> &ColumnSnapshot<PaintNode, PUBLISHED_ROWS_PER_CHUNK> {
+        &self.nodes
+    }
+
     /// What a live text row published.
     pub(crate) fn text(&self, id: NodeSlotId) -> Option<&PublishedTextSlot> {
         self.node(id)?;

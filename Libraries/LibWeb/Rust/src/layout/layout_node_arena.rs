@@ -1064,6 +1064,8 @@ pub(crate) struct LayoutNodeArena {
     chunks_by_address: Vec<ChunkAddress>,
     slot_metadata: Vec<SlotMetadata>,
     style_records: Vec<u64>,
+    /// How many of `style_records` name a record other than one the engine installed.
+    rows_naming_uninstalled_records: u32,
     /// The style record whose image resources the host was last owed for each row, or zero. A row whose record has not
     /// changed since holds those resources still, so a build that visits it again owes it nothing.
     image_resources_owed_records: Vec<u64>,
@@ -1234,6 +1236,7 @@ impl LayoutNodeArena {
             chunks_by_address: Vec::new(),
             slot_metadata: Vec::new(),
             style_records: Vec::new(),
+            rows_naming_uninstalled_records: 0,
             image_resources_owed_records: Vec::new(),
             style_record_pins: Vec::new(),
             style_records_pinned_by_host: Vec::new(),
@@ -1613,7 +1616,7 @@ impl LayoutNodeArena {
         self.forget_row_sharing_dom_node(id);
         self.unbind_row(id);
         self.set_node_style_node(id, None);
-        self.style_records[index as usize] = 0;
+        self.replace_style_record(index as usize, 0);
         self.image_resources_owed_records[index as usize] = 0;
         self.style_record_pins[index as usize] = ArenaStylePin::None;
         self.style_records_pinned_by_host[index as usize] = 0;
@@ -2823,6 +2826,8 @@ impl LayoutNodeArena {
         let previous = std::mem::replace(&mut self.style_records[index], record);
         if previous != record {
             self.image_resources_owed_records[index] = 0;
+            self.rows_naming_uninstalled_records += u32::from(crate::css::style::names_an_uninstalled_record(record));
+            self.rows_naming_uninstalled_records -= u32::from(crate::css::style::names_an_uninstalled_record(previous));
         }
         previous
     }
@@ -3938,16 +3943,15 @@ impl LayoutNodeArena {
         }
     }
 
-    pub(crate) fn hover_frame_style_records(&self) -> Vec<u64> {
-        let mut records: Vec<_> = self
-            .style_records
-            .iter()
-            .copied()
-            .filter(|&record| record != 0)
-            .collect();
-        records.sort_unstable();
-        records.dedup();
-        records
+    /// The style records the rows name.
+    pub(crate) fn style_records(&self) -> &[u64] {
+        &self.style_records
+    }
+
+    /// Whether a row names a style record other than one the engine installed, as an animation overlay record, which a
+    /// row of a removed element can still name, where no element is assigned it anymore.
+    pub(crate) fn names_uninstalled_style_records(&self) -> bool {
+        self.rows_naming_uninstalled_records != 0
     }
 
     pub(crate) fn refresh_style_flags(&mut self, slot: NodeSlotId) {
