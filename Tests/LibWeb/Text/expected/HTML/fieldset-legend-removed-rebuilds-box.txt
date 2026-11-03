@@ -1,0 +1,3 @@
+two legends: the tree matches a full rebuild: true
+the rendered legend removed, another takes its place: the tree matches a full rebuild: true
+no legend: the tree matches a full rebuild: true

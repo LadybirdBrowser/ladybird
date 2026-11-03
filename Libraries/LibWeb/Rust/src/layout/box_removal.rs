@@ -173,6 +173,11 @@ impl LayoutNodeArena {
             return true;
         }
 
+        // A rendered legend decides whether its fieldset has an anonymous content box, and which legend is rendered.
+        if child_data.kind.get() == NodeKind::LegendBox {
+            return false;
+        }
+
         let child_style = self.node_style_if_live(child);
         if child_data.parent.get() != parent || node_facts::node_is_out_of_flow(child_data, child_style) {
             return false;
