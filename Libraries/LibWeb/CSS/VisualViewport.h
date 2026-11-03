@@ -52,6 +52,8 @@ public:
     [[nodiscard]] Gfx::AffineTransform transform() const;
     void zoom(CSSPixelPoint position, double scale_delta);
     void set_scale_zoomed_by_compositor(double scale);
+    // The scale, if this thread changed it since the compositor last heard of it.
+    Optional<double> take_scale_for_compositor();
     CSSPixelPoint map_to_layout_viewport(CSSPixelPoint) const;
     CSSPixelPoint map_from_layout_viewport(CSSPixelPoint) const;
     CSSPixelRect map_from_layout_viewport(CSSPixelRect const&) const;
@@ -69,6 +71,7 @@ private:
     GC::Ref<DOM::Document> m_document;
     CSSPixelPoint m_offset;
     double m_scale { 1.0 };
+    bool m_scale_is_new_to_compositor { false };
 };
 
 }

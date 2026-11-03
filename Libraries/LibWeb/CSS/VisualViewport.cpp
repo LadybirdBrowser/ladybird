@@ -208,6 +208,7 @@ void VisualViewport::zoom(CSSPixelPoint position, double scale_delta)
     new_offset = { clamp(new_offset.x(), 0.0f, max_x_offset), clamp(new_offset.y(), 0.0f, max_y_offset) };
 
     m_scale = new_scale;
+    m_scale_is_new_to_compositor = true;
     auto old_offset = m_offset;
     m_offset = (new_offset / m_scale).to_type<CSSPixels>();
     if (m_offset != old_offset)
@@ -221,6 +222,13 @@ void VisualViewport::set_scale_zoomed_by_compositor(double scale)
         return;
     m_scale = scale;
     did_change_offset_or_scale();
+}
+
+Optional<double> VisualViewport::take_scale_for_compositor()
+{
+    if (!exchange(m_scale_is_new_to_compositor, false))
+        return {};
+    return m_scale;
 }
 
 CSSPixelPoint VisualViewport::map_to_layout_viewport(CSSPixelPoint position) const
@@ -242,6 +250,7 @@ CSSPixelRect VisualViewport::map_from_layout_viewport(CSSPixelRect const& rect) 
 void VisualViewport::reset()
 {
     m_scale = 1.0;
+    m_scale_is_new_to_compositor = true;
     auto old_offset = m_offset;
     m_offset = { 0, 0 };
     if (m_offset != old_offset) {
