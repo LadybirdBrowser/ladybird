@@ -106,7 +106,6 @@ realm_intrinsic_accessors! {
         mapped_arguments_object_shape: Shape,
         regexp_builtin_exec_array_shape: Shape,
         throw_type_error_accessor: Accessor,
-        throw_type_error_function: FunctionObject,
         array_prototype_values_function: FunctionObject,
         generator_prototype_next_function: FunctionObject,
         eval_function: FunctionObject,

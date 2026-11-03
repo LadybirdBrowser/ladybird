@@ -268,7 +268,6 @@ define_intrinsics! {
     json_parse_function: Cell<Option<Gc<FunctionObject>>>,
     json_stringify_function: Cell<Option<Gc<FunctionObject>>>,
     object_prototype_to_string_function: Cell<Option<Gc<FunctionObject>>>,
-    throw_type_error_function: Cell<Option<Gc<FunctionObject>>>,
 
     // JS_ENUMERATE_BUILTIN_TYPES
     aggregate_error_constructor: Cell<Option<Gc<AggregateErrorConstructor>>>,
@@ -522,7 +521,6 @@ created_intrinsics! {
         json_parse_function: FunctionObject => "%JSON.parse%",
         json_stringify_function: FunctionObject => "%JSON.stringify%",
         object_prototype_to_string_function: FunctionObject => "%Object.prototype.toString%",
-        throw_type_error_function: FunctionObject => "%ThrowTypeError%",
         array_iterator_prototype: Object => "%ArrayIteratorPrototype%",
         async_iterator_prototype: Object => "%AsyncIteratorPrototype%",
         intl_segment_iterator_prototype: Object => "%IntlSegmentIteratorPrototype%",
@@ -1106,7 +1104,8 @@ impl Intrinsics {
         intrinsics.initialize_intrinsics(vm, realm);
 
         // 3. Perform AddRestrictedFunctionProperties(realmRec.[[Intrinsics]].[[%Function.prototype%]], realmRec).
-        add_restricted_function_properties(vm, &realm.intrinsics().function_prototype(vm), realm);
+        // INTEROP: All major engines give %Function.prototype% accessors that work for sloppy functions instead, see
+        //          FunctionPrototype::initialize().
 
         realm_watchpoints::arm(vm, realm);
 
@@ -1364,8 +1363,6 @@ impl Intrinsics {
             None,
             None,
         );
-        self.throw_type_error_function
-            .set(Some(throw_type_error_function.upcast()));
         throw_type_error_function.define_direct_property(vm, &names.length, Value::from_i32(0), attributes(0));
         throw_type_error_function.define_direct_property(
             vm,
@@ -1580,33 +1577,4 @@ impl Intrinsics {
     pub fn realm(&self) -> Gc<Realm> {
         self.realm
     }
-}
-
-// 10.2.4 AddRestrictedFunctionProperties ( F, realm ), https://tc39.es/ecma262/#sec-addrestrictedfunctionproperties
-pub fn add_restricted_function_properties(vm: &Vm, function: &Object, realm: Gc<Realm>) {
-    // 1. Assert: realm.[[Intrinsics]].[[%ThrowTypeError%]] exists and has been initialized.
-    // NOTE: This is ensured by dereferencing the GCPtr in the getter.
-
-    // 2. Let thrower be realm.[[Intrinsics]].[[%ThrowTypeError%]].
-    let thrower = realm.intrinsics().throw_type_error_function();
-
-    // 3. Perform ! DefinePropertyOrThrow(F, "caller", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: true }).
-    function.define_direct_accessor(
-        vm,
-        &vm.names.caller,
-        Some(thrower),
-        Some(thrower),
-        PropertyAttributes::new(Attribute::CONFIGURABLE),
-    );
-
-    // 4. Perform ! DefinePropertyOrThrow(F, "arguments", PropertyDescriptor { [[Get]]: thrower, [[Set]]: thrower, [[Enumerable]]: false, [[Configurable]]: true }).
-    function.define_direct_accessor(
-        vm,
-        &vm.names.arguments,
-        Some(thrower),
-        Some(thrower),
-        PropertyAttributes::new(Attribute::CONFIGURABLE),
-    );
-
-    // 5. Return unused.
 }

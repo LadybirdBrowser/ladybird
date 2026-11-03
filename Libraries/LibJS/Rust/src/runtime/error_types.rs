@@ -121,6 +121,7 @@ define_error_types! {
     JsonCircular => "Cannot stringify circular object",
     JsonMalformed => "Malformed JSON string",
     JsonRawJSONNonPrimitive => "JSON.rawJSON cannot accept object or array as outermost value",
+    LegacyCallerOrArgumentsReceiver => "'caller' and 'arguments' may only be accessed on ordinary non-strict functions",
     MathSumPreciseOverflow => "Overflow in Math.sumPrecise",
     MissingRequiredProperty => "Required property {} is missing or undefined",
     ModuleNoEnvironment => "Cannot find module environment for imported binding",

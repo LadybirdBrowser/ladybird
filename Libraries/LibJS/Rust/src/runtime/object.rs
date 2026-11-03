@@ -1021,8 +1021,8 @@ impl Object {
             return false;
         }
         let methods = self.methods();
-        // NB: ECMAScript function objects only answer "caller", "arguments" and lazily created "length", "name" and
-        //     "prototype" properties themselves, and arrays only "length" and array indices.
+        // NB: ECMAScript function objects only answer lazily created "length", "name" and "prototype" properties
+        //     themselves, and arrays only "length" and array indices.
         (core::ptr::fn_addr_eq(
             methods.internal_get_own_property,
             ORDINARY_OBJECT_METHODS.internal_get_own_property,
@@ -1069,14 +1069,12 @@ impl Object {
         if core::ptr::fn_addr_eq(internal_get_own_property, ordinary_get_own_property) {
             return true;
         }
-        // NB: ECMAScript function objects only answer "caller", "arguments" and lazily created "length", "name" and
-        //     "prototype" properties themselves.
+        // NB: ECMAScript function objects only answer lazily created "length", "name" and "prototype" properties
+        //     themselves.
         core::ptr::fn_addr_eq(
             internal_get_own_property,
             ECMASCRIPT_FUNCTION_OBJECT_METHODS.internal_get_own_property,
-        ) && *property_key != vm.names.caller
-            && *property_key != vm.names.arguments
-            && *property_key != vm.names.prototype
+        ) && *property_key != vm.names.prototype
             && *property_key != vm.names.length
             && *property_key != vm.names.name
     }

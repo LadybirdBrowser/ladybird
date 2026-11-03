@@ -81,15 +81,10 @@ unsafe impl Trace for EcmascriptFunctionObjectStorage {
 
 pub static ECMASCRIPT_FUNCTION_OBJECT_METHODS: ObjectMethods = ObjectMethods {
     internal_get_own_property: EcmascriptFunctionObject::internal_get_own_property,
-    // NB: Functions answer for "length", "name" and "prototype" before creating them lazily, and for "caller" and
-    //     "arguments" if they support the legacy properties, whatever their shape holds. They answer for other names
-    //     like ordinary objects.
+    // NB: Functions answer for "length", "name" and "prototype" before creating them lazily, whatever their shape
+    //     holds. They answer for other names like ordinary objects.
     is_cacheable_for_absence_of: |_, vm, property_key| {
-        *property_key != vm.names.prototype
-            && *property_key != vm.names.caller
-            && *property_key != vm.names.arguments
-            && *property_key != vm.names.length
-            && *property_key != vm.names.name
+        *property_key != vm.names.prototype && *property_key != vm.names.length && *property_key != vm.names.name
     },
     // NB: The non-enumerable lazy properties shadow enumerable ones of the prototype chain.
     eligible_for_own_property_enumeration_fast_path: |object| {
@@ -1097,17 +1092,8 @@ impl EcmascriptFunctionObject {
     }
 
     pub fn supports_legacy_caller_or_arguments(&self) -> bool {
-        // https://tc39.es/ecma262/#sec-forbidden-extensions
-        //
-        // ECMAScript function objects defined using syntactic constructors in strict mode code must not be created with own
-        // properties named *"caller"* or *"arguments"*. Such own properties also must not be created for function objects
-        // defined using an |ArrowFunction|, |MethodDefinition|, |GeneratorDeclaration|, |GeneratorExpression|,
-        // |AsyncGeneratorDeclaration|, |AsyncGeneratorExpression|, |ClassDeclaration|, |ClassExpression|,
-        // |AsyncFunctionDeclaration|, |AsyncFunctionExpression|, or |AsyncArrowFunction| regardless of whether the definition
-        // is contained in strict mode code.
-        // Built-in functions, strict functions created using the Function constructor, generator functions created using
-        // the Generator constructor, async functions created using the AsyncFunction constructor, and functions created
-        // using the `bind` method also must not be created with such own properties.
+        // NB: These are the functions that the "caller" and "arguments" accessors of %Function.prototype% accept. The
+        //     others are the functions that https://tc39.es/ecma262/#sec-forbidden-extensions keeps from exposing them.
         self.kind() == FunctionKind::Normal
             && !self.is_arrow_function()
             && !self.is_class_constructor()
@@ -1115,7 +1101,7 @@ impl EcmascriptFunctionObject {
             && !self.is_strict_mode()
     }
 
-    fn legacy_caller(&self, vm: &Vm) -> Value {
+    pub fn legacy_caller(&self, vm: &Vm) -> Value {
         let this_function = self.as_function_object_gc();
         let mut caller: Option<Gc<EcmascriptFunctionObject>> = None;
         let mut found_this_function = false;
@@ -1136,19 +1122,15 @@ impl EcmascriptFunctionObject {
             ControlFlow::Break(())
         });
 
-        // https://tc39.es/ecma262/#sec-forbidden-extensions
-        //
-        // If an implementation extends any function object with an own property named *"caller"* the value of that property,
-        // as observed using [[Get]] or [[GetOwnProperty]], must not be a strict function object. If it is an accessor
-        // property, the function that is the value of the property's [[Get]] attribute must never return a strict function
-        // when called.
+        // NB: https://tc39.es/ecma262/#sec-forbidden-extensions keeps own "caller" properties from exposing strict
+        //     functions. The accessor on %Function.prototype% holds to the same rule.
         match caller {
             Some(caller) if caller.supports_legacy_caller_or_arguments() => Value::from_object(caller),
             _ => Value::NULL,
         }
     }
 
-    fn legacy_arguments(&self, vm: &Vm) -> Value {
+    pub fn legacy_arguments(&self, vm: &Vm) -> Value {
         let this_function = self.as_function_object_gc();
         // NB: The arguments of a frame of an inlined call may be objects JIT code never created, which only the
         //     arguments object holds once it exists.
@@ -1219,32 +1201,6 @@ impl EcmascriptFunctionObject {
             function.reify_length_and_name(vm);
         }
 
-        if function.supports_legacy_caller_or_arguments() {
-            let descriptor = object.ordinary_get_own_property(vm, property_key)?;
-            if descriptor.is_some() {
-                return Ok(descriptor);
-            }
-
-            if *property_key == vm.names.caller {
-                return Ok(Some(PropertyDescriptor {
-                    value: Some(function.legacy_caller(vm)),
-                    writable: Some(false),
-                    enumerable: Some(false),
-                    configurable: Some(false),
-                    ..Default::default()
-                }));
-            }
-            if *property_key == vm.names.arguments {
-                return Ok(Some(PropertyDescriptor {
-                    value: Some(function.legacy_arguments(vm)),
-                    writable: Some(false),
-                    enumerable: Some(false),
-                    configurable: Some(false),
-                    ..Default::default()
-                }));
-            }
-        }
-
         if function.has_flag(ecmascript_function_flags::MAY_NEED_LAZY_PROTOTYPE_INSTANTIATION)
             && *property_key == vm.names.prototype
         {
@@ -1277,38 +1233,6 @@ impl EcmascriptFunctionObject {
             Self::internal_get_own_property(object, vm, &vm.names.prototype)?;
         }
 
-        let keys = object.ordinary_own_property_keys(vm)?;
-        if !function.supports_legacy_caller_or_arguments() {
-            return Ok(keys);
-        }
-
-        let mut insertion_index = keys.len();
-        let name = Utf16String::from(vm.names.name.as_string());
-        for index in 0..keys.len() {
-            let key = keys.get(index).expect("the index is in bounds");
-            if key.is_string() && key.as_string().utf16_string() == name {
-                insertion_index = index + 1;
-                break;
-            }
-        }
-
-        if object.ordinary_get_own_property(vm, &vm.names.arguments)?.is_none() {
-            keys.insert(
-                insertion_index,
-                Value::from_string(PrimitiveString::create_from_fly_string(
-                    vm,
-                    vm.names.arguments.as_string(),
-                )),
-            );
-            insertion_index += 1;
-        }
-        if object.ordinary_get_own_property(vm, &vm.names.caller)?.is_none() {
-            keys.insert(
-                insertion_index,
-                Value::from_string(PrimitiveString::create_from_fly_string(vm, vm.names.caller.as_string())),
-            );
-        }
-
-        Ok(keys)
+        object.ordinary_own_property_keys(vm)
     }
 }
