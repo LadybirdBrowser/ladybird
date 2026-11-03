@@ -155,6 +155,9 @@ pub(in super::super) struct Live {
     /// is not displayed: the host asks for the styles of the SVG resources such a subtree holds,
     /// which paint wherever they are referenced, and of its elements with animations.
     pub(super) kept_hidden: Vec<StyleNodeID>,
+    /// Which records computed for `kept_hidden` still stand, so that an installation computes
+    /// only those something could have moved.
+    pub(super) kept_hidden_records: ForkReset<super::demand::KeptHiddenRecords>,
 }
 
 /// What passes and the invalidation of transactions work in, which holds nothing between them.
@@ -436,6 +439,15 @@ struct MatchedDeclarationsInputs {
 }
 
 impl MatchedDeclarationsInputs {
+    /// Whether these inputs differ from `other` in nothing but the size of the viewport, which the
+    /// records reading it name.
+    fn same_besides_viewport(&self, other: &Self) -> bool {
+        Self {
+            viewport: other.viewport,
+            ..*self
+        } == *other
+    }
+
     fn of(inputs: &super::super::bridge::FfiDocumentStyleComputationInputs) -> Self {
         Self {
             initial_style: InitialStyleInputs::of(inputs),
@@ -545,6 +557,18 @@ impl Live {
             self.scratch.matched_declarations.forget();
         }
         let changes = state.projection.changes();
+        if transaction.restyles_everything || !transaction.rule_changes.is_empty() {
+            self.kept_hidden_records.forget();
+        } else {
+            self.kept_hidden_records.note_environment_moved(transaction.environment);
+        }
+        self.kept_hidden_records
+            .note_moved(transaction.style_inputs.iter().map(|&(node, _)| node));
+        self.kept_hidden_records
+            .note_left(changes.iter().filter_map(|&(node, change)| match change {
+                ElementChange::Relations(_, None) => Some(node),
+                _ => None,
+            }));
         if transaction.has_no_element_inputs() && changes.is_empty() && transaction.rule_changes.is_empty() {
             return;
         }
@@ -570,6 +594,18 @@ impl Live {
             self.invalidate(state, transaction, changes);
         }
         self.bump(LiveField::InvalidationNanoseconds, started.elapsed().as_nanos() as u64);
+    }
+
+    /// Note what no pass tells of the hints: a pass styles the elements holding a record and tells
+    /// whether their children compute from something else, but not those below an element that is
+    /// not displayed, or what restyling descendants reaches.
+    pub(super) fn note_hints_moved_kept_hidden_records(&mut self) {
+        let (hints, records, kept) = (&self.hints, &self.records, &mut *self.kept_hidden_records);
+        for &node in &hints.marked {
+            if records.get(node).is_none() || kept.computed(node) || hints.get(node) & RESTYLE_DESCENDANTS != 0 {
+                kept.note_moved([node]);
+            }
+        }
     }
 
     /// Whether the next pass has anything to do: an input since the last pass can restyle any
@@ -769,6 +805,7 @@ impl Live {
     /// so what a record names is compared with what it would name now.
     fn note_counter_style_environment_moved(&mut self, state: &RetainedState) {
         self.scratch.matched_declarations.forget();
+        self.kept_hidden_records.forget();
         self.restyle_records_where(state, |_, target, record| {
             record.rare().counter_style_environment_identity
                 != state.values_counter_style_environment_identity(target, |property| record.effective_value(property))
@@ -834,6 +871,7 @@ impl Live {
         }
         self.scratch.matched_declarations.forget();
         let raw: HashSet<usize> = names.iter().map(ak::Utf16FlyString::raw_identity).collect();
+        self.kept_hidden_records.forget();
         let texts: Vec<std::borrow::Cow<'_, [u16]>> = names.iter().map(ak::Utf16FlyString::to_utf16).collect();
         self.restyle_records_where(state, |records, target, record| {
             let node = target.node();
@@ -944,6 +982,7 @@ impl Live {
     /// substitute something that may.
     fn note_custom_functions_moved(&mut self, state: &RetainedState) {
         self.scratch.matched_declarations.forget();
+        self.kept_hidden_records.forget();
         self.restyle_records_where(state, |_, _, record| {
             record.rare().custom_property_reads == LonghandCustomPropertyReads::Any
                 || record.custom_declarations().is_some_and(|declarations| {
@@ -2017,6 +2056,7 @@ impl Live {
         let state: &RetainedState = retained;
         let started = Instant::now();
         self.generation += 1;
+        self.note_hints_moved_kept_hidden_records();
         let slot_count = state.projection.element_slot_count();
         self.hints.reserve(slot_count);
         self.scratch.cells.reserve(slot_count);
@@ -2036,6 +2076,16 @@ impl Live {
         let reordered_scopes = std::mem::take(&mut self.reordered_scopes);
         let layered_scopes = std::mem::take(&mut self.layered_scopes);
         let matched_declarations_inputs = MatchedDeclarationsInputs::of(&state.document_style_computation_inputs);
+        if rebuilds_index
+            || updates_index
+            || keyframes_moved.is_some()
+            || self
+                .scratch
+                .matched_declarations_inputs
+                .is_none_or(|inputs| !inputs.same_besides_viewport(&matched_declarations_inputs))
+        {
+            self.kept_hidden_records.forget();
+        }
         if rebuilds_index
             || updates_index
             || self.scratch.matched_declarations_inputs != Some(matched_declarations_inputs)
@@ -2325,6 +2375,19 @@ impl Live {
             &waiting_restyling_descendants,
         );
         self.keep_deferred_hints(&state.projection, &statistics.deferred, &waiting);
+        self.kept_hidden_records
+            .note_moved(statistics.children_moved.iter().copied());
+        // NB: A pass tells nothing of the children of an element that is not displayed, as it walks none of them.
+        let records = &self.records;
+        self.kept_hidden_records.note_moved(
+            statistics
+                .styled
+                .iter()
+                .copied()
+                .filter(|&node| records.get(node).is_none_or(|record| !record.is_displayed())),
+        );
+        self.kept_hidden_records
+            .note_moved(statistics.moved_custom_properties.iter().copied());
         let styled = Instant::now();
         self.bump(LiveField::Passes, 1);
         self.bump(LiveField::FullPasses, u64::from(!hinted));
@@ -4148,6 +4211,7 @@ impl StyleEngine {
                 .style_preorder(root)
                 .filter(|&node| self.retained.keeps_style_in_display_none_subtree(node))
                 .collect(),
+            kept_hidden_records: Default::default(),
         }));
         self.retained
             .cold_passes
