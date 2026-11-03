@@ -926,7 +926,7 @@ impl AbsposEngine<'_> {
         // https://drafts.csswg.org/css-anchor-position-1/#anchor-size-resolution
         // If no fallback value is specified, it makes the declaration referencing it invalid at computed-value time.
         let resolve_size = |size: &ComputedSize, is_horizontal: bool, initial: ComputedSizeKind| {
-            if !size.is_length_percentage() || !size.length_percentage().contains_anchor_function() {
+            if !size.contains_anchor_function() {
                 return None;
             }
             let extent = if is_horizontal { inline_size } else { block_size };
