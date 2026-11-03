@@ -4428,7 +4428,7 @@ mod replaced_ratio_tests {
                 ..Default::default()
             },
         );
-        let host_findings_outside_runs = RefCell::default();
+        let host_findings_outside_runs = crate::layout::run_state::HostFindingsSink::default();
         let callbacks = LayoutPass::new(
             &arena,
             &scratch,

@@ -669,7 +669,7 @@ mod tests {
         let block = arena.allocate_for_test().slot;
         scratch.apply_memo_invalidations(&mut arena);
         let keep = |arena: &LayoutNodeArena, scratch: &LayoutScratch| {
-            let host_findings_outside_runs = RefCell::default();
+            let host_findings_outside_runs = crate::layout::run_state::HostFindingsSink::default();
             let validity = run_root_validity(
                 &LayoutPass::for_test(arena, scratch, &host_findings_outside_runs),
                 block,
