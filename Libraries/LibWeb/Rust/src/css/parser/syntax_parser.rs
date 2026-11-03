@@ -1831,7 +1831,7 @@ impl Parser {
             }
             if let Some(important_index) = important_index {
                 let mut bang_index = None;
-                for index in (1..important_index).rev() {
+                for index in (0..important_index).rev() {
                     if value[index].is_delim(b'!') {
                         bang_index = Some(index);
                         break;
@@ -4967,6 +4967,22 @@ mod tests {
         assert!(declarations[0].important);
         assert!(declarations[1].important);
         assert!(declarations[2].important);
+    }
+
+    #[test]
+    fn consumes_important_without_value_tokens() {
+        for source in [
+            "--x:!important",
+            "--x: !important",
+            "--x:\t! \n IMPORTANT \t",
+            "--x:/**/!/**/important/**/",
+            "--x:!\\69mportant",
+        ] {
+            let declarations = declarations(source);
+            assert_eq!(declarations.len(), 1, "{source:?}");
+            assert!(declarations[0].important, "{source:?}");
+            assert!(declarations[0].value.is_empty(), "{source:?}");
+        }
     }
 
     #[test]
