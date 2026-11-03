@@ -43,11 +43,7 @@ pub(super) fn lay_out_discarded_run(
     if run_repeatability_verification() == RunRepeatabilityVerification::Off || callbacks.reads_no_memoized_layout() {
         return None;
     }
-    Some(
-        callbacks
-            .layout_trace()
-            .without_events(|| callbacks.lay_out_discarded_run(run)),
-    )
+    Some(callbacks.lay_out_discarded_run(run))
 }
 
 /// Checks that the run of `box_` that produced `used` repeated what the discarded run that produced `discarded` did.
@@ -162,9 +158,8 @@ pub(super) fn verify_run_ignores_its_unobserved_own_block_size_and_block_margins
         reference_inputs.push((cells, input.clone(), reference));
     }
     for (reference_cells, reference_input, reference) in reference_inputs {
-        let reference_outputs = callbacks.layout_trace().without_events(|| {
-            callbacks.lay_out_discarded_run(|callbacks| lay_out(callbacks, reference_cells, reference_input))
-        });
+        let reference_outputs =
+            callbacks.lay_out_discarded_run(|callbacks| lay_out(callbacks, reference_cells, reference_input));
         ComparedLayouts {
             checked: &checked,
             reference: &reference,

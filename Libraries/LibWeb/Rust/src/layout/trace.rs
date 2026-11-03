@@ -180,46 +180,62 @@ impl LayoutTrace {
         record.0 = self.0.take();
     }
 
-    /// Runs `untraced` with nothing it does traced.
-    pub(super) fn without_events<R>(&self, untraced: impl FnOnce() -> R) -> R {
-        let trace = self.0.take();
-        let result = untraced();
-        *self.0.borrow_mut() = trace;
-        result
-    }
-
     pub(super) fn pass(&self, partial_root: Option<NodeSlotId>) -> Option<Scope<'_>> {
         match partial_root {
             Some(root) => self.scope("layout PARTIAL ", Some(root), String::new),
             None => self.scope("layout FULL", None, String::new),
         }
     }
+}
+
+/// Where a pass view records the events of its runs: the pass's trace, or nowhere for the view of a run whose result is
+/// discarded.
+#[derive(Clone, Copy)]
+pub(crate) struct LayoutTraceTarget<'a>(Option<&'a LayoutTrace>);
+
+impl<'a> LayoutTraceTarget<'a> {
+    pub(super) fn recording_into(trace: &'a LayoutTrace) -> Self {
+        Self(Some(trace))
+    }
+
+    pub(super) fn recording_nothing() -> Self {
+        Self(None)
+    }
+
+    fn scope(
+        self,
+        prefix: &'static str,
+        owner: Option<NodeSlotId>,
+        text: impl FnOnce() -> String,
+    ) -> Option<Scope<'a>> {
+        self.0?.scope(prefix, owner, text)
+    }
 
     /// An in-flow block whose subtree is reused from the previous layout, moved to where the flow now puts it.
-    pub(super) fn reused_in_flow_subtree(&self, node: NodeSlotId) {
+    pub(super) fn reused_in_flow_subtree(self, node: NodeSlotId) {
         drop(self.scope("", Some(node), || " REUSE IN-FLOW SUBTREE".into()));
     }
 
     /// An intrinsic size of `node` that the measurement cache holds.
-    pub(super) fn intrinsic_size_hit(&self, node: NodeSlotId, kind: IntrinsicSizeCacheKind) {
+    pub(super) fn intrinsic_size_hit(self, node: NodeSlotId, kind: IntrinsicSizeCacheKind) {
         drop(self.scope("", Some(node), || {
             format!(" MEASURE {} (cache=hit)", intrinsic_size_name(kind))
         }));
     }
 
     /// An intrinsic size of `node` that the measurement cache does not hold. The work that measures it nests under it.
-    pub(super) fn intrinsic_size_miss(&self, node: NodeSlotId, kind: IntrinsicSizeCacheKind) -> Option<Scope<'_>> {
+    pub(super) fn intrinsic_size_miss(self, node: NodeSlotId, kind: IntrinsicSizeCacheKind) -> Option<Scope<'a>> {
         self.scope("", Some(node), || {
             format!(" MEASURE {} (cache=miss)", intrinsic_size_name(kind))
         })
     }
 
     pub(super) fn run(
-        &self,
+        self,
         root: NodeSlotId,
         fc_type: FormattingContextType,
         action: impl FnOnce() -> &'static str,
-    ) -> Option<Scope<'_>> {
+    ) -> Option<Scope<'a>> {
         self.scope("", Some(root), || {
             let context = match fc_type {
                 FormattingContextType::Block => "block",
@@ -381,14 +397,15 @@ mod tests {
         trace.begin();
         {
             let _pass = trace.scope("layout FULL", None, String::new);
+            let target = LayoutTraceTarget::recording_into(&trace);
             {
-                let miss = trace
+                let miss = target
                     .intrinsic_size_miss(NodeSlotId::new(1, 1), IntrinsicSizeCacheKind::MaxContentInline)
                     .unwrap();
-                drop(trace.intrinsic_size_miss(NodeSlotId::new(2, 1), IntrinsicSizeCacheKind::MaxContentInline));
+                drop(target.intrinsic_size_miss(NodeSlotId::new(2, 1), IntrinsicSizeCacheKind::MaxContentInline));
                 miss.append(" FROM ITEMS");
             }
-            trace.intrinsic_size_hit(NodeSlotId::new(1, 1), IntrinsicSizeCacheKind::MinContentInline);
+            target.intrinsic_size_hit(NodeSlotId::new(1, 1), IntrinsicSizeCacheKind::MinContentInline);
         }
         // The owners are not named, so each line starts with the indentation and the space before the event.
         assert_eq!(
@@ -436,7 +453,7 @@ mod tests {
         arena.begin_active_layout_pass();
         let recorder = LayoutTrace::default();
         recorder.take_over_from(&mut arena.layout_trace);
-        drop(recorder.run(owner.slot, FormattingContextType::Block, || "RUN"));
+        drop(LayoutTraceTarget::recording_into(&recorder).run(owner.slot, FormattingContextType::Block, || "RUN"));
         recorder.hand_back_to(&mut arena.layout_trace);
         assert!(arena.leave_active_layout_pass());
         let names = arena

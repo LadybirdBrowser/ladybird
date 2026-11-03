@@ -170,9 +170,13 @@ impl<'arena> LayoutPass<'arena> {
         None
     }
 
-    /// The document's layout trace, which records what the pass does while the document traces its layout.
-    pub(crate) fn layout_trace(&self) -> &'arena super::trace::LayoutTrace {
-        &self.scratch.layout_trace
+    /// Where this pass view records what its runs do while the document traces its layout: the document's layout trace,
+    /// or nowhere inside a run whose result is discarded.
+    pub(crate) fn layout_trace(&self) -> super::trace::LayoutTraceTarget<'arena> {
+        if self.reads_no_memoized_layout {
+            return super::trace::LayoutTraceTarget::recording_nothing();
+        }
+        super::trace::LayoutTraceTarget::recording_into(&self.scratch.layout_trace)
     }
 
     /// The results of formatting context runs, kept for the runs and passes after them.
