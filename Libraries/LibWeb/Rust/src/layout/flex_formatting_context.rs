@@ -2229,6 +2229,19 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.flex_items[index].hypothetical_cross_size = css_clamp(size, min, max);
     }
 
+    fn hypothetical_cross_size_is_fit_content_block_size(&self, index: usize) -> bool {
+        if self.cross_axis_is_horizontal()
+            || self.has_definite_cross_size(index)
+            || self.flex_item_details[index].inputs.preferred_aspect_ratio.is_some()
+        {
+            return false;
+        }
+        let computed = self.computed_cross_size(index);
+        !(computed.is_stretch() && self.cross_axis_stretch_basis().is_some())
+            && !computed.is_min_content()
+            && !computed.is_max_content()
+    }
+
     fn fork_candidates(&self) -> Vec<usize> {
         self.items_to_fork
             .get_or_init(|| {
@@ -2237,6 +2250,57 @@ impl<'pass> FlexFormattingContext<'pass> {
                 })
             })
             .clone()
+    }
+
+    fn measure_content_inline_sizes_of_items_ahead(&self) {
+        let candidates = self.fork_candidates();
+        if candidates.is_empty() {
+            return;
+        }
+        let sizing = self.sizing();
+        let constraints = self.item_containing_block_constraints();
+        let inline_size_is_main_size = self.main_axis_is_horizontal();
+        let measurements = candidates
+            .into_iter()
+            .filter(|&index| {
+                if inline_size_is_main_size {
+                    !self.has_definite_main_size(index)
+                } else {
+                    !self.has_definite_cross_size(index)
+                }
+            })
+            .filter_map(|index| {
+                let cells = &self.flex_item_details[index].cells;
+                sizing.content_inline_size_measurement_ahead(
+                    sizing_context::SizedBox::new(self.flex_items[index].box_, cells),
+                    constraints,
+                    cells.has_definite_block_size.then_some(cells.content_block_size),
+                )
+            })
+            .collect();
+        sizing.measure_content_inline_sizes_ahead(measurements);
+    }
+
+    fn lay_out_fit_content_cross_size_measurements_ahead(&self) {
+        let candidates = self.fork_candidates();
+        if candidates.is_empty() {
+            return;
+        }
+        let sizing = self.sizing();
+        let constraints = self.item_containing_block_constraints();
+        let shapes = candidates
+            .into_iter()
+            .filter(|&index| self.hypothetical_cross_size_is_fit_content_block_size(index))
+            .filter_map(|index| {
+                let inline_size = clamp_to_max_dimension_value(self.flex_items[index].main_size?);
+                sizing.max_content_block_size_run_shape(
+                    sizing_context::SizedBox::new(self.flex_items[index].box_, &self.flex_item_details[index].cells),
+                    inline_size,
+                    constraints,
+                )
+            })
+            .collect();
+        parallel_layout::lay_out_shapes_ahead(&self.run.callbacks, shapes);
     }
 
     // https://drafts.csswg.org/css-flexbox/#hypothetical-cross-size
@@ -4155,6 +4219,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         }
 
         self.offer_runs_of_items_measured_in_their_main_axis();
+        self.measure_content_inline_sizes_of_items_ahead();
 
         // 4. Determine the main size of the flex container
         // Determine the main size of the flex container using the rules of the formatting context in which it participates.
@@ -4224,6 +4289,7 @@ impl<'pass> FlexFormattingContext<'pass> {
         // Cross Size Determination
         self.offer_runs_of_items_measured_at_their_main_size();
         // 7. Determine the hypothetical cross size of each item
+        self.lay_out_fit_content_cross_size_measurements_ahead();
         for index in 0..self.flex_items.len() {
             self.determine_hypothetical_cross_size_of_item(index);
         }

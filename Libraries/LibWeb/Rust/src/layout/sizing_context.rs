@@ -224,6 +224,29 @@ impl<'cells> SizedCells<'cells> {
     }
 }
 
+pub(crate) fn measure_ahead<J: Send>(
+    callbacks: &LayoutPass<'_>,
+    jobs: Vec<J>,
+    root_of: impl Fn(&J) -> Node + Sync,
+    measure: impl Fn(&SizingContext<'_, '_>, J) + Sync,
+) {
+    let _ = parallel_layout::lay_out_in_parallel(callbacks, jobs, &root_of, |callbacks, job| {
+        let root = root_of(&job);
+        RunState::with_content_inline_sizes_root(
+            callbacks,
+            root,
+            callbacks.in_flow_containing_block(root),
+            |state, _| measure(&SizingContext::new(state, callbacks), job),
+        );
+    });
+}
+
+pub(crate) struct ContentInlineSizeMeasurementAhead {
+    node: Node,
+    constraints: ContainingBlockConstraints,
+    block_size: Option<CssPixels>,
+}
+
 pub(crate) struct SizingContext<'pass, 'container> {
     state: &'pass RunState,
     callbacks: LayoutPass<'pass>,
@@ -3223,6 +3246,61 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         None
     }
 
+    pub(crate) fn content_inline_size_measurement_ahead(
+        &self,
+        sized: SizedBox<'_>,
+        constraints: ContainingBlockConstraints,
+        block_size: Option<CssPixels>,
+    ) -> Option<ContentInlineSizeMeasurementAhead> {
+        let node = sized.node;
+        let key = self.intrinsic_size_cache_key(block_size, constraints);
+        if self
+            .callbacks
+            .intrinsic_size_caches()
+            .intrinsic_inline_size_measurement_cache_get(node, key)
+            .is_some()
+            || self.content_inline_size_ignoring_content(node).is_some()
+            || (block_size.is_none()
+                && self
+                    .definite_block_size_of_replaced_box_in_held_metrics(sized)
+                    .is_some())
+        {
+            return None;
+        }
+        let answered_without_measuring = |kind| {
+            self.content_inline_size_answered_without_measuring_content(sized, constraints, block_size, kind)
+                .is_some()
+        };
+        if answered_without_measuring(IntrinsicSizeCacheKind::MinContentInline)
+            && answered_without_measuring(IntrinsicSizeCacheKind::MaxContentInline)
+        {
+            return None;
+        }
+        Some(ContentInlineSizeMeasurementAhead {
+            node,
+            constraints,
+            block_size,
+        })
+    }
+
+    pub(crate) fn measure_content_inline_sizes(&self, measurement: ContentInlineSizeMeasurementAhead) {
+        self.measure_intrinsic_inline_size(
+            measurement.node,
+            measurement.constraints,
+            measurement.block_size,
+            IntrinsicSizeCacheKind::MinContentInline,
+        );
+    }
+
+    pub(crate) fn measure_content_inline_sizes_ahead(&self, measurements: Vec<ContentInlineSizeMeasurementAhead>) {
+        measure_ahead(
+            &self.callbacks,
+            measurements,
+            |measurement| measurement.node,
+            |sizing, measurement| sizing.measure_content_inline_sizes(measurement),
+        );
+    }
+
     // Answers from the measurement cache or from the first source that sizes `node`'s content, caching both of its
     // content inline sizes. `kind` names the size the caller asked for first, which the trace reports.
     fn measure_intrinsic_inline_size(
@@ -3363,12 +3441,51 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
         value
     }
 
-    fn measure_block_size_with_normal_layout(
+    pub(crate) fn max_content_block_size_run_shape(
+        &self,
+        sized: SizedBox<'_>,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> Option<formatting_context::ChildRunShape> {
+        let node = sized.node;
+        let key = self.intrinsic_size_cache_key(Some(inline_size), constraints);
+        if self
+            .callbacks
+            .intrinsic_size_caches()
+            .max_content_block_size_cache_get(node, key)
+            .is_some()
+            || self.establishes_orthogonal_flow(node)
+            || self.facts(node).has_preferred_aspect_ratio()
+        {
+            return None;
+        }
+        let auto_size = self.auto_content_size(node);
+        if auto_size.height.is_some()
+            || self
+                .max_content_size_for_replaced_element_without_natural_size(
+                    sized,
+                    auto_size,
+                    formatting_context::SizeDimension::Block,
+                    formatting_context::ReplacedMaxContentSizeLimits::default(),
+                )
+                .is_some()
+            || (!self.has_children(node) && !self.has_size_without_children(node))
+        {
+            return None;
+        }
+        let shape = self
+            .child_run_shapes
+            .and_then(|child_run_shapes| child_run_shapes.child_run_shape_at(node, inline_size, constraints))
+            .unwrap_or_else(|| self.normal_layout_measurement_shape(node, inline_size, constraints));
+        (!formatting_context::shape_would_reuse_stored_run(&self.callbacks, &shape)).then_some(shape)
+    }
+
+    fn normal_layout_measurement_shape(
         &self,
         node: Node,
         inline_size: CssPixels,
         constraints: ContainingBlockConstraints,
-    ) -> formatting_context::ChildLayoutResult {
+    ) -> formatting_context::ChildRunShape {
         let mut root = used_values::cells_before_sizing(&self.callbacks, node, constraints);
         root.has_definite_block_size = false;
         root.set_content_inline_size(inline_size);
@@ -3384,7 +3501,19 @@ impl<'pass, 'container> SizingContext<'pass, 'container> {
             formatting_context::independent_formatting_context_type(node, &self.callbacks),
             formatting_context::FormattingContextType::Flex | formatting_context::FormattingContextType::Grid
         );
-        formatting_context::lay_out_measurement_root_for_its_result(self.callbacks, node, root, input)
+        formatting_context::ChildRunShape::of_measurement_root(&self.callbacks, node, root, input)
+    }
+
+    fn measure_block_size_with_normal_layout(
+        &self,
+        node: Node,
+        inline_size: CssPixels,
+        constraints: ContainingBlockConstraints,
+    ) -> formatting_context::ChildLayoutResult {
+        formatting_context::lay_out_shape_for_its_result(
+            self.callbacks,
+            self.normal_layout_measurement_shape(node, inline_size, constraints),
+        )
     }
 
     /// The min-content or max-content block size of a box that establishes an orthogonal flow: its block axis here is
