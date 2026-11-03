@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        height: 3000px;
+    }
+</style>
+<script>
+    // The compositor zooms for a pinch without waiting for the main thread, so every step of a pinch zooms while a task
+    // keeps the main thread busy. Only a step the compositor left to the page holds back the steps after it.
+    promiseTest(async () => {
+        await animationFrame();
+        await animationFrame();
+
+        const steps = 3;
+        const compositorScale = () => internals.compositorScrollState().visualViewportScale;
+        for (let i = 0; i < steps; ++i)
+            internals.pinchThroughUIProcess(400, 300, 0.5);
+
+        // NB: This only gives up on steps that never come, so the time limit can't fail a slow machine's run of a fixed
+        //     engine.
+        const giveUpAt = performance.now() + 5000;
+        while (compositorScale() !== 1.5 ** steps && performance.now() < giveUpAt) {
+            // Stay in this task.
+        }
+        println(`compositor scale beside the task: ${compositorScale()}`);
+        println(`main thread scale beside the task: ${visualViewport.scale}`);
+
+        while (visualViewport.scale !== 1.5 ** steps)
+            await animationFrame();
+        println(`main thread scale after the task: ${visualViewport.scale}`);
+    });
+</script>
