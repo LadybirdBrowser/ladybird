@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // The recording runs in a nested function, so that the document doesn't linger in a register of the test's frame.
+    async function remove_while_loading(iframe) {
+        while (iframe.contentDocument.URL !== "about:srcdoc" || iframe.contentDocument.readyState !== "interactive")
+            await timeout(10);
+
+        // An expando preserves the document's wrapper for as long as the document itself lives.
+        iframe.contentDocument.preserveWrapper = true;
+        const weakDocument = new WeakRef(iframe.contentDocument);
+        iframe.remove();
+        return weakDocument;
+    }
+
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const token = `document-removed-while-loading-${crypto.randomUUID()}`;
+        const imageURL = await server.createEcho("GET", "/document-removed-while-loading-image", {
+            status: 200,
+            headers: { "Content-Type": "image/png", "Cache-Control": "no-store" },
+            body: "xx",
+        });
+
+        // The image's first byte arrives at once, and the rest only once the token is unblocked, so the iframe is
+        // removed while its document still waits to fire its load event.
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = `<img src="${imageURL}?chunks=1&chunk_unblock_tokens=${token}">`;
+        document.body.append(iframe);
+        const weakDocument = await remove_while_loading(iframe);
+
+        for (let round = 0; round < 10 && weakDocument.deref(); ++round)
+            await internals.gcAsync();
+        println(`collected: ${weakDocument.deref() === undefined}`);
+
+        await fetch(new URL(`/unblock/${token}`, imageURL));
+    });
+</script>
