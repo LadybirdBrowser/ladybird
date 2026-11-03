@@ -101,25 +101,21 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
         this->m_crash_count = 0;
     });
 
-    m_audibility_hold_timer = Core::Timer::create_single_shot(AK::Duration::zero(), [this] {
-        // The hold, not the timer's resolution, decides when it has ended.
-        auto now = MonotonicTime::now();
-        if (m_audibility_hold.is_held(now)) {
-            m_audibility_hold_timer->restart(*m_audibility_hold.held_until() - now);
-            return;
-        }
-        update_audibility();
-    });
+    m_tab_indicators.on_visibility_change = [this](TabIndicator indicator, bool visible) {
+        if (indicator == TabIndicator::PlayingAudio)
+            ++m_playing_audio_indicator_change_count;
+        if (on_tab_indicator_change)
+            on_tab_indicator_change(indicator, visible);
+    };
 }
 
 ViewImplementation::~ViewImplementation()
 {
     // The frontend may be torn down already, so clearing the ongoing navigation must not report a URL change to it, nor
-    // cancelling the view's location requests that the location is no longer in use, nor closing the view's page (which
-    // revokes its audio playback) that the tab went quiet.
+    // cancelling the view's location requests or closing the view's page (which revokes its audio playback) a change
+    // in what the tab shows.
     on_url_change = nullptr;
-    on_location_in_use_change = nullptr;
-    on_audibility_changed = nullptr;
+    on_tab_indicator_change = nullptr;
     answer_pending_console_input_completions();
     TabPerformanceMonitor::forget_view(view_id());
     // Leave the views before the permission manager hears: a one-time grant that ends with this view has it revoke
@@ -2956,28 +2952,12 @@ void ViewImplementation::toggle_page_mute_state()
 
 void ViewImplementation::update_audibility()
 {
-    auto audibility = Audio::Audibility::Inaudible;
-    if (m_audibility_hold.is_held(MonotonicTime::now()))
-        audibility = Audio::Audibility::Audible;
+    auto audible = false;
     traversable().for_each_hosting_page([&](WebContentPage& page) {
         if (page.audibility() == Audio::Audibility::Audible)
-            audibility = Audio::Audibility::Audible;
+            audible = true;
     });
-    if (m_audibility == audibility)
-        return;
-    m_audibility = audibility;
-    ++m_audibility_change_count;
-    if (on_audibility_changed)
-        on_audibility_changed(m_audibility);
-}
-
-void ViewImplementation::page_left(WebContentPage const& page)
-{
-    if (page.audibility() != Audio::Audibility::Audible)
-        return;
-    auto now = MonotonicTime::now();
-    if (m_audibility_hold.page_left(page.id(), now))
-        m_audibility_hold_timer->restart(*m_audibility_hold.held_until() - now);
+    m_tab_indicators.set_active(TabIndicator::PlayingAudio, audible, MonotonicTime::now());
 }
 
 void ViewImplementation::reset_page_media_state()
@@ -3547,7 +3527,6 @@ void ViewImplementation::prepare_page_for_navigable(WebContentPage& page)
     // The page's sound plays while it hosts the tab's documents, unless the tab is muted.
     page.client().set_audio_playback_mute_state(page.id(), m_mute_state);
     page.client().authorize_audio_playback(page.id());
-    m_audibility_hold.page_began_hosting(page.id());
     if (Application::browser_options().webdriver_browser_endpoint.has_value())
         Application::the().push_webdriver_session_config(page);
     Application::the().apply_view_options({}, *this, page);
@@ -3608,15 +3587,6 @@ void ViewImplementation::display_page_changed(RefPtr<WebContentPage> previous_pa
         m_debugger_overlay_pointer_state.reset();
         fail_pending_debugger_requests();
         reject_pending_selection_requests();
-
-        // The previous page leaves the tab now, before it is let go of, unless it goes on hosting some of it.
-        auto previous_page_goes_on_hosting = false;
-        traversable().for_each_hosting_page([&](WebContentPage& page) {
-            if (&page == previous_page.ptr())
-                previous_page_goes_on_hosting = true;
-        });
-        if (!previous_page_goes_on_hosting)
-            page_left(*previous_page);
         reset_page_media_state();
 
         // Keep showing the outgoing page until the page paints its first frame.
@@ -4667,11 +4637,7 @@ u64 ViewImplementation::system_microphone_requests_for_testing() const
 void ViewImplementation::update_location_in_use()
 {
     auto in_use = !m_geolocation_position_request_ids.is_empty() || !m_geolocation_watch_ids.is_empty();
-    if (in_use == m_location_in_use)
-        return;
-    m_location_in_use = in_use;
-    if (on_location_in_use_change)
-        on_location_in_use_change(in_use);
+    m_tab_indicators.set_active(TabIndicator::UsingLocation, in_use, MonotonicTime::now());
 }
 
 void ViewImplementation::revoke_geolocation_without_permission()

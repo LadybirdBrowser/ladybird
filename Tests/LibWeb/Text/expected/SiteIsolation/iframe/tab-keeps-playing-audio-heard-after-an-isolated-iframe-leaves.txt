@@ -1,4 +1,6 @@
 plays audio heard in the isolated iframe: true
-plays audio heard after the hold: true
+stops being heard once the iframe is gone: true
+is heard playing audio in this document: true
+plays audio after it would have stopped: true
 stops playing audio once nothing is heard: true
 changed whether it plays audio once: true

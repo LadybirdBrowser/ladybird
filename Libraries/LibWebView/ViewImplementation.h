@@ -69,7 +69,6 @@
 #include <LibWebCommon/WebView/PageInfo.h>
 #include <LibWebCommon/WebView/StorageSetResult.h>
 #include <LibWebCommon/WebView/ZoomLevel.h>
-#include <LibWebView/AudibilityHold.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -83,6 +82,7 @@
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/SpellChecker.h>
+#include <LibWebView/TabIndicators.h>
 #include <LibWebView/TabPerformanceStats.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebContentPage.h>
@@ -181,7 +181,7 @@ public:
     u64 system_microphone_requests_for_testing() const;
     u64 microphone_denied_notices_shown_for_testing() const { return m_microphone_denied_notices_shown; }
 
-    bool location_in_use() const { return m_location_in_use; }
+    bool location_in_use() const { return m_tab_indicators.is_active(TabIndicator::UsingLocation); }
 
     // Ends every location request and watch whose document the user has since taken the permission away from.
     void revoke_geolocation_without_permission();
@@ -510,13 +510,13 @@ public:
     Web::HTML::MuteState page_mute_state() const { return m_mute_state; }
     void toggle_page_mute_state();
 
-    // The tab is audible while the AudioServer has recently heard any page of it, and for a while after a page leaves it
-    // while heard. A page lost along with its process doesn't leave.
+    // The tab plays audio while the AudioServer has recently heard any page of it.
     void update_audibility(Badge<WebContentPage>) { update_audibility(); }
-    void did_release_page(Badge<CanonicalTraversable>, WebContentPage const& page) { page_left(page); }
-    void did_close_page(Badge<WebContentPage>, Web::PageId page_id) { m_audibility_hold.page_closed(page_id); }
-    Audio::Audibility audibility() const { return m_audibility; }
-    u64 audibility_change_count() const { return m_audibility_change_count; }
+    void did_release_page(Badge<CanonicalTraversable>) { update_audibility(); }
+    bool is_playing_audio() const { return m_tab_indicators.is_active(TabIndicator::PlayingAudio); }
+
+    bool tab_indicator_visible(TabIndicator indicator) const { return m_tab_indicators.is_visible(indicator); }
+    u64 playing_audio_indicator_change_count() const { return m_playing_audio_indicator_change_count; }
     void did_change_screen_wake_lock_state(Badge<WebContentPage>, Web::ScreenWakeLockState);
 
     void did_reset_state_for_testing(Badge<WebContentPage>, Web::HTML::SessionHistoryEntryDescriptor);
@@ -664,7 +664,7 @@ public:
     Function<void(WebContentPage& requesting_page, u64 request_id)> on_stop_geolocation_position_watch;
     Function<void(PermissionPromptRequest const&, PermissionPromptCallback)> on_request_permission;
     Function<void(PermissionPromptRequest const&)> on_cancel_permission_prompt;
-    Function<void(bool)> on_location_in_use_change;
+    Function<void(TabIndicator, bool visible)> on_tab_indicator_change;
     Function<void(Web::HTML::FileFilter const& accepted_file_types, Web::HTML::AllowMultipleFiles)> on_request_file_picker;
     Function<void(Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items)> on_request_select_dropdown;
     Function<void(Web::KeyEvent const&)> on_finish_handling_key_event;
@@ -677,7 +677,6 @@ public:
     Function<void(size_t current_match_index, Optional<size_t> const& total_match_count)> on_find_in_page;
     Function<void(Gfx::Color)> on_theme_color_change;
     Function<void(Gfx::Color)> on_page_background_color_change;
-    Function<void(Audio::Audibility)> on_audibility_changed;
     Function<void(Web::ScreenWakeLockState)> on_screen_wake_lock_state_changed;
     enum class WebContentCrashReason {
         ProcessCrash,
@@ -823,7 +822,6 @@ protected:
     WebContentPage& focused_navigable_host() const;
     void reset_page_media_state();
     void update_audibility();
-    void page_left(WebContentPage const&);
 
     // A navigation to make again on reload: one the user stopped before its document was activated, or one a crash cut
     // short. It's made again from the source it was first made from, when it has one (a javascript: URL has none).
@@ -1116,10 +1114,8 @@ protected:
     // https://w3c.github.io/webdriver/#dfn-current-parent-browsing-context
     Optional<Web::HTML::CrossProcessId> m_webdriver_current_parent_navigable_id;
 
-    Audio::Audibility m_audibility { Audio::Audibility::Inaudible };
-    u64 m_audibility_change_count { 0 };
-    AudibilityHold m_audibility_hold;
-    RefPtr<Core::Timer> m_audibility_hold_timer;
+    TabIndicators m_tab_indicators;
+    u64 m_playing_audio_indicator_change_count { 0 };
     Web::ScreenWakeLockState m_screen_wake_lock_state { Web::ScreenWakeLockState::Released };
 
     Web::HTML::MuteState m_mute_state { Web::HTML::MuteState::Unmuted };
@@ -1162,7 +1158,6 @@ protected:
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::RequestId> m_geolocation_position_request_ids;
     HashMap<GeolocationRequestKey, Core::GeolocationProvider::WatchId> m_geolocation_watch_ids;
     HashMap<GeolocationRequestKey, Web::HTML::CrossProcessId> m_geolocation_request_documents;
-    bool m_location_in_use { false };
     Vector<Web::Permissions::PermissionName> m_permissions_requested_by_page;
 
     struct PendingPermissionPrompt {

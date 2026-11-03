@@ -27,7 +27,7 @@ struct MixerFixture {
     RefPtr<Audio::PlaybackStreamMixer> mixer;
     Vector<AudibilityReport> audibility_reports;
 
-    explicit MixerFixture(AK::Duration audibility_linger = Audio::AUDIBILITY_LINGER)
+    explicit MixerFixture(AK::Duration audibility_smoothing = Audio::AUDIBILITY_SMOOTHING)
     {
         mixer = Audio::PlaybackStreamMixer::create(
             loop, 100, [this](Audio::OutputState state, u32, Audio::PlaybackStream::AudioDataRequestCallback callback) {
@@ -36,7 +36,7 @@ struct MixerFixture {
                 promise->resolve(*device);
                 return promise;
             },
-            audibility_linger);
+            audibility_smoothing);
         EXPECT(device);
         EXPECT(mixer->device_sample_specification().has_value());
         mixer->set_group_authorization(AUTHORIZED_GROUP, Audio::PlaybackGroupAuthorization::Authorized);
@@ -628,16 +628,16 @@ TEST_CASE(a_muted_group_does_not_cancel_what_quiet_groups_play_together)
     EXPECT(fixture.audibility_reports.contains_slow(AudibilityReport { OTHER_GROUP, AUDIBLE }));
 }
 
-TEST_CASE(a_group_stays_audible_until_the_linger_has_passed_since_it_was_last_heard)
+TEST_CASE(a_group_stays_audible_until_the_smoothing_has_passed_since_it_was_last_heard)
 {
-    static constexpr auto LINGER = AK::Duration::from_milliseconds(200);
-    MixerFixture fixture(LINGER);
+    static constexpr auto SMOOTHING = AK::Duration::from_milliseconds(200);
+    MixerFixture fixture(SMOOTHING);
     auto client = fixture.add_client(1);
     fixture.mixer->resume_client(1);
 
     auto heard_since = MonotonicTime::now();
     auto last_heard_at = heard_since;
-    while (MonotonicTime::now() - heard_since < LINGER + LINGER) {
+    while (MonotonicTime::now() - heard_since < SMOOTHING + SMOOTHING) {
         (void)client.try_push(constant_frames(32, 1.0f));
         last_heard_at = MonotonicTime::now();
         fixture.render_and_report(32);
@@ -646,7 +646,7 @@ TEST_CASE(a_group_stays_audible_until_the_linger_has_passed_since_it_was_last_he
 
     // Nothing more is rendered, as when the device has stopped.
     EXPECT(fixture.pump_until([&] { return fixture.audibility_reports.size() == 2; }));
-    EXPECT(MonotonicTime::now() - last_heard_at >= LINGER);
+    EXPECT(MonotonicTime::now() - last_heard_at >= SMOOTHING);
     EXPECT(fixture.audibility_reports.last() == AudibilityReport { AUTHORIZED_GROUP, INAUDIBLE });
 }
 

@@ -47,10 +47,10 @@ public:
     using DeviceStreamFactory = Function<NonnullRefPtr<PlaybackStream::CreatePromise>(OutputState, u32 target_latency_ms, PlaybackStream::AudioDataRequestCallback)>;
 
     // Control thread. The device stream opens suspended through the factory.
-    static NonnullRefPtr<PlaybackStreamMixer> create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory, AK::Duration audibility_linger = AUDIBILITY_LINGER);
+    static NonnullRefPtr<PlaybackStreamMixer> create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory, AK::Duration audibility_smoothing = AUDIBILITY_SMOOTHING);
 
-    // Control thread. A group becomes audible as soon as it is heard, and inaudible once the linger has passed since it
-    // last was, or at once when it is revoked or the mixer is let go of.
+    // Control thread. A group becomes audible as soon as it is heard, and inaudible once the smoothing has passed since
+    // it last was, or at once when it is revoked or the mixer is let go of.
     Function<void(PlaybackGroupId, Audibility)> on_group_audibility_changed;
     void report_every_group_inaudible();
     ~PlaybackStreamMixer();
@@ -126,7 +126,7 @@ private:
         HashMap<PlaybackGroupId, i64> m_audible_until_ns;
     };
 
-    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms, AK::Duration audibility_linger);
+    PlaybackStreamMixer(NonnullRefPtr<MixState>, u32 device_target_latency_ms, AK::Duration audibility_smoothing);
 
     void set_device_stream(NonnullRefPtr<PlaybackStream>);
     void set_device_error(Error);
@@ -150,9 +150,9 @@ private:
     bool m_device_is_playing { false };
     HashMap<MixerClientId, NonnullRefPtr<Core::Timer>> m_drain_timers;
 
-    AK::Duration const m_audibility_linger;
+    AK::Duration const m_audibility_smoothing;
     HashTable<PlaybackGroupId> m_audible_groups;
-    // Runs when the earliest audible group's linger would pass, which the device need not be playing for.
+    // Runs when the earliest audible group's smoothing would pass, which the device need not be playing for.
     RefPtr<Core::Timer> m_audibility_timer;
 };
 

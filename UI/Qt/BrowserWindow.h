@@ -9,7 +9,6 @@
 
 #include <AK/Optional.h>
 #include <AK/kmalloc.h>
-#include <LibAudio/Audibility.h>
 #include <LibURL/URL.h>
 #include <LibWebCommon/HTML/ActivateTab.h>
 #include <LibWebCommon/Page/PageId.h>
@@ -239,7 +238,7 @@ public:
 public slots:
     void tab_title_changed(int index, QString const&);
     void tab_favicon_changed(int index, QIcon const& icon);
-    void tab_audibility_changed(int index, Audio::Audibility);
+    void tab_playing_audio_indicator_changed(int index);
     Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab, TabLocation);
     void open_new_tab();
     void activate_tab(int index);

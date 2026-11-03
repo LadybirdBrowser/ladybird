@@ -14,6 +14,15 @@
         // The tab can still be remembered as playing a previous test's sound.
         await waitForCondition(() => !internals.tabIsPlayingAudio());
         const httpServer = httpTestServer();
+
+        // This document's audio runs silently from the start, so its sound is heard as soon as it is let through.
+        const context = new AudioContext();
+        const gain = new GainNode(context, { gain: 0 });
+        const oscillator = new OscillatorNode(context);
+        oscillator.connect(gain).connect(context.destination);
+        oscillator.start();
+        await waitForCondition(() => context.currentTime >= 0.5);
+
         const childUrl = new URL(
             await httpServer.createEcho("GET", "/tab-keeps-playing-audio-heard-after-an-isolated-iframe-leaves-child", {
                 status: 200,
@@ -28,12 +37,18 @@
         document.body.appendChild(iframe);
         println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
 
-        // This document's sound starts while the iframe's page holds the tab, and goes on after the hold has ended.
+        // This document's sound starts while the tab goes on playing the sound of the iframe's page that left it, and
+        // keeps the tab playing audio past when it would have stopped.
         const changes = internals.tabAudibilityChangeCount();
         iframe.remove();
-        const context = play();
-        await new Promise(resolve => setTimeout(resolve, 4000));
-        println(`plays audio heard after the hold: ${internals.tabIsPlayingAudio()}`);
+        println(`stops being heard once the iframe is gone: ${await waitForCondition(() => !internals.tabIsHeardPlayingAudio())}`);
+        const leftAt = performance.now();
+        gain.gain.value = 1;
+        println(`is heard playing audio in this document: ${await waitForCondition(() => internals.tabIsHeardPlayingAudio())}`);
+
+        // The tab would have stopped playing audio a while after the iframe left, which only time passing can show.
+        await new Promise(resolve => setTimeout(resolve, Math.max(0, leftAt + 4000 - performance.now())));
+        println(`plays audio after it would have stopped: ${internals.tabIsPlayingAudio()}`);
 
         await context.close();
         println(`stops playing audio once nothing is heard: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);

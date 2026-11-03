@@ -34,7 +34,7 @@
         println(`plays audio heard in the isolated iframe: ${await waitForCondition(() => internals.tabIsPlayingAudio())}`);
 
         // The iframe's page leaves the tab while it is heard, as the iframe navigates to another site. Losing the process
-        // of the iframe's next document doesn't end the hold.
+        // of the iframe's next document doesn't cut short how long the tab goes on playing audio.
         const changes = internals.tabAudibilityChangeCount();
         const arrived = nextMessage();
         const navigatedAt = performance.now();
@@ -42,7 +42,6 @@
         await arrived;
         internals.crashRemoteFrameProcesses();
         println(`the iframe's next process is gone: ${await waitForCondition(() => remoteFrameCount() === 0)}`);
-        println(`plays audio: ${internals.tabIsPlayingAudio()}`);
         println(`stops playing audio a while later: ${await waitForCondition(() => !internals.tabIsPlayingAudio())}`);
         const heldFor = performance.now() - navigatedAt;
         println(`went on playing audio for at least two and a half seconds after navigating: ${heldFor >= 2500}`);

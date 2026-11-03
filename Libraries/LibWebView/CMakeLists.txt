@@ -2,7 +2,6 @@ set(SOURCES
     AccessibilityTreeManager.cpp
     Application.cpp
     ApplyHistoryStep.cpp
-    AudibilityHold.cpp
     AudioServerAudibility.cpp
     AudioServerControlClient.cpp
     Autocomplete.cpp
@@ -43,6 +42,7 @@ set(SOURCES
     HistoryDebug.cpp
     HistoryStore.cpp
     HSTSStore.cpp
+    LingeringIndicator.cpp
     Menu.cpp
     NavigationLoader.cpp
     Omnibox.cpp
@@ -56,6 +56,7 @@ set(SOURCES
     Process.cpp
     ProcessManager.cpp
     ProcessSnapshot.cpp
+    TabIndicators.cpp
     TabPerformanceStats.cpp
     TabPerformanceMonitor.cpp
     ProcessMonitor.cpp

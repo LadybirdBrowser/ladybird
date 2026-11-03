@@ -13,10 +13,10 @@
 
 namespace Audio {
 
-NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory factory, AK::Duration audibility_linger)
+NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& control_loop, u32 target_latency_ms, DeviceStreamFactory factory, AK::Duration audibility_smoothing)
 {
     auto state = make_ref_counted<MixState>(control_loop);
-    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms, audibility_linger));
+    auto mixer = adopt_ref(*new PlaybackStreamMixer(state, target_latency_ms, audibility_smoothing));
     state->m_mixer = mixer.ptr();
 
     auto promise = factory(OutputState::Suspended, target_latency_ms, [state](Span<float> buffer, MonotonicTime buffer_starts_playing_at) {
@@ -33,10 +33,10 @@ NonnullRefPtr<PlaybackStreamMixer> PlaybackStreamMixer::create(Core::EventLoop& 
     return mixer;
 }
 
-PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms, AK::Duration audibility_linger)
+PlaybackStreamMixer::PlaybackStreamMixer(NonnullRefPtr<MixState> state, u32 device_target_latency_ms, AK::Duration audibility_smoothing)
     : m_state(move(state))
     , m_device_target_latency_ms(device_target_latency_ms)
-    , m_audibility_linger(audibility_linger)
+    , m_audibility_smoothing(audibility_smoothing)
     , m_audibility_timer(Core::Timer::create_single_shot(AK::Duration::zero(), [this] { expire_audibility(); }))
 {
 }
@@ -145,13 +145,13 @@ void PlaybackStreamMixer::group_became_audible(PlaybackGroupId group)
 void PlaybackStreamMixer::expire_audibility()
 {
     auto now_ns = MonotonicTime::now().nanoseconds();
-    auto linger_ns = m_audibility_linger.to_nanoseconds();
+    auto smoothing_ns = m_audibility_smoothing.to_nanoseconds();
     Vector<PlaybackGroupId> expired_groups;
     Optional<i64> next_expiry_ns;
     {
         MutexLocker locker(m_state->m_mutex);
         m_state->m_audible_until_ns.remove_all_matching([&](PlaybackGroupId group, i64 audible_until_ns) {
-            auto expiry_ns = audible_until_ns + linger_ns;
+            auto expiry_ns = audible_until_ns + smoothing_ns;
             if (expiry_ns <= now_ns) {
                 expired_groups.append(group);
                 return true;

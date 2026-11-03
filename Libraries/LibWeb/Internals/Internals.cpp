@@ -2344,6 +2344,11 @@ bool Internals::tab_is_playing_audio()
     return window().associated_document().page().client().page_did_request_tab_is_playing_audio_for_testing();
 }
 
+bool Internals::tab_is_heard_playing_audio()
+{
+    return window().associated_document().page().client().page_did_request_tab_is_heard_playing_audio_for_testing();
+}
+
 WebIDL::UnsignedLongLong Internals::tab_audibility_change_count()
 {
     return window().associated_document().page().client().page_did_request_tab_audibility_change_count_for_testing();

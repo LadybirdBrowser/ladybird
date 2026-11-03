@@ -414,7 +414,7 @@ void CanonicalTraversable::release_page_if_unused(NonnullRefPtr<WebContentPage> 
     if (auto* bidi = WebDriverBiDi::the())
         bidi->push_session_state_for_client(page->client());
     if (auto view = this->view(); view.has_value())
-        view->did_release_page({}, page);
+        view->did_release_page({});
     page->client().revoke_audio_playback(page->id());
     // A page left hosting none of the tab's documents goes on representing the tab to a process holding part of
     // another tab of its group, whose documents can hold the tab's WindowProxies.

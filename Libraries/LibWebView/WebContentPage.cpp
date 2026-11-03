@@ -663,10 +663,6 @@ void WebContentPage::close()
         m_client->forget_audio_playback(m_id);
         GamepadManager::the().page_closed(*this);
     }
-    if (m_traversable) {
-        if (auto view = m_traversable->view(); view.has_value())
-            view->did_close_page({}, m_id);
-    }
     set_audibility(Audio::Audibility::Inaudible);
     m_web_ui = nullptr;
     auto owed_replies = move(m_owed_replies);
@@ -3389,13 +3385,19 @@ Messages::WebContentTestClient::DidRequestSiteIsolationProcessTreeForTestingResp
 Messages::WebContentTestClient::DidRequestTabIsPlayingAudioForTestingResponse WebContentPage::did_request_tab_is_playing_audio_for_testing()
 {
     auto view = traversable().view();
-    return view.has_value() && view->audibility() == Audio::Audibility::Audible;
+    return view.has_value() && view->tab_indicator_visible(TabIndicator::PlayingAudio);
+}
+
+Messages::WebContentTestClient::DidRequestTabIsHeardPlayingAudioForTestingResponse WebContentPage::did_request_tab_is_heard_playing_audio_for_testing()
+{
+    auto view = traversable().view();
+    return view.has_value() && view->is_playing_audio();
 }
 
 Messages::WebContentTestClient::DidRequestTabAudibilityChangeCountForTestingResponse WebContentPage::did_request_tab_audibility_change_count_for_testing()
 {
     auto view = traversable().view();
-    return view.has_value() ? view->audibility_change_count() : 0;
+    return view.has_value() ? view->playing_audio_indicator_change_count() : 0;
 }
 
 void WebContentPage::did_request_crash_of_remote_frame_processes_for_testing()
