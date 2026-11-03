@@ -448,6 +448,7 @@ pub(crate) fn place_child(
         return None;
     };
     fragments.note_placed_box(
+        &run.callbacks,
         node,
         placement,
         cells_kept_for_contained_abspos(run, node, || placed_child.geometry.cells),
@@ -2141,6 +2142,7 @@ fn execute_formatting_context_run(
         fragment_tree::RunFragmentBuilder::new(
             box_,
             (!root_containing_block.is_invalid()).then_some(root_containing_block),
+            &callbacks,
         )
     });
     let (outputs, root_cells_left_by_run) = RunState::with_root_building_fragments(
@@ -2494,7 +2496,7 @@ fn lay_out_run_root_and_contents<'pass>(
     };
     if content_alignment_offset.y != CssPixels::default() {
         if let Some(fragments) = run.fragments {
-            fragments.translate_root_contents(content_alignment_offset);
+            fragments.translate_root_contents(&callbacks, content_alignment_offset);
         }
         let shift = |baseline: Option<CssPixels>| baseline.map(|baseline| baseline + content_alignment_offset.y);
         let shifted_baselines = DerivedBaselines {
@@ -3628,7 +3630,9 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         root,
         Node::INVALID,
         None,
-        Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root)),
+        Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
+            root, &callbacks,
+        )),
         |entry_run_state, callbacks| {
             let _trace = scratch.layout_trace.pass(None);
             let entry_fragments = entry_run_state
@@ -3778,7 +3782,9 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         entry_root,
         entry_root_containing_block,
         None,
-        Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root)),
+        Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
+            entry_root, &callbacks,
+        )),
         |entry_run_state, callbacks| {
             let _trace = scratch.layout_trace.pass(Some(root));
             let entry_fragments = entry_run_state
@@ -3852,6 +3858,7 @@ fn layout_subtree_with_frozen_root_geometry(run: &FormattingContextRun<'_>) {
         .placement
         .expect("the root of a partial relayout keeps the placement it committed");
     fragments.note_placed_box(
+        &run.callbacks,
         root,
         placement,
         cells_kept_for_contained_abspos(run, root, || root_geometry.cells),

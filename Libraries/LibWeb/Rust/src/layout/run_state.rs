@@ -25,6 +25,7 @@ pub(crate) struct LayoutScratch {
     text_memos: super::rendered_text::TextMemos,
     inline_content_preparation_buffers: Cell<super::prepared_inline_content::InlineContentPreparationBuffers>,
     prepared_inline_content_memos: super::prepared_inline_content::PreparedInlineContentMemos,
+    fragment_builder_scratch: RefCell<fragment_tree::FragmentBuilderScratch>,
 }
 
 /// What layout found out that the host hears of once the layout that found it is committed: what the
@@ -101,6 +102,7 @@ impl Default for LayoutScratch {
             text_memos: Default::default(),
             inline_content_preparation_buffers: Default::default(),
             prepared_inline_content_memos: Default::default(),
+            fragment_builder_scratch: Default::default(),
         }
     }
 }
@@ -120,6 +122,10 @@ impl LayoutScratch {
 
     pub(super) fn fc_run_cache_store(&self) -> &super::fc_run_cache::FcRunCacheStore {
         &self.fc_run_cache_store
+    }
+
+    pub(super) fn fragment_builder_scratch(&self) -> &RefCell<fragment_tree::FragmentBuilderScratch> {
+        &self.fragment_builder_scratch
     }
 
     pub(super) fn in_flow_block_cache_store(&self) -> &super::in_flow_block_cache::InFlowBlockCacheStore {
