@@ -1,4 +1,4 @@
-passive listener, beside the task: compositor offset=0 listener ran=false
+passive listener, beside the task: compositor offset=100 listener ran=false
 passive listener: defaultPrevented=false
 blocking listener, beside the task: compositor offset=100
 blocking listener: defaultPrevented=true

@@ -1650,17 +1650,18 @@ EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() co
     DOM::EventTarget* event_target = focused_area.ptr();
     if (!event_target)
         event_target = document->body() ?: &document->root();
-    bool has_keyboard_listeners = false;
+    bool has_blocking_keyboard_listeners = false;
     for (; event_target; event_target = event_target->get_parent(*event)) {
         snapshot.event_path.append(event_target);
-        // Even passive listeners can change focus or install a keypress listener during keydown.
-        has_keyboard_listeners |= event_target->has_event_listener(UIEvents::EventNames::keydown) || event_target->has_event_listener(UIEvents::EventNames::keypress);
+        // NB: A passive listener can't cancel the key's default action, so the compositor scrolls ahead of it. One that
+        //     moves focus or adds a blocking listener only changes what the next key does.
+        has_blocking_keyboard_listeners |= event_target->has_blocking_keyboard_event_listener();
     }
 
     if (document->page().focused_navigable().ptr() != m_navigable.ptr()
         || !document->page().client().has_focus()
         || !document->has_committed_viewport_box() || document->active_input_events_target()
-        || should_ignore_device_input_event() || has_keyboard_listeners
+        || should_ignore_device_input_event() || has_blocking_keyboard_listeners
         || focused_area_activates_on_space(focused_area.ptr()) || is<HTML::NavigableContainer>(focused_area.ptr())
         || is<HTML::HTMLMediaElement>(focused_area.ptr()))
         return snapshot;
