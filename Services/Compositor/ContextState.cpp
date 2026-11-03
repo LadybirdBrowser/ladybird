@@ -685,9 +685,11 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
     if (!m_scene.visual_context_tree().has_value())
         return {};
 
+    // NB: A step with nothing to zoom, as at a limit of the scale, is the compositor's all the same: the main thread,
+    //     whose scale may lag behind, must not zoom for it.
     auto scale = 1.0 + event.scale_delta;
     if (scale == 1.0)
-        return {};
+        return { .accepted = true };
 
     auto transform = m_scene.visual_viewport_transform();
     auto old_scale = transform.matrix[0, 0];
@@ -697,7 +699,7 @@ ContextState::ContextUpdateResult ContextState::handle_pinch_event(Web::PinchEve
     auto new_scale = clamp(static_cast<double>(old_scale) * scale, 1.0, 5.0);
     auto applied_scale = static_cast<float>(new_scale / old_scale);
     if (applied_scale == 1.0f)
-        return {};
+        return { .accepted = true };
 
     auto position = Gfx::FloatPoint {
         static_cast<float>(event.position.x().value()),

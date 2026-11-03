@@ -70,8 +70,10 @@ TEST_CASE(pinch_zoom_of_a_page_without_scroll_nodes_survives_a_display_list_upda
     EXPECT(context.handle_pinch_event(pinch_event(4.0)).accepted);
     install_display_list_without_scroll_nodes(context);
 
-    // The zoom is still at its maximum, so zooming in further does nothing.
-    EXPECT(!context.handle_pinch_event(pinch_event(1.0)).accepted);
+    // The zoom is still at its maximum, so zooming in further has nothing to present.
+    auto result = context.handle_pinch_event(pinch_event(1.0));
+    EXPECT(result.accepted);
+    EXPECT(!result.frame_to_present.has_value());
 }
 
 TEST_CASE(pinch_zoom_is_reported_on_the_visual_viewport)
@@ -103,7 +105,9 @@ TEST_CASE(pinch_zoom_is_presented_until_the_main_thread_asks_for_another)
     // A display list the main thread recorded without the zoom keeps it at its maximum.
     EXPECT(context.handle_pinch_event(pinch_event(4.0)).accepted);
     install_display_list_without_scroll_nodes(context);
-    EXPECT(!context.handle_pinch_event(pinch_event(1.0)).accepted);
+    auto result_at_maximum = context.handle_pinch_event(pinch_event(1.0));
+    EXPECT(result_at_maximum.accepted);
+    EXPECT(!result_at_maximum.frame_to_present.has_value());
 
     // A request of the main thread's own, such as resetting the zoom, is what moves the visual viewport from there.
     Compositing::ScrollRequest reset_zoom {
@@ -118,7 +122,7 @@ TEST_CASE(pinch_zoom_is_presented_until_the_main_thread_asks_for_another)
         .takes_over_from_momentum = false,
     };
     (void)context.apply_scroll_requests({ &reset_zoom, 1 });
-    EXPECT(context.handle_pinch_event(pinch_event(1.0)).accepted);
+    EXPECT(context.handle_pinch_event(pinch_event(1.0)).frame_to_present.has_value());
 }
 
 TEST_CASE(wheel_pans_the_zoomed_visual_viewport_of_a_page_without_scroll_nodes)
