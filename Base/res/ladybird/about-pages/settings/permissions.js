@@ -68,7 +68,8 @@ function showSiteSettings(title, settings) {
 
         const remove = document.createElement("button");
         remove.className = "dialog-button";
-        remove.innerHTML = "&times;";
+        remove.innerHTML =
+            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" /></svg>';
         remove.title = `Remove ${site}`;
 
         remove.addEventListener("click", () => {
