@@ -22,7 +22,6 @@ use super::rendered_text::TextMemos;
 #[derive(Clone, Copy, Default)]
 struct SlotNotes {
     noted: bool,
-    text_memos_dropped: bool,
     prepared_inline_content_dropped: bool,
     run_cache_entries_dropped: bool,
     in_flow_block_entries_dropped: bool,
@@ -37,6 +36,7 @@ struct SlotNotes {
 pub(crate) struct MemoInvalidations {
     slots: Vec<SlotNotes>,
     noted_slots: Vec<u32>,
+    dropped_text_states: Vec<u32>,
 }
 
 impl MemoInvalidations {
@@ -65,7 +65,6 @@ impl MemoInvalidations {
     pub(crate) fn note_slot_freed(&mut self, slot: u32) {
         self.note_run_cache_entries_dropped(slot);
         let notes = self.notes_of(slot);
-        notes.text_memos_dropped = true;
         notes.prepared_inline_content_dropped = true;
         notes.in_flow_block_entries_dropped = true;
         notes.intrinsic_sizes_dropped = true;
@@ -76,10 +75,10 @@ impl MemoInvalidations {
         self.notes_of(slot).intrinsic_sizes_dropped = true;
     }
 
-    /// The text row in `slot` got other rendered text, which the chunks and segmenter made of the old text no longer
-    /// describe.
-    pub(crate) fn note_text_replaced(&mut self, slot: u32) {
-        self.notes_of(slot).text_memos_dropped = true;
+    /// The text state at `text_state` got other rendered text or was let go of, which the chunks and segmenter made of
+    /// the old text no longer describe.
+    pub(crate) fn note_text_state_dropped(&mut self, text_state: u32) {
+        self.dropped_text_states.push(text_state);
     }
 
     /// The fragment cache epoch of `node` moved on: its run cache entries need the sweep, and its in-flow block entry
@@ -112,6 +111,9 @@ impl MemoInvalidations {
         prepared_inline_content: &mut PreparedInlineContentMemos,
         intrinsic_size_caches: &mut IntrinsicSizeCaches,
     ) {
+        for text_state in self.dropped_text_states {
+            text_memos.forget(text_state);
+        }
         for slot in self.noted_slots {
             let notes = self.slots[slot as usize];
             if notes.run_cache_entries_dropped {
@@ -127,9 +129,6 @@ impl MemoInvalidations {
             }
             if notes.in_flow_block_entries_dropped {
                 in_flow_block_cache.remove_entry(slot);
-            }
-            if notes.text_memos_dropped {
-                text_memos.forget(slot);
             }
             if notes.prepared_inline_content_dropped {
                 prepared_inline_content.forget(slot);

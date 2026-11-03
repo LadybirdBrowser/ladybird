@@ -216,7 +216,7 @@ impl TextContent {
 
 /// What layout keeps beside the rendered text of the text rows it lays out: the chunks the last run that chunked a row
 /// made, and the row's grapheme segmenter. Each keeps the rendered text it was made for, which tells whether the row's
-/// text is still that text.
+/// text is still that text. They are indexed by the row's text state in the arena, so boxes without text take no room.
 #[derive(Default)]
 pub(crate) struct TextMemos {
     /// Written in place, while a fork of the arena reads them as they were when it was made.
@@ -250,12 +250,12 @@ impl TextMemos {
     /// run that chunked the row's text did so for another key.
     pub(crate) fn text_chunks(
         &self,
-        node: NodeSlotId,
+        text_state: u32,
         rendered: &Arc<RenderedText>,
         key: &TextChunkCacheKey,
         compute: impl FnOnce() -> super::text_chunker::ChunkedText,
     ) -> Arc<CachedTextChunks> {
-        let index = node.slot_index() as usize;
+        let index = text_state as usize;
         let memoized = self.chunks.with_row(index, |memo| match memo {
             Some(Some(memo)) if Arc::ptr_eq(&memo.rendered, rendered) && memo.chunks.key == *key => {
                 Some(memo.chunks.clone())
@@ -285,31 +285,31 @@ impl TextMemos {
     /// Runs `read` with the grapheme segmenter of the text row `node`, whose rendered text is `rendered`.
     pub(crate) fn with_grapheme_segmenter<R>(
         &self,
-        node: NodeSlotId,
+        text_state: u32,
         rendered: &Arc<RenderedText>,
         read: impl FnOnce(&super::text_chunker::GraphemeSegmenter) -> R,
     ) -> R {
-        self.grapheme_segmenters
-            .with_row_mut(node.slot_index() as usize, |memo| {
-                if !memo.as_ref().is_some_and(|memo| Arc::ptr_eq(&memo.rendered, rendered)) {
-                    *memo = Some(GraphemeSegmenterOfText {
-                        segmenter: super::text_chunker::GraphemeSegmenter::new(&rendered.text),
-                        rendered: rendered.clone(),
-                    });
-                }
-                read(&memo.as_ref().expect("the memo was just made").segmenter)
-            })
+        self.grapheme_segmenters.with_row_mut(text_state as usize, |memo| {
+            if !memo.as_ref().is_some_and(|memo| Arc::ptr_eq(&memo.rendered, rendered)) {
+                *memo = Some(GraphemeSegmenterOfText {
+                    segmenter: super::text_chunker::GraphemeSegmenter::new(&rendered.text),
+                    rendered: rendered.clone(),
+                });
+            }
+            read(&memo.as_ref().expect("the memo was just made").segmenter)
+        })
     }
 
-    pub(super) fn cover_slots(&mut self, slot_count: usize) {
-        self.chunks.cover_slots(slot_count);
-        self.grapheme_segmenters.cover_slots(slot_count);
+    pub(super) fn cover_text_states(&mut self, text_state_count: usize) {
+        self.chunks.cover_slots(text_state_count);
+        self.grapheme_segmenters.cover_slots(text_state_count);
     }
 
     /// Lets go of what the memos keep for the row in `slot`, which the arena freed.
-    pub(crate) fn forget(&mut self, slot: u32) {
-        self.chunks.reset_row_where(slot as usize, Option::is_some);
-        if let Some(segmenter) = self.grapheme_segmenters.row_mut(slot as usize) {
+    pub(crate) fn forget(&mut self, text_state: u32) {
+        let index = text_state as usize;
+        self.chunks.reset_row_where(index, Option::is_some);
+        if let Some(segmenter) = self.grapheme_segmenters.row_mut(index) {
             *segmenter = None;
         }
     }
@@ -524,18 +524,18 @@ mod tests {
             splits_at_orientation_changes: false,
         };
         let mut memos = TextMemos::default();
-        memos.cover_slots(1);
-        let node = NodeSlotId::new(0, 1);
-        let mut previous = memos.text_chunks(node, content.rendered(), &key, ChunkedText::default);
+        memos.cover_text_states(1);
+        let text_state = 0;
+        let mut previous = memos.text_chunks(text_state, content.rendered(), &key, ChunkedText::default);
         for language in [
             LineBreakLanguage::Other,
             LineBreakLanguage::Chinese,
             LineBreakLanguage::Japanese,
         ] {
             key.line_break_language = language;
-            let chunks = memos.text_chunks(node, content.rendered(), &key, ChunkedText::default);
+            let chunks = memos.text_chunks(text_state, content.rendered(), &key, ChunkedText::default);
             assert!(!std::sync::Arc::ptr_eq(&previous, &chunks));
-            let hit = memos.text_chunks(node, content.rendered(), &key, || {
+            let hit = memos.text_chunks(text_state, content.rendered(), &key, || {
                 panic!("unchanged language should reuse chunks")
             });
             assert!(std::sync::Arc::ptr_eq(&chunks, &hit));
@@ -558,9 +558,12 @@ mod tests {
                            arena: &LayoutNodeArena,
                            key: &TextChunkCacheKey,
                            compute: &dyn Fn() -> ChunkedText| {
-            scratch
-                .text_memos()
-                .text_chunks(node, arena.text_content(node).unwrap().rendered(), key, compute)
+            scratch.text_memos().text_chunks(
+                arena.text_state_index(node).unwrap(),
+                arena.text_content(node).unwrap().rendered(),
+                key,
+                compute,
+            )
         };
         let frozen_font_list =
             libgfx_rust::font::FrozenFontListRef::new(std::sync::Arc::new(libgfx_rust::font::FrozenFontList::empty()));

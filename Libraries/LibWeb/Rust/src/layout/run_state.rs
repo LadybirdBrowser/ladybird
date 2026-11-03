@@ -187,7 +187,7 @@ impl LayoutScratch {
     pub(super) fn apply_memo_invalidations(&mut self, arena: &mut LayoutNodeArena) {
         let slot_count = arena.slot_capacity();
         self.intrinsic_size_caches.cover_slots(slot_count);
-        self.text_memos.cover_slots(slot_count);
+        self.text_memos.cover_text_states(arena.text_state_capacity());
         self.fragment_builder_scratch.cover_slots(slot_count);
         self.fc_run_cache_store.cover_slots(slot_count);
         self.in_flow_block_cache_store.cover_slots(slot_count);
