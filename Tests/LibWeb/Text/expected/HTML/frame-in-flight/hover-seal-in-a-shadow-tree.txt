@@ -1,0 +1,5 @@
+no element carries the class: commit
+the element in the tree does: clock
+computed width: 200px
+:host(:hover): clock
+computed width: 300px

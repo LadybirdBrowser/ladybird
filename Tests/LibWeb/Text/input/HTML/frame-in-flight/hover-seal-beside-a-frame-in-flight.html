@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .menu:hover { width: 200px; }
+</style>
+<div id="target"></div>
+<script>
+    // A pointer move that waits while a frame flies is hovered by the lane of that frame, once it comes together. What
+    // the rendering update of the frame moved counts for the seal of its lane.
+    asyncTest(async done => {
+        const hoverBesideFlight = async mutate => {
+            await whileRecordingInFlight(mutate, () => {
+                internals.moveHoverPointer(50, 50);
+            });
+            internals.setManualRenderingOpportunities(true);
+            do await nextTask();
+            while (internals.frameSchedulerState() !== "idle" || internals.clockLaneIsComing(document));
+            internals.injectClockTick(performance.now() + 32);
+            const by = internals.lastFramePresentedBy(document);
+            internals.setManualRenderingOpportunities(false);
+            return by;
+        };
+
+        println(`no key: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        println(`key in the update of the flying frame: ${await hoverBesideFlight(() => target.classList.add("menu"))}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        println(`key gone in the update of the flying frame: ${await hoverBesideFlight(() => target.classList.remove("menu"))}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        done();
+    });
+</script>

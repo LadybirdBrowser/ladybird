@@ -1,0 +1,10 @@
+none: commit
+computed width: 100px
+class of &: clock
+computed width: 200px
+class of :is(): clock
+computed width: 300px
+class of :where(:is()): clock
+computed width: 400px
+none again: commit
+computed width: 100px

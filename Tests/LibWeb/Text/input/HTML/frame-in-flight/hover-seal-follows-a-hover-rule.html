@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #target { width: 100px; height: 100px; }
+</style>
+<div id="target"></div>
+<script>
+    // A rule testing :hover that arrives after the seal found none gives the next frame's hover a restyle to make, and
+    // one that goes takes it away again.
+    asyncTest(async done => {
+        println(`no rule: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+
+        const style = document.createElement("style");
+        style.textContent = "#target:hover { width: 200px; }";
+        document.head.append(style);
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+        println(`rule added: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+
+        style.remove();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+        println(`rule removed: ${await hoverSeal(50, 50)}`);
+        done();
+    });
+</script>

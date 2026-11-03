@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #host { display: block; width: 100px; height: 100px; }
+</style>
+<div id="host"></div>
+<script>
+    // A rule in a shadow tree counts as any other, for the elements of the tree.
+    asyncTest(async done => {
+        const shadow = host.attachShadow({ mode: "open" });
+        shadow.innerHTML = `<style>
+            div { width: 100px; height: 100px; }
+            .inner:hover { width: 200px; }
+        </style><div id="inside"></div>`;
+        const inside = shadow.getElementById("inside");
+        println(`no element carries the class: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        inside.classList.add("inner");
+        println(`the element in the tree does: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(inside).width}`);
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        inside.classList.remove("inner");
+        const later = document.createElement("style");
+        later.textContent = ":host(:hover) div { width: 300px; }";
+        shadow.append(later);
+        println(`:host(:hover): ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(inside).width}`);
+        done();
+    });
+</script>

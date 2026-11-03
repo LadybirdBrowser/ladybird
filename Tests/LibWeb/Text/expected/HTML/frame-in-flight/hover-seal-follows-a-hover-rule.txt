@@ -1,0 +1,4 @@
+no rule: commit
+rule added: clock
+computed width: 200px
+rule removed: commit

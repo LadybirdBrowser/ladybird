@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #wrapper { width: 100px; height: 100px; }
+    #wrapper button { display: block; width: 100px; height: 100px; }
+</style>
+<div id="wrapper"></div>
+<script>
+    // Default.css restyles a <button> on hover: the seal follows one arriving and one leaving, deep in a subtree that
+    // arrives and leaves whole.
+    asyncTest(async done => {
+        println(`no button: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        const subtree = document.createElement("div");
+        subtree.append(document.createElement("div"));
+        subtree.firstChild.append(document.createElement("button"));
+        wrapper.append(subtree);
+        println(`button arrived: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        subtree.remove();
+        println(`button left: ${await hoverSeal(50, 50)}`);
+        done();
+    });
+</script>

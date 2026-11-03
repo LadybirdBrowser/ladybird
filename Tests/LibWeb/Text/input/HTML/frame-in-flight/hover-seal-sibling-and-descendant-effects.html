@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    #wrapper { width: 200px; height: 100px; }
+    #hovered { width: 100px; height: 100px; }
+    #next, #later, #inner { width: 50px; height: 10px; }
+    .trigger:hover ~ #later { width: 60px; }
+    .trigger:hover + #next { width: 70px; }
+    .trigger:hover #inner { width: 80px; }
+</style>
+<div id="wrapper">
+    <div id="hovered"><div id="inner"></div></div>
+    <div id="next"></div>
+    <div id="later"></div>
+</div>
+<script>
+    // What a hover restyles need not be what it hovers: the key that counts is that of the compound testing :hover,
+    // whichever element the rule ends in.
+    asyncTest(async done => {
+        println(`no trigger: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        hovered.classList.add("trigger");
+        await twoFramesLanded();
+        const by = await whileLaneHovers(frameTime => {
+            internals.injectHoverPointer(50, 50, frameTime + 16);
+            const width = element => internals.presentedBorderBox(element)?.width;
+            return `${internals.lastFramePresentedBy(document)}, widths on screen ${width(inner)} ${width(next)} ${width(later)}`;
+        });
+        println(`trigger: ${by}`);
+        await twoFrames();
+        println(`computed: ${getComputedStyle(inner).width} ${getComputedStyle(next).width} ${getComputedStyle(later).width}`);
+        done();
+    });
+</script>

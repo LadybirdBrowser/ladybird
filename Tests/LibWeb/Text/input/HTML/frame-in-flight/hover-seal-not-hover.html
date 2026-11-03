@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .keyed:not(:hover) { width: 200px; }
+</style>
+<div id="target"></div>
+<script>
+    // Leaving :hover restyles an element as entering it does: what counts is the key beside the :not(:hover). A rule with
+    // no key beside it applies to any element.
+    asyncTest(async done => {
+        println(`no key: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        target.classList.add("keyed");
+        println(`key: ${await hoverSeal(50, 50)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(target).width}`);
+        internals.queueMouseMove(500, 500);
+        await twoFrames();
+
+        target.classList.remove("keyed");
+        const style = document.createElement("style");
+        style.textContent = ":not(:hover) { outline: 1px solid rgb(0, 128, 0); }";
+        document.head.append(style);
+        println(`bare :not(:hover): ${await hoverSeal(50, 50)}`);
+        done();
+    });
+</script>

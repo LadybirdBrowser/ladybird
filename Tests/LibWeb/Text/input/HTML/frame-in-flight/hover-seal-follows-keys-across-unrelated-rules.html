@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="frame-in-flight.js"></script>
+<style>
+    body { margin: 0; }
+    div { width: 100px; height: 100px; }
+    .menu:hover { width: 200px; }
+</style>
+<div id="target" class="menu"></div>
+<div id="other"></div>
+<script>
+    // A rule that tests no :hover leaves the seal's answer as it was, and the keys it follows: a key that moves after
+    // the rule counts as before it.
+    asyncTest(async done => {
+        const run = async (name, x, y) => {
+            println(`${name}: ${await hoverSeal(x, y)}`);
+            await twoFrames();
+            internals.queueMouseMove(500, 500);
+            await twoFrames();
+        };
+        await run("carrier stands", 50, 50);
+
+        const style = document.createElement("style");
+        style.textContent = "#other { outline: 1px solid rgb(0, 128, 0); }";
+        document.head.append(style);
+        await run("carrier stands, after a rule came", 50, 50);
+
+        target.classList.remove("menu");
+        await run("carrier went", 50, 50);
+
+        style.textContent = "#other { outline: 2px solid rgb(0, 128, 0); }";
+        await twoFrames();
+        other.classList.add("menu");
+        println(`carrier came, after a rule moved: ${await hoverSeal(50, 150)}`);
+        await twoFrames();
+        println(`computed width: ${getComputedStyle(other).width}`);
+        done();
+    });
+</script>

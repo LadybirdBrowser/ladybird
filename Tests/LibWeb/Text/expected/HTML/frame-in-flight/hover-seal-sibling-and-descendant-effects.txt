@@ -1,0 +1,3 @@
+no trigger: commit
+trigger: clock, widths on screen 80 70 60
+computed: 80px 70px 60px
