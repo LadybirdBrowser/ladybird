@@ -1451,7 +1451,8 @@ static u32 element_construction_facts(DOM::Element const& element)
     set(shadow_root && shadow_root->is_user_agent_internal(), ElementConstructionFact::IsInUserAgentShadowTree);
     set(html_element && html_element->uses_button_layout(), ElementConstructionFact::UsesButtonLayout);
     set(element.is_editing_host(), ElementConstructionFact::IsEditingHost);
-    set(&element == element.document().body(), ElementConstructionFact::IsBody);
+    // NB: The document's body is found by walking its html element's children, which only these elements need to do.
+    set((is<HTML::HTMLBodyElement>(element) || is<HTML::HTMLFrameSetElement>(element)) && &element == element.document().body(), ElementConstructionFact::IsBody);
     set(element.is_document_element(), ElementConstructionFact::ConstructedAsDocumentElement);
     set(svg_element && svg_element->is_resource_element(), ElementConstructionFact::IsSvgResourceElement);
     set(element.is_svg_geometry_element(), ElementConstructionFact::IsSvgGeometryElement);
@@ -1472,17 +1473,19 @@ static u32 element_style_adjustment_facts(DOM::Element const& element)
     // which its timeline can make it after the element's arrival.
     set(element.has_relevant_animations() || element.has_associated_animations(), ElementStyleAdjustmentFact::HasAnimations);
     set(element.associated_shadow_host_pseudo_element().has_value(), ElementStyleAdjustmentFact::IsShadowHostPseudoElement);
-    set(is<SVG::SVGElement>(element), ElementStyleAdjustmentFact::IsSvgElement);
-    set(is<SVG::SVGGraphicsElement>(element), ElementStyleAdjustmentFact::IsSvgGraphicsElement);
     set(element.is_html_html_element(), ElementStyleAdjustmentFact::IsHtmlHtmlElement);
     set(is<HTML::HTMLBodyElement>(element), ElementStyleAdjustmentFact::IsHtmlBodyElement);
-    set(is<SVG::SVGSwitchElement>(element), ElementStyleAdjustmentFact::IsSvgSwitchElement);
-    set(element.is_svg_container(), ElementStyleAdjustmentFact::IsSvgContainer);
-    set(element.requires_svg_container(), ElementStyleAdjustmentFact::RequiresSvgContainer);
-    set(element.is_svg_foreign_object_element(), ElementStyleAdjustmentFact::IsSvgForeignObjectElement);
-    set(is<SVG::SVGMaskElement>(element), ElementStyleAdjustmentFact::IsSvgMaskElement);
-    set(is<SVG::SVGClipPathElement>(element), ElementStyleAdjustmentFact::IsSvgClipPathElement);
-    set(is<SVG::SVGPatternElement>(element), ElementStyleAdjustmentFact::IsSvgPatternElement);
+    if (is<SVG::SVGElement>(element)) {
+        facts |= ElementStyleAdjustmentFact::IsSvgElement;
+        set(is<SVG::SVGGraphicsElement>(element), ElementStyleAdjustmentFact::IsSvgGraphicsElement);
+        set(is<SVG::SVGSwitchElement>(element), ElementStyleAdjustmentFact::IsSvgSwitchElement);
+        set(element.is_svg_container(), ElementStyleAdjustmentFact::IsSvgContainer);
+        set(element.requires_svg_container(), ElementStyleAdjustmentFact::RequiresSvgContainer);
+        set(element.is_svg_foreign_object_element(), ElementStyleAdjustmentFact::IsSvgForeignObjectElement);
+        set(is<SVG::SVGMaskElement>(element), ElementStyleAdjustmentFact::IsSvgMaskElement);
+        set(is<SVG::SVGClipPathElement>(element), ElementStyleAdjustmentFact::IsSvgClipPathElement);
+        set(is<SVG::SVGPatternElement>(element), ElementStyleAdjustmentFact::IsSvgPatternElement);
+    }
     set(element.rendered_in_top_layer(), ElementStyleAdjustmentFact::RenderedInTopLayer);
     set(is<HTML::HTMLFrameSetElement>(element), ElementStyleAdjustmentFact::IsHtmlFramesetElement);
     return facts;
