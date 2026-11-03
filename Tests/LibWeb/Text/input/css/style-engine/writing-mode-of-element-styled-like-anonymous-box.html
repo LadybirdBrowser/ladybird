@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<body style="writing-mode: vertical-rl"><span id="target"></span><div></div></body>
+<script>
+    // The anonymous box around the span holds the initial style but for the writing mode it inherits. An element
+    // declaring just that writing mode holds it itself.
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.setAttribute("style", "writing-mode: vertical-rl");
+        await nextFrame();
+        await nextFrame();
+        println(`html: ${getComputedStyle(document.documentElement).writingMode}`);
+        println(`head: ${getComputedStyle(document.head).writingMode}`);
+        println(`span: ${getComputedStyle(target).writingMode}`);
+        done();
+    });
+</script>
