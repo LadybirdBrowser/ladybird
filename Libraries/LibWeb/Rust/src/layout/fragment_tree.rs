@@ -491,7 +491,7 @@ impl Default for PlacedBoxSlot {
 }
 
 #[derive(Default)]
-struct FragmentBuilderBuffers {
+pub(super) struct FragmentBuilderBuffers {
     pending_fragments: HashMap<u32, PendingFragment>,
     placed_boxes: PlacedBoxes,
 }
@@ -499,8 +499,21 @@ struct FragmentBuilderBuffers {
 #[derive(Default)]
 pub(crate) struct FragmentBuilderScratch {
     placed_box_slots: super::pass_column::PassColumn<PlacedBoxSlot>,
-    builders_created: std::cell::Cell<u64>,
-    spare_buffers: std::cell::RefCell<Vec<FragmentBuilderBuffers>>,
+}
+
+fn next_unique_identity(worker: &super::layout_pass::WorkerScratch) -> u64 {
+    const IDENTITIES_PER_RESERVATION: u64 = 1024;
+    static NEXT_UNRESERVED_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    let reserved = &worker.reserved_unique_identities;
+    let mut identities = reserved.replace(0..0);
+    if identities.is_empty() {
+        let first =
+            NEXT_UNRESERVED_IDENTITY.fetch_add(IDENTITIES_PER_RESERVATION, std::sync::atomic::Ordering::Relaxed);
+        identities = first..first + IDENTITIES_PER_RESERVATION;
+    }
+    let identity = identities.start;
+    reserved.set(identity + 1..identities.end);
+    identity
 }
 
 impl FragmentBuilderScratch {
@@ -530,20 +543,18 @@ impl FragmentBuilderScratch {
     pub(super) fn cover_slots(&mut self, slot_count: usize) {
         self.placed_box_slots.cover_slots(slot_count);
     }
+}
 
-    fn next_builder_id(&self) -> u64 {
-        let builder = self.builders_created.get() + 1;
-        self.builders_created.set(builder);
-        builder
-    }
+fn take_spare_fragment_builder_buffers(worker: &super::layout_pass::WorkerScratch) -> FragmentBuilderBuffers {
+    worker
+        .spare_fragment_builder_buffers
+        .borrow_mut()
+        .pop()
+        .unwrap_or_default()
+}
 
-    fn take_spare_buffers(&self) -> FragmentBuilderBuffers {
-        self.spare_buffers.borrow_mut().pop().unwrap_or_default()
-    }
-
-    fn return_spare_buffers(&self, buffers: FragmentBuilderBuffers) {
-        self.spare_buffers.borrow_mut().push(buffers);
-    }
+fn return_spare_fragment_builder_buffers(worker: &super::layout_pass::WorkerScratch, buffers: FragmentBuilderBuffers) {
+    worker.spare_fragment_builder_buffers.borrow_mut().push(buffers);
 }
 
 pub(crate) struct PlacementsOfBuilder<'scratch> {
@@ -697,7 +708,6 @@ fn snapshot_fragment(
     fragment_facts: run_state::FragmentFactsDecidedByParent,
     payloads: Option<Box<FragmentPayloads>>,
 ) -> std::sync::Arc<Fragment> {
-    static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let FragmentGeometry { cells, line_data } = geometry;
     let FragmentPayloads {
         collapsed_table_borders,
@@ -759,7 +769,7 @@ fn snapshot_fragment(
         }
         return std::sync::Arc::new(previous.with_scrollable_overflow(fragment.scrollable_overflow));
     }
-    fragment.identity = NEXT_IDENTITY.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    fragment.identity = next_unique_identity(callbacks.worker_scratch());
     std::sync::Arc::new(fragment)
 }
 
@@ -1120,36 +1130,36 @@ impl RunFragmentBuilderInner {
 
 impl RunFragmentBuilder {
     pub(crate) fn new(
+        callbacks: &LayoutPass<'_>,
         root_node: crate::layout::node_data::NodeSlotId,
         root_containing_block: Option<crate::layout::node_data::NodeSlotId>,
-        callbacks: &LayoutPass<'_>,
     ) -> Self {
-        Self::with_scratch(
+        Self::with_spare_buffers(
+            callbacks.worker_scratch(),
             root_node,
             root_containing_block.map(|node| node.slot_index()),
             false,
-            callbacks,
         )
     }
 
     pub(crate) fn new_entry_accumulator(
-        root_node: crate::layout::node_data::NodeSlotId,
         callbacks: &LayoutPass<'_>,
+        root_node: crate::layout::node_data::NodeSlotId,
     ) -> Self {
-        Self::with_scratch(root_node, None, true, callbacks)
+        Self::with_spare_buffers(callbacks.worker_scratch(), root_node, None, true)
     }
 
-    fn with_scratch(
+    fn with_spare_buffers(
+        worker: &super::layout_pass::WorkerScratch,
         root_node: crate::layout::node_data::NodeSlotId,
         root_containing_block_slot: Option<u32>,
         is_entry_accumulator: bool,
-        callbacks: &LayoutPass<'_>,
     ) -> Self {
-        let builder = callbacks.fragment_builder_scratch().next_builder_id();
+        let builder = next_unique_identity(worker);
         let FragmentBuilderBuffers {
             pending_fragments,
             placed_boxes,
-        } = callbacks.fragment_builder_scratch().take_spare_buffers();
+        } = take_spare_fragment_builder_buffers(worker);
         Self {
             root_node,
             root_containing_block_slot,
@@ -1991,12 +2001,13 @@ impl RunFragmentBuilder {
         let mut placed_boxes = std::mem::take(&mut inner.placed_boxes);
         placed_boxes.placed_slots.clear();
         placed_boxes.cells_of_abspos_containing_blocks.clear();
-        callbacks
-            .fragment_builder_scratch()
-            .return_spare_buffers(FragmentBuilderBuffers {
+        return_spare_fragment_builder_buffers(
+            callbacks.worker_scratch(),
+            FragmentBuilderBuffers {
                 pending_fragments,
                 placed_boxes,
-            });
+            },
+        );
         RunContents {
             node: self.root_node,
             scoped_descendants: inner.top_scope_links,

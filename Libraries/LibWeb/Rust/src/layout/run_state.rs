@@ -22,7 +22,6 @@ pub(crate) struct LayoutScratch {
     pub(super) layout_trace: super::trace::LayoutTrace,
     /// The chunks and grapheme segmenters of the text rows the passes laid out.
     text_memos: super::rendered_text::TextMemos,
-    inline_content_preparation_buffers: Cell<super::prepared_inline_content::InlineContentPreparationBuffers>,
     prepared_inline_content_memos: super::prepared_inline_content::PreparedInlineContentMemos,
     fragment_builder_scratch: fragment_tree::FragmentBuilderScratch,
 }
@@ -138,10 +137,10 @@ impl HostFindings {
     }
 }
 
-// The scratch can move to the thread a layout stage runs on.
+// The scratch can move to the thread a layout stage runs on, and the runs of a pass can share it across threads.
 const _: () = {
-    const fn assert_send<T: Send>() {}
-    assert_send::<LayoutScratch>();
+    const fn assert_send_and_sync<T: Send + Sync>() {}
+    assert_send_and_sync::<LayoutScratch>();
 };
 
 impl LayoutScratch {
@@ -175,12 +174,6 @@ impl LayoutScratch {
 
     pub(super) fn prepared_inline_content_memos(&self) -> &super::prepared_inline_content::PreparedInlineContentMemos {
         &self.prepared_inline_content_memos
-    }
-
-    pub(super) fn inline_content_preparation_buffers(
-        &self,
-    ) -> &Cell<super::prepared_inline_content::InlineContentPreparationBuffers> {
-        &self.inline_content_preparation_buffers
     }
 
     /// Brings the run memos up to date with what the arena's writes since the last call did to their boxes.

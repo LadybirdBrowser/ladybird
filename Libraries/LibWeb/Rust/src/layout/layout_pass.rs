@@ -43,6 +43,60 @@ pub(crate) struct LayoutPass<'arena> {
     /// The innermost of the position options the boxes this pass view lays out are laid out with.
     position_option_styles: Option<&'arena PositionOptionStyle<'arena>>,
     records_trace: bool,
+    worker_scratch: WorkerScratchOfThisThread,
+}
+
+const _: () = {
+    const fn assert_send_and_sync<T: Send + Sync>() {}
+    assert_send_and_sync::<LayoutPass<'static>>();
+};
+
+#[derive(Default)]
+pub(crate) struct WorkerScratch {
+    pub(super) spare_fragment_builder_buffers: std::cell::RefCell<Vec<super::fragment_tree::FragmentBuilderBuffers>>,
+    pub(super) reserved_unique_identities: std::cell::Cell<std::ops::Range<u64>>,
+    inline_content_preparation_buffers:
+        std::cell::Cell<super::prepared_inline_content::InlineContentPreparationBuffers>,
+}
+
+thread_local! {
+    static WORKER_SCRATCH_OF_THIS_THREAD: WorkerScratch = WorkerScratch::default();
+}
+
+#[derive(Clone, Copy)]
+struct WorkerScratchOfThisThread {
+    scratch: std::ptr::NonNull<WorkerScratch>,
+    #[cfg(debug_assertions)]
+    thread: std::thread::ThreadId,
+}
+
+// SAFETY: A pass view reaches the worker scratch of the thread it was pointed at only on that thread: a pass view
+// handed to a task on another thread is first pointed at the scratch of that thread (debug builds check the thread on
+// every use).
+unsafe impl Send for WorkerScratchOfThisThread {}
+// SAFETY: As above.
+unsafe impl Sync for WorkerScratchOfThisThread {}
+
+impl WorkerScratchOfThisThread {
+    fn get() -> Self {
+        WORKER_SCRATCH_OF_THIS_THREAD.with(|scratch| Self {
+            scratch: std::ptr::NonNull::from(scratch),
+            #[cfg(debug_assertions)]
+            thread: std::thread::current().id(),
+        })
+    }
+
+    #[inline]
+    fn scratch(&self) -> &WorkerScratch {
+        #[cfg(debug_assertions)]
+        assert_eq!(
+            self.thread,
+            std::thread::current().id(),
+            "a pass view reaches the worker scratch of another thread"
+        );
+        // SAFETY: The scratch lives as long as its thread, on which alone it is reached (see the Send impl).
+        unsafe { self.scratch.as_ref() }
+    }
 }
 
 /// The style a box is laid out with in place of the style of its row: that of one of its position options. It links to
@@ -76,7 +130,13 @@ impl<'arena> LayoutPass<'arena> {
             reads_no_memoized_layout: false,
             position_option_styles: None,
             records_trace: scratch.layout_trace.is_recording(),
+            worker_scratch: WorkerScratchOfThisThread::get(),
         }
+    }
+
+    #[inline]
+    pub(super) fn worker_scratch(&self) -> &WorkerScratch {
+        self.worker_scratch.scratch()
     }
 
     /// A pass over `arena` and `scratch` with no viewport, in no-quirks mode.
@@ -268,14 +328,14 @@ impl<'arena> LayoutPass<'arena> {
     pub(crate) fn take_inline_content_preparation_buffers(
         &self,
     ) -> super::prepared_inline_content::InlineContentPreparationBuffers {
-        self.scratch.inline_content_preparation_buffers().take()
+        self.worker_scratch().inline_content_preparation_buffers.take()
     }
 
     pub(crate) fn return_inline_content_preparation_buffers(
         &self,
         buffers: super::prepared_inline_content::InlineContentPreparationBuffers,
     ) {
-        self.scratch.inline_content_preparation_buffers().set(buffers);
+        self.worker_scratch().inline_content_preparation_buffers.set(buffers);
     }
 
     /// Runs `read` with the grapheme segmenter of the text row `node`.

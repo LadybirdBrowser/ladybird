@@ -2190,9 +2190,9 @@ fn execute_formatting_context_run(
     };
     let fragments = builds_fragments.then(|| {
         fragment_tree::RunFragmentBuilder::new(
+            &callbacks,
             box_,
             (!root_containing_block.is_invalid()).then_some(root_containing_block),
-            &callbacks,
         )
     });
     let (outputs, root_cells_left_by_run) = RunState::with_root_building_fragments(
@@ -3681,7 +3681,7 @@ fn compute_root_layout(input: LayoutStageInput<'_>, should_collect_devtools_layo
         Node::INVALID,
         None,
         Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
-            root, &callbacks,
+            &callbacks, root,
         )),
         |entry_run_state, callbacks| {
             let _trace = scratch.layout_trace.pass(None);
@@ -3844,7 +3844,7 @@ fn compute_subtree_layout_fragments(input: LayoutStageInput<'_>, containing_bloc
         entry_root_containing_block,
         None,
         Some(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
-            entry_root, &callbacks,
+            &callbacks, entry_root,
         )),
         |entry_run_state, callbacks| {
             let _trace = scratch.layout_trace.pass(Some(root));

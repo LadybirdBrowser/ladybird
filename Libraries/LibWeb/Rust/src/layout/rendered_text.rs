@@ -221,7 +221,8 @@ impl TextContent {
 pub(crate) struct TextMemos {
     /// Written in place, while a fork of the arena reads them as they were when it was made.
     chunks: super::pass_column::ForkSharedRows<Option<ChunksOfText>>,
-    grapheme_segmenters: super::pass_column::PassColumn<Option<GraphemeSegmenterOfText>>,
+    grapheme_segmenters:
+        super::pass_column::PassColumn<super::pass_column::ExclusiveRow<Option<GraphemeSegmenterOfText>>>,
 }
 
 /// The chunks a run made of a row's rendered text, and that text.
@@ -290,6 +291,7 @@ impl TextMemos {
         read: impl FnOnce(&super::text_chunker::GraphemeSegmenter) -> R,
     ) -> R {
         self.grapheme_segmenters.with_row_mut(text_state as usize, |memo| {
+            let memo = memo.get_mut();
             if !memo.as_ref().is_some_and(|memo| Arc::ptr_eq(&memo.rendered, rendered)) {
                 *memo = Some(GraphemeSegmenterOfText {
                     segmenter: super::text_chunker::GraphemeSegmenter::new(&rendered.text),
@@ -310,7 +312,7 @@ impl TextMemos {
         let index = text_state as usize;
         self.chunks.reset_row_where(index, Option::is_some);
         if let Some(segmenter) = self.grapheme_segmenters.row_mut(index) {
-            *segmenter = None;
+            *segmenter.get_mut() = None;
         }
     }
 }
