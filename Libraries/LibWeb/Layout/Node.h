@@ -547,6 +547,7 @@ public:
     void release_pinned_style_record();
 
 private:
+    bool keeps_style_until_rebuilt(CSS::StyleRecordID);
     virtual bool is_node_with_style() const final { return true; }
 
     void publish_style_record_to_node_data();
