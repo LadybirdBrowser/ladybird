@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: Custom Highlights currentcolor painting single layer</title>
+<meta name="assert" content="Checks the painting for highlight pseudos (using ::highlight), when other properties are set to ‘currentColor’ (and ‘color’ is also ‘currentColor’, via implicit defaulting up to the root). The color of each property should equal the originating element ‘color’.">
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-text">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/highlight-currentcolor-painting-properties-001-ref.html">
+<link rel="stylesheet" href="../support/highlights.css">
+<meta name="fuzzy" content="0-50;0-150">
+<style>
+div {
+  color: lime;
+  background: green;
+  margin: 10px;
+}
+::highlight(empty) {
+}
+::highlight(color-currentcolor) {
+  color: currentcolor;
+}
+::highlight(backgroundcolor-currentcolor) {
+  background-color: currentcolor;
+}
+::highlight(textdecorationcolor-currentcolor) {
+  text-decoration-line: underline;
+  text-decoration-color: currentcolor;
+}
+::highlight(color-currentcolor-backgroundcolor-currentcolor) {
+  color: currentcolor;
+  background-color: currentcolor;
+}
+::highlight(color-currentcolor-backgroundcolor-blue) {
+  color: currentcolor;
+  background-color: blue;
+}
+::highlight(color-blue-backgroundcolor-currentcolor) {
+  color: blue;
+  background-color: currentcolor;
+}
+</style>
+
+<div id="empty" class="highlight_reftest">example - empty</div>
+<div id="color-currentcolor" class="highlight_reftest">example - color-currentcolor</div>
+<div id="backgroundcolor-currentcolor" class="highlight_reftest">example - backgroundcolor-currentcolor</div>
+<div id="textdecorationcolor-currentcolor" class="highlight_reftest">example - textdecorationcolor-currentcolor</div>
+<div id="color-currentcolor-backgroundcolor-currentcolor" class="highlight_reftest">example - color-currentcolor-backgroundcolor-currentcolor</div>
+<div id="color-currentcolor-backgroundcolor-blue" class="highlight_reftest">example - color-currentcolor-backgroundcolor-blue</div>
+<div id="color-blue-backgroundcolor-currentcolor" class="highlight_reftest">example - color-blue-backgroundcolor-currentcolor</div>
+
+<script>
+  function range(node, start, end) {
+    let range = new Range();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    return range;
+  }
+
+  const divs = document.getElementsByTagName("div");
+  for (let div of divs) {
+    CSS.highlights.set(div.id, new Highlight(range(div.firstChild, 0, 7)));
+  }
+</script>
+

@@ -1962,6 +1962,37 @@ void Element::swap_in_style_record(Layout::BegunRead const& read, Optional<CSS::
         layout_node->set_style_record_identity(style_record);
 }
 
+Element::CustomHighlightStyles const* Element::custom_highlight_styles() const
+{
+    auto const* rare_data = element_rare_data();
+    if (!rare_data || rare_data->custom_highlight_styles.is_empty())
+        return nullptr;
+    return &rare_data->custom_highlight_styles;
+}
+
+void Element::swap_in_custom_highlight_style_record(CSS::StyleAtomID name, void const* record)
+{
+    if (record) {
+        ensure_element_rare_data().custom_highlight_styles.set(name, CSS::InstalledStyle { record });
+        return;
+    }
+    if (auto* rare_data = element_rare_data())
+        rare_data->custom_highlight_styles.remove(name);
+}
+
+void Element::clear_custom_highlight_styles()
+{
+    auto* rare_data = element_rare_data();
+    if (!rare_data || rare_data->custom_highlight_styles.is_empty())
+        return;
+    auto styles = move(rare_data->custom_highlight_styles);
+    if (style_node_id() == 0)
+        return;
+    auto& style_engine = document().style_computer().style_engine();
+    for (auto const& [name, style] : styles)
+        CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_engine.host(), style_node_id(), to_underlying(CSS::PseudoElement::Highlight), name, 0, style.record_pointer());
+}
+
 // The custom-property environment of a style record: what the element inherits, or its own custom declarations over
 // that.
 RefPtr<CSS::CustomPropertyData const> Element::style_custom_property_environment(Layout::BegunRead const& read, CSS::InstalledStyle const& style) const
@@ -2207,6 +2238,7 @@ void Element::clear_computed_styles_from_display_none_descendants(Layout::BegunR
         element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
             pseudo_element.clear_computed_style();
         });
+        element->clear_custom_highlight_styles();
         return TraversalDecision::Continue;
     });
 }
@@ -3088,6 +3120,7 @@ void Element::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, No
         note_subtree_style_moved();
         pseudo_element.clear_computed_style();
     });
+    clear_custom_highlight_styles();
 
     // A shadow root's counter style names pass on to the scope its host is in, which a move of the host can change.
     if (m_shadow_root)
@@ -3181,6 +3214,8 @@ void Element::set_style_node_id(CSS::StyleNodeID style_node_id)
             if (!pseudo_element.scroll_offset().is_zero())
                 pseudo_element.publish_scroll_offset();
         });
+        if (document().has_custom_highlights())
+            document().set_needs_highlight_style_update(CSS::PseudoElement::Highlight);
     }
     // NB: A newly minted identity holds no style on the render side, whatever the element and its pseudo-elements
     //     still hold: the render side styles the element as it arrives, and swaps in what it computed.

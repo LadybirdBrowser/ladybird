@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: Length relative to the logical direction</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-styling">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-logical-metrics-002-ref.html">
+<meta name="assert" value="lengths depending on viewports and logical direction with vertical text">
+<meta name="fuzzy" content="0-30;0-10">
+<head>
+  <style>
+    div {
+      width: 100px;
+      height: 200px;
+      writing-mode: vertical-lr;
+      line-height: 3em;
+    }
+    ::highlight(highlight1) {
+      text-underline-offset: 1svb;
+      text-decoration-line: underline;
+      text-decoration-color: green;
+      text-decoration-thickness: 1svi;
+    }
+</style>
+</head>
+<body>
+  <div id="h1">With viewport size</div>
+  <script>
+    let r1 = new Range();
+    r1.setStart(h1, 0);
+    r1.setEnd(h1, 1);
+    CSS.highlights.set("highlight1", new Highlight(r1));
+  </script>
+</body>

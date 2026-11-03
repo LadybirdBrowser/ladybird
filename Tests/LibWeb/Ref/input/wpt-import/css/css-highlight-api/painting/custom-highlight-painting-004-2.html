@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: </title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-004-2-ref.html">
+<meta name="assert" value="When painting overlapping highlights with the same .priority, the one added last should be painted on top; and style properties not defined by the one on top (background-color in this case) should follow the rules of the next Highlight from top to bottom until there's one that overwrites default (or use default value otherwise).">
+<meta name="fuzzy" content="0-88;0-4">
+<style>
+  ::highlight(foo) {
+    color:blue;
+    background-color:yellow;
+  }
+  ::highlight(bar) {
+    color:orange;
+  }
+</style>
+<body>Some text
+<script>
+  let textNode = document.body.firstChild;
+
+  let r1 = new Range();
+  r1.setStart(textNode, 0);
+  r1.setEnd(textNode, 6);
+
+  let r2 = new Range();
+  r2.setStart(textNode, 3);
+  r2.setEnd(textNode, 9);
+
+  let h1 = new Highlight(r1);
+  let h2 = new Highlight(r2);
+
+  CSS.highlights.set("foo", h1);
+  CSS.highlights.set("bar", h2);
+</script>

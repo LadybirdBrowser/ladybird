@@ -1,0 +1,24 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: selected highlight highlight painting</title>
+<link rel="author" name="Stephen Chenney" href="mailto:schenney@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<meta name="assert" value="Checks that the highlight colors persist when selected.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/selection-over-highlight-001-ref.html">
+<style>
+    ::selection {
+      background-color: lightblue;
+    }
+    ::highlight(green) {
+      color: green;
+    }
+</style>
+<div id="content">When selected, the highlight color should remain.</div>
+<script>
+  let range = new Range();
+  range.setStart(content, 0);
+  range.setEnd(content, 1);
+  CSS.highlights.set("green", new Highlight(range));
+
+  document.execCommand("selectAll");
+</script>

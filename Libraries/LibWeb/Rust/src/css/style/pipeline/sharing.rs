@@ -94,6 +94,7 @@ pub(super) fn key_of(
         // NB: A pseudo-element's record substitutes the custom properties its own animations sampled, which are not the
         //     same for two elements with the same rules: their animations can stand at different times.
         || state.pseudo_element_samples_custom_properties(node)
+        || !state.highlight_observers.custom_highlights_of(node).is_empty()
     {
         return None;
     }

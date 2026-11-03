@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: Inheritance</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-inheritance-001-ref.html">
+<meta name="assert" value="Highlighted elements inherit style properties from their parent even if there's not a ::highlight selector directly applying to them or their parent.">
+<style>
+  div::highlight(div-highlight) {
+    background-color: green;
+  }
+</style>
+<body>
+<div>There should be only one green rectangle below from [ to ]:</div>
+<div id="target">[<span>&nbsp;&nbsp;&nbsp;<strong>&nbsp;&nbsp;&nbsp;</strong>&nbsp;&nbsp;&nbsp;</span>]</div>
+<script>
+  const node = document.getElementById("target");
+  let r = new Range();
+  r.setStart(node, 1);
+  r.setEnd(node, 2);
+  CSS.highlights.set("div-highlight", new Highlight(r));
+</script>

@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: </title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-002-ref.html">
+<meta name="assert" value="Latest Highlight added to CSS.highlights has higher priority than the previous ones if there were no priorities explicitly set">
+<style>
+  div::highlight(bar) {
+    color: red;
+  }
+  div::highlight(foo) {
+    color: green;
+  }
+</style>
+<body><div>abc</div>
+<script>
+  let div = document.body.firstChild;
+  let r = new Range();
+  r.setStart(div, 0);
+  r.setEnd(div, 1);
+  let h = new Highlight(r);
+  CSS.highlights.set('foo', h);
+  CSS.highlights.set('bar', h);
+</script>

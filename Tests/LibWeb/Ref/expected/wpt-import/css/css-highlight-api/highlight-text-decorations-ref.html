@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        html {
+            font-size: 24pt;
+        }
+        .style1 {
+            text-decoration: underline;
+            text-decoration-color: red;
+            color: blue;
+        }
+        .style2 {
+            text-decoration: line-through;
+            text-decoration-color: violet;
+            text-decoration-style: double;
+        }
+        .style3 {
+            text-decoration: overline;
+            text-decoration-color: orange;
+            text-decoration-style: dotted;
+        }
+        /* FIXME: There is a discrepency for how the underlines are displayed at the end of the line, leading to a pixel different in this text. Find a real fix, but in the meantime, obscure the offending pixel <rdar://problem/59327965> https://bugs.webkit.org/show_bug.cgi?id=207512*/
+        .obscurer1 {
+            position: absolute;
+            top: 25px;
+            left: 95px;
+            width: 10px;
+            height: 10px;
+            background: grey;
+        }
+        .obscurer2 {
+            position: absolute;
+            top: 35px;
+            left: 180px;
+            width: 10px;
+            height: 10px;
+            background: grey;
+        }
+    </style>
+</head>
+<body>
+    O<span class="style1">n</span>e t<span class="style2">w</span>o th<span class="style3">ree</span>
+    <div class='obscurer1'></div>
+    <div class='obscurer2'></div>
+</body>
+</html>

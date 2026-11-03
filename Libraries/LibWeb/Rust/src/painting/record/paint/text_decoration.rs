@@ -132,7 +132,10 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                         lines: &[u8],
                         style_code: u8,
                         color: u32,
-                        thickness: CssPixels| {
+                        thickness: CssPixels,
+                        highlight_metrics: Option<
+        &crate::painting::record::paint::text::HighlightDecorationMetrics,
+    >| {
         let Some(decorating_style) = arena.node_style_if_live(decorating_node) else {
             return;
         };
@@ -163,12 +166,21 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
         set.decorating_font_descent = decorating_font.facts().descent;
         set.decorating_font_point_size = decorating_font.facts().point_size as i32;
         set.text_font_pixel_size = text_font.facts().pixel_size;
-        let inherited_text = decorating_style.inherited_text();
-        set.text_underline_offset = inherited_text.text_underline_offset.used_value;
-        set.text_underline_position_horizontal = inherited_text.text_underline_position.horizontal;
-        set.skip_ink = arena
-            .node_style_if_live(text_parent)
-            .map_or(0, |style| style.inherited_text().text_decoration_skip_ink);
+        match highlight_metrics {
+            Some(metrics) => {
+                set.text_underline_offset = metrics.underline_offset;
+                set.text_underline_position_horizontal = metrics.underline_position_horizontal;
+                set.skip_ink = metrics.skip_ink;
+            }
+            None => {
+                let inherited_text = decorating_style.inherited_text();
+                set.text_underline_offset = inherited_text.text_underline_offset.used_value;
+                set.text_underline_position_horizontal = inherited_text.text_underline_position.horizontal;
+                set.skip_ink = arena
+                    .node_style_if_live(text_parent)
+                    .map_or(0, |style| style.inherited_text().text_decoration_skip_ink);
+            }
+        }
         sets.push(set);
     };
 
@@ -196,6 +208,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                     text_reset.text_decoration_style,
                     span.decoration_color.unwrap_or(style.text_decoration_color()),
                     thickness,
+                    None,
                 );
             }
         }
@@ -232,6 +245,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                         text_reset.text_decoration_style,
                         span.decoration_color.unwrap_or(style.text_decoration_color()),
                         thickness,
+                        None,
                     );
                 }
             }
@@ -253,13 +267,19 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
         let glyph_height = first_available_font(arena, text_parent).map_or(CssPixels::from_raw(0), |font| {
             CssPixels::nearest_value_for_f32(font.facts().pixel_size)
         });
-        let thickness = resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height);
+        let thickness = match text_decoration.metrics {
+            Some(metrics) => metrics
+                .thickness
+                .unwrap_or_else(|| glyph_height.scaled(0.1).max(CssPixels::from_integer(1))),
+            None => resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height),
+        };
         push_set(
             text_parent,
             &text_decoration.lines[..text_decoration.line_count as usize],
             text_decoration.style,
             text_decoration.color,
             thickness,
+            text_decoration.metrics.as_ref(),
         );
     }
     sets

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: </title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-iframe-004-ref.html">
+<meta name="assert" value="Creating a Highlight in the root Document with a Range in the root document and another one in an iframe is correctly painted when added to the root document's CSS.highlights (only root document's range is painted).">
+<style>
+  ::highlight(foo) {
+    color: green;
+    background-color: greenyellow;
+  }
+</style>
+<body>
+  <iframe
+    id="iframe"
+    srcdoc="
+    <style>
+      ::highlight(foo) {
+        color: blue;
+        background-color: cyan;
+      }
+    </style>
+    <span id='span-iframe'>abc</span>
+    "
+    >
+</iframe>
+<br>
+<span id="span-doc">abc</span>
+<script>
+  let spanDoc = document.querySelector("#span-doc");
+  let rangeDoc = new Range();
+  rangeDoc.setStart(spanDoc, 0);
+  rangeDoc.setEnd(spanDoc, 1);
+
+  let iframe = document.querySelector("#iframe");
+  iframe.onload = () => {
+    let spanIframe = iframe.contentDocument.querySelector("#span-iframe");
+    let rangeIframe = new Range();
+    rangeIframe.setStart(spanIframe, 0);
+    rangeIframe.setEnd(spanIframe, 1);
+
+    let h = new Highlight(rangeDoc, rangeIframe);
+    CSS.highlights.set("foo", h);
+  }
+</script>

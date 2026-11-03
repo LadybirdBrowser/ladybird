@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: </title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-003-ref.html">
+<meta name="assert" value="Intersections of overlapping ranges contained in the same Highlight are painted only once">
+<style>
+  ::highlight(sample) { background-color: rgba(0, 0, 255, 0.3); }
+</style>
+<body>Lorem Ipsum.
+<script>
+  let textNode = document.body.firstChild;
+
+  let r1 = new Range();
+  r1.setStart(textNode, 1);
+  r1.setEnd(textNode, 5);
+
+  let r2 = new Range();
+  r2.setStart(textNode, 3);
+  r2.setEnd(textNode, 7);
+
+  CSS.highlights.set("sample", new Highlight(r1, r2));
+</script>

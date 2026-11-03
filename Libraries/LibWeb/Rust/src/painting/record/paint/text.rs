@@ -39,10 +39,44 @@ pub(crate) struct SpanTextDecoration {
     pub line_count: u32,
     pub style: u8,
     pub color: u32,
+    pub metrics: Option<HighlightDecorationMetrics>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct HighlightDecorationMetrics {
+    pub thickness: Option<CssPixels>,
+    pub underline_offset: CssPixels,
+    pub underline_position_horizontal: u8,
+    pub skip_ink: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum HighlightLayer {
+    Custom(u32),
+    BuiltIn(HighlightPseudoElement),
+    TextFragmentIndication,
+}
+
+impl HighlightLayer {
+    // https://drafts.csswg.org/css-pseudo-4/#highlight-backgrounds
+    // The ::selection overlay is drawn over the ::target-text overlay which is drawn over the ::spelling-error overlay
+    // which is drawn over the ::grammar-error overlay which is drawn over the ::highlight overlays.
+    // The ::search-text overlay is drawn directly over or below the ::selection overlay depending on the UA, and drawn
+    // over all other overlays.
+    fn stacking_order(self) -> (u8, u32) {
+        match self {
+            Self::Custom(layer) => (0, layer),
+            Self::BuiltIn(HighlightPseudoElement::SpellingError) => (1, 0),
+            Self::TextFragmentIndication => (2, 0),
+            Self::BuiltIn(HighlightPseudoElement::Selection) => (3, 0),
+            Self::BuiltIn(HighlightPseudoElement::SearchText) => (4, 0),
+            Self::BuiltIn(HighlightPseudoElement::SearchTextCurrent) => (5, 0),
+        }
+    }
 }
 
 pub(crate) struct HighlightOverlay {
-    pub highlight: HighlightPseudoElement,
+    pub highlight: HighlightLayer,
     pub background_color: u32,
     pub shadow_layers: Vec<ShadowLayer>,
     pub text_decoration: Option<SpanTextDecoration>,
@@ -60,7 +94,6 @@ pub(crate) struct RenderSpan {
     /// The highlight's color when it has one of its own, which its redraw of the text's original
     /// decorations takes as well.
     pub decoration_color: Option<u32>,
-    pub text_fragment_indication_background_color: Option<u32>,
 }
 
 impl RenderSpan {
@@ -69,7 +102,6 @@ impl RenderSpan {
             .iter()
             .map(|overlay| overlay.highlight)
             .eq(other.highlights.iter().map(|overlay| overlay.highlight))
-            && self.text_fragment_indication_background_color == other.text_fragment_indication_background_color
             && self.text_color == other.text_color
     }
 }
@@ -77,19 +109,34 @@ impl RenderSpan {
 pub(crate) struct SelectionStyleAnswer {
     pub facts: crate::painting::host::FfiSelectionStyleFacts,
     pub shadows: Vec<HighlightShadowLayer>,
+    pub decoration_metrics: Option<HighlightDecorationMetrics>,
 }
 
-// https://drafts.csswg.org/css-pseudo-4/#highlight-backgrounds
-// The ::selection overlay is drawn over the ::target-text overlay which is drawn over the ::spelling-error overlay
-// which is drawn over the ::grammar-error overlay which is drawn over the ::highlight overlays.
-// The ::search-text overlay is drawn directly over or below the ::selection overlay depending on the UA, and drawn
-// over all other overlays.
-const HIGHLIGHT_OVERLAY_ORDER: [HighlightPseudoElement; 4] = [
-    HighlightPseudoElement::SpellingError,
-    HighlightPseudoElement::Selection,
-    HighlightPseudoElement::SearchText,
-    HighlightPseudoElement::SearchTextCurrent,
+const BUILT_IN_HIGHLIGHT_LAYERS: [HighlightLayer; 5] = [
+    HighlightLayer::BuiltIn(HighlightPseudoElement::SpellingError),
+    HighlightLayer::TextFragmentIndication,
+    HighlightLayer::BuiltIn(HighlightPseudoElement::Selection),
+    HighlightLayer::BuiltIn(HighlightPseudoElement::SearchText),
+    HighlightLayer::BuiltIn(HighlightPseudoElement::SearchTextCurrent),
 ];
+
+fn highlight_layers_for_fragment<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
+    fragment: &FragmentRecord,
+) -> Vec<HighlightLayer> {
+    let mut layers: Vec<HighlightLayer> = recorder
+        .paint_state
+        .custom_highlights
+        .text_runs
+        .get(&fragment.layout_node)
+        .into_iter()
+        .flatten()
+        .map(|&(layer, ..)| HighlightLayer::Custom(layer))
+        .collect();
+    layers.dedup();
+    layers.extend(BUILT_IN_HIGHLIGHT_LAYERS);
+    layers
+}
 
 fn range_offsets_for_fragment<O: Observer>(
     recorder: &PaintRecorder<'_, O>,
@@ -108,9 +155,65 @@ fn range_offsets_for_fragment<O: Observer>(
 
 fn highlight_offsets_for_fragment<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
-    highlight: HighlightPseudoElement,
+    layer: HighlightLayer,
     fragment: &FragmentRecord,
 ) -> Vec<SelectionOffsets> {
+    let highlight = match layer {
+        HighlightLayer::BuiltIn(highlight) => highlight,
+        HighlightLayer::Custom(layer) => {
+            let Some(runs) = recorder
+                .paint_state
+                .custom_highlights
+                .text_runs
+                .get(&fragment.layout_node)
+            else {
+                return Vec::new();
+            };
+            return runs
+                .iter()
+                .filter(|&&(run_layer, start, end)| {
+                    run_layer == layer
+                        && end >= fragment.dom_start_offset_in_node
+                        && start <= fragment.dom_end_offset_with_trailing_whitespace
+                })
+                .filter_map(|&(_, start, end)| {
+                    text_fragment::compute_selection_offsets(
+                        recorder.source,
+                        fragment,
+                        SELECTION_STATE_START_AND_END,
+                        start,
+                        end,
+                    )
+                })
+                .map(|offsets| SelectionOffsets {
+                    start: offsets.start.min(fragment.length_in_code_units),
+                    end: offsets.end.min(fragment.length_in_code_units),
+                })
+                .filter(|offsets| offsets.start != offsets.end)
+                .collect();
+        }
+        HighlightLayer::TextFragmentIndication => {
+            let mut offsets: Vec<SelectionOffsets> = recorder
+                .inputs
+                .text_fragment_indications
+                .iter()
+                .filter(|range| range.text_node == fragment.layout_node)
+                .filter_map(|range| {
+                    text_fragment::selection_offsets_for_dom_range(recorder.source, fragment, range.start, range.end)
+                })
+                .filter(|offsets| offsets.start != offsets.end)
+                .collect();
+            offsets.sort_unstable_by_key(|offsets| offsets.start);
+            let mut merged: Vec<SelectionOffsets> = Vec::with_capacity(offsets.len());
+            for offsets in offsets {
+                match merged.last_mut() {
+                    Some(last) if offsets.start <= last.end => last.end = last.end.max(offsets.end),
+                    _ => merged.push(offsets),
+                }
+            }
+            return merged;
+        }
+    };
     let offsets: Vec<SelectionOffsets> = match highlight {
         HighlightPseudoElement::Selection => {
             let offsets = if let Some((start, end)) = recorder.text_control_selection(fragment.layout_node) {
@@ -189,16 +292,29 @@ fn highlight_offsets_for_fragment<O: Observer>(
 
 fn highlight_style<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
-    highlight: HighlightPseudoElement,
+    layer: HighlightLayer,
     node: NodeSlotId,
-) -> Arc<SelectionStyleAnswer> {
-    match highlight {
-        HighlightPseudoElement::Selection => recorder.selection_style(node),
-        HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent => {
-            recorder.search_text_style(node, highlight)
-        }
-        HighlightPseudoElement::SpellingError => recorder.spelling_error_style(node),
-    }
+) -> Option<Arc<SelectionStyleAnswer>> {
+    Some(match layer {
+        HighlightLayer::BuiltIn(HighlightPseudoElement::Selection) => recorder.selection_style(node),
+        HighlightLayer::BuiltIn(
+            highlight @ (HighlightPseudoElement::SearchText | HighlightPseudoElement::SearchTextCurrent),
+        ) => recorder.search_text_style(node, highlight),
+        HighlightLayer::BuiltIn(HighlightPseudoElement::SpellingError) => recorder.spelling_error_style(node),
+        HighlightLayer::Custom(layer) => recorder.custom_highlight_style(node, layer)?,
+        HighlightLayer::TextFragmentIndication => Arc::new(SelectionStyleAnswer {
+            facts: crate::painting::host::FfiSelectionStyleFacts {
+                colors_authored: true,
+                background_color: recorder.inputs.mark_color,
+                text_color: crate::painting::display_list::commands::OptionalColor::some(
+                    recorder.inputs.mark_text_color,
+                ),
+                ..Default::default()
+            },
+            shadows: Vec::new(),
+            decoration_metrics: None,
+        }),
+    })
 }
 
 fn compute_render_spans<O: Observer>(
@@ -242,22 +358,16 @@ fn compute_render_spans<O: Observer>(
         };
 
         let mut highlights = Vec::new();
-        for highlight in HIGHLIGHT_OVERLAY_ORDER {
-            let ranges = highlight_offsets_for_fragment(recorder, highlight, fragment);
-            if !ranges.is_empty() {
-                let answer = highlight_style(recorder, highlight, fragment.layout_node);
-                highlights.push((highlight, ranges, answer));
+        for layer in highlight_layers_for_fragment(recorder, fragment) {
+            let ranges = highlight_offsets_for_fragment(recorder, layer, fragment);
+            if ranges.is_empty() {
+                continue;
+            }
+            if let Some(answer) = highlight_style(recorder, layer, fragment.layout_node) {
+                highlights.push((layer, ranges, answer));
             }
         }
-        let indication_offsets: Vec<SelectionOffsets> = recorder
-            .inputs
-            .text_fragment_indications
-            .iter()
-            .filter(|range| range.text_node == fragment.layout_node)
-            .filter_map(|range| text_fragment::selection_offsets_for_dom_range(arena, fragment, range.start, range.end))
-            .filter(|offsets| offsets.start != offsets.end)
-            .collect();
-        if highlights.is_empty() && indication_offsets.is_empty() {
+        if highlights.is_empty() {
             spans.push(RenderSpan {
                 fragment_index,
                 start_code_unit: 0,
@@ -266,17 +376,11 @@ fn compute_render_spans<O: Observer>(
                 shadow_layers: base_shadows(),
                 highlights: Vec::new(),
                 decoration_color: None,
-                text_fragment_indication_background_color: None,
             });
             continue;
         }
 
         let mut boundaries = vec![0, fragment.length_in_code_units];
-        boundaries.extend(
-            indication_offsets
-                .iter()
-                .flat_map(|offsets| [offsets.start, offsets.end]),
-        );
         for (_, ranges, _) in &highlights {
             boundaries.extend(ranges.iter().flat_map(|offsets| [offsets.start, offsets.end]));
         }
@@ -285,7 +389,7 @@ fn compute_render_spans<O: Observer>(
         let first_span_of_fragment = spans.len();
         // The ranges of one highlight come in order without overlapping, and so do the pieces, so each highlight
         // only needs to look at the first of its ranges that does not end before the piece.
-        let mut next_ranges = [0usize; HIGHLIGHT_OVERLAY_ORDER.len()];
+        let mut next_ranges = vec![0usize; highlights.len()];
         for piece in boundaries.windows(2) {
             let (start, end) = (piece[0], piece[1]);
             let mut span = RenderSpan {
@@ -296,15 +400,7 @@ fn compute_render_spans<O: Observer>(
                 shadow_layers: base_shadows(),
                 highlights: Vec::new(),
                 decoration_color: None,
-                text_fragment_indication_background_color: None,
             };
-            if indication_offsets
-                .iter()
-                .any(|offsets| start >= offsets.start && end <= offsets.end)
-            {
-                span.text_color = recorder.inputs.mark_text_color.0;
-                span.text_fragment_indication_background_color = Some(recorder.inputs.mark_color.0);
-            }
             for ((highlight, ranges, answer), next_range) in highlights.iter().zip(&mut next_ranges) {
                 while ranges.get(*next_range).is_some_and(|offsets| offsets.end <= start) {
                     *next_range += 1;
@@ -347,6 +443,7 @@ fn compute_render_spans<O: Observer>(
                             facts.text_decoration_color.0,
                             facts.text_decoration_color_is_current_color,
                         ),
+                        metrics: answer.decoration_metrics,
                     }),
                 });
             }
@@ -438,19 +535,6 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     for span in &spans {
         paint_text_shadow(recorder, block, span, &span.shadow_layers);
     }
-    for span in spans
-        .iter()
-        .filter(|span| span.text_fragment_indication_background_color.is_some())
-    {
-        let background_color = span.text_fragment_indication_background_color.unwrap();
-        let indication_rect = highlight_rect(recorder, block, span);
-        let converter = recorder.converter;
-        recorder.recorder.fill_rect(
-            converter.rounded_device_rect(indication_rect),
-            Color(background_color),
-            ForceDarkRole::Selection,
-        );
-    }
     for span in spans.iter().filter(|span| span.highlights.is_empty()) {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
         paint_text_fragment(recorder, block, span, &sets);
@@ -460,7 +544,13 @@ pub(crate) fn paint_fragments<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
         .source
         .node_style_if_live(block)
         .map(|style| Color(style.background_color()));
-    for highlight in HIGHLIGHT_OVERLAY_ORDER {
+    let mut layers: Vec<HighlightLayer> = spans
+        .iter()
+        .flat_map(|span| span.highlights.iter().map(|overlay| overlay.highlight))
+        .collect();
+    layers.sort_unstable_by_key(|layer| layer.stacking_order());
+    layers.dedup();
+    for highlight in layers {
         let overlays = || {
             spans.iter().flat_map(move |span| {
                 span.highlights

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: Highlighting text in elements with different display types</title>
+<link rel="author" title="Karl Dubost" href="https://otsukare.info/">
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-display-types-ref.html">
+<link rel="issue" href="https://bugs.webkit.org/show_bug.cgi?id=307455">
+<meta name="assert" value="::highlight overlay is painted on elements with display: flex, inline-flex, grid, and table">
+<style>
+  ::highlight(example-highlight) {
+    background-color: yellow;
+    color: blue;
+  }
+  body {
+    font-family: monospace;
+    font-size: 16px;
+  }
+  .container {
+    margin: 10px 0;
+  }
+</style>
+<body>
+  <div class="container" id="block">Block: text content</div>
+  <div class="container" id="flex" style="display: flex;">Flex: text content</div>
+  <div class="container" id="inline-flex" style="display: inline-flex;">Inline-flex: text content</div>
+  <div class="container" id="grid" style="display: grid;">Grid: text content</div>
+  <div class="container" id="table" style="display: table;">Table: text content</div>
+<script>
+  // Highlight "text content" in each container
+  const containers = ['block', 'flex', 'inline-flex', 'grid', 'table'];
+  const ranges = [];
+
+  containers.forEach(id => {
+    const element = document.getElementById(id);
+    const textNode = element.firstChild;
+    const range = new Range();
+    // Highlight "text content" part
+    range.setStart(textNode, textNode.textContent.indexOf('text'));
+    range.setEnd(textNode, textNode.textContent.length);
+    ranges.push(range);
+  });
+
+  CSS.highlights.set("example-highlight", new Highlight(...ranges));
+</script>

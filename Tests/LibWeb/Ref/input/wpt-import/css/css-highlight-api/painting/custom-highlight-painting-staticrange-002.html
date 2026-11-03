@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: StaticRange across contain boundary is painted</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-001-ref.html">
+<meta name="assert" value="A StaticRange crossing a contain boundary should be painted">
+<style>
+  ::highlight(example-highlight) {
+    background-color: yellow;
+    color: blue;
+  }
+  #contained {
+    contain: paint;
+  }
+</style>
+<body><span>One <span id="contained">two </span>three…</span>
+<script>
+  let h = new Highlight();
+  h.add(new StaticRange({startContainer: document.body.firstChild.childNodes[0], startOffset: 0, endContainer: document.body.firstChild.childNodes[1], endOffset: 1}));
+  CSS.highlights.set("example-highlight", h);
+</script>

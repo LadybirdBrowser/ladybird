@@ -152,6 +152,13 @@ impl PseudoElementTarget {
         }
     }
 
+    pub(in super::super) const fn custom_highlight(name: StyleAtomID) -> Self {
+        Self {
+            kind: super::super::publication::pseudo_kind::HIGHLIGHT,
+            highlight_name: name,
+        }
+    }
+
     pub(in super::super) fn is_custom_highlight(self) -> bool {
         !self.highlight_name.is_none()
     }

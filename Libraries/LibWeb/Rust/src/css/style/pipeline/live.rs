@@ -2325,14 +2325,14 @@ impl Live {
         // anew.
         for &node in &kept {
             let holds_demanded = state.held_pseudo_style_records.get(&node).is_some_and(|held| {
-                held.iter().any(|&(kind, record)| {
+                held.iter().any(|&(target, record)| {
                     record != 0
-                        && super::PSEUDO_ELEMENT_KINDS.contains(&kind)
+                        && super::PSEUDO_ELEMENT_KINDS.contains(&target.kind)
                         && !self
                             .records
                             .pseudo_element_records(node)
                             .iter()
-                            .any(|(generated, _)| *generated == super::PseudoElementTarget::of_kind(kind))
+                            .any(|(generated, _)| *generated == target)
                 })
             });
             if holds_demanded {

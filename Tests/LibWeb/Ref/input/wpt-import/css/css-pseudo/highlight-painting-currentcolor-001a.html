@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: ‘currentColor’ in ‘color’ of overlapping highlights</title>
+<link rel="author" title="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<meta name="assert" content="This test checks that ::selection takes the ‘color’ of the next active highlight below when resolving ‘currentColor’ in ‘color’.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/highlight-painting-currentcolor-001a-ref.html">
+<meta name="fuzzy" content="0-120;0-10">
+<link rel="stylesheet" href="support/highlights.css">
+<script src="support/selections.js"></script>
+<style>
+  ::highlight(a) {
+    color: yellow;
+    background-color: blue;
+  }
+  ::highlight(b) {
+    color: lime;
+    background-color: blue;
+  }
+  ::selection {
+    color: currentColor;
+    background-color: black;
+  }
+</style>
+<div class="highlight_reftest" id="target">test test</div>
+<script>
+  CSS.highlights.set("b", new Highlight(createRangeForTextOnly(target, 0, 4)));
+  CSS.highlights.set("a", new Highlight(createRangeForTextOnly(target, 5, 9)));
+  selectRangeWith(range => {
+    range.selectNodeContents(target);
+    range.setStart(target.firstChild, 2);
+    range.setEnd(target.firstChild, 7);
+  });
+</script>

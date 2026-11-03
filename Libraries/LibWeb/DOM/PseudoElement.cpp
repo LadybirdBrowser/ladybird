@@ -93,7 +93,7 @@ void SyntheticPseudoElement::replace_installed_style(Layout::BegunRead const& re
     if (auto* layout_node = unsafe_layout_node(read))
         layout_node->set_style_record_identity(m_installed_style.record());
     if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0)
-        CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), style_record_identity.value(), held_before.record_pointer());
+        CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(style_computer.style_engine().host(), style_node_id, to_underlying(type()), {}, style_record_identity.value(), held_before.record_pointer());
 }
 
 void SyntheticPseudoElement::swap_in_style_record(Layout::BegunRead const& read, void const* record)
@@ -129,7 +129,7 @@ void SyntheticPseudoElement::clear_computed_style(RefPtr<CSS::ComputedValues con
                 layout_node->pin_style_record_for_detachment();
         }
         if (auto style_node_id = m_originating_element->style_node_id(); style_node_id != 0 && !!m_installed_style.record())
-            CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(m_originating_element->document().style_computer().style_engine().host(), style_node_id, to_underlying(type()), 0, m_installed_style.record_pointer());
+            CSS::StyleEngineFFI::style_engine_set_held_pseudo_style_record(m_originating_element->document().style_computer().style_engine().host(), style_node_id, to_underlying(type()), {}, 0, m_installed_style.record_pointer());
     }
     m_installed_style = {};
 }

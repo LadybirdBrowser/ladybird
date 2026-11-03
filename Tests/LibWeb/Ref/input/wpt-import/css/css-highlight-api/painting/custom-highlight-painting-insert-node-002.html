@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="utf-8">
+<title>CSS Highlight API Test: highlight renders when subtree containing highlighted range is inserted</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-painting-insert-node-001-ref.html">
+<meta name="assert" content="Highlights on ranges inside a detached subtree are painted after the subtree root is inserted into the document.">
+<script src="../../../common/reftest-wait.js"></script>
+<style>
+  ::highlight(example) {
+    color: red;
+  }
+</style>
+<body>
+<script>
+  const pre = document.createElement('pre');
+  const text = document.createTextNode('Hello world');
+  pre.append(text);
+  const range = new Range();
+  range.setStart(text, 6);
+  range.setEnd(text, 11);
+  CSS.highlights.set('example', new Highlight(range));
+  document.body.append(pre);
+  requestAnimationFrame(() => requestAnimationFrame(() => takeScreenshot()));
+</script>
+</html>

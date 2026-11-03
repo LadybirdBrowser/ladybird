@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Highlight API Test: ::highlight color with transparent originating color</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/#custom-highlight-pseudo">
+<link rel="help" href="https://crbug.com/1273943">
+<meta name="assert" content="This test checks that ::highlight pseudo-element uses the specified color even when the originating element text color was trasnparent.">
+<link rel="match" href="../../../../../expected/wpt-import//css/reference/pass_if_pass_below.html">
+<style>
+  div {
+    color: transparent;
+  }
+  ::highlight(example-highlight) {
+    color: black;
+  }
+</style>
+
+<p>Test passes if there is the word "PASS" below.</p>
+<div id="target">PASS</div>
+
+<script>
+  let r = new Range();
+  r.setStart(target, 0);
+  r.setEnd(target, 1);
+
+  CSS.highlights.set("example-highlight", new Highlight(r));
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<meta charset="utf-8">
+<title>CSS Highlight API Test: ::highlight with text-underline-offset</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/css-highlight-painting-underline-offset-001-ref.html">
+<meta name="assert" content="Verify that text-underline-offset works in a ::highlight pseudo-element.">
+<meta name="fuzzy" content="0-56;0-10">
+<style>
+  ::highlight(example) {
+    text-decoration: wavy underline green 5px;
+    text-underline-offset: 20px;
+  }
+</style>
+<p id="target">The underline should be offset.</p>
+<script>
+  let range = new Range();
+  range.setStart(target, 0);
+  range.setEnd(target, 1);
+  CSS.highlights.set(`example`, new Highlight(range));
+</script>
+</html>

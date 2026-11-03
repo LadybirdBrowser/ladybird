@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<meta charset="UTF-8">
+<style>
+  #highlighted {
+    background: cyan;
+    color: blue;
+  }
+  ::selection {
+    background: blue;
+    color: cyan;
+  }
+</style>
+<body><span id="highlighted">Text should be blue over cyan here and <span id="selected">cyan over blue here</span>.</span>
+<script>
+  getSelection().setBaseAndExtent(selected, 0, selected, 1);
+</script>

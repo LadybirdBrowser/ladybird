@@ -332,6 +332,10 @@ void StyleEngineFFI::web_css_install_styles(StyleReactionApplication* applicatio
                 Optional<PseudoElement> pseudo_element;
                 if (swap.slot != NumericLimits<u8>::max())
                     pseudo_element = static_cast<PseudoElement>(swap.slot);
+                if (pseudo_element == PseudoElement::Highlight) {
+                    element->swap_in_custom_highlight_style_record(StyleAtomID { swap.highlight_name }, swap.record);
+                    continue;
+                }
                 // A pseudo-element's transitions may start in a later pass too.
                 if (pseudo_element.has_value()) {
                     DOM::AbstractElement abstract_element { *element, pseudo_element };

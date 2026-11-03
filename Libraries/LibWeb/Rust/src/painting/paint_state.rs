@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::style::index::StyleAtomID;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::GeometryRead;
 use crate::painting::record::paint::text::SelectionStyleAnswer;
 use crate::painting::selection::{
-    HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
+    CustomHighlights, HighlightPseudoElement, SearchTextHighlights, SelectionRange, SpellingErrorHighlights,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -48,10 +49,21 @@ pub struct PaintState {
     pub(crate) spelling_errors: Arc<SpellingErrorHighlights>,
     /// The `::spelling-error` styles, shared as the `::selection` styles are.
     pub(crate) spelling_error_pseudo_styles: Arc<SelectionPseudoStyles>,
+    /// The registered custom highlights and what they cover, shared with the frames published while they hold.
+    pub(crate) custom_highlights: Arc<CustomHighlights>,
+    /// The `::highlight()` styles of each custom highlight name, shared as the `::selection` styles are.
+    pub(crate) custom_highlight_pseudo_styles: Arc<CustomHighlightPseudoStyles>,
+    /// Whether a registered custom highlight holds a range.
+    pub(crate) has_registered_custom_highlight_ranges: bool,
+    /// Counts the rows tree builds made or retired that a registered custom highlight may cover.
+    pub(crate) custom_highlight_row_generation: u64,
 }
 
 /// Each row's committed style for one highlight pseudo-element.
 pub(crate) type SelectionPseudoStyles = HashMap<NodeSlotId, Arc<SelectionStyleAnswer>>;
+
+/// Each row's committed `::highlight()` style, for each custom highlight name.
+pub(crate) type CustomHighlightPseudoStyles = HashMap<StyleAtomID, Arc<SelectionPseudoStyles>>;
 
 impl PaintState {
     pub(crate) fn highlight_pseudo_styles_mut(
@@ -63,6 +75,12 @@ impl PaintState {
             HighlightPseudoElement::SearchText => &mut self.search_text_pseudo_styles,
             HighlightPseudoElement::SearchTextCurrent => &mut self.search_text_current_pseudo_styles,
             HighlightPseudoElement::SpellingError => &mut self.spelling_error_pseudo_styles,
+        }
+    }
+
+    pub(crate) fn bump_custom_highlight_row_generation(&mut self) {
+        if self.has_registered_custom_highlight_ranges {
+            self.custom_highlight_row_generation += 1;
         }
     }
 

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: Custom Highlights color inherit painting</title>
+<meta name="assert" content="Checks the painting for highlight pseudos (using ::highlight), when ‘color’ is universally set to ‘inherit’. When the parent is explicitly set to ‘blue’, inheritance stops there, yielding blue. Otherwise inheritance reaches the root element, where the inherited value is defined as ‘currentColor’ for highlights, yielding green.">
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-text">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/highlight-currentcolor-root-explicit-default-002-ref.html">
+<link rel="stylesheet" href="../support/highlights.css">
+<style>
+.highlight_reftest {
+  color: green;
+  margin: 10px;
+}
+::highlight(color-inherit) {
+  color: inherit;
+}
+#wrapper::highlight(color-inherit) {
+  color: blue;
+}
+</style>
+<div class="highlight_reftest">green</div>
+<div class="highlight_reftest">g<span>ree</span>n</div>
+<div id="wrapper">
+  <div class="highlight_reftest">blue</div>
+  <div class="highlight_reftest">b<span>lu</span>e</div>
+</div>
+
+<script>
+  function range(node, start, end) {
+    let range = new Range();
+    range.setStart(node, start);
+    range.setEnd(node, end);
+    return range;
+  }
+
+  const divs = document.getElementsByClassName("highlight_reftest");
+  let ranges = [];
+  for (let div of divs) {
+    if (div.childElementCount == 0)
+      ranges.push(range(div, 0, 1));
+    else
+      ranges.push(range(div, 0, 3));
+  }
+  CSS.highlights.set("color-inherit", new Highlight(...ranges));
+</script>

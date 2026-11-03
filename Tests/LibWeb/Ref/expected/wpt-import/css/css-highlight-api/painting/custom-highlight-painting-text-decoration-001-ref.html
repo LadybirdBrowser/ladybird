@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Highlight API Test: Reference ::highlight painting text-decoration</title>
+<style>
+  div {
+    float: left;
+    margin: 0.5em;
+    /* Setting transparent color is a workaround to avoid hitting the following Chromium bug: https://crbug.com/1179938.
+       This could be removed once that bug is fixed. */
+    color: transparent;
+  }
+</style>
+<p>The test passes if it matches the reference file.</p>
+<script>
+  let textDecorationStyles = [
+    "solid green underline", "double green underline", "dotted green underline", "dashed green underline", "wavy green underline",
+    "solid blue overline", "double blue overline", "dotted blue overline", "dashed blue overline", "wavy blue overline",
+    "solid magenta line-through", "double magenta line-through", "dotted magenta line-through", "dashed magenta line-through", "wavy magenta line-through",
+    "solid brown underline overline line-through", "double brown underline overline line-through", "dotted brown underline overline line-through", "dashed brown underline overline line-through", "wavy brown underline overline line-through",
+  ];
+
+  textDecorationStyles.forEach((textDecorationStyle, index) => {
+    document.styleSheets[0].insertRule(`#id${index} { text-decoration: ${textDecorationStyle}; }`);
+    let element = document.createElement("div");
+    element.id = `id${index}`;
+    element.innerHTML = textDecorationStyle;
+    document.body.appendChild(element);
+  });
+</script>

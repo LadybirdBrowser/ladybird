@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/custom-highlight-image-in-range-ref.html">
+<style>
+::highlight(wash) {
+    background-color: rgba(0, 0, 255, 0.5);
+}
+img {
+    display: block;
+    width: 50px;
+    height: 50px;
+}
+</style>
+<div id="contained"><img src="../data/50x50-green.svg"></div>
+<div id="starting"><img id="starting_image" src="../data/50x50-green.svg"></div>
+<script>
+const whole = new Range();
+whole.selectNodeContents(contained);
+const image = new Range();
+image.selectNode(contained.firstChild);
+const from_image = new Range();
+from_image.setStart(starting_image, 0);
+from_image.setEnd(starting, 1);
+CSS.highlights.set("wash", new Highlight(whole, image, from_image));
+</script>

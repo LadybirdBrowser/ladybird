@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<meta charset="UTF-8">
+<title>CSS Highlight API Test: Highlights using dynamic container sizes</title>
+<link rel="help" href="https://drafts.csswg.org/css-highlight-api-1/">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-styling">
+<link rel="help" href="https://drafts.csswg.org/css-conditional-5/#container-lengths">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-highlight-api/painting/custom-highlight-container-metrics-002-ref.html">
+<meta name="assert" value="lengths depending on containers take the correct values when the container size chnages">
+<meta name="fuzzy" content="0-60;0-25">
+<script src="../../../common/reftest-wait.js"></script>
+<head>
+  <style>
+    .wrapper {
+      container: wrapper / size;
+      width: 400px;
+      height: 200px;
+    }
+    .resize {
+      width: 200px;
+      height: 100px;
+    }
+    ::highlight(highlight1) {
+      text-underline-offset: 2cqw;
+      text-decoration-line: underline;
+      text-decoration-color: green;
+      text-decoration-thickness: 4cqh;
+    }
+</style>
+</head>
+<body>
+  <div id="container" class="wrapper">
+    <div id="h1">With container size</div>
+  </div>
+  <div id="h2">Without container size</div>
+  <script>
+    let r1 = new Range();
+    r1.setStart(h1, 0);
+    r1.setEnd(h1, 1);
+    let r2 = new Range();
+    r2.setStart(h2, 0);
+    r2.setEnd(h2, 1);
+    CSS.highlights.set("highlight1", new Highlight(r1, r2));
+    requestAnimationFrame(() => {
+      container.classList.add('resize');
+      requestAnimationFrame(() => takeScreenshot());
+    });
+  </script>
+</body>
+</html>

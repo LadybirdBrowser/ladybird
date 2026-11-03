@@ -377,6 +377,9 @@ public:
     void recompute_search_text_paint_states(Layout::BegunRead const&);
     void note_spelling_markers_changed();
     void recompute_spelling_error_paint_states(Layout::BegunRead const&);
+    void recompute_custom_highlight_paint_states(Layout::BegunRead const&);
+    void invalidate_custom_highlights();
+    bool has_custom_highlights() const;
 
     WebIDL::ExceptionOr<Utf16String> cookie();
     WebIDL::ExceptionOr<void> set_cookie(Utf16View);
@@ -693,6 +696,7 @@ public:
     // https://drafts.csswg.org/css-font-loading/#font-source
     GC::Ref<CSS::FontFaceSet> fonts();
     GC::Ref<CSS::HighlightRegistry> highlight_registry();
+    CSS::HighlightRegistry* highlight_registry_if_exists() const { return m_highlight_registry.ptr(); }
 
     void clear();
     void capture_events();
@@ -2249,6 +2253,11 @@ private:
     bool m_selection_states_are_stale { false };
     bool m_search_text_states_are_stale { false };
     bool m_spelling_error_states_are_stale { false };
+    bool m_custom_highlight_states_are_stale { false };
+    bool m_has_registered_custom_highlight_ranges { false };
+    u64 m_custom_highlight_states_dom_tree_version { 0 };
+    u64 m_custom_highlight_states_character_data_version { 0 };
+    u64 m_custom_highlight_states_row_generation { 0 };
     Utf16String m_find_in_page_active_match_text;
     Vector<GC::Ref<Range>> m_find_in_page_highlighted_matches;
     OwnPtr<Editing::SpellingMarkers> m_spelling_markers;
@@ -2262,9 +2271,12 @@ private:
         bool observable { false };
         bool needs_update { true };
     };
-    Array<HighlightStyleObservability, 3> m_highlight_style_observability;
+    Array<HighlightStyleObservability, 4> m_highlight_style_observability;
     HighlightStyleObservability& highlight_style_observability(CSS::PseudoElement);
     void update_highlight_style_observability(CSS::PseudoElement);
+    bool custom_highlight_static_ranges_may_have_changed() const;
+    bool m_custom_highlight_observers_read_static_ranges { false };
+    u64 m_custom_highlight_observers_character_data_version { 0 };
 
     // NOTE: This is a cache to make finding the first <base href> or <base target> element O(1).
     GC::Ptr<HTML::HTMLBaseElement> m_first_base_element_with_href_in_tree_order;

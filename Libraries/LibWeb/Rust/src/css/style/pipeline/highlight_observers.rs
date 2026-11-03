@@ -15,6 +15,8 @@ use super::super::*;
 pub(crate) struct HighlightObservers {
     /// Shared with a fork until either side writes it.
     kinds: crate::fork::ForkShared<HashMap<StyleNodeID, u8>>,
+    /// Shared with a fork until either side writes it.
+    custom_highlights: crate::fork::ForkShared<HashMap<StyleNodeID, SmallVec<[StyleAtomID; 2]>>>,
 }
 
 fn bit_of(kind: u8) -> Option<u8> {
@@ -58,10 +60,53 @@ impl HighlightObservers {
         }
     }
 
+    pub(crate) fn custom_highlights_of(&self, node: StyleNodeID) -> &[StyleAtomID] {
+        self.custom_highlights.get(&node).map_or(&[], |names| names.as_slice())
+    }
+
+    pub(in crate::css::style) fn observes_target(&self, node: StyleNodeID, target: super::PseudoElementTarget) -> bool {
+        match target.is_custom_highlight() {
+            true => self.custom_highlights_of(node).contains(&target.highlight_name),
+            false => self.observes(node, target.kind),
+        }
+    }
+
+    pub(crate) fn replace_custom_highlights(
+        &mut self,
+        observed: impl Iterator<Item = (StyleNodeID, StyleAtomID)>,
+        mut moved: impl FnMut(StyleNodeID),
+    ) {
+        let mut incoming: HashMap<StyleNodeID, SmallVec<[StyleAtomID; 2]>> = HashMap::default();
+        for (node, name) in observed {
+            let names = incoming.entry(node).or_default();
+            if !names.contains(&name) {
+                names.push(name);
+            }
+        }
+        for names in incoming.values_mut() {
+            names.sort_unstable();
+        }
+        self.custom_highlights.retain(|node, names| {
+            if incoming.get(node) != Some(names) {
+                moved(*node);
+            }
+            incoming.contains_key(node)
+        });
+        for (node, names) in incoming {
+            if !self.custom_highlights.contains_key(&node) {
+                moved(node);
+            }
+            self.custom_highlights.insert(node, names);
+        }
+    }
+
     /// Forget `node`, whose identity retires.
     pub(crate) fn retire(&mut self, node: StyleNodeID) {
         if self.kinds.contains_key(&node) {
             self.kinds.remove(&node);
+        }
+        if self.custom_highlights.contains_key(&node) {
+            self.custom_highlights.remove(&node);
         }
     }
 }
