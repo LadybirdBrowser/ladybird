@@ -25,6 +25,7 @@
 #include <LibWeb/CSS/ElementBoxKind.h>
 #include <LibWeb/CSS/Invalidation/ElementStateInvalidator.h>
 #include <LibWeb/CSS/Invalidation/FormControlInvalidator.h>
+#include <LibWeb/CSS/Invalidation/PseudoClassInvalidator.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
@@ -1964,6 +1965,7 @@ void HTMLInputElement::type_attribute_changed(TypeAttributeState old_state, Type
         CSS::Invalidation::invalidate_style_after_default_state_change(*this, was_default);
     }
     CSS::Invalidation::invalidate_style_after_read_write_state_change(*this, was_read_write);
+    CSS::Invalidation::invalidate_style_after_focused_element_keyboard_input_change(document());
     clear_element_reference_pseudo_elements();
     auto should_materialize_shadow_tree = shadow_root() || has_style();
     set_shadow_root(nullptr);
