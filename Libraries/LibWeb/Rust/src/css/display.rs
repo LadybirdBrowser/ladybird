@@ -205,7 +205,7 @@ impl FfiDisplay {
     }
 
     pub fn is_inline_outside(&self) -> bool {
-        self.is_outside_and_inside() && self.outside == DISPLAY_OUTSIDE_INLINE
+        (self.is_outside_and_inside() && self.outside == DISPLAY_OUTSIDE_INLINE) || self.is_internal_ruby()
     }
 
     pub fn is_inline_block(&self) -> bool {
@@ -216,8 +216,11 @@ impl FfiDisplay {
         self.is_outside_and_inside() && self.list_item
     }
 
+    // FIXME: Implement ruby layout. Until then a ruby container and the boxes inside it hold their contents as inline
+    //        boxes do, so bases and annotations stay in the line, one after the other.
     pub fn is_flow_inside(&self) -> bool {
-        self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_FLOW
+        (self.is_outside_and_inside() && (self.inside == DISPLAY_INSIDE_FLOW || self.inside == DISPLAY_INSIDE_RUBY))
+            || self.is_internal_ruby()
     }
 
     pub fn is_flow_root_inside(&self) -> bool {
@@ -245,6 +248,15 @@ impl FfiDisplay {
 
     pub fn is_grid_lanes_inside(&self) -> bool {
         self.is_outside_and_inside() && self.inside == DISPLAY_INSIDE_GRID_LANES
+    }
+
+    // https://drafts.csswg.org/css-ruby-1/#ruby-display
+    pub fn is_internal_ruby(&self) -> bool {
+        self.is_internal()
+            && (self.internal == display_internal::RUBY_BASE
+                || self.internal == display_internal::RUBY_TEXT
+                || self.internal == display_internal::RUBY_BASE_CONTAINER
+                || self.internal == display_internal::RUBY_TEXT_CONTAINER)
     }
 
     pub fn is_ruby_inside(&self) -> bool {

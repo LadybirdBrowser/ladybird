@@ -221,7 +221,7 @@ pub(crate) fn node_kind_for_display(display: FfiDisplay) -> Option<NodeKind> {
         return Some(NodeKind::Box);
     }
     // FIXME: We don't actually support `display: block ruby`, this treats it as a block.
-    if display.is_flow_inside() || display.is_flow_root_inside() || display.is_ruby_inside() {
+    if display.is_flow_inside() || display.is_flow_root_inside() {
         return Some(NodeKind::BlockContainer);
     }
     Some(NodeKind::InlineNode)
