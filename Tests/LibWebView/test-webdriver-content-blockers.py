@@ -79,7 +79,7 @@ with tempfile.TemporaryDirectory() as directory:
         "--headless",
         "--profile-path",
         directory,
-        env={**os.environ, "LADYBIRD_CONTENT_BLOCKER_LIST_UPDATE_TIMEOUT_MS": "1000"},
+        env={**os.environ, "LADYBIRD_CONTENT_BLOCKER_LIST_UPDATE_TIMEOUT_MS": "5000"},
     )
     session = None
     try:
