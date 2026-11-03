@@ -669,7 +669,11 @@ void set_floating_window_opacity(QWidget& window, qreal opacity)
     // NB: Wayland has no window opacity, and a widget in a window has none either, so those fade by an effect instead.
     static auto const has_window_opacity = !QGuiApplication::platformName().startsWith(QStringLiteral("wayland"));
     if (window.isWindow() && has_window_opacity) {
-        window.setWindowOpacity(opacity);
+        // NB: A compositing manager blends top-level windows only, and may apply the opacity of a window embedded in
+        //     one to the whole top-level window. An embedded window can't fade by an effect either, as it would fade
+        //     from black, so it stays opaque.
+        if (auto* handle = window.windowHandle(); !handle || !handle->parent())
+            window.setWindowOpacity(opacity);
         return;
     }
     auto* effect = qobject_cast<QGraphicsOpacityEffect*>(window.graphicsEffect());
