@@ -1,0 +1,3 @@
+the root's scroll height is known: true
+the target moved: 1
+the tree matches a full rebuild: true

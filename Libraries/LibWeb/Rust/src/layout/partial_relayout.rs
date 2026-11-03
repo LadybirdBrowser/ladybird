@@ -292,7 +292,11 @@ impl LayoutNodeArena {
     ) -> Option<Vec<PlannedBoundary>> {
         let pending_updates_escaped = std::mem::replace(&mut self.pending_updates_escape_partial_relayout, false)
             || layout_tree_update_escaped_rebuild_roots;
-        if self.node_needs_layout_update(root) || pending_updates_escaped {
+        // NB: A build can replace the root, which leaves nothing laid out around the boundaries, and no mark on the new box.
+        if self.node_needs_layout_update(root)
+            || pending_updates_escaped
+            || !self.paintable_rows().paintable_row_is_populated(root)
+        {
             return None;
         }
         self.collect_partial_relayout_roots(registered_root_slots, rebuilt_subtree_root_slots)
