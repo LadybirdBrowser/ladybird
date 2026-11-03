@@ -354,7 +354,7 @@ impl From<Option<CssPixels>> for PackedOptionalCssPixels {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct RootSizingDirectives {
-    pub(crate) forced_content_inline_size: PackedOptionalCssPixels,
+    // Input-only: a fieldset's content wrapper fills the fieldset's definite content block size.
     pub(crate) forced_content_block_size: PackedOptionalCssPixels,
     pub(crate) forced_min_border_box_block_size: PackedOptionalCssPixels,
     // Input-only: the parent block formatting context supplies the inline size it resolved while
@@ -434,15 +434,5 @@ impl LayoutInput {
             sizing: RootSizingDirectives::default(),
             participation,
         }
-    }
-
-    pub(crate) fn with_forced_sizes(
-        mut self,
-        forced_content_inline_size: CssPixels,
-        forced_content_block_size: CssPixels,
-    ) -> Self {
-        self.sizing.forced_content_inline_size = PackedOptionalCssPixels::from(Some(forced_content_inline_size));
-        self.sizing.forced_content_block_size = PackedOptionalCssPixels::from(Some(forced_content_block_size));
-        self
     }
 }
