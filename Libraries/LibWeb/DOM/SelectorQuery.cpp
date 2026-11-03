@@ -60,21 +60,20 @@ static bool pseudo_class_matching_is_covered_by_version_counters(CSS::PseudoClas
 SelectorQuery::SelectorQuery(CSS::SelectorList&& selectors)
     : m_selectors(move(selectors))
 {
-    m_matches_every_element = m_selectors.size() == 1
-        && CSS::SelectorFFI::rust_selector_matches_every_element(&m_selectors.first()->rust_selector());
-
     m_is_result_cacheable = true;
     for (auto const& selector : m_selectors) {
+        auto const facts = CSS::SelectorFFI::rust_selector_query_facts(&selector->rust_selector());
+        m_matches_every_element = m_selectors.size() == 1 && facts.matches_every_element;
         // NB: The contained-pseudo-class bitmap may be under-collected for selectors containing the nesting
         //     selector, so we cannot rely on it (and `&` has no useful meaning in a query anyway).
-        if (selector->contains_the_nesting_selector()) {
+        if (facts.contains_nesting) {
             m_is_result_cacheable = false;
             break;
         }
         for (size_t i = 0; i < to_underlying(CSS::PseudoClass::__Count); ++i) {
-            auto pseudo_class = static_cast<CSS::PseudoClass>(i);
-            if (!selector->contains_pseudo_class(pseudo_class))
+            if (!(facts.pseudo_classes[i / 64] & (1ull << (i % 64))))
                 continue;
+            auto pseudo_class = static_cast<CSS::PseudoClass>(i);
             if (!pseudo_class_matching_is_covered_by_version_counters(pseudo_class)) {
                 m_is_result_cacheable = false;
                 break;

@@ -9,7 +9,11 @@
 use std::sync::Arc;
 
 use super::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
-use super::selector::{Combinator, PseudoClassType, PseudoElementType, RustSelector, pseudo_class_from_ffi};
+use super::selector::{Combinator, PseudoClassType, PseudoElementType, RustSelector};
+use super::selector_arena::{
+    PseudoElementValue as ArenaPseudoElementValue, Selector as ArenaSelector, SimpleSelector as ArenaSimpleSelector,
+    SimpleView,
+};
 use super::selector_parser::StyleNestingParent;
 use super::selector_tree::{
     CompiledSelector, CompoundSelector, PseudoClassSelector, PseudoElementValue, SelectorList, SimpleSelector,
@@ -50,6 +54,12 @@ pub(crate) fn scope_root_selector_list() -> SelectorList {
     }]))])
 }
 
+fn invalid_selector_names_nesting(source: &[u16]) -> bool {
+    tokenize_for_parser(source)
+        .iter()
+        .any(|token| matches!(token.kind, ParserTokenKind::Delim(value) if value == u32::from(b'&')))
+}
+
 pub(crate) fn contains_nesting(selector: &CompiledSelector) -> bool {
     selector.compound_selectors().iter().any(|compound| {
         compound.simple_selectors.iter().any(|simple| match simple {
@@ -58,9 +68,7 @@ pub(crate) fn contains_nesting(selector: &CompiledSelector) -> bool {
                 .argument_selector_list
                 .iter()
                 .any(|selector| contains_nesting(selector)),
-            SimpleSelector::Invalid(source) => tokenize_for_parser(source.as_ref())
-                .iter()
-                .any(|token| matches!(token.kind, ParserTokenKind::Delim(value) if value == u32::from(b'&'))),
+            SimpleSelector::Invalid(source) => invalid_selector_names_nesting(source.as_ref()),
             _ => false,
         })
     })
@@ -112,23 +120,24 @@ pub(crate) fn contains_unsupported_selector(selector: &CompiledSelector) -> bool
     visit(selector, true)
 }
 
-fn contains_named_namespace(selector: &CompiledSelector) -> bool {
-    any_simple(selector, &|simple| match simple {
-        SimpleSelector::Universal(name) | SimpleSelector::TagName(name) => {
-            name.namespace_type == super::selector::NamespaceType::Named
-        }
-        SimpleSelector::Attribute(attribute) => {
-            attribute.qualified_name.namespace_type == super::selector::NamespaceType::Named
-        }
-        SimpleSelector::PseudoClass(pseudo_class) => pseudo_class
-            .argument_selector_list
-            .iter()
-            .any(|selector| contains_named_namespace(selector)),
-        SimpleSelector::PseudoElement(pseudo_element) => match &pseudo_element.value {
-            PseudoElementValue::CompoundSelector(selector) => contains_named_namespace(selector),
+fn contains_named_namespace(selector: ArenaSelector<'_>) -> bool {
+    selector.compounds().any(|compound| {
+        compound.simple_selectors.iter().any(|simple| match simple {
+            ArenaSimpleSelector::Universal(name) | ArenaSimpleSelector::TagName(name) => {
+                name.namespace_type == super::selector::NamespaceType::Named
+            }
+            ArenaSimpleSelector::Attribute(attribute) => {
+                attribute.qualified_name.namespace_type == super::selector::NamespaceType::Named
+            }
+            ArenaSimpleSelector::PseudoClass(pseudo_class) => {
+                pseudo_class.argument_selector_list.iter().any(contains_named_namespace)
+            }
+            ArenaSimpleSelector::PseudoElement(pseudo_element) => match pseudo_element.value {
+                ArenaPseudoElementValue::CompoundSelector(selector) => contains_named_namespace(selector),
+                _ => false,
+            },
             _ => false,
-        },
-        _ => false,
+        })
     })
 }
 
@@ -206,52 +215,65 @@ pub(crate) fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -
     CompiledSelector::new(compounds.into_boxed_slice())
 }
 
-/// Whether a selector is a lone universal selector, which every element matches. A query API has
-/// no default namespace, so `*` and `*|*` name the same elements there.
-fn matches_every_element(selector: &CompiledSelector) -> bool {
-    let compounds = selector.compound_selectors();
-    let [compound] = compounds.as_slice() else {
-        return false;
-    };
-    let [SimpleSelector::Universal(name)] = compound.simple_selectors else {
-        return false;
-    };
-    matches!(
-        name.namespace_type,
-        super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
-    )
+/// What a query reads of a selector, from one walk of the selector's arena.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiSelectorQueryFacts {
+    /// The pseudo-classes the selector contains, with those of the selectors they take, one bit for the value of each.
+    pub pseudo_classes: [u64; 2],
+    pub contains_nesting: bool,
+    /// Whether every element matches the selector, so that a query over a subtree can collect its elements without
+    /// matching any of them.
+    pub matches_every_element: bool,
 }
 
-/// Returns whether every element matches the selector, so that a query over a subtree can collect
-/// its elements without matching any of them.
-///
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_matches_every_element(selector: *const RustSelector) -> bool {
-    unsafe {
-        assert!(!selector.is_null());
-        matches_every_element(&(*selector).compiled().to_tree())
+fn collect_query_facts(selector: ArenaSelector<'_>, facts: &mut FfiSelectorQueryFacts) {
+    for compound in selector.compounds() {
+        for view in compound.simple_selectors.views() {
+            if let SimpleView::Id(_) | SimpleView::Class(_) | SimpleView::TagName(_) = view {
+                continue;
+            }
+            match view.decode() {
+                ArenaSimpleSelector::PseudoClass(pseudo_class) => {
+                    let value = pseudo_class.pseudo_class as usize;
+                    facts.pseudo_classes[value / u64::BITS as usize] |= 1 << (value % u64::BITS as usize);
+                    for argument in pseudo_class.argument_selector_list.iter() {
+                        collect_query_facts(argument, facts);
+                    }
+                }
+                ArenaSimpleSelector::Nesting(_) => facts.contains_nesting = true,
+                ArenaSimpleSelector::Invalid(source) => {
+                    facts.contains_nesting |= invalid_selector_names_nesting(source);
+                }
+                _ => {}
+            }
+        }
     }
 }
 
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_contains_nesting(selector: *const RustSelector) -> bool {
-    unsafe {
-        assert!(!selector.is_null());
-        contains_nesting(&(*selector).compiled().to_tree())
+fn query_facts(selector: ArenaSelector<'_>) -> FfiSelectorQueryFacts {
+    let mut facts = FfiSelectorQueryFacts::default();
+    collect_query_facts(selector, &mut facts);
+    let mut compounds = selector.compounds();
+    if let (Some(compound), None) = (compounds.next(), compounds.next())
+        && compound.simple_selectors.len() == 1
+        && let Some(ArenaSimpleSelector::Universal(name)) = compound.simple_selectors.first()
+    {
+        facts.matches_every_element = matches!(
+            name.namespace_type,
+            super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
+        );
     }
+    facts
 }
 
 /// # Safety
-/// `selector` must point to a live `RustSelector`, and `value` must identify a pseudo-class.
+/// `selector` must point to a live `RustSelector`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const RustSelector, value: u8) -> bool {
+pub unsafe extern "C" fn rust_selector_query_facts(selector: *const RustSelector) -> FfiSelectorQueryFacts {
     unsafe {
         assert!(!selector.is_null());
-        contains_pseudo_class(&(*selector).compiled().to_tree(), pseudo_class_from_ffi(value))
+        query_facts((*selector).compiled())
     }
 }
 
@@ -261,7 +283,7 @@ pub unsafe extern "C" fn rust_selector_contains_pseudo_class(selector: *const Ru
 pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const RustSelector) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        contains_named_namespace(&(*selector).compiled().to_tree())
+        contains_named_namespace((*selector).compiled())
     }
 }
 
@@ -341,8 +363,64 @@ mod tests {
     use super::super::css_tokenizer::{TokenizerInput, tokenize_for_parser};
     use super::super::parser::component_value::consume_a_list_of_component_values;
     use super::super::selector_parser::{SelectorType, parse_selector_list_from_component_values};
-    use super::super::selector_tree::SelectorList;
     use super::contains_named_namespace;
+
+    #[test]
+    fn query_facts_agree_with_the_parse_tree() {
+        use super::{contains_nesting, contains_pseudo_class, query_facts};
+        use crate::css::selector::{NamespaceType, PseudoClassType, SelectorListRef, pseudo_class_from_ffi};
+        use crate::css::selector_tree::SimpleSelector;
+
+        let sources = [
+            "div",
+            "*",
+            "*|*",
+            "|*",
+            "* *",
+            "*.a",
+            "[data-id=\"item\"]",
+            ":hover",
+            "a:hover > b:focus ~ c:first-child",
+            ":not(:is(a:checked, b:where(:disabled)))",
+            ":has(> a:empty, + b:nth-child(2n of :required))",
+            ":is(:unknown-forgiven, :root)",
+            "a::before:hover",
+            "::slotted(a:hover)",
+            ":host(:focus-within) a",
+            ":lang(en):dir(ltr):state(open)",
+            "&",
+            "a &",
+            ":is(a, :not(& b))",
+            ":has(> &)",
+            ":is(&!, a)",
+            ":is(!, a)",
+        ];
+        for source in sources {
+            let units: Vec<_> = source.encode_utf16().collect();
+            let values = consume_a_list_of_component_values(tokenize_for_parser(units.as_slice())).unwrap();
+            let parsed = parse_selector_list_from_component_values(&values, &[], SelectorType::Standalone)
+                .unwrap_or_else(|_| panic!("{source} parses"));
+            let list = SelectorListRef::pack(&parsed.selectors);
+            for (tree, packed) in parsed.selectors.iter().zip(list.owned()) {
+                let facts = query_facts(packed.view());
+                for value in 0..=PseudoClassType::Where as u8 {
+                    let expected = contains_pseudo_class(tree, pseudo_class_from_ffi(value));
+                    let contained = facts.pseudo_classes[usize::from(value) / 64] & (1 << (value % 64)) != 0;
+                    assert_eq!(contained, expected, "{source} with pseudo-class {value}");
+                }
+                assert_eq!(facts.contains_nesting, contains_nesting(tree), "{source} nesting");
+                let every_element = match tree.compound_selectors().as_slice() {
+                    [compound] => matches!(
+                        compound.simple_selectors,
+                        [SimpleSelector::Universal(name)]
+                            if matches!(name.namespace_type, NamespaceType::Any | NamespaceType::Default)
+                    ),
+                    _ => false,
+                };
+                assert_eq!(facts.matches_every_element, every_element, "{source} every element");
+            }
+        }
+    }
 
     #[test]
     fn transformed_lists_own_their_results_after_inputs_are_dropped() {
@@ -415,28 +493,32 @@ mod tests {
         assert!(result.is_empty());
     }
 
-    fn parse_with_namespace_context(source: &str) -> SelectorList {
-        let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();
-        parse_selector_list_from_component_values(&values, &[TokenizerInput::Latin1(b"foo")], SelectorType::Standalone)
-            .unwrap()
-            .selectors
+    fn contains_named_namespace_with_namespace_context(source: &str) -> bool {
+        let units: Vec<_> = source.encode_utf16().collect();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(units.as_slice())).unwrap();
+        let parsed = parse_selector_list_from_component_values(
+            &values,
+            &[TokenizerInput::Latin1(b"foo")],
+            SelectorType::Standalone,
+        )
+        .unwrap();
+        // NB: The parsed tree keeps its names live, which the list packed from it leases.
+        let list = crate::css::selector::SelectorListRef::pack(&parsed.selectors);
+        list.owned().any(|selector| contains_named_namespace(selector.view()))
     }
 
     #[test]
     fn named_namespace_inside_pseudo_element_compound_selector_is_seen() {
-        let selectors = parse_with_namespace_context("::slotted(foo|div)");
-        assert!(selectors.iter().all(|selector| contains_named_namespace(selector)));
+        assert!(contains_named_namespace_with_namespace_context("::slotted(foo|div)"));
     }
 
     #[test]
     fn named_namespace_inside_pseudo_class_argument_is_seen() {
-        let selectors = parse_with_namespace_context(":is(foo|div)");
-        assert!(selectors.iter().all(|selector| contains_named_namespace(selector)));
+        assert!(contains_named_namespace_with_namespace_context(":is(foo|div)"));
     }
 
     #[test]
     fn pseudo_element_compound_selector_without_namespace_is_clean() {
-        let selectors = parse_with_namespace_context("::slotted(div.a)");
-        assert!(!selectors.iter().any(|selector| contains_named_namespace(selector)));
+        assert!(!contains_named_namespace_with_namespace_context("::slotted(div.a)"));
     }
 }
