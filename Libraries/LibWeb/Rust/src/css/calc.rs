@@ -18,6 +18,7 @@ use crate::css::style_value::{
     AnchorPayload, AnchorSizePayload, CalculatedPayload, RandomValueSharingPayload, StyleValueBox,
 };
 use crate::css::style_value_arc::StyleValueArc;
+use ak::math;
 use std::sync::Arc;
 
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
@@ -1594,9 +1595,9 @@ impl CalcNode {
                     _ => unreachable!("trigonometric argument must be a number or an angle"),
                 };
                 let result = match self {
-                    CalcNode::Sin(..) => radians.sin(),
-                    CalcNode::Cos(..) => radians.cos(),
-                    _ => radians.tan(),
+                    CalcNode::Sin(..) => math::sin(radians),
+                    CalcNode::Cos(..) => math::cos(radians),
+                    _ => math::tan(radians),
                 };
                 Some(CalcResult {
                     value: result,
@@ -1617,9 +1618,9 @@ impl CalcNode {
                     degrees
                 };
                 let result = match self {
-                    CalcNode::Asin(..) => normalize_angle(number.asin(), -90.0, 90.0),
-                    CalcNode::Acos(..) => normalize_angle(number.acos(), 0.0, 180.0),
-                    _ => normalize_angle(number.atan(), -90.0, 90.0),
+                    CalcNode::Asin(..) => normalize_angle(math::asin(number), -90.0, 90.0),
+                    CalcNode::Acos(..) => normalize_angle(math::acos(number), 0.0, 180.0),
+                    _ => normalize_angle(math::atan(number), -90.0, 90.0),
                 };
                 let mut angle_type = CalcNumericType::default();
                 angle_type.exponents[1] = Some(1);
@@ -1633,7 +1634,7 @@ impl CalcNode {
                 let y_value = y.try_canonical_result(context)?;
                 let x_value = x.try_canonical_result(context)?;
                 let input_consistent_type = y_value.numeric_type?.added_to(&x_value.numeric_type?)?;
-                let mut degrees = y_value.value.atan2(x_value.value).to_degrees();
+                let mut degrees = math::atan2(y_value.value, x_value.value).to_degrees();
                 while degrees <= -180.0 {
                     degrees += 360.0;
                 }
@@ -1655,7 +1656,7 @@ impl CalcNode {
                     .numeric_type(leaf_type)?
                     .added_to(&exponent.numeric_type(leaf_type)?)?;
                 Some(CalcResult {
-                    value: a.powf(b),
+                    value: math::pow(a, b),
                     numeric_type: Some(consistent_type),
                 })
             }
@@ -1672,7 +1673,7 @@ impl CalcNode {
                 let number = value.try_number()?;
                 let base_number = base.try_number()?;
                 Some(CalcResult {
-                    value: number.ln() / base_number.ln(),
+                    value: math::log(number) / math::log(base_number),
                     numeric_type: CalcNumericType::default().made_consistent_with(&value.numeric_type(leaf_type)?),
                 })
             }
@@ -1680,7 +1681,7 @@ impl CalcNode {
             CalcNode::Exp(child) => {
                 let number = child.try_number()?;
                 Some(CalcResult {
-                    value: number.exp(),
+                    value: math::exp(number),
                     numeric_type: CalcNumericType::default().made_consistent_with(&child.numeric_type(leaf_type)?),
                 })
             }

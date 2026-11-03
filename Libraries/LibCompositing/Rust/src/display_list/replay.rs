@@ -957,6 +957,7 @@ mod tests {
         BackdropFilterData, BackfaceVisibilityData, ClipData, ClipMode, EffectsData, MaskData, MaskLayerOrigin,
         SpatialData, TransformData, TransformDataRole,
     };
+    use ak::math;
     use libgfx_rust::{
         CompositingAndBlendingOperator, CornerRadii, FloatRect, MaskKind, scale_matrix, translation_matrix,
     };
@@ -1217,7 +1218,7 @@ mod tests {
     }
 
     fn rotate_y(degrees: f32) -> FloatMatrix4x4 {
-        let (sin, cos) = degrees.to_radians().sin_cos();
+        let (sin, cos) = math::sincos(degrees.to_radians());
         FloatMatrix4x4 {
             elements: [
                 [cos, 0.0, sin, 0.0],

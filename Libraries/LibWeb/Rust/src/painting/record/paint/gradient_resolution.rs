@@ -6,6 +6,7 @@
 
 use crate::css::style_value::{ConicGradientPayload, LinearGradientPayload, RadialGradientPayload};
 use crate::painting::record::trace::Observer;
+use ak::math;
 
 use crate::css::color_resolution::{ColorResolutionInput, to_color};
 use crate::css::computed_value_views::ComputedValuesView;
@@ -115,11 +116,11 @@ fn ak_pow_f32(x: f32, y: f32) -> f32 {
         }
         return result;
     }
-    ((y * ak_log2_f32(x)) as f64).exp2() as f32
+    math::exp2((y * ak_log2_f32(x)) as f64) as f32
 }
 
 fn ak_log_f32(x: f32) -> f32 {
-    (x as f64).ln() as f32
+    math::log(x as f64) as f32
 }
 
 fn color_stop_step(previous_stop: &GradientStop, next_stop: &GradientStop, position: f32) -> f32 {
@@ -666,8 +667,10 @@ fn linear_gradient_angle_degrees(
             angle as f32
         }
     } else {
-        let corner_angle_degrees =
-            || gradient_size.height.to_double().atan2(gradient_size.width.to_double()) * 180.0 / std::f64::consts::PI;
+        let corner_angle_degrees = || {
+            math::atan2(gradient_size.height.to_double(), gradient_size.width.to_double()) * 180.0
+                / std::f64::consts::PI
+        };
         let angle = match SideOrCorner::from_computed_value(side_or_corner) {
             SideOrCorner::Top => 0.0,
             SideOrCorner::Bottom => 180.0,
@@ -690,8 +693,8 @@ fn linear_gradient_angle_degrees(
 fn calculate_gradient_length(gradient_size: CssPixelSize, gradient_angle: f32) -> f32 {
     let real_angle = 90.0 - gradient_angle;
     let radians = real_angle * std::f32::consts::PI / 180.0;
-    let sin_angle = (radians as f64).sin() as f32;
-    let cos_angle = (radians as f64).cos() as f32;
+    let sin_angle = math::sin(radians as f64) as f32;
+    let cos_angle = math::cos(radians as f64) as f32;
     (gradient_size.height.to_float() * sin_angle).abs() + (gradient_size.width.to_float() * cos_angle).abs()
 }
 

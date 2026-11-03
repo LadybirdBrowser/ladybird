@@ -17,6 +17,7 @@ use crate::css::style_value::{BorderRadiusPayload, BorderRadiusRectPayload, Posi
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::paint_read::PaintRead;
 use crate::painting::style_queries;
+use ak::math;
 use libgfx_rust::{FloatMatrix4x4, FloatPoint, rotation_matrix, translation_matrix};
 
 use super::basic_shapes::{basic_shape_kind, position_resolved};
@@ -111,7 +112,7 @@ fn ray_length(size: u16, origin: (f64, f64), rect: CssPixelRect, angle_degrees: 
     let (x, y) = origin;
     let side_distances = [(x - left).abs(), (right - x).abs(), (y - top).abs(), (bottom - y).abs()];
     let corner_distances = [(left, top), (right, top), (right, bottom), (left, bottom)]
-        .map(|(corner_x, corner_y)| (corner_x - x).hypot(corner_y - y));
+        .map(|(corner_x, corner_y)| math::hypot(corner_x - x, corner_y - y));
     match size {
         // The distance from the ray's starting point to whichever side of the containing block is closest.
         keyword::CLOSEST_SIDE => side_distances.into_iter().fold(f64::INFINITY, f64::min),
@@ -132,7 +133,7 @@ fn ray_length(size: u16, origin: (f64, f64), rect: CssPixelRect, angle_degrees: 
                 return 0.0;
             }
             let radians = angle_degrees.to_radians();
-            let (dx, dy) = (radians.sin(), -radians.cos());
+            let (dx, dy) = (math::sin(radians), -math::cos(radians));
             let along = |delta: f64, low: f64, high: f64, position: f64| {
                 if delta > 1e-9 {
                     (high - position) / delta
@@ -239,7 +240,10 @@ pub(crate) fn compute_offset_transform(
             (
                 length,
                 Box::new(move |distance| PathPosition {
-                    point: (origin.0 + distance * radians.sin(), origin.1 - distance * radians.cos()),
+                    point: (
+                        origin.0 + distance * math::sin(radians),
+                        origin.1 - distance * math::cos(radians),
+                    ),
                     // NB: Bearing angles point up at 0deg, while the path direction is measured from the positive
                     //     X axis.
                     direction: angle - 90.0,
@@ -315,7 +319,7 @@ pub(crate) fn compute_offset_transform(
                     let direction = if tangent_x == 0.0 && tangent_y == 0.0 {
                         0.0
                     } else {
-                        f64::from(tangent_y).atan2(f64::from(tangent_x)).to_degrees()
+                        math::atan2(f64::from(tangent_y), f64::from(tangent_x)).to_degrees()
                     };
                     PathPosition {
                         point: (offset.0 + f64::from(x), offset.1 + f64::from(y)),

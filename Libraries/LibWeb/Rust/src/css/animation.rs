@@ -16,6 +16,7 @@ use crate::css::style_value::{
     ShadowPayload, StyleValueBox, TransformationPayload, UnresolvedPayload,
 };
 use crate::css::style_value_arc::StyleValueArc;
+use ak::math;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
@@ -879,10 +880,10 @@ fn normalized_super_ellipse_half_corner(s: f64) -> f64 {
 
     // Otherwise
     // 1. Let k be 0.5^abs(s).
-    let k = 0.5_f64.powf(s.abs());
+    let k = math::pow(0.5_f64, s.abs());
 
     // 2. Let convexHalfCorner be 0.5^k.
-    let convex_half_corner = 0.5_f64.powf(k);
+    let convex_half_corner = math::pow(0.5_f64, k);
 
     // 3. If s is less than 0, return 1 - convexHalfCorner.
     if s < 0.0 {
@@ -921,10 +922,10 @@ fn interpolation_value_to_super_ellipse_parameter(interpolation_value: f64) -> f
     }
 
     // 3. Let k be ln(0.5) / ln(convexHalfCorner).
-    let k = 0.5_f64.ln() / convex_half_corner.ln();
+    let k = math::log(0.5_f64) / math::log(convex_half_corner);
 
     // 4. Let s be log2(k).
-    let mut s = k.log2();
+    let mut s = math::log2(k);
 
     // AD-HOC: The logs above can introduce slight inaccuracies, this can interfere with the behaviour of
     //         serializing superellipse style values as their equivalent keywords as that relies on exact
@@ -3554,12 +3555,12 @@ fn composite_rotate_impl(underlying: &StyleValueData, animated: &StyleValueData)
     let to_quaternion = |axis: [f64; 3], angle_degrees: f64| {
         let length = axis.iter().map(|component| component * component).sum::<f64>().sqrt();
         let half_angle = angle_degrees.to_radians() / 2.0;
-        let sin_half_angle = half_angle.sin();
+        let sin_half_angle = math::sin(half_angle);
         [
             axis[0] / length * sin_half_angle,
             axis[1] / length * sin_half_angle,
             axis[2] / length * sin_half_angle,
-            half_angle.cos(),
+            math::cos(half_angle),
         ]
     };
     let [x1, y1, z1, w1] = to_quaternion(
@@ -3584,7 +3585,7 @@ fn composite_rotate_impl(underlying: &StyleValueData, animated: &StyleValueData)
     if product[3] < 0.0 {
         product = product.map(|component| -component);
     }
-    let angle = 2.0 * product[3].clamp(-1.0, 1.0).acos();
+    let angle = 2.0 * math::acos(product[3].clamp(-1.0, 1.0));
     let sin_half_angle = (1.0 - product[3] * product[3]).max(0.0).sqrt();
     let axis = if sin_half_angle < 1e-5 {
         [0.0, 0.0, 1.0]
@@ -5109,15 +5110,14 @@ fn interpolate_scalar_value(
             // become approximately 0.176), then interpolating those values. The result during the interpolation is
             // converted back to a <ratio> by inverting the logarithm, then interpreting the result as a <ratio> with the
             // result as the first value and 1 as the second value.
-            let from_number = (from_numerator / from_denominator).ln();
-            let to_number = (to_numerator / to_denominator).ln();
-            let value = interpolate_f64(
+            let from_number = math::log(from_numerator / from_denominator);
+            let to_number = math::log(to_numerator / to_denominator);
+            let value = math::exp(interpolate_f64(
                 from_number,
                 to_number,
                 delta,
                 accepted_range(property_id, VALUE_TYPE_RATIO, range_overrides),
-            )
-            .exp();
+            ));
             owned(StyleValueData::Ratio(StyleValueBox::new(RatioPayload {
                 numerator: RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number { value })),
                 denominator: RetainedStyleValueData::from_arc(StyleValueArc::new(StyleValueData::Number {
@@ -5249,12 +5249,12 @@ fn interpolate_rotate_3d_with_phases(
     } else {
         let to_quaternion = |axis: [f64; 3], angle: f64| {
             let half_angle = angle / 2.0;
-            let sin_half_angle = half_angle.sin();
+            let sin_half_angle = math::sin(half_angle);
             [
                 axis[0] * sin_half_angle,
                 axis[1] * sin_half_angle,
                 axis[2] * sin_half_angle,
-                half_angle.cos(),
+                math::cos(half_angle),
             ]
         };
         let (from_phase, to_phase) = phases.unwrap_or((from_angle.to_radians(), to_angle.to_radians()));
@@ -5280,9 +5280,9 @@ fn interpolate_rotate_3d_with_phases(
         let interpolated_quaternion = if product.abs() >= 1.0 {
             from_quaternion
         } else {
-            let theta = product.acos();
-            let weight = (f64::from(delta) * theta).sin() / (1.0 - product * product).sqrt();
-            let from_multiplier = (f64::from(delta) * theta).cos() - product * weight;
+            let theta = math::acos(product);
+            let weight = math::sin(f64::from(delta) * theta) / (1.0 - product * product).sqrt();
+            let from_multiplier = math::cos(f64::from(delta) * theta) - product * weight;
             if weight.abs() < f64::from(f32::EPSILON) {
                 from_quaternion.map(|component| component * from_multiplier)
             } else if from_multiplier.abs() < f64::from(f32::EPSILON) {
@@ -5300,7 +5300,7 @@ fn interpolate_rotate_3d_with_phases(
         let sin_half_angle = (1.0 - interpolated_quaternion[3] * interpolated_quaternion[3])
             .max(0.0)
             .sqrt();
-        let angle = 2.0 * interpolated_quaternion[3].clamp(-1.0, 1.0).acos();
+        let angle = 2.0 * math::acos(interpolated_quaternion[3].clamp(-1.0, 1.0));
         if sin_half_angle >= epsilon {
             axis = axis.map(|component| component / sin_half_angle);
         } else {
@@ -5882,9 +5882,9 @@ fn slerp_quaternions(from: [f64; 4], to: [f64; 4], delta: f32) -> [f64; 4] {
     if product.abs() >= 1.0 {
         return from;
     }
-    let theta = product.acos();
-    let weight = (f64::from(delta) * theta).sin() / (1.0 - product * product).sqrt();
-    let from_multiplier = (f64::from(delta) * theta).cos() - product * weight;
+    let theta = math::acos(product);
+    let weight = math::sin(f64::from(delta) * theta) / (1.0 - product * product).sqrt();
+    let from_multiplier = math::cos(f64::from(delta) * theta) - product * weight;
     if weight.abs() < f64::from(f32::EPSILON) {
         return from.map(|component| component * from_multiplier);
     }
@@ -5961,8 +5961,8 @@ fn transformation_to_matrix(
             return identity_matrix();
         }
         let [x, y, z] = axis.map(|component| component / axis_length);
-        let cosine = angle.cos();
-        let sine = angle.sin();
+        let cosine = math::cos(angle);
+        let sine = math::sin(angle);
         let one_minus_cosine = 1.0 - cosine;
         [
             [
@@ -6051,18 +6051,18 @@ fn transformation_to_matrix(
         }
         (TRANSFORM_FUNCTION_SKEW | TRANSFORM_FUNCTION_SKEW_X, [x]) => {
             let mut matrix = identity_matrix();
-            matrix[0][1] = angle(x)?.tan();
+            matrix[0][1] = math::tan(angle(x)?);
             Some(matrix)
         }
         (TRANSFORM_FUNCTION_SKEW, [x, y]) => {
             let mut matrix = identity_matrix();
-            matrix[0][1] = angle(x)?.tan();
-            matrix[1][0] = angle(y)?.tan();
+            matrix[0][1] = math::tan(angle(x)?);
+            matrix[1][0] = math::tan(angle(y)?);
             Some(matrix)
         }
         (TRANSFORM_FUNCTION_SKEW_Y, [y]) => {
             let mut matrix = identity_matrix();
-            matrix[1][0] = angle(y)?.tan();
+            matrix[1][0] = math::tan(angle(y)?);
             Some(matrix)
         }
         _ => None,
@@ -6460,12 +6460,12 @@ fn rotation_quaternion(axis: [f64; 3], angle: f64) -> Option<[f64; 4]> {
     if length < 1e-5 {
         return (angle == 0.0).then_some([0.0, 0.0, 0.0, 1.0]);
     }
-    let sin_half_angle = (angle / 2.0).sin();
+    let sin_half_angle = math::sin(angle / 2.0);
     Some([
         axis[0] / length * sin_half_angle,
         axis[1] / length * sin_half_angle,
         axis[2] / length * sin_half_angle,
-        (angle / 2.0).cos(),
+        math::cos(angle / 2.0),
     ])
 }
 
@@ -6531,7 +6531,7 @@ fn accumulate_rotate_3d(
     if sin_half_angle < 1e-9 {
         return Some(rotation([0.0, 0.0, 1.0], 0.0));
     }
-    let angle = 2.0 * sin_half_angle.atan2(quaternion[3]);
+    let angle = 2.0 * math::atan2(sin_half_angle, quaternion[3]);
     Some(rotation(
         axis.map(|component| component / sin_half_angle),
         angle.to_degrees(),

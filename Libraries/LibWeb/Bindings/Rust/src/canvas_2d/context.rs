@@ -13,6 +13,7 @@ use core::ops::Deref;
 use core::ptr::NonNull;
 
 use ak::Utf16String;
+use ak::math;
 use libcompositing_rust::display_list::canvas_2d::{Compositing, Paint, Stroke};
 use libcompositing_rust::display_list::canvas_2d_recorder::{AlphaType, ColorSpace, Recorder};
 use libcompositing_rust::display_list::commands::{Canvas2DShadow, CanvasId};
@@ -850,6 +851,6 @@ pub(crate) fn multiply_transforms(transform: AffineTransform, other: AffineTrans
 
 /// The transform rotated by the angle in radians, as Gfx::AffineTransform::rotate_radians().
 pub(crate) fn rotated(transform: AffineTransform, radians: f32) -> AffineTransform {
-    let (sin, cos) = radians.sin_cos();
+    let (sin, cos) = math::sincos(radians);
     multiply_transforms(transform, AffineTransform::new(cos, sin, -sin, cos, 0.0, 0.0))
 }

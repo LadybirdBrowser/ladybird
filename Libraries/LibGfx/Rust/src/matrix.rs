@@ -5,6 +5,7 @@
  */
 
 use crate::geometry::{FloatPoint, FloatRect};
+use ak::math;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
@@ -78,11 +79,11 @@ impl AffineTransform {
     }
 
     pub fn x_scale(self) -> f32 {
-        self.a().hypot(self.b())
+        math::hypot(self.a(), self.b())
     }
 
     pub fn y_scale(self) -> f32 {
-        self.c().hypot(self.d())
+        math::hypot(self.c(), self.d())
     }
 
     pub fn translated(mut self, x: f32, y: f32) -> Self {
@@ -164,11 +165,11 @@ macro_rules! matrix_element {
             }
 
             fn sin(self) -> Self {
-                <$type>::sin(self)
+                math::sin(self)
             }
 
             fn cos(self) -> Self {
-                <$type>::cos(self)
+                math::cos(self)
             }
         }
     };

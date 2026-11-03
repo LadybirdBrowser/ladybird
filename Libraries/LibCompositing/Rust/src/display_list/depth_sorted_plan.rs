@@ -442,6 +442,7 @@ pub fn build_depth_sorted_replay_plan(
 
 #[cfg(test)]
 mod tests {
+    use ak::math;
     use libgfx_rust::{FloatMatrix4x4, IntRect, scale_matrix, translation_matrix};
 
     use super::*;
@@ -500,8 +501,8 @@ mod tests {
     }
 
     fn rotate_y(radians: f32) -> FloatMatrix4x4 {
-        let cosine = radians.cos();
-        let sine = radians.sin();
+        let cosine = math::cos(radians);
+        let sine = math::sin(radians);
         FloatMatrix4x4 {
             elements: [
                 [cosine, 0.0, sine, 0.0],

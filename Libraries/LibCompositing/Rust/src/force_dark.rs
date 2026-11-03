@@ -7,6 +7,7 @@
 //! Force-dark: a paint-time color filter for pages that offer no dark theme of their own. A classifier decides
 //! whether a color inverts; a filter decides how. Chrome's decision logic, with the inversion in Oklab, not CIE-Lab.
 
+use ak::math;
 use libgfx_rust::Color;
 use std::collections::{HashMap, HashSet};
 
@@ -102,7 +103,7 @@ fn srgb_channel_to_linear(c: f32) -> f32 {
     if c <= 0.04045 {
         c / 12.92
     } else {
-        ((c + 0.055) / 1.055).powf(2.4)
+        math::pow((c + 0.055) / 1.055, 2.4)
     }
 }
 
@@ -110,7 +111,7 @@ fn linear_channel_to_srgb(c: f32) -> f32 {
     if c <= 0.0031308 {
         c * 12.92
     } else {
-        1.055 * c.powf(1.0 / 2.4) - 0.055
+        1.055 * math::pow(c, 1.0 / 2.4) - 0.055
     }
 }
 
@@ -119,9 +120,9 @@ pub fn srgb_to_oklab(r: f32, g: f32, b: f32) -> (f32, f32, f32) {
     let g = srgb_channel_to_linear(g);
     let b = srgb_channel_to_linear(b);
 
-    let l = (0.412_221_46 * r + 0.536_332_55 * g + 0.051_445_995 * b).cbrt();
-    let m = (0.211_903_5 * r + 0.680_699_5 * g + 0.107_396_96 * b).cbrt();
-    let s = (0.088_302_46 * r + 0.281_718_85 * g + 0.629_978_7 * b).cbrt();
+    let l = math::cbrt(0.412_221_46 * r + 0.536_332_55 * g + 0.051_445_995 * b);
+    let m = math::cbrt(0.211_903_5 * r + 0.680_699_5 * g + 0.107_396_96 * b);
+    let s = math::cbrt(0.088_302_46 * r + 0.281_718_85 * g + 0.629_978_7 * b);
 
     (
         0.210_454_26 * l + 0.793_617_8 * m - 0.004_072_047 * s,

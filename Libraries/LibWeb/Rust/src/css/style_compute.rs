@@ -28,6 +28,7 @@ use crate::css::style_value::{
     ShorthandPayload, UrlPayload,
 };
 use crate::css::style_value_arc::StyleValueArc;
+use ak::math;
 use smallvec::SmallVec;
 use std::ffi::c_void;
 use std::sync::OnceLock;
@@ -783,7 +784,7 @@ fn compute_font_size(
                         //    - Otherwise if B = 1 then multiply S by scriptPercentScaleDown and
                         //      decrement E by 1.
                         // 5. Multiply S by C^E.
-                        scale *= size_ratio.powf(e);
+                        scale *= math::pow(size_ratio, e);
                         // 6. Return S if InvertScaleFactor is false and 1/S otherwise.
                         if !invert_scale_factor { scale } else { 1.0 / scale }
                     };

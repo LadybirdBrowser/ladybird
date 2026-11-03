@@ -6,6 +6,8 @@
 
 //! Color-space conversions used by CSS color interpolation.
 
+use ak::math;
+
 pub(crate) type Components = [f32; 4];
 
 // Colors are converted in double precision with the full-precision matrices of CSS Color 4's sample code, since the hue
@@ -163,7 +165,7 @@ fn srgb_to_linear_srgb(srgb: Color) -> Color {
         if absolute <= 0.04045 {
             component / 12.92
         } else {
-            component.signum() * ((absolute + 0.055) / 1.055).powf(2.4)
+            component.signum() * math::pow((absolute + 0.055) / 1.055, 2.4)
         }
     })
 }
@@ -174,7 +176,7 @@ fn linear_srgb_to_srgb(linear: Color) -> Color {
     map_rgb(linear, |component| {
         let absolute = component.abs();
         if absolute > 0.0031308 {
-            component.signum() * (1.055 * absolute.powf(1.0 / 2.4) - 0.055)
+            component.signum() * (1.055 * math::pow(absolute, 1.0 / 2.4) - 0.055)
         } else {
             12.92 * component
         }
@@ -185,13 +187,13 @@ fn linear_srgb_to_srgb(linear: Color) -> Color {
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
 fn a98_rgb_to_linear_a98_rgb(color: Color) -> Color {
     map_rgb(color, |component| {
-        component.signum() * component.abs().powf(563.0 / 256.0)
+        component.signum() * math::pow(component.abs(), 563.0 / 256.0)
     })
 }
 
 fn linear_a98_rgb_to_a98_rgb(color: Color) -> Color {
     map_rgb(color, |component| {
-        component.signum() * component.abs().powf(256.0 / 563.0)
+        component.signum() * math::pow(component.abs(), 256.0 / 563.0)
     })
 }
 
@@ -203,7 +205,7 @@ fn prophoto_rgb_to_linear_prophoto_rgb(color: Color) -> Color {
         if absolute <= 16.0 / 512.0 {
             component / 16.0
         } else {
-            component.signum() * absolute.powf(1.8)
+            component.signum() * math::pow(absolute, 1.8)
         }
     })
 }
@@ -214,7 +216,7 @@ fn linear_prophoto_rgb_to_prophoto_rgb(color: Color) -> Color {
         if absolute <= 1.0 / 512.0 {
             component * 16.0
         } else {
-            component.signum() * absolute.powf(1.0 / 1.8)
+            component.signum() * math::pow(absolute, 1.0 / 1.8)
         }
     })
 }
@@ -226,7 +228,7 @@ fn rec2020_to_linear_rec2020(color: Color) -> Color {
         if absolute < REC2020_BETA * 4.5 {
             component / 4.5
         } else {
-            component.signum() * ((absolute + REC2020_ALPHA - 1.0) / REC2020_ALPHA).powf(1.0 / 0.45)
+            component.signum() * math::pow((absolute + REC2020_ALPHA - 1.0) / REC2020_ALPHA, 1.0 / 0.45)
         }
     })
 }
@@ -237,7 +239,7 @@ fn linear_rec2020_to_rec2020(color: Color) -> Color {
         if absolute < REC2020_BETA {
             4.5 * component
         } else {
-            component.signum() * (REC2020_ALPHA * absolute.powf(0.45) - (REC2020_ALPHA - 1.0))
+            component.signum() * (REC2020_ALPHA * math::pow(absolute, 0.45) - (REC2020_ALPHA - 1.0))
         }
     })
 }
@@ -269,7 +271,7 @@ fn xyz50_to_lab(color: Color) -> Color {
     let [x, y, z, alpha] = color;
     let convert = |value: f64| {
         if value > LAB_EPSILON {
-            value.cbrt()
+            math::cbrt(value)
         } else {
             (LAB_KAPPA * value + 16.0) / 116.0
         }
@@ -289,17 +291,25 @@ fn oklab_to_xyz65(color: Color) -> Color {
 // https://drafts.csswg.org/css-color-4/#color-conversion-code
 fn xyz65_to_oklab(color: Color) -> Color {
     let [long, medium, short, alpha] = multiply(&XYZ65_TO_LMS, color);
-    multiply(&LMS_TO_OKLAB, [long.cbrt(), medium.cbrt(), short.cbrt(), alpha])
+    multiply(
+        &LMS_TO_OKLAB,
+        [math::cbrt(long), math::cbrt(medium), math::cbrt(short), alpha],
+    )
 }
 
 fn polar_to_rectangular(color: Color) -> Color {
     let radians = color[2].to_radians();
-    [color[0], color[1] * radians.cos(), color[1] * radians.sin(), color[3]]
+    [
+        color[0],
+        color[1] * math::cos(radians),
+        color[1] * math::sin(radians),
+        color[3],
+    ]
 }
 
 fn rectangular_to_polar(color: Color) -> Color {
-    let chroma = color[1].hypot(color[2]);
-    let mut hue = color[2].atan2(color[1]).to_degrees();
+    let chroma = math::hypot(color[1], color[2]);
+    let mut hue = math::atan2(color[2], color[1]).to_degrees();
     if hue < 0.0 {
         hue += 360.0;
     }
