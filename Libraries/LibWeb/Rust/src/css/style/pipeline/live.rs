@@ -726,6 +726,36 @@ impl Live {
         }
     }
 
+    /// Restyle, in the next pass, the elements and pseudo-elements below `node` whose `font-family: monospace` recascades
+    /// their font size, which goes on from the computed size of the nearest ancestor whose animations give it one, where
+    /// such animations of `node` came or went. What they inherit need not have moved.
+    fn note_animated_font_size_came_or_went(&mut self, state: &RetainedState, node: StyleNodeID) {
+        let is_monospace = |record: &Record| {
+            record
+                .longhand(crate::css::computed_values::LonghandID::new(
+                    crate::css::property_metadata::property_id::FONT_FAMILY,
+                ))
+                .optional_data()
+                .is_some_and(crate::css::style_compute::font_family_is_monospace)
+        };
+        self.hints.reserve(state.projection.element_slot_count());
+        for descendant in state.projection.style_preorder(node).skip(1) {
+            let Some(record) = self.records.get(descendant) else {
+                continue;
+            };
+            if is_monospace(record) {
+                self.hints.mark(descendant, RESTYLE_SELF | PARENT_CHANGED);
+            } else if self
+                .records
+                .pseudo_element_records(descendant)
+                .iter()
+                .any(|(_, record)| is_monospace(record))
+            {
+                self.hints.mark(descendant, RESTYLE_PSEUDO_ELEMENTS);
+            }
+        }
+    }
+
     /// Restyle, in the next pass, the elements whose records or pseudo-element records name a
     /// counter-style registry their style scope no longer has. A record reading the counter-style
     /// environment names the registry it was computed against, and the host minting a new one for
@@ -4170,6 +4200,7 @@ impl StyleEngine {
         let display = |payloads: &crate::css::computed_values::StyleGroups| {
             crate::css::computed_value_views::ComputedValuesView::of(payloads).display()
         };
+        let font_size_animated = HeldComposition::animates_font_size(&view);
         let impact =
             match custom_properties == held.custom_properties && display(view.payloads) == display(&held.payloads) {
                 true => ChildImpact::of_groups(view.payloads, &held.payloads),
@@ -4178,6 +4209,9 @@ impl StyleEngine {
         if let Some(mut live) = self.retained.live_style.take() {
             live.generation += 1;
             live.note_composition_moved(&self.retained, node, impact);
+            if font_size_animated != held.font_size_animated {
+                live.note_animated_font_size_came_or_went(&self.retained, node);
+            }
             self.retained.live_style = Some(live);
         }
     }
@@ -4191,7 +4225,7 @@ impl RetainedState {
             .element_custom_property_data
             .get(&node)
             .and_then(|held| held.sampled_over.map(|_| held.identity));
-        Some(HeldComposition::new(view.payloads, custom_properties))
+        Some(HeldComposition::new(&view, custom_properties))
     }
 
     /// Restyle the elements naming a counter-style registry their style scope no longer has, in
@@ -4390,14 +4424,26 @@ fn resolve_waits(
 pub(in super::super) struct HeldComposition {
     payloads: crate::css::computed_values::StyleGroups,
     custom_properties: Option<u64>,
+    /// Whether its animations gave it a font size.
+    font_size_animated: bool,
 }
 
 impl HeldComposition {
-    fn new(payloads: &crate::css::computed_values::StyleGroups, custom_properties: Option<u64>) -> Self {
+    fn new(view: &computed::StyleRecordView<'_>, custom_properties: Option<u64>) -> Self {
         Self {
-            payloads: payloads.clone(),
+            payloads: view.payloads.clone(),
             custom_properties,
+            font_size_animated: Self::animates_font_size(view),
         }
+    }
+
+    fn animates_font_size(view: &computed::StyleRecordView<'_>) -> bool {
+        view.longhands()
+            .overlay_value(
+                view.animated_overlay,
+                crate::css::property_metadata::property_id::FONT_SIZE,
+            )
+            .is_some()
     }
 }
 
