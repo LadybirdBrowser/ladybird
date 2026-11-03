@@ -383,11 +383,25 @@ void Element::finalize()
 void Element::append_to_attribute_list(QualifiedName name, Utf16String value)
 {
     add_to_subtree_name_filter(name_filter_bit(name.local_name()));
+    document().note_element_attribute_name(name.local_name());
     if (!m_attributes)
         m_attributes = AttributeList::create(1);
     else
         m_attributes = AttributeList::ensure_room_for_one_more(m_attributes.release_nonnull());
     m_attributes->unchecked_append(move(name), move(value));
+}
+
+void Element::note_names_in_document(Document& document) const
+{
+    // NB: Moving an element does not synchronize its style attribute, whose name is noted for it while it is dirty.
+    if (m_attributes) {
+        for (auto const& attribute : m_attributes->span())
+            document.note_element_attribute_name(attribute.name.local_name());
+    }
+    if (m_style_attribute_is_dirty)
+        document.note_element_attribute_name(HTML::AttributeNames::style);
+    for (auto const& class_name : m_classes)
+        document.note_element_class(class_name);
 }
 
 void Element::add_to_subtree_name_filter(u64 bits)
@@ -2663,6 +2677,7 @@ void Element::did_update_inline_style()
     m_style_attribute_is_dirty = true;
     // The style attribute is appended when it is next synchronized, but a selector query may skip this subtree before.
     add_to_subtree_name_filter(name_filter_bit(HTML::AttributeNames::style));
+    document().note_element_attribute_name(HTML::AttributeNames::style);
     queue_mutation_record(MutationType::attributes, HTML::AttributeNames::style, {}, old_value, {}, {}, nullptr, nullptr);
 
     if (!document().suppresses_attribute_style_invalidation())
@@ -6363,6 +6378,7 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
             for_each_ascii_whitespace_separated_token(value_or_empty, [&](auto new_class) {
                 m_classes.append(Utf16FlyString::from_utf16(new_class));
                 add_to_subtree_name_filter(name_filter_bit(m_classes.last()));
+                document().note_element_class(m_classes.last());
                 return IterationDecision::Continue;
             });
         }

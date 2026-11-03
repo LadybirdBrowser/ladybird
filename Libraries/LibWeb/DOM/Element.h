@@ -272,6 +272,7 @@ public:
     static u64 name_filter_bit(Utf16FlyString const& name) { return 1ull << (name.hash() % 64); }
     u64 subtree_name_filter() const { return m_subtree_name_filter; }
     void add_to_subtree_name_filter(u64 bits);
+    void note_names_in_document(Document&) const;
 
     GC::Ptr<NamedNodeMap const> attributes() const;
     GC::Ptr<NamedNodeMap> attributes();

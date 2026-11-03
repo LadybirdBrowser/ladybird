@@ -2627,6 +2627,8 @@ void Document::set_quirks_mode(QuirksMode mode)
     if (m_quirks_mode == mode)
         return;
     m_quirks_mode = mode;
+    // NB: The filter holds the classes of the elements here as the old mode compares them.
+    m_element_names.saturate_unless_empty();
 
     // Quirks mode changes how id and class selectors match, so cached query results must not survive it.
     bump_dom_tree_version();

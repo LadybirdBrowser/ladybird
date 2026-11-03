@@ -106,8 +106,8 @@ pub struct FfiDomSelectorCallbacks {
     ) -> *const c_void,
     /// The bit of the DOM's filter of the attribute names and classes in a subtree for a name.
     pub name_filter_bit: unsafe extern "C" fn(local_name: usize) -> u64,
-    /// The name filter of the whole tree `node` is in, with every bit set where no one element holds that tree.
-    pub tree_name_filter: unsafe extern "C" fn(node: *const c_void) -> u64,
+    /// Whether an element of the document of `node` may hold a name, as an attribute's local name or as a class.
+    pub document_may_hold_name: unsafe extern "C" fn(node: *const c_void, name: usize, is_class: bool) -> bool,
     /// The shadow root the element hosts, or null.
     pub shadow_root: unsafe extern "C" fn(element: *const c_void) -> *const c_void,
     /// The host of a shadow root.
@@ -261,7 +261,7 @@ pub struct DomSelectorProgram {
     /// Every class each subject requires its element to have, as written.
     subject_classes: Box<[usize]>,
     /// The classes and attribute names the compounds of each selector name directly, each with whether it is a class.
-    /// A selector matches only in a tree holding all of its names.
+    /// A selector matches only in a document holding all of its names.
     names_in_the_tree: Box<[SubjectNames]>,
     /// The local names of the attributes every subject requires its element to carry.
     required_attribute_names: Box<[usize]>,
@@ -1321,14 +1321,11 @@ pub unsafe extern "C" fn rust_dom_selector_query_subtree(
         return;
     }
     let dom = query_run.evaluator.subject.dom;
-    // A tree lacking a name of every selector holds no match. A class compared ignoring case can be written in another
-    // case than the element's.
-    let ignore_case = query_run.evaluator.subject.ids_and_classes_ignore_case;
-    let tree_names = unsafe { (dom.tree_name_filter)(root) };
+    // A document no element of which ever held a name of every selector holds no match.
     if query_run.query.names_in_the_tree.iter().all(|names| {
-        names.iter().any(|&(is_class, name)| {
-            !(is_class && ignore_case) && tree_names & unsafe { (dom.name_filter_bit)(name) } == 0
-        })
+        names
+            .iter()
+            .any(|&(is_class, name)| !unsafe { (dom.document_may_hold_name)(root, name, is_class) })
     }) {
         return;
     }
@@ -1340,6 +1337,7 @@ pub unsafe extern "C" fn rust_dom_selector_query_subtree(
         true => 0,
         false => query_run.query.subject_classes.first().copied().unwrap_or(0),
     };
+    let ignore_case = query_run.evaluator.subject.ids_and_classes_ignore_case;
     let names = query_run.query.required_name_bits(dom, ignore_case);
     let next =
         |node| optional_node(unsafe { (dom.next_element_in_subtree)(node, root, local_name, class_name, names) });

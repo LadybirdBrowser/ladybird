@@ -226,17 +226,10 @@ constexpr CSS::SelectorFFI::FfiDomSelectorCallbacks dom_selector_callbacks {
         return nullptr;
     },
     .name_filter_bit = [](uintptr_t local_name) { return Element::name_filter_bit(Utf16FlyString::from_raw(local_name)); },
-    .tree_name_filter = [](void const* node) -> u64 {
-        // The filter of a document's one element child holds every name of the document's tree.
-        auto const& root = node_from_ffi(node).root();
-        if (auto const* document = as_if<Document>(root)) {
-            auto const* document_element = document->document_element();
-            return document_element ? document_element->subtree_name_filter() : 0;
-        }
-        if (auto const* element = as_if<Element>(root))
-            return element->subtree_name_filter();
-        return NumericLimits<u64>::max();
-    },
+    .document_may_hold_name = [](void const* node, uintptr_t name, bool is_class) {
+        auto const& document = node_from_ffi(node).document();
+        auto name_string = Utf16FlyString::from_raw(name);
+        return is_class ? document.may_hold_element_class(name_string) : document.may_hold_element_attribute_name(name_string); },
     .shadow_root = [](void const* element) { return node_to_ffi(element_from_ffi(element).shadow_root().ptr()); },
     .host = [](void const* shadow_root) { return node_to_ffi(static_cast<ShadowRoot const&>(node_from_ffi(shadow_root)).host()); },
     .id_or_class_equals_ignoring_ascii_case = [](void const* pointer, bool is_class, uintptr_t name_identity) {

@@ -41,6 +41,7 @@
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleUpdateInputs.h>
 #include <LibWeb/DOM/AnchorNameMap.h>
+#include <LibWeb/DOM/ElementNameFilter.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/DOM/ParentNode.h>
 #include <LibWeb/DOM/Range.h>
@@ -743,6 +744,14 @@ public:
 
     QuirksMode mode() const { return m_quirks_mode; }
     bool in_quirks_mode() const { return m_quirks_mode == QuirksMode::Yes; }
+
+    // The attribute names and classes the elements whose node document this is have ever held, as a filter a selector
+    // query prunes by. It may answer that a name is held by an element where none holds it, and never the other way
+    // around. Ids stay out: a page holding one per heading would fill it, and a query finds elements by id in a map.
+    void note_element_attribute_name(Utf16FlyString const& name) { m_element_names.add(name.hash()); }
+    void note_element_class(Utf16FlyString const& name) { m_element_names.add(hash_of_class(name)); }
+    [[nodiscard]] bool may_hold_element_attribute_name(Utf16FlyString const& name) const { return m_element_names.may_contain(name.hash()); }
+    [[nodiscard]] bool may_hold_element_class(Utf16FlyString const& name) const { return m_element_names.may_contain(hash_of_class(name)); }
 
     CSS::RustInlineStyleBlocks& inline_style_blocks() { return m_inline_style_blocks; }
     bool in_limited_quirks_mode() const { return m_quirks_mode == QuirksMode::Limited; }
@@ -1968,7 +1977,10 @@ private:
 
     HTML::ScriptRegistry m_script_registry;
 
+    [[nodiscard]] u32 hash_of_class(Utf16FlyString const& name) const { return in_quirks_mode() ? name.ascii_case_insensitive_hash() : name.hash(); }
+
     QuirksMode m_quirks_mode { QuirksMode::No };
+    ElementNameFilter m_element_names;
 
     // The declaration blocks of the document's style attributes, by their text.
     CSS::RustInlineStyleBlocks m_inline_style_blocks;
